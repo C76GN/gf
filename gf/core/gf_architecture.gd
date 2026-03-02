@@ -4,9 +4,10 @@ class_name GFArchitecture
 
 ## GFArchitecture: 管理 Model、System 和 Utility 的注册与生命周期的容器。
 ##
-## 生命周期遵循两阶段初始化协议：
-##   阶段一 (init)  ：所有模块执行自身内部变量初始化。
-##   阶段二 (ready) ：所有模块均已完成 init，可安全进行跨模块依赖获取。
+## 生命周期遵循三阶段初始化协议：
+##   阶段一 (init)       ：所有模块执行自身内部变量初始化。
+##   阶段二 (async_init) ：所有模块并发执行异步初始化（可使用 await）。
+##   阶段三 (ready)      ：所有模块均已完成 init，可安全进行跨模块依赖获取。
 
 
 # --- 私有变量 ---
@@ -32,31 +33,42 @@ func is_inited() -> bool:
 	return _inited
 
 
-## 初始化架构及所有注册的组件（两阶段）。
+## 初始化架构及所有注册的组件（三阶段）。
 ## 阶段一：调用所有模块的 init()，用于初始化自身内部变量。
-## 阶段二：调用所有模块的 ready()，此时跨模块依赖获取是安全的。
+## 阶段二：逐个 await 所有模块的 async_init()，用于异步资源加载等操作。
+## 阶段三：调用所有模块的 ready()，此时跨模块依赖获取是安全的。
 func init() -> void:
 	if _inited:
 		return
 	_on_init()
 
-	for model in _models.values():
+	for model: Variant in _models.values():
 		if model.has_method("init"):
 			model.init()
-	for system in _systems.values():
+	for system: Variant in _systems.values():
 		if system.has_method("init"):
 			system.init()
-	for utility in _utilities.values():
+	for utility: Variant in _utilities.values():
 		if utility.has_method("init"):
 			utility.init()
 
-	for model in _models.values():
+	for model: Variant in _models.values():
+		if model.has_method("async_init"):
+			await model.async_init()
+	for system: Variant in _systems.values():
+		if system.has_method("async_init"):
+			await system.async_init()
+	for utility: Variant in _utilities.values():
+		if utility.has_method("async_init"):
+			await utility.async_init()
+
+	for model: Variant in _models.values():
 		if model.has_method("ready"):
 			model.ready()
-	for system in _systems.values():
+	for system: Variant in _systems.values():
 		if system.has_method("ready"):
 			system.ready()
-	for utility in _utilities.values():
+	for utility: Variant in _utilities.values():
 		if utility.has_method("ready"):
 			utility.ready()
 
@@ -80,6 +92,24 @@ func dispose() -> void:
 	_utilities.clear()
 	_event_system.clear()
 	_inited = false
+
+
+## 驱动所有已注册 System 的每帧更新。在架构初始化完成后方可生效。
+## @param delta: 距上一帧的时间（秒）。
+func tick(delta: float) -> void:
+	if not _inited:
+		return
+	for system: Variant in _systems.values():
+		system.tick(delta)
+
+
+## 驱动所有已注册 System 的每物理帧更新。在架构初始化完成后方可生效。
+## @param delta: 距上一物理帧的时间（秒）。
+func physics_tick(delta: float) -> void:
+	if not _inited:
+		return
+	for system: Variant in _systems.values():
+		system.physics_tick(delta)
 
 
 ## 执行命令实例。支持 await：'await send_command(MyCommand.new())'。

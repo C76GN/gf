@@ -5,11 +5,12 @@ class_name GFSystem
 ## GFSystem: 逻辑层抽象基类。
 ##
 ## 负责实现核心业务逻辑。
-## 子类可以实现 'init'、'ready'、'dispose' 来管理其生命周期。
+## 子类可以实现 'init'、'async_init'、'ready'、'dispose' 来管理其生命周期。
 ##
-## 两阶段初始化约定：
-##   - 'init'  阶段：只允许初始化自身内部变量，禁止跨模块获取依赖。
-##   - 'ready' 阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。
+## 三阶段初始化约定：
+##   - 'init'       阶段：只允许初始化自身内部变量，禁止跨模块获取依赖。
+##   - 'async_init' 阶段：可使用 await，用于异步资源加载等操作。
+##   - 'ready'      阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。
 
 
 # --- 私有变量 ---
@@ -27,6 +28,12 @@ func init() -> void:
 	pass
 
 
+## 异步初始化阶段。子类可以重写此方法并在其中使用 await。
+## 约束：在 init() 之后、ready() 之前执行。
+func async_init() -> void:
+	pass
+
+
 ## 第二阶段初始化。子类可以重写此方法。
 ## 约束：此时所有模块已完成 'init'，可安全跨模块获取依赖。
 func ready() -> void:
@@ -35,6 +42,20 @@ func ready() -> void:
 
 ## 销毁系统。子类可以重写此方法。
 func dispose() -> void:
+	pass
+
+
+## 每帧更新回调。子类可以重写此方法以实现帧逻辑。
+## 由架构在 _process 中统一驱动，无需 System 继承 Node。
+## @param delta: 距上一帧的时间（秒）。
+func tick(delta: float) -> void:
+	pass
+
+
+## 物理帧更新回调。子类可以重写此方法以实现物理帧逻辑。
+## 由架构在 _physics_process 中统一驱动，无需 System 继承 Node。
+## @param delta: 距上一物理帧的时间（秒）。
+func physics_tick(delta: float) -> void:
 	pass
 
 

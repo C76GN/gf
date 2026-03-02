@@ -18,6 +18,10 @@ config/icon="res://icon.svg"
 
 Gf="*uid://dftf1eh06apl0"
 
+[editor_plugins]
+
+enabled=PackedStringArray("res://addons/gut/plugin.cfg")
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

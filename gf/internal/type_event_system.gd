@@ -38,7 +38,8 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 
 
 ## 将事件实例发送给其脚本类型的所有注册监听器。
-## 采用倒序遍历以安全移除已失效的回调。
+## 遍历前先对监听器列表进行浅拷贝，确保回调内的注册/注销操作不影响当前遍历。
+## 已失效的 Callable 会在遍历结束后从原始列表中移除。
 ## @param event_instance: 要分发的事件实例。
 func send(event_instance: Object) -> void:
 	var event_type: Variant = event_instance.get_script()
@@ -47,12 +48,12 @@ func send(event_instance: Object) -> void:
 		return
 	if _event_listeners.has(event_type):
 		var listeners := _event_listeners[event_type] as Array
-		for i in range(listeners.size() - 1, -1, -1):
-			var callback := listeners[i] as Callable
-			if callback.is_valid():
+		var snapshot := listeners.duplicate()
+		for callback: Callable in snapshot:
+			if not callback.is_valid():
+				listeners.erase(callback)
+			elif listeners.has(callback):
 				callback.call(event_instance)
-			else:
-				listeners.remove_at(i)
 
 
 # --- 公共方法 (简单事件) ---
@@ -78,19 +79,20 @@ func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 
 
 ## 将 payload 发送给指定 StringName 事件的所有注册监听器。
-## 采用倒序遍历以安全移除已失效的回调。
+## 遍历前先对监听器列表进行浅拷贝，确保回调内的注册/注销操作不影响当前遍历。
+## 已失效的 Callable 会在遍历结束后从原始列表中移除。
 ## @param event_id: StringName 事件标识符。
 ## @param payload: 传递给监听器的数据，可为任意类型。
 func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	if not _simple_event_listeners.has(event_id):
 		return
 	var listeners := _simple_event_listeners[event_id] as Array
-	for i in range(listeners.size() - 1, -1, -1):
-		var callback := listeners[i] as Callable
-		if callback.is_valid():
+	var snapshot := listeners.duplicate()
+	for callback: Callable in snapshot:
+		if not callback.is_valid():
+			listeners.erase(callback)
+		elif listeners.has(callback):
 			callback.call(payload)
-		else:
-			listeners.remove_at(i)
 
 
 ## 清空所有已注册的事件监听器（包括类型事件和简单事件）。
