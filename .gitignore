@@ -1,0 +1,32 @@
+# Godot 4+ specific ignores
+.godot/
+.nomedia
+
+# Godot-specific ignores
+.import/
+export.cfg
+export_credentials.cfg
+*.tmp
+*.depren
+
+# Imported translations (automatically generated from CSV files)
+*.translation
+
+# Mono-specific ignores
+.mono/
+data_*/
+mono_crash.*.json
+
+# Repomix files
+repomix-output.txt
+repomix.config.json
+.repomixignore
+
+# VsCode
+.vscode/
+.env
+
+unstaged_changes.diff.txt
+unstaged_changes.diff
+
+build/
