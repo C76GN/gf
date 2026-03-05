@@ -20,7 +20,7 @@ Gf="*uid://dftf1eh06apl0"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/gut/plugin.cfg")
+enabled=PackedStringArray("res://addons/gf/plugin.cfg", "res://addons/gut/plugin.cfg")
 
 [physics]
 
