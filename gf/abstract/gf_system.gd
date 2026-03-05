@@ -13,6 +13,14 @@ class_name GFSystem
 ##   - 'ready'      阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。
 
 
+# --- 公共变量 ---
+
+## 是否忽略全局暂停。为 true 时，即使 GFTimeUtility.is_paused 为 true，
+## 该 System 仍会接收到原始（未缩放）的 delta 值。
+## 典型场景：暂停菜单动画、设置界面过渡效果等。
+var ignore_pause: bool = false
+
+
 # --- 私有变量 ---
 
 ## 懒加载缓存字典，存储本 System 首次获取过的 Model/System/Utility 实例。
@@ -48,14 +56,14 @@ func dispose() -> void:
 ## 每帧更新回调。子类可以重写此方法以实现帧逻辑。
 ## 由架构在 _process 中统一驱动，无需 System 继承 Node。
 ## @param delta: 距上一帧的时间（秒）。
-func tick(delta: float) -> void:
+func tick(_delta: float) -> void:
 	pass
 
 
 ## 物理帧更新回调。子类可以重写此方法以实现物理帧逻辑。
 ## 由架构在 _physics_process 中统一驱动，无需 System 继承 Node。
 ## @param delta: 距上一物理帧的时间（秒）。
-func physics_tick(delta: float) -> void:
+func physics_tick(_delta: float) -> void:
 	pass
 
 
@@ -93,8 +101,9 @@ func get_system(system_type: Script) -> Object:
 ## 注册类型事件监听器。
 ## @param event_type: 要监听的脚本类型。
 ## @param callback: 回调函数。
-func register_event(event_type: Script, callback: Callable) -> void:
-	Gf.get_architecture().register_event(event_type, callback)
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
+	Gf.get_architecture().register_event(event_type, callback, priority)
 
 
 ## 注销类型事件监听器。

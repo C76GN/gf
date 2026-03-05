@@ -62,6 +62,27 @@ func enqueue_parallel(actions: Array[GFVisualAction]) -> void:
 	_try_start_processing()
 
 
+## 将一个动作插入队列头部（下一个执行）。
+## 适用于"后发先至"的堆栈结算逻辑，如卡牌游戏的连锁效果。
+## @param action: 要插入的 GFVisualAction 实例。
+func push_front(action: GFVisualAction) -> void:
+	if not is_instance_valid(action):
+		return
+
+	_queue.push_front(action)
+	_try_start_processing()
+
+
+## 将一批并行动作插入队列头部（下一批执行）。
+## @param actions: 要并行执行的 GFVisualAction 实例数组。
+func push_front_parallel(actions: Array[GFVisualAction]) -> void:
+	if actions.is_empty():
+		return
+
+	_queue.push_front(actions)
+	_try_start_processing()
+
+
 ## 清空队列中尚未执行的动作（不中断正在执行的动作）。
 func clear_queue() -> void:
 	_queue.clear()

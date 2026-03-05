@@ -23,6 +23,7 @@ func after_each() -> void:
 
 class TestEventA:
 	var value: int = 0
+	var is_consumed: bool = false
 
 
 class TestEventB:
@@ -143,3 +144,91 @@ func test_send_simple_unregister() -> void:
 	_system.send_simple(event_id)
 
 	assert_false(state.called, "注销后简单事件回调不应被触发。")
+
+
+# --- 测试：优先级排序 ---
+
+## 验证高优先级回调先于低优先级执行。
+func test_priority_high_executes_first() -> void:
+	var state := {"order": []}
+	var script_a: Script = TestEventA
+	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("low"), 0)
+	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("high"), 10)
+	_system.send(TestEventA.new())
+
+	assert_eq(state.order.size(), 2, "两个回调都应被调用。")
+	assert_eq(state.order[0], "high", "高优先级应先执行。")
+	assert_eq(state.order[1], "low", "低优先级应后执行。")
+
+
+## 验证相同优先级保持注册顺序。
+func test_same_priority_keeps_registration_order() -> void:
+	var state := {"order": []}
+	var script_a: Script = TestEventA
+	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("first"), 5)
+	_system.register(script_a, func(_e: TestEventA) -> void: state.order.append("second"), 5)
+	_system.send(TestEventA.new())
+
+	assert_eq(state.order[0], "first", "同优先级应按注册顺序执行。")
+	assert_eq(state.order[1], "second", "同优先级应按注册顺序执行。")
+
+
+# --- 测试：事件消费拦截 ---
+
+## 验证高优先级设置 is_consumed 后，低优先级不被执行。
+func test_consumed_event_stops_propagation() -> void:
+	var state := {"order": []}
+	var script_a: Script = TestEventA
+
+	_system.register(script_a, func(e: TestEventA) -> void:
+		state.order.append("high")
+		e.is_consumed = true
+	, 10)
+
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("low")
+	, 0)
+
+	var evt := TestEventA.new()
+	_system.send(evt)
+
+	assert_eq(state.order.size(), 1, "消费后应只有高优先级被调用。")
+	assert_eq(state.order[0], "high", "只有高优先级回调应执行。")
+	assert_true(evt.is_consumed, "事件应被标记为已消费。")
+
+
+## 验证未设置 is_consumed 时所有优先级正常触发。
+func test_unconsumed_event_propagates_to_all() -> void:
+	var state := {"count": 0}
+	var script_a: Script = TestEventA
+	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1, 10)
+	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1, 5)
+	_system.register(script_a, func(_e: TestEventA) -> void: state.count += 1, 0)
+	_system.send(TestEventA.new())
+
+	assert_eq(state.count, 3, "未消费时所有优先级回调都应被调用。")
+
+
+## 验证三级优先级中，中间级消费后最低级不执行。
+func test_mid_priority_consumes() -> void:
+	var state := {"order": []}
+	var script_a: Script = TestEventA
+
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("high")
+	, 10)
+
+	_system.register(script_a, func(e: TestEventA) -> void:
+		state.order.append("mid")
+		e.is_consumed = true
+	, 5)
+
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("low")
+	, 0)
+
+	_system.send(TestEventA.new())
+
+	assert_eq(state.order.size(), 2, "中间级消费后应只有高和中被调用。")
+	assert_eq(state.order[0], "high", "高优先级应先执行。")
+	assert_eq(state.order[1], "mid", "中优先级应第二执行。")

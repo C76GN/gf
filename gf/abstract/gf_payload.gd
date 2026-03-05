@@ -16,6 +16,14 @@ class_name GFPayload
 extends RefCounted
 
 
+# --- 公共变量 ---
+
+## 事件消费标记。高优先级回调可将此标记设为 true，
+## 阻止后续低优先级回调继续接收该事件。
+## 仅在 TypeEventSystem 的类型事件轨道中生效。
+var is_consumed: bool = false
+
+
 # --- 公共方法 ---
 
 ## 将此载体序列化为字典，便于存档、网络传输或日志记录。

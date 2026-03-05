@@ -16,6 +16,7 @@ var _systems: Dictionary = {}
 var _models: Dictionary = {}
 var _utilities: Dictionary = {}
 var _event_system: TypeEventSystem
+var _time_utility: GFTimeUtility
 var _inited: bool = false
 
 
@@ -72,6 +73,7 @@ func init() -> void:
 		if utility.has_method("ready"):
 			utility.ready()
 
+	_time_utility = get_utility(GFTimeUtility) as GFTimeUtility
 	_inited = true
 
 
@@ -95,21 +97,33 @@ func dispose() -> void:
 
 
 ## 驱动所有已注册 System 的每帧更新。在架构初始化完成后方可生效。
+## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给 System。
+## 设置了 ignore_pause 的 System 将始终接收原始 delta。
 ## @param delta: 距上一帧的时间（秒）。
 func tick(delta: float) -> void:
 	if not _inited:
 		return
+	var scaled_delta: float = _get_scaled_delta(delta)
 	for system: Variant in _systems.values():
-		system.tick(delta)
+		if system.ignore_pause and _time_utility != null and _time_utility.is_paused:
+			system.tick(delta)
+		else:
+			system.tick(scaled_delta)
 
 
 ## 驱动所有已注册 System 的每物理帧更新。在架构初始化完成后方可生效。
+## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给 System。
+## 设置了 ignore_pause 的 System 将始终接收原始 delta。
 ## @param delta: 距上一物理帧的时间（秒）。
 func physics_tick(delta: float) -> void:
 	if not _inited:
 		return
+	var scaled_delta: float = _get_scaled_delta(delta)
 	for system: Variant in _systems.values():
-		system.physics_tick(delta)
+		if system.ignore_pause and _time_utility != null and _time_utility.is_paused:
+			system.physics_tick(delta)
+		else:
+			system.physics_tick(scaled_delta)
 
 
 ## 执行命令实例。支持 await：'await send_command(MyCommand.new())'。
@@ -139,8 +153,9 @@ func send_event(event_instance: Object) -> void:
 ## 为脚本类型注册事件监听器。
 ## @param event_type: 要监听的脚本类型。
 ## @param on_event: 回调函数。
-func register_event(event_type: Script, on_event: Callable) -> void:
-	_event_system.register(event_type, on_event)
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event(event_type: Script, on_event: Callable, priority: int = 0) -> void:
+	_event_system.register(event_type, on_event, priority)
 
 
 ## 为脚本类型注销事件监听器。
@@ -250,7 +265,55 @@ func get_utility(script_cls: Script) -> Object:
 	return _utilities.get(script_cls)
 
 
+# --- 序列化方法 ---
+
+## 收集所有已注册 Model 的状态快照。
+## 遍历所有 Model，调用其 to_dict() 方法，以脚本类的全局类名为键汇聚成一个字典。
+## @return 包含所有 Model 状态的字典，可直接用于 JSON 序列化。
+func get_all_models_state() -> Dictionary:
+	var state: Dictionary = {}
+	for script_cls: Script in _models:
+		var model: Variant = _models[script_cls]
+		if model.has_method("to_dict"):
+			var class_name_key: String = _get_model_key(script_cls)
+			state[class_name_key] = model.to_dict()
+	return state
+
+
+## 从状态字典恢复所有已注册 Model 的数据。
+## @param data: 由 get_all_models_state() 返回的状态字典。
+func restore_all_models_state(data: Dictionary) -> void:
+	for script_cls: Script in _models:
+		var class_name_key: String = _get_model_key(script_cls)
+		if data.has(class_name_key):
+			var model: Variant = _models[script_cls]
+			if model.has_method("from_dict"):
+				model.from_dict(data[class_name_key])
+
+
 # --- 私有/内部方法 ---
+
+## 获取经过时间工具缩放后的 delta。若未注册 GFTimeUtility，则返回原始 delta。
+## @param delta: 引擎原始帧间隔时间。
+## @return 缩放后的 delta。
+func _get_scaled_delta(delta: float) -> float:
+	if _time_utility == null:
+		return delta
+	return _time_utility.get_scaled_delta(delta)
+
+
+## 从脚本类获取用于序列化的稳定字符串键。
+## 优先使用 class_name（全局类名），回退到资源路径，最终回退到对象标识。
+## @param script_cls: 脚本类。
+## @return 用于序列化字典键的字符串。
+func _get_model_key(script_cls: Script) -> String:
+	var global_name: StringName = script_cls.get_global_name()
+	if global_name != &"":
+		return String(global_name)
+	if not script_cls.resource_path.is_empty():
+		return script_cls.resource_path
+	return "Script_%d" % script_cls.get_instance_id()
+
 
 ## 内部初始化回调，子类可重写。
 func _on_init() -> void:

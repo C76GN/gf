@@ -66,8 +66,9 @@ func send_query(query: Object) -> Variant:
 ## 注册类型事件监听器。
 ## @param event_type: 要监听的脚本类型。
 ## @param callback: 回调函数。
-func register_event(event_type: Script, callback: Callable) -> void:
-	Gf.get_architecture().register_event(event_type, callback)
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
+	Gf.get_architecture().register_event(event_type, callback, priority)
 
 
 ## 注销类型事件监听器。

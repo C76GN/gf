@@ -38,6 +38,20 @@ func dispose() -> void:
 	pass
 
 
+## 将此模型的状态序列化为字典，用于存档、状态快照等。
+## 子类应重写此方法以包含所有需要持久化的字段。
+## @return 包含模型状态数据的字典。
+func to_dict() -> Dictionary:
+	return {}
+
+
+## 从字典反序列化并恢复此模型的状态。
+## 子类应重写此方法以恢复所有相关字段。
+## @param _data: 包含状态数据的字典（通常来自 to_dict() 的结果）。
+func from_dict(_data: Dictionary) -> void:
+	pass
+
+
 # --- 公共方法 ---
 
 ## 通过类型获取 Utility 实例。
