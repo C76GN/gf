@@ -28,6 +28,28 @@ func init() -> void:
 
 # --- 公共方法 (新体系) ---
 
+## 保存 Godot Resource 对象到指定内部路径。
+## @param file_name: 资源文件名（如 "player_data.tres"）。
+## @param resource: 要保存的 Resource 实例。
+## @return 写入成功返回 OK，否则返回对应的 Error。
+func save_resource(file_name: String, resource: Resource) -> Error:
+	init()
+	var path := _get_full_path(file_name)
+	return ResourceSaver.save(resource, path)
+
+
+## 读取指定名称的 Godot Resource 对象。
+## @param file_name: 资源文件名（如 "player_data.tres"）。
+## @param type_hint: 可选的资源类型提示。
+## @return 读取成功的 Resource 实例，失败则返回 null。
+func load_resource(file_name: String, type_hint: String = "") -> Resource:
+	var path := _get_full_path(file_name)
+	if not FileAccess.file_exists(path):
+		return null
+	
+	return ResourceLoader.load(path, type_hint)
+
+
 ## 保存存档至指定槽位。
 ## 若提供了 metadata，则将元数据分离存储，以便在不加载巨大 data 体时快速读取展示。
 ## @param slot_id: 存档槽位 ID，如 1, 2, 3。

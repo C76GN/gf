@@ -18,6 +18,9 @@ func after_each() -> void:
 		var path := _storage._get_full_path("test_legacy.json")
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(path)
+		var res_path := _storage._get_full_path("test_resource.tres")
+		if FileAccess.file_exists(res_path):
+			DirAccess.remove_absolute(res_path)
 		_storage = null
 
 
@@ -62,3 +65,19 @@ func test_legacy_methods() -> void:
 	_storage.save_data("test_legacy.json", {"old": "data"})
 	var d := _storage.load_data("test_legacy.json")
 	assert_eq(d.get("old"), "data", "兼容旧有 API 应读写一致。")
+
+
+func test_save_and_load_resource() -> void:
+	var res := NoiseTexture2D.new()
+	res.width = 128
+	res.height = 128
+	
+	var file_name := "test_resource.tres"
+	var err := _storage.save_resource(file_name, res)
+	assert_eq(err, OK, "保存 Resource 应该成功。")
+	
+	var loaded_res := _storage.load_resource(file_name) as NoiseTexture2D
+	assert_not_null(loaded_res, "读取的 Resource 不应为 null。")
+	if loaded_res != null:
+		assert_eq(loaded_res.width, 128, "读取的 Resource 属性应与保存时一致。")
+		assert_eq(loaded_res.height, 128, "读取的 Resource 属性应与保存时一致。")

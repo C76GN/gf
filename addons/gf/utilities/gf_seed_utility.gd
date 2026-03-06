@@ -32,6 +32,18 @@ func set_global_seed(seed_hash: int) -> void:
 	_rng.seed = seed_hash
 
 
+## 获取当前主 RNG 的内部精确状态。
+## @return 当前的内部状态值。
+func get_state() -> int:
+	return _rng.state
+
+
+## 恢复主 RNG 的内部精确状态。
+## @param state: 要恢复的内部状态值。
+func set_state(state: int) -> void:
+	_rng.state = state
+
+
 ## 基于主种子与字符串标签，派生出一个独立的子 RNG。
 ## 子 RNG 的创建不会推进主 RNG 的随机序列，保证回放确定性。
 ## @param string_seed: 用于标识子随机流用途的字符串（如 "loot_table"、"enemy_ai"）。

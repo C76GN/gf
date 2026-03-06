@@ -63,11 +63,13 @@ pool.return_instance(bullet_scene, bullet)
 
 内置跨段存档系统（支持 PC 上的二进制与文件写入以及 HTML5 的本地 localStorage 隔离）。能够将 `Model` 直接转化为字典后序列化至磁盘，安全地加载回来。
 新版支持多槽位存储、元文件分离（在存档列表 UI 只需读取 Metadata 即可，不用加载上 MB 体积的 `data.json`），以及防篡改的简单的基线级别的 Base64 XOR 加密。
+同时原生支持 Godot 的 `Resource` 类型（如 `.tres` 或 `.res`）的直接存取。
 
 **如何使用：**
 ```gdscript
 var storage := Gf.get_utility(GFStorageUtility) as GFStorageUtility
 
+# -- 字典与槽位存档 --
 # 保存槽位，后一个字典是高层预览专用的 Metadata
 storage.save_slot(1, {"player_hp": 100}, {"play_time": "12:00", "level": 5})
 
@@ -77,6 +79,12 @@ print(meta.get("level"))
 
 # 正式进入游戏后提取极大的核心数据字典
 var full_data := storage.load_slot(1)
+
+# -- Resource 存档 --
+var my_res := Resource.new()
+storage.save_resource("my_custom_resource.tres", my_res)
+
+var loaded_res := storage.load_resource("my_custom_resource.tres")
 ```
 
 ## 6. 输入与土狼时间 (`GFInputUtility`)
@@ -220,3 +228,28 @@ func get_record(table_name: StringName, id: Variant) -> Variant:
 func get_table(table_name: StringName) -> Variant:
     return _configs.get(table_name)
 ```
+
+## 15. 全局随机数种子管理器 (`GFSeedUtility`)
+
+**应用场景：** 当你需要管理全局随机流以保证游戏的核心随机事件（如掉落、遇敌、甚至战斗回放）具有确定性和可观测性时。它支持恢复指定的随机序列状态，并且可以通过标签派生出完全独立的子随机发生器。
+
+**如何使用：**
+```gdscript
+var seed_util := Gf.get_utility(GFSeedUtility) as GFSeedUtility
+
+# 设置全局主种子
+seed_util.set_global_seed(12345)
+
+# 获取并保存当前主 RNG 的精确内部状态，为稍后的回放或状态恢复做准备
+var current_state := seed_util.get_state()
+
+# ...进行一系列随机操作...
+
+# 恢复此前保存的状态，使得接下来的随机序列能完全复现
+seed_util.set_state(current_state)
+
+# 派生出一个专门用于某模块的子 RNG
+var combat_rng := seed_util.get_branched_rng("combat_calculations")
+print(combat_rng.randi())
+```
+
