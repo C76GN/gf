@@ -78,6 +78,22 @@ func test_unregister_during_traversal() -> void:
 	assert_eq(state.order[0], "A", "只有回调 A 应被执行。")
 
 
+## 验证在回调内注销自身时，不会崩溃且逻辑正确。
+func test_unregister_self_during_traversal() -> void:
+	var state := {"count": 0, "cb_a": Callable()}
+	var script_a: Script = TestEventA
+	
+	state.cb_a = func(_e: TestEventA) -> void:
+		state.count += 1
+		_system.unregister(script_a, state.cb_a)
+		
+	_system.register(script_a, state.cb_a)
+	_system.send(TestEventA.new())
+	_system.send(TestEventA.new())
+	
+	assert_eq(state.count, 1, "回调应该只执行一次，并在本次调用后注销自身。")
+
+
 ## 验证多个监听器都能收到事件。
 func test_multiple_listeners() -> void:
 	var state := {"count": 0}
@@ -131,6 +147,22 @@ func test_send_simple_unregister_during_traversal() -> void:
 
 	assert_eq(state.order.size(), 1, "简单事件：回调 B 被注销后不应在本次 send 中执行。")
 	assert_eq(state.order[0], "A", "只有回调 A 应被执行。")
+
+
+## 验证简单事件回调注销自身时，不会崩溃且逻辑正确。
+func test_send_simple_unregister_self_during_traversal() -> void:
+	var state := {"count": 0, "cb_a": Callable()}
+	var event_id: StringName = &"self_traversal_test"
+	
+	state.cb_a = func(_p: Variant) -> void:
+		state.count += 1
+		_system.unregister_simple(event_id, state.cb_a)
+		
+	_system.register_simple(event_id, state.cb_a)
+	_system.send_simple(event_id)
+	_system.send_simple(event_id)
+	
+	assert_eq(state.count, 1, "回调应该只执行一次，并在本次调用后注销自身。")
 
 
 ## 验证注销简单事件后不再触发。

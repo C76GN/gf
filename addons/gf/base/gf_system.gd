@@ -37,6 +37,7 @@ func init() -> void:
 
 
 ## 异步初始化阶段。子类可以重写此方法并在其中使用 await。
+## Godot 4 支持在 void 函数内部使用 await，框架的 Gf.init() 会串行且安全地 await 每个模块的 async_init()，不再需要返回 Signal。
 ## 约束：在 init() 之后、ready() 之前执行。
 func async_init() -> void:
 	pass

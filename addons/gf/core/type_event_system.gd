@@ -15,6 +15,12 @@ class_name TypeEventSystem
 var _event_listeners: Dictionary = {}
 var _simple_event_listeners: Dictionary = {}
 
+var _is_iterating_type: bool = false
+var _pending_removes_type: Array = []
+
+var _is_iterating_simple: bool = false
+var _pending_removes_simple: Array = []
+
 
 # --- 公共方法 (类型事件) ---
 
@@ -49,6 +55,10 @@ func register(event_type: Script, on_event: Callable, priority: int = 0) -> void
 ## @param on_event: 要移除的回调函数。
 func unregister(event_type: Script, on_event: Callable) -> void:
 	if _event_listeners.has(event_type):
+		if _is_iterating_type:
+			_pending_removes_type.append({"event_type": event_type, "callable": on_event})
+			return
+
 		var listeners := _event_listeners[event_type] as Array
 		for i: int in range(listeners.size()):
 			var entry := listeners[i] as Dictionary
@@ -58,8 +68,7 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 
 
 ## 将事件实例发送给其脚本类型的所有注册监听器。
-## 遍历前先对监听器列表进行浅拷贝，确保回调内的注册/注销操作不影响当前遍历。
-## 已失效的 Callable 会在遍历结束后从原始列表中移除。
+## 遍历前标记正在迭代，结束后统一清理已注销和失效的监听器，避免在循环中 duplicate 数组。
 ## 若事件实例具有 is_consumed 属性且被设为 true，则立即中断后续回调的执行。
 ## @param event_instance: 要分发的事件实例。
 func send(event_instance: Object) -> void:
@@ -69,22 +78,23 @@ func send(event_instance: Object) -> void:
 		return
 	if _event_listeners.has(event_type):
 		var listeners := _event_listeners[event_type] as Array
-		var snapshot := listeners.duplicate()
 		var invalid_entries: Array = []
+		
+		_is_iterating_type = true
 
-		for entry: Dictionary in snapshot:
+		for entry: Dictionary in listeners:
 			var callback: Callable = entry.callable
 
 			if not callback.is_valid():
 				invalid_entries.append(entry)
 				continue
 
-			var still_registered: bool = false
-			for original_entry: Dictionary in listeners:
-				if original_entry.callable == callback:
-					still_registered = true
+			var is_pending_remove: bool = false
+			for pending: Dictionary in _pending_removes_type:
+				if pending.event_type == event_type and pending.callable == callback:
+					is_pending_remove = true
 					break
-			if not still_registered:
+			if is_pending_remove:
 				continue
 
 			callback.call(event_instance)
@@ -92,8 +102,20 @@ func send(event_instance: Object) -> void:
 			if event_instance.get("is_consumed") == true:
 				break
 
+		_is_iterating_type = false
+
 		for entry: Dictionary in invalid_entries:
 			listeners.erase(entry)
+			
+		for pending: Dictionary in _pending_removes_type:
+			if _event_listeners.has(pending.event_type):
+				var p_listeners := _event_listeners[pending.event_type] as Array
+				for i: int in range(p_listeners.size() - 1, -1, -1):
+					var p_entry := p_listeners[i] as Dictionary
+					if p_entry.callable == pending.callable:
+						p_listeners.remove_at(i)
+						break
+		_pending_removes_type.clear()
 
 
 # --- 公共方法 (简单事件) ---
@@ -114,28 +136,57 @@ func register_simple(event_id: StringName, on_event: Callable) -> void:
 ## @param on_event: 要移除的回调函数。
 func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 	if _simple_event_listeners.has(event_id):
+		if _is_iterating_simple:
+			_pending_removes_simple.append({"event_id": event_id, "callable": on_event})
+			return
 		var listeners := _simple_event_listeners[event_id] as Array
 		listeners.erase(on_event)
 
 
 ## 将 payload 发送给指定 StringName 事件的所有注册监听器。
-## 遍历前先对监听器列表进行浅拷贝，确保回调内的注册/注销操作不影响当前遍历。
-## 已失效的 Callable 会在遍历结束后从原始列表中移除。
+## 遍历前标记正在迭代，结束后统一清理已注销和失效的监听器，避免在循环中 duplicate 数组。
 ## @param event_id: StringName 事件标识符。
 ## @param payload: 传递给监听器的数据，可为任意类型。
 func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	if not _simple_event_listeners.has(event_id):
 		return
 	var listeners := _simple_event_listeners[event_id] as Array
-	var snapshot := listeners.duplicate()
-	for callback: Callable in snapshot:
+	var invalid_entries: Array = []
+
+	_is_iterating_simple = true
+
+	for callback: Callable in listeners:
 		if not callback.is_valid():
-			listeners.erase(callback)
-		elif listeners.has(callback):
-			callback.call(payload)
+			invalid_entries.append(callback)
+			continue
+
+		var is_pending_remove: bool = false
+		for pending: Dictionary in _pending_removes_simple:
+			if pending.event_id == event_id and pending.callable == callback:
+				is_pending_remove = true
+				break
+		if is_pending_remove:
+			continue
+
+		callback.call(payload)
+
+	_is_iterating_simple = false
+
+	for callback: Callable in invalid_entries:
+		listeners.erase(callback)
+		
+	for pending: Dictionary in _pending_removes_simple:
+		if _simple_event_listeners.has(pending.event_id):
+			var p_listeners := _simple_event_listeners[pending.event_id] as Array
+			p_listeners.erase(pending.callable)
+	_pending_removes_simple.clear()
 
 
 ## 清空所有已注册的事件监听器（包括类型事件和简单事件）。
 func clear() -> void:
 	_event_listeners.clear()
 	_simple_event_listeners.clear()
+	_pending_removes_type.clear()
+	_pending_removes_simple.clear()
+	_is_iterating_type = false
+	_is_iterating_simple = false

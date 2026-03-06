@@ -196,3 +196,27 @@ Gf.send_simple_event(&"enemy_died", 1)
 var progress := quest.get_quest_progress(&"kill_slimes")
 var done := quest.is_quest_completed(&"kill_slimes")
 ```
+
+## 14. 通用的静态导表数据适配器 (`GFConfigProvider`)
+
+**应用场景：** 为了让框架无缝衔接不同项目的导表工具（JSON, CSV, Luban 等），提供统一的读取接口。具体项目应该继承此基类，并实现其数据加载和查询逻辑。
+
+**如何使用：**
+```gdscript
+class_name JSONConfigProvider
+extends GFConfigProvider
+
+var _configs: Dictionary = {}
+
+func async_init() -> void:
+    # 异步加载你的表...
+    pass
+
+func get_record(table_name: StringName, id: Variant) -> Variant:
+    if _configs.has(table_name) and _configs[table_name].has(id):
+        return _configs[table_name][id]
+    return null
+
+func get_table(table_name: StringName) -> Variant:
+    return _configs.get(table_name)
+```

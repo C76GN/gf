@@ -52,13 +52,14 @@ func init() -> void:
 ### 阶段二：异步等待 `async_init()`
 
 ```gdscript
-func async_init() -> Signal:
+func async_init() -> void:
     # 异步加载完成后的处理
-    return GF.get_utility(GFAssetUtility).load_assets_async(["res://data/tables.json"])
+    # Godot 4 支持在返回 void 的函数内直接使用 await
+    await GF.get_utility(GFAssetUtility).load_assets_async(["res://data/tables.json"])
 ```
 - **执行顺序**：在所有 `init()` 执行完毕后，遍历所有的 `async_init()`。
-- **作用**：该函数返回一个 `Signal`。如果该模块有网络请求、本地 IO 读取、或者大批量资源异步加载等慢操作，可以在这里执行，并返回加载完成的信号。
-- **机制**：框架的 `Gf.init()` 引擎会**等待所有返回非空信号的模块**都发射完成，才会进入下一阶段。这完美解决了模块在异步加载未完成前就被迫参战的问题。
+- **作用**：该函数返回 `void`。如果该模块有网络请求、本地 IO 读取、或者大批量资源异步加载等慢操作，可以在这里使用 `await` 等待其完成。
+- **机制**：Godot 4 支持在 `void` 函数内部使用 `await`，框架的 `Gf.init()` 引擎会自动串行且安全地 `await` 每个模块的 `async_init()`，不再需要手动返回 `Signal`。这完美解决了模块在异步加载未完成前就被迫参战的问题。
 
 ### 阶段三：就绪完成 `ready()`
 
