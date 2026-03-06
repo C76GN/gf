@@ -19,8 +19,7 @@ mono_crash.*.json
 
 # Repomix files
 repomix-output.txt
-repomix.config.json
-.repomixignore
+**/framework_code.txt
 
 # VsCode
 .vscode/
