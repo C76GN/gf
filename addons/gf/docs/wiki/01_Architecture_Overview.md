@@ -11,11 +11,11 @@ GF Framework 的核心基于控制反转 (IoC) 的思想，通过统一的调度
 ```text
 Godot SceneTree
  └── Root
-      └── Gf (AutoLoad) -> [GFArchitecture 容器]
-                              ├── Models     (GFModel)
-                              ├── Systems    (GFSystem)
-                              ├── Utilities  (GFUtility)
-                              └── EventBus   (TypeEventSystem)
+	  └── Gf (AutoLoad) -> [GFArchitecture 容器]
+							  ├── Models     (GFModel)
+							  ├── Systems    (GFSystem)
+							  ├── Utilities  (GFUtility)
+							  └── EventBus   (TypeEventSystem)
 ```
 
 ## 四大核心分层
@@ -59,22 +59,22 @@ Godot SceneTree
 
 ```mermaid
 graph TD
-    Controller(("Controller
-    (Godot Node)"))
-    System["System
-    (Logic)"]
-    Model[("Model
-    (Data)")]
-    Utility["Utility
-    (Tools/Helpers)"]
+	Controller(("Controller
+	(Godot Node)"))
+	System["System
+	(Logic)"]
+	Model[("Model
+	(Data)")]
+	Utility["Utility
+	(Tools/Helpers)"]
 
-    Controller -- 发送事件/命令 --> System
-    System -- 修改数据 --> Model
-    Model -- 触发事件/绑定变化 --> Controller
-    Controller -. 只读查询 .-> Model
-    
-    System -. 调用 .-> Utility
-    Controller -. 调用 .-> Utility
+	Controller -- 发送事件/命令 --> System
+	System -- 修改数据 --> Model
+	Model -- 触发事件/绑定变化 --> Controller
+	Controller -. 只读查询 .-> Model
+	
+	System -. 调用 .-> Utility
+	Controller -. 调用 .-> Utility
 ```
 
 ## IDE 智能语法提示机制

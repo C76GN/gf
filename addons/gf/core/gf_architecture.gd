@@ -238,8 +238,37 @@ func register_utility_instance(instance: Object) -> void:
 	var script := instance.get_script() as Script
 	if script == null:
 		push_error("[GDCore] register_utility_instance 失败：实例未附加脚本。")
-		return
 	register_utility(script, instance)
+
+
+## 注销 System 实例。
+## @param script_cls: 系统的脚本类。
+func unregister_system(script_cls: Script) -> void:
+	if _systems.has(script_cls):
+		var system: Variant = _systems[script_cls]
+		if system.has_method("dispose"):
+			system.dispose()
+		_systems.erase(script_cls)
+
+
+## 注销 Model 实例。
+## @param script_cls: 模型的脚本类。
+func unregister_model(script_cls: Script) -> void:
+	if _models.has(script_cls):
+		var model: Variant = _models[script_cls]
+		if model.has_method("dispose"):
+			model.dispose()
+		_models.erase(script_cls)
+
+
+## 注销 Utility 实例。
+## @param script_cls: 工具的脚本类。
+func unregister_utility(script_cls: Script) -> void:
+	if _utilities.has(script_cls):
+		var utility: Variant = _utilities[script_cls]
+		if utility.has_method("dispose"):
+			utility.dispose()
+		_utilities.erase(script_cls)
 
 
 # --- 获取方法 ---
