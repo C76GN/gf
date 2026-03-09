@@ -34,3 +34,8 @@ func test_state_save_and_restore() -> void:
 	
 	assert_eq(restored_val1, next_val1, "恢复状态后，生成的第一个随机数应与之前一致。")
 	assert_eq(restored_val2, next_val2, "恢复状态后，生成的第二个随机数应与之前一致。")
+
+
+func test_get_global_seed() -> void:
+	_seed_util.set_global_seed(98765)
+	assert_eq(_seed_util.get_global_seed(), 98765, "get_global_seed 应返回正确的种子值。")

@@ -169,3 +169,62 @@ func test_can_undo_and_can_redo() -> void:
 	_history.undo_last()
 	assert_false(_history.can_undo(), "undo 后 can_undo 应为 false。")
 	assert_true(_history.can_redo(), "undo 后 can_redo 应为 true。")
+
+
+# --- 测试：持久化与上限 ---
+
+## 验证 serialize_history 能够提取正确的快照信息。
+func test_serialize_history() -> void:
+	var counter := {"value": 0}
+	var cmd1 := CounterCommand.new(counter)
+	var cmd2 := CounterCommand.new(counter)
+	
+	cmd1.execute()
+	_history.record(cmd1)
+	cmd2.execute()
+	_history.record(cmd2)
+	
+	var data_array := _history.serialize_history()
+	assert_eq(data_array.size(), 2, "序列化后的数据长度应为2。")
+	assert_eq(data_array[0].get("snapshot"), 0, "第一个快照值应正确。")
+	assert_eq(data_array[1].get("snapshot"), 1, "第二个快照值应正确。")
+
+
+## 验证 deserialize_history 能够正确通过构造器恢复栈。
+func test_deserialize_history() -> void:
+	var counter := {"value": 0}
+	var builder: Callable = func(data: Dictionary) -> GFUndoableCommand:
+		var c := CounterCommand.new(counter)
+		c.set_snapshot(data.get("snapshot", 0))
+		return c
+		
+	var src_data := [ {"snapshot": 5}, {"snapshot": 6}]
+	_history.deserialize_history(src_data, builder)
+	
+	assert_eq(_history.undo_count, 2, "撤销栈应恢复2条。")
+	_history.undo_last()
+	assert_eq(counter.value, 6, "反序列化后的命令能正常提取之前快照执行 undo。")
+	assert_eq(_history.redo_count, 1, "撤销后正常推入重做栈。")
+
+
+## 验证 max_history_size 超限清理 (FIFO抛弃)。
+func test_history_size_limit() -> void:
+	_history.max_history_size = 2
+	var counter := {"value": 0}
+	
+	var cmds: Array[CounterCommand] = []
+	for i in range(3):
+		var cmd := CounterCommand.new(counter)
+		cmd.execute()
+		_history.record(cmd)
+		cmds.append(cmd)
+		
+	assert_eq(_history.undo_count, 2, "超出最大限制时撤销栈大小应保持为 max_history_size (2)。")
+	
+	_history.undo_last()
+	assert_eq(counter.value, 2, "最新撤销的应是第三个命令，执行撤销后恢复为 2。")
+	
+	_history.undo_last()
+	assert_eq(counter.value, 1, "再次撤销的是第二个命令，执行撤销后恢复为 1。")
+	
+	assert_false(_history.undo_last(), "第一条命令应已被超限丢弃，无法再撤销。")

@@ -79,4 +79,33 @@ func update_attack_power_ui() -> void:
 2. 使用 `GFCommandHistoryUtility` 管理系统对它施加 `execute_command(cmd)` 调用
 3. 然后便能任意使用撤回方法无缝追溯游戏历史！
 
+### 命令历史的序列化与持久化 (Command History Persistence)
+
+自 v1.1.0 起，`GFCommandHistoryUtility` 支持将整个撤销/重做栈序列化为纯数据，以便于存入玩家存档文件（JSON 等）。
+
+**序列化历史记录：**
+```gdscript
+var history := Gf.get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+var saved_data_array: Array = history.serialize_history()
+# 将 saved_data_array 使用 GFStorageUtility 等方式写入你的存档文件
+```
+> 若你想定制序列化结构，需确保你的 `GFUndoableCommand` 子类覆盖了 `serialize() -> Dictionary` 方法。如果未提供，框架默认将只提取其 `get_snapshot()` 作为数据。
+
+**反序列化历史记录：**
+```gdscript
+var history := Gf.get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+
+# 由于框架层不感知具体的 Command 类型，需要外部传入构建器(Callable)来实现控制反转
+var command_builder = func(data: Dictionary) -> GFUndoableCommand:
+    var cmd_type = data.get("type", "")
+    if cmd_type == "TakeDamage":
+        var c = TakeDamageCommand.new()
+        c.set_snapshot(data.get("snapshot", null)) # 恢复快照
+        return c
+    return null
+
+history.deserialize_history(saved_data_array, command_builder)
+```
+> **提示：** `GFCommandHistoryUtility` 具有最大历史数限制属性 `max_history_size`（默认为 `1024`）。当保存突破限制时，底部的旧操作将自动被抛弃以释放内存。
+
 > 请查阅文档中关于 *Advanced Extensions (高级扩展)* 中具体提供的 Undo/Redo 组件范例来获得更多实战经验。
