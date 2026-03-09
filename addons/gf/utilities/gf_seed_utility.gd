@@ -32,6 +32,11 @@ func set_global_seed(seed_hash: int) -> void:
 	_rng.seed = seed_hash
 
 
+## 获取当前全局主种子。
+func get_global_seed() -> int:
+	return _global_seed
+
+
 ## 获取当前主 RNG 的内部精确状态。
 ## @return 当前的内部状态值。
 func get_state() -> int:

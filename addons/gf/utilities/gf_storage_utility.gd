@@ -108,21 +108,20 @@ func delete_slot(slot_id: int) -> void:
 		DirAccess.remove_absolute(meta_path)
 
 
-# --- 原有兼容方法 ---
+# --- 公共方法 (纯数据存取) ---
 
-## 兼容旧版，直接将字典数据序列化为 JSON 并写入指定文件名称。
+## 将字典数据序列化为 JSON 格式并写入指定文件。适用于无需元数据分离的简单数据持久化场景。
 ## @param file_name: 存档文件名（如 "save.json"）。
 ## @param data: 要保存的字典数据。
-## @return 写入成功返回 OK。
+## @return 写入成功返回 OK，否则返回对应的 Error。
 func save_data(file_name: String, data: Dictionary) -> Error:
 	init()
 	return _write_json(file_name, data)
 
 
-## 兼容旧版，从指定文件读取并反序列化为字典。
-## 若文件不存在或解析失败，返回空字典。
+## 从指定文件读取并反序列化为字典数据。若文件不存在或解析失败，将安全地返回空字典。
 ## @param file_name: 存档文件名。
-## @return 解析后的字典，失败时返回空字典。
+## @return 解析后的数据字典，失败或不存在时返回空字典。
 func load_data(file_name: String) -> Dictionary:
 	return _read_json(file_name)
 
@@ -138,6 +137,9 @@ func _get_meta_filename(slot_id: int) -> String:
 
 
 func _get_full_path(file_name: String) -> String:
+	if file_name.is_absolute_path():
+		return file_name
+		
 	if save_dir_name.is_empty():
 		return "user://" + file_name
 	return "user://" + save_dir_name + "/" + file_name

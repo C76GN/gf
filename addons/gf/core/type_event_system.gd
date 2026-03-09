@@ -85,7 +85,7 @@ func send(event_instance: Object) -> void:
 		for entry: Dictionary in listeners:
 			var callback: Callable = entry.callable
 
-			if not callback.is_valid():
+			if not callback.is_valid() or (callback.get_object() != null and not is_instance_valid(callback.get_object())):
 				invalid_entries.append(entry)
 				continue
 
@@ -156,7 +156,7 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	_is_iterating_simple = true
 
 	for callback: Callable in listeners:
-		if not callback.is_valid():
+		if not callback.is_valid() or (callback.get_object() != null and not is_instance_valid(callback.get_object())):
 			invalid_entries.append(callback)
 			continue
 

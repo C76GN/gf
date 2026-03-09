@@ -13,10 +13,10 @@ class_name GFCommandHistoryUtility
 extends GFUtility
 
 
-# --- 常量 ---
+# --- 公共变量 ---
 
 ## 撤销栈的最大容量，超出后将移除最旧的记录。0 表示无限制。
-const MAX_HISTORY_SIZE: int = 64
+var max_history_size: int = 1024
 
 
 # --- 公共变量 ---
@@ -107,3 +107,35 @@ func can_undo() -> bool:
 ## @return 有可重做的命令返回 true。
 func can_redo() -> bool:
 	return not _redo_stack.is_empty()
+
+
+## 将当前撤销栈序列化为纯数据数组，以便于持久化存档（JSON等）。
+## 它会优先调用命令对象的 serialize() 方法。如果未实现，则保底提取其快照数据。
+## @return 包含所有历史操作数据的字典数组。
+func serialize_history() -> Array[Dictionary]:
+	var arr: Array[Dictionary] = []
+	for cmd in _undo_stack:
+		if cmd.has_method("serialize"):
+			arr.append(cmd.serialize())
+		else:
+			arr.append({"snapshot": cmd.get_snapshot()})
+	return arr
+
+
+## 从纯数据数组反序列化并重建撤销栈。
+## 由于框架层不感知具体的 Command 类型，需要外部传入构建器(Callable)来实现控制反转。
+## @param data_array: 存储了各步骤数据的数组（通常来自读取存档）。
+## @param command_builder: 签名为 func(data: Dictionary) -> GFUndoableCommand 的回调函数。
+func deserialize_history(data_array: Array, command_builder: Callable) -> void:
+	_undo_stack.clear()
+	_redo_stack.clear()
+	
+	if not command_builder.is_valid():
+		push_error("[GFCommandHistoryUtility] deserialize_history 失败：传入的 builder Callable 无效。")
+		return
+		
+	for data in data_array:
+		if typeof(data) == TYPE_DICTIONARY:
+			var restored_cmd: GFUndoableCommand = command_builder.call(data)
+			if is_instance_valid(restored_cmd):
+				_undo_stack.append(restored_cmd)

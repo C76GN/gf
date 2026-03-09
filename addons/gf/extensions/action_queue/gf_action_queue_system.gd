@@ -107,7 +107,9 @@ func _process_queue() -> void:
 		var item: Variant = _queue.pop_front()
 
 		if item is GFVisualAction:
-			await _execute_single(item)
+			var res = (item as GFVisualAction).execute()
+			if res is Signal:
+				await res
 
 		elif item is Array:
 			await _execute_parallel(item as Array)
