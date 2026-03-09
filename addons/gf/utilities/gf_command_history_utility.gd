@@ -61,7 +61,7 @@ func record(cmd: GFUndoableCommand) -> void:
 	_undo_stack.push_back(cmd)
 	_redo_stack.clear()
 
-	if MAX_HISTORY_SIZE > 0 and _undo_stack.size() > MAX_HISTORY_SIZE:
+	if max_history_size > 0 and _undo_stack.size() > max_history_size:
 		_undo_stack.pop_front()
 
 

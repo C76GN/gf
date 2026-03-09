@@ -240,6 +240,9 @@ var seed_util := Gf.get_utility(GFSeedUtility) as GFSeedUtility
 # 设置全局主种子
 seed_util.set_global_seed(12345)
 
+# 可以随时获取当前的主种子（v1.1.0 新增）
+var current_seed := seed_util.get_global_seed()
+
 # 获取并保存当前主 RNG 的精确内部状态，为稍后的回放或状态恢复做准备
 var current_state := seed_util.get_state()
 
