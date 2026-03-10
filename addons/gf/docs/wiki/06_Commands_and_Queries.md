@@ -66,7 +66,7 @@ func execute() -> Variant:
 
 ```gdscript
 func update_attack_power_ui() -> void:
-    var final_atk = GetPlayerTotalAttackPowerQuery.new().execute() as float
+    var final_atk = Gf.send_query(GetPlayerTotalAttackPowerQuery.new()) as float
     $UI/AttackLabel.text = str(final_atk)
 ```
 

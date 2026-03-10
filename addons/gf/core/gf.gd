@@ -63,9 +63,25 @@ func register_model(instance: Object) -> void:
 func register_utility(instance: Object) -> void:
 	get_architecture().register_utility_instance(instance)
 
+## 获取 System 实例。
+func get_system(script_cls: Script) -> Object:
+	return get_architecture().get_system(script_cls)
+
+## 获取 Model 实例。
+func get_model(script_cls: Script) -> Object:
+	return get_architecture().get_model(script_cls)
+
+## 获取 Utility 实例。
+func get_utility(script_cls: Script) -> Object:
+	return get_architecture().get_utility(script_cls)
+
 ## 便捷发送全局命令。
 func send_command(command: Object) -> Variant:
 	return get_architecture().send_command(command)
+
+## 便捷发送查询。
+func send_query(query: Object) -> Variant:
+	return get_architecture().send_query(query)
 
 ## 便捷发送带载体的强类型事件。
 func send_event(event_instance: Object) -> void:

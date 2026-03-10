@@ -240,7 +240,7 @@ var seed_util := Gf.get_utility(GFSeedUtility) as GFSeedUtility
 # 设置全局主种子
 seed_util.set_global_seed(12345)
 
-# 可以随时获取当前的主种子（v1.1.0 新增）
+# 可以随时获取当前的主种子
 var current_seed := seed_util.get_global_seed()
 
 # 获取并保存当前主 RNG 的精确内部状态，为稍后的回放或状态恢复做准备
@@ -254,5 +254,59 @@ seed_util.set_state(current_state)
 # 派生出一个专门用于某模块的子 RNG
 var combat_rng := seed_util.get_branched_rng("combat_calculations")
 print(combat_rng.randi())
+```
+
+## 16. 集中式日志系统 (`GFLogUtility`)
+
+**应用场景：** 当你厌倦了散落在各处的 `print` / `push_error`，需要统一分级日志输出、自动写入本地文件以便事后排查，并让运行时控制台也能同步显示时。
+
+初始化时会在 `user://logs/` 下创建按日期时间命名的日志文件，并自动清理超出保留数量的旧日志。通过信号 `log_emitted` 广播每条日志，供 `GFConsoleUtility` 等消费者着色回显。
+
+**如何使用：**
+```gdscript
+var log_util := Gf.get_utility(GFLogUtility) as GFLogUtility
+
+# 各等级日志 —— 第一个参数是标签（推荐用类名或模块名），第二个是消息内容
+log_util.debug("CombatSystem", "伤害计算开始。")
+log_util.info("SaveManager", "存档写入成功。")
+log_util.warn("Network", "延迟过高：%d ms。" % latency)
+log_util.error("AudioBus", "找不到总线: %s" % bus_name)
+log_util.fatal("Core", "不可恢复的致命错误！")
+
+# 监听日志信号（GFConsoleUtility 已自动监听）
+log_util.log_emitted.connect(func(level: int, tag: String, msg: String) -> void:
+    print("收到日志: [%d] %s - %s" % [level, tag, msg])
+)
+
+# 可选：调整最大日志文件保留数量（默认 10）
+log_util.max_log_files = 20
+```
+
+## 17. 运行时开发者控制台 (`GFConsoleUtility`)
+
+**应用场景：** 当你需要在运行中的游戏里快速执行调试指令、查看实时日志输出，而不想来回切换编辑器或依赖外部终端时。
+
+按下 **F1**（可配置）即可呼出全屏半透明控制台，内置 `help`（列出所有指令）和 `clear`（清空输出）。支持自定义指令注册，同时自动接收 `GFLogUtility` 的日志信号并着色显示（Error/Fatal 红色、Warn 黄色、Debug 青色）。
+
+**如何使用：**
+```gdscript
+var console := Gf.get_utility(GFConsoleUtility) as GFConsoleUtility
+
+# 注册自定义指令 —— 回调签名: func(args: PackedStringArray) -> void
+console.register_command("tp", func(args: PackedStringArray) -> void:
+    if args.size() >= 2:
+        var x := args[0].to_float()
+        var y := args[1].to_float()
+        player.global_position = Vector2(x, y)
+, "传送玩家到指定坐标。用法: tp <x> <y>")
+
+# 注销指令
+console.unregister_command("tp")
+
+# 也可以在代码中直接执行指令
+console.execute_command("help")
+
+# 可选：更换呼出快捷键（默认 F1）
+console.toggle_key = KEY_F2
 ```
 

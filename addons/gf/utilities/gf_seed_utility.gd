@@ -49,11 +49,13 @@ func set_state(state: int) -> void:
 	_rng.state = state
 
 
-## 基于主种子与字符串标签，派生出一个独立的子 RNG。
-## 子 RNG 的创建不会推进主 RNG 的随机序列，保证回放确定性。
+## 基于主 RNG 当前状态与字符串标签，派生出一个独立的子 RNG。
+## 每次调用会推进主 RNG 的状态，确保同一标签在不同时间点
+## 产生不同的随机序列，同时在相同种子和操作序列下保持确定性。
 ## @param string_seed: 用于标识子随机流用途的字符串（如 "loot_table"、"enemy_ai"）。
 ## @return 一个已完成种子初始化的独立 RandomNumberGenerator 实例。
 func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
 	var branched := RandomNumberGenerator.new()
-	branched.seed = hash(str(_global_seed) + string_seed)
+	var branch_seed: int = hash(str(_rng.randi()) + string_seed)
+	branched.seed = branch_seed
 	return branched
