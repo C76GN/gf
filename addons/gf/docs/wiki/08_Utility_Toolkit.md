@@ -52,11 +52,11 @@ time_scale_util.set_time_scale_by_group("CombatSystems", 0.1)
 ```gdscript
 var pool := Gf.get_utility(GFObjectPoolUtility) as GFObjectPoolUtility
 
-# 借出一个实例
-var bullet = pool.get_instance(bullet_scene) as Node2D
+# 借出一个实例（传入资源以及它的父节点）
+var bullet = pool.acquire(bullet_scene, get_tree().root) as Node2D
 
 # 归还它进入休眠
-pool.return_instance(bullet_scene, bullet)
+pool.release(bullet, bullet_scene)
 ```
 
 ## 5. 增强存档管理器 (`GFStorageUtility`)

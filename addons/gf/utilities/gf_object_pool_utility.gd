@@ -61,9 +61,20 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 
 	var pool: Array = _pools[scene]
 
-	for node in pool:
-		if is_instance_valid(node) and not node.get_meta(_META_ACTIVE, false):
+	for i in range(pool.size() - 1, -1, -1):
+		var raw_node = pool[i]
+		
+		if not is_instance_valid(raw_node) or raw_node.is_queued_for_deletion():
+			pool.remove_at(i)
+			continue
+			
+		var node: Node = raw_node as Node
+		if not node.get_meta(_META_ACTIVE, false):
 			node.set_meta(_META_ACTIVE, true)
+			
+			if is_instance_valid(parent) and node.get_parent() != parent:
+				node.reparent(parent, false) 
+				
 			return node
 
 	var new_node: Node = scene.instantiate()
@@ -71,6 +82,7 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 	if is_instance_valid(parent):
 		parent.add_child(new_node)
 
+	pool.push_back(new_node)
 	return new_node
 
 
