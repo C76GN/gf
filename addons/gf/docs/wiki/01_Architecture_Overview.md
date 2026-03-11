@@ -92,3 +92,21 @@ health_label.text = str(player_model.current_health)
 var battle_system := Gf.get_system(BattleSystem) as BattleSystem
 battle_system.start_encounter()
 ```
+
+## `GFArchitecture` 全局状态快照
+
+在重构版本 1.3.0 中，`GFArchitecture` 引入了非常强大的全局状态快照功能：
+
+```gdscript
+# 获取全局快照，它会自动搜集所有已注册的 GFModel 的状态（调用它们各自的 to_dict 方法）
+# 如果已经注册了 GFCommandHistoryUtility，它的撤销重做堆栈也会一并被打包！
+var global_snapshot: Dictionary = Gf.architecture.get_global_snapshot()
+
+# 还原快照，非常适合用于读取存档
+Gf.architecture.restore_global_snapshot(global_snapshot, func(data):
+	# 这里用于把存放进来的指令字典反向序列化成自定义的具体 Command 实例
+	pass
+)
+```
+
+有了这个功能，持久化存档操作可以被浓缩到一行代码解决，甚至完美还原了玩家游玩的各个悔步动作栈。

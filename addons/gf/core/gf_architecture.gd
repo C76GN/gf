@@ -320,6 +320,39 @@ func restore_all_models_state(data: Dictionary) -> void:
 				model.from_dict(data[class_name_key])
 
 
+## 获取整个框架的全局快照，包含所有 Model 状态以及（如果已注册）命令历史记录。
+## @return 包含全局快照数据的字典。可直接用于 JSON 序列化。
+func get_global_snapshot() -> Dictionary:
+	var snapshot: Dictionary = {}
+	
+	# 打包所有的 Model 状态
+	snapshot["models"] = get_all_models_state()
+	
+	# 打包命令操作历史（如果有）
+	var history_util := get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+	if history_util != null:
+		snapshot["command_history"] = history_util.serialize_history()
+		
+	return snapshot
+
+
+## 从全局快照中恢复整个框架的状态，包含 Model 状态以及（如果已注册）命令历史记录。
+## 注意：恢复命令历史需要外部传入 CommandBuilder 进行控制反转，因为它涉及到具体的业务命令类实例化。
+## @param data: 由 get_global_snapshot() 导出的全局快照字典数据。
+## @param command_builder: 【可选】如果需要恢复历史记录，必须传入用于反序列化具体 Command 实例的 Callable。
+func restore_global_snapshot(data: Dictionary, command_builder: Callable = Callable()) -> void:
+	if data.has("models"):
+		restore_all_models_state(data["models"])
+		
+	if data.has("command_history"):
+		var history_util := get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+		if history_util != null:
+			if command_builder.is_valid():
+				history_util.deserialize_history(data["command_history"], command_builder)
+			else:
+				push_warning("[GFArchitecture] restore_global_snapshot：快照包含命令历史数据，但未提供有效的 command_builder，跳过历史恢复。")
+
+
 # --- 私有/内部方法 ---
 
 ## 获取经过时间工具缩放后的 delta。若未注册 GFTimeUtility，则返回原始 delta。

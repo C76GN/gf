@@ -9,6 +9,11 @@
 class_name GFUndoableCommand
 extends GFCommand
 
+# --- 公共变量 ---
+
+## 在 UI 历史记录面板中显示当前命令的名称描述。
+var action_name: String = "未命名动作"
+
 
 # --- 私有变量 ---
 

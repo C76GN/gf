@@ -124,6 +124,9 @@ func _on_command_submitted(raw_input: String) -> void:
 func _on_log_emitted(level: int, tag: String, message: String) -> void:
 	if not is_instance_valid(_console_gui):
 		return
+		
+	if _console_gui.is_tag_ignored(tag):
+		return
 
 	# 与 GFLogUtility.LogLevel 枚举值保持一致：DEBUG=0, INFO=1, WARN=2, ERROR=3, FATAL=4
 	var color: String
@@ -156,6 +159,8 @@ class _GFConsoleGUI extends CanvasLayer:
 
 	var _output: RichTextLabel
 	var _input_field: LineEdit
+	var _filter_input: LineEdit
+	var _ignored_tags: PackedStringArray = PackedStringArray()
 
 	# --- Godot 生命周期方法 ---
 
@@ -182,10 +187,25 @@ class _GFConsoleGUI extends CanvasLayer:
 		var vbox := VBoxContainer.new()
 		margin.add_child(vbox)
 
+		var header_hbox := HBoxContainer.new()
+		vbox.add_child(header_hbox)
+
 		var header := Label.new()
 		header.text = "[ GF Developer Console ]"
 		header.modulate = Color(0.4, 0.8, 1.0)
-		vbox.add_child(header)
+		header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		header_hbox.add_child(header)
+		
+		var filter_label := Label.new()
+		filter_label.text = "过滤标签: "
+		filter_label.modulate = Color(0.8, 0.8, 0.8)
+		header_hbox.add_child(filter_label)
+		
+		_filter_input = LineEdit.new()
+		_filter_input.placeholder_text = "逗号分隔 (如 sys,net)"
+		_filter_input.custom_minimum_size = Vector2(200, 0)
+		_filter_input.text_changed.connect(_on_filter_changed)
+		header_hbox.add_child(_filter_input)
 
 		_output = RichTextLabel.new()
 		_output.bbcode_enabled = true
@@ -228,3 +248,17 @@ class _GFConsoleGUI extends CanvasLayer:
 
 		command_submitted.emit(text)
 		_input_field.clear()
+
+
+	func _on_filter_changed(text: String) -> void:
+		if text.is_empty():
+			_ignored_tags.clear()
+		else:
+			_ignored_tags = text.replace(" ", "").split(",", false)
+
+
+	func is_tag_ignored(tag: String) -> bool:
+		if _ignored_tags.is_empty():
+			return false
+		return _ignored_tags.has(tag)
+

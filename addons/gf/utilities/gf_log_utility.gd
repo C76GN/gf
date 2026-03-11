@@ -58,6 +58,7 @@ var max_log_files: int = 10
 
 var _file: FileAccess
 var _log_file_path: String
+var _muted_tags: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -128,9 +129,25 @@ func fatal(tag: String, msg: String) -> void:
 	_log(LogLevel.FATAL, tag, msg)
 
 
+## 动态设置是否忽略特定标签的日志。
+## @param tag: 要静音的标签。
+## @param muted: 是否静音。如果为 true，该 tag 的日志将不再打印及记录。
+func set_tag_muted(tag: String, muted: bool) -> void:
+	_muted_tags[tag] = muted
+
+
+## 检查指定标签是否被静音。
+## @param tag: 日志标签。
+func is_tag_muted(tag: String) -> bool:
+	return _muted_tags.get(tag, false)
+
+
 # --- 私有方法 ---
 
 func _log(level: int, tag: String, msg: String) -> void:
+	if _muted_tags.get(tag, false):
+		return
+		
 	var level_str: String = _LEVEL_NAMES[level] if level < _LEVEL_NAMES.size() else "UNKNOWN"
 	var datetime := Time.get_datetime_dict_from_system()
 	var timestamp := "%04d-%02d-%02d %02d:%02d:%02d" % [

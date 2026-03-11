@@ -28,15 +28,15 @@ var is_processing: bool = false
 
 # --- 私有变量 ---
 
-## 内部动作队列。元素为 GFVisualAction（顺序）或 Array[GFVisualAction]（并行批次）。
-var _queue: Array = []
+## 内部动作队列。元素必须是 GFVisualAction 或其子类。
+var _queue: Array[GFVisualAction] = []
 
 
 # --- Godot 生命周期方法 ---
 
 ## 第一阶段初始化：清空队列状态。
 func init() -> void:
-	_queue = []
+	_queue.clear()
 	is_processing = false
 
 
@@ -57,8 +57,9 @@ func enqueue(action: GFVisualAction) -> void:
 func enqueue_parallel(actions: Array[GFVisualAction]) -> void:
 	if actions.is_empty():
 		return
-
-	_queue.push_back(actions)
+		
+	var group := GFVisualActionGroup.new(actions, true)
+	_queue.push_back(group)
 	_try_start_processing()
 
 
@@ -78,8 +79,9 @@ func push_front(action: GFVisualAction) -> void:
 func push_front_parallel(actions: Array[GFVisualAction]) -> void:
 	if actions.is_empty():
 		return
-
-	_queue.push_front(actions)
+		
+	var group := GFVisualActionGroup.new(actions, true)
+	_queue.push_front(group)
 	_try_start_processing()
 
 
@@ -104,43 +106,12 @@ func _process_queue() -> void:
 	is_processing = true
 
 	while not _queue.is_empty():
-		var item: Variant = _queue.pop_front()
+		var action: GFVisualAction = _queue.pop_front()
 
-		if item is GFVisualAction:
-			var res = (item as GFVisualAction).execute()
+		if is_instance_valid(action):
+			var res: Variant = action.execute()
 			if res is Signal:
 				await res
 
-		elif item is Array:
-			await _execute_parallel(item as Array)
-
 	is_processing = false
 	queue_drained.emit()
-
-
-## 执行单个动作并等待其完成。
-## @param action: 要执行的 GFVisualAction。
-func _execute_single(action: GFVisualAction) -> void:
-	var result: Variant = action.execute()
-
-	if result is Signal:
-		await result
-
-
-## 并行执行一批动作并等待所有动作全部完成。
-## @param actions: 要并行执行的动作数组。
-func _execute_parallel(actions: Array) -> void:
-	if actions.is_empty():
-		return
-
-	var signals: Array[Signal] = []
-
-	for action in actions:
-		if action is GFVisualAction:
-			var result: Variant = action.execute()
-
-			if result is Signal:
-				signals.append(result as Signal)
-
-	for sig in signals:
-		await sig

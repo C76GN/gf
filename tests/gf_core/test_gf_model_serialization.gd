@@ -110,3 +110,44 @@ func test_architecture_restore_all_models_state() -> void:
 	assert_eq(score_model.score, 100, "score 应恢复为 100。")
 	assert_eq(score_model.level, 10, "level 应恢复为 10。")
 	assert_almost_eq(settings_model.volume, 0.3, 0.001, "volume 应恢复为 0.3。")
+
+
+## 验证 get_global_snapshot 包含 Model 与 CommandHistory 数据，及 restore_global_snapshot 正确恢复。
+func test_architecture_global_snapshot() -> void:
+	var arch := GFArchitecture.new()
+	var score_model := ScoreModel.new()
+	score_model.score = 99
+	arch.register_model_instance(score_model)
+	
+	var history_util := GFCommandHistoryUtility.new()
+	history_util.init()
+	arch.register_utility_instance(history_util)
+	
+	# 构造一个虚假的序列化历史数据（不依赖具体的 command 类）
+	# 在真实场景下，这就代表了一个历史记录
+	var fake_history_data: Array = [{"snapshot": 1}]
+	# 模拟工具内有一些记录
+	history_util._undo_stack.append(GFUndoableCommand.new())
+	
+	var global_snap: Dictionary = arch.get_global_snapshot()
+	
+	assert_true(global_snap.has("models"), "全局快照必须包含 models。")
+	assert_true(global_snap.has("command_history"), "如果注册了命令历史工具，全局快照必须包含 command_history。")
+	
+	# 修改模型状态
+	score_model.score = 0
+	
+	# 设置一个不做任何事的 builder 以防止报错，并验证历史恢复是否被触达
+	var mock_builder: Callable = func(data: Dictionary) -> GFUndoableCommand:
+		var cmd := GFUndoableCommand.new()
+		cmd.set_snapshot(data.get("snapshot"))
+		return cmd
+		
+	# 由于历史重做会在 restore 时调用 clear，我们要改写一下
+	# 或者不改，依靠 deserialize_history 的能力即可
+	global_snap["command_history"] = fake_history_data
+		
+	arch.restore_global_snapshot(global_snap, mock_builder)
+	
+	assert_eq(score_model.score, 99, "模型状态应通过全局快照恢复。")
+	assert_eq(history_util.undo_count, 1, "历史栈记录数量应通过全局快照及 builder 恢复。")

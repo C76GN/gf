@@ -171,6 +171,37 @@ func test_can_undo_and_can_redo() -> void:
 	assert_true(_history.can_redo(), "undo 后 can_redo 应为 true。")
 
 
+## 验证 get_undo_history 和 get_redo_history 返回的数组及元素正确，且原栈不受外部修改影响。
+func test_get_history_methods() -> void:
+	var counter := {"value": 0}
+	var cmd1 := CounterCommand.new(counter)
+	var cmd2 := CounterCommand.new(counter)
+	cmd1.action_name = "动作1"
+	cmd2.action_name = "动作2"
+	
+	cmd1.execute()
+	_history.record(cmd1)
+	cmd2.execute()
+	_history.record(cmd2)
+	
+	_history.undo_last()
+	
+	var undo_history: Array[GFUndoableCommand] = _history.get_undo_history()
+	var redo_history: Array[GFUndoableCommand] = _history.get_redo_history()
+	
+	assert_eq(undo_history.size(), 1, "撤销历史应有 1 个元素。")
+	assert_eq(undo_history[0].action_name, "动作1", "撤销历史的命令描述应正确。")
+	
+	assert_eq(redo_history.size(), 1, "重做历史应有 1 个元素。")
+	assert_eq(redo_history[0].action_name, "动作2", "重做历史的命令描述应正确。")
+	
+	undo_history.clear()
+	redo_history.clear()
+	
+	assert_eq(_history.undo_count, 1, "返回的原撤销栈的拷贝被清空，不应影响内部撤销栈。")
+	assert_eq(_history.redo_count, 1, "返回的原重做栈的拷贝被清空，不应影响内部重做栈。")
+
+
 # --- 测试：持久化与上限 ---
 
 ## 验证 serialize_history 能够提取正确的快照信息。

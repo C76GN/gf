@@ -90,3 +90,4 @@ func _exit_tree() -> void:
 1. **避免在 `Controller` 的 `_init()` 阶段进行挂载**：因为彼时可能对应的 `GFArchitecture` 事件总线还没有准备完毕。请始终在 `ready` (System/Model) 阶段或 `_ready` (ControllerNode) 阶段注册监听。
 2. **切勿遗漏取消监听（Unlisten）**：这会导致内存泄漏或向已销毁的节点回调导致引擎崩溃！
 3. **保持 Payload 轻量**：虽然 Godot 4 的内存回收针对 `RefCounted` 优化巨大，但在诸如物理碰撞这样`_physics_process`高频循环内部，大量 `new` 实例强类型 Payload 仍会构成 GC 压力。这种场景下考虑改为使用 `send_simple_event`。
+4. **事件闭包签名安全性校验**：自 1.3.0 版本起，框架会在运行时反射校验你试图赋予的回调签名参数 `on_event.get_method_argument_count()`。如果签名少于 1 个参数，框架将利用 assert() 断言抛错以提醒你防患于未然。

@@ -109,6 +109,18 @@ func can_redo() -> bool:
 	return not _redo_stack.is_empty()
 
 
+## 获取当前撤销栈的浅拷贝，防止外部（如 UI 控制器）意外修改或清空内部状态。
+## @return 包含所有可撤销命令的数组。
+func get_undo_history() -> Array[GFUndoableCommand]:
+	return _undo_stack.duplicate()
+
+
+## 获取当前重做栈的浅拷贝，防止外部（如 UI 控制器）意外修改或清空内部状态。
+## @return 包含所有可重做命令的数组。
+func get_redo_history() -> Array[GFUndoableCommand]:
+	return _redo_stack.duplicate()
+
+
 ## 将当前撤销栈序列化为纯数据数组，以便于持久化存档（JSON等）。
 ## 它会优先调用命令对象的 serialize() 方法。如果未实现，则保底提取其快照数据。
 ## @return 包含所有历史操作数据的字典数组。

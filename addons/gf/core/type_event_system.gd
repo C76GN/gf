@@ -30,6 +30,18 @@ var _pending_removes_simple: Array = []
 ## @param on_event: 事件发送时执行的回调函数。
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register(event_type: Script, on_event: Callable, priority: int = 0) -> void:
+	assert(on_event.is_valid(), "[TypeEventSystem] 尝试注册无效的事件回调函数。")
+	
+	# 安全性校验：尝试校验回调签名的参数个数以防止开发者漏填参数
+	var target_obj: Object = on_event.get_object()
+	if target_obj != null and not on_event.is_custom():
+		var method_name: StringName = on_event.get_method()
+		var methods: Array[Dictionary] = target_obj.get_method_list()
+		for m: Dictionary in methods:
+			if m["name"] == String(method_name):
+				assert(m["args"].size() >= 1, "[TypeEventSystem] 注册的事件回调 %s 必须至少包含一个参数用于接收事件实例！" % method_name)
+				break
+
 	if not _event_listeners.has(event_type):
 		_event_listeners[event_type] = []
 	var listeners := _event_listeners[event_type] as Array
@@ -73,6 +85,8 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 ## @param event_instance: 要分发的事件实例。
 func send(event_instance: Object) -> void:
 	var event_type: Variant = event_instance.get_script()
+	assert(event_type != null, "[TypeEventSystem] 发送的事件实例必须附加继承了 RefCounted 或 Object 的脚本类！")
+	
 	if event_type == null:
 		push_error("[GDCore] 发送的事件必须是附加了脚本的类实例。")
 		return

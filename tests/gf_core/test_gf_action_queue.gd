@@ -112,3 +112,37 @@ func test_clear_then_push_front() -> void:
 
 	assert_eq(order.size(), 1, "应只有 1 个动作被执行。")
 	assert_eq(order[0], "NEW", "clear 后 push_front 应正常执行。")
+
+
+# --- 测试：并行队列与组合 ---
+
+## 验证 enqueue_parallel 的子动作被一并执行。
+func test_enqueue_parallel() -> void:
+	var order: Array = []
+	var act1 := OrderAction.new(order, "P1")
+	var act2 := OrderAction.new(order, "P2")
+	_system.enqueue_parallel([act1, act2])
+	
+	await get_tree().process_frame
+	await get_tree().process_frame
+	
+	assert_true(order.has("P1"), "并行 P1 应执行。")
+	assert_true(order.has("P2"), "并行 P2 应执行。")
+
+
+## 验证 push_front_parallel 能置顶插队执行。
+func test_push_front_parallel() -> void:
+	var order: Array = []
+	# 为了测试插队，我们要利用一个需要稍微等待的动作或者在第一帧塞入
+	_system.is_processing = true
+	_system.enqueue(OrderAction.new(order, "END"))
+	_system.push_front_parallel([OrderAction.new(order, "P1"), OrderAction.new(order, "P2")])
+	_system.is_processing = false
+	_system._try_start_processing()
+	
+	await get_tree().process_frame
+	await get_tree().process_frame
+	
+	assert_eq(order.size(), 3, "共有3个动作。")
+	assert_true(order.find("P1") < order.find("END"), "P1 应当在 END 之前")
+	assert_true(order.find("P2") < order.find("END"), "P2 应当在 END 之前")

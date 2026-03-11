@@ -56,6 +56,21 @@ fsm.update(delta)
 
 GF Action Queue 在 `addons/gf/extensions/action_queue/` 为这个问题提供了完美隔离。通过把表现层动效视作独立可执行的类 `GFVisualAction`，将其压入 `GFActionQueueSystem` 的队列池内：
 
+### `GFVisualActionGroup` 复合动作与并行执行
+
+自 1.3.0 版本起，框架正式引入了复合动作节点 `GFVisualActionGroup`。你可以将一组 `GFVisualAction` 打包为一个大动作：
+
+```gdscript
+# 将两张卡牌的移动动作打包以并行方式执行（等它们俩都移动到位后才继续队列后续任务）
+var group: GFVisualActionGroup = GFVisualActionGroup.new([
+    MoveCardAction.new(card_a, target_pos_a),
+    MoveCardAction.new(card_b, target_pos_b)
+], true) # true 代表并行执行
+
+action_queue_sys.enqueue(group)
+```
+或者，你可以直接使用 `enqueue_parallel([action_a, action_b])` 语法糖，底层的队列系统会自动帮你将它们用 `GFVisualActionGroup` 封装！
+
 ### 编写继承的 Action 动效
 
 实现重写其虚函数：如若是耗时操作，务必确保 `execute()` 声明的是在自身生命周期内可完成，最后能够产生触发的信号。

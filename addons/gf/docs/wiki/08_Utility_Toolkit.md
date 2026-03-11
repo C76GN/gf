@@ -267,10 +267,16 @@ print(combat_rng.randi())
 var log_util := Gf.get_utility(GFLogUtility) as GFLogUtility
 
 # 各等级日志 —— 第一个参数是标签（推荐用类名或模块名），第二个是消息内容
-log_util.debug("CombatSystem", "伤害计算开始。")
-log_util.info("SaveManager", "存档写入成功。")
-log_util.warn("Network", "延迟过高：%d ms。" % latency)
-log_util.error("AudioBus", "找不到总线: %s" % bus_name)
+log_util.debug("System", "系统初始化完毕。")
+log_util.info("Network", "接通服务器。")
+log_util.warn("Memory", "内存占用略高。")
+log_util.error("Math", "除以了零。")
+
+# 当日志太多时，可以动态静音某些不重要的标签，静音后不再打印与写入本地：
+log_util.set_tag_muted("Network", true)
+
+log_util.warn("Network", "延迟过高：%d ms。" % 150) # 这条将不会被打印或写入文件
+log_util.error("AudioBus", "找不到总线: %s" % "Master")
 log_util.fatal("Core", "不可恢复的致命错误！")
 
 # 监听日志信号（GFConsoleUtility 已自动监听）
