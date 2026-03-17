@@ -51,3 +51,29 @@ func set_value(new_value: Variant) -> void:
 func unbind_all() -> void:
 	for connection: Dictionary in value_changed.get_connections():
 		value_changed.disconnect(connection["callable"])
+
+
+## 绑定信号到一个 Node 的 Callable。当该 Node 退出场景树时，自动断开连接。
+## @param node: 监听生命周期的节点。
+## @param callable: 绑定的回调函数。
+func bind_to(node: Node, callable: Callable) -> void:
+	if not is_instance_valid(node):
+		push_error("[BindableProperty] 尝试绑定到一个无效的 Node。")
+		return
+		
+	if not callable.is_valid():
+		push_error("[BindableProperty] 尝试绑定一个无效的 Callable。")
+		return
+		
+	# 连接值变更信号
+	if not value_changed.is_connected(callable):
+		value_changed.connect(callable)
+		
+	# 监听节点的 tree_exited 信号，实现自动注销
+	if not node.tree_exited.is_connected(_on_node_exited.bind(node, callable)):
+		node.tree_exited.connect(_on_node_exited.bind(node, callable), CONNECT_ONE_SHOT)
+
+
+func _on_node_exited(node: Node, callable: Callable) -> void:
+	if value_changed.is_connected(callable):
+		value_changed.disconnect(callable)

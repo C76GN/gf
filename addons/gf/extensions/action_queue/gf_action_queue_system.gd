@@ -111,7 +111,36 @@ func _process_queue() -> void:
 		if is_instance_valid(action):
 			var res: Variant = action.execute()
 			if res is Signal:
-				await res
+				var target_obj: Object = res.get_object()
+				
+				# 防死锁保护：如果发射源无效，直接跳过
+				if not is_instance_valid(target_obj):
+					continue
+					
+				# 如果发射源是 Node，监听其 tree_exited 信号作为安全退出网
+				if target_obj is Node:
+					var node := target_obj as Node
+					if not node.is_inside_tree():
+						continue
+						
+					# 创建一个临时闭包来监听信号或节点销毁
+					var completed := [false] # 使用数组存储布尔值以绕过闭包修改限制
+					var on_resume := func(_arg1=null, _arg2=null, _arg3=null, _arg4=null): 
+						completed[0] = true
+					
+					res.connect(on_resume, CONNECT_ONE_SHOT)
+					if res != node.tree_exited:
+						node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+					
+					# 轮询等待（效率略低但最稳健）或者使用内置机制
+					# 在 Godot 4 中，最好的做法是等待直到布尔值变化
+					while not completed[0]:
+						if not is_instance_valid(node) or not node.is_inside_tree():
+							break
+						await Engine.get_main_loop().process_frame
+				else:
+					# 非 Node 对象（如 RefCounted），直接等待信号
+					await res
 
 	is_processing = false
 	queue_drained.emit()

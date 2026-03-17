@@ -37,7 +37,10 @@ func undo() -> void:
 ## 保存执行前的状态快照。应在 execute() 内部、修改数据之前调用。
 ## @param data: 任意可序列化的快照数据（如字典、数值、数组）。
 func set_snapshot(data: Variant) -> void:
-	_snapshot = data
+	if typeof(data) == TYPE_DICTIONARY or typeof(data) == TYPE_ARRAY:
+		_snapshot = data.duplicate(true) # 强制深拷贝，避免引用陷阱
+	else:
+		_snapshot = data
 
 
 ## 获取由 set_snapshot() 保存的状态快照。在 undo() 中调用以还原数据。

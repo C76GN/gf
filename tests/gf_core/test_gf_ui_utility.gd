@@ -45,8 +45,8 @@ func test_push_and_pop_panel_instance() -> void:
 	assert_false(panel1.visible, "auto_hide_under 开启时，压入新面板应隐藏下方面板。")
 	assert_true(panel2.visible, "栈顶面板应当可见。")
 	
-	# Pop panel 2 (no free to avoid test crash on asserts if needed later, though do_free=true tests memory)
-	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP, false)
+	# Pop panel 2 (do free to avoid orphans)
+	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP, true)
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel1, "弹出 panel2 后栈顶应恢复为 panel1。")
 	assert_true(panel1.visible, "弹出后，下方面板可见性应恢复。")
 

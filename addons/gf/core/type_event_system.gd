@@ -17,9 +17,11 @@ var _simple_event_listeners: Dictionary = {}
 
 var _is_iterating_type: bool = false
 var _pending_removes_type: Array = []
+var _pending_adds_type: Array = []
 
 var _is_iterating_simple: bool = false
 var _pending_removes_simple: Array = []
+var _pending_adds_simple: Array = []
 
 
 # --- 公共方法 (类型事件) ---
@@ -41,6 +43,10 @@ func register(event_type: Script, on_event: Callable, priority: int = 0) -> void
 			if m["name"] == String(method_name):
 				assert(m["args"].size() >= 1, "[TypeEventSystem] 注册的事件回调 %s 必须至少包含一个参数用于接收事件实例！" % method_name)
 				break
+
+	if _is_iterating_type:
+		_pending_adds_type.append({"event_type": event_type, "callable": on_event, "priority": priority})
+		return
 
 	if not _event_listeners.has(event_type):
 		_event_listeners[event_type] = []
@@ -130,6 +136,11 @@ func send(event_instance: Object) -> void:
 						p_listeners.remove_at(i)
 						break
 		_pending_removes_type.clear()
+		
+		# 合并悬决添加
+		for pending: Dictionary in _pending_adds_type:
+			register(pending.event_type, pending.callable, pending.priority)
+		_pending_adds_type.clear()
 
 
 # --- 公共方法 (简单事件) ---
@@ -138,6 +149,10 @@ func send(event_instance: Object) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param on_event: 回调函数，签名为 func(payload: Variant)。
 func register_simple(event_id: StringName, on_event: Callable) -> void:
+	if _is_iterating_simple:
+		_pending_adds_simple.append({"event_id": event_id, "callable": on_event})
+		return
+
 	if not _simple_event_listeners.has(event_id):
 		_simple_event_listeners[event_id] = []
 	var listeners := _simple_event_listeners[event_id] as Array
@@ -194,6 +209,11 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 			var p_listeners := _simple_event_listeners[pending.event_id] as Array
 			p_listeners.erase(pending.callable)
 	_pending_removes_simple.clear()
+	
+	# 合并悬决添加 (Task 6)
+	for pending: Dictionary in _pending_adds_simple:
+		register_simple(pending.event_id, pending.callable)
+	_pending_adds_simple.clear()
 
 
 ## 清空所有已注册的事件监听器（包括类型事件和简单事件）。
@@ -202,5 +222,7 @@ func clear() -> void:
 	_simple_event_listeners.clear()
 	_pending_removes_type.clear()
 	_pending_removes_simple.clear()
+	_pending_adds_type.clear()
+	_pending_adds_simple.clear()
 	_is_iterating_type = false
 	_is_iterating_simple = false

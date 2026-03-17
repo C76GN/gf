@@ -21,6 +21,7 @@ var _target_path: String = ""
 var _is_loading: bool = false
 var _loading_scene_path: String = ""
 var _transient_scripts: Array[Script] = []
+var _previous_pause_state: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -44,6 +45,7 @@ func tick(_delta: float) -> void:
 				_do_change_scene(scene)
 			else:
 				scene_load_failed.emit(_target_path)
+				_set_paused(_previous_pause_state) # 失败恢复到之前的状态
 			_is_loading = false
 			_target_path = ""
 			
@@ -52,6 +54,7 @@ func tick(_delta: float) -> void:
 			scene_load_failed.emit(_target_path)
 			_is_loading = false
 			_target_path = ""
+			_set_paused(_previous_pause_state) # 失败恢复到之前的状态
 
 
 # --- 公共方法 ---
@@ -68,6 +71,10 @@ func load_scene_async(path: String, loading_scene_path: String = "") -> void:
 	_loading_scene_path = loading_scene_path
 	_is_loading = true
 	
+	# 异步加载开始：记录状态并自动暂停逻辑层 tick
+	_previous_pause_state = _get_paused()
+	_set_paused(true)
+	
 	scene_load_started.emit(path)
 	
 	# 如果指定了加载场景，则立即同步切换至该加载场景以作为过度
@@ -81,6 +88,7 @@ func load_scene_async(path: String, loading_scene_path: String = "") -> void:
 		_is_loading = false
 		_target_path = ""
 		scene_load_failed.emit(path)
+		_set_paused(_previous_pause_state) # 发起失败恢复到之前的状态
 
 
 ## 标记指定的 System 或 Model 脚本类型为瞬态。在下一次场景切换时将自动从 Architecture 中注销。
@@ -124,9 +132,28 @@ func _do_change_scene(scene: PackedScene) -> void:
 	if scene_tree != null:
 		scene_tree.change_scene_to_packed(scene)
 	cleanup_transients()
+	_set_paused(_previous_pause_state) # 加载并切换完成后恢复切入前的状态
 
 
 func _do_change_scene_sync(path: String) -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree
 	if scene_tree != null:
 		scene_tree.change_scene_to_file(path)
+
+
+## 内部工具：设置全局暂停状态（如果 GFTimeUtility 存在）
+func _set_paused(p_paused: bool) -> void:
+	# 此处使用反射方式获取，避免强依赖循环
+	var arch := Gf.get_architecture()
+	if arch == null: return
+	
+	var time_util = arch.get_utility(GFTimeUtility)
+	if time_util != null:
+		time_util.is_paused = p_paused
+
+
+func _get_paused() -> bool:
+	var arch := Gf.get_architecture()
+	if arch == null: return false
+	var time_util = arch.get_utility(GFTimeUtility)
+	return time_util.is_paused if time_util != null else false

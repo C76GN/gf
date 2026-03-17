@@ -259,3 +259,21 @@ func test_history_size_limit() -> void:
 	assert_eq(counter.value, 1, "再次撤销的是第二个命令，执行撤销后恢复为 1。")
 	
 	assert_false(_history.undo_last(), "第一条命令应已被超限丢弃，无法再撤销。")
+
+
+# --- 测试：深拷贝快照 (Task 7) ---
+
+## 验证 set_snapshot 对于引用类型（字典/数组）执行深拷贝，防止外部修改破坏快照。
+func test_snapshot_deep_copy() -> void:
+	var data := {"a": 1, "b": [1, 2]}
+	var cmd := CounterCommand.new({})
+	
+	cmd.set_snapshot(data)
+	
+	# 修改原数据
+	data["a"] = 99
+	data["b"].append(3)
+	
+	var snapshot: Dictionary = cmd.get_snapshot()
+	assert_eq(snapshot["a"], 1, "字典快照不应受原字典修改影响。")
+	assert_eq(snapshot["b"].size(), 2, "嵌套数组快照不应受原数组修改影响。")

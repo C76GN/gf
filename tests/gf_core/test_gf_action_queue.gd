@@ -22,6 +22,19 @@ class OrderAction:
 		return null
 
 
+## 模拟死锁信号动作。
+class DeadlockSignalAction:
+	extends GFVisualAction
+	
+	var emitter: Node
+	
+	func _init(e: Node) -> void:
+		emitter = e
+		
+	func execute() -> Variant:
+		return emitter.tree_exited # 返回一个永远不会在正常 await 中恢复的信号，除非手动触发 tree_exited
+
+
 # --- 私有变量 ---
 
 var _system: GFActionQueueSystem
@@ -146,3 +159,29 @@ func test_push_front_parallel() -> void:
 	assert_eq(order.size(), 3, "共有3个动作。")
 	assert_true(order.find("P1") < order.find("END"), "P1 应当在 END 之前")
 	assert_true(order.find("P2") < order.find("END"), "P2 应当在 END 之前")
+
+
+# --- 测试：防死锁安全网 (Task 5) ---
+
+## 模拟动作返回的信号发射器被意外释放，验证队列不会永久卡死。
+func test_no_deadlock_on_freed_node() -> void:
+	var node := Node.new()
+	add_child_autofree(node)
+	
+	var action := DeadlockSignalAction.new(node)
+	_system.enqueue(action)
+	
+	# 启动处理
+	await get_tree().process_frame
+	
+	# 此时队列应正在等待 node 的信号
+	assert_true(_system.is_processing, "队列应处于处理中。")
+	
+	# 模拟节点被销毁 (由外部逻辑触发)
+	node.free()
+	
+	# 等待几帧让系统响应处理
+	await get_tree().process_frame
+	await get_tree().process_frame
+	
+	assert_false(_system.is_processing, "队列应在节点销毁后自动恢复并结束处理，不产生死锁。")

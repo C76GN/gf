@@ -97,3 +97,26 @@ func test_rebind_after_unbind_all() -> void:
 	_prop.set_value(5)
 
 	assert_eq(state.count, 100, "unbind_all 后重新绑定的回调应正常工作。")
+
+
+# --- 测试：bind_to (Task 4) ---
+
+## 验证 bind_to 能在节点销毁时自动解绑。
+func test_bind_to_auto_unbinds_on_tree_exited() -> void:
+	var state := {"count": 0}
+	var node := Node.new()
+	add_child_autofree(node)
+	
+	_prop.bind_to(node, func(_o, _n): state.count += 1)
+	
+	_prop.set_value(1)
+	assert_eq(state.count, 1, "解绑前应触发一次。")
+	
+	# 模拟节点退出场景树
+	remove_child(node)
+	node.emit_signal("tree_exited")
+	
+	_prop.set_value(2)
+	assert_eq(state.count, 1, "节点退出树后，不应再触发回调（已自动解绑）。")
+	
+	node.free()

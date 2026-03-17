@@ -24,25 +24,31 @@ const _META_ACTIVE: StringName = &"_gf_pool_active"
 
 # --- 私有变量 ---
 
-## 对象池字典。Key 为 PackedScene 资源，Value 为对应的节点池数组。
-var _pools: Dictionary = {}
+## 对象池全量字典。Key 为 PackedScene 资源，Value 为该场景产生的所有节点数组。
+## 仅用于销毁时统一释放。
+var _all_nodes: Dictionary = {}
+
+## 可用对象池字典。Key 为 PackedScene 资源，Value 为当前可用的节点栈。
+var _available_pools: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
 
 ## 第一阶段初始化：清空内部池字典。
 func init() -> void:
-	_pools = {}
+	_all_nodes = {}
+	_available_pools = {}
 
 
 ## 销毁阶段：释放所有池中的节点。
 func dispose() -> void:
-	for scene in _pools:
-		var pool: Array = _pools[scene]
+	for scene in _all_nodes:
+		var pool: Array = _all_nodes[scene]
 		for node in pool:
 			if is_instance_valid(node):
 				node.queue_free()
-	_pools.clear()
+	_all_nodes.clear()
+	_available_pools.clear()
 
 
 # --- 公共方法 ---
@@ -56,24 +62,23 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 		push_error("[GFObjectPoolUtility] 传入了无效的 PackedScene。")
 		return null
 
-	if not _pools.has(scene):
-		_pools[scene] = []
+	if not _available_pools.has(scene):
+		_available_pools[scene] = []
+		_all_nodes[scene] = []
 
-	var pool: Array = _pools[scene]
+	var available_pool: Array = _available_pools[scene]
 
-	for i in range(pool.size() - 1, -1, -1):
-		var raw_node = pool[i]
+	while not available_pool.is_empty():
+		var node: Node = available_pool.pop_back()
 		
-		if not is_instance_valid(raw_node) or raw_node.is_queued_for_deletion():
-			pool.remove_at(i)
-			continue
-			
-		var node: Node = raw_node as Node
-		if not node.get_meta(_META_ACTIVE, false):
+		if is_instance_valid(node) and not node.is_queued_for_deletion():
 			node.set_meta(_META_ACTIVE, true)
 			
 			if is_instance_valid(parent) and node.get_parent() != parent:
-				node.reparent(parent, false) 
+				if node.get_parent() != null:
+					node.reparent(parent, false)
+				else:
+					parent.add_child(node)
 				
 			return node
 
@@ -82,7 +87,7 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 	if is_instance_valid(parent):
 		parent.add_child(new_node)
 
-	pool.push_back(new_node)
+	_all_nodes[scene].push_back(new_node)
 	return new_node
 
 
@@ -95,12 +100,12 @@ func release(node: Node, scene: PackedScene) -> void:
 
 	node.set_meta(_META_ACTIVE, false)
 
-	if not _pools.has(scene):
-		_pools[scene] = []
+	if not _available_pools.has(scene):
+		_available_pools[scene] = []
+		_all_nodes[scene] = []
 
-	var pool: Array = _pools[scene]
-	if not pool.has(node):
-		pool.push_back(node)
+	var available_pool: Array = _available_pools[scene]
+	available_pool.push_back(node)
 
 
 ## 预热对象池，预先实例化指定数量的节点以避免首次使用时的卡顿。
@@ -108,27 +113,29 @@ func release(node: Node, scene: PackedScene) -> void:
 ## @param parent: 预热节点将加入此父节点。
 ## @param count: 预热的数量。
 func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
+	if not _available_pools.has(scene):
+		_available_pools[scene] = []
+		_all_nodes[scene] = []
+
 	for i in range(count):
 		var node: Node = scene.instantiate()
 		node.set_meta(_META_ACTIVE, false)
 		if is_instance_valid(parent):
 			parent.add_child(node)
 
-		if not _pools.has(scene):
-			_pools[scene] = []
-
-		_pools[scene].push_back(node)
+		_all_nodes[scene].push_back(node)
+		_available_pools[scene].push_back(node)
 
 
 ## 获取指定场景当前池中可用（未使用）的节点数量。
 ## @param scene: 要查询的 PackedScene 资源。
 ## @return 池中可用节点数量。
 func get_available_count(scene: PackedScene) -> int:
-	if not _pools.has(scene):
+	if not _available_pools.has(scene):
 		return 0
 
 	var count: int = 0
-	for node in _pools[scene]:
-		if is_instance_valid(node) and not node.get_meta(_META_ACTIVE, false):
+	for node in _available_pools[scene]:
+		if is_instance_valid(node) and not node.is_queued_for_deletion():
 			count += 1
 	return count

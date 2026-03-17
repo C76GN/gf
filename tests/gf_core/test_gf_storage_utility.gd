@@ -33,7 +33,7 @@ func test_save_and_load_slot() -> void:
 	assert_true(_storage.has_slot(1), "槽位 1 应该存在。")
 	
 	var loaded_meta := _storage.load_slot_meta(1)
-	assert_eq(loaded_meta.get("level"), 10, "读取的 meta 数据应该一致。")
+	assert_eq(int(loaded_meta.get("level")), 10, "读取的 meta 数据应该一致。")
 	
 	var loaded_data := _storage.load_slot(1)
 	assert_eq(loaded_data.get("name"), "Hero", "读取的 data 数据应该一致。")

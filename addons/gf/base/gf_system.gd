@@ -23,9 +23,7 @@ var ignore_pause: bool = false
 
 # --- 私有变量 ---
 
-## 懒加载缓存字典，存储本 System 首次获取过的 Model/System/Utility 实例。
-## Key 为 Script 类型，Value 为对应实例。避免高频跨类哈希查找。
-var _cache: Dictionary = {}
+# (删除 _cache 以防止内存泄漏和野指针)
 
 
 # --- Godot 生命周期方法 ---
@@ -68,33 +66,27 @@ func physics_tick(_delta: float) -> void:
 	pass
 
 
-# --- 获取方法 (懒加载缓存) ---
+# --- 获取方法 ---
 
-## 通过类型获取 Model 实例。首次调用后结果将缓存于本地。
+## 通过类型获取 Model 实例。
 ## @param model_type: 模型的脚本类型。
 ## @return 模型实例。
 func get_model(model_type: Script) -> Object:
-	if not _cache.has(model_type):
-		_cache[model_type] = Gf.get_architecture().get_model(model_type)
-	return _cache[model_type]
+	return Gf.get_architecture().get_model(model_type)
 
 
-## 通过类型获取 Utility 实例。首次调用后结果将缓存于本地。
+## 通过类型获取 Utility 实例。
 ## @param utility_type: 工具的脚本类型。
 ## @return 工具实例。
 func get_utility(utility_type: Script) -> Object:
-	if not _cache.has(utility_type):
-		_cache[utility_type] = Gf.get_architecture().get_utility(utility_type)
-	return _cache[utility_type]
+	return Gf.get_architecture().get_utility(utility_type)
 
 
-## 通过类型获取 System 实例。首次调用后结果将缓存于本地。
+## 通过类型获取 System 实例。
 ## @param system_type: 系统的脚本类型。
 ## @return 系统实例。
 func get_system(system_type: Script) -> Object:
-	if not _cache.has(system_type):
-		_cache[system_type] = Gf.get_architecture().get_system(system_type)
-	return _cache[system_type]
+	return Gf.get_architecture().get_system(system_type)
 
 
 # --- 事件系统 ---

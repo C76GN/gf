@@ -53,6 +53,20 @@ func _ready() -> void:
 # 注意回调会自动接收它变更后的新值！
 func _on_level_changed(new_level: Variant) -> void:
 	lvl_label.text = "Lv: " + str(new_level)
+
+
+### 3. 自动解绑（架构推荐方法）
+
+在 UI 开发中，最担心的就是 Node 销毁后监听器未释放导致的内存泄漏。`BindableProperty` 提供了 `bind_to` 语法糖解决此问题：
+
+```gdscript
+func _ready() -> void:
+	# 绑定到自身，当该 Controller(Node) 销毁时，会自动 disconnect _on_level_changed
+	player_model.level.bind_to(self, _on_level_changed)
+	
+	# 依然建议手动刷新一次初始值
+	_on_level_changed(player_model.level.get_value())
+```
 ```
 
 ## 数据绑定的局限性与设计哲学

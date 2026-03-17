@@ -1,0 +1,112 @@
+# 10. 战斗扩展 (Combat Extension)
+
+`GF Combat Extension` 是框架内置的一套纯数据驱动、高度通用的战斗底层抽象。它不与特定的游戏业务逻辑绑定，通过标签（Tags）和属性（Attributes）系统实现灵活的战斗机制扩展。
+
+## 核心组件
+
+### 1. 属性系统 (Attribute)
+`GFAttribute` 管理实体的核心数值。它支持多重修饰器叠加，并自动执行标准战斗公式：
+**公式：**(基础值 + 基础加值) * (1.0 + 百分比加值) + 最终加值
+
+- **响应式更新**：对外暴露为 `BindableProperty`，UI 可直接绑定。
+- **修饰器 (Modifier)**：支持 `BASE_ADD`, `PERCENT_ADD`, `FINAL_ADD` 三种计算方式。
+- **强制重算**：通过 `force_recalculate()` 手动触发数值更新（适用于 Modifier 数值动态变动的场景）。
+
+### 2. 标签系统 (Tag)
+`GFTagComponent` 记录实体的状态标签及其层数。
+- **用途**：用于技能释放前提判断（如：必须要处于 `&"State.Normal"` 且不包含 `&"State.Stun"`）。
+- **层数堆叠**：支持标签层数的增减与查询。
+
+### 3. Buff 系统 (Buff)
+`GFBuff` 是状态效果的基类，负责管理生命周期和效果应用。
+- **生命周期**：支持 `duration` (持续时间) 和 `on_tick(delta)` (周期驱动逻辑)。
+- **效果携带**：Buff 可以携带多个 `GFModifier` 和 `Tags`，在应用时自动挂载至宿主。
+
+### 4. 技能系统 (Skill)
+`GFSkill` 提供技能的基础框架。
+- **CD 管理**：内置冷却计时逻辑。
+- **条件检查**：支持 `require_tags` (必须包含) 和 `ignore_tags` (禁止包含) 逻辑检查。
+- **自动化索敌**：支持集成 `GFSkillTargetingRule` 实现管线化自动索敌。
+
+### 5. 技能目标选择系统 (Targeting Pipeline)
+这是一个高度通用、基于管线（Pipeline）设计的索敌方案，通过 `GFSkillTargetingUtility` 处理。
+
+> [!NOTE]
+> 该工具遵循框架的 IoC 原则，内置在 `GFSkill` 中使用。若需手动调用，应通过 `Gf.get_utility(GFSkillTargetingUtility)` 获取。
+
+- **管线流程**：
+    1. **空间收集 (Spatial Query)**: 基于形状（如圆形 CIRCLE）和半径筛选。
+    2. **标签过滤 (Tag Filter)**: 检查 `GFTagComponent`，支持必须拥有（Require）和进制拥有（Ignore）标签。
+    3. **动态排序 (Sort)**: 支持基于距离或动态属性名（Attribute）进行最高/最低排序。
+    4. **数量截取 (Slice)**: 严格限制返回的目标数量。
+- **资源化定义**：通过创建 `GFSkillTargetingRule` 资源文件，可以在不修改代码的情况下在线调整索敌逻辑。
+
+### 6. 战斗事件 (Combat Events)
+`GFCombatSystem` 在处理 Buff 时会通过 `GFArchitecture` 发送强类型事件，便于业务层通过订阅载体（Payload）实现引爆、致死拦截等逻辑。
+
+- **`GFBuffAppliedPayload`**: 当新 Buff 被成功应用时。
+- **`GFBuffRefreshedPayload`**: 当 Buff 持续时间被刷新时。
+- **`GFBuffRemovedPayload`**: 当 Buff 耗尽或被强制移除时。
+
+#### 监听范例：
+```gdscript
+# 监听 Buff 应用事件
+Gf.listen(GFCombatPayloads.GFBuffAppliedPayload, func(payload: GFCombatPayloads.GFBuffAppliedPayload):
+	var buff := payload.buff as GFBuff
+	print("实体 ", payload.target, " 获得了 Buff: ", buff.id)
+)
+```
+
+## 使用范例
+
+### 定义一个通过 Tick 恢复生命值的 Buff
+```gdscript
+class_name RegenBuff
+extends GFBuff
+
+func on_tick(p_delta: float) -> void:
+	# 假设宿主有方法获取 HP 属性
+	var hp := owner.get_attribute(&"HP") as GFAttribute
+	hp.set_base_value(hp.get_base_value() + 5.0 * p_delta)
+	hp.force_recalculate() 
+```
+
+### 定义一个具有自动索敌逻辑的技能
+```gdscript
+class_name FireBallSkill
+extends GFSkill
+
+func _init(p_owner: Object) -> void:
+    super._init(p_owner)
+    id = &"FireBall"
+    cooldown_max = 2.0
+    
+    # 配置自动化索敌规则
+    targeting_rule = GFSkillTargetingRule.new()
+    targeting_rule.shape = GFSkillTargetingRule.Shape.CIRCLE
+    targeting_rule.radius = 300.0
+    targeting_rule.max_count = 3
+    targeting_rule.sort_rule = GFSkillTargetingRule.SortRule.ATTRIBUTE_LOWEST
+    targeting_rule.sort_attribute_name = &"HP" # 优先打血量最低的目标
+
+func _on_execute(p_targets: Array[Object]) -> void:
+    for target in p_targets:
+        print("Fireball hits: ", target)
+```
+
+### 给属性挂载 Buff
+```gdscript
+var strength_buff := GFBuff.new()
+strength_buff.setup(&"StrBoost", 5.0, entity)
+strength_buff.modifiers.append(GFModifier.create_percent_add(0.2, &"STR")) # 力量提升 20%
+combat_system.add_buff(entity, strength_buff)
+```
+
+## 系统驱动
+`GFCombatSystem` 继承自 `GFSystem`，只需将其注册到架构中，它就会在每一帧自动更新所有已注册实体的 Buff 和技能状态。
+
+```gdscript
+# 在架构初始化时
+var combat_sys := GFCombatSystem.new()
+architecture.register_system_instance(combat_sys)
+```

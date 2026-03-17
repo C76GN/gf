@@ -264,3 +264,28 @@ func test_mid_priority_consumes() -> void:
 	assert_eq(state.order.size(), 2, "中间级消费后应只有高和中被调用。")
 	assert_eq(state.order[0], "high", "高优先级应先执行。")
 	assert_eq(state.order[1], "mid", "中优先级应第二执行。")
+
+
+# --- 测试：遍历中注册 (Task 6) ---
+
+## 验证在回调内注册新事件，不会破坏当前遍历且能在下次生效。
+func test_register_during_traversal() -> void:
+	var state := {"count": 0}
+	var script_a: Script = TestEventA
+	
+	var cb_inner: Callable = func(_e: TestEventA) -> void:
+		state.count += 10
+		
+	var cb_outer: Callable = func(_e: TestEventA) -> void:
+		state.count += 1
+		_system.register(script_a, cb_inner)
+		
+	_system.register(script_a, cb_outer)
+	
+	# 第一次发送：触发 outer，注册 inner
+	_system.send(TestEventA.new())
+	assert_eq(state.count, 1, "第一次发送应只触发 outer，inner 暂存。")
+	
+	# 第二次发送：触发 outer 和 inner
+	_system.send(TestEventA.new())
+	assert_eq(state.count, 12, "第二次发送应触发 outer(1) 和 inner(10)。")
