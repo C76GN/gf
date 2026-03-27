@@ -69,9 +69,10 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 	var available_pool: Array = _available_pools[scene]
 
 	while not available_pool.is_empty():
-		var node: Node = available_pool.pop_back()
+		var popped_item = available_pool.pop_back()
 		
-		if is_instance_valid(node) and not node.is_queued_for_deletion():
+		if is_instance_valid(popped_item) and not popped_item.is_queued_for_deletion():
+			var node: Node = popped_item as Node
 			node.set_meta(_META_ACTIVE, true)
 			
 			if is_instance_valid(parent) and node.get_parent() != parent:
@@ -96,6 +97,9 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 ## @param scene: 该节点所属的 PackedScene 资源，用于匹配正确的池。
 func release(node: Node, scene: PackedScene) -> void:
 	if not is_instance_valid(node):
+		return
+
+	if node.has_meta(_META_ACTIVE) and not node.get_meta(_META_ACTIVE):
 		return
 
 	node.set_meta(_META_ACTIVE, false)
@@ -135,7 +139,7 @@ func get_available_count(scene: PackedScene) -> int:
 		return 0
 
 	var count: int = 0
-	for node in _available_pools[scene]:
-		if is_instance_valid(node) and not node.is_queued_for_deletion():
+	for item in _available_pools[scene]:
+		if is_instance_valid(item) and not item.is_queued_for_deletion():
 			count += 1
 	return count

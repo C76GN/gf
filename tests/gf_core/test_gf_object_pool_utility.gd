@@ -125,3 +125,31 @@ func test_available_count_changes_with_acquire_release() -> void:
 
 	_pool.release(node, _scene)
 	assert_eq(_pool.get_available_count(_scene), 2, "release 后可用数应恢复为 2。")
+
+
+## 验证重复 release 同一个节点不会导致池内出现重复引用。
+func test_double_release_is_ignored() -> void:
+	var node: Node = _pool.acquire(_scene, _parent)
+	
+	_pool.release(node, _scene) # 第一下归还
+	var count1 := _pool.get_available_count(_scene)
+	
+	_pool.release(node, _scene) # 第二下归还应当被忽略
+	var count2 := _pool.get_available_count(_scene)
+	
+	assert_eq(count1, count2, "对同一个早已处于池中的节点重复 release，不应当增加可用节点计数。")
+
+## 验证当对象池中含有被外部错误 queue_free 退出的游离旧节点时，acquire 不会崩溃。
+func test_acquire_invalid_freed_instance_is_safe() -> void:
+	var node: Node = _pool.acquire(_scene, _parent)
+	_pool.release(node, _scene)
+	
+	# 模拟外部错误地连带释放了已经被还回池子的节点
+	node.free()
+	
+	# 如果没有安全类型推断和防崩溃处理，下面这行就会报错
+	var new_node: Node = _pool.acquire(_scene, _parent)
+	
+	assert_not_null(new_node, "池内存在非法实例时，acquire 应该平稳度过并返回一个新的有效实例。")
+	assert_true(is_instance_valid(new_node), "新获得的 node 应该是有效的新实例。")
+	assert_ne(new_node, node, "新实例不能是那个被强制 free 的原实例。")
