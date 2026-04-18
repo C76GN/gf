@@ -13,6 +13,13 @@ class_name GFUtility
 ##   - 'ready'      阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。
 
 
+# --- 公共变量 ---
+
+## 是否忽略全局暂停。为 true 时，即使 GFTimeUtility.is_paused 为 true，
+## 该 Utility 的 tick / physics_tick 仍会接收到原始（未缩放）的 delta 值。
+var ignore_pause: bool = false
+
+
 # --- Godot 生命周期方法 ---
 
 ## 第一阶段初始化。子类可以重写此方法。

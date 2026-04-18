@@ -19,7 +19,7 @@ func _ready():
     Gf.register_utility(GFStorageUtility.new())
     Gf.register_utility(GFAssetUtility.new())
     
-    # 3. 注册业务逻辑统
+    # 3. 注册业务逻辑系统
     Gf.register_system(BattleSystem.new())
     Gf.register_system(QuestSystem.new())
     
@@ -55,7 +55,7 @@ func init() -> void:
 func async_init() -> void:
     # 异步加载完成后的处理
     # Godot 4 支持在返回 void 的函数内直接使用 await
-    await GF.get_utility(GFAssetUtility).load_assets_async(["res://data/tables.json"])
+    await Gf.get_utility(GFAssetUtility).load_assets_async(["res://data/tables.json"])
 ```
 - **执行顺序**：在所有 `init()` 执行完毕后，遍历所有的 `async_init()`。
 - **作用**：该函数返回 `void`。如果该模块有网络请求、本地 IO 读取、或者大批量资源异步加载等慢操作，可以在这里使用 `await` 等待其完成。

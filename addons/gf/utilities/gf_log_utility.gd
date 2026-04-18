@@ -69,12 +69,14 @@ func init() -> void:
 		DirAccess.make_dir_recursive_absolute(_LOG_DIR)
 
 	var datetime := Time.get_datetime_dict_from_system()
-	var file_name := "gf_log_%04d%02d%02d_%02d%02d.log" % [
+	var file_name := "gf_log_%04d%02d%02d_%02d%02d%02d_%03d.log" % [
 		datetime.year,
 		datetime.month,
 		datetime.day,
 		datetime.hour,
 		datetime.minute,
+		datetime.second,
+		Time.get_ticks_msec() % 1000,
 	]
 	_log_file_path = _LOG_DIR + file_name
 

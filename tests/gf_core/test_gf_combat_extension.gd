@@ -109,6 +109,26 @@ func test_combat_system_buff_lifecycle() -> void:
 	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 10.0, "Buff modifiers should be removed after expiration")
 
 
+## 测试注销实体时会同步移除活跃实体索引。
+func test_unregister_entity_removes_active_status() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	entity.add_attr(&"ATK", 10.0)
+	
+	system.register_entity(entity)
+	
+	var buff := GFBuff.new()
+	buff.setup(&"PowerUp", 2.0, entity)
+	system.add_buff(entity, buff)
+	
+	assert_true(system._active_entities.has(entity.get_instance_id()), "添加 Buff 后实体应进入活跃集合。")
+	
+	system.unregister_entity(entity)
+	
+	assert_false(system._active_entities.has(entity.get_instance_id()), "注销实体后活跃索引应被清理。")
+	system.tick(1.0)
+
+
 ## 测试技能 CD 更新。
 func test_skill_cooldown() -> void:
 	var system := GFCombatSystem.new()

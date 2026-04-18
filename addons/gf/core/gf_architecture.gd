@@ -6,7 +6,7 @@ class_name GFArchitecture
 ##
 ## 生命周期遵循三阶段初始化协议：
 ##   阶段一 (init)       ：所有模块执行自身内部变量初始化。
-##   阶段二 (async_init) ：所有模块并发执行异步初始化（可使用 await）。
+##   阶段二 (async_init) ：所有模块串行执行异步初始化（可使用 await）。
 ##   阶段三 (ready)      ：所有模块均已完成 init，可安全进行跨模块依赖获取。
 
 
@@ -36,7 +36,7 @@ func is_inited() -> bool:
 
 ## 初始化架构及所有注册的组件（三阶段）。
 ## 阶段一：调用所有模块的 init()，用于初始化自身内部变量。
-## 阶段二：逐个 await 所有模块的 async_init()，用于异步资源加载等操作。
+## 阶段二：串行 await 所有模块的 async_init()，用于异步资源加载等操作。
 ## 阶段三：调用所有模块的 ready()，此时跨模块依赖获取是安全的。
 func init() -> void:
 	if _inited:
@@ -93,37 +93,40 @@ func dispose() -> void:
 	_systems.clear()
 	_utilities.clear()
 	_event_system.clear()
+	_time_utility = null
 	_inited = false
 
 
-## 驱动所有已注册 System 的每帧更新。在架构初始化完成后方可生效。
+## 驱动所有已注册 System 与带 tick() 方法的 Utility 的每帧更新。
+## 在架构初始化完成后方可生效。
 ## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给 System。
-## 设置了 ignore_pause 的 System 将始终接收原始 delta。
+## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## @param delta: 距上一帧的时间（秒）。
 func tick(delta: float) -> void:
 	if not _inited:
 		return
 	var scaled_delta: float = _get_scaled_delta(delta)
 	for system: Variant in _systems.values():
-		if system.ignore_pause and _time_utility != null and _time_utility.is_paused:
-			system.tick(delta)
-		else:
-			system.tick(scaled_delta)
+		system.tick(_get_module_delta(system, delta, scaled_delta))
+	for utility: Variant in _utilities.values():
+		if utility.has_method("tick"):
+			utility.tick(_get_module_delta(utility, delta, scaled_delta))
 
 
-## 驱动所有已注册 System 的每物理帧更新。在架构初始化完成后方可生效。
+## 驱动所有已注册 System 与带 physics_tick() 方法的 Utility 的每物理帧更新。
+## 在架构初始化完成后方可生效。
 ## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给 System。
-## 设置了 ignore_pause 的 System 将始终接收原始 delta。
+## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## @param delta: 距上一物理帧的时间（秒）。
 func physics_tick(delta: float) -> void:
 	if not _inited:
 		return
 	var scaled_delta: float = _get_scaled_delta(delta)
 	for system: Variant in _systems.values():
-		if system.ignore_pause and _time_utility != null and _time_utility.is_paused:
-			system.physics_tick(delta)
-		else:
-			system.physics_tick(scaled_delta)
+		system.physics_tick(_get_module_delta(system, delta, scaled_delta))
+	for utility: Variant in _utilities.values():
+		if utility.has_method("physics_tick"):
+			utility.physics_tick(_get_module_delta(utility, delta, scaled_delta))
 
 
 ## 执行命令实例。支持 await：'await send_command(MyCommand.new())'。
@@ -238,6 +241,7 @@ func register_utility_instance(instance: Object) -> void:
 	var script := instance.get_script() as Script
 	if script == null:
 		push_error("[GDCore] register_utility_instance 失败：实例未附加脚本。")
+		return
 	register_utility(script, instance)
 
 
@@ -362,6 +366,20 @@ func _get_scaled_delta(delta: float) -> float:
 	if _time_utility == null:
 		return delta
 	return _time_utility.get_scaled_delta(delta)
+
+
+## 根据模块的 ignore_pause 设置获取本次 tick 应使用的 delta。
+## @param instance: 被驱动的模块实例。
+## @param raw_delta: 引擎原始 delta。
+## @param scaled_delta: 已经由 GFTimeUtility 处理后的 delta。
+## @return 模块本次应接收的 delta。
+func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float) -> float:
+	if _time_utility == null or not _time_utility.is_paused:
+		return scaled_delta
+		
+	if "ignore_pause" in instance and instance.get("ignore_pause") == true:
+		return raw_delta
+	return scaled_delta
 
 
 ## 从脚本类获取用于序列化的稳定字符串键。

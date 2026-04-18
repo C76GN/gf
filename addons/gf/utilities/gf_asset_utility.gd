@@ -30,7 +30,7 @@ var max_cache_size: int = 64
 
 # --- 私有变量 ---
 
-## 正在加载中的请求字典。Key 为资源路径，Value 为回调函数 (Callable)。
+## 正在加载中的请求字典。Key 为资源路径，Value 为回调函数列表。
 var _pending: Dictionary = {}
 
 ## LRU 缓存字典。Key 为资源路径 (String)，Value 为 Resource。
@@ -74,6 +74,9 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 		return
 
 	if _pending.has(path):
+		var callbacks := _pending[path] as Array
+		if not callbacks.has(on_loaded):
+			callbacks.append(on_loaded)
 		return
 
 	var error: Error
@@ -86,7 +89,7 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 		push_error("[GFAssetUtility] 无法发起异步加载请求，路径：%s (错误码：%d)" % [path, error])
 		return
 
-	_pending[path] = on_loaded
+	_pending[path] = [on_loaded]
 
 
 ## 驱动异步加载轮询。宿主的 _process() 中应调用此方法（或通过信号连接）。
@@ -170,13 +173,14 @@ func _poll_pending() -> void:
 		match status:
 			ResourceLoader.THREAD_LOAD_LOADED:
 				var resource: Resource = ResourceLoader.load_threaded_get(path)
-				var callback: Callable = _pending[path]
+				var callbacks := (_pending[path] as Array).duplicate()
 				completed_paths.append(path)
 
 				put_cache(path, resource)
 
-				if callback.is_valid():
-					callback.call(resource)
+				for callback: Callable in callbacks:
+					if callback.is_valid():
+						callback.call(resource)
 
 			ResourceLoader.THREAD_LOAD_FAILED:
 				push_error("[GFAssetUtility] 异步加载失败，路径：%s" % path)

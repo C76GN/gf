@@ -65,9 +65,9 @@ func unregister_entity(p_entity: Object) -> void:
 		for skill: GFSkill in skills:
 			if skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
 				skill.cooldown_started.disconnect(_on_skill_cooldown_started)
-		
+			
 		_entities.erase(p_entity)
-		_active_entities.erase(p_entity)
+		_active_entities.erase(p_entity.get_instance_id())
 
 
 ## 给实体添加一个 Buff。

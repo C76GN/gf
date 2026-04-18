@@ -144,6 +144,6 @@ func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
 
 
 func _get_arch() -> Object:
-	if Gf.has_method("get_architecture"):
+	if Gf.has_method("has_architecture") and Gf.has_architecture():
 		return Gf.get_architecture()
 	return null

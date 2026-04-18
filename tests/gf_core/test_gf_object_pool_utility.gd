@@ -42,6 +42,15 @@ func _make_node_scene() -> PackedScene:
 	return scene
 
 
+## 创建一个 Control PackedScene，用于验证可见性和 process_mode 回收状态。
+func _make_control_scene() -> PackedScene:
+	var control := Control.new()
+	var scene := PackedScene.new()
+	scene.pack(control)
+	control.free()
+	return scene
+
+
 # --- 测试：acquire ---
 
 ## 验证 acquire 返回有效节点并将其添加到父节点。
@@ -68,6 +77,26 @@ func test_release_marks_node_inactive() -> void:
 
 	var is_active: bool = node.get_meta(&"_gf_pool_active", false)
 	assert_false(is_active, "release 后节点 metadata _gf_pool_active 应为 false。")
+
+
+## 验证 release 后 CanvasItem 会被隐藏并暂停处理，acquire 时恢复。
+func test_release_disables_visible_node_and_acquire_restores_it() -> void:
+	var control_scene := _make_control_scene()
+	var node := _pool.acquire(control_scene, _parent) as Control
+	
+	assert_true(node.visible, "acquire 后 Control 应保持可见。")
+	assert_eq(node.process_mode, Node.PROCESS_MODE_INHERIT, "acquire 后应保持原 process_mode。")
+	
+	_pool.release(node, control_scene)
+	
+	assert_false(node.visible, "release 后 Control 应被隐藏。")
+	assert_eq(node.process_mode, Node.PROCESS_MODE_DISABLED, "release 后节点应停止处理。")
+	
+	var reused := _pool.acquire(control_scene, _parent) as Control
+	
+	assert_eq(reused, node, "再次 acquire 应复用同一 Control。")
+	assert_true(reused.visible, "复用后 Control 应恢复可见。")
+	assert_eq(reused.process_mode, Node.PROCESS_MODE_INHERIT, "复用后应恢复原 process_mode。")
 
 
 ## 验证 release 后再次 acquire 复用同一节点而不创建新实例。

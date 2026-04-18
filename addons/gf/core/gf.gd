@@ -10,7 +10,29 @@ extends Node
 var _architecture: GFArchitecture = null
 
 
+# --- 公共变量 ---
+
+## 当前架构实例的只读访问器。
+var architecture: GFArchitecture:
+	get:
+		return get_architecture()
+
+
 # --- 公共方法 ---
+
+## 检查当前是否已有架构实例。
+## @return 已存在架构时返回 true。
+func has_architecture() -> bool:
+	return _architecture != null
+
+
+## 获取当前架构；若尚未创建，则自动创建一个默认 GFArchitecture。
+## @return 当前可用的 GFArchitecture 实例。
+func create_architecture() -> GFArchitecture:
+	if _architecture == null:
+		_architecture = GFArchitecture.new()
+	return _architecture
+
 
 ## 获取当前注册的架构实例。
 ## @return GFArchitecture 实例，如果未注册则返回 null。
@@ -22,12 +44,23 @@ func get_architecture() -> GFArchitecture:
 
 ## 设置并初始化架构实例。该方法内部使用 await，调用方应加 await。
 ## @param architecture: 要注册的 GFArchitecture 实例。
-func set_architecture(architecture: GFArchitecture) -> void:
-	if _architecture != null and _architecture != architecture:
+func set_architecture(architecture_instance: GFArchitecture) -> void:
+	if architecture_instance == null:
+		push_error("[GDCore] set_architecture 失败：传入的架构实例为空。")
+		return
+		
+	if _architecture != null and _architecture != architecture_instance:
 		_architecture.dispose()
-	_architecture = architecture
+	_architecture = architecture_instance
 	if not _architecture.is_inited():
 		await _architecture.init()
+
+
+## 初始化当前架构。若尚未创建架构，则自动创建默认 GFArchitecture。
+func init() -> void:
+	var current_arch := create_architecture()
+	if not current_arch.is_inited():
+		await current_arch.init()
 
 
 # --- Godot 生命周期方法 ---
@@ -53,15 +86,15 @@ func _exit_tree() -> void:
 
 ## 便捷注册 System 实例。
 func register_system(instance: Object) -> void:
-	get_architecture().register_system_instance(instance)
+	create_architecture().register_system_instance(instance)
 
 ## 便捷注册 Model 实例。
 func register_model(instance: Object) -> void:
-	get_architecture().register_model_instance(instance)
+	create_architecture().register_model_instance(instance)
 
 ## 便捷注册 Utility 实例。
 func register_utility(instance: Object) -> void:
-	get_architecture().register_utility_instance(instance)
+	create_architecture().register_utility_instance(instance)
 
 ## 获取 System 实例。
 func get_system(script_cls: Script) -> Object:

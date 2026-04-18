@@ -198,12 +198,12 @@ func _add_panel_instance(panel: Node, layer: Layer, config_callback: Callable) -
 
 
 func _get_asset_util() -> GFAssetUtility:
-	if Engine.has_singleton("Gf"):
-		var gf := Engine.get_singleton("Gf")
-		if gf.has_method("get_architecture"):
-			var arch: Object = gf.get_architecture()
-			if arch != null and arch.has_method("get_utility"):
-				var util: Object = arch.get_utility(GFAssetUtility)
-				if util != null:
-					return util as GFAssetUtility
+	if not Gf.has_architecture():
+		return null
+		
+	var arch: Object = Gf.get_architecture()
+	if arch != null and arch.has_method("get_utility"):
+		var util: Object = arch.get_utility(GFAssetUtility)
+		if util != null:
+			return util as GFAssetUtility
 	return null

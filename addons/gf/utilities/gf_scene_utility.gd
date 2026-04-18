@@ -109,7 +109,7 @@ func cleanup_transients() -> void:
 	if _transient_scripts.is_empty():
 		return
 		
-	if not Gf.has_method("get_architecture"):
+	if not Gf.has_method("has_architecture") or not Gf.has_architecture():
 		return
 		
 	var arch: Object = Gf.get_architecture()
@@ -144,6 +144,9 @@ func _do_change_scene_sync(path: String) -> void:
 ## 内部工具：设置全局暂停状态（如果 GFTimeUtility 存在）
 func _set_paused(p_paused: bool) -> void:
 	# 此处使用反射方式获取，避免强依赖循环
+	if not Gf.has_architecture():
+		return
+		
 	var arch := Gf.get_architecture()
 	if arch == null: return
 	
@@ -153,6 +156,9 @@ func _set_paused(p_paused: bool) -> void:
 
 
 func _get_paused() -> bool:
+	if not Gf.has_architecture():
+		return false
+		
 	var arch := Gf.get_architecture()
 	if arch == null: return false
 	var time_util = arch.get_utility(GFTimeUtility)

@@ -14,6 +14,22 @@ class DummySystem extends GFSystem:
 class DummyUtility extends GFUtility:
 	pass
 
+class TickUtility extends GFUtility:
+	var initialized: bool = false
+	var ready_called: bool = false
+	var tick_count: int = 0
+	var last_delta: float = 0.0
+
+	func init() -> void:
+		initialized = true
+
+	func ready() -> void:
+		ready_called = true
+
+	func tick(delta: float) -> void:
+		tick_count += 1
+		last_delta = delta
+
 class DummyQuery extends GFQuery:
 	func execute() -> Variant:
 		return "query_success"
@@ -33,8 +49,8 @@ func before_each() -> void:
 	await Gf.set_architecture(arch)
 
 func after_each() -> void:
-	var arch := Gf.get_architecture()
-	if arch != null:
+	if Gf.has_architecture():
+		var arch := Gf.get_architecture()
 		arch.dispose()
 		await Gf.set_architecture(GFArchitecture.new())
 
@@ -63,3 +79,39 @@ func test_send_query_proxy() -> void:
 	var query := DummyQuery.new()
 	var result = Gf.send_query(query)
 	assert_eq(result, "query_success", "Gf.send_query 应当正确执行并返回结果")
+
+
+## 验证文档推荐的 register_* -> init 启动流程可用
+func test_register_before_init_lazily_creates_architecture() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+	
+	var model := DummyModel.new()
+	var utility := TickUtility.new()
+	
+	Gf.register_model(model)
+	Gf.register_utility(utility)
+	await Gf.init()
+	
+	assert_true(Gf.has_architecture(), "register_* 应自动创建默认架构。")
+	assert_true(Gf.get_architecture().is_inited(), "Gf.init() 应初始化当前架构。")
+	assert_eq(Gf.get_model(DummyModel), model, "懒创建架构后应能取回注册的 Model。")
+	assert_true(utility.initialized, "Gf.init() 应调用 Utility.init()。")
+	assert_true(utility.ready_called, "Gf.init() 应调用 Utility.ready()。")
+
+
+## 验证 Architecture 会统一驱动带 tick() 的 Utility
+func test_architecture_ticks_utility() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+	
+	var utility := TickUtility.new()
+	Gf.register_utility(utility)
+	await Gf.init()
+	
+	Gf.get_architecture().tick(0.25)
+	
+	assert_eq(utility.tick_count, 1, "Architecture.tick() 应驱动 Utility.tick()。")
+	assert_almost_eq(utility.last_delta, 0.25, 0.001, "Utility.tick() 应接收正确 delta。")

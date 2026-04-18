@@ -18,6 +18,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	if _utility != null:
+		_utility.dispose()
 	_utility = null
 
 
@@ -104,3 +106,25 @@ func test_zero_cache_size_disables_caching() -> void:
 	_utility.max_cache_size = 0
 	_utility.put_cache("res://x.tres", Resource.new())
 	assert_eq(_utility.get_cache_count(), 0, "容量为 0 时不应缓存。")
+
+
+# --- 测试：异步加载 ---
+
+## 验证同一路径加载中重复请求时，所有回调都会在完成后触发。
+func test_pending_load_keeps_multiple_callbacks() -> void:
+	var callback_count := [0]
+	var callback := func(_res: Resource) -> void:
+		callback_count[0] += 1
+	
+	_utility.load_async("res://icon.svg", callback)
+	_utility.load_async("res://icon.svg", func(_res: Resource) -> void:
+		callback_count[0] += 1
+	)
+	
+	for _i in range(60):
+		_utility.tick()
+		if callback_count[0] >= 2:
+			break
+		await get_tree().process_frame
+	
+	assert_eq(callback_count[0], 2, "同一路径的并发加载请求应触发所有回调。")

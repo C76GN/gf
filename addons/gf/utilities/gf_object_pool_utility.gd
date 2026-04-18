@@ -21,6 +21,15 @@ extends GFUtility
 ## 用于标记节点当前是否被激活使用的 metadata 键。
 const _META_ACTIVE: StringName = &"_gf_pool_active"
 
+## 用于保存节点进入池前的 process_mode。
+const _META_ORIGINAL_PROCESS_MODE: StringName = &"_gf_pool_original_process_mode"
+
+## 用于保存 CanvasItem 进入池前的 visible 状态。
+const _META_ORIGINAL_VISIBLE: StringName = &"_gf_pool_original_visible"
+
+## 用于保存节点进入池前的 disabled 属性。
+const _META_ORIGINAL_DISABLED: StringName = &"_gf_pool_original_disabled"
+
 
 # --- 私有变量 ---
 
@@ -74,6 +83,7 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 		if is_instance_valid(popped_item) and not popped_item.is_queued_for_deletion():
 			var node: Node = popped_item as Node
 			node.set_meta(_META_ACTIVE, true)
+			_set_node_tree_active_state(node, true)
 			
 			if is_instance_valid(parent) and node.get_parent() != parent:
 				if node.get_parent() != null:
@@ -85,6 +95,8 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 
 	var new_node: Node = scene.instantiate()
 	new_node.set_meta(_META_ACTIVE, true)
+	_prepare_node_tree(new_node)
+	_set_node_tree_active_state(new_node, true)
 	if is_instance_valid(parent):
 		parent.add_child(new_node)
 
@@ -103,6 +115,7 @@ func release(node: Node, scene: PackedScene) -> void:
 		return
 
 	node.set_meta(_META_ACTIVE, false)
+	_set_node_tree_active_state(node, false)
 
 	if not _available_pools.has(scene):
 		_available_pools[scene] = []
@@ -124,6 +137,8 @@ func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 	for i in range(count):
 		var node: Node = scene.instantiate()
 		node.set_meta(_META_ACTIVE, false)
+		_prepare_node_tree(node)
+		_set_node_tree_active_state(node, false)
 		if is_instance_valid(parent):
 			parent.add_child(node)
 
@@ -143,3 +158,45 @@ func get_available_count(scene: PackedScene) -> int:
 		if is_instance_valid(item) and not item.is_queued_for_deletion():
 			count += 1
 	return count
+
+
+# --- 私有/辅助方法 ---
+
+func _prepare_node_tree(node: Node) -> void:
+	_prepare_node_for_pool(node)
+	for child: Node in node.get_children():
+		_prepare_node_tree(child)
+
+
+func _prepare_node_for_pool(node: Node) -> void:
+	if not node.has_meta(_META_ORIGINAL_PROCESS_MODE):
+		node.set_meta(_META_ORIGINAL_PROCESS_MODE, node.process_mode)
+		
+	if node is CanvasItem and not node.has_meta(_META_ORIGINAL_VISIBLE):
+		node.set_meta(_META_ORIGINAL_VISIBLE, (node as CanvasItem).visible)
+		
+	if "disabled" in node and not node.has_meta(_META_ORIGINAL_DISABLED):
+		node.set_meta(_META_ORIGINAL_DISABLED, node.get("disabled"))
+
+
+func _set_node_tree_active_state(node: Node, active: bool) -> void:
+	_set_node_active_state(node, active)
+	for child: Node in node.get_children():
+		_set_node_tree_active_state(child, active)
+
+
+func _set_node_active_state(node: Node, active: bool) -> void:
+	_prepare_node_for_pool(node)
+	
+	if active:
+		node.process_mode = node.get_meta(_META_ORIGINAL_PROCESS_MODE)
+		if node is CanvasItem:
+			(node as CanvasItem).visible = node.get_meta(_META_ORIGINAL_VISIBLE)
+		if "disabled" in node:
+			node.set("disabled", node.get_meta(_META_ORIGINAL_DISABLED))
+	else:
+		node.process_mode = Node.PROCESS_MODE_DISABLED
+		if node is CanvasItem:
+			(node as CanvasItem).visible = false
+		if "disabled" in node:
+			node.set("disabled", true)

@@ -137,7 +137,7 @@ func _on_sfx_finished(player: AudioStreamPlayer) -> void:
 
 
 func _get_asset_util() -> GFAssetUtility:
-	if Gf.has_method("get_architecture"):
+	if Gf.has_method("has_architecture") and Gf.has_architecture():
 		var arch: Object = Gf.get_architecture()
 		if arch != null and arch.has_method("get_utility"):
 			var util: Object = arch.get_utility(GFAssetUtility)
@@ -147,7 +147,7 @@ func _get_asset_util() -> GFAssetUtility:
 
 
 func _get_pool_util() -> GFObjectPoolUtility:
-	if Gf.has_method("get_architecture"):
+	if Gf.has_method("has_architecture") and Gf.has_architecture():
 		var arch: Object = Gf.get_architecture()
 		if arch != null and arch.has_method("get_utility"):
 			var util: Object = arch.get_utility(GFObjectPoolUtility)
