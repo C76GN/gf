@@ -1,4 +1,4 @@
-# tests/gf_core/test_type_event_system.gd
+﻿# tests/gf_core/test_type_event_system.gd
 
 ## 测试 TypeEventSystem 的注册、发送、注销及遍历中注销的边界情况。
 extends GutTest
@@ -28,6 +28,13 @@ class TestEventA:
 
 class TestEventB:
 	pass
+
+
+class SimpleReceiver:
+	var payload: Variant = null
+
+	func on_simple_event(p_payload: Variant) -> void:
+		payload = p_payload
 
 
 # --- 测试：类型事件 ---
@@ -82,15 +89,15 @@ func test_unregister_during_traversal() -> void:
 func test_unregister_self_during_traversal() -> void:
 	var state := {"count": 0, "cb_a": Callable()}
 	var script_a: Script = TestEventA
-	
+
 	state.cb_a = func(_e: TestEventA) -> void:
 		state.count += 1
 		_system.unregister(script_a, state.cb_a)
-		
+
 	_system.register(script_a, state.cb_a)
 	_system.send(TestEventA.new())
 	_system.send(TestEventA.new())
-	
+
 	assert_eq(state.count, 1, "回调应该只执行一次，并在本次调用后注销自身。")
 
 
@@ -129,6 +136,17 @@ func test_send_simple_register_and_send() -> void:
 	assert_eq(state.payload, 99, "简单事件回调应接收到正确的 payload。")
 
 
+## 验证简单事件支持对象方法回调，并会走签名校验路径。
+func test_send_simple_register_method_callback() -> void:
+	var receiver := SimpleReceiver.new()
+	var event_id: StringName = &"method_simple_event"
+
+	_system.register_simple(event_id, Callable(receiver, "on_simple_event"))
+	_system.send_simple(event_id, "ok")
+
+	assert_eq(receiver.payload, "ok", "对象方法形式的简单事件回调应接收到 payload。")
+
+
 ## 验证简单事件在回调内注销另一回调时，被注销的回调不被执行。
 func test_send_simple_unregister_during_traversal() -> void:
 	var state := {"order": [], "cb_b": Callable()}
@@ -153,15 +171,15 @@ func test_send_simple_unregister_during_traversal() -> void:
 func test_send_simple_unregister_self_during_traversal() -> void:
 	var state := {"count": 0, "cb_a": Callable()}
 	var event_id: StringName = &"self_traversal_test"
-	
+
 	state.cb_a = func(_p: Variant) -> void:
 		state.count += 1
 		_system.unregister_simple(event_id, state.cb_a)
-		
+
 	_system.register_simple(event_id, state.cb_a)
 	_system.send_simple(event_id)
 	_system.send_simple(event_id)
-	
+
 	assert_eq(state.count, 1, "回调应该只执行一次，并在本次调用后注销自身。")
 
 
@@ -176,6 +194,35 @@ func test_send_simple_unregister() -> void:
 	_system.send_simple(event_id)
 
 	assert_false(state.called, "注销后简单事件回调不应被触发。")
+
+
+## 验证嵌套简单事件期间注册的新回调不会在当前派发链中提前生效。
+func test_send_simple_register_during_nested_dispatch_waits_for_outermost_flush() -> void:
+	var state := {"order": [], "nested_sent": false, "late_cb": Callable()}
+	var event_id: StringName = &"nested_simple_event"
+
+	state.late_cb = func(_p: Variant) -> void:
+		state.order.append("late")
+
+	var cb_outer: Callable = func(_p: Variant) -> void:
+		state.order.append("outer")
+		if not state.nested_sent:
+			state.nested_sent = true
+			_system.register_simple(event_id, state.late_cb)
+			_system.send_simple(event_id)
+
+	var cb_existing: Callable = func(_p: Variant) -> void:
+		state.order.append("existing")
+
+	_system.register_simple(event_id, cb_outer)
+	_system.register_simple(event_id, cb_existing)
+
+	_system.send_simple(event_id)
+
+	assert_eq(state.order, ["outer", "outer", "existing", "existing"], "嵌套简单事件期间新增回调应等最外层结束后才生效。")
+
+	_system.send_simple(event_id)
+	assert_eq(state.order.slice(4), ["outer", "existing", "late"], "下一次简单事件派发应包含之前新增的回调。")
 
 
 # --- 测试：优先级排序 ---
@@ -272,20 +319,49 @@ func test_mid_priority_consumes() -> void:
 func test_register_during_traversal() -> void:
 	var state := {"count": 0}
 	var script_a: Script = TestEventA
-	
+
 	var cb_inner: Callable = func(_e: TestEventA) -> void:
 		state.count += 10
-		
+
 	var cb_outer: Callable = func(_e: TestEventA) -> void:
 		state.count += 1
 		_system.register(script_a, cb_inner)
-		
+
 	_system.register(script_a, cb_outer)
-	
+
 	# 第一次发送：触发 outer，注册 inner
 	_system.send(TestEventA.new())
 	assert_eq(state.count, 1, "第一次发送应只触发 outer，inner 暂存。")
-	
+
 	# 第二次发送：触发 outer 和 inner
 	_system.send(TestEventA.new())
 	assert_eq(state.count, 12, "第二次发送应触发 outer(1) 和 inner(10)。")
+
+
+## 验证嵌套发送期间注册的新回调不会在内层或当前外层派发中提前生效。
+func test_register_during_nested_dispatch_waits_for_outermost_flush() -> void:
+	var state := {"order": [], "nested_sent": false, "late_cb": Callable()}
+	var script_a: Script = TestEventA
+
+	state.late_cb = func(_e: TestEventA) -> void:
+		state.order.append("late")
+
+	var cb_outer: Callable = func(_e: TestEventA) -> void:
+		state.order.append("outer")
+		if not state.nested_sent:
+			state.nested_sent = true
+			_system.register(script_a, state.late_cb)
+			_system.send(TestEventA.new())
+
+	var cb_existing: Callable = func(_e: TestEventA) -> void:
+		state.order.append("existing")
+
+	_system.register(script_a, cb_outer)
+	_system.register(script_a, cb_existing)
+
+	_system.send(TestEventA.new())
+
+	assert_eq(state.order, ["outer", "outer", "existing", "existing"], "嵌套派发期间新增回调应等最外层结束后才生效。")
+
+	_system.send(TestEventA.new())
+	assert_eq(state.order.slice(4), ["outer", "existing", "late"], "下一次派发应包含之前新增的回调。")

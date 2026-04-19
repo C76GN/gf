@@ -29,7 +29,7 @@ var player_name := BindableProperty.new("Guest")
 
 func level_up() -> void:
 	# 修改它的 .value 将安全地向所有订阅者触发出原生 signal
-	level.value += 1
+	level.set_value(level.get_value() + 1)
 ```
 
 ### 2. 在 Controller（表现层）订阅变化
@@ -45,13 +45,13 @@ func _ready() -> void:
 	var player_model := Gf.get_model(PlayerModel) as PlayerModel
 	
 	# 【绑定】：使用原生信号实现，不经过全局的 Event System
-	player_model.level.value_changed.connect(_on_level_changed)
+player_model.level.value_changed.connect(_on_level_changed)
 	
 	# 【立即刷新一次初始状态】
-	_on_level_changed(player_model.level.value)
+	_on_level_changed(null, player_model.level.get_value())
 
-# 注意回调会自动接收它变更后的新值！
-func _on_level_changed(new_level: Variant) -> void:
+# 注意回调会自动接收旧值和新值！
+func _on_level_changed(_old_level: Variant, new_level: Variant) -> void:
 	lvl_label.text = "Lv: " + str(new_level)
 
 
@@ -65,7 +65,7 @@ func _ready() -> void:
 	player_model.level.bind_to(self, _on_level_changed)
 	
 	# 依然建议手动刷新一次初始值
-	_on_level_changed(player_model.level.get_value())
+	_on_level_changed(null, player_model.level.get_value())
 ```
 ```
 

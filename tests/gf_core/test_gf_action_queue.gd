@@ -1,4 +1,4 @@
-# tests/gf_core/test_gf_action_queue.gd
+﻿# tests/gf_core/test_gf_action_queue.gd
 
 ## 测试 GFActionQueueSystem 的 push_front、push_front_parallel 功能。
 extends GutTest
@@ -25,14 +25,32 @@ class OrderAction:
 ## 模拟死锁信号动作。
 class DeadlockSignalAction:
 	extends GFVisualAction
-	
+
 	var emitter: Node
-	
+
 	func _init(e: Node) -> void:
 		emitter = e
-		
+
 	func execute() -> Variant:
 		return emitter.tree_exited # 返回一个永远不会在正常 await 中恢复的信号，除非手动触发 tree_exited
+
+
+## 返回 Signal 但可被显式标记为 fire-and-forget 的测试动作。
+class SignalOrderAction:
+	extends GFVisualAction
+
+	var order_list: Array
+	var label: String
+	var emitter: Node
+
+	func _init(p_list: Array, p_label: String, p_emitter: Node) -> void:
+		order_list = p_list
+		label = p_label
+		emitter = p_emitter
+
+	func execute() -> Variant:
+		order_list.append(label)
+		return emitter.tree_exited
 
 
 # --- 私有变量 ---
@@ -135,12 +153,28 @@ func test_enqueue_parallel() -> void:
 	var act1 := OrderAction.new(order, "P1")
 	var act2 := OrderAction.new(order, "P2")
 	_system.enqueue_parallel([act1, act2])
-	
+
 	await get_tree().process_frame
 	await get_tree().process_frame
-	
+
 	assert_true(order.has("P1"), "并行 P1 应执行。")
 	assert_true(order.has("P2"), "并行 P2 应执行。")
+
+
+## 验证显式 fire-and-forget 动作即使返回 Signal，也不会阻塞后续队列。
+func test_enqueue_fire_and_forget_does_not_wait_for_signal() -> void:
+	var order: Array = []
+	var node := Node.new()
+	add_child_autofree(node)
+
+	_system.enqueue_fire_and_forget(SignalOrderAction.new(order, "ASYNC_FAF", node))
+	_system.enqueue(OrderAction.new(order, "NEXT"))
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["ASYNC_FAF", "NEXT"], "fire-and-forget 动作不应阻塞后续动作。")
+	assert_false(_system.is_processing, "队列应在 fire-and-forget 后正常排空。")
 
 
 ## 验证 push_front_parallel 能置顶插队执行。
@@ -152,10 +186,10 @@ func test_push_front_parallel() -> void:
 	_system.push_front_parallel([OrderAction.new(order, "P1"), OrderAction.new(order, "P2")])
 	_system.is_processing = false
 	_system._try_start_processing()
-	
+
 	await get_tree().process_frame
 	await get_tree().process_frame
-	
+
 	assert_eq(order.size(), 3, "共有3个动作。")
 	assert_true(order.find("P1") < order.find("END"), "P1 应当在 END 之前")
 	assert_true(order.find("P2") < order.find("END"), "P2 应当在 END 之前")
@@ -167,21 +201,21 @@ func test_push_front_parallel() -> void:
 func test_no_deadlock_on_freed_node() -> void:
 	var node := Node.new()
 	add_child_autofree(node)
-	
+
 	var action := DeadlockSignalAction.new(node)
 	_system.enqueue(action)
-	
+
 	# 启动处理
 	await get_tree().process_frame
-	
+
 	# 此时队列应正在等待 node 的信号
 	assert_true(_system.is_processing, "队列应处于处理中。")
-	
+
 	# 模拟节点被销毁 (由外部逻辑触发)
 	node.free()
-	
+
 	# 等待几帧让系统响应处理
 	await get_tree().process_frame
 	await get_tree().process_frame
-	
+
 	assert_false(_system.is_processing, "队列应在节点销毁后自动恢复并结束处理，不产生死锁。")

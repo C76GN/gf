@@ -15,6 +15,9 @@ class_name GFArchitecture
 var _systems: Dictionary = {}
 var _models: Dictionary = {}
 var _utilities: Dictionary = {}
+var _system_aliases: Dictionary = {}
+var _model_aliases: Dictionary = {}
+var _utility_aliases: Dictionary = {}
 var _event_system: TypeEventSystem
 var _time_utility: GFTimeUtility
 var _inited: bool = false
@@ -92,6 +95,9 @@ func dispose() -> void:
 	_models.clear()
 	_systems.clear()
 	_utilities.clear()
+	_model_aliases.clear()
+	_system_aliases.clear()
+	_utility_aliases.clear()
 	_event_system.clear()
 	_time_utility = null
 	_inited = false
@@ -197,6 +203,8 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 func register_system(script_cls: Script, instance: Object) -> void:
 	if not _systems.has(script_cls):
 		_systems[script_cls] = instance
+		if _inited:
+			await _initialize_registered_module(instance)
 
 
 ## 注册 Model 实例。
@@ -205,6 +213,8 @@ func register_system(script_cls: Script, instance: Object) -> void:
 func register_model(script_cls: Script, instance: Object) -> void:
 	if not _models.has(script_cls):
 		_models[script_cls] = instance
+		if _inited:
+			await _initialize_registered_module(instance)
 
 
 ## 注册 Utility 实例。
@@ -213,6 +223,32 @@ func register_model(script_cls: Script, instance: Object) -> void:
 func register_utility(script_cls: Script, instance: Object) -> void:
 	if not _utilities.has(script_cls):
 		_utilities[script_cls] = instance
+		_refresh_cached_utility_refs()
+		if _inited:
+			await _initialize_registered_module(instance)
+			_refresh_cached_utility_refs()
+
+
+## 为已注册 System 增加一个额外查询别名。
+## 适合把具体实现以抽象基类或接口式脚本暴露给调用方。
+## @param alias_cls: 调用 get_system() 时使用的别名脚本类。
+## @param target_cls: 已注册 System 的实际脚本类。
+func register_system_alias(alias_cls: Script, target_cls: Script) -> void:
+	_register_alias(_system_aliases, _systems, alias_cls, target_cls, "System")
+
+
+## 为已注册 Model 增加一个额外查询别名。
+## @param alias_cls: 调用 get_model() 时使用的别名脚本类。
+## @param target_cls: 已注册 Model 的实际脚本类。
+func register_model_alias(alias_cls: Script, target_cls: Script) -> void:
+	_register_alias(_model_aliases, _models, alias_cls, target_cls, "Model")
+
+
+## 为已注册 Utility 增加一个额外查询别名。
+## @param alias_cls: 调用 get_utility() 时使用的别名脚本类。
+## @param target_cls: 已注册 Utility 的实际脚本类。
+func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
+	_register_alias(_utility_aliases, _utilities, alias_cls, target_cls, "Utility")
 
 
 ## 便捷注册 System 实例，自动从实例获取脚本类作为注册键。
@@ -222,7 +258,7 @@ func register_system_instance(instance: Object) -> void:
 	if script == null:
 		push_error("[GDCore] register_system_instance 失败：实例未附加脚本。")
 		return
-	register_system(script, instance)
+	await register_system(script, instance)
 
 
 ## 便捷注册 Model 实例，自动从实例获取脚本类作为注册键。
@@ -232,7 +268,7 @@ func register_model_instance(instance: Object) -> void:
 	if script == null:
 		push_error("[GDCore] register_model_instance 失败：实例未附加脚本。")
 		return
-	register_model(script, instance)
+	await register_model(script, instance)
 
 
 ## 便捷注册 Utility 实例，自动从实例获取脚本类作为注册键。
@@ -242,37 +278,80 @@ func register_utility_instance(instance: Object) -> void:
 	if script == null:
 		push_error("[GDCore] register_utility_instance 失败：实例未附加脚本。")
 		return
-	register_utility(script, instance)
+	await register_utility(script, instance)
+
+
+## 便捷注册 System，并同时以 alias_cls 作为额外查询键。
+## @param instance: System 实例。
+## @param alias_cls: 额外查询脚本类。
+func register_system_instance_as(instance: Object, alias_cls: Script) -> void:
+	await register_system_instance(instance)
+	var script := instance.get_script() as Script
+	if script != null:
+		register_system_alias(alias_cls, script)
+
+
+## 便捷注册 Model，并同时以 alias_cls 作为额外查询键。
+## @param instance: Model 实例。
+## @param alias_cls: 额外查询脚本类。
+func register_model_instance_as(instance: Object, alias_cls: Script) -> void:
+	await register_model_instance(instance)
+	var script := instance.get_script() as Script
+	if script != null:
+		register_model_alias(alias_cls, script)
+
+
+## 便捷注册 Utility，并同时以 alias_cls 作为额外查询键。
+## @param instance: Utility 实例。
+## @param alias_cls: 额外查询脚本类。
+func register_utility_instance_as(instance: Object, alias_cls: Script) -> void:
+	await register_utility_instance(instance)
+	var script := instance.get_script() as Script
+	if script != null:
+		register_utility_alias(alias_cls, script)
 
 
 ## 注销 System 实例。
 ## @param script_cls: 系统的脚本类。
 func unregister_system(script_cls: Script) -> void:
-	if _systems.has(script_cls):
-		var system: Variant = _systems[script_cls]
+	var registered_key := _resolve_registered_key(_systems, _system_aliases, script_cls)
+	if registered_key != null and _systems.has(registered_key):
+		var system: Variant = _systems[registered_key]
 		if system.has_method("dispose"):
 			system.dispose()
-		_systems.erase(script_cls)
+		_systems.erase(registered_key)
+		_remove_aliases_for(_system_aliases, registered_key)
+	else:
+		_system_aliases.erase(script_cls)
 
 
 ## 注销 Model 实例。
 ## @param script_cls: 模型的脚本类。
 func unregister_model(script_cls: Script) -> void:
-	if _models.has(script_cls):
-		var model: Variant = _models[script_cls]
+	var registered_key := _resolve_registered_key(_models, _model_aliases, script_cls)
+	if registered_key != null and _models.has(registered_key):
+		var model: Variant = _models[registered_key]
 		if model.has_method("dispose"):
 			model.dispose()
-		_models.erase(script_cls)
+		_models.erase(registered_key)
+		_remove_aliases_for(_model_aliases, registered_key)
+	else:
+		_model_aliases.erase(script_cls)
 
 
 ## 注销 Utility 实例。
 ## @param script_cls: 工具的脚本类。
 func unregister_utility(script_cls: Script) -> void:
-	if _utilities.has(script_cls):
-		var utility: Variant = _utilities[script_cls]
+	var registered_key := _resolve_registered_key(_utilities, _utility_aliases, script_cls)
+	if registered_key != null and _utilities.has(registered_key):
+		var utility: Variant = _utilities[registered_key]
 		if utility.has_method("dispose"):
 			utility.dispose()
-		_utilities.erase(script_cls)
+		_utilities.erase(registered_key)
+		_remove_aliases_for(_utility_aliases, registered_key)
+		_refresh_cached_utility_refs()
+	else:
+		_utility_aliases.erase(script_cls)
 
 
 # --- 获取方法 ---
@@ -281,21 +360,30 @@ func unregister_utility(script_cls: Script) -> void:
 ## @param script_cls: 脚本类。
 ## @return 系统实例，如果未找到则返回 null。
 func get_system(script_cls: Script) -> Object:
-	return _systems.get(script_cls)
+	var registered_key := _resolve_registered_key(_systems, _system_aliases, script_cls)
+	if registered_key != null:
+		return _systems.get(registered_key)
+	return _find_assignable_instance(_systems, script_cls, "System")
 
 
 ## 通过脚本类获取 Model 实例。
 ## @param script_cls: 脚本类。
 ## @return 模型实例，如果未找到则返回 null。
 func get_model(script_cls: Script) -> Object:
-	return _models.get(script_cls)
+	var registered_key := _resolve_registered_key(_models, _model_aliases, script_cls)
+	if registered_key != null:
+		return _models.get(registered_key)
+	return _find_assignable_instance(_models, script_cls, "Model")
 
 
 ## 通过脚本类获取 Utility 实例。
 ## @param script_cls: 脚本类。
 ## @return 工具实例，如果未找到则返回 null。
 func get_utility(script_cls: Script) -> Object:
-	return _utilities.get(script_cls)
+	var registered_key := _resolve_registered_key(_utilities, _utility_aliases, script_cls)
+	if registered_key != null:
+		return _utilities.get(registered_key)
+	return _find_assignable_instance(_utilities, script_cls, "Utility")
 
 
 # --- 序列化方法 ---
@@ -403,3 +491,69 @@ func _on_init() -> void:
 ## 内部销毁回调，子类可重写。
 func _on_dispose() -> void:
 	pass
+
+
+func _initialize_registered_module(instance: Object) -> void:
+	if instance == null:
+		return
+	if instance.has_method("init"):
+		instance.init()
+	if instance.has_method("async_init"):
+		await instance.async_init()
+	if instance.has_method("ready"):
+		instance.ready()
+
+
+func _refresh_cached_utility_refs() -> void:
+	_time_utility = get_utility(GFTimeUtility) as GFTimeUtility
+
+
+func _register_alias(aliases: Dictionary, registry: Dictionary, alias_cls: Script, target_cls: Script, label: String) -> void:
+	if alias_cls == null or target_cls == null:
+		push_error("[GFArchitecture] register_%s_alias 失败：alias 或 target 为空。" % label.to_lower())
+		return
+	if not registry.has(target_cls):
+		push_warning("[GFArchitecture] register_%s_alias：目标类型尚未注册，仍会记录别名。" % label.to_lower())
+	aliases[alias_cls] = target_cls
+
+
+func _resolve_registered_key(registry: Dictionary, aliases: Dictionary, script_cls: Script) -> Script:
+	if script_cls == null:
+		return null
+	if registry.has(script_cls):
+		return script_cls
+	if aliases.has(script_cls):
+		return aliases[script_cls] as Script
+	return null
+
+
+func _remove_aliases_for(aliases: Dictionary, registered_key: Script) -> void:
+	var keys_to_remove: Array = []
+	for alias_cls: Script in aliases:
+		if aliases[alias_cls] == registered_key:
+			keys_to_remove.append(alias_cls)
+	for alias_cls: Script in keys_to_remove:
+		aliases.erase(alias_cls)
+
+
+func _find_assignable_instance(registry: Dictionary, script_cls: Script, label: String) -> Object:
+	if script_cls == null:
+		return null
+	var matches: Array[Object] = []
+	for registered_script: Script in registry:
+		if _script_extends_or_equals(registered_script, script_cls):
+			matches.append(registry[registered_script])
+	if matches.size() == 1:
+		return matches[0]
+	if matches.size() > 1:
+		push_warning("[GFArchitecture] get_%s(%s) 匹配到多个实例，请使用显式 alias 注册以消除歧义。" % [label.to_lower(), script_cls.resource_path])
+	return null
+
+
+func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
+	var current: Script = candidate
+	while current != null:
+		if current == expected:
+			return true
+		current = current.get_base_script()
+	return false

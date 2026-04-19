@@ -16,6 +16,84 @@
 
 ---
 
+## [1.6.0] - 2026-04-19
+
+**版本概述**：补强运行时模块注册能力、抽象别名查询，以及 ActionQueue、简单事件、对象池在大型项目中的安全边界。
+
+### 🚀 新增特性 (Added)
+- **初始化后动态注册补偿**：`GFArchitecture.register_model/system/utility*()` 在架构已初始化后注册新模块时，会自动补跑该模块的 `init()` -> `async_init()` -> `ready()`，避免运行时热插模块只进入字典却未完成生命周期。
+- **模块别名注册**：新增 `register_model_alias()` / `register_system_alias()` / `register_utility_alias()`，以及 `register_*_instance_as()` / `Gf.register_*_as()`，可将具体实现以抽象基类或接口式脚本暴露给调用方。
+- **ActionQueue 显式 fire-and-forget**：`GFVisualAction` 新增 `CompletionMode` 与 `as_fire_and_forget()` / `as_wait_for_signal()`；`GFActionQueueSystem` 新增 `enqueue_fire_and_forget()` 与 `push_front_fire_and_forget()`。
+- **对象池节点 Hook**：`GFObjectPoolUtility` 会在取出/归还节点时调用节点树上的 `on_gf_pool_acquire()` 与 `on_gf_pool_release()`，便于节点自清 Tween、信号和临时状态。
+
+### 🔄 机制更改 (Changed)
+- **按基类唯一匹配回退**：当 `get_model/system/utility()` 未命中精确脚本或 alias 时，会尝试在已注册实例中寻找唯一的继承匹配；若匹配多个，会警告并返回 `null`，要求使用显式 alias 消除歧义。
+- **简单事件签名校验**：`TypeEventSystem.register_simple()` 现在与类型事件一样，会对对象方法形式的回调做参数数量校验，要求至少能接收一个 `payload` 参数。
+- **Action 结果等待语义显式化**：队列等待不再只依赖“是否返回 Signal”的隐式约定；仍保持旧默认行为，但可通过 `completion_mode` 明确声明。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFArchitecture.register_system_alias(alias_cls, target_cls)` / `register_model_alias()` / `register_utility_alias()`。
+- 新增 `GFArchitecture.register_system_instance_as(instance, alias_cls)` / `register_model_instance_as()` / `register_utility_instance_as()`。
+- 新增 `Gf.register_system_as(instance, alias_cls)` / `register_model_as()` / `register_utility_as()`。
+- 新增 `GFVisualAction.CompletionMode`、`GFVisualAction.completion_mode`、`GFVisualAction.as_fire_and_forget()`、`GFVisualAction.as_wait_for_signal()`、`GFVisualAction.should_wait_for_result(result)`。
+- 新增 `GFActionQueueSystem.enqueue_fire_and_forget(action)` 与 `push_front_fire_and_forget(action)`。
+- `GFObjectPoolUtility` 支持节点可选实现 `on_gf_pool_acquire()` 与 `on_gf_pool_release()`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需立即修改；默认注册、事件、队列等待语义保持兼容。
+2. 如果项目有 `JSONConfigProvider extends GFConfigProvider` 这类抽象适配器，推荐使用 `Gf.register_utility_as(JSONConfigProvider.new(), GFConfigProvider)`，之后即可 `Gf.get_utility(GFConfigProvider)`。
+3. 如果某个视觉动作只是启动动画、音效或粒子，不希望阻塞队列，请使用 `queue.enqueue_fire_and_forget(action)` 或 `action.as_fire_and_forget()`。
+4. 对象池节点若持有 Tween、临时连接、一次性状态，建议实现 `on_gf_pool_release()` 清理，`on_gf_pool_acquire()` 重置。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/action_queue/gf_action_queue_system.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action_group.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_type_event_system.gd`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_object_pool_utility.gd`
+
+---
+
+## [1.5.1] - 2026-04-19
+
+**版本概述**：补强事件系统嵌套派发安全性，并为命令历史提供显式异步撤销/重做入口。
+
+### 🚀 新增特性 (Added)
+- **异步命令历史操作**：`GFCommandHistoryUtility` 新增 `undo_last_async()` 与 `redo_async()`，当命令返回 `Signal` 时会等待完成后再移动撤销/重做栈。
+
+### 🔄 机制更改 (Changed)
+- **事件派发深度计数**：`TypeEventSystem` 将遍历中注册/注销的合并时机从单层布尔标记改为派发深度计数，嵌套事件会等到最外层派发结束后统一合并 pending 操作。
+- **撤销命令返回值**：`GFUndoableCommand.undo()` 现在返回 `Variant`，与 `execute()` 一样可返回 `Signal` 表示异步撤销流程。
+
+### 🐛 Bug 修复 (Fixed)
+- **嵌套事件 pending 提前合并**：修复事件回调中再次发送事件时，内层派发可能提前合并外层注册/注销请求的问题。
+- **同步 API 兼容性保护**：保留 `undo_last()` / `redo()` 的同步语义，避免因为异步支持导致所有旧调用点都必须改为 `await`。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFCommandHistoryUtility.undo_last_async() -> bool`。
+- 新增 `GFCommandHistoryUtility.redo_async() -> bool`。
+- `GFUndoableCommand.undo()` 签名由 `void` 调整为 `Variant`。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果你的自定义命令重写了 `undo() -> void`，建议改为 `undo() -> Variant` 并在同步场景下 `return null`。
+2. 如果撤销或重做过程需要等待动画、网络、资源加载等异步流程，请调用 `await history.undo_last_async()` 或 `await history.redo_async()`。
+3. 已有纯同步项目可继续使用 `undo_last()` 与 `redo()`，无需立即改动调用点。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/utilities/gf_command_history_utility.gd`
+- `addons/gf/extensions/command/gf_undoable_command.gd`
+- `tests/gf_core/test_type_event_system.gd`
+- `tests/gf_core/test_gf_command_history_utility.gd`
+
+---
+
 ## [1.5.0] - 2026-04-18
 
 **版本概述**：稳定框架启动协议与运行时调度边界，修复对象池、战斗实体注销、异步资源多回调等关键可靠性问题，并同步 README 与测试覆盖。

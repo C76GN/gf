@@ -73,6 +73,60 @@ func ready() -> void:
 
 ---
 
+## 初始化后的动态注册
+
+自 `1.6.0` 起，如果架构已经完成 `Gf.init()`，之后再注册新的 `Model`、`System` 或 `Utility`，框架会为新模块自动补跑：
+
+```text
+init() -> async_init() -> ready()
+```
+
+这适合运行时加载关卡专属系统、DLC 模块、调试工具或临时玩法模块：
+
+```gdscript
+await Gf.init()
+
+var battle_system := BattleSystem.new()
+Gf.register_system(battle_system)
+# battle_system 会自动完成三阶段生命周期，随后参与 tick / physics_tick
+```
+
+如果你的动态模块在 `async_init()` 中等待了资源或网络流程，而调用点需要确认它已经完全 ready，可以直接使用底层架构方法并 `await`：
+
+```gdscript
+await Gf.get_architecture().register_utility_instance(RuntimeConfigProvider.new())
+```
+
+---
+
+## 别名注册与抽象获取
+
+有些项目会提供一个抽象适配器基类，例如：
+
+```gdscript
+class_name JSONConfigProvider
+extends GFConfigProvider
+```
+
+如果希望调用方只依赖 `GFConfigProvider`，可以注册时指定 alias：
+
+```gdscript
+Gf.register_utility_as(JSONConfigProvider.new(), GFConfigProvider)
+
+var configs := Gf.get_utility(GFConfigProvider) as GFConfigProvider
+```
+
+也可以先注册具体实现，再登记 alias：
+
+```gdscript
+Gf.register_utility(JSONConfigProvider.new())
+Gf.register_utility_alias(GFConfigProvider, JSONConfigProvider)
+```
+
+当未命中精确类型或 alias 时，框架会尝试寻找唯一的继承匹配；如果多个实例都继承同一个基类，会返回 `null` 并给出警告，此时应使用显式 alias 消除歧义。
+
+---
+
 ## Controller (表现层) 的初始化
 
 表现层的控制器由于依附于 Godot 原生场景树（继承于 `Node`），它们的初始化游离于这套框架体系之外。
@@ -97,7 +151,7 @@ func _ready() -> void:
     user_model.health.value_changed.connect(_on_health_changed)
     
     # 初始化视图
-    _on_health_changed(user_model.health.value)
+    _on_health_changed(user_model.health.get_value())
 
 func _on_health_changed(new_val: float) -> void:
     hp_bar.value = new_val

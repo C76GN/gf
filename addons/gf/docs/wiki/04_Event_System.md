@@ -24,7 +24,7 @@ func ready() -> void:
     # 注册监听，并绑定到自身的回调函数
     Gf.listen_simple(&"EVENT_PLAYER_JUMPED", _on_player_jumped)
 
-func _on_player_jumped() -> void:
+func _on_player_jumped(_payload: Variant) -> void:
     print("UI 显示：成功跳跃！")
 
 func _exit_tree() -> void:
@@ -90,4 +90,5 @@ func _exit_tree() -> void:
 1. **避免在 `Controller` 的 `_init()` 阶段进行挂载**：因为彼时可能对应的 `GFArchitecture` 事件总线还没有准备完毕。请始终在 `ready` (System/Model) 阶段或 `_ready` (ControllerNode) 阶段注册监听。
 2. **切勿遗漏取消监听（Unlisten）**：这会导致内存泄漏或向已销毁的节点回调导致引擎崩溃！
 3. **保持 Payload 轻量**：虽然 Godot 4 的内存回收针对 `RefCounted` 优化巨大，但在诸如物理碰撞这样`_physics_process`高频循环内部，大量 `new` 实例强类型 Payload 仍会构成 GC 压力。这种场景下考虑改为使用 `send_simple_event`。
-4. **事件闭包签名安全性校验**：自 1.3.0 版本起，框架会在运行时反射校验你试图赋予的回调签名参数 `on_event.get_method_argument_count()`。如果签名少于 1 个参数，框架将利用 assert() 断言抛错以提醒你防患于未然。
+4. **事件签名安全性校验**：类型事件回调必须至少接收一个事件实例参数；简单事件回调也必须至少接收一个 `payload` 参数。框架会对对象方法形式的回调做运行时反射校验，参数不足时使用 `assert()` 提前暴露问题。
+5. **嵌套派发安全**：自 1.5.1 起，事件回调中再次发送事件时，遍历中新增或移除的监听器会延迟到最外层派发结束后统一合并，避免内层事件提前改变外层监听器列表。

@@ -86,15 +86,39 @@ func _exit_tree() -> void:
 
 ## 便捷注册 System 实例。
 func register_system(instance: Object) -> void:
-	create_architecture().register_system_instance(instance)
+	await create_architecture().register_system_instance(instance)
 
 ## 便捷注册 Model 实例。
 func register_model(instance: Object) -> void:
-	create_architecture().register_model_instance(instance)
+	await create_architecture().register_model_instance(instance)
 
 ## 便捷注册 Utility 实例。
 func register_utility(instance: Object) -> void:
-	create_architecture().register_utility_instance(instance)
+	await create_architecture().register_utility_instance(instance)
+
+## 便捷注册 System 实例，并额外登记一个查询别名。
+func register_system_as(instance: Object, alias_cls: Script) -> void:
+	await create_architecture().register_system_instance_as(instance, alias_cls)
+
+## 便捷注册 Model 实例，并额外登记一个查询别名。
+func register_model_as(instance: Object, alias_cls: Script) -> void:
+	await create_architecture().register_model_instance_as(instance, alias_cls)
+
+## 便捷注册 Utility 实例，并额外登记一个查询别名。
+func register_utility_as(instance: Object, alias_cls: Script) -> void:
+	await create_architecture().register_utility_instance_as(instance, alias_cls)
+
+## 为已注册 System 添加查询别名。
+func register_system_alias(alias_cls: Script, target_cls: Script) -> void:
+	get_architecture().register_system_alias(alias_cls, target_cls)
+
+## 为已注册 Model 添加查询别名。
+func register_model_alias(alias_cls: Script, target_cls: Script) -> void:
+	get_architecture().register_model_alias(alias_cls, target_cls)
+
+## 为已注册 Utility 添加查询别名。
+func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
+	get_architecture().register_utility_alias(alias_cls, target_cls)
 
 ## 获取 System 实例。
 func get_system(script_cls: Script) -> Object:

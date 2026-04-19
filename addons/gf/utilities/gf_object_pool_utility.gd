@@ -30,6 +30,12 @@ const _META_ORIGINAL_VISIBLE: StringName = &"_gf_pool_original_visible"
 ## 用于保存节点进入池前的 disabled 属性。
 const _META_ORIGINAL_DISABLED: StringName = &"_gf_pool_original_disabled"
 
+## 节点可选实现：归还对象池前调用，用于清理 Tween、临时信号、运行时状态等。
+const HOOK_ON_RELEASE: StringName = &"on_gf_pool_release"
+
+## 节点可选实现：从对象池取出并恢复激活后调用，用于重置本次使用状态。
+const HOOK_ON_ACQUIRE: StringName = &"on_gf_pool_acquire"
+
 
 # --- 私有变量 ---
 
@@ -90,7 +96,8 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 					node.reparent(parent, false)
 				else:
 					parent.add_child(node)
-				
+
+			_call_node_tree_hook(node, HOOK_ON_ACQUIRE)
 			return node
 
 	var new_node: Node = scene.instantiate()
@@ -101,6 +108,7 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 		parent.add_child(new_node)
 
 	_all_nodes[scene].push_back(new_node)
+	_call_node_tree_hook(new_node, HOOK_ON_ACQUIRE)
 	return new_node
 
 
@@ -114,6 +122,7 @@ func release(node: Node, scene: PackedScene) -> void:
 	if node.has_meta(_META_ACTIVE) and not node.get_meta(_META_ACTIVE):
 		return
 
+	_call_node_tree_hook(node, HOOK_ON_RELEASE)
 	node.set_meta(_META_ACTIVE, false)
 	_set_node_tree_active_state(node, false)
 
@@ -200,3 +209,14 @@ func _set_node_active_state(node: Node, active: bool) -> void:
 			(node as CanvasItem).visible = false
 		if "disabled" in node:
 			node.set("disabled", true)
+
+
+func _call_node_tree_hook(node: Node, hook_name: StringName) -> void:
+	_call_node_hook(node, hook_name)
+	for child: Node in node.get_children():
+		_call_node_tree_hook(child, hook_name)
+
+
+func _call_node_hook(node: Node, hook_name: StringName) -> void:
+	if node.has_method(hook_name):
+		node.call(hook_name)

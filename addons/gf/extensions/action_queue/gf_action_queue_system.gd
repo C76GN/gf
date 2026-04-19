@@ -52,6 +52,16 @@ func enqueue(action: GFVisualAction) -> void:
 	_try_start_processing()
 
 
+## 将一个动作以显式 fire-and-forget 模式加入队列。
+## 即使动作 execute() 返回 Signal，队列也会立即继续处理后续动作。
+## @param action: 要入队的 GFVisualAction 实例。
+func enqueue_fire_and_forget(action: GFVisualAction) -> void:
+	if not is_instance_valid(action):
+		return
+	action.completion_mode = GFVisualAction.CompletionMode.FIRE_AND_FORGET
+	enqueue(action)
+
+
 ## 将一批动作加入队列，这批动作会并行执行，全部完成后才继续队列中的下一项。
 ## @param actions: 要并行执行的 GFVisualAction 实例数组。
 func enqueue_parallel(actions: Array[GFVisualAction]) -> void:
@@ -72,6 +82,15 @@ func push_front(action: GFVisualAction) -> void:
 
 	_queue.push_front(action)
 	_try_start_processing()
+
+
+## 将一个动作以显式 fire-and-forget 模式插入队列头部。
+## @param action: 要插入的 GFVisualAction 实例。
+func push_front_fire_and_forget(action: GFVisualAction) -> void:
+	if not is_instance_valid(action):
+		return
+	action.completion_mode = GFVisualAction.CompletionMode.FIRE_AND_FORGET
+	push_front(action)
 
 
 ## 将一批并行动作插入队列头部（下一批执行）。
@@ -110,7 +129,7 @@ func _process_queue() -> void:
 
 		if is_instance_valid(action):
 			var res: Variant = action.execute()
-			if res is Signal:
+			if action.should_wait_for_result(res):
 				var target_obj: Object = res.get_object()
 				
 				# 防死锁保护：如果发射源无效，直接跳过

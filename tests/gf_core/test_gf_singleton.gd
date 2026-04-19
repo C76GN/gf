@@ -1,4 +1,4 @@
-# tests/gf_core/test_gf_singleton.gd
+﻿# tests/gf_core/test_gf_singleton.gd
 
 ## 测试 Gf 全局单例的便捷代理方法 (Facade 模式)
 extends GutTest
@@ -12,6 +12,15 @@ class DummySystem extends GFSystem:
 	pass
 
 class DummyUtility extends GFUtility:
+	pass
+
+class UtilityBase extends GFUtility:
+	pass
+
+class ConcreteUtility extends UtilityBase:
+	pass
+
+class AlternateConcreteUtility extends UtilityBase:
 	pass
 
 class TickUtility extends GFUtility:
@@ -40,12 +49,12 @@ func before_each() -> void:
 	# 重置并初始化一个干净的架构
 	var arch := GFArchitecture.new()
 	Gf._architecture = arch
-	
+
 	# 注册假数据用于测试
 	Gf.register_model(DummyModel.new())
 	Gf.register_system(DummySystem.new())
 	Gf.register_utility(DummyUtility.new())
-	
+
 	await Gf.set_architecture(arch)
 
 func after_each() -> void:
@@ -86,14 +95,14 @@ func test_register_before_init_lazily_creates_architecture() -> void:
 	if Gf.has_architecture():
 		Gf.get_architecture().dispose()
 	Gf._architecture = null
-	
+
 	var model := DummyModel.new()
 	var utility := TickUtility.new()
-	
+
 	Gf.register_model(model)
 	Gf.register_utility(utility)
 	await Gf.init()
-	
+
 	assert_true(Gf.has_architecture(), "register_* 应自动创建默认架构。")
 	assert_true(Gf.get_architecture().is_inited(), "Gf.init() 应初始化当前架构。")
 	assert_eq(Gf.get_model(DummyModel), model, "懒创建架构后应能取回注册的 Model。")
@@ -106,12 +115,47 @@ func test_architecture_ticks_utility() -> void:
 	if Gf.has_architecture():
 		Gf.get_architecture().dispose()
 	Gf._architecture = null
-	
+
 	var utility := TickUtility.new()
 	Gf.register_utility(utility)
 	await Gf.init()
-	
+
 	Gf.get_architecture().tick(0.25)
-	
+
 	assert_eq(utility.tick_count, 1, "Architecture.tick() 应驱动 Utility.tick()。")
 	assert_almost_eq(utility.last_delta, 0.25, 0.001, "Utility.tick() 应接收正确 delta。")
+
+
+## 验证架构初始化完成后动态注册 Utility，会立即补跑生命周期并参与 tick。
+func test_dynamic_register_after_init_runs_lifecycle() -> void:
+	if Gf.has_architecture():
+
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+	var utility := TickUtility.new()
+	await Gf.register_utility(utility)
+
+	assert_true(utility.initialized, "初始化后的动态注册应补跑 Utility.init()。")
+	assert_true(utility.ready_called, "初始化后的动态注册应补跑 Utility.ready()。")
+
+	Gf.get_architecture().tick(0.5)
+	assert_eq(utility.tick_count, 1, "动态注册后的 Utility 应参与架构 tick。")
+
+
+## 验证可通过显式 alias 以抽象基类获取具体实现。
+func test_register_utility_alias_resolves_base_type() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var concrete := ConcreteUtility.new()
+	var alternate := AlternateConcreteUtility.new()
+
+	Gf.register_utility(concrete)
+	Gf.register_utility(alternate)
+	Gf.register_utility_alias(UtilityBase, ConcreteUtility)
+	await Gf.init()
+
+	assert_eq(Gf.get_utility(UtilityBase), concrete, "显式 alias 应让基类查询解析到指定实现。")

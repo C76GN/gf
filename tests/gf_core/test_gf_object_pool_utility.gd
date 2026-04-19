@@ -1,4 +1,4 @@
-# tests/gf_core/test_gf_object_pool_utility.gd
+﻿# tests/gf_core/test_gf_object_pool_utility.gd
 
 ## 测试 GFObjectPoolUtility 的 acquire、release、prewarm 及 get_available_count。
 extends GutTest
@@ -9,6 +9,19 @@ extends GutTest
 var _pool: GFObjectPoolUtility
 var _parent: Node
 var _scene: PackedScene
+
+
+# --- 辅助类型 ---
+
+class HookedNode extends Node:
+	var acquire_count: int = 0
+	var release_count: int = 0
+
+	func on_gf_pool_acquire() -> void:
+		acquire_count += 1
+
+	func on_gf_pool_release() -> void:
+		release_count += 1
 
 
 # --- Godot 生命周期方法 ---
@@ -51,6 +64,15 @@ func _make_control_scene() -> PackedScene:
 	return scene
 
 
+## 创建一个带对象池 hook 的 PackedScene。
+func _make_hooked_scene() -> PackedScene:
+	var node := HookedNode.new()
+	var scene := PackedScene.new()
+	scene.pack(node)
+	node.free()
+	return scene
+
+
 # --- 测试：acquire ---
 
 ## 验证 acquire 返回有效节点并将其添加到父节点。
@@ -83,17 +105,17 @@ func test_release_marks_node_inactive() -> void:
 func test_release_disables_visible_node_and_acquire_restores_it() -> void:
 	var control_scene := _make_control_scene()
 	var node := _pool.acquire(control_scene, _parent) as Control
-	
+
 	assert_true(node.visible, "acquire 后 Control 应保持可见。")
 	assert_eq(node.process_mode, Node.PROCESS_MODE_INHERIT, "acquire 后应保持原 process_mode。")
-	
+
 	_pool.release(node, control_scene)
-	
+
 	assert_false(node.visible, "release 后 Control 应被隐藏。")
 	assert_eq(node.process_mode, Node.PROCESS_MODE_DISABLED, "release 后节点应停止处理。")
-	
+
 	var reused := _pool.acquire(control_scene, _parent) as Control
-	
+
 	assert_eq(reused, node, "再次 acquire 应复用同一 Control。")
 	assert_true(reused.visible, "复用后 Control 应恢复可见。")
 	assert_eq(reused.process_mode, Node.PROCESS_MODE_INHERIT, "复用后应恢复原 process_mode。")
@@ -107,6 +129,22 @@ func test_acquire_after_release_reuses_node() -> void:
 	var node2: Node = _pool.acquire(_scene, _parent)
 
 	assert_eq(node1, node2, "release 后再次 acquire 应复用同一节点。")
+
+
+## 验证节点可通过 on_gf_pool_acquire/release hook 清理和重置自身状态。
+func test_acquire_release_calls_node_hooks() -> void:
+	var hooked_scene := _make_hooked_scene()
+	var node := _pool.acquire(hooked_scene, _parent) as HookedNode
+
+	assert_eq(node.acquire_count, 1, "首次 acquire 应调用 on_gf_pool_acquire。")
+	assert_eq(node.release_count, 0, "未 release 前不应调用 release hook。")
+
+	_pool.release(node, hooked_scene)
+	assert_eq(node.release_count, 1, "release 应调用 on_gf_pool_release。")
+
+	var reused := _pool.acquire(hooked_scene, _parent) as HookedNode
+	assert_eq(reused, node, "hook 测试应复用同一节点。")
+	assert_eq(reused.acquire_count, 2, "复用 acquire 应再次调用 on_gf_pool_acquire。")
 
 
 ## 验证对有效池的连续 acquire/release 循环不产生额外实例。
@@ -159,26 +197,26 @@ func test_available_count_changes_with_acquire_release() -> void:
 ## 验证重复 release 同一个节点不会导致池内出现重复引用。
 func test_double_release_is_ignored() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
-	
+
 	_pool.release(node, _scene) # 第一下归还
 	var count1 := _pool.get_available_count(_scene)
-	
+
 	_pool.release(node, _scene) # 第二下归还应当被忽略
 	var count2 := _pool.get_available_count(_scene)
-	
+
 	assert_eq(count1, count2, "对同一个早已处于池中的节点重复 release，不应当增加可用节点计数。")
 
 ## 验证当对象池中含有被外部错误 queue_free 退出的游离旧节点时，acquire 不会崩溃。
 func test_acquire_invalid_freed_instance_is_safe() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
 	_pool.release(node, _scene)
-	
+
 	# 模拟外部错误地连带释放了已经被还回池子的节点
 	node.free()
-	
+
 	# 如果没有安全类型推断和防崩溃处理，下面这行就会报错
 	var new_node: Node = _pool.acquire(_scene, _parent)
-	
+
 	assert_not_null(new_node, "池内存在非法实例时，acquire 应该平稳度过并返回一个新的有效实例。")
 	assert_true(is_instance_valid(new_node), "新获得的 node 应该是有效的新实例。")
 	assert_ne(new_node, node, "新实例不能是那个被强制 free 的原实例。")

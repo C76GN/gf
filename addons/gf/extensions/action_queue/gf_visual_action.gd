@@ -15,9 +15,49 @@ class_name GFVisualAction
 extends RefCounted
 
 
+# --- 枚举 ---
+
+## 队列如何处理 execute() 的返回值。
+enum CompletionMode {
+	## 自动模式：返回 Signal 时等待，否则视为立即完成。
+	AUTO,
+	## 显式等待：语义上声明本动作需要等待返回的 Signal。
+	WAIT_FOR_SIGNAL,
+	## 发出即走：即使 execute() 返回 Signal，队列也不会等待。
+	FIRE_AND_FORGET,
+}
+
+
+# --- 公共变量 ---
+
+## 动作完成模式。默认保持旧行为：返回 Signal 则等待，返回 null 则继续。
+var completion_mode: CompletionMode = CompletionMode.AUTO
+
+
 # --- 公共方法 ---
 
 ## 执行此视觉动作。子类必须重写此方法。
 ## @return 瞬时动作返回 null；需要等待的动作返回一个 Signal 供 await。
 func execute() -> Variant:
 	return null
+
+
+## 将动作标记为显式 fire-and-forget，并返回自身以便链式调用。
+func as_fire_and_forget() -> GFVisualAction:
+	completion_mode = CompletionMode.FIRE_AND_FORGET
+	return self
+
+
+## 将动作标记为显式等待 Signal，并返回自身以便链式调用。
+func as_wait_for_signal() -> GFVisualAction:
+	completion_mode = CompletionMode.WAIT_FOR_SIGNAL
+	return self
+
+
+## 根据当前完成模式判断队列是否应该等待 execute() 的返回值。
+## @param result: execute() 返回值。
+## @return 应等待返回 true。
+func should_wait_for_result(result: Variant) -> bool:
+	if completion_mode == CompletionMode.FIRE_AND_FORGET:
+		return false
+	return result is Signal

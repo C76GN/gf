@@ -108,4 +108,17 @@ history.deserialize_history(saved_data_array, command_builder)
 ```
 > **提示：** `GFCommandHistoryUtility` 具有最大历史数限制属性 `max_history_size`（默认为 `1024`）。当保存突破限制时，底部的旧操作将自动被抛弃以释放内存。
 
+### 异步撤销与重做
+
+如果你的 `GFUndoableCommand.execute()` 或 `undo()` 会返回 `Signal`（例如等待动画、网络确认或异步资源流程），请使用异步版本的历史操作：
+
+```gdscript
+var history := Gf.get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+
+await history.undo_last_async()
+await history.redo_async()
+```
+
+同步版本 `undo_last()` / `redo()` 会保持原有立即返回的行为，适合纯数据命令；异步版本会在命令返回 `Signal` 时等待完成后再移动撤销/重做栈。
+
 > 请查阅文档中关于 *Advanced Extensions (高级扩展)* 中具体提供的 Undo/Redo 组件范例来获得更多实战经验。

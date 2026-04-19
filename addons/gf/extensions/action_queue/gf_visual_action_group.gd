@@ -65,7 +65,7 @@ func _run_parallel() -> Variant:
 			continue
 			
 		var res: Variant = action.execute()
-		if res is Signal:
+		if action.should_wait_for_result(res):
 			pending_signals.append(res as Signal)
 			
 	if pending_signals.is_empty():
@@ -97,7 +97,7 @@ func _do_sequence_async() -> void:
 			continue
 			
 		var res: Variant = action.execute()
-		if res is Signal:
+		if action.should_wait_for_result(res):
 			await res
 			
 	_sequence_completed.emit()

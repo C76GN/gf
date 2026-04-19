@@ -1,4 +1,4 @@
-# tests/gf_core/test_gf_command_history_utility.gd
+﻿# tests/gf_core/test_gf_command_history_utility.gd
 
 ## 测试 GFCommandHistoryUtility 的 record、undo_last、redo 及边界情况。
 extends GutTest
@@ -25,8 +25,40 @@ class CounterCommand:
 		_counter["value"] = _counter.get("value", 0) + 1
 		return null
 
-	func undo() -> void:
+	func undo() -> Variant:
 		_counter["value"] = get_snapshot()
+		return null
+
+
+class AsyncCounterCommand:
+	extends GFUndoableCommand
+
+	signal completed
+
+	var _counter: Dictionary
+	var _execute_value: int
+	var _undo_value: int
+
+	func _init(counter: Dictionary, execute_value: int, undo_value: int) -> void:
+		_counter = counter
+		_execute_value = execute_value
+		_undo_value = undo_value
+
+	func execute() -> Variant:
+		call_deferred("_finish_execute")
+		return completed
+
+	func undo() -> Variant:
+		call_deferred("_finish_undo")
+		return completed
+
+	func _finish_execute() -> void:
+		_counter["value"] = _execute_value
+		completed.emit()
+
+	func _finish_undo() -> void:
+		_counter["value"] = _undo_value
+		completed.emit()
 
 
 # --- Godot 生命周期方法 ---
@@ -137,6 +169,33 @@ func test_redo_empty_stack_returns_false() -> void:
 	assert_false(result, "空栈时 redo 应返回 false。")
 
 
+## 验证 undo_last_async 会等待异步撤销命令完成后再移动到重做栈。
+func test_undo_last_async_awaits_async_command() -> void:
+	var counter := {"value": 10}
+	var cmd := AsyncCounterCommand.new(counter, 20, 0)
+	_history.record(cmd)
+
+	var result: bool = await _history.undo_last_async()
+
+	assert_true(result, "异步撤销完成后应返回 true。")
+	assert_eq(counter.value, 0, "异步 undo 完成后应恢复指定值。")
+	assert_eq(_history.redo_count, 1, "异步 undo 完成后应推入重做栈。")
+
+
+## 验证 redo_async 会等待异步执行命令完成后再移动回撤销栈。
+func test_redo_async_awaits_async_command() -> void:
+	var counter := {"value": 0}
+	var cmd := AsyncCounterCommand.new(counter, 20, 0)
+	_history.record(cmd)
+	await _history.undo_last_async()
+
+	var result: bool = await _history.redo_async()
+
+	assert_true(result, "异步重做完成后应返回 true。")
+	assert_eq(counter.value, 20, "异步 redo 完成后应应用指定值。")
+	assert_eq(_history.undo_count, 1, "异步 redo 完成后应推回撤销栈。")
+
+
 # --- 测试：clear 与辅助方法 ---
 
 ## 验证 clear 清空两个栈。
@@ -178,26 +237,26 @@ func test_get_history_methods() -> void:
 	var cmd2 := CounterCommand.new(counter)
 	cmd1.action_name = "动作1"
 	cmd2.action_name = "动作2"
-	
+
 	cmd1.execute()
 	_history.record(cmd1)
 	cmd2.execute()
 	_history.record(cmd2)
-	
+
 	_history.undo_last()
-	
+
 	var undo_history: Array[GFUndoableCommand] = _history.get_undo_history()
 	var redo_history: Array[GFUndoableCommand] = _history.get_redo_history()
-	
+
 	assert_eq(undo_history.size(), 1, "撤销历史应有 1 个元素。")
 	assert_eq(undo_history[0].action_name, "动作1", "撤销历史的命令描述应正确。")
-	
+
 	assert_eq(redo_history.size(), 1, "重做历史应有 1 个元素。")
 	assert_eq(redo_history[0].action_name, "动作2", "重做历史的命令描述应正确。")
-	
+
 	undo_history.clear()
 	redo_history.clear()
-	
+
 	assert_eq(_history.undo_count, 1, "返回的原撤销栈的拷贝被清空，不应影响内部撤销栈。")
 	assert_eq(_history.redo_count, 1, "返回的原重做栈的拷贝被清空，不应影响内部重做栈。")
 
@@ -209,12 +268,12 @@ func test_serialize_history() -> void:
 	var counter := {"value": 0}
 	var cmd1 := CounterCommand.new(counter)
 	var cmd2 := CounterCommand.new(counter)
-	
+
 	cmd1.execute()
 	_history.record(cmd1)
 	cmd2.execute()
 	_history.record(cmd2)
-	
+
 	var data_array := _history.serialize_history()
 	assert_eq(data_array.size(), 2, "序列化后的数据长度应为2。")
 	assert_eq(data_array[0].get("snapshot"), 0, "第一个快照值应正确。")
@@ -228,10 +287,10 @@ func test_deserialize_history() -> void:
 		var c := CounterCommand.new(counter)
 		c.set_snapshot(data.get("snapshot", 0))
 		return c
-		
+
 	var src_data := [ {"snapshot": 5}, {"snapshot": 6}]
 	_history.deserialize_history(src_data, builder)
-	
+
 	assert_eq(_history.undo_count, 2, "撤销栈应恢复2条。")
 	_history.undo_last()
 	assert_eq(counter.value, 6, "反序列化后的命令能正常提取之前快照执行 undo。")
@@ -242,22 +301,22 @@ func test_deserialize_history() -> void:
 func test_history_size_limit() -> void:
 	_history.max_history_size = 2
 	var counter := {"value": 0}
-	
+
 	var cmds: Array[CounterCommand] = []
 	for i in range(3):
 		var cmd := CounterCommand.new(counter)
 		cmd.execute()
 		_history.record(cmd)
 		cmds.append(cmd)
-		
+
 	assert_eq(_history.undo_count, 2, "超出最大限制时撤销栈大小应保持为 max_history_size (2)。")
-	
+
 	_history.undo_last()
 	assert_eq(counter.value, 2, "最新撤销的应是第三个命令，执行撤销后恢复为 2。")
-	
+
 	_history.undo_last()
 	assert_eq(counter.value, 1, "再次撤销的是第二个命令，执行撤销后恢复为 1。")
-	
+
 	assert_false(_history.undo_last(), "第一条命令应已被超限丢弃，无法再撤销。")
 
 
@@ -267,13 +326,13 @@ func test_history_size_limit() -> void:
 func test_snapshot_deep_copy() -> void:
 	var data := {"a": 1, "b": [1, 2]}
 	var cmd := CounterCommand.new({})
-	
+
 	cmd.set_snapshot(data)
-	
+
 	# 修改原数据
 	data["a"] = 99
 	data["b"].append(3)
-	
+
 	var snapshot: Dictionary = cmd.get_snapshot()
 	assert_eq(snapshot["a"], 1, "字典快照不应受原字典修改影响。")
 	assert_eq(snapshot["b"].size(), 2, "嵌套数组快照不应受原数组修改影响。")

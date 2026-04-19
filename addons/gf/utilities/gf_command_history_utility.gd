@@ -78,6 +78,21 @@ func undo_last() -> bool:
 	return true
 
 
+## 异步撤销最后一条命令。若命令 undo() 返回 Signal，则等待其完成后再进入重做栈。
+## @return 成功撤销返回 true，撤销栈为空时返回 false。
+func undo_last_async() -> bool:
+	if _undo_stack.is_empty():
+		return false
+
+	var cmd: GFUndoableCommand = _undo_stack.pop_back()
+	var result: Variant = cmd.undo()
+	if result is Signal:
+		await result
+	_redo_stack.push_back(cmd)
+
+	return true
+
+
 ## 重新执行最近被撤销的命令。
 ## @return 成功重做返回 true，重做栈为空时返回 false。
 func redo() -> bool:
@@ -86,6 +101,21 @@ func redo() -> bool:
 
 	var cmd: GFUndoableCommand = _redo_stack.pop_back()
 	cmd.execute()
+	_undo_stack.push_back(cmd)
+
+	return true
+
+
+## 异步重新执行最近被撤销的命令。若命令 execute() 返回 Signal，则等待其完成后再回到撤销栈。
+## @return 成功重做返回 true，重做栈为空时返回 false。
+func redo_async() -> bool:
+	if _redo_stack.is_empty():
+		return false
+
+	var cmd: GFUndoableCommand = _redo_stack.pop_back()
+	var result: Variant = cmd.execute()
+	if result is Signal:
+		await result
 	_undo_stack.push_back(cmd)
 
 	return true

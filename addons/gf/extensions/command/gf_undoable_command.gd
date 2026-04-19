@@ -30,8 +30,9 @@ func execute() -> Variant:
 
 
 ## 撤销命令。子类必须重写此方法，使用 get_snapshot() 还原状态。
-func undo() -> void:
-	pass
+## @return 同步命令返回 null；异步命令可返回 Signal 供外部 await。
+func undo() -> Variant:
+	return null
 
 
 ## 保存执行前的状态快照。应在 execute() 内部、修改数据之前调用。

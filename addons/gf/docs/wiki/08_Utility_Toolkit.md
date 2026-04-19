@@ -17,7 +17,11 @@ var assets := Gf.get_utility(GFAssetUtility) as GFAssetUtility
 
 # 异步加载一个带路径的资源（例如怪物Prefab）。如果缓存已有直接吐出，
 # 如果正在被别人加载，则一起等待那一个完成；如果没有，在无阻塞线程中拉起请求。
-var monster_scene = await assets.load_asset_async("res://enemies/goblin.tscn")
+assets.load_async("res://enemies/goblin.tscn", func(res: Resource) -> void:
+    var monster_scene := res as PackedScene
+    if monster_scene != null:
+        add_child(monster_scene.instantiate())
+)
 ```
 它内置了 LRU （最近最少使用）算法上限，当缓存过大时会自动清理长期未被提取引用的资源。
 
@@ -29,9 +33,10 @@ var monster_scene = await assets.load_asset_async("res://enemies/goblin.tscn")
 ```gdscript
 var timer_util := Gf.get_utility(GFTimerUtility) as GFTimerUtility
 
-# 完全纯代码、与场景节点无关的安全等待
-await timer_util.delay(1.5)
-print("1.5秒真实时间后触发")
+# 延迟 1.5 秒后执行一次回调
+timer_util.execute_after(1.5, func() -> void:
+    print("1.5秒真实时间后触发")
+)
 ```
 
 ## 3. 动态时间缩放流 (`GFTimeUtility`)
@@ -41,8 +46,11 @@ print("1.5秒真实时间后触发")
 **如何使用：**
 ```gdscript
 var time_scale_util := Gf.get_utility(GFTimeUtility) as GFTimeUtility
-# 将包含战斗组标签的系统帧率全部放慢 10 倍！
-time_scale_util.set_time_scale_by_group("CombatSystems", 0.1) 
+# 全局逻辑时间放慢 10 倍
+time_scale_util.time_scale = 0.1
+
+# 或暂停某个自定义组，并在系统内主动获取该组 delta
+time_scale_util.set_group_paused(&"CombatSystems", true)
 ```
 
 ## 4. 节点对象池 (`GFObjectPoolUtility`)
@@ -57,6 +65,18 @@ var bullet = pool.acquire(bullet_scene, get_tree().root) as Node2D
 
 # 归还它进入休眠
 pool.release(bullet, bullet_scene)
+```
+
+池化节点可以选择实现两个 hook，让节点自己清理旧状态：
+
+```gdscript
+func on_gf_pool_release() -> void:
+    # 清理 Tween、临时信号连接、运行时 meta 等
+    pass
+
+func on_gf_pool_acquire() -> void:
+    # 重置本次使用需要的状态
+    pass
 ```
 
 ## 5. 增强存档管理器 (`GFStorageUtility`)
@@ -130,7 +150,7 @@ scene_util.load_scene_async("res://levels/level_2.tscn", "res://ui/loading_scree
 
 ## 10. 全局音频管理器 (`GFAudioUtility`)
 
-**应用场景：** 处理 BGM 切歌与自动交叉淡入淡出（通过内部机制），并在 SFX 播放时自动处理 `AudioStreamPlayer` 的基于 `GFObjectPoolUtility` 的池化复用，杜绝卡顿。
+**应用场景：** 处理 BGM 切歌、音量总线，以及在 SFX 播放时自动处理 `AudioStreamPlayer` 的基于 `GFObjectPoolUtility` 的池化复用，减少频繁实例化带来的卡顿。
 
 **如何使用：**
 ```gdscript
@@ -315,4 +335,3 @@ console.execute_command("help")
 # 可选：更换呼出快捷键（默认 F1）
 console.toggle_key = KEY_F2
 ```
-

@@ -26,7 +26,7 @@ func update(delta: float) -> void:
     # 被主框架逻辑勾起不断判定
     var d = owner_entity.global_position.distance_to(target.global_position)
     if d < 10.0:
-        get_machine().change_state("AttackState")
+        change_state(&"AttackState")
 
 func exit() -> void:
     # 退出前清理工作
@@ -91,11 +91,25 @@ func execute() -> Signal:
 ```gdscript
 var q_sys = Gf.get_system(GFActionQueueSystem) as GFActionQueueSystem
 # 队列系统支持并发 (Parallel) 及有序 (Sequential) 甚至后发先至 LIFO 设计模式。
-var grp = VisualActionGroup.new()
-grp.add_action(PlayCardVisualAction.new(...))
+var grp := GFVisualActionGroup.new()
+grp.add(PlayCardVisualAction.new(...))
 
 # 推入到默认缓冲队列进行有序按批等待渲染
-q_sys.enqueue_visual_action(grp) 
+q_sys.enqueue(grp)
+```
+
+### 显式 Fire-and-Forget 动作
+
+默认情况下，`GFActionQueueSystem` 保持旧语义：`execute()` 返回 `Signal` 就等待，返回 `null` 就继续。自 `1.6.0` 起，如果某个动作只是发出音效、粒子、非阻塞 Tween，不希望占住队列，可以显式声明 fire-and-forget：
+
+```gdscript
+var q_sys := Gf.get_system(GFActionQueueSystem) as GFActionQueueSystem
+
+var action := PlaySfxAction.new("res://audio/hit.wav")
+q_sys.enqueue_fire_and_forget(action)
+
+# 或者在动作自身上声明
+q_sys.enqueue(SpawnParticleAction.new(...).as_fire_and_forget())
 ```
 
 ---
