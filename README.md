@@ -71,8 +71,12 @@ godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_
 
 更完整的设计说明在 `addons/gf/docs/wiki`：
 
-- `01_Architecture_Overview.md`
-- `02_Lifecycle_Initialization.md`
-- `04_Event_System.md`
-- `08_Utility_Toolkit.md`
-- `CHANGELOG.md`
+> GitHub Wiki 的页面标题由文件名决定，因此本目录中的 Wiki 页面文件名采用“可直接展示”的标题命名，而不是下划线式文档名。
+
+- `Home.md`
+- `01. 架构概览 (Architecture).md`
+- `02. 生命周期与初始化 (Lifecycle).md`
+- `04. 事件系统 (Event System).md`
+- `08. 实用工具箱 (Utility Toolkit).md`
+- `更新日志 (Changelog).md`
+
