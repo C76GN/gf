@@ -1,4 +1,3 @@
-# tests/gf_core/test_gf_behavior_tree.gd
 extends GutTest
 
 

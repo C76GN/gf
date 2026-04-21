@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_state_machine.gd
-
 ## 测试 GFStateMachine 的状态注册、切换、update 驱动及信号发送功能。
 extends GutTest
 

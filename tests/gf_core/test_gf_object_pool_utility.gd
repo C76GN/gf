@@ -1,5 +1,3 @@
-﻿# tests/gf_core/test_gf_object_pool_utility.gd
-
 ## 测试 GFObjectPoolUtility 的 acquire、release、prewarm 及 get_available_count。
 extends GutTest
 

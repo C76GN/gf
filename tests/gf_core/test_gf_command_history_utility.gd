@@ -1,6 +1,4 @@
-﻿# tests/gf_core/test_gf_command_history_utility.gd
-
-## 测试 GFCommandHistoryUtility 的 record、undo_last、redo 及边界情况。
+## 测试 GFCommandHistoryUtility 的记录、撤销、重做与序列化行为。
 extends GutTest
 
 
@@ -99,6 +97,17 @@ func test_record_clears_redo_stack() -> void:
 	_history.record(cmd2)
 
 	assert_eq(_history.redo_count, 0, "record 新命令后重做栈应被清空。")
+
+
+## 验证 execute_command 会执行命令并自动记录到撤销栈。
+func test_execute_command_executes_and_records() -> void:
+	var counter := {"value": 0}
+	var cmd := CounterCommand.new(counter)
+
+	_history.execute_command(cmd)
+
+	assert_eq(counter.value, 1, "execute_command 应先执行命令。")
+	assert_eq(_history.undo_count, 1, "execute_command 后应自动记录到撤销栈。")
 
 
 # --- 测试：undo_last ---

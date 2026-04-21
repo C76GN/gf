@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_timer_utility.gd
-
 ## GFTimerUtility: 纯代码驱动的全局定时器工具。
 ##
 ## 封装了基于 SceneTreeTimer 的延迟回调执行，无需在场景树中

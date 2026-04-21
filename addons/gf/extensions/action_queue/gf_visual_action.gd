@@ -1,5 +1,3 @@
-# addons/gf/extensions/action_queue/gf_visual_action.gd
-
 ## GFVisualAction: 视觉表现动作的抽象基类。
 ##
 ## 继承自 RefCounted，代表一个具体的、可 await 的表现动作单元，

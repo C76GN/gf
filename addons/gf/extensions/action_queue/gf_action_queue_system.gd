@@ -1,5 +1,3 @@
-# addons/gf/extensions/action_queue/gf_action_queue_system.gd
-
 ## GFActionQueueSystem: 逻辑与表现解耦的动画队列管理系统。
 ##
 ## 继承自 GFSystem，遵守三阶段初始化协议。

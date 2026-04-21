@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_quad_tree_utility.gd
-
 ## 测试 GFQuadTreeUtility 的插入、删除、更新和范围查询功能。
 extends GutTest
 

@@ -1,4 +1,3 @@
-# tests/gf_core/test_gf_audio_utility.gd
 extends GutTest
 
 

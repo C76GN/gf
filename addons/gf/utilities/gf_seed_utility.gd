@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_seed_utility.gd
-
 ## GFSeedUtility: 全局随机数种子管理器。
 ##
 ## 内部维护一个主 RandomNumberGenerator，并支持基于字符串标签派生

@@ -1,5 +1,3 @@
-# addons/gf/extensions/state_machine/gf_state.gd
-
 ## GFState: 纯代码状态机的状态抽象基类。
 ##
 ## 继承自 RefCounted，不依赖 Node 树，可在任何逻辑层使用。

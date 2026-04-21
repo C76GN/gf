@@ -1,4 +1,3 @@
-# addons/gf/extensions/combat/gf_tag_component.gd
 class_name GFTagComponent
 extends RefCounted
 

@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_config_provider.gd
-
 ## GFConfigProvider: 通用的静态导表数据适配器基类。
 ##
 ## 为了让框架无缝衔接不同项目的导表工具（JSON, CSV, Luban 等），提供统一的读取接口。

@@ -1,4 +1,3 @@
-# addons/gf/extensions/combat/gf_combat_system.gd
 class_name GFCombatSystem
 extends GFSystem
 

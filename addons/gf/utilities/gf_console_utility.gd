@@ -1,30 +1,31 @@
-# addons/gf/utilities/gf_console_utility.gd
-
 ## GFConsoleUtility: 运行时开发者控制台。
 ##
-## 提供运行时指令注册与调用环境，内置 help / clear 基础指令。
-## 在 init() 时动态创建一个覆盖全屏的 CanvasLayer GUI（默认隐藏），
-## 通过快捷键（默认 F1）呼出。自动接收 GFLogUtility 的日志信号，
-## 使用 BBCode 着色显示。
+## 提供命令注册、解析与执行能力，并在初始化时构建覆盖全屏的调试 GUI。
+## 默认通过快捷键呼出，同时会消费 `GFLogUtility` 的日志信号进行彩色输出。
 class_name GFConsoleUtility
 extends GFUtility
 
 
 # --- 公共变量 ---
 
-## 呼出/隐藏控制台的快捷键。默认为 KEY_F1。
+## 呼出或隐藏控制台的快捷键；默认为 `KEY_F1`。
 var toggle_key: Key = KEY_F1
 
 
 # --- 私有变量 ---
 
+## 已注册命令表。
 var _commands: Dictionary = {}
+
+## 控制台 GUI 实例。
 var _console_gui: _GFConsoleGUI
+
+## 当前已连接的日志工具。
+var _connected_log_util: GFLogUtility = null
 
 
 # --- Godot 生命周期方法 ---
 
-## 第一阶段初始化：注册内置指令、创建 GUI。
 func init() -> void:
 	register_command("help", _cmd_help, "显示所有可用指令。")
 	register_command("clear", _cmd_clear, "清空控制台输出。")
@@ -39,25 +40,39 @@ func init() -> void:
 		tree.root.call_deferred("add_child", _console_gui)
 
 
-## 第二阶段初始化：连接日志信号。
 func ready() -> void:
-	var log_util: Variant = Gf.get_utility(GFLogUtility)
-	if log_util != null and log_util.has_signal("log_emitted"):
+	var log_util := Gf.get_utility(GFLogUtility) as GFLogUtility
+	if log_util == null or not log_util.has_signal("log_emitted"):
+		return
+
+	if _connected_log_util != null and _connected_log_util != log_util:
+		if _connected_log_util.log_emitted.is_connected(_on_log_emitted):
+			_connected_log_util.log_emitted.disconnect(_on_log_emitted)
+
+	if not log_util.log_emitted.is_connected(_on_log_emitted):
 		log_util.log_emitted.connect(_on_log_emitted)
 
+	_connected_log_util = log_util
 
-## 销毁控制台 GUI。
+
 func dispose() -> void:
+	if _connected_log_util != null and _connected_log_util.log_emitted.is_connected(_on_log_emitted):
+		_connected_log_util.log_emitted.disconnect(_on_log_emitted)
+
+	_connected_log_util = null
+
 	if is_instance_valid(_console_gui):
 		_console_gui.queue_free()
+
+	_console_gui = null
 
 
 # --- 公共方法 ---
 
-## 注册一个自定义控制台指令。
+## 注册控制台命令。
 ## @param cmd_name: 指令名称。
-## @param callback: 指令回调，签名为 func(args: PackedStringArray) -> void。
-## @param description: 指令说明文字。
+## @param callback: 指令回调，签名为 `func(args: PackedStringArray) -> void`。
+## @param description: 指令说明文本。
 func register_command(cmd_name: String, callback: Callable, description: String) -> void:
 	_commands[cmd_name] = {
 		"callback": callback,
@@ -65,15 +80,15 @@ func register_command(cmd_name: String, callback: Callable, description: String)
 	}
 
 
-## 注销一个已注册的控制台指令。
+## 注销控制台命令。
 ## @param cmd_name: 指令名称。
 func unregister_command(cmd_name: String) -> void:
 	_commands.erase(cmd_name)
 
 
-## 解析并执行一条原始输入字符串。
+## 解析并执行一条原始输入。
 ## @param raw_input: 用户输入的完整字符串。
-## @return 是否成功找到并执行了指令。
+## @return 找到并成功执行命令时返回 `true`。
 func execute_command(raw_input: String) -> bool:
 	var trimmed := raw_input.strip_edges()
 	if trimmed.is_empty():
@@ -87,7 +102,7 @@ func execute_command(raw_input: String) -> bool:
 
 	if not _commands.has(cmd_name):
 		if is_instance_valid(_console_gui):
-			_console_gui.append_text("[color=red]未知指令: %s。输入 'help' 查看帮助。[/color]" % cmd_name)
+			_console_gui.append_text("[color=red]未知指令：%s。输入 'help' 查看帮助。[/color]" % cmd_name)
 		return false
 
 	var entry: Dictionary = _commands[cmd_name]
@@ -96,7 +111,7 @@ func execute_command(raw_input: String) -> bool:
 	return true
 
 
-# --- 私有方法 ---
+# --- 私有/辅助方法 ---
 
 func _cmd_help(_args: PackedStringArray) -> void:
 	if not is_instance_valid(_console_gui):
@@ -106,7 +121,7 @@ func _cmd_help(_args: PackedStringArray) -> void:
 	for cmd_name: String in _commands:
 		var entry: Dictionary = _commands[cmd_name]
 		var desc: String = entry["description"]
-		_console_gui.append_text("  [color=white]%s[/color] — %s" % [cmd_name, desc])
+		_console_gui.append_text("  [color=white]%s[/color] - %s" % [cmd_name, desc])
 	_console_gui.append_text("[color=cyan]----------------[/color]")
 
 
@@ -118,17 +133,17 @@ func _cmd_clear(_args: PackedStringArray) -> void:
 func _on_command_submitted(raw_input: String) -> void:
 	if is_instance_valid(_console_gui):
 		_console_gui.append_text("[color=gray]> %s[/color]" % raw_input)
+
 	execute_command(raw_input)
 
 
 func _on_log_emitted(level: int, tag: String, message: String) -> void:
 	if not is_instance_valid(_console_gui):
 		return
-		
+
 	if _console_gui.is_tag_ignored(tag):
 		return
 
-	# 与 GFLogUtility.LogLevel 枚举值保持一致：DEBUG=0, INFO=1, WARN=2, ERROR=3, FATAL=4
 	var color: String
 	match level:
 		0:
@@ -145,15 +160,18 @@ func _on_log_emitted(level: int, tag: String, message: String) -> void:
 	_console_gui.append_text("[color=%s][%s][%s] %s[/color]" % [color, level_str, tag, message])
 
 
-# --- 内部 GUI 类 ---
+# --- 内部类 ---
 
 class _GFConsoleGUI extends CanvasLayer:
 	# --- 信号 ---
+
 	signal command_submitted(raw_input: String)
+
 
 	# --- 公共变量 ---
 
 	var toggle_key: Key
+
 
 	# --- 私有变量 ---
 
@@ -161,6 +179,7 @@ class _GFConsoleGUI extends CanvasLayer:
 	var _input_field: LineEdit
 	var _filter_input: LineEdit
 	var _ignored_tags: PackedStringArray = PackedStringArray()
+
 
 	# --- Godot 生命周期方法 ---
 
@@ -195,12 +214,12 @@ class _GFConsoleGUI extends CanvasLayer:
 		header.modulate = Color(0.4, 0.8, 1.0)
 		header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		header_hbox.add_child(header)
-		
+
 		var filter_label := Label.new()
 		filter_label.text = "过滤标签: "
 		filter_label.modulate = Color(0.8, 0.8, 0.8)
 		header_hbox.add_child(filter_label)
-		
+
 		_filter_input = LineEdit.new()
 		_filter_input.placeholder_text = "逗号分隔 (如 sys,net)"
 		_filter_input.custom_minimum_size = Vector2(200, 0)
@@ -240,6 +259,13 @@ class _GFConsoleGUI extends CanvasLayer:
 		_output.clear()
 
 
+	func is_tag_ignored(tag: String) -> bool:
+		if _ignored_tags.is_empty():
+			return false
+
+		return _ignored_tags.has(tag)
+
+
 	# --- 信号处理函数 ---
 
 	func _on_input_submitted(text: String) -> void:
@@ -255,10 +281,3 @@ class _GFConsoleGUI extends CanvasLayer:
 			_ignored_tags.clear()
 		else:
 			_ignored_tags = text.replace(" ", "").split(",", false)
-
-
-	func is_tag_ignored(tag: String) -> bool:
-		if _ignored_tags.is_empty():
-			return false
-		return _ignored_tags.has(tag)
-

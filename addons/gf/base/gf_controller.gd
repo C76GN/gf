@@ -1,4 +1,3 @@
-# addons/gf/base/gf_controller.gd
 extends Node
 class_name GFController
 

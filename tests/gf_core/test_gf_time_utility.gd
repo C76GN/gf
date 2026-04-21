@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_time_utility.gd
-
 ## 测试 GFTimeUtility 的时间缩放、暂停和组级暂停功能。
 extends GutTest
 

@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_input_utility.gd
-
 ## 测试 GFInputUtility 的输入缓冲和土狼时间功能。
 extends GutTest
 

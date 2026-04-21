@@ -1,5 +1,3 @@
-# addons/gf/core/bindable_property.gd
-
 ## BindableProperty: 响应式数据绑定属性容器。
 ##
 ## 封装一个 Variant 值，当值发生变化时自动发出 value_changed 信号。

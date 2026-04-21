@@ -1,5 +1,3 @@
-﻿# tests/gf_core/test_gf_singleton.gd
-
 ## 测试 Gf 全局单例的便捷代理方法 (Facade 模式)
 extends GutTest
 

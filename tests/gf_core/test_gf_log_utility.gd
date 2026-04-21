@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_log_utility.gd
-
 ## 测试 GFLogUtility 的日志文件生成、旧日志清理及信号触发。
 extends GutTest
 

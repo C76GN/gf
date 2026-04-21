@@ -1,4 +1,3 @@
-# tests/gf_core/test_gf_debug_overlay_utility.gd
 extends GutTest
 
 

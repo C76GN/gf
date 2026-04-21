@@ -1,4 +1,3 @@
-# addons/gf/core/gf.gd
 extends Node
 
 

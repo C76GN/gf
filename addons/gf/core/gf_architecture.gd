@@ -1,4 +1,3 @@
-# addons/gf/core/gf_architecture.gd
 class_name GFArchitecture
 
 

@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_input_utility.gd
-
 ## GFInputUtility: 输入缓冲与土狼时间管理工具。
 ##
 ## 继承自 GFUtility，为动作/平台跳跃游戏提供两项核心输入辅助机制：

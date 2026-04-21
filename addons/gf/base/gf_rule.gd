@@ -1,5 +1,3 @@
-# addons/gf/base/gf_rule.gd
-
 ## GFRule: 数据驱动规则的抽象基类。
 ##
 ## 继承自 Resource，可在编辑器中配置并序列化为 .tres 文件。

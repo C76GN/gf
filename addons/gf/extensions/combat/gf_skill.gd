@@ -1,13 +1,15 @@
-# addons/gf/extensions/combat/gf_skill.gd
+## GFSkill: 技能基类。
+##
+## 负责冷却、施放校验与目标解析入口，
+## 具体技能逻辑通过子类重写 `_on_execute()` 实现。
 class_name GFSkill
 extends RefCounted
 
 
-## GFSkill: 技能基类。
-## 
-## 管理 CD、消耗检查及标签限制。
-## 具体的技能逻辑通过子类重写 _on_execute 来实现。
+# --- 信号 ---
 
+## 当技能开始进入冷却时发出。
+## @param skill: 进入冷却的技能实例。
 signal cooldown_started(skill: GFSkill)
 
 
@@ -22,16 +24,16 @@ var cooldown_max: float = 0.0
 ## 当前剩余冷却时间。
 var cooldown_left: float = 0.0
 
-## 释放技能所需的标签。
+## 释放技能所需标签。
 var require_tags: Array[StringName] = []
 
-## 释放技能禁止存在的标签。
+## 释放技能时禁止存在的标签。
 var ignore_tags: Array[StringName] = []
 
-## 技能所有者。
+## 技能拥有者。
 var owner: Object = null
 
-## 技能索敌规则。若配置此项且 execute 未传入手动目标，则会自动索敌。
+## 技能索敌规则。
 var targeting_rule: GFSkillTargetingRule = null
 
 
@@ -43,96 +45,101 @@ func _init(p_owner: Object = null) -> void:
 
 # --- 公共方法 ---
 
-## 更新 CD。
+## 更新冷却时间。
+## @param p_delta: 本次更新经过的时间。
 func update(p_delta: float) -> void:
-	if cooldown_left > 0:
+	if cooldown_left > 0.0:
 		cooldown_left = max(0.0, cooldown_left - p_delta)
 
 
-## 检查技能是否可以被释放。
-## @return 可以释放返回 true。
+## 检查技能当前是否允许施放。
+## @return 可施放时返回 `true`。
 func can_execute() -> bool:
-	if cooldown_left > 0:
+	if cooldown_left > 0.0:
 		return false
-		
+
 	if owner == null:
 		return false
-		
-	# 检查标签
+
 	if owner.has_method("get_tag_component"):
 		var tc := owner.get_tag_component() as GFTagComponent
 		if tc != null:
-			# 必须包含
 			for tag in require_tags:
 				if not tc.has_tag(tag):
 					return false
-			# 不能包含
+
 			for tag in ignore_tags:
 				if tc.has_tag(tag):
 					return false
-					
+
 	return _custom_can_execute()
 
 
 ## 执行技能。
-## @param manual_target: 可选的手动指定目标。
-## @param cast_center: 技能施放中心坐标，默认为施法者位置。
-func execute(manual_target: Object = null, cast_center: Vector2 = Vector2.ZERO) -> void:
+## @param manual_target: 可选的手动目标。
+## @param cast_center: 可选施法中心；传入 `null` 时回退到施法者位置。
+func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
 	if not can_execute():
 		return
-		
+
 	var final_targets: Array[Object] = []
-	
+	var resolved_center := _resolve_cast_center(cast_center)
+
 	if manual_target != null:
-		# 手动指定目标：若有规则，则需进行规则校验
 		if targeting_rule != null:
 			var utility := Gf.get_utility(GFSkillTargetingUtility) as GFSkillTargetingUtility
 			if utility == null:
 				push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
 				return
-				
-			var valid_targets := utility.find_targets(cast_center, targeting_rule, [manual_target])
+
+			var valid_targets := utility.find_targets(resolved_center, targeting_rule, [manual_target])
 			if not valid_targets.is_empty():
 				final_targets.append(manual_target)
 		else:
 			final_targets.append(manual_target)
 	elif targeting_rule != null:
-		# 自动索敌：需从外界或全局实体池获取候选者。此处暂定由 owner 提供或需要子类传递候选池。
-		# 在通用框架层级，我们可以尝试从 owner 的上下文获取候选实体，或由技能自身提供。
 		var candidates: Array = []
 		if owner != null and owner.has_method(&"get_targeting_candidates"):
 			candidates = owner.call(&"get_targeting_candidates")
 		elif has_method(&"get_targeting_candidates"):
 			candidates = call(&"get_targeting_candidates")
-			
+
 		var utility := Gf.get_utility(GFSkillTargetingUtility) as GFSkillTargetingUtility
 		if utility == null:
 			push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
 			return
-			
-		var center := cast_center
-		if center == Vector2.ZERO and "global_position" in owner:
-			center = owner.global_position
-			
-		final_targets = utility.find_targets(center, targeting_rule, candidates)
-		
-	# 若索敌后仍为空且规则规定必选目标，则不触发执行
+
+		final_targets = utility.find_targets(resolved_center, targeting_rule, candidates)
+
 	if targeting_rule != null and targeting_rule.max_count > 0 and final_targets.is_empty():
 		return
-		
+
 	_on_execute(final_targets)
 	cooldown_left = cooldown_max
 	cooldown_started.emit(self)
 
 
-# --- 虚方法 (由子类重写) ---
+# --- 虚方法（由子类重写） ---
 
-## 自定义释放检查。
+## 自定义施放检查。
+## @return 允许施放时返回 `true`。
 func _custom_can_execute() -> bool:
 	return true
 
 
-## 具体的技能逻辑入口。
+## 具体技能逻辑入口。
 ## @param targets: 经过筛选后的最终目标数组。
 func _on_execute(targets: Array[Object]) -> void:
 	pass
+
+
+# --- 私有/辅助方法 ---
+
+func _resolve_cast_center(cast_center: Variant) -> Vector2:
+	if cast_center is Vector2:
+		return cast_center
+
+	if owner != null and "global_position" in owner:
+		return owner.global_position
+
+	return Vector2.ZERO

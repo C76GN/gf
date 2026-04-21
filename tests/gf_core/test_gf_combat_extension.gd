@@ -1,4 +1,3 @@
-# tests/gf_core/test_gf_combat_extension.gd
 extends "res://addons/gut/test.gd"
 
 

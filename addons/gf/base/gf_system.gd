@@ -1,4 +1,3 @@
-# addons/gf/base/gf_system.gd
 class_name GFSystem
 
 

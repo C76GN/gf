@@ -1,5 +1,3 @@
-﻿# tests/gf_core/test_gf_action_queue.gd
-
 ## 测试 GFActionQueueSystem 的 push_front、push_front_parallel 功能。
 extends GutTest
 

@@ -1,4 +1,3 @@
-# addons/gf/extensions/combat/gf_attribute.gd
 class_name GFAttribute
 extends RefCounted
 

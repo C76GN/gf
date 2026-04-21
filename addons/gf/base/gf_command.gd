@@ -1,4 +1,3 @@
-# addons/gf/base/gf_command.gd
 class_name GFCommand
 
 

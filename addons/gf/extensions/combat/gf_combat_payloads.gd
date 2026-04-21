@@ -1,4 +1,3 @@
-# addons/gf/extensions/combat/gf_combat_payloads.gd
 class_name GFCombatPayloads
 extends Node
 

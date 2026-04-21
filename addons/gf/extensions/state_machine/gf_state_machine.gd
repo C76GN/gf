@@ -1,5 +1,3 @@
-# addons/gf/extensions/state_machine/gf_state_machine.gd
-
 ## GFStateMachine: 纯代码分层有限状态机。
 ##
 ## 继承自 RefCounted，不依赖 Node 树，可在 GFSystem 或 GFUtility 中直接持有。

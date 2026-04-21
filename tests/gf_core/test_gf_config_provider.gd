@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_config_provider.gd
-
 ## 测试 GFConfigProvider 基类的默认行为。
 extends GutTest
 

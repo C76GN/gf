@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_log_utility.gd
-
 ## GFLogUtility: 集中式日志系统。
 ##
 ## 取代原生 print / push_error，提供分级日志（DEBUG → FATAL），

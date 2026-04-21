@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_model_serialization.gd
-
 ## 测试 GFModel 的 to_dict / from_dict 虚方法及 GFArchitecture 的全局状态收集/恢复。
 extends GutTest
 

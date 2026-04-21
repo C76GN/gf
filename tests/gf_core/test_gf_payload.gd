@@ -1,5 +1,3 @@
-# tests/gf_core/test_gf_payload.gd
-
 ## 测试 GFPayload 的继承模式、to_dict/from_dict 约定及 validate 接口。
 extends GutTest
 

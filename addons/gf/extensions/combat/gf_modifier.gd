@@ -1,4 +1,3 @@
-# addons/gf/extensions/combat/gf_modifier.gd
 class_name GFModifier
 extends RefCounted
 

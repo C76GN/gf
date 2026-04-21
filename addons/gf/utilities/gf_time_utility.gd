@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_time_utility.gd
-
 ## GFTimeUtility: 全局时间控制工具。
 ##
 ## 继承自 GFUtility，提供全局时间缩放、暂停和组级暂停控制能力。

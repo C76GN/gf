@@ -1,4 +1,3 @@
-# tests/gf_core/test_gf_seed_utility.gd
 extends GutTest
 
 

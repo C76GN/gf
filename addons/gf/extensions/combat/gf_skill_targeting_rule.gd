@@ -1,38 +1,36 @@
-# addons/gf/extensions/combat/gf_skill_targeting_rule.gd
-class_name GFSkillTargetingRule
-extends Resource
-
-
 ## GFSkillTargetingRule: 技能索敌规则资源。
 ##
-## 使用纯数据结构定义索敌逻辑，包括形状、范围、排序规则及标签过滤。
+## 使用纯数据结构描述目标筛选时的空间范围、
+## 朝向约束、排序规则与标签过滤条件。
+class_name GFSkillTargetingRule
+extends Resource
 
 
 # --- 枚举 ---
 
 ## 索敌形状。
 enum Shape {
-	## 轴对齐矩形 (通常用于简单范围)
+	## 轴对齐矩形范围。
 	RECTANGLE,
-	## 圆形 (最常用)
+	## 圆形范围。
 	CIRCLE,
-	## 扇形 (通常用于朝向性技能)
+	## 扇形范围。
 	SECTOR,
-	## 单体目标
+	## 单体目标。
 	SINGLE,
 }
 
 ## 排序规则。
 enum SortRule {
-	## 距离最近
+	## 距离最近优先。
 	DISTANCE_CLOSEST,
-	## 距离最远
+	## 距离最远优先。
 	DISTANCE_FURTHEST,
-	## 属性值最低 (需要指定 sort_attribute_name)
+	## 属性值最低优先。
 	ATTRIBUTE_LOWEST,
-	## 属性值最高 (需要指定 sort_attribute_name)
+	## 属性值最高优先。
 	ATTRIBUTE_HIGHEST,
-	## 随机选择
+	## 随机顺序。
 	RANDOM,
 }
 
@@ -44,18 +42,29 @@ enum SortRule {
 ## 索敌形状。
 @export var shape: Shape = Shape.CIRCLE
 
-## 索敌半径/距离。
+## 圆形、扇形与单体规则使用的最大半径。
 @export var radius: float = 100.0
 
-## 最大目标数量。
+## 矩形范围尺寸，使用轴对齐包围盒判断。
+@export var rectangle_size: Vector2 = Vector2(200.0, 200.0)
+
+## 最多选中的目标数量。
 @export var max_count: int = 1
+
+@export_group("朝向设置")
+
+## 扇形朝向；为零向量时回退到 `Vector2.RIGHT`。
+@export var forward_direction: Vector2 = Vector2.RIGHT
+
+## 扇形夹角，单位为角度。
+@export_range(0.0, 360.0, 1.0) var sector_angle_degrees: float = 90.0
 
 @export_group("排序规则")
 
-## 排序逻辑。
+## 目标排序逻辑。
 @export var sort_rule: SortRule = SortRule.DISTANCE_CLOSEST
 
-## 当按属性值排序时，使用的属性名称 (StringName)。
+## 按属性排序时使用的属性名。
 @export var sort_attribute_name: StringName = &"HP"
 
 @export_group("标签过滤")

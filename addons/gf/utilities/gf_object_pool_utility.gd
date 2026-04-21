@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_object_pool_utility.gd
-
 ## GFObjectPoolUtility: 节点对象池管理器。
 ##
 ## 继承自 GFUtility，管理 Node 对象的实例化与回收，

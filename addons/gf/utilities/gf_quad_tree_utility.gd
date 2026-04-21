@@ -1,5 +1,3 @@
-# addons/gf/utilities/gf_quad_tree_utility.gd
-
 ## GFQuadTreeUtility: 纯逻辑 2D 四叉树空间划分工具。
 ##
 ## 继承自 GFUtility，提供不依赖引擎物理节点的 2D 空间划分和范围查询能力。

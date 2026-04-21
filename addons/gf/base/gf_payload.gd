@@ -1,5 +1,3 @@
-# addons/gf/base/gf_payload.gd
-
 ## GFPayload: 强类型数据载体的抽象基类。
 ##
 ## 继承自 RefCounted，用作事件传递、命令参数、系统间查询返回值的

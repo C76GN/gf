@@ -1,4 +1,3 @@
-# addons/gf/utilities/gf_debug_overlay_utility.gd
 class_name GFDebugOverlayUtility
 extends GFUtility
 

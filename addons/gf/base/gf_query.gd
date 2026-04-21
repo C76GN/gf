@@ -1,4 +1,3 @@
-# addons/gf/base/gf_query.gd
 class_name GFQuery
 
 

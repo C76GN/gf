@@ -1,5 +1,3 @@
-# addons/gf/extensions/action_queue/gf_visual_action_group.gd
-
 ## GFVisualActionGroup: 动作组复合节点 (Composite Pattern)
 ## 
 ## 继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并等待全部完成）

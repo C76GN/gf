@@ -1,4 +1,3 @@
-﻿# addons/gf/core/type_event_system.gd
 class_name TypeEventSystem
 
 

@@ -1,5 +1,3 @@
-# addons/gf/extensions/command/gf_undoable_command.gd
-
 ## GFUndoableCommand: 可撤销命令的抽象基类。
 ##
 ## 继承自 GFCommand，在标准命令的基础上新增撤销能力。

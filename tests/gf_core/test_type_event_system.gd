@@ -1,5 +1,3 @@
-﻿# tests/gf_core/test_type_event_system.gd
-
 ## 测试 TypeEventSystem 的注册、发送、注销及遍历中注销的边界情况。
 extends GutTest
 

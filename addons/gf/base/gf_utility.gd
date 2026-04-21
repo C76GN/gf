@@ -1,4 +1,3 @@
-# addons/gf/base/gf_utility.gd
 class_name GFUtility
 
 

@@ -1,5 +1,3 @@
-# tests/gf_core/test_bindable_property.gd
-
 ## 测试 BindableProperty 的值绑定、信号触发及 unbind_all 清理功能。
 extends GutTest
 

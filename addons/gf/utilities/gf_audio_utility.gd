@@ -1,4 +1,3 @@
-# addons/gf/utilities/gf_audio_utility.gd
 class_name GFAudioUtility
 extends GFUtility
 

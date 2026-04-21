@@ -1,4 +1,3 @@
-# addons/gf/utilities/gf_behavior_tree.gd
 class_name GFBehaviorTree
 
 

@@ -1,4 +1,3 @@
-# addons/gf/base/gf_model.gd
 class_name GFModel
 
 
