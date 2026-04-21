@@ -139,5 +139,6 @@ func test_failed_load_notifies_callback_with_null() -> void:
 			break
 		await get_tree().process_frame
 
+	assert_push_error("[GFAssetUtility] 异步加载失败：res://simulated_failure.tres")
 	assert_true(result["called"], "加载失败时也应触发回调。")
 	assert_null(result["resource"], "失败回调应收到 null 资源。")

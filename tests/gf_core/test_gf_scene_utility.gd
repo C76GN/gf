@@ -84,6 +84,7 @@ func test_failed_load_restores_previous_scene_after_loading_scene() -> void:
 			break
 		await get_tree().process_frame
 
+	assert_push_error("[GFSceneUtility] 异步加载完成，但目标资源不是 PackedScene：res://icon.svg")
 	assert_false(_scene_util._is_loading, "加载失败后应退出 loading 状态。")
 	assert_eq(_scene_util.sync_scene_changes.size(), 2, "失败流程应先切到 loading scene，再恢复到原场景。")
 	assert_eq(_scene_util.sync_scene_changes[0], loading_scene_path, "第一步应切换到 loading scene。")
