@@ -21,11 +21,13 @@ var _active_entities: Dictionary = {}
 # --- GFSystem 生命周期方法 ---
 
 func tick(p_delta: float) -> void:
+	_cleanup_invalid_entities()
 	# 仅遍历活跃实体
 	var ids := _active_entities.keys()
 	for id in ids:
 		var entity = _active_entities[id]
 		if not is_instance_valid(entity):
+			_entities.erase(entity)
 			_active_entities.erase(id)
 			continue
 			
@@ -83,12 +85,12 @@ func add_buff(p_entity: Object, p_buff: GFBuff) -> void:
 	for existing: GFBuff in buffs:
 		if existing.id == p_buff.id:
 			existing.on_refresh(p_buff.duration)
-			Gf.get_architecture().send_event(GFCombatPayloads.GFBuffRefreshedPayload.new(p_entity, existing))
+			_send_combat_event(GFCombatPayloads.GFBuffRefreshedPayload.new(p_entity, existing))
 			return
 			
 	buffs.append(p_buff)
 	p_buff.on_apply()
-	Gf.get_architecture().send_event(GFCombatPayloads.GFBuffAppliedPayload.new(p_entity, p_buff))
+	_send_combat_event(GFCombatPayloads.GFBuffAppliedPayload.new(p_entity, p_buff))
 	
 	_update_active_status(p_entity)
 
@@ -115,8 +117,8 @@ func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 
 ## 更新实体的活跃状态。
 func _update_active_status(p_entity: Object) -> void:
-	if not _entities.has(p_entity):
-		_active_entities.erase(p_entity)
+	if not is_instance_valid(p_entity) or not _entities.has(p_entity):
+		_erase_active_entity(p_entity)
 		return
 		
 	var data: Dictionary = _entities[p_entity]
@@ -137,9 +139,43 @@ func _update_active_status(p_entity: Object) -> void:
 		_active_entities.erase(p_entity.get_instance_id())
 
 
+func _cleanup_invalid_entities() -> void:
+	for entity in _entities.keys():
+		if not is_instance_valid(entity):
+			_entities.erase(entity)
+
+	for entity_id in _active_entities.keys():
+		var entity = _active_entities[entity_id]
+		if not is_instance_valid(entity) or not _entities.has(entity):
+			_active_entities.erase(entity_id)
+
+
+func _erase_active_entity(p_entity: Object) -> void:
+	if is_instance_valid(p_entity):
+		_active_entities.erase(p_entity.get_instance_id())
+		return
+
+	var stale_ids: Array = []
+	for entity_id in _active_entities.keys():
+		if _active_entities[entity_id] == p_entity:
+			stale_ids.append(entity_id)
+
+	for entity_id in stale_ids:
+		_active_entities.erase(entity_id)
+
+
 func _on_skill_cooldown_started(p_skill: GFSkill) -> void:
 	if is_instance_valid(p_skill) and is_instance_valid(p_skill.owner):
 		_update_active_status(p_skill.owner)
+
+
+func _send_combat_event(event_instance: Object) -> void:
+	if not Gf.has_method("has_architecture") or not Gf.has_architecture():
+		return
+
+	var arch := Gf.get_architecture()
+	if arch != null and arch.has_method("send_event"):
+		arch.send_event(event_instance)
 
 
 
@@ -158,7 +194,7 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 	for buff: GFBuff in to_remove:
 		buff.on_remove()
 		buffs.erase(buff)
-		Gf.get_architecture().send_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, buff.id))
+		_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, buff.id))
 		
 	# 处理技能 CD
 	var skills: Array = data["skills"]

@@ -28,6 +28,9 @@ const _META_ORIGINAL_VISIBLE: StringName = &"_gf_pool_original_visible"
 ## 用于保存节点进入池前的 disabled 属性。
 const _META_ORIGINAL_DISABLED: StringName = &"_gf_pool_original_disabled"
 
+## 用于追踪节点原始所属的 PackedScene，避免错误 release 污染其他池。##
+const _META_SOURCE_SCENE: StringName = &"_gf_pool_source_scene"
+
 ## 节点可选实现：归还对象池前调用，用于清理 Tween、临时信号、运行时状态等。
 const HOOK_ON_RELEASE: StringName = &"on_gf_pool_release"
 
@@ -87,6 +90,7 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 		if is_instance_valid(popped_item) and not popped_item.is_queued_for_deletion():
 			var node: Node = popped_item as Node
 			node.set_meta(_META_ACTIVE, true)
+			node.set_meta(_META_SOURCE_SCENE, scene)
 			_set_node_tree_active_state(node, true)
 			
 			if is_instance_valid(parent) and node.get_parent() != parent:
@@ -100,6 +104,7 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 
 	var new_node: Node = scene.instantiate()
 	new_node.set_meta(_META_ACTIVE, true)
+	new_node.set_meta(_META_SOURCE_SCENE, scene)
 	_prepare_node_tree(new_node)
 	_set_node_tree_active_state(new_node, true)
 	if is_instance_valid(parent):
@@ -120,15 +125,23 @@ func release(node: Node, scene: PackedScene) -> void:
 	if node.has_meta(_META_ACTIVE) and not node.get_meta(_META_ACTIVE):
 		return
 
+	var owner_scene := _resolve_owner_scene(node, scene)
+	if owner_scene == null:
+		push_warning("[GFObjectPoolUtility] release 失败：节点未记录所属 PackedScene。")
+		return
+
+	if not _all_nodes.has(owner_scene) or not (_all_nodes[owner_scene] as Array).has(node):
+		push_warning("[GFObjectPoolUtility] release 失败：节点不属于当前对象池。")
+		return
+
 	_call_node_tree_hook(node, HOOK_ON_RELEASE)
 	node.set_meta(_META_ACTIVE, false)
 	_set_node_tree_active_state(node, false)
 
-	if not _available_pools.has(scene):
-		_available_pools[scene] = []
-		_all_nodes[scene] = []
+	if not _available_pools.has(owner_scene):
+		_available_pools[owner_scene] = []
 
-	var available_pool: Array = _available_pools[scene]
+	var available_pool: Array = _available_pools[owner_scene]
 	available_pool.push_back(node)
 
 
@@ -144,6 +157,7 @@ func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 	for i in range(count):
 		var node: Node = scene.instantiate()
 		node.set_meta(_META_ACTIVE, false)
+		node.set_meta(_META_SOURCE_SCENE, scene)
 		_prepare_node_tree(node)
 		_set_node_tree_active_state(node, false)
 		if is_instance_valid(parent):
@@ -218,3 +232,16 @@ func _call_node_tree_hook(node: Node, hook_name: StringName) -> void:
 func _call_node_hook(node: Node, hook_name: StringName) -> void:
 	if node.has_method(hook_name):
 		node.call(hook_name)
+
+
+func _resolve_owner_scene(node: Node, fallback_scene: PackedScene) -> PackedScene:
+	var owner_scene := fallback_scene
+
+	if node.has_meta(_META_SOURCE_SCENE):
+		var tracked_scene := node.get_meta(_META_SOURCE_SCENE) as PackedScene
+		if tracked_scene != null:
+			if fallback_scene != null and tracked_scene != fallback_scene:
+				push_warning("[GFObjectPoolUtility] release 收到不匹配的 PackedScene，已回退到节点原始所属池。")
+			owner_scene = tracked_scene
+
+	return owner_scene

@@ -213,6 +213,7 @@ func _fail_loading(path: String, message: String) -> void:
 		push_error(message)
 
 	scene_load_failed.emit(path)
+	cleanup_transients()
 	_restore_previous_scene_if_needed()
 	_set_paused(_previous_pause_state)
 	_reset_loading_state()

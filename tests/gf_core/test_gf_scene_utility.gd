@@ -91,3 +91,23 @@ func test_failed_load_restores_previous_scene_after_loading_scene() -> void:
 	assert_eq(_scene_util.sync_scene_changes[1], original_scene_path, "失败后应恢复到原场景路径。")
 	assert_eq(_scene_util.current_scene_path, original_scene_path, "最终场景应恢复为原场景。")
 	assert_eq(_scene_util.packed_scene_changes, 0, "错误资源不应触发正式场景切换。")
+
+
+func test_failed_load_cleans_transients() -> void:
+	var scene_util := TestSceneUtility.new()
+	var model := DummyModel.new()
+	Gf.register_model(model)
+	scene_util.mark_transient(DummyModel)
+
+	scene_util.load_scene_async("res://icon.svg", "res://addons/gut/gui/NormalGui.tscn")
+
+	for _i in range(120):
+		scene_util.tick(0.0)
+		if not scene_util._is_loading:
+			break
+		await get_tree().process_frame
+
+	var arch := Gf.get_architecture()
+	assert_null(arch.get_model(DummyModel), "异步切场失败后，瞬态 Model 也应被清理。")
+	assert_true(model.disposed, "异步切场失败后的瞬态清理应调用 dispose()。")
+	assert_push_error("[GFSceneUtility] 异步加载完成，但目标资源不是 PackedScene：res://icon.svg")

@@ -53,6 +53,22 @@ class SignalOrderAction:
 
 # --- 私有变量 ---
 
+class ObjectSignalEmitter extends Object:
+	signal completed
+
+
+class NonNodeDeadlockSignalAction:
+	extends GFVisualAction
+
+	var emitter: ObjectSignalEmitter
+
+	func _init(e: ObjectSignalEmitter) -> void:
+		emitter = e
+
+	func execute() -> Variant:
+		return emitter.completed
+
+
 var _system: GFActionQueueSystem
 
 
@@ -196,6 +212,20 @@ func test_push_front_parallel() -> void:
 # --- 测试：防死锁安全网 (Task 5) ---
 
 ## 模拟动作返回的信号发射器被意外释放，验证队列不会永久卡死。
+func test_no_deadlock_on_freed_non_node_emitter() -> void:
+	var emitter := ObjectSignalEmitter.new()
+	_system.enqueue(NonNodeDeadlockSignalAction.new(emitter))
+
+	await get_tree().process_frame
+	assert_true(_system.is_processing, "队列应进入等待非 Node 信号的处理中状态。")
+
+	emitter.free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_false(_system.is_processing, "非 Node 发射源被释放后，队列也应自动恢复，避免死锁。")
+
+
 func test_no_deadlock_on_freed_node() -> void:
 	var node := Node.new()
 	add_child_autofree(node)

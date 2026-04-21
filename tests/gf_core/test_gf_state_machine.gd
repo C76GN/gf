@@ -212,6 +212,21 @@ func test_add_state_replaces_old_state_safely() -> void:
 
 
 ## 验证未 setup 或已 dispose 的状态代理方法不会崩溃。
+func test_add_state_replacing_current_state_switches_active_reference() -> void:
+	var old_idle := TrackingState.new()
+	var new_idle := TrackingState.new()
+
+	_fsm.add_state(&"Idle", old_idle)
+	_fsm.start(&"Idle")
+	_fsm.add_state(&"Idle", new_idle)
+	_fsm.update(0.016)
+
+	assert_eq(old_idle.exit_count, 1, "替换当前激活状态时，旧状态应先退出。")
+	assert_eq(old_idle.dispose_count, 1, "替换当前激活状态时，旧状态应被释放。")
+	assert_eq(new_idle.enter_count, 1, "替换当前激活状态时，新状态应接管并进入。")
+	assert_eq(new_idle.update_count, 1, "接管后的新状态应继续接收 update。")
+
+
 func test_state_proxy_methods_without_machine_are_safe() -> void:
 	var state := TrackingState.new()
 

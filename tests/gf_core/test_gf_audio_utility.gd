@@ -5,6 +5,35 @@ var _audio: GFAudioUtility
 var _pool: GFObjectPoolUtility
 
 
+class MockAssetUtility:
+	extends GFAssetUtility
+
+	var pending: Dictionary = {}
+
+	func load_async(path: String, on_loaded: Callable, _type_hint: String = "") -> void:
+		pending[path] = on_loaded
+
+	func finish(path: String, resource: Resource) -> void:
+		if not pending.has(path):
+			return
+
+		var callback := pending[path] as Callable
+		pending.erase(path)
+		callback.call(resource)
+
+
+class TestAudioUtility:
+	extends GFAudioUtility
+
+	var mock_asset_util: GFAssetUtility
+
+	func _init(asset_util: GFAssetUtility) -> void:
+		mock_asset_util = asset_util
+
+	func _get_asset_util() -> GFAssetUtility:
+		return mock_asset_util
+
+
 func before_each() -> void:
 	var arch := GFArchitecture.new()
 	Gf._architecture = arch # 提早设置引用以便可以使用 Gf 全局代理
@@ -53,6 +82,28 @@ func test_play_sfx_and_pool() -> void:
 	
 	assert_eq(players_in_root, 1, "应该有一个激活的 SFX 播放器。")
 	assert_eq(_pool.get_available_count(_audio._sfx_scene), 1, "SFX 播放器响应 finished 后应该回收到池中。")
+
+
+func test_play_bgm_ignores_stale_async_load() -> void:
+	var mock_asset := MockAssetUtility.new()
+	var audio := TestAudioUtility.new(mock_asset)
+	audio.init()
+	await get_tree().process_frame
+
+	var first_stream := AudioStreamGenerator.new()
+	var second_stream := AudioStreamGenerator.new()
+
+	audio.play_bgm("res://audio/first.ogg")
+	audio.play_bgm("res://audio/second.ogg")
+
+	mock_asset.finish("res://audio/second.ogg", second_stream)
+	assert_eq(audio._bgm_player.stream, second_stream, "后发起的 BGM 请求完成后应成为当前播放流。")
+
+	mock_asset.finish("res://audio/first.ogg", first_stream)
+	assert_eq(audio._bgm_player.stream, second_stream, "旧请求迟到返回时，不应覆盖最新的 BGM。")
+
+	audio.dispose()
+	await get_tree().process_frame
 
 
 func test_bus_volume() -> void:

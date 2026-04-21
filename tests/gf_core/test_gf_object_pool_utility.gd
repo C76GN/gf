@@ -205,6 +205,17 @@ func test_double_release_is_ignored() -> void:
 	assert_eq(count1, count2, "对同一个早已处于池中的节点重复 release，不应当增加可用节点计数。")
 
 ## 验证当对象池中含有被外部错误 queue_free 退出的游离旧节点时，acquire 不会崩溃。
+func test_release_wrong_scene_returns_to_original_pool() -> void:
+	var other_scene := _make_node_scene()
+	var node: Node = _pool.acquire(_scene, _parent)
+
+	_pool.release(node, other_scene)
+
+	assert_eq(_pool.get_available_count(_scene), 1, "传错 scene 时，节点仍应回收到原始所属池。")
+	assert_eq(_pool.get_available_count(other_scene), 0, "传错 scene 不应污染其他对象池。")
+	assert_push_warning("[GFObjectPoolUtility] release 收到不匹配的 PackedScene，已回退到节点原始所属池。")
+
+
 func test_acquire_invalid_freed_instance_is_safe() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
 	_pool.release(node, _scene)

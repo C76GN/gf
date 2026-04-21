@@ -14,11 +14,13 @@ extends GFUtility
 var _bgm_player: AudioStreamPlayer
 var _sfx_scene: PackedScene
 var _root: Node
+var _bgm_request_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	_bgm_request_serial = 0
 	# 动态创建用于池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
@@ -36,6 +38,7 @@ func init() -> void:
 
 
 func dispose() -> void:
+	_bgm_request_serial += 1
 	if is_instance_valid(_bgm_player):
 		_bgm_player.queue_free()
 	
@@ -47,6 +50,8 @@ func dispose() -> void:
 ## 播放 BGM（背景音乐）
 ## @param path: 音频资源的路径
 func play_bgm(path: String) -> void:
+	_bgm_request_serial += 1
+	var request_serial := _bgm_request_serial
 	if path.is_empty():
 		if is_instance_valid(_bgm_player):
 			_bgm_player.stop()
@@ -55,10 +60,10 @@ func play_bgm(path: String) -> void:
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(path) as AudioStream
-		_play_bgm_stream(stream)
+		_apply_bgm_request(request_serial, stream)
 	else:
 		var on_loaded := func(res: Resource) -> void:
-			_play_bgm_stream(res as AudioStream)
+			_apply_bgm_request(request_serial, res as AudioStream)
 		asset_util.load_async(path, on_loaded)
 
 
@@ -107,6 +112,13 @@ func _play_bgm_stream(stream: AudioStream) -> void:
 		return
 	_bgm_player.stream = stream
 	_bgm_player.play()
+
+
+func _apply_bgm_request(request_serial: int, stream: AudioStream) -> void:
+	if request_serial != _bgm_request_serial:
+		return
+
+	_play_bgm_stream(stream)
 
 
 func _play_sfx_stream(stream: AudioStream) -> void:

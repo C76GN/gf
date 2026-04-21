@@ -57,11 +57,21 @@ func add_state(state_name: StringName, state: GFState) -> void:
 		return
 
 	var old_state := _states.get(state_name) as GFState
+	var is_replacing_current := old_state != null and old_state == _current_state and old_state != state
+
+	if is_replacing_current:
+		old_state.exit()
+
 	if old_state != null and old_state != state:
 		old_state.dispose()
 
 	state.setup(self)
 	_states[state_name] = state
+
+	if is_replacing_current:
+		_current_state = state
+		current_state_name = state_name
+		state.enter()
 
 
 ## 启动状态机并进入初始状态。

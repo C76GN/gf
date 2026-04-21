@@ -422,7 +422,7 @@ func get_global_snapshot() -> Dictionary:
 	# 打包命令操作历史（如果有）
 	var history_util := get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
 	if history_util != null:
-		snapshot["command_history"] = history_util.serialize_history()
+		snapshot["command_history"] = history_util.serialize_full_history()
 		
 	return snapshot
 
@@ -439,7 +439,11 @@ func restore_global_snapshot(data: Dictionary, command_builder: Callable = Calla
 		var history_util := get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
 		if history_util != null:
 			if command_builder.is_valid():
-				history_util.deserialize_history(data["command_history"], command_builder)
+				var history_data: Variant = data["command_history"]
+				if typeof(history_data) == TYPE_DICTIONARY:
+					history_util.deserialize_full_history(history_data, command_builder)
+				elif typeof(history_data) == TYPE_ARRAY:
+					history_util.deserialize_history(history_data, command_builder)
 			else:
 				push_warning("[GFArchitecture] restore_global_snapshot：快照包含命令历史数据，但未提供有效的 command_builder，跳过历史恢复。")
 

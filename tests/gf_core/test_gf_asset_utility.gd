@@ -11,7 +11,7 @@ class FailingAssetUtility extends GFAssetUtility:
 	func fail_path(path: String) -> void:
 		_should_fail_paths[path] = true
 
-	func _request_threaded(path: String, _type_hint: String) -> Error:
+	func _request_threaded(_path: String, _type_hint: String) -> Error:
 		return OK
 
 	func _get_threaded_status(path: String) -> ResourceLoader.ThreadLoadStatus:

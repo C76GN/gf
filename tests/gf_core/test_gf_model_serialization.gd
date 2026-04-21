@@ -111,6 +111,30 @@ func test_architecture_restore_all_models_state() -> void:
 
 
 ## 验证 get_global_snapshot 包含 Model 与 CommandHistory 数据，及 restore_global_snapshot 正确恢复。
+func test_architecture_global_snapshot_preserves_redo_history() -> void:
+	var arch := GFArchitecture.new()
+	var history_util := GFCommandHistoryUtility.new()
+	history_util.init()
+	await arch.register_utility_instance(history_util)
+
+	var cmd1 := GFUndoableCommand.new()
+	var cmd2 := GFUndoableCommand.new()
+	history_util.record(cmd1)
+	history_util.record(cmd2)
+	history_util.undo_last()
+
+	var snapshot := arch.get_global_snapshot()
+	history_util.clear()
+
+	var builder: Callable = func(_data: Dictionary) -> GFUndoableCommand:
+		return GFUndoableCommand.new()
+
+	arch.restore_global_snapshot(snapshot, builder)
+
+	assert_eq(history_util.undo_count, 1, "全局快照恢复后应保留 undo 栈。")
+	assert_eq(history_util.redo_count, 1, "全局快照恢复后应保留 redo 栈。")
+
+
 func test_architecture_global_snapshot() -> void:
 	var arch := GFArchitecture.new()
 	var score_model := ScoreModel.new()

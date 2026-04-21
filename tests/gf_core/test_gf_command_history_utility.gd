@@ -113,6 +113,20 @@ func test_execute_command_executes_and_records() -> void:
 # --- 测试：undo_last ---
 
 ## 验证 undo_last 调用命令的 undo() 并恢复状态。
+func test_execute_command_async_records_after_completion() -> void:
+	var counter := {"value": 0}
+	var cmd := AsyncCounterCommand.new(counter, 5, 0)
+
+	_history.execute_command(cmd)
+	assert_eq(_history.undo_count, 0, "异步命令完成前，不应提前写入撤销栈。")
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(counter.value, 5, "异步 execute 完成后应更新状态。")
+	assert_eq(_history.undo_count, 1, "异步命令完成后才应写入撤销栈。")
+
+
 func test_undo_last_restores_state() -> void:
 	var counter := {"value": 0}
 	var cmd := CounterCommand.new(counter)
@@ -307,6 +321,27 @@ func test_deserialize_history() -> void:
 
 
 ## 验证 max_history_size 超限清理 (FIFO抛弃)。
+func test_serialize_full_history_roundtrip() -> void:
+	var cmd1 := GFUndoableCommand.new()
+	var cmd2 := GFUndoableCommand.new()
+
+	_history.record(cmd1)
+	_history.record(cmd2)
+	_history.undo_last()
+
+	var full_history := _history.serialize_full_history()
+	var restored := GFCommandHistoryUtility.new()
+	restored.init()
+
+	var builder: Callable = func(_data: Dictionary) -> GFUndoableCommand:
+		return GFUndoableCommand.new()
+
+	restored.deserialize_full_history(full_history, builder)
+
+	assert_eq(restored.undo_count, 1, "完整历史恢复后应保留 undo 栈。")
+	assert_eq(restored.redo_count, 1, "完整历史恢复后应保留 redo 栈。")
+
+
 func test_history_size_limit() -> void:
 	_history.max_history_size = 2
 	var counter := {"value": 0}

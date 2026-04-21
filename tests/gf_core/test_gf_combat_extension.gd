@@ -161,6 +161,33 @@ func test_attribute_force_recalculate() -> void:
 
 
 ## 测试战斗事件派发。
+func test_update_active_status_cleans_orphaned_active_entry() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+
+	system._active_entities[entity.get_instance_id()] = entity
+	system._update_active_status(entity)
+
+	assert_false(system._active_entities.has(entity.get_instance_id()), "未注册实体的活跃索引应被移除。")
+
+
+func test_tick_cleans_freed_entities_from_internal_indices() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+
+	system._entities[entity] = {
+		"buffs": [],
+		"skills": [],
+	}
+	system._active_entities[entity.get_instance_id()] = entity
+
+	entity.free()
+	system.tick(0.0)
+
+	assert_eq(system._entities.size(), 0, "已释放实体应从主索引中清理。")
+	assert_eq(system._active_entities.size(), 0, "已释放实体应从活跃索引中清理。")
+
+
 func test_combat_event_dispatching() -> void:
 	# 初始化架构以支持事件总线
 	var arch := GFArchitecture.new()

@@ -61,6 +61,8 @@ func execute_command(cmd: GFUndoableCommand) -> Variant:
 		return null
 
 	var result: Variant = cmd.execute()
+	if result is Signal:
+		await result
 	record(cmd)
 	return result
 
@@ -152,14 +154,17 @@ func get_redo_history() -> Array[GFUndoableCommand]:
 ## 将撤销栈序列化为纯数据数组。
 ## @return 适合持久化的历史数据。
 func serialize_history() -> Array[Dictionary]:
-	var arr: Array[Dictionary] = []
-	for cmd in _undo_stack:
-		if cmd.has_method("serialize"):
-			arr.append(cmd.serialize())
-		else:
-			arr.append({ "snapshot": cmd.get_snapshot() })
+	return _serialize_stack(_undo_stack)
 
-	return arr
+
+## 将完整命令历史序列化为纯数据字典。##
+## 包含 `undo` 与 `redo` 两个栈，可用于全量运行时快照恢复。##
+## @return 适合持久化的完整历史数据。##
+func serialize_full_history() -> Dictionary:
+	return {
+		"undo": _serialize_stack(_undo_stack),
+		"redo": _serialize_stack(_redo_stack),
+	}
 
 
 ## 通过构造器从纯数据恢复撤销栈。
@@ -178,3 +183,45 @@ func deserialize_history(data_array: Array, command_builder: Callable) -> void:
 			var restored_cmd: GFUndoableCommand = command_builder.call(data)
 			if is_instance_valid(restored_cmd):
 				_undo_stack.append(restored_cmd)
+
+
+## 通过构造器从完整历史数据恢复撤销栈与重做栈。##
+## @param data: 由 `serialize_full_history()` 生成的字典数据。##
+## @param command_builder: 负责反序列化命令实例的构造器。##
+func deserialize_full_history(data: Dictionary, command_builder: Callable) -> void:
+	_undo_stack.clear()
+	_redo_stack.clear()
+
+	if not command_builder.is_valid():
+		push_error("[GFCommandHistoryUtility] deserialize_full_history 失败：传入的 builder Callable 无效。")
+		return
+
+	_undo_stack = _deserialize_stack(data.get("undo", []), command_builder)
+	_redo_stack = _deserialize_stack(data.get("redo", []), command_builder)
+
+
+# --- 私有/辅助方法 ---
+
+func _serialize_stack(stack: Array[GFUndoableCommand]) -> Array[Dictionary]:
+	var arr: Array[Dictionary] = []
+	for cmd in stack:
+		if cmd.has_method("serialize"):
+			arr.append(cmd.serialize())
+		else:
+			arr.append({ "snapshot": cmd.get_snapshot() })
+
+	return arr
+
+
+func _deserialize_stack(data_array: Array, command_builder: Callable) -> Array[GFUndoableCommand]:
+	var restored_stack: Array[GFUndoableCommand] = []
+
+	for data in data_array:
+		if typeof(data) != TYPE_DICTIONARY:
+			continue
+
+		var restored_cmd: GFUndoableCommand = command_builder.call(data)
+		if is_instance_valid(restored_cmd):
+			restored_stack.append(restored_cmd)
+
+	return restored_stack
