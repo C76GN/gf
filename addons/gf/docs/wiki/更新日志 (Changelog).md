@@ -16,6 +16,48 @@
 
 ---
 
+## [1.6.4] - 2026-04-22
+
+**版本概述**：继续收敛一批运行时边界问题，重点补齐动态注册模块的初始化一致性、动作队列组合动作的等待安全、存档写入的事务回滚，以及战斗与对象池的状态自修复能力。
+
+### 🔧 机制更改 (Changed)
+- **动态注册模块生命周期补偿**：`GFArchitecture.init()` 现在按阶段推进 `Model/System/Utility` 生命周期，并会持续补齐初始化过程中动态注册的模块，确保其也能完整执行 `init()`、`async_init()` 与 `ready()`。
+- **组合动作异步调度收敛**：`GFVisualActionGroup` 现在统一通过延迟调度启动并复用安全等待逻辑，顺序组在“全部为即时动作”时不会再因为返回信号过早发射而让队列错过连接时机。
+- **存档写入改为临时文件提交**：`GFStorageUtility.save_slot()` 与 `save_data()` 现在先写入 `.tmp` 文件，再以提交/回滚流程覆盖正式文件，降低覆盖写入过程中出现半成功状态的概率。
+- **模型快照键收敛为稳定标识**：`GFArchitecture` 生成可序列化 Model 快照时不再回退到运行时 `instance_id`；现在要求脚本具备 `class_name` 或有效 `resource_path`，以避免跨运行恢复失配。
+
+### 🐞 Bug 修复 (Fixed)
+- **初始化期新注册模块漏掉后续阶段**：修复模块在其他模块的 `init()` / `async_init()` / `ready()` 中被注册时，只执行部分生命周期、最终状态不一致的问题。
+- **顺序组合动作偶发卡队列**：修复 `GFVisualActionGroup` 在顺序模式下包含纯同步动作时，`_sequence_completed` 可能早于外层等待方连接，导致动作队列长期不出队的问题。
+- **等待信号发射源失效导致悬挂**：`GFActionQueueSystem` 与 `GFVisualActionGroup` 现在统一通过 `GFVisualAction.await_result_safely()` 处理等待对象失效、节点提前离树等情况，避免等待永远不结束。
+- **槽位覆盖失败污染旧存档**：修复 `GFStorageUtility` 在覆盖现有槽位时 metadata 写入失败可能留下“部分新数据 + 部分旧文件”的混合状态问题。
+- **技能与 Buff 缺失 owner**：`GFCombatSystem.add_skill()` / `add_buff()` 现在会在对象未显式设置 `owner` 时自动回填为目标实体，避免后续执行和属性修正依赖空 owner。
+- **对象池死亡引用残留**：`GFObjectPoolUtility` 在获取、归还和统计前会先清理已释放或待删除节点，避免 `_all_nodes` / `_available_pools` 长期积累无效引用。
+
+### 📢 API 变动说明 (API Changes)
+- 新增 `GFVisualAction.await_result_safely(result: Variant) -> void`
+- `GFArchitecture.get_all_models_state()` 与 `restore_all_models_state()` 现在会跳过缺少稳定标识的可序列化 Model，并通过 `push_error` 提示调用方修正脚本定义。
+
+### 📌 升级指南 (Migration Guide)
+1. 如果项目中存在运行时动态生成、且实现了 `to_dict()` / `from_dict()` 的匿名 `GFModel` 脚本，请为其补充 `class_name`，或改为可落盘脚本资源，避免快照恢复时被跳过。
+2. 如果上层自定义 `GFVisualAction` 并需要等待异步结果，建议统一复用 `await_result_safely()`，不要再各自实现一套等待和失效保护逻辑。
+3. 如果项目曾隐式依赖 `GFStorageUtility` 的“直接覆盖写入”行为，请留意同目录下会短暂出现 `.tmp` / `.bak` 事务文件；正常提交后这些文件会被自动清理。
+
+### 📍 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/extensions/action_queue/gf_action_queue_system.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action_group.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_combat_extension.gd`
+- `tests/gf_core/test_gf_model_serialization.gd`
+- `tests/gf_core/test_gf_object_pool_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+
 ## [1.6.3] - 2026-04-21
 
 **版本概述**：聚焦一批运行时一致性与边界稳定性修复，补齐时间控制定时器、异步命令历史、音频异步竞态、状态机热替换、战斗索引清理，以及对象池错误归还等高频运行路径的安全性。

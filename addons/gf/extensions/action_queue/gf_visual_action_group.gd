@@ -25,6 +25,11 @@ var actions: Array[GFVisualAction] = []
 var is_parallel: bool = true
 
 
+# --- 私有变量 ---
+
+var _execution_serial: int = 0
+
+
 # --- Godot 生命周期方法 ---
 
 func _init(actions_list: Array[GFVisualAction] = [], parallel: bool = true) -> void:
@@ -46,56 +51,77 @@ func add(action: GFVisualAction) -> void:
 func execute() -> Variant:
 	if actions.is_empty():
 		return null
-		
+
+	_execution_serial += 1
+	var current_serial: int = _execution_serial
+
 	if is_parallel:
-		return _run_parallel()
-	else:
-		return _run_sequence()
+		return _run_parallel(current_serial)
+	return _run_sequence(current_serial)
 
 
 # --- 私有方法 ---
 
-func _run_parallel() -> Variant:
-	var pending_signals: Array[Signal] = []
-	
-	for action: GFVisualAction in actions:
-		if not is_instance_valid(action):
-			continue
-			
-		var res: Variant = action.execute()
-		if action.should_wait_for_result(res):
-			pending_signals.append(res as Signal)
-			
-	if pending_signals.is_empty():
-		return null
-		
-	var counter := {"count": pending_signals.size()}
-	var on_single_completed := func() -> void:
-		counter.count -= 1
-		if counter.count <= 0:
-			_parallel_completed.emit()
-			
-	for sig: Signal in pending_signals:
-		if sig.get_object() != null and not sig.is_null():
-			sig.connect(on_single_completed, CONNECT_ONE_SHOT)
-		else:
-			on_single_completed.call()
-			
+func _run_parallel(current_serial: int) -> Variant:
+	call_deferred("_do_parallel_async", current_serial)
 	return _parallel_completed
 
 
-func _run_sequence() -> Variant:
-	_do_sequence_async()
+func _run_sequence(current_serial: int) -> Variant:
+	call_deferred("_do_sequence_async", current_serial)
 	return _sequence_completed
 
 
-func _do_sequence_async() -> void:
+func _do_parallel_async(current_serial: int) -> void:
+	if current_serial != _execution_serial:
+		return
+
+	var pending_state := { "count": 0 }
 	for action: GFVisualAction in actions:
 		if not is_instance_valid(action):
 			continue
-			
-		var res: Variant = action.execute()
-		if action.should_wait_for_result(res):
-			await res
-			
+
+		var result: Variant = action.execute()
+		if action.should_wait_for_result(result):
+			pending_state["count"] = int(pending_state["count"]) + 1
+			_wait_parallel_action(action, result, pending_state, current_serial)
+
+	if int(pending_state["count"]) <= 0 and current_serial == _execution_serial:
+		_parallel_completed.emit()
+
+
+func _do_sequence_async(current_serial: int) -> void:
+	if current_serial != _execution_serial:
+		return
+
+	for action: GFVisualAction in actions:
+		if not is_instance_valid(action):
+			continue
+
+		var result: Variant = action.execute()
+		if action.should_wait_for_result(result):
+			await action.await_result_safely(result)
+
+		if current_serial != _execution_serial:
+			return
+
 	_sequence_completed.emit()
+
+
+func _wait_parallel_action(
+	action: GFVisualAction,
+	result: Variant,
+	pending_state: Dictionary,
+	current_serial: int,
+) -> void:
+	if current_serial != _execution_serial or not is_instance_valid(action):
+		return
+
+	await action.await_result_safely(result)
+
+	if current_serial != _execution_serial:
+		return
+
+	pending_state["count"] = int(pending_state["count"]) - 1
+	if int(pending_state["count"]) <= 0:
+		_parallel_completed.emit()

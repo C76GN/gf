@@ -82,6 +82,8 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 		_available_pools[scene] = []
 		_all_nodes[scene] = []
 
+	_prune_invalid_scene_nodes(scene)
+
 	var available_pool: Array = _available_pools[scene]
 
 	while not available_pool.is_empty():
@@ -130,6 +132,8 @@ func release(node: Node, scene: PackedScene) -> void:
 		push_warning("[GFObjectPoolUtility] release 失败：节点未记录所属 PackedScene。")
 		return
 
+	_prune_invalid_scene_nodes(owner_scene)
+
 	if not _all_nodes.has(owner_scene) or not (_all_nodes[owner_scene] as Array).has(node):
 		push_warning("[GFObjectPoolUtility] release 失败：节点不属于当前对象池。")
 		return
@@ -173,6 +177,8 @@ func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 func get_available_count(scene: PackedScene) -> int:
 	if not _available_pools.has(scene):
 		return 0
+
+	_prune_invalid_scene_nodes(scene)
 
 	var count: int = 0
 	for item in _available_pools[scene]:
@@ -245,3 +251,22 @@ func _resolve_owner_scene(node: Node, fallback_scene: PackedScene) -> PackedScen
 			owner_scene = tracked_scene
 
 	return owner_scene
+
+
+func _prune_invalid_scene_nodes(scene: PackedScene) -> void:
+	if not is_instance_valid(scene):
+		return
+
+	if _all_nodes.has(scene):
+		var all_nodes: Array = _all_nodes[scene]
+		for i: int in range(all_nodes.size() - 1, -1, -1):
+			var node_variant: Variant = all_nodes[i]
+			if not is_instance_valid(node_variant) or node_variant.is_queued_for_deletion():
+				all_nodes.remove_at(i)
+
+	if _available_pools.has(scene):
+		var available_pool: Array = _available_pools[scene]
+		for i: int in range(available_pool.size() - 1, -1, -1):
+			var node_variant: Variant = available_pool[i]
+			if not is_instance_valid(node_variant) or node_variant.is_queued_for_deletion():
+				available_pool.remove_at(i)

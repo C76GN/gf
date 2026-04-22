@@ -6,6 +6,12 @@ class_name GFStorageUtility
 extends GFUtility
 
 
+# --- 常量 ---
+
+const _TEMP_SUFFIX: String = ".tmp"
+const _BACKUP_SUFFIX: String = ".bak"
+
+
 # --- 公共变量 ---
 
 ## 用于简单 XOR 混淆的密钥；为 `0` 时直接保存明文 JSON。
@@ -57,23 +63,23 @@ func load_resource(file_name: String, type_hint: String = "") -> Resource:
 func save_slot(slot_id: int, data: Dictionary, metadata: Dictionary = {}) -> Error:
 	var data_file_name := _get_data_filename(slot_id)
 	var meta_file_name := _get_meta_filename(slot_id)
+	var data_temp_file_name := _get_temp_filename(data_file_name)
+	var meta_temp_file_name := _get_temp_filename(meta_file_name)
 
 	init()
+	_cleanup_transaction_files([data_file_name, meta_file_name])
 
-	var meta_path := _get_full_path(meta_file_name)
-	var had_meta_before := FileAccess.file_exists(meta_path)
-
-	var data_error := _write_json(data_file_name, data)
+	var data_error := _write_json(data_temp_file_name, data)
 	if data_error != OK:
+		_cleanup_transaction_files([data_file_name, meta_file_name])
 		return data_error
 
-	var meta_error := _write_json(meta_file_name, metadata)
+	var meta_error := _write_json(meta_temp_file_name, metadata)
 	if meta_error != OK:
-		if not had_meta_before:
-			_remove_file_if_exists(_get_full_path(data_file_name))
+		_cleanup_transaction_files([data_file_name, meta_file_name])
 		return meta_error
 
-	return OK
+	return _commit_transaction([data_file_name, meta_file_name])
 
 
 ## 读取槽位核心数据。
@@ -115,7 +121,15 @@ func delete_slot(slot_id: int) -> void:
 ## @return Godot 的 `Error` 结果码。
 func save_data(file_name: String, data: Dictionary) -> Error:
 	init()
-	return _write_json(file_name, data)
+	_cleanup_transaction_files([file_name])
+
+	var temp_file_name := _get_temp_filename(file_name)
+	var write_error := _write_json(temp_file_name, data)
+	if write_error != OK:
+		_cleanup_transaction_files([file_name])
+		return write_error
+
+	return _commit_transaction([file_name])
 
 
 ## 读取纯字典数据。
@@ -148,6 +162,78 @@ func _get_full_path(file_name: String) -> String:
 func _remove_file_if_exists(path: String) -> void:
 	if FileAccess.file_exists(path):
 		DirAccess.remove_absolute(path)
+
+
+func _get_temp_filename(file_name: String) -> String:
+	return file_name + _TEMP_SUFFIX
+
+
+func _get_backup_filename(file_name: String) -> String:
+	return file_name + _BACKUP_SUFFIX
+
+
+func _cleanup_transaction_files(file_names: Array[String]) -> void:
+	for file_name: String in file_names:
+		_remove_file_if_exists(_get_full_path(_get_temp_filename(file_name)))
+		_remove_file_if_exists(_get_full_path(_get_backup_filename(file_name)))
+
+
+func _commit_transaction(file_names: Array[String]) -> Error:
+	var transaction_state: Dictionary = {}
+	for file_name: String in file_names:
+		transaction_state[file_name] = {
+			"backed_up": false,
+			"committed": false,
+		}
+
+	for file_name: String in file_names:
+		var backup_path := _get_full_path(_get_backup_filename(file_name))
+		var final_path := _get_full_path(file_name)
+		if FileAccess.file_exists(final_path):
+			var backup_error := _move_file(final_path, backup_path)
+			if backup_error != OK:
+				_rollback_transaction(file_names, transaction_state)
+				return backup_error
+			transaction_state[file_name]["backed_up"] = true
+
+	for file_name: String in file_names:
+		var temp_path := _get_full_path(_get_temp_filename(file_name))
+		var final_path := _get_full_path(file_name)
+		var commit_error := _move_file(temp_path, final_path)
+		if commit_error != OK:
+			_rollback_transaction(file_names, transaction_state)
+			return commit_error
+		transaction_state[file_name]["committed"] = true
+
+	for file_name: String in file_names:
+		_remove_file_if_exists(_get_full_path(_get_backup_filename(file_name)))
+
+	return OK
+
+
+func _rollback_transaction(file_names: Array[String], transaction_state: Dictionary) -> void:
+	for file_name: String in file_names:
+		var final_path := _get_full_path(file_name)
+		var temp_path := _get_full_path(_get_temp_filename(file_name))
+		var backup_path := _get_full_path(_get_backup_filename(file_name))
+		var state: Dictionary = transaction_state.get(file_name, {})
+		var committed: bool = state.get("committed", false)
+		var backed_up: bool = state.get("backed_up", false)
+
+		if committed or backed_up:
+			_remove_file_if_exists(final_path)
+		_remove_file_if_exists(temp_path)
+
+		if backed_up and FileAccess.file_exists(backup_path):
+			var restore_error := _move_file(backup_path, final_path)
+			if restore_error != OK:
+				push_error("[GFStorageUtility] 回滚文件失败：%s，错误码：%s" % [final_path, restore_error])
+
+
+func _move_file(from_path: String, to_path: String) -> Error:
+	if not FileAccess.file_exists(from_path):
+		return ERR_FILE_NOT_FOUND
+	return DirAccess.rename_absolute(from_path, to_path)
 
 
 func _write_json(file_name: String, data: Dictionary) -> Error:

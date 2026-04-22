@@ -175,6 +175,23 @@ func test_enqueue_parallel() -> void:
 	assert_true(order.has("P2"), "并行 P2 应执行。")
 
 
+## 验证顺序动作组中的瞬时动作会在同一轮队列处理中完整排空。
+func test_enqueue_sequence_group_with_immediate_actions_drains() -> void:
+	var order: Array = []
+	var group := GFVisualActionGroup.new([
+		OrderAction.new(order, "S1"),
+		OrderAction.new(order, "S2"),
+	], false)
+
+	_system.enqueue(group)
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["S1", "S2"], "顺序动作组应按顺序执行所有瞬时动作。")
+	assert_false(_system.is_processing, "顺序动作组执行完成后，队列应正常排空。")
+
+
 ## 验证显式 fire-and-forget 动作即使返回 Signal，也不会阻塞后续队列。
 func test_enqueue_fire_and_forget_does_not_wait_for_signal() -> void:
 	var order: Array = []
@@ -247,3 +264,25 @@ func test_no_deadlock_on_freed_node() -> void:
 	await get_tree().process_frame
 
 	assert_false(_system.is_processing, "队列应在节点销毁后自动恢复并结束处理，不产生死锁。")
+
+
+func test_sequence_group_no_deadlock_on_freed_node() -> void:
+	var order: Array = []
+	var node := Node.new()
+	add_child_autofree(node)
+
+	var group := GFVisualActionGroup.new([
+		DeadlockSignalAction.new(node),
+		OrderAction.new(order, "AFTER"),
+	], false)
+	_system.enqueue(group)
+
+	await get_tree().process_frame
+	assert_true(_system.is_processing, "顺序动作组应进入等待状态。")
+
+	node.free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["AFTER"], "等待源失效后，顺序动作组应继续执行后续动作。")
+	assert_false(_system.is_processing, "顺序动作组在等待源销毁后也应自动恢复。")

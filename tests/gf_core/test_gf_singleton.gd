@@ -24,11 +24,15 @@ class AlternateConcreteUtility extends UtilityBase:
 class TickUtility extends GFUtility:
 	var initialized: bool = false
 	var ready_called: bool = false
+	var async_ready_called: bool = false
 	var tick_count: int = 0
 	var last_delta: float = 0.0
 
 	func init() -> void:
 		initialized = true
+
+	func async_init() -> void:
+		async_ready_called = true
 
 	func ready() -> void:
 		ready_called = true
@@ -36,6 +40,16 @@ class TickUtility extends GFUtility:
 	func tick(delta: float) -> void:
 		tick_count += 1
 		last_delta = delta
+
+
+class RegisteringUtility extends GFUtility:
+	var utility_to_register: TickUtility
+
+	func _init(target_utility: TickUtility) -> void:
+		utility_to_register = target_utility
+
+	func ready() -> void:
+		Gf.register_utility(utility_to_register)
 
 class DummyQuery extends GFQuery:
 	func execute() -> Variant:
@@ -140,6 +154,26 @@ func test_dynamic_register_after_init_runs_lifecycle() -> void:
 
 	Gf.get_architecture().tick(0.5)
 	assert_eq(utility.tick_count, 1, "动态注册后的 Utility 应参与架构 tick。")
+
+
+## 验证初始化期间动态注册的 Utility 也会补跑完整生命周期。
+func test_register_during_init_receives_full_lifecycle() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var late_utility := TickUtility.new()
+	var registering_utility := RegisteringUtility.new(late_utility)
+
+	Gf.register_utility(registering_utility)
+	await Gf.init()
+
+	assert_true(late_utility.initialized, "初始化过程中动态注册的 Utility 也应执行 init()。")
+	assert_true(late_utility.async_ready_called, "初始化过程中动态注册的 Utility 也应执行 async_init()。")
+	assert_true(late_utility.ready_called, "初始化过程中动态注册的 Utility 也应执行 ready()。")
+
+	Gf.get_architecture().tick(0.25)
+	assert_eq(late_utility.tick_count, 1, "初始化过程中动态注册的 Utility 完成后应参与后续 tick。")
 
 
 ## 验证可通过显式 alias 以抽象基类获取具体实现。

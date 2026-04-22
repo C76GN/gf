@@ -59,3 +59,44 @@ func should_wait_for_result(result: Variant) -> bool:
 	if completion_mode == CompletionMode.FIRE_AND_FORGET:
 		return false
 	return result is Signal
+
+
+## 安全等待 execute() 返回的 Signal。
+## 当发射源失效或 Node 提前退出树时，会自动结束等待，避免队列永久卡死。
+## @param result: execute() 返回值。
+func await_result_safely(result: Variant) -> void:
+	if not should_wait_for_result(result):
+		return
+
+	await _await_signal_safely(result as Signal)
+
+
+# --- 私有/辅助方法 ---
+
+func _await_signal_safely(result_signal: Signal) -> void:
+	if result_signal.is_null():
+		return
+
+	var target_obj: Object = result_signal.get_object()
+	if not is_instance_valid(target_obj):
+		return
+
+	var completed := [false]
+	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
+		completed[0] = true
+
+	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
+
+	if target_obj is Node:
+		var node := target_obj as Node
+		if not node.is_inside_tree() and result_signal != node.tree_exited:
+			return
+		if result_signal != node.tree_exited:
+			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+
+	while not completed[0]:
+		if not is_instance_valid(target_obj):
+			break
+		if target_obj is Node and not (target_obj as Node).is_inside_tree():
+			break
+		await Engine.get_main_loop().process_frame

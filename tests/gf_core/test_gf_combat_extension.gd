@@ -145,6 +145,35 @@ func test_skill_cooldown() -> void:
 	assert_eq(skill.cooldown_left, 3.0, "Skill CD should be updated by system tick")
 
 
+func test_add_skill_assigns_owner_when_missing() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+
+	var skill := GFSkill.new()
+	skill.cooldown_max = 1.0
+	system.add_skill(entity, skill)
+	skill.execute()
+
+	assert_eq(skill.owner, entity, "未设置 owner 的技能在加入实体时应自动回填所属者。")
+	assert_eq(skill.cooldown_left, 1.0, "自动回填 owner 后，技能应可正常进入冷却。")
+
+
+func test_add_buff_assigns_owner_when_missing() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	entity.add_attr(&"ATK", 10.0)
+	system.register_entity(entity)
+
+	var buff := GFBuff.new()
+	buff.modifiers.append(GFModifier.create_base_add(5.0, &"ATK"))
+	buff.setup(&"PowerUp", 1.0, null)
+	system.add_buff(entity, buff)
+
+	assert_eq(buff.owner, entity, "未设置 owner 的 Buff 在加入实体时应自动回填所属者。")
+	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "自动回填 owner 后，Buff 效果应能正常生效。")
+
+
 ## 测试 GFAttribute 的强制重算。
 func test_attribute_force_recalculate() -> void:
 	var attr := GFAttribute.new(100.0)

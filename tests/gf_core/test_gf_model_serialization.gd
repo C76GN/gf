@@ -2,6 +2,10 @@
 extends GutTest
 
 
+const SCORE_MODEL_FIXTURE_PATH := "res://tests/gf_core/fixtures/model_serialization/score_model_fixture.gd"
+const SETTINGS_MODEL_FIXTURE_PATH := "res://tests/gf_core/fixtures/model_serialization/settings_model_fixture.gd"
+
+
 # --- 辅助子类 ---
 
 ## 用于测试的 Model 实现。
@@ -30,6 +34,16 @@ class SettingsModel:
 
 	func from_dict(data: Dictionary) -> void:
 		volume = data.get("volume", 1.0)
+
+
+# --- 私有/辅助方法 ---
+
+func _create_score_model_fixture() -> Variant:
+	return load(SCORE_MODEL_FIXTURE_PATH).new()
+
+
+func _create_settings_model_fixture() -> Variant:
+	return load(SETTINGS_MODEL_FIXTURE_PATH).new()
 
 
 # --- 测试：单 Model 序列化 ---
@@ -70,11 +84,11 @@ func test_from_dict_with_empty_data() -> void:
 ## 验证 get_all_models_state 收集多个 Model 的状态。
 func test_architecture_get_all_models_state() -> void:
 	var arch := GFArchitecture.new()
-	var score_model := ScoreModel.new()
+	var score_model: Variant = _create_score_model_fixture()
 	score_model.score = 42
 	score_model.level = 3
 
-	var settings_model := SettingsModel.new()
+	var settings_model: Variant = _create_settings_model_fixture()
 	settings_model.volume = 0.5
 
 	arch.register_model_instance(score_model)
@@ -84,11 +98,34 @@ func test_architecture_get_all_models_state() -> void:
 	assert_true(state.size() >= 2, "状态字典应至少包含 2 个 Model。")
 
 
+## 验证缺少稳定标识的运行时脚本 Model 不会被写入快照。
+func test_architecture_skips_model_without_stable_serialization_key() -> void:
+	var arch := GFArchitecture.new()
+	var runtime_script := GDScript.new()
+	runtime_script.source_code = """extends GFModel
+
+
+func to_dict() -> Dictionary:
+	return { "value": 7 }
+"""
+	var reload_error := runtime_script.reload()
+	assert_eq(reload_error, OK, "动态脚本应成功编译。")
+
+	var runtime_model := runtime_script.new() as GFModel
+
+	arch.register_model_instance(runtime_model)
+
+	var state: Dictionary = arch.get_all_models_state()
+
+	assert_eq(state.size(), 0, "缺少稳定标识的运行时 Model 不应进入快照。")
+	assert_push_error("[GFArchitecture] 可序列化 Model 缺少稳定标识：请为脚本声明 class_name 或提供可用的资源路径。")
+
+
 ## 验证 restore_all_models_state 恢复多个 Model 的数据。
 func test_architecture_restore_all_models_state() -> void:
 	var arch := GFArchitecture.new()
-	var score_model := ScoreModel.new()
-	var settings_model := SettingsModel.new()
+	var score_model: Variant = _create_score_model_fixture()
+	var settings_model: Variant = _create_settings_model_fixture()
 
 	arch.register_model_instance(score_model)
 	arch.register_model_instance(settings_model)
@@ -137,7 +174,7 @@ func test_architecture_global_snapshot_preserves_redo_history() -> void:
 
 func test_architecture_global_snapshot() -> void:
 	var arch := GFArchitecture.new()
-	var score_model := ScoreModel.new()
+	var score_model: Variant = _create_score_model_fixture()
 	score_model.score = 99
 	arch.register_model_instance(score_model)
 	

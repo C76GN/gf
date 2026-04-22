@@ -24,10 +24,28 @@ func after_each() -> void:
 	if _storage != null:
 		for i in range(10):
 			_storage.delete_slot(i)
+			var data_temp_path := _storage._get_full_path(_storage._get_data_filename(i) + ".tmp")
+			var meta_temp_path := _storage._get_full_path(_storage._get_meta_filename(i) + ".tmp")
+			var data_backup_path := _storage._get_full_path(_storage._get_data_filename(i) + ".bak")
+			var meta_backup_path := _storage._get_full_path(_storage._get_meta_filename(i) + ".bak")
+			if FileAccess.file_exists(data_temp_path):
+				DirAccess.remove_absolute(data_temp_path)
+			if FileAccess.file_exists(meta_temp_path):
+				DirAccess.remove_absolute(meta_temp_path)
+			if FileAccess.file_exists(data_backup_path):
+				DirAccess.remove_absolute(data_backup_path)
+			if FileAccess.file_exists(meta_backup_path):
+				DirAccess.remove_absolute(meta_backup_path)
 
 		var path := _storage._get_full_path("test_legacy.json")
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(path)
+		var temp_path := _storage._get_full_path("test_legacy.json.tmp")
+		if FileAccess.file_exists(temp_path):
+			DirAccess.remove_absolute(temp_path)
+		var backup_path := _storage._get_full_path("test_legacy.json.bak")
+		if FileAccess.file_exists(backup_path):
+			DirAccess.remove_absolute(backup_path)
 
 		var res_path := _storage._get_full_path("test_resource.tres")
 		if FileAccess.file_exists(res_path):
@@ -98,7 +116,7 @@ func test_save_slot_removes_orphaned_data_when_meta_write_fails() -> void:
 	_storage = FaultyStorageUtility.new()
 	_storage.save_dir_name = "test_saves"
 	_storage.init()
-	_storage.fail_on_file_name = _storage._get_meta_filename(4)
+	_storage.fail_on_file_name = _storage._get_temp_filename(_storage._get_meta_filename(4))
 
 	var err := _storage.save_slot(4, {"hp": 1}, {"level": 1})
 	var data_path := _storage._get_full_path(_storage._get_data_filename(4))
@@ -106,3 +124,20 @@ func test_save_slot_removes_orphaned_data_when_meta_write_fails() -> void:
 	assert_ne(err, OK, "元数据写入失败时应返回错误码。")
 	assert_false(_storage.has_slot(4), "元数据失败后不应留下假阳性的槽位。")
 	assert_false(FileAccess.file_exists(data_path), "新建槽位失败时应清理已写入的核心数据文件。")
+
+
+func test_save_slot_preserves_existing_files_when_overwrite_meta_write_fails() -> void:
+	_storage.encrypt_key = 0
+	assert_eq(_storage.save_slot(5, {"hp": 10}, {"level": 1}), OK, "预置旧槽位应成功。")
+
+	_storage = FaultyStorageUtility.new()
+	_storage.save_dir_name = "test_saves"
+	_storage.encrypt_key = 0
+	_storage.init()
+	_storage.fail_on_file_name = _storage._get_temp_filename(_storage._get_meta_filename(5))
+
+	var err := _storage.save_slot(5, {"hp": 999}, {"level": 9})
+
+	assert_ne(err, OK, "覆盖槽位时 metadata 写失败应返回错误码。")
+	assert_eq(int(_storage.load_slot(5).get("hp")), 10, "覆盖失败后应保留旧的核心数据。")
+	assert_eq(int(_storage.load_slot_meta(5).get("level")), 1, "覆盖失败后应保留旧的元数据。")

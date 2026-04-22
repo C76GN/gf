@@ -17,9 +17,11 @@ var _utilities: Dictionary = {}
 var _system_aliases: Dictionary = {}
 var _model_aliases: Dictionary = {}
 var _utility_aliases: Dictionary = {}
+var _module_lifecycle_stages: Dictionary = {}
 var _event_system: TypeEventSystem
 var _time_utility: GFTimeUtility
 var _inited: bool = false
+var _is_initializing: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -41,42 +43,17 @@ func is_inited() -> bool:
 ## 阶段二：串行 await 所有模块的 async_init()，用于异步资源加载等操作。
 ## 阶段三：调用所有模块的 ready()，此时跨模块依赖获取是安全的。
 func init() -> void:
-	if _inited:
+	if _inited or _is_initializing:
 		return
+	_is_initializing = true
 	_on_init()
-
-	for model: Variant in _models.values():
-		if model.has_method("init"):
-			model.init()
-	for system: Variant in _systems.values():
-		if system.has_method("init"):
-			system.init()
-	for utility: Variant in _utilities.values():
-		if utility.has_method("init"):
-			utility.init()
-
-	for model: Variant in _models.values():
-		if model.has_method("async_init"):
-			await model.async_init()
-	for system: Variant in _systems.values():
-		if system.has_method("async_init"):
-			await system.async_init()
-	for utility: Variant in _utilities.values():
-		if utility.has_method("async_init"):
-			await utility.async_init()
-
-	for model: Variant in _models.values():
-		if model.has_method("ready"):
-			model.ready()
-	for system: Variant in _systems.values():
-		if system.has_method("ready"):
-			system.ready()
-	for utility: Variant in _utilities.values():
-		if utility.has_method("ready"):
-			utility.ready()
+	await _advance_all_modules_to_stage(1)
+	await _advance_all_modules_to_stage(2)
+	await _advance_all_modules_to_stage(3)
 
 	_time_utility = get_utility(GFTimeUtility) as GFTimeUtility
 	_inited = true
+	_is_initializing = false
 
 
 ## 销毁架构及所有注册的组件。
@@ -97,9 +74,11 @@ func dispose() -> void:
 	_model_aliases.clear()
 	_system_aliases.clear()
 	_utility_aliases.clear()
+	_module_lifecycle_stages.clear()
 	_event_system.clear()
 	_time_utility = null
 	_inited = false
+	_is_initializing = false
 
 
 ## 驱动所有已注册 System 与带 tick() 方法的 Utility 的每帧更新。
@@ -202,6 +181,7 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 func register_system(script_cls: Script, instance: Object) -> void:
 	if not _systems.has(script_cls):
 		_systems[script_cls] = instance
+		_track_registered_module(instance)
 		if _inited:
 			await _initialize_registered_module(instance)
 
@@ -212,6 +192,7 @@ func register_system(script_cls: Script, instance: Object) -> void:
 func register_model(script_cls: Script, instance: Object) -> void:
 	if not _models.has(script_cls):
 		_models[script_cls] = instance
+		_track_registered_module(instance)
 		if _inited:
 			await _initialize_registered_module(instance)
 
@@ -222,6 +203,7 @@ func register_model(script_cls: Script, instance: Object) -> void:
 func register_utility(script_cls: Script, instance: Object) -> void:
 	if not _utilities.has(script_cls):
 		_utilities[script_cls] = instance
+		_track_registered_module(instance)
 		_refresh_cached_utility_refs()
 		if _inited:
 			await _initialize_registered_module(instance)
@@ -318,6 +300,7 @@ func unregister_system(script_cls: Script) -> void:
 		var system: Variant = _systems[registered_key]
 		if system.has_method("dispose"):
 			system.dispose()
+		_module_lifecycle_stages.erase(system)
 		_systems.erase(registered_key)
 		_remove_aliases_for(_system_aliases, registered_key)
 	else:
@@ -332,6 +315,7 @@ func unregister_model(script_cls: Script) -> void:
 		var model: Variant = _models[registered_key]
 		if model.has_method("dispose"):
 			model.dispose()
+		_module_lifecycle_stages.erase(model)
 		_models.erase(registered_key)
 		_remove_aliases_for(_model_aliases, registered_key)
 	else:
@@ -346,6 +330,7 @@ func unregister_utility(script_cls: Script) -> void:
 		var utility: Variant = _utilities[registered_key]
 		if utility.has_method("dispose"):
 			utility.dispose()
+		_module_lifecycle_stages.erase(utility)
 		_utilities.erase(registered_key)
 		_remove_aliases_for(_utility_aliases, registered_key)
 		_refresh_cached_utility_refs()
@@ -396,6 +381,8 @@ func get_all_models_state() -> Dictionary:
 		var model: Variant = _models[script_cls]
 		if model.has_method("to_dict"):
 			var class_name_key: String = _get_model_key(script_cls)
+			if class_name_key.is_empty():
+				continue
 			state[class_name_key] = model.to_dict()
 	return state
 
@@ -405,6 +392,8 @@ func get_all_models_state() -> Dictionary:
 func restore_all_models_state(data: Dictionary) -> void:
 	for script_cls: Script in _models:
 		var class_name_key: String = _get_model_key(script_cls)
+		if class_name_key.is_empty():
+			continue
 		if data.has(class_name_key):
 			var model: Variant = _models[script_cls]
 			if model.has_method("from_dict"):
@@ -483,7 +472,8 @@ func _get_model_key(script_cls: Script) -> String:
 		return String(global_name)
 	if not script_cls.resource_path.is_empty():
 		return script_cls.resource_path
-	return "Script_%d" % script_cls.get_instance_id()
+	push_error("[GFArchitecture] 可序列化 Model 缺少稳定标识：请为脚本声明 class_name 或提供可用的资源路径。")
+	return ""
 
 
 ## 内部初始化回调，子类可重写。
@@ -499,12 +489,58 @@ func _on_dispose() -> void:
 func _initialize_registered_module(instance: Object) -> void:
 	if instance == null:
 		return
-	if instance.has_method("init"):
-		instance.init()
-	if instance.has_method("async_init"):
-		await instance.async_init()
-	if instance.has_method("ready"):
-		instance.ready()
+	await _advance_module_to_stage(instance, 3)
+
+
+func _advance_all_modules_to_stage(target_stage: int) -> void:
+	while true:
+		var progressed: bool = false
+		if await _advance_registry_to_stage(_models, target_stage):
+			progressed = true
+		if await _advance_registry_to_stage(_systems, target_stage):
+			progressed = true
+		if await _advance_registry_to_stage(_utilities, target_stage):
+			progressed = true
+		if not progressed:
+			return
+
+
+func _advance_registry_to_stage(registry: Dictionary, target_stage: int) -> bool:
+	var progressed: bool = false
+	for instance: Variant in registry.values():
+		var current_stage: int = _module_lifecycle_stages.get(instance, 0)
+		if current_stage < target_stage:
+			await _advance_module_to_stage(instance, target_stage)
+			progressed = true
+	return progressed
+
+
+func _advance_module_to_stage(instance: Object, target_stage: int) -> void:
+	if instance == null:
+		return
+
+	var current_stage: int = _module_lifecycle_stages.get(instance, 0)
+	while current_stage < target_stage:
+		current_stage += 1
+		match current_stage:
+			1:
+				if instance.has_method("init"):
+					instance.init()
+			2:
+				if instance.has_method("async_init"):
+					await instance.async_init()
+			3:
+				if instance.has_method("ready"):
+					instance.ready()
+
+		_module_lifecycle_stages[instance] = current_stage
+
+
+func _track_registered_module(instance: Object) -> void:
+	if instance == null:
+		return
+	if not _module_lifecycle_stages.has(instance):
+		_module_lifecycle_stages[instance] = 0
 
 
 func _refresh_cached_utility_refs() -> void:

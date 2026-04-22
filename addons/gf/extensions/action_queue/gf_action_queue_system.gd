@@ -112,36 +112,7 @@ func _process_queue() -> void:
 
 		var result: Variant = action.execute()
 		if action.should_wait_for_result(result):
-			await _await_action_result(result as Signal)
+			await action.await_result_safely(result)
 
 	is_processing = false
 	queue_drained.emit()
-
-
-func _await_action_result(result_signal: Signal) -> void:
-	if result_signal.is_null():
-		return
-
-	var target_obj: Object = result_signal.get_object()
-	if not is_instance_valid(target_obj):
-		return
-
-	var completed := [false]
-	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
-		completed[0] = true
-
-	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
-
-	if target_obj is Node:
-		var node := target_obj as Node
-		if not node.is_inside_tree() and result_signal != node.tree_exited:
-			return
-		if result_signal != node.tree_exited:
-			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
-
-	while not completed[0]:
-		if not is_instance_valid(target_obj):
-			break
-		if target_obj is Node and not (target_obj as Node).is_inside_tree():
-			break
-		await Engine.get_main_loop().process_frame

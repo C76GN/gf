@@ -229,3 +229,4 @@ func test_acquire_invalid_freed_instance_is_safe() -> void:
 	assert_not_null(new_node, "池内存在非法实例时，acquire 应该平稳度过并返回一个新的有效实例。")
 	assert_true(is_instance_valid(new_node), "新获得的 node 应该是有效的新实例。")
 	assert_ne(new_node, node, "新实例不能是那个被强制 free 的原实例。")
+	assert_eq((_pool._all_nodes[_scene] as Array).size(), 1, "清理无效实例后，全量池中不应继续保留死对象引用。")
