@@ -14,6 +14,13 @@ class FaultyStorageUtility extends GFStorageUtility:
 		return super._write_json(file_name, data)
 
 
+func _cleanup_file_family(file_name: String) -> void:
+	for suffix: String in ["", ".tmp", ".bak"]:
+		var path := _storage._get_full_path(file_name + suffix)
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
+
+
 func before_each() -> void:
 	_storage = GFStorageUtility.new()
 	_storage.save_dir_name = "test_saves"
@@ -24,32 +31,18 @@ func after_each() -> void:
 	if _storage != null:
 		for i in range(10):
 			_storage.delete_slot(i)
-			var data_temp_path := _storage._get_full_path(_storage._get_data_filename(i) + ".tmp")
-			var meta_temp_path := _storage._get_full_path(_storage._get_meta_filename(i) + ".tmp")
-			var data_backup_path := _storage._get_full_path(_storage._get_data_filename(i) + ".bak")
-			var meta_backup_path := _storage._get_full_path(_storage._get_meta_filename(i) + ".bak")
-			if FileAccess.file_exists(data_temp_path):
-				DirAccess.remove_absolute(data_temp_path)
-			if FileAccess.file_exists(meta_temp_path):
-				DirAccess.remove_absolute(meta_temp_path)
-			if FileAccess.file_exists(data_backup_path):
-				DirAccess.remove_absolute(data_backup_path)
-			if FileAccess.file_exists(meta_backup_path):
-				DirAccess.remove_absolute(meta_backup_path)
+			_cleanup_file_family(_storage._get_data_filename(i))
+			_cleanup_file_family(_storage._get_meta_filename(i))
 
-		var path := _storage._get_full_path("test_legacy.json")
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(path)
-		var temp_path := _storage._get_full_path("test_legacy.json.tmp")
-		if FileAccess.file_exists(temp_path):
-			DirAccess.remove_absolute(temp_path)
-		var backup_path := _storage._get_full_path("test_legacy.json.bak")
-		if FileAccess.file_exists(backup_path):
-			DirAccess.remove_absolute(backup_path)
+		for file_name: String in [
+			"test_legacy.json",
+			"recover_from_backup.json",
+			"recover_from_temp.json",
+			"recover_from_stale_temp.json",
+		]:
+			_cleanup_file_family(file_name)
 
-		var res_path := _storage._get_full_path("test_resource.tres")
-		if FileAccess.file_exists(res_path):
-			DirAccess.remove_absolute(res_path)
+		_cleanup_file_family("test_resource.tres")
 
 		_storage = null
 
@@ -141,3 +134,47 @@ func test_save_slot_preserves_existing_files_when_overwrite_meta_write_fails() -
 	assert_ne(err, OK, "覆盖槽位时 metadata 写失败应返回错误码。")
 	assert_eq(int(_storage.load_slot(5).get("hp")), 10, "覆盖失败后应保留旧的核心数据。")
 	assert_eq(int(_storage.load_slot_meta(5).get("level")), 1, "覆盖失败后应保留旧的元数据。")
+
+
+func test_load_data_restores_backup_when_primary_file_is_missing() -> void:
+	_storage.encrypt_key = 0
+	var file_name := "recover_from_backup.json"
+	var backup_file_name := _storage._get_backup_filename(file_name)
+	assert_eq(_storage._write_json(backup_file_name, {"hp": 77}), OK, "应能预先写入备份文件。")
+
+	var loaded := _storage.load_data(file_name)
+	var final_path := _storage._get_full_path(file_name)
+	var backup_path := _storage._get_full_path(backup_file_name)
+
+	assert_eq(int(loaded.get("hp")), 77, "主文件缺失但存在备份时，应自动恢复最近一次已提交的数据。")
+	assert_true(FileAccess.file_exists(final_path), "恢复后应重新生成主文件。")
+	assert_false(FileAccess.file_exists(backup_path), "恢复完成后不应残留备份文件。")
+
+
+func test_load_data_promotes_temp_file_when_no_committed_file_exists() -> void:
+	_storage.encrypt_key = 0
+	var file_name := "recover_from_temp.json"
+	var temp_file_name := _storage._get_temp_filename(file_name)
+	assert_eq(_storage._write_json(temp_file_name, {"hp": 88}), OK, "应能预先写入临时文件。")
+
+	var loaded := _storage.load_data(file_name)
+	var final_path := _storage._get_full_path(file_name)
+	var temp_path := _storage._get_full_path(temp_file_name)
+
+	assert_eq(int(loaded.get("hp")), 88, "仅存在临时文件时，应自动提升为正式文件。")
+	assert_true(FileAccess.file_exists(final_path), "恢复后应生成主文件。")
+	assert_false(FileAccess.file_exists(temp_path), "恢复完成后不应残留临时文件。")
+
+
+func test_load_data_discards_stale_temp_when_primary_file_already_exists() -> void:
+	_storage.encrypt_key = 0
+	var file_name := "recover_from_stale_temp.json"
+	var temp_file_name := _storage._get_temp_filename(file_name)
+	assert_eq(_storage._write_json(file_name, {"hp": 11}), OK, "应能预先写入主文件。")
+	assert_eq(_storage._write_json(temp_file_name, {"hp": 99}), OK, "应能预先写入悬挂临时文件。")
+
+	var loaded := _storage.load_data(file_name)
+	var temp_path := _storage._get_full_path(temp_file_name)
+
+	assert_eq(int(loaded.get("hp")), 11, "已有主文件时，应优先保留已提交数据。")
+	assert_false(FileAccess.file_exists(temp_path), "恢复完成后应清理悬挂临时文件。")

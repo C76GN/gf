@@ -16,6 +16,45 @@
 
 ---
 
+## [1.6.5] - 2026-04-24
+
+**版本概述**：聚焦一批高频基础能力的边界收敛与可维护性优化，重点补强数据绑定清理、属性只读封装、存档崩溃恢复，以及资源缓存配置变更的即时生效语义。
+
+### 🚀 新增特性 (Added)
+- **只读响应式属性视图**：新增 `GFReadOnlyBindableProperty`，用于对外暴露只读的绑定接口，同时保留 `get_value()`、`value_changed`、`bind_to()` 与 `unbind_all()` 等常用能力。
+
+### 🔄 机制更改 (Changed)
+- **属性只读封装收敛**：`GFAttribute.current_value` 现在通过只读访问器返回响应式结果视图，内部计算改为写入私有 `BindableProperty` 源对象，避免外部替换或直接改写最终值。
+- **存档事务恢复前置化**：`GFStorageUtility` 在读写槽位与纯数据文件前，都会先尝试恢复遗留的 `.tmp` / `.bak` 事务文件；已提交主文件存在时会优先保留正式数据，并清理悬挂临时文件。
+- **缓存上限即时生效**：`GFAssetUtility.max_cache_size` 改为带 setter 的运行时配置；调小容量时会立刻执行 LRU 淘汰，设为 `0` 时会立即清空现有缓存。
+
+### 🐞 Bug 修复 (Fixed)
+- **解绑后残留节点退出监听**：修复 `BindableProperty.unbind_all()` 只断开 `value_changed`、未同步移除 `bind_to()` 附加的 `tree_exited` 自动解绑监听的问题。
+- **中断事务恢复缺口**：修复 `GFStorageUtility` 在进程中断后可能直接清理 `.bak` / `.tmp` 文件、导致错过恢复窗口的问题；现在会优先恢复最后一份可确认的有效数据。
+- **属性最终值可被外部绕过公式改写**：修复 `GFAttribute.current_value` 可被调用方直接 `set_value()` 的封装漏洞；现在外部写入会被拒绝并输出明确错误提示。
+
+### 📢 API 变动说明 (API Changes)
+- 新增 `GFReadOnlyBindableProperty`。
+- `GFAttribute.current_value` 仍可作为 `BindableProperty` 使用，但语义调整为只读视图；外部调用 `set_value()` 不再生效，并会输出错误日志。
+- `GFAssetUtility.max_cache_size` 现在在运行中修改时会立即影响当前缓存，而不是等到下次 `put_cache()` 才生效。
+
+### 📌 升级指南 (Migration Guide)
+1. 如果旧项目曾直接调用 `attribute.current_value.set_value(...)` 或重写整个 `current_value` 属性，请改为通过 `set_base_value()`、增删 `GFModifier`，或在修改修饰器后调用 `force_recalculate()`。
+2. 如果项目依赖 `GFAssetUtility` 在缩小 `max_cache_size` 后“暂不淘汰旧缓存”的旧行为，需要同步调整测试或监控逻辑，因为该属性现在会立刻收敛到新上限。
+3. 如果项目中曾手动清理 `GFStorageUtility` 的 `.tmp` / `.bak` 文件，建议改为优先调用正式的读写接口，让恢复逻辑统一接管中断场景。
+
+### 📍 核心受影响文件 (Affected Files)
+- `addons/gf/core/bindable_property.gd`
+- `addons/gf/core/gf_read_only_bindable_property.gd`
+- `addons/gf/extensions/combat/gf_attribute.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `tests/gf_core/test_bindable_property.gd`
+- `tests/gf_core/test_gf_asset_utility.gd`
+- `tests/gf_core/test_gf_combat_extension.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+
 ## [1.6.4] - 2026-04-22
 
 **版本概述**：继续收敛一批运行时边界问题，重点补齐动态注册模块的初始化一致性、动作队列组合动作的等待安全、存档写入的事务回滚，以及战斗与对象池的状态自修复能力。

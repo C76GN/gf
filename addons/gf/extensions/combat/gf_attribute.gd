@@ -1,22 +1,28 @@
-class_name GFAttribute
-extends RefCounted
-
-
 ## GFAttribute: 通用属性容器。
 ## 
 ## 持有基础值并管理多个修饰器 (GFModifier)。
 ## 内部使用公式 (Base + BaseAdd) * (1.0 + PercentAdd) + FinalAdd 进行自动重算。
-## 对外通过 current_value 暴露为 BindableProperty，方便 UI 绑定。
+## 对外通过只读的 current_value 暴露响应式结果，方便 UI 绑定。
+class_name GFAttribute
+extends RefCounted
+
+
+# --- 常量 ---
+
+const _READ_ONLY_BINDABLE_PROPERTY_SCRIPT := preload("res://addons/gf/core/gf_read_only_bindable_property.gd")
 
 
 # --- 公共变量 ---
 
-## 属性的响应式当前值。
-var current_value: BindableProperty
+## 属性的只读响应式当前值。
+var current_value: BindableProperty:
+	get:
+		return _current_value_view
 
 
 # --- 私有变量 ---
 
+var _current_value_view: BindableProperty
 var _base_value: float = 0.0
 var _modifiers: Array[GFModifier] = []
 
@@ -25,7 +31,7 @@ var _modifiers: Array[GFModifier] = []
 
 func _init(p_base_value: float = 0.0) -> void:
 	_base_value = p_base_value
-	current_value = BindableProperty.new(_base_value)
+	_current_value_view = _READ_ONLY_BINDABLE_PROPERTY_SCRIPT.new(_base_value)
 	_recalculate()
 
 
@@ -99,4 +105,4 @@ func _recalculate() -> void:
 				final_add += mod.value
 				
 	var final_value: float = (_base_value + base_add) * (1.0 + percent_add) + final_add
-	current_value.set_value(final_value)
+	_current_value_view.call("_set_value_from_owner", final_value)

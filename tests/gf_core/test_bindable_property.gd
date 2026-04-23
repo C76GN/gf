@@ -97,6 +97,18 @@ func test_rebind_after_unbind_all() -> void:
 	assert_eq(state.count, 100, "unbind_all 后重新绑定的回调应正常工作。")
 
 
+## 验证 unbind_all 会同时清理 bind_to 附加的 tree_exited 监听。
+func test_unbind_all_removes_tree_exited_helper_connections() -> void:
+	var node := Node.new()
+	add_child_autofree(node)
+
+	_prop.bind_to(node, func(_o: Variant, _n: Variant) -> void: pass)
+	assert_eq(node.tree_exited.get_connections().size(), 1, "bind_to 后应注册一个 tree_exited 自动解绑监听。")
+
+	_prop.unbind_all()
+	assert_eq(node.tree_exited.get_connections().size(), 0, "unbind_all 后不应残留 tree_exited 自动解绑监听。")
+
+
 # --- 测试：bind_to (Task 4) ---
 
 ## 验证 bind_to 能在节点销毁时自动解绑。

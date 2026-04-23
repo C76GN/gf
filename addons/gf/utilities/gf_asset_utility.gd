@@ -9,10 +9,21 @@ extends GFUtility
 # --- 公共变量 ---
 
 ## LRU 缓存最大容量；设为 `0` 时表示禁用缓存。
-var max_cache_size: int = 64
+var max_cache_size: int:
+	get:
+		return _max_cache_size
+	set(value):
+		_max_cache_size = maxi(value, 0)
+		if _max_cache_size == 0:
+			clear_cache()
+			return
+
+		_evict_lru()
 
 
 # --- 私有变量 ---
+
+var _max_cache_size: int = 64
 
 ## 正在加载中的请求：`path -> Array[Callable]`。
 var _pending: Dictionary = {}

@@ -102,6 +102,28 @@ func test_zero_cache_size_disables_caching() -> void:
 	assert_eq(_utility.get_cache_count(), 0, "max_cache_size 为 0 时不应缓存。")
 
 
+func test_reducing_cache_size_evicts_immediately() -> void:
+	_utility.put_cache("res://a.tres", Resource.new())
+	_utility.put_cache("res://b.tres", Resource.new())
+	_utility.put_cache("res://c.tres", Resource.new())
+
+	_utility.max_cache_size = 1
+
+	assert_eq(_utility.get_cache_count(), 1, "缩小缓存上限后应立即执行 LRU 淘汰。")
+	assert_true(_utility.is_cached("res://c.tres"), "最近访问的缓存项应被保留。")
+	assert_false(_utility.is_cached("res://a.tres"), "较旧的缓存项应被淘汰。")
+	assert_false(_utility.is_cached("res://b.tres"), "较旧的缓存项应被淘汰。")
+
+
+func test_setting_cache_size_to_zero_clears_existing_cache() -> void:
+	_utility.put_cache("res://a.tres", Resource.new())
+	_utility.put_cache("res://b.tres", Resource.new())
+
+	_utility.max_cache_size = 0
+
+	assert_eq(_utility.get_cache_count(), 0, "运行中将缓存上限设为 0 时应立即清空现有缓存。")
+
+
 func test_pending_load_keeps_multiple_callbacks() -> void:
 	var callback_count := [0]
 	var callback := func(_res: Resource) -> void:

@@ -58,9 +58,21 @@ func test_attribute_reactivity() -> void:
 	
 	attr.add_modifier(GFModifier.create_base_add(5.0))
 	assert_eq(changed_count[0], 1, "Signal should emit on modification")
-	
+
 	attr.set_base_value(20.0)
 	assert_eq(changed_count[0], 2, "Signal should emit on base value change")
+
+
+## 测试 GFAttribute 对外暴露的是只读响应式视图。
+func test_attribute_current_value_is_read_only() -> void:
+	var attr := GFAttribute.new(10.0)
+	watch_signals(attr.current_value)
+
+	attr.current_value.set_value(999.0)
+
+	assert_push_error("[GFReadOnlyBindableProperty] 当前属性为只读视图，请通过宿主对象修改其值。")
+	assert_eq(attr.current_value.get_value(), 10.0, "外部不应绕过 GFAttribute 直接改写 current_value。")
+	assert_signal_not_emitted(attr.current_value, "value_changed", "只读视图拒绝直接写入时不应发出变化信号。")
 
 
 ## 测试 GFTagComponent。
