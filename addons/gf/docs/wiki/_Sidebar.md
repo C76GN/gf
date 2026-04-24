@@ -15,6 +15,7 @@
 
 ### 扩展与工具
 
+- [[11. 基础层 (Foundation Layer)]]
 - [[07. 高级扩展 (Advanced Extensions)]]
 - [[08. 实用工具箱 (Utility Toolkit)]]
 - [[10. 战斗扩展 (Combat Extension)]]

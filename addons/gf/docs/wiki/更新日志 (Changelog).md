@@ -16,6 +16,60 @@
 
 ---
 
+## [1.7.0] - 2026-04-24
+
+**版本概述**：为挂机和模拟经营等高数值项目补出独立的 `Foundation` 基础层，明确纯算法/值对象与运行时 `Utility` 的边界，并正式引入大数、定点数、统一数值显示格式化与进度曲线数学能力。
+
+### 🚀 新增特性 (Added)
+- **Foundation 基础层**：新增 `addons/gf/foundation/` 目录，用于承载不进入 `GFArchitecture` 的纯值对象、纯算法和纯格式化工具。
+- **大数值对象**：新增 `GFBigNumber`，使用尾数 + 指数表示超大数值，提供解析、比较、加减乘除、幂运算与科学计数法输出能力。
+- **定点小数值对象**：新增 `GFFixedDecimal`，用于货币、税率、经营数值等对累计误差敏感的场景，支持缩放对齐、乘除和多种舍入策略。
+- **统一数字格式化工具**：新增 `GFNumberFormatter`，支持 `FULL`、`COMPACT_SHORT`、`SCIENTIFIC`、`ENGINEERING` 与 `AUTO` 五种显示记法。
+- **进度曲线数学工具**：新增 `GFProgressionMath`，提供价格曲线、收益曲线、分段配置、里程碑倍率、软上限与分段离线收益结算能力。
+- **Foundation 文档页**：新增 Wiki 页面 `11. 基础层 (Foundation Layer)`，专门定义 `Foundation / Utility / Extension` 的边界。
+
+### 🔄 机制更改 (Changed)
+- **分层定义收敛**：`README`、架构概览与 Wiki 首页现在统一说明：`Foundation` 负责纯基础件，`Utility` 负责运行时服务；不再鼓励把所有通用能力都收纳到 `Utility`。
+- **工具页职责收敛**：`08. 实用工具箱 (Utility Toolkit)` 现在明确只讨论需要注册到框架、参与生命周期的运行时工具。
+- **脚本解析依赖收敛**：`GFBigNumber`、`GFFixedDecimal` 与 `GFNumberFormatter` 在跨脚本协作时改用显式 `load()` / `preload()` 路径，避免把运行与测试建立在 `.godot` 缓存文件之上。
+- **Foundation 数学边界收敛**：价格/收益曲线、软上限和离线收益结算现在被归类为 `Foundation` 的纯公式能力；更高层的生产线模拟、建筑状态机与资源流转仍留给后续扩展层或具体项目实现。
+
+### 🐰 Bug 修复 (Fixed)
+- **定点小数字符串接口冲突**：避免 `GFFixedDecimal` 覆盖 `RefCounted/Object.to_string()` 的无参原生接口，改用语义更明确的 `to_decimal_string()`。
+
+### 📢 API 变动说明 (API Changes)
+- 新增 `GFBigNumber`
+- 新增 `GFFixedDecimal`
+- 新增 `GFNumberFormatter`
+- 新增 `GFProgressionMath`
+- 新增 `GFBigNumber.powi(power: int) -> GFBigNumber`
+- 新增 `GFBigNumber.powf(power: float) -> GFBigNumber`
+- 新增 `GFFixedDecimal.to_decimal_string(trim_zeroes: bool = false) -> String`
+
+### 📌 升级指南 (Migration Guide)
+1. 如果你之前打算把大数、定点数或数值显示格式化实现为 `GFUtility`，现在建议直接放进 `Foundation`，不要注册到 `Gf.register_utility()`。
+2. 对挂机/放置类项目，超大量级资源建议优先使用 `GFBigNumber`；对模拟经营类项目，价格、费率与货币建议优先使用 `GFFixedDecimal`。
+3. 需要 UI 显示缩写时，直接调用 `GFNumberFormatter.format_compact()` / `format_auto()`；不要把“显示转换”写回 `Model` 的真实存储字段。
+4. 如果你的价格或收益曲线参数来自外部导表，推荐仍然把参数放在 JSON/CSV/Luban 里，但将公式执行统一收敛到 `GFProgressionMath`。
+5. 如果后续需求开始涉及多建筑联动、资源链推演或生产队列模拟，请优先考虑放到后续 `Extension` 或项目层，而不是继续把高层玩法逻辑塞回 `Foundation`。
+
+### 📍 核心受影响文件 (Affected Files)
+- `README.md`
+- `addons/gf/plugin.cfg`
+- `addons/gf/foundation/formatting/gf_number_formatter.gd`
+- `addons/gf/foundation/math/gf_progression_math.gd`
+- `addons/gf/foundation/numeric/gf_big_number.gd`
+- `addons/gf/foundation/numeric/gf_fixed_decimal.gd`
+- `addons/gf/docs/wiki/01. 架构概览 (Architecture).md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/11. 基础层 (Foundation Layer).md`
+- `addons/gf/docs/wiki/Home.md`
+- `addons/gf/docs/wiki/_Sidebar.md`
+- `tests/gf_core/test_gf_big_number.gd`
+- `tests/gf_core/test_gf_fixed_decimal.gd`
+- `tests/gf_core/test_gf_number_formatter.gd`
+- `tests/gf_core/test_gf_progression_math.gd`
+
 ## [1.6.5] - 2026-04-24
 
 **版本概述**：聚焦一批高频基础能力的边界收敛与可维护性优化，重点补强数据绑定清理、属性只读封装、存档崩溃恢复，以及资源缓存配置变更的即时生效语义。
