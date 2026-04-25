@@ -109,56 +109,98 @@ func register_utility_as(instance: Object, alias_cls: Script) -> void:
 
 ## 为已注册 System 添加查询别名。
 func register_system_alias(alias_cls: Script, target_cls: Script) -> void:
-	get_architecture().register_system_alias(alias_cls, target_cls)
+	var arch := _get_architecture_or_null("register_system_alias")
+	if arch != null:
+		arch.register_system_alias(alias_cls, target_cls)
 
 ## 为已注册 Model 添加查询别名。
 func register_model_alias(alias_cls: Script, target_cls: Script) -> void:
-	get_architecture().register_model_alias(alias_cls, target_cls)
+	var arch := _get_architecture_or_null("register_model_alias")
+	if arch != null:
+		arch.register_model_alias(alias_cls, target_cls)
 
 ## 为已注册 Utility 添加查询别名。
 func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
-	get_architecture().register_utility_alias(alias_cls, target_cls)
+	var arch := _get_architecture_or_null("register_utility_alias")
+	if arch != null:
+		arch.register_utility_alias(alias_cls, target_cls)
 
 ## 获取 System 实例。
 func get_system(script_cls: Script) -> Object:
-	return get_architecture().get_system(script_cls)
+	var arch := _get_architecture_or_null("get_system")
+	if arch == null:
+		return null
+	return arch.get_system(script_cls)
 
 ## 获取 Model 实例。
 func get_model(script_cls: Script) -> Object:
-	return get_architecture().get_model(script_cls)
+	var arch := _get_architecture_or_null("get_model")
+	if arch == null:
+		return null
+	return arch.get_model(script_cls)
 
 ## 获取 Utility 实例。
 func get_utility(script_cls: Script) -> Object:
-	return get_architecture().get_utility(script_cls)
+	var arch := _get_architecture_or_null("get_utility")
+	if arch == null:
+		return null
+	return arch.get_utility(script_cls)
 
 ## 便捷发送全局命令。
 func send_command(command: Object) -> Variant:
-	return get_architecture().send_command(command)
+	var arch := _get_architecture_or_null("send_command")
+	if arch == null:
+		return null
+	return arch.send_command(command)
 
 ## 便捷发送查询。
 func send_query(query: Object) -> Variant:
-	return get_architecture().send_query(query)
+	var arch := _get_architecture_or_null("send_query")
+	if arch == null:
+		return null
+	return arch.send_query(query)
 
 ## 便捷发送带载体的强类型事件。
 func send_event(event_instance: Object) -> void:
-	get_architecture().send_event(event_instance)
+	var arch := _get_architecture_or_null("send_event")
+	if arch != null:
+		arch.send_event(event_instance)
 
 ## 便捷发送无参数的轻量级事件。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	get_architecture().send_simple_event(event_id, payload)
+	var arch := _get_architecture_or_null("send_simple_event")
+	if arch != null:
+		arch.send_simple_event(event_id, payload)
 
 ## 快捷注册类型事件监听（别名：listen）。
 func listen(event_type: Script, on_event: Callable, priority: int = 0) -> void:
-	get_architecture().register_event(event_type, on_event, priority)
+	var arch := _get_architecture_or_null("listen")
+	if arch != null:
+		arch.register_event(event_type, on_event, priority)
 
 ## 快捷注销类型事件监听（别名：unlisten）。
 func unlisten(event_type: Script, on_event: Callable) -> void:
-	get_architecture().unregister_event(event_type, on_event)
+	var arch := _get_architecture_or_null("unlisten")
+	if arch != null:
+		arch.unregister_event(event_type, on_event)
 
 ## 快捷注册轻量事件监听（别名：listen_simple）。
 func listen_simple(event_id: StringName, on_event: Callable) -> void:
-	get_architecture().register_simple_event(event_id, on_event)
+	var arch := _get_architecture_or_null("listen_simple")
+	if arch != null:
+		arch.register_simple_event(event_id, on_event)
 
 ## 快捷注销轻量事件监听（别名：unlisten_simple）。
 func unlisten_simple(event_id: StringName, on_event: Callable) -> void:
-	get_architecture().unregister_simple_event(event_id, on_event)
+	var arch := _get_architecture_or_null("unlisten_simple")
+	if arch != null:
+		arch.unregister_simple_event(event_id, on_event)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_architecture_or_null(context: String) -> GFArchitecture:
+	if _architecture == null:
+		push_error("[GDCore] %s 失败：架构尚未初始化，请先注册架构。" % context)
+		return null
+	return _architecture

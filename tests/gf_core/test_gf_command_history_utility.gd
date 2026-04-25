@@ -59,6 +59,26 @@ class AsyncCounterCommand:
 		completed.emit()
 
 
+class ManualAsyncCommand:
+	extends GFUndoableCommand
+
+	signal completed
+
+	var undo_called: bool = false
+	var execute_called: bool = false
+
+	func execute() -> Variant:
+		execute_called = true
+		return completed
+
+	func undo() -> Variant:
+		undo_called = true
+		return completed
+
+	func complete() -> void:
+		completed.emit()
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -203,6 +223,28 @@ func test_undo_last_async_awaits_async_command() -> void:
 	assert_true(result, "异步撤销完成后应返回 true。")
 	assert_eq(counter.value, 0, "异步 undo 完成后应恢复指定值。")
 	assert_eq(_history.redo_count, 1, "异步 undo 完成后应推入重做栈。")
+
+
+## 验证异步撤销过程中不会允许第二次撤销污染栈顺序。
+func test_undo_last_async_blocks_reentrant_history_mutation() -> void:
+	var first_cmd := CounterCommand.new({"value": 0})
+	var second_cmd := ManualAsyncCommand.new()
+	_history.record(first_cmd)
+	_history.record(second_cmd)
+
+	_history.undo_last_async()
+	await get_tree().process_frame
+
+	var sync_result := _history.undo_last()
+
+	assert_true(second_cmd.undo_called, "第一条异步 undo 应已开始执行。")
+	assert_false(sync_result, "异步 undo 未完成时，同步 undo 应被拒绝。")
+	assert_eq(_history.undo_count, 1, "被锁保护期间不应继续弹出更早的命令。")
+
+	second_cmd.complete()
+	await get_tree().process_frame
+
+	assert_eq(_history.redo_count, 1, "异步 undo 完成后才应写入 redo 栈。")
 
 
 ## 验证 redo_async 会等待异步执行命令完成后再移动回撤销栈。

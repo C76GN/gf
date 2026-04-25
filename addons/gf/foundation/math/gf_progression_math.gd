@@ -21,8 +21,7 @@ enum CurveMode {
 
 # --- 常量 ---
 
-## GFBigNumber 脚本路径。
-const _BIG_NUMBER_SCRIPT_PATH: String = "res://addons/gf/foundation/numeric/gf_big_number.gd"
+const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/foundation/numeric/gf_big_number.gd")
 
 ## 默认的软上限幂指数。
 const _DEFAULT_SOFT_CAP_POWER: float = 0.5
@@ -386,7 +385,7 @@ static func _parse_curve_mode(mode_value: Variant) -> CurveMode:
 
 
 static func _get_big_number_script() -> Script:
-	return load(_BIG_NUMBER_SCRIPT_PATH) as Script
+	return _BIG_NUMBER_SCRIPT
 
 
 static func _to_big_number(value: Variant) -> Object:

@@ -48,3 +48,24 @@ func test_to_string_can_trim_trailing_zeroes() -> void:
 	var value = GF_FIXED_DECIMAL.from_string("1234.500", 3)
 
 	assert_eq(value.to_decimal_string(true), "1234.5", "trim_zeroes 应裁掉多余的尾部 0。")
+
+
+func test_from_float_rejects_non_finite_values() -> void:
+	var value = GF_FIXED_DECIMAL.from_float(INF, 2)
+
+	assert_push_error("[GFFixedDecimal] from_float 收到非法浮点值。")
+	assert_eq(value.to_decimal_string(), "0.00", "非法浮点值应被收敛为当前精度下的零。")
+
+
+func test_decimal_places_are_clamped_to_safe_limit() -> void:
+	var value = GF_FIXED_DECIMAL.from_int(1, 30)
+
+	assert_push_error("[GFFixedDecimal] decimal_places 超出上限 18，已自动钳制。")
+	assert_eq(value.decimal_places, GF_FIXED_DECIMAL.MAX_DECIMAL_PLACES, "过大的小数位应被钳制到安全上限。")
+
+
+func test_from_string_rejects_malformed_decimal_text() -> void:
+	var value = GF_FIXED_DECIMAL.from_string("1.2.3", 2)
+
+	assert_push_error("[GFFixedDecimal] 无法解析数字字符串：1.2.3")
+	assert_eq(value.to_decimal_string(), "0.00", "非法字符串应被收敛为当前精度下的零。")

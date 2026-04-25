@@ -40,6 +40,13 @@ func test_format_full_understands_fixed_decimal() -> void:
 	assert_eq(text, "1234.5", "FULL 模式应能直接格式化定点小数。")
 
 
+func test_format_full_respects_truncation_for_fixed_decimal() -> void:
+	var value = GF_FIXED_DECIMAL.from_string("1.239", 3)
+	var text = GF_NUMBER_FORMATTER.format_full(value, 2, false, false, true)
+
+	assert_eq(text, "1.23", "FULL 模式格式化定点小数时应遵守 use_truncation。")
+
+
 func test_format_auto_falls_back_to_scientific_for_huge_values() -> void:
 	var huge = GF_BIG_NUMBER.from_string("1e60")
 	var text = GF_NUMBER_FORMATTER.format_auto(huge, 0)

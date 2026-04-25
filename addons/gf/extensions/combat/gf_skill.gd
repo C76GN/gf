@@ -61,16 +61,20 @@ func can_execute() -> bool:
 	if owner == null:
 		return false
 
-	if owner.has_method("get_tag_component"):
-		var tc := owner.get_tag_component() as GFTagComponent
-		if tc != null:
-			for tag in require_tags:
-				if not tc.has_tag(tag):
-					return false
+	if not owner.has_method("get_tag_component"):
+		return require_tags.is_empty()
 
-			for tag in ignore_tags:
-				if tc.has_tag(tag):
-					return false
+	var tc := owner.get_tag_component() as GFTagComponent
+	if tc == null:
+		return require_tags.is_empty()
+
+	for tag in require_tags:
+		if not tc.has_tag(tag):
+			return false
+
+	for tag in ignore_tags:
+		if tc.has_tag(tag):
+			return false
 
 	return _custom_can_execute()
 

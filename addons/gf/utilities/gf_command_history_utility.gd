@@ -30,12 +30,16 @@ var _undo_stack: Array[GFUndoableCommand] = []
 ## 已撤销命令的重做栈。
 var _redo_stack: Array[GFUndoableCommand] = []
 
+## 当前是否正在等待一条异步命令完成。
+var _is_processing_async: bool = false
+
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
 	_undo_stack = []
 	_redo_stack = []
+	_is_processing_async = false
 
 
 # --- 公共方法 ---
@@ -45,12 +49,11 @@ func init() -> void:
 func record(cmd: GFUndoableCommand) -> void:
 	if not is_instance_valid(cmd):
 		return
+	if _is_processing_async:
+		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略新的历史记录。")
+		return
 
-	_undo_stack.push_back(cmd)
-	_redo_stack.clear()
-
-	if max_history_size > 0 and _undo_stack.size() > max_history_size:
-		_undo_stack.pop_front()
+	_record_internal(cmd)
 
 
 ## 执行命令并自动记录到撤销栈。
@@ -59,18 +62,23 @@ func record(cmd: GFUndoableCommand) -> void:
 func execute_command(cmd: GFUndoableCommand) -> Variant:
 	if not is_instance_valid(cmd):
 		return null
+	if _is_processing_async:
+		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略新的执行请求。")
+		return null
 
 	var result: Variant = cmd.execute()
 	if result is Signal:
+		_is_processing_async = true
 		await result
-	record(cmd)
+		_is_processing_async = false
+	_record_internal(cmd)
 	return result
 
 
 ## 撤销最后一条命令。
 ## @return 成功撤销时返回 `true`。
 func undo_last() -> bool:
-	if _undo_stack.is_empty():
+	if _is_processing_async or _undo_stack.is_empty():
 		return false
 
 	var cmd: GFUndoableCommand = _undo_stack.pop_back()
@@ -82,13 +90,15 @@ func undo_last() -> bool:
 ## 异步撤销最后一条命令。
 ## @return 成功撤销时返回 `true`。
 func undo_last_async() -> bool:
-	if _undo_stack.is_empty():
+	if _is_processing_async or _undo_stack.is_empty():
 		return false
 
 	var cmd: GFUndoableCommand = _undo_stack.pop_back()
 	var result: Variant = cmd.undo()
 	if result is Signal:
+		_is_processing_async = true
 		await result
+		_is_processing_async = false
 
 	_redo_stack.push_back(cmd)
 	return true
@@ -97,7 +107,7 @@ func undo_last_async() -> bool:
 ## 重做最近被撤销的命令。
 ## @return 成功重做时返回 `true`。
 func redo() -> bool:
-	if _redo_stack.is_empty():
+	if _is_processing_async or _redo_stack.is_empty():
 		return false
 
 	var cmd: GFUndoableCommand = _redo_stack.pop_back()
@@ -109,13 +119,15 @@ func redo() -> bool:
 ## 异步重做最近被撤销的命令。
 ## @return 成功重做时返回 `true`。
 func redo_async() -> bool:
-	if _redo_stack.is_empty():
+	if _is_processing_async or _redo_stack.is_empty():
 		return false
 
 	var cmd: GFUndoableCommand = _redo_stack.pop_back()
 	var result: Variant = cmd.execute()
 	if result is Signal:
+		_is_processing_async = true
 		await result
+		_is_processing_async = false
 
 	_undo_stack.push_back(cmd)
 	return true
@@ -123,6 +135,10 @@ func redo_async() -> bool:
 
 ## 清空所有历史记录。
 func clear() -> void:
+	if _is_processing_async:
+		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略清空请求。")
+		return
+
 	_undo_stack.clear()
 	_redo_stack.clear()
 
@@ -171,6 +187,10 @@ func serialize_full_history() -> Dictionary:
 ## @param data_array: 历史数据数组。
 ## @param command_builder: 负责反序列化命令实例的构造器。
 func deserialize_history(data_array: Array, command_builder: Callable) -> void:
+	if _is_processing_async:
+		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略历史恢复请求。")
+		return
+
 	_undo_stack.clear()
 	_redo_stack.clear()
 
@@ -189,6 +209,10 @@ func deserialize_history(data_array: Array, command_builder: Callable) -> void:
 ## @param data: 由 `serialize_full_history()` 生成的字典数据。##
 ## @param command_builder: 负责反序列化命令实例的构造器。##
 func deserialize_full_history(data: Dictionary, command_builder: Callable) -> void:
+	if _is_processing_async:
+		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略完整历史恢复请求。")
+		return
+
 	_undo_stack.clear()
 	_redo_stack.clear()
 
@@ -201,6 +225,14 @@ func deserialize_full_history(data: Dictionary, command_builder: Callable) -> vo
 
 
 # --- 私有/辅助方法 ---
+
+func _record_internal(cmd: GFUndoableCommand) -> void:
+	_undo_stack.push_back(cmd)
+	_redo_stack.clear()
+
+	if max_history_size > 0 and _undo_stack.size() > max_history_size:
+		_undo_stack.pop_front()
+
 
 func _serialize_stack(stack: Array[GFUndoableCommand]) -> Array[Dictionary]:
 	var arr: Array[Dictionary] = []

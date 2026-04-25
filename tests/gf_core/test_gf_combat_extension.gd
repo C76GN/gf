@@ -91,6 +91,32 @@ func test_tag_component() -> void:
 	assert_false(tc.has_tag(&"Stun"), "Tag should be removed when stack reaches 0")
 
 
+func test_tag_component_rejects_invalid_remove_count() -> void:
+	var tc := GFTagComponent.new()
+	tc.add_tag(&"Stun", 2)
+
+	tc.remove_tag(&"Stun", -2)
+
+	assert_push_warning("[GFTagComponent] remove_tag 收到无效层数，请传入正数或 -1。")
+	assert_eq(tc.get_tag_count(&"Stun"), 2, "无效移除层数不应反向增加标签层数。")
+
+
+func test_skill_requires_tags_when_owner_has_no_tag_component() -> void:
+	var plain_owner := Object.new()
+	var skill := GFSkill.new(plain_owner)
+	skill.require_tags.append(&"Armed")
+
+	assert_false(skill.can_execute(), "存在必需标签但 owner 无标签组件时，技能不应允许施放。")
+
+
+func test_attribute_ignores_null_modifier() -> void:
+	var attr := GFAttribute.new(10.0)
+
+	attr.add_modifier(null)
+
+	assert_eq(attr.current_value.get_value(), 10.0, "空修饰器不应影响属性计算。")
+
+
 ## 测试 GFCombatSystem 的 Buff 驱动。
 func test_combat_system_buff_lifecycle() -> void:
 	var system := GFCombatSystem.new()

@@ -47,6 +47,9 @@ const _FULL_MAX_EXPONENT: int = 15
 ## FULL 模式允许的最小普通十进制指数。
 const _FULL_MIN_EXPONENT: int = -6
 
+const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/foundation/numeric/gf_big_number.gd")
+const _FIXED_DECIMAL_SCRIPT: Script = preload("res://addons/gf/foundation/numeric/gf_fixed_decimal.gd")
+
 
 # --- 公共变量 ---
 
@@ -141,7 +144,10 @@ static func format_full(
 ) -> String:
 	var text := ""
 	if _is_fixed_decimal(value):
-		text = value.rescaled(decimal_places).to_decimal_string(trim_zeroes)
+		var rounding_mode: int = _FIXED_DECIMAL_SCRIPT.RoundingMode.HALF_UP
+		if use_truncation:
+			rounding_mode = _FIXED_DECIMAL_SCRIPT.RoundingMode.TRUNCATE
+		text = value.rescaled(decimal_places, rounding_mode).to_decimal_string(trim_zeroes)
 	elif _is_big_number(value):
 		var big_value = value
 		if big_value.exponent > _FULL_MAX_EXPONENT or big_value.exponent < _FULL_MIN_EXPONENT:
@@ -359,7 +365,7 @@ static func _group_integer_part(text: String) -> String:
 
 
 static func _get_big_number_script() -> Script:
-	return load("res://addons/gf/foundation/numeric/gf_big_number.gd") as Script
+	return _BIG_NUMBER_SCRIPT
 
 
 static func _is_big_number(value: Variant) -> bool:

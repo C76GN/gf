@@ -23,6 +23,14 @@ enum RoundingMode {
 }
 
 
+# --- 常量 ---
+
+## 定点数可保留的小数位上限，避免整数缩放时溢出。
+const MAX_DECIMAL_PLACES: int = 18
+
+const _MAX_INT_VALUE: int = 9_223_372_036_854_775_807
+
+
 # --- 公共变量 ---
 
 ## 实际保存的整数值。
@@ -36,7 +44,7 @@ var decimal_places: int = 2
 
 func _init(p_raw_value: int = 0, p_decimal_places: int = 2) -> void:
 	raw_value = p_raw_value
-	decimal_places = maxi(p_decimal_places, 0)
+	decimal_places = _normalize_decimal_places(p_decimal_places)
 
 
 # --- 公共方法 ---
@@ -46,8 +54,11 @@ func _init(p_raw_value: int = 0, p_decimal_places: int = 2) -> void:
 ## @param p_decimal_places: 目标小数位。
 ## @return 定点数实例。
 static func from_int(value: int, p_decimal_places: int = 2) -> GFFixedDecimal:
-	var places := maxi(p_decimal_places, 0)
-	return GFFixedDecimal.new(value * _pow10_int(places), places)
+	var places := _normalize_decimal_places(p_decimal_places)
+	return GFFixedDecimal.new(
+		_checked_multiply(value, _pow10_int(places), "from_int"),
+		places
+	)
 
 
 ## 从 float 构建定点数。
@@ -60,8 +71,16 @@ static func from_float(
 	p_decimal_places: int = 2,
 	rounding_mode: RoundingMode = RoundingMode.HALF_UP
 ) -> GFFixedDecimal:
-	var places := maxi(p_decimal_places, 0)
+	var places := _normalize_decimal_places(p_decimal_places)
+	if is_nan(value) or is_inf(value):
+		push_error("[GFFixedDecimal] from_float 收到非法浮点值。")
+		return GFFixedDecimal.new(0, places)
+
 	var scaled_value := value * _pow10_float(places)
+	if is_nan(scaled_value) or is_inf(scaled_value) or absf(scaled_value) > float(_MAX_INT_VALUE):
+		push_error("[GFFixedDecimal] from_float 缩放后超出可表示范围。")
+		return GFFixedDecimal.new(0, places)
+
 	var rounded := _round_scaled_float(scaled_value, rounding_mode)
 	return GFFixedDecimal.new(rounded, places)
 
@@ -76,12 +95,15 @@ static func from_string(
 	p_decimal_places: int = 2,
 	rounding_mode: RoundingMode = RoundingMode.HALF_UP
 ) -> GFFixedDecimal:
-	var places := maxi(p_decimal_places, 0)
+	var places := _normalize_decimal_places(p_decimal_places)
 	var trimmed := value.strip_edges().replace("_", "").replace(",", "")
 	if trimmed.is_empty():
 		return GFFixedDecimal.new(0, places)
 
 	if trimmed.find("e") != -1 or trimmed.find("E") != -1:
+		if not trimmed.is_valid_float():
+			push_error("[GFFixedDecimal] 无法解析数字字符串：%s" % value)
+			return GFFixedDecimal.new(0, places)
 		return GFFixedDecimal.from_float(trimmed.to_float(), places, rounding_mode)
 
 	var sign := 1
@@ -98,14 +120,15 @@ static func from_string(
 		integer_part = trimmed.substr(0, decimal_index)
 		fractional_part = trimmed.substr(decimal_index + 1)
 
-	if integer_part.is_empty():
-		integer_part = "0"
+	if not _is_valid_decimal_parts(integer_part, fractional_part, decimal_index != -1):
+		push_error("[GFFixedDecimal] 无法解析数字字符串：%s" % value)
+		return GFFixedDecimal.new(0, places)
 
 	var digits := integer_part + fractional_part
 	if digits.is_empty():
 		digits = "0"
 
-	var parsed_raw := digits.to_int() * sign
+	var parsed_raw := _parse_signed_digits(digits, sign)
 	var parsed_places := fractional_part.length()
 	return GFFixedDecimal.new(parsed_raw, parsed_places).rescaled(places, rounding_mode)
 
@@ -142,7 +165,7 @@ func rescaled(
 	target_decimal_places: int,
 	rounding_mode: RoundingMode = RoundingMode.HALF_UP
 ) -> GFFixedDecimal:
-	var target_places := maxi(target_decimal_places, 0)
+	var target_places := _normalize_decimal_places(target_decimal_places)
 	if target_places == decimal_places:
 		return clone()
 
@@ -205,11 +228,13 @@ func multiply(
 	if other == null:
 		return clone()
 
-	var product_raw := raw_value * other.raw_value
+	var product_raw := _checked_multiply(raw_value, other.raw_value, "multiply")
 	var product_places := decimal_places + other.decimal_places
 	var result_places := target_decimal_places
 	if result_places < 0:
 		result_places = maxi(decimal_places, other.decimal_places)
+	else:
+		result_places = _normalize_decimal_places(result_places)
 
 	return GFFixedDecimal.new(product_raw, product_places).rescaled(result_places, rounding_mode)
 
@@ -226,19 +251,22 @@ func divide(
 ) -> GFFixedDecimal:
 	if other == null or other.raw_value == 0:
 		push_error("[GFFixedDecimal] 尝试除以空值或零值。")
-		return GFFixedDecimal.new(0, maxi(target_decimal_places, decimal_places))
+		var fallback_places := decimal_places if target_decimal_places < 0 else _normalize_decimal_places(target_decimal_places)
+		return GFFixedDecimal.new(0, fallback_places)
 
 	var result_places := target_decimal_places
 	if result_places < 0:
 		result_places = maxi(decimal_places, other.decimal_places)
+	else:
+		result_places = _normalize_decimal_places(result_places)
 
 	var shift := result_places + other.decimal_places - decimal_places
 	var numerator := raw_value
 	var denominator := other.raw_value
 	if shift >= 0:
-		numerator *= _pow10_int(shift)
+		numerator = _checked_multiply(numerator, _pow10_int(shift), "divide")
 	else:
-		denominator *= _pow10_int(-shift)
+		denominator = _checked_multiply(denominator, _pow10_int(-shift), "divide")
 
 	var divided_raw := _divide_with_rounding(numerator, denominator, rounding_mode)
 	return GFFixedDecimal.new(divided_raw, result_places)
@@ -290,7 +318,7 @@ func _align_raw_for_compare(target_decimal_places: int) -> int:
 	if target_decimal_places <= decimal_places:
 		return raw_value
 
-	return raw_value * _pow10_int(target_decimal_places - decimal_places)
+	return _checked_multiply(raw_value, _pow10_int(target_decimal_places - decimal_places), "compare")
 
 
 static func _rescale_raw(
@@ -303,7 +331,7 @@ static func _rescale_raw(
 		return value
 
 	if to_places > from_places:
-		return value * _pow10_int(to_places - from_places)
+		return _checked_multiply(value, _pow10_int(to_places - from_places), "rescaled")
 
 	var divisor := _pow10_int(from_places - to_places)
 	return _divide_with_rounding(value, divisor, rounding_mode)
@@ -382,14 +410,15 @@ static func _round_scaled_float(value: float, rounding_mode: RoundingMode) -> in
 
 
 static func _pow10_int(power: int) -> int:
+	var safe_power := _normalize_decimal_places(power)
 	var result := 1
-	for _i in range(power):
+	for _i in range(safe_power):
 		result *= 10
 	return result
 
 
 static func _pow10_float(power: int) -> float:
-	return pow(10.0, power)
+	return pow(10.0, _normalize_decimal_places(power))
 
 
 static func _left_pad(text: String, width: int, fill_char: String) -> String:
@@ -397,3 +426,73 @@ static func _left_pad(text: String, width: int, fill_char: String) -> String:
 	while result.length() < width:
 		result = fill_char + result
 	return result
+
+
+static func _normalize_decimal_places(value: int) -> int:
+	if value < 0:
+		return 0
+	if value > MAX_DECIMAL_PLACES:
+		push_error("[GFFixedDecimal] decimal_places 超出上限 %d，已自动钳制。" % MAX_DECIMAL_PLACES)
+		return MAX_DECIMAL_PLACES
+	return value
+
+
+static func _is_valid_decimal_parts(integer_part: String, fractional_part: String, has_decimal_point: bool) -> bool:
+	if has_decimal_point and integer_part.find(".") != -1:
+		return false
+	if integer_part.is_empty() and fractional_part.is_empty():
+		return false
+	return _contains_only_digits(integer_part) and _contains_only_digits(fractional_part)
+
+
+static func _contains_only_digits(text: String) -> bool:
+	for i in range(text.length()):
+		var character := text.substr(i, 1)
+		if character < "0" or character > "9":
+			return false
+	return true
+
+
+static func _parse_signed_digits(digits: String, sign: int) -> int:
+	var significant_digits := digits
+	while significant_digits.length() > 1 and significant_digits.begins_with("0"):
+		significant_digits = significant_digits.substr(1)
+
+	if significant_digits.length() > 19:
+		push_error("[GFFixedDecimal] 数字超出可表示范围。")
+		return _get_saturated_int(sign < 0)
+
+	var result := 0
+	for i in range(significant_digits.length()):
+		result = _checked_multiply(result, 10, "from_string")
+		result = _checked_add(result, significant_digits.substr(i, 1).to_int(), "from_string")
+
+	if sign < 0:
+		return _checked_multiply(result, -1, "from_string")
+	return result
+
+
+static func _checked_multiply(left: int, right: int, context: String) -> int:
+	var product := float(left) * float(right)
+	if product > float(_MAX_INT_VALUE):
+		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
+		return _MAX_INT_VALUE
+	if product < -float(_MAX_INT_VALUE):
+		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
+		return -_MAX_INT_VALUE
+	return left * right
+
+
+static func _checked_add(left: int, right: int, context: String) -> int:
+	var sum := float(left) + float(right)
+	if sum > float(_MAX_INT_VALUE):
+		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
+		return _MAX_INT_VALUE
+	if sum < -float(_MAX_INT_VALUE):
+		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
+		return -_MAX_INT_VALUE
+	return left + right
+
+
+static func _get_saturated_int(is_negative: bool) -> int:
+	return -_MAX_INT_VALUE if is_negative else _MAX_INT_VALUE

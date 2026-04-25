@@ -100,8 +100,9 @@ static func from_string(value: String) -> GFBigNumber:
 		integer_part = trimmed.substr(0, decimal_index)
 		fractional_part = trimmed.substr(decimal_index + 1)
 
-	if integer_part.is_empty():
-		integer_part = "0"
+	if not _is_valid_decimal_parts(integer_part, fractional_part, decimal_index != -1):
+		push_error("[GFBigNumber] 无法解析数字字符串：%s" % value)
+		return GFBigNumber.zero()
 
 	var digits := integer_part + fractional_part
 	var first_non_zero := -1
@@ -429,6 +430,22 @@ static func _trim_trailing_zeroes(text: String) -> String:
 		return "0"
 
 	return result
+
+
+static func _is_valid_decimal_parts(integer_part: String, fractional_part: String, has_decimal_point: bool) -> bool:
+	if has_decimal_point and integer_part.find(".") != -1:
+		return false
+	if integer_part.is_empty() and fractional_part.is_empty():
+		return false
+	return _contains_only_digits(integer_part) and _contains_only_digits(fractional_part)
+
+
+static func _contains_only_digits(text: String) -> bool:
+	for i in range(text.length()):
+		var character := text.substr(i, 1)
+		if character < "0" or character > "9":
+			return false
+	return true
 
 
 static func _is_fixed_decimal(value: Variant) -> bool:

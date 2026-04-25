@@ -56,6 +56,9 @@ class SignalOrderAction:
 class ObjectSignalEmitter extends Object:
 	signal completed
 
+	func get_completed_signal() -> Signal:
+		return completed
+
 
 class NonNodeDeadlockSignalAction:
 	extends GFVisualAction
@@ -66,7 +69,7 @@ class NonNodeDeadlockSignalAction:
 		emitter = e
 
 	func execute() -> Variant:
-		return emitter.completed
+		return emitter.get_completed_signal()
 
 
 var _system: GFActionQueueSystem
@@ -241,6 +244,21 @@ func test_no_deadlock_on_freed_non_node_emitter() -> void:
 	await get_tree().process_frame
 
 	assert_false(_system.is_processing, "非 Node 发射源被释放后，队列也应自动恢复，避免死锁。")
+
+
+func test_signal_timeout_allows_queue_to_continue() -> void:
+	var order: Array = []
+	var emitter := ObjectSignalEmitter.new()
+	var action := NonNodeDeadlockSignalAction.new(emitter).with_signal_timeout(0.001)
+	_system.enqueue(action)
+	_system.enqueue(OrderAction.new(order, "AFTER_TIMEOUT"))
+
+	await get_tree().create_timer(0.05).timeout
+	await get_tree().process_frame
+
+	assert_push_warning("[GFVisualAction] 等待 Signal 超时，队列将继续执行后续动作。")
+	assert_eq(order, ["AFTER_TIMEOUT"], "Signal 超时后队列应继续执行后续动作。")
+	assert_false(_system.is_processing, "Signal 超时后队列不应继续卡在处理中。")
 
 
 func test_no_deadlock_on_freed_node() -> void:

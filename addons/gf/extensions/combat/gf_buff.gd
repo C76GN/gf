@@ -96,6 +96,9 @@ func _apply_effects() -> void:
 	# 自动应用修饰器
 	if owner.has_method("get_attribute"):
 		for mod in modifiers:
+			if mod == null:
+				continue
+
 			var attr := owner.get_attribute(mod.source_tag) as GFAttribute
 			if attr != null:
 				attr.add_modifier(mod)
@@ -116,6 +119,9 @@ func _remove_effects() -> void:
 	# 移除修饰器
 	if owner.has_method("get_attribute"):
 		for mod in modifiers:
+			if mod == null:
+				continue
+
 			var attr := owner.get_attribute(mod.source_tag) as GFAttribute
 			if attr != null:
 				attr.remove_modifier(mod)

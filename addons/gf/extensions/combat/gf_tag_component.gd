@@ -42,12 +42,16 @@ func add_tag(p_tag: StringName, p_count: int = 1) -> void:
 func remove_tag(p_tag: StringName, p_count: int = 1) -> void:
 	if not _tags.has(p_tag):
 		return
-		
+
 	if p_count == -1:
 		_tags.erase(p_tag)
 		tag_changed.emit(p_tag, 0)
 		return
-		
+
+	if p_count <= 0:
+		push_warning("[GFTagComponent] remove_tag 收到无效层数，请传入正数或 -1。")
+		return
+
 	var current: int = _tags[p_tag]
 	var updated: int = current - p_count
 	

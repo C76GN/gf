@@ -9,6 +9,12 @@ class_name GFArchitecture
 ##   阶段三 (ready)      ：所有模块均已完成 init，可安全进行跨模块依赖获取。
 
 
+# --- 信号 ---
+
+## 当一次初始化流程完成或被 dispose() 中断后发出。
+signal initialization_finished
+
+
 # --- 私有变量 ---
 
 var _systems: Dictionary = {}
@@ -22,6 +28,13 @@ var _event_system: TypeEventSystem
 var _time_utility: GFTimeUtility
 var _inited: bool = false
 var _is_initializing: bool = false
+var _lifecycle_serial: int = 0
+var _tick_systems: Array[Object] = []
+var _physics_systems: Array[Object] = []
+var _tick_utilities: Array[Object] = []
+var _physics_utilities: Array[Object] = []
+var _is_iterating_tick_caches: bool = false
+var _tick_caches_dirty: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -43,21 +56,41 @@ func is_inited() -> bool:
 ## 阶段二：串行 await 所有模块的 async_init()，用于异步资源加载等操作。
 ## 阶段三：调用所有模块的 ready()，此时跨模块依赖获取是安全的。
 func init() -> void:
-	if _inited or _is_initializing:
+	if _inited:
 		return
+
+	if _is_initializing:
+		var waiting_serial := _lifecycle_serial
+		while _is_initializing and waiting_serial == _lifecycle_serial:
+			await initialization_finished
+		return
+
+	_lifecycle_serial += 1
+	var current_serial := _lifecycle_serial
 	_is_initializing = true
 	_on_init()
-	await _advance_all_modules_to_stage(1)
-	await _advance_all_modules_to_stage(2)
-	await _advance_all_modules_to_stage(3)
+	await _advance_all_modules_to_stage(1, current_serial)
+	if not _is_lifecycle_current(current_serial):
+		return
+	await _advance_all_modules_to_stage(2, current_serial)
+	if not _is_lifecycle_current(current_serial):
+		return
+	await _advance_all_modules_to_stage(3, current_serial)
+	if not _is_lifecycle_current(current_serial):
+		return
 
 	_time_utility = get_utility(GFTimeUtility) as GFTimeUtility
 	_inited = true
 	_is_initializing = false
+	initialization_finished.emit()
 
 
 ## 销毁架构及所有注册的组件。
 func dispose() -> void:
+	var was_initializing := _is_initializing
+	_lifecycle_serial += 1
+	_is_initializing = false
+
 	_on_dispose()
 	for system in _systems.values():
 		if system.has_method("dispose"):
@@ -78,7 +111,9 @@ func dispose() -> void:
 	_event_system.clear()
 	_time_utility = null
 	_inited = false
-	_is_initializing = false
+	_refresh_tick_caches()
+	if was_initializing:
+		initialization_finished.emit()
 
 
 ## 驱动所有已注册 System 与带 tick() 方法的 Utility 的每帧更新。
@@ -90,11 +125,13 @@ func tick(delta: float) -> void:
 	if not _inited:
 		return
 	var scaled_delta: float = _get_scaled_delta(delta)
-	for system: Variant in _systems.values():
+	_is_iterating_tick_caches = true
+	for system: Object in _tick_systems:
 		system.tick(_get_module_delta(system, delta, scaled_delta))
-	for utility: Variant in _utilities.values():
-		if utility.has_method("tick"):
-			utility.tick(_get_module_delta(utility, delta, scaled_delta))
+	for utility: Object in _tick_utilities:
+		utility.tick(_get_module_delta(utility, delta, scaled_delta))
+	_is_iterating_tick_caches = false
+	_flush_tick_cache_refresh()
 
 
 ## 驱动所有已注册 System 与带 physics_tick() 方法的 Utility 的每物理帧更新。
@@ -106,11 +143,13 @@ func physics_tick(delta: float) -> void:
 	if not _inited:
 		return
 	var scaled_delta: float = _get_scaled_delta(delta)
-	for system: Variant in _systems.values():
+	_is_iterating_tick_caches = true
+	for system: Object in _physics_systems:
 		system.physics_tick(_get_module_delta(system, delta, scaled_delta))
-	for utility: Variant in _utilities.values():
-		if utility.has_method("physics_tick"):
-			utility.physics_tick(_get_module_delta(utility, delta, scaled_delta))
+	for utility: Object in _physics_utilities:
+		utility.physics_tick(_get_module_delta(utility, delta, scaled_delta))
+	_is_iterating_tick_caches = false
+	_flush_tick_cache_refresh()
 
 
 ## 执行命令实例。支持 await：'await send_command(MyCommand.new())'。
@@ -182,6 +221,7 @@ func register_system(script_cls: Script, instance: Object) -> void:
 	if not _systems.has(script_cls):
 		_systems[script_cls] = instance
 		_track_registered_module(instance)
+		_refresh_tick_caches()
 		if _inited:
 			await _initialize_registered_module(instance)
 
@@ -205,6 +245,7 @@ func register_utility(script_cls: Script, instance: Object) -> void:
 		_utilities[script_cls] = instance
 		_track_registered_module(instance)
 		_refresh_cached_utility_refs()
+		_refresh_tick_caches()
 		if _inited:
 			await _initialize_registered_module(instance)
 			_refresh_cached_utility_refs()
@@ -303,6 +344,7 @@ func unregister_system(script_cls: Script) -> void:
 		_module_lifecycle_stages.erase(system)
 		_systems.erase(registered_key)
 		_remove_aliases_for(_system_aliases, registered_key)
+		_refresh_tick_caches()
 	else:
 		_system_aliases.erase(script_cls)
 
@@ -334,6 +376,7 @@ func unregister_utility(script_cls: Script) -> void:
 		_utilities.erase(registered_key)
 		_remove_aliases_for(_utility_aliases, registered_key)
 		_refresh_cached_utility_refs()
+		_refresh_tick_caches()
 	else:
 		_utility_aliases.erase(script_cls)
 
@@ -489,38 +532,48 @@ func _on_dispose() -> void:
 func _initialize_registered_module(instance: Object) -> void:
 	if instance == null:
 		return
-	await _advance_module_to_stage(instance, 3)
+	var current_serial := _lifecycle_serial
+	await _advance_module_to_stage(instance, 3, current_serial)
 
 
-func _advance_all_modules_to_stage(target_stage: int) -> void:
+func _advance_all_modules_to_stage(target_stage: int, lifecycle_serial: int) -> void:
 	while true:
+		if not _is_lifecycle_current(lifecycle_serial):
+			return
+
 		var progressed: bool = false
-		if await _advance_registry_to_stage(_models, target_stage):
+		if await _advance_registry_to_stage(_models, target_stage, lifecycle_serial):
 			progressed = true
-		if await _advance_registry_to_stage(_systems, target_stage):
+		if await _advance_registry_to_stage(_systems, target_stage, lifecycle_serial):
 			progressed = true
-		if await _advance_registry_to_stage(_utilities, target_stage):
+		if await _advance_registry_to_stage(_utilities, target_stage, lifecycle_serial):
 			progressed = true
 		if not progressed:
 			return
 
 
-func _advance_registry_to_stage(registry: Dictionary, target_stage: int) -> bool:
+func _advance_registry_to_stage(registry: Dictionary, target_stage: int, lifecycle_serial: int) -> bool:
 	var progressed: bool = false
 	for instance: Variant in registry.values():
+		if not _is_lifecycle_current(lifecycle_serial):
+			return progressed
+
 		var current_stage: int = _module_lifecycle_stages.get(instance, 0)
 		if current_stage < target_stage:
-			await _advance_module_to_stage(instance, target_stage)
+			await _advance_module_to_stage(instance, target_stage, lifecycle_serial)
 			progressed = true
 	return progressed
 
 
-func _advance_module_to_stage(instance: Object, target_stage: int) -> void:
+func _advance_module_to_stage(instance: Object, target_stage: int, lifecycle_serial: int) -> void:
 	if instance == null:
 		return
 
 	var current_stage: int = _module_lifecycle_stages.get(instance, 0)
 	while current_stage < target_stage:
+		if not _is_lifecycle_current(lifecycle_serial):
+			return
+
 		current_stage += 1
 		match current_stage:
 			1:
@@ -532,6 +585,9 @@ func _advance_module_to_stage(instance: Object, target_stage: int) -> void:
 			3:
 				if instance.has_method("ready"):
 					instance.ready()
+
+		if not _is_lifecycle_current(lifecycle_serial):
+			return
 
 		_module_lifecycle_stages[instance] = current_stage
 
@@ -545,6 +601,43 @@ func _track_registered_module(instance: Object) -> void:
 
 func _refresh_cached_utility_refs() -> void:
 	_time_utility = get_utility(GFTimeUtility) as GFTimeUtility
+
+
+func _refresh_tick_caches() -> void:
+	if _is_iterating_tick_caches:
+		_tick_caches_dirty = true
+		return
+
+	_rebuild_tick_caches()
+
+
+func _rebuild_tick_caches() -> void:
+	_tick_systems.clear()
+	_physics_systems.clear()
+	_tick_utilities.clear()
+	_physics_utilities.clear()
+	_tick_caches_dirty = false
+
+	for system: Object in _systems.values():
+		if system.has_method("tick"):
+			_tick_systems.append(system)
+		if system.has_method("physics_tick"):
+			_physics_systems.append(system)
+
+	for utility: Object in _utilities.values():
+		if utility.has_method("tick"):
+			_tick_utilities.append(utility)
+		if utility.has_method("physics_tick"):
+			_physics_utilities.append(utility)
+
+
+func _flush_tick_cache_refresh() -> void:
+	if _tick_caches_dirty:
+		_rebuild_tick_caches()
+
+
+func _is_lifecycle_current(lifecycle_serial: int) -> bool:
+	return _lifecycle_serial == lifecycle_serial
 
 
 func _register_alias(aliases: Dictionary, registry: Dictionary, alias_cls: Script, target_cls: Script, label: String) -> void:

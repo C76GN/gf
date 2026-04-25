@@ -54,6 +54,9 @@ func get_base_value() -> float:
 ## 添加修饰器。
 ## @param p_modifier: 修饰器实例。
 func add_modifier(p_modifier: GFModifier) -> void:
+	if p_modifier == null:
+		return
+
 	_modifiers.append(p_modifier)
 	_recalculate()
 
@@ -61,6 +64,9 @@ func add_modifier(p_modifier: GFModifier) -> void:
 ## 移除修饰器。
 ## @param p_modifier: 要移除的修饰器实例。
 func remove_modifier(p_modifier: GFModifier) -> void:
+	if p_modifier == null:
+		return
+
 	_modifiers.erase(p_modifier)
 	_recalculate()
 
@@ -95,7 +101,10 @@ func _recalculate() -> void:
 	var percent_add: float = 0.0
 	var final_add: float = 0.0
 	
-	for mod in _modifiers:
+	for mod: GFModifier in _modifiers:
+		if mod == null:
+			continue
+
 		match mod.type:
 			GFModifier.Type.BASE_ADD:
 				base_add += mod.value

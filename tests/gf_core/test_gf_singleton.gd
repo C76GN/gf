@@ -51,6 +51,25 @@ class RegisteringUtility extends GFUtility:
 	func ready() -> void:
 		Gf.register_utility(utility_to_register)
 
+
+class SlowInitUtility extends GFUtility:
+	signal async_continue
+
+	var initialized: bool = false
+	var async_started: bool = false
+	var ready_called: bool = false
+
+	func init() -> void:
+		initialized = true
+
+	func async_init() -> void:
+		async_started = true
+		await async_continue
+
+	func ready() -> void:
+		ready_called = true
+
+
 class DummyQuery extends GFQuery:
 	func execute() -> Variant:
 		return "query_success"
@@ -191,3 +210,82 @@ func test_register_utility_alias_resolves_base_type() -> void:
 	await Gf.init()
 
 	assert_eq(Gf.get_utility(UtilityBase), concrete, "显式 alias 应让基类查询解析到指定实现。")
+
+
+## 验证并发 init 调用会等待同一轮初始化完成。
+func test_concurrent_init_waits_for_active_initialization() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var arch := GFArchitecture.new()
+	var slow_utility := SlowInitUtility.new()
+	await arch.register_utility_instance(slow_utility)
+
+	var first_state := { "done": false }
+	var second_state := { "done": false }
+	_await_arch_init(arch, first_state)
+	await get_tree().process_frame
+	_await_arch_init(arch, second_state)
+	await get_tree().process_frame
+
+	assert_true(slow_utility.async_started, "第一轮初始化应已进入 async_init。")
+	assert_false(second_state["done"], "第二个 init 调用不应在初始化完成前提前返回。")
+
+	slow_utility.async_continue.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(first_state["done"], "第一轮 init 应正常完成。")
+	assert_true(second_state["done"], "第二个 init 调用应在同一轮初始化完成后返回。")
+	assert_true(arch.is_inited(), "架构应处于已初始化状态。")
+	assert_true(slow_utility.ready_called, "慢初始化 Utility 最终应进入 ready 阶段。")
+
+
+## 验证 dispose 会唤醒等待中的并发 init 调用，且旧初始化恢复后不会写回状态。
+func test_dispose_during_init_cancels_waiters_and_stale_resume() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var arch := GFArchitecture.new()
+	var slow_utility := SlowInitUtility.new()
+	await arch.register_utility_instance(slow_utility)
+
+	var first_state := { "done": false }
+	var second_state := { "done": false }
+	_await_arch_init(arch, first_state)
+	await get_tree().process_frame
+	_await_arch_init(arch, second_state)
+	await get_tree().process_frame
+
+	arch.dispose()
+	await get_tree().process_frame
+
+	assert_true(second_state["done"], "dispose 应唤醒正在等待初始化完成的并发调用。")
+	assert_false(arch.is_inited(), "dispose 后架构不应被标记为已初始化。")
+
+	slow_utility.async_continue.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(first_state["done"], "旧初始化 await 恢复后应安全退出。")
+	assert_false(arch.is_inited(), "旧初始化恢复后不应重新写回已初始化状态。")
+	assert_false(slow_utility.ready_called, "被 dispose 中断的模块不应继续进入 ready。")
+
+
+## 验证无架构时 Gf 门面方法只报错并返回空值，不发生空引用崩溃。
+func test_facade_returns_null_when_architecture_missing() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var model = Gf.get_model(DummyModel)
+
+	assert_push_error("[GDCore] get_model 失败：架构尚未初始化，请先注册架构。")
+	assert_null(model, "架构缺失时 get_model 应安全返回 null。")
+
+
+func _await_arch_init(arch: GFArchitecture, state: Dictionary) -> void:
+	await arch.init()
+	state["done"] = true

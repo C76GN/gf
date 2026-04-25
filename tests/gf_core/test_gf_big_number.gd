@@ -12,6 +12,13 @@ func test_from_string_normalizes_plain_number() -> void:
 	assert_eq(value.exponent, 8, "123450000 应被解析为 1.2345e8。")
 
 
+func test_from_string_rejects_malformed_decimal_text() -> void:
+	var value = GF_BIG_NUMBER.from_string("12x.3")
+
+	assert_push_error("[GFBigNumber] 无法解析数字字符串：12x.3")
+	assert_true(value.is_zero(), "非法字符串应被收敛为零值。")
+
+
 func test_add_combines_similar_exponents() -> void:
 	var left = GF_BIG_NUMBER.from_string("1.5e6")
 	var right = GF_BIG_NUMBER.from_string("2.25e6")

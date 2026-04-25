@@ -16,6 +16,65 @@
 
 ---
 
+## [1.7.1] - 2026-04-25
+
+**版本概述**：聚焦 1.7.0 引入 Foundation 后暴露出的数值边界，以及核心生命周期、命令历史和动作队列在异步场景下的稳定性，补齐若干会导致假完成、栈乱序或队列悬挂的防御。
+
+### 🔄 机制更改 (Changed)
+- **初始化等待语义收敛**：`GFArchitecture.init()` 在已有初始化流程进行中时，会等待该流程完成或被中断后再返回，不再让并发调用方提前越过生命周期屏障。
+- **初始化中断保护**：`GFArchitecture.dispose()` 会让进行中的生命周期推进失效；旧的 `async_init()` await 恢复后不会继续写回已清理的架构状态。
+- **Tick 遍历缓存**：`GFArchitecture.tick()` 与 `physics_tick()` 改为遍历注册时维护的可驱动模块缓存，减少每帧 `Dictionary.values()` 带来的数组分配。
+- **命令历史异步互斥**：`GFCommandHistoryUtility` 在异步执行、撤销或重做尚未结束时，会拒绝新的历史变更，避免 undo/redo 栈顺序被完成时序污染。
+- **动作队列等待超时**：`GFVisualAction` 新增 `signal_timeout_seconds` 与 `with_signal_timeout()`，默认 30 秒；等待信号长期不发时会输出 warning 并继续队列。
+- **资源加载回调顺序收敛**：`GFAssetUtility` 在派发异步加载回调前会先移除对应 pending 项，允许回调内安全重新请求同一路径。
+
+### 🐛 Bug 修复 (Fixed)
+- **并发初始化假完成**：修复第二个 `await Gf.init()` 在第一轮初始化仍处于 `async_init()` 时直接返回的问题。
+- **销毁后旧初始化写回**：修复 `dispose()` 中断初始化后，旧 await 恢复仍可能继续推进模块阶段并标记架构已初始化的问题。
+- **无架构门面空引用**：修复 `Gf.get_model()` / `send_event()` 等门面方法在架构不存在时链式调用 null 的崩溃风险。
+- **异步 undo/redo 栈污染**：修复多次触发异步撤销或重做时，命令按完成顺序回写导致历史栈乱序的问题。
+- **Signal 永不发射卡队列**：修复动作返回的 Signal 长期不发且发射源仍有效时，`GFActionQueueSystem` 可能永久保持 processing 的问题。
+- **定点数非法输入边界**：`GFFixedDecimal` 现在会拒绝 NaN/INF、畸形字符串和过大的小数位，避免整数缩放溢出或静默解析为错误数值。
+- **大数字符串校验**：`GFBigNumber.from_string()` 现在会拒绝包含非法字符或重复小数点的输入。
+- **定点数截断格式化失效**：修复 `GFNumberFormatter.format_full()` 对 `GFFixedDecimal` 忽略 `use_truncation` 的问题。
+- **战斗扩展空值与标签边界**：修复空 Modifier、空 Skill/Buff、负数标签移除层数，以及缺少 TagComponent 时必需标签被绕过的边界问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFVisualAction.signal_timeout_seconds: float`。
+- 新增 `GFVisualAction.with_signal_timeout(seconds: float) -> GFVisualAction`。
+- 新增 `GFFixedDecimal.MAX_DECIMAL_PLACES`。
+- `GFVisualAction` 等待 Signal 的默认行为增加 30 秒安全超时；如确实需要无限等待，可将 `signal_timeout_seconds` 设为 `0.0`。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果项目中存在超长时间等待的自定义 `GFVisualAction`，请显式调用 `with_signal_timeout(0.0)` 关闭超时，或设置更符合业务的秒数。
+2. 如果导表或存档会传入 `GFFixedDecimal` 的小数位，请确保不超过 `GFFixedDecimal.MAX_DECIMAL_PLACES`。
+3. 如果之前依赖 `GFFixedDecimal.from_string()` / `GFBigNumber.from_string()` 对非法字符串的宽松解析，需要改为在上层清洗输入或处理返回零值的错误分支。
+4. 如果有代码在异步 undo/redo 尚未完成时继续写入命令历史，应改为等待当前操作完成后再触发下一次历史变更。
+
+### 📍 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/combat/gf_attribute.gd`
+- `addons/gf/extensions/combat/gf_buff.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/extensions/combat/gf_skill.gd`
+- `addons/gf/extensions/combat/gf_tag_component.gd`
+- `addons/gf/foundation/formatting/gf_number_formatter.gd`
+- `addons/gf/foundation/math/gf_progression_math.gd`
+- `addons/gf/foundation/numeric/gf_big_number.gd`
+- `addons/gf/foundation/numeric/gf_fixed_decimal.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_command_history_utility.gd`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_big_number.gd`
+- `tests/gf_core/test_gf_combat_extension.gd`
+- `tests/gf_core/test_gf_command_history_utility.gd`
+- `tests/gf_core/test_gf_fixed_decimal.gd`
+- `tests/gf_core/test_gf_number_formatter.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+
 ## [1.7.0] - 2026-04-24
 
 **版本概述**：为挂机和模拟经营等高数值项目补出独立的 `Foundation` 基础层，明确纯算法/值对象与运行时 `Utility` 的边界，并正式引入大数、定点数、统一数值显示格式化与进度曲线数学能力。
