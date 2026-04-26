@@ -16,6 +16,55 @@
 
 ---
 
+## [1.9.0] - 2026-04-27
+
+**版本概述**：吸收依赖注入容器的装配经验，补强项目启动安装器、场景级局部上下文、父级架构回退与注册边界提示，同时修复事件系统遍历中先注册再注销的 pending 合并边缘问题。
+
+### 🚀 新增特性 (Added)
+- **项目级 Installer**：新增 `GFInstaller`，可在 `Project Settings > gf/project/installers` 中登记安装器脚本，由 `Gf.init()` / `Gf.set_architecture()` 在生命周期初始化前自动执行。
+- **场景级 NodeContext**：新增 `GFNodeContext`，支持 `SCOPED` 与 `INHERITED` 两种模式；Scoped 架构会自动初始化、驱动 tick，并在节点退出树时释放局部模块。
+- **父级架构回退**：`GFArchitecture` 新增父级架构引用，本地未找到依赖时可回退到父级架构查询，便于关卡、房间、调试面板等局部模块复用全局服务。
+- **模块注入 Hook**：注册模块时，如果实例实现了 `inject_dependencies(architecture)`，框架会自动注入当前架构引用。
+- **显式替换接口**：新增 `replace_model()` / `replace_system()` / `replace_utility()`，用于明确替换已注册模块并释放旧实例。
+
+### 🔄 机制更改 (Changed)
+- **重复注册显式提示**：重复调用 `register_model/system/utility()` 时不再静默忽略，而是输出 warning，并提示使用 replace 接口。
+- **插件设置补齐**：编辑器插件现在会创建 `gf/project/installers` 项目设置，并在添加/移除 `Gf` AutoLoad 前检查 ProjectSettings 状态。
+- **事件 pending 合并收敛**：类型事件与简单事件在遍历中先注册再注销同一回调时，会移除对应 pending add，避免下一次派发误触发。
+
+### 🐛 Bug 修复 (Fixed)
+- **事件回调残留**：修复同一轮事件派发中 `register -> unregister` 同一个回调后，该回调仍可能在 flush 后残留的问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFInstaller.install(architecture: GFArchitecture) -> void`。
+- 新增 `GFNodeContext`、`GFNodeContext.ScopeMode`、`GFNodeContext.context_ready`。
+- 新增 `GFArchitecture.get_parent_architecture()` / `set_parent_architecture()`。
+- 新增 `GFArchitecture.replace_model()` / `replace_system()` / `replace_utility()`。
+- 新增 `Gf.replace_model()` / `replace_system()` / `replace_utility()`。
+- 新增 `Gf.unregister_model()` / `unregister_system()` / `unregister_utility()`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需强制迁移；手写 boot 注册流程保持可用。
+2. 若项目启动注册项越来越多，建议创建一个或多个 `GFInstaller`，并把路径加入 `gf/project/installers`。
+3. 若存在关卡专属 System/Utility，建议用 `GFNodeContext.SCOPED` 承载，避免手动维护瞬态清理列表。
+4. 若旧代码依赖重复注册静默忽略，当前版本会多一条 warning；如确实需要替换，请改用 `replace_*()`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `README.md`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_installer.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/docs/wiki/01. 架构概览 (Architecture).md`
+- `addons/gf/docs/wiki/02. 生命周期与初始化 (Lifecycle).md`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_type_event_system.gd`
+
+---
+
 ## [1.8.0] - 2026-04-26
 
 **版本概述**：补齐小型游戏高频基础能力，收敛战斗修饰器语义、关卡流程、网格算法与常用表现动作，并同步修正文档和生成模板中的接口漂移。

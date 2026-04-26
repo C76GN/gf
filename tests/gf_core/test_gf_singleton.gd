@@ -1,6 +1,15 @@
 ## 测试 Gf 全局单例的便捷代理方法 (Facade 模式)
 extends GutTest
 
+
+# --- 常量 ---
+
+const INSTALLERS_SETTING: String = "gf/project/installers"
+const TEST_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_test_installer.gd"
+const GFNodeContextBase = preload("res://addons/gf/core/gf_node_context.gd")
+const InstallerModelFixture = preload("res://tests/gf_core/fixtures/installers/installer_model_fixture.gd")
+
+
 # --- 辅助类 ---
 
 class DummyModel extends GFModel:
@@ -20,6 +29,40 @@ class ConcreteUtility extends UtilityBase:
 
 class AlternateConcreteUtility extends UtilityBase:
 	pass
+
+class DisposableUtility extends GFUtility:
+	var disposed: bool = false
+
+	func dispose() -> void:
+		disposed = true
+
+class InjectedUtility extends GFUtility:
+	var injected_architecture: GFArchitecture = null
+
+	func inject_dependencies(architecture: GFArchitecture) -> void:
+		injected_architecture = architecture
+
+class ParentScopedUtility extends GFUtility:
+	var disposed: bool = false
+
+	func dispose() -> void:
+		disposed = true
+
+class LocalScopedUtility extends GFUtility:
+	var disposed: bool = false
+
+	func dispose() -> void:
+		disposed = true
+
+class ScopedContext extends GFNodeContextBase:
+	var local_utility: LocalScopedUtility = null
+
+	func _init() -> void:
+		scope_mode = GFNodeContextBase.ScopeMode.SCOPED
+
+	func install(architecture_instance: GFArchitecture) -> void:
+		local_utility = LocalScopedUtility.new()
+		architecture_instance.register_utility_instance(local_utility)
 
 class TickUtility extends GFUtility:
 	var initialized: bool = false
@@ -257,6 +300,102 @@ func test_register_utility_alias_resolves_base_type() -> void:
 	await Gf.init()
 
 	assert_eq(Gf.get_utility(UtilityBase), concrete, "显式 alias 应让基类查询解析到指定实现。")
+
+
+## 验证重复注册会给出明确 warning，且 replace_utility 会释放旧实例并接管新实例。
+func test_duplicate_register_warns_and_replace_utility() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var old_utility := DisposableUtility.new()
+	var duplicate_utility := DisposableUtility.new()
+
+	await Gf.register_utility(old_utility)
+	await Gf.register_utility(duplicate_utility)
+
+	assert_push_warning("[GFArchitecture] register_utility：类型已注册，已忽略重复注册。若需要替换，请使用 replace_utility()。")
+	assert_eq(Gf.get_utility(DisposableUtility), old_utility, "重复注册不应替换原实例。")
+
+	await Gf.replace_utility(duplicate_utility)
+
+	assert_true(old_utility.disposed, "replace_utility 应释放旧实例。")
+	assert_eq(Gf.get_utility(DisposableUtility), duplicate_utility, "replace_utility 应注册新实例。")
+
+
+## 验证模块可通过 inject_dependencies 接收当前架构引用。
+func test_register_injects_architecture_when_hook_exists() -> void:
+	var arch := GFArchitecture.new()
+	var utility := InjectedUtility.new()
+
+	await arch.register_utility_instance(utility)
+
+	assert_eq(utility.injected_architecture, arch, "注册时应把当前架构注入到模块。")
+	arch.dispose()
+
+
+## 验证子架构未命中本地依赖时会回退到父架构。
+func test_child_architecture_falls_back_to_parent() -> void:
+	var parent_arch := GFArchitecture.new()
+	var parent_utility := ParentScopedUtility.new()
+	await parent_arch.register_utility_instance(parent_utility)
+
+	var child_arch := GFArchitecture.new(parent_arch)
+
+	assert_eq(child_arch.get_utility(ParentScopedUtility), parent_utility, "子架构应能回退获取父级 Utility。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
+## 验证项目 Installer 会在 Gf.init() 初始化前自动注册模块。
+func test_project_installer_registers_modules_before_init() -> void:
+	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	ProjectSettings.set_setting(INSTALLERS_SETTING, [TEST_INSTALLER_PATH])
+
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+
+	var installed_model = Gf.get_model(InstallerModelFixture)
+
+	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
+
+	assert_not_null(installed_model, "项目 Installer 应在初始化前注册 Model。")
+	assert_true(installed_model.installed, "Installer 注册的 Model 应保留自身状态。")
+
+
+## 验证 Scoped NodeContext 会创建局部架构、回退父架构并在退出树时释放局部模块。
+func test_scoped_node_context_owns_local_architecture() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var parent_arch := GFArchitecture.new()
+	var parent_utility := ParentScopedUtility.new()
+	await parent_arch.register_utility_instance(parent_utility)
+	await Gf.set_architecture(parent_arch)
+
+	var context := ScopedContext.new()
+	var ready_state := { "done": false }
+	context.context_ready.connect(func(_architecture: GFArchitecture) -> void: ready_state.done = true)
+	add_child(context)
+	await get_tree().process_frame
+
+	var local_utility := context.get_utility(LocalScopedUtility) as LocalScopedUtility
+	var inherited_utility := context.get_utility(ParentScopedUtility) as ParentScopedUtility
+
+	assert_true(ready_state.done, "Scoped NodeContext 应自动初始化局部架构。")
+	assert_not_null(local_utility, "Scoped NodeContext 应注册局部 Utility。")
+	assert_eq(inherited_utility, parent_utility, "局部架构应回退获取父架构依赖。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+	assert_true(local_utility.disposed, "Scoped NodeContext 退出树时应释放局部模块。")
+	assert_false(parent_utility.disposed, "Scoped NodeContext 不应释放父架构模块。")
 
 
 ## 验证并发 init 调用会等待同一轮初始化完成。

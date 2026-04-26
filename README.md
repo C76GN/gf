@@ -49,6 +49,23 @@ arch.register_system_instance(BattleSystem.new())
 await Gf.set_architecture(arch)
 ```
 
+也可以使用项目级 Installer 集中装配模块。先创建安装器脚本：
+
+```gdscript
+class_name GameInstaller
+extends GFInstaller
+
+
+func install(architecture: GFArchitecture) -> void:
+	architecture.register_model_instance(PlayerModel.new())
+	architecture.register_utility_instance(GFStorageUtility.new())
+	architecture.register_system_instance(BattleSystem.new())
+```
+
+然后在 `Project Settings > gf/project/installers` 中加入该脚本路径。调用 `await Gf.init()` 或 `await Gf.set_architecture(arch)` 时，框架会在生命周期初始化前自动执行安装器。
+
+局部玩法或关卡模块可以挂载 `GFNodeContext`。`SCOPED` 模式会创建带父级回退的局部架构，并在节点退出树时自动 `dispose()` 局部模块；`INHERITED` 模式则直接复用最近父级或全局架构。
+
 ## 常用模块
 
 - `GFBigNumber`：适合挂机/放置游戏的尾数 + 指数大数值对象。

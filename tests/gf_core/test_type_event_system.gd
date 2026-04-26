@@ -223,6 +223,26 @@ func test_send_simple_register_during_nested_dispatch_waits_for_outermost_flush(
 	assert_eq(state.order.slice(4), ["outer", "existing", "late"], "下一次简单事件派发应包含之前新增的回调。")
 
 
+## 验证同一轮简单事件中先注册再注销的回调不会在 flush 后残留。
+func test_send_simple_register_then_unregister_during_dispatch_does_not_leave_listener() -> void:
+	var state := {"count": 0, "late_cb": Callable()}
+	var event_id: StringName = &"register_then_unregister_simple"
+
+	state.late_cb = func(_p: Variant) -> void:
+		state.count += 10
+
+	var cb_outer: Callable = func(_p: Variant) -> void:
+		state.count += 1
+		_system.register_simple(event_id, state.late_cb)
+		_system.unregister_simple(event_id, state.late_cb)
+
+	_system.register_simple(event_id, cb_outer)
+	_system.send_simple(event_id)
+	_system.send_simple(event_id)
+
+	assert_eq(state.count, 2, "同一轮派发中先注册再注销的简单事件回调不应残留到下一次派发。")
+
+
 # --- 测试：优先级排序 ---
 
 ## 验证高优先级回调先于低优先级执行。
@@ -363,3 +383,23 @@ func test_register_during_nested_dispatch_waits_for_outermost_flush() -> void:
 
 	_system.send(TestEventA.new())
 	assert_eq(state.order.slice(4), ["outer", "existing", "late"], "下一次派发应包含之前新增的回调。")
+
+
+## 验证同一轮类型事件中先注册再注销的回调不会在 flush 后残留。
+func test_register_then_unregister_during_dispatch_does_not_leave_listener() -> void:
+	var state := {"count": 0, "late_cb": Callable()}
+	var script_a: Script = TestEventA
+
+	state.late_cb = func(_e: TestEventA) -> void:
+		state.count += 10
+
+	var cb_outer: Callable = func(_e: TestEventA) -> void:
+		state.count += 1
+		_system.register(script_a, state.late_cb)
+		_system.unregister(script_a, state.late_cb)
+
+	_system.register(script_a, cb_outer)
+	_system.send(TestEventA.new())
+	_system.send(TestEventA.new())
+
+	assert_eq(state.count, 2, "同一轮派发中先注册再注销的类型事件回调不应残留到下一次派发。")

@@ -5,23 +5,64 @@ extends EditorPlugin
 ## GF Framework 编辑器插件。
 ## 在启用/禁用插件时自动注册/注销 Gf AutoLoad 单例，并提供代码生成工具。
 
+# --- 常量 ---
+
+const AUTOLOAD_NAME: String = "Gf"
+const AUTOLOAD_PATH: String = "res://addons/gf/core/gf.gd"
+const INSTALLERS_SETTING: String = "gf/project/installers"
+const INSTALLERS_DEFAULT := []
+
+
+# --- 私有变量 ---
+
 var _file_dialog: FileDialog
 var _current_template_type: String = ""
 
 
+# --- Godot 生命周期方法 ---
+
 func _enter_tree() -> void:
-	add_autoload_singleton("Gf", "res://addons/gf/core/gf.gd")
-	
+	_ensure_autoload()
+	_ensure_installers_setting()
 	_setup_generator_tools()
 
 
 func _exit_tree() -> void:
-	remove_autoload_singleton("Gf")
-	
+	_remove_autoload()
 	_cleanup_generator_tools()
 
 
 # --- 编辑器工具 ---
+
+func _ensure_autoload() -> void:
+	if not ProjectSettings.has_setting("autoload/%s" % AUTOLOAD_NAME):
+		add_autoload_singleton(AUTOLOAD_NAME, AUTOLOAD_PATH)
+
+
+func _remove_autoload() -> void:
+	if ProjectSettings.has_setting("autoload/%s" % AUTOLOAD_NAME):
+		remove_autoload_singleton(AUTOLOAD_NAME)
+
+
+func _ensure_installers_setting() -> void:
+	var should_save: bool = false
+
+	if not ProjectSettings.has_setting(INSTALLERS_SETTING):
+		ProjectSettings.set_setting(INSTALLERS_SETTING, INSTALLERS_DEFAULT)
+		ProjectSettings.set_initial_value(INSTALLERS_SETTING, INSTALLERS_DEFAULT)
+		should_save = true
+
+	ProjectSettings.add_property_info({
+		"name": INSTALLERS_SETTING,
+		"type": TYPE_ARRAY,
+		"hint": PROPERTY_HINT_TYPE_STRING,
+		"hint_string": "%d/%d:*.gd" % [TYPE_STRING, PROPERTY_HINT_FILE],
+	})
+	ProjectSettings.set_as_basic(INSTALLERS_SETTING, true)
+
+	if should_save:
+		ProjectSettings.save()
+
 
 func _setup_generator_tools() -> void:
 	add_tool_menu_item("GF/生成 System", _show_dialog.bind("System"))

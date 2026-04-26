@@ -35,11 +35,14 @@ var _tick_utilities: Array[Object] = []
 var _physics_utilities: Array[Object] = []
 var _is_iterating_tick_caches: bool = false
 var _tick_caches_dirty: bool = false
+var _parent_architecture: GFArchitecture = null
+var _project_installers_applied: bool = false
 
 
 # --- Godot 生命周期方法 ---
 
-func _init() -> void:
+func _init(parent_architecture: GFArchitecture = null) -> void:
+	_parent_architecture = parent_architecture
 	_event_system = TypeEventSystem.new()
 
 
@@ -49,6 +52,29 @@ func _init() -> void:
 ## @return 已初始化返回 true，否则返回 false。
 func is_inited() -> bool:
 	return _inited
+
+
+## 获取父级架构。Scoped 架构会在本地未找到依赖时回退到父级架构查询。
+## @return 父级架构实例；未设置时返回 null。
+func get_parent_architecture() -> GFArchitecture:
+	return _parent_architecture
+
+
+## 设置父级架构。不会接管父级生命周期。
+## @param parent_architecture: 要作为依赖回退来源的父级架构。
+func set_parent_architecture(parent_architecture: GFArchitecture) -> void:
+	_parent_architecture = parent_architecture
+
+
+## 检查项目级 Installer 是否已经应用到当前架构。
+## @return 已应用返回 true。
+func has_project_installers_applied() -> bool:
+	return _project_installers_applied
+
+
+## 标记项目级 Installer 已应用。由 Gf 启动入口调用。
+func mark_project_installers_applied() -> void:
+	_project_installers_applied = true
 
 
 ## 初始化架构及所有注册的组件（三阶段）。
@@ -111,6 +137,7 @@ func dispose() -> void:
 	_event_system.clear()
 	_time_utility = null
 	_inited = false
+	_project_installers_applied = false
 	_refresh_tick_caches()
 	if was_initializing:
 		initialization_finished.emit()
@@ -218,37 +245,88 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 ## @param script_cls: 系统的脚本类。
 ## @param instance: 系统实例。
 func register_system(script_cls: Script, instance: Object) -> void:
-	if not _systems.has(script_cls):
-		_systems[script_cls] = instance
-		_track_registered_module(instance)
-		_refresh_tick_caches()
-		if _inited:
-			await _initialize_registered_module(instance)
+	if not _validate_registration(script_cls, instance, "System"):
+		return
+	if _systems.has(script_cls):
+		push_warning("[GFArchitecture] register_system：类型已注册，已忽略重复注册。若需要替换，请使用 replace_system()。")
+		return
+
+	_inject_dependencies_if_needed(instance)
+	_systems[script_cls] = instance
+	_track_registered_module(instance)
+	_refresh_tick_caches()
+	if _inited:
+		await _initialize_registered_module(instance)
 
 
 ## 注册 Model 实例。
 ## @param script_cls: 模型的脚本类。
 ## @param instance: 模型实例。
 func register_model(script_cls: Script, instance: Object) -> void:
-	if not _models.has(script_cls):
-		_models[script_cls] = instance
-		_track_registered_module(instance)
-		if _inited:
-			await _initialize_registered_module(instance)
+	if not _validate_registration(script_cls, instance, "Model"):
+		return
+	if _models.has(script_cls):
+		push_warning("[GFArchitecture] register_model：类型已注册，已忽略重复注册。若需要替换，请使用 replace_model()。")
+		return
+
+	_inject_dependencies_if_needed(instance)
+	_models[script_cls] = instance
+	_track_registered_module(instance)
+	if _inited:
+		await _initialize_registered_module(instance)
 
 
 ## 注册 Utility 实例。
 ## @param script_cls: 工具的脚本类。
 ## @param instance: 工具实例。
 func register_utility(script_cls: Script, instance: Object) -> void:
-	if not _utilities.has(script_cls):
-		_utilities[script_cls] = instance
-		_track_registered_module(instance)
+	if not _validate_registration(script_cls, instance, "Utility"):
+		return
+	if _utilities.has(script_cls):
+		push_warning("[GFArchitecture] register_utility：类型已注册，已忽略重复注册。若需要替换，请使用 replace_utility()。")
+		return
+
+	_inject_dependencies_if_needed(instance)
+	_utilities[script_cls] = instance
+	_track_registered_module(instance)
+	_refresh_cached_utility_refs()
+	_refresh_tick_caches()
+	if _inited:
+		await _initialize_registered_module(instance)
 		_refresh_cached_utility_refs()
-		_refresh_tick_caches()
-		if _inited:
-			await _initialize_registered_module(instance)
-			_refresh_cached_utility_refs()
+
+
+## 替换 System 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。
+## @param script_cls: 系统的脚本类。
+## @param instance: 新系统实例。
+func replace_system(script_cls: Script, instance: Object) -> void:
+	if not _validate_registration(script_cls, instance, "System"):
+		return
+	if _systems.has(script_cls):
+		unregister_system(script_cls)
+	await register_system(script_cls, instance)
+
+
+## 替换 Model 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。
+## @param script_cls: 模型的脚本类。
+## @param instance: 新模型实例。
+func replace_model(script_cls: Script, instance: Object) -> void:
+	if not _validate_registration(script_cls, instance, "Model"):
+		return
+	if _models.has(script_cls):
+		unregister_model(script_cls)
+	await register_model(script_cls, instance)
+
+
+## 替换 Utility 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。
+## @param script_cls: 工具的脚本类。
+## @param instance: 新工具实例。
+func replace_utility(script_cls: Script, instance: Object) -> void:
+	if not _validate_registration(script_cls, instance, "Utility"):
+		return
+	if _utilities.has(script_cls):
+		unregister_utility(script_cls)
+	await register_utility(script_cls, instance)
 
 
 ## 为已注册 System 增加一个额外查询别名。
@@ -276,6 +354,9 @@ func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
 ## 便捷注册 System 实例，自动从实例获取脚本类作为注册键。
 ## @param instance: 系统实例，必须附加有 GDScript 脚本。
 func register_system_instance(instance: Object) -> void:
+	if instance == null:
+		push_error("[GDCore] register_system_instance 失败：实例为空。")
+		return
 	var script := instance.get_script() as Script
 	if script == null:
 		push_error("[GDCore] register_system_instance 失败：实例未附加脚本。")
@@ -286,6 +367,9 @@ func register_system_instance(instance: Object) -> void:
 ## 便捷注册 Model 实例，自动从实例获取脚本类作为注册键。
 ## @param instance: 模型实例，必须附加有 GDScript 脚本。
 func register_model_instance(instance: Object) -> void:
+	if instance == null:
+		push_error("[GDCore] register_model_instance 失败：实例为空。")
+		return
 	var script := instance.get_script() as Script
 	if script == null:
 		push_error("[GDCore] register_model_instance 失败：实例未附加脚本。")
@@ -296,6 +380,9 @@ func register_model_instance(instance: Object) -> void:
 ## 便捷注册 Utility 实例，自动从实例获取脚本类作为注册键。
 ## @param instance: 工具实例，必须附加有 GDScript 脚本。
 func register_utility_instance(instance: Object) -> void:
+	if instance == null:
+		push_error("[GDCore] register_utility_instance 失败：实例为空。")
+		return
 	var script := instance.get_script() as Script
 	if script == null:
 		push_error("[GDCore] register_utility_instance 失败：实例未附加脚本。")
@@ -390,7 +477,12 @@ func get_system(script_cls: Script) -> Object:
 	var registered_key := _resolve_registered_key(_systems, _system_aliases, script_cls)
 	if registered_key != null:
 		return _systems.get(registered_key)
-	return _find_assignable_instance(_systems, script_cls, "System")
+	var instance := _find_assignable_instance(_systems, script_cls, "System")
+	if instance != null:
+		return instance
+	if _parent_architecture != null and not _has_assignable_instance(_systems, script_cls):
+		return _parent_architecture.get_system(script_cls)
+	return null
 
 
 ## 通过脚本类获取 Model 实例。
@@ -400,7 +492,12 @@ func get_model(script_cls: Script) -> Object:
 	var registered_key := _resolve_registered_key(_models, _model_aliases, script_cls)
 	if registered_key != null:
 		return _models.get(registered_key)
-	return _find_assignable_instance(_models, script_cls, "Model")
+	var instance := _find_assignable_instance(_models, script_cls, "Model")
+	if instance != null:
+		return instance
+	if _parent_architecture != null and not _has_assignable_instance(_models, script_cls):
+		return _parent_architecture.get_model(script_cls)
+	return null
 
 
 ## 通过脚本类获取 Utility 实例。
@@ -410,7 +507,12 @@ func get_utility(script_cls: Script) -> Object:
 	var registered_key := _resolve_registered_key(_utilities, _utility_aliases, script_cls)
 	if registered_key != null:
 		return _utilities.get(registered_key)
-	return _find_assignable_instance(_utilities, script_cls, "Utility")
+	var instance := _find_assignable_instance(_utilities, script_cls, "Utility")
+	if instance != null:
+		return instance
+	if _parent_architecture != null and not _has_assignable_instance(_utilities, script_cls):
+		return _parent_architecture.get_utility(script_cls)
+	return null
 
 
 # --- 序列化方法 ---
@@ -599,6 +701,21 @@ func _track_registered_module(instance: Object) -> void:
 		_module_lifecycle_stages[instance] = 0
 
 
+func _inject_dependencies_if_needed(instance: Object) -> void:
+	if instance != null and instance.has_method("inject_dependencies"):
+		instance.inject_dependencies(self)
+
+
+func _validate_registration(script_cls: Script, instance: Object, label: String) -> bool:
+	if script_cls == null:
+		push_error("[GFArchitecture] register_%s 失败：脚本类型为空。" % label.to_lower())
+		return false
+	if instance == null:
+		push_error("[GFArchitecture] register_%s 失败：实例为空。" % label.to_lower())
+		return false
+	return true
+
+
 func _refresh_cached_utility_refs() -> void:
 	_time_utility = get_utility(GFTimeUtility) as GFTimeUtility
 
@@ -680,6 +797,15 @@ func _find_assignable_instance(registry: Dictionary, script_cls: Script, label: 
 	if matches.size() > 1:
 		push_warning("[GFArchitecture] get_%s(%s) 匹配到多个实例，请使用显式 alias 注册以消除歧义。" % [label.to_lower(), script_cls.resource_path])
 	return null
+
+
+func _has_assignable_instance(registry: Dictionary, script_cls: Script) -> bool:
+	if script_cls == null:
+		return false
+	for registered_script: Script in registry:
+		if _script_extends_or_equals(registered_script, script_cls):
+			return true
+	return false
 
 
 func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:

@@ -4,6 +4,13 @@ extends Node
 ## Gf: 全局入口单例，负责架构生命周期管理。
 
 
+# --- 常量 ---
+
+## 项目级启动安装器配置。值为 GDScript 路径数组，脚本需继承 GFInstaller。
+const INSTALLERS_SETTING: String = "gf/project/installers"
+const GFInstallerBase = preload("res://addons/gf/core/gf_installer.gd")
+
+
 # --- 私有变量 ---
 
 var _architecture: GFArchitecture = null
@@ -51,6 +58,7 @@ func set_architecture(architecture_instance: GFArchitecture) -> void:
 	if _architecture != null and _architecture != architecture_instance:
 		_architecture.dispose()
 	_architecture = architecture_instance
+	_run_project_installers(_architecture)
 	if not _architecture.is_inited():
 		await _architecture.init()
 
@@ -58,6 +66,7 @@ func set_architecture(architecture_instance: GFArchitecture) -> void:
 ## 初始化当前架构。若尚未创建架构，则自动创建默认 GFArchitecture。
 func init() -> void:
 	var current_arch := create_architecture()
+	_run_project_installers(current_arch)
 	if not current_arch.is_inited():
 		await current_arch.init()
 
@@ -94,6 +103,24 @@ func register_model(instance: Object) -> void:
 ## 便捷注册 Utility 实例。
 func register_utility(instance: Object) -> void:
 	await create_architecture().register_utility_instance(instance)
+
+## 便捷替换 System 实例。
+func replace_system(instance: Object) -> void:
+	var script := _get_instance_script_or_null(instance, "replace_system")
+	if script != null:
+		await create_architecture().replace_system(script, instance)
+
+## 便捷替换 Model 实例。
+func replace_model(instance: Object) -> void:
+	var script := _get_instance_script_or_null(instance, "replace_model")
+	if script != null:
+		await create_architecture().replace_model(script, instance)
+
+## 便捷替换 Utility 实例。
+func replace_utility(instance: Object) -> void:
+	var script := _get_instance_script_or_null(instance, "replace_utility")
+	if script != null:
+		await create_architecture().replace_utility(script, instance)
 
 ## 便捷注册 System 实例，并额外登记一个查询别名。
 func register_system_as(instance: Object, alias_cls: Script) -> void:
@@ -196,6 +223,24 @@ func unlisten_simple(event_id: StringName, on_event: Callable) -> void:
 	if arch != null:
 		arch.unregister_simple_event(event_id, on_event)
 
+## 注销 System 实例。
+func unregister_system(script_cls: Script) -> void:
+	var arch := _get_architecture_or_null("unregister_system")
+	if arch != null:
+		arch.unregister_system(script_cls)
+
+## 注销 Model 实例。
+func unregister_model(script_cls: Script) -> void:
+	var arch := _get_architecture_or_null("unregister_model")
+	if arch != null:
+		arch.unregister_model(script_cls)
+
+## 注销 Utility 实例。
+func unregister_utility(script_cls: Script) -> void:
+	var arch := _get_architecture_or_null("unregister_utility")
+	if arch != null:
+		arch.unregister_utility(script_cls)
+
 
 # --- 私有/辅助方法 ---
 
@@ -204,3 +249,69 @@ func _get_architecture_or_null(context: String) -> GFArchitecture:
 		push_error("[GDCore] %s 失败：架构尚未初始化，请先注册架构。" % context)
 		return null
 	return _architecture
+
+
+func _get_instance_script_or_null(instance: Object, context: String) -> Script:
+	if instance == null:
+		push_error("[GDCore] %s 失败：实例为空。" % context)
+		return null
+	var script := instance.get_script() as Script
+	if script == null:
+		push_error("[GDCore] %s 失败：实例未附加脚本。" % context)
+		return null
+	return script
+
+
+func _run_project_installers(architecture_instance: GFArchitecture) -> void:
+	if architecture_instance == null or architecture_instance.has_project_installers_applied():
+		return
+
+	architecture_instance.mark_project_installers_applied()
+	var installer_paths := _get_project_installer_paths()
+	for path: String in installer_paths:
+		var installer: Object = _create_installer(path)
+		if installer != null:
+			installer.install(architecture_instance)
+
+
+func _get_project_installer_paths() -> Array[String]:
+	var raw_paths: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	var installer_paths: Array[String] = []
+
+	if raw_paths is PackedStringArray:
+		for path: String in raw_paths:
+			installer_paths.append(path)
+		return installer_paths
+
+	if raw_paths is Array:
+		for path_variant: Variant in raw_paths:
+			if typeof(path_variant) == TYPE_STRING:
+				installer_paths.append(String(path_variant))
+			else:
+				push_warning("[GDCore] 项目 Installer 配置包含非字符串项，已跳过。")
+		return installer_paths
+
+	push_error("[GDCore] 项目 Installer 配置必须是路径数组。")
+	return installer_paths
+
+
+func _create_installer(path: String) -> Object:
+	if path.is_empty():
+		push_error("[GDCore] 项目 Installer 路径为空。")
+		return null
+
+	var installer_script := load(path) as Script
+	if installer_script == null:
+		push_error("[GDCore] 无法加载项目 Installer：%s" % path)
+		return null
+
+	if not installer_script.can_instantiate():
+		push_error("[GDCore] 项目 Installer 无法实例化：%s" % path)
+		return null
+
+	var instance: Object = installer_script.new()
+	if not (instance is GFInstallerBase):
+		push_error("[GDCore] 项目 Installer 必须继承 GFInstaller：%s" % path)
+		return null
+
+	return instance

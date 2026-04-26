@@ -66,6 +66,7 @@ func register(event_type: Script, on_event: Callable, priority: int = 0) -> void
 func unregister(event_type: Script, on_event: Callable) -> void:
 	if _event_listeners.has(event_type):
 		if _type_dispatch_depth > 0:
+			_remove_pending_type_add(event_type, on_event)
 			_pending_removes_type.append({"event_type": event_type, "callable": on_event})
 			return
 
@@ -141,6 +142,7 @@ func register_simple(event_id: StringName, on_event: Callable) -> void:
 func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 	if _simple_event_listeners.has(event_id):
 		if _simple_dispatch_depth > 0:
+			_remove_pending_simple_add(event_id, on_event)
 			_pending_removes_simple.append({"event_id": event_id, "callable": on_event})
 			return
 		var listeners := _simple_event_listeners[event_id] as Array
@@ -203,6 +205,20 @@ func _is_pending_simple_remove(event_id: StringName, on_event: Callable) -> bool
 		if pending.event_id == event_id and pending.callable == on_event:
 			return true
 	return false
+
+
+func _remove_pending_type_add(event_type: Script, on_event: Callable) -> void:
+	for i: int in range(_pending_adds_type.size() - 1, -1, -1):
+		var pending := _pending_adds_type[i] as Dictionary
+		if pending.event_type == event_type and pending.callable == on_event:
+			_pending_adds_type.remove_at(i)
+
+
+func _remove_pending_simple_add(event_id: StringName, on_event: Callable) -> void:
+	for i: int in range(_pending_adds_simple.size() - 1, -1, -1):
+		var pending := _pending_adds_simple[i] as Dictionary
+		if pending.event_id == event_id and pending.callable == on_event:
+			_pending_adds_simple.remove_at(i)
 
 
 func _flush_type_pending() -> void:
