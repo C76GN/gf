@@ -71,12 +71,12 @@ func remove_modifier(p_modifier: GFModifier) -> void:
 	_recalculate()
 
 
-## 根据 source_tag 移除所有匹配的修饰器。
-## @param p_source_tag: 来源标识。
-func remove_modifiers_by_source(p_source_tag: StringName) -> void:
+## 根据 source_id 移除所有匹配的修饰器。
+## @param p_source_id: 来源标识。
+func remove_modifiers_by_source(p_source_id: StringName) -> void:
 	var to_remove: Array[GFModifier] = []
 	for modifier in _modifiers:
-		if modifier.source_tag == p_source_tag:
+		if modifier.source_id == p_source_id:
 			to_remove.append(modifier)
 	
 	if to_remove.is_empty():

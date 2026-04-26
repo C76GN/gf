@@ -55,13 +55,16 @@ await Gf.set_architecture(arch)
 - `GFFixedDecimal`：适合货币、税率与经营数值的定点小数值对象。
 - `GFNumberFormatter`：统一的完整显示、紧凑缩写、科学计数法格式化工具。
 - `GFProgressionMath`：价格曲线、收益曲线、里程碑倍率、软上限与分段离线收益结算工具。
+- `GFGridMath`：网格索引、邻居、泛洪、BFS 与两折连线等纯算法工具。
 - `TypeEventSystem`：强类型事件与轻量 `StringName` 事件。
 - `BindableProperty`：响应式属性，适合 Model 到 UI 的数据绑定。
 - `GFAssetUtility`：异步资源加载与 LRU 缓存。
 - `GFSceneUtility`：异步场景切换与瞬态模块清理。
+- `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFObjectPoolUtility`：节点对象池。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFActionQueueSystem`：表现动作队列。
+- `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
 - `GFCombatSystem`：轻量战斗扩展。
 
 ## 测试

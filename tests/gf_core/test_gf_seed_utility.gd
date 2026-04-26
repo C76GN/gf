@@ -55,3 +55,13 @@ func test_get_branched_rng_determinism() -> void:
 	var val2 := rng2.randi()
 	
 	assert_eq(val1, val2, "在完全相同的主状态和标签下，生成的子 RNG 序列应当是确定性的。")
+
+
+func test_get_branched_rng_does_not_advance_main_rng() -> void:
+	_seed_util.set_global_seed(24680)
+	var state_before := _seed_util.get_state()
+
+	_seed_util.get_branched_rng("loot")
+	_seed_util.get_branched_rng("loot")
+
+	assert_eq(_seed_util.get_state(), state_before, "派生子 RNG 不应推进主随机序列状态。")

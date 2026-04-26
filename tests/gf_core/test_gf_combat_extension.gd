@@ -40,7 +40,7 @@ func test_attribute_calculation() -> void:
 	
 	# 移除百分比加值
 	# Formula: (100 + 20) * 1.0 + 10 = 130
-	attr.remove_modifiers_by_source(&"") # 因为没传 source，默认是空
+	attr.remove_modifiers_by_source(&"")
 	# 移除所有后再手动测试移除单个
 	attr.set_base_value(100.0)
 	var mod := GFModifier.create_percent_add(1.0)
@@ -48,6 +48,18 @@ func test_attribute_calculation() -> void:
 	assert_eq(attr.current_value.get_value(), 200.0)
 	attr.remove_modifier(mod)
 	assert_eq(attr.current_value.get_value(), 100.0)
+
+
+func test_modifier_separates_attribute_and_source() -> void:
+	var attr := GFAttribute.new(10.0)
+	var mod := GFModifier.create_base_add(5.0, &"ATK", &"Ring")
+
+	attr.add_modifier(mod)
+	attr.remove_modifiers_by_source(&"ATK")
+	assert_eq(attr.current_value.get_value(), 15.0, "按属性 ID 移除不应误删来源为 Ring 的修饰器。")
+
+	attr.remove_modifiers_by_source(&"Ring")
+	assert_eq(attr.current_value.get_value(), 10.0, "按来源 ID 移除应清理匹配修饰器。")
 
 
 ## 测试 BindableProperty 的响应式。
@@ -115,6 +127,24 @@ func test_attribute_ignores_null_modifier() -> void:
 	attr.add_modifier(null)
 
 	assert_eq(attr.current_value.get_value(), 10.0, "空修饰器不应影响属性计算。")
+
+
+func test_buff_modifier_supports_legacy_source_tag_attribute_fallback() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	entity.add_attr(&"ATK", 10.0)
+	system.register_entity(entity)
+
+	var buff := GFBuff.new()
+	var mod := GFModifier.new()
+	mod.value = 5.0
+	mod.source_tag = &"ATK"
+	buff.modifiers.append(mod)
+	buff.setup(&"LegacyPowerUp", 1.0, entity)
+
+	system.add_buff(entity, buff)
+
+	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "旧 source_tag 写法仍应作为目标属性回退。")
 
 
 ## 测试 GFCombatSystem 的 Buff 驱动。

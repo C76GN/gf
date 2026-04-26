@@ -544,9 +544,9 @@ func _advance_all_modules_to_stage(target_stage: int, lifecycle_serial: int) -> 
 		var progressed: bool = false
 		if await _advance_registry_to_stage(_models, target_stage, lifecycle_serial):
 			progressed = true
-		if await _advance_registry_to_stage(_systems, target_stage, lifecycle_serial):
-			progressed = true
 		if await _advance_registry_to_stage(_utilities, target_stage, lifecycle_serial):
+			progressed = true
+		if await _advance_registry_to_stage(_systems, target_stage, lifecycle_serial):
 			progressed = true
 		if not progressed:
 			return

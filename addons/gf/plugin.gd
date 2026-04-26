@@ -76,12 +76,10 @@ func _on_file_selected(path: String) -> void:
 
 
 func _get_template(type: String) -> String:
-	var base_template := """# {FileName}
+	var base_template := """## {ClassName}: TODO。
 class_name {ClassName}
 extends {BaseClass}
 
-
-## {ClassName}: 
 
 # --- 信号 ---
 

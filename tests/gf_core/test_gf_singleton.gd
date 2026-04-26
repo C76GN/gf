@@ -70,6 +70,36 @@ class SlowInitUtility extends GFUtility:
 		ready_called = true
 
 
+class RecordingModel extends GFModel:
+	var order: Array
+
+	func _init(p_order: Array) -> void:
+		order = p_order
+
+	func async_init() -> void:
+		order.append("model")
+
+
+class RecordingUtility extends GFUtility:
+	var order: Array
+
+	func _init(p_order: Array) -> void:
+		order = p_order
+
+	func async_init() -> void:
+		order.append("utility")
+
+
+class RecordingSystem extends GFSystem:
+	var order: Array
+
+	func _init(p_order: Array) -> void:
+		order = p_order
+
+	func async_init() -> void:
+		order.append("system")
+
+
 class DummyQuery extends GFQuery:
 	func execute() -> Variant:
 		return "query_success"
@@ -193,6 +223,23 @@ func test_register_during_init_receives_full_lifecycle() -> void:
 
 	Gf.get_architecture().tick(0.25)
 	assert_eq(late_utility.tick_count, 1, "初始化过程中动态注册的 Utility 完成后应参与后续 tick。")
+
+
+## 验证三阶段生命周期在每个阶段按 Model -> Utility -> System 推进。
+func test_lifecycle_stage_order_prefers_utilities_before_systems() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var order: Array = []
+	var arch := GFArchitecture.new()
+	await arch.register_model_instance(RecordingModel.new(order))
+	await arch.register_system_instance(RecordingSystem.new(order))
+	await arch.register_utility_instance(RecordingUtility.new(order))
+
+	await Gf.set_architecture(arch)
+
+	assert_eq(order, ["model", "utility", "system"], "async_init 阶段应先完成 Model，再完成 Utility，最后进入 System。")
 
 
 ## 验证可通过显式 alias 以抽象基类获取具体实现。

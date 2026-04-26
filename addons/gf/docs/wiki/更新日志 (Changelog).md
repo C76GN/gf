@@ -16,6 +16,35 @@
 
 ---
 
+## [1.8.0] - 2026-04-26
+
+**版本概述**：补齐小型游戏高频基础能力，收敛战斗修饰器语义、关卡流程、网格算法与常用表现动作，并同步修正文档和生成模板中的接口漂移。
+
+### 🚀 新增特性 (Added)
+- **网格算法基础件**：新增 `GFGridMath`，提供索引转换、邻居枚举、泛洪、BFS 寻路与两折连线判断。
+- **关卡流程工具**：新增 `GFLevelUtility`，统一处理关卡开始、重开、胜利、失败信号，并可在重开时清理命令历史与表现队列。
+- **常用表现动作**：新增 `GFMoveTweenAction`、`GFFlashAction` 与 `GFAudioAction`，覆盖移动、闪色、音效三类常见队列动作。
+
+### 🔄 机制更改 (Changed)
+- **生命周期推进顺序统一**：同一阶段内改为 `Model -> Utility -> System`，与文档和启动约定保持一致。
+- **战斗修饰器语义收敛**：`GFModifier` 新增 `attribute_id` 与 `source_id`，明确区分“作用到哪个属性”和“来自哪个来源”。
+- **Seed 分支 RNG 不污染主流**：`GFSeedUtility.get_branched_rng()` 改为基于主 RNG 状态与分支计数派生，不再推进主随机流。
+
+### 🐛 Bug 修复 (Fixed)
+- **Buff 属性挂载歧义**：修复 Buff 应用修饰器时把来源标识误当属性名的问题，并保留旧 `source_tag` 写法作为兼容回退。
+- **文档与生成模板漂移**：修复命令返回值、状态机入口参数、撤销接口、数据绑定代码块、Controller 缓存说明等过期示例。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFModifier.attribute_id: StringName`。
+- 新增 `GFModifier.source_id: StringName`。
+- `GFModifier.create_base_add/create_percent_add/create_final_add()` 的第二参数现在表示 `attribute_id`，第三参数表示 `source_id`。
+- `GFModifier.source_tag` 暂保留为兼容别名，会映射到 `source_id`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目如果用 `GFModifier.create_percent_add(0.2, &"STR")` 表示作用属性，无需修改。
+2. 如果旧项目把第二参数当“来源”使用，请改为 `GFModifier.create_percent_add(0.2, &"ATK", &"SourceId")`，或显式设置 `source_id`。
+3. 如果需要按来源批量移除修饰器，请使用 `remove_modifiers_by_source(source_id)` 并确保修饰器来源写入 `source_id`。
+
 ## [1.7.1] - 2026-04-25
 
 **版本概述**：聚焦 1.7.0 引入 Foundation 后暴露出的数值边界，以及核心生命周期、命令历史和动作队列在异步场景下的稳定性，补齐若干会导致假完成、栈乱序或队列悬挂的防御。

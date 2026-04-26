@@ -99,7 +99,7 @@ func _apply_effects() -> void:
 			if mod == null:
 				continue
 
-			var attr := owner.get_attribute(mod.source_tag) as GFAttribute
+			var attr := owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
 			if attr != null:
 				attr.add_modifier(mod)
 
@@ -122,6 +122,13 @@ func _remove_effects() -> void:
 			if mod == null:
 				continue
 
-			var attr := owner.get_attribute(mod.source_tag) as GFAttribute
+			var attr := owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
 			if attr != null:
 				attr.remove_modifier(mod)
+
+
+func _get_modifier_attribute_id(modifier: GFModifier) -> StringName:
+	if modifier.attribute_id != &"":
+		return modifier.attribute_id
+
+	return modifier.source_id

@@ -1,16 +1,11 @@
-extends Node
 class_name GFController
+extends Node
 
 
 ## GFController: 连接 UI/输入与架构的控制器基类。
 ##
-## 内置懒加载缓存机制，高频调用 get_model/get_system/get_utility 时
-## 首次从架构获取后自动缓存，后续直接从本地字典取值，避免频繁跨类哈希查找。
-
-
-# --- 私有变量 ---
-
-# (删除 _cache 以防止内存泄漏和野指针)
+## 提供访问架构的便捷代理。这里不缓存 Model/System/Utility 引用，
+## 以避免架构切换或模块注销后保留过期对象。
 
 
 # --- 获取方法 ---

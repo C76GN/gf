@@ -1,7 +1,7 @@
 ## GFSeedUtility: 全局随机数种子管理器。
 ##
 ## 内部维护一个主 RandomNumberGenerator，并支持基于字符串标签派生
-## 出独立的子 RNG，子 RNG 的生成不影响主随机序列，可用于保证
+## 出独立的子 RNG。子 RNG 的生成不推进主随机序列，可用于保证
 ## 回放系统的确定性。
 class_name GFSeedUtility
 extends GFUtility
@@ -11,6 +11,7 @@ extends GFUtility
 
 var _rng: RandomNumberGenerator
 var _global_seed: int
+var _branch_counters: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -19,6 +20,7 @@ var _global_seed: int
 func init() -> void:
 	_rng = RandomNumberGenerator.new()
 	_global_seed = 0
+	_branch_counters.clear()
 
 
 # --- 公共方法 ---
@@ -28,6 +30,7 @@ func init() -> void:
 func set_global_seed(seed_hash: int) -> void:
 	_global_seed = seed_hash
 	_rng.seed = seed_hash
+	_branch_counters.clear()
 
 
 ## 获取当前全局主种子。
@@ -48,12 +51,20 @@ func set_state(state: int) -> void:
 
 
 ## 基于主 RNG 当前状态与字符串标签，派生出一个独立的子 RNG。
-## 每次调用会推进主 RNG 的状态，确保同一标签在不同时间点
-## 产生不同的随机序列，同时在相同种子和操作序列下保持确定性。
+## 每次调用只推进当前标签的分支计数，不推进主 RNG 的随机序列。
+## 同一主状态、同一标签和同一调用序号会产生确定的子随机序列。
 ## @param string_seed: 用于标识子随机流用途的字符串（如 "loot_table"、"enemy_ai"）。
 ## @return 一个已完成种子初始化的独立 RandomNumberGenerator 实例。
 func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
 	var branched := RandomNumberGenerator.new()
-	var branch_seed: int = hash(str(_rng.randi()) + string_seed)
+	var branch_index: int = int(_branch_counters.get(string_seed, 0))
+	_branch_counters[string_seed] = branch_index + 1
+
+	var branch_seed: int = hash("%d:%d:%s:%d" % [
+		_global_seed,
+		_rng.state,
+		string_seed,
+		branch_index,
+	])
 	branched.seed = branch_seed
 	return branched
