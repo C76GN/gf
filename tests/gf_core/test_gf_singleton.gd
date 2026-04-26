@@ -54,15 +54,37 @@ class LocalScopedUtility extends GFUtility:
 	func dispose() -> void:
 		disposed = true
 
+class LocalLookupSystem extends GFSystem:
+	var local_utility: LocalScopedUtility = null
+	var parent_utility: ParentScopedUtility = null
+
+	func ready() -> void:
+		local_utility = get_utility(LocalScopedUtility) as LocalScopedUtility
+		parent_utility = get_utility(ParentScopedUtility) as ParentScopedUtility
+
+class ScopedController extends GFController:
+	func get_local_utility() -> LocalScopedUtility:
+		return get_utility(LocalScopedUtility) as LocalScopedUtility
+
+	func get_parent_utility() -> ParentScopedUtility:
+		return get_utility(ParentScopedUtility) as ParentScopedUtility
+
 class ScopedContext extends GFNodeContextBase:
 	var local_utility: LocalScopedUtility = null
+	var lookup_system: LocalLookupSystem = null
 
 	func _init() -> void:
 		scope_mode = GFNodeContextBase.ScopeMode.SCOPED
 
 	func install(architecture_instance: GFArchitecture) -> void:
 		local_utility = LocalScopedUtility.new()
+		lookup_system = LocalLookupSystem.new()
 		architecture_instance.register_utility_instance(local_utility)
+		architecture_instance.register_system_instance(lookup_system)
+
+class FactoryCommand extends GFCommand:
+	func get_parent_utility_from_command() -> ParentScopedUtility:
+		return get_utility(ParentScopedUtility) as ParentScopedUtility
 
 class TickUtility extends GFUtility:
 	var initialized: bool = false
@@ -386,16 +408,44 @@ func test_scoped_node_context_owns_local_architecture() -> void:
 
 	var local_utility := context.get_utility(LocalScopedUtility) as LocalScopedUtility
 	var inherited_utility := context.get_utility(ParentScopedUtility) as ParentScopedUtility
+	var lookup_system := context.get_system(LocalLookupSystem) as LocalLookupSystem
+	var controller := ScopedController.new()
+	context.add_child(controller)
+	await get_tree().process_frame
 
 	assert_true(ready_state.done, "Scoped NodeContext 应自动初始化局部架构。")
 	assert_not_null(local_utility, "Scoped NodeContext 应注册局部 Utility。")
 	assert_eq(inherited_utility, parent_utility, "局部架构应回退获取父架构依赖。")
+	assert_eq(lookup_system.local_utility, local_utility, "Scoped System 的基类 get_utility 应优先访问局部架构。")
+	assert_eq(lookup_system.parent_utility, parent_utility, "Scoped System 的基类 get_utility 应能回退父架构。")
+	assert_eq(controller.get_local_utility(), local_utility, "Scoped Controller 应沿场景树找到局部架构。")
+	assert_eq(controller.get_parent_utility(), parent_utility, "Scoped Controller 应通过局部架构回退父架构。")
 
 	context.queue_free()
 	await get_tree().process_frame
 
 	assert_true(local_utility.disposed, "Scoped NodeContext 退出树时应释放局部模块。")
 	assert_false(parent_utility.disposed, "Scoped NodeContext 不应释放父架构模块。")
+
+
+## 验证工厂创建的短生命周期对象会自动注入当前架构。
+func test_factory_create_instance_injects_architecture() -> void:
+	var parent_arch := GFArchitecture.new()
+	var parent_utility := ParentScopedUtility.new()
+	await parent_arch.register_utility_instance(parent_utility)
+
+	var child_arch := GFArchitecture.new(parent_arch)
+	child_arch.register_factory(FactoryCommand, func() -> Object:
+		return FactoryCommand.new()
+	)
+
+	var command := child_arch.create_instance(FactoryCommand) as FactoryCommand
+
+	assert_not_null(command, "create_instance 应返回工厂创建的命令。")
+	assert_eq(command.get_parent_utility_from_command(), parent_utility, "工厂创建的命令应使用创建它的架构解析依赖。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
 
 
 ## 验证并发 init 调用会等待同一轮初始化完成。

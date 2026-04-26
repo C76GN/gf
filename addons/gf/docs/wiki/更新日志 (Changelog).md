@@ -26,11 +26,13 @@
 - **父级架构回退**：`GFArchitecture` 新增父级架构引用，本地未找到依赖时可回退到父级架构查询，便于关卡、房间、调试面板等局部模块复用全局服务。
 - **模块注入 Hook**：注册模块时，如果实例实现了 `inject_dependencies(architecture)`，框架会自动注入当前架构引用。
 - **显式替换接口**：新增 `replace_model()` / `replace_system()` / `replace_utility()`，用于明确替换已注册模块并释放旧实例。
+- **短生命周期对象工厂**：新增 `register_factory()` / `create_instance()`，用于创建 Command、Query、技能执行载体等无需进入生命周期的临时对象，并自动注入当前架构。
 
 ### 🔄 机制更改 (Changed)
 - **重复注册显式提示**：重复调用 `register_model/system/utility()` 时不再静默忽略，而是输出 warning，并提示使用 replace 接口。
 - **插件设置补齐**：编辑器插件现在会创建 `gf/project/installers` 项目设置，并在添加/移除 `Gf` AutoLoad 前检查 ProjectSettings 状态。
 - **事件 pending 合并收敛**：类型事件与简单事件在遍历中先注册再注销同一回调时，会移除对应 pending add，避免下一次派发误触发。
+- **上下文优先的基类访问**：`GFController` 会沿父节点查找最近的 `GFNodeContext`；注册到架构的 `GFModel`、`GFSystem`、`GFUtility` 以及经架构执行/创建的 `GFCommand`、`GFQuery` 会优先使用注入架构解析依赖。
 
 ### 🐛 Bug 修复 (Fixed)
 - **事件回调残留**：修复同一轮事件派发中 `register -> unregister` 同一个回调后，该回调仍可能在 flush 后残留的问题。
@@ -40,17 +42,27 @@
 - 新增 `GFNodeContext`、`GFNodeContext.ScopeMode`、`GFNodeContext.context_ready`。
 - 新增 `GFArchitecture.get_parent_architecture()` / `set_parent_architecture()`。
 - 新增 `GFArchitecture.replace_model()` / `replace_system()` / `replace_utility()`。
+- 新增 `GFArchitecture.register_factory()` / `replace_factory()` / `unregister_factory()` / `create_instance()`。
 - 新增 `Gf.replace_model()` / `replace_system()` / `replace_utility()`。
 - 新增 `Gf.unregister_model()` / `unregister_system()` / `unregister_utility()`。
+- 新增 `Gf.register_factory()` / `replace_factory()` / `unregister_factory()` / `create_instance()`。
+- `GFController.get_model()` / `get_system()` / `get_utility()` 现在优先使用最近的 `GFNodeContext`。
 
 ### 📘 升级指南 (Migration Guide)
 1. 旧项目无需强制迁移；手写 boot 注册流程保持可用。
 2. 若项目启动注册项越来越多，建议创建一个或多个 `GFInstaller`，并把路径加入 `gf/project/installers`。
 3. 若存在关卡专属 System/Utility，建议用 `GFNodeContext.SCOPED` 承载，避免手动维护瞬态清理列表。
 4. 若旧代码依赖重复注册静默忽略，当前版本会多一条 warning；如确实需要替换，请改用 `replace_*()`。
+5. 如果某个 `GFController` 被放在 `GFNodeContext` 子树下，它现在会优先访问局部架构；若需要访问全局架构，请显式使用 `Gf.get_architecture()`。
 
 ### 📁 核心受影响文件 (Affected Files)
 - `README.md`
+- `addons/gf/base/gf_command.gd`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/base/gf_query.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
 - `addons/gf/core/gf.gd`
 - `addons/gf/core/gf_architecture.gd`
 - `addons/gf/core/gf_installer.gd`

@@ -20,6 +20,7 @@ signal initialization_finished
 var _systems: Dictionary = {}
 var _models: Dictionary = {}
 var _utilities: Dictionary = {}
+var _factories: Dictionary = {}
 var _system_aliases: Dictionary = {}
 var _model_aliases: Dictionary = {}
 var _utility_aliases: Dictionary = {}
@@ -130,6 +131,7 @@ func dispose() -> void:
 	_models.clear()
 	_systems.clear()
 	_utilities.clear()
+	_factories.clear()
 	_model_aliases.clear()
 	_system_aliases.clear()
 	_utility_aliases.clear()
@@ -183,6 +185,7 @@ func physics_tick(delta: float) -> void:
 ## @param command: 要执行的命令实例。
 ## @return 命令的执行结果（null 或 Signal）。
 func send_command(command: Object) -> Variant:
+	_inject_dependencies_if_needed(command)
 	if command.has_method("execute"):
 		return command.execute()
 	return null
@@ -192,6 +195,7 @@ func send_command(command: Object) -> Variant:
 ## @param query: 要执行的查询实例。
 ## @return 查询执行的结果。
 func send_query(query: Object) -> Variant:
+	_inject_dependencies_if_needed(query)
 	if query.has_method("execute"):
 		return query.execute()
 	return null
@@ -327,6 +331,41 @@ func replace_utility(script_cls: Script, instance: Object) -> void:
 	if _utilities.has(script_cls):
 		unregister_utility(script_cls)
 	await register_utility(script_cls, instance)
+
+
+## 注册短生命周期对象工厂。
+## @param script_cls: 要创建的脚本类型。
+## @param factory: 返回对象实例的工厂回调。
+func register_factory(script_cls: Script, factory: Callable) -> void:
+	if script_cls == null:
+		push_error("[GFArchitecture] register_factory 失败：脚本类型为空。")
+		return
+	if not factory.is_valid():
+		push_error("[GFArchitecture] register_factory 失败：factory 无效。")
+		return
+	if _factories.has(script_cls):
+		push_warning("[GFArchitecture] register_factory：类型已注册，已忽略重复注册。若需要替换，请使用 replace_factory()。")
+		return
+	_factories[script_cls] = factory
+
+
+## 替换短生命周期对象工厂。
+## @param script_cls: 要创建的脚本类型。
+## @param factory: 新工厂回调。
+func replace_factory(script_cls: Script, factory: Callable) -> void:
+	if script_cls == null:
+		push_error("[GFArchitecture] replace_factory 失败：脚本类型为空。")
+		return
+	if not factory.is_valid():
+		push_error("[GFArchitecture] replace_factory 失败：factory 无效。")
+		return
+	_factories[script_cls] = factory
+
+
+## 注销短生命周期对象工厂。
+## @param script_cls: 要移除的脚本类型。
+func unregister_factory(script_cls: Script) -> void:
+	_factories.erase(script_cls)
 
 
 ## 为已注册 System 增加一个额外查询别名。
@@ -513,6 +552,30 @@ func get_utility(script_cls: Script) -> Object:
 	if _parent_architecture != null and not _has_assignable_instance(_utilities, script_cls):
 		return _parent_architecture.get_utility(script_cls)
 	return null
+
+
+## 通过已注册工厂创建短生命周期对象。
+## @param script_cls: 要创建的脚本类型。
+## @return 新对象实例；没有工厂或工厂返回非对象时返回 null。
+func create_instance(script_cls: Script) -> Object:
+	if script_cls == null:
+		push_error("[GFArchitecture] create_instance 失败：脚本类型为空。")
+		return null
+
+	if not _factories.has(script_cls):
+		if _parent_architecture != null:
+			return _parent_architecture.create_instance(script_cls)
+		push_error("[GFArchitecture] create_instance 失败：未注册工厂。")
+		return null
+
+	var instance_variant: Variant = (_factories[script_cls] as Callable).call()
+	if not instance_variant is Object:
+		push_error("[GFArchitecture] create_instance 失败：factory 必须返回 Object 实例。")
+		return null
+
+	var instance := instance_variant as Object
+	_inject_dependencies_if_needed(instance)
+	return instance
 
 
 # --- 序列化方法 ---
@@ -704,6 +767,8 @@ func _track_registered_module(instance: Object) -> void:
 func _inject_dependencies_if_needed(instance: Object) -> void:
 	if instance != null and instance.has_method("inject_dependencies"):
 		instance.inject_dependencies(self)
+	if instance != null and instance.has_method("inject"):
+		instance.inject(self)
 
 
 func _validate_registration(script_cls: Script, instance: Object, label: String) -> bool:

@@ -122,6 +122,27 @@ func replace_utility(instance: Object) -> void:
 	if script != null:
 		await create_architecture().replace_utility(script, instance)
 
+## 注册短生命周期对象工厂。
+func register_factory(script_cls: Script, factory: Callable) -> void:
+	create_architecture().register_factory(script_cls, factory)
+
+## 替换短生命周期对象工厂。
+func replace_factory(script_cls: Script, factory: Callable) -> void:
+	create_architecture().replace_factory(script_cls, factory)
+
+## 注销短生命周期对象工厂。
+func unregister_factory(script_cls: Script) -> void:
+	var arch := _get_architecture_or_null("unregister_factory")
+	if arch != null:
+		arch.unregister_factory(script_cls)
+
+## 创建短生命周期对象实例。
+func create_instance(script_cls: Script) -> Object:
+	var arch := _get_architecture_or_null("create_instance")
+	if arch == null:
+		return null
+	return arch.create_instance(script_cls)
+
 ## 便捷注册 System 实例，并额外登记一个查询别名。
 func register_system_as(instance: Object, alias_cls: Script) -> void:
 	await create_architecture().register_system_instance_as(instance, alias_cls)

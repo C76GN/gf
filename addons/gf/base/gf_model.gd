@@ -12,6 +12,11 @@ class_name GFModel
 ##   - 'ready'      阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。
 
 
+# --- 私有变量 ---
+
+var _architecture_ref: WeakRef = null
+
+
 # --- Godot 生命周期方法 ---
 
 ## 第一阶段初始化。子类可以重写此方法。
@@ -54,21 +59,37 @@ func from_dict(_data: Dictionary) -> void:
 
 # --- 公共方法 ---
 
+## 注入当前模块所属的架构实例。由 GFArchitecture 在注册模块时自动调用。
+## @param architecture: 当前注册该模块的架构。
+func inject_dependencies(architecture: GFArchitecture) -> void:
+	_architecture_ref = weakref(architecture) if architecture != null else null
+
+
 ## 通过类型获取 Utility 实例。
 ## @param utility_type: 工具的脚本类型。
 ## @return 工具实例。
 func get_utility(utility_type: Script) -> Object:
-	return Gf.get_architecture().get_utility(utility_type)
+	return _get_architecture().get_utility(utility_type)
 
 
 ## 向架构发送事件。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	Gf.get_architecture().send_event(event_instance)
+	_get_architecture().send_event(event_instance)
 
 
 ## 发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。
 ## @param event_id: StringName 事件标识符。
 ## @param payload: 可选的事件附加数据。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	Gf.get_architecture().send_simple_event(event_id, payload)
+	_get_architecture().send_simple_event(event_id, payload)
+
+
+# --- 私有/辅助方法 ---
+
+func _get_architecture() -> GFArchitecture:
+	if _architecture_ref != null:
+		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		if architecture != null:
+			return architecture
+	return Gf.get_architecture()

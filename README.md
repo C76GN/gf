@@ -66,6 +66,21 @@ func install(architecture: GFArchitecture) -> void:
 
 局部玩法或关卡模块可以挂载 `GFNodeContext`。`SCOPED` 模式会创建带父级回退的局部架构，并在节点退出树时自动 `dispose()` 局部模块；`INHERITED` 模式则直接复用最近父级或全局架构。
 
+`GFController` 会优先沿场景树查找最近的 `GFNodeContext`，因此局部 UI/输入节点可以直接使用 `get_model()`、`get_system()`、`get_utility()` 访问所属上下文。
+
+对于短生命周期对象，例如命令、查询、技能执行载体，可以使用工厂：
+
+```gdscript
+Gf.register_factory(DealDamageCommand, func() -> Object:
+	return DealDamageCommand.new()
+)
+
+var command := Gf.create_instance(DealDamageCommand) as DealDamageCommand
+Gf.send_command(command)
+```
+
+工厂创建的对象会自动接收当前架构注入，适合在对象内部继续使用 `get_model()` / `get_utility()`。
+
 ## 常用模块
 
 - `GFBigNumber`：适合挂机/放置游戏的尾数 + 指数大数值对象。
