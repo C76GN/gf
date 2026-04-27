@@ -460,6 +460,18 @@ func unregister_factory(script_cls: Script) -> void:
 	_factories.erase(script_cls)
 
 
+## 检查当前架构或父级架构是否注册了指定工厂。
+## @param script_cls: 要查询的脚本类型。
+func has_factory(script_cls: Script) -> bool:
+	if script_cls == null:
+		return false
+	if _factories.has(script_cls):
+		return true
+	if _parent_architecture != null:
+		return _parent_architecture.has_factory(script_cls)
+	return false
+
+
 ## 为已注册 System 增加一个额外查询别名。
 ## 适合把具体实现以抽象基类或接口式脚本暴露给调用方。
 ## @param alias_cls: 调用 get_system() 时使用的别名脚本类。

@@ -19,6 +19,7 @@
 - [[07. 高级扩展 (Advanced Extensions)]]
 - [[08. 实用工具箱 (Utility Toolkit)]]
 - [[10. 战斗扩展 (Combat Extension)]]
+- [[12. 能力组件 (Capabilities)]]
 
 ### 实践与参考
 

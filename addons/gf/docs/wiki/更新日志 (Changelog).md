@@ -16,6 +16,63 @@
 
 ---
 
+## [1.10.0] - 2026-04-27
+
+**版本概述**：新增 GF 原生 Capability 扩展和强类型访问器生成器，让对象局部能力组合与 IDE 补全更加稳定，同时保持核心架构显式分层、可选接入与 scoped 架构兼容。
+
+### 🚀 新增特性 (Added)
+- **对象能力组件系统**：新增 `GFCapability`、`GFCapabilityUtility` 与 `GFCapabilityContainer`，支持为任意 `Object` / `Node` 挂载、查询、移除能力组件。
+- **显式能力依赖**：能力可实现 `get_required_capabilities() -> Array[Script]` 声明依赖，挂载时自动补齐并检测循环依赖。
+- **Node 能力容器**：Node 能力会自动挂入 receiver 下的 `GFCapabilityContainer`；场景中的容器子节点也可自动注册为父节点能力。
+- **能力生命周期 Hook**：能力可实现 `on_gf_capability_added(receiver)`、`on_gf_capability_removed(receiver)` 与 `inject_dependencies(architecture)`。
+- **强类型访问器生成器**：新增 `GFAccessGenerator`，编辑器菜单 `GF/生成强类型访问器` 会生成 `GFAccess` helper。
+- **访问器输出设置**：新增项目设置 `gf/codegen/access_output_path`，默认输出到 `res://gf/generated/gf_access.gd`。
+- **工厂存在性查询**：`GFArchitecture` 与 `Gf` 新增 `has_factory(script_cls)`，用于无副作用地判断短生命周期对象工厂是否存在。
+
+### 🔄 机制更改 (Changed)
+- **能力组合收敛为扩展层**：能力组合进入 `extensions/capability`，不改变 `GFArchitecture` 的 Model/System/Utility 注册语义。
+- **Command / Query 生成创建策略**：生成的 `GFAccess.create_*()` 会优先走架构工厂；没有工厂时回退到脚本 `new()` 并注入当前架构。
+- **插件菜单扩展**：`addons/gf/plugin.gd` 新增强类型访问器生成菜单，并确保 codegen 项目设置存在。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFCapability`。
+- 新增 `GFCapabilityUtility.has_capability(receiver, capability_type) -> bool`。
+- 新增 `GFCapabilityUtility.get_capability(receiver, capability_type) -> Object`。
+- 新增 `GFCapabilityUtility.add_capability(receiver, capability_type, provider = null) -> Object`。
+- 新增 `GFCapabilityUtility.add_capability_instance(receiver, capability, as_type = null) -> Object`。
+- 新增 `GFCapabilityUtility.add_scene_capability(receiver, scene, as_type = null) -> Object`。
+- 新增 `GFCapabilityUtility.remove_capability(receiver, capability_type) -> void`。
+- 新增 `GFCapabilityUtility.clear_capabilities(receiver) -> void`。
+- 新增 `GFCapabilityContainer`。
+- 新增 `GFAccessGenerator.generate(output_path = DEFAULT_OUTPUT_PATH) -> Error`。
+- 新增 `GFArchitecture.has_factory(script_cls: Script) -> bool`。
+- 新增 `Gf.has_factory(script_cls: Script) -> bool`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需迁移；Capability 是可选扩展，只有注册 `GFCapabilityUtility` 后才启用。
+2. 需要复用对象局部行为时，优先将能力实现为 `GFCapability` 或带 Hook 的 Node，而不是继续扩大实体脚本。
+3. 大型项目可在提交前运行 `GF/生成强类型访问器`，把生成的 `GFAccess` 一并提交，提升调用点补全质量。
+4. 如果 Command / Query 必须通过自定义工厂创建，请继续在架构中注册工厂；生成访问器会优先使用该工厂。
+
+### 📁 核心受影响文件 (Affected Files)
+- `README.md`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/editor/gf_access_generator.gd`
+- `addons/gf/extensions/capability/gf_capability.gd`
+- `addons/gf/extensions/capability/gf_capability_container.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/docs/wiki/12. 能力组件 (Capabilities).md`
+- `addons/gf/docs/wiki/Home.md`
+- `addons/gf/docs/wiki/_Sidebar.md`
+- `tests/gf_core/test_gf_access_generator.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+
+---
+
 ## [1.9.3] - 2026-04-27
 
 **版本概述**：聚焦生命周期边界、异步取消与资源类型一致性，修复动态注册、队列等待、战斗清理、命令历史和数值格式化中的边缘问题，并补充对应回归测试。

@@ -11,6 +11,9 @@ const AUTOLOAD_NAME: String = "Gf"
 const AUTOLOAD_PATH: String = "res://addons/gf/core/gf.gd"
 const INSTALLERS_SETTING: String = "gf/project/installers"
 const INSTALLERS_DEFAULT := []
+const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
+const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
+const GF_ACCESS_GENERATOR_BASE = preload("res://addons/gf/editor/gf_access_generator.gd")
 
 
 # --- 私有变量 ---
@@ -24,6 +27,7 @@ var _current_template_type: String = ""
 func _enter_tree() -> void:
 	_ensure_autoload()
 	_ensure_installers_setting()
+	_ensure_codegen_settings()
 	_setup_generator_tools()
 
 
@@ -64,11 +68,32 @@ func _ensure_installers_setting() -> void:
 		ProjectSettings.save()
 
 
+func _ensure_codegen_settings() -> void:
+	var should_save: bool = false
+
+	if not ProjectSettings.has_setting(ACCESS_OUTPUT_SETTING):
+		ProjectSettings.set_setting(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT)
+		ProjectSettings.set_initial_value(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT)
+		should_save = true
+
+	ProjectSettings.add_property_info({
+		"name": ACCESS_OUTPUT_SETTING,
+		"type": TYPE_STRING,
+		"hint": PROPERTY_HINT_FILE,
+		"hint_string": "*.gd",
+	})
+	ProjectSettings.set_as_basic(ACCESS_OUTPUT_SETTING, true)
+
+	if should_save:
+		ProjectSettings.save()
+
+
 func _setup_generator_tools() -> void:
 	add_tool_menu_item("GF/生成 System", _show_dialog.bind("System"))
 	add_tool_menu_item("GF/生成 Model", _show_dialog.bind("Model"))
 	add_tool_menu_item("GF/生成 Utility", _show_dialog.bind("Utility"))
 	add_tool_menu_item("GF/生成 Command", _show_dialog.bind("Command"))
+	add_tool_menu_item("GF/生成强类型访问器", _generate_accessors)
 	
 	_file_dialog = FileDialog.new()
 	_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -85,6 +110,7 @@ func _cleanup_generator_tools() -> void:
 	remove_tool_menu_item("GF/生成 Model")
 	remove_tool_menu_item("GF/生成 Utility")
 	remove_tool_menu_item("GF/生成 Command")
+	remove_tool_menu_item("GF/生成强类型访问器")
 	
 	if is_instance_valid(_file_dialog):
 		_file_dialog.queue_free()
@@ -114,6 +140,16 @@ func _on_file_selected(path: String) -> void:
 		print("[GF Framework] 成功生成文件: ", path)
 	else:
 		push_error("[GF Framework] 文件生成失败: ", path)
+
+
+func _generate_accessors() -> void:
+	var output_path := String(ProjectSettings.get_setting(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT))
+	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var error: Error = generator.generate(output_path)
+	if error == OK:
+		print("[GF Framework] 成功生成强类型访问器: ", output_path)
+	else:
+		push_error("[GF Framework] 强类型访问器生成失败: %s" % error_string(error))
 
 
 func _get_template(type: String) -> String:

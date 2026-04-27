@@ -110,6 +110,9 @@ Gf.send_command(command)
 - `GFActionQueueSystem`：表现动作队列。
 - `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
 - `GFCombatSystem`：轻量战斗扩展。
+- `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载可复用能力。
+- `GFCapabilityContainer`：场景树能力容器，支持把子节点注册为父节点能力。
+- `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `GF/生成强类型访问器` 菜单生成 `GFAccess`。
 
 ## 测试
 
@@ -131,4 +134,5 @@ godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_
 - `04. 事件系统 (Event System).md`
 - `11. 基础层 (Foundation Layer).md`
 - `08. 实用工具箱 (Utility Toolkit).md`
+- `12. 能力组件 (Capabilities).md`
 - `更新日志 (Changelog).md`

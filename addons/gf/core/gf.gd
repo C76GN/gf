@@ -159,6 +159,15 @@ func unregister_factory(script_cls: Script) -> void:
 	if arch != null:
 		arch.unregister_factory(script_cls)
 
+
+## 检查当前架构或父级架构是否注册了指定工厂。
+func has_factory(script_cls: Script) -> bool:
+	var arch := _get_architecture_or_null("has_factory")
+	if arch == null:
+		return false
+	return arch.has_factory(script_cls)
+
+
 ## 创建短生命周期对象实例。
 func create_instance(script_cls: Script) -> Object:
 	var arch := _get_architecture_or_null("create_instance")

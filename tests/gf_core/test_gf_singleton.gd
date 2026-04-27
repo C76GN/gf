@@ -647,6 +647,24 @@ func test_parent_transient_factory_injects_requesting_child_architecture() -> vo
 	parent_arch.dispose()
 
 
+## 验证 has_factory 会查询当前架构与父级架构，且不会创建实例或输出错误。
+func test_has_factory_checks_parent_without_instantiating() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+	var factory_call_count: int = 0
+	parent_arch.register_factory(InjectedFactoryCommand, func() -> Object:
+		factory_call_count += 1
+		return InjectedFactoryCommand.new()
+	)
+
+	assert_true(child_arch.has_factory(InjectedFactoryCommand), "子架构应能发现父级工厂。")
+	assert_false(child_arch.has_factory(FactoryCommand), "未注册工厂应返回 false。")
+	assert_eq(factory_call_count, 0, "has_factory 不应触发工厂实例化。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
 ## 验证模块注销会自动清理通过基类注册的事件监听。
 func test_unregister_utility_removes_owned_event_listeners() -> void:
 	var arch := GFArchitecture.new()
