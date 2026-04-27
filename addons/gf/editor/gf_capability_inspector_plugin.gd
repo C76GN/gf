@@ -11,6 +11,7 @@ const META_CAPABILITY_ACTIVE: StringName = &"_gf_capability_active"
 const META_ORIGINAL_PROCESS_MODE: StringName = &"_gf_capability_original_process_mode"
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/gf_capability_container.gd")
 const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_capability.gd")
+const GF_EDITOR_TYPE_INDEX_BASE := preload("res://addons/gf/editor/gf_editor_type_index.gd")
 
 
 # --- 公共方法 ---
@@ -43,8 +44,7 @@ func _parse_begin(object: Object) -> void:
 	header.add_child(add_button)
 	_populate_add_menu(add_button.get_popup(), target)
 
-	var container := _get_capability_container(target)
-	var capabilities := _get_capability_nodes(container)
+	var capabilities := _get_capability_nodes(target)
 	if capabilities.is_empty():
 		var empty_label := Label.new()
 		empty_label.text = "未挂载节点能力"
@@ -79,19 +79,11 @@ func _populate_add_menu(popup: PopupMenu, target: Node) -> void:
 func _collect_node_capability_candidates() -> Array[Dictionary]:
 	var candidates: Array[Dictionary] = []
 	var used_paths: Dictionary = {}
+	var type_index: Variant = GF_EDITOR_TYPE_INDEX_BASE.new()
 
-	var global_classes := ProjectSettings.get_global_class_list()
-	for global_class: Dictionary in global_classes:
-		var class_name_value := String(global_class.get("class", ""))
-		var path := String(global_class.get("path", ""))
-		if class_name_value.is_empty() or path.is_empty() or used_paths.has(path):
-			continue
-
-		var script := load(path) as Script
-		if script == null or script == GF_NODE_CAPABILITY_BASE:
-			continue
-		if not _script_extends_or_equals(script, GF_NODE_CAPABILITY_BASE):
-			continue
+	for record: Dictionary in type_index.collect_scripts_extending(GF_NODE_CAPABILITY_BASE, [GF_NODE_CAPABILITY_BASE]):
+		var class_name_value := String(record["class_name"])
+		var path := String(record["path"])
 
 		used_paths[path] = true
 		candidates.append({
@@ -101,8 +93,14 @@ func _collect_node_capability_candidates() -> Array[Dictionary]:
 			"default_name": class_name_value,
 		})
 
-	for scene_candidate: Dictionary in _collect_scene_capability_candidates(used_paths):
-		candidates.append(scene_candidate)
+	for scene_record: Dictionary in type_index.collect_scene_roots_extending(GF_NODE_CAPABILITY_BASE, used_paths):
+		var display_name := String(scene_record["display_name"])
+		candidates.append({
+			"kind": "scene",
+			"label": "%s 场景" % display_name,
+			"path": String(scene_record["path"]),
+			"default_name": display_name,
+		})
 
 	candidates.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return String(left["label"]) < String(right["label"])
@@ -110,75 +108,13 @@ func _collect_node_capability_candidates() -> Array[Dictionary]:
 	return candidates
 
 
-func _collect_scene_capability_candidates(used_paths: Dictionary) -> Array[Dictionary]:
-	var candidates: Array[Dictionary] = []
-	var filesystem := EditorInterface.get_resource_filesystem()
-	if filesystem == null:
-		return candidates
-
-	var root_dir := filesystem.get_filesystem()
-	if root_dir == null:
-		return candidates
-
-	var dir_stack: Array[EditorFileSystemDirectory] = [root_dir]
-	while not dir_stack.is_empty():
-		var current_dir := dir_stack.pop_back()
-		for i: int in range(current_dir.get_subdir_count()):
-			dir_stack.append(current_dir.get_subdir(i))
-
-		for i: int in range(current_dir.get_file_count()):
-			if current_dir.get_file_type(i) != "PackedScene":
-				continue
-
-			var path := _join_resource_path(current_dir.get_path(), current_dir.get_file(i))
-			if used_paths.has(path):
-				continue
-
-			var script := _get_scene_root_script(path)
-			if script == null or not _script_extends_or_equals(script, GF_NODE_CAPABILITY_BASE):
-				continue
-
-			used_paths[path] = true
-			var display_name := path.get_file().get_basename().to_pascal_case()
-			candidates.append({
-				"kind": "scene",
-				"label": "%s 场景" % display_name,
-				"path": path,
-				"default_name": display_name,
-			})
-
-	return candidates
-
-
-func _get_scene_root_script(path: String) -> Script:
-	var packed_scene := load(path) as PackedScene
-	if packed_scene == null:
-		return null
-
-	var state := packed_scene.get_state()
-	if state == null:
-		return null
-
-	for node_index: int in range(state.get_node_count()):
-		if not state.get_node_path(node_index, true).is_empty():
-			continue
-
-		for property_index: int in range(state.get_node_property_count(node_index)):
-			if state.get_node_property_name(node_index, property_index) == &"script":
-				return state.get_node_property_value(node_index, property_index) as Script
-
-	return null
-
-
-func _join_resource_path(dir_path: String, file_name: String) -> String:
-	if dir_path.ends_with("/"):
-		return dir_path + file_name
-	return "%s/%s" % [dir_path, file_name]
-
-
 func _create_capability_row(target: Node, capability: Node) -> Control:
+	var wrapper := VBoxContainer.new()
+	wrapper.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
 	var row := HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	wrapper.add_child(row)
 
 	var active_check := CheckBox.new()
 	active_check.button_pressed = _read_editor_capability_active(capability)
@@ -204,7 +140,48 @@ func _create_capability_row(target: Node, capability: Node) -> Control:
 	remove_button.pressed.connect(_on_capability_remove_pressed.bind(target, capability), CONNECT_DEFERRED)
 	row.add_child(remove_button)
 
-	return row
+	var properties := _create_capability_properties(capability)
+	if properties.get_child_count() > 0:
+		wrapper.add_child(properties)
+
+	return wrapper
+
+
+func _create_capability_properties(capability: Node) -> Control:
+	var properties := VBoxContainer.new()
+	properties.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+	for property_info: Dictionary in capability.get_property_list():
+		if not _is_editable_capability_property(property_info):
+			continue
+
+		var property_name := String(property_info["name"])
+		var editor_property := EditorInspector.instantiate_property_editor(
+			capability,
+			int(property_info.get("type", TYPE_NIL)),
+			property_name,
+			int(property_info.get("hint", PROPERTY_HINT_NONE)),
+			String(property_info.get("hint_string", "")),
+			int(property_info.get("usage", PROPERTY_USAGE_DEFAULT)),
+			false
+		)
+		if editor_property != null:
+			properties.add_child(editor_property)
+
+	return properties
+
+
+func _is_editable_capability_property(property_info: Dictionary) -> bool:
+	var usage := int(property_info.get("usage", 0))
+	if (usage & PROPERTY_USAGE_EDITOR) == 0:
+		return false
+
+	var property_name := String(property_info.get("name", ""))
+	return (
+		not property_name.is_empty()
+		and property_name != "script"
+		and property_name != "active"
+	)
 
 
 func _get_capability_display_name(capability: Node) -> String:
@@ -216,24 +193,62 @@ func _get_capability_display_name(capability: Node) -> String:
 	return capability.name
 
 
-func _get_capability_container(target: Node) -> Node:
+func _get_capability_containers(target: Node) -> Array[Node]:
+	var result: Array[Node] = []
 	for child in target.get_children(true):
 		if _is_capability_container(child):
-			return child as Node
-	return null
+			result.append(child as Node)
+	return result
 
 
-func _get_or_create_capability_container(target: Node) -> Node:
-	var existing := _get_capability_container(target)
-	if existing != null:
-		return existing
+func _get_or_create_capability_container(target: Node, capability: Node) -> Node:
+	for existing: Node in _get_capability_containers(target):
+		if _container_matches_capability(existing, capability):
+			return existing
 
-	var container := GF_CAPABILITY_CONTAINER_BASE.new() as Node
-	container.name = "GFCapabilityContainer"
+	var container := _create_capability_container_node(target, capability)
 	container.set_meta(META_CAPABILITY_CONTAINER, true)
+	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
 	target.add_child(container, true, Node.INTERNAL_MODE_BACK)
 	_set_owner_recursive(container, EditorInterface.get_edited_scene_root())
 	return container
+
+
+func _create_capability_container_node(target: Node, capability: Node) -> Node:
+	var container: Node
+	if target is Node3D and capability is Node3D:
+		container = Node3D.new()
+		container.name = "GFCapabilityContainer3D"
+	elif target is Node2D and capability is Node2D:
+		container = Node2D.new()
+		container.name = "GFCapabilityContainer2D"
+	elif target is Control and capability is Control:
+		container = Control.new()
+		container.name = "GFCapabilityContainerControl"
+		_configure_control_container(container as Control)
+	else:
+		container = Node.new()
+		container.name = "GFCapabilityContainer"
+	return container
+
+
+func _configure_control_container(container: Control) -> void:
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	container.offset_left = 0.0
+	container.offset_top = 0.0
+	container.offset_right = 0.0
+	container.offset_bottom = 0.0
+
+
+func _container_matches_capability(container: Node, capability: Node) -> bool:
+	if capability is Node3D:
+		return container is Node3D
+	if capability is Node2D:
+		return container is Node2D
+	if capability is Control:
+		return container is Control
+	return not (container is Node2D) and not (container is Node3D) and not (container is Control)
 
 
 func _is_capability_container(node: Node) -> bool:
@@ -243,15 +258,13 @@ func _is_capability_container(node: Node) -> bool:
 	)
 
 
-func _get_capability_nodes(container: Node) -> Array[Node]:
+func _get_capability_nodes(target: Node) -> Array[Node]:
 	var result: Array[Node] = []
-	if container == null:
-		return result
-
-	for child in container.get_children():
-		var node := child as Node
-		if node != null and node.get_script() != null:
-			result.append(node)
+	for container: Node in _get_capability_containers(target):
+		for child in container.get_children():
+			var node := child as Node
+			if node != null and node.get_script() != null:
+				result.append(node)
 	return result
 
 
@@ -284,7 +297,7 @@ func _add_capability_node(target: Node, candidate: Dictionary) -> void:
 	if node == null:
 		return
 
-	var container := _get_or_create_capability_container(target)
+	var container := _get_or_create_capability_container(target, node)
 	node.name = _make_unique_child_name(container, String(candidate["default_name"]))
 	container.add_child(node, true, Node.INTERNAL_MODE_BACK)
 	_set_owner_recursive(node, EditorInterface.get_edited_scene_root())

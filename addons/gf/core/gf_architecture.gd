@@ -684,6 +684,21 @@ func create_instance(script_cls: Script) -> Object:
 	return _create_instance_for_requester(script_cls, self)
 
 
+## 向任意对象注入当前架构依赖。
+## @param instance: 需要注入的对象。
+func inject_object(instance: Object) -> void:
+	_inject_dependencies_if_needed(instance)
+
+
+## 递归向节点树中实现注入 Hook 的节点注入当前架构。
+## @param node: 节点树根节点。
+func inject_node_tree(node: Node) -> void:
+	if node == null:
+		return
+
+	_inject_node_tree(node)
+
+
 # --- 序列化方法 ---
 
 ## 收集所有已注册 Model 的状态快照。
@@ -890,6 +905,12 @@ func _inject_dependencies_if_needed(instance: Object) -> void:
 		instance.inject_dependencies(self)
 	if instance != null and instance.has_method("inject"):
 		instance.inject(self)
+
+
+func _inject_node_tree(node: Node) -> void:
+	_inject_dependencies_if_needed(node)
+	for child: Node in node.get_children(true):
+		_inject_node_tree(child)
 
 
 func _validate_registration(script_cls: Script, instance: Object, label: String) -> bool:

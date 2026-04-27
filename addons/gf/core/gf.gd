@@ -175,6 +175,21 @@ func create_instance(script_cls: Script) -> Object:
 		return null
 	return arch.create_instance(script_cls)
 
+
+## 向任意对象注入当前架构依赖。
+func inject_object(instance: Object) -> void:
+	var arch := _get_architecture_or_null("inject_object")
+	if arch != null:
+		arch.inject_object(instance)
+
+
+## 递归向节点树中实现注入 Hook 的节点注入当前架构。
+func inject_node_tree(node: Node) -> void:
+	var arch := _get_architecture_or_null("inject_node_tree")
+	if arch != null:
+		arch.inject_node_tree(node)
+
+
 ## 便捷注册 System 实例，并额外登记一个查询别名。
 func register_system_as(instance: Object, alias_cls: Script) -> void:
 	await create_architecture().register_system_instance_as(instance, alias_cls)

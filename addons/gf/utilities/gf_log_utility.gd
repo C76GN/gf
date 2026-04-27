@@ -61,6 +61,9 @@ var flush_interval_msec: int = 250
 ## 是否强制每条日志立即 flush。高可靠日志可开启，默认关闭以减少高频 IO。
 var flush_immediately: bool = false
 
+## 最小输出等级。低于该等级的日志不会打印、写文件或发信号。
+var min_level: int = LogLevel.DEBUG
+
 
 # --- 私有变量 ---
 
@@ -116,11 +119,21 @@ func debug(tag: String, msg: String) -> void:
 	_log(LogLevel.DEBUG, tag, msg)
 
 
+## 延迟输出 DEBUG 级别日志。只有日志未被过滤时才调用 message_builder。
+func debug_lazy(tag: String, message_builder: Callable) -> void:
+	_log_lazy(LogLevel.DEBUG, tag, message_builder)
+
+
 ## 输出 INFO 级别日志。
 ## @param tag: 日志标签。
 ## @param msg: 日志内容。
 func info(tag: String, msg: String) -> void:
 	_log(LogLevel.INFO, tag, msg)
+
+
+## 延迟输出 INFO 级别日志。只有日志未被过滤时才调用 message_builder。
+func info_lazy(tag: String, message_builder: Callable) -> void:
+	_log_lazy(LogLevel.INFO, tag, message_builder)
 
 
 ## 输出 WARN 级别日志。
@@ -130,6 +143,11 @@ func warn(tag: String, msg: String) -> void:
 	_log(LogLevel.WARN, tag, msg)
 
 
+## 延迟输出 WARN 级别日志。只有日志未被过滤时才调用 message_builder。
+func warn_lazy(tag: String, message_builder: Callable) -> void:
+	_log_lazy(LogLevel.WARN, tag, message_builder)
+
+
 ## 输出 ERROR 级别日志。
 ## @param tag: 日志标签。
 ## @param msg: 日志内容。
@@ -137,11 +155,21 @@ func error(tag: String, msg: String) -> void:
 	_log(LogLevel.ERROR, tag, msg)
 
 
+## 延迟输出 ERROR 级别日志。只有日志未被过滤时才调用 message_builder。
+func error_lazy(tag: String, message_builder: Callable) -> void:
+	_log_lazy(LogLevel.ERROR, tag, message_builder)
+
+
 ## 输出 FATAL 级别日志。
 ## @param tag: 日志标签。
 ## @param msg: 日志内容。
 func fatal(tag: String, msg: String) -> void:
 	_log(LogLevel.FATAL, tag, msg)
+
+
+## 延迟输出 FATAL 级别日志。只有日志未被过滤时才调用 message_builder。
+func fatal_lazy(tag: String, message_builder: Callable) -> void:
+	_log_lazy(LogLevel.FATAL, tag, message_builder)
 
 
 ## 动态设置是否忽略特定标签的日志。
@@ -160,7 +188,7 @@ func is_tag_muted(tag: String) -> bool:
 # --- 私有方法 ---
 
 func _log(level: int, tag: String, msg: String) -> void:
-	if _muted_tags.get(tag, false):
+	if not _should_log(level, tag):
 		return
 		
 	var level_str: String = _LEVEL_NAMES[level] if level < _LEVEL_NAMES.size() else "UNKNOWN"
@@ -190,6 +218,26 @@ func _log(level: int, tag: String, msg: String) -> void:
 			print(formatted)
 
 	log_emitted.emit(level, tag, msg)
+
+
+func _log_lazy(level: int, tag: String, message_builder: Callable) -> void:
+	if not _should_log(level, tag):
+		return
+	if not message_builder.is_valid():
+		push_error("[GFLogUtility] lazy 日志收到无效 message_builder。")
+		return
+
+	_log(level, tag, String(message_builder.call()))
+
+
+func _should_log(level: int, tag: String) -> bool:
+	if level < LogLevel.DEBUG:
+		return false
+	if level < min_level:
+		return false
+	if _muted_tags.get(tag, false):
+		return false
+	return true
 
 
 func _cleanup_old_logs() -> void:

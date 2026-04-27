@@ -31,12 +31,20 @@ func test_build_source_generates_typed_accessors() -> void:
 			"path": "res://deal_damage_command.gd",
 			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.COMMAND,
 		},
+		{
+			"class_name": "HealthCapability",
+			"path": "res://health_capability.gd",
+			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.CAPABILITY,
+		},
 	])
 
 	assert_true(source.contains("static func get_player_model(architecture: GFArchitecture = null) -> PlayerModel:"), "应生成 Model 强类型访问器。")
 	assert_true(source.contains("return resolved_architecture.get_system(BattleSystem) as BattleSystem"), "应生成 System 查询。")
 	assert_true(source.contains("static func get_storage_utility(architecture: GFArchitecture = null) -> StorageUtility:"), "应生成 Utility 强类型访问器。")
 	assert_true(source.contains("static func create_deal_damage_command(architecture: GFArchitecture = null) -> DealDamageCommand:"), "应生成 Command 创建入口。")
+	assert_true(source.contains("static func get_health_capability(receiver: Object, architecture: GFArchitecture = null) -> HealthCapability:"), "应生成能力查询入口。")
+	assert_true(source.contains("static func add_health_capability(receiver: Object, architecture: GFArchitecture = null) -> HealthCapability:"), "应生成能力添加入口。")
+	assert_true(source.contains("static func if_has_health_capability(receiver: Object, callback: Callable, architecture: GFArchitecture = null) -> Variant:"), "应生成能力条件回调入口。")
 
 
 func test_build_source_skips_duplicate_function_names() -> void:

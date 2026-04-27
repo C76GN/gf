@@ -126,3 +126,40 @@ func test_signal_params_correct() -> void:
 	assert_eq(received["tag"], "ErrTag", "信号中的 tag 应正确传递。")
 	assert_eq(received["msg"], "something broke", "信号中的 message 应正确传递。")
 	assert_push_error("[ErrTag] something broke")
+
+
+func test_min_level_filters_lower_level_logs() -> void:
+	watch_signals(_log_util)
+	_log_util.min_level = GFLogUtility.LogLevel.WARN
+
+	_log_util.info("Filtered", "hidden")
+
+	assert_signal_not_emitted(_log_util, "log_emitted", "低于 min_level 的日志不应发出信号。")
+
+
+func test_lazy_log_does_not_build_filtered_message() -> void:
+	var counter := {"build": 0}
+	_log_util.min_level = GFLogUtility.LogLevel.ERROR
+
+	_log_util.debug_lazy("Lazy", func() -> String:
+		counter["build"] += 1
+		return "expensive"
+	)
+
+	assert_eq(counter["build"], 0, "被等级过滤的 lazy 日志不应执行 message_builder。")
+
+
+func test_lazy_log_builds_message_when_enabled() -> void:
+	var counter := {"build": 0}
+	var received := {"msg": ""}
+	_log_util.log_emitted.connect(func(_level: int, _tag: String, message: String) -> void:
+		received["msg"] = message
+	)
+
+	_log_util.info_lazy("Lazy", func() -> String:
+		counter["build"] += 1
+		return "built"
+	)
+
+	assert_eq(counter["build"], 1, "未被过滤的 lazy 日志应执行 message_builder。")
+	assert_eq(received["msg"], "built", "lazy 日志应输出构造后的消息。")

@@ -18,14 +18,29 @@ signal capability_removed(receiver: Object, capability_type: Script, capability:
 signal capability_active_changed(receiver: Object, capability_type: Script, capability: Object, active: bool)
 
 
+# --- 枚举 ---
+
+## 移除能力时自动补齐依赖的清理策略。
+enum DependencyRemovalPolicy {
+	## 保留依赖能力，完全兼容旧行为。
+	KEEP_DEPENDENCIES,
+	## 移除仅由当前能力自动补齐且未被显式添加的依赖能力。
+	REMOVE_AUTO_DEPENDENCIES,
+}
+
+
 # --- 常量 ---
 
 const META_CAPABILITY_TYPES: StringName = &"_gf_capability_types"
 const META_CAPABILITY_ACTIVE: StringName = &"_gf_capability_active"
 const META_CAPABILITY_INSTANCE_PREFIX: String = "_gf_capability_"
 const META_CAPABILITY_CONTAINER: StringName = &"_gf_capability_container"
+const META_CAPABILITY_DEPENDENCIES: StringName = &"_gf_capability_dependencies"
+const META_CAPABILITY_DEPENDENCY_OF: StringName = &"_gf_capability_dependency_of"
+const META_CAPABILITY_TOP_LEVEL_TYPES: StringName = &"_gf_capability_top_level_types"
 const META_ORIGINAL_PROCESS_MODE: StringName = &"_gf_capability_original_process_mode"
 const HOOK_GET_REQUIRED_CAPABILITIES: StringName = &"get_required_capabilities"
+const HOOK_GET_DEPENDENCY_REMOVAL_POLICY: StringName = &"get_dependency_removal_policy"
 const HOOK_ON_ADDED: StringName = &"on_gf_capability_added"
 const HOOK_ON_REMOVED: StringName = &"on_gf_capability_removed"
 const HOOK_ON_ACTIVE_CHANGED: StringName = &"on_gf_capability_active_changed"
@@ -203,11 +218,22 @@ func get_receivers_in_group_with(
 ## 给对象挂载指定能力类型。
 ## provider 可为 Callable、PackedScene、Object；为空时使用 capability_type.new()。
 func add_capability(receiver: Object, capability_type: Script, provider: Variant = null) -> Object:
+	return _add_capability(receiver, capability_type, provider, true)
+
+
+## 给对象挂载指定能力类型，并标记为自动依赖能力。
+func add_required_capability(receiver: Object, capability_type: Script, provider: Variant = null) -> Object:
+	return _add_capability(receiver, capability_type, provider, false)
+
+
+func _add_capability(receiver: Object, capability_type: Script, provider: Variant = null, is_top_level: bool = true) -> Object:
 	if not _validate_receiver_and_type(receiver, capability_type, "add_capability"):
 		return null
 
 	var existing := get_capability(receiver, capability_type)
 	if existing != null:
+		if is_top_level:
+			_mark_capability_top_level(receiver, capability_type, true)
 		return existing
 
 	var creation_key := _get_creation_key(receiver, capability_type)
@@ -222,13 +248,16 @@ func add_capability(receiver: Object, capability_type: Script, provider: Variant
 		_creation_stack.pop_back()
 		return null
 
-	if not _ensure_required_capabilities(receiver, capability):
+	var dependency_result := _ensure_required_capabilities(receiver, capability)
+	if not bool(dependency_result.get("ok", false)):
 		if should_free_on_failure:
 			_free_unregistered_capability(capability)
 		_creation_stack.pop_back()
 		return null
 
-	_register_capability(receiver, capability_type, capability)
+	_register_capability(receiver, capability_type, capability, is_top_level)
+	for dependency_type: Script in dependency_result.get("types", []):
+		_record_dependency(receiver, capability_type, dependency_type)
 	_creation_stack.pop_back()
 	return capability
 
@@ -252,14 +281,19 @@ func add_capability_instance(receiver: Object, capability: Object, as_type: Scri
 	var existing := get_capability(receiver, capability_type)
 	if existing != null:
 		if existing == capability:
+			_mark_capability_top_level(receiver, capability_type, true)
 			return capability
 		push_warning("[GFCapabilityUtility] add_capability_instance：目标对象已拥有该能力，已忽略新实例。")
+		_mark_capability_top_level(receiver, capability_type, true)
 		return existing
 
-	if not _ensure_required_capabilities(receiver, capability):
+	var dependency_result := _ensure_required_capabilities(receiver, capability)
+	if not bool(dependency_result.get("ok", false)):
 		return null
 
-	_register_capability(receiver, capability_type, capability)
+	_register_capability(receiver, capability_type, capability, true)
+	for dependency_type: Script in dependency_result.get("types", []):
+		_record_dependency(receiver, capability_type, dependency_type)
 	return capability
 
 
@@ -321,10 +355,15 @@ func remove_capability(receiver: Object, capability_type: Script) -> void:
 
 	var registered_type := record["type"] as Script
 	var capability := record["instance"] as Object
+	var dependency_types := _get_dependency_types(receiver, registered_type)
+	var dependency_removal_policy := _get_dependency_removal_policy(capability)
 	_call_removed_hook(receiver, capability)
 	_remove_capability_record(receiver, registered_type)
+	_remove_dependency_links(receiver, registered_type)
 	capability_removed.emit(receiver, registered_type, capability)
 	_free_registered_capability(capability)
+	if dependency_removal_policy == DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES:
+		_remove_unused_auto_dependencies(receiver, dependency_types)
 
 
 ## 清空对象上的所有能力。
@@ -387,18 +426,27 @@ func _should_free_created_capability_on_failure(provider: Variant) -> bool:
 	return provider == null or provider is Callable or provider is PackedScene
 
 
-func _ensure_required_capabilities(receiver: Object, capability: Object) -> bool:
+func _ensure_required_capabilities(receiver: Object, capability: Object) -> Dictionary:
 	var required_types := _get_required_capabilities(capability)
+	var resolved_types: Array[Script] = []
 	for required_type in required_types:
 		if required_type == null:
 			continue
 		if get_capability(receiver, required_type) != null:
+			resolved_types.append(required_type)
 			continue
-		var required_capability := add_capability(receiver, required_type)
+		var required_capability := add_required_capability(receiver, required_type)
 		if required_capability == null:
 			push_error("[GFCapabilityUtility] 依赖能力创建失败：%s" % _get_script_key(required_type))
-			return false
-	return true
+			return {
+				"ok": false,
+				"types": resolved_types,
+			}
+		resolved_types.append(required_type)
+	return {
+		"ok": true,
+		"types": resolved_types,
+	}
 
 
 func _get_required_capabilities(capability: Object) -> Array[Script]:
@@ -416,9 +464,10 @@ func _get_required_capabilities(capability: Object) -> Array[Script]:
 	return result
 
 
-func _register_capability(receiver: Object, capability_type: Script, capability: Object) -> void:
+func _register_capability(receiver: Object, capability_type: Script, capability: Object, is_top_level: bool) -> void:
 	var types := _get_capability_type_list(receiver)
 	types.append(capability_type)
+	_mark_capability_top_level(receiver, capability_type, is_top_level)
 	_set_capability_instance(receiver, capability_type, capability)
 	_track_capability_index(receiver, capability_type)
 	_inject_if_needed(capability)
@@ -433,6 +482,129 @@ func _get_capability_type_list(receiver: Object) -> Array[Script]:
 		receiver.set_meta(META_CAPABILITY_TYPES, [] as Array[Script])
 
 	return receiver.get_meta(META_CAPABILITY_TYPES) as Array[Script]
+
+
+func _mark_capability_top_level(
+	receiver: Object,
+	capability_type: Script,
+	is_top_level: bool,
+	remove_entry: bool = false
+) -> void:
+	if not is_instance_valid(receiver) or capability_type == null:
+		return
+
+	var top_level_types := _get_top_level_type_map(receiver)
+	if remove_entry:
+		top_level_types.erase(capability_type)
+		return
+	if is_top_level or not top_level_types.has(capability_type):
+		top_level_types[capability_type] = is_top_level
+
+
+func _is_capability_top_level(receiver: Object, capability_type: Script) -> bool:
+	if not is_instance_valid(receiver) or capability_type == null:
+		return false
+
+	var top_level_types := _get_top_level_type_map(receiver)
+	return bool(top_level_types.get(capability_type, true))
+
+
+func _get_top_level_type_map(receiver: Object) -> Dictionary:
+	if not receiver.has_meta(META_CAPABILITY_TOP_LEVEL_TYPES):
+		receiver.set_meta(META_CAPABILITY_TOP_LEVEL_TYPES, {})
+	return receiver.get_meta(META_CAPABILITY_TOP_LEVEL_TYPES) as Dictionary
+
+
+func _record_dependency(receiver: Object, owner_type: Script, dependency_type: Script) -> void:
+	if not is_instance_valid(receiver) or owner_type == null or dependency_type == null:
+		return
+	if owner_type == dependency_type:
+		return
+
+	var dependencies := _get_dependency_map(receiver)
+	if not dependencies.has(owner_type):
+		dependencies[owner_type] = {}
+	var owner_dependencies := dependencies[owner_type] as Dictionary
+	owner_dependencies[dependency_type] = true
+
+	var dependency_of := _get_dependency_of_map(receiver)
+	if not dependency_of.has(dependency_type):
+		dependency_of[dependency_type] = {}
+	var dependency_owners := dependency_of[dependency_type] as Dictionary
+	dependency_owners[owner_type] = true
+
+
+func _get_dependency_types(receiver: Object, owner_type: Script) -> Array[Script]:
+	if not is_instance_valid(receiver) or owner_type == null:
+		return [] as Array[Script]
+
+	var dependencies := _get_dependency_map(receiver)
+	var owner_dependencies := dependencies.get(owner_type, {}) as Dictionary
+	var result: Array[Script] = []
+	for dependency_type: Script in owner_dependencies:
+		result.append(dependency_type)
+	return result
+
+
+func _get_dependency_owner_types(receiver: Object, dependency_type: Script) -> Array[Script]:
+	if not is_instance_valid(receiver) or dependency_type == null:
+		return [] as Array[Script]
+
+	var dependency_of := _get_dependency_of_map(receiver)
+	var dependency_owners := dependency_of.get(dependency_type, {}) as Dictionary
+	var result: Array[Script] = []
+	for owner_type: Script in dependency_owners:
+		result.append(owner_type)
+	return result
+
+
+func _remove_dependency_links(receiver: Object, removed_type: Script) -> void:
+	if not is_instance_valid(receiver) or removed_type == null:
+		return
+
+	var dependencies := _get_dependency_map(receiver)
+	var dependency_of := _get_dependency_of_map(receiver)
+	var removed_dependencies := dependencies.get(removed_type, {}) as Dictionary
+	for dependency_type: Script in removed_dependencies:
+		var dependency_owners := dependency_of.get(dependency_type, {}) as Dictionary
+		dependency_owners.erase(removed_type)
+		if dependency_owners.is_empty():
+			dependency_of.erase(dependency_type)
+	dependencies.erase(removed_type)
+
+	var owners := dependency_of.get(removed_type, {}) as Dictionary
+	for owner_type: Script in owners:
+		var owner_dependencies := dependencies.get(owner_type, {}) as Dictionary
+		owner_dependencies.erase(removed_type)
+		if owner_dependencies.is_empty():
+			dependencies.erase(owner_type)
+	dependency_of.erase(removed_type)
+
+
+func _remove_unused_auto_dependencies(receiver: Object, dependency_types: Array[Script]) -> void:
+	if not is_instance_valid(receiver):
+		return
+
+	for dependency_type: Script in dependency_types:
+		if not has_capability(receiver, dependency_type):
+			continue
+		if _is_capability_top_level(receiver, dependency_type):
+			continue
+		if not _get_dependency_owner_types(receiver, dependency_type).is_empty():
+			continue
+		remove_capability(receiver, dependency_type)
+
+
+func _get_dependency_map(receiver: Object) -> Dictionary:
+	if not receiver.has_meta(META_CAPABILITY_DEPENDENCIES):
+		receiver.set_meta(META_CAPABILITY_DEPENDENCIES, {})
+	return receiver.get_meta(META_CAPABILITY_DEPENDENCIES) as Dictionary
+
+
+func _get_dependency_of_map(receiver: Object) -> Dictionary:
+	if not receiver.has_meta(META_CAPABILITY_DEPENDENCY_OF):
+		receiver.set_meta(META_CAPABILITY_DEPENDENCY_OF, {})
+	return receiver.get_meta(META_CAPABILITY_DEPENDENCY_OF) as Dictionary
 
 
 func _find_capability_record(receiver: Object, capability_type: Script) -> Dictionary:
@@ -488,6 +660,7 @@ func _get_capability_instance(receiver: Object, capability_type: Script) -> Obje
 
 func _remove_capability_record(receiver: Object, capability_type: Script) -> void:
 	_get_capability_type_list(receiver).erase(capability_type)
+	_mark_capability_top_level(receiver, capability_type, false, true)
 	_remove_capability_index(receiver.get_instance_id(), capability_type)
 	var meta_name := _get_capability_meta_name(capability_type)
 	if receiver.has_meta(meta_name):
@@ -500,7 +673,7 @@ func _attach_node_capability(receiver: Object, capability: Object) -> void:
 
 	var receiver_node := receiver as Node
 	var capability_node := capability as Node
-	var container := _get_or_create_container(receiver_node)
+	var container := _get_or_create_container(receiver_node, capability_node)
 	if capability_node.get_parent() == container:
 		return
 
@@ -510,17 +683,53 @@ func _attach_node_capability(receiver: Object, capability: Object) -> void:
 		container.add_child(capability_node, true, Node.INTERNAL_MODE_BACK)
 
 
-func _get_or_create_container(receiver: Node) -> Node:
+func _get_or_create_container(receiver: Node, capability: Node) -> Node:
 	for child in receiver.get_children(true):
-		if _is_capability_container(child):
+		if _is_capability_container(child) and _container_matches_capability(child as Node, capability):
 			return child as Node
 
-	var container := Node.new()
-	container.name = "GFCapabilityContainer"
+	var container := _create_container_node(receiver, capability)
 	container.set_meta(META_CAPABILITY_CONTAINER, true)
 	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
 	receiver.add_child(container, true, Node.INTERNAL_MODE_BACK)
 	return container
+
+
+func _create_container_node(receiver: Node, capability: Node) -> Node:
+	var container: Node
+	if receiver is Node3D and capability is Node3D:
+		container = Node3D.new()
+		container.name = "GFCapabilityContainer3D"
+	elif receiver is Node2D and capability is Node2D:
+		container = Node2D.new()
+		container.name = "GFCapabilityContainer2D"
+	elif receiver is Control and capability is Control:
+		container = Control.new()
+		container.name = "GFCapabilityContainerControl"
+		_configure_control_container(container as Control)
+	else:
+		container = Node.new()
+		container.name = "GFCapabilityContainer"
+	return container
+
+
+func _configure_control_container(container: Control) -> void:
+	container.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	container.set_anchors_preset(Control.PRESET_FULL_RECT)
+	container.offset_left = 0.0
+	container.offset_top = 0.0
+	container.offset_right = 0.0
+	container.offset_bottom = 0.0
+
+
+func _container_matches_capability(container: Node, capability: Node) -> bool:
+	if capability is Node3D:
+		return container is Node3D
+	if capability is Node2D:
+		return container is Node2D
+	if capability is Control:
+		return container is Control
+	return not (container is Node2D) and not (container is Node3D) and not (container is Control)
 
 
 func _is_capability_container(node: Node) -> bool:
@@ -654,15 +863,49 @@ func _inject_if_needed(capability: Object) -> void:
 	if capability == null or architecture == null:
 		return
 
-	if capability.has_method("inject_dependencies"):
-		capability.inject_dependencies(architecture)
-	if capability.has_method("inject"):
-		capability.inject(architecture)
+	_inject_object_if_needed(capability, architecture)
+	if capability is Node:
+		_inject_node_children_if_needed(capability as Node, architecture)
+
+
+func _inject_node_children_if_needed(node: Node, architecture: GFArchitecture) -> void:
+	for child: Node in node.get_children(true):
+		_inject_object_if_needed(child, architecture)
+		_inject_node_children_if_needed(child, architecture)
+
+
+func _inject_object_if_needed(instance: Object, architecture: GFArchitecture) -> void:
+	if instance == null or architecture == null:
+		return
+
+	if instance.has_method("inject_dependencies"):
+		instance.inject_dependencies(architecture)
+	if instance.has_method("inject"):
+		instance.inject(architecture)
 
 
 func _call_added_hook(receiver: Object, capability: Object) -> void:
 	if capability != null and capability.has_method(HOOK_ON_ADDED):
 		capability.call(HOOK_ON_ADDED, receiver)
+
+
+func _get_dependency_removal_policy(capability: Object) -> int:
+	if capability == null or not capability.has_method(HOOK_GET_DEPENDENCY_REMOVAL_POLICY):
+		return DependencyRemovalPolicy.KEEP_DEPENDENCIES
+
+	var raw_policy: Variant = capability.call(HOOK_GET_DEPENDENCY_REMOVAL_POLICY)
+	if typeof(raw_policy) != TYPE_INT:
+		push_warning("[GFCapabilityUtility] get_dependency_removal_policy() 必须返回 int，已使用默认策略。")
+		return DependencyRemovalPolicy.KEEP_DEPENDENCIES
+
+	var policy := int(raw_policy)
+	if (
+		policy != DependencyRemovalPolicy.KEEP_DEPENDENCIES
+		and policy != DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
+	):
+		push_warning("[GFCapabilityUtility] 未知依赖移除策略：%s，已使用默认策略。" % policy)
+		return DependencyRemovalPolicy.KEEP_DEPENDENCIES
+	return policy
 
 
 func _call_removed_hook(receiver: Object, capability: Object) -> void:

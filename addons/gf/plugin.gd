@@ -97,6 +97,8 @@ func _setup_generator_tools() -> void:
 	add_tool_menu_item("GF/生成 Model", _show_dialog.bind("Model"))
 	add_tool_menu_item("GF/生成 Utility", _show_dialog.bind("Utility"))
 	add_tool_menu_item("GF/生成 Command", _show_dialog.bind("Command"))
+	add_tool_menu_item("GF/生成 Capability", _show_dialog.bind("Capability"))
+	add_tool_menu_item("GF/生成 NodeCapability", _show_dialog.bind("NodeCapability"))
 	add_tool_menu_item("GF/生成强类型访问器", _generate_accessors)
 	
 	_file_dialog = FileDialog.new()
@@ -125,6 +127,8 @@ func _cleanup_generator_tools() -> void:
 	remove_tool_menu_item("GF/生成 Model")
 	remove_tool_menu_item("GF/生成 Utility")
 	remove_tool_menu_item("GF/生成 Command")
+	remove_tool_menu_item("GF/生成 Capability")
+	remove_tool_menu_item("GF/生成 NodeCapability")
 	remove_tool_menu_item("GF/生成强类型访问器")
 	
 	if is_instance_valid(_file_dialog):
@@ -246,6 +250,44 @@ func execute() -> Variant:
 
 
 # --- 私有辅助方法 ---
+
+"""
+	elif type == "Capability" or type == "NodeCapability":
+		return base_template + """# --- 公共变量 ---
+
+
+# --- 私有变量 ---
+
+
+# --- @onready 变量 (节点引用) ---
+
+
+# --- 公共方法 ---
+
+func get_required_capabilities() -> Array[Script]:
+	return [] as Array[Script]
+
+
+func get_dependency_removal_policy() -> int:
+	return super.get_dependency_removal_policy()
+
+
+func on_gf_capability_added(target: Object) -> void:
+	super.on_gf_capability_added(target)
+
+
+func on_gf_capability_removed(target: Object) -> void:
+	super.on_gf_capability_removed(target)
+
+
+func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
+	pass
+
+
+# --- 私有辅助方法 ---
+
+
+# --- 信号处理函数 ---
 
 """
 	elif type == "System":

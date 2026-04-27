@@ -16,6 +16,7 @@ enum TargetKind {
 	UTILITY,
 	COMMAND,
 	QUERY,
+	CAPABILITY,
 }
 
 
@@ -27,6 +28,8 @@ const _BASE_SYSTEM_SCRIPT: Script = preload("res://addons/gf/base/gf_system.gd")
 const _BASE_UTILITY_SCRIPT: Script = preload("res://addons/gf/base/gf_utility.gd")
 const _BASE_COMMAND_SCRIPT: Script = preload("res://addons/gf/base/gf_command.gd")
 const _BASE_QUERY_SCRIPT: Script = preload("res://addons/gf/base/gf_query.gd")
+const _BASE_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_capability.gd")
+const _BASE_NODE_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_node_capability.gd")
 
 
 # --- 公共方法 ---
@@ -41,8 +44,7 @@ func generate(output_path: String = DEFAULT_OUTPUT_PATH) -> Error:
 ## 收集当前项目中可生成访问器的 GF 类型记录。
 func collect_records() -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
-	var global_classes := ProjectSettings.get_global_class_list()
-	for global_class in global_classes:
+	for global_class in ProjectSettings.get_global_class_list():
 		var class_name_value := String(global_class.get("class", ""))
 		var path := String(global_class.get("path", ""))
 		if class_name_value.is_empty() or path.is_empty():
@@ -76,6 +78,11 @@ func build_source(records: Array) -> String:
 	output.append("extends RefCounted")
 	output.append("")
 	output.append("")
+	output.append("# --- 常量 ---")
+	output.append("")
+	output.append("const _CAPABILITY_UTILITY_SCRIPT: Script = preload(\"res://addons/gf/extensions/capability/gf_capability_utility.gd\")")
+	output.append("")
+	output.append("")
 	output.append("# --- 公共方法 ---")
 	output.append("")
 	output.append("## 获取传入架构或当前全局架构。")
@@ -106,6 +113,13 @@ func build_source(records: Array) -> String:
 	output.append("\tif resolved_architecture != null:")
 	output.append("\t\t_inject_if_needed(instance, resolved_architecture)")
 	output.append("\treturn instance")
+	output.append("")
+	output.append("")
+	output.append("static func _get_capability_utility(architecture: GFArchitecture = null) -> Object:")
+	output.append("\tvar resolved_architecture := architecture_or_null(architecture)")
+	output.append("\tif resolved_architecture == null:")
+	output.append("\t\treturn null")
+	output.append("\treturn resolved_architecture.get_utility(_CAPABILITY_UTILITY_SCRIPT)")
 	output.append("")
 	output.append("")
 	output.append("static func _inject_if_needed(instance: Object, architecture: GFArchitecture) -> void:")
@@ -150,6 +164,8 @@ func _resolve_kind(script: Script) -> int:
 		return -1
 	if script == _BASE_COMMAND_SCRIPT or script == _BASE_QUERY_SCRIPT:
 		return -1
+	if script == _BASE_CAPABILITY_SCRIPT or script == _BASE_NODE_CAPABILITY_SCRIPT:
+		return -1
 
 	if _script_extends_or_equals(script, _BASE_MODEL_SCRIPT):
 		return TargetKind.MODEL
@@ -161,6 +177,11 @@ func _resolve_kind(script: Script) -> int:
 		return TargetKind.COMMAND
 	if _script_extends_or_equals(script, _BASE_QUERY_SCRIPT):
 		return TargetKind.QUERY
+	if (
+		_script_extends_or_equals(script, _BASE_CAPABILITY_SCRIPT)
+		or _script_extends_or_equals(script, _BASE_NODE_CAPABILITY_SCRIPT)
+	):
+		return TargetKind.CAPABILITY
 
 	return -1
 
@@ -212,6 +233,48 @@ func _append_record_function(output: PackedStringArray, record: Dictionary, used
 			output.append("")
 			output.append("")
 
+		TargetKind.CAPABILITY:
+			var base_name := _trim_suffix(class_name_value.to_snake_case(), "_capability")
+			output.append("## 获取 receiver 上的 %s 能力。" % class_name_value)
+			output.append("static func get_%s_capability(receiver: Object, architecture: GFArchitecture = null) -> %s:" % [base_name, class_name_value])
+			output.append("\tvar capability_utility := _get_capability_utility(architecture)")
+			output.append("\tif capability_utility == null:")
+			output.append("\t\treturn null")
+			output.append("\treturn capability_utility.get_capability(receiver, %s) as %s" % [class_name_value, class_name_value])
+			output.append("")
+			output.append("")
+			output.append("## 给 receiver 添加 %s 能力。" % class_name_value)
+			output.append("static func add_%s_capability(receiver: Object, architecture: GFArchitecture = null) -> %s:" % [base_name, class_name_value])
+			output.append("\tvar capability_utility := _get_capability_utility(architecture)")
+			output.append("\tif capability_utility == null:")
+			output.append("\t\treturn null")
+			output.append("\treturn capability_utility.add_capability(receiver, %s) as %s" % [class_name_value, class_name_value])
+			output.append("")
+			output.append("")
+			output.append("## 检查 receiver 是否拥有 %s 能力。" % class_name_value)
+			output.append("static func has_%s_capability(receiver: Object, architecture: GFArchitecture = null) -> bool:" % base_name)
+			output.append("\tvar capability_utility := _get_capability_utility(architecture)")
+			output.append("\tif capability_utility == null:")
+			output.append("\t\treturn false")
+			output.append("\treturn capability_utility.has_capability(receiver, %s)" % class_name_value)
+			output.append("")
+			output.append("")
+			output.append("## 移除 receiver 上的 %s 能力。" % class_name_value)
+			output.append("static func remove_%s_capability(receiver: Object, architecture: GFArchitecture = null) -> void:" % base_name)
+			output.append("\tvar capability_utility := _get_capability_utility(architecture)")
+			output.append("\tif capability_utility != null:")
+			output.append("\t\tcapability_utility.remove_capability(receiver, %s)" % class_name_value)
+			output.append("")
+			output.append("")
+			output.append("## 当 receiver 拥有 %s 能力时执行回调。" % class_name_value)
+			output.append("static func if_has_%s_capability(receiver: Object, callback: Callable, architecture: GFArchitecture = null) -> Variant:" % base_name)
+			output.append("\tvar capability := get_%s_capability(receiver, architecture)" % base_name)
+			output.append("\tif capability == null or not callback.is_valid():")
+			output.append("\t\treturn null")
+			output.append("\treturn callback.call(capability)")
+			output.append("")
+			output.append("")
+
 
 func _get_function_name(class_name_value: String, kind: int) -> String:
 	var base_name := class_name_value.to_snake_case()
@@ -226,6 +289,8 @@ func _get_function_name(class_name_value: String, kind: int) -> String:
 			return "create_%s_command" % _trim_suffix(base_name, "_command")
 		TargetKind.QUERY:
 			return "create_%s_query" % _trim_suffix(base_name, "_query")
+		TargetKind.CAPABILITY:
+			return "get_%s_capability" % _trim_suffix(base_name, "_capability")
 		_:
 			return base_name
 

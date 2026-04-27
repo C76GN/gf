@@ -114,7 +114,9 @@ Gf.send_command(command)
 - `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载、启停、索引查询可复用能力。
 - `GFCapabilityContainer`：场景树能力容器，支持把子节点注册为父节点能力。
 - `GFNodeCapability`：可直接作为场景节点使用的能力基类，适合碰撞、输入、动画和子节点引用。
+- `GFPropertyBagCapability`：轻量动态属性包能力，适合原型、调试和少量运行时键值。
 - `GFInteractionContext`：轻量交互上下文，便于在命令、事件或能力方法之间传递 sender、target 与 payload。
+- `GFInteractions`：交互上下文与链式交互流程创建入口。
 - `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `GF/生成强类型访问器` 菜单生成 `GFAccess`。
 
 ## 测试

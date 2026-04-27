@@ -8,6 +8,8 @@ const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/
 const GF_CAPABILITY_UTILITY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_utility.gd")
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/gf_capability_container.gd")
 const GF_INTERACTION_CONTEXT_BASE := preload("res://addons/gf/extensions/interaction/gf_interaction_context.gd")
+const GF_INTERACTIONS_BASE := preload("res://addons/gf/extensions/interaction/gf_interactions.gd")
+const GF_PROPERTY_BAG_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_property_bag_capability.gd")
 
 
 # --- 辅助类 ---
@@ -30,6 +32,11 @@ class DamageCapability extends GF_CAPABILITY_BASE:
 		return [HealthCapability]
 
 
+class AutoCleanupDamageCapability extends DamageCapability:
+	func get_dependency_removal_policy() -> int:
+		return GF_CAPABILITY_UTILITY_BASE.DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
+
+
 class InjectedCapability extends GF_CAPABILITY_BASE:
 	var injected_architecture: GFArchitecture = null
 
@@ -50,6 +57,27 @@ class ActiveNodeCapability extends GF_NODE_CAPABILITY_BASE:
 
 	func on_gf_capability_active_changed(_target: Object, is_active: bool) -> void:
 		active_events.append(is_active)
+
+
+class InjectedChildNode extends Node:
+	var injected_architecture: GFArchitecture = null
+
+	func inject_dependencies(architecture: GFArchitecture) -> void:
+		injected_architecture = architecture
+
+
+class Node2DCapability extends Node2D:
+	var added_receiver: Object = null
+
+	func on_gf_capability_added(target: Object) -> void:
+		added_receiver = target
+
+
+class ContextCommand extends GFCommand:
+	var interaction_context: GFInteractionContext = null
+
+	func execute() -> Variant:
+		return interaction_context
 
 
 class CapabilityNode extends Node:
@@ -127,12 +155,47 @@ func test_required_capabilities_are_created_first() -> void:
 	assert_eq(damage.get_capability(HealthCapability), health, "能力基类应能访问同一 receiver 上的依赖能力。")
 
 
+func test_auto_dependency_cleanup_removes_unused_auto_dependency() -> void:
+	var receiver := RefCounted.new()
+
+	_utility.add_capability(receiver, AutoCleanupDamageCapability)
+	_utility.remove_capability(receiver, AutoCleanupDamageCapability)
+
+	assert_false(_utility.has_capability(receiver, AutoCleanupDamageCapability), "主能力应被移除。")
+	assert_false(_utility.has_capability(receiver, HealthCapability), "仅由主能力自动补齐的依赖应被清理。")
+
+
+func test_auto_dependency_cleanup_keeps_explicit_dependency() -> void:
+	var receiver := RefCounted.new()
+	_utility.add_capability(receiver, HealthCapability)
+
+	_utility.add_capability(receiver, AutoCleanupDamageCapability)
+	_utility.remove_capability(receiver, AutoCleanupDamageCapability)
+
+	assert_true(_utility.has_capability(receiver, HealthCapability), "用户显式添加的依赖能力不应被级联清理。")
+
+
 func test_capability_receives_architecture_injection() -> void:
 	var receiver := RefCounted.new()
 
 	var capability := _utility.add_capability(receiver, InjectedCapability) as InjectedCapability
 
 	assert_eq(capability.injected_architecture, _arch, "能力应收到当前架构注入。")
+
+
+func test_node_capability_child_tree_receives_architecture_injection() -> void:
+	var receiver := Node.new()
+	add_child(receiver)
+	var capability := ActiveNodeCapability.new()
+	var child := InjectedChildNode.new()
+	capability.add_child(child)
+
+	_utility.add_capability_instance(receiver, capability, ActiveNodeCapability)
+
+	assert_eq(child.injected_architecture, _arch, "场景能力子节点也应收到当前架构注入。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
 
 
 func test_remove_capability_calls_hook_and_clears_storage() -> void:
@@ -156,6 +219,22 @@ func test_node_capability_is_attached_to_container() -> void:
 	assert_eq(capability.get_parent().name, "GFCapabilityContainer", "Node 能力应被挂入能力容器。")
 	assert_eq(capability.get_parent().get_parent(), receiver, "能力容器应挂在 receiver 下。")
 	assert_eq(capability.added_receiver, receiver, "Node 能力也应收到 added hook。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_node2d_capability_uses_node2d_container() -> void:
+	var receiver := Node2D.new()
+	add_child(receiver)
+
+	var capability := _utility.add_capability(receiver, Node2DCapability) as Node2DCapability
+	await get_tree().process_frame
+
+	assert_not_null(capability, "Node2D 能力应创建成功。")
+	assert_true(capability.get_parent() is Node2D, "Node2D 能力应挂入 Node2D 容器以保留空间继承。")
+	assert_eq(capability.get_parent().get_parent(), receiver, "Node2D 能力容器应挂在 receiver 下。")
+	assert_eq(capability.added_receiver, receiver, "Node2D 能力应收到 added hook。")
 
 	receiver.queue_free()
 	await get_tree().process_frame
@@ -284,6 +363,34 @@ func test_interaction_context_queries_capabilities_and_group() -> void:
 
 	assert_eq(context.get_target_capability(HealthCapability), target_capability, "交互上下文应能查询目标能力。")
 	assert_eq(context.get_group_receivers(HealthCapability), [target], "交互上下文应能查询当前分组中的能力对象。")
+
+
+func test_interaction_flow_passes_context_to_command() -> void:
+	var sender := RefCounted.new()
+	var target := RefCounted.new()
+	var command := ContextCommand.new()
+
+	var result := GF_INTERACTIONS_BASE.with_sender(sender, _arch).to(target).with_payload({ "amount": 5 }).execute(command) as GFInteractionContext
+
+	assert_not_null(result, "交互流程应把上下文传递给命令。")
+	assert_eq(result.sender, sender, "交互上下文应包含 sender。")
+	assert_eq(result.target, target, "交互上下文应包含 target。")
+	assert_eq(result.payload["amount"], 5, "交互上下文应包含 payload。")
+
+
+func test_property_bag_capability_stores_typed_values() -> void:
+	var receiver := RefCounted.new()
+	var bag: Object = _utility.add_capability(receiver, GF_PROPERTY_BAG_CAPABILITY_BASE)
+
+	bag.set_property_value(&"count", 3)
+	bag.set_property_value(&"title", "hello")
+	bag.set_property_value(&"offset", Vector2(2.0, 4.0))
+
+	assert_eq(bag.get_int(&"count"), 3, "属性包应能按 int 读取。")
+	assert_eq(bag.get_string(&"title"), "hello", "属性包应能按 String 读取。")
+	assert_eq(bag.get_vector2(&"offset"), Vector2(2.0, 4.0), "属性包应能按 Vector2 读取。")
+	assert_true(bag.remove_property_value(&"title"), "属性包应能移除已有属性。")
+	assert_false(bag.has_property_value(&"title"), "移除后属性不应继续存在。")
 
 
 # --- 私有/辅助方法 ---

@@ -152,6 +152,18 @@ func get_utility(utility_type: Script) -> Object:
 	return _architecture.get_utility(utility_type)
 
 
+## 向任意对象注入当前上下文架构依赖。
+func inject_object(instance: Object) -> void:
+	if _architecture != null:
+		_architecture.inject_object(instance)
+
+
+## 递归向节点树中实现注入 Hook 的节点注入当前上下文架构。
+func inject_node_tree(node: Node) -> void:
+	if _architecture != null:
+		_architecture.inject_node_tree(node)
+
+
 # --- 私有/辅助方法 ---
 
 func _setup_architecture() -> void:

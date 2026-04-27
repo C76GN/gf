@@ -16,6 +16,76 @@
 
 ---
 
+## [1.13.0] - 2026-04-27
+
+**版本概述**：强化能力组件的运行时正确性、编辑器体验与强类型访问，同时补充轻量交互流程、动态属性包、递归注入和日志过滤能力。
+
+### 🚀 新增特性 (Added)
+- **能力容器类型匹配**：Node 能力会根据 receiver 与能力节点类型创建 `Node` / `Node2D` / `Node3D` / `Control` 容器，保留空间变换与 UI 继承语义。
+- **能力依赖移除策略**：`GFCapabilityUtility.DependencyRemovalPolicy` 支持保留依赖或清理仅由主能力自动补齐且未显式添加的依赖。
+- **能力递归注入**：场景能力挂载时会递归向子节点注入当前架构。
+- **能力强类型访问器**：`GFAccessGenerator` 现在会为 `GFCapability` / `GFNodeCapability` 生成 `get/add/has/remove/if_has` helper。
+- **能力编辑器模板**：编辑器菜单新增 `GF/生成 Capability` 与 `GF/生成 NodeCapability`。
+- **能力 Inspector 属性编辑**：目标节点 Inspector 的 `GF Capabilities` 区域可直接显示并编辑能力导出属性。
+- **动态属性包能力**：新增 `GFPropertyBagCapability`，提供少量运行时键值的轻量存取能力。
+- **交互流程入口**：新增 `GFInteractions` 与 `GFInteractionFlow`，用于创建链式交互上下文并把上下文传入命令或事件。
+- **显式注入 API**：`GFArchitecture`、`Gf` 与 `GFNodeContext` 新增 `inject_object()` 与 `inject_node_tree()`。
+- **日志过滤与延迟消息**：`GFLogUtility` 新增 `min_level` 与 `debug_lazy()` / `info_lazy()` / `warn_lazy()` / `error_lazy()` / `fatal_lazy()`。
+
+### 🔄 机制更改 (Changed)
+- **编辑器类型扫描复用**：新增 `GFEditorTypeIndex`，供编辑器工具复用脚本与能力场景查询逻辑。
+- **能力场景挂载更稳健**：能力容器仍复用 `GFCapabilityContainer` 行为脚本，旧场景中的普通容器保持兼容。
+- **访问器生成范围扩大**：生成的 `GFAccess` 包含能力操作入口，减少 `GFCapabilityUtility` 手写样板。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFCapability.get_dependency_removal_policy() -> int`。
+- 新增 `GFNodeCapability.get_dependency_removal_policy() -> int`。
+- 新增 `GFCapabilityUtility.DependencyRemovalPolicy`。
+- 新增 `GFCapabilityUtility.add_required_capability(receiver: Object, capability_type: Script, provider: Variant = null) -> Object`。
+- 新增 `GFArchitecture.inject_object(instance: Object) -> void`。
+- 新增 `GFArchitecture.inject_node_tree(node: Node) -> void`。
+- 新增 `Gf.inject_object(instance: Object) -> void`。
+- 新增 `Gf.inject_node_tree(node: Node) -> void`。
+- 新增 `GFNodeContext.inject_object(instance: Object) -> void`。
+- 新增 `GFNodeContext.inject_node_tree(node: Node) -> void`。
+- 新增 `GFPropertyBagCapability`。
+- 新增 `GFInteractions`。
+- 新增 `GFInteractionFlow`。
+- 新增 `GFLogUtility.min_level: int`。
+- 新增 `GFLogUtility.debug_lazy()` / `info_lazy()` / `warn_lazy()` / `error_lazy()` / `fatal_lazy()`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧能力组件无需迁移；默认依赖移除策略仍是保留依赖。
+2. 如果希望移除主能力时同步清理自动补齐依赖，请重写 `get_dependency_removal_policy()` 并返回 `REMOVE_AUTO_DEPENDENCIES`。
+3. 如果项目使用 `Node2D`、`Node3D` 或 `Control` 能力，建议回归检查场景层级；新容器会保留对应类型继承，通常无需业务代码调整。
+4. 需要高频日志时，建议设置 `min_level` 并使用 lazy 日志方法，避免被过滤日志仍构造复杂字符串。
+5. 重新运行 `GF/生成强类型访问器` 后，可直接使用生成的能力 helper。
+
+### 📁 核心受影响文件 (Affected Files)
+- `README.md`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/editor/gf_access_generator.gd`
+- `addons/gf/editor/gf_capability_inspector_plugin.gd`
+- `addons/gf/editor/gf_editor_type_index.gd`
+- `addons/gf/extensions/capability/gf_capability.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/extensions/capability/gf_node_capability.gd`
+- `addons/gf/extensions/capability/gf_property_bag_capability.gd`
+- `addons/gf/extensions/interaction/gf_interaction_flow.gd`
+- `addons/gf/extensions/interaction/gf_interactions.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/utilities/gf_log_utility.gd`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/12. 能力组件 (Capabilities).md`
+- `tests/gf_core/test_gf_access_generator.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+- `tests/gf_core/test_gf_log_utility.gd`
+
+---
+
 ## [1.12.0] - 2026-04-27
 
 **版本概述**：聚焦框架边界稳定性与异步生命周期一致性，修复事件派发、NodeContext、能力挂载、动作取消、对象池预热和战斗 Buff 刷新中的边缘问题，并补充对应回归测试。
