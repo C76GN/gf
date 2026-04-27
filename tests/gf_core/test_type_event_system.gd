@@ -243,6 +243,48 @@ func test_send_simple_register_then_unregister_during_dispatch_does_not_leave_li
 	assert_eq(state.count, 2, "同一轮派发中先注册再注销的简单事件回调不应残留到下一次派发。")
 
 
+# --- 测试：拥有者绑定 ---
+
+## 验证注销 owner 会同时移除类型事件和简单事件监听。
+func test_unregister_owner_removes_type_and_simple_listeners() -> void:
+	var listener_owner := RefCounted.new()
+	var state := {"typed": 0, "simple": 0}
+	var script_a: Script = TestEventA
+	var event_id: StringName = &"owned_simple"
+
+	_system.register(script_a, func(_e: TestEventA) -> void: state.typed += 1, 0, listener_owner)
+	_system.register_simple(event_id, func(_p: Variant) -> void: state.simple += 1, listener_owner)
+
+	_system.send(TestEventA.new())
+	_system.send_simple(event_id)
+	_system.unregister_owner(listener_owner)
+	_system.send(TestEventA.new())
+	_system.send_simple(event_id)
+
+	assert_eq(state.typed, 1, "owner 注销后类型事件不应继续触发。")
+	assert_eq(state.simple, 1, "owner 注销后简单事件不应继续触发。")
+
+
+## 验证派发中注销 owner 会阻止同一 owner 后续监听在本轮继续执行。
+func test_unregister_owner_during_dispatch_skips_later_owned_callbacks() -> void:
+	var listener_owner := RefCounted.new()
+	var state := {"order": []}
+	var script_a: Script = TestEventA
+
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("first")
+		_system.unregister_owner(listener_owner)
+	, 10, listener_owner)
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("second")
+	, 0, listener_owner)
+
+	_system.send(TestEventA.new())
+	_system.send(TestEventA.new())
+
+	assert_eq(state.order, ["first"], "派发中注销 owner 后，同 owner 后续回调和下一轮回调都不应执行。")
+
+
 # --- 测试：优先级排序 ---
 
 ## 验证高优先级回调先于低优先级执行。

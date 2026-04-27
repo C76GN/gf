@@ -57,6 +57,7 @@ func _enter_tree() -> void:
 	_setup_architecture()
 	if _owns_architecture:
 		install(_architecture)
+		install_bindings(_architecture.create_binder())
 		if auto_init:
 			_initialize_owned_architecture()
 	elif _architecture == null:
@@ -89,6 +90,12 @@ func install(_architecture_instance: GFArchitecture) -> void:
 	pass
 
 
+## 使用声明式装配器安装当前上下文的局部模块。仅在 SCOPED 模式下调用。
+## @param binder: 当前上下文创建的局部架构装配器。
+func install_bindings(_binder: Variant) -> void:
+	pass
+
+
 ## 获取当前上下文使用的架构。
 ## @return 架构实例；未找到时返回 null。
 func get_architecture() -> GFArchitecture:
@@ -99,6 +106,19 @@ func get_architecture() -> GFArchitecture:
 ## @return 已完成初始化返回 true。
 func is_context_ready() -> bool:
 	return _is_context_ready
+
+
+## 等待上下文架构完成初始化并返回该架构。
+## @return 当前上下文架构；上下文失效时返回 null。
+func wait_until_ready() -> GFArchitecture:
+	while _architecture != null and not _architecture.is_inited():
+		if not is_inside_tree():
+			return null
+		await get_tree().process_frame
+
+	if _architecture != null:
+		_is_context_ready = true
+	return _architecture
 
 
 ## 通过当前上下文架构获取 Model。
@@ -177,4 +197,3 @@ func _should_tick_owned_architecture() -> bool:
 		and _owns_architecture
 		and _architecture != null
 	)
-

@@ -79,10 +79,39 @@ func get_utility(utility_type: Script) -> Object:
 	return _get_architecture().get_utility(utility_type)
 
 
+## 注册类型事件监听器。Utility 注销时框架会自动清理由该方法注册的监听。
+## @param event_type: 要监听的脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
+	_get_architecture().register_event_owned(self, event_type, callback, priority)
+
+
+## 注销类型事件监听器。
+## @param event_type: 要注销的脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_event(event_type: Script, callback: Callable) -> void:
+	_get_architecture().unregister_event(event_type, callback)
+
+
 ## 向架构发送类型事件。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
 	_get_architecture().send_event(event_instance)
+
+
+## 注册轻量级 StringName 事件监听器。Utility 注销时框架会自动清理由该方法注册的监听。
+## @param event_id: StringName 事件标识符。
+## @param callback: 回调函数，签名为 func(payload: Variant)。
+func register_simple_event(event_id: StringName, callback: Callable) -> void:
+	_get_architecture().register_simple_event_owned(self, event_id, callback)
+
+
+## 注销轻量级 StringName 事件监听器。
+## @param event_id: StringName 事件标识符。
+## @param callback: 要移除的回调函数。
+func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
+	_get_architecture().unregister_simple_event(event_id, callback)
 
 
 ## 发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。

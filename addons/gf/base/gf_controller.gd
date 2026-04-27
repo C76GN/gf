@@ -20,14 +20,24 @@ const GFNodeContextBase = preload("res://addons/gf/core/gf_node_context.gd")
 ## 优先沿场景树向上寻找 GFNodeContext；若未找到，则回退到全局 Gf 架构。
 ## @return 当前可用的架构实例。
 func get_architecture() -> GFArchitecture:
-	var current_node: Node = self
-	while current_node != null:
-		if current_node is GFNodeContextBase:
-			var context := current_node as GFNodeContextBase
-			var context_architecture := context.get_architecture()
-			if context_architecture != null:
-				return context_architecture
-		current_node = current_node.get_parent()
+	var context := _find_nearest_context()
+	if context != null:
+		var context_architecture := context.get_architecture()
+		if context_architecture != null:
+			return context_architecture
+
+	return Gf.get_architecture()
+
+
+## 等待最近的 GFNodeContext 完成初始化并返回可用架构。
+## 若当前节点不在上下文子树下，则直接返回全局架构。
+## @return 当前 Controller 可用的架构实例。
+func wait_for_context_ready() -> GFArchitecture:
+	var context := _find_nearest_context()
+	if context != null:
+		var architecture := await context.wait_until_ready()
+		if architecture != null:
+			return architecture
 
 	return Gf.get_architecture()
 
@@ -76,7 +86,7 @@ func send_query(query: Object) -> Variant:
 ## @param callback: 回调函数。
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
-	get_architecture().register_event(event_type, callback, priority)
+	get_architecture().register_event_owned(self, event_type, callback, priority)
 
 
 ## 注销类型事件监听器。
@@ -96,7 +106,7 @@ func send_event(event_instance: Object) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
-	get_architecture().register_simple_event(event_id, callback)
+	get_architecture().register_simple_event_owned(self, event_id, callback)
 
 
 ## 注销轻量级 StringName 事件监听器。
@@ -111,3 +121,15 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 ## @param payload: 可选的事件附加数据。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	get_architecture().send_simple_event(event_id, payload)
+
+
+# --- 私有/辅助方法 ---
+
+func _find_nearest_context() -> GFNodeContextBase:
+	var current_node: Node = self
+	while current_node != null:
+		if current_node is GFNodeContextBase:
+			return current_node as GFNodeContextBase
+		current_node = current_node.get_parent()
+
+	return null

@@ -9,6 +9,7 @@ extends Node
 ## 项目级启动安装器配置。值为 GDScript 路径数组，脚本需继承 GFInstaller。
 const INSTALLERS_SETTING: String = "gf/project/installers"
 const GFInstallerBase = preload("res://addons/gf/core/gf_installer.gd")
+const GFBindingLifetimesBase = preload("res://addons/gf/core/gf_binding_lifetimes.gd")
 
 
 # --- 私有变量 ---
@@ -38,6 +39,12 @@ func create_architecture() -> GFArchitecture:
 	if _architecture == null:
 		_architecture = GFArchitecture.new()
 	return _architecture
+
+
+## 为当前架构创建声明式装配器。
+## @return 绑定到当前架构的装配器。
+func create_binder() -> Variant:
+	return create_architecture().create_binder()
 
 
 ## 获取当前注册的架构实例。
@@ -123,12 +130,28 @@ func replace_utility(instance: Object) -> void:
 		await create_architecture().replace_utility(script, instance)
 
 ## 注册短生命周期对象工厂。
-func register_factory(script_cls: Script, factory: Callable) -> void:
-	create_architecture().register_factory(script_cls, factory)
+func register_factory(
+	script_cls: Script,
+	factory: Callable,
+	lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT
+) -> void:
+	create_architecture().register_factory(script_cls, factory, lifetime)
+
+## 注册已有实例作为短生命周期工厂入口。
+func register_factory_instance(script_cls: Script, instance: Object) -> void:
+	create_architecture().register_factory_instance(script_cls, instance)
 
 ## 替换短生命周期对象工厂。
-func replace_factory(script_cls: Script, factory: Callable) -> void:
-	create_architecture().replace_factory(script_cls, factory)
+func replace_factory(
+	script_cls: Script,
+	factory: Callable,
+	lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT
+) -> void:
+	create_architecture().replace_factory(script_cls, factory, lifetime)
+
+## 替换已有实例工厂入口。
+func replace_factory_instance(script_cls: Script, instance: Object) -> void:
+	create_architecture().replace_factory_instance(script_cls, instance)
 
 ## 注销短生命周期对象工厂。
 func unregister_factory(script_cls: Script) -> void:
@@ -226,6 +249,12 @@ func listen(event_type: Script, on_event: Callable, priority: int = 0) -> void:
 	if arch != null:
 		arch.register_event(event_type, on_event, priority)
 
+## 快捷注册带拥有者的类型事件监听。
+func listen_owned(listener_owner: Object, event_type: Script, on_event: Callable, priority: int = 0) -> void:
+	var arch := _get_architecture_or_null("listen_owned")
+	if arch != null:
+		arch.register_event_owned(listener_owner, event_type, on_event, priority)
+
 ## 快捷注销类型事件监听（别名：unlisten）。
 func unlisten(event_type: Script, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("unlisten")
@@ -238,11 +267,23 @@ func listen_simple(event_id: StringName, on_event: Callable) -> void:
 	if arch != null:
 		arch.register_simple_event(event_id, on_event)
 
+## 快捷注册带拥有者的轻量事件监听。
+func listen_simple_owned(listener_owner: Object, event_id: StringName, on_event: Callable) -> void:
+	var arch := _get_architecture_or_null("listen_simple_owned")
+	if arch != null:
+		arch.register_simple_event_owned(listener_owner, event_id, on_event)
+
 ## 快捷注销轻量事件监听（别名：unlisten_simple）。
 func unlisten_simple(event_id: StringName, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("unlisten_simple")
 	if arch != null:
 		arch.unregister_simple_event(event_id, on_event)
+
+## 快捷注销某个拥有者注册过的所有事件监听。
+func unlisten_owner(listener_owner: Object) -> void:
+	var arch := _get_architecture_or_null("unlisten_owner")
+	if arch != null:
+		arch.unregister_owner_events(listener_owner)
 
 ## 注销 System 实例。
 func unregister_system(script_cls: Script) -> void:
@@ -293,6 +334,8 @@ func _run_project_installers(architecture_instance: GFArchitecture) -> void:
 		var installer: Object = _create_installer(path)
 		if installer != null:
 			installer.install(architecture_instance)
+			if installer.has_method("install_bindings"):
+				installer.install_bindings(architecture_instance.create_binder())
 
 
 func _get_project_installer_paths() -> Array[String]:

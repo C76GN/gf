@@ -102,7 +102,7 @@ func get_system(system_type: Script) -> Object:
 ## @param callback: 回调函数。
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
-	_get_architecture().register_event(event_type, callback, priority)
+	_get_architecture().register_event_owned(self, event_type, callback, priority)
 
 
 ## 注销类型事件监听器。
@@ -122,7 +122,7 @@ func send_event(event_instance: Object) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
-	_get_architecture().register_simple_event(event_id, callback)
+	_get_architecture().register_simple_event_owned(self, event_id, callback)
 
 
 ## 注销轻量级 StringName 事件监听器。

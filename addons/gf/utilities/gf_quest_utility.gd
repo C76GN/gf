@@ -158,7 +158,10 @@ func _register_event_handler(event_id: StringName) -> void:
 
 	var event_handler: Callable = Callable(self, "_on_quest_event_triggered").bind(event_id)
 	_event_handlers[event_id] = event_handler
-	arch.register_simple_event(event_id, event_handler)
+	if arch.has_method("register_simple_event_owned"):
+		arch.register_simple_event_owned(self, event_id, event_handler)
+	else:
+		arch.register_simple_event(event_id, event_handler)
 
 
 func _unregister_all_event_handlers() -> void:

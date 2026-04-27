@@ -62,6 +62,18 @@ func install(architecture: GFArchitecture) -> void:
 	architecture.register_system_instance(BattleSystem.new())
 ```
 
+如果更喜欢声明式装配，也可以重写 `install_bindings()`：
+
+```gdscript
+func install_bindings(binder: Variant) -> void:
+	binder.bind_model(PlayerModel).as_singleton()
+	binder.bind_utility(GFStorageUtility).as_singleton()
+	binder.bind_system(BattleSystem).as_singleton()
+	binder.bind_factory(DealDamageCommand).from_factory(func() -> Object:
+		return DealDamageCommand.new()
+	).as_transient()
+```
+
 然后在 `Project Settings > gf/project/installers` 中加入该脚本路径。调用 `await Gf.init()` 或 `await Gf.set_architecture(arch)` 时，框架会在生命周期初始化前自动执行安装器。
 
 局部玩法或关卡模块可以挂载 `GFNodeContext`。`SCOPED` 模式会创建带父级回退的局部架构，并在节点退出树时自动 `dispose()` 局部模块；`INHERITED` 模式则直接复用最近父级或全局架构。
@@ -79,7 +91,7 @@ var command := Gf.create_instance(DealDamageCommand) as DealDamageCommand
 Gf.send_command(command)
 ```
 
-工厂创建的对象会自动接收当前架构注入，适合在对象内部继续使用 `get_model()` / `get_utility()`。
+工厂创建的对象会自动接收当前架构注入，适合在对象内部继续使用 `get_model()` / `get_utility()`。工厂默认是 transient，也可通过 `GFBindingLifetimes.Lifetime.SINGLETON` 注册为单例工厂。
 
 ## 常用模块
 

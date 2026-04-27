@@ -16,6 +16,77 @@
 
 ---
 
+## [1.9.1] - 2026-04-27
+
+**版本概述**：在 `1.9.0` 的 Installer、NodeContext 与父级架构回退基础上，继续吸收依赖注入容器的声明式绑定、生命周期策略和监听拥有者清理能力，补齐大型项目装配可读性、动态模块事件清理以及局部上下文下短生命周期对象注入语义。
+
+### 🚀 新增特性 (Added)
+- **声明式绑定装配器**：新增 `GFBinder`、`GFBindBuilder`、`GFBinding` 与 `GFBindingLifetimes`，支持 `bind_model()` / `bind_system()` / `bind_utility()` / `bind_factory()` 链式声明绑定来源、别名与生命周期。
+- **Installer 绑定入口**：`GFInstaller` 新增 `install_bindings(binder: Variant)`，项目安装器可以同时保留旧的 `install(architecture)` 与新的声明式装配写法。
+- **NodeContext 绑定入口**：`GFNodeContext` 新增 `install_bindings(binder: Variant)`，局部 scoped 架构可以用同一套装配语义注册场景专属模块和工厂。
+- **拥有者绑定事件监听**：新增 `register_event_owned()` / `register_simple_event_owned()` / `unregister_owner_events()` 以及 `Gf.listen_owned()` / `Gf.listen_simple_owned()` / `Gf.unlisten_owner()`，支持按监听拥有者批量清理。
+- **Utility 事件便捷方法**：`GFUtility` 补齐 `register_event()` / `register_simple_event()` 等事件辅助方法，与 `GFSystem`、`GFController` 保持一致。
+- **上下文就绪等待**：新增 `GFNodeContext.wait_until_ready()` 与 `GFController.wait_for_context_ready()`，用于在 scoped 架构异步初始化完成后再安全访问局部依赖。
+- **工厂实例绑定**：新增 `register_factory_instance()` / `replace_factory_instance()`，可把已有实例作为 `create_instance()` 的单例返回来源。
+
+### 🔄 机制更改 (Changed)
+- **工厂注册改为绑定对象承载**：短生命周期对象工厂现在统一由 `GFBinding` 管理 provider、lifetime 与自动注入策略。
+- **工厂生命周期可配置**：`register_factory()` / `replace_factory()` 新增可选 `lifetime` 参数，默认保持 transient 行为；singleton 工厂会缓存首次解析出的实例。
+- **父级 transient 工厂注入请求方架构**：子架构回退到父级 transient 工厂时，新对象会注入发起解析的子架构；singleton 工厂仍注入拥有该绑定的架构。
+- **模块事件注册默认 owner-bound**：`GFSystem`、`GFUtility`、`GFController` 的基类事件注册方法现在默认以自身为 owner，模块注销时自动清理对应监听。
+- **注册边界校验更严格**：底层 `register_model/system/utility()` 现在会校验实例基类、脚本存在性以及注册脚本与实例脚本的继承关系，避免把错误类型塞进错误注册槽位。
+
+### 🐛 Bug 修复 (Fixed)
+- **动态注销后的事件监听残留**：注销 `System` / `Utility` 时会自动移除该实例拥有的类型事件与简单事件监听，避免临时模块释放后继续接收事件。
+- **事件派发中的 owner 清理一致性**：派发过程中调用 owner 批量注销时，会同步处理 pending add/remove，避免同一轮或下一轮派发误触发已清理监听。
+- **文档回调签名漂移**：修正 BindableProperty 示例中 `value_changed` 回调参数与实际 `(old_value, new_value)` 语义不一致的问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFArchitecture.create_binder() -> Variant` 与 `Gf.create_binder() -> Variant`。
+- 新增 `GFInstaller.install_bindings(binder: Variant) -> void`。
+- 新增 `GFNodeContext.install_bindings(binder: Variant) -> void`。
+- 新增 `GFNodeContext.wait_until_ready() -> GFArchitecture`。
+- 新增 `GFController.wait_for_context_ready() -> GFArchitecture`。
+- 新增 `GFArchitecture.register_event_owned()` / `register_simple_event_owned()` / `unregister_owner_events()`。
+- 新增 `Gf.listen_owned()` / `listen_simple_owned()` / `unlisten_owner()`。
+- 新增 `GFArchitecture.register_factory_instance()` / `replace_factory_instance()`。
+- 新增 `Gf.register_factory_instance()` / `replace_factory_instance()`。
+- `GFArchitecture.register_factory(script_cls, factory, lifetime = GFBindingLifetimes.Lifetime.TRANSIENT)` 新增可选 `lifetime` 参数，旧调用保持兼容。
+- `GFArchitecture.replace_factory(script_cls, factory, lifetime = GFBindingLifetimes.Lifetime.TRANSIENT)` 新增可选 `lifetime` 参数，旧调用保持兼容。
+- `Gf.register_factory()` / `Gf.replace_factory()` 同步新增可选 `lifetime` 参数，旧调用保持兼容。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧的 `install(architecture)`、`register_*()`、`Gf.listen()` / `Gf.listen_simple()` 仍可继续使用，无需一次性迁移。
+2. 新项目或注册项较多的项目，建议优先把模块、alias 和工厂写入 `install_bindings()`，让装配关系集中可读。
+3. `GFSystem`、`GFUtility`、`GFController` 内部注册事件时，优先使用基类 `register_event()` / `register_simple_event()`；普通对象优先使用 `Gf.listen_owned()` 并在退出时调用 `Gf.unlisten_owner()`。
+4. 需要短生命周期 Command / Query 访问依赖时，优先通过 `create_instance()` 创建；局部场景下它会拿到正确的 scoped 架构注入。
+5. 如果旧代码直接调用底层 `register_utility(SomeBase, wrong_instance)` 这类不匹配注册，新版本会报错并拒绝注册，请改为正确基类或显式 alias。
+
+### 📁 核心受影响文件 (Affected Files)
+- `README.md`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_bind_builder.gd`
+- `addons/gf/core/gf_binder.gd`
+- `addons/gf/core/gf_binding.gd`
+- `addons/gf/core/gf_binding_lifetimes.gd`
+- `addons/gf/core/gf_installer.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/docs/wiki/01. 架构概览 (Architecture).md`
+- `addons/gf/docs/wiki/02. 生命周期与初始化 (Lifecycle).md`
+- `addons/gf/docs/wiki/04. 事件系统 (Event System).md`
+- `addons/gf/docs/wiki/06. 命令与查询 (Commands & Queries).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/utilities/gf_quest_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_type_event_system.gd`
+
+---
+
 ## [1.9.0] - 2026-04-27
 
 **版本概述**：吸收依赖注入容器的装配经验，补强项目启动安装器、场景级局部上下文、父级架构回退与注册边界提示，同时修复事件系统遍历中先注册再注销的 pending 合并边缘问题。

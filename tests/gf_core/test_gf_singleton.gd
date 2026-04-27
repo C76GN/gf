@@ -21,6 +21,9 @@ class DummySystem extends GFSystem:
 class DummyUtility extends GFUtility:
 	pass
 
+class NotUtility extends RefCounted:
+	pass
+
 class UtilityBase extends GFUtility:
 	pass
 
@@ -82,9 +85,20 @@ class ScopedContext extends GFNodeContextBase:
 		architecture_instance.register_utility_instance(local_utility)
 		architecture_instance.register_system_instance(lookup_system)
 
+class InheritedContext extends GFNodeContextBase:
+	func _init() -> void:
+		scope_mode = GFNodeContextBase.ScopeMode.INHERITED
+
 class FactoryCommand extends GFCommand:
 	func get_parent_utility_from_command() -> ParentScopedUtility:
 		return get_utility(ParentScopedUtility) as ParentScopedUtility
+
+class InjectedFactoryCommand extends GFCommand:
+	var injected_architecture: GFArchitecture = null
+
+	func inject_dependencies(architecture: GFArchitecture) -> void:
+		super.inject_dependencies(architecture)
+		injected_architecture = architecture
 
 class TickUtility extends GFUtility:
 	var initialized: bool = false
@@ -163,6 +177,16 @@ class RecordingSystem extends GFSystem:
 
 	func async_init() -> void:
 		order.append("system")
+
+
+class OwnedEventUtility extends GFUtility:
+	var event_count: int = 0
+
+	func ready() -> void:
+		register_simple_event(&"owned_event", _on_owned_event)
+
+	func _on_owned_event(_payload: Variant) -> void:
+		event_count += 1
 
 
 class DummyQuery extends GFQuery:
@@ -370,6 +394,44 @@ func test_child_architecture_falls_back_to_parent() -> void:
 	parent_arch.dispose()
 
 
+## 验证注册时会拒绝与目标槽位不匹配的实例。
+func test_register_utility_rejects_wrong_base_type() -> void:
+	var arch := GFArchitecture.new()
+
+	await arch.register_utility_instance(NotUtility.new())
+
+	assert_push_error("[GFArchitecture] register_utility 失败：实例类型必须继承 GFUtility。")
+	assert_null(arch.get_utility(NotUtility), "非 GFUtility 实例不应进入 Utility 注册表。")
+	arch.dispose()
+
+
+## 验证声明式 Binder 可以注册模块、别名与短生命周期工厂。
+func test_binder_registers_modules_alias_and_factory_lifetimes() -> void:
+	var arch := GFArchitecture.new()
+	var binder: Variant = arch.create_binder()
+	var utility := ConcreteUtility.new()
+
+	await binder.bind_utility(ConcreteUtility).from_instance(utility).with_alias(UtilityBase).as_singleton()
+	binder.bind_factory(InjectedFactoryCommand).from_factory(func() -> Object:
+		return InjectedFactoryCommand.new()
+	).as_transient()
+	binder.bind_factory(FactoryCommand).from_factory(func() -> Object:
+		return FactoryCommand.new()
+	).as_singleton()
+
+	var transient_a := arch.create_instance(InjectedFactoryCommand) as InjectedFactoryCommand
+	var transient_b := arch.create_instance(InjectedFactoryCommand) as InjectedFactoryCommand
+	var singleton_a := arch.create_instance(FactoryCommand) as FactoryCommand
+	var singleton_b := arch.create_instance(FactoryCommand) as FactoryCommand
+
+	assert_eq(arch.get_utility(UtilityBase), utility, "Binder 应支持模块 alias 注册。")
+	assert_ne(transient_a, transient_b, "Transient 工厂每次应返回新实例。")
+	assert_eq(transient_a.injected_architecture, arch, "Transient 工厂结果应注入当前架构。")
+	assert_eq(singleton_a, singleton_b, "Singleton 工厂应缓存同一实例。")
+
+	arch.dispose()
+
+
 ## 验证项目 Installer 会在 Gf.init() 初始化前自动注册模块。
 func test_project_installer_registers_modules_before_init() -> void:
 	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
@@ -428,6 +490,57 @@ func test_scoped_node_context_owns_local_architecture() -> void:
 	assert_false(parent_utility.disposed, "Scoped NodeContext 不应释放父架构模块。")
 
 
+## 验证 Controller 可以等待最近的局部上下文完成初始化。
+func test_controller_waits_for_context_ready() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var parent_arch := GFArchitecture.new()
+	await Gf.set_architecture(parent_arch)
+
+	var context := ScopedContext.new()
+	var controller := ScopedController.new()
+	add_child(context)
+	context.add_child(controller)
+	var architecture := await controller.wait_for_context_ready()
+
+	assert_eq(architecture, context.get_architecture(), "Controller 应等待并返回最近上下文的架构。")
+	assert_not_null(controller.get_local_utility(), "等待完成后 Controller 应能获取局部依赖。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
+## 验证 Inherited NodeContext 也能等待父架构完成异步初始化。
+func test_inherited_context_waits_for_parent_architecture_init() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var parent_arch := GFArchitecture.new()
+	var slow_utility := SlowInitUtility.new()
+	await parent_arch.register_utility_instance(slow_utility)
+	Gf._architecture = parent_arch
+
+	var context := InheritedContext.new()
+	add_child(context)
+	await get_tree().process_frame
+
+	parent_arch.init()
+	await get_tree().process_frame
+	assert_true(slow_utility.async_started, "父架构应已进入 async_init 等待。")
+
+	slow_utility.call_deferred("emit_signal", "async_continue")
+	var architecture := await context.wait_until_ready()
+
+	assert_eq(architecture, parent_arch, "Inherited NodeContext 应返回继承到的父架构。")
+	assert_true(slow_utility.ready_called, "wait_until_ready 应等待父架构 ready 后再返回。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
 ## 验证工厂创建的短生命周期对象会自动注入当前架构。
 func test_factory_create_instance_injects_architecture() -> void:
 	var parent_arch := GFArchitecture.new()
@@ -446,6 +559,38 @@ func test_factory_create_instance_injects_architecture() -> void:
 
 	child_arch.dispose()
 	parent_arch.dispose()
+
+
+## 验证父级 transient 工厂被子架构解析时，会注入请求方架构。
+func test_parent_transient_factory_injects_requesting_child_architecture() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+	parent_arch.register_factory(InjectedFactoryCommand, func() -> Object:
+		return InjectedFactoryCommand.new()
+	)
+
+	var command := child_arch.create_instance(InjectedFactoryCommand) as InjectedFactoryCommand
+
+	assert_not_null(command, "子架构应能通过父级工厂创建对象。")
+	assert_eq(command.injected_architecture, child_arch, "父级 transient 工厂结果应注入发起解析的子架构。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
+## 验证模块注销会自动清理通过基类注册的事件监听。
+func test_unregister_utility_removes_owned_event_listeners() -> void:
+	var arch := GFArchitecture.new()
+	var utility := OwnedEventUtility.new()
+	await arch.register_utility_instance(utility)
+	await arch.init()
+
+	arch.send_simple_event(&"owned_event")
+	arch.unregister_utility(OwnedEventUtility)
+	arch.send_simple_event(&"owned_event")
+
+	assert_eq(utility.event_count, 1, "Utility 注销后不应继续收到 owner-bound 事件。")
+	arch.dispose()
 
 
 ## 验证并发 init 调用会等待同一轮初始化完成。
