@@ -7,6 +7,13 @@ class_name GFSeedUtility
 extends GFUtility
 
 
+# --- 常量 ---
+
+const _FNV_32_OFFSET: int = 2_166_136_261
+const _FNV_32_PRIME: int = 16_777_619
+const _UINT_32_MASK: int = 0xffffffff
+
+
 # --- 私有变量 ---
 
 var _rng: RandomNumberGenerator
@@ -60,7 +67,7 @@ func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
 	var branch_index: int = int(_branch_counters.get(string_seed, 0))
 	_branch_counters[string_seed] = branch_index + 1
 
-	var branch_seed: int = hash("%d:%d:%s:%d" % [
+	var branch_seed: int = _stable_hash("%d:%d:%s:%d" % [
 		_global_seed,
 		_rng.state,
 		string_seed,
@@ -68,3 +75,11 @@ func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
 	])
 	branched.seed = branch_seed
 	return branched
+
+
+func _stable_hash(text: String) -> int:
+	var hash_value: int = _FNV_32_OFFSET
+	var bytes := text.to_utf8_buffer()
+	for value: int in bytes:
+		hash_value = ((hash_value ^ value) * _FNV_32_PRIME) & _UINT_32_MASK
+	return hash_value

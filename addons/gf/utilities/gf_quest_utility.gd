@@ -137,7 +137,7 @@ func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
 
 	var amount := _payload_to_amount(payload)
 
-	var list: Array = _event_to_quests[event_id]
+	var list: Array = (_event_to_quests[event_id] as Array).duplicate()
 	for quest_id: StringName in list:
 		var q := _quests.get(quest_id) as QuestData
 		if q == null or q.is_completed:
@@ -181,11 +181,18 @@ func _get_arch() -> Object:
 
 
 func _payload_to_amount(payload: Variant) -> int:
-	if payload is Dictionary and payload.has("amount"):
-		return _payload_to_amount(payload["amount"])
-	if payload is int:
-		return payload
-	if payload is float:
-		return roundi(payload)
+	var current_payload := payload
+	var depth: int = 0
+	while current_payload is Dictionary and current_payload.has("amount"):
+		depth += 1
+		if depth > 16:
+			push_error("[GFQuestUtility] payload.amount 嵌套过深，已回退为默认进度 1。")
+			return 1
+		current_payload = current_payload["amount"]
+
+	if current_payload is int:
+		return current_payload
+	if current_payload is float:
+		return roundi(current_payload)
 
 	return 1

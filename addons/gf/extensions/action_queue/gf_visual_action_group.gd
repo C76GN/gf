@@ -63,6 +63,9 @@ func execute() -> Variant:
 ## 请求取消当前动作组执行。
 func cancel() -> void:
 	_execution_serial += 1
+	for action: GFVisualAction in actions:
+		if is_instance_valid(action):
+			action.cancel()
 
 
 # --- 私有方法 ---

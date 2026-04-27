@@ -219,6 +219,23 @@ func test_clear_queue_can_stop_current_waiting_action() -> void:
 	assert_signal_emitted(_system, "queue_drained", "stop_current 清空运行中队列时应发出排空信号。")
 
 
+## 验证取消当前动作组时会递归取消正在等待的子动作。
+func test_clear_queue_propagates_cancel_to_group_children() -> void:
+	var order: Array = []
+	var waiting_action := ManualSignalAction.new(order, "WAIT_CHILD")
+	var group := GFVisualActionGroup.new([waiting_action], false)
+	_system.enqueue(group)
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+	assert_true(_system.is_processing, "动作组应正在等待子动作 Signal。")
+
+	_system.clear_queue(true)
+	await get_tree().process_frame
+
+	assert_true(waiting_action.cancelled, "取消动作组时应向子动作传播 cancel。")
+
+
 # --- 测试：并行队列与组合 ---
 
 ## 验证 enqueue_parallel 的子动作被一并执行。

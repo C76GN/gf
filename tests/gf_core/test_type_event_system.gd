@@ -285,6 +285,27 @@ func test_unregister_owner_during_dispatch_skips_later_owned_callbacks() -> void
 	assert_eq(state.order, ["first"], "派发中注销 owner 后，同 owner 后续回调和下一轮回调都不应执行。")
 
 
+## 验证派发中注销 owner 后重新注册的新回调会在下一轮生效。
+func test_unregister_owner_then_register_same_owner_during_dispatch_keeps_new_listener() -> void:
+	var listener_owner := RefCounted.new()
+	var state := {"order": [], "replacement": Callable()}
+	var script_a: Script = TestEventA
+
+	state.replacement = func(_e: TestEventA) -> void:
+		state.order.append("replacement")
+
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("old")
+		_system.unregister_owner(listener_owner)
+		_system.register(script_a, state.replacement, 0, listener_owner)
+	, 10, listener_owner)
+
+	_system.send(TestEventA.new())
+	_system.send(TestEventA.new())
+
+	assert_eq(state.order, ["old", "replacement"], "同一 owner 重新注册的新监听应在下一轮派发生效。")
+
+
 # --- 测试：优先级排序 ---
 
 ## 验证高优先级回调先于低优先级执行。

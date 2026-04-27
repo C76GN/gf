@@ -278,6 +278,25 @@ func test_add_buff_assigns_owner_when_missing() -> void:
 	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "自动回填 owner 后，Buff 效果应能正常生效。")
 
 
+func test_duplicate_buff_refresh_updates_duration_and_stacks() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+
+	var buff := GFBuff.new()
+	buff.max_stacks = 3
+	buff.setup(&"StackingBuff", 1.0, entity)
+	system.add_buff(entity, buff)
+
+	var refreshed_buff := GFBuff.new()
+	refreshed_buff.setup(&"StackingBuff", -1.0, entity)
+	system.add_buff(entity, refreshed_buff)
+
+	assert_eq(buff.stacks, 2, "重复 Buff 应在 max_stacks 允许时增加层数。")
+	assert_eq(buff.duration, -1.0, "重复 Buff 刷新应同步新的 duration。")
+	assert_eq(buff.time_left, -1.0, "重复 Buff 刷新应同步新的剩余时间。")
+
+
 ## 测试 GFAttribute 的强制重算。
 func test_attribute_force_recalculate() -> void:
 	var attr := GFAttribute.new(100.0)

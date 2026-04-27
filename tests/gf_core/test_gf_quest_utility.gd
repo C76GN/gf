@@ -69,6 +69,19 @@ func test_float_payload_amount_is_rounded() -> void:
 	assert_eq(q_data.current_count, 2, "float 进度载荷应四舍五入为最接近的整数。")
 
 
+func test_deep_payload_amount_falls_back_without_recursion_overflow() -> void:
+	_quest.start_quest(&"nested_payload", &"nested_event", 3)
+	var payload: Variant = { "amount": 1 }
+	for i in range(20):
+		payload = { "amount": payload }
+
+	Gf.send_simple_event(&"nested_event", payload)
+	var q_data: Object = _quest._quests[&"nested_payload"]
+
+	assert_eq(q_data.current_count, 1, "嵌套过深的 payload 应回退为默认进度。")
+	assert_push_error("[GFQuestUtility] payload.amount 嵌套过深，已回退为默认进度 1。")
+
+
 func test_zero_target_quest_completes_immediately() -> void:
 	watch_signals(_quest)
 

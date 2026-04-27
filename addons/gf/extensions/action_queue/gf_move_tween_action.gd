@@ -27,6 +27,11 @@ var transition_type: Tween.TransitionType = Tween.TRANS_CUBIC
 var ease_type: Tween.EaseType = Tween.EASE_OUT
 
 
+# --- 私有变量 ---
+
+var _active_tween: Tween = null
+
+
 # --- Godot 生命周期方法 ---
 
 func _init(
@@ -47,10 +52,23 @@ func execute() -> Variant:
 	if not is_instance_valid(target):
 		return null
 
+	_clear_active_tween()
 	if duration <= 0.0:
 		target.set_indexed(property_name, target_position)
 		return null
 
-	var tween := target.create_tween()
-	tween.tween_property(target, property_name, target_position, duration).set_trans(transition_type).set_ease(ease_type)
-	return tween.finished
+	_active_tween = target.create_tween()
+	_active_tween.tween_property(target, property_name, target_position, duration).set_trans(transition_type).set_ease(ease_type)
+	return _active_tween.finished
+
+
+func cancel() -> void:
+	_clear_active_tween()
+
+
+# --- 私有/辅助方法 ---
+
+func _clear_active_tween() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.kill()
+	_active_tween = null

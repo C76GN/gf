@@ -56,10 +56,11 @@ var _is_context_ready: bool = false
 func _enter_tree() -> void:
 	_setup_architecture()
 	if _owns_architecture:
-		install(_architecture)
-		install_bindings(_architecture.create_binder())
+		await _wait_for_parent_architecture_ready()
+		await install(_architecture)
+		await install_bindings(_architecture.create_binder())
 		if auto_init:
-			_initialize_owned_architecture()
+			await _initialize_owned_architecture()
 	elif _architecture == null:
 		push_warning("[GFNodeContext] 未找到可继承的架构。")
 
@@ -177,6 +178,20 @@ func _initialize_owned_architecture() -> void:
 	if _architecture == initializing_architecture and initializing_architecture.is_inited():
 		_is_context_ready = true
 		context_ready.emit(initializing_architecture)
+
+
+func _wait_for_parent_architecture_ready() -> void:
+	if _architecture == null:
+		return
+
+	var parent_architecture := _architecture.get_parent_architecture()
+	while parent_architecture != null and not parent_architecture.is_inited():
+		if not is_inside_tree():
+			return
+		await parent_architecture.initialization_finished
+		if _architecture == null:
+			return
+		parent_architecture = _architecture.get_parent_architecture()
 
 
 func _find_parent_architecture() -> GFArchitecture:

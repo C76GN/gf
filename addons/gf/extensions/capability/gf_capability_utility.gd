@@ -216,7 +216,7 @@ func add_capability(receiver: Object, capability_type: Script, provider: Variant
 		return null
 
 	_creation_stack.append(creation_key)
-	var should_free_on_failure := not (provider is Object)
+	var should_free_on_failure := _should_free_created_capability_on_failure(provider)
 	var capability := _create_capability(capability_type, provider)
 	if capability == null:
 		_creation_stack.pop_back()
@@ -277,7 +277,10 @@ func add_scene_capability(receiver: Node, scene: PackedScene, as_type: Script = 
 		push_error("[GFCapabilityUtility] add_scene_capability 失败：scene 根节点必须是 Node。")
 		return null
 
-	return add_capability_instance(receiver, node, as_type)
+	var registered := add_capability_instance(receiver, node, as_type)
+	if registered != node:
+		_free_unregistered_capability(node)
+	return registered
 
 
 ## 设置对象上指定能力的启停状态。
@@ -378,6 +381,10 @@ func _create_capability(capability_type: Script, provider: Variant) -> Object:
 		return null
 
 	return capability_type.new() as Object
+
+
+func _should_free_created_capability_on_failure(provider: Variant) -> bool:
+	return provider == null or provider is Callable or provider is PackedScene
 
 
 func _ensure_required_capabilities(receiver: Object, capability: Object) -> bool:

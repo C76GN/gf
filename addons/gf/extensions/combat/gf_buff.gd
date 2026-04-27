@@ -57,7 +57,10 @@ func on_remove() -> void:
 
 ## 当 Buff 层数增加时触发（通常用于刷新持续时间）。
 func on_refresh(p_new_duration: float) -> void:
+	duration = p_new_duration
 	time_left = p_new_duration
+	if max_stacks > 1:
+		stacks = mini(stacks + 1, max_stacks)
 
 
 ## 周期性触发逻辑。

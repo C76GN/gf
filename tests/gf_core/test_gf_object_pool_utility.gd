@@ -187,6 +187,29 @@ func test_prewarm_async_batches_nodes() -> void:
 	assert_eq(_pool.get_available_count(_scene), 3, "prewarm_async 后可用节点数应正确。")
 
 
+func test_prewarm_async_stops_after_dispose() -> void:
+	_pool.prewarm_async(_scene, _parent, 5, 1)
+	await get_tree().process_frame
+	_pool.dispose()
+	var count_after_dispose := _parent.get_child_count()
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(_parent.get_child_count() <= count_after_dispose, "dispose 后未完成的 prewarm_async 不应继续创建节点。")
+
+
+func test_max_available_per_scene_limits_retained_nodes() -> void:
+	_pool.max_available_per_scene = 1
+	var node_a: Node = _pool.acquire(_scene, _parent)
+	var node_b: Node = _pool.acquire(_scene, _parent)
+
+	_pool.release(node_a, _scene)
+	_pool.release(node_b, _scene)
+
+	assert_eq(_pool.get_available_count(_scene), 1, "超过容量上限的归还节点不应继续留在可用池。")
+
+
 # --- 测试：get_available_count ---
 
 ## 验证初始时可用数量为 0。

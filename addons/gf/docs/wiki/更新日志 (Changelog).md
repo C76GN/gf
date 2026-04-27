@@ -16,6 +16,78 @@
 
 ---
 
+## [1.12.0] - 2026-04-27
+
+**版本概述**：聚焦框架边界稳定性与异步生命周期一致性，修复事件派发、NodeContext、能力挂载、动作取消、对象池预热和战斗 Buff 刷新中的边缘问题，并补充对应回归测试。
+
+### 🚀 新增特性 (Added)
+- **BindableProperty 直觉属性访问**：`BindableProperty` 新增 `value` 属性，读写语义与 `get_value()` / `set_value()` 保持一致。
+- **对象池容量控制**：`GFObjectPoolUtility` 新增 `max_available_per_scene`，可限制每个 `PackedScene` 在池内保留的可用节点数量。
+
+### 🔄 机制更改 (Changed)
+- **项目 Installer 异步装配**：`Gf.init()` / `set_architecture()` 现在会等待项目 Installer 的 `install()` 与 `install_bindings()` 完成后再启动架构生命周期。
+- **Scoped 上下文初始化顺序**：子 `GFNodeContext` 初始化前会等待父级架构 ready，避免子模块早于父架构进入 ready。
+- **资源与场景加载轮询语义**：`GFAssetUtility` 与 `GFSceneUtility` 默认设置 `ignore_pause = true`，明确资源轮询不应被全局暂停语义阻断。
+- **确定性分支随机种子**：`GFSeedUtility.get_branched_rng()` 改用稳定 FNV-1a 派生种子，避免依赖 Godot 内置 `hash()`。
+- **Buff 刷新语义补强**：重复 Buff 刷新会同步新的 `duration` / `time_left`，并在 `max_stacks > 1` 时增加层数但不超过上限。
+
+### 🐛 Bug 修复 (Fixed)
+- **事件 owner 派发期注销边界**：`TypeEventSystem.unregister_owner()` 在事件派发中不再直接修改 listener 数组，而是登记 pending remove，避免复杂嵌套派发下顺序不稳定。
+- **Controller 悬挂监听**：`GFController._exit_tree()` 会主动注销 owner-bound 事件监听，减少临时 UI 节点销毁后的延迟清理。
+- **能力场景实例泄漏**：`GFCapabilityUtility.add_scene_capability()` 在注册失败或被重复能力忽略时会释放新实例；`PackedScene` provider 依赖失败时也会释放已创建能力。
+- **动作组取消不完整**：`GFVisualActionGroup.cancel()` 会递归取消子动作；内置 Tween 动作会 kill 当前 Tween。
+- **对象池异步预热生命周期**：`GFObjectPoolUtility.prewarm_async()` 在 Utility dispose 后会停止后续批次，避免清空池后继续实例化。
+- **Quest 深层 payload 防护**：`GFQuestUtility` 对 `payload.amount` 设置嵌套深度上限，并在派发任务列表前复制数组，避免回调中修改监听任务影响当前迭代。
+- **Combat 集合迭代防护**：`GFCombatSystem` 处理 Buff 与 Skill 时迭代副本，避免 `on_tick()` 或 `skill.update()` 间接修改集合造成遍历风险。
+- **状态机 exit 嵌套切换**：`GFStateMachine` 在 `exit()` 中再次请求切换时会合并到当前切换，避免旧状态重复 exit 或外层目标覆盖最终状态。
+- **存档槽位假阳性**：`GFStorageUtility.has_slot()` 现在要求数据文件和元数据文件同时存在。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `BindableProperty.value: Variant`。
+- 新增 `GFObjectPoolUtility.max_available_per_scene: int`，默认为 `0` 表示不限制。
+- `Gf.init()` / `Gf.set_architecture()` 会等待异步 Installer 钩子，旧调用方式保持不变。
+- `GFStorageUtility.has_slot()` 判断更严格；孤立 metadata 文件不再被视为有效槽位。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧的 `get_value()` / `set_value()` 调用无需迁移；新项目可直接使用 `prop.value`。
+2. 如果项目依赖 `has_slot()` 只检查 metadata 的旧行为，请改为显式调用 `load_slot_meta()`，或补齐对应的数据文件。
+3. 如果自定义 `GFVisualAction` 持有 Tween、AnimationPlayer 或外部异步句柄，建议重写 `cancel()` 同步停止底层表现。
+4. 如果对象池存在波峰后长期占用大量节点，可设置 `max_available_per_scene` 控制保留容量。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/core/bindable_property.gd`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/extensions/action_queue/gf_flash_action.gd`
+- `addons/gf/extensions/action_queue/gf_move_tween_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action_group.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/extensions/combat/gf_buff.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `addons/gf/utilities/gf_quest_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_seed_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/plugin.cfg`
+- `tests/gf_core/test_bindable_property.gd`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+- `tests/gf_core/test_gf_combat_extension.gd`
+- `tests/gf_core/test_gf_object_pool_utility.gd`
+- `tests/gf_core/test_gf_quest_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_state_machine.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+- `tests/gf_core/test_type_event_system.gd`
+
+---
+
 ## [1.11.0] - 2026-04-27
 
 **版本概述**：强化 Capability 的编辑器接入、运行时启停和查询能力，并补充轻量交互上下文与 SFX 并发上限控制，让局部对象组合更适合中大型项目使用。

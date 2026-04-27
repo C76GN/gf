@@ -6,8 +6,10 @@ extends GutTest
 
 const INSTALLERS_SETTING: String = "gf/project/installers"
 const TEST_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_test_installer.gd"
+const ASYNC_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_async_binding_installer.gd"
 const GFNodeContextBase = preload("res://addons/gf/core/gf_node_context.gd")
 const InstallerModelFixture = preload("res://tests/gf_core/fixtures/installers/installer_model_fixture.gd")
+const AsyncInstallerUtilityFixture = preload("res://tests/gf_core/fixtures/installers/async_installer_utility_fixture.gd")
 
 
 # --- 辅助类 ---
@@ -88,6 +90,33 @@ class ScopedContext extends GFNodeContextBase:
 class InheritedContext extends GFNodeContextBase:
 	func _init() -> void:
 		scope_mode = GFNodeContextBase.ScopeMode.INHERITED
+
+class ParentSlowScopedContext extends GFNodeContextBase:
+	var slow_utility: SlowInitUtility = null
+
+	func _init() -> void:
+		scope_mode = GFNodeContextBase.ScopeMode.SCOPED
+
+	func install(architecture_instance: GFArchitecture) -> void:
+		slow_utility = SlowInitUtility.new()
+		architecture_instance.register_utility_instance(slow_utility)
+
+class ParentReadyLookupSystem extends GFSystem:
+	var parent_ready_at_ready: bool = false
+
+	func ready() -> void:
+		var parent_utility := get_utility(SlowInitUtility) as SlowInitUtility
+		parent_ready_at_ready = parent_utility != null and parent_utility.ready_called
+
+class ChildScopedContext extends GFNodeContextBase:
+	var lookup_system: ParentReadyLookupSystem = null
+
+	func _init() -> void:
+		scope_mode = GFNodeContextBase.ScopeMode.SCOPED
+
+	func install(architecture_instance: GFArchitecture) -> void:
+		lookup_system = ParentReadyLookupSystem.new()
+		architecture_instance.register_system_instance(lookup_system)
 
 class FactoryCommand extends GFCommand:
 	func get_parent_utility_from_command() -> ParentScopedUtility:
@@ -520,6 +549,25 @@ func test_project_installer_registers_modules_before_init() -> void:
 	assert_true(installed_model.installed, "Installer 注册的 Model 应保留自身状态。")
 
 
+## 验证项目 Installer 的异步 install_bindings 会在架构 init 前完成。
+func test_project_installer_awaits_async_install_bindings_before_init() -> void:
+	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	ProjectSettings.set_setting(INSTALLERS_SETTING, [ASYNC_BINDING_INSTALLER_PATH])
+
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+
+	var installed_utility := Gf.get_utility(AsyncInstallerUtilityFixture) as AsyncInstallerUtilityFixture
+
+	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
+
+	assert_not_null(installed_utility, "异步 install_bindings 注册的 Utility 应在 init 后可获取。")
+	assert_true(installed_utility.ready_called, "异步 install_bindings 注册的 Utility 应参与本轮生命周期。")
+
+
 ## 验证 Scoped NodeContext 会创建局部架构、回退父架构并在退出树时释放局部模块。
 func test_scoped_node_context_owns_local_architecture() -> void:
 	if Gf.has_architecture():
@@ -607,6 +655,30 @@ func test_inherited_context_waits_for_parent_architecture_init() -> void:
 	assert_true(slow_utility.ready_called, "wait_until_ready 应等待父架构 ready 后再返回。")
 
 	context.queue_free()
+	await get_tree().process_frame
+
+
+## 验证子 Scoped NodeContext 初始化前会等待父 Scoped 架构 ready。
+func test_child_scoped_context_waits_for_parent_scoped_context_ready() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var parent_context := ParentSlowScopedContext.new()
+	var child_context := ChildScopedContext.new()
+	parent_context.add_child(child_context)
+	add_child(parent_context)
+	await get_tree().process_frame
+
+	assert_true(parent_context.slow_utility.async_started, "父 Scoped 架构应已进入 async_init 等待。")
+	assert_false(child_context.is_context_ready(), "父架构 ready 前，子 Scoped 上下文不应提前 ready。")
+
+	parent_context.slow_utility.async_continue.emit()
+	await child_context.wait_until_ready()
+
+	assert_true(child_context.lookup_system.parent_ready_at_ready, "子 Scoped 模块 ready 时父架构应已经 ready。")
+
+	parent_context.queue_free()
 	await get_tree().process_frame
 
 

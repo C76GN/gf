@@ -49,6 +49,19 @@ class RedirectState:
 		change_state(target_state_name)
 
 
+class ExitRedirectState:
+	extends TrackingState
+
+	var target_state_name: StringName
+
+	func _init(p_target_state_name: StringName) -> void:
+		target_state_name = p_target_state_name
+
+	func exit() -> void:
+		super.exit()
+		change_state(target_state_name)
+
+
 class DummyModel:
 	extends GFModel
 
@@ -159,6 +172,23 @@ func test_nested_change_state_during_enter_emits_only_final_transition() -> void
 
 	assert_eq(_fsm.current_state_name, &"Run", "enter 内部嵌套切换后最终状态应为 Run。")
 	assert_eq(transitions, [[&"Redirect", &"Run"]], "外层过时切换不应再发出 state_changed。")
+
+
+func test_nested_change_state_during_exit_uses_requested_final_state() -> void:
+	var idle := ExitRedirectState.new(&"Run")
+	var attack := TrackingState.new()
+	var run := TrackingState.new()
+	_fsm.add_state(&"Idle", idle)
+	_fsm.add_state(&"Attack", attack)
+	_fsm.add_state(&"Run", run)
+	_fsm.start(&"Idle")
+
+	_fsm.change_state(&"Attack")
+
+	assert_eq(idle.exit_count, 1, "exit 内部请求切换时，旧状态不应重复 exit。")
+	assert_eq(attack.enter_count, 0, "exit 内部请求的新状态应替代外层目标。")
+	assert_eq(run.enter_count, 1, "exit 内部请求的状态应成为最终状态。")
+	assert_eq(_fsm.current_state_name, &"Run", "最终状态应为 exit 内部请求的状态。")
 
 
 ## 验证状态可通过自身代理请求状态切换。

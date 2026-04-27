@@ -82,6 +82,14 @@ func test_delete_slot() -> void:
 	assert_false(_storage.has_slot(3), "删除槽位后不应再存在。")
 
 
+func test_has_slot_requires_data_and_metadata_files() -> void:
+	_storage.encrypt_key = 0
+	var meta_file_name := _storage._get_meta_filename(6)
+	assert_eq(_storage._write_json(meta_file_name, {"level": 1}), OK, "应能构造孤立 metadata 文件。")
+
+	assert_false(_storage.has_slot(6), "只有 metadata 没有核心数据时不应视为有效槽位。")
+
+
 func test_legacy_methods() -> void:
 	_storage.encrypt_key = 0
 	_storage.save_data("test_legacy.json", {"old": "data"})

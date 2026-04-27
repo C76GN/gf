@@ -65,7 +65,7 @@ func set_architecture(architecture_instance: GFArchitecture) -> void:
 	if _architecture != null and _architecture != architecture_instance:
 		_architecture.dispose()
 	_architecture = architecture_instance
-	_run_project_installers(_architecture)
+	await _run_project_installers(_architecture)
 	if not _architecture.is_inited():
 		await _architecture.init()
 
@@ -73,7 +73,7 @@ func set_architecture(architecture_instance: GFArchitecture) -> void:
 ## 初始化当前架构。若尚未创建架构，则自动创建默认 GFArchitecture。
 func init() -> void:
 	var current_arch := create_architecture()
-	_run_project_installers(current_arch)
+	await _run_project_installers(current_arch)
 	if not current_arch.is_inited():
 		await current_arch.init()
 
@@ -342,9 +342,9 @@ func _run_project_installers(architecture_instance: GFArchitecture) -> void:
 	for path: String in installer_paths:
 		var installer: Object = _create_installer(path)
 		if installer != null:
-			installer.install(architecture_instance)
+			await installer.install(architecture_instance)
 			if installer.has_method("install_bindings"):
-				installer.install_bindings(architecture_instance.create_binder())
+				await installer.install_bindings(architecture_instance.create_binder())
 
 
 func _get_project_installer_paths() -> Array[String]:

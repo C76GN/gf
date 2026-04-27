@@ -100,15 +100,16 @@ func load_slot_meta(slot_id: int) -> Dictionary:
 
 ## 检查槽位是否存在有效存档。
 ## @param slot_id: 槽位 ID。
-## @return 元数据文件存在时返回 `true`。
+## @return 核心数据与元数据文件都存在时返回 `true`。
 func has_slot(slot_id: int) -> bool:
 	_recover_transaction_files([
 		_get_data_filename(slot_id),
 		_get_meta_filename(slot_id),
 	])
 
-	var path := _get_full_path(_get_meta_filename(slot_id))
-	return FileAccess.file_exists(path)
+	var data_path := _get_full_path(_get_data_filename(slot_id))
+	var meta_path := _get_full_path(_get_meta_filename(slot_id))
+	return FileAccess.file_exists(data_path) and FileAccess.file_exists(meta_path)
 
 
 ## 删除指定槽位的数据与元数据。
@@ -295,9 +296,10 @@ func _write_json(file_name: String, data: Dictionary) -> Error:
 	var json_str := JSON.stringify(data, "\t")
 
 	if encrypt_key != 0:
+		var key_byte := _get_obfuscation_key_byte()
 		var bytes := json_str.to_utf8_buffer()
 		for i in range(bytes.size()):
-			bytes[i] = bytes[i] ^ encrypt_key
+			bytes[i] = bytes[i] ^ key_byte
 		file.store_string(Marshalls.raw_to_base64(bytes))
 	else:
 		file.store_string(json_str)
@@ -328,8 +330,9 @@ func _read_json(file_name: String) -> Dictionary:
 	if encrypt_key != 0:
 		var bytes := Marshalls.base64_to_raw(content)
 		if not bytes.is_empty():
+			var key_byte := _get_obfuscation_key_byte()
 			for i in range(bytes.size()):
-				bytes[i] = bytes[i] ^ encrypt_key
+				bytes[i] = bytes[i] ^ key_byte
 			json_str = bytes.get_string_from_utf8()
 
 	var parse_result: Variant = JSON.parse_string(json_str)
@@ -345,3 +348,7 @@ func _read_json(file_name: String) -> Dictionary:
 		return parse_result as Dictionary
 
 	return {}
+
+
+func _get_obfuscation_key_byte() -> int:
+	return encrypt_key & 0xff

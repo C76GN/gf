@@ -38,6 +38,12 @@ const HOOK_ON_RELEASE: StringName = &"on_gf_pool_release"
 const HOOK_ON_ACQUIRE: StringName = &"on_gf_pool_acquire"
 
 
+# --- 公共变量 ---
+
+## 每个 PackedScene 最多保留的可用节点数量。为 0 时不限制。
+var max_available_per_scene: int = 0
+
+
 # --- 私有变量 ---
 
 ## 对象池全量字典。Key 为 PackedScene 资源，Value 为该场景产生的所有节点数组。
@@ -46,18 +52,21 @@ var _all_nodes: Dictionary = {}
 
 ## 可用对象池字典。Key 为 PackedScene 资源，Value 为当前可用的节点栈。
 var _available_pools: Dictionary = {}
+var _lifecycle_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 ## 第一阶段初始化：清空内部池字典。
 func init() -> void:
+	_lifecycle_serial += 1
 	_all_nodes = {}
 	_available_pools = {}
 
 
 ## 销毁阶段：释放所有池中的节点。
 func dispose() -> void:
+	_lifecycle_serial += 1
 	for scene in _all_nodes:
 		var pool: Array = _all_nodes[scene]
 		for node in pool:
@@ -146,6 +155,11 @@ func release(node: Node, scene: PackedScene) -> void:
 		_available_pools[owner_scene] = []
 
 	var available_pool: Array = _available_pools[owner_scene]
+	if max_available_per_scene > 0 and available_pool.size() >= max_available_per_scene:
+		_remove_node_from_scene_pool(node, owner_scene)
+		node.queue_free()
+		return
+
 	available_pool.push_back(node)
 
 
@@ -159,7 +173,8 @@ func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 	if count <= 0:
 		return
 
-	for i in range(count):
+	var create_count := _get_limited_prewarm_count(scene, count)
+	for i in range(create_count):
 		_prewarm_node(scene, parent)
 
 
@@ -177,11 +192,17 @@ func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int
 		prewarm(scene, parent, count)
 		return
 
+	var current_serial := _lifecycle_serial
+	var create_count := _get_limited_prewarm_count(scene, count)
 	var scene_tree := Engine.get_main_loop() as SceneTree
-	for i in range(count):
+	for i in range(create_count):
+		if current_serial != _lifecycle_serial:
+			return
 		_prewarm_node(scene, parent)
 		if scene_tree != null and (i + 1) % batch_size == 0:
 			await scene_tree.process_frame
+			if current_serial != _lifecycle_serial:
+				return
 
 
 ## 获取指定场景当前池中可用（未使用）的节点数量。
@@ -222,6 +243,9 @@ func _ensure_scene_pool(scene: PackedScene) -> bool:
 
 
 func _prewarm_node(scene: PackedScene, parent: Node) -> void:
+	if not _ensure_scene_pool(scene):
+		return
+
 	var node: Node = scene.instantiate()
 	node.set_meta(_META_ACTIVE, false)
 	node.set_meta(_META_SOURCE_SCENE, scene)
@@ -232,6 +256,13 @@ func _prewarm_node(scene: PackedScene, parent: Node) -> void:
 
 	_all_nodes[scene].push_back(node)
 	_available_pools[scene].push_back(node)
+
+
+func _get_limited_prewarm_count(scene: PackedScene, requested_count: int) -> int:
+	if max_available_per_scene <= 0:
+		return requested_count
+
+	return maxi(0, mini(requested_count, max_available_per_scene - get_available_count(scene)))
 
 
 func _prepare_node_for_pool(node: Node) -> void:
@@ -290,6 +321,13 @@ func _resolve_owner_scene(node: Node, fallback_scene: PackedScene) -> PackedScen
 			owner_scene = tracked_scene
 
 	return owner_scene
+
+
+func _remove_node_from_scene_pool(node: Node, scene: PackedScene) -> void:
+	if _all_nodes.has(scene):
+		(_all_nodes[scene] as Array).erase(node)
+	if _available_pools.has(scene):
+		(_available_pools[scene] as Array).erase(node)
 
 
 func _prune_invalid_scene_nodes(scene: PackedScene) -> void:

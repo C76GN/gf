@@ -21,6 +21,11 @@ var duration: float = 0.12
 var property_name: NodePath = ^"modulate"
 
 
+# --- 私有变量 ---
+
+var _active_tween: Tween = null
+
+
 # --- Godot 生命周期方法 ---
 
 func _init(
@@ -41,13 +46,26 @@ func execute() -> Variant:
 	if not is_instance_valid(target):
 		return null
 
+	_clear_active_tween()
 	var original_color := target.get_indexed(property_name) as Color
 	if duration <= 0.0:
 		target.set_indexed(property_name, original_color)
 		return null
 
-	var tween := target.create_tween()
+	_active_tween = target.create_tween()
 	var half_duration := duration * 0.5
-	tween.tween_property(target, property_name, flash_color, half_duration)
-	tween.tween_property(target, property_name, original_color, half_duration)
-	return tween.finished
+	_active_tween.tween_property(target, property_name, flash_color, half_duration)
+	_active_tween.tween_property(target, property_name, original_color, half_duration)
+	return _active_tween.finished
+
+
+func cancel() -> void:
+	_clear_active_tween()
+
+
+# --- 私有/辅助方法 ---
+
+func _clear_active_tween() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.kill()
+	_active_tween = null

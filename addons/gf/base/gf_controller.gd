@@ -13,6 +13,14 @@ extends Node
 const GFNodeContextBase = preload("res://addons/gf/core/gf_node_context.gd")
 
 
+# --- Godot 生命周期方法 ---
+
+func _exit_tree() -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.unregister_owner_events(self)
+
+
 # --- 获取方法 ---
 
 ## 获取当前 Controller 所属的架构。

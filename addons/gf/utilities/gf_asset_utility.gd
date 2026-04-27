@@ -39,6 +39,7 @@ var _cache_access_serial: int = 0
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	ignore_pause = true
 	_pending = {}
 	_cache.clear()
 	_cache_access_order.clear()

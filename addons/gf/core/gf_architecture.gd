@@ -169,10 +169,10 @@ func tick(delta: float) -> void:
 	var scaled_delta: float = _get_scaled_delta(delta)
 	_is_iterating_tick_caches = true
 	for system: Object in _tick_systems:
-		if _is_module_ready_for_tick(system):
+		if is_instance_valid(system) and _is_module_ready_for_tick(system):
 			system.tick(_get_module_delta(system, delta, scaled_delta))
 	for utility: Object in _tick_utilities:
-		if _is_module_ready_for_tick(utility):
+		if is_instance_valid(utility) and _is_module_ready_for_tick(utility):
 			utility.tick(_get_module_delta(utility, delta, scaled_delta))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
@@ -189,10 +189,10 @@ func physics_tick(delta: float) -> void:
 	var scaled_delta: float = _get_scaled_delta(delta)
 	_is_iterating_tick_caches = true
 	for system: Object in _physics_systems:
-		if _is_module_ready_for_tick(system):
+		if is_instance_valid(system) and _is_module_ready_for_tick(system):
 			system.physics_tick(_get_module_delta(system, delta, scaled_delta))
 	for utility: Object in _physics_utilities:
-		if _is_module_ready_for_tick(utility):
+		if is_instance_valid(utility) and _is_module_ready_for_tick(utility):
 			utility.physics_tick(_get_module_delta(utility, delta, scaled_delta))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()

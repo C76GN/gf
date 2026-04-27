@@ -63,6 +63,13 @@ class CapabilityNode extends Node:
 		removed_receiver = target
 
 
+class CountingCapabilityNode extends CapabilityNode:
+	static var created_nodes: Array[Node] = []
+
+	func _init() -> void:
+		created_nodes.append(self)
+
+
 class BaseCapability extends GF_CAPABILITY_BASE:
 	pass
 
@@ -172,6 +179,24 @@ func test_scene_container_registers_child_capabilities() -> void:
 	await get_tree().process_frame
 
 
+func test_add_scene_capability_frees_ignored_duplicate_instance() -> void:
+	var receiver := Node.new()
+	add_child(receiver)
+	var existing := CountingCapabilityNode.new()
+	CountingCapabilityNode.created_nodes.clear()
+	_utility.add_capability_instance(receiver, existing, CountingCapabilityNode)
+	var scene := _make_counting_capability_scene()
+
+	var result: Object = _utility.add_scene_capability(receiver, scene, CountingCapabilityNode)
+	var duplicate_node := CountingCapabilityNode.created_nodes.back() as CountingCapabilityNode
+
+	assert_eq(result, existing, "重复挂载场景能力时应返回已有实例。")
+	assert_true(duplicate_node.is_queued_for_deletion(), "被忽略的新场景能力实例应被释放。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_base_type_lookup_requires_unique_match() -> void:
 	var receiver := RefCounted.new()
 	var capability_a := _utility.add_capability(receiver, ConcreteCapabilityA) as ConcreteCapabilityA
@@ -259,3 +284,14 @@ func test_interaction_context_queries_capabilities_and_group() -> void:
 
 	assert_eq(context.get_target_capability(HealthCapability), target_capability, "交互上下文应能查询目标能力。")
 	assert_eq(context.get_group_receivers(HealthCapability), [target], "交互上下文应能查询当前分组中的能力对象。")
+
+
+# --- 私有/辅助方法 ---
+
+func _make_counting_capability_scene() -> PackedScene:
+	var node := CountingCapabilityNode.new()
+	var scene := PackedScene.new()
+	scene.pack(node)
+	node.free()
+	CountingCapabilityNode.created_nodes.clear()
+	return scene

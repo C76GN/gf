@@ -213,7 +213,9 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 	var buffs: Array = data["buffs"]
 	var to_remove: Array[GFBuff] = []
 	
-	for buff: GFBuff in buffs:
+	for buff: GFBuff in buffs.duplicate():
+		if buff == null or not buffs.has(buff):
+			continue
 		if buff.update(p_delta):
 			to_remove.append(buff)
 			
@@ -224,7 +226,9 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 		
 	# 处理技能 CD
 	var skills: Array = data["skills"]
-	for skill: GFSkill in skills:
+	for skill: GFSkill in skills.duplicate():
+		if skill == null or not skills.has(skill):
+			continue
 		skill.update(p_delta)
 		
 	# 每次处理完后更新活跃状态

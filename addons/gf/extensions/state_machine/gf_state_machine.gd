@@ -39,6 +39,8 @@ var _current_state: GFState = null
 ## 使用弱引用避免 RefCounted 环状引用。
 var _context_ref: WeakRef = null
 var _transition_serial: int = 0
+var _is_exiting_current_state: bool = false
+var _queued_exit_transition: Dictionary = {}
 
 
 # --- 公共方法 ---
@@ -96,12 +98,27 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 		push_warning("[GFStateMachine] 切换失败，未找到状态：%s" % state_name)
 		return
 
+	if _is_exiting_current_state:
+		_transition_serial += 1
+		_queued_exit_transition = {
+			"state_name": state_name,
+			"msg": msg,
+		}
+		return
+
 	_transition_serial += 1
 	var current_serial := _transition_serial
 	var from_name := current_state_name
 
 	if _current_state != null:
+		_is_exiting_current_state = true
 		_current_state.exit()
+		_is_exiting_current_state = false
+		if not _queued_exit_transition.is_empty():
+			state_name = _queued_exit_transition["state_name"]
+			msg = _queued_exit_transition["msg"]
+			_queued_exit_transition.clear()
+			current_serial = _transition_serial
 
 	_current_state = _states[state_name]
 	current_state_name = state_name
@@ -124,6 +141,7 @@ func stop() -> void:
 		_current_state.exit()
 		_current_state = null
 		current_state_name = &""
+	_queued_exit_transition.clear()
 
 
 ## 释放状态机持有的所有引用，避免 RefCounted 环状引用。

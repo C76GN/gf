@@ -218,14 +218,14 @@ func unregister_owner(owner: Object) -> void:
 	if _type_dispatch_depth > 0:
 		_remove_pending_type_adds_for_owner_id(owner_id)
 		_append_unique_int(_pending_owner_removes_type, owner_id)
-		_remove_owner_from_type_listeners(owner_id)
+		_queue_pending_type_removes_for_owner_id(owner_id)
 	else:
 		_remove_owner_from_type_listeners(owner_id)
 
 	if _simple_dispatch_depth > 0:
 		_remove_pending_simple_adds_for_owner_id(owner_id)
 		_append_unique_int(_pending_owner_removes_simple, owner_id)
-		_remove_owner_from_simple_listeners(owner_id)
+		_queue_pending_simple_removes_for_owner_id(owner_id)
 	else:
 		_remove_owner_from_simple_listeners(owner_id)
 
@@ -293,6 +293,22 @@ func _remove_pending_simple_adds_for_owner_id(owner_id: int) -> void:
 		var pending := _pending_adds_simple[i] as Dictionary
 		if _entry_owner_id(pending) == owner_id:
 			_pending_adds_simple.remove_at(i)
+
+
+func _queue_pending_type_removes_for_owner_id(owner_id: int) -> void:
+	for event_type: Script in _event_listeners:
+		var listeners := _event_listeners[event_type] as Array
+		for entry: Dictionary in listeners:
+			if _entry_owner_id(entry) == owner_id:
+				_pending_removes_type.append({ "event_type": event_type, "callable": entry.callable })
+
+
+func _queue_pending_simple_removes_for_owner_id(owner_id: int) -> void:
+	for event_id: StringName in _simple_event_listeners:
+		var listeners := _simple_event_listeners[event_id] as Array
+		for entry: Dictionary in listeners:
+			if _entry_owner_id(entry) == owner_id:
+				_pending_removes_simple.append({ "event_id": event_id, "callable": entry.callable })
 
 
 func _flush_type_pending() -> void:

@@ -14,6 +14,16 @@ extends RefCounted
 signal value_changed(old_value: Variant, new_value: Variant)
 
 
+# --- 公共变量 ---
+
+## 当前属性值。设置该属性等价于调用 `set_value()`。
+var value: Variant:
+	get:
+		return get_value()
+	set(new_value):
+		set_value(new_value)
+
+
 # --- 私有变量 ---
 
 var _value: Variant

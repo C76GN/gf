@@ -31,6 +31,14 @@ func test_get_value() -> void:
 	assert_eq(_prop.get_value(), 7, "get_value 应返回最新设置的值。")
 
 
+## 验证 value 属性与 get_value()/set_value() 保持一致。
+func test_value_property_gets_and_sets_value() -> void:
+	_prop.value = 9
+
+	assert_eq(_prop.value, 9, "value 属性应返回最新设置的值。")
+	assert_eq(_prop.get_value(), 9, "value 属性写入应同步到底层值。")
+
+
 # --- 测试：信号 ---
 
 ## 验证设置新值时 value_changed 信号被发出，并携带正确的 old_value 和 new_value。

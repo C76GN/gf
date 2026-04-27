@@ -53,6 +53,10 @@ var _is_showing_loading_scene: bool = false
 
 # --- Godot 生命周期方法 ---
 
+func init() -> void:
+	ignore_pause = true
+
+
 func tick(_delta: float) -> void:
 	if not _is_loading or _target_path.is_empty():
 		return
