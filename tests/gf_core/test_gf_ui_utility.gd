@@ -73,6 +73,24 @@ func test_push_and_pop_panel_instance() -> void:
 	assert_true(panel1.visible, "弹出顶层后，下层面板应重新可见。")
 
 
+func test_config_callback_destroying_panel_restores_hidden_panel() -> void:
+	var panel1 := Control.new()
+	var panel2 := Control.new()
+
+	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
+	var added := _ui_utility._add_panel_instance(
+		panel2,
+		GFUIUtility.Layer.POPUP,
+		func(panel: Node) -> void:
+			panel.free()
+	)
+
+	assert_false(added, "config_callback 销毁面板时，本次入栈应取消。")
+	assert_push_warning("[GFUIUtility] config_callback 销毁了面板实例，本次入栈已取消。")
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel1, "取消入栈后栈顶应保持原面板。")
+	assert_true(panel1.visible, "取消入栈后原本被隐藏的面板应恢复可见。")
+
+
 func test_clear_layer() -> void:
 	var p1 := Control.new()
 	var p2 := Control.new()

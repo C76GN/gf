@@ -68,3 +68,9 @@ func test_powf_supports_fractional_exponents() -> void:
 	var value = GF_BIG_NUMBER.from_int(50).powf(0.5)
 
 	assert_almost_eq(value.to_float(), 7.0710678, 0.000001, "50 的平方根应约为 7.0710678。")
+
+
+func test_scientific_string_carries_when_rounded_mantissa_overflows() -> void:
+	var value = GF_BIG_NUMBER.new(9.999, 5)
+
+	assert_eq(value.to_scientific_string(2), "1e6", "尾数四舍五入到 10 时应向指数进位。")

@@ -38,6 +38,7 @@ var _current_state: GFState = null
 ## 用于守卫框架依赖访问的上下文对象弱引用。
 ## 使用弱引用避免 RefCounted 环状引用。
 var _context_ref: WeakRef = null
+var _transition_serial: int = 0
 
 
 # --- 公共方法 ---
@@ -95,6 +96,8 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 		push_warning("[GFStateMachine] 切换失败，未找到状态：%s" % state_name)
 		return
 
+	_transition_serial += 1
+	var current_serial := _transition_serial
 	var from_name := current_state_name
 
 	if _current_state != null:
@@ -104,7 +107,8 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 	current_state_name = state_name
 	_current_state.enter(msg)
 
-	state_changed.emit(from_name, state_name)
+	if current_serial == _transition_serial and current_state_name == state_name:
+		state_changed.emit(from_name, state_name)
 
 
 ## 驱动当前状态的 update() 逻辑，应在宿主的 _process() 中调用。

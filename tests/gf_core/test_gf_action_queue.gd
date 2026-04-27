@@ -51,6 +51,31 @@ class SignalOrderAction:
 		return emitter.tree_exited
 
 
+## 手动完成的 Signal 动作，用于测试队列取消。
+class ManualSignalAction:
+	extends GFVisualAction
+
+	signal completed
+
+	var order_list: Array
+	var label: String
+	var cancelled: bool = false
+
+	func _init(p_list: Array, p_label: String) -> void:
+		order_list = p_list
+		label = p_label
+
+	func execute() -> Variant:
+		order_list.append(label)
+		return completed
+
+	func cancel() -> void:
+		cancelled = true
+
+	func complete() -> void:
+		completed.emit()
+
+
 ## 记录队列执行前注入到动作中的架构。
 class InjectedAction:
 	extends GFVisualAction
@@ -171,6 +196,27 @@ func test_clear_then_push_front() -> void:
 
 	assert_eq(order.size(), 1, "应只有 1 个动作被执行。")
 	assert_eq(order[0], "NEW", "clear 后 push_front 应正常执行。")
+
+
+## 验证 clear_queue(true) 会终止当前等待并丢弃后续队列。
+func test_clear_queue_can_stop_current_waiting_action() -> void:
+	var order: Array = []
+	var waiting_action := ManualSignalAction.new(order, "WAIT")
+	_system.enqueue(waiting_action)
+	_system.enqueue(OrderAction.new(order, "AFTER"))
+
+	await get_tree().process_frame
+	assert_true(_system.is_processing, "队列应正在等待当前 Signal 动作。")
+
+	watch_signals(_system)
+	_system.clear_queue(true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(waiting_action.cancelled, "stop_current 应向当前动作发送 cancel。")
+	assert_false(_system.is_processing, "stop_current 后队列不应继续处于处理中。")
+	assert_eq(order, ["WAIT"], "stop_current 后未执行的后续动作应被丢弃。")
+	assert_signal_emitted(_system, "queue_drained", "stop_current 清空运行中队列时应发出排空信号。")
 
 
 # --- 测试：并行队列与组合 ---

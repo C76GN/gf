@@ -9,6 +9,17 @@ extends GFUtility
 ## 支持通过 GFAssetUtility 异步加载音频资源。
 
 
+# --- 常量 ---
+
+## 默认 BGM 音频总线名。
+const BGM_BUS_NAME: String = "BGM"
+
+## 默认 SFX 音频总线名。
+const SFX_BUS_NAME: String = "SFX"
+
+const _FALLBACK_BUS_NAME: String = "Master"
+
+
 # --- 私有变量 ---
 
 var _bgm_player: AudioStreamPlayer
@@ -16,6 +27,7 @@ var _sfx_scene: PackedScene
 var _root: Node
 var _bgm_request_serial: int = 0
 var _sfx_lifecycle_serial: int = 0
+var _missing_bus_warnings: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -23,6 +35,7 @@ var _sfx_lifecycle_serial: int = 0
 func init() -> void:
 	_bgm_request_serial = 0
 	_sfx_lifecycle_serial += 1
+	_missing_bus_warnings.clear()
 	# 动态创建用于池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
@@ -31,7 +44,7 @@ func init() -> void:
 	
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.name = "GFBGMPlayer"
-	_bgm_player.bus = "BGM"
+	_bgm_player.bus = _resolve_bus_name(BGM_BUS_NAME)
 	
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
@@ -144,7 +157,7 @@ func _play_sfx_stream(stream: AudioStream) -> void:
 		
 	var player := pool.acquire(_sfx_scene, _root) as AudioStreamPlayer
 	if player != null:
-		player.bus = "SFX"
+		player.bus = _resolve_bus_name(SFX_BUS_NAME)
 		player.stream = stream
 		if not player.finished.is_connected(_on_sfx_finished):
 			player.finished.connect(_on_sfx_finished.bind(player), CONNECT_ONE_SHOT)
@@ -175,3 +188,13 @@ func _get_pool_util() -> GFObjectPoolUtility:
 		if util != null:
 			return util as GFObjectPoolUtility
 	return null
+
+
+func _resolve_bus_name(bus_name: String) -> String:
+	if AudioServer.get_bus_index(bus_name) >= 0:
+		return bus_name
+
+	if not _missing_bus_warnings.has(bus_name):
+		_missing_bus_warnings[bus_name] = true
+		push_warning("[GFAudioUtility] 无法找到音轨总线: %s，已回退到 %s。" % [bus_name, _FALLBACK_BUS_NAME])
+	return _FALLBACK_BUS_NAME

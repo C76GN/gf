@@ -26,6 +26,9 @@ var redo_count: int:
 	get:
 		return _redo_stack.size()
 
+## 异步命令等待超时时间（秒）。小于等于 0 时表示不启用超时。
+var async_timeout_seconds: float = 30.0
+
 
 # --- 私有变量 ---
 
@@ -39,13 +42,22 @@ var _redo_stack: Array[GFUndoableCommand] = []
 var _is_processing_async: bool = false
 
 var _max_history_size: int = 1024
+var _lifecycle_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	_lifecycle_serial += 1
 	_undo_stack = []
 	_redo_stack = []
+	_is_processing_async = false
+
+
+func dispose() -> void:
+	_lifecycle_serial += 1
+	_undo_stack.clear()
+	_redo_stack.clear()
 	_is_processing_async = false
 
 
@@ -60,6 +72,7 @@ func record(cmd: GFUndoableCommand) -> void:
 		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略新的历史记录。")
 		return
 
+	_inject_command_dependencies(cmd)
 	_record_internal(cmd)
 
 
@@ -73,11 +86,17 @@ func execute_command(cmd: GFUndoableCommand) -> Variant:
 		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略新的执行请求。")
 		return null
 
+	_inject_command_dependencies(cmd)
 	var result: Variant = cmd.execute()
 	if result is Signal:
 		_is_processing_async = true
-		await result
+		var current_serial := _lifecycle_serial
+		var completed := await _await_command_signal(result as Signal, current_serial)
+		if current_serial != _lifecycle_serial:
+			return result
 		_is_processing_async = false
+		if not completed:
+			return result
 	_record_internal(cmd)
 	return result
 
@@ -89,6 +108,7 @@ func undo_last() -> bool:
 		return false
 
 	var cmd: GFUndoableCommand = _undo_stack.pop_back()
+	_inject_command_dependencies(cmd)
 	cmd.undo()
 	_redo_stack.push_back(cmd)
 	return true
@@ -101,11 +121,18 @@ func undo_last_async() -> bool:
 		return false
 
 	var cmd: GFUndoableCommand = _undo_stack.pop_back()
+	_inject_command_dependencies(cmd)
 	var result: Variant = cmd.undo()
 	if result is Signal:
 		_is_processing_async = true
-		await result
+		var current_serial := _lifecycle_serial
+		var completed := await _await_command_signal(result as Signal, current_serial)
+		if current_serial != _lifecycle_serial:
+			return false
 		_is_processing_async = false
+		if not completed:
+			_undo_stack.push_back(cmd)
+			return false
 
 	_redo_stack.push_back(cmd)
 	return true
@@ -118,6 +145,7 @@ func redo() -> bool:
 		return false
 
 	var cmd: GFUndoableCommand = _redo_stack.pop_back()
+	_inject_command_dependencies(cmd)
 	cmd.execute()
 	_undo_stack.push_back(cmd)
 	return true
@@ -130,11 +158,18 @@ func redo_async() -> bool:
 		return false
 
 	var cmd: GFUndoableCommand = _redo_stack.pop_back()
+	_inject_command_dependencies(cmd)
 	var result: Variant = cmd.execute()
 	if result is Signal:
 		_is_processing_async = true
-		await result
+		var current_serial := _lifecycle_serial
+		var completed := await _await_command_signal(result as Signal, current_serial)
+		if current_serial != _lifecycle_serial:
+			return false
 		_is_processing_async = false
+		if not completed:
+			_redo_stack.push_back(cmd)
+			return false
 
 	_undo_stack.push_back(cmd)
 	return true
@@ -153,13 +188,13 @@ func clear() -> void:
 ## 检查当前是否允许撤销。
 ## @return 有可撤销命令时返回 `true`。
 func can_undo() -> bool:
-	return not _undo_stack.is_empty()
+	return not _is_processing_async and not _undo_stack.is_empty()
 
 
 ## 检查当前是否允许重做。
 ## @return 有可重做命令时返回 `true`。
 func can_redo() -> bool:
-	return not _redo_stack.is_empty()
+	return not _is_processing_async and not _redo_stack.is_empty()
 
 
 ## 获取撤销栈副本。
@@ -209,6 +244,7 @@ func deserialize_history(data_array: Array, command_builder: Callable) -> void:
 		if typeof(data) == TYPE_DICTIONARY:
 			var restored_cmd: GFUndoableCommand = command_builder.call(data)
 			if is_instance_valid(restored_cmd):
+				_inject_command_dependencies(restored_cmd)
 				_undo_stack.append(restored_cmd)
 
 
@@ -268,6 +304,57 @@ func _deserialize_stack(data_array: Array, command_builder: Callable) -> Array[G
 
 		var restored_cmd: GFUndoableCommand = command_builder.call(data)
 		if is_instance_valid(restored_cmd):
+			_inject_command_dependencies(restored_cmd)
 			restored_stack.append(restored_cmd)
 
 	return restored_stack
+
+
+func _inject_command_dependencies(cmd: GFUndoableCommand) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return
+	if cmd.has_method("inject_dependencies"):
+		cmd.inject_dependencies(architecture)
+	if cmd.has_method("inject"):
+		cmd.inject(architecture)
+
+
+func _await_command_signal(result_signal: Signal, lifecycle_serial: int) -> bool:
+	if result_signal.is_null():
+		return true
+
+	var target_obj: Object = result_signal.get_object()
+	if not is_instance_valid(target_obj):
+		return false
+
+	var completed := [false]
+	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
+		completed[0] = true
+
+	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
+
+	var timeout_msec := int(async_timeout_seconds * 1000.0)
+	var start_msec := Time.get_ticks_msec()
+
+	while not completed[0]:
+		if lifecycle_serial != _lifecycle_serial:
+			break
+		if not is_instance_valid(target_obj):
+			break
+		if timeout_msec > 0 and Time.get_ticks_msec() - start_msec >= timeout_msec:
+			push_warning("[GFCommandHistoryUtility] 等待异步命令超时，历史操作已取消。")
+			break
+		await Engine.get_main_loop().process_frame
+
+	_disconnect_signal_if_connected(result_signal, on_resume)
+	return completed[0] and lifecycle_serial == _lifecycle_serial
+
+
+func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:
+	if target_signal.is_null():
+		return
+	if not is_instance_valid(target_signal.get_object()):
+		return
+	if target_signal.is_connected(callback):
+		target_signal.disconnect(callback)

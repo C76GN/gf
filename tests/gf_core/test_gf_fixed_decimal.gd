@@ -85,3 +85,13 @@ func test_add_overflow_saturates_without_wraparound() -> void:
 
 	assert_push_error("[GFFixedDecimal] add 结果超出可表示范围，已钳制。")
 	assert_eq(result.raw_value, 9_223_372_036_854_775_807, "加法溢出不应回绕为负数。")
+
+
+func test_divide_large_positive_shift_saturates_instead_of_clamping_shift() -> void:
+	var result = GF_FIXED_DECIMAL.from_string("1", 0).divide(
+		GF_FIXED_DECIMAL.from_string("0.000000000000000001", 18),
+		18
+	)
+
+	assert_push_error("[GFFixedDecimal] divide 结果超出可表示范围，已钳制。")
+	assert_eq(result.raw_value, 9_223_372_036_854_775_807, "大位移除法溢出时应钳制，而不是把缩放位数截断成错误结果。")

@@ -347,8 +347,15 @@ func to_scientific_string(
 	if is_zero():
 		return "0"
 
-	var mantissa_text := _format_decimal_value(mantissa, decimal_places, trim_zeroes, use_truncation)
-	return "%se%d" % [mantissa_text, exponent]
+	var output_mantissa := mantissa
+	var output_exponent := exponent
+	var mantissa_text := _format_decimal_value(output_mantissa, decimal_places, trim_zeroes, use_truncation)
+	if absf(mantissa_text.to_float()) >= 10.0:
+		output_mantissa /= 10.0
+		output_exponent += 1
+		mantissa_text = _format_decimal_value(output_mantissa, decimal_places, trim_zeroes, use_truncation)
+
+	return "%se%d" % [mantissa_text, output_exponent]
 
 
 # --- 私有/辅助方法 ---

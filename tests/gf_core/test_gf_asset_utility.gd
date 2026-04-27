@@ -20,6 +20,17 @@ class FailingAssetUtility extends GFAssetUtility:
 		return ResourceLoader.THREAD_LOAD_IN_PROGRESS
 
 
+class TrackingAssetUtility extends GFAssetUtility:
+	var requested_type_hints: Array[String] = []
+
+	func _request_threaded(_path: String, type_hint: String) -> Error:
+		requested_type_hints.append(type_hint)
+		return OK
+
+	func _get_threaded_status(_path: String) -> ResourceLoader.ThreadLoadStatus:
+		return ResourceLoader.THREAD_LOAD_IN_PROGRESS
+
+
 func before_each() -> void:
 	_utility = GFAssetUtility.new()
 	_utility.max_cache_size = 3
@@ -141,6 +152,27 @@ func test_pending_load_keeps_multiple_callbacks() -> void:
 		await get_tree().process_frame
 
 	assert_eq(callback_count[0], 2, "同一路径的并发加载请求应回调所有监听者。")
+
+
+func test_pending_load_rejects_same_path_with_different_type_hint() -> void:
+	_utility = TrackingAssetUtility.new()
+	_utility.init()
+
+	var results: Array = []
+	var first_callback := func(res: Resource) -> void:
+		results.append(res)
+	var second_callback := func(res: Resource) -> void:
+		results.append(res)
+
+	_utility.load_async("res://same_path.tres", first_callback, "Resource")
+	_utility.load_async("res://same_path.tres", second_callback, "PackedScene")
+
+	assert_push_warning("[GFAssetUtility] 已存在相同路径但 type_hint 不同的加载请求，已拒绝新请求：res://same_path.tres (Resource -> PackedScene)")
+	assert_eq(results.size(), 1, "不同 type_hint 的第二个请求应立即回调。")
+	assert_null(results[0], "被拒绝的 type_hint 冲突请求应收到 null。")
+	assert_true(_utility.is_loading("res://same_path.tres", "Resource"), "原请求应继续保留。")
+	assert_false(_utility.is_loading("res://same_path.tres", "PackedScene"), "冲突请求不应进入 pending。")
+	assert_eq((_utility as TrackingAssetUtility).requested_type_hints, ["Resource"], "同一路径冲突请求不应重复发起 threaded request。")
 
 
 func test_failed_load_notifies_callback_with_null() -> void:

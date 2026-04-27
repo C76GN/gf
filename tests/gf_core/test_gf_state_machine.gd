@@ -36,6 +36,19 @@ class TrackingState:
 		return _get_machine() != null
 
 
+class RedirectState:
+	extends TrackingState
+
+	var target_state_name: StringName
+
+	func _init(p_target_state_name: StringName) -> void:
+		target_state_name = p_target_state_name
+
+	func enter(msg: Dictionary = {}) -> void:
+		super.enter(msg)
+		change_state(target_state_name)
+
+
 class DummyModel:
 	extends GFModel
 
@@ -127,6 +140,25 @@ func test_change_state_emits_signal() -> void:
 	_fsm.change_state(&"Run")
 
 	assert_signal_emitted_with_parameters(_fsm, "state_changed", [&"Idle", &"Run"])
+
+
+func test_nested_change_state_during_enter_emits_only_final_transition() -> void:
+	var idle := TrackingState.new()
+	var redirect := RedirectState.new(&"Run")
+	var run := TrackingState.new()
+	var transitions: Array = []
+	_fsm.add_state(&"Idle", idle)
+	_fsm.add_state(&"Redirect", redirect)
+	_fsm.add_state(&"Run", run)
+	_fsm.start(&"Idle")
+	_fsm.state_changed.connect(func(from_state: StringName, to_state: StringName) -> void:
+		transitions.append([from_state, to_state])
+	)
+
+	_fsm.change_state(&"Redirect")
+
+	assert_eq(_fsm.current_state_name, &"Run", "enter 内部嵌套切换后最终状态应为 Run。")
+	assert_eq(transitions, [[&"Redirect", &"Run"]], "外层过时切换不应再发出 state_changed。")
 
 
 ## 验证状态可通过自身代理请求状态切换。

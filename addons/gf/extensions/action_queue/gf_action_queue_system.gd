@@ -24,13 +24,25 @@ var _queue: Array[GFVisualAction] = []
 ## 当前队头索引，避免消费队列时频繁 pop_front() 触发数组搬移。##
 var _queue_head_index: int = 0
 
+## 当前处理轮次，用于取消正在等待 Signal 的旧消费协程。
+var _processing_serial: int = 0
+
+## 当前正在执行或等待的动作。
+var _current_action: GFVisualAction = null
+
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	_processing_serial += 1
 	_queue.clear()
 	_queue_head_index = 0
+	_current_action = null
 	is_processing = false
+
+
+func dispose() -> void:
+	clear_queue(true)
 
 
 # --- 公共方法 ---
@@ -92,9 +104,17 @@ func push_front_parallel(actions: Array[GFVisualAction]) -> void:
 
 
 ## 清空队列中尚未执行的动作。##
-func clear_queue() -> void:
+## @param stop_current: 为 true 时同时取消当前正在等待 Signal 的动作队列消费。
+func clear_queue(stop_current: bool = false) -> void:
+	var was_processing := is_processing
 	_queue.clear()
 	_queue_head_index = 0
+	if stop_current:
+		_processing_serial += 1
+		_cancel_current_action()
+		is_processing = false
+		if was_processing:
+			queue_drained.emit()
 
 
 # --- 私有/辅助方法 ---
@@ -109,17 +129,25 @@ func _process_queue() -> void:
 		return
 
 	is_processing = true
+	var current_serial := _processing_serial
 
-	while _has_queued_actions():
+	while current_serial == _processing_serial and _has_queued_actions():
 		var action := _dequeue_action()
 		if not is_instance_valid(action):
 			continue
 
+		_current_action = action
 		_inject_action_dependencies(action)
 		var result: Variant = action.execute()
 		if action.should_wait_for_result(result):
-			await action.await_result_safely(result)
+			await action.await_result_safely(result, _is_processing_serial_current.bind(current_serial))
 
+		if current_serial != _processing_serial:
+			return
+		if _current_action == action:
+			_current_action = null
+
+	_current_action = null
 	is_processing = false
 	queue_drained.emit()
 
@@ -155,3 +183,13 @@ func _compact_queue_if_needed() -> void:
 func _inject_action_dependencies(action: GFVisualAction) -> void:
 	if action.has_method("inject_dependencies"):
 		action.inject_dependencies(_get_architecture_or_null())
+
+
+func _is_processing_serial_current(serial: int) -> bool:
+	return serial == _processing_serial
+
+
+func _cancel_current_action() -> void:
+	if is_instance_valid(_current_action):
+		_current_action.cancel()
+	_current_action = null

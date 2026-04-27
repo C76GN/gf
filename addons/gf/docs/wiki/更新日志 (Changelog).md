@@ -16,6 +16,73 @@
 
 ---
 
+## [1.9.3] - 2026-04-27
+
+**版本概述**：聚焦生命周期边界、异步取消与资源类型一致性，修复动态注册、队列等待、战斗清理、命令历史和数值格式化中的边缘问题，并补充对应回归测试。
+
+### 🚀 新增特性 (Added)
+- **动作队列当前动作取消**：`GFVisualAction` 新增 `cancel()`，`GFVisualActionGroup` 会通过执行序号停止内部等待。
+- **命令历史异步超时**：`GFCommandHistoryUtility` 新增 `async_timeout_seconds`，避免异步命令 Signal 丢失后永久锁住历史操作。
+- **音频总线常量与回退**：`GFAudioUtility` 新增 `BGM_BUS_NAME` / `SFX_BUS_NAME` 常量，缺少对应总线时自动回退 `Master` 并提示。
+
+### 🔄 机制更改 (Changed)
+- **Tick 只驱动 ready 模块**：`GFArchitecture.tick()` / `physics_tick()` 现在只驱动生命周期已到阶段三的模块，避免动态注册慢初始化对象提前参与帧循环。
+- **失效 alias 不再遮蔽回退**：本地 alias 指向未注册目标时，查询会继续走 assignable 查询与父架构回退。
+- **资源 pending 保留 type_hint**：`GFAssetUtility` 的 pending 请求会记录 `type_hint`；同一路径不同类型提示的并发请求会被拒绝并回调 `null`。
+- **NodeContext 等待改用生命周期信号**：`GFNodeContext.wait_until_ready()` 不再逐帧轮询，而是等待架构初始化完成信号。
+- **任务 float 进度四舍五入**：`GFQuestUtility` 对 float 或字典中的 float `amount` 使用四舍五入，避免静默截断。
+
+### 🐛 Bug 修复 (Fixed)
+- **UI 入栈失败后下层面板不可见**：修复 `GFUIUtility` 的 `config_callback` 销毁新面板时，旧栈顶未恢复显示的问题。
+- **动作队列清空仍卡在当前等待**：`GFActionQueueSystem.clear_queue(true)` 现在会取消当前等待并丢弃后续动作。
+- **战斗系统释放未清理效果**：`GFCombatSystem.dispose()` 会移除存活实体上的 Buff 效果、断开技能信号并清空索引；已释放实体清理不再触发 typed Object 错误。
+- **命令历史缺少架构注入与取消**：历史执行、撤销、重做和反序列化恢复的命令会注入当前架构；dispose 会取消等待中的异步操作。
+- **科学计数法尾数进位错误**：`GFBigNumber.to_scientific_string()` 在尾数舍入到 10 时会正确进位指数。
+- **定点数大位移除法错误缩放**：`GFFixedDecimal.divide()` 对超过整数缩放安全上限的正位移使用浮点兜底并钳制溢出，不再把缩放位数截断成错误结果。
+- **定点数转大数重复加载脚本**：`GFFixedDecimal.to_big_number()` 改为预加载脚本引用。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFVisualAction.cancel() -> void`。
+- 新增 `GFCommandHistoryUtility.async_timeout_seconds: float`。
+- 新增 `GFAudioUtility.BGM_BUS_NAME` 与 `GFAudioUtility.SFX_BUS_NAME`。
+- `GFActionQueueSystem.clear_queue(stop_current: bool = false)` 新增可选参数，旧调用保持兼容。
+- `GFAssetUtility.is_loading(path: String, type_hint: String = "")` 新增可选参数，旧调用保持兼容。
+- `GFAssetUtility.cancel(path: String, type_hint: String = "")` 新增可选参数，旧调用保持兼容。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧的 `clear_queue()`、`is_loading(path)` 与 `cancel(path)` 调用无需改动；需要终止当前等待动作时改用 `clear_queue(true)`。
+2. 如果项目没有配置 `BGM` / `SFX` 音频总线，`GFAudioUtility` 会回退到 `Master`；正式项目建议在 Audio Bus Layout 中补齐对应总线。
+3. 如果同一路径需要以不同 `type_hint` 加载，请等待前一个请求结束后再发起新请求，或统一调用方的类型提示。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/extensions/action_queue/gf_action_queue_system.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action_group.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/foundation/numeric/gf_big_number.gd`
+- `addons/gf/foundation/numeric/gf_fixed_decimal.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_audio_utility.gd`
+- `addons/gf/utilities/gf_command_history_utility.gd`
+- `addons/gf/utilities/gf_quest_utility.gd`
+- `addons/gf/utilities/gf_ui_utility.gd`
+- `addons/gf/plugin.cfg`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_asset_utility.gd`
+- `tests/gf_core/test_gf_big_number.gd`
+- `tests/gf_core/test_gf_combat_extension.gd`
+- `tests/gf_core/test_gf_command_history_utility.gd`
+- `tests/gf_core/test_gf_fixed_decimal.gd`
+- `tests/gf_core/test_gf_quest_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_state_machine.gd`
+- `tests/gf_core/test_gf_ui_utility.gd`
+
+---
+
 ## [1.9.2] - 2026-04-27
 
 **版本概述**：聚焦 Scoped 架构隔离、运行时空值防御与高频路径性能，修复局部上下文被全局 `Gf` 绕过的依赖解析问题，并补强对象池、动作队列、日志、资源缓存与定点数边界稳定性。

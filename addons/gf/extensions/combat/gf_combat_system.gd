@@ -27,11 +27,19 @@ func tick(p_delta: float) -> void:
 	for id in ids:
 		var entity = _active_entities[id]
 		if not is_instance_valid(entity):
-			_entities.erase(entity)
+			_remove_entity_record(entity, false)
 			_active_entities.erase(id)
 			continue
 			
 		_process_entity(entity, p_delta)
+
+
+func dispose() -> void:
+	for entity in _entities.keys():
+		_remove_entity_record(entity, true)
+
+	_entities.clear()
+	_active_entities.clear()
 
 
 # --- 公共方法 ---
@@ -54,21 +62,7 @@ func register_entity(p_entity: Object) -> void:
 ## 注销战斗实体。
 ## @param p_entity: 实体对象。
 func unregister_entity(p_entity: Object) -> void:
-	if _entities.has(p_entity):
-		var data: Dictionary = _entities[p_entity]
-		
-		# 移除 Buff 效果并断开信号
-		var buffs: Array = data["buffs"]
-		for buff: GFBuff in buffs:
-			buff.on_remove()
-			
-		var skills: Array = data["skills"]
-		for skill: GFSkill in skills:
-			if skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
-				skill.cooldown_started.disconnect(_on_skill_cooldown_started)
-			
-		_entities.erase(p_entity)
-		_active_entities.erase(p_entity.get_instance_id())
+	_remove_entity_record(p_entity, true)
 
 
 ## 给实体添加一个 Buff。
@@ -150,7 +144,7 @@ func _update_active_status(p_entity: Object) -> void:
 func _cleanup_invalid_entities() -> void:
 	for entity in _entities.keys():
 		if not is_instance_valid(entity):
-			_entities.erase(entity)
+			_remove_entity_record(entity, false)
 
 	for entity_id in _active_entities.keys():
 		var entity = _active_entities[entity_id]
@@ -158,7 +152,7 @@ func _cleanup_invalid_entities() -> void:
 			_active_entities.erase(entity_id)
 
 
-func _erase_active_entity(p_entity: Object) -> void:
+func _erase_active_entity(p_entity: Variant) -> void:
 	if is_instance_valid(p_entity):
 		_active_entities.erase(p_entity.get_instance_id())
 		return
@@ -170,6 +164,33 @@ func _erase_active_entity(p_entity: Object) -> void:
 
 	for entity_id in stale_ids:
 		_active_entities.erase(entity_id)
+
+
+func _remove_entity_record(p_entity: Variant, remove_effects: bool) -> void:
+	if not _entities.has(p_entity):
+		_erase_active_entity(p_entity)
+		return
+
+	var data: Dictionary = _entities[p_entity]
+	_cleanup_entity_data(data, remove_effects)
+	_entities.erase(p_entity)
+	_erase_active_entity(p_entity)
+
+
+func _cleanup_entity_data(data: Dictionary, remove_effects: bool) -> void:
+	var buffs: Array = data.get("buffs", [])
+	for buff: GFBuff in buffs:
+		if buff == null:
+			continue
+		if remove_effects:
+			buff.on_remove()
+
+	var skills: Array = data.get("skills", [])
+	for skill: GFSkill in skills:
+		if skill == null:
+			continue
+		if skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
+			skill.cooldown_started.disconnect(_on_skill_cooldown_started)
 
 
 func _on_skill_cooldown_started(p_skill: GFSkill) -> void:

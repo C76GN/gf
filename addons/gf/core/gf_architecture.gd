@@ -169,10 +169,10 @@ func tick(delta: float) -> void:
 	var scaled_delta: float = _get_scaled_delta(delta)
 	_is_iterating_tick_caches = true
 	for system: Object in _tick_systems:
-		if _module_lifecycle_stages.has(system):
+		if _is_module_ready_for_tick(system):
 			system.tick(_get_module_delta(system, delta, scaled_delta))
 	for utility: Object in _tick_utilities:
-		if _module_lifecycle_stages.has(utility):
+		if _is_module_ready_for_tick(utility):
 			utility.tick(_get_module_delta(utility, delta, scaled_delta))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
@@ -189,10 +189,10 @@ func physics_tick(delta: float) -> void:
 	var scaled_delta: float = _get_scaled_delta(delta)
 	_is_iterating_tick_caches = true
 	for system: Object in _physics_systems:
-		if _module_lifecycle_stages.has(system):
+		if _is_module_ready_for_tick(system):
 			system.physics_tick(_get_module_delta(system, delta, scaled_delta))
 	for utility: Object in _physics_utilities:
-		if _module_lifecycle_stages.has(utility):
+		if _is_module_ready_for_tick(utility):
 			utility.physics_tick(_get_module_delta(utility, delta, scaled_delta))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
@@ -971,6 +971,10 @@ func _is_lifecycle_current(lifecycle_serial: int) -> bool:
 	return _lifecycle_serial == lifecycle_serial
 
 
+func _is_module_ready_for_tick(instance: Object) -> bool:
+	return int(_module_lifecycle_stages.get(instance, 0)) >= 3
+
+
 func _register_alias(aliases: Dictionary, registry: Dictionary, alias_cls: Script, target_cls: Script, label: String) -> void:
 	if alias_cls == null or target_cls == null:
 		push_error("[GFArchitecture] register_%s_alias 失败：alias 或 target 为空。" % label.to_lower())
@@ -986,7 +990,9 @@ func _resolve_registered_key(registry: Dictionary, aliases: Dictionary, script_c
 	if registry.has(script_cls):
 		return script_cls
 	if aliases.has(script_cls):
-		return aliases[script_cls] as Script
+		var target_cls := aliases[script_cls] as Script
+		if target_cls != null and registry.has(target_cls):
+			return target_cls
 	return null
 
 

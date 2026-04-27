@@ -79,6 +79,16 @@ class ManualAsyncCommand:
 		completed.emit()
 
 
+class InjectedHistoryCommand:
+	extends GFUndoableCommand
+
+	var injected_architecture: GFArchitecture = null
+
+	func inject_dependencies(architecture: GFArchitecture) -> void:
+		super.inject_dependencies(architecture)
+		injected_architecture = architecture
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -128,6 +138,17 @@ func test_execute_command_executes_and_records() -> void:
 
 	assert_eq(counter.value, 1, "execute_command 应先执行命令。")
 	assert_eq(_history.undo_count, 1, "execute_command 后应自动记录到撤销栈。")
+
+
+func test_execute_command_injects_history_architecture() -> void:
+	var arch := GFArchitecture.new()
+	_history.inject_dependencies(arch)
+
+	var cmd := InjectedHistoryCommand.new()
+	_history.execute_command(cmd)
+
+	assert_eq(cmd.injected_architecture, arch, "History 执行命令时应注入自身所属架构。")
+	arch.dispose()
 
 
 # --- 测试：undo_last ---
@@ -245,6 +266,22 @@ func test_undo_last_async_blocks_reentrant_history_mutation() -> void:
 	await get_tree().process_frame
 
 	assert_eq(_history.redo_count, 1, "异步 undo 完成后才应写入 redo 栈。")
+
+
+func test_dispose_cancels_pending_async_history_operation() -> void:
+	var cmd := ManualAsyncCommand.new()
+
+	_history.execute_command(cmd)
+	await get_tree().process_frame
+	assert_true(_history._is_processing_async, "异步命令未完成时应进入处理锁。")
+
+	_history.dispose()
+	cmd.complete()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_false(_history._is_processing_async, "dispose 应解除异步处理锁。")
+	assert_eq(_history.undo_count, 0, "dispose 后旧异步命令完成不应写入历史。")
 
 
 ## 验证 redo_async 会等待异步执行命令完成后再移动回撤销栈。

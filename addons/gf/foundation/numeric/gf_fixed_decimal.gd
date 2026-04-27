@@ -28,6 +28,7 @@ enum RoundingMode {
 ## 定点数可保留的小数位上限，避免整数缩放时溢出。
 const MAX_DECIMAL_PLACES: int = 18
 
+const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/foundation/numeric/gf_big_number.gd")
 const _MAX_INT_VALUE: int = 9_223_372_036_854_775_807
 const _MAX_INT_DIGITS: String = "9223372036854775807"
 
@@ -264,6 +265,9 @@ func divide(
 	var shift := result_places + other.decimal_places - decimal_places
 	var numerator := raw_value
 	var denominator := other.raw_value
+	if shift > MAX_DECIMAL_PLACES:
+		var scaled_raw := _divide_with_scaled_float(numerator, denominator, shift, rounding_mode)
+		return GFFixedDecimal.new(scaled_raw, result_places)
 	if shift >= 0:
 		numerator = _checked_multiply(numerator, _pow10_int(shift), "divide")
 	else:
@@ -282,8 +286,7 @@ func to_float() -> float:
 ## 转换为 GFBigNumber。
 ## @return 对应的大数值对象。
 func to_big_number() -> Object:
-	var big_number_script := load("res://addons/gf/foundation/numeric/gf_big_number.gd") as Script
-	return big_number_script.from_string(to_decimal_string(false))
+	return _BIG_NUMBER_SCRIPT.from_string(to_decimal_string(false))
 
 
 ## 转换为普通字符串。
@@ -408,6 +411,20 @@ static func _round_scaled_float(value: float, rounding_mode: RoundingMode) -> in
 			return rounded * sign
 
 	return int(round(value))
+
+
+static func _divide_with_scaled_float(
+	numerator: int,
+	denominator: int,
+	shift: int,
+	rounding_mode: RoundingMode
+) -> int:
+	var scaled_value := (float(numerator) / float(denominator)) * pow(10.0, float(shift))
+	if is_nan(scaled_value) or is_inf(scaled_value) or absf(scaled_value) >= float(_MAX_INT_VALUE):
+		push_error("[GFFixedDecimal] divide 结果超出可表示范围，已钳制。")
+		return _get_saturated_int(scaled_value < 0.0)
+
+	return _round_scaled_float(scaled_value, rounding_mode)
 
 
 static func _pow10_int(power: int) -> int:

@@ -114,7 +114,10 @@ func wait_until_ready() -> GFArchitecture:
 	while _architecture != null and not _architecture.is_inited():
 		if not is_inside_tree():
 			return null
-		await get_tree().process_frame
+		var waiting_architecture := _architecture
+		await waiting_architecture.initialization_finished
+		if _architecture != waiting_architecture:
+			return null
 
 	if _architecture != null:
 		_is_context_ready = true

@@ -25,7 +25,7 @@ var max_cache_size: int:
 
 var _max_cache_size: int = 64
 
-## 正在加载中的请求：`path -> Array[Callable]`。
+## 正在加载中的请求：`path -> { type_hint: String, callbacks: Array[Callable] }`。
 var _pending: Dictionary = {}
 
 ## 资源缓存：`path -> Resource`。
@@ -65,11 +65,23 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 
 	var cached: Resource = get_cached(path)
 	if cached != null:
+		if not _is_resource_compatible(cached, type_hint):
+			push_warning("[GFAssetUtility] 缓存资源类型与请求 type_hint 不匹配：%s (%s)" % [path, type_hint])
+			on_loaded.call(null)
+			return
+
 		on_loaded.call(cached)
 		return
 
 	if _pending.has(path):
-		var callbacks := _pending[path] as Array
+		var pending_request := _pending[path] as Dictionary
+		var pending_type_hint := String(pending_request.get("type_hint", ""))
+		if pending_type_hint != type_hint:
+			push_warning("[GFAssetUtility] 已存在相同路径但 type_hint 不同的加载请求，已拒绝新请求：%s (%s -> %s)" % [path, pending_type_hint, type_hint])
+			on_loaded.call(null)
+			return
+
+		var callbacks := pending_request.get("callbacks", []) as Array
 		if not callbacks.has(on_loaded):
 			callbacks.append(on_loaded)
 		return
@@ -80,7 +92,10 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 		on_loaded.call(null)
 		return
 
-	_pending[path] = [on_loaded]
+	_pending[path] = {
+		"type_hint": type_hint,
+		"callbacks": [on_loaded],
+	}
 
 
 ## 驱动异步加载轮询。
@@ -102,9 +117,16 @@ func get_cached(path: String) -> Resource:
 
 ## 检查指定路径是否正在加载中。
 ## @param path: 资源路径。
+## @param type_hint: 可选资源类型提示；为空时只检查路径。
 ## @return 正在加载时返回 `true`。
-func is_loading(path: String) -> bool:
-	return _pending.has(path)
+func is_loading(path: String, type_hint: String = "") -> bool:
+	if not _pending.has(path):
+		return false
+	if type_hint.is_empty():
+		return true
+
+	var pending_request := _pending[path] as Dictionary
+	return String(pending_request.get("type_hint", "")) == type_hint
 
 
 ## 检查指定路径是否已缓存。
@@ -116,8 +138,13 @@ func is_cached(path: String) -> bool:
 
 ## 取消指定路径的异步加载请求。
 ## @param path: 资源路径。
-func cancel(path: String) -> void:
-	_pending.erase(path)
+## @param type_hint: 可选资源类型提示；为空时取消该路径的当前请求。
+func cancel(path: String, type_hint: String = "") -> void:
+	if not type_hint.is_empty() and is_loading(path, type_hint):
+		_pending.erase(path)
+		return
+	if type_hint.is_empty():
+		_pending.erase(path)
 
 
 ## 手动写入缓存。
@@ -163,14 +190,16 @@ func _poll_pending() -> void:
 		if not _pending.has(path):
 			continue
 
-		var callbacks := (_pending[path] as Array).duplicate()
+		var pending_request := _pending[path] as Dictionary
+		var callbacks := (pending_request.get("callbacks", []) as Array).duplicate()
 		var status := _get_threaded_status(path)
 
 		match status:
 			ResourceLoader.THREAD_LOAD_LOADED:
 				var resource := _take_threaded_resource(path)
 				_pending.erase(path)
-				put_cache(path, resource)
+				if resource != null:
+					put_cache(path, resource)
 				_dispatch_callbacks(callbacks, resource)
 
 			ResourceLoader.THREAD_LOAD_FAILED:
@@ -188,6 +217,10 @@ func _dispatch_callbacks(callbacks: Array, resource: Resource) -> void:
 	for callback: Callable in callbacks:
 		if callback.is_valid():
 			callback.call(resource)
+
+
+func _is_resource_compatible(resource: Resource, type_hint: String) -> bool:
+	return type_hint.is_empty() or resource.is_class(type_hint)
 
 
 func _touch_cache(path: String) -> void:

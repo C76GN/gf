@@ -209,6 +209,29 @@ func test_unregister_entity_removes_active_status() -> void:
 	system.tick(1.0)
 
 
+func test_dispose_removes_buff_effects_and_clears_indices() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	entity.add_attr(&"ATK", 10.0)
+	system.register_entity(entity)
+
+	var buff := GFBuff.new()
+	buff.modifiers.append(GFModifier.create_base_add(5.0, &"ATK"))
+	buff.tags.append(&"Buffed")
+	buff.setup(&"PowerUp", 2.0, entity)
+	system.add_buff(entity, buff)
+
+	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "dispose 前 Buff 修饰器应已生效。")
+	assert_true(entity.tag_component.has_tag(&"Buffed"), "dispose 前 Buff 标签应已生效。")
+
+	system.dispose()
+
+	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 10.0, "dispose 应移除仍存活实体上的 Buff 修饰器。")
+	assert_false(entity.tag_component.has_tag(&"Buffed"), "dispose 应移除仍存活实体上的 Buff 标签。")
+	assert_eq(system._entities.size(), 0, "dispose 后主索引应清空。")
+	assert_eq(system._active_entities.size(), 0, "dispose 后活跃索引应清空。")
+
+
 ## 测试技能 CD 更新。
 func test_skill_cooldown() -> void:
 	var system := GFCombatSystem.new()

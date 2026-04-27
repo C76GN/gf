@@ -135,11 +135,7 @@ func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
 	if not _event_to_quests.has(event_id):
 		return
 
-	var amount: int = 1
-	if payload is Dictionary and payload.has("amount"):
-		amount = int(payload["amount"])
-	elif payload is int or payload is float:
-		amount = int(payload)
+	var amount := _payload_to_amount(payload)
 
 	var list: Array = _event_to_quests[event_id]
 	for quest_id: StringName in list:
@@ -182,3 +178,14 @@ func _unregister_all_event_handlers() -> void:
 
 func _get_arch() -> Object:
 	return _get_architecture_or_null()
+
+
+func _payload_to_amount(payload: Variant) -> int:
+	if payload is Dictionary and payload.has("amount"):
+		return _payload_to_amount(payload["amount"])
+	if payload is int:
+		return payload
+	if payload is float:
+		return roundi(payload)
+
+	return 1

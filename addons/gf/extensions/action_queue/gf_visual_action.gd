@@ -66,6 +66,11 @@ func as_wait_for_signal() -> GFVisualAction:
 	return self
 
 
+## 请求取消动作。基础实现不做处理，复合动作可重写以停止内部等待。
+func cancel() -> void:
+	pass
+
+
 ## 设置等待 Signal 的超时时间，并返回自身以便链式调用。
 ## @param seconds: 超时时间；小于等于 0 时表示不启用超时。
 func with_signal_timeout(seconds: float) -> GFVisualAction:
@@ -85,16 +90,17 @@ func should_wait_for_result(result: Variant) -> bool:
 ## 安全等待 execute() 返回的 Signal。
 ## 当发射源失效或 Node 提前退出树时，会自动结束等待，避免队列永久卡死。
 ## @param result: execute() 返回值。
-func await_result_safely(result: Variant) -> void:
+## @param should_continue: 可选取消检查回调；返回 false 时立即停止等待。
+func await_result_safely(result: Variant, should_continue: Callable = Callable()) -> void:
 	if not should_wait_for_result(result):
 		return
 
-	await _await_signal_safely(result as Signal)
+	await _await_signal_safely(result as Signal, should_continue)
 
 
 # --- 私有/辅助方法 ---
 
-func _await_signal_safely(result_signal: Signal) -> void:
+func _await_signal_safely(result_signal: Signal, should_continue: Callable = Callable()) -> void:
 	if result_signal.is_null():
 		return
 
@@ -122,6 +128,8 @@ func _await_signal_safely(result_signal: Signal) -> void:
 	var start_msec := Time.get_ticks_msec()
 
 	while not completed[0]:
+		if should_continue.is_valid() and not bool(should_continue.call()):
+			break
 		if not is_instance_valid(target_obj):
 			break
 		if target_obj is Node and not (target_obj as Node).is_inside_tree():

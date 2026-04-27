@@ -149,6 +149,13 @@ class SlowInitUtility extends GFUtility:
 		ready_called = true
 
 
+class SlowTickUtility extends SlowInitUtility:
+	var tick_count: int = 0
+
+	func tick(_delta: float) -> void:
+		tick_count += 1
+
+
 class RecordingModel extends GFModel:
 	var order: Array
 
@@ -315,6 +322,31 @@ func test_dynamic_register_after_init_runs_lifecycle() -> void:
 	assert_eq(utility.tick_count, 1, "动态注册后的 Utility 应参与架构 tick。")
 
 
+## 验证初始化完成后动态注册的慢初始化模块，在 ready 前不会被 tick 驱动。
+func test_dynamic_register_after_init_does_not_tick_before_ready() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+	var utility := SlowTickUtility.new()
+	Gf.register_utility(utility)
+	await get_tree().process_frame
+
+	assert_true(utility.async_started, "动态注册应已经进入 async_init 等待。")
+	Gf.get_architecture().tick(0.25)
+	assert_eq(utility.tick_count, 0, "async_init 未完成前不应被 tick 驱动。")
+
+	utility.async_continue.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(utility.ready_called, "动态注册慢初始化完成后应进入 ready。")
+	var tick_count_after_ready := utility.tick_count
+	Gf.get_architecture().tick(0.25)
+	assert_eq(utility.tick_count, tick_count_after_ready + 1, "ready 后应恢复正常 tick。")
+
+
 ## 验证初始化期间动态注册的 Utility 也会补跑完整生命周期。
 func test_register_during_init_receives_full_lifecycle() -> void:
 	if Gf.has_architecture():
@@ -410,6 +442,22 @@ func test_child_architecture_falls_back_to_parent() -> void:
 	var child_arch := GFArchitecture.new(parent_arch)
 
 	assert_eq(child_arch.get_utility(ParentScopedUtility), parent_utility, "子架构应能回退获取父级 Utility。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
+## 验证子架构中的失效 alias 不会遮蔽父架构回退。
+func test_stale_child_alias_does_not_shadow_parent_fallback() -> void:
+	var parent_arch := GFArchitecture.new()
+	var parent_utility := ConcreteUtility.new()
+	await parent_arch.register_utility_instance(parent_utility)
+
+	var child_arch := GFArchitecture.new(parent_arch)
+	child_arch.register_utility_alias(UtilityBase, ConcreteUtility)
+
+	assert_push_warning("[GFArchitecture] register_utility_alias：目标类型尚未注册，仍会记录别名。")
+	assert_eq(child_arch.get_utility(UtilityBase), parent_utility, "子架构失效 alias 不应阻断父架构基类回退。")
 
 	child_arch.dispose()
 	parent_arch.dispose()

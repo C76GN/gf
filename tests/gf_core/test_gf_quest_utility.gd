@@ -60,6 +60,15 @@ func test_quest_integration_with_simple_event() -> void:
 	assert_true(_quest.is_quest_completed(&"collect_coins"))
 
 
+func test_float_payload_amount_is_rounded() -> void:
+	_quest.start_quest(&"collect_parts", &"part_looted", 3)
+
+	Gf.send_simple_event(&"part_looted", 1.6)
+
+	var q_data: Object = _quest._quests[&"collect_parts"]
+	assert_eq(q_data.current_count, 2, "float 进度载荷应四舍五入为最接近的整数。")
+
+
 func test_zero_target_quest_completes_immediately() -> void:
 	watch_signals(_quest)
 
