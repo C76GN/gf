@@ -9,7 +9,12 @@ extends GFUtility
 # --- 公共变量 ---
 
 ## 撤销栈的最大容量；为 0 时表示不限制。
-var max_history_size: int = 1024
+var max_history_size: int:
+	get:
+		return _max_history_size
+	set(value):
+		_max_history_size = maxi(value, 0)
+		_trim_undo_stack()
 
 ## 当前撤销栈深度。
 var undo_count: int:
@@ -32,6 +37,8 @@ var _redo_stack: Array[GFUndoableCommand] = []
 
 ## 当前是否正在等待一条异步命令完成。
 var _is_processing_async: bool = false
+
+var _max_history_size: int = 1024
 
 
 # --- Godot 生命周期方法 ---
@@ -230,8 +237,15 @@ func _record_internal(cmd: GFUndoableCommand) -> void:
 	_undo_stack.push_back(cmd)
 	_redo_stack.clear()
 
-	if max_history_size > 0 and _undo_stack.size() > max_history_size:
-		_undo_stack.pop_front()
+	_trim_undo_stack()
+
+
+func _trim_undo_stack() -> void:
+	if max_history_size <= 0 or _undo_stack.size() <= max_history_size:
+		return
+
+	var overflow := _undo_stack.size() - max_history_size
+	_undo_stack = _undo_stack.slice(overflow)
 
 
 func _serialize_stack(stack: Array[GFUndoableCommand]) -> Array[Dictionary]:

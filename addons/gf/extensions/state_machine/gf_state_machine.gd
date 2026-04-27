@@ -174,12 +174,28 @@ func _get_context() -> Object:
 
 
 func _get_available_architecture(dependency_name: String) -> GFArchitecture:
-	if _context_ref != null and not is_instance_valid(_get_context()):
+	var context := _get_context()
+	if _context_ref != null and not is_instance_valid(context):
 		push_error("[GFStateMachine] 上下文无效，无法获取 %s。" % dependency_name)
 		return null
+
+	if context != null:
+		var context_architecture := _get_context_architecture(context)
+		if context_architecture != null:
+			return context_architecture
 
 	if not Gf.has_architecture():
 		push_error("[GFStateMachine] 架构尚未初始化，无法获取 %s。" % dependency_name)
 		return null
 
 	return Gf.get_architecture()
+
+
+func _get_context_architecture(context: Object) -> GFArchitecture:
+	if context.has_method("get_architecture_or_null"):
+		return context.call("get_architecture_or_null") as GFArchitecture
+	if context.has_method("_get_architecture_or_null"):
+		return context.call("_get_architecture_or_null") as GFArchitecture
+	if context.has_method("get_architecture"):
+		return context.call("get_architecture") as GFArchitecture
+	return null

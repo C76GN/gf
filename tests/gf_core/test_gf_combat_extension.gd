@@ -18,6 +18,11 @@ class MockEntity extends Object:
 		attributes[p_id] = GFAttribute.new(p_val)
 
 
+class RejectingSkill extends GFSkill:
+	func _custom_can_execute() -> bool:
+		return false
+
+
 # --- 测试方法 ---
 
 ## 测试 GFAttribute 的修饰器计算。
@@ -119,6 +124,14 @@ func test_skill_requires_tags_when_owner_has_no_tag_component() -> void:
 	skill.require_tags.append(&"Armed")
 
 	assert_false(skill.can_execute(), "存在必需标签但 owner 无标签组件时，技能不应允许施放。")
+
+
+func test_skill_custom_can_execute_runs_without_tag_component() -> void:
+	var plain_owner := Object.new()
+	var skill := RejectingSkill.new()
+	skill.owner = plain_owner
+
+	assert_false(skill.can_execute(), "owner 无标签组件且无必需标签时，仍应执行自定义施放检查。")
 
 
 func test_attribute_ignores_null_modifier() -> void:
@@ -322,3 +335,35 @@ func test_combat_event_dispatching() -> void:
 	
 	# 清理架构
 	arch.dispose()
+
+
+func test_combat_events_use_injected_scoped_architecture() -> void:
+	var parent_arch := GFArchitecture.new()
+	await Gf.set_architecture(parent_arch)
+
+	var child_arch := GFArchitecture.new(parent_arch)
+	var system := GFCombatSystem.new()
+	await child_arch.register_system_instance(system)
+
+	var parent_events := { "applied": 0 }
+	var child_events := { "applied": 0 }
+	parent_arch.register_event(GFCombatPayloads.GFBuffAppliedPayload, func(_p) -> void:
+		parent_events["applied"] += 1
+	)
+	child_arch.register_event(GFCombatPayloads.GFBuffAppliedPayload, func(_p) -> void:
+		child_events["applied"] += 1
+	)
+
+	var entity := MockEntity.new()
+	var buff := GFBuff.new()
+	buff.setup(&"ScopedBuff", 1.0, entity)
+
+	system.register_entity(entity)
+	system.add_buff(entity, buff)
+
+	assert_eq(child_events["applied"], 1, "Scoped CombatSystem 应向自身架构派发事件。")
+	assert_eq(parent_events["applied"], 0, "Scoped CombatSystem 不应绕到全局父架构派发事件。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+	Gf._architecture = null

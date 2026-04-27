@@ -37,6 +37,11 @@ var owner: Object = null
 var targeting_rule: GFSkillTargetingRule = null
 
 
+# --- 私有变量 ---
+
+var _architecture_ref: WeakRef = null
+
+
 # --- Godot 生命周期方法 ---
 
 func _init(p_owner: Object = null) -> void:
@@ -52,6 +57,12 @@ func update(p_delta: float) -> void:
 		cooldown_left = max(0.0, cooldown_left - p_delta)
 
 
+## 注入当前技能执行所在的架构实例。
+## @param architecture: 当前架构。
+func inject_dependencies(architecture: GFArchitecture) -> void:
+	_architecture_ref = weakref(architecture) if architecture != null else null
+
+
 ## 检查技能当前是否允许施放。
 ## @return 可施放时返回 `true`。
 func can_execute() -> bool:
@@ -62,11 +73,11 @@ func can_execute() -> bool:
 		return false
 
 	if not owner.has_method("get_tag_component"):
-		return require_tags.is_empty()
+		return require_tags.is_empty() and _custom_can_execute()
 
 	var tc := owner.get_tag_component() as GFTagComponent
 	if tc == null:
-		return require_tags.is_empty()
+		return require_tags.is_empty() and _custom_can_execute()
 
 	for tag in require_tags:
 		if not tc.has_tag(tag):
@@ -91,7 +102,7 @@ func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
 
 	if manual_target != null:
 		if targeting_rule != null:
-			var utility := Gf.get_utility(GFSkillTargetingUtility) as GFSkillTargetingUtility
+			var utility := _get_targeting_utility()
 			if utility == null:
 				push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
 				return
@@ -108,7 +119,7 @@ func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
 		elif has_method(&"get_targeting_candidates"):
 			candidates = call(&"get_targeting_candidates")
 
-		var utility := Gf.get_utility(GFSkillTargetingUtility) as GFSkillTargetingUtility
+		var utility := _get_targeting_utility()
 		if utility == null:
 			push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
 			return
@@ -147,3 +158,21 @@ func _resolve_cast_center(cast_center: Variant) -> Vector2:
 		return owner.global_position
 
 	return Vector2.ZERO
+
+
+func _get_targeting_utility() -> GFSkillTargetingUtility:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+
+	return architecture.get_utility(GFSkillTargetingUtility) as GFSkillTargetingUtility
+
+
+func _get_architecture_or_null() -> GFArchitecture:
+	if _architecture_ref != null:
+		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		if architecture != null:
+			return architecture
+	if Gf.has_architecture():
+		return Gf.get_architecture()
+	return null

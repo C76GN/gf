@@ -48,6 +48,10 @@ class DummyUtility:
 	extends GFUtility
 
 
+class ContextUtility:
+	extends GFUtility
+
+
 class ContextHolder:
 	extends RefCounted
 
@@ -258,6 +262,27 @@ func test_get_dependencies_with_valid_context_uses_global_architecture() -> void
 	assert_eq(_fsm.get_model(DummyModel), dependencies["model"], "有效 context 下应能获取 Model。")
 	assert_eq(_fsm.get_system(DummySystem), dependencies["system"], "有效 context 下应能获取 System。")
 	assert_eq(_fsm.get_utility(DummyUtility), dependencies["utility"], "有效 context 下应能获取 Utility。")
+
+
+## 验证当 context 是已注入架构的模块时，状态机优先使用该局部架构。
+func test_get_dependencies_with_module_context_uses_injected_architecture() -> void:
+	var parent_arch := GFArchitecture.new()
+	await Gf.set_architecture(parent_arch)
+
+	var child_arch := GFArchitecture.new(parent_arch)
+	var context := ContextUtility.new()
+	var local_utility := DummyUtility.new()
+	await child_arch.register_utility_instance(context)
+	await child_arch.register_utility_instance(local_utility)
+
+	_fsm.dispose()
+	_fsm = GFStateMachine.new(context)
+
+	assert_eq(_fsm.get_utility(DummyUtility), local_utility, "模块 context 应让状态机解析到注入的局部架构。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+	Gf._architecture = null
 
 
 ## 验证 context 已释放时，状态机会拒绝继续访问框架依赖。

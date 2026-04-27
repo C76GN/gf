@@ -86,6 +86,10 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 ## 将事件实例发送给其脚本类型的所有注册监听器。
 ## @param event_instance: 要分发的事件实例。
 func send(event_instance: Object) -> void:
+	if event_instance == null:
+		push_error("[TypeEventSystem] 发送的事件实例为空。")
+		return
+
 	var event_type: Variant = event_instance.get_script()
 	assert(event_type != null, "[TypeEventSystem] 发送的事件实例必须附加继承了 RefCounted 或 Object 的脚本类！")
 

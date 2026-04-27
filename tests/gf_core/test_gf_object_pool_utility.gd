@@ -173,6 +173,20 @@ func test_prewarm_sets_available_count() -> void:
 	assert_eq(_pool.get_available_count(_scene), 5, "prewarm(5) 后可用节点数应为 5。")
 
 
+func test_prewarm_rejects_invalid_scene() -> void:
+	_pool.prewarm(null, _parent, 1)
+
+	assert_push_error("[GFObjectPoolUtility] 传入了无效的 PackedScene。")
+	assert_eq(_parent.get_child_count(), 0, "无效 PackedScene 不应创建任何节点。")
+
+
+func test_prewarm_async_batches_nodes() -> void:
+	await _pool.prewarm_async(_scene, _parent, 3, 1)
+
+	assert_eq(_parent.get_child_count(), 3, "prewarm_async 应完成指定数量的预热。")
+	assert_eq(_pool.get_available_count(_scene), 3, "prewarm_async 后可用节点数应正确。")
+
+
 # --- 测试：get_available_count ---
 
 ## 验证初始时可用数量为 0。

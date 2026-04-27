@@ -106,10 +106,12 @@ static func flood_fill(
 
 	var result: Array[Vector2i] = []
 	var queue: Array[Vector2i] = [start]
+	var queue_index: int = 0
 	var visited: Dictionary = { start: true }
 
-	while not queue.is_empty():
-		var cell: Vector2i = queue.pop_front()
+	while queue_index < queue.size():
+		var cell: Vector2i = queue[queue_index]
+		queue_index += 1
 		result.append(cell)
 
 		for next_cell: Vector2i in get_neighbors(cell, grid_size, include_diagonal):
@@ -149,11 +151,13 @@ static func find_path_bfs(
 		return []
 
 	var queue: Array[Vector2i] = [start]
+	var queue_index: int = 0
 	var visited: Dictionary = { start: true }
 	var came_from: Dictionary = {}
 
-	while not queue.is_empty():
-		var cell: Vector2i = queue.pop_front()
+	while queue_index < queue.size():
+		var cell: Vector2i = queue[queue_index]
+		queue_index += 1
 		for next_cell: Vector2i in get_neighbors(cell, grid_size, allow_diagonal):
 			if visited.has(next_cell) or not bool(is_walkable.call(next_cell)):
 				continue
@@ -195,6 +199,7 @@ static func can_connect_with_max_turns(
 		return false
 
 	var queue: Array[Dictionary] = []
+	var queue_index: int = 0
 	var visited: Dictionary = {}
 	for direction_index: int in range(_ORTHOGONAL_DIRECTIONS.size()):
 		var direction: Vector2i = _ORTHOGONAL_DIRECTIONS[direction_index]
@@ -209,8 +214,9 @@ static func can_connect_with_max_turns(
 		})
 		visited[_make_connector_key(next_cell, direction_index)] = 0
 
-	while not queue.is_empty():
-		var state: Dictionary = queue.pop_front()
+	while queue_index < queue.size():
+		var state: Dictionary = queue[queue_index]
+		queue_index += 1
 		var cell: Vector2i = state["cell"]
 		var direction_index: int = state["direction_index"]
 		var turns: int = state["turns"]

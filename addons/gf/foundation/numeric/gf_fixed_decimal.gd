@@ -29,6 +29,7 @@ enum RoundingMode {
 const MAX_DECIMAL_PLACES: int = 18
 
 const _MAX_INT_VALUE: int = 9_223_372_036_854_775_807
+const _MAX_INT_DIGITS: String = "9223372036854775807"
 
 
 # --- 公共变量 ---
@@ -77,7 +78,7 @@ static func from_float(
 		return GFFixedDecimal.new(0, places)
 
 	var scaled_value := value * _pow10_float(places)
-	if is_nan(scaled_value) or is_inf(scaled_value) or absf(scaled_value) > float(_MAX_INT_VALUE):
+	if is_nan(scaled_value) or is_inf(scaled_value) or absf(scaled_value) >= float(_MAX_INT_VALUE):
 		push_error("[GFFixedDecimal] from_float 缩放后超出可表示范围。")
 		return GFFixedDecimal.new(0, places)
 
@@ -148,13 +149,13 @@ func is_zero() -> bool:
 ## 获取绝对值。
 ## @return 新的定点数实例。
 func abs_value() -> GFFixedDecimal:
-	return GFFixedDecimal.new(int(abs(raw_value)), decimal_places)
+	return GFFixedDecimal.new(_abs_int(raw_value), decimal_places)
 
 
 ## 获取相反数。
 ## @return 新的定点数实例。
 func negated() -> GFFixedDecimal:
-	return GFFixedDecimal.new(-raw_value, decimal_places)
+	return GFFixedDecimal.new(_checked_multiply(raw_value, -1, "negated"), decimal_places)
 
 
 ## 重设小数位数。
@@ -202,7 +203,7 @@ func add(other: GFFixedDecimal) -> GFFixedDecimal:
 	var target_places := maxi(decimal_places, other.decimal_places)
 	var left_raw := _align_raw_for_compare(target_places)
 	var right_raw := other._align_raw_for_compare(target_places)
-	return GFFixedDecimal.new(left_raw + right_raw, target_places)
+	return GFFixedDecimal.new(_checked_add(left_raw, right_raw, "add"), target_places)
 
 
 ## 与另一个定点数相减。
@@ -296,7 +297,7 @@ func to_decimal_string(trim_zeroes: bool = false) -> String:
 	var abs_raw := raw_value
 	if raw_value < 0:
 		sign_text = "-"
-		abs_raw = -raw_value
+		abs_raw = _abs_int(raw_value)
 
 	var scale := _pow10_int(decimal_places)
 	var integer_part := int(abs_raw / scale)
@@ -347,28 +348,28 @@ static func _divide_with_rounding(
 		return 0
 
 	var negative := (numerator < 0) != (denominator < 0)
-	var abs_numerator := int(abs(numerator))
-	var abs_denominator := int(abs(denominator))
+	var abs_numerator := _abs_int(numerator)
+	var abs_denominator := _abs_int(denominator)
 	var quotient := int(abs_numerator / abs_denominator)
 	var remainder := abs_numerator % abs_denominator
 	var adjusted := quotient
 
 	match rounding_mode:
 		RoundingMode.HALF_UP:
-			if remainder * 2 >= abs_denominator:
-				adjusted += 1
+			if _compare_twice_remainder(remainder, abs_denominator) >= 0:
+				adjusted = _checked_add(adjusted, 1, "divide")
 		RoundingMode.HALF_EVEN:
-			var doubled_remainder := remainder * 2
-			if doubled_remainder > abs_denominator:
-				adjusted += 1
-			elif doubled_remainder == abs_denominator and quotient % 2 != 0:
-				adjusted += 1
+			var half_compare := _compare_twice_remainder(remainder, abs_denominator)
+			if half_compare > 0:
+				adjusted = _checked_add(adjusted, 1, "divide")
+			elif half_compare == 0 and quotient % 2 != 0:
+				adjusted = _checked_add(adjusted, 1, "divide")
 		RoundingMode.FLOOR:
 			if negative and remainder != 0:
-				adjusted += 1
+				adjusted = _checked_add(adjusted, 1, "divide")
 		RoundingMode.CEIL:
 			if not negative and remainder != 0:
-				adjusted += 1
+				adjusted = _checked_add(adjusted, 1, "divide")
 		RoundingMode.TRUNCATE:
 			pass
 
@@ -458,7 +459,10 @@ static func _parse_signed_digits(digits: String, sign: int) -> int:
 	while significant_digits.length() > 1 and significant_digits.begins_with("0"):
 		significant_digits = significant_digits.substr(1)
 
-	if significant_digits.length() > 19:
+	if significant_digits.length() > 19 or (
+		significant_digits.length() == 19
+		and significant_digits > _MAX_INT_DIGITS
+	):
 		push_error("[GFFixedDecimal] 数字超出可表示范围。")
 		return _get_saturated_int(sign < 0)
 
@@ -473,22 +477,23 @@ static func _parse_signed_digits(digits: String, sign: int) -> int:
 
 
 static func _checked_multiply(left: int, right: int, context: String) -> int:
-	var product := float(left) * float(right)
-	if product > float(_MAX_INT_VALUE):
+	if left == 0 or right == 0:
+		return 0
+
+	var abs_left := _abs_int(left)
+	var abs_right := _abs_int(right)
+	var negative := (left < 0) != (right < 0)
+	if abs_left > int(_MAX_INT_VALUE / abs_right):
 		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
-		return _MAX_INT_VALUE
-	if product < -float(_MAX_INT_VALUE):
-		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
-		return -_MAX_INT_VALUE
+		return _get_saturated_int(negative)
 	return left * right
 
 
 static func _checked_add(left: int, right: int, context: String) -> int:
-	var sum := float(left) + float(right)
-	if sum > float(_MAX_INT_VALUE):
+	if right > 0 and left > _MAX_INT_VALUE - right:
 		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
 		return _MAX_INT_VALUE
-	if sum < -float(_MAX_INT_VALUE):
+	if right < 0 and left < -_MAX_INT_VALUE - right:
 		push_error("[GFFixedDecimal] %s 结果超出可表示范围，已钳制。" % context)
 		return -_MAX_INT_VALUE
 	return left + right
@@ -496,3 +501,16 @@ static func _checked_add(left: int, right: int, context: String) -> int:
 
 static func _get_saturated_int(is_negative: bool) -> int:
 	return -_MAX_INT_VALUE if is_negative else _MAX_INT_VALUE
+
+
+static func _abs_int(value: int) -> int:
+	return -value if value < 0 else value
+
+
+static func _compare_twice_remainder(remainder: int, denominator: int) -> int:
+	var complement := denominator - remainder
+	if remainder > complement:
+		return 1
+	if remainder < complement:
+		return -1
+	return 0

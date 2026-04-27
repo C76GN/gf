@@ -35,12 +35,23 @@ var completion_mode: CompletionMode = CompletionMode.AUTO
 var signal_timeout_seconds: float = 30.0
 
 
+# --- 私有变量 ---
+
+var _architecture_ref: WeakRef = null
+
+
 # --- 公共方法 ---
 
 ## 执行此视觉动作。子类必须重写此方法。
 ## @return 瞬时动作返回 null；需要等待的动作返回一个 Signal 供 await。
 func execute() -> Variant:
 	return null
+
+
+## 注入当前动作执行所在的架构实例。
+## @param architecture: 当前架构。
+func inject_dependencies(architecture: GFArchitecture) -> void:
+	_architecture_ref = weakref(architecture) if architecture != null else null
 
 
 ## 将动作标记为显式 fire-and-forget，并返回自身以便链式调用。
@@ -131,3 +142,13 @@ func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) 
 		return
 	if target_signal.is_connected(callback):
 		target_signal.disconnect(callback)
+
+
+func _get_architecture_or_null() -> GFArchitecture:
+	if _architecture_ref != null:
+		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		if architecture != null:
+			return architecture
+	if Gf.has_architecture():
+		return Gf.get_architecture()
+	return null

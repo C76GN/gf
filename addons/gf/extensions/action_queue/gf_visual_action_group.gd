@@ -81,6 +81,7 @@ func _do_parallel_async(current_serial: int) -> void:
 		if not is_instance_valid(action):
 			continue
 
+		_inject_action_dependencies(action)
 		var result: Variant = action.execute()
 		if action.should_wait_for_result(result):
 			pending_state["count"] = int(pending_state["count"]) + 1
@@ -98,6 +99,7 @@ func _do_sequence_async(current_serial: int) -> void:
 		if not is_instance_valid(action):
 			continue
 
+		_inject_action_dependencies(action)
 		var result: Variant = action.execute()
 		if action.should_wait_for_result(result):
 			await action.await_result_safely(result)
@@ -125,3 +127,8 @@ func _wait_parallel_action(
 	pending_state["count"] = int(pending_state["count"]) - 1
 	if int(pending_state["count"]) <= 0:
 		_parallel_completed.emit()
+
+
+func _inject_action_dependencies(action: GFVisualAction) -> void:
+	if action.has_method("inject_dependencies"):
+		action.inject_dependencies(_get_architecture_or_null())

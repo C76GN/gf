@@ -162,10 +162,7 @@ func _resolve_level_data(level_id: Variant) -> Dictionary:
 
 
 func _get_utility(utility_type: Script) -> Object:
-	if not Gf.has_architecture():
-		return null
-
-	var arch := Gf.get_architecture()
+	var arch := _get_architecture_or_null()
 	if arch == null:
 		return null
 
@@ -173,10 +170,7 @@ func _get_utility(utility_type: Script) -> Object:
 
 
 func _get_system(system_type: Script) -> Object:
-	if not Gf.has_architecture():
-		return null
-
-	var arch := Gf.get_architecture()
+	var arch := _get_architecture_or_null()
 	if arch == null:
 		return null
 

@@ -60,6 +60,16 @@ func test_quest_integration_with_simple_event() -> void:
 	assert_true(_quest.is_quest_completed(&"collect_coins"))
 
 
+func test_zero_target_quest_completes_immediately() -> void:
+	watch_signals(_quest)
+
+	_quest.start_quest(&"already_done", &"unused_event", 0)
+
+	assert_true(_quest.is_quest_completed(&"already_done"), "target_count <= 0 的任务应立即完成。")
+	assert_eq(_quest.get_quest_progress(&"already_done"), 1.0, "立即完成任务的进度应为 100%。")
+	assert_signal_emitted(_quest, "quest_completed", "立即完成任务应发出完成信号。")
+
+
 func test_dispose_unregisters_simple_event_listener() -> void:
 	_quest.start_quest(&"cleanup_listener", &"enemy_died", 1)
 

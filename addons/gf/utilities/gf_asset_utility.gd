@@ -31,8 +31,9 @@ var _pending: Dictionary = {}
 ## 资源缓存：`path -> Resource`。
 var _cache: Dictionary = {}
 
-## LRU 访问顺序，尾部表示最近使用。
-var _cache_order: Array[String] = []
+## LRU 访问序号，数值越大表示越新。
+var _cache_access_order: Dictionary = {}
+var _cache_access_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
@@ -40,13 +41,15 @@ var _cache_order: Array[String] = []
 func init() -> void:
 	_pending = {}
 	_cache.clear()
-	_cache_order.clear()
+	_cache_access_order.clear()
+	_cache_access_serial = 0
 
 
 func dispose() -> void:
 	_pending.clear()
 	_cache.clear()
-	_cache_order.clear()
+	_cache_access_order.clear()
+	_cache_access_serial = 0
 
 
 # --- 公共方法 ---
@@ -133,13 +136,14 @@ func put_cache(path: String, resource: Resource) -> void:
 ## @param path: 资源路径。
 func remove_cache(path: String) -> void:
 	_cache.erase(path)
-	_cache_order.erase(path)
+	_cache_access_order.erase(path)
 
 
 ## 清空全部缓存。
 func clear_cache() -> void:
 	_cache.clear()
-	_cache_order.clear()
+	_cache_access_order.clear()
+	_cache_access_serial = 0
 
 
 ## 获取当前缓存数量。
@@ -187,15 +191,32 @@ func _dispatch_callbacks(callbacks: Array, resource: Resource) -> void:
 
 
 func _touch_cache(path: String) -> void:
-	_cache_order.erase(path)
-	_cache_order.append(path)
+	_cache_access_serial += 1
+	_cache_access_order[path] = _cache_access_serial
 
 
 func _evict_lru() -> void:
-	while _cache_order.size() > max_cache_size and max_cache_size > 0:
-		var oldest_path: String = _cache_order[0]
-		_cache_order.remove_at(0)
+	while _cache.size() > max_cache_size and max_cache_size > 0:
+		var oldest_path := _get_oldest_cached_path()
+		if not _cache.has(oldest_path):
+			return
+
 		_cache.erase(oldest_path)
+		_cache_access_order.erase(oldest_path)
+
+
+func _get_oldest_cached_path() -> String:
+	var oldest_path := ""
+	var oldest_access := 0
+	var has_oldest := false
+	for path: String in _cache:
+		var access := int(_cache_access_order.get(path, 0))
+		if not has_oldest or access < oldest_access:
+			oldest_path = path
+			oldest_access = access
+			has_oldest = true
+
+	return oldest_path
 
 
 func _request_threaded(path: String, type_hint: String) -> Error:

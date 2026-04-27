@@ -78,21 +78,30 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 ## @param model_type: 模型的脚本类型。
 ## @return 模型实例。
 func get_model(model_type: Script) -> Object:
-	return _get_architecture().get_model(model_type)
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_model(model_type)
 
 
 ## 通过类型获取 Utility 实例。
 ## @param utility_type: 工具的脚本类型。
 ## @return 工具实例。
 func get_utility(utility_type: Script) -> Object:
-	return _get_architecture().get_utility(utility_type)
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(utility_type)
 
 
 ## 通过类型获取 System 实例。
 ## @param system_type: 系统的脚本类型。
 ## @return 系统实例。
 func get_system(system_type: Script) -> Object:
-	return _get_architecture().get_system(system_type)
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_system(system_type)
 
 
 # --- 事件系统 ---
@@ -102,48 +111,69 @@ func get_system(system_type: Script) -> Object:
 ## @param callback: 回调函数。
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
-	_get_architecture().register_event_owned(self, event_type, callback, priority)
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_event_owned(self, event_type, callback, priority)
 
 
 ## 注销类型事件监听器。
 ## @param event_type: 要注销的脚本类型。
 ## @param callback: 要移除的回调函数。
 func unregister_event(event_type: Script, callback: Callable) -> void:
-	_get_architecture().unregister_event(event_type, callback)
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.unregister_event(event_type, callback)
 
 
 ## 向架构发送类型事件。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	_get_architecture().send_event(event_instance)
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.send_event(event_instance)
 
 
 ## 注册轻量级 StringName 事件监听器。
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
-	_get_architecture().register_simple_event_owned(self, event_id, callback)
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_simple_event_owned(self, event_id, callback)
 
 
 ## 注销轻量级 StringName 事件监听器。
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
-	_get_architecture().unregister_simple_event(event_id, callback)
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.unregister_simple_event(event_id, callback)
 
 
 ## 发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。
 ## @param event_id: StringName 事件标识符。
 ## @param payload: 可选的事件附加数据。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	_get_architecture().send_simple_event(event_id, payload)
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.send_simple_event(event_id, payload)
 
 
 # --- 私有/辅助方法 ---
 
 func _get_architecture() -> GFArchitecture:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		return architecture
+	return Gf.get_architecture()
+
+
+func _get_architecture_or_null() -> GFArchitecture:
 	if _architecture_ref != null:
 		var architecture := _architecture_ref.get_ref() as GFArchitecture
 		if architecture != null:
 			return architecture
-	return Gf.get_architecture()
+	if Gf.has_architecture():
+		return Gf.get_architecture()
+	return null

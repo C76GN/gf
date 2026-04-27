@@ -34,6 +34,19 @@ class TestAudioUtility:
 		return mock_asset_util
 
 
+class RecordingAudioUtility:
+	extends TestAudioUtility
+
+	var sfx_play_count: int = 0
+
+	func _init(asset_util: GFAssetUtility) -> void:
+		super(asset_util)
+
+	func _play_sfx_stream(stream: AudioStream) -> void:
+		sfx_play_count += 1
+		super._play_sfx_stream(stream)
+
+
 func before_each() -> void:
 	var arch := GFArchitecture.new()
 	Gf._architecture = arch # 提早设置引用以便可以使用 Gf 全局代理
@@ -103,6 +116,21 @@ func test_play_bgm_ignores_stale_async_load() -> void:
 	assert_eq(audio._bgm_player.stream, second_stream, "旧请求迟到返回时，不应覆盖最新的 BGM。")
 
 	audio.dispose()
+	await get_tree().process_frame
+
+
+func test_play_sfx_ignores_async_load_after_dispose() -> void:
+	var mock_asset := MockAssetUtility.new()
+	var audio := RecordingAudioUtility.new(mock_asset)
+	audio.init()
+	await get_tree().process_frame
+
+	audio.play_sfx("res://audio/sfx.ogg")
+	audio.dispose()
+
+	mock_asset.finish("res://audio/sfx.ogg", AudioStreamGenerator.new())
+
+	assert_eq(audio.sfx_play_count, 0, "SFX 异步加载在 Utility 销毁后不应继续播放。")
 	await get_tree().process_frame
 
 

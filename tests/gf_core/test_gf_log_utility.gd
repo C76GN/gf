@@ -95,6 +95,12 @@ func test_old_logs_cleanup() -> void:
 	assert_true(count <= 10, "清理后日志文件数量不应超过 max_log_files (10)，实际: %d。" % count)
 
 
+func test_max_log_files_rejects_negative_values() -> void:
+	_log_util.max_log_files = -5
+
+	assert_eq(_log_util.max_log_files, 1, "max_log_files 不应允许负数导致清理越界。")
+
+
 # --- 测试：信号触发 ---
 
 ## 验证调用 info() 后 log_emitted 信号正确触发。

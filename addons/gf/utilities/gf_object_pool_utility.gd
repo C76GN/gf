@@ -154,21 +154,34 @@ func release(node: Node, scene: PackedScene) -> void:
 ## @param parent: 预热节点将加入此父节点。
 ## @param count: 预热的数量。
 func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
-	if not _available_pools.has(scene):
-		_available_pools[scene] = []
-		_all_nodes[scene] = []
+	if not _ensure_scene_pool(scene):
+		return
+	if count <= 0:
+		return
 
 	for i in range(count):
-		var node: Node = scene.instantiate()
-		node.set_meta(_META_ACTIVE, false)
-		node.set_meta(_META_SOURCE_SCENE, scene)
-		_prepare_node_tree(node)
-		_set_node_tree_active_state(node, false)
-		if is_instance_valid(parent):
-			parent.add_child(node)
+		_prewarm_node(scene, parent)
 
-		_all_nodes[scene].push_back(node)
-		_available_pools[scene].push_back(node)
+
+## 分批预热对象池，避免一次性实例化大量节点造成单帧卡顿。
+## @param scene: 要预热的 PackedScene 资源。
+## @param parent: 预热节点将加入此父节点。
+## @param count: 预热的数量。
+## @param batch_size: 每帧最多实例化数量；小于等于 0 时退化为同步预热。
+func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int = 32) -> void:
+	if not _ensure_scene_pool(scene):
+		return
+	if count <= 0:
+		return
+	if batch_size <= 0:
+		prewarm(scene, parent, count)
+		return
+
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	for i in range(count):
+		_prewarm_node(scene, parent)
+		if scene_tree != null and (i + 1) % batch_size == 0:
+			await scene_tree.process_frame
 
 
 ## 获取指定场景当前池中可用（未使用）的节点数量。
@@ -193,6 +206,32 @@ func _prepare_node_tree(node: Node) -> void:
 	_prepare_node_for_pool(node)
 	for child: Node in node.get_children():
 		_prepare_node_tree(child)
+
+
+func _ensure_scene_pool(scene: PackedScene) -> bool:
+	if not is_instance_valid(scene):
+		push_error("[GFObjectPoolUtility] 传入了无效的 PackedScene。")
+		return false
+
+	if not _available_pools.has(scene):
+		_available_pools[scene] = []
+		_all_nodes[scene] = []
+
+	_prune_invalid_scene_nodes(scene)
+	return true
+
+
+func _prewarm_node(scene: PackedScene, parent: Node) -> void:
+	var node: Node = scene.instantiate()
+	node.set_meta(_META_ACTIVE, false)
+	node.set_meta(_META_SOURCE_SCENE, scene)
+	_prepare_node_tree(node)
+	_set_node_tree_active_state(node, false)
+	if is_instance_valid(parent):
+		parent.add_child(node)
+
+	_all_nodes[scene].push_back(node)
+	_available_pools[scene].push_back(node)
 
 
 func _prepare_node_for_pool(node: Node) -> void:

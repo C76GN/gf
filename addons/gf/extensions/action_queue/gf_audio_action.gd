@@ -21,10 +21,14 @@ func _init(p_path: String = "") -> void:
 # --- 公共方法 ---
 
 func execute() -> Variant:
-	if path.is_empty() or not Gf.has_architecture():
+	if path.is_empty():
 		return null
 
-	var audio := Gf.get_utility(GFAudioUtility) as GFAudioUtility
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+
+	var audio := architecture.get_utility(GFAudioUtility) as GFAudioUtility
 	if audio != null:
 		audio.play_sfx(path)
 

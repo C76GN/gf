@@ -189,6 +189,27 @@ class OwnedEventUtility extends GFUtility:
 		event_count += 1
 
 
+class TickVictimSystem extends GFSystem:
+	var tick_order: Array
+
+	func _init(p_tick_order: Array) -> void:
+		tick_order = p_tick_order
+
+	func tick(_delta: float) -> void:
+		tick_order.append("victim")
+
+
+class UnregisteringTickSystem extends GFSystem:
+	var tick_order: Array
+
+	func _init(p_tick_order: Array) -> void:
+		tick_order = p_tick_order
+
+	func tick(_delta: float) -> void:
+		tick_order.append("unregistering")
+		_get_architecture().unregister_system(TickVictimSystem)
+
+
 class DummyQuery extends GFQuery:
 	func execute() -> Variant:
 		return "query_success"
@@ -593,6 +614,20 @@ func test_unregister_utility_removes_owned_event_listeners() -> void:
 	arch.dispose()
 
 
+## 验证同一帧 tick 中被提前注销的模块不会继续从旧缓存中被驱动。
+func test_tick_skips_module_unregistered_earlier_in_same_frame() -> void:
+	var arch := GFArchitecture.new()
+	var tick_order: Array = []
+	await arch.register_system_instance(UnregisteringTickSystem.new(tick_order))
+	await arch.register_system_instance(TickVictimSystem.new(tick_order))
+	await arch.init()
+
+	arch.tick(0.016)
+
+	assert_eq(tick_order, ["unregistering"], "同一帧内已被注销的 System 不应继续 tick。")
+	arch.dispose()
+
+
 ## 验证并发 init 调用会等待同一轮初始化完成。
 func test_concurrent_init_waits_for_active_initialization() -> void:
 	if Gf.has_architecture():
@@ -665,6 +700,24 @@ func test_facade_returns_null_when_architecture_missing() -> void:
 
 	assert_push_error("[GDCore] get_model 失败：架构尚未初始化，请先注册架构。")
 	assert_null(model, "架构缺失时 get_model 应安全返回 null。")
+
+
+## 验证核心架构对空输入进行防御，不发生空引用崩溃。
+func test_architecture_null_inputs_are_rejected() -> void:
+	var arch := GFArchitecture.new()
+
+	var command_result: Variant = arch.send_command(null)
+	var query_result: Variant = arch.send_query(null)
+	arch.send_event(null)
+	await arch.register_utility_instance_as(null, UtilityBase)
+
+	assert_null(command_result, "空 command 应返回 null。")
+	assert_null(query_result, "空 query 应返回 null。")
+	assert_push_error("[GFArchitecture] send_command 失败：command 为空。")
+	assert_push_error("[GFArchitecture] send_query 失败：query 为空。")
+	assert_push_error("[GFArchitecture] send_event 失败：event_instance 为空。")
+	assert_push_error("[GFArchitecture] register_utility_instance_as 失败：实例为空。")
+	arch.dispose()
 
 
 func _await_arch_init(arch: GFArchitecture, state: Dictionary) -> void:

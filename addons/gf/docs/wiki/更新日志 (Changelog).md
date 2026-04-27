@@ -16,6 +16,92 @@
 
 ---
 
+## [1.9.2] - 2026-04-27
+
+**版本概述**：聚焦 Scoped 架构隔离、运行时空值防御与高频路径性能，修复局部上下文被全局 `Gf` 绕过的依赖解析问题，并补强对象池、动作队列、日志、资源缓存与定点数边界稳定性。
+
+### 🚀 新增特性 (Added)
+- **Controller 安全架构查询**：新增 `GFController.get_architecture_or_null()`，用于需要静默判断上下文架构是否可用的控制器场景。
+- **对象池分批预热**：新增 `GFObjectPoolUtility.prewarm_async(scene, parent, count, batch_size = 32)`，可把大量节点预热拆分到多帧执行。
+- **动作与技能架构注入**：`GFVisualAction` 与 `GFSkill` 新增 `inject_dependencies(architecture)`，允许动作队列与战斗系统把 scoped 架构传递给短生命周期对象。
+- **日志 flush 策略配置**：`GFLogUtility` 新增 `flush_interval_msec` 与 `flush_immediately`，可在性能与日志落盘可靠性之间按项目需求选择。
+
+### 🔄 机制更改 (Changed)
+- **Scoped 依赖解析收敛**：`GFSceneUtility`、`GFUIUtility`、`GFAudioUtility`、`GFLevelUtility`、`GFQuestUtility`、`GFConsoleUtility`、`GFCombatSystem` 与 `GFStateMachine` 现在优先使用注入或上下文架构，只有缺少上下文时才回退全局 `Gf`。
+- **Tick 缓存遍历更严格**：`GFArchitecture.tick()` / `physics_tick()` 会跳过同一帧中已注销的模块，避免旧缓存继续驱动已移除对象。
+- **动作队列消费优化**：`GFActionQueueSystem` 使用队头索引消费队列，避免顺序消费时频繁 `pop_front()` 搬移数组。
+- **网格 BFS 队列优化**：`GFGridMath` 的泛洪、BFS 寻路与连线搜索改用队头索引遍历。
+- **资源缓存 LRU 优化**：`GFAssetUtility` 的 LRU 记录改为访问序号，减少每次访问时的数组擦除成本。
+- **日志写入优化**：普通日志不再每条强制 flush；错误与致命日志仍会立即 flush，销毁时统一 flush。
+
+### 🐛 Bug 修复 (Fixed)
+- **技能自定义施放检查被跳过**：修复 owner 没有 TagComponent 且无必需标签时，`GFSkill.can_execute()` 直接返回 true 而不调用 `_custom_can_execute()` 的问题。
+- **对象池预热空场景崩溃**：`GFObjectPoolUtility.prewarm()` 现在会校验 `PackedScene` 与预热数量，避免 `scene.instantiate()` 空引用。
+- **注册别名空实例崩溃**：`register_*_instance_as()` 现在会在 alias 注册前校验实例与脚本，避免无效实例继续访问 `get_script()`。
+- **命令、查询与事件空输入崩溃**：`GFArchitecture.send_command()`、`send_query()`、`send_event()` 与 `TypeEventSystem.send()` 增加空输入保护。
+- **SFX 异步销毁后播放**：`GFAudioUtility.play_sfx()` 现在会在异步加载回调中校验生命周期序号，Utility 销毁后不会继续播放。
+- **定点数边界溢出**：`GFFixedDecimal` 的加法、乘法、字符串解析与除法舍入改为整数边界判断，避免 int64 边界附近因 float 精度或 `remainder * 2` 溢出产生错误结果。
+- **零目标任务状态不一致**：`GFQuestUtility.start_quest()` 对 `target_count <= 0` 的任务会立即标记完成，并发出进度与完成信号。
+- **日志保留数量负值越界**：`GFLogUtility.max_log_files` 会钳制到至少 1，避免负数配置导致旧日志清理越界。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFController.get_architecture_or_null() -> GFArchitecture`。
+- 新增 `GFObjectPoolUtility.prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int = 32) -> void`。
+- 新增 `GFVisualAction.inject_dependencies(architecture: GFArchitecture) -> void`。
+- 新增 `GFSkill.inject_dependencies(architecture: GFArchitecture) -> void`。
+- 新增 `GFLogUtility.flush_interval_msec: int`。
+- 新增 `GFLogUtility.flush_immediately: bool`。
+- `GFQuestUtility.start_quest()` 对 `target_count <= 0` 的行为从“等待事件后才完成”调整为“启动即完成”。
+
+### 📘 升级指南 (Migration Guide)
+1. 使用 `GFNodeContext.SCOPED` 的项目无需改动调用方式；原先错误落到全局架构的 Utility / System 现在会优先使用局部架构。
+2. 如果自定义 `GFVisualAction` 或 `GFSkill` 需要解析架构依赖，可以实现或继承 `inject_dependencies()`，并由 `GFActionQueueSystem` / `GFCombatSystem` 自动注入。
+3. 大批量对象池预热建议从 `prewarm()` 迁移到 `await prewarm_async(..., batch_size)`，避免单帧实例化尖峰。
+4. 如项目依赖每条普通日志立刻落盘，可设置 `GFLogUtility.flush_immediately = true` 或 `flush_interval_msec = 0`。
+5. 如果旧任务配置中使用 `target_count <= 0` 表示“永不完成”，需要改为正数目标或在业务层禁用该任务。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/base/gf_command.gd`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/base/gf_query.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/extensions/action_queue/gf_action_queue_system.gd`
+- `addons/gf/extensions/action_queue/gf_audio_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action_group.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/extensions/combat/gf_skill.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/foundation/math/gf_grid_math.gd`
+- `addons/gf/foundation/numeric/gf_fixed_decimal.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_audio_utility.gd`
+- `addons/gf/utilities/gf_command_history_utility.gd`
+- `addons/gf/utilities/gf_console_utility.gd`
+- `addons/gf/utilities/gf_debug_overlay_utility.gd`
+- `addons/gf/utilities/gf_level_utility.gd`
+- `addons/gf/utilities/gf_log_utility.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `addons/gf/utilities/gf_quest_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_ui_utility.gd`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_audio_utility.gd`
+- `tests/gf_core/test_gf_combat_extension.gd`
+- `tests/gf_core/test_gf_fixed_decimal.gd`
+- `tests/gf_core/test_gf_log_utility.gd`
+- `tests/gf_core/test_gf_object_pool_utility.gd`
+- `tests/gf_core/test_gf_quest_utility.gd`
+- `tests/gf_core/test_gf_scene_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_state_machine.gd`
+
+---
+
 ## [1.9.1] - 2026-04-27
 
 **版本概述**：在 `1.9.0` 的 Installer、NodeContext 与父级架构回退基础上，继续吸收依赖注入容器的声明式绑定、生命周期策略和监听拥有者清理能力，补齐大型项目装配可读性、动态模块事件清理以及局部上下文下短生命周期对象注入语义。

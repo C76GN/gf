@@ -59,6 +59,25 @@ func test_transient_cleanup() -> void:
 	assert_true(model.disposed, "注销 Model 时应调用 dispose()。")
 
 
+func test_transient_cleanup_uses_injected_architecture() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+	var scene_util := TestSceneUtility.new()
+	var local_model := DummyModel.new()
+
+	await child_arch.register_utility_instance(scene_util)
+	await child_arch.register_model_instance(local_model)
+
+	scene_util.mark_transient(DummyModel)
+	scene_util.cleanup_transients()
+
+	assert_null(child_arch.get_model(DummyModel), "瞬态清理应优先作用于 Utility 注入的局部架构。")
+	assert_true(local_model.disposed, "局部架构中的瞬态 Model 应被释放。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
 func test_unmark_transient() -> void:
 	var model := DummyModel.new()
 	Gf.register_model(model)

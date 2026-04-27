@@ -51,6 +51,17 @@ class SignalOrderAction:
 		return emitter.tree_exited
 
 
+## 记录队列执行前注入到动作中的架构。
+class InjectedAction:
+	extends GFVisualAction
+
+	var injected_architecture: GFArchitecture = null
+
+	func inject_dependencies(architecture: GFArchitecture) -> void:
+		super.inject_dependencies(architecture)
+		injected_architecture = architecture
+
+
 # --- 私有变量 ---
 
 class ObjectSignalEmitter extends Object:
@@ -209,6 +220,25 @@ func test_enqueue_fire_and_forget_does_not_wait_for_signal() -> void:
 
 	assert_eq(order, ["ASYNC_FAF", "NEXT"], "fire-and-forget 动作不应阻塞后续动作。")
 	assert_false(_system.is_processing, "队列应在 fire-and-forget 后正常排空。")
+
+
+func test_action_queue_injects_scoped_architecture_into_actions() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+	var action_queue := GFActionQueueSystem.new()
+	await child_arch.register_system_instance(action_queue)
+	await child_arch.init()
+
+	var action := InjectedAction.new()
+	action_queue.enqueue(action)
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(action.injected_architecture, child_arch, "ActionQueue 应把自身所属架构注入到动作。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
 
 
 ## 验证 push_front_parallel 能置顶插队执行。

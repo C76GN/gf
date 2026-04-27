@@ -25,6 +25,7 @@ func init() -> void:
 	_overlay_gui = _GFDebugGUI.new()
 	_overlay_gui.name = "GFDebugOverlay"
 	_overlay_gui.toggle_key = toggle_key
+	_overlay_gui.architecture_provider = Callable(self, "_get_architecture_or_null")
 	
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
@@ -52,6 +53,7 @@ class _GFDebugGUI extends CanvasLayer:
 	var _container: VBoxContainer
 	var _label: RichTextLabel
 	var toggle_key: Key
+	var architecture_provider: Callable
 	
 	func _init() -> void:
 		layer = 120 # 确保在所有 UI 之上
@@ -103,11 +105,9 @@ class _GFDebugGUI extends CanvasLayer:
 			return
 			
 		var text := ""
-		if not Gf.has_method("get_architecture"):
-			_label.text = "Error: Gf does not have architecture."
-			return
-			
-		var arch: Object = Gf.get_architecture()
+		var arch: Object = null
+		if architecture_provider.is_valid():
+			arch = architecture_provider.call()
 		if arch == null:
 			_label.text = "Wait: Architecture is null."
 			return

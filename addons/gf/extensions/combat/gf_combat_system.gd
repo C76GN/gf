@@ -113,6 +113,8 @@ func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 	
 	if not skills.has(p_skill):
 		skills.append(p_skill)
+		if p_skill.has_method("inject_dependencies"):
+			p_skill.inject_dependencies(_get_architecture_or_null())
 		if not p_skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
 			p_skill.cooldown_started.connect(_on_skill_cooldown_started)
 		
@@ -176,10 +178,7 @@ func _on_skill_cooldown_started(p_skill: GFSkill) -> void:
 
 
 func _send_combat_event(event_instance: Object) -> void:
-	if not Gf.has_method("has_architecture") or not Gf.has_architecture():
-		return
-
-	var arch := Gf.get_architecture()
+	var arch := _get_architecture_or_null()
 	if arch != null and arch.has_method("send_event"):
 		arch.send_event(event_instance)
 

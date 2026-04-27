@@ -169,9 +169,11 @@ func tick(delta: float) -> void:
 	var scaled_delta: float = _get_scaled_delta(delta)
 	_is_iterating_tick_caches = true
 	for system: Object in _tick_systems:
-		system.tick(_get_module_delta(system, delta, scaled_delta))
+		if _module_lifecycle_stages.has(system):
+			system.tick(_get_module_delta(system, delta, scaled_delta))
 	for utility: Object in _tick_utilities:
-		utility.tick(_get_module_delta(utility, delta, scaled_delta))
+		if _module_lifecycle_stages.has(utility):
+			utility.tick(_get_module_delta(utility, delta, scaled_delta))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
 
@@ -187,9 +189,11 @@ func physics_tick(delta: float) -> void:
 	var scaled_delta: float = _get_scaled_delta(delta)
 	_is_iterating_tick_caches = true
 	for system: Object in _physics_systems:
-		system.physics_tick(_get_module_delta(system, delta, scaled_delta))
+		if _module_lifecycle_stages.has(system):
+			system.physics_tick(_get_module_delta(system, delta, scaled_delta))
 	for utility: Object in _physics_utilities:
-		utility.physics_tick(_get_module_delta(utility, delta, scaled_delta))
+		if _module_lifecycle_stages.has(utility):
+			utility.physics_tick(_get_module_delta(utility, delta, scaled_delta))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
 
@@ -198,6 +202,10 @@ func physics_tick(delta: float) -> void:
 ## @param command: 要执行的命令实例。
 ## @return 命令的执行结果（null 或 Signal）。
 func send_command(command: Object) -> Variant:
+	if command == null:
+		push_error("[GFArchitecture] send_command 失败：command 为空。")
+		return null
+
 	_inject_dependencies_if_needed(command)
 	if command.has_method("execute"):
 		return command.execute()
@@ -208,6 +216,10 @@ func send_command(command: Object) -> Variant:
 ## @param query: 要执行的查询实例。
 ## @return 查询执行的结果。
 func send_query(query: Object) -> Variant:
+	if query == null:
+		push_error("[GFArchitecture] send_query 失败：query 为空。")
+		return null
+
 	_inject_dependencies_if_needed(query)
 	if query.has_method("execute"):
 		return query.execute()
@@ -217,6 +229,10 @@ func send_query(query: Object) -> Variant:
 ## 通过事件系统发送类型事件实例。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
+	if event_instance == null:
+		push_error("[GFArchitecture] send_event 失败：event_instance 为空。")
+		return
+
 	_event_system.send(event_instance)
 
 
@@ -509,9 +525,12 @@ func register_utility_instance(instance: Object) -> void:
 ## @param instance: System 实例。
 ## @param alias_cls: 额外查询脚本类。
 func register_system_instance_as(instance: Object, alias_cls: Script) -> void:
+	var script := _get_instance_script_or_null(instance, "register_system_instance_as")
+	if script == null:
+		return
+
 	await register_system_instance(instance)
-	var script := instance.get_script() as Script
-	if script != null:
+	if _systems.has(script):
 		register_system_alias(alias_cls, script)
 
 
@@ -519,9 +538,12 @@ func register_system_instance_as(instance: Object, alias_cls: Script) -> void:
 ## @param instance: Model 实例。
 ## @param alias_cls: 额外查询脚本类。
 func register_model_instance_as(instance: Object, alias_cls: Script) -> void:
+	var script := _get_instance_script_or_null(instance, "register_model_instance_as")
+	if script == null:
+		return
+
 	await register_model_instance(instance)
-	var script := instance.get_script() as Script
-	if script != null:
+	if _models.has(script):
 		register_model_alias(alias_cls, script)
 
 
@@ -529,9 +551,12 @@ func register_model_instance_as(instance: Object, alias_cls: Script) -> void:
 ## @param instance: Utility 实例。
 ## @param alias_cls: 额外查询脚本类。
 func register_utility_instance_as(instance: Object, alias_cls: Script) -> void:
+	var script := _get_instance_script_or_null(instance, "register_utility_instance_as")
+	if script == null:
+		return
+
 	await register_utility_instance(instance)
-	var script := instance.get_script() as Script
-	if script != null:
+	if _utilities.has(script):
 		register_utility_alias(alias_cls, script)
 
 
@@ -875,6 +900,19 @@ func _validate_registration(script_cls: Script, instance: Object, label: String)
 		return false
 
 	return true
+
+
+func _get_instance_script_or_null(instance: Object, context: String) -> Script:
+	if instance == null:
+		push_error("[GFArchitecture] %s 失败：实例为空。" % context)
+		return null
+
+	var script := instance.get_script() as Script
+	if script == null:
+		push_error("[GFArchitecture] %s 失败：实例未附加脚本。" % context)
+		return null
+
+	return script
 
 
 func _instance_matches_registration_label(instance: Object, label: String) -> bool:

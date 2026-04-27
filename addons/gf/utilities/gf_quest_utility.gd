@@ -76,6 +76,14 @@ func start_quest(quest_id: StringName, target_event: StringName, target_count: i
 	data.target_count = target_count
 	_quests[quest_id] = data
 
+	quest_started.emit(quest_id)
+
+	if target_count <= 0:
+		data.is_completed = true
+		quest_progressed.emit(quest_id, data.current_count, data.target_count)
+		quest_completed.emit(quest_id)
+		return
+
 	if not _event_to_quests.has(target_event):
 		_event_to_quests[target_event] = [] as Array[StringName]
 		_register_event_handler(target_event)
@@ -83,8 +91,6 @@ func start_quest(quest_id: StringName, target_event: StringName, target_count: i
 	var list: Array = _event_to_quests[target_event]
 	if not list.has(quest_id):
 		list.append(quest_id)
-
-	quest_started.emit(quest_id)
 
 
 ## 手动触发一次任务事件。
@@ -175,7 +181,4 @@ func _unregister_all_event_handlers() -> void:
 
 
 func _get_arch() -> Object:
-	if Gf.has_method("has_architecture") and Gf.has_architecture():
-		return Gf.get_architecture()
-
-	return null
+	return _get_architecture_or_null()

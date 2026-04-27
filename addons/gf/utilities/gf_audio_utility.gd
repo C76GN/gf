@@ -15,12 +15,14 @@ var _bgm_player: AudioStreamPlayer
 var _sfx_scene: PackedScene
 var _root: Node
 var _bgm_request_serial: int = 0
+var _sfx_lifecycle_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
 	_bgm_request_serial = 0
+	_sfx_lifecycle_serial += 1
 	# 动态创建用于池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
@@ -39,8 +41,10 @@ func init() -> void:
 
 func dispose() -> void:
 	_bgm_request_serial += 1
+	_sfx_lifecycle_serial += 1
 	if is_instance_valid(_bgm_player):
 		_bgm_player.queue_free()
+	_root = null
 	
 	# SFX 节点由 ObjectPoolUtility 管理并随其一起被清理
 
@@ -72,14 +76,15 @@ func play_bgm(path: String) -> void:
 func play_sfx(path: String) -> void:
 	if path.is_empty():
 		return
-		
+
+	var request_serial := _sfx_lifecycle_serial
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(path) as AudioStream
-		_play_sfx_stream(stream)
+		_apply_sfx_request(request_serial, stream)
 	else:
 		var on_loaded := func(res: Resource) -> void:
-			_play_sfx_stream(res as AudioStream)
+			_apply_sfx_request(request_serial, res as AudioStream)
 		asset_util.load_async(path, on_loaded)
 
 
@@ -121,8 +126,15 @@ func _apply_bgm_request(request_serial: int, stream: AudioStream) -> void:
 	_play_bgm_stream(stream)
 
 
+func _apply_sfx_request(request_serial: int, stream: AudioStream) -> void:
+	if request_serial != _sfx_lifecycle_serial:
+		return
+
+	_play_sfx_stream(stream)
+
+
 func _play_sfx_stream(stream: AudioStream) -> void:
-	if stream == null:
+	if stream == null or not is_instance_valid(_root):
 		return
 		
 	var pool := _get_pool_util()
@@ -148,20 +160,18 @@ func _on_sfx_finished(player: AudioStreamPlayer) -> void:
 
 
 func _get_asset_util() -> GFAssetUtility:
-	if Gf.has_method("has_architecture") and Gf.has_architecture():
-		var arch: Object = Gf.get_architecture()
-		if arch != null and arch.has_method("get_utility"):
-			var util: Object = arch.get_utility(GFAssetUtility)
-			if util != null:
-				return util as GFAssetUtility
+	var arch: Object = _get_architecture_or_null()
+	if arch != null and arch.has_method("get_utility"):
+		var util: Object = arch.get_utility(GFAssetUtility)
+		if util != null:
+			return util as GFAssetUtility
 	return null
 
 
 func _get_pool_util() -> GFObjectPoolUtility:
-	if Gf.has_method("has_architecture") and Gf.has_architecture():
-		var arch: Object = Gf.get_architecture()
-		if arch != null and arch.has_method("get_utility"):
-			var util: Object = arch.get_utility(GFObjectPoolUtility)
-			if util != null:
-				return util as GFObjectPoolUtility
+	var arch: Object = _get_architecture_or_null()
+	if arch != null and arch.has_method("get_utility"):
+		var util: Object = arch.get_utility(GFObjectPoolUtility)
+		if util != null:
+			return util as GFObjectPoolUtility
 	return null

@@ -222,10 +222,7 @@ func _add_panel_instance(panel: Node, layer: Layer, config_callback: Callable) -
 
 
 func _get_asset_util() -> GFAssetUtility:
-	if not Gf.has_architecture():
-		return null
-
-	var arch: Object = Gf.get_architecture()
+	var arch: Object = _get_architecture_or_null()
 	if arch != null and arch.has_method("get_utility"):
 		var util: Object = arch.get_utility(GFAssetUtility)
 		if util != null:

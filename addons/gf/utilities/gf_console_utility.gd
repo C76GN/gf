@@ -41,7 +41,7 @@ func init() -> void:
 
 
 func ready() -> void:
-	var log_util := Gf.get_utility(GFLogUtility) as GFLogUtility
+	var log_util := get_utility(GFLogUtility) as GFLogUtility
 	if log_util == null or not log_util.has_signal("log_emitted"):
 		return
 

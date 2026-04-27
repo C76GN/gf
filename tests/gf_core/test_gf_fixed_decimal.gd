@@ -69,3 +69,19 @@ func test_from_string_rejects_malformed_decimal_text() -> void:
 
 	assert_push_error("[GFFixedDecimal] 无法解析数字字符串：1.2.3")
 	assert_eq(value.to_decimal_string(), "0.00", "非法字符串应被收敛为当前精度下的零。")
+
+
+func test_from_string_saturates_int64_boundary_overflow() -> void:
+	var value = GF_FIXED_DECIMAL.from_string("9223372036854775808", 0)
+
+	assert_push_error("[GFFixedDecimal] 数字超出可表示范围。")
+	assert_eq(value.raw_value, 9_223_372_036_854_775_807, "超过 int64 正边界的字符串应被钳制。")
+
+
+func test_add_overflow_saturates_without_wraparound() -> void:
+	var left = GF_FIXED_DECIMAL.new(9_223_372_036_854_775_000, 0)
+	var right = GF_FIXED_DECIMAL.new(1_000, 0)
+	var result := left.add(right)
+
+	assert_push_error("[GFFixedDecimal] add 结果超出可表示范围，已钳制。")
+	assert_eq(result.raw_value, 9_223_372_036_854_775_807, "加法溢出不应回绕为负数。")
