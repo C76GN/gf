@@ -1,9 +1,8 @@
-## GFCapability: 可挂载到任意 Object 的能力组件基类。
+## GFNodeCapability: 可直接作为场景节点使用的能力组件基类。
 ##
-## 适合承载可复用的实体能力，例如 Health、Interactable、Selectable 等。
-## 能力实例由 GFCapabilityUtility 挂载、查询与移除。
-class_name GFCapability
-extends RefCounted
+## 适合承载需要碰撞、输入、动画或子节点引用的局部能力。
+class_name GFNodeCapability
+extends Node
 
 
 # --- 常量 ---
@@ -36,7 +35,7 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 ## 返回当前能力依赖的其他能力类型。
 ## GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。
 func get_required_capabilities() -> Array[Script]:
-	return []
+	return [] as Array[Script]
 
 
 ## 能力挂载到对象后调用。

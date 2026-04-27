@@ -14,12 +14,14 @@ const INSTALLERS_DEFAULT := []
 const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
 const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
 const GF_ACCESS_GENERATOR_BASE = preload("res://addons/gf/editor/gf_access_generator.gd")
+const GF_CAPABILITY_INSPECTOR_PLUGIN_BASE = preload("res://addons/gf/editor/gf_capability_inspector_plugin.gd")
 
 
 # --- 私有变量 ---
 
 var _file_dialog: FileDialog
 var _current_template_type: String = ""
+var _capability_inspector_plugin: EditorInspectorPlugin
 
 
 # --- Godot 生命周期方法 ---
@@ -28,11 +30,13 @@ func _enter_tree() -> void:
 	_ensure_autoload()
 	_ensure_installers_setting()
 	_ensure_codegen_settings()
+	_setup_inspector_tools()
 	_setup_generator_tools()
 
 
 func _exit_tree() -> void:
 	_remove_autoload()
+	_cleanup_inspector_tools()
 	_cleanup_generator_tools()
 
 
@@ -103,6 +107,17 @@ func _setup_generator_tools() -> void:
 	
 	var base_control := EditorInterface.get_base_control()
 	base_control.add_child(_file_dialog)
+
+
+func _setup_inspector_tools() -> void:
+	_capability_inspector_plugin = GF_CAPABILITY_INSPECTOR_PLUGIN_BASE.new()
+	add_inspector_plugin(_capability_inspector_plugin)
+
+
+func _cleanup_inspector_tools() -> void:
+	if _capability_inspector_plugin != null:
+		remove_inspector_plugin(_capability_inspector_plugin)
+		_capability_inspector_plugin = null
 
 
 func _cleanup_generator_tools() -> void:

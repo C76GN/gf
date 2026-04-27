@@ -20,6 +20,26 @@ const SFX_BUS_NAME: String = "SFX"
 const _FALLBACK_BUS_NAME: String = "Master"
 
 
+# --- 枚举 ---
+
+## SFX 超出并发上限时的处理策略。
+enum SFXOverflowPolicy {
+	## 跳过新的 SFX 请求。
+	SKIP_NEW,
+	## 停止最早播放的 SFX，并播放新的请求。
+	STOP_OLDEST,
+}
+
+
+# --- 公共变量 ---
+
+## 同时播放的 SFX 数量上限；小于等于 0 表示不限制。
+var max_sfx_players: int = 32
+
+## SFX 超出并发上限时采用的处理策略。
+var sfx_overflow_policy: SFXOverflowPolicy = SFXOverflowPolicy.SKIP_NEW
+
+
 # --- 私有变量 ---
 
 var _bgm_player: AudioStreamPlayer
@@ -28,6 +48,7 @@ var _root: Node
 var _bgm_request_serial: int = 0
 var _sfx_lifecycle_serial: int = 0
 var _missing_bus_warnings: Dictionary = {}
+var _active_sfx_players: Array[AudioStreamPlayer] = []
 
 
 # --- Godot 生命周期方法 ---
@@ -36,6 +57,7 @@ func init() -> void:
 	_bgm_request_serial = 0
 	_sfx_lifecycle_serial += 1
 	_missing_bus_warnings.clear()
+	_active_sfx_players.clear()
 	# 动态创建用于池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
@@ -55,6 +77,7 @@ func init() -> void:
 func dispose() -> void:
 	_bgm_request_serial += 1
 	_sfx_lifecycle_serial += 1
+	_release_all_sfx_players()
 	if is_instance_valid(_bgm_player):
 		_bgm_player.queue_free()
 	_root = null
@@ -154,17 +177,26 @@ func _play_sfx_stream(stream: AudioStream) -> void:
 	if pool == null:
 		push_warning("[GFAudioUtility] GFObjectPoolUtility 未注册，正在略过 SFX。")
 		return
+
+	if _is_sfx_capacity_full():
+		if sfx_overflow_policy == SFXOverflowPolicy.STOP_OLDEST:
+			_stop_oldest_sfx()
+		else:
+			return
 		
 	var player := pool.acquire(_sfx_scene, _root) as AudioStreamPlayer
 	if player != null:
 		player.bus = _resolve_bus_name(SFX_BUS_NAME)
 		player.stream = stream
-		if not player.finished.is_connected(_on_sfx_finished):
-			player.finished.connect(_on_sfx_finished.bind(player), CONNECT_ONE_SHOT)
+		var finished_callback := _get_sfx_finished_callback(player)
+		if not player.finished.is_connected(finished_callback):
+			player.finished.connect(finished_callback, CONNECT_ONE_SHOT)
+		_track_sfx_player(player)
 		player.play()
 
 
 func _on_sfx_finished(player: AudioStreamPlayer) -> void:
+	_untrack_sfx_player(player)
 	var pool := _get_pool_util()
 	if pool != null:
 		pool.release(player, _sfx_scene)
@@ -198,3 +230,65 @@ func _resolve_bus_name(bus_name: String) -> String:
 		_missing_bus_warnings[bus_name] = true
 		push_warning("[GFAudioUtility] 无法找到音轨总线: %s，已回退到 %s。" % [bus_name, _FALLBACK_BUS_NAME])
 	return _FALLBACK_BUS_NAME
+
+
+func _is_sfx_capacity_full() -> bool:
+	if max_sfx_players <= 0:
+		return false
+
+	_prune_inactive_sfx_players()
+	return _active_sfx_players.size() >= max_sfx_players
+
+
+func _track_sfx_player(player: AudioStreamPlayer) -> void:
+	_prune_inactive_sfx_players()
+	if not _active_sfx_players.has(player):
+		_active_sfx_players.append(player)
+
+
+func _untrack_sfx_player(player: AudioStreamPlayer) -> void:
+	_active_sfx_players.erase(player)
+
+
+func _stop_oldest_sfx() -> void:
+	_prune_inactive_sfx_players()
+	if _active_sfx_players.is_empty():
+		return
+
+	var player := _active_sfx_players.pop_front() as AudioStreamPlayer
+	_release_sfx_player(player)
+
+
+func _release_all_sfx_players() -> void:
+	_prune_inactive_sfx_players()
+	var players := _active_sfx_players.duplicate()
+	_active_sfx_players.clear()
+	for player: AudioStreamPlayer in players:
+		_release_sfx_player(player)
+
+
+func _release_sfx_player(player: AudioStreamPlayer) -> void:
+	if not is_instance_valid(player):
+		return
+
+	var finished_callback := _get_sfx_finished_callback(player)
+	if player.finished.is_connected(finished_callback):
+		player.finished.disconnect(finished_callback)
+	player.stop()
+
+	var pool := _get_pool_util()
+	if pool != null and is_instance_valid(_sfx_scene):
+		pool.release(player, _sfx_scene)
+	else:
+		player.queue_free()
+
+
+func _prune_inactive_sfx_players() -> void:
+	for i: int in range(_active_sfx_players.size() - 1, -1, -1):
+		var player := _active_sfx_players[i]
+		if not is_instance_valid(player) or player.is_queued_for_deletion():
+			_active_sfx_players.remove_at(i)
+
+
+func _get_sfx_finished_callback(player: AudioStreamPlayer) -> Callable:
+	return _on_sfx_finished.bind(player)

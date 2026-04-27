@@ -4,8 +4,10 @@ extends GutTest
 # --- 常量 ---
 
 const GF_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_capability.gd")
+const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_capability.gd")
 const GF_CAPABILITY_UTILITY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_utility.gd")
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/gf_capability_container.gd")
+const GF_INTERACTION_CONTEXT_BASE := preload("res://addons/gf/extensions/interaction/gf_interaction_context.gd")
 
 
 # --- 辅助类 ---
@@ -34,6 +36,20 @@ class InjectedCapability extends GF_CAPABILITY_BASE:
 	func inject_dependencies(architecture: GFArchitecture) -> void:
 		super.inject_dependencies(architecture)
 		injected_architecture = architecture
+
+
+class ActiveCapability extends GF_CAPABILITY_BASE:
+	var active_events: Array[bool] = []
+
+	func on_gf_capability_active_changed(_target: Object, is_active: bool) -> void:
+		active_events.append(is_active)
+
+
+class ActiveNodeCapability extends GF_NODE_CAPABILITY_BASE:
+	var active_events: Array[bool] = []
+
+	func on_gf_capability_active_changed(_target: Object, is_active: bool) -> void:
+		active_events.append(is_active)
 
 
 class CapabilityNode extends Node:
@@ -167,3 +183,79 @@ func test_base_type_lookup_requires_unique_match() -> void:
 
 	assert_push_warning("[GFCapabilityUtility] get_capability(")
 	assert_null(ambiguous, "多个子类能力匹配同一基类时应返回 null。")
+
+
+func test_capability_active_state_updates_property_and_hook() -> void:
+	var receiver := RefCounted.new()
+	var capability := _utility.add_capability(receiver, ActiveCapability) as ActiveCapability
+
+	_utility.set_capability_active(receiver, ActiveCapability, false)
+
+	assert_false(capability.active, "停用能力后 active 属性应同步。")
+	assert_false(_utility.is_capability_active(receiver, ActiveCapability), "Utility 应能查询到停用状态。")
+	assert_eq(capability.active_events, [false], "停用能力时应触发 active hook。")
+
+	_utility.set_capability_active(receiver, ActiveCapability, true)
+
+	assert_true(capability.active, "重新启用后 active 属性应恢复。")
+	assert_eq(capability.active_events, [false, true], "重新启用时应再次触发 active hook。")
+
+
+func test_node_capability_active_state_disables_processing() -> void:
+	var receiver := Node.new()
+	add_child(receiver)
+
+	var capability := _utility.add_capability(receiver, ActiveNodeCapability) as ActiveNodeCapability
+	await get_tree().process_frame
+
+	var original_process_mode := capability.process_mode
+	_utility.set_capability_active(receiver, ActiveNodeCapability, false)
+
+	assert_false(capability.active, "Node 能力停用后 active 属性应同步。")
+	assert_eq(capability.process_mode, Node.PROCESS_MODE_DISABLED, "Node 能力停用后应停止处理。")
+	assert_eq(capability.active_events, [false], "Node 能力停用时应触发 active hook。")
+
+	_utility.set_capability_active(receiver, ActiveNodeCapability, true)
+
+	assert_true(capability.active, "Node 能力重新启用后 active 属性应恢复。")
+	assert_eq(capability.process_mode, original_process_mode, "Node 能力重新启用后应恢复原 process_mode。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_capability_reverse_index_and_groups() -> void:
+	var receiver_a := RefCounted.new()
+	var receiver_b := RefCounted.new()
+	var capability_a := _utility.add_capability(receiver_a, ConcreteCapabilityA) as ConcreteCapabilityA
+	var capability_b := _utility.add_capability(receiver_b, ConcreteCapabilityB) as ConcreteCapabilityB
+
+	_utility.add_receiver_to_group(receiver_a, &"targets")
+	_utility.add_receiver_to_group(receiver_b, &"targets")
+	_utility.add_receiver_to_group(receiver_b, &"bosses")
+
+	var receivers: Array[Object] = _utility.get_receivers_with(BaseCapability)
+	var capabilities: Array[Object] = _utility.get_capabilities(BaseCapability)
+	var target_receivers: Array[Object] = _utility.get_receivers_in_group(&"targets")
+	var boss_base_receivers: Array[Object] = _utility.get_receivers_in_group_with(&"bosses", BaseCapability)
+
+	assert_true(receivers.has(receiver_a), "基类反向查询应包含第一个 receiver。")
+	assert_true(receivers.has(receiver_b), "基类反向查询应包含第二个 receiver。")
+	assert_true(capabilities.has(capability_a), "能力实例查询应包含第一个能力。")
+	assert_true(capabilities.has(capability_b), "能力实例查询应包含第二个能力。")
+	assert_true(target_receivers.has(receiver_a), "分组查询应包含第一个 receiver。")
+	assert_true(target_receivers.has(receiver_b), "分组查询应包含第二个 receiver。")
+	assert_eq(boss_base_receivers, [receiver_b], "分组能力交集查询应只返回匹配 receiver。")
+
+
+func test_interaction_context_queries_capabilities_and_group() -> void:
+	var sender := RefCounted.new()
+	var target := RefCounted.new()
+	var target_capability := _utility.add_capability(target, HealthCapability) as HealthCapability
+	_utility.add_receiver_to_group(target, &"targets")
+
+	var context := GF_INTERACTION_CONTEXT_BASE.new(sender, target, { "amount": 10 }, &"targets")
+	context.inject_dependencies(_arch)
+
+	assert_eq(context.get_target_capability(HealthCapability), target_capability, "交互上下文应能查询目标能力。")
+	assert_eq(context.get_group_receivers(HealthCapability), [target], "交互上下文应能查询当前分组中的能力对象。")

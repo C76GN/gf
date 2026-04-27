@@ -651,15 +651,15 @@ func test_parent_transient_factory_injects_requesting_child_architecture() -> vo
 func test_has_factory_checks_parent_without_instantiating() -> void:
 	var parent_arch := GFArchitecture.new()
 	var child_arch := GFArchitecture.new(parent_arch)
-	var factory_call_count: int = 0
+	var factory_call_count := [0]
 	parent_arch.register_factory(InjectedFactoryCommand, func() -> Object:
-		factory_call_count += 1
+		factory_call_count[0] += 1
 		return InjectedFactoryCommand.new()
 	)
 
 	assert_true(child_arch.has_factory(InjectedFactoryCommand), "子架构应能发现父级工厂。")
 	assert_false(child_arch.has_factory(FactoryCommand), "未注册工厂应返回 false。")
-	assert_eq(factory_call_count, 0, "has_factory 不应触发工厂实例化。")
+	assert_eq(factory_call_count[0], 0, "has_factory 不应触发工厂实例化。")
 
 	child_arch.dispose()
 	parent_arch.dispose()

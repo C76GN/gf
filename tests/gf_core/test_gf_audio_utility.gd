@@ -134,6 +134,34 @@ func test_play_sfx_ignores_async_load_after_dispose() -> void:
 	await get_tree().process_frame
 
 
+func test_sfx_capacity_can_skip_new_requests() -> void:
+	_audio.max_sfx_players = 1
+	_audio.sfx_overflow_policy = GFAudioUtility.SFXOverflowPolicy.SKIP_NEW
+
+	var first_stream := AudioStreamGenerator.new()
+	var second_stream := AudioStreamGenerator.new()
+
+	_audio._play_sfx_stream(first_stream)
+	_audio._play_sfx_stream(second_stream)
+
+	assert_eq(_audio._active_sfx_players.size(), 1, "SFX 达到上限后应只保留一个播放器。")
+	assert_eq(_audio._active_sfx_players[0].stream, first_stream, "跳过策略不应替换正在播放的 SFX。")
+
+
+func test_sfx_capacity_can_stop_oldest_request() -> void:
+	_audio.max_sfx_players = 1
+	_audio.sfx_overflow_policy = GFAudioUtility.SFXOverflowPolicy.STOP_OLDEST
+
+	var first_stream := AudioStreamGenerator.new()
+	var second_stream := AudioStreamGenerator.new()
+
+	_audio._play_sfx_stream(first_stream)
+	_audio._play_sfx_stream(second_stream)
+
+	assert_eq(_audio._active_sfx_players.size(), 1, "替换策略也应遵守 SFX 数量上限。")
+	assert_eq(_audio._active_sfx_players[0].stream, second_stream, "替换策略应让新的 SFX 接管播放器。")
+
+
 func test_bus_volume() -> void:
 	# "Master" 是默认存在的总线
 	_audio.set_bus_volume("Master", 0.5)

@@ -16,6 +16,65 @@
 
 ---
 
+## [1.11.0] - 2026-04-27
+
+**版本概述**：强化 Capability 的编辑器接入、运行时启停和查询能力，并补充轻量交互上下文与 SFX 并发上限控制，让局部对象组合更适合中大型项目使用。
+
+### 🚀 新增特性 (Added)
+- **节点能力基类**：新增 `GFNodeCapability`，适合需要碰撞、输入、动画或子节点引用的场景能力。
+- **能力 Inspector**：启用插件后，选中普通 `Node` 可在 Inspector 中添加、启停、编辑和移除 `GFNodeCapability` 能力脚本或能力场景。
+- **能力启停 API**：`GFCapabilityUtility` 新增 `set_capability_active()`、`is_capability_active()` 和 `capability_active_changed` 信号。
+- **能力反向索引**：新增 `get_receivers_with()` 与 `get_capabilities()`，支持按能力类型查询 receiver 和能力实例。
+- **能力分组查询**：新增 receiver 分组 API，支持 `add_receiver_to_group()`、`get_receivers_in_group_with()` 等轻量索引能力。
+- **交互上下文**：新增 `GFInteractionContext`，用于在命令、事件或能力方法之间传递 sender、target、payload 和分组名。
+- **SFX 并发控制**：`GFAudioUtility` 新增 `max_sfx_players` 与 `SFXOverflowPolicy`，支持跳过新请求或停止最早 SFX。
+
+### 🔄 机制更改 (Changed)
+- **Node 能力停用语义**：通过 `GFCapabilityUtility.set_capability_active()` 停用 Node 能力时，会临时禁用能力节点树的 `process_mode`，重新启用时恢复原状态。
+- **能力挂载自动索引**：能力注册、移除和失效清理会同步维护反向索引，查询路径会自动清理已释放 receiver。
+- **插件编辑器工具扩展**：`addons/gf/plugin.gd` 会注册 GF Capability Inspector，并在插件禁用时清理对应 Inspector 插件。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFNodeCapability`。
+- 新增 `GFInteractionContext`。
+- 新增 `GFCapability.active: bool`。
+- 新增 `GFCapability.on_gf_capability_active_changed(receiver: Object, active: bool) -> void`。
+- 新增 `GFCapabilityUtility.capability_active_changed(receiver, capability_type, capability, active)`。
+- 新增 `GFCapabilityUtility.set_capability_active(receiver: Object, capability_type: Script, active: bool) -> void`。
+- 新增 `GFCapabilityUtility.is_capability_active(receiver: Object, capability_type: Script) -> bool`。
+- 新增 `GFCapabilityUtility.get_receivers_with(capability_type: Script, include_subclasses: bool = true) -> Array[Object]`。
+- 新增 `GFCapabilityUtility.get_capabilities(capability_type: Script, include_subclasses: bool = true) -> Array[Object]`。
+- 新增 `GFCapabilityUtility.add_receiver_to_group(receiver: Object, group_name: StringName) -> void`。
+- 新增 `GFCapabilityUtility.remove_receiver_from_group(receiver: Object, group_name: StringName) -> void`。
+- 新增 `GFCapabilityUtility.get_receiver_groups(receiver: Object) -> Array[StringName]`。
+- 新增 `GFCapabilityUtility.get_receivers_in_group(group_name: StringName) -> Array[Object]`。
+- 新增 `GFCapabilityUtility.get_receivers_in_group_with(group_name: StringName, capability_type: Script, include_subclasses: bool = true) -> Array[Object]`。
+- 新增 `GFCapabilityUtility.clear_receiver_groups(receiver: Object) -> void`。
+- 新增 `GFAudioUtility.SFXOverflowPolicy`、`max_sfx_players` 与 `sfx_overflow_policy`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧的 `GFCapability` 用法保持兼容；需要编辑器添加和场景节点能力时，推荐新建脚本继承 `GFNodeCapability`。
+2. 需要临时关闭能力时，优先调用 `set_capability_active()`，不要只手动改 `active` 字段。
+3. 需要范围索敌、交互候选或 UI 选择列表时，可以用 `get_receivers_with()` 和分组查询替代业务层手写索引。
+4. 如果项目有大量短促 SFX，建议设置 `max_sfx_players`，并按听感选择 `SKIP_NEW` 或 `STOP_OLDEST`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `README.md`
+- `addons/gf/editor/gf_capability_inspector_plugin.gd`
+- `addons/gf/extensions/capability/gf_capability.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/extensions/capability/gf_node_capability.gd`
+- `addons/gf/extensions/interaction/gf_interaction_context.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/utilities/gf_audio_utility.gd`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/12. 能力组件 (Capabilities).md`
+- `tests/gf_core/test_gf_audio_utility.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+
+---
+
 ## [1.10.0] - 2026-04-27
 
 **版本概述**：新增 GF 原生 Capability 扩展和强类型访问器生成器，让对象局部能力组合与 IDE 补全更加稳定，同时保持核心架构显式分层、可选接入与 scoped 架构兼容。

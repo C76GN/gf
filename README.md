@@ -106,12 +106,15 @@ Gf.send_command(command)
 - `GFSceneUtility`：异步场景切换与瞬态模块清理。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFObjectPoolUtility`：节点对象池。
+- `GFAudioUtility`：BGM/SFX 播放、音量总线、SFX 对象池与并发上限控制。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFActionQueueSystem`：表现动作队列。
 - `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
 - `GFCombatSystem`：轻量战斗扩展。
-- `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载可复用能力。
+- `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载、启停、索引查询可复用能力。
 - `GFCapabilityContainer`：场景树能力容器，支持把子节点注册为父节点能力。
+- `GFNodeCapability`：可直接作为场景节点使用的能力基类，适合碰撞、输入、动画和子节点引用。
+- `GFInteractionContext`：轻量交互上下文，便于在命令、事件或能力方法之间传递 sender、target 与 payload。
 - `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `GF/生成强类型访问器` 菜单生成 `GFAccess`。
 
 ## 测试
