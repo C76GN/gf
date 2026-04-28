@@ -34,6 +34,9 @@ var completion_mode: CompletionMode = CompletionMode.AUTO
 ## 等待 Signal 的超时时间（秒）。小于等于 0 时表示不启用超时。
 var signal_timeout_seconds: float = 30.0
 
+## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
+var signal_timeout_respects_time_scale: bool = true
+
 
 # --- 私有变量 ---
 
@@ -73,8 +76,10 @@ func cancel() -> void:
 
 ## 设置等待 Signal 的超时时间，并返回自身以便链式调用。
 ## @param seconds: 超时时间；小于等于 0 时表示不启用超时。
-func with_signal_timeout(seconds: float) -> GFVisualAction:
+## @param respect_time_scale: 是否跟随 GFTimeUtility 的暂停与 time_scale。
+func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFVisualAction:
 	signal_timeout_seconds = maxf(seconds, 0.0)
+	signal_timeout_respects_time_scale = respect_time_scale
 	return self
 
 
@@ -124,23 +129,49 @@ func _await_signal_safely(result_signal: Signal, should_continue: Callable = Cal
 			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
 			tree_exit_signal = node.tree_exited
 
-	var timeout_msec := int(signal_timeout_seconds * 1000.0)
-	var start_msec := Time.get_ticks_msec()
+	var timeout_msec := signal_timeout_seconds * 1000.0
+	var elapsed_timeout_msec := 0.0
+	var last_timeout_msec := Time.get_ticks_msec()
 
 	while not completed[0]:
+		var current_timeout_msec := Time.get_ticks_msec()
+		if timeout_msec > 0.0:
+			elapsed_timeout_msec += _get_timeout_elapsed_msec(last_timeout_msec, current_timeout_msec)
+			if elapsed_timeout_msec >= timeout_msec:
+				push_warning("[GFVisualAction] 等待 Signal 超时，队列将继续执行后续动作。")
+				break
+		last_timeout_msec = current_timeout_msec
+
 		if should_continue.is_valid() and not bool(should_continue.call()):
 			break
 		if not is_instance_valid(target_obj):
 			break
 		if target_obj is Node and not (target_obj as Node).is_inside_tree():
 			break
-		if timeout_msec > 0 and Time.get_ticks_msec() - start_msec >= timeout_msec:
-			push_warning("[GFVisualAction] 等待 Signal 超时，队列将继续执行后续动作。")
-			break
 		await Engine.get_main_loop().process_frame
 
 	_disconnect_signal_if_connected(result_signal, on_resume)
 	_disconnect_signal_if_connected(tree_exit_signal, on_resume)
+
+
+func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
+	var elapsed_msec := float(current_msec - previous_msec)
+	if not signal_timeout_respects_time_scale:
+		return elapsed_msec
+
+	var time_utility := _get_time_utility()
+	if time_utility == null:
+		return elapsed_msec
+	if time_utility.is_paused:
+		return 0.0
+	return elapsed_msec * time_utility.time_scale
+
+
+func _get_time_utility() -> GFTimeUtility:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
 
 
 func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:

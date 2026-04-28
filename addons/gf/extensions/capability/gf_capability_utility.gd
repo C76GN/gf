@@ -250,6 +250,7 @@ func _add_capability(receiver: Object, capability_type: Script, provider: Varian
 
 	var dependency_result := _ensure_required_capabilities(receiver, capability)
 	if not bool(dependency_result.get("ok", false)):
+		_rollback_created_dependencies(receiver, dependency_result.get("created_types", []))
 		if should_free_on_failure:
 			_free_unregistered_capability(capability)
 		_creation_stack.pop_back()
@@ -289,6 +290,7 @@ func add_capability_instance(receiver: Object, capability: Object, as_type: Scri
 
 	var dependency_result := _ensure_required_capabilities(receiver, capability)
 	if not bool(dependency_result.get("ok", false)):
+		_rollback_created_dependencies(receiver, dependency_result.get("created_types", []))
 		return null
 
 	_register_capability(receiver, capability_type, capability, true)
@@ -429,23 +431,28 @@ func _should_free_created_capability_on_failure(provider: Variant) -> bool:
 func _ensure_required_capabilities(receiver: Object, capability: Object) -> Dictionary:
 	var required_types := _get_required_capabilities(capability)
 	var resolved_types: Array[Script] = []
+	var created_types: Array[Script] = []
 	for required_type in required_types:
 		if required_type == null:
 			continue
 		if get_capability(receiver, required_type) != null:
 			resolved_types.append(required_type)
 			continue
+
+		var before_types := _get_capability_type_list(receiver).duplicate()
 		var required_capability := add_required_capability(receiver, required_type)
 		if required_capability == null:
-			push_error("[GFCapabilityUtility] 依赖能力创建失败：%s" % _get_script_key(required_type))
 			return {
 				"ok": false,
 				"types": resolved_types,
+				"created_types": created_types,
 			}
+		_append_unique_scripts(created_types, _get_created_capability_types(before_types, _get_capability_type_list(receiver)))
 		resolved_types.append(required_type)
 	return {
 		"ok": true,
 		"types": resolved_types,
+		"created_types": created_types,
 	}
 
 
@@ -593,6 +600,37 @@ func _remove_unused_auto_dependencies(receiver: Object, dependency_types: Array[
 		if not _get_dependency_owner_types(receiver, dependency_type).is_empty():
 			continue
 		remove_capability(receiver, dependency_type)
+
+
+func _rollback_created_dependencies(receiver: Object, created_types: Array) -> void:
+	if not is_instance_valid(receiver):
+		return
+
+	for index in range(created_types.size() - 1, -1, -1):
+		var dependency_type := created_types[index] as Script
+		if dependency_type == null:
+			continue
+		if not has_capability(receiver, dependency_type):
+			continue
+		if _is_capability_top_level(receiver, dependency_type):
+			continue
+		if not _get_dependency_owner_types(receiver, dependency_type).is_empty():
+			continue
+		remove_capability(receiver, dependency_type)
+
+
+func _get_created_capability_types(before_types: Array, after_types: Array[Script]) -> Array[Script]:
+	var result: Array[Script] = []
+	for capability_type: Script in after_types:
+		if not before_types.has(capability_type):
+			result.append(capability_type)
+	return result
+
+
+func _append_unique_scripts(target: Array[Script], source: Array[Script]) -> void:
+	for script: Script in source:
+		if script != null and not target.has(script):
+			target.append(script)
 
 
 func _get_dependency_map(receiver: Object) -> Dictionary:

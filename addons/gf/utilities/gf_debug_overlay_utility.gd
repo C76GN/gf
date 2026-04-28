@@ -13,6 +13,9 @@ extends GFUtility
 ## 呼出/隐藏面板的快捷键。默认为 KEY_QUOTELEFT (`~` 键)。
 var toggle_key: Key = KEY_QUOTELEFT
 
+## 可见时刷新模型反射数据的间隔（秒）。设为 0 时每帧刷新。
+var refresh_interval_seconds: float = 0.25
+
 
 # --- 私有变量 ---
 
@@ -25,6 +28,7 @@ func init() -> void:
 	_overlay_gui = _GFDebugGUI.new()
 	_overlay_gui.name = "GFDebugOverlay"
 	_overlay_gui.toggle_key = toggle_key
+	_overlay_gui.refresh_interval_seconds = refresh_interval_seconds
 	_overlay_gui.architecture_provider = Callable(self, "_get_architecture_or_null")
 	
 	var tree := Engine.get_main_loop() as SceneTree
@@ -47,13 +51,23 @@ func set_toggle_key(key: Key) -> void:
 		_overlay_gui.toggle_key = key
 
 
+## 设置可见时的刷新间隔。
+## @param seconds: 刷新间隔；小于等于 0 时每帧刷新。
+func set_refresh_interval(seconds: float) -> void:
+	refresh_interval_seconds = maxf(seconds, 0.0)
+	if is_instance_valid(_overlay_gui):
+		_overlay_gui.refresh_interval_seconds = refresh_interval_seconds
+
+
 # --- 内部 GUI 类 ---
 
 class _GFDebugGUI extends CanvasLayer:
 	var _container: VBoxContainer
 	var _label: RichTextLabel
 	var toggle_key: Key
+	var refresh_interval_seconds: float = 0.25
 	var architecture_provider: Callable
+	var _refresh_elapsed: float = 0.25
 	
 	func _init() -> void:
 		layer = 120 # 确保在所有 UI 之上
@@ -97,12 +111,21 @@ class _GFDebugGUI extends CanvasLayer:
 		if event is InputEventKey and event.pressed and not event.echo:
 			if event.keycode == toggle_key:
 				visible = not visible
+				if visible:
+					_refresh_elapsed = refresh_interval_seconds
 				get_viewport().set_input_as_handled()
 
 
-	func _process(_delta: float) -> void:
+	func _process(delta: float) -> void:
 		if not visible:
+			_refresh_elapsed = refresh_interval_seconds
 			return
+
+		if refresh_interval_seconds > 0.0:
+			_refresh_elapsed += delta
+			if _refresh_elapsed < refresh_interval_seconds:
+				return
+			_refresh_elapsed = 0.0
 			
 		var text := ""
 		var arch: Object = null

@@ -42,6 +42,9 @@ var _current_state: Node = null
 var _machine_ref: WeakRef = null
 var _is_ready: bool = false
 var _reload_queued: bool = false
+var _transition_serial: int = 0
+var _is_exiting_current_state: bool = false
+var _queued_exit_transition: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -88,21 +91,44 @@ func get_group_name() -> StringName:
 
 ## 切换到指定状态。
 func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
-	var next_state := _states.get(next_state_name) as Node
-	if next_state == null:
-		push_warning("[GFNodeStateGroup] 切换失败，未找到状态：%s" % next_state_name)
+	if not _states.has(next_state_name):
+		_warn_missing_state(next_state_name)
 		return
 
+	if _is_exiting_current_state:
+		_transition_serial += 1
+		_queued_exit_transition = {
+			"state_name": next_state_name,
+			"args": args,
+		}
+		return
+
+	_transition_serial += 1
+	var current_serial := _transition_serial
+	var next_state := _states[next_state_name] as Node
 	var previous_state := _current_state
 	var previous_name: StringName = &""
 	if previous_state != null:
 		previous_name = previous_state.call("get_state_name")
 	if previous_state != null:
+		_is_exiting_current_state = true
 		previous_state.call("exit", next_state_name, args)
+		_is_exiting_current_state = false
+		if not _queued_exit_transition.is_empty():
+			next_state_name = _queued_exit_transition["state_name"]
+			args = _queued_exit_transition["args"]
+			_queued_exit_transition.clear()
+			current_serial = _transition_serial
+			if not _states.has(next_state_name):
+				_current_state = null
+				_warn_missing_state(next_state_name)
+				return
+			next_state = _states[next_state_name] as Node
 
 	_current_state = next_state
 	_current_state.call("enter", previous_name, args)
-	current_state_changed.emit(previous_state, _current_state)
+	if current_serial == _transition_serial and _current_state == next_state:
+		current_state_changed.emit(previous_state, _current_state)
 
 
 ## 添加状态节点。
@@ -166,6 +192,8 @@ func clear_states(free_states: bool = false) -> void:
 	var states := get_states()
 	_states.clear()
 	_current_state = null
+	_is_exiting_current_state = false
+	_queued_exit_transition.clear()
 	for state: Node in states:
 		var transition_signal: Signal = state.get("requested_transition")
 		if transition_signal.is_connected(_on_state_requested_transition):
@@ -205,6 +233,10 @@ func _is_node_state(node: Node) -> bool:
 	if not node.has_method("exit"):
 		return false
 	return node.get("requested_transition") is Signal
+
+
+func _warn_missing_state(state_name: StringName) -> void:
+	push_warning("[GFNodeStateGroup] 切换失败，未找到状态：%s" % state_name)
 
 
 func _on_state_requested_transition(

@@ -354,6 +354,38 @@ func test_signal_timeout_allows_queue_to_continue() -> void:
 	assert_false(_system.is_processing, "Signal 超时后队列不应继续卡在处理中。")
 
 
+func test_signal_timeout_respects_time_utility_pause() -> void:
+	var arch := GFArchitecture.new()
+	var time_utility := GFTimeUtility.new()
+	var queue := GFActionQueueSystem.new()
+	await arch.register_utility_instance(time_utility)
+	await arch.register_system_instance(queue)
+	await arch.init()
+
+	var order: Array = []
+	var emitter := ObjectSignalEmitter.new()
+	var action := NonNodeDeadlockSignalAction.new(emitter).with_signal_timeout(0.001)
+	time_utility.is_paused = true
+	queue.enqueue(action)
+	queue.enqueue(OrderAction.new(order, "AFTER_TIMEOUT"))
+
+	await get_tree().create_timer(0.03).timeout
+	await get_tree().process_frame
+
+	assert_true(queue.is_processing, "GFTimeUtility 暂停时，Signal 超时计时不应继续推进。")
+	assert_true(order.is_empty(), "暂停期间队列不应因超时执行后续动作。")
+
+	time_utility.is_paused = false
+	await get_tree().create_timer(0.03).timeout
+	await get_tree().process_frame
+
+	assert_push_warning("[GFVisualAction] 等待 Signal 超时，队列将继续执行后续动作。")
+	assert_eq(order, ["AFTER_TIMEOUT"], "恢复时间后，Signal 超时应继续推进并执行后续动作。")
+	assert_false(queue.is_processing, "恢复时间并超时后队列应排空。")
+
+	arch.dispose()
+
+
 func test_no_deadlock_on_freed_node() -> void:
 	var node := Node.new()
 	add_child_autofree(node)

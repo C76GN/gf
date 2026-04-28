@@ -71,6 +71,34 @@ func test_from_string_rejects_malformed_decimal_text() -> void:
 	assert_eq(value.to_decimal_string(), "0.00", "非法字符串应被收敛为当前精度下的零。")
 
 
+func test_from_string_rounds_discarded_fraction_without_clamping_scale_first() -> void:
+	var rounded_down = GF_FIXED_DECIMAL.from_string(
+		"0.0000000000000000004",
+		18,
+		GF_FIXED_DECIMAL.RoundingMode.HALF_UP
+	)
+	var rounded_up = GF_FIXED_DECIMAL.from_string(
+		"0.0000000000000000005",
+		18,
+		GF_FIXED_DECIMAL.RoundingMode.HALF_UP
+	)
+	var half_even_down = GF_FIXED_DECIMAL.from_string(
+		"0.0000000000000000025",
+		18,
+		GF_FIXED_DECIMAL.RoundingMode.HALF_EVEN
+	)
+	var half_even_up = GF_FIXED_DECIMAL.from_string(
+		"0.0000000000000000035",
+		18,
+		GF_FIXED_DECIMAL.RoundingMode.HALF_EVEN
+	)
+
+	assert_eq(rounded_down.raw_value, 0, "超出精度的小数应先按目标精度舍入，而不是先钳制小数位。")
+	assert_eq(rounded_up.raw_value, 1, "HALF_UP 应正确处理第 19 位小数。")
+	assert_eq(half_even_down.raw_value, 2, "HALF_EVEN 遇到偶数尾数时不应进位。")
+	assert_eq(half_even_up.raw_value, 4, "HALF_EVEN 遇到奇数尾数时应进位到偶数。")
+
+
 func test_from_string_saturates_int64_boundary_overflow() -> void:
 	var value = GF_FIXED_DECIMAL.from_string("9223372036854775808", 0)
 
@@ -95,3 +123,13 @@ func test_divide_large_positive_shift_saturates_instead_of_clamping_shift() -> v
 
 	assert_push_error("[GFFixedDecimal] divide 结果超出可表示范围，已钳制。")
 	assert_eq(result.raw_value, 9_223_372_036_854_775_807, "大位移除法溢出时应钳制，而不是把缩放位数截断成错误结果。")
+
+
+func test_divide_large_positive_shift_uses_exact_integer_path() -> void:
+	var result = GF_FIXED_DECIMAL.from_string("1", 0).divide(
+		GF_FIXED_DECIMAL.from_string("1", 18),
+		18
+	)
+
+	assert_eq(result.raw_value, 1_000_000_000_000_000_000, "大位移除法在可表示范围内应保持精确 raw 值。")
+	assert_eq(result.to_decimal_string(), "1.000000000000000000", "大位移除法结果应保留目标精度。")

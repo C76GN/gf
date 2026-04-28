@@ -223,10 +223,33 @@ func _wait_seconds(seconds: float, serial: int) -> void:
 
 
 func _collect_args(raw_args: Array) -> Array:
+	var declared_count := _get_source_signal_argument_count()
+	if declared_count >= 0:
+		return raw_args.slice(0, mini(declared_count, raw_args.size()))
+
 	var args: Array = raw_args.duplicate()
 	while not args.is_empty() and args.back() == null:
 		args.pop_back()
 	return args
+
+
+func _get_source_signal_argument_count() -> int:
+	if _source_signal.is_null():
+		return -1
+
+	var source_obj := _source_signal.get_object()
+	if not is_instance_valid(source_obj):
+		return -1
+
+	var signal_name := String(_source_signal.get_name())
+	for signal_info: Dictionary in source_obj.get_signal_list():
+		if String(signal_info.get("name", "")) != signal_name:
+			continue
+
+		var args: Array = signal_info.get("args", [])
+		return args.size()
+
+	return -1
 
 
 func _unregister_from_utility() -> void:

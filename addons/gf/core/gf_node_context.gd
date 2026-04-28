@@ -56,11 +56,18 @@ var _is_context_ready: bool = false
 func _enter_tree() -> void:
 	_setup_architecture()
 	if _owns_architecture:
-		await _wait_for_parent_architecture_ready()
-		await install(_architecture)
-		await install_bindings(_architecture.create_binder())
+		var context_architecture := _architecture
+		await _wait_for_parent_architecture_ready(context_architecture)
+		if not _is_owned_architecture_current(context_architecture):
+			return
+		await install(context_architecture)
+		if not _is_owned_architecture_current(context_architecture):
+			return
+		await install_bindings(context_architecture.create_binder())
+		if not _is_owned_architecture_current(context_architecture):
+			return
 		if auto_init:
-			await _initialize_owned_architecture()
+			await _initialize_owned_architecture(context_architecture)
 	elif _architecture == null:
 		push_warning("[GFNodeContext] 未找到可继承的架构。")
 
@@ -181,29 +188,34 @@ func _setup_architecture() -> void:
 			_is_context_ready = false
 
 
-func _initialize_owned_architecture() -> void:
-	var initializing_architecture := _architecture
+func _initialize_owned_architecture(architecture_instance: GFArchitecture = null) -> void:
+	var initializing_architecture := architecture_instance
+	if initializing_architecture == null:
+		initializing_architecture = _architecture
 	if initializing_architecture == null:
 		return
 
 	await initializing_architecture.init()
-	if _architecture == initializing_architecture and initializing_architecture.is_inited():
+	if _is_owned_architecture_current(initializing_architecture) and initializing_architecture.is_inited():
 		_is_context_ready = true
 		context_ready.emit(initializing_architecture)
 
 
-func _wait_for_parent_architecture_ready() -> void:
-	if _architecture == null:
+func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture = null) -> void:
+	var scoped_architecture := architecture_instance
+	if scoped_architecture == null:
+		scoped_architecture = _architecture
+	if scoped_architecture == null:
 		return
 
-	var parent_architecture := _architecture.get_parent_architecture()
+	var parent_architecture := scoped_architecture.get_parent_architecture()
 	while parent_architecture != null and not parent_architecture.is_inited():
-		if not is_inside_tree():
+		if not _is_owned_architecture_current(scoped_architecture):
 			return
 		await parent_architecture.initialization_finished
-		if _architecture == null:
+		if not _is_owned_architecture_current(scoped_architecture):
 			return
-		parent_architecture = _architecture.get_parent_architecture()
+		parent_architecture = scoped_architecture.get_parent_architecture()
 
 
 func _find_parent_architecture() -> GFArchitecture:
@@ -226,4 +238,12 @@ func _should_tick_owned_architecture() -> bool:
 		process_scoped_ticks
 		and _owns_architecture
 		and _architecture != null
+	)
+
+
+func _is_owned_architecture_current(architecture_instance: GFArchitecture) -> bool:
+	return (
+		is_inside_tree()
+		and _owns_architecture
+		and _architecture == architecture_instance
 	)

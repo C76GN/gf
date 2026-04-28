@@ -7,6 +7,12 @@ class_name GFEditorTypeIndex
 extends RefCounted
 
 
+# --- 私有变量 ---
+
+var _script_cache: Dictionary = {}
+var _scene_root_script_cache: Dictionary = {}
+
+
 # --- 公共方法 ---
 
 ## 收集继承指定脚本基类的全局脚本类。
@@ -22,7 +28,7 @@ func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Scri
 		if class_name_value.is_empty() or path.is_empty() or used_paths.has(path):
 			continue
 
-		var script := load(path) as Script
+		var script := _load_script(path)
 		if script == null or excluded_scripts.has(script):
 			continue
 		if not _script_extends_or_equals(script, base_script):
@@ -88,12 +94,17 @@ func collect_scene_roots_extending(base_script: Script, used_paths: Dictionary =
 
 ## 获取 PackedScene 根节点脚本。
 func get_scene_root_script(path: String) -> Script:
+	if _scene_root_script_cache.has(path):
+		return _scene_root_script_cache[path] as Script
+
 	var packed_scene := load(path) as PackedScene
 	if packed_scene == null:
+		_scene_root_script_cache[path] = null
 		return null
 
 	var state := packed_scene.get_state()
 	if state == null:
+		_scene_root_script_cache[path] = null
 		return null
 
 	for node_index: int in range(state.get_node_count()):
@@ -102,12 +113,30 @@ func get_scene_root_script(path: String) -> Script:
 
 		for property_index: int in range(state.get_node_property_count(node_index)):
 			if state.get_node_property_name(node_index, property_index) == &"script":
-				return state.get_node_property_value(node_index, property_index) as Script
+				var script := state.get_node_property_value(node_index, property_index) as Script
+				_scene_root_script_cache[path] = script
+				return script
 
+	_scene_root_script_cache[path] = null
 	return null
 
 
+## 清空脚本和场景根脚本缓存。
+func clear_cache() -> void:
+	_script_cache.clear()
+	_scene_root_script_cache.clear()
+
+
 # --- 私有/辅助方法 ---
+
+func _load_script(path: String) -> Script:
+	if _script_cache.has(path):
+		return _script_cache[path] as Script
+
+	var script := load(path) as Script
+	_script_cache[path] = script
+	return script
+
 
 func _join_resource_path(dir_path: String, file_name: String) -> String:
 	if dir_path.ends_with("/"):

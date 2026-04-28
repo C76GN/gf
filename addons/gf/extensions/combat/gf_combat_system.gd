@@ -211,25 +211,41 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 	
 	# 处理 Buffs
 	var buffs: Array = data["buffs"]
-	var to_remove: Array[GFBuff] = []
-	
-	for buff: GFBuff in buffs.duplicate():
-		if buff == null or not buffs.has(buff):
+	var buff_index := buffs.size() - 1
+	while buff_index >= 0:
+		if buff_index >= buffs.size():
+			buff_index = buffs.size() - 1
+			continue
+
+		var buff := buffs[buff_index] as GFBuff
+		if buff == null:
+			buffs.remove_at(buff_index)
+			buff_index -= 1
 			continue
 		if buff.update(p_delta):
-			to_remove.append(buff)
-			
-	for buff: GFBuff in to_remove:
-		buff.on_remove()
-		buffs.erase(buff)
-		_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, buff.id))
+			var removed_id := buff.id
+			if buff_index < buffs.size() and buffs[buff_index] == buff:
+				buffs.remove_at(buff_index)
+			else:
+				buffs.erase(buff)
+			buff.on_remove()
+			_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, removed_id))
+		buff_index -= 1
 		
 	# 处理技能 CD
 	var skills: Array = data["skills"]
-	for skill: GFSkill in skills.duplicate():
-		if skill == null or not skills.has(skill):
+	var skill_index := skills.size() - 1
+	while skill_index >= 0:
+		if skill_index >= skills.size():
+			skill_index = skills.size() - 1
+			continue
+		var skill := skills[skill_index] as GFSkill
+		if skill == null:
+			skills.remove_at(skill_index)
+			skill_index -= 1
 			continue
 		skill.update(p_delta)
+		skill_index -= 1
 		
 	# 每次处理完后更新活跃状态
 	_update_active_status(p_entity)

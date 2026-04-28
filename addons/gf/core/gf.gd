@@ -352,14 +352,26 @@ func _run_project_installers(architecture_instance: GFArchitecture) -> void:
 	if architecture_instance == null or architecture_instance.has_project_installers_applied():
 		return
 
-	architecture_instance.mark_project_installers_applied()
+	if architecture_instance.is_project_installers_running():
+		await architecture_instance.project_installers_finished
+		return
+
+	if not architecture_instance.begin_project_installers():
+		return
+
 	var installer_paths := _get_project_installer_paths()
 	for path: String in installer_paths:
 		var installer: Object = _create_installer(path)
 		if installer != null:
 			await installer.install(architecture_instance)
+			if not architecture_instance.is_project_installers_running():
+				return
 			if installer.has_method("install_bindings"):
 				await installer.install_bindings(architecture_instance.create_binder())
+		if not architecture_instance.is_project_installers_running():
+			return
+
+	architecture_instance.finish_project_installers()
 
 
 func _get_project_installer_paths() -> Array[String]:

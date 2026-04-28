@@ -85,6 +85,14 @@ func start(initial_state_name: StringName, msg: Dictionary = {}) -> void:
 		push_warning("[GFStateMachine] 启动失败，未找到状态：%s" % initial_state_name)
 		return
 
+	_transition_serial += 1
+	_queued_exit_transition.clear()
+	if _current_state != null:
+		_is_exiting_current_state = true
+		_current_state.exit()
+		_is_exiting_current_state = false
+		_queued_exit_transition.clear()
+
 	_current_state = _states[initial_state_name]
 	current_state_name = initial_state_name
 	_current_state.enter(msg)

@@ -16,6 +16,79 @@
 
 ---
 
+## [1.14.1] - 2026-04-28
+
+**版本概述**：聚焦框架边界正确性、异步初始化一致性和高频路径性能，修复定点数长精度解析、项目 Installer 并发、能力依赖失败回滚、状态机重入和 Signal 空参数等边缘问题。
+
+### 🚀 新增特性 (Added)
+- **Model 自定义存档键**：`GFModel.get_save_key()` 可为运行时脚本或需要重命名兼容的 Model 提供稳定快照键。
+- **项目 Installer 状态信号**：`GFArchitecture.project_installers_finished` 可唤醒并发 `Gf.init()` 等待方。
+- **DebugOverlay 刷新间隔**：`GFDebugOverlayUtility.refresh_interval_seconds` 与 `set_refresh_interval()` 支持降低可见时的反射刷新频率。
+- **编辑器类型索引缓存**：`GFEditorTypeIndex.clear_cache()` 支持清理脚本与场景根脚本缓存。
+
+### 🔄 机制更改 (Changed)
+- **定点数除法精度**：`GFFixedDecimal` 大位移除法改为整数/十进制字符串路径，避免 float 精度损失。
+- **表现动作超时语义**：`GFVisualAction.with_signal_timeout()` 新增可选参数 `respect_time_scale`，默认让 Signal 超时跟随 `GFTimeUtility` 暂停与时间缩放。
+- **战斗系统迭代优化**：`GFCombatSystem` 处理 Buff 与技能 CD 时不再每帧复制数组。
+- **DebugOverlay 性能优化**：悬浮面板只在刷新间隔到期时重新反射 Model 数据。
+- **编辑器扫描复用**：`GFEditorTypeIndex` 复用已加载脚本和场景根脚本结果，减少重复同步加载。
+
+### 🐛 Bug 修复 (Fixed)
+- **Singleton 工厂缓存**：`GFBinding` 会丢弃已释放或排队释放的缓存实例，且不会缓存失败创建结果。
+- **工厂类型校验**：工厂返回对象必须继承或等于绑定脚本类型，避免错误实例进入缓存。
+- **项目 Installer 并发**：并发 `Gf.init()` 会等待正在运行的项目 Installer 完成，不再跳过未完成装配。
+- **NodeContext 异步生命周期**：`GFNodeContext` 在等待父架构、安装模块和初始化后会重新确认节点与架构仍有效。
+- **Signal trailing null**：`GFSignalConnection` 会根据声明参数数量保留显式发出的尾部 `null`。
+- **能力依赖回滚**：能力依赖链创建失败时，会撤销本轮自动创建且未被其他能力持有的依赖。
+- **节点状态重入**：`GFNodeStateGroup` 支持状态退出期间请求新切换，旧状态不会重复退出，最终目标以退出期请求为准。
+- **纯代码状态机重启**：`GFStateMachine.start()` 在已有当前状态时会先退出旧状态。
+- **长小数字符串解析**：`GFFixedDecimal.from_string()` 会先按目标精度解析和舍入，不再先钳制来源小数位。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFModel.get_save_key() -> StringName`。
+- 新增 `GFArchitecture.project_installers_finished`。
+- 新增 `GFArchitecture.is_project_installers_running() -> bool`。
+- 新增 `GFArchitecture.begin_project_installers() -> bool`。
+- 新增 `GFArchitecture.finish_project_installers() -> void`。
+- 新增 `GFBinding.clear_cached_instance() -> void`。
+- 新增 `GFDebugOverlayUtility.refresh_interval_seconds: float`。
+- 新增 `GFDebugOverlayUtility.set_refresh_interval(seconds: float) -> void`。
+- 新增 `GFEditorTypeIndex.clear_cache() -> void`。
+- `GFVisualAction.with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFVisualAction` 新增可选参数，旧调用保持兼容。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧 `with_signal_timeout(seconds)` 调用无需迁移；如果希望超时继续使用真实时间，请改为 `with_signal_timeout(seconds, false)`。
+2. 使用运行时脚本 Model 或需要跨版本重命名存档键时，重写 `get_save_key()` 返回稳定 `StringName`。
+3. 如果项目依赖 DebugOverlay 每帧刷新，可将 `refresh_interval_seconds` 设置为 `0.0`。
+4. 工厂 provider 现在会校验返回对象脚本类型；如果之前返回了不匹配对象，需要修正 provider 或注册键。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_binding.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/editor/gf_editor_type_index.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_group.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/foundation/numeric/gf_fixed_decimal.gd`
+- `addons/gf/utilities/gf_debug_overlay_utility.gd`
+- `addons/gf/utilities/gf_signal_connection.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+- `tests/gf_core/test_gf_fixed_decimal.gd`
+- `tests/gf_core/test_gf_model_serialization.gd`
+- `tests/gf_core/test_gf_node_state_machine.gd`
+- `tests/gf_core/test_gf_signal_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_state_machine.gd`
+
+---
+
 ## [1.14.0] - 2026-04-28
 
 **版本概述**：补强原生 Signal 连接、表现动作队列分流和场景树状态机能力，让 GF 在 UI、动画、角色控制器和临时表现流场景中具备更完整的框架级支持。

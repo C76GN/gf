@@ -126,13 +126,10 @@ static func from_string(
 		push_error("[GFFixedDecimal] 无法解析数字字符串：%s" % value)
 		return GFFixedDecimal.new(0, places)
 
-	var digits := integer_part + fractional_part
-	if digits.is_empty():
-		digits = "0"
-
-	var parsed_raw := _parse_signed_digits(digits, sign)
-	var parsed_places := fractional_part.length()
-	return GFFixedDecimal.new(parsed_raw, parsed_places).rescaled(places, rounding_mode)
+	return GFFixedDecimal.new(
+		_parse_decimal_to_raw(integer_part, fractional_part, sign, places, rounding_mode),
+		places
+	)
 
 
 ## 克隆当前定点数。
@@ -419,12 +416,234 @@ static func _divide_with_scaled_float(
 	shift: int,
 	rounding_mode: RoundingMode
 ) -> int:
-	var scaled_value := (float(numerator) / float(denominator)) * pow(10.0, float(shift))
-	if is_nan(scaled_value) or is_inf(scaled_value) or absf(scaled_value) >= float(_MAX_INT_VALUE):
-		push_error("[GFFixedDecimal] divide 结果超出可表示范围，已钳制。")
-		return _get_saturated_int(scaled_value < 0.0)
+	if denominator == 0:
+		push_error("[GFFixedDecimal] 尝试进行零除。")
+		return 0
 
-	return _round_scaled_float(scaled_value, rounding_mode)
+	var negative := (numerator < 0) != (denominator < 0)
+	var numerator_digits := str(_abs_int(numerator)) + _repeat_character("0", shift)
+	var denominator_digits := str(_abs_int(denominator))
+	var division := _divide_decimal_strings(numerator_digits, denominator_digits)
+	var quotient_text := division["quotient"] as String
+	var remainder_text := division["remainder"] as String
+	var adjusted_text := quotient_text
+	var has_remainder := remainder_text != "0"
+
+	match rounding_mode:
+		RoundingMode.HALF_UP:
+			if _compare_decimal_strings(_multiply_decimal_string_by_digit(remainder_text, 2), denominator_digits) >= 0:
+				adjusted_text = _add_one_decimal_string(adjusted_text)
+		RoundingMode.HALF_EVEN:
+			var half_compare := _compare_decimal_strings(_multiply_decimal_string_by_digit(remainder_text, 2), denominator_digits)
+			if half_compare > 0:
+				adjusted_text = _add_one_decimal_string(adjusted_text)
+			elif half_compare == 0 and _decimal_string_is_odd(adjusted_text):
+				adjusted_text = _add_one_decimal_string(adjusted_text)
+		RoundingMode.FLOOR:
+			if negative and has_remainder:
+				adjusted_text = _add_one_decimal_string(adjusted_text)
+		RoundingMode.CEIL:
+			if not negative and has_remainder:
+				adjusted_text = _add_one_decimal_string(adjusted_text)
+		RoundingMode.TRUNCATE:
+			pass
+
+	return _decimal_string_to_int_saturated(adjusted_text, negative)
+
+
+static func _parse_decimal_to_raw(
+	integer_part: String,
+	fractional_part: String,
+	sign: int,
+	places: int,
+	rounding_mode: RoundingMode
+) -> int:
+	var integer_digits := integer_part
+	if integer_digits.is_empty():
+		integer_digits = "0"
+
+	var kept_fraction := fractional_part
+	var discarded_fraction := ""
+	if kept_fraction.length() > places:
+		discarded_fraction = kept_fraction.substr(places)
+		kept_fraction = kept_fraction.left(places)
+	else:
+		kept_fraction += _repeat_character("0", places - kept_fraction.length())
+
+	var parsed_raw := _parse_signed_digits(integer_digits + kept_fraction, sign)
+	if _should_round_discarded(discarded_fraction, _abs_int(parsed_raw), sign, rounding_mode):
+		parsed_raw = _checked_add(parsed_raw, sign, "from_string")
+	return parsed_raw
+
+
+static func _should_round_discarded(
+	discarded: String,
+	kept_abs_raw: int,
+	sign: int,
+	rounding_mode: RoundingMode
+) -> bool:
+	if discarded.is_empty() or not _has_non_zero_digit(discarded):
+		return false
+
+	var first_digit := discarded.substr(0, 1).to_int()
+	match rounding_mode:
+		RoundingMode.HALF_UP:
+			return first_digit >= 5
+		RoundingMode.HALF_EVEN:
+			if first_digit > 5:
+				return true
+			if first_digit < 5:
+				return false
+			return _has_non_zero_digit(discarded.substr(1)) or kept_abs_raw % 2 != 0
+		RoundingMode.FLOOR:
+			return sign < 0
+		RoundingMode.CEIL:
+			return sign > 0
+		RoundingMode.TRUNCATE:
+			return false
+
+	return false
+
+
+static func _has_non_zero_digit(text: String) -> bool:
+	for i in range(text.length()):
+		if text.substr(i, 1) != "0":
+			return true
+	return false
+
+
+static func _divide_decimal_strings(numerator_digits: String, denominator_digits: String) -> Dictionary:
+	var numerator_text := _normalize_decimal_string(numerator_digits)
+	var denominator_text := _normalize_decimal_string(denominator_digits)
+	if denominator_text == "0":
+		return {
+			"quotient": "0",
+			"remainder": "0",
+		}
+
+	var quotient := ""
+	var remainder := "0"
+	for i in range(numerator_text.length()):
+		remainder = _normalize_decimal_string(remainder + numerator_text.substr(i, 1))
+		var quotient_digit := 0
+		for candidate in range(9, -1, -1):
+			var product := _multiply_decimal_string_by_digit(denominator_text, candidate)
+			if _compare_decimal_strings(product, remainder) <= 0:
+				quotient_digit = candidate
+				remainder = _subtract_decimal_strings(remainder, product)
+				break
+		quotient += str(quotient_digit)
+
+	return {
+		"quotient": _normalize_decimal_string(quotient),
+		"remainder": _normalize_decimal_string(remainder),
+	}
+
+
+static func _normalize_decimal_string(text: String) -> String:
+	var result := text
+	while result.length() > 1 and result.begins_with("0"):
+		result = result.substr(1)
+	if result.is_empty():
+		return "0"
+	return result
+
+
+static func _compare_decimal_strings(left: String, right: String) -> int:
+	var normalized_left := _normalize_decimal_string(left)
+	var normalized_right := _normalize_decimal_string(right)
+	if normalized_left.length() > normalized_right.length():
+		return 1
+	if normalized_left.length() < normalized_right.length():
+		return -1
+	if normalized_left == normalized_right:
+		return 0
+	return 1 if normalized_left > normalized_right else -1
+
+
+static func _subtract_decimal_strings(left: String, right: String) -> String:
+	var left_text := _normalize_decimal_string(left)
+	var right_text := _normalize_decimal_string(right)
+	var result := ""
+	var borrow := 0
+	var left_index := left_text.length() - 1
+	var right_index := right_text.length() - 1
+	while left_index >= 0:
+		var left_digit := left_text.substr(left_index, 1).to_int() - borrow
+		var right_digit := 0
+		if right_index >= 0:
+			right_digit = right_text.substr(right_index, 1).to_int()
+		if left_digit < right_digit:
+			left_digit += 10
+			borrow = 1
+		else:
+			borrow = 0
+		result = str(left_digit - right_digit) + result
+		left_index -= 1
+		right_index -= 1
+	return _normalize_decimal_string(result)
+
+
+static func _multiply_decimal_string_by_digit(text: String, digit: int) -> String:
+	if digit <= 0:
+		return "0"
+	if digit == 1:
+		return _normalize_decimal_string(text)
+
+	var normalized_text := _normalize_decimal_string(text)
+	var result := ""
+	var carry := 0
+	for i in range(normalized_text.length() - 1, -1, -1):
+		var product := normalized_text.substr(i, 1).to_int() * digit + carry
+		result = str(product % 10) + result
+		carry = int(product / 10)
+	while carry > 0:
+		result = str(carry % 10) + result
+		carry = int(carry / 10)
+	return _normalize_decimal_string(result)
+
+
+static func _add_one_decimal_string(text: String) -> String:
+	var result := _normalize_decimal_string(text)
+	var carry := 1
+	for i in range(result.length() - 1, -1, -1):
+		var digit := result.substr(i, 1).to_int() + carry
+		var prefix := result.left(i)
+		var suffix := result.substr(i + 1)
+		result = prefix + str(digit % 10) + suffix
+		carry = int(digit / 10)
+		if carry == 0:
+			return result
+	return "1" + result
+
+
+static func _decimal_string_is_odd(text: String) -> bool:
+	var normalized_text := _normalize_decimal_string(text)
+	return normalized_text.substr(normalized_text.length() - 1, 1).to_int() % 2 != 0
+
+
+static func _decimal_string_to_int_saturated(text: String, is_negative: bool) -> int:
+	var normalized_text := _normalize_decimal_string(text)
+	if normalized_text.length() > 19 or (
+		normalized_text.length() == 19
+		and normalized_text > _MAX_INT_DIGITS
+	):
+		push_error("[GFFixedDecimal] divide 结果超出可表示范围，已钳制。")
+		return _get_saturated_int(is_negative)
+
+	var result := 0
+	for i in range(normalized_text.length()):
+		result = _checked_multiply(result, 10, "divide")
+		result = _checked_add(result, normalized_text.substr(i, 1).to_int(), "divide")
+
+	return -result if is_negative else result
+
+
+static func _repeat_character(character: String, count: int) -> String:
+	var result := ""
+	for _i in range(maxi(count, 0)):
+		result += character
+	return result
 
 
 static func _pow10_int(power: int) -> int:

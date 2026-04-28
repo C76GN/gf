@@ -1,7 +1,8 @@
 ## GFStorageUtility: 基于 `user://` 的轻量存档系统。
 ##
 ## 支持槽位存档、元数据分离读取、`Resource` 存取，
-## 以及简单的 XOR + Base64 混淆，适合通用本地持久化场景。
+## 以及简单的 XOR + Base64 文本混淆，适合通用本地持久化场景。
+## 该混淆不提供安全加密能力，请勿用于保护敏感数据。
 class_name GFStorageUtility
 extends GFUtility
 
@@ -14,7 +15,7 @@ const _BACKUP_SUFFIX: String = ".bak"
 
 # --- 公共变量 ---
 
-## 用于简单 XOR 混淆的密钥；为 `0` 时直接保存明文 JSON。
+## 用于简单 XOR + Base64 混淆的密钥；为 `0` 时直接保存明文 JSON。该字段不是安全加密密钥。
 var encrypt_key: int = 42
 
 ## 保存子目录名；为空时直接写入 `user://`。

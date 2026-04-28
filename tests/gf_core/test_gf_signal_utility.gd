@@ -13,9 +13,13 @@ class TestEmitter:
 	extends Object
 
 	signal changed(value: int)
+	signal optional_payload(value: Variant)
 
 	func emit_changed(value: int) -> void:
 		changed.emit(value)
+
+	func emit_optional_payload(value: Variant) -> void:
+		optional_payload.emit(value)
 
 
 class TestOwner:
@@ -57,6 +61,20 @@ func test_connect_signal_invokes_callback_with_default_args() -> void:
 	await get_tree().process_frame
 
 	assert_eq(received, ["hp:7"], "Signal 回调应收到默认参数和动态参数。")
+
+
+func test_connect_signal_preserves_declared_trailing_null_argument() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+
+	_utility.connect_signal(emitter.optional_payload, func(value: Variant) -> void:
+		received.append(value)
+	)
+	emitter.emit_optional_payload(null)
+
+	await get_tree().process_frame
+
+	assert_eq(received, [null], "显式发出的 null 参数不应被当作占位默认值裁掉。")
 
 
 func test_filter_map_delay_chain() -> void:

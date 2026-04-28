@@ -118,6 +118,20 @@ func test_start_passes_msg() -> void:
 	assert_eq(state.last_msg.get("key"), 42, "enter 应收到传入的 msg。")
 
 
+func test_start_again_exits_previous_state() -> void:
+	var idle := TrackingState.new()
+	var run := TrackingState.new()
+	_fsm.add_state(&"Idle", idle)
+	_fsm.add_state(&"Run", run)
+	_fsm.start(&"Idle")
+
+	_fsm.start(&"Run")
+
+	assert_eq(idle.exit_count, 1, "重复 start 到新状态前应退出旧状态。")
+	assert_eq(run.enter_count, 1, "重复 start 应进入新的初始状态。")
+	assert_eq(_fsm.current_state_name, &"Run", "重复 start 后 current_state_name 应更新。")
+
+
 ## 验证 start() 对未知状态名打印错误且不崩溃。
 func test_start_unknown_state_is_safe() -> void:
 	_fsm.start(&"Unknown")

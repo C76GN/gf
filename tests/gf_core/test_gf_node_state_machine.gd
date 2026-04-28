@@ -35,6 +35,19 @@ class TrackingNodeState:
 		last_args = args
 
 
+class ExitRedirectNodeState:
+	extends TrackingNodeState
+
+	var target_state_name: StringName = &""
+
+	func _init(p_target_state_name: StringName) -> void:
+		target_state_name = p_target_state_name
+
+	func _exit(next_state: StringName = &"", args: Dictionary = {}) -> void:
+		super._exit(next_state, args)
+		transition_to(target_state_name, args)
+
+
 # --- 测试 ---
 
 func test_internal_group_loads_direct_child_states() -> void:
@@ -97,3 +110,26 @@ func test_state_can_request_cross_group_transition() -> void:
 	assert_eq(body_group.get_current_state(), attack, "状态应能通过 Group/State 请求跨组切换。")
 	assert_eq(idle.exit_count, 1, "跨组切换应退出旧状态。")
 	assert_eq(attack.enter_count, 1, "跨组切换应进入目标状态。")
+
+
+func test_transition_requested_during_exit_replaces_outer_target() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := ExitRedirectNodeState.new(&"Attack")
+	var run := TrackingNodeState.new()
+	var attack := TrackingNodeState.new()
+	idle.name = "Idle"
+	run.name = "Run"
+	attack.name = "Attack"
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	machine.add_child(run)
+	machine.add_child(attack)
+	await get_tree().process_frame
+
+	machine.transition_to(&"Run")
+
+	assert_eq(idle.exit_count, 1, "exit 内部请求切换时，旧状态不应重复 exit。")
+	assert_eq(run.enter_count, 0, "exit 内部请求的新状态应替代外层目标。")
+	assert_eq(attack.enter_count, 1, "exit 内部请求的状态应成为最终状态。")
+	assert_eq(machine.get_current_state(), attack, "最终当前状态应为 exit 内部请求的状态。")

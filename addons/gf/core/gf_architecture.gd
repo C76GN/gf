@@ -14,6 +14,9 @@ class_name GFArchitecture
 ## 当一次初始化流程完成或被 dispose() 中断后发出。
 signal initialization_finished
 
+## 当项目级 Installer 应用完成或被 dispose() 中断后发出。
+signal project_installers_finished
+
 
 # --- 常量 ---
 
@@ -45,6 +48,7 @@ var _is_iterating_tick_caches: bool = false
 var _tick_caches_dirty: bool = false
 var _parent_architecture: GFArchitecture = null
 var _project_installers_applied: bool = false
+var _project_installers_running: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -80,9 +84,34 @@ func has_project_installers_applied() -> bool:
 	return _project_installers_applied
 
 
+## 检查项目级 Installer 是否正在应用。
+## @return 正在应用返回 true。
+func is_project_installers_running() -> bool:
+	return _project_installers_running
+
+
+## 标记项目级 Installer 已开始应用。
+## @return 成功开始返回 true；已经完成或正在运行时返回 false。
+func begin_project_installers() -> bool:
+	if _project_installers_applied or _project_installers_running:
+		return false
+
+	_project_installers_running = true
+	return true
+
+
 ## 标记项目级 Installer 已应用。由 Gf 启动入口调用。
 func mark_project_installers_applied() -> void:
+	var was_running := _project_installers_running
 	_project_installers_applied = true
+	_project_installers_running = false
+	if was_running:
+		project_installers_finished.emit()
+
+
+## 标记项目级 Installer 应用完成并唤醒等待方。
+func finish_project_installers() -> void:
+	mark_project_installers_applied()
 
 
 ## 创建一个声明式装配器，便于 Installer 使用 fluent API 注册模块与工厂。
@@ -141,6 +170,10 @@ func dispose() -> void:
 	for utility in _utilities.values():
 		if utility.has_method("dispose"):
 			utility.dispose()
+	for binding_variant: Variant in _factories.values():
+		var binding := binding_variant as Object
+		if binding != null and binding.has_method("clear_cached_instance"):
+			binding.call("clear_cached_instance")
 	_models.clear()
 	_systems.clear()
 	_utilities.clear()
@@ -152,7 +185,7 @@ func dispose() -> void:
 	_event_system.clear()
 	_time_utility = null
 	_inited = false
-	_project_installers_applied = false
+	_reset_project_installers()
 	_refresh_tick_caches()
 	if was_initializing:
 		initialization_finished.emit()
@@ -709,7 +742,7 @@ func get_all_models_state() -> Dictionary:
 	for script_cls: Script in _models:
 		var model: Variant = _models[script_cls]
 		if model.has_method("to_dict"):
-			var class_name_key: String = _get_model_key(script_cls)
+			var class_name_key: String = _get_model_key(script_cls, model as Object)
 			if class_name_key.is_empty():
 				continue
 			state[class_name_key] = model.to_dict()
@@ -720,11 +753,11 @@ func get_all_models_state() -> Dictionary:
 ## @param data: 由 get_all_models_state() 返回的状态字典。
 func restore_all_models_state(data: Dictionary) -> void:
 	for script_cls: Script in _models:
-		var class_name_key: String = _get_model_key(script_cls)
+		var model := _models[script_cls] as Object
+		var class_name_key: String = _get_model_key(script_cls, model)
 		if class_name_key.is_empty():
 			continue
 		if data.has(class_name_key):
-			var model: Variant = _models[script_cls]
 			if model.has_method("from_dict"):
 				model.from_dict(data[class_name_key])
 
@@ -768,6 +801,14 @@ func restore_global_snapshot(data: Dictionary, command_builder: Callable = Calla
 
 # --- 私有/内部方法 ---
 
+func _reset_project_installers() -> void:
+	var was_running := _project_installers_running
+	_project_installers_applied = false
+	_project_installers_running = false
+	if was_running:
+		project_installers_finished.emit()
+
+
 ## 获取经过时间工具缩放后的 delta。若未注册 GFTimeUtility，则返回原始 delta。
 ## @param delta: 引擎原始帧间隔时间。
 ## @return 缩放后的 delta。
@@ -792,10 +833,18 @@ func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float) 
 
 
 ## 从脚本类获取用于序列化的稳定字符串键。
-## 优先使用 class_name（全局类名），回退到资源路径，最终回退到对象标识。
+## 优先使用 Model.get_save_key()，其次使用 class_name（全局类名），最后回退到资源路径。
 ## @param script_cls: 脚本类。
+## @param model: 可选 Model 实例。
 ## @return 用于序列化字典键的字符串。
-func _get_model_key(script_cls: Script) -> String:
+func _get_model_key(script_cls: Script, model: Object = null) -> String:
+	if model != null and model.has_method("get_save_key"):
+		var raw_save_key: Variant = model.call("get_save_key")
+		if typeof(raw_save_key) == TYPE_STRING or typeof(raw_save_key) == TYPE_STRING_NAME:
+			var save_key := String(raw_save_key)
+			if not save_key.is_empty():
+				return save_key
+
 	var global_name: StringName = script_cls.get_global_name()
 	if global_name != &"":
 		return String(global_name)

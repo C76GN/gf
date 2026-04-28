@@ -7,6 +7,9 @@ extends GutTest
 const INSTALLERS_SETTING: String = "gf/project/installers"
 const TEST_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_test_installer.gd"
 const ASYNC_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_async_binding_installer.gd"
+const BLOCKING_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_blocking_binding_installer.gd"
+const BLOCKING_INSTALLER_STARTED_SETTING: String = "gf/test/blocking_installer_started"
+const BLOCKING_INSTALLER_RELEASE_SETTING: String = "gf/test/release_blocking_installer"
 const GFNodeContextBase = preload("res://addons/gf/core/gf_node_context.gd")
 const InstallerModelFixture = preload("res://tests/gf_core/fixtures/installers/installer_model_fixture.gd")
 const AsyncInstallerUtilityFixture = preload("res://tests/gf_core/fixtures/installers/async_installer_utility_fixture.gd")
@@ -249,6 +252,16 @@ class UnregisteringTickSystem extends GFSystem:
 class DummyQuery extends GFQuery:
 	func execute() -> Variant:
 		return "query_success"
+
+class FactoryNode extends Node:
+	pass
+
+class CountingFactory extends RefCounted:
+	var call_count: int = 0
+
+	func create() -> Object:
+		call_count += 1
+		return FactoryNode.new()
 
 # --- Godot 生命周期方法 ---
 
@@ -568,6 +581,47 @@ func test_project_installer_awaits_async_install_bindings_before_init() -> void:
 	assert_true(installed_utility.ready_called, "异步 install_bindings 注册的 Utility 应参与本轮生命周期。")
 
 
+## 验证并发 Gf.init() 会等待正在运行的项目 Installer，而不是跳过未完成的装配。
+func test_concurrent_gf_init_waits_for_active_project_installers() -> void:
+	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	var previous_started: Variant = ProjectSettings.get_setting(BLOCKING_INSTALLER_STARTED_SETTING, false)
+	var previous_release: Variant = ProjectSettings.get_setting(BLOCKING_INSTALLER_RELEASE_SETTING, false)
+	ProjectSettings.set_setting(INSTALLERS_SETTING, [BLOCKING_BINDING_INSTALLER_PATH])
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_STARTED_SETTING, false)
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_RELEASE_SETTING, false)
+
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var first_state := { "done": false }
+	var second_state := { "done": false }
+	_await_gf_init(first_state)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	_await_gf_init(second_state)
+	await get_tree().process_frame
+
+	assert_true(ProjectSettings.get_setting(BLOCKING_INSTALLER_STARTED_SETTING, false), "第一轮 init 应已进入阻塞 Installer。")
+	assert_false(second_state["done"], "第二个 Gf.init() 不应在 Installer 完成前提前返回。")
+
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_RELEASE_SETTING, true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var installed_utility := Gf.get_utility(AsyncInstallerUtilityFixture) as AsyncInstallerUtilityFixture
+
+	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_STARTED_SETTING, previous_started)
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_RELEASE_SETTING, previous_release)
+
+	assert_true(first_state["done"], "第一轮 Gf.init() 应正常完成。")
+	assert_true(second_state["done"], "第二个 Gf.init() 应等待同一轮 Installer 和初始化完成。")
+	assert_not_null(installed_utility, "阻塞 Installer 完成后注册的 Utility 应可获取。")
+	assert_true(installed_utility.ready_called, "阻塞 Installer 注册的 Utility 应参与本轮生命周期。")
+
+
 ## 验证 Scoped NodeContext 会创建局部架构、回退父架构并在退出树时释放局部模块。
 func test_scoped_node_context_owns_local_architecture() -> void:
 	if Gf.has_architecture():
@@ -737,6 +791,23 @@ func test_has_factory_checks_parent_without_instantiating() -> void:
 	parent_arch.dispose()
 
 
+## 验证 Singleton 工厂缓存的节点失效后会重新创建实例。
+func test_singleton_factory_recreates_freed_cached_instance() -> void:
+	var arch := GFArchitecture.new()
+	var factory := CountingFactory.new()
+	arch.register_factory(FactoryNode, Callable(factory, "create"), GFBindingLifetimes.Lifetime.SINGLETON)
+
+	var first := arch.create_instance(FactoryNode) as FactoryNode
+	first.free()
+	var second := arch.create_instance(FactoryNode) as FactoryNode
+
+	assert_eq(factory.call_count, 2, "缓存实例失效后 Singleton 工厂应重新调用 provider。")
+	assert_true(is_instance_valid(second), "重新创建的 Singleton 实例应有效。")
+
+	second.free()
+	arch.dispose()
+
+
 ## 验证模块注销会自动清理通过基类注册的事件监听。
 func test_unregister_utility_removes_owned_event_listeners() -> void:
 	var arch := GFArchitecture.new()
@@ -860,4 +931,9 @@ func test_architecture_null_inputs_are_rejected() -> void:
 
 func _await_arch_init(arch: GFArchitecture, state: Dictionary) -> void:
 	await arch.init()
+	state["done"] = true
+
+
+func _await_gf_init(state: Dictionary) -> void:
+	await Gf.init()
 	state["done"] = true

@@ -43,6 +43,13 @@ func dispose() -> void:
 	pass
 
 
+## 获取架构级存档使用的稳定键。
+## 默认返回空字符串，表示由 GFArchitecture 使用 class_name 或资源路径。
+## @return 稳定存档键；为空时使用框架默认规则。
+func get_save_key() -> StringName:
+	return &""
+
+
 ## 将此模型的状态序列化为字典，用于存档、状态快照等。
 ## 子类应重写此方法以包含所有需要持久化的字段。
 ## @return 包含模型状态数据的字典。

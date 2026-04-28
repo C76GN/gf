@@ -36,6 +36,21 @@ class SettingsModel:
 		volume = data.get("volume", 1.0)
 
 
+class StableKeyModel:
+	extends GFModel
+
+	var value: int = 7
+
+	func get_save_key() -> StringName:
+		return &"stable_runtime_model"
+
+	func to_dict() -> Dictionary:
+		return { "value": value }
+
+	func from_dict(data: Dictionary) -> void:
+		value = data.get("value", 0)
+
+
 # --- 私有/辅助方法 ---
 
 func _create_score_model_fixture() -> Variant:
@@ -119,6 +134,24 @@ func to_dict() -> Dictionary:
 
 	assert_eq(state.size(), 0, "缺少稳定标识的运行时 Model 不应进入快照。")
 	assert_push_error("[GFArchitecture] 可序列化 Model 缺少稳定标识：请为脚本声明 class_name 或提供可用的资源路径。")
+
+
+func test_architecture_prefers_model_save_key_for_serialization() -> void:
+	var arch := GFArchitecture.new()
+	var model := StableKeyModel.new()
+	model.value = 12
+
+	arch.register_model_instance(model)
+	var state := arch.get_all_models_state()
+
+	model.value = 0
+	arch.restore_all_models_state({
+		"stable_runtime_model": { "value": 42 },
+	})
+
+	assert_true(state.has("stable_runtime_model"), "Model.get_save_key() 应优先作为架构级快照键。")
+	assert_eq(state["stable_runtime_model"]["value"], 12, "快照应写入自定义存档键下。")
+	assert_eq(model.value, 42, "恢复时也应使用自定义存档键。")
 
 
 ## 验证 restore_all_models_state 恢复多个 Model 的数据。

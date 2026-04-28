@@ -37,6 +37,16 @@ class AutoCleanupDamageCapability extends DamageCapability:
 		return GF_CAPABILITY_UTILITY_BASE.DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
 
 
+class RollbackRootCapability extends GF_CAPABILITY_BASE:
+	func get_required_capabilities() -> Array[Script]:
+		return [HealthCapability, RollbackCycleCapability]
+
+
+class RollbackCycleCapability extends GF_CAPABILITY_BASE:
+	func get_required_capabilities() -> Array[Script]:
+		return [RollbackRootCapability]
+
+
 class InjectedCapability extends GF_CAPABILITY_BASE:
 	var injected_architecture: GFArchitecture = null
 
@@ -173,6 +183,17 @@ func test_auto_dependency_cleanup_keeps_explicit_dependency() -> void:
 	_utility.remove_capability(receiver, AutoCleanupDamageCapability)
 
 	assert_true(_utility.has_capability(receiver, HealthCapability), "用户显式添加的依赖能力不应被级联清理。")
+
+
+func test_dependency_creation_failure_rolls_back_auto_created_dependencies() -> void:
+	var receiver := RefCounted.new()
+
+	var capability: Object = _utility.add_capability(receiver, RollbackRootCapability)
+
+	assert_null(capability, "依赖链创建失败时主能力不应挂载。")
+	assert_false(_utility.has_capability(receiver, HealthCapability), "失败前自动补齐的依赖应被回滚。")
+	assert_false(_utility.has_capability(receiver, RollbackCycleCapability), "失败的循环依赖能力不应残留。")
+	assert_push_error("[GFCapabilityUtility] 检测到循环能力依赖：")
 
 
 func test_capability_receives_architecture_injection() -> void:
