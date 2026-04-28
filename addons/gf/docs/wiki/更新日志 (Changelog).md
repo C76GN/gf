@@ -16,6 +16,29 @@
 
 ---
 
+## [1.14.4] - 2026-04-29
+
+**版本概述**：修复能力 Inspector 在 Godot 4.6 项目中触发的编辑器插件兼容性错误，避免跨项目启用 GF 插件时出现 typed array 参数不匹配和 `PopupMenu` API 不存在的报错。
+
+### 🐛 Bug 修复 (Fixed)
+- **能力 Inspector 空菜单兼容**：移除不存在的 `PopupMenu.add_disabled_item()` 调用，改为添加普通菜单项后通过 `set_item_disabled()` 禁用，避免未发现 `GFNodeCapability` 时编辑器报错。
+- **Godot 4.6 typed array 参数兼容**：`GFNodeCapability` 排除列表显式声明为 `Array[Script]`，避免把普通 `Array` 传入 `GFEditorTypeIndex.collect_scripts_extending()` 时触发类型不匹配错误。
+
+### 🔌 API 变动说明 (API Changes)
+- 无公开运行时 API 变动；本次仅调整编辑器插件内部实现。
+
+### 📘 升级指南 (Migration Guide)
+1. 使用旧版 `addons/gf` 的项目只需替换插件目录或同步 `addons/gf/editor/gf_capability_inspector_plugin.gd`。
+2. 若 Godot 编辑器已打开，更新后建议重启编辑器或重新禁用/启用 `GF Framework` 插件以刷新 Inspector 插件实例。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/editor/gf_capability_inspector_plugin.gd`
+- `addons/gf/plugin.cfg`
+
+---
+
 ## [1.14.3] - 2026-04-28
 
 **版本概述**：补齐命令历史、随机状态快照、状态机事件代理与关卡运行时清理的边界能力，提升回放确定性和重开关卡时的队列收敛。

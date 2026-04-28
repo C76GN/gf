@@ -65,7 +65,8 @@ func _populate_add_menu(popup: PopupMenu, target: Node) -> void:
 
 	var candidates := _collect_node_capability_candidates()
 	if candidates.is_empty():
-		popup.add_disabled_item("未找到 GFNodeCapability")
+		popup.add_item("未找到 GFNodeCapability")
+		popup.set_item_disabled(0, true)
 		return
 
 	for i: int in range(candidates.size()):
@@ -80,8 +81,9 @@ func _collect_node_capability_candidates() -> Array[Dictionary]:
 	var candidates: Array[Dictionary] = []
 	var used_paths: Dictionary = {}
 	var type_index: Variant = GF_EDITOR_TYPE_INDEX_BASE.new()
+	var excluded_scripts: Array[Script] = [GF_NODE_CAPABILITY_BASE]
 
-	for record: Dictionary in type_index.collect_scripts_extending(GF_NODE_CAPABILITY_BASE, [GF_NODE_CAPABILITY_BASE]):
+	for record: Dictionary in type_index.collect_scripts_extending(GF_NODE_CAPABILITY_BASE, excluded_scripts):
 		var class_name_value := String(record["class_name"])
 		var path := String(record["path"])
 
