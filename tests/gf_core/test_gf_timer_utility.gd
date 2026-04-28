@@ -56,3 +56,48 @@ func test_execute_after_respects_pause() -> void:
 	_time_util.is_paused = false
 	_arch.tick(0.5)
 	assert_true(fired[0], "恢复后，定时器应继续推进并触发回调。")
+
+
+func test_execute_after_zero_delay_runs_immediately() -> void:
+	var fired := {"count": 0}
+
+	_timer_util.execute_after(0.0, func() -> void:
+		fired["count"] += 1
+	)
+
+	assert_eq(fired["count"], 1, "0 秒延迟应立即执行回调。")
+	assert_true(_timer_util._pending_timers.is_empty(), "立即执行不应加入待执行队列。")
+
+
+func test_execute_after_rejects_invalid_callback() -> void:
+	_timer_util.execute_after(1.0, Callable())
+
+	assert_push_error("[GFTimerUtility] execute_after 失败：传入的 callback 无效。")
+	assert_true(_timer_util._pending_timers.is_empty(), "无效回调不应加入待执行队列。")
+
+
+func test_multiple_timers_fire_in_registration_order() -> void:
+	var order := []
+
+	_timer_util.execute_after(0.2, func() -> void:
+		order.append("first")
+	)
+	_timer_util.execute_after(0.1, func() -> void:
+		order.append("second")
+	)
+
+	_arch.tick(0.2)
+
+	assert_eq(order, ["first", "second"], "同一 tick 中多个到期定时器应按注册顺序执行。")
+
+
+func test_dispose_clears_pending_timers() -> void:
+	var fired := [false]
+
+	_timer_util.execute_after(0.1, func() -> void:
+		fired[0] = true
+	)
+	_timer_util.dispose()
+	_timer_util.tick(0.2)
+
+	assert_false(fired[0], "dispose 后残留定时器不应触发。")

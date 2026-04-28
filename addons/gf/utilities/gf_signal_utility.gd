@@ -41,6 +41,8 @@ func connect_signal(
 	)
 	_connections.append(connection)
 	connection.start()
+	if not connection.is_active():
+		_connections.erase(connection)
 	return connection
 
 

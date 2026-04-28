@@ -46,6 +46,34 @@ func test_evaluate_curve_supports_level_overrides() -> void:
 	assert_eq(overridden.to_plain_string(0), "999", "特殊等级应优先命中 override 配置。")
 
 
+func test_evaluate_curve_supports_string_override_keys() -> void:
+	var curve := {
+		"base_value": 10,
+		"mode": "linear",
+		"per_level": 5,
+		"overrides": {
+			"7": 1234,
+		},
+	}
+
+	var overridden = GF_PROGRESSION_MATH.evaluate_curve(7, curve)
+
+	assert_eq(overridden.to_plain_string(0), "1234", "override 使用字符串等级键时也应能命中。")
+
+
+func test_invalid_exponential_multiplier_returns_anchor_value() -> void:
+	var curve := {
+		"base_value": 10,
+		"mode": "exponential",
+		"multiplier": 0.0,
+	}
+
+	var result = GF_PROGRESSION_MATH.evaluate_curve(5, curve)
+
+	assert_push_error("[GFProgressionMath] 指数曲线 multiplier 必须大于 0。")
+	assert_eq(result.to_plain_string(0), "10", "非法指数倍率应回退到锚点值。")
+
+
 func test_apply_milestone_multipliers_stacks_all_unlocked_thresholds() -> void:
 	var result = GF_PROGRESSION_MATH.apply_milestone_multipliers(
 		10,
@@ -112,3 +140,24 @@ func test_settle_offline_progress_respects_max_seconds_and_storage_limit() -> vo
 	assert_almost_eq(result["expired_seconds"], 3600.0, 0.000001, "超过 max_seconds 的离线时间应计入 expired_seconds。")
 	assert_almost_eq(result["wasted_seconds"], 1600.0, 0.000001, "仓储满后的剩余已结算时间应计入 wasted_seconds。")
 	assert_true(result["storage_capped"], "仓储装满后应标记 storage_capped。")
+
+
+func test_settle_offline_progress_clamps_negative_seconds_to_zero() -> void:
+	var result := GF_PROGRESSION_MATH.settle_offline_progress(10, -5.0)
+
+	assert_eq(result["produced"].to_plain_string(0), "0", "负离线时间应按 0 秒处理。")
+	assert_almost_eq(result["requested_seconds"], 0.0, 0.000001, "requested_seconds 不应保留负值。")
+	assert_almost_eq(result["settled_seconds"], 0.0, 0.000001, "settled_seconds 应为 0。")
+
+
+func test_settle_offline_progress_zero_storage_caps_immediately() -> void:
+	var result := GF_PROGRESSION_MATH.settle_offline_progress(
+		10,
+		60.0,
+		{ "storage_remaining": 0 }
+	)
+
+	assert_eq(result["produced"].to_plain_string(0), "0", "仓储为 0 时不应产生收益。")
+	assert_almost_eq(result["consumed_seconds"], 0.0, 0.000001, "仓储为 0 时消耗时间应为 0。")
+	assert_almost_eq(result["wasted_seconds"], 60.0, 0.000001, "仓储为 0 时已结算时间都应计入浪费。")
+	assert_true(result["storage_capped"], "仓储为 0 时应立即标记已封顶。")

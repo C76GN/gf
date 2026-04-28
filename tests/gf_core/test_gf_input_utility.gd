@@ -56,6 +56,17 @@ func test_buffer_refresh_takes_max() -> void:
 	assert_true(_utility.has_buffered_action(&"jump"), "刷新后应使用更长的持续时间。")
 
 
+## 验证非正数缓冲时长不会形成可消费输入。
+func test_non_positive_buffer_duration_is_not_consumable() -> void:
+	_utility.buffer_action(&"jump", 0.0)
+	_utility.buffer_action(&"dash", -1.0)
+
+	assert_false(_utility.has_buffered_action(&"jump"), "0 秒缓冲不应活跃。")
+	assert_false(_utility.consume_action(&"jump"), "0 秒缓冲不应可消费。")
+	assert_false(_utility.has_buffered_action(&"dash"), "负数缓冲不应活跃。")
+	assert_false(_utility.consume_action(&"dash"), "负数缓冲不应可消费。")
+
+
 ## 验证多个不同动作可并行缓冲。
 func test_multiple_actions_parallel() -> void:
 	_utility.buffer_action(&"jump", 0.2)
@@ -99,3 +110,15 @@ func test_clear_all() -> void:
 	_utility.clear_all()
 	assert_false(_utility.has_buffered_action(&"jump"), "clear 后缓冲应被清除。")
 	assert_false(_utility.is_coyote_active(&"ground"), "clear 后土狼时间应被清除。")
+
+
+## 验证负数 delta 不会反向延长缓冲或土狼时间。
+func test_negative_tick_does_not_extend_timers() -> void:
+	_utility.buffer_action(&"jump", 0.1)
+	_utility.start_coyote(&"ground", 0.1)
+
+	_utility.tick(-1.0)
+	_utility.tick(0.11)
+
+	assert_false(_utility.has_buffered_action(&"jump"), "负 delta 不应延长输入缓冲。")
+	assert_false(_utility.is_coyote_active(&"ground"), "负 delta 不应延长土狼时间。")

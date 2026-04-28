@@ -107,7 +107,7 @@ func bind_to(node: Node, callable: Callable) -> void:
 
 func _on_node_exited(node: Node, callable: Callable) -> void:
 	_remove_node_binding(node, callable)
-	if value_changed.is_connected(callable):
+	if not _has_node_binding_for_callable(callable) and value_changed.is_connected(callable):
 		value_changed.disconnect(callable)
 
 
@@ -130,3 +130,18 @@ func _remove_node_binding(node: Node, callable: Callable) -> void:
 	var binding_index := _find_node_binding_index(node, callable)
 	if binding_index != -1:
 		_node_bindings.remove_at(binding_index)
+
+
+func _has_node_binding_for_callable(callable: Callable) -> bool:
+	for i in range(_node_bindings.size() - 1, -1, -1):
+		var binding: Dictionary = _node_bindings[i]
+		var node_ref: WeakRef = binding.get("node_ref")
+		var tracked_node := node_ref.get_ref() as Node if node_ref != null else null
+		if not is_instance_valid(tracked_node):
+			_node_bindings.remove_at(i)
+			continue
+
+		if binding.get("callable") == callable:
+			return true
+
+	return false

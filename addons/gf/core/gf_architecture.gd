@@ -193,7 +193,7 @@ func dispose() -> void:
 
 ## 驱动所有已注册 System 与带 tick() 方法的 Utility 的每帧更新。
 ## 在架构初始化完成后方可生效。
-## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给 System。
+## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## @param delta: 距上一帧的时间（秒）。
 func tick(delta: float) -> void:
@@ -213,7 +213,7 @@ func tick(delta: float) -> void:
 
 ## 驱动所有已注册 System 与带 physics_tick() 方法的 Utility 的每物理帧更新。
 ## 在架构初始化完成后方可生效。
-## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给 System。
+## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 physics_tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## @param delta: 距上一物理帧的时间（秒）。
 func physics_tick(delta: float) -> void:

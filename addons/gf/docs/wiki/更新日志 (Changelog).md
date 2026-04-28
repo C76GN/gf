@@ -16,6 +16,65 @@
 
 ---
 
+## [1.14.2] - 2026-04-28
+
+**版本概述**：聚焦文档与当前实现对齐、运行时边界行为收紧和测试覆盖补强，修复输入计时、数据绑定与原生 Signal 工具中的细小边缘问题，并补充多组刁钻边界测试。
+
+### 🔄 机制更改 (Changed)
+- **Utility Tick 文档语义对齐**：文档与源码注释统一说明 `GFArchitecture` 会调度 `GFSystem`，以及实现了 `tick()` / `physics_tick()` 的 `GFUtility`。
+- **注册示例异步一致性**：生命周期、战斗扩展等文档中的 `register_*()` 示例补充 `await`，避免动态注册时误以为三阶段生命周期已立即完成。
+- **命令执行语义澄清**：命令文档明确 `Gf.send_command()` 会先注入当前 `GFArchitecture` 再执行，直接 `execute()` 只适合完全不依赖框架访问的命令。
+- **工具箱示例修正**：`GFTimerUtility` 示例改为“逻辑时间”表述；`GFUIUtility` 示例区分同步加载场景 `push_panel()` 与已实例化节点 `push_panel_instance()`。
+- **生命周期文档旧 API 清理**：异步加载示例改用当前 `GFAssetUtility.load_async()`；简单事件监听示例改用 `Gf.listen_simple()`。
+- **表现动作示例修正**：`GFVisualAction` 示例改为在目标节点上调用 `target_card.create_tween()`。
+
+### 🐛 Bug 修复 (Fixed)
+- **输入工具负 delta 防护**：`GFInputUtility.tick()` 忽略小于等于 0 的 delta，避免输入缓冲和土狼时间被负 delta 反向延长。
+- **BindableProperty 多节点同回调绑定**：同一个 callable 绑定到多个 Node 时，任一节点退出不会提前断开其它节点仍在使用的 `value_changed` 连接。
+- **Signal 无效连接追踪**：`GFSignalUtility.connect_signal()` 在底层连接启动失败后会从追踪表移除该连接，避免无效连接残留到 owner 清理流程中。
+- **测试脚本警告清理**：修正 `test_gf_signal_utility.gd` 中未使用局部变量导致的 `UNUSED_VARIABLE` 警告。
+
+### ✅ 测试补强 (Tests)
+- **数据绑定边界**：覆盖同一 callable 绑定多个节点并随节点退出逐步解绑的行为。
+- **Signal 工具边界**：覆盖无效 callback 不进入追踪表，以及断开连接后 pending delayed callback 不再触发。
+- **输入与计时边界**：覆盖非正数缓冲时长、负 delta、0 秒定时器立即执行、无效定时器 callback、同帧多定时器执行顺序和 `dispose()` 清理。
+- **工厂生命周期边界**：覆盖 singleton 工厂错误类型不缓存、释放缓存重建，以及父级 singleton 工厂保持所属架构注入。
+- **Foundation 边界**：补充大数解析/除零/负数非整数幂、网格非法输入与阻塞寻路、紧凑格式化进位、负数小数分组、进度曲线 string override、非法指数倍率、负离线时长与零仓储上限等测试。
+
+### 🔌 API 变动说明 (API Changes)
+- 无公开 API 签名变更。
+- `GFInputUtility.tick(delta)` 对 `delta <= 0.0` 的行为收紧为不推进计时器。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需迁移公开接口；如果有测试或调试脚本依赖负 delta 延长输入窗口，需要改为显式刷新缓冲/土狼时间。
+2. 文档示例中的注册流程请按 `await register_*()` 书写，尤其是在架构已初始化后的动态注册场景。
+3. 直接调用 `Command.execute()` 前请确认命令不依赖框架注入；需要访问 Model/System/Utility 时继续使用 `Gf.send_command()` 或架构工厂创建实例。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/bindable_property.gd`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/docs/wiki/01. 架构概览 (Architecture).md`
+- `addons/gf/docs/wiki/02. 生命周期与初始化 (Lifecycle).md`
+- `addons/gf/docs/wiki/03. 更新机制 (Update Loop).md`
+- `addons/gf/docs/wiki/06. 命令与查询 (Commands & Queries).md`
+- `addons/gf/docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/10. 战斗扩展 (Combat Extension).md`
+- `addons/gf/utilities/gf_input_utility.gd`
+- `addons/gf/utilities/gf_signal_utility.gd`
+- `tests/gf_core/test_bindable_property.gd`
+- `tests/gf_core/test_gf_big_number.gd`
+- `tests/gf_core/test_gf_grid_math.gd`
+- `tests/gf_core/test_gf_input_utility.gd`
+- `tests/gf_core/test_gf_number_formatter.gd`
+- `tests/gf_core/test_gf_progression_math.gd`
+- `tests/gf_core/test_gf_signal_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_timer_utility.gd`
+
+---
+
 ## [1.14.1] - 2026-04-28
 
 **版本概述**：聚焦框架边界正确性、异步初始化一致性和高频路径性能，修复定点数长精度解析、项目 Installer 并发、能力依赖失败回滚、状态机重入和 Signal 空参数等边缘问题。

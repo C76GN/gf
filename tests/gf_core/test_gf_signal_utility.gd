@@ -10,7 +10,7 @@ const GFSignalUtilityBase = preload("res://addons/gf/utilities/gf_signal_utility
 # --- 辅助子类 ---
 
 class TestEmitter:
-	extends Object
+	extends RefCounted
 
 	signal changed(value: int)
 	signal optional_payload(value: Variant)
@@ -144,3 +144,30 @@ func test_disconnect_owner_removes_owned_connections() -> void:
 
 	assert_true(count.is_empty(), "owner 清理后回调不应再触发。")
 	assert_eq(_utility.get_connection_count(), 0, "owner 清理后连接计数应归零。")
+
+
+func test_invalid_callback_is_not_tracked_as_connection() -> void:
+	var emitter := TestEmitter.new()
+
+	_utility.connect_signal(emitter.changed, Callable())
+
+	assert_push_error("[GFSignalConnection] start 失败：callback 无效。")
+	assert_eq(_utility.get_connection_count(), 0, "启动失败的连接不应残留在工具追踪列表中。")
+
+
+func test_disconnect_signal_cancels_pending_delayed_callback() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+	var callback := func(value: int) -> void:
+		received.append(value)
+
+	var _connection: GFSignalConnection = _utility.connect_signal(emitter.changed, callback).delay(0.03)
+	emitter.emit_changed(9)
+	_utility.disconnect_signal(emitter.changed, callback)
+
+	await get_tree().create_timer(0.06).timeout
+	await get_tree().process_frame
+	_connection = null
+
+	assert_true(received.is_empty(), "延迟等待中的连接被断开后不应继续调用回调。")
+	assert_eq(_utility.get_connection_count(), 0, "断开延迟连接后追踪计数应归零。")

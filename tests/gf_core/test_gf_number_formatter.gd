@@ -19,6 +19,12 @@ func test_format_compact_can_keep_fractional_precision() -> void:
 	assert_eq(text, "12.345k", "12345 在 3 位小数紧凑模式下应得到 12.345k。")
 
 
+func test_format_compact_carries_when_rounding_reaches_next_suffix() -> void:
+	var text = GF_NUMBER_FORMATTER.format_compact(999_950, 1)
+
+	assert_eq(text, "1M", "紧凑格式四舍五入到 1000k 时应进位到下一个后缀。")
+
+
 func test_format_scientific_supports_multiple_styles() -> void:
 	var scientific = GF_NUMBER_FORMATTER.format_scientific(1_000_000, 0)
 	var power_text = GF_NUMBER_FORMATTER.format_scientific(
@@ -45,6 +51,12 @@ func test_format_full_respects_truncation_for_fixed_decimal() -> void:
 	var text = GF_NUMBER_FORMATTER.format_full(value, 2, false, false, true)
 
 	assert_eq(text, "1.23", "FULL 模式格式化定点小数时应遵守 use_truncation。")
+
+
+func test_format_full_groups_negative_decimal_integer_part_only() -> void:
+	var text = GF_NUMBER_FORMATTER.format_full(-1234567.5, 1, true, true)
+
+	assert_eq(text, "-1,234,567.5", "千分位分组应保留负号，并且只作用于整数部分。")
 
 
 func test_format_auto_falls_back_to_scientific_for_huge_values() -> void:

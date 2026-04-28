@@ -19,6 +19,12 @@ func test_from_string_rejects_malformed_decimal_text() -> void:
 	assert_true(value.is_zero(), "非法字符串应被收敛为零值。")
 
 
+func test_from_string_accepts_sign_grouping_and_scientific_offset() -> void:
+	var value = GF_BIG_NUMBER.from_string(" +001,234.500e-2 ")
+
+	assert_almost_eq(value.to_float(), 12.345, 0.000001, "解析时应忽略空白、逗号并正确叠加科学计数法指数。")
+
+
 func test_add_combines_similar_exponents() -> void:
 	var left = GF_BIG_NUMBER.from_string("1.5e6")
 	var right = GF_BIG_NUMBER.from_string("2.25e6")
@@ -68,6 +74,20 @@ func test_powf_supports_fractional_exponents() -> void:
 	var value = GF_BIG_NUMBER.from_int(50).powf(0.5)
 
 	assert_almost_eq(value.to_float(), 7.0710678, 0.000001, "50 的平方根应约为 7.0710678。")
+
+
+func test_divide_by_zero_returns_zero_and_reports_error() -> void:
+	var value = GF_BIG_NUMBER.from_int(10).divide(GF_BIG_NUMBER.zero())
+
+	assert_push_error("[GFBigNumber] 尝试除以空值或零值。")
+	assert_true(value.is_zero(), "大数除零应返回零值而不是产生非法尾数。")
+
+
+func test_negative_value_rejects_fractional_power() -> void:
+	var value = GF_BIG_NUMBER.from_int(-4).powf(0.5)
+
+	assert_push_error("[GFBigNumber] 负数不能执行非整数次幂。")
+	assert_true(value.is_zero(), "负数开非整数次幂应安全返回零值。")
 
 
 func test_scientific_string_carries_when_rounded_mantissa_overflows() -> void:

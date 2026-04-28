@@ -256,11 +256,23 @@ class DummyQuery extends GFQuery:
 class FactoryNode extends Node:
 	pass
 
+class WrongFactoryNode extends RefCounted:
+	pass
+
 class CountingFactory extends RefCounted:
 	var call_count: int = 0
 
 	func create() -> Object:
 		call_count += 1
+		return FactoryNode.new()
+
+class RecoveringFactory extends RefCounted:
+	var call_count: int = 0
+
+	func create() -> Object:
+		call_count += 1
+		if call_count == 1:
+			return WrongFactoryNode.new()
 		return FactoryNode.new()
 
 # --- Godot 生命周期方法 ---
@@ -806,6 +818,46 @@ func test_singleton_factory_recreates_freed_cached_instance() -> void:
 
 	second.free()
 	arch.dispose()
+
+
+## 验证 Singleton 工厂失败返回不会被缓存，后续有效返回仍可恢复。
+func test_singleton_factory_does_not_cache_wrong_type_failure() -> void:
+	var arch := GFArchitecture.new()
+	var factory := RecoveringFactory.new()
+	arch.register_factory(FactoryNode, Callable(factory, "create"), GFBindingLifetimes.Lifetime.SINGLETON)
+
+	var first := arch.create_instance(FactoryNode)
+	var second := arch.create_instance(FactoryNode) as FactoryNode
+
+	assert_null(first, "工厂返回错误类型时应解析失败。")
+	assert_push_error("[GFBinding] 绑定来源返回的实例脚本必须继承或等于绑定键。")
+	assert_eq(factory.call_count, 2, "失败结果不应写入 Singleton 缓存，下一次应重新调用 provider。")
+	assert_not_null(second, "后续 provider 返回正确类型后应能成功解析。")
+
+	second.free()
+	arch.dispose()
+
+
+## 验证父级 Singleton 工厂被子架构解析时，实例归属和注入仍属于父架构。
+func test_parent_singleton_factory_keeps_owner_architecture_injection() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+	parent_arch.register_factory(
+		InjectedFactoryCommand,
+		func() -> Object:
+			return InjectedFactoryCommand.new(),
+		GFBindingLifetimes.Lifetime.SINGLETON
+	)
+
+	var first := child_arch.create_instance(InjectedFactoryCommand) as InjectedFactoryCommand
+	var second := child_arch.create_instance(InjectedFactoryCommand) as InjectedFactoryCommand
+
+	assert_not_null(first, "子架构应能解析父级 Singleton 工厂。")
+	assert_eq(first, second, "父级 Singleton 工厂应缓存同一实例。")
+	assert_eq(first.injected_architecture, parent_arch, "父级 Singleton 工厂结果应注入拥有该绑定的父架构。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
 
 
 ## 验证模块注销会自动清理通过基类注册的事件监听。

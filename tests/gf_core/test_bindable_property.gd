@@ -138,3 +138,31 @@ func test_bind_to_auto_unbinds_on_tree_exited() -> void:
 	assert_eq(state.count, 1, "节点退出树后，不应再触发回调（已自动解绑）。")
 	
 	node.free()
+
+
+## 验证同一 Callable 绑定到多个节点时，一个节点退出不会误断开仍存活的绑定。
+func test_bind_to_same_callable_survives_until_last_bound_node_exits() -> void:
+	var state := {"count": 0}
+	var first_node := Node.new()
+	var second_node := Node.new()
+	var callback := func(_o: Variant, _n: Variant) -> void:
+		state.count += 1
+	add_child_autofree(first_node)
+	add_child_autofree(second_node)
+
+	_prop.bind_to(first_node, callback)
+	_prop.bind_to(second_node, callback)
+	_prop.set_value(1)
+
+	remove_child(first_node)
+	first_node.tree_exited.emit()
+	_prop.set_value(2)
+
+	remove_child(second_node)
+	second_node.tree_exited.emit()
+	_prop.set_value(3)
+
+	assert_eq(state.count, 2, "同一回调仍有存活节点绑定时应保持连接，最后一个节点退出后才断开。")
+
+	first_node.free()
+	second_node.free()

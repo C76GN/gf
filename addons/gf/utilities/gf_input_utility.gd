@@ -113,6 +113,9 @@ func clear_all() -> void:
 ## @param dict: 计时器字典。
 ## @param delta: 递减量（秒）。
 func _tick_dict(dict: Dictionary, delta: float) -> void:
+	if dict.is_empty() or delta <= 0.0:
+		return
+
 	var expired: Array[StringName] = []
 
 	for key: StringName in dict:

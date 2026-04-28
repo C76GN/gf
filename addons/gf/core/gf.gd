@@ -80,13 +80,13 @@ func init() -> void:
 
 # --- Godot 生命周期方法 ---
 
-## 每帧驱动架构的 tick 循环，传递给所有已注册的 System。
+## 每帧驱动架构的 tick 循环，由架构分发给 System 与实现 tick() 的 Utility。
 func _process(delta: float) -> void:
 	if _architecture != null:
 		_architecture.tick(delta)
 
 
-## 每物理帧驱动架构的 physics_tick 循环，传递给所有已注册的 System。
+## 每物理帧驱动架构的 physics_tick 循环，由架构分发给 System 与实现 physics_tick() 的 Utility。
 func _physics_process(delta: float) -> void:
 	if _architecture != null:
 		_architecture.physics_tick(delta)
