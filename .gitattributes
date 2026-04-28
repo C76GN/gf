@@ -1,2 +1,10 @@
 # Normalize EOL for all files that Git considers text files.
 * text=auto eol=lf
+
+# Keep GitHub archive downloads focused on the installable Asset Library payload.
+/** export-ignore
+/addons !export-ignore
+/addons/gf !export-ignore
+/addons/gf/** !export-ignore
+/LICENSE.md !export-ignore
+/README.md !export-ignore

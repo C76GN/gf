@@ -1,5 +1,57 @@
 # GF Framework
 
+GF Framework is a lightweight game architecture framework for Godot 4. It keeps data, logic, presentation, runtime services, and pure algorithm utilities in clear layers so larger projects can keep predictable lifecycles and dependency boundaries.
+
+## English Overview
+
+- `Foundation`: pure value objects, algorithms, formatting helpers, big numbers, fixed decimals, progression curves, and offline reward calculations.
+- `GFModel`: data layer for game state, snapshots, and save/restore methods through `to_dict()` / `from_dict()`.
+- `GFSystem`: logic layer for rules, events, commands, queries, and frame-based updates.
+- `GFController`: presentation layer based on `Node`, connecting Godot scenes, UI, input, and framework data.
+- `GFUtility`: runtime services such as storage, resource loading, time, object pools, UI stack handling, audio, and logging.
+
+## Installation
+
+Copy `addons/gf` into your Godot project, then enable `GF Framework` from `Project > Project Settings > Plugins`.
+
+When the plugin is enabled, it registers the `Gf` AutoLoad automatically:
+
+```text
+Gf -> res://addons/gf/core/gf.gd
+```
+
+## Quick Start
+
+```gdscript
+extends Node
+
+
+func _ready() -> void:
+	Gf.register_model(PlayerModel.new())
+	Gf.register_utility(GFStorageUtility.new())
+	Gf.register_system(BattleSystem.new())
+
+	await Gf.init()
+
+	var player_model := Gf.get_model(PlayerModel) as PlayerModel
+	var battle_system := Gf.get_system(BattleSystem) as BattleSystem
+	battle_system.start_encounter(player_model)
+```
+
+## Included Modules
+
+GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties, commands and queries, state machines, action queues, object pooling, scene switching, storage helpers, audio helpers, capability components, interaction flows, lightweight combat helpers, and editor tools for typed accessor generation.
+
+## Testing
+
+The test suite uses GUT:
+
+```powershell
+godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_core -ginclude_subdirs -gexit
+```
+
+## 中文说明
+
 GF Framework 是一个面向 Godot 4 的轻量级游戏架构框架，核心目标是把数据、逻辑、表现、运行时服务和纯算法基础件拆开管理，让项目在规模变大后仍然保持清晰的生命周期和依赖边界。
 
 ## 核心分层
