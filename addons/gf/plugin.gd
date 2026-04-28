@@ -5,6 +5,21 @@ extends EditorPlugin
 ## GF Framework 编辑器插件。
 ## 在启用/禁用插件时自动注册/注销 Gf AutoLoad 单例，并提供代码生成工具。
 
+# --- 枚举 ---
+
+enum GFMenuId {
+	GENERATE_SYSTEM,
+	GENERATE_MODEL,
+	GENERATE_UTILITY,
+	GENERATE_COMMAND,
+	GENERATE_CAPABILITY,
+	GENERATE_NODE_CAPABILITY,
+	GENERATE_NODE_STATE,
+	GENERATE_NODE_STATE_MACHINE,
+	GENERATE_ACCESSORS,
+}
+
+
 # --- 常量 ---
 
 const AUTOLOAD_NAME: String = "Gf"
@@ -22,6 +37,7 @@ const GF_CAPABILITY_INSPECTOR_PLUGIN_BASE = preload("res://addons/gf/editor/gf_c
 var _file_dialog: FileDialog
 var _current_template_type: String = ""
 var _capability_inspector_plugin: EditorInspectorPlugin
+var _gf_menu: PopupMenu
 
 
 # --- Godot 生命周期方法 ---
@@ -93,13 +109,10 @@ func _ensure_codegen_settings() -> void:
 
 
 func _setup_generator_tools() -> void:
-	add_tool_menu_item("GF/生成 System", _show_dialog.bind("System"))
-	add_tool_menu_item("GF/生成 Model", _show_dialog.bind("Model"))
-	add_tool_menu_item("GF/生成 Utility", _show_dialog.bind("Utility"))
-	add_tool_menu_item("GF/生成 Command", _show_dialog.bind("Command"))
-	add_tool_menu_item("GF/生成 Capability", _show_dialog.bind("Capability"))
-	add_tool_menu_item("GF/生成 NodeCapability", _show_dialog.bind("NodeCapability"))
-	add_tool_menu_item("GF/生成强类型访问器", _generate_accessors)
+	_gf_menu = PopupMenu.new()
+	_gf_menu.id_pressed.connect(_on_gf_menu_id_pressed)
+	_populate_gf_menu()
+	add_tool_submenu_item("GF", _gf_menu)
 	
 	_file_dialog = FileDialog.new()
 	_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
@@ -123,13 +136,10 @@ func _cleanup_inspector_tools() -> void:
 
 
 func _cleanup_generator_tools() -> void:
-	remove_tool_menu_item("GF/生成 System")
-	remove_tool_menu_item("GF/生成 Model")
-	remove_tool_menu_item("GF/生成 Utility")
-	remove_tool_menu_item("GF/生成 Command")
-	remove_tool_menu_item("GF/生成 Capability")
-	remove_tool_menu_item("GF/生成 NodeCapability")
-	remove_tool_menu_item("GF/生成强类型访问器")
+	remove_tool_menu_item("GF")
+	if is_instance_valid(_gf_menu):
+		_gf_menu.queue_free()
+	_gf_menu = null
 	
 	if is_instance_valid(_file_dialog):
 		_file_dialog.queue_free()
@@ -149,7 +159,7 @@ func _on_file_selected(path: String) -> void:
 	var template := _get_template(_current_template_type)
 	template = template.replace("{ClassName}", class_name_str)
 	template = template.replace("{FileName}", file_name + ".gd")
-	template = template.replace("{BaseClass}", "GF" + _current_template_type)
+	template = template.replace("{BaseClass}", _get_base_class(_current_template_type))
 	
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file:
@@ -169,6 +179,45 @@ func _generate_accessors() -> void:
 		print("[GF Framework] 成功生成强类型访问器: ", output_path)
 	else:
 		push_error("[GF Framework] 强类型访问器生成失败: %s" % error_string(error))
+
+
+func _populate_gf_menu() -> void:
+	_gf_menu.add_separator("核心模块")
+	_gf_menu.add_item("生成 System", GFMenuId.GENERATE_SYSTEM)
+	_gf_menu.add_item("生成 Model", GFMenuId.GENERATE_MODEL)
+	_gf_menu.add_item("生成 Utility", GFMenuId.GENERATE_UTILITY)
+	_gf_menu.add_item("生成 Command", GFMenuId.GENERATE_COMMAND)
+
+	_gf_menu.add_separator("扩展模板")
+	_gf_menu.add_item("生成 Capability", GFMenuId.GENERATE_CAPABILITY)
+	_gf_menu.add_item("生成 NodeCapability", GFMenuId.GENERATE_NODE_CAPABILITY)
+	_gf_menu.add_item("生成 NodeState", GFMenuId.GENERATE_NODE_STATE)
+	_gf_menu.add_item("生成 NodeStateMachine", GFMenuId.GENERATE_NODE_STATE_MACHINE)
+
+	_gf_menu.add_separator("代码生成")
+	_gf_menu.add_item("生成强类型访问器", GFMenuId.GENERATE_ACCESSORS)
+
+
+func _on_gf_menu_id_pressed(id: int) -> void:
+	match id:
+		GFMenuId.GENERATE_SYSTEM:
+			_show_dialog("System")
+		GFMenuId.GENERATE_MODEL:
+			_show_dialog("Model")
+		GFMenuId.GENERATE_UTILITY:
+			_show_dialog("Utility")
+		GFMenuId.GENERATE_COMMAND:
+			_show_dialog("Command")
+		GFMenuId.GENERATE_CAPABILITY:
+			_show_dialog("Capability")
+		GFMenuId.GENERATE_NODE_CAPABILITY:
+			_show_dialog("NodeCapability")
+		GFMenuId.GENERATE_NODE_STATE:
+			_show_dialog("NodeState")
+		GFMenuId.GENERATE_NODE_STATE_MACHINE:
+			_show_dialog("NodeStateMachine")
+		GFMenuId.GENERATE_ACCESSORS:
+			_generate_accessors()
 
 
 func _get_template(type: String) -> String:
@@ -290,7 +339,72 @@ func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
 # --- 信号处理函数 ---
 
 """
+	elif type == "NodeState":
+		return base_template + """# --- 公共变量 ---
+
+
+# --- 私有变量 ---
+
+
+# --- @onready 变量 (节点引用) ---
+
+
+# --- 公共方法 ---
+
+func _initialize() -> void:
+	pass
+
+
+func _enter(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
+	pass
+
+
+func _exit(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
+	pass
+
+
+# --- 私有辅助方法 ---
+
+
+# --- 信号处理函数 ---
+
+"""
+	elif type == "NodeStateMachine":
+		return base_template + """# --- 公共变量 ---
+
+
+# --- 私有变量 ---
+
+
+# --- @onready 变量 (节点引用) ---
+
+
+# --- Godot 生命周期方法 ---
+
+func _ready() -> void:
+	super._ready()
+
+
+# --- 公共方法 ---
+
+
+# --- 私有辅助方法 ---
+
+
+# --- 信号处理函数 ---
+
+"""
 	elif type == "System":
 		return base_template + methods_template + lifecycle_template + tick_template
 	else:
 		return base_template + methods_template + lifecycle_template
+
+
+func _get_base_class(type: String) -> String:
+	match type:
+		"NodeState":
+			return "GFNodeState"
+		"NodeStateMachine":
+			return "GFNodeStateMachine"
+		_:
+			return "GF" + type

@@ -155,13 +155,16 @@ Gf.send_command(command)
 - `TypeEventSystem`：强类型事件与轻量 `StringName` 事件。
 - `BindableProperty`：响应式属性，适合 Model 到 UI 的数据绑定。
 - `GFAssetUtility`：异步资源加载与 LRU 缓存。
+- `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、filter/map/delay/debounce/once 链式处理。
 - `GFSceneUtility`：异步场景切换与瞬态模块清理。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFObjectPoolUtility`：节点对象池。
 - `GFAudioUtility`：BGM/SFX 播放、音量总线、SFX 对象池与并发上限控制。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFActionQueueSystem`：表现动作队列。
+- `GFActionQueueSystem` 命名队列：可为战斗、对白、教程等不同表现流创建独立队列，并支持绑定节点生命周期。
 - `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
+- `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState`：面向场景树的可选状态机扩展，适合需要节点引用、动画、输入或碰撞的状态逻辑。
 - `GFCombatSystem`：轻量战斗扩展。
 - `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载、启停、索引查询可复用能力。
 - `GFCapabilityContainer`：场景树能力容器，支持把子节点注册为父节点能力。
@@ -169,7 +172,7 @@ Gf.send_command(command)
 - `GFPropertyBagCapability`：轻量动态属性包能力，适合原型、调试和少量运行时键值。
 - `GFInteractionContext`：轻量交互上下文，便于在命令、事件或能力方法之间传递 sender、target 与 payload。
 - `GFInteractions`：交互上下文与链式交互流程创建入口。
-- `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `GF/生成强类型访问器` 菜单生成 `GFAccess`。
+- `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `工具 > GF > 生成强类型访问器` 菜单生成 `GFAccess`。
 
 ## 测试
 

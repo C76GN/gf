@@ -16,6 +16,65 @@
 
 ---
 
+## [1.14.0] - 2026-04-28
+
+**版本概述**：补强原生 Signal 连接、表现动作队列分流和场景树状态机能力，让 GF 在 UI、动画、角色控制器和临时表现流场景中具备更完整的框架级支持。
+
+### 🚀 新增特性 (Added)
+- **原生 Signal 工具**：新增 `GFSignalUtility` 与 `GFSignalConnection`，支持 owner 归属清理、安全断开、默认参数、`filter()` / `map()` / `delay()` / `debounce()` / `once()` 链式处理。
+- **命名动作队列**：`GFActionQueueSystem` 新增命名队列 API，可为战斗、对白、教程、临时 UI 等表现流创建互不阻塞的独立队列。
+- **节点绑定队列**：命名队列可绑定到节点生命周期，绑定节点释放后会取消当前动作并清空队列。
+- **跳过当前动作**：`GFActionQueueSystem.skip_current_action()` 可取消当前动作并继续消费后续队列。
+- **场景树状态机**：新增 `GFNodeStateMachine`、`GFNodeStateGroup` 与 `GFNodeState`，适合依赖动画、输入、碰撞或子节点引用的状态逻辑。
+- **节点状态模板**：编辑器菜单新增 `工具 > GF > 生成 NodeState` 与 `工具 > GF > 生成 NodeStateMachine`。
+
+### 🔄 机制更改 (Changed)
+- **表现队列分流**：默认队列保持兼容；命名队列作为可选分流能力，不改变已有 `enqueue()` / `push_front()` 行为。
+- **状态机职责分层**：纯代码 `GFStateMachine` 保持轻量逻辑状态职责；节点式状态机作为可选扩展承载场景树状态。
+- **节点状态自动重载**：节点式状态机与状态组会监听子节点加入，在 `ready` 后动态补充状态时自动重新加载。
+- **编辑器菜单收束**：GF 模板和代码生成入口集中到单个 `工具 > GF` 子菜单，减少对 Godot 工具菜单公共空间的占用。
+
+### 🐛 Bug 修复 (Fixed)
+- **节点状态机内部组生命周期**：内部状态组改为状态机的内部子节点，并在重新加载与退出树时显式清理，避免测试和运行期出现 orphan 节点。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFSignalUtility`。
+- 新增 `GFSignalConnection`。
+- 新增 `GFActionQueueSystem.get_named_queue(queue_name: StringName) -> GFActionQueueSystem`。
+- 新增 `GFActionQueueSystem.get_linked_queue(queue_name: StringName, linked_node: Node) -> GFActionQueueSystem`。
+- 新增 `GFActionQueueSystem.bind_to_node(linked_node: Node) -> void`。
+- 新增 `GFActionQueueSystem.enqueue_to()` / `enqueue_fire_and_forget_to()` / `enqueue_parallel_to()`。
+- 新增 `GFActionQueueSystem.push_front_to()`。
+- 新增 `GFActionQueueSystem.clear_named_queue()` / `clear_all_named_queues()`。
+- 新增 `GFActionQueueSystem.skip_current_action() -> void`。
+- 新增 `GFNodeStateMachine`。
+- 新增 `GFNodeStateGroup`。
+- 新增 `GFNodeState`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧动作队列调用无需迁移；需要多条表现流互不阻塞时，再改用命名队列 API。
+2. 业务事件仍推荐使用 `TypeEventSystem`；Godot 节点信号、UI 信号和动画完成信号推荐使用 `GFSignalUtility`。
+3. 纯逻辑状态继续使用 `GFStateMachine`；依赖场景树节点引用的状态可改用 `GFNodeStateMachine`。
+4. 使用编辑器模板生成新节点状态后，只需继承 `_initialize()`、`_enter()`、`_exit()` 等 Hook 编写业务逻辑。
+
+### 📁 核心受影响文件 (Affected Files)
+- `README.md`
+- `addons/gf/extensions/action_queue/gf_action_queue_system.gd`
+- `addons/gf/extensions/state_machine/gf_node_state.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_group.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_machine.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/utilities/gf_signal_connection.gd`
+- `addons/gf/utilities/gf_signal_utility.gd`
+- `addons/gf/docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `tests/gf_core/test_gf_action_queue.gd`
+- `tests/gf_core/test_gf_node_state_machine.gd`
+- `tests/gf_core/test_gf_signal_utility.gd`
+
+---
+
 ## [1.13.0] - 2026-04-27
 
 **版本概述**：强化能力组件的运行时正确性、编辑器体验与强类型访问，同时补充轻量交互流程、动态属性包、递归注入和日志过滤能力。
