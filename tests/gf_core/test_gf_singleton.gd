@@ -695,6 +695,26 @@ func test_controller_waits_for_context_ready() -> void:
 	await get_tree().process_frame
 
 
+func test_controller_proxy_methods_without_architecture_return_null_silently() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+	var controller := ScopedController.new()
+	add_child(controller)
+
+	assert_null(controller.get_model(DummyModel), "无可用架构时 Controller.get_model 应返回 null。")
+	assert_null(controller.get_system(DummySystem), "无可用架构时 Controller.get_system 应返回 null。")
+	assert_null(controller.get_utility(DummyUtility), "无可用架构时 Controller.get_utility 应返回 null。")
+	assert_null(controller.send_command(GFCommand.new()), "无可用架构时 Controller.send_command 应返回 null。")
+	assert_null(controller.send_query(GFQuery.new()), "无可用架构时 Controller.send_query 应返回 null。")
+	controller.send_event(GFPayload.new())
+	controller.send_simple_event(&"missing_architecture", 1)
+
+	assert_push_error_count(0, "Controller 便捷代理在缺少架构时不应触发全局架构错误。")
+	controller.queue_free()
+	await get_tree().process_frame
+
+
 ## 验证 Inherited NodeContext 也能等待父架构完成异步初始化。
 func test_inherited_context_waits_for_parent_architecture_init() -> void:
 	if Gf.has_architecture():

@@ -89,6 +89,23 @@ class InjectedHistoryCommand:
 		injected_architecture = architecture
 
 
+class ConditionalRecordCommand:
+	extends GFUndoableCommand
+
+	var should_store: bool = true
+	var execute_count: int = 0
+
+	func _init(p_should_store: bool) -> void:
+		should_store = p_should_store
+
+	func execute() -> Variant:
+		execute_count += 1
+		return execute_count
+
+	func should_record(_execute_result: Variant) -> bool:
+		return should_store
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -149,6 +166,16 @@ func test_execute_command_injects_history_architecture() -> void:
 
 	assert_eq(cmd.injected_architecture, arch, "History 执行命令时应注入自身所属架构。")
 	arch.dispose()
+
+
+func test_execute_command_can_skip_history_recording() -> void:
+	var cmd := ConditionalRecordCommand.new(false)
+
+	var result: Variant = await _history.execute_command(cmd)
+
+	assert_eq(result, 1, "execute_command 应返回命令原始结果。")
+	assert_eq(cmd.execute_count, 1, "跳过记录不应跳过命令执行。")
+	assert_eq(_history.undo_count, 0, "should_record 返回 false 时不应写入撤销栈。")
 
 
 # --- 测试：undo_last ---

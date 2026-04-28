@@ -74,6 +74,23 @@ func get_utility(utility_type: Script) -> Object:
 	return machine.get_utility(utility_type)
 
 
+## 发送类型事件（委托给所属状态机）。
+## @param event_instance: 要分发的事件实例。
+func send_event(event_instance: Object) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.send_event(event_instance)
+
+
+## 发送轻量级 StringName 事件（委托给所属状态机）。
+## @param event_id: StringName 事件标识符。
+## @param payload: 可选的事件附加数据。
+func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.send_simple_event(event_id, payload)
+
+
 ## 请求状态机切换到指定状态。
 ## @param state_name: 目标状态的注册名。
 ## @param msg: 传递给目标状态 enter() 的可选参数字典。

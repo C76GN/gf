@@ -22,6 +22,18 @@ class TestCommand extends GFUndoableCommand:
 		return null
 
 
+class WaitingAction extends GFVisualAction:
+	signal completed
+
+	var cancelled: bool = false
+
+	func execute() -> Variant:
+		return completed
+
+	func cancel() -> void:
+		cancelled = true
+
+
 # --- 私有变量 ---
 
 var _arch: GFArchitecture
@@ -93,6 +105,33 @@ func test_restart_level_clears_runtime_and_emits_signal() -> void:
 	assert_eq(_history.undo_count, 0, "重开关卡应清理命令历史。")
 	assert_signal_emitted(_level, "level_restarted", "重开关卡时应发出 level_restarted。")
 	assert_signal_not_emitted(_level, "level_started", "重开关卡不应重复发出 level_started。")
+
+
+func test_restart_level_stops_current_action_queue_wait() -> void:
+	var action := WaitingAction.new()
+	_actions.enqueue(action)
+	_level.start_level(1)
+	await get_tree().process_frame
+
+	_level.restart_level()
+	await get_tree().process_frame
+
+	assert_true(action.cancelled, "重开关卡清理运行时时应取消当前等待中的表现动作。")
+	assert_false(_actions.is_processing, "重开关卡后动作队列不应继续卡在等待状态。")
+
+
+func test_restart_level_clears_named_action_queues() -> void:
+	var action := WaitingAction.new()
+	var named_queue := _actions.get_named_queue(&"cutscene")
+	named_queue.enqueue(action)
+	_level.start_level(1)
+	await get_tree().process_frame
+
+	_level.restart_level()
+	await get_tree().process_frame
+
+	assert_true(action.cancelled, "重开关卡清理运行时时应取消命名队列中的当前动作。")
+	assert_false(named_queue.is_processing, "重开关卡后命名队列不应继续等待。")
 
 
 func test_restart_level_reloads_clean_config_data() -> void:

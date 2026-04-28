@@ -195,6 +195,23 @@ func get_utility(utility_type: Script) -> Object:
 	return architecture.get_utility(utility_type)
 
 
+## 代理发送类型事件。
+## @param event_instance: 要分发的事件实例。
+func send_event(event_instance: Object) -> void:
+	var architecture := _get_available_architecture("Event")
+	if architecture != null:
+		architecture.send_event(event_instance)
+
+
+## 代理发送轻量级 StringName 事件。
+## @param event_id: StringName 事件标识符。
+## @param payload: 可选的事件附加数据。
+func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
+	var architecture := _get_available_architecture("Event")
+	if architecture != null:
+		architecture.send_simple_event(event_id, payload)
+
+
 # --- 私有/辅助方法 ---
 
 func _get_context() -> Object:

@@ -16,6 +16,56 @@
 
 ---
 
+## [1.14.3] - 2026-04-28
+
+**版本概述**：补齐命令历史、随机状态快照、状态机事件代理与关卡运行时清理的边界能力，提升回放确定性和重开关卡时的队列收敛。
+
+### 🚀 新增特性 (Added)
+- **撤销命令条件记录**：`GFUndoableCommand` 新增 `should_record(execute_result)`，允许命令执行后根据结果决定是否写入撤销历史。
+- **随机完整状态快照**：`GFSeedUtility` 新增 `get_full_state()` / `set_full_state()`，可同时保存主种子、主 RNG 状态与分支计数。
+- **状态机事件代理**：`GFStateMachine` 与 `GFState` 新增 `send_event()` / `send_simple_event()`，状态逻辑可直接通过所属架构派发事件。
+
+### 🔄 机制更改 (Changed)
+- **Controller 静默代理访问**：`GFController` 的依赖、命令、查询和事件便捷方法在缺少架构时直接返回或跳过，不再触发全局架构错误。
+- **关卡运行时清理更彻底**：`GFLevelUtility.clear_level_runtime()` 会调用 `GFActionQueueSystem.clear_queue(true)` 与 `clear_all_named_queues(true)`，同步取消默认队列和命名队列中等待的表现动作。
+
+### 🐛 Bug 修复 (Fixed)
+- **随机分支回放漂移**：修复仅保存 `GFSeedUtility.get_state()` 时无法恢复分支 RNG 调用计数，导致后续子随机序列不一致的问题。
+- **重开关卡队列悬挂**：修复关卡重开只清空待执行动作、不取消当前等待动作时可能卡住默认队列或命名表现队列的问题。
+- **无架构 Controller 噪声错误**：修复 Controller 便捷代理在架构尚未初始化时仍触发 `Gf.get_architecture()` 错误的问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFUndoableCommand.should_record(execute_result: Variant) -> bool`。
+- 新增 `GFSeedUtility.get_full_state() -> Dictionary`。
+- 新增 `GFSeedUtility.set_full_state(state: Variant) -> void`。
+- 新增 `GFStateMachine.send_event(event_instance: Object) -> void`。
+- 新增 `GFStateMachine.send_simple_event(event_id: StringName, payload: Variant = null) -> void`。
+- 新增 `GFState.send_event(event_instance: Object) -> void`。
+- 新增 `GFState.send_simple_event(event_id: StringName, payload: Variant = null) -> void`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧命令无需迁移；需要“执行但不进撤销栈”的命令可重写 `should_record()` 并返回 `false`。
+2. 回放、存档或战斗快照若依赖分支随机流，建议从 `get_state()` 迁移到 `get_full_state()`；`set_full_state()` 仍兼容旧版整数状态。
+3. 状态机状态内部需要派发事件时，可直接调用 `send_event()` / `send_simple_event()`，无需额外持有 `GFArchitecture`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/extensions/command/gf_undoable_command.gd`
+- `addons/gf/extensions/state_machine/gf_state.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/utilities/gf_command_history_utility.gd`
+- `addons/gf/utilities/gf_level_utility.gd`
+- `addons/gf/utilities/gf_seed_utility.gd`
+- `tests/gf_core/test_gf_command_history_utility.gd`
+- `tests/gf_core/test_gf_level_utility.gd`
+- `tests/gf_core/test_gf_seed_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_state_machine.gd`
+
+---
+
 ## [1.14.2] - 2026-04-28
 
 **版本概述**：聚焦文档与当前实现对齐、运行时边界行为收紧和测试覆盖补强，修复输入计时、数据绑定与原生 Signal 工具中的细小边缘问题，并补充多组刁钻边界测试。

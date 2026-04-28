@@ -97,6 +97,8 @@ func execute_command(cmd: GFUndoableCommand) -> Variant:
 		_is_processing_async = false
 		if not completed:
 			return result
+	if not cmd.should_record(result):
+		return result
 	_record_internal(cmd)
 	return result
 

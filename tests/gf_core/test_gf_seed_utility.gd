@@ -65,3 +65,18 @@ func test_get_branched_rng_does_not_advance_main_rng() -> void:
 	_seed_util.get_branched_rng("loot")
 
 	assert_eq(_seed_util.get_state(), state_before, "派生子 RNG 不应推进主随机序列状态。")
+
+
+func test_full_state_restores_branch_counters() -> void:
+	_seed_util.set_global_seed(13579)
+	_seed_util.get_branched_rng("loot")
+	var snapshot := _seed_util.get_full_state()
+	var expected_rng := _seed_util.get_branched_rng("loot")
+	var expected_value := expected_rng.randi()
+
+	_seed_util.get_branched_rng("loot")
+	_seed_util.set_full_state(snapshot)
+	var restored_rng := _seed_util.get_branched_rng("loot")
+
+	assert_eq(restored_rng.seed, expected_rng.seed, "完整状态应恢复每个标签的分支计数。")
+	assert_eq(restored_rng.randi(), expected_value, "恢复完整状态后，后续子 RNG 序列应保持一致。")

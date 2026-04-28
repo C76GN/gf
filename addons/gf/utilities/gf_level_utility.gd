@@ -138,7 +138,8 @@ func clear_level_runtime() -> void:
 
 	var action_queue := _get_system(GFActionQueueSystem) as GFActionQueueSystem
 	if action_queue != null:
-		action_queue.clear_queue()
+		action_queue.clear_queue(true)
+		action_queue.clear_all_named_queues(true)
 
 
 ## 清除当前关卡记录。

@@ -57,6 +57,37 @@ func set_state(state: int) -> void:
 	_rng.state = state
 
 
+## 获取包含主种子、主 RNG 状态与分支计数的完整随机状态。
+## @return 可序列化的完整随机状态。
+func get_full_state() -> Dictionary:
+	return {
+		&"version": 1,
+		&"global_seed": _global_seed,
+		&"rng_state": _rng.state,
+		&"branch_counters": _branch_counters.duplicate(true),
+	}
+
+
+## 恢复完整随机状态；传入旧版整数状态时退化为 set_state()。
+## @param state: get_full_state() 产生的字典，或旧版主 RNG 整数状态。
+func set_full_state(state: Variant) -> void:
+	if state is Dictionary:
+		var snapshot: Dictionary = state
+		_global_seed = int(snapshot.get(&"global_seed", snapshot.get("global_seed", _global_seed)))
+		_rng.seed = _global_seed
+		_rng.state = int(snapshot.get(&"rng_state", snapshot.get("rng_state", _rng.state)))
+
+		var branch_counters: Variant = snapshot.get(
+			&"branch_counters",
+			snapshot.get("branch_counters", {})
+		)
+		_branch_counters = branch_counters.duplicate(true) if branch_counters is Dictionary else {}
+		return
+
+	if typeof(state) == TYPE_INT:
+		set_state(int(state))
+
+
 ## 基于主 RNG 当前状态与字符串标签，派生出一个独立的子 RNG。
 ## 每次调用只推进当前标签的分支计数，不推进主 RNG 的随机序列。
 ## 同一主状态、同一标签和同一调用序号会产生确定的子随机序列。

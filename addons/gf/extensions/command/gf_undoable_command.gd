@@ -33,6 +33,13 @@ func undo() -> Variant:
 	return null
 
 
+## 判断 execute() 返回后是否应该写入命令历史。
+## @param execute_result: execute() 的最终返回值。
+## @return 返回 false 时，GFCommandHistoryUtility 不会记录该命令。
+func should_record(_execute_result: Variant) -> bool:
+	return true
+
+
 ## 保存执行前的状态快照。应在 execute() 内部、修改数据之前调用。
 ## @param data: 任意可序列化的快照数据（如字典、数值、数组）。
 func set_snapshot(data: Variant) -> void:

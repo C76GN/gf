@@ -82,6 +82,15 @@ class ContextHolder:
 	extends RefCounted
 
 
+class StateEventPayload:
+	extends RefCounted
+
+	var value: int = 0
+
+	func _init(p_value: int = 0) -> void:
+		value = p_value
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -311,6 +320,8 @@ func test_state_proxy_methods_without_machine_are_safe() -> void:
 	var state := TrackingState.new()
 
 	state.change_state(&"Any")
+	state.send_event(StateEventPayload.new())
+	state.send_simple_event(&"Any")
 
 	assert_null(state.get_model(DummyModel), "未绑定状态机的 State.get_model 应安全返回 null。")
 	assert_null(state.get_system(DummySystem), "未绑定状态机的 State.get_system 应安全返回 null。")
@@ -359,6 +370,28 @@ func test_get_dependencies_with_module_context_uses_injected_architecture() -> v
 	child_arch.dispose()
 	parent_arch.dispose()
 	Gf._architecture = null
+
+
+func test_state_can_send_events_through_state_machine_architecture() -> void:
+	var architecture := GFArchitecture.new()
+	await Gf.set_architecture(architecture)
+	var state := TrackingState.new()
+	var simple_payloads: Array = []
+	var typed_payloads: Array[int] = []
+	architecture.register_simple_event(&"state_simple_event", func(payload: Variant) -> void:
+		simple_payloads.append(payload)
+	)
+	architecture.register_event(StateEventPayload, func(payload: StateEventPayload) -> void:
+		typed_payloads.append(payload.value)
+	)
+	_fsm.add_state(&"Idle", state)
+	_fsm.start(&"Idle")
+
+	state.send_simple_event(&"state_simple_event", 42)
+	state.send_event(StateEventPayload.new(7))
+
+	assert_eq(simple_payloads, [42], "State.send_simple_event 应委托所属状态机发送轻量事件。")
+	assert_eq(typed_payloads, [7], "State.send_event 应委托所属状态机发送类型事件。")
 
 
 ## 验证 context 已释放时，状态机会拒绝继续访问框架依赖。

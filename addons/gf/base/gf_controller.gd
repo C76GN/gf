@@ -57,7 +57,7 @@ func wait_for_context_ready() -> GFArchitecture:
 ## @param model_type: 模型的脚本类型。
 ## @return 模型实例。
 func get_model(model_type: Script) -> Object:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_model(model_type)
@@ -67,7 +67,7 @@ func get_model(model_type: Script) -> Object:
 ## @param system_type: 系统的脚本类型。
 ## @return 系统实例。
 func get_system(system_type: Script) -> Object:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_system(system_type)
@@ -77,7 +77,7 @@ func get_system(system_type: Script) -> Object:
 ## @param utility_type: 工具的脚本类型。
 ## @return 工具实例。
 func get_utility(utility_type: Script) -> Object:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(utility_type)
@@ -89,7 +89,7 @@ func get_utility(utility_type: Script) -> Object:
 ## @param command: 要发送的命令实例。
 ## @return 命令的执行结果（null 或 Signal）。
 func send_command(command: Object) -> Variant:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_command(command)
@@ -99,7 +99,7 @@ func send_command(command: Object) -> Variant:
 ## @param query: 要执行的查询实例。
 ## @return 查询结果。
 func send_query(query: Object) -> Variant:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.send_query(query)
@@ -112,7 +112,7 @@ func send_query(query: Object) -> Variant:
 ## @param callback: 回调函数。
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_event_owned(self, event_type, callback, priority)
 
@@ -121,7 +121,7 @@ func register_event(event_type: Script, callback: Callable, priority: int = 0) -
 ## @param event_type: 要注销的脚本类型。
 ## @param callback: 要移除的回调函数。
 func unregister_event(event_type: Script, callback: Callable) -> void:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.unregister_event(event_type, callback)
 
@@ -129,7 +129,7 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 ## 通过事件系统发送类型事件。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_event(event_instance)
 
@@ -138,7 +138,7 @@ func send_event(event_instance: Object) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_simple_event_owned(self, event_id, callback)
 
@@ -147,7 +147,7 @@ func register_simple_event(event_id: StringName, callback: Callable) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.unregister_simple_event(event_id, callback)
 
@@ -156,7 +156,7 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param payload: 可选的事件附加数据。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
-	var architecture := get_architecture()
+	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
 
