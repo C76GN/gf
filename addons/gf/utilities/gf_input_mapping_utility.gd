@@ -49,6 +49,7 @@ var _just_started: Dictionary = {}
 var _remap_config: GFInputRemapConfigBase
 var _timestamp: int = 0
 var _router: _GFInputRouter
+var _router_attach_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
@@ -61,6 +62,7 @@ func init() -> void:
 
 
 func dispose() -> void:
+	_router_attach_serial += 1
 	_active_contexts.clear()
 	_effective_entries.clear()
 	_clear_runtime_state()
@@ -312,7 +314,30 @@ func _ensure_router() -> void:
 	_router.name = "GFInputMappingRouter"
 	_router.input_callback = Callable(self, "handle_input_event")
 	_router.focus_lost_callback = Callable(self, "clear_input_state")
-	tree.root.add_child(_router)
+	_router_attach_serial += 1
+	call_deferred("_attach_router_to_root", _router, _router_attach_serial)
+
+
+func _attach_router_to_root(router_variant: Variant, attach_serial: int) -> void:
+	var router := router_variant as Node
+	if attach_serial != _router_attach_serial or router != _router:
+		if is_instance_valid(router):
+			router.queue_free()
+		return
+
+	if (not is_instance_valid(router)
+		or router.is_queued_for_deletion()
+		or router.is_inside_tree()
+	):
+		return
+
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		_router = null
+		router.queue_free()
+		return
+
+	tree.root.add_child(router)
 
 
 func _rebuild_effective_entries() -> void:

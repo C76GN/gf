@@ -16,6 +16,26 @@
 
 ---
 
+## [1.17.1] - 2026-04-29
+
+**版本概述**：修复资源化输入映射在项目启动阶段的内部 Router 挂载时序问题，避免框架初始化发生在场景树子节点 setup 流程中时输入路由节点添加失败。
+
+### 🐛 Bug 修复 (Fixed)
+- **输入映射路由延迟挂载**：`GFInputMappingUtility` 的内部输入 Router 改为生命周期守卫的延迟挂载，避免在启动 `_ready()` 流程中直接向 `SceneTree.root` 添加节点时触发 `Parent node is busy setting up children`，并防止 Utility 已销毁后留下待挂载路由。
+
+### 🔌 API 变动说明 (API Changes)
+- 无 API 变更；`GFInputMappingUtility` 的公开接口保持不变。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需修改调用代码，更新插件后输入映射 Router 会自动使用安全挂载流程。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/plugin.cfg`
+- `addons/gf/utilities/gf_input_mapping_utility.gd`
+- `tests/gf_core/test_gf_input_mapping_utility.gd`
+
 ## [1.17.0] - 2026-04-29
 
 **版本概述**：新增资源化输入映射扩展，增强移动端虚拟输入与编辑器缩略图生成能力，让项目可以用更抽象、可切换、可重绑的方式处理输入，同时保持 GF 核心不绑定具体玩法规则。

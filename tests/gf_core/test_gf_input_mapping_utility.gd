@@ -25,8 +25,10 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	_utility.dispose()
-	_utility = null
+	if _utility != null:
+		_utility.dispose()
+		_utility = null
+	await get_tree().process_frame
 
 
 # --- 测试方法 ---
@@ -163,6 +165,14 @@ func test_input_formatter_formats_key_modifiers() -> void:
 	assert_eq(GFInputFormatterBase.input_event_as_text(event), "Ctrl + Shift + K", "组合键文本应稳定。")
 
 
+## 验证延迟挂载在 Utility 销毁后不会留下输入路由节点。
+func test_deferred_router_attach_is_canceled_after_dispose() -> void:
+	_utility.dispose()
+	await get_tree().process_frame
+
+	assert_null(_find_router_node(), "Utility 已销毁时，延迟挂载不应留下输入 Router。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_action(action_id: StringName, value_type: GFInputActionBase.ValueType = GFInputActionBase.ValueType.BOOL) -> GFInputActionBase:
@@ -216,3 +226,10 @@ func _make_joy_motion_event(axis: JoyAxis, axis_value: float) -> InputEventJoypa
 	event.axis = axis
 	event.axis_value = axis_value
 	return event
+
+
+func _find_router_node() -> Node:
+	for child: Node in get_tree().root.get_children():
+		if child.name == "GFInputMappingRouter":
+			return child
+	return null
