@@ -80,6 +80,22 @@ func test_play_bgm() -> void:
 	assert_false(_audio._bgm_player.playing, "传入空路径应停止播放。")
 
 
+func test_play_bgm_clip_applies_settings() -> void:
+	var stream := AudioStreamGenerator.new()
+	var clip := GFAudioClip.new()
+	clip.stream = stream
+	clip.bus_name = "Master"
+	clip.volume_db = -6.0
+	clip.pitch_scale = 1.25
+
+	_audio.play_bgm_clip(clip)
+
+	assert_eq(_audio._bgm_player.stream, stream, "BGM Clip 应写入对应音频流。")
+	assert_eq(_audio._bgm_player.bus, "Master", "BGM Clip 应应用总线配置。")
+	assert_almost_eq(_audio._bgm_player.volume_db, -6.0, 0.001, "BGM Clip 应应用音量配置。")
+	assert_almost_eq(_audio._bgm_player.pitch_scale, 1.25, 0.001, "BGM Clip 应应用音高配置。")
+
+
 func test_play_sfx_and_pool() -> void:
 	var stream := AudioStreamGenerator.new()
 	_audio._play_sfx_stream(stream)
@@ -95,6 +111,27 @@ func test_play_sfx_and_pool() -> void:
 	
 	assert_eq(players_in_root, 1, "应该有一个激活的 SFX 播放器。")
 	assert_eq(_pool.get_available_count(_audio._sfx_scene), 1, "SFX 播放器响应 finished 后应该回收到池中。")
+
+
+func test_play_sfx_from_bank_applies_clip_settings() -> void:
+	var stream := AudioStreamGenerator.new()
+	var clip := GFAudioClip.new()
+	clip.stream = stream
+	clip.bus_name = "Master"
+	clip.volume_db = -3.0
+	clip.pitch_scale = 0.8
+
+	var bank := GFAudioBank.new()
+	bank.set_clip(&"select", clip)
+
+	_audio.play_sfx_from_bank(bank, &"select")
+
+	assert_eq(_audio._active_sfx_players.size(), 1, "播放 SFX Clip 后应有一个活跃播放器。")
+	var player := _audio._active_sfx_players[0] as AudioStreamPlayer
+	assert_eq(player.stream, stream, "SFX Clip 应写入对应音频流。")
+	assert_eq(player.bus, "Master", "SFX Clip 应应用总线配置。")
+	assert_almost_eq(player.volume_db, -3.0, 0.001, "SFX Clip 应应用音量配置。")
+	assert_almost_eq(player.pitch_scale, 0.8, 0.001, "SFX Clip 应应用音高配置。")
 
 
 func test_play_bgm_ignores_stale_async_load() -> void:

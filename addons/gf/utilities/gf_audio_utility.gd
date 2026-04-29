@@ -1,12 +1,10 @@
-class_name GFAudioUtility
-extends GFUtility
-
-
 ## GFAudioUtility: 全局音频管理器。
 ##
 ## 管理 BGM 和 SFX 的播放与音量。
 ## 结合 GFObjectPoolUtility 构建 AudioStreamPlayer 对象池避免频繁实例化。
 ## 支持通过 GFAssetUtility 异步加载音频资源。
+class_name GFAudioUtility
+extends GFUtility
 
 
 # --- 常量 ---
@@ -93,8 +91,7 @@ func play_bgm(path: String) -> void:
 	_bgm_request_serial += 1
 	var request_serial := _bgm_request_serial
 	if path.is_empty():
-		if is_instance_valid(_bgm_player):
-			_bgm_player.stop()
+		stop_bgm()
 		return
 		
 	var asset_util := _get_asset_util()
@@ -105,6 +102,54 @@ func play_bgm(path: String) -> void:
 		var on_loaded := func(res: Resource) -> void:
 			_apply_bgm_request(request_serial, res as AudioStream)
 		asset_util.load_async(path, on_loaded)
+
+
+## 播放资源化 BGM 配置。
+## @param clip: 音频片段配置。
+func play_bgm_clip(clip: GFAudioClip) -> void:
+	if clip == null or not clip.has_source():
+		return
+
+	_bgm_request_serial += 1
+	var request_serial := _bgm_request_serial
+	var bus_name := clip.resolve_bus(BGM_BUS_NAME)
+	var volume_db := clip.volume_db
+	var pitch_scale := clip.pitch_scale
+
+	if clip.stream != null:
+		_apply_bgm_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale)
+		return
+
+	var asset_util := _get_asset_util()
+	if asset_util == null:
+		var stream := load(clip.path) as AudioStream
+		_apply_bgm_request_with_settings(request_serial, stream, bus_name, volume_db, pitch_scale)
+	else:
+		var on_loaded := func(res: Resource) -> void:
+			_apply_bgm_request_with_settings(
+				request_serial,
+				res as AudioStream,
+				bus_name,
+				volume_db,
+				pitch_scale
+			)
+		asset_util.load_async(clip.path, on_loaded)
+
+
+## 从音频集合播放 BGM。
+## @param bank: 音频集合。
+## @param clip_id: 片段标识。
+func play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName) -> void:
+	if bank == null:
+		return
+
+	play_bgm_clip(bank.get_clip(clip_id))
+
+
+## 停止当前 BGM。
+func stop_bgm() -> void:
+	if is_instance_valid(_bgm_player):
+		_bgm_player.stop()
 
 
 ## 播放 SFX（音效），自动从池中分配播放器
@@ -122,6 +167,47 @@ func play_sfx(path: String) -> void:
 		var on_loaded := func(res: Resource) -> void:
 			_apply_sfx_request(request_serial, res as AudioStream)
 		asset_util.load_async(path, on_loaded)
+
+
+## 播放资源化 SFX 配置。
+## @param clip: 音频片段配置。
+func play_sfx_clip(clip: GFAudioClip) -> void:
+	if clip == null or not clip.has_source():
+		return
+
+	var request_serial := _sfx_lifecycle_serial
+	var bus_name := clip.resolve_bus(SFX_BUS_NAME)
+	var volume_db := clip.volume_db
+	var pitch_scale := clip.pitch_scale
+
+	if clip.stream != null:
+		_apply_sfx_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale)
+		return
+
+	var asset_util := _get_asset_util()
+	if asset_util == null:
+		var stream := load(clip.path) as AudioStream
+		_apply_sfx_request_with_settings(request_serial, stream, bus_name, volume_db, pitch_scale)
+	else:
+		var on_loaded := func(res: Resource) -> void:
+			_apply_sfx_request_with_settings(
+				request_serial,
+				res as AudioStream,
+				bus_name,
+				volume_db,
+				pitch_scale
+			)
+		asset_util.load_async(clip.path, on_loaded)
+
+
+## 从音频集合播放 SFX。
+## @param bank: 音频集合。
+## @param clip_id: 片段标识。
+func play_sfx_from_bank(bank: GFAudioBank, clip_id: StringName) -> void:
+	if bank == null:
+		return
+
+	play_sfx_clip(bank.get_clip(clip_id))
 
 
 ## 设置音频总线音量
@@ -149,8 +235,20 @@ func get_bus_volume(bus_name: String) -> float:
 # --- 私有辅助方法 ---
 
 func _play_bgm_stream(stream: AudioStream) -> void:
+	_play_bgm_stream_with_settings(stream, BGM_BUS_NAME, 0.0, 1.0)
+
+
+func _play_bgm_stream_with_settings(
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float
+) -> void:
 	if stream == null or not is_instance_valid(_bgm_player):
 		return
+	_bgm_player.bus = _resolve_bus_name(bus_name)
+	_bgm_player.volume_db = volume_db
+	_bgm_player.pitch_scale = pitch_scale
 	_bgm_player.stream = stream
 	_bgm_player.play()
 
@@ -162,6 +260,19 @@ func _apply_bgm_request(request_serial: int, stream: AudioStream) -> void:
 	_play_bgm_stream(stream)
 
 
+func _apply_bgm_request_with_settings(
+	request_serial: int,
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float
+) -> void:
+	if request_serial != _bgm_request_serial:
+		return
+
+	_play_bgm_stream_with_settings(stream, bus_name, volume_db, pitch_scale)
+
+
 func _apply_sfx_request(request_serial: int, stream: AudioStream) -> void:
 	if request_serial != _sfx_lifecycle_serial:
 		return
@@ -169,7 +280,29 @@ func _apply_sfx_request(request_serial: int, stream: AudioStream) -> void:
 	_play_sfx_stream(stream)
 
 
+func _apply_sfx_request_with_settings(
+	request_serial: int,
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float
+) -> void:
+	if request_serial != _sfx_lifecycle_serial:
+		return
+
+	_play_sfx_stream_with_settings(stream, bus_name, volume_db, pitch_scale)
+
+
 func _play_sfx_stream(stream: AudioStream) -> void:
+	_play_sfx_stream_with_settings(stream, SFX_BUS_NAME, 0.0, 1.0)
+
+
+func _play_sfx_stream_with_settings(
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float
+) -> void:
 	if stream == null or not is_instance_valid(_root):
 		return
 		
@@ -186,7 +319,9 @@ func _play_sfx_stream(stream: AudioStream) -> void:
 		
 	var player := pool.acquire(_sfx_scene, _root) as AudioStreamPlayer
 	if player != null:
-		player.bus = _resolve_bus_name(SFX_BUS_NAME)
+		player.bus = _resolve_bus_name(bus_name)
+		player.volume_db = volume_db
+		player.pitch_scale = pitch_scale
 		player.stream = stream
 		var finished_callback := _get_sfx_finished_callback(player)
 		if not player.finished.is_connected(finished_callback):

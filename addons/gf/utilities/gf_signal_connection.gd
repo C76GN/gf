@@ -197,6 +197,7 @@ func _process_async(args: Array, serial: int) -> void:
 
 			OperationType.DEBOUNCE:
 				await _wait_seconds(float(operation["seconds"]), serial)
+				await _wait_process_frame(serial)
 				if serial != _serial:
 					return
 
@@ -220,6 +221,17 @@ func _wait_seconds(seconds: float, serial: int) -> void:
 	var wait_msec := int(seconds * 1000.0)
 	while serial == _serial and Time.get_ticks_msec() - start_msec < wait_msec:
 		await Engine.get_main_loop().process_frame
+
+
+func _wait_process_frame(serial: int) -> void:
+	if serial != _serial:
+		return
+
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+
+	await tree.process_frame
 
 
 func _collect_args(raw_args: Array) -> Array:

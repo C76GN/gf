@@ -35,10 +35,10 @@ func _ready() -> void:
 - Lifecycle-managed `GFModel`, `GFSystem`, `GFController`, and `GFUtility` modules.
 - Project installers and declarative binding helpers for assembling game modules.
 - Typed events, string events, bindable properties, commands, queries, and factories.
-- Foundation helpers for big numbers, fixed decimals, number formatting, grid math, and progression curves.
-- Runtime utilities for storage, assets, scenes, time, timers, input, audio, UI, logging, quests, object pools, and native signal connections.
-- Extensions for pure-code and node-based state machines, named action queues, capability components, interaction flows, and lightweight combat systems.
-- Editor tools for generating typed accessors and common GF script templates.
+- Foundation helpers for big numbers, fixed decimals, resourceized formulas, number formatting, grid math, and progression curves.
+- Runtime utilities for storage, assets, scenes, time, timers, input, input device assignment, touch controls, audio banks, analytics, UI, logging, quests, object pools, and native signal connections.
+- Extensions for pure-code and node-based state machines, command sequences, turn-flow helpers, named action queues, generic domain models, capability components, interaction flows, and lightweight combat systems.
+- Editor tools for generating typed accessors, common GF script templates, and reusable thumbnail rendering.
 
 ## Chinese Summary
 

@@ -82,6 +82,21 @@ func test_delete_slot() -> void:
 	assert_false(_storage.has_slot(3), "删除槽位后不应再存在。")
 
 
+func test_list_slots_returns_valid_slots_sorted_with_metadata() -> void:
+	_storage.encrypt_key = 0
+	assert_eq(_storage.save_slot(7, {"value": 7}, {"name": "seven"}), OK, "应能保存槽位 7。")
+	assert_eq(_storage.save_slot(2, {"value": 2}, {"name": "two"}), OK, "应能保存槽位 2。")
+	assert_eq(_storage._write_json(_storage._get_meta_filename(8), {"name": "orphan"}), OK, "应能构造孤立 metadata。")
+
+	var slots := _storage.list_slots()
+
+	assert_eq(slots.size(), 2, "只应枚举同时存在数据与元数据的有效槽位。")
+	assert_eq(int(slots[0].get("slot_id")), 2, "槽位应按 ID 升序。")
+	assert_eq(int(slots[1].get("slot_id")), 7, "槽位应按 ID 升序。")
+	assert_eq((slots[0].get("metadata") as Dictionary).get("name"), "two", "应包含槽位元数据。")
+	assert_true(int(slots[0].get("modified_time", 0)) > 0, "应包含 metadata 修改时间。")
+
+
 func test_has_slot_requires_data_and_metadata_files() -> void:
 	_storage.encrypt_key = 0
 	var meta_file_name := _storage._get_meta_filename(6)

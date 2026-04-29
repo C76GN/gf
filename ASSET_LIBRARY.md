@@ -14,7 +14,7 @@ Everything else is excluded from GitHub archive downloads through `.gitattribute
 - Category: `Tools`
 - License: `Apache-2.0`
 - Minimum Godot Version: `4.6`
-- Asset Version: `1.14.4`
+- Asset Version: `1.15.0`
 - Repository URL: `https://github.com/C76GN/gf`
 - Issues URL: `https://github.com/C76GN/gf/issues`
 - Download Commit: use the full commit hash after these Asset Library preparation changes are committed and pushed.

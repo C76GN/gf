@@ -113,6 +113,38 @@ func has_slot(slot_id: int) -> bool:
 	return FileAccess.file_exists(data_path) and FileAccess.file_exists(meta_path)
 
 
+## 枚举所有有效槽位。
+## @return 槽位信息数组，元素包含 `slot_id`、`metadata` 与 `modified_time`。
+func list_slots() -> Array[Dictionary]:
+	init()
+	var dir := DirAccess.open(_get_save_base_path())
+	if dir == null:
+		return []
+
+	var slot_ids: Array[int] = []
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while not file_name.is_empty():
+		if not dir.current_is_dir():
+			var slot_id := _parse_slot_id_from_meta_filename(file_name)
+			if slot_id >= 0 and not slot_ids.has(slot_id) and has_slot(slot_id):
+				slot_ids.append(slot_id)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+	slot_ids.sort()
+
+	var result: Array[Dictionary] = []
+	for slot_id: int in slot_ids:
+		var meta_path := _get_full_path(_get_meta_filename(slot_id))
+		result.append({
+			"slot_id": slot_id,
+			"metadata": load_slot_meta(slot_id),
+			"modified_time": FileAccess.get_modified_time(meta_path),
+		})
+	return result
+
+
 ## 删除指定槽位的数据与元数据。
 ## @param slot_id: 槽位 ID。
 func delete_slot(slot_id: int) -> void:
@@ -161,6 +193,13 @@ func _get_meta_filename(slot_id: int) -> String:
 	return "slot_%d_meta.sav" % slot_id
 
 
+func _get_save_base_path() -> String:
+	if save_dir_name.is_empty():
+		return "user://"
+
+	return "user://" + save_dir_name
+
+
 func _get_full_path(file_name: String) -> String:
 	if file_name.is_absolute_path():
 		return file_name
@@ -169,6 +208,17 @@ func _get_full_path(file_name: String) -> String:
 		return "user://" + file_name
 
 	return "user://" + save_dir_name + "/" + file_name
+
+
+func _parse_slot_id_from_meta_filename(file_name: String) -> int:
+	if not file_name.begins_with("slot_") or not file_name.ends_with("_meta.sav"):
+		return -1
+
+	var id_text := file_name.trim_prefix("slot_").trim_suffix("_meta.sav")
+	if not id_text.is_valid_int():
+		return -1
+
+	return id_text.to_int()
 
 
 func _remove_file_if_exists(path: String) -> void:

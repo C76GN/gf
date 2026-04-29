@@ -11,6 +11,7 @@ class TestAudioUtility:
 	extends GFAudioUtility
 
 	var played_paths: Array[String] = []
+	var played_clip_ids: Array[StringName] = []
 
 	func init() -> void:
 		pass
@@ -20,6 +21,9 @@ class TestAudioUtility:
 
 	func play_sfx(path: String) -> void:
 		played_paths.append(path)
+
+	func play_sfx_from_bank(_bank: GFAudioBank, clip_id: StringName) -> void:
+		played_clip_ids.append(clip_id)
 
 
 func after_each() -> void:
@@ -86,3 +90,21 @@ func test_audio_action_is_fire_and_forget() -> void:
 	assert_eq(action.completion_mode, GFVisualAction.CompletionMode.FIRE_AND_FORGET, "音效动作默认不阻塞队列。")
 	assert_null(result, "音效动作应立即完成。")
 	assert_eq(audio.played_paths, ["res://audio/hit.wav"], "音效动作应委托给 GFAudioUtility。")
+
+
+func test_audio_action_can_play_bank_clip() -> void:
+	var arch := GFArchitecture.new()
+	Gf._architecture = arch
+
+	var audio := TestAudioUtility.new()
+	Gf.register_utility(audio)
+	await Gf.set_architecture(arch)
+	await get_tree().process_frame
+
+	var action := GF_AUDIO_ACTION.new() as GFAudioAction
+	action.bank = GFAudioBank.new()
+	action.clip_id = &"ui_accept"
+	var result: Variant = action.execute()
+
+	assert_null(result, "音频集合动作也应立即完成。")
+	assert_eq(audio.played_clip_ids, [&"ui_accept"], "音效动作应按 clip_id 委托给 GFAudioUtility。")

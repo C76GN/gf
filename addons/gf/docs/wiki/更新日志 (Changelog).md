@@ -16,6 +16,86 @@
 
 ---
 
+## [1.15.0] - 2026-04-29
+
+**版本概述**：新增一组抽象、可配置、可复用的基础能力与扩展模块，覆盖资源化公式、顺序指令、回合流程、音频资源集合、输入设备映射、分析事件、通用领域模型和编辑器缩略图渲染，同时补齐存档槽位枚举与音频资源配置接入。
+
+### 🚀 新增特性 (Added)
+- **资源化公式基础层**：新增 `GFFormula`、`GFFormulaParameter`、`GFFormulaSet`，用于承载可替换计算策略、运行时参数与公式集合。
+- **通用指令序列**：新增 `GFCommandSequence`、`GFSequenceContext`、`GFSequenceStep`、`GFWaitSequenceStep`，支持步骤顺序执行、Signal 等待、取消与架构注入。
+- **通用回合流程**：新增 `GFTurnFlowSystem`、`GFTurnContext`、`GFTurnAction`、`GFTurnPhase`，提供阶段推进、行动入队与优先级解析。
+- **通用领域模型**：新增 `GFInventoryModel`、`GFTrait`、`GFTraitSet`、`GFEquipmentSlot`、`GFEquipmentSet`，提供库存、特征合并与槽位挂载的抽象数据结构。
+- **资源化音频配置**：新增 `GFAudioClip`、`GFAudioBank`，支持把音频路径、Stream、总线、音量和音高保存为可复用资源配置。
+- **输入设备与触屏控制**：新增 `GFInputDeviceAssignment`、`GFInputDeviceUtility`、`GFTouchJoystick`，支持本地设备席位映射和通用触屏方向输入。
+- **分析事件工具**：新增 `GFAnalyticsConfig`、`GFAnalyticsUtility`，支持事件队列、上下文采集、批量 flush、失败重排、本地 dry-run 与可选 HTTP 上报。
+- **编辑器缩略图渲染辅助**：新增 `GFThumbnailRenderer`，可在编辑器工具中复用 SubViewport 渲染 Node3D 或 Mesh 缩略图。
+
+### 🔄 机制更改 (Changed)
+- **音频工具资源化接入**：`GFAudioUtility` 新增 `play_bgm_clip()`、`play_sfx_clip()`、`play_bgm_from_bank()`、`play_sfx_from_bank()`、`stop_bgm()`，原有路径播放接口保持兼容。
+- **音频动作扩展**：`GFAudioAction` 支持直接播放 `GFAudioClip` 或 `GFAudioBank` 中的片段，仍保持 fire-and-forget 默认完成模式。
+- **存档槽位列表**：`GFStorageUtility` 新增 `list_slots()`，可按槽位 ID 升序枚举有效槽位的 metadata 与修改时间。
+
+### 🐛 Bug 修复 (Fixed)
+- **Godot 4.6 保留词兼容**：`GFTraitSet` 内部变量避免使用 `trait` 作为标识符，保证 Godot 4.6 解析稳定。
+- **Signal 等待类型明确化**：通用指令序列与回合流程在等待返回值时显式转换为 `Signal`，与框架现有异步等待写法保持一致。
+- **触屏平台检测收敛**：输入设备工具不再依赖不稳定的触屏检测 API，移动平台触控映射由平台名判断。
+- **Signal 防抖同帧稳定性**：`GFSignalConnection.debounce()` 在静默期结束后额外让出一帧并复核序列号，避免低帧率或全量测试负载下同帧后续触发无法取消旧回调。
+
+### ✅ 测试补强 (Tests)
+- 新增公式、指令序列、回合流程、输入设备、分析事件和通用领域模型测试。
+- 补充音频资源配置、音频集合动作、存档槽位枚举测试。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFAudioUtility.play_bgm_clip(clip: GFAudioClip) -> void`。
+- 新增 `GFAudioUtility.play_sfx_clip(clip: GFAudioClip) -> void`。
+- 新增 `GFAudioUtility.play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName) -> void`。
+- 新增 `GFAudioUtility.play_sfx_from_bank(bank: GFAudioBank, clip_id: StringName) -> void`。
+- 新增 `GFAudioUtility.stop_bgm() -> void`。
+- 新增 `GFStorageUtility.list_slots() -> Array[Dictionary]`。
+- `GFAudioAction._init()` 新增可选参数 `p_clip: GFAudioClip = null`，旧的路径参数保持兼容。
+- 其余新增类均为新增 API，不破坏旧项目调用。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需迁移；原有路径式音频、存档、动作队列、战斗扩展和基础层 API 均保持兼容。
+2. 需要集中管理音频配置时，可逐步把路径字符串迁移到 `GFAudioClip` / `GFAudioBank`，再通过 `GFAudioUtility` 或 `GFAudioAction` 播放。
+3. 需要存档列表 UI 时，可用 `GFStorageUtility.list_slots()` 替代手写目录扫描。
+4. 需要可替换数值计算、顺序流程或回合流程时，优先继承新增抽象类，并把具体规则保留在项目层。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `README.md`
+- `addons/gf/README.md`
+- `addons/gf/docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/11. 基础层 (Foundation Layer).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/extensions/action_queue/gf_audio_action.gd`
+- `addons/gf/extensions/domain/*`
+- `addons/gf/extensions/sequence/*`
+- `addons/gf/extensions/turn_based/*`
+- `addons/gf/foundation/formula/*`
+- `addons/gf/input/gf_touch_joystick.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/utilities/gf_analytics_config.gd`
+- `addons/gf/utilities/gf_analytics_utility.gd`
+- `addons/gf/utilities/gf_audio_bank.gd`
+- `addons/gf/utilities/gf_audio_clip.gd`
+- `addons/gf/utilities/gf_audio_utility.gd`
+- `addons/gf/utilities/gf_input_device_assignment.gd`
+- `addons/gf/utilities/gf_input_device_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `tests/gf_core/test_gf_analytics_utility.gd`
+- `tests/gf_core/test_gf_audio_utility.gd`
+- `tests/gf_core/test_gf_command_sequence.gd`
+- `tests/gf_core/test_gf_domain_extensions.gd`
+- `tests/gf_core/test_gf_formula.gd`
+- `tests/gf_core/test_gf_input_device_utility.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+- `tests/gf_core/test_gf_turn_flow_system.gd`
+- `tests/gf_core/test_gf_visual_actions.gd`
+
+---
+
 ## [1.14.4] - 2026-04-29
 
 **版本概述**：修复能力 Inspector 在 Godot 4.6 项目中触发的编辑器插件兼容性错误，避免跨项目启用 GF 插件时出现 typed array 参数不匹配和 `PopupMenu` API 不存在的报错。
