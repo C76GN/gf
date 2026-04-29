@@ -1,0 +1,66 @@
+## GFInputAction: 资源化输入动作描述。
+##
+## 只描述“项目想要读取的抽象动作”，不绑定具体按键、设备或玩法逻辑。
+class_name GFInputAction
+extends Resource
+
+
+# --- 枚举 ---
+
+## 动作输出值类型。
+enum ValueType {
+	## 开关型动作，例如确认、跳跃、攻击。
+	BOOL,
+	## 一维轴动作，例如水平移动或缩放。
+	AXIS_1D,
+	## 二维轴动作，例如移动方向、瞄准方向。
+	AXIS_2D,
+}
+
+
+# --- 导出变量 ---
+
+## 动作稳定标识。建议使用不会随本地化变化的 snake_case 名称。
+@export var action_id: StringName = &""
+
+## 显示名称，供设置界面或输入提示使用。
+@export var display_name: String = ""
+
+## 显示分类，供设置界面分组使用。
+@export var display_category: String = ""
+
+## 动作输出值类型。
+@export var value_type: ValueType = ValueType.BOOL
+
+## 是否允许玩家在项目层重绑定。
+@export var remappable: bool = true
+
+## 同一输入事件命中多个动作时，较高优先级动作是否阻止低优先级动作。
+@export var block_lower_priority_actions: bool = true
+
+## 判断轴动作是否活跃的阈值。
+@export_range(0.0, 1.0, 0.01) var activation_threshold: float = 0.5
+
+
+# --- 公共方法 ---
+
+## 获取可显示名称。
+## @return 显示名称；为空时回退到动作标识或资源文件名。
+func get_display_name() -> String:
+	if not display_name.is_empty():
+		return display_name
+	if action_id != &"":
+		return String(action_id)
+	if not resource_path.is_empty():
+		return resource_path.get_file().get_basename().capitalize()
+	return "Input Action"
+
+
+## 获取稳定动作标识。
+## @return 动作标识；未显式设置时尝试使用资源路径。
+func get_action_id() -> StringName:
+	if action_id != &"":
+		return action_id
+	if not resource_path.is_empty():
+		return StringName(resource_path)
+	return &""

@@ -166,7 +166,8 @@ Gf.send_command(command)
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFObjectPoolUtility`：节点对象池。
 - `GFAudioUtility`：BGM/SFX 播放、资源化音频片段/集合、音量总线、SFX 对象池与并发上限控制。
-- `GFInputDeviceUtility` / `GFTouchJoystick`：本地设备席位映射与通用触屏虚拟摇杆。
+- `GFInputMappingUtility` / `GFInputAction` / `GFInputContext`：资源化输入动作、上下文切换、运行时重绑定与动作状态查询。
+- `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、通用触屏虚拟摇杆与触屏按钮。
 - `GFAnalyticsUtility`：通用事件采集、批量 flush、本地 dry-run 与可选 HTTP 上报。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFCommandSequence`：顺序执行 `GFSequenceStep`、命令对象或任意 callable 的通用流程编排器。
@@ -184,7 +185,7 @@ Gf.send_command(command)
 - `GFInteractions`：交互上下文与链式交互流程创建入口。
 - `GFTurnFlowSystem`：通用回合阶段与行动解析流程系统。
 - `GFInventoryModel` / `GFTraitSet` / `GFEquipmentSet`：库存、特征和槽位的通用数据模型。
-- `GFThumbnailRenderer`：可复用的编辑器 3D/Mesh 缩略图渲染辅助节点。
+- `GFThumbnailRenderer`：可复用的编辑器 3D/Mesh/MeshLibrary 缩略图渲染辅助节点。
 - `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `工具 > GF > 生成强类型访问器` 菜单生成 `GFAccess`。
 
 ## 测试

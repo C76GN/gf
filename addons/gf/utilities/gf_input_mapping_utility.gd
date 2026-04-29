@@ -1,0 +1,530 @@
+## GFInputMappingUtility: 资源化输入上下文与动作映射运行时。
+##
+## 负责把 Godot InputEvent 转换为项目定义的抽象动作状态，并支持上下文优先级、
+## 运行时重绑定、动作值查询和一次性触发消费。
+class_name GFInputMappingUtility
+extends GFUtility
+
+
+# --- 信号 ---
+
+## 启用上下文变化后发出。
+signal contexts_changed(contexts: Array)
+
+## 有效映射变化后发出。
+signal mappings_changed
+
+## 动作值变化时发出。
+signal action_value_changed(action_id: StringName, value: Variant)
+
+## 动作从非活跃变为活跃时发出。
+signal action_started(action_id: StringName, value: Variant)
+
+## 动作活跃且收到匹配输入事件时发出。
+signal action_triggered(action_id: StringName, value: Variant)
+
+## 动作从活跃变为非活跃时发出。
+signal action_completed(action_id: StringName, value: Variant)
+
+
+# --- 常量 ---
+
+const GFInputActionBase = preload("res://addons/gf/input/gf_input_action.gd")
+const GFInputBindingBase = preload("res://addons/gf/input/gf_input_binding.gd")
+const GFInputContextBase = preload("res://addons/gf/input/gf_input_context.gd")
+const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
+const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
+
+
+# --- 私有变量 ---
+
+var _active_contexts: Dictionary = {}
+var _effective_entries: Array[Dictionary] = []
+var _binding_values: Dictionary = {}
+var _binding_to_action: Dictionary = {}
+var _actions: Dictionary = {}
+var _action_values: Dictionary = {}
+var _action_active: Dictionary = {}
+var _just_started: Dictionary = {}
+var _remap_config: GFInputRemapConfigBase
+var _timestamp: int = 0
+var _router: _GFInputRouter
+
+
+# --- Godot 生命周期方法 ---
+
+func init() -> void:
+	ignore_pause = true
+	ignore_time_scale = true
+	_clear_runtime_state()
+	_ensure_router()
+
+
+func dispose() -> void:
+	_active_contexts.clear()
+	_effective_entries.clear()
+	_clear_runtime_state()
+	if is_instance_valid(_router):
+		_router.queue_free()
+	_router = null
+
+
+func tick(_delta: float) -> void:
+	_just_started.clear()
+
+
+# --- 公共方法 ---
+
+## 设置重映射配置。
+## @param config: 输入重映射配置；传 null 表示使用默认绑定。
+func set_remap_config(config: GFInputRemapConfigBase) -> void:
+	_remap_config = config
+	_rebuild_effective_entries()
+
+
+## 获取当前重映射配置。若不存在且 create_if_missing 为 true，会自动创建。
+## @param create_if_missing: 是否在缺失时创建。
+## @return 重映射配置。
+func get_remap_config(create_if_missing: bool = false) -> GFInputRemapConfigBase:
+	if _remap_config == null and create_if_missing:
+		_remap_config = GFInputRemapConfigBase.new()
+	return _remap_config
+
+
+## 启用输入上下文。
+## @param context: 输入上下文资源。
+## @param priority: 优先级，数值越大越先处理。
+func enable_context(context: GFInputContextBase, priority: int = 0) -> void:
+	if context == null:
+		push_error("[GFInputMappingUtility] enable_context 失败：context 为空。")
+		return
+
+	_timestamp += 1
+	_active_contexts[context] = {
+		"priority": priority,
+		"timestamp": _timestamp,
+	}
+	_rebuild_effective_entries()
+
+
+## 禁用输入上下文。
+## @param context: 输入上下文资源。
+func disable_context(context: GFInputContextBase) -> void:
+	if context == null:
+		return
+	_active_contexts.erase(context)
+	_rebuild_effective_entries()
+
+
+## 批量替换当前启用的上下文。
+## @param contexts: 输入上下文数组。
+## @param priority: 批量上下文默认优先级；数组越靠后，同优先级下越先处理。
+func set_enabled_contexts(contexts: Array[GFInputContextBase], priority: int = 0) -> void:
+	_active_contexts.clear()
+	for context: GFInputContextBase in contexts:
+		if context == null:
+			continue
+		_timestamp += 1
+		_active_contexts[context] = {
+			"priority": priority,
+			"timestamp": _timestamp,
+		}
+	_rebuild_effective_entries()
+
+
+## 清空所有启用上下文。
+func clear_contexts() -> void:
+	_active_contexts.clear()
+	_rebuild_effective_entries()
+
+
+## 检查上下文是否启用。
+## @param context: 输入上下文资源。
+## @return 是否启用。
+func is_context_enabled(context: GFInputContextBase) -> bool:
+	return _active_contexts.has(context)
+
+
+## 获取已启用上下文，按实际处理顺序返回。
+## @return 上下文数组。
+func get_enabled_contexts() -> Array[GFInputContextBase]:
+	return _get_sorted_contexts()
+
+
+## 手动处理输入事件。通常由内部路由节点自动调用，也可用于测试或自定义输入桥接。
+## @param event: Godot 输入事件。
+func handle_input_event(event: InputEvent) -> void:
+	if event == null or _should_ignore_event(event):
+		return
+
+	var event_blocked := false
+	for entry: Dictionary in _effective_entries:
+		if event_blocked:
+			continue
+
+		var matched := _apply_entry_event(entry, event)
+		if not matched:
+			continue
+
+		var action := entry["action"] as GFInputActionBase
+		var action_id := action.get_action_id()
+		var value: Variant = get_action_value(action_id)
+		if action.block_lower_priority_actions and is_action_active(action_id):
+			event_blocked = true
+
+		if is_action_active(action_id):
+			action_triggered.emit(action_id, value)
+
+
+## 获取动作当前值。
+## @param action_id: 动作标识。
+## @return bool、float 或 Vector2，取决于动作值类型。
+func get_action_value(action_id: StringName) -> Variant:
+	if _action_values.has(action_id):
+		return _action_values[action_id]
+
+	var action := _actions.get(action_id) as GFInputActionBase
+	if action == null:
+		return null
+	return _default_value_for_type(action.value_type)
+
+
+## 获取动作当前二维向量值。
+## @param action_id: 动作标识。
+## @return 二维向量值；布尔与一维轴使用 x 分量。
+func get_action_vector(action_id: StringName) -> Vector2:
+	return _calculate_action_vector(action_id)
+
+
+## 检查动作是否活跃。
+## @param action_id: 动作标识。
+## @return 是否活跃。
+func is_action_active(action_id: StringName) -> bool:
+	return bool(_action_active.get(action_id, false))
+
+
+## 检查动作是否在当前帧刚刚开始。
+## @param action_id: 动作标识。
+## @return 是否刚开始。
+func was_action_just_started(action_id: StringName) -> bool:
+	return bool(_just_started.get(action_id, false))
+
+
+## 消费一次刚开始的动作。
+## @param action_id: 动作标识。
+## @return 成功消费返回 true。
+func consume_action(action_id: StringName) -> bool:
+	if not was_action_just_started(action_id):
+		return false
+	_just_started.erase(action_id)
+	return true
+
+
+## 设置某个绑定的运行时覆盖。
+## @param context_id: 上下文标识。
+## @param action_id: 动作标识。
+## @param binding_index: 绑定索引。
+## @param input_event: 新输入事件。
+func set_binding_override(
+	context_id: StringName,
+	action_id: StringName,
+	binding_index: int,
+	input_event: InputEvent
+) -> void:
+	get_remap_config(true).set_binding(context_id, action_id, binding_index, input_event)
+	_rebuild_effective_entries()
+
+
+## 显式解绑某个绑定。
+## @param context_id: 上下文标识。
+## @param action_id: 动作标识。
+## @param binding_index: 绑定索引。
+func unbind(context_id: StringName, action_id: StringName, binding_index: int) -> void:
+	get_remap_config(true).unbind(context_id, action_id, binding_index)
+	_rebuild_effective_entries()
+
+
+## 清除某个绑定覆盖。
+## @param context_id: 上下文标识。
+## @param action_id: 动作标识。
+## @param binding_index: 绑定索引。
+func clear_binding_override(context_id: StringName, action_id: StringName, binding_index: int) -> void:
+	if _remap_config != null:
+		_remap_config.clear_binding(context_id, action_id, binding_index)
+		_rebuild_effective_entries()
+
+
+## 获取可重绑条目。
+## @param context_filter: 可选上下文过滤。
+## @param display_category_filter: 可选显示分类过滤。
+## @return 条目字典数组。
+func get_remappable_items(
+	context_filter: StringName = &"",
+	display_category_filter: String = ""
+) -> Array[Dictionary]:
+	var items: Array[Dictionary] = []
+	for context: GFInputContextBase in _get_sorted_contexts():
+		var context_id := context.get_context_id()
+		if context_filter != &"" and context_id != context_filter:
+			continue
+
+		for mapping: GFInputMappingBase in context.mappings:
+			if mapping == null or mapping.action == null or not mapping.action.remappable:
+				continue
+			if not display_category_filter.is_empty() and mapping.get_display_category() != display_category_filter:
+				continue
+
+			for index: int in range(mapping.bindings.size()):
+				var binding := mapping.bindings[index]
+				if binding == null or not binding.remappable:
+					continue
+				items.append({
+					"context": context,
+					"context_id": context_id,
+					"mapping": mapping,
+					"action": mapping.action,
+					"action_id": mapping.get_action_id(),
+					"binding": binding,
+					"binding_index": index,
+					"display_name": mapping.get_display_name(),
+					"display_category": mapping.get_display_category(),
+					"event": _get_effective_event(context_id, mapping.get_action_id(), index, binding),
+				})
+	return items
+
+
+## 清空所有动作运行时状态。
+func clear_input_state() -> void:
+	_clear_runtime_state(true)
+
+
+# --- 私有/辅助方法 ---
+
+func _ensure_router() -> void:
+	if is_instance_valid(_router):
+		return
+
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+
+	_router = _GFInputRouter.new()
+	_router.name = "GFInputMappingRouter"
+	_router.input_callback = Callable(self, "handle_input_event")
+	_router.focus_lost_callback = Callable(self, "clear_input_state")
+	tree.root.add_child(_router)
+
+
+func _rebuild_effective_entries() -> void:
+	_clear_runtime_state(true)
+	_effective_entries.clear()
+	_actions.clear()
+
+	for context: GFInputContextBase in _get_sorted_contexts():
+		var context_id := context.get_context_id()
+		if context_id == &"":
+			continue
+
+		for mapping: GFInputMappingBase in context.mappings:
+			if mapping == null or mapping.action == null:
+				continue
+
+			var action_id := mapping.get_action_id()
+			if action_id == &"":
+				continue
+
+			var bindings: Array[Dictionary] = []
+			for index: int in range(mapping.bindings.size()):
+				var base_binding := mapping.bindings[index]
+				if base_binding == null:
+					continue
+
+				var binding := base_binding.duplicate_binding() as GFInputBindingBase
+				if binding == null:
+					continue
+				if _remap_config != null and _remap_config.has_binding(context_id, action_id, index):
+					var override_event := _remap_config.get_bound_event_or_null(context_id, action_id, index)
+					if override_event == null:
+						continue
+					binding.input_event = override_event.duplicate(true) as InputEvent
+
+				bindings.append({
+					"binding": binding,
+					"key": _make_binding_key(context_id, action_id, index),
+				})
+
+			_actions[action_id] = mapping.action
+			_effective_entries.append({
+				"context": context,
+				"mapping": mapping,
+				"action": mapping.action,
+				"action_id": action_id,
+				"bindings": bindings,
+			})
+
+	contexts_changed.emit(get_enabled_contexts())
+	mappings_changed.emit()
+
+
+func _get_sorted_contexts() -> Array[GFInputContextBase]:
+	var contexts: Array[GFInputContextBase] = []
+	for context_variant: Variant in _active_contexts.keys():
+		var context := context_variant as GFInputContextBase
+		if context != null:
+			contexts.append(context)
+
+	contexts.sort_custom(func(left: GFInputContextBase, right: GFInputContextBase) -> bool:
+		var left_meta := _active_contexts[left] as Dictionary
+		var right_meta := _active_contexts[right] as Dictionary
+		var left_priority := int(left_meta.get("priority", 0))
+		var right_priority := int(right_meta.get("priority", 0))
+		if left_priority != right_priority:
+			return left_priority > right_priority
+		return int(left_meta.get("timestamp", 0)) > int(right_meta.get("timestamp", 0))
+	)
+	return contexts
+
+
+func _apply_entry_event(entry: Dictionary, event: InputEvent) -> bool:
+	var matched := false
+	var action := entry["action"] as GFInputActionBase
+	var action_id := entry["action_id"] as StringName
+	for binding_info: Dictionary in entry["bindings"]:
+		var binding := binding_info["binding"] as GFInputBindingBase
+		if binding == null or not binding.matches_event(event):
+			continue
+
+		var key := String(binding_info["key"])
+		_binding_values[key] = binding.get_contribution(event, action.value_type)
+		_binding_to_action[key] = action_id
+		matched = true
+
+	if matched:
+		_refresh_action_state(action_id, action)
+
+	return matched
+
+
+func _refresh_action_state(action_id: StringName, action: GFInputActionBase) -> void:
+	var previous_value: Variant = _action_values.get(action_id, _default_value_for_type(action.value_type))
+	var previous_active := bool(_action_active.get(action_id, false))
+	var next_value: Variant = _calculate_action_value(action_id, action.value_type)
+	var next_active := _is_value_active(next_value, action)
+
+	_action_values[action_id] = next_value
+	_action_active[action_id] = next_active
+
+	if not _values_equal(previous_value, next_value):
+		action_value_changed.emit(action_id, next_value)
+
+	if not previous_active and next_active:
+		_just_started[action_id] = true
+		action_started.emit(action_id, next_value)
+	elif previous_active and not next_active:
+		action_completed.emit(action_id, next_value)
+
+
+func _calculate_action_vector(action_id: StringName) -> Vector2:
+	var total := Vector2.ZERO
+	for key: String in _binding_values.keys():
+		if _binding_to_action.get(key) == action_id:
+			total += _binding_values[key] as Vector2
+	if total.length() > 1.0:
+		total = total.normalized()
+	return total
+
+
+func _calculate_action_value(action_id: StringName, value_type: GFInputActionBase.ValueType) -> Variant:
+	var vector := _calculate_action_vector(action_id)
+	match value_type:
+		GFInputActionBase.ValueType.BOOL:
+			return vector.length() > 0.0
+		GFInputActionBase.ValueType.AXIS_1D:
+			return clampf(vector.x, -1.0, 1.0)
+		GFInputActionBase.ValueType.AXIS_2D:
+			return vector
+		_:
+			return null
+
+
+func _default_value_for_type(value_type: GFInputActionBase.ValueType) -> Variant:
+	match value_type:
+		GFInputActionBase.ValueType.BOOL:
+			return false
+		GFInputActionBase.ValueType.AXIS_1D:
+			return 0.0
+		GFInputActionBase.ValueType.AXIS_2D:
+			return Vector2.ZERO
+		_:
+			return null
+
+
+func _is_value_active(value: Variant, action: GFInputActionBase) -> bool:
+	match action.value_type:
+		GFInputActionBase.ValueType.BOOL:
+			return bool(value)
+		GFInputActionBase.ValueType.AXIS_1D:
+			return absf(float(value)) >= action.activation_threshold
+		GFInputActionBase.ValueType.AXIS_2D:
+			return (value as Vector2).length() >= action.activation_threshold
+		_:
+			return false
+
+
+func _values_equal(left: Variant, right: Variant) -> bool:
+	if left is float or right is float:
+		return is_equal_approx(float(left), float(right))
+	if left is Vector2 and right is Vector2:
+		return (left as Vector2).is_equal_approx(right as Vector2)
+	return left == right
+
+
+func _clear_runtime_state(emit_completed: bool = false) -> void:
+	if emit_completed:
+		for action_id: StringName in _action_active.keys():
+			if bool(_action_active[action_id]) and _actions.has(action_id):
+				var action := _actions[action_id] as GFInputActionBase
+				action_completed.emit(action_id, _default_value_for_type(action.value_type))
+
+	_binding_values.clear()
+	_binding_to_action.clear()
+	_action_values.clear()
+	_action_active.clear()
+	_just_started.clear()
+
+
+func _get_effective_event(
+	context_id: StringName,
+	action_id: StringName,
+	binding_index: int,
+	binding: GFInputBindingBase
+) -> InputEvent:
+	if _remap_config != null and _remap_config.has_binding(context_id, action_id, binding_index):
+		return _remap_config.get_bound_event_or_null(context_id, action_id, binding_index)
+	return binding.input_event
+
+
+func _make_binding_key(context_id: StringName, action_id: StringName, binding_index: int) -> String:
+	return "%s/%s/%d" % [String(context_id), String(action_id), binding_index]
+
+
+func _should_ignore_event(event: InputEvent) -> bool:
+	return event is InputEventKey and (event as InputEventKey).echo
+
+
+class _GFInputRouter extends Node:
+	var input_callback: Callable
+	var focus_lost_callback: Callable
+
+	func _init() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+
+
+	func _input(event: InputEvent) -> void:
+		if input_callback.is_valid():
+			input_callback.call(event)
+
+
+	func _notification(what: int) -> void:
+		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and focus_lost_callback.is_valid():
+			focus_lost_callback.call()

@@ -16,6 +16,63 @@
 
 ---
 
+## [1.17.0] - 2026-04-29
+
+**版本概述**：新增资源化输入映射扩展，增强移动端虚拟输入与编辑器缩略图生成能力，让项目可以用更抽象、可切换、可重绑的方式处理输入，同时保持 GF 核心不绑定具体玩法规则。
+
+### 🚀 新增特性 (Added)
+- **资源化输入动作与上下文**：新增 `GFInputAction`、`GFInputBinding`、`GFInputMapping`、`GFInputContext`，用于描述抽象动作、输入绑定和可启停上下文。
+- **运行时输入映射 Utility**：新增 `GFInputMappingUtility`，支持上下文优先级、同输入阻断、动作值查询、一次性触发消费、运行时重绑定和可重绑条目枚举。
+- **输入重映射配置**：新增 `GFInputRemapConfig`，只保存覆盖过的绑定，默认输入仍由上下文资源提供。
+- **输入检测与格式化**：新增 `GFInputDetector` 和 `GFInputFormatter`，便于项目层实现改键界面和绑定文本展示。
+- **触屏按钮节点**：新增 `GFTouchButton`，支持触屏/鼠标按下、InputMap 动作映射和可选虚拟手柄按钮事件。
+- **MeshLibrary 预览生成**：`GFThumbnailRenderer` 新增 MeshLibrary 批量预览生成和纹理输出方法。
+
+### 🔄 机制更改 (Changed)
+- **触屏摇杆增强**：`GFTouchJoystick` 新增固定/相对定位模式、交互半径、可选虚拟手柄轴事件和更稳健的屏幕到画布坐标转换。
+- **缩略图相机优化**：`GFThumbnailRenderer` 改为正交相机包围盒取景，并在批量写入 MeshLibrary 预览时阻断中间信号，完成后只发出一次变更。
+- **资产版本推进**：插件版本与资产库维护元数据更新到 `1.17.0`。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFInputAction`。
+- 新增 `GFInputBinding`。
+- 新增 `GFInputMapping`。
+- 新增 `GFInputContext`。
+- 新增 `GFInputRemapConfig`。
+- 新增 `GFInputFormatter`。
+- 新增 `GFInputDetector`。
+- 新增 `GFInputMappingUtility`。
+- 新增 `GFTouchButton`。
+- `GFTouchJoystick` 新增 `PositionMode`、`position_mode`、`interaction_radius`、`draw_interaction_zone`、`emit_joypad_motion`、`joypad_device_id`、`joy_axis_x`、`joy_axis_y`。
+- `GFThumbnailRenderer` 新增 `render_node3d_texture()`、`render_mesh_texture()`、`render_mesh_library_previews()`。
+- 无破坏性 API 变更；旧的输入缓冲、设备映射和触屏摇杆用法保持可用。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需修改现有 `GFInputUtility`、`GFInputDeviceUtility` 或 `GFTouchJoystick` 调用。
+2. 需要运行时改键或多输入上下文时，注册 `GFInputMappingUtility`，并用 `GFInputAction` / `GFInputContext` 资源描述项目输入。
+3. 移动端项目如需相对摇杆，可把 `GFTouchJoystick.position_mode` 设置为 `RELATIVE`，并按需要开启虚拟手柄事件桥接。
+4. 自定义编辑器工具如需批量生成 `MeshLibrary` 预览，可复用 `GFThumbnailRenderer.render_mesh_library_previews()`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `README.md`
+- `addons/gf/README.md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/editor/gf_thumbnail_renderer.gd`
+- `addons/gf/input/gf_input_action.gd`
+- `addons/gf/input/gf_input_binding.gd`
+- `addons/gf/input/gf_input_context.gd`
+- `addons/gf/input/gf_input_detector.gd`
+- `addons/gf/input/gf_input_formatter.gd`
+- `addons/gf/input/gf_input_mapping.gd`
+- `addons/gf/input/gf_input_remap_config.gd`
+- `addons/gf/input/gf_touch_button.gd`
+- `addons/gf/input/gf_touch_joystick.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/utilities/gf_input_mapping_utility.gd`
+- `tests/gf_core/test_gf_input_mapping_utility.gd`
+
 ## [1.16.0] - 2026-04-29
 
 **版本概述**：围绕节点状态机、运行时控制台和远程数据缓存做通用化增强，提升框架在复杂节点流程、高频调试日志和轻量远程配置场景下的可复用性与稳定性。
