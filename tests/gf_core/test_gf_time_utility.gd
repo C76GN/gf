@@ -7,6 +7,15 @@ extends GutTest
 var _utility: GFTimeUtility
 
 
+# --- 辅助类 ---
+
+class DeltaRecorderSystem extends GFSystem:
+	var last_delta: float = -1.0
+
+	func tick(delta: float) -> void:
+		last_delta = delta
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -111,3 +120,24 @@ func test_init_resets_state() -> void:
 	assert_almost_eq(_utility.time_scale, 1.0, 0.0001, "init 后缩放应重置为 1.0。")
 	assert_false(_utility.is_paused, "init 后暂停应重置为 false。")
 	assert_false(_utility.is_group_paused(&"test"), "init 后组暂停应被清除。")
+
+
+## 验证模块可选择忽略 time_scale 但仍尊重暂停。
+func test_architecture_module_can_ignore_time_scale() -> void:
+	var arch := GFArchitecture.new()
+	var time_utility := GFTimeUtility.new()
+	var system := DeltaRecorderSystem.new()
+	system.ignore_time_scale = true
+	await arch.register_utility_instance(time_utility)
+	await arch.register_system_instance(system)
+	await arch.init()
+
+	time_utility.time_scale = 0.25
+	arch.tick(1.0)
+	assert_almost_eq(system.last_delta, 1.0, 0.0001, "ignore_time_scale 的模块应接收原始 delta。")
+
+	time_utility.is_paused = true
+	arch.tick(1.0)
+	assert_almost_eq(system.last_delta, 0.0, 0.0001, "未设置 ignore_pause 时仍应尊重全局暂停。")
+
+	arch.dispose()

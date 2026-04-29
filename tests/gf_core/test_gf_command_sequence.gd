@@ -98,3 +98,38 @@ func test_sequence_cancel_stops_following_steps_after_wait() -> void:
 
 	assert_eq(order, ["before", "wait"], "取消后不应执行后续步骤。")
 	assert_true(cancelled[0], "序列应发出取消信号。")
+
+
+## 验证取消等待中的序列不需要等外部 Signal 触发。
+func test_sequence_cancel_breaks_wait_without_signal() -> void:
+	var order: Array[String] = []
+	var wait_step := ManualSignalStep.new(order, "wait")
+	var sequence := GFCommandSequence.new([
+		wait_step,
+		RecordingStep.new(order, "after"),
+	])
+
+	sequence.run()
+	await get_tree().process_frame
+	sequence.cancel()
+	await get_tree().process_frame
+
+	assert_eq(order, ["wait"], "取消后不应等待外部 Signal 才停止。")
+	assert_false(sequence.is_running, "取消检查后序列应停止运行。")
+
+
+## 验证 Signal 超时后序列会继续后续步骤。
+func test_sequence_signal_timeout_continues() -> void:
+	var order: Array[String] = []
+	var wait_step := ManualSignalStep.new(order, "wait")
+	var sequence := GFCommandSequence.new([
+		wait_step,
+		RecordingStep.new(order, "after"),
+	]).with_signal_timeout(0.001)
+
+	sequence.run()
+	await get_tree().create_timer(0.05).timeout
+	await get_tree().process_frame
+
+	assert_push_warning("[GFCommandSequence] 等待 Signal 超时，序列将继续执行后续步骤。")
+	assert_eq(order, ["wait", "after"], "Signal 超时后应继续执行后续步骤。")

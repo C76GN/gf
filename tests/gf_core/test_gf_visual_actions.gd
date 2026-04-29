@@ -61,6 +61,26 @@ func test_move_tween_action_waits_for_tween() -> void:
 	assert_almost_eq(node.position.y, 0.0, 0.01, "移动 Tween 完成后应到达目标 y。")
 
 
+func test_move_tween_action_wait_ends_when_target_exits_tree() -> void:
+	var node := Node2D.new()
+	add_child(node)
+
+	var action: GFVisualAction = GF_MOVE_TWEEN_ACTION.new(node, Vector2(100.0, 0.0), 1.0)
+	var result: Variant = action.execute()
+	var completed := [false]
+	var wait_for_action := func() -> void:
+		await action.await_result_safely(result)
+		completed[0] = true
+
+	wait_for_action.call()
+	await get_tree().process_frame
+	node.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(completed[0], "Tween 目标节点退出树时，等待应立即结束。")
+
+
 func test_flash_action_restores_modulate() -> void:
 	var item := ColorRect.new()
 	item.modulate = Color(0.2, 0.4, 0.6)

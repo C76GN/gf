@@ -54,9 +54,14 @@ var _receiver_refs: Dictionary = {}
 var _capability_receivers: Dictionary = {}
 var _receiver_groups: Dictionary = {}
 var _receiver_group_names: Dictionary = {}
+var _elapsed_since_prune: float = 0.0
 
 
 # --- Godot 生命周期方法 ---
+
+func init() -> void:
+	_elapsed_since_prune = 0.0
+
 
 func dispose() -> void:
 	_creation_stack.clear()
@@ -64,6 +69,19 @@ func dispose() -> void:
 	_capability_receivers.clear()
 	_receiver_groups.clear()
 	_receiver_group_names.clear()
+	_elapsed_since_prune = 0.0
+
+
+func tick(delta: float) -> void:
+	if delta < 0.0:
+		return
+
+	_elapsed_since_prune += delta
+	if _elapsed_since_prune < 1.0:
+		return
+
+	_elapsed_since_prune = 0.0
+	prune_invalid_receivers()
 
 
 # --- 公共方法 ---
@@ -109,6 +127,11 @@ func get_receivers_with(capability_type: Script, include_subclasses: bool = true
 				seen_ids[receiver_id] = true
 				result.append(receiver)
 	return result
+
+
+## 主动清理已经失效的 receiver 弱引用与反向索引。
+func prune_invalid_receivers() -> void:
+	_prune_invalid_receivers()
 
 
 ## 获取当前已挂载的指定能力实例列表。

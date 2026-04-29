@@ -42,6 +42,11 @@ var is_running: bool = false
 var sort_actions_before_resolve: bool = true
 
 
+# --- 私有变量 ---
+
+var _flow_serial: int = 0
+
+
 # --- 公共方法 ---
 
 ## 设置上下文。
@@ -63,6 +68,7 @@ func start(reset_indices: bool = true) -> void:
 		current_phase_index = -1
 		context.turn_index = 0
 		context.round_index = 0
+	_flow_serial += 1
 	is_running = true
 	flow_started.emit(context)
 
@@ -70,6 +76,7 @@ func start(reset_indices: bool = true) -> void:
 ## 停止流程。
 ## @param clear_actions: 是否清空待处理行动。
 func stop(clear_actions: bool = true) -> void:
+	_flow_serial += 1
 	if clear_actions:
 		context.clear_actions()
 	is_running = false
@@ -82,6 +89,7 @@ func advance_phase() -> void:
 		start(false)
 	if phases.is_empty():
 		return
+	var flow_serial := _flow_serial
 
 	current_phase_index = (current_phase_index + 1) % phases.size()
 	if current_phase_index == 0:
@@ -94,13 +102,22 @@ func advance_phase() -> void:
 	phase.reset()
 	phase_changed.emit(phase, current_phase_index)
 	phase.enter(context)
+	if not _is_active_flow_serial(flow_serial):
+		return
+
 	var result: Variant = phase.execute(context)
 	if result is Signal:
 		await (result as Signal)
+		if not _is_active_flow_serial(flow_serial):
+			return
 	if phase.auto_finish:
 		phase.finish()
+	if not _is_active_flow_serial(flow_serial):
+		return
 	if not phase.is_finished:
 		await phase.finished
+		if not _is_active_flow_serial(flow_serial):
+			return
 	phase.exit(context)
 
 
@@ -116,6 +133,7 @@ func enqueue_action(action: GFTurnAction) -> void:
 ## 解析当前上下文中的所有行动。
 ## @param order_resolver: 可选排序回调，签名为 func(a, b) -> bool。
 func resolve_actions(order_resolver: Callable = Callable()) -> void:
+	var flow_serial := _flow_serial
 	var pending_actions := context.actions.duplicate()
 	context.actions.clear()
 
@@ -126,6 +144,8 @@ func resolve_actions(order_resolver: Callable = Callable()) -> void:
 			pending_actions.sort_custom(_sort_action_desc)
 
 	for action: GFTurnAction in pending_actions:
+		if not _is_flow_serial_current(flow_serial):
+			break
 		if action == null or action.is_cancelled:
 			continue
 		_inject_action(action)
@@ -133,6 +153,8 @@ func resolve_actions(order_resolver: Callable = Callable()) -> void:
 		var result: Variant = action.resolve(context)
 		if result is Signal:
 			await (result as Signal)
+			if not _is_flow_serial_current(flow_serial):
+				break
 		action_resolved.emit(action)
 
 	context.current_actor = null
@@ -154,3 +176,11 @@ func _inject_action(action: GFTurnAction) -> void:
 		action.call("inject_dependencies", architecture)
 	if action.has_method("inject"):
 		action.call("inject", architecture)
+
+
+func _is_flow_serial_current(serial: int) -> bool:
+	return serial == _flow_serial
+
+
+func _is_active_flow_serial(serial: int) -> bool:
+	return is_running and serial == _flow_serial

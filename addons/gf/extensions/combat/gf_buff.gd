@@ -1,11 +1,9 @@
-class_name GFBuff
-extends RefCounted
-
-
 ## GFBuff: 状态效果基类。
-## 
+##
 ## 管理 Buff 的生命周期、层数以及对属性/标签的影响。
 ## 在 GFCombatSystem 的 tick 中驱动 update。
+class_name GFBuff
+extends RefCounted
 
 
 # --- 公共变量 ---
@@ -82,52 +80,56 @@ func update(p_delta: float) -> bool:
 	return false
 
 
-# --- 私有方法 ---
+# --- 私有/辅助方法 ---
 
 ## 应用 Buff 携带的所有效果。
 func _apply_effects() -> void:
-	if owner == null:
+	var valid_owner := _get_valid_owner()
+	if valid_owner == null:
 		return
-		
-	# 自动应用标签
-	if owner.has_method("get_tag_component"):
-		var tc := owner.get_tag_component() as GFTagComponent
+
+	if valid_owner.has_method("get_tag_component"):
+		var tc := valid_owner.get_tag_component() as GFTagComponent
 		if tc != null:
 			for tag in tags:
 				tc.add_tag(tag)
-				
-	# 自动应用修饰器
-	if owner.has_method("get_attribute"):
+
+	if valid_owner.has_method("get_attribute"):
 		for mod in modifiers:
 			if mod == null:
 				continue
 
-			var attr := owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
+			var attr := valid_owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
 			if attr != null:
 				attr.add_modifier(mod)
 
 
 ## 移除 Buff 携带的所有效果。
 func _remove_effects() -> void:
-	if owner == null:
+	var valid_owner := _get_valid_owner()
+	if valid_owner == null:
 		return
-		
-	# 移除标签
-	if owner.has_method("get_tag_component"):
-		var tc := owner.get_tag_component() as GFTagComponent
+
+	if valid_owner.has_method("get_tag_component"):
+		var tc := valid_owner.get_tag_component() as GFTagComponent
 		if tc != null:
 			for tag in tags:
 				tc.remove_tag(tag)
-				
-	# 移除修饰器
-	if owner.has_method("get_attribute"):
+
+	if valid_owner.has_method("get_attribute"):
 		for mod in modifiers:
 			if mod == null:
 				continue
 
-			var attr := owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
+			var attr := valid_owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
 			if attr != null:
 				attr.remove_modifier(mod)
+
+
+func _get_valid_owner() -> Object:
+	if owner == null or not is_instance_valid(owner):
+		return null
+	return owner
 
 
 func _get_modifier_attribute_id(modifier: GFModifier) -> StringName:

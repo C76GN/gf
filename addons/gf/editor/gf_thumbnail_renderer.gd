@@ -113,7 +113,8 @@ func _ensure_viewport() -> void:
 func _clear_world_root() -> void:
 	for child: Node in _world_root.get_children():
 		if child != _camera and child != _key_light and child != _fill_light:
-			child.queue_free()
+			_world_root.remove_child(child)
+			child.free()
 
 
 func _prepare_instance(instance: Node3D) -> void:
@@ -177,4 +178,3 @@ func _get_combined_aabb(root: Node) -> AABB:
 	if not has_bounds:
 		return AABB(Vector3(-0.5, -0.5, -0.5), Vector3.ONE)
 	return combined
-

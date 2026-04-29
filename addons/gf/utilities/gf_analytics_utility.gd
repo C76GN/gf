@@ -73,6 +73,9 @@ func tick(delta: float) -> void:
 ## @param analytics_config: 新配置。
 func configure(analytics_config: GFAnalyticsConfig) -> void:
 	config = analytics_config if analytics_config != null else GFAnalyticsConfig.new()
+	config.batch_size = config.batch_size
+	config.max_queue_size = config.max_queue_size
+	config.flush_interval_seconds = config.flush_interval_seconds
 
 
 ## 设置稳定客户端标识。
@@ -90,7 +93,8 @@ func track(event_name: StringName, properties: Dictionary = {}) -> void:
 	if not config.enabled or event_name == &"":
 		return
 
-	while _queue.size() >= config.max_queue_size:
+	var max_queue_size := _get_max_queue_size()
+	while _queue.size() >= max_queue_size:
 		_queue.pop_front()
 
 	var event_data := {
@@ -109,7 +113,7 @@ func track(event_name: StringName, properties: Dictionary = {}) -> void:
 	_queue.append(event_data)
 	event_tracked.emit(event_name, event_data)
 
-	if _queue.size() >= config.batch_size:
+	if _queue.size() >= _get_batch_size():
 		flush()
 
 
@@ -119,7 +123,7 @@ func flush() -> void:
 		return
 
 	_is_flushing = true
-	var count := mini(config.batch_size, _queue.size())
+	var count := mini(_get_batch_size(), _queue.size())
 	var batch: Array = []
 	for _i: int in range(count):
 		batch.append(_queue.pop_front())
@@ -199,6 +203,14 @@ func _send_batch(batch: Array) -> void:
 		}, batch)
 
 
+func _get_batch_size() -> int:
+	return maxi(config.batch_size, 1)
+
+
+func _get_max_queue_size() -> int:
+	return maxi(config.max_queue_size, 1)
+
+
 func _ensure_http_request() -> HTTPRequest:
 	if is_instance_valid(_http_request):
 		return _http_request
@@ -262,4 +274,3 @@ func _generate_id() -> String:
 		rng.randi(),
 		rng.randi(),
 	]
-

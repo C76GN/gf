@@ -34,6 +34,7 @@ var _coyotes: Dictionary = {}
 
 ## 第一阶段初始化：清空所有计时器。
 func init() -> void:
+	ignore_time_scale = true
 	_buffers.clear()
 	_coyotes.clear()
 

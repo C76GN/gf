@@ -23,6 +23,15 @@ class RejectingSkill extends GFSkill:
 		return false
 
 
+class UnregisterOtherBuff extends GFBuff:
+	var system: GFCombatSystem = null
+	var target: Object = null
+
+	func on_tick(_p_delta: float) -> void:
+		if system != null:
+			system.unregister_entity(target)
+
+
 # --- 测试方法 ---
 
 ## 测试 GFAttribute 的修饰器计算。
@@ -134,6 +143,14 @@ func test_skill_custom_can_execute_runs_without_tag_component() -> void:
 	assert_false(skill.can_execute(), "owner 无标签组件且无必需标签时，仍应执行自定义施放检查。")
 
 
+func test_skill_rejects_freed_owner() -> void:
+	var skill_owner := Object.new()
+	var skill := GFSkill.new(skill_owner)
+	skill_owner.free()
+
+	assert_false(skill.can_execute(), "owner 已释放时技能不应允许施放。")
+
+
 func test_attribute_ignores_null_modifier() -> void:
 	var attr := GFAttribute.new(10.0)
 
@@ -158,6 +175,19 @@ func test_buff_modifier_supports_legacy_source_tag_attribute_fallback() -> void:
 	system.add_buff(entity, buff)
 
 	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "旧 source_tag 写法仍应作为目标属性回退。")
+
+
+func test_buff_ignores_freed_owner() -> void:
+	var entity := MockEntity.new()
+	var buff := GFBuff.new()
+	buff.tags.append(&"Buffed")
+	buff.setup(&"Detached", 1.0, entity)
+	entity.free()
+
+	buff.on_apply()
+	buff.on_remove()
+
+	assert_true(true, "owner 已释放时 Buff 应安全跳过效果应用与移除。")
 
 
 ## 测试 GFCombatSystem 的 Buff 驱动。
@@ -338,6 +368,28 @@ func test_tick_cleans_freed_entities_from_internal_indices() -> void:
 
 	assert_eq(system._entities.size(), 0, "已释放实体应从主索引中清理。")
 	assert_eq(system._active_entities.size(), 0, "已释放实体应从活跃索引中清理。")
+
+
+func test_tick_skips_entity_removed_by_earlier_entity_callback() -> void:
+	var system := GFCombatSystem.new()
+	var entity_a := MockEntity.new()
+	var entity_b := MockEntity.new()
+	system.register_entity(entity_a)
+	system.register_entity(entity_b)
+
+	var remover := UnregisterOtherBuff.new()
+	remover.setup(&"Remover", -1.0, entity_a)
+	remover.system = system
+	remover.target = entity_b
+	system.add_buff(entity_a, remover)
+
+	var buff_b := GFBuff.new()
+	buff_b.setup(&"TargetBuff", -1.0, entity_b)
+	system.add_buff(entity_b, buff_b)
+
+	system.tick(0.1)
+
+	assert_false(system._entities.has(entity_b), "tick 中被前一个实体注销的后续实体不应再被访问。")
 
 
 func test_combat_event_dispatching() -> void:

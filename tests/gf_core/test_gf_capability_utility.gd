@@ -373,6 +373,17 @@ func test_capability_reverse_index_and_groups() -> void:
 	assert_eq(boss_base_receivers, [receiver_b], "分组能力交集查询应只返回匹配 receiver。")
 
 
+func test_prune_invalid_receivers_removes_stale_indices() -> void:
+	var receiver := Object.new()
+	_utility.add_capability(receiver, HealthCapability)
+	var receiver_id := receiver.get_instance_id()
+
+	receiver.free()
+	_utility.prune_invalid_receivers()
+
+	assert_false(_utility._receiver_refs.has(receiver_id), "主动清理应移除已释放 receiver 的弱引用。")
+
+
 func test_interaction_context_queries_capabilities_and_group() -> void:
 	var sender := RefCounted.new()
 	var target := RefCounted.new()

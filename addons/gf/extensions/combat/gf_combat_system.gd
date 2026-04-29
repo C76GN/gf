@@ -1,11 +1,9 @@
-class_name GFCombatSystem
-extends GFSystem
-
-
 ## GFCombatSystem: 战斗核心系统。
-## 
+##
 ## 负责驱动所有注册实体的 Buff 计时、周期触发以及技能 CD 更新。
 ## 继承自 GFSystem，可通过架构的 tick 自动运行。
+class_name GFCombatSystem
+extends GFSystem
 
 
 # --- 私有变量 ---
@@ -22,15 +20,16 @@ var _active_entities: Dictionary = {}
 
 func tick(p_delta: float) -> void:
 	_cleanup_invalid_entities()
-	# 仅遍历活跃实体
 	var ids := _active_entities.keys()
 	for id in ids:
-		var entity = _active_entities[id]
-		if not is_instance_valid(entity):
-			_remove_entity_record(entity, false)
+		if not _active_entities.has(id):
+			continue
+
+		var entity = _active_entities.get(id)
+		if not is_instance_valid(entity) or not _entities.has(entity):
 			_active_entities.erase(id)
 			continue
-			
+
 		_process_entity(entity, p_delta)
 
 
@@ -54,8 +53,6 @@ func register_entity(p_entity: Object) -> void:
 		"buffs": [],
 		"skills": [],
 	}
-	# 初始状态不一定是活跃的，但在 GFCombatSystem 中注册通常意味着即将开始战斗，
-	# 实际的活跃状态由 add_buff 或 add_skill 触发更新。
 	_update_active_status(p_entity)
 
 
@@ -115,7 +112,7 @@ func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 	_update_active_status(p_entity)
 
 
-# --- 私有方法 ---
+# --- 私有/辅助方法 ---
 
 ## 更新实体的活跃状态。
 func _update_active_status(p_entity: Object) -> void:
@@ -207,9 +204,10 @@ func _send_combat_event(event_instance: Object) -> void:
 
 
 func _process_entity(p_entity: Object, p_delta: float) -> void:
+	if not _entities.has(p_entity):
+		return
+
 	var data: Dictionary = _entities[p_entity]
-	
-	# 处理 Buffs
 	var buffs: Array = data["buffs"]
 	var buff_index := buffs.size() - 1
 	while buff_index >= 0:
@@ -231,8 +229,10 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 			buff.on_remove()
 			_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, removed_id))
 		buff_index -= 1
-		
-	# 处理技能 CD
+
+	if not _entities.has(p_entity):
+		return
+
 	var skills: Array = data["skills"]
 	var skill_index := skills.size() - 1
 	while skill_index >= 0:
@@ -246,6 +246,6 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 			continue
 		skill.update(p_delta)
 		skill_index -= 1
-		
-	# 每次处理完后更新活跃状态
-	_update_active_status(p_entity)
+
+	if _entities.has(p_entity):
+		_update_active_status(p_entity)

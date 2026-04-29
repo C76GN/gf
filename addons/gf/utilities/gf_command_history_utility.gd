@@ -217,9 +217,9 @@ func serialize_history() -> Array[Dictionary]:
 	return _serialize_stack(_undo_stack)
 
 
-## 将完整命令历史序列化为纯数据字典。##
-## 包含 `undo` 与 `redo` 两个栈，可用于全量运行时快照恢复。##
-## @return 适合持久化的完整历史数据。##
+## 将完整命令历史序列化为纯数据字典。
+## 包含 `undo` 与 `redo` 两个栈，可用于全量运行时快照恢复。
+## @return 适合持久化的完整历史数据。
 func serialize_full_history() -> Dictionary:
 	return {
 		"undo": _serialize_stack(_undo_stack),
@@ -250,9 +250,9 @@ func deserialize_history(data_array: Array, command_builder: Callable) -> void:
 				_undo_stack.append(restored_cmd)
 
 
-## 通过构造器从完整历史数据恢复撤销栈与重做栈。##
-## @param data: 由 `serialize_full_history()` 生成的字典数据。##
-## @param command_builder: 负责反序列化命令实例的构造器。##
+## 通过构造器从完整历史数据恢复撤销栈与重做栈。
+## @param data: 由 `serialize_full_history()` 生成的字典数据。
+## @param command_builder: 负责反序列化命令实例的构造器。
 func deserialize_full_history(data: Dictionary, command_builder: Callable) -> void:
 	if _is_processing_async:
 		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略完整历史恢复请求。")

@@ -63,6 +63,10 @@ func cancel() -> void:
 	_clear_active_tween()
 
 
+func get_wait_guard_node() -> Node:
+	return target if is_instance_valid(target) else null
+
+
 # --- 私有/辅助方法 ---
 
 func _clear_active_tween() -> void:

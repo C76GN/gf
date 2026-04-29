@@ -69,13 +69,14 @@ func can_execute() -> bool:
 	if cooldown_left > 0.0:
 		return false
 
-	if owner == null:
+	var valid_owner := _get_valid_owner()
+	if valid_owner == null:
 		return false
 
-	if not owner.has_method("get_tag_component"):
+	if not valid_owner.has_method("get_tag_component"):
 		return require_tags.is_empty() and _custom_can_execute()
 
-	var tc := owner.get_tag_component() as GFTagComponent
+	var tc := valid_owner.get_tag_component() as GFTagComponent
 	if tc == null:
 		return require_tags.is_empty() and _custom_can_execute()
 
@@ -114,8 +115,9 @@ func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
 			final_targets.append(manual_target)
 	elif targeting_rule != null:
 		var candidates: Array = []
-		if owner != null and owner.has_method(&"get_targeting_candidates"):
-			candidates = owner.call(&"get_targeting_candidates")
+		var valid_owner := _get_valid_owner()
+		if valid_owner != null and valid_owner.has_method(&"get_targeting_candidates"):
+			candidates = valid_owner.call(&"get_targeting_candidates")
 		elif has_method(&"get_targeting_candidates"):
 			candidates = call(&"get_targeting_candidates")
 
@@ -154,10 +156,17 @@ func _resolve_cast_center(cast_center: Variant) -> Vector2:
 	if cast_center is Vector2:
 		return cast_center
 
-	if owner != null and "global_position" in owner:
-		return owner.global_position
+	var valid_owner := _get_valid_owner()
+	if valid_owner != null and "global_position" in valid_owner:
+		return valid_owner.global_position
 
 	return Vector2.ZERO
+
+
+func _get_valid_owner() -> Object:
+	if owner == null or not is_instance_valid(owner):
+		return null
+	return owner
 
 
 func _get_targeting_utility() -> GFSkillTargetingUtility:

@@ -37,7 +37,8 @@ func before_each() -> void:
 func after_each() -> void:
 	_pool.dispose()
 	_pool = null
-	_parent.queue_free()
+	if is_instance_valid(_parent):
+		_parent.queue_free()
 	_parent = null
 	_scene = null
 
@@ -154,7 +155,8 @@ func test_repeated_acquire_release_does_not_leak() -> void:
 
 	_pool.acquire(_scene, _parent)
 
-	assert_eq(_parent.get_child_count(), count_before, "复用节点时父节点的子节点数不应增加。")
+	assert_eq(count_before, 0, "release 后节点应被移到对象池根节点，脱离原父节点。")
+	assert_eq(_parent.get_child_count(), 1, "复用节点时应重新挂回请求的父节点。")
 
 
 # --- 测试：prewarm ---
@@ -197,6 +199,26 @@ func test_prewarm_async_stops_after_dispose() -> void:
 	await get_tree().process_frame
 
 	assert_true(_parent.get_child_count() <= count_after_dispose, "dispose 后未完成的 prewarm_async 不应继续创建节点。")
+
+
+func test_release_reparents_to_pool_root_and_survives_original_parent_free() -> void:
+	var node: Node = _pool.acquire(_scene, _parent)
+	_pool.release(node, _scene)
+
+	assert_ne(node.get_parent(), _parent, "release 后节点不应继续挂在原父节点下。")
+	assert_eq(_pool.get_available_count(_scene), 1, "release 后节点应进入可用池。")
+
+	_parent.queue_free()
+	await get_tree().process_frame
+	var new_parent := Node.new()
+	add_child(new_parent)
+	var reused := _pool.acquire(_scene, new_parent)
+
+	assert_eq(reused, node, "原父节点释放后，对象池仍应能复用已回收节点。")
+	assert_eq(reused.get_parent(), new_parent, "复用时节点应挂到新的父节点。")
+
+	new_parent.queue_free()
+	await get_tree().process_frame
 
 
 func test_max_available_per_scene_limits_retained_nodes() -> void:

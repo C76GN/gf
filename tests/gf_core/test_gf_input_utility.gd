@@ -20,6 +20,11 @@ func after_each() -> void:
 
 # --- 测试：输入缓冲 ---
 
+## 验证输入缓冲默认使用真实 delta，不受全局 time_scale 影响。
+func test_input_utility_ignores_time_scale() -> void:
+	assert_true(_utility.ignore_time_scale, "输入缓冲与土狼时间应默认按真实时间递减。")
+
+
 ## 验证缓冲后可成功消费。
 func test_buffer_and_consume() -> void:
 	_utility.buffer_action(&"jump", 0.15)

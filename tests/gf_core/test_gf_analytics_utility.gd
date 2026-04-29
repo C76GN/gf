@@ -59,6 +59,18 @@ func test_queue_respects_max_size() -> void:
 	assert_eq(_analytics.get_queue_size(), 2, "队列不应超过 max_queue_size。")
 
 
+## 验证运行时代码写入非法批量配置时会被钳制，不会破坏队列。
+func test_runtime_config_values_are_clamped() -> void:
+	_analytics.config.max_queue_size = 0
+	_analytics.config.batch_size = 0
+	_analytics.track(&"first")
+	_analytics.track(&"second")
+
+	assert_eq(_analytics.config.max_queue_size, 1, "max_queue_size 应被钳制为至少 1。")
+	assert_eq(_analytics.config.batch_size, 1, "batch_size 应被钳制为至少 1。")
+	assert_eq(_analytics.get_queue_size(), 0, "batch_size 钳制为 1 后事件应立即 dry-run flush。")
+
+
 ## 验证配置关闭后不会继续记录事件。
 func test_disabled_config_ignores_events() -> void:
 	var config := GFAnalyticsConfig.new()

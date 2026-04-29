@@ -11,6 +11,7 @@ extends GFUtility
 
 const _TEMP_SUFFIX: String = ".tmp"
 const _BACKUP_SUFFIX: String = ".bak"
+const _TRANSACTION_SUFFIX: String = ".txn"
 
 
 # --- 公共变量 ---
@@ -155,6 +156,7 @@ func delete_slot(slot_id: int) -> void:
 		_remove_file_if_exists(_get_full_path(file_name))
 		_remove_file_if_exists(_get_full_path(_get_temp_filename(file_name)))
 		_remove_file_if_exists(_get_full_path(_get_backup_filename(file_name)))
+		_remove_file_if_exists(_get_full_path(_get_transaction_filename(file_name)))
 
 
 # --- 公共方法（纯数据存取） ---
@@ -234,15 +236,70 @@ func _get_backup_filename(file_name: String) -> String:
 	return file_name + _BACKUP_SUFFIX
 
 
+func _get_transaction_filename(file_name: String) -> String:
+	return file_name + _TRANSACTION_SUFFIX
+
+
 func _cleanup_transaction_files(file_names: Array[String]) -> void:
 	for file_name: String in file_names:
 		_remove_file_if_exists(_get_full_path(_get_temp_filename(file_name)))
 		_remove_file_if_exists(_get_full_path(_get_backup_filename(file_name)))
+		_remove_file_if_exists(_get_full_path(_get_transaction_filename(file_name)))
 
 
 func _recover_transaction_files(file_names: Array[String]) -> void:
+	var recovered_files: Dictionary = {}
 	for file_name: String in file_names:
-		_recover_transaction_file(file_name)
+		var marker := _read_transaction_marker(file_name)
+		if marker.is_empty():
+			continue
+
+		var transaction_files := _get_transaction_marker_files(marker, file_name)
+		_recover_transaction_group(transaction_files)
+		for transaction_file_name: String in transaction_files:
+			recovered_files[transaction_file_name] = true
+
+	for file_name: String in file_names:
+		if not recovered_files.has(file_name):
+			_recover_transaction_file(file_name)
+
+
+func _recover_transaction_group(file_names: Array[String]) -> void:
+	if file_names.is_empty():
+		return
+
+	var should_keep_new_files := _is_transaction_group_committed(file_names)
+	if should_keep_new_files:
+		for file_name: String in file_names:
+			var final_path := _get_full_path(file_name)
+			var temp_path := _get_full_path(_get_temp_filename(file_name))
+			if not FileAccess.file_exists(final_path) and FileAccess.file_exists(temp_path):
+				var promote_error := _move_file(temp_path, final_path)
+				if promote_error != OK:
+					push_error("[GFStorageUtility] 恢复已提交事务文件失败：%s，错误码：%s" % [final_path, promote_error])
+					continue
+			_remove_file_if_exists(temp_path)
+			_remove_file_if_exists(_get_full_path(_get_backup_filename(file_name)))
+			_remove_file_if_exists(_get_full_path(_get_transaction_filename(file_name)))
+		return
+
+	for file_name: String in file_names:
+		var marker := _read_transaction_marker(file_name)
+		var final_path := _get_full_path(file_name)
+		var temp_path := _get_full_path(_get_temp_filename(file_name))
+		var backup_path := _get_full_path(_get_backup_filename(file_name))
+		var had_final := bool(marker.get("had_final", true))
+
+		if FileAccess.file_exists(backup_path):
+			_remove_file_if_exists(final_path)
+			var restore_error := _move_file(backup_path, final_path)
+			if restore_error != OK:
+				push_error("[GFStorageUtility] 回滚事务文件失败：%s，错误码：%s" % [final_path, restore_error])
+		elif not had_final:
+			_remove_file_if_exists(final_path)
+
+		_remove_file_if_exists(temp_path)
+		_remove_file_if_exists(_get_full_path(_get_transaction_filename(file_name)))
 
 
 func _recover_transaction_file(file_name: String) -> void:
@@ -280,6 +337,12 @@ func _recover_transaction_file(file_name: String) -> void:
 
 
 func _commit_transaction(file_names: Array[String]) -> Error:
+	file_names = _unique_file_names(file_names)
+	var marker_error := _write_transaction_markers(file_names, false)
+	if marker_error != OK:
+		_cleanup_transaction_files(file_names)
+		return marker_error
+
 	var transaction_state: Dictionary = {}
 	for file_name: String in file_names:
 		transaction_state[file_name] = {
@@ -303,11 +366,19 @@ func _commit_transaction(file_names: Array[String]) -> Error:
 		var commit_error := _move_file(temp_path, final_path)
 		if commit_error != OK:
 			_rollback_transaction(file_names, transaction_state)
+			_cleanup_transaction_markers(file_names)
 			return commit_error
 		transaction_state[file_name]["committed"] = true
 
+	var complete_marker_error := _write_transaction_markers(file_names, true)
+	if complete_marker_error != OK:
+		_rollback_transaction(file_names, transaction_state)
+		_cleanup_transaction_markers(file_names)
+		return complete_marker_error
+
 	for file_name: String in file_names:
 		_remove_file_if_exists(_get_full_path(_get_backup_filename(file_name)))
+		_remove_file_if_exists(_get_full_path(_get_transaction_filename(file_name)))
 
 	return OK
 
@@ -329,6 +400,74 @@ func _rollback_transaction(file_names: Array[String], transaction_state: Diction
 			var restore_error := _move_file(backup_path, final_path)
 			if restore_error != OK:
 				push_error("[GFStorageUtility] 回滚文件失败：%s，错误码：%s" % [final_path, restore_error])
+
+
+func _write_transaction_markers(file_names: Array[String], committed: bool) -> Error:
+	for file_name: String in file_names:
+		var existing_marker := _read_transaction_marker(file_name)
+		var had_final := bool(existing_marker.get("had_final", FileAccess.file_exists(_get_full_path(file_name))))
+		var marker := {
+			"files": file_names,
+			"committed": committed,
+			"had_final": had_final,
+		}
+		var error := _write_plain_json(_get_transaction_filename(file_name), marker)
+		if error != OK:
+			return error
+	return OK
+
+
+func _cleanup_transaction_markers(file_names: Array[String]) -> void:
+	for file_name: String in file_names:
+		_remove_file_if_exists(_get_full_path(_get_transaction_filename(file_name)))
+
+
+func _read_transaction_marker(file_name: String) -> Dictionary:
+	var path := _get_full_path(_get_transaction_filename(file_name))
+	if not FileAccess.file_exists(path):
+		return {}
+
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		push_error("[GFStorageUtility] 无法读取事务标记：%s，错误码：%s" % [path, FileAccess.get_open_error()])
+		return {}
+
+	var content := file.get_as_text()
+	file.close()
+	var parsed: Variant = JSON.parse_string(content)
+	if parsed is Dictionary:
+		return parsed as Dictionary
+	return {}
+
+
+func _get_transaction_marker_files(marker: Dictionary, fallback_file_name: String) -> Array[String]:
+	var result: Array[String] = []
+	var raw_files: Variant = marker.get("files", [])
+	if raw_files is Array:
+		for raw_file: Variant in raw_files:
+			var file_name := String(raw_file)
+			if not file_name.is_empty() and not result.has(file_name):
+				result.append(file_name)
+
+	if result.is_empty():
+		result.append(fallback_file_name)
+	return result
+
+
+func _is_transaction_group_committed(file_names: Array[String]) -> bool:
+	for file_name: String in file_names:
+		var marker := _read_transaction_marker(file_name)
+		if marker.is_empty() or not bool(marker.get("committed", false)):
+			return false
+	return true
+
+
+func _unique_file_names(file_names: Array[String]) -> Array[String]:
+	var result: Array[String] = []
+	for file_name: String in file_names:
+		if not result.has(file_name):
+			result.append(file_name)
+	return result
 
 
 func _move_file(from_path: String, to_path: String) -> Error:
@@ -355,6 +494,18 @@ func _write_json(file_name: String, data: Dictionary) -> Error:
 	else:
 		file.store_string(json_str)
 
+	file.close()
+	return OK
+
+
+func _write_plain_json(file_name: String, data: Dictionary) -> Error:
+	var path := _get_full_path(file_name)
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		push_error("[GFStorageUtility] 无法写入文件：%s，错误码：%s" % [path, FileAccess.get_open_error()])
+		return FileAccess.get_open_error()
+
+	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
 	return OK
 

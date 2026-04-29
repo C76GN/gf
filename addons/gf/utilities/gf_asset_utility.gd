@@ -25,7 +25,7 @@ var max_cache_size: int:
 
 var _max_cache_size: int = 64
 
-## 正在加载中的请求：`path -> { type_hint: String, callbacks: Array[Callable] }`。
+## 正在加载中的请求：`path -> { type_hint: String, callbacks: Array[Callable], cancelled: bool }`。
 var _pending: Dictionary = {}
 
 ## 资源缓存：`path -> Resource`。
@@ -83,6 +83,9 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 			return
 
 		var callbacks := pending_request.get("callbacks", []) as Array
+		if bool(pending_request.get("cancelled", false)):
+			callbacks.clear()
+			pending_request["cancelled"] = false
 		if not callbacks.has(on_loaded):
 			callbacks.append(on_loaded)
 		return
@@ -96,6 +99,7 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 	_pending[path] = {
 		"type_hint": type_hint,
 		"callbacks": [on_loaded],
+		"cancelled": false,
 	}
 
 
@@ -123,10 +127,12 @@ func get_cached(path: String) -> Resource:
 func is_loading(path: String, type_hint: String = "") -> bool:
 	if not _pending.has(path):
 		return false
+	var pending_request := _pending[path] as Dictionary
+	if bool(pending_request.get("cancelled", false)):
+		return false
 	if type_hint.is_empty():
 		return true
 
-	var pending_request := _pending[path] as Dictionary
 	return String(pending_request.get("type_hint", "")) == type_hint
 
 
@@ -141,11 +147,17 @@ func is_cached(path: String) -> bool:
 ## @param path: 资源路径。
 ## @param type_hint: 可选资源类型提示；为空时取消该路径的当前请求。
 func cancel(path: String, type_hint: String = "") -> void:
-	if not type_hint.is_empty() and is_loading(path, type_hint):
-		_pending.erase(path)
+	if not _pending.has(path):
 		return
-	if type_hint.is_empty():
-		_pending.erase(path)
+
+	var pending_request := _pending[path] as Dictionary
+	var pending_type_hint := String(pending_request.get("type_hint", ""))
+	if not type_hint.is_empty() and pending_type_hint != type_hint:
+		return
+
+	var callbacks := pending_request.get("callbacks", []) as Array
+	callbacks.clear()
+	pending_request["cancelled"] = true
 
 
 ## 手动写入缓存。
@@ -193,6 +205,7 @@ func _poll_pending() -> void:
 
 		var pending_request := _pending[path] as Dictionary
 		var callbacks := (pending_request.get("callbacks", []) as Array).duplicate()
+		var cancelled := bool(pending_request.get("cancelled", false))
 		var status := _get_threaded_status(path)
 
 		match status:
@@ -201,17 +214,20 @@ func _poll_pending() -> void:
 				_pending.erase(path)
 				if resource != null:
 					put_cache(path, resource)
-				_dispatch_callbacks(callbacks, resource)
+				if not cancelled:
+					_dispatch_callbacks(callbacks, resource)
 
 			ResourceLoader.THREAD_LOAD_FAILED:
-				push_error("[GFAssetUtility] 异步加载失败：%s" % path)
 				_pending.erase(path)
-				_dispatch_callbacks(callbacks, null)
+				if not cancelled:
+					push_error("[GFAssetUtility] 异步加载失败：%s" % path)
+					_dispatch_callbacks(callbacks, null)
 
 			ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
-				push_error("[GFAssetUtility] 无效资源：%s" % path)
 				_pending.erase(path)
-				_dispatch_callbacks(callbacks, null)
+				if not cancelled:
+					push_error("[GFAssetUtility] 无效资源：%s" % path)
+					_dispatch_callbacks(callbacks, null)
 
 
 func _dispatch_callbacks(callbacks: Array, resource: Resource) -> void:

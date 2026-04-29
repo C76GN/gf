@@ -74,6 +74,12 @@ func cancel() -> void:
 	pass
 
 
+## 返回用于保护 Signal 等待生命周期的节点。
+## Tween 等非 Node 信号可通过该节点的 tree_exited 提前结束等待。
+func get_wait_guard_node() -> Node:
+	return null
+
+
 ## 设置等待 Signal 的超时时间，并返回自身以便链式调用。
 ## @param seconds: 超时时间；小于等于 0 时表示不启用超时。
 ## @param respect_time_scale: 是否跟随 GFTimeUtility 的暂停与 time_scale。
@@ -120,6 +126,7 @@ func _await_signal_safely(result_signal: Signal, should_continue: Callable = Cal
 	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
 
 	var tree_exit_signal := Signal()
+	var guard_exit_signal := Signal()
 	if target_obj is Node:
 		var node := target_obj as Node
 		if not node.is_inside_tree() and result_signal != node.tree_exited:
@@ -128,6 +135,15 @@ func _await_signal_safely(result_signal: Signal, should_continue: Callable = Cal
 		if result_signal != node.tree_exited:
 			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
 			tree_exit_signal = node.tree_exited
+
+	var guard_node := get_wait_guard_node()
+	if is_instance_valid(guard_node) and result_signal != guard_node.tree_exited and tree_exit_signal != guard_node.tree_exited:
+		if not guard_node.is_inside_tree():
+			_disconnect_signal_if_connected(result_signal, on_resume)
+			_disconnect_signal_if_connected(tree_exit_signal, on_resume)
+			return
+		guard_node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+		guard_exit_signal = guard_node.tree_exited
 
 	var timeout_msec := signal_timeout_seconds * 1000.0
 	var elapsed_timeout_msec := 0.0
@@ -148,10 +164,13 @@ func _await_signal_safely(result_signal: Signal, should_continue: Callable = Cal
 			break
 		if target_obj is Node and not (target_obj as Node).is_inside_tree():
 			break
+		if guard_node != null and (not is_instance_valid(guard_node) or not guard_node.is_inside_tree()):
+			break
 		await Engine.get_main_loop().process_frame
 
 	_disconnect_signal_if_connected(result_signal, on_resume)
 	_disconnect_signal_if_connected(tree_exit_signal, on_resume)
+	_disconnect_signal_if_connected(guard_exit_signal, on_resume)
 
 
 func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:

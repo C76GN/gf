@@ -15,7 +15,7 @@ class FaultyStorageUtility extends GFStorageUtility:
 
 
 func _cleanup_file_family(file_name: String) -> void:
-	for suffix: String in ["", ".tmp", ".bak"]:
+	for suffix: String in ["", ".tmp", ".bak", ".txn"]:
 		var path := _storage._get_full_path(file_name + suffix)
 		if FileAccess.file_exists(path):
 			DirAccess.remove_absolute(path)
@@ -157,6 +157,38 @@ func test_save_slot_preserves_existing_files_when_overwrite_meta_write_fails() -
 	assert_ne(err, OK, "覆盖槽位时 metadata 写失败应返回错误码。")
 	assert_eq(int(_storage.load_slot(5).get("hp")), 10, "覆盖失败后应保留旧的核心数据。")
 	assert_eq(int(_storage.load_slot_meta(5).get("level")), 1, "覆盖失败后应保留旧的元数据。")
+
+
+func test_slot_transaction_recovery_rolls_back_partial_group_commit() -> void:
+	_storage.encrypt_key = 0
+	assert_eq(_storage.save_slot(9, {"hp": 10}, {"level": 1}), OK, "预置旧槽位应成功。")
+
+	var data_file_name := _storage._get_data_filename(9)
+	var meta_file_name := _storage._get_meta_filename(9)
+	var file_names: Array[String] = [data_file_name, meta_file_name]
+	assert_eq(_storage._write_transaction_markers(file_names, false), OK, "应能构造未完成事务标记。")
+
+	assert_eq(
+		DirAccess.rename_absolute(_storage._get_full_path(data_file_name), _storage._get_full_path(_storage._get_backup_filename(data_file_name))),
+		OK,
+		"应能模拟核心数据备份。",
+	)
+	assert_eq(
+		DirAccess.rename_absolute(_storage._get_full_path(meta_file_name), _storage._get_full_path(_storage._get_backup_filename(meta_file_name))),
+		OK,
+		"应能模拟元数据备份。",
+	)
+	assert_eq(_storage._write_json(_storage._get_temp_filename(data_file_name), {"hp": 999}), OK, "应能构造新核心数据临时文件。")
+	assert_eq(_storage._write_json(_storage._get_temp_filename(meta_file_name), {"level": 9}), OK, "应能构造新元数据临时文件。")
+	assert_eq(
+		DirAccess.rename_absolute(_storage._get_full_path(_storage._get_temp_filename(data_file_name)), _storage._get_full_path(data_file_name)),
+		OK,
+		"应能模拟只提交了核心数据。",
+	)
+
+	assert_true(_storage.has_slot(9), "恢复后旧槽位仍应有效。")
+	assert_eq(int(_storage.load_slot(9).get("hp")), 10, "未完成事务恢复后应回滚核心数据。")
+	assert_eq(int(_storage.load_slot_meta(9).get("level")), 1, "未完成事务恢复后应回滚元数据。")
 
 
 func test_load_data_restores_backup_when_primary_file_is_missing() -> void:

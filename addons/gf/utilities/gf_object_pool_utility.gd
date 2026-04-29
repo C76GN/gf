@@ -28,7 +28,7 @@ const _META_ORIGINAL_VISIBLE: StringName = &"_gf_pool_original_visible"
 ## 用于保存节点进入池前的 disabled 属性。
 const _META_ORIGINAL_DISABLED: StringName = &"_gf_pool_original_disabled"
 
-## 用于追踪节点原始所属的 PackedScene，避免错误 release 污染其他池。##
+## 用于追踪节点原始所属的 PackedScene，避免错误 release 污染其他池。
 const _META_SOURCE_SCENE: StringName = &"_gf_pool_source_scene"
 
 ## 节点可选实现：归还对象池前调用，用于清理 Tween、临时信号、运行时状态等。
@@ -53,6 +53,7 @@ var _all_nodes: Dictionary = {}
 ## 可用对象池字典。Key 为 PackedScene 资源，Value 为当前可用的节点栈。
 var _available_pools: Dictionary = {}
 var _lifecycle_serial: int = 0
+var _pool_root: Node = null
 
 
 # --- Godot 生命周期方法 ---
@@ -60,8 +61,11 @@ var _lifecycle_serial: int = 0
 ## 第一阶段初始化：清空内部池字典。
 func init() -> void:
 	_lifecycle_serial += 1
+	if is_instance_valid(_pool_root):
+		_pool_root.queue_free()
 	_all_nodes = {}
 	_available_pools = {}
+	_pool_root = null
 
 
 ## 销毁阶段：释放所有池中的节点。
@@ -72,8 +76,11 @@ func dispose() -> void:
 		for node in pool:
 			if is_instance_valid(node):
 				node.queue_free()
+	if is_instance_valid(_pool_root):
+		_pool_root.queue_free()
 	_all_nodes.clear()
 	_available_pools.clear()
+	_pool_root = null
 
 
 # --- 公共方法 ---
@@ -160,6 +167,7 @@ func release(node: Node, scene: PackedScene) -> void:
 		node.queue_free()
 		return
 
+	_move_to_pool_root(node)
 	available_pool.push_back(node)
 
 
@@ -198,10 +206,14 @@ func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int
 	for i in range(create_count):
 		if current_serial != _lifecycle_serial:
 			return
+		if parent != null and not is_instance_valid(parent):
+			return
 		_prewarm_node(scene, parent)
 		if scene_tree != null and (i + 1) % batch_size == 0:
 			await scene_tree.process_frame
 			if current_serial != _lifecycle_serial:
+				return
+			if parent != null and not is_instance_valid(parent):
 				return
 
 
@@ -245,6 +257,8 @@ func _ensure_scene_pool(scene: PackedScene) -> bool:
 func _prewarm_node(scene: PackedScene, parent: Node) -> void:
 	if not _ensure_scene_pool(scene):
 		return
+	if parent != null and not is_instance_valid(parent):
+		return
 
 	var node: Node = scene.instantiate()
 	node.set_meta(_META_ACTIVE, false)
@@ -256,6 +270,31 @@ func _prewarm_node(scene: PackedScene, parent: Node) -> void:
 
 	_all_nodes[scene].push_back(node)
 	_available_pools[scene].push_back(node)
+
+
+func _move_to_pool_root(node: Node) -> void:
+	var pool_root := _ensure_pool_root()
+	if pool_root == null or node.get_parent() == pool_root:
+		return
+
+	if node.get_parent() != null:
+		node.reparent(pool_root, false)
+	else:
+		pool_root.add_child(node)
+
+
+func _ensure_pool_root() -> Node:
+	if is_instance_valid(_pool_root):
+		return _pool_root
+
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if scene_tree == null:
+		return null
+
+	_pool_root = Node.new()
+	_pool_root.name = "GFObjectPoolRoot"
+	scene_tree.root.add_child(_pool_root)
+	return _pool_root
 
 
 func _get_limited_prewarm_count(scene: PackedScene, requested_count: int) -> int:

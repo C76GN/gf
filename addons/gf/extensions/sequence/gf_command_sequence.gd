@@ -35,6 +35,12 @@ var context: GFSequenceContext
 ## 当前是否正在执行。
 var is_running: bool = false
 
+## 等待步骤 Signal 的超时时间（秒）。小于等于 0 时表示不启用超时。
+var signal_timeout_seconds: float = 30.0
+
+## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
+var signal_timeout_respects_time_scale: bool = true
+
 
 # --- 私有变量 ---
 
@@ -82,7 +88,9 @@ func run(p_steps: Array = []) -> void:
 		step_started.emit(index, step)
 		var result: Variant = _execute_step(step)
 		if _should_wait_for_step(step, result):
-			await (result as Signal)
+			await _await_signal_safely(result as Signal)
+			if _cancel_requested:
+				break
 		step_completed.emit(index, step)
 
 	is_running = false
@@ -92,9 +100,18 @@ func run(p_steps: Array = []) -> void:
 		sequence_completed.emit()
 
 
-## 请求取消序列。当前正在等待的外部 Signal 触发后，序列会停止后续步骤。
+## 请求取消序列。当前正在等待的 Signal 会在下一帧取消检查后停止。
 func cancel() -> void:
 	_cancel_requested = true
+
+
+## 设置等待 Signal 的超时时间，并返回自身以便链式调用。
+## @param seconds: 超时时间；小于等于 0 时表示不启用超时。
+## @param respect_time_scale: 是否跟随 GFTimeUtility 的暂停与 time_scale。
+func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFCommandSequence:
+	signal_timeout_seconds = maxf(seconds, 0.0)
+	signal_timeout_respects_time_scale = respect_time_scale
+	return self
 
 
 # --- 私有/辅助方法 ---
@@ -131,6 +148,82 @@ func _should_wait_for_step(step: Variant, result: Variant) -> bool:
 	if step is GFSequenceStep:
 		return step.wait_for_result
 	return true
+
+
+func _await_signal_safely(result_signal: Signal) -> void:
+	if result_signal.is_null():
+		return
+
+	var target_obj: Object = result_signal.get_object()
+	if not is_instance_valid(target_obj):
+		return
+
+	var completed := [false]
+	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
+		completed[0] = true
+
+	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
+
+	var tree_exit_signal := Signal()
+	if target_obj is Node:
+		var node := target_obj as Node
+		if not node.is_inside_tree() and result_signal != node.tree_exited:
+			_disconnect_signal_if_connected(result_signal, on_resume)
+			return
+		if result_signal != node.tree_exited:
+			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+			tree_exit_signal = node.tree_exited
+
+	var timeout_msec := signal_timeout_seconds * 1000.0
+	var elapsed_timeout_msec := 0.0
+	var last_timeout_msec := Time.get_ticks_msec()
+
+	while not completed[0] and not _cancel_requested:
+		var current_timeout_msec := Time.get_ticks_msec()
+		if timeout_msec > 0.0:
+			elapsed_timeout_msec += _get_timeout_elapsed_msec(last_timeout_msec, current_timeout_msec)
+			if elapsed_timeout_msec >= timeout_msec:
+				push_warning("[GFCommandSequence] 等待 Signal 超时，序列将继续执行后续步骤。")
+				break
+		last_timeout_msec = current_timeout_msec
+
+		if not is_instance_valid(target_obj):
+			break
+		if target_obj is Node and not (target_obj as Node).is_inside_tree():
+			break
+		await Engine.get_main_loop().process_frame
+
+	_disconnect_signal_if_connected(result_signal, on_resume)
+	_disconnect_signal_if_connected(tree_exit_signal, on_resume)
+
+
+func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
+	var elapsed_msec := float(current_msec - previous_msec)
+	if not signal_timeout_respects_time_scale:
+		return elapsed_msec
+
+	var time_utility := _get_time_utility()
+	if time_utility == null:
+		return elapsed_msec
+	if time_utility.is_paused:
+		return 0.0
+	return elapsed_msec * time_utility.time_scale
+
+
+func _get_time_utility() -> GFTimeUtility:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+
+
+func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:
+	if target_signal.is_null():
+		return
+	if not is_instance_valid(target_signal.get_object()):
+		return
+	if target_signal.is_connected(callback):
+		target_signal.disconnect(callback)
 
 
 func _get_architecture_or_null() -> GFArchitecture:

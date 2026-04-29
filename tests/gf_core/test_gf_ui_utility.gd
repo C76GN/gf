@@ -73,6 +73,21 @@ func test_push_and_pop_panel_instance() -> void:
 	assert_true(panel1.visible, "弹出顶层后，下层面板应重新可见。")
 
 
+func test_external_free_of_top_panel_prunes_stack_and_reveals_under_panel() -> void:
+	var panel1 := Control.new()
+	var panel2 := Control.new()
+
+	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
+	assert_false(panel1.visible, "顶层面板存在时，下层面板应隐藏。")
+
+	panel2.queue_free()
+	await get_tree().process_frame
+
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel1, "外部释放顶层面板后，栈顶应回到下层面板。")
+	assert_true(panel1.visible, "外部释放顶层面板后，下层面板应重新可见。")
+
+
 func test_config_callback_destroying_panel_restores_hidden_panel() -> void:
 	var panel1 := Control.new()
 	var panel2 := Control.new()

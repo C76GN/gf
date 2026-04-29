@@ -1,6 +1,3 @@
-class_name GFUtility
-
-
 ## GFUtility: 工具组件抽象基类。
 ##
 ## 提供不依赖其他架构组件的独立工具功能。
@@ -10,6 +7,7 @@ class_name GFUtility
 ##   - 'init'       阶段：只允许初始化自身内部变量，禁止跨模块获取依赖。
 ##   - 'async_init' 阶段：可使用 await，用于异步资源加载等操作。
 ##   - 'ready'      阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。
+class_name GFUtility
 
 
 # --- 公共变量 ---
@@ -17,6 +15,10 @@ class_name GFUtility
 ## 是否忽略全局暂停。为 true 时，即使 GFTimeUtility.is_paused 为 true，
 ## 该 Utility 的 tick / physics_tick 仍会接收到原始（未缩放）的 delta 值。
 var ignore_pause: bool = false
+
+## 是否忽略 GFTimeUtility.time_scale。为 true 且未全局暂停时，
+## 该 Utility 的 tick / physics_tick 会接收到原始 delta。
+var ignore_time_scale: bool = false
 
 
 # --- 私有变量 ---

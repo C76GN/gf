@@ -15,13 +15,19 @@ extends Resource
 @export var endpoint_url: String = ""
 
 ## 上报间隔，单位秒。小于等于 0 时不自动上报。
-@export var flush_interval_seconds: float = 5.0
+@export var flush_interval_seconds: float = 5.0:
+	set(value):
+		flush_interval_seconds = maxf(value, 0.0)
 
 ## 单批最大事件数。
-@export_range(1, 500, 1) var batch_size: int = 20
+@export_range(1, 500, 1) var batch_size: int = 20:
+	set(value):
+		batch_size = maxi(value, 1)
 
 ## 本地队列最大事件数。
-@export_range(1, 100000, 1) var max_queue_size: int = 1000
+@export_range(1, 100000, 1) var max_queue_size: int = 1000:
+	set(value):
+		max_queue_size = maxi(value, 1)
 
 ## 是否自动附加运行环境上下文。
 @export var auto_capture_context: bool = true
@@ -42,4 +48,3 @@ func build_headers() -> PackedStringArray:
 	for key: Variant in headers:
 		result.append("%s: %s" % [String(key), String(headers[key])])
 	return result
-

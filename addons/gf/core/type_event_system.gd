@@ -12,12 +12,14 @@ var _simple_event_listeners: Dictionary = {}
 
 var _is_iterating_type: bool = false
 var _type_dispatch_depth: int = 0
+var _clear_requested_type: bool = false
 var _pending_removes_type: Array = []
 var _pending_adds_type: Array = []
 var _pending_owner_removes_type: Array[int] = []
 
 var _is_iterating_simple: bool = false
 var _simple_dispatch_depth: int = 0
+var _clear_requested_simple: bool = false
 var _pending_removes_simple: Array = []
 var _pending_adds_simple: Array = []
 var _pending_owner_removes_simple: Array[int] = []
@@ -104,6 +106,9 @@ func send(event_instance: Object) -> void:
 	_is_iterating_type = true
 
 	for entry: Dictionary in listeners:
+		if _clear_requested_type:
+			break
+
 		var callback: Callable = entry.callable
 
 		if _entry_owner_is_released(entry):
@@ -119,12 +124,15 @@ func send(event_instance: Object) -> void:
 
 		callback.call(event_instance)
 
+		if _clear_requested_type:
+			break
 		if event_instance.get("is_consumed") == true:
 			break
 
-	_type_dispatch_depth -= 1
+	_type_dispatch_depth = maxi(_type_dispatch_depth - 1, 0)
 	_is_iterating_type = _type_dispatch_depth > 0
 	if _type_dispatch_depth == 0:
+		_clear_requested_type = false
 		_flush_type_pending()
 
 
@@ -187,6 +195,9 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	_is_iterating_simple = true
 
 	for entry: Dictionary in listeners:
+		if _clear_requested_simple:
+			break
+
 		var callback: Callable = entry.callable
 
 		if _entry_owner_is_released(entry):
@@ -202,9 +213,13 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 
 		callback.call(payload)
 
-	_simple_dispatch_depth -= 1
+		if _clear_requested_simple:
+			break
+
+	_simple_dispatch_depth = maxi(_simple_dispatch_depth - 1, 0)
 	_is_iterating_simple = _simple_dispatch_depth > 0
 	if _simple_dispatch_depth == 0:
+		_clear_requested_simple = false
 		_flush_simple_pending()
 
 
@@ -240,10 +255,18 @@ func clear() -> void:
 	_pending_adds_simple.clear()
 	_pending_owner_removes_type.clear()
 	_pending_owner_removes_simple.clear()
-	_type_dispatch_depth = 0
-	_simple_dispatch_depth = 0
-	_is_iterating_type = false
-	_is_iterating_simple = false
+	if _type_dispatch_depth > 0:
+		_clear_requested_type = true
+	else:
+		_type_dispatch_depth = 0
+		_is_iterating_type = false
+		_clear_requested_type = false
+	if _simple_dispatch_depth > 0:
+		_clear_requested_simple = true
+	else:
+		_simple_dispatch_depth = 0
+		_is_iterating_simple = false
+		_clear_requested_simple = false
 
 
 # --- 私有/辅助方法 ---

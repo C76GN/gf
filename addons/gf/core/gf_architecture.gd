@@ -195,6 +195,7 @@ func dispose() -> void:
 ## 在架构初始化完成后方可生效。
 ## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
+## 设置了 ignore_time_scale 的模块在未暂停时将跳过 time_scale。
 ## @param delta: 距上一帧的时间（秒）。
 func tick(delta: float) -> void:
 	if not _inited:
@@ -215,6 +216,7 @@ func tick(delta: float) -> void:
 ## 在架构初始化完成后方可生效。
 ## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 physics_tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
+## 设置了 ignore_time_scale 的模块在未暂停时将跳过 time_scale。
 ## @param delta: 距上一物理帧的时间（秒）。
 func physics_tick(delta: float) -> void:
 	if not _inited:
@@ -824,10 +826,15 @@ func _get_scaled_delta(delta: float) -> float:
 ## @param scaled_delta: 已经由 GFTimeUtility 处理后的 delta。
 ## @return 模块本次应接收的 delta。
 func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float) -> float:
-	if _time_utility == null or not _time_utility.is_paused:
-		return scaled_delta
-		
-	if "ignore_pause" in instance and instance.get("ignore_pause") == true:
+	if _time_utility == null:
+		return raw_delta
+
+	var ignores_pause: bool = "ignore_pause" in instance and instance.get("ignore_pause") == true
+	var ignores_time_scale: bool = "ignore_time_scale" in instance and instance.get("ignore_time_scale") == true
+	if _time_utility.is_paused:
+		return raw_delta if ignores_pause else 0.0
+
+	if ignores_time_scale:
 		return raw_delta
 	return scaled_delta
 

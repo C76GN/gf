@@ -112,7 +112,7 @@ func test_failed_load_restores_previous_scene_after_loading_scene() -> void:
 	assert_eq(_scene_util.packed_scene_changes, 0, "错误资源不应触发正式场景切换。")
 
 
-func test_failed_load_cleans_transients() -> void:
+func test_failed_load_preserves_transients() -> void:
 	var scene_util := TestSceneUtility.new()
 	var model := DummyModel.new()
 	Gf.register_model(model)
@@ -127,6 +127,6 @@ func test_failed_load_cleans_transients() -> void:
 		await get_tree().process_frame
 
 	var arch := Gf.get_architecture()
-	assert_null(arch.get_model(DummyModel), "异步切场失败后，瞬态 Model 也应被清理。")
-	assert_true(model.disposed, "异步切场失败后的瞬态清理应调用 dispose()。")
+	assert_eq(arch.get_model(DummyModel), model, "异步切场失败后不应清理仍属于当前场景的瞬态 Model。")
+	assert_false(model.disposed, "异步切场失败不应触发瞬态 Model 的 dispose()。")
 	assert_push_error("[GFSceneUtility] 异步加载完成，但目标资源不是 PackedScene：res://icon.svg")

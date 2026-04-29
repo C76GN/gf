@@ -16,6 +16,80 @@
 
 ---
 
+## [1.15.1] - 2026-04-29
+
+**版本概述**：聚焦 1.15.0 新增模块的运行时边界收敛，修复存档事务、场景失败回退、异步等待取消、事件清空重入、对象池父节点生命周期和 UI 栈外部释放等稳定性问题，并补充真实时间输入与能力索引清理能力。
+
+### 🔄 机制更改 (Changed)
+- **存档事务恢复增强**：`GFStorageUtility` 为多文件提交增加事务标记，槽位 data/meta 覆盖过程中若崩溃或中断，会按组回滚或提交，避免出现新旧文件混配。
+- **对象池安全根节点**：`GFObjectPoolUtility.release()` 会把回收节点迁移到内部对象池根节点，避免原父节点释放时连带销毁已回收节点。
+- **输入计时真实时间化**：`GFInputUtility` 默认设置 `ignore_time_scale = true`，输入缓冲与土狼时间不再被全局 time_scale 拉长或缩短，但仍尊重全局暂停。
+- **能力索引定期清理**：`GFCapabilityUtility` 增加运行时失效 receiver 清理，并提供 `prune_invalid_receivers()` 供高 churn 场景主动调用。
+
+### 🐛 Bug 修复 (Fixed)
+- **场景失败误清理瞬态模块**：`GFSceneUtility` 在目标场景加载失败时不再清理 transient Model/System，避免恢复旧场景后依赖被误注销。
+- **战斗 tick 注销重入**：`GFCombatSystem.tick()` 在遍历活跃实体时会跳过已被前序回调注销的实体，避免访问已删除字典键。
+- **Tween 等待目标释放**：`GFVisualAction` 支持额外的等待守卫节点，`GFMoveTweenAction` 与 `GFFlashAction` 在目标节点退出树时会立即结束等待。
+- **资源加载取消语义**：`GFAssetUtility.cancel()` 不再丢失底层 threaded request 状态；取消会清空旧回调，后续同路径重试会复用进行中的请求并正常缓存结果。
+- **事件系统 clear 重入**：`TypeEventSystem.clear()` 在事件派发中调用时不再重置派发深度，避免深度计数变负和 pending 队列损坏。
+- **UI 栈外部释放**：`GFUIUtility` 会监听面板退出树并清理栈记录，顶层面板被外部 `queue_free()` 后会恢复下层面板可见性。
+- **回合流程停止后续执行**：`GFTurnFlowSystem.stop()` 会取消等待中的阶段或行动恢复，防止 stop 后继续 `exit()`、`action_resolved` 或推进上下文。
+- **分析配置非法值防护**：`GFAnalyticsConfig` 会钳制 `batch_size`、`max_queue_size` 与 `flush_interval_seconds`，避免运行时代码写入非法值导致队列异常。
+- **技能与 Buff 失效 owner 防护**：`GFSkill` 与 `GFBuff` 会跳过已释放 owner，避免独立对象延迟调用时访问无效实例。
+- **编辑器缩略图清理**：`GFThumbnailRenderer` 清空渲染根节点时立即移除旧实例，避免下一次渲染混入上一张缩略图的残留节点。
+- **文档注释格式清理**：移除若干脚本注释中的多余 `##` 后缀与代码内修改记录式注释，使源码继续贴合 `CODING_STYLE.md`。
+
+### 🚀 新增特性 (Added)
+- **模块时间缩放旁路**：`GFSystem` 与 `GFUtility` 新增 `ignore_time_scale`，用于让指定模块在未暂停时接收原始 delta。
+- **序列等待安全网**：`GFCommandSequence` 新增 Signal 安全等待、取消检查和 `with_signal_timeout()`，避免步骤 Signal 永不触发时永久卡住。
+
+### ✅ 测试补强 (Tests)
+- 补充存档多文件事务回滚、场景失败 transient 保留、Analytics 非法配置、战斗注销重入、资源加载取消重试、事件 clear 重入、UI 外部释放、回合流程 stop、命令序列取消/超时、Tween 目标释放、对象池安全根、能力索引清理与输入真实时间测试。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFSystem.ignore_time_scale: bool`。
+- 新增 `GFUtility.ignore_time_scale: bool`。
+- 新增 `GFCapabilityUtility.prune_invalid_receivers() -> void`。
+- 新增 `GFVisualAction.get_wait_guard_node() -> Node`，供自定义动作返回与等待 Signal 关联的生命周期守卫节点。
+- 新增 `GFCommandSequence.signal_timeout_seconds: float`。
+- 新增 `GFCommandSequence.signal_timeout_respects_time_scale: bool`。
+- 新增 `GFCommandSequence.with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFCommandSequence`。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需修改现有调用；本次新增 API 均为兼容增强。
+2. 如果自定义 `GFVisualAction` 返回的是 Tween、AnimationPlayer 以外的非 Node Signal，建议重写 `get_wait_guard_node()` 返回拥有该表现生命周期的节点。
+3. 如果某个 System/Utility 需要在慢动作中仍按真实时间推进，可设置 `ignore_time_scale = true`；若暂停时也要继续推进，再同时设置 `ignore_pause = true`。
+4. 如果项目依赖 `GFInputUtility` 跟随 time_scale 缩放，需要在自定义派生类或注册后显式设置 `ignore_time_scale = false`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/editor/gf_thumbnail_renderer.gd`
+- `addons/gf/extensions/action_queue/gf_flash_action.gd`
+- `addons/gf/extensions/action_queue/gf_move_tween_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/extensions/combat/gf_buff.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/extensions/combat/gf_skill.gd`
+- `addons/gf/extensions/sequence/gf_command_sequence.gd`
+- `addons/gf/extensions/turn_based/gf_turn_flow_system.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/utilities/gf_analytics_config.gd`
+- `addons/gf/utilities/gf_analytics_utility.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_command_history_utility.gd`
+- `addons/gf/utilities/gf_input_utility.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_timer_utility.gd`
+- `addons/gf/utilities/gf_ui_utility.gd`
+- `tests/gf_core/*`
+
 ## [1.15.0] - 2026-04-29
 
 **版本概述**：新增一组抽象、可配置、可复用的基础能力与扩展模块，覆盖资源化公式、顺序指令、回合流程、音频资源集合、输入设备映射、分析事件、通用领域模型和编辑器缩略图渲染，同时补齐存档槽位枚举与音频资源配置接入。

@@ -126,6 +126,7 @@ func push_panel_instance(panel_instance: Node, layer: Layer = Layer.POPUP) -> vo
 ## @param layer: 目标层级。
 ## @param do_free: 是否在弹出后释放面板。
 func pop_panel(layer: Layer = Layer.POPUP, do_free: bool = true) -> void:
+	_prune_layer_stack(layer)
 	var stack: Array = _panel_stacks[layer]
 	if stack.is_empty():
 		return
@@ -137,15 +138,14 @@ func pop_panel(layer: Layer = Layer.POPUP, do_free: bool = true) -> void:
 		elif top_panel.get_parent() != null:
 			top_panel.get_parent().remove_child(top_panel)
 
-	if _auto_hide_under and not stack.is_empty():
-		var next_panel: Node = stack.back()
-		if is_instance_valid(next_panel) and next_panel is CanvasItem:
-			next_panel.visible = true
+	if _auto_hide_under:
+		_reveal_top_panel(layer)
 
 
 ## 清空指定层级的所有面板。
 ## @param layer: 目标层级。
 func clear_layer(layer: Layer) -> void:
+	_prune_layer_stack(layer)
 	var stack: Array = _panel_stacks[layer]
 	while not stack.is_empty():
 		var panel: Node = stack.pop_back()
@@ -163,6 +163,7 @@ func clear_all() -> void:
 ## @param layer: 目标层级。
 ## @return 栈顶面板；为空时返回 `null`。
 func get_top_panel(layer: Layer = Layer.POPUP) -> Node:
+	_prune_layer_stack(layer)
 	var stack: Array = _panel_stacks[layer]
 	if stack.is_empty():
 		return null
@@ -204,6 +205,7 @@ func _add_panel_instance(panel: Node, layer: Layer, config_callback: Callable) -
 		push_error("[GFUIUtility] 目标层级的 CanvasLayer 不可用。")
 		return false
 
+	_prune_layer_stack(layer)
 	var stack: Array = _panel_stacks[layer]
 	var hidden_panel: CanvasItem = null
 	if _auto_hide_under and not stack.is_empty():
@@ -220,8 +222,32 @@ func _add_panel_instance(panel: Node, layer: Layer, config_callback: Callable) -
 			return false
 
 	stack.push_back(panel)
+	panel.tree_exited.connect(_on_panel_tree_exited.bind(panel, layer), CONNECT_ONE_SHOT)
 	canvas.add_child(panel)
 	return true
+
+
+func _prune_layer_stack(layer: Layer) -> void:
+	var stack: Array = _panel_stacks[layer]
+	var removed_top := false
+	for index: int in range(stack.size() - 1, -1, -1):
+		var panel := stack[index] as Node
+		if not is_instance_valid(panel) or panel.is_queued_for_deletion():
+			if index == stack.size() - 1:
+				removed_top = true
+			stack.remove_at(index)
+	if removed_top and _auto_hide_under:
+		_reveal_top_panel(layer)
+
+
+func _reveal_top_panel(layer: Layer) -> void:
+	var stack: Array = _panel_stacks[layer]
+	if stack.is_empty():
+		return
+
+	var next_panel := stack.back() as Node
+	if is_instance_valid(next_panel) and next_panel is CanvasItem:
+		(next_panel as CanvasItem).visible = true
 
 
 func _restore_hidden_panel(panel: CanvasItem) -> void:
@@ -237,3 +263,14 @@ func _get_asset_util() -> GFAssetUtility:
 			return util as GFAssetUtility
 
 	return null
+
+
+func _on_panel_tree_exited(panel: Node, layer: Layer) -> void:
+	if not _panel_stacks.has(layer):
+		return
+
+	var stack: Array = _panel_stacks[layer]
+	var was_top: bool = not stack.is_empty() and stack.back() == panel
+	stack.erase(panel)
+	if was_top and _auto_hide_under:
+		_reveal_top_panel(layer)

@@ -31,6 +31,22 @@ class TrackingAssetUtility extends GFAssetUtility:
 		return ResourceLoader.THREAD_LOAD_IN_PROGRESS
 
 
+class CompletingAssetUtility extends GFAssetUtility:
+	var requested_count: int = 0
+	var complete: bool = false
+	var loaded_resource: Resource = Resource.new()
+
+	func _request_threaded(_path: String, _type_hint: String) -> Error:
+		requested_count += 1
+		return OK
+
+	func _get_threaded_status(_path: String) -> ResourceLoader.ThreadLoadStatus:
+		return ResourceLoader.THREAD_LOAD_LOADED if complete else ResourceLoader.THREAD_LOAD_IN_PROGRESS
+
+	func _take_threaded_resource(_path: String) -> Resource:
+		return loaded_resource
+
+
 func before_each() -> void:
 	_utility = GFAssetUtility.new()
 	_utility.max_cache_size = 3
@@ -196,3 +212,28 @@ func test_failed_load_notifies_callback_with_null() -> void:
 	assert_push_error("[GFAssetUtility] 异步加载失败：res://simulated_failure.tres")
 	assert_true(result["called"], "加载失败时也应触发回调。")
 	assert_null(result["resource"], "失败回调应收到 null 资源。")
+
+
+func test_cancel_clears_callbacks_but_reuses_underlying_request_for_retry() -> void:
+	_utility = CompletingAssetUtility.new()
+	_utility.init()
+	var completing := _utility as CompletingAssetUtility
+	var results: Array = []
+
+	_utility.load_async("res://retry_resource.tres", func(res: Resource) -> void:
+		results.append({ "old": res })
+	)
+	_utility.cancel("res://retry_resource.tres")
+
+	assert_false(_utility.is_loading("res://retry_resource.tres"), "取消后外部查询不应再视为正在加载。")
+
+	_utility.load_async("res://retry_resource.tres", func(res: Resource) -> void:
+		results.append({ "new": res })
+	)
+	completing.complete = true
+	_utility.tick()
+
+	assert_eq(completing.requested_count, 1, "取消后重试应复用仍在进行的底层 threaded request。")
+	assert_eq(results.size(), 1, "取消前的旧回调不应再触发。")
+	assert_eq((results[0] as Dictionary).get("new"), completing.loaded_resource, "重试回调应收到完成资源。")
+	assert_eq(_utility.get_cached("res://retry_resource.tres"), completing.loaded_resource, "底层请求完成后仍应写入缓存。")

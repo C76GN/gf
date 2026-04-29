@@ -121,6 +121,25 @@ func test_clear() -> void:
 	assert_false(state.called, "clear 后不应再触发回调。")
 
 
+## 验证类型事件派发中 clear 不会破坏派发深度计数。
+func test_clear_during_type_dispatch_stops_current_dispatch_safely() -> void:
+	var state := {"order": []}
+	var script_a: Script = TestEventA
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("first")
+		_system.clear()
+	)
+	_system.register(script_a, func(_e: TestEventA) -> void:
+		state.order.append("second")
+	)
+
+	_system.send(TestEventA.new())
+	_system.send(TestEventA.new())
+
+	assert_eq(state.order, ["first"], "clear 后本轮后续监听与下一轮派发都不应触发。")
+	assert_eq(_system._type_dispatch_depth, 0, "clear 不应让类型事件派发深度变成负数。")
+
+
 # --- 测试：简单事件 ---
 
 ## 验证简单事件注册与发送。
@@ -192,6 +211,25 @@ func test_send_simple_unregister() -> void:
 	_system.send_simple(event_id)
 
 	assert_false(state.called, "注销后简单事件回调不应被触发。")
+
+
+## 验证简单事件派发中 clear 不会破坏派发深度计数。
+func test_clear_during_simple_dispatch_stops_current_dispatch_safely() -> void:
+	var state := {"order": []}
+	var event_id: StringName = &"clear_simple"
+	_system.register_simple(event_id, func(_p: Variant) -> void:
+		state.order.append("first")
+		_system.clear()
+	)
+	_system.register_simple(event_id, func(_p: Variant) -> void:
+		state.order.append("second")
+	)
+
+	_system.send_simple(event_id)
+	_system.send_simple(event_id)
+
+	assert_eq(state.order, ["first"], "clear 后本轮后续简单监听与下一轮派发都不应触发。")
+	assert_eq(_system._simple_dispatch_depth, 0, "clear 不应让简单事件派发深度变成负数。")
 
 
 ## 验证嵌套简单事件期间注册的新回调不会在当前派发链中提前生效。

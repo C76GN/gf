@@ -1,6 +1,3 @@
-class_name GFSystem
-
-
 ## GFSystem: 逻辑层抽象基类。
 ##
 ## 负责实现核心业务逻辑。
@@ -10,6 +7,7 @@ class_name GFSystem
 ##   - 'init'       阶段：只允许初始化自身内部变量，禁止跨模块获取依赖。
 ##   - 'async_init' 阶段：可使用 await，用于异步资源加载等操作。
 ##   - 'ready'      阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。
+class_name GFSystem
 
 
 # --- 公共变量 ---
@@ -19,10 +17,13 @@ class_name GFSystem
 ## 典型场景：暂停菜单动画、设置界面过渡效果等。
 var ignore_pause: bool = false
 
+## 是否忽略 GFTimeUtility.time_scale。为 true 且未全局暂停时，
+## 该 System 的 tick / physics_tick 会接收到原始 delta。
+var ignore_time_scale: bool = false
+
 
 # --- 私有变量 ---
 
-# (删除 _cache 以防止内存泄漏和野指针)
 var _architecture_ref: WeakRef = null
 
 
