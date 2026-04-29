@@ -231,11 +231,12 @@ func _get_available_architecture(dependency_name: String) -> GFArchitecture:
 		if context_architecture != null:
 			return context_architecture
 
-	if not Gf.has_architecture():
+	var global_architecture := GFAutoload.get_architecture_or_null()
+	if global_architecture == null:
 		push_error("[GFStateMachine] 架构尚未初始化，无法获取 %s。" % dependency_name)
 		return null
 
-	return Gf.get_architecture()
+	return global_architecture
 
 
 func _get_context_architecture(context: Object) -> GFArchitecture:

@@ -38,9 +38,7 @@ func get_architecture() -> GFArchitecture:
 		var architecture := _architecture_ref.get_ref() as GFArchitecture
 		if architecture != null:
 			return architecture
-	if Gf.has_architecture():
-		return Gf.get_architecture()
-	return null
+	return GFAutoload.get_architecture_or_null()
 
 
 ## 写入共享值。
@@ -58,4 +56,3 @@ func set_value(key: StringName, value: Variant) -> GFSequenceContext:
 ## @return 共享值或默认值。
 func get_value(key: StringName, default_value: Variant = null) -> Variant:
 	return values.get(key, default_value)
-

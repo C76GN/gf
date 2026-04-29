@@ -16,6 +16,58 @@
 
 ---
 
+## [1.15.2] - 2026-04-29
+
+**版本概述**：修复资产库首次安装到新项目时，Godot 在 Gf AutoLoad 注册前扫描框架脚本导致的大量解析报错，并收敛编辑器插件的启动依赖加载顺序。
+
+### 🚀 新增特性 (Added)
+- **AutoLoad 运行时解析器**：新增 `GFAutoload`，通过场景树根节点运行时解析 `Gf` AutoLoad，供框架内部在不直接引用全局 `Gf` 标识符的情况下访问全局架构。
+
+### 🔄 机制更改 (Changed)
+- **框架内部全局架构访问收敛**：`GFCommand`、`GFModel`、`GFSystem`、`GFUtility`、`GFController`、`GFNodeContext`、能力、交互、序列、状态机和视觉动作等内部入口统一改用 `GFAutoload.get_architecture_or_null()`，避免首次导入时依赖尚未注册的 AutoLoad 全局名。
+- **编辑器插件延迟加载工具脚本**：`plugin.gd` 不再在脚本编译阶段预加载访问器生成器和能力 Inspector，而是在 `_enter_tree()` 注册 AutoLoad 后按需加载，降低插件启用时的自举依赖。
+- **生成访问器全局架构解析同步**：`GFAccessGenerator` 生成的 `architecture_or_null()` 改为使用 `GFAutoload`，与框架内部访问路径保持一致。
+- **安装与资产库说明补齐**：README 明确说明复制 `addons/gf` 后 Godot 不会自动启用插件，用户需要在插件面板手动启用；`ASSET_LIBRARY.md` 补齐资产库表单字段和版本推进检查项。
+
+### 🐛 Bug 修复 (Fixed)
+- **资产库首次安装解析报错**：修复新项目通过 Godot 资产库下载安装并启用 GF 插件时，因 `Gf` AutoLoad 尚未注册而出现 `Identifier "Gf" not declared in the current scope`，并连锁触发 `Could not resolve class "GFUtility"`、`GFCommand`、`GFSystem` 等大量报错的问题。
+- **插件自举失败**：修复编辑器插件在 AutoLoad 注册前因顶层 `preload()` 间接编译运行时脚本而可能无法进入 `_enter_tree()` 的问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFAutoload.get_singleton_or_null() -> Node`。
+- 新增 `GFAutoload.has_architecture() -> bool`。
+- 新增 `GFAutoload.get_architecture_or_null() -> GFArchitecture`。
+- 新增 `GFAutoload.get_architecture() -> GFArchitecture`。
+- 无破坏性 API 变更；原有 `Gf.*` 用户调用方式保持不变。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需修改代码，继续使用 `Gf.register_*()`、`Gf.init()`、`Gf.get_*()` 即可。
+2. 资产库新安装项目更新到 1.15.2 后，首次安装/启用插件不再需要通过重启编辑器来清掉首次扫描报错。
+3. 如果项目中已生成 `res://gf/generated/gf_access.gd`，建议重新执行一次 `GF > 生成强类型访问器`，让生成文件切换到新的 `GFAutoload` 解析路径。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/base/gf_command.gd`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/base/gf_query.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/README.md`
+- `ASSET_LIBRARY.md`
+- `README.md`
+- `addons/gf/core/gf_autoload.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/editor/gf_access_generator.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/capability/*`
+- `addons/gf/extensions/combat/gf_skill.gd`
+- `addons/gf/extensions/interaction/*`
+- `addons/gf/extensions/sequence/*`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+
 ## [1.15.1] - 2026-04-29
 
 **版本概述**：聚焦 1.15.0 新增模块的运行时边界收敛，修复存档事务、场景失败回退、异步等待取消、事件清空重入、对象池父节点生命周期和 UI 栈外部释放等稳定性问题，并补充真实时间输入与能力索引清理能力。

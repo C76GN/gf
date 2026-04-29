@@ -28,8 +28,8 @@ const INSTALLERS_SETTING: String = "gf/project/installers"
 const INSTALLERS_DEFAULT := []
 const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
 const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
-const GF_ACCESS_GENERATOR_BASE = preload("res://addons/gf/editor/gf_access_generator.gd")
-const GF_CAPABILITY_INSPECTOR_PLUGIN_BASE = preload("res://addons/gf/editor/gf_capability_inspector_plugin.gd")
+const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/editor/gf_access_generator.gd"
+const CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_capability_inspector_plugin.gd"
 
 
 # --- 私有变量 ---
@@ -125,7 +125,16 @@ func _setup_generator_tools() -> void:
 
 
 func _setup_inspector_tools() -> void:
-	_capability_inspector_plugin = GF_CAPABILITY_INSPECTOR_PLUGIN_BASE.new()
+	var inspector_script := load(CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH) as Script
+	if inspector_script == null or not inspector_script.can_instantiate():
+		push_error("[GF Framework] 能力 Inspector 插件脚本加载失败。")
+		return
+
+	_capability_inspector_plugin = inspector_script.new() as EditorInspectorPlugin
+	if _capability_inspector_plugin == null:
+		push_error("[GF Framework] 能力 Inspector 插件实例化失败。")
+		return
+
 	add_inspector_plugin(_capability_inspector_plugin)
 
 
@@ -173,7 +182,16 @@ func _on_file_selected(path: String) -> void:
 
 func _generate_accessors() -> void:
 	var output_path := String(ProjectSettings.get_setting(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT))
-	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var generator_script := load(ACCESS_GENERATOR_SCRIPT_PATH) as Script
+	if generator_script == null or not generator_script.can_instantiate():
+		push_error("[GF Framework] 强类型访问器生成器加载失败。")
+		return
+
+	var generator: Variant = generator_script.new()
+	if generator == null or not generator.has_method("generate"):
+		push_error("[GF Framework] 强类型访问器生成器实例化失败。")
+		return
+
 	var error: Error = generator.generate(output_path)
 	if error == OK:
 		print("[GF Framework] 成功生成强类型访问器: ", output_path)

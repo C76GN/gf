@@ -31,7 +31,7 @@ func get_architecture() -> GFArchitecture:
 	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		return architecture
-	return Gf.get_architecture()
+	return GFAutoload.get_architecture()
 
 
 ## 获取当前 Controller 所属的架构，找不到时返回 null 且不触发全局错误。
@@ -170,9 +170,7 @@ func _get_architecture_or_null() -> GFArchitecture:
 		if context_architecture != null:
 			return context_architecture
 
-	if Gf.has_architecture():
-		return Gf.get_architecture()
-	return null
+	return GFAutoload.get_architecture_or_null()
 
 
 func _find_nearest_context() -> GFNodeContextBase:

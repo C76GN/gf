@@ -6,6 +6,8 @@ GF Framework is a lightweight game architecture framework for Godot 4. It separa
 
 Copy `addons/gf` into your Godot project, then enable `GF Framework` from `Project > Project Settings > Plugins`.
 
+Godot does not automatically enable editor plugins after files are copied into `addons`. This is expected behavior. Enable `GF Framework` manually so the plugin can register project settings, editor tools, and the `Gf` AutoLoad.
+
 When the plugin is enabled, it registers the `Gf` AutoLoad automatically:
 
 ```text
@@ -43,6 +45,8 @@ func _ready() -> void:
 ## Chinese Summary
 
 GF Framework 是一个面向 Godot 4 的轻量级游戏架构框架，核心目标是把数据、逻辑、表现、运行时服务和纯算法基础件拆开管理，让项目在规模变大后仍然保持清晰的生命周期和依赖边界。
+
+复制 `addons/gf` 后，Godot 不会自动启用插件。请在 `Project > Project Settings > Plugins` 中手动启用 `GF Framework`，插件启用后会自动注册 `Gf` AutoLoad 与编辑器工具。
 
 ## License
 

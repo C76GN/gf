@@ -89,9 +89,7 @@ func build_source(records: Array) -> String:
 	output.append("static func architecture_or_null(architecture: GFArchitecture = null) -> GFArchitecture:")
 	output.append("\tif architecture != null:")
 	output.append("\t\treturn architecture")
-	output.append("\tif Gf.has_architecture():")
-	output.append("\t\treturn Gf.get_architecture()")
-	output.append("\treturn null")
+	output.append("\treturn GFAutoload.get_architecture_or_null()")
 	output.append("")
 
 	var used_names: Dictionary = {}

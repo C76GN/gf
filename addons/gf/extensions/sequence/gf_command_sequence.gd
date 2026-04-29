@@ -233,6 +233,4 @@ func _get_architecture_or_null() -> GFArchitecture:
 			return architecture
 	if context != null:
 		return context.get_architecture()
-	if Gf.has_architecture():
-		return Gf.get_architecture()
-	return null
+	return GFAutoload.get_architecture_or_null()

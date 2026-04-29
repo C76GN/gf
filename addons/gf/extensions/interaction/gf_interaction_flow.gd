@@ -101,6 +101,4 @@ func _get_architecture_or_null() -> GFArchitecture:
 		var architecture := _architecture_ref.get_ref() as GFArchitecture
 		if architecture != null:
 			return architecture
-	if Gf.has_architecture():
-		return Gf.get_architecture()
-	return null
+	return GFAutoload.get_architecture_or_null()

@@ -35,8 +35,8 @@ static func between(
 
 static func _inject_if_possible(instance: Object, architecture: GFArchitecture = null) -> void:
 	var resolved_architecture := architecture
-	if resolved_architecture == null and Gf.has_architecture():
-		resolved_architecture = Gf.get_architecture()
+	if resolved_architecture == null:
+		resolved_architecture = GFAutoload.get_architecture_or_null()
 
 	if resolved_architecture != null and instance.has_method("inject_dependencies"):
 		instance.inject_dependencies(resolved_architecture)
