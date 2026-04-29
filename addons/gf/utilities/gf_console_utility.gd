@@ -11,6 +11,13 @@ extends GFUtility
 ## 呼出或隐藏控制台的快捷键；默认为 `KEY_F1`。
 var toggle_key: Key = KEY_F1
 
+## 控制台最多保留的输出行数，避免高频日志无限增长。
+var max_output_lines: int = 1000:
+	set(value):
+		max_output_lines = maxi(value, 1)
+		if is_instance_valid(_console_gui):
+			_console_gui.max_output_lines = max_output_lines
+
 
 # --- 私有变量 ---
 
@@ -33,6 +40,7 @@ func init() -> void:
 	_console_gui = _GFConsoleGUI.new()
 	_console_gui.name = "GFConsoleOverlay"
 	_console_gui.toggle_key = toggle_key
+	_console_gui.max_output_lines = max_output_lines
 	_console_gui.command_submitted.connect(_on_command_submitted)
 
 	var tree := Engine.get_main_loop() as SceneTree
@@ -172,6 +180,13 @@ class _GFConsoleGUI extends CanvasLayer:
 
 	var toggle_key: Key
 
+	var max_output_lines: int = 1000:
+		set(value):
+			max_output_lines = maxi(value, 1)
+			_trim_output_lines()
+			if is_instance_valid(_output):
+				_render_output()
+
 
 	# --- 私有变量 ---
 
@@ -179,6 +194,9 @@ class _GFConsoleGUI extends CanvasLayer:
 	var _input_field: LineEdit
 	var _filter_input: LineEdit
 	var _ignored_tags: PackedStringArray = PackedStringArray()
+	var _output_lines: PackedStringArray = PackedStringArray()
+	var _pending_lines: PackedStringArray = PackedStringArray()
+	var _flush_queued: bool = false
 
 
 	# --- Godot 生命周期方法 ---
@@ -252,11 +270,25 @@ class _GFConsoleGUI extends CanvasLayer:
 	# --- 公共方法 ---
 
 	func append_text(bbcode_line: String) -> void:
-		_output.append_text(bbcode_line + "\n")
+		_pending_lines.append(bbcode_line)
+		_queue_flush()
+
+
+	func append_lines(bbcode_lines: PackedStringArray) -> void:
+		for bbcode_line: String in bbcode_lines:
+			_pending_lines.append(bbcode_line)
+		_queue_flush()
 
 
 	func clear_output() -> void:
+		_output_lines.clear()
+		_pending_lines.clear()
+		_flush_queued = false
 		_output.clear()
+
+
+	func flush_output() -> void:
+		_flush_pending_lines()
 
 
 	func is_tag_ignored(tag: String) -> bool:
@@ -264,6 +296,42 @@ class _GFConsoleGUI extends CanvasLayer:
 			return false
 
 		return _ignored_tags.has(tag)
+
+
+	# --- 私有/辅助方法 ---
+
+	func _queue_flush() -> void:
+		if _flush_queued:
+			return
+
+		_flush_queued = true
+		call_deferred("_flush_pending_lines")
+
+
+	func _flush_pending_lines() -> void:
+		_flush_queued = false
+		if _pending_lines.is_empty():
+			return
+
+		for line: String in _pending_lines:
+			_output_lines.append(line)
+		_pending_lines.clear()
+		_trim_output_lines()
+		_render_output()
+
+
+	func _trim_output_lines() -> void:
+		var max_lines := maxi(max_output_lines, 1)
+		while _output_lines.size() > max_lines:
+			_output_lines.remove_at(0)
+
+
+	func _render_output() -> void:
+		_output.clear()
+		if _output_lines.is_empty():
+			return
+
+		_output.append_text("\n".join(_output_lines) + "\n")
 
 
 	# --- 信号处理函数 ---

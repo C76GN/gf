@@ -22,9 +22,13 @@ signal state_changed(group: Node, old_state: Node, new_state: Node)
 const INTERNAL_GROUP_NAME: StringName = &"_internal"
 const META_INTERNAL_GROUP: StringName = &"_gf_node_state_machine_internal_group"
 const GFNodeStateGroupBase = preload("res://addons/gf/extensions/state_machine/gf_node_state_group.gd")
+const GFNodeStateMachineConfigBase = preload("res://addons/gf/extensions/state_machine/gf_node_state_machine_config.gd")
 
 
 # --- 导出变量 ---
+
+## 可选状态机配置资源。为空时继续使用本节点上的兼容导出项。
+@export var config: GFNodeStateMachineConfig = null
 
 ## 内部状态组初始状态名。
 @export var initial_state: StringName = &""
@@ -90,6 +94,42 @@ func transition_group_to(group_name: StringName, state_name: StringName, args: D
 	group.call("transition_to", state_name, args)
 
 
+## 暂停当前内部状态并叠加进入一个子状态。path 可为 "State" 或 "Group/State"。
+func push_state(path: StringName, args: Dictionary = {}) -> void:
+	var text := String(path)
+	var parts := text.split("/", false)
+	if parts.size() == 1:
+		push_group_state(INTERNAL_GROUP_NAME, StringName(parts[0]), args)
+	elif parts.size() == 2:
+		push_group_state(StringName(parts[0]), StringName(parts[1]), args)
+	else:
+		push_error("[GFNodeStateMachine] push_state 失败：路径格式无效。")
+
+
+## 暂停指定状态组当前状态并叠加进入一个子状态。
+func push_group_state(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void:
+	var group := get_state_group(group_name)
+	if group == null:
+		push_warning("[GFNodeStateMachine] push_state 失败，未找到状态组：%s" % group_name)
+		return
+	if not group.has_method("push_state"):
+		push_warning("[GFNodeStateMachine] push_state 失败，状态组不支持栈式状态。")
+		return
+	group.call("push_state", state_name, args)
+
+
+## 弹出指定状态组的栈式子状态。
+func pop_state(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> bool:
+	var group := get_state_group(group_name)
+	if group == null:
+		push_warning("[GFNodeStateMachine] pop_state 失败，未找到状态组：%s" % group_name)
+		return false
+	if not group.has_method("pop_state"):
+		push_warning("[GFNodeStateMachine] pop_state 失败，状态组不支持栈式状态。")
+		return false
+	return bool(group.call("pop_state", args))
+
+
 ## 添加状态组。
 func add_state_group(group: Node) -> void:
 	if not _is_node_state_group(group):
@@ -147,6 +187,59 @@ func get_current_state() -> Node:
 	return group.call("get_current_state") as Node
 
 
+## 获取指定状态组当前状态名。
+func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -> StringName:
+	var group := get_state_group(group_name)
+	if group == null or not group.has_method("get_current_state_name"):
+		return &""
+	return group.call("get_current_state_name") as StringName
+
+
+## 获取指定状态组状态历史。
+func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -> Array[StringName]:
+	var result: Array[StringName] = []
+	var group := get_state_group(group_name)
+	if group == null or not group.has_method("get_state_history"):
+		return result
+
+	var history := group.call("get_state_history") as Array
+	for state_name: Variant in history:
+		result.append(state_name as StringName)
+	return result
+
+
+## 获取指定状态组暂停栈深度。
+func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -> int:
+	var group := get_state_group(group_name)
+	if group == null or not group.has_method("get_stack_depth"):
+		return 0
+	return int(group.call("get_stack_depth"))
+
+
+## 判断 path 指向的状态是否为当前状态或暂停栈中的状态。
+func is_in_state(path: StringName) -> bool:
+	var text := String(path)
+	var parts := text.split("/", false)
+	if parts.size() == 1:
+		return _is_group_in_state(INTERNAL_GROUP_NAME, StringName(parts[0]))
+	if parts.size() == 2:
+		return _is_group_in_state(StringName(parts[0]), StringName(parts[1]))
+	push_error("[GFNodeStateMachine] is_in_state 失败：路径格式无效。")
+	return false
+
+
+## 重启指定状态组当前状态。
+func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> void:
+	var group := get_state_group(group_name)
+	if group == null:
+		push_warning("[GFNodeStateMachine] restart_group 失败，未找到状态组：%s" % group_name)
+		return
+	if not group.has_method("restart"):
+		push_warning("[GFNodeStateMachine] restart_group 失败，状态组不支持重启。")
+		return
+	group.call("restart", args)
+
+
 ## 从子节点重新加载状态和状态组。
 func reload_from_children() -> void:
 	_is_reloading = true
@@ -155,8 +248,10 @@ func reload_from_children() -> void:
 	_internal_group.name = String(INTERNAL_GROUP_NAME)
 	_internal_group.set_meta(META_INTERNAL_GROUP, true)
 	_internal_group.set("group_name", INTERNAL_GROUP_NAME)
-	_internal_group.set("initial_state", initial_state)
-	_internal_group.set("initial_args", initial_args)
+	_internal_group.set("initial_state", _get_effective_initial_state())
+	_internal_group.set("initial_args", _get_effective_initial_args())
+	_internal_group.set("history_max_size", _get_effective_history_max_size())
+	_internal_group.set("max_stack_depth", _get_effective_max_stack_depth())
 	_internal_group.set("reload_states_on_ready", false)
 	add_child(_internal_group, true, Node.INTERNAL_MODE_BACK)
 
@@ -261,6 +356,37 @@ func _free_internal_group(group: Node) -> void:
 	if parent != null:
 		parent.remove_child(group)
 	group.free()
+
+
+func _is_group_in_state(group_name: StringName, state_name: StringName) -> bool:
+	var group := get_state_group(group_name)
+	if group == null or not group.has_method("is_in_state"):
+		return false
+	return bool(group.call("is_in_state", state_name))
+
+
+func _get_effective_initial_state() -> StringName:
+	if config != null:
+		return config.initial_state
+	return initial_state
+
+
+func _get_effective_initial_args() -> Dictionary:
+	if config != null:
+		return config.initial_args
+	return initial_args
+
+
+func _get_effective_history_max_size() -> int:
+	if config != null:
+		return maxi(config.history_max_size, 1)
+	return 32
+
+
+func _get_effective_max_stack_depth() -> int:
+	if config != null:
+		return maxi(config.max_stack_depth, 1)
+	return 8
 
 
 func _reload_from_children_deferred() -> void:

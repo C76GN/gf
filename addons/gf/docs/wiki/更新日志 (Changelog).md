@@ -16,6 +16,78 @@
 
 ---
 
+## [1.16.0] - 2026-04-29
+
+**版本概述**：围绕节点状态机、运行时控制台和远程数据缓存做通用化增强，提升框架在复杂节点流程、高频调试日志和轻量远程配置场景下的可复用性与稳定性。
+
+### 🚀 新增特性 (Added)
+- **节点状态机配置资源**：新增 `GFNodeStateMachineConfig`，可复用内部状态组初始状态、初始参数、历史容量与最大栈深度。
+- **节点状态机状态栈**：`GFNodeStateGroup` 与 `GFNodeStateMachine` 新增 `push_state()` / `pop_state()`，支持覆盖式子状态；`GFNodeState` 新增 `pause()`、`resume()` 及 `_pause()`、`_resume()` 扩展点。
+- **节点状态查询能力**：新增当前状态名、状态历史、栈深度和 `is_in_state()` 查询 API，便于 UI、调试工具和流程控制读取状态。
+- **状态宿主访问**：`GFNodeState` 新增 `get_machine()`、`get_group()`、`get_host()` 与 `host` 只读属性，状态脚本可安全访问状态机所在宿主节点。
+- **节点状态机 Inspector 辅助**：新增 Inspector 插件，从直接子 `GFNodeState` 中选择内部状态组初始状态，并接入主编辑器插件。
+- **通用远程缓存工具**：新增 `GFRemoteCacheUtility`，支持文本/JSON HTTP 请求、本地 TTL 缓存、失败时陈旧缓存回退、缓存清理和统一结果回调。
+
+### 🔄 机制更改 (Changed)
+- **运行时控制台输出优化**：`GFConsoleUtility` 改为批量刷新输出，并通过 `max_output_lines` 限制 RichTextLabel 保留行数，避免高频日志无限增长。
+- **NodeState 模板增强**：编辑器生成的 `NodeState` 模板补充 `_pause()` 与 `_resume()` 扩展点，贴合新的栈式状态语义。
+- **资产版本推进**：插件版本与资产库维护元数据更新到 `1.16.0`。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFNodeStateMachine.config: GFNodeStateMachineConfig`。
+- 新增 `GFNodeStateMachine.push_state(path: StringName, args: Dictionary = {}) -> void`。
+- 新增 `GFNodeStateMachine.push_group_state(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void`。
+- 新增 `GFNodeStateMachine.pop_state(group_name: StringName = GFNodeStateMachine.INTERNAL_GROUP_NAME, args: Dictionary = {}) -> bool`。
+- 新增 `GFNodeStateMachine.get_current_state_name(group_name: StringName = GFNodeStateMachine.INTERNAL_GROUP_NAME) -> StringName`。
+- 新增 `GFNodeStateMachine.get_state_history(group_name: StringName = GFNodeStateMachine.INTERNAL_GROUP_NAME) -> Array[StringName]`。
+- 新增 `GFNodeStateMachine.get_stack_depth(group_name: StringName = GFNodeStateMachine.INTERNAL_GROUP_NAME) -> int`。
+- 新增 `GFNodeStateMachine.is_in_state(path: StringName) -> bool`。
+- 新增 `GFNodeStateMachine.restart_group(group_name: StringName = GFNodeStateMachine.INTERNAL_GROUP_NAME, args: Dictionary = {}) -> void`。
+- 新增 `GFNodeStateGroup.push_state(next_state_name: StringName, args: Dictionary = {}) -> void`。
+- 新增 `GFNodeStateGroup.pop_state(args: Dictionary = {}) -> bool`。
+- 新增 `GFNodeStateGroup.get_current_state_name() -> StringName`。
+- 新增 `GFNodeStateGroup.get_state_history() -> Array[StringName]`。
+- 新增 `GFNodeStateGroup.get_stack_depth() -> int`。
+- 新增 `GFNodeStateGroup.is_in_state(query_state_name: StringName) -> bool`。
+- 新增 `GFNodeStateGroup.restart(args: Dictionary = {}) -> void`。
+- 新增 `GFNodeState.get_machine() -> Object`。
+- 新增 `GFNodeState.get_group() -> Object`。
+- 新增 `GFNodeState.get_host() -> Node`。
+- 新增 `GFNodeState.pause(next_state: StringName = &"", args: Dictionary = {}) -> void`。
+- 新增 `GFNodeState.resume(previous_state: StringName = &"", args: Dictionary = {}) -> void`。
+- 新增 `GFNodeState._pause(_next_state: StringName = &"", _args: Dictionary = {}) -> void`。
+- 新增 `GFNodeState._resume(_previous_state: StringName = &"", _args: Dictionary = {}) -> void`。
+- 新增 `GFConsoleUtility.max_output_lines: int`。
+- 新增 `GFRemoteCacheUtility` 及其 `fetch_text()`、`fetch_json()`、`has_valid_cache()`、`get_cached_text()`、`remove_cache()`、`clear_cache()`。
+- 无破坏性 API 变更；旧项目继续使用原有状态机切换、控制台命令和日志接口即可。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需修改现有 `transition_to()`、`GFConsoleUtility.register_command()` 或资源加载代码。
+2. 需要覆盖式状态时，在状态脚本中按需实现 `_pause()` / `_resume()`；无需覆盖时默认空实现即可。
+3. 需要统一状态机初始参数或栈深度时，可创建 `GFNodeStateMachineConfig` 资源并赋给 `GFNodeStateMachine.config`；未设置时仍使用节点上的旧导出项。
+4. 高频日志项目可调整 `GFConsoleUtility.max_output_lines`，默认保留 1000 行。
+5. 需要轻量远程配置或公告时，注册 `GFRemoteCacheUtility` 并优先通过统一结果字典处理缓存命中、陈旧缓存和网络失败。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `README.md`
+- `addons/gf/README.md`
+- `addons/gf/docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/editor/gf_node_state_machine_inspector_plugin.gd`
+- `addons/gf/extensions/state_machine/gf_node_state.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_group.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_machine.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_machine_config.gd`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/utilities/gf_console_utility.gd`
+- `addons/gf/utilities/gf_remote_cache_utility.gd`
+- `tests/gf_core/test_gf_console_utility.gd`
+- `tests/gf_core/test_gf_node_state_machine.gd`
+- `tests/gf_core/test_gf_remote_cache_utility.gd`
+
 ## [1.15.2] - 2026-04-29
 
 **版本概述**：修复资产库首次安装到新项目时，Godot 在 Gf AutoLoad 注册前扫描框架脚本导致的大量解析报错，并收敛编辑器插件的启动依赖加载顺序。

@@ -17,6 +17,14 @@ signal requested_transition(group_name: StringName, state_name: StringName, args
 @export var state_name: StringName = &""
 
 
+# --- 公共变量 ---
+
+## 状态机宿主节点。通常是 GFNodeStateMachine 的父节点。
+var host: Node:
+	get:
+		return get_host()
+
+
 # --- 私有变量 ---
 
 var _machine_ref: WeakRef = null
@@ -39,6 +47,33 @@ func setup(machine: Object, group: Object) -> void:
 	_group_ref = weakref(group) if group != null else null
 
 
+## 获取所属状态机。
+func get_machine() -> Object:
+	if _machine_ref == null:
+		return null
+	return _machine_ref.get_ref()
+
+
+## 获取所属状态组。
+func get_group() -> Object:
+	if _group_ref == null:
+		return null
+	return _group_ref.get_ref()
+
+
+## 获取状态机宿主节点。若无状态机，则退回到状态组父节点或当前父节点。
+func get_host() -> Node:
+	var machine := get_machine() as Node
+	if machine != null and machine.get_parent() != null:
+		return machine.get_parent()
+
+	var group := get_group() as Node
+	if group != null and group.get_parent() != null:
+		return group.get_parent()
+
+	return get_parent()
+
+
 ## 获取实际注册名。
 func get_state_name() -> StringName:
 	if state_name != &"":
@@ -58,12 +93,24 @@ func exit(next_state: StringName = &"", args: Dictionary = {}) -> void:
 	_set_state_enabled(false)
 
 
+## 进入栈式子状态时暂停当前状态。
+func pause(next_state: StringName = &"", args: Dictionary = {}) -> void:
+	_pause(next_state, args)
+	_set_state_enabled(false)
+
+
+## 弹出栈式子状态后恢复当前状态。
+func resume(previous_state: StringName = &"", args: Dictionary = {}) -> void:
+	_set_state_enabled(true)
+	_resume(previous_state, args)
+
+
 ## 请求切换状态。path 可为 "State" 或 "Group/State"。
 func transition_to(path: StringName, args: Dictionary = {}) -> void:
 	var text := String(path)
 	var parts := text.split("/", false)
 	if parts.size() == 1:
-		var group := _get_group()
+		var group := get_group()
 		var group_name: StringName = &""
 		if group != null and group.has_method("get_group_name"):
 			group_name = group.call("get_group_name")
@@ -94,6 +141,16 @@ func _exit(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
 
 
+## 状态被栈式子状态覆盖时的扩展点。
+func _pause(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
+	pass
+
+
+## 状态从栈式子状态恢复时的扩展点。
+func _resume(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
+	pass
+
+
 # --- 私有/辅助方法 ---
 
 func _set_state_enabled(enabled: bool) -> void:
@@ -101,9 +158,3 @@ func _set_state_enabled(enabled: bool) -> void:
 		process_mode = _original_process_mode
 	else:
 		process_mode = Node.PROCESS_MODE_DISABLED
-
-
-func _get_group() -> Object:
-	if _group_ref == null:
-		return null
-	return _group_ref.get_ref()

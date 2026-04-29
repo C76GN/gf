@@ -34,11 +34,19 @@ signal requested_transition(group_name: StringName, state_name: StringName, args
 ## ready 时是否自动从子节点加载状态。
 @export var reload_states_on_ready: bool = true
 
+## 每个状态组保留的历史状态名数量。
+@export_range(1, 256, 1) var history_max_size: int = 32
+
+## push_state 可叠加的最大栈深度。
+@export_range(1, 64, 1) var max_stack_depth: int = 8
+
 
 # --- 私有变量 ---
 
 var _states: Dictionary = {}
 var _current_state: Node = null
+var _state_stack: Array[Node] = []
+var _history: Array[StringName] = []
 var _machine_ref: WeakRef = null
 var _is_ready: bool = false
 var _reload_queued: bool = false
@@ -76,6 +84,7 @@ func initialize(machine: Object = null) -> void:
 	_is_ready = true
 	if machine != null:
 		_machine_ref = weakref(machine)
+		_setup_existing_states()
 	if reload_states_on_ready:
 		reload_states_from_children()
 	if initial_state != &"" and _current_state == null:
@@ -125,10 +134,96 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 				return
 			next_state = _states[next_state_name] as Node
 
+	if not _state_stack.is_empty():
+		_clear_stack(next_state_name, args)
+
 	_current_state = next_state
 	_current_state.call("enter", previous_name, args)
+	_push_history(next_state_name)
 	if current_serial == _transition_serial and _current_state == next_state:
 		current_state_changed.emit(previous_state, _current_state)
+
+
+## 暂停当前状态并叠加进入一个子状态。
+func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
+	if not _states.has(next_state_name):
+		_warn_missing_state(next_state_name)
+		return
+
+	if _current_state == null:
+		transition_to(next_state_name, args)
+		return
+
+	if _is_exiting_current_state:
+		push_warning("[GFNodeStateGroup] push_state 失败：当前状态正在退出。")
+		return
+
+	if _state_stack.size() >= maxi(max_stack_depth, 1):
+		push_warning("[GFNodeStateGroup] push_state 失败：状态栈已达到上限。")
+		return
+
+	var next_state := _states[next_state_name] as Node
+	if next_state == _current_state:
+		push_warning("[GFNodeStateGroup] push_state 失败：不能将当前状态再次压栈。")
+		return
+
+	var previous_state := _current_state
+	if not previous_state.has_method("pause"):
+		push_warning("[GFNodeStateGroup] push_state 失败：当前状态不支持 pause。")
+		return
+
+	var previous_name := previous_state.call("get_state_name") as StringName
+	previous_state.call("pause", next_state_name, args)
+	_state_stack.append(previous_state)
+	_current_state = next_state
+	_current_state.call("enter", previous_name, args)
+	_push_history(next_state_name)
+	current_state_changed.emit(previous_state, _current_state)
+
+
+## 退出当前子状态并恢复上一层状态。
+func pop_state(args: Dictionary = {}) -> bool:
+	if _state_stack.is_empty():
+		return false
+
+	if _current_state == null:
+		_current_state = _state_stack.pop_back()
+		return true
+
+	if _is_exiting_current_state:
+		push_warning("[GFNodeStateGroup] pop_state 失败：当前状态正在退出。")
+		return false
+
+	var previous_state := _current_state
+	var restore_state := _state_stack.pop_back()
+	if not restore_state.has_method("resume"):
+		push_warning("[GFNodeStateGroup] pop_state 失败：目标状态不支持 resume。")
+		_state_stack.append(restore_state)
+		return false
+
+	var previous_name := previous_state.call("get_state_name") as StringName
+	var restore_name := restore_state.call("get_state_name") as StringName
+
+	_transition_serial += 1
+	_is_exiting_current_state = true
+	previous_state.call("exit", restore_name, args)
+	_is_exiting_current_state = false
+
+	if not _queued_exit_transition.is_empty():
+		var queued_state_name := _queued_exit_transition["state_name"] as StringName
+		var queued_args := _queued_exit_transition["args"] as Dictionary
+		_queued_exit_transition.clear()
+		restore_state.call("exit", queued_state_name, queued_args)
+		_clear_stack(queued_state_name, queued_args)
+		_current_state = null
+		transition_to(queued_state_name, queued_args)
+		return true
+
+	_current_state = restore_state
+	_current_state.call("resume", previous_name, args)
+	_push_history(restore_name)
+	current_state_changed.emit(previous_state, _current_state)
+	return true
 
 
 ## 添加状态节点。
@@ -161,6 +256,7 @@ func remove_state(state: Node) -> bool:
 	if _current_state == state:
 		state.call("exit", &"", {})
 		_current_state = null
+	_remove_from_stack(state)
 	var transition_signal: Signal = state.get("requested_transition")
 	if transition_signal.is_connected(_on_state_requested_transition):
 		transition_signal.disconnect(_on_state_requested_transition)
@@ -179,6 +275,48 @@ func get_current_state() -> Node:
 	return _current_state
 
 
+## 获取当前状态名。
+func get_current_state_name() -> StringName:
+	if _current_state == null:
+		return &""
+	return _current_state.call("get_state_name") as StringName
+
+
+## 获取状态切换历史。
+func get_state_history() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for state_name: StringName in _history:
+		result.append(state_name)
+	return result
+
+
+## 获取当前暂停栈深度。
+func get_stack_depth() -> int:
+	return _state_stack.size()
+
+
+## 判断指定状态是否为当前状态或暂停栈中的状态。
+func is_in_state(query_state_name: StringName) -> bool:
+	if get_current_state_name() == query_state_name:
+		return true
+
+	for state: Node in _state_stack:
+		if state.call("get_state_name") == query_state_name:
+			return true
+
+	return false
+
+
+## 重启当前状态；若当前没有状态，则尝试进入初始状态。
+func restart(args: Dictionary = {}) -> void:
+	if _current_state == null:
+		if initial_state != &"":
+			transition_to(initial_state, args if not args.is_empty() else initial_args)
+		return
+
+	transition_to(get_current_state_name(), args)
+
+
 ## 获取所有状态。
 func get_states() -> Array[Node]:
 	var result: Array[Node] = []
@@ -192,6 +330,8 @@ func clear_states(free_states: bool = false) -> void:
 	var states := get_states()
 	_states.clear()
 	_current_state = null
+	_state_stack.clear()
+	_history.clear()
 	_is_exiting_current_state = false
 	_queued_exit_transition.clear()
 	for state: Node in states:
@@ -219,6 +359,11 @@ func _get_machine() -> Object:
 	return _machine_ref.get_ref()
 
 
+func _setup_existing_states() -> void:
+	for state: Node in _states.values():
+		state.call("setup", _get_machine(), self)
+
+
 func _is_node_state(node: Node) -> bool:
 	if node == null:
 		return false
@@ -237,6 +382,31 @@ func _is_node_state(node: Node) -> bool:
 
 func _warn_missing_state(state_name: StringName) -> void:
 	push_warning("[GFNodeStateGroup] 切换失败，未找到状态：%s" % state_name)
+
+
+func _push_history(state_name: StringName) -> void:
+	_history.append(state_name)
+	_trim_history()
+
+
+func _trim_history() -> void:
+	var max_size := maxi(history_max_size, 1)
+	while _history.size() > max_size:
+		_history.pop_front()
+
+
+func _clear_stack(next_state_name: StringName, args: Dictionary) -> void:
+	while not _state_stack.is_empty():
+		var state := _state_stack.pop_back()
+		if state != null and is_instance_valid(state) and state.has_method("exit"):
+			state.call("exit", next_state_name, args)
+
+
+func _remove_from_stack(state: Node) -> void:
+	var index := _state_stack.find(state)
+	while index != -1:
+		_state_stack.remove_at(index)
+		index = _state_stack.find(state)
 
 
 func _on_state_requested_transition(

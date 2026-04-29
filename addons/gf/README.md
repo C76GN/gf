@@ -38,9 +38,9 @@ func _ready() -> void:
 - Project installers and declarative binding helpers for assembling game modules.
 - Typed events, string events, bindable properties, commands, queries, and factories.
 - Foundation helpers for big numbers, fixed decimals, resourceized formulas, number formatting, grid math, and progression curves.
-- Runtime utilities for storage, assets, scenes, time, timers, input, input device assignment, touch controls, audio banks, analytics, UI, logging, quests, object pools, and native signal connections.
-- Extensions for pure-code and node-based state machines, command sequences, turn-flow helpers, named action queues, generic domain models, capability components, interaction flows, and lightweight combat systems.
-- Editor tools for generating typed accessors, common GF script templates, and reusable thumbnail rendering.
+- Runtime utilities for storage, assets, remote text/JSON caching, scenes, time, timers, input, input device assignment, touch controls, audio banks, analytics, UI, logging, quests, object pools, and native signal connections.
+- Extensions for pure-code and node-based state machines, including resourceized node-state configuration, state history, and stack-style child states.
+- Editor tools for generating typed accessors, common GF script templates, node-state initial-state selection, and reusable thumbnail rendering.
 
 ## Chinese Summary
 

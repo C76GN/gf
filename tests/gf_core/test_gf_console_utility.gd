@@ -92,6 +92,29 @@ func test_execute_whitespace_only_returns_false() -> void:
 	assert_false(result, "纯空白输入应返回 false。")
 
 
+func test_console_output_keeps_max_lines() -> void:
+	_console.max_output_lines = 2
+	_console._console_gui.append_text("line-1")
+	_console._console_gui.append_text("line-2")
+	_console._console_gui.append_text("line-3")
+	_console._console_gui.flush_output()
+
+	assert_eq(_console._console_gui._output_lines.size(), 2, "控制台输出应按上限裁剪。")
+	assert_eq(_console._console_gui._output_lines[0], "line-2", "控制台应丢弃最旧输出。")
+	assert_eq(_console._console_gui._output_lines[1], "line-3", "控制台应保留最新输出。")
+
+
+func test_console_output_batches_until_flush() -> void:
+	_console._console_gui.append_text("batched")
+
+	assert_eq(_console._console_gui._output_lines.size(), 0, "批量刷新前不应立即重绘输出。")
+
+	_console._console_gui.flush_output()
+
+	assert_eq(_console._console_gui._output_lines.size(), 1, "flush 后应写入待输出行。")
+	assert_eq(_console._console_gui._output_lines[0], "batched", "flush 后应保留待输出内容。")
+
+
 func test_dispose_disconnects_log_signal() -> void:
 	var arch := GFArchitecture.new()
 	var log_util := GFLogUtility.new()

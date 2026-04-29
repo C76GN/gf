@@ -30,6 +30,7 @@ const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
 const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
 const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/editor/gf_access_generator.gd"
 const CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_capability_inspector_plugin.gd"
+const NODE_STATE_MACHINE_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_node_state_machine_inspector_plugin.gd"
 
 
 # --- 私有变量 ---
@@ -37,6 +38,7 @@ const CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/
 var _file_dialog: FileDialog
 var _current_template_type: String = ""
 var _capability_inspector_plugin: EditorInspectorPlugin
+var _node_state_machine_inspector_plugin: EditorInspectorPlugin
 var _gf_menu: PopupMenu
 
 
@@ -125,23 +127,42 @@ func _setup_generator_tools() -> void:
 
 
 func _setup_inspector_tools() -> void:
-	var inspector_script := load(CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH) as Script
+	_capability_inspector_plugin = _load_inspector_plugin(
+		CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH,
+		"能力 Inspector"
+	)
+	if _capability_inspector_plugin != null:
+		add_inspector_plugin(_capability_inspector_plugin)
+
+	_node_state_machine_inspector_plugin = _load_inspector_plugin(
+		NODE_STATE_MACHINE_INSPECTOR_PLUGIN_SCRIPT_PATH,
+		"节点状态机 Inspector"
+	)
+	if _node_state_machine_inspector_plugin != null:
+		add_inspector_plugin(_node_state_machine_inspector_plugin)
+
+
+func _load_inspector_plugin(script_path: String, label: String) -> EditorInspectorPlugin:
+	var inspector_script := load(script_path) as Script
 	if inspector_script == null or not inspector_script.can_instantiate():
-		push_error("[GF Framework] 能力 Inspector 插件脚本加载失败。")
-		return
+		push_error("[GF Framework] %s 插件脚本加载失败。" % label)
+		return null
 
-	_capability_inspector_plugin = inspector_script.new() as EditorInspectorPlugin
-	if _capability_inspector_plugin == null:
-		push_error("[GF Framework] 能力 Inspector 插件实例化失败。")
-		return
+	var inspector_plugin := inspector_script.new() as EditorInspectorPlugin
+	if inspector_plugin == null:
+		push_error("[GF Framework] %s 插件实例化失败。" % label)
+		return null
 
-	add_inspector_plugin(_capability_inspector_plugin)
+	return inspector_plugin
 
 
 func _cleanup_inspector_tools() -> void:
 	if _capability_inspector_plugin != null:
 		remove_inspector_plugin(_capability_inspector_plugin)
 		_capability_inspector_plugin = null
+	if _node_state_machine_inspector_plugin != null:
+		remove_inspector_plugin(_node_state_machine_inspector_plugin)
+		_node_state_machine_inspector_plugin = null
 
 
 func _cleanup_generator_tools() -> void:
@@ -378,6 +399,14 @@ func _enter(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 
 
 func _exit(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
+	pass
+
+
+func _pause(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
+	pass
+
+
+func _resume(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
 
 

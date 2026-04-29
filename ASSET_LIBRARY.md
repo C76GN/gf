@@ -16,7 +16,7 @@ Everything else is excluded from GitHub archive downloads through `.gitattribute
 - Description:
 
 ```text
-GF Framework is a lightweight architecture framework for Godot 4. It helps organize games into models, systems, controllers, utilities, and foundation helpers with managed lifecycles, typed events, bindable properties, commands and queries, installers, capability components, action queues, state machines, storage/audio/scene utilities, and lightweight combat helpers.
+GF Framework is a lightweight architecture framework for Godot 4. It helps organize games into models, systems, controllers, utilities, and foundation helpers with managed lifecycles, typed events, bindable properties, commands and queries, installers, capability components, action queues, state machines, storage/audio/scene/remote-cache utilities, and lightweight combat helpers.
 
 Enable the plugin to register the Gf AutoLoad and use the editor tools for generating GF module templates and typed accessors.
 ```
@@ -27,7 +27,7 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for gener
 - Repository URL: `https://github.com/C76GN/gf`
 - Issues URL: `https://github.com/C76GN/gf/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `1.15.2`
+- Asset Version: `1.16.0`
 - Download Commit/URL: `TODO_AFTER_RELEASE_COMMIT`
 - Icon URL: `https://raw.githubusercontent.com/C76GN/gf/TODO_AFTER_RELEASE_COMMIT/addons/gf/icon.png`
 

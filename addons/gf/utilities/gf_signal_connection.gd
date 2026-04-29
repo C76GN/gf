@@ -217,6 +217,11 @@ func _wait_seconds(seconds: float, serial: int) -> void:
 	if seconds <= 0.0:
 		return
 
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree != null:
+		await tree.create_timer(seconds, true, false, true).timeout
+		return
+
 	var start_msec := Time.get_ticks_msec()
 	var wait_msec := int(seconds * 1000.0)
 	while serial == _serial and Time.get_ticks_msec() - start_msec < wait_msec:
