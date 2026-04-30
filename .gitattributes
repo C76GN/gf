@@ -6,5 +6,3 @@
 /addons !export-ignore
 /addons/gf !export-ignore
 /addons/gf/** !export-ignore
-/LICENSE.md !export-ignore
-/README.md !export-ignore

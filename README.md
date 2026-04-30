@@ -42,7 +42,7 @@ func _ready() -> void:
 
 ## Included Modules
 
-GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties, commands and queries, state machines, command sequences, turn-flow helpers, action queues, object pooling, scene switching, storage helpers, audio banks, input device assignment, analytics events, capability components, interaction flows, lightweight combat helpers, generic domain models, and editor tools for typed accessor generation.
+GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties, commands and queries, state machines, command sequences, turn-flow helpers, action queues, object pooling, scene switching, storage helpers, settings and display adapters, audio banks, player-scoped input device assignment, analytics events, capability components, interaction flows, lightweight combat helpers, generic domain models, grid occupancy primitives, and editor tools for typed accessor generation.
 
 ## Testing
 
@@ -156,6 +156,7 @@ Gf.send_command(command)
 - `GFNumberFormatter`：统一的完整显示、紧凑缩写、科学计数法格式化工具。
 - `GFProgressionMath`：价格曲线、收益曲线、里程碑倍率、软上限与分段离线收益结算工具。
 - `GFGridMath`：网格索引、邻居、泛洪、BFS 与两折连线等纯算法工具。
+- `GFGridOccupancy`：通用格子占用与预约结构，可用于棋盘、战棋、推箱子和解谜类 System 的运行时状态。
 - `GFFormula` / `GFFormulaSet`：资源化公式与参数容器，适合把可替换计算策略从系统逻辑中抽离。
 - `TypeEventSystem`：强类型事件与轻量 `StringName` 事件。
 - `BindableProperty`：响应式属性，适合 Model 到 UI 的数据绑定。
@@ -164,10 +165,11 @@ Gf.send_command(command)
 - `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、filter/map/delay/debounce/once 链式处理。
 - `GFSceneUtility`：异步场景切换与瞬态模块清理。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
+- `GFSettingsUtility` / `GFDisplaySettingsUtility`：抽象设置注册、持久化、显示/语言/音频应用，以及设置界面控件绑定辅助。
 - `GFObjectPoolUtility`：节点对象池。
 - `GFAudioUtility`：BGM/SFX 播放、资源化音频片段/集合、音量总线、SFX 对象池与并发上限控制。
-- `GFInputMappingUtility` / `GFInputAction` / `GFInputContext`：资源化输入动作、上下文切换、运行时重绑定与动作状态查询。
-- `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、通用触屏虚拟摇杆与触屏按钮。
+- `GFInputMappingUtility` / `GFInputAction` / `GFInputContext`：资源化输入动作、上下文切换、运行时重绑定、全局与玩家级动作状态查询。
+- `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、活跃玩家追踪、通用触屏虚拟摇杆与触屏按钮。
 - `GFAnalyticsUtility`：通用事件采集、批量 flush、本地 dry-run 与可选 HTTP 上报。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFCommandSequence`：顺序执行 `GFSequenceStep`、命令对象或任意 callable 的通用流程编排器。
@@ -184,7 +186,7 @@ Gf.send_command(command)
 - `GFInteractionContext`：轻量交互上下文，便于在命令、事件或能力方法之间传递 sender、target 与 payload。
 - `GFInteractions`：交互上下文与链式交互流程创建入口。
 - `GFTurnFlowSystem`：通用回合阶段与行动解析流程系统。
-- `GFInventoryModel` / `GFTraitSet` / `GFEquipmentSet`：库存、特征和槽位的通用数据模型。
+- `GFInventoryModel` / `GFLevelProgressModel` / `GFTraitSet` / `GFEquipmentSet`：库存、关卡进度、特征和槽位的通用数据模型。
 - `GFThumbnailRenderer`：可复用的编辑器 3D/Mesh/MeshLibrary 缩略图渲染辅助节点。
 - `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `工具 > GF > 生成强类型访问器` 菜单生成 `GFAccess`。
 

@@ -106,14 +106,20 @@ func matches_event(event: InputEvent) -> bool:
 ## 计算该输入事件对动作值的贡献。
 ## @param event: 运行时输入事件。
 ## @param action_value_type: 动作值类型。
+## @param deadzone_override: 可选死区覆盖；小于 0 时使用绑定自身 deadzone。
 ## @return 二维向量贡献；布尔与一维轴使用 x 分量。
-func get_contribution(event: InputEvent, action_value_type: GFInputActionBase.ValueType) -> Vector2:
-	var raw_value := _read_event_value(event)
+func get_contribution(
+	event: InputEvent,
+	action_value_type: GFInputActionBase.ValueType,
+	deadzone_override: float = -1.0
+) -> Vector2:
+	var effective_deadzone := deadzone if deadzone_override < 0.0 else clampf(deadzone_override, 0.0, 1.0)
+	var raw_value := _read_event_value(event, effective_deadzone)
 	if value_target == ValueTarget.AUTO:
 		return _get_auto_contribution(raw_value, action_value_type)
 
 	var strength := _get_target_strength(event, raw_value, value_target)
-	if strength < deadzone:
+	if strength < effective_deadzone:
 		strength = 0.0
 
 	match value_target:
@@ -165,7 +171,7 @@ func _matches_key(event: InputEventKey, template: InputEventKey) -> bool:
 	)
 
 
-func _read_event_value(event: InputEvent) -> float:
+func _read_event_value(event: InputEvent, effective_deadzone: float) -> float:
 	if event is InputEventAction:
 		var action_event := event as InputEventAction
 		return action_event.strength if action_event.pressed else 0.0
@@ -184,7 +190,7 @@ func _read_event_value(event: InputEvent) -> float:
 
 	if event is InputEventJoypadMotion:
 		var axis_event := event as InputEventJoypadMotion
-		return axis_event.axis_value if absf(axis_event.axis_value) >= deadzone else 0.0
+		return axis_event.axis_value if absf(axis_event.axis_value) >= effective_deadzone else 0.0
 
 	if event is InputEventScreenTouch:
 		return 1.0 if (event as InputEventScreenTouch).pressed else 0.0

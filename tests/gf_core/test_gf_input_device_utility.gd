@@ -48,3 +48,64 @@ func test_get_assignments_returns_copies() -> void:
 	assignments[0].device_id = 999
 
 	assert_eq(utility.get_assignment(0).device_id, 9, "外部修改副本不应影响内部映射。")
+
+
+## 验证未登记手柄输入可自动分配到空玩家席位并更新活跃玩家。
+func test_handle_input_event_auto_assigns_joypad_to_empty_player() -> void:
+	var utility := GFInputDeviceUtility.new()
+	utility.max_players = 2
+	utility.include_keyboard_mouse = true
+	utility.include_touch = false
+	utility.refresh_connected_devices()
+	watch_signals(utility)
+
+	var player_index := utility.handle_input_event(_make_joy_button_event(7, JOY_BUTTON_A, true))
+
+	assert_eq(player_index, 1, "键鼠占用 0 号位后，未登记手柄应分配到 1 号玩家。")
+	assert_eq(utility.get_assignment(1).device_id, 7, "新映射应记录手柄设备 ID。")
+	assert_eq(utility.active_player_index, 1, "有效输入应更新最近活跃玩家。")
+	assert_signal_emitted(utility, "active_player_changed", "活跃玩家变化时应发出信号。")
+
+
+## 验证弱手柄轴噪声不会触发自动分配。
+func test_joypad_axis_noise_does_not_auto_assign() -> void:
+	var utility := GFInputDeviceUtility.new()
+	utility.max_players = 1
+	utility.include_keyboard_mouse = false
+	utility.include_touch = false
+	utility.refresh_connected_devices()
+
+	var player_index := utility.handle_input_event(_make_joy_motion_event(3, JOY_AXIS_LEFT_X, 0.2))
+
+	assert_eq(player_index, -1, "低于自动分配阈值的轴输入不应占用玩家席位。")
+	assert_null(utility.get_assignment(0), "噪声输入后不应生成映射。")
+
+
+## 验证玩家级死区覆盖可设置和清除。
+func test_player_deadzone_override() -> void:
+	var utility := GFInputDeviceUtility.new()
+
+	utility.set_player_deadzone(2, 0.35)
+	assert_almost_eq(utility.get_player_deadzone(2), 0.35, 0.001, "应能读取玩家级死区覆盖。")
+
+	utility.set_player_deadzone(2, -1.0)
+	assert_eq(utility.get_player_deadzone(2, -1.0), -1.0, "传入负数应清除玩家级死区覆盖。")
+
+
+# --- 私有/辅助方法 ---
+
+func _make_joy_button_event(device: int, button: JoyButton, pressed: bool) -> InputEventJoypadButton:
+	var event := InputEventJoypadButton.new()
+	event.device = device
+	event.button_index = button
+	event.pressed = pressed
+	event.pressure = 1.0 if pressed else 0.0
+	return event
+
+
+func _make_joy_motion_event(device: int, axis: JoyAxis, axis_value: float) -> InputEventJoypadMotion:
+	var event := InputEventJoypadMotion.new()
+	event.device = device
+	event.axis = axis
+	event.axis_value = axis_value
+	return event

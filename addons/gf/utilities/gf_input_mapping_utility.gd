@@ -26,6 +26,18 @@ signal action_triggered(action_id: StringName, value: Variant)
 ## 动作从活跃变为非活跃时发出。
 signal action_completed(action_id: StringName, value: Variant)
 
+## 玩家动作值变化时发出。
+signal player_action_value_changed(player_index: int, action_id: StringName, value: Variant)
+
+## 玩家动作从非活跃变为活跃时发出。
+signal player_action_started(player_index: int, action_id: StringName, value: Variant)
+
+## 玩家动作活跃且收到匹配输入事件时发出。
+signal player_action_triggered(player_index: int, action_id: StringName, value: Variant)
+
+## 玩家动作从活跃变为非活跃时发出。
+signal player_action_completed(player_index: int, action_id: StringName, value: Variant)
+
 
 # --- 常量 ---
 
@@ -42,10 +54,15 @@ var _active_contexts: Dictionary = {}
 var _effective_entries: Array[Dictionary] = []
 var _binding_values: Dictionary = {}
 var _binding_to_action: Dictionary = {}
+var _player_binding_values: Dictionary = {}
+var _player_binding_to_action: Dictionary = {}
 var _actions: Dictionary = {}
 var _action_values: Dictionary = {}
 var _action_active: Dictionary = {}
 var _just_started: Dictionary = {}
+var _player_action_values: Dictionary = {}
+var _player_action_active: Dictionary = {}
+var _player_just_started: Dictionary = {}
 var _remap_config: GFInputRemapConfigBase
 var _timestamp: int = 0
 var _router: _GFInputRouter
@@ -73,6 +90,7 @@ func dispose() -> void:
 
 func tick(_delta: float) -> void:
 	_just_started.clear()
+	_player_just_started.clear()
 
 
 # --- 公共方法 ---
@@ -159,12 +177,13 @@ func handle_input_event(event: InputEvent) -> void:
 	if event == null or _should_ignore_event(event):
 		return
 
+	var player_index := _resolve_player_index(event)
 	var event_blocked := false
 	for entry: Dictionary in _effective_entries:
 		if event_blocked:
 			continue
 
-		var matched := _apply_entry_event(entry, event)
+		var matched := _apply_entry_event(entry, event, player_index)
 		if not matched:
 			continue
 
@@ -176,6 +195,8 @@ func handle_input_event(event: InputEvent) -> void:
 
 		if is_action_active(action_id):
 			action_triggered.emit(action_id, value)
+		if player_index >= 0 and is_action_active_for_player(player_index, action_id):
+			player_action_triggered.emit(player_index, action_id, get_action_value_for_player(player_index, action_id))
 
 
 ## 获取动作当前值。
@@ -219,6 +240,57 @@ func consume_action(action_id: StringName) -> bool:
 	if not was_action_just_started(action_id):
 		return false
 	_just_started.erase(action_id)
+	return true
+
+
+## 获取指定玩家动作当前值。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return bool、float 或 Vector2，取决于动作值类型。
+func get_action_value_for_player(player_index: int, action_id: StringName) -> Variant:
+	var key := _make_player_action_key(player_index, action_id)
+	if _player_action_values.has(key):
+		return _player_action_values[key]
+
+	var action := _actions.get(action_id) as GFInputActionBase
+	if action == null:
+		return null
+	return _default_value_for_type(action.value_type)
+
+
+## 获取指定玩家动作当前二维向量值。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return 二维向量值；布尔与一维轴使用 x 分量。
+func get_action_vector_for_player(player_index: int, action_id: StringName) -> Vector2:
+	return _calculate_player_action_vector(player_index, action_id)
+
+
+## 检查指定玩家动作是否活跃。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return 是否活跃。
+func is_action_active_for_player(player_index: int, action_id: StringName) -> bool:
+	return bool(_player_action_active.get(_make_player_action_key(player_index, action_id), false))
+
+
+## 检查指定玩家动作是否在当前帧刚刚开始。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return 是否刚开始。
+func was_action_just_started_for_player(player_index: int, action_id: StringName) -> bool:
+	return bool(_player_just_started.get(_make_player_action_key(player_index, action_id), false))
+
+
+## 消费指定玩家的一次刚开始动作。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return 成功消费返回 true。
+func consume_action_for_player(player_index: int, action_id: StringName) -> bool:
+	var key := _make_player_action_key(player_index, action_id)
+	if not bool(_player_just_started.get(key, false)):
+		return false
+	_player_just_started.erase(key)
 	return true
 
 
@@ -298,6 +370,12 @@ func get_remappable_items(
 ## 清空所有动作运行时状态。
 func clear_input_state() -> void:
 	_clear_runtime_state(true)
+
+
+## 清空指定玩家动作运行时状态。
+## @param player_index: 玩家索引。
+func clear_player_input_state(player_index: int) -> void:
+	_clear_player_runtime_state(player_index, true)
 
 
 # --- 私有/辅助方法 ---
@@ -410,7 +488,7 @@ func _get_sorted_contexts() -> Array[GFInputContextBase]:
 	return contexts
 
 
-func _apply_entry_event(entry: Dictionary, event: InputEvent) -> bool:
+func _apply_entry_event(entry: Dictionary, event: InputEvent, player_index: int) -> bool:
 	var matched := false
 	var action := entry["action"] as GFInputActionBase
 	var action_id := entry["action_id"] as StringName
@@ -419,13 +497,20 @@ func _apply_entry_event(entry: Dictionary, event: InputEvent) -> bool:
 		if binding == null or not binding.matches_event(event):
 			continue
 
-		var key := String(binding_info["key"])
-		_binding_values[key] = binding.get_contribution(event, action.value_type)
+		var key := _make_source_binding_key(String(binding_info["key"]), event)
+		var contribution := binding.get_contribution(event, action.value_type, _get_player_deadzone(player_index))
+		_binding_values[key] = contribution
 		_binding_to_action[key] = action_id
+		if player_index >= 0:
+			var player_binding_key := _make_player_binding_key(player_index, String(binding_info["key"]))
+			_player_binding_values[player_binding_key] = contribution
+			_player_binding_to_action[player_binding_key] = action_id
 		matched = true
 
 	if matched:
 		_refresh_action_state(action_id, action)
+		if player_index >= 0:
+			_refresh_player_action_state(player_index, action_id, action)
 
 	return matched
 
@@ -459,8 +544,34 @@ func _calculate_action_vector(action_id: StringName) -> Vector2:
 	return total
 
 
+func _calculate_player_action_vector(player_index: int, action_id: StringName) -> Vector2:
+	var total := Vector2.ZERO
+	var prefix := "%d/" % player_index
+	for key: String in _player_binding_values.keys():
+		if not key.begins_with(prefix):
+			continue
+		if _player_binding_to_action.get(key) == action_id:
+			total += _player_binding_values[key] as Vector2
+	if total.length() > 1.0:
+		total = total.normalized()
+	return total
+
+
 func _calculate_action_value(action_id: StringName, value_type: GFInputActionBase.ValueType) -> Variant:
 	var vector := _calculate_action_vector(action_id)
+	return _calculate_value_from_vector(vector, value_type)
+
+
+func _calculate_player_action_value(
+	player_index: int,
+	action_id: StringName,
+	value_type: GFInputActionBase.ValueType
+) -> Variant:
+	var vector := _calculate_player_action_vector(player_index, action_id)
+	return _calculate_value_from_vector(vector, value_type)
+
+
+func _calculate_value_from_vector(vector: Vector2, value_type: GFInputActionBase.ValueType) -> Variant:
 	match value_type:
 		GFInputActionBase.ValueType.BOOL:
 			return vector.length() > 0.0
@@ -510,12 +621,52 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 			if bool(_action_active[action_id]) and _actions.has(action_id):
 				var action := _actions[action_id] as GFInputActionBase
 				action_completed.emit(action_id, _default_value_for_type(action.value_type))
+		for player_action_key: String in _player_action_active.keys():
+			if not bool(_player_action_active[player_action_key]):
+				continue
+			var parts := player_action_key.split("/", false, 1)
+			if parts.size() != 2:
+				continue
+			var player_index := int(parts[0])
+			var action_id := StringName(parts[1])
+			var action := _actions.get(action_id) as GFInputActionBase
+			if action != null:
+				player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
 
 	_binding_values.clear()
 	_binding_to_action.clear()
+	_player_binding_values.clear()
+	_player_binding_to_action.clear()
 	_action_values.clear()
 	_action_active.clear()
 	_just_started.clear()
+	_player_action_values.clear()
+	_player_action_active.clear()
+	_player_just_started.clear()
+
+
+func _clear_player_runtime_state(player_index: int, emit_completed: bool = false) -> void:
+	var prefix := "%d/" % player_index
+	if emit_completed:
+		for player_action_key: String in _player_action_active.keys():
+			if not player_action_key.begins_with(prefix):
+				continue
+			if not bool(_player_action_active[player_action_key]):
+				continue
+			var action_id := StringName(player_action_key.trim_prefix(prefix))
+			var action := _actions.get(action_id) as GFInputActionBase
+			if action != null:
+				player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
+
+	for key: String in _player_binding_values.keys():
+		if key.begins_with(prefix):
+			_player_binding_values.erase(key)
+			_player_binding_to_action.erase(key)
+	for key: String in _player_action_values.keys():
+		if key.begins_with(prefix):
+			_player_action_values.erase(key)
+			_player_action_active.erase(key)
+			_player_just_started.erase(key)
 
 
 func _get_effective_event(
@@ -533,8 +684,76 @@ func _make_binding_key(context_id: StringName, action_id: StringName, binding_in
 	return "%s/%s/%d" % [String(context_id), String(action_id), binding_index]
 
 
+func _make_player_binding_key(player_index: int, binding_key: String) -> String:
+	return "%d/%s" % [player_index, binding_key]
+
+
+func _make_source_binding_key(binding_key: String, event: InputEvent) -> String:
+	return "%s@%s" % [binding_key, _make_event_source_key(event)]
+
+
+func _make_player_action_key(player_index: int, action_id: StringName) -> String:
+	return "%d/%s" % [player_index, String(action_id)]
+
+
 func _should_ignore_event(event: InputEvent) -> bool:
 	return event is InputEventKey and (event as InputEventKey).echo
+
+
+func _make_event_source_key(event: InputEvent) -> String:
+	if event is InputEventJoypadButton or event is InputEventJoypadMotion:
+		return "joypad:%d" % event.device
+	if event is InputEventScreenTouch or event is InputEventScreenDrag:
+		return "touch:%d" % event.device
+	return "keyboard_mouse"
+
+
+func _refresh_player_action_state(
+	player_index: int,
+	action_id: StringName,
+	action: GFInputActionBase
+) -> void:
+	var key := _make_player_action_key(player_index, action_id)
+	var previous_value: Variant = _player_action_values.get(key, _default_value_for_type(action.value_type))
+	var previous_active := bool(_player_action_active.get(key, false))
+	var next_value: Variant = _calculate_player_action_value(player_index, action_id, action.value_type)
+	var next_active := _is_value_active(next_value, action)
+
+	_player_action_values[key] = next_value
+	_player_action_active[key] = next_active
+
+	if not _values_equal(previous_value, next_value):
+		player_action_value_changed.emit(player_index, action_id, next_value)
+
+	if not previous_active and next_active:
+		_player_just_started[key] = true
+		player_action_started.emit(player_index, action_id, next_value)
+	elif previous_active and not next_active:
+		player_action_completed.emit(player_index, action_id, next_value)
+
+
+func _resolve_player_index(event: InputEvent) -> int:
+	var devices := _get_input_device_utility()
+	if devices == null:
+		return -1
+	return devices.handle_input_event(event)
+
+
+func _get_player_deadzone(player_index: int) -> float:
+	if player_index < 0:
+		return -1.0
+
+	var devices := _get_input_device_utility()
+	if devices == null:
+		return -1.0
+	return devices.get_player_deadzone(player_index, -1.0)
+
+
+func _get_input_device_utility() -> GFInputDeviceUtility:
+	var arch := _get_architecture_or_null()
+	if arch == null:
+		return null
+	return arch.get_utility(GFInputDeviceUtility) as GFInputDeviceUtility
 
 
 class _GFInputRouter extends Node:

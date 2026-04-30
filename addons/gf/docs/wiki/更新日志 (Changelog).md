@@ -16,6 +16,80 @@
 
 ---
 
+## [1.18.0] - 2026-04-30
+
+**版本概述**：融合通用设置、玩家输入、关卡进度与网格占用等横向能力，补齐设置页、多人输入、本地关卡目录和格子运行时状态的抽象基础，同时保持框架不绑定具体玩法业务。
+
+### 🚀 新增特性 (Added)
+- **通用设置系统**：新增 `GFSettingDefinition` 与 `GFSettingsUtility`，支持设置定义、类型钳制、默认值、持久化过滤、结构化值序列化和 `GFStorageUtility` 集成。
+- **显示/语言/音频设置应用器**：新增 `GFDisplaySettingsUtility`，可把抽象设置应用到窗口模式、窗口尺寸、VSync、语言和音频总线音量；未注册设置工具时也可作为运行时应用器使用。
+- **控件值适配与表单绑定**：新增 `GFControlValueAdapter` 与 `GFFormBinder`，统一读写常见 `Control` 值，便于项目层搭建设置页、编辑器面板和表单工具。
+- **关卡目录与进度模型**：新增 `GFLevelEntry`、`GFLevelCatalog`、`GFLevelProgressModel`，提供资源化关卡列表、顺序导航、完成记录、结果字典和声明式解锁。
+- **网格占用结构**：新增 `GFGridOccupancy`，提供格子占用、预约、确认、释放、容量限制和失效对象清理。
+- **玩家级输入查询**：`GFInputMappingUtility` 新增玩家动作值、玩家动作向量、玩家活跃状态、玩家 just-started 与消费接口。
+
+### 🔄 机制更改 (Changed)
+- **输入设备路由增强**：`GFInputDeviceUtility` 支持根据输入事件解析玩家、未登记手柄自动分配、最近活跃玩家追踪、玩家级死区覆盖和设备显示名。
+- **输入映射按设备聚合**：`GFInputMappingUtility` 的全局动作状态会按输入来源聚合，避免多个手柄共享同一绑定时互相覆盖；本地多人项目可直接使用玩家级查询接口。
+- **关卡工具扩展**：`GFLevelUtility` 在 `GFConfigProvider` 缺失记录时可回退到 `GFLevelCatalog`，并可在完成当前关卡时更新 `GFLevelProgressModel` 与解锁后续关卡。
+- **设置定义更稳健**：`GFSettingDefinition` 对数组和字典默认值使用深拷贝，避免运行时修改污染共享定义。
+
+### 🐛 Bug 修复 (Fixed)
+- **控件适配继承顺序**：`GFControlValueAdapter` 优先处理 `OptionButton` 与 `ColorPickerButton`，避免它们被 `BaseButton` 分支错误识别。
+- **网格预约清理**：`GFGridOccupancy` 会同步清理对象释放后留下的预约记录，避免旧预约阻塞后续占用。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFSettingDefinition`。
+- 新增 `GFSettingsUtility`。
+- 新增 `GFDisplaySettingsUtility`。
+- 新增 `GFControlValueAdapter`。
+- 新增 `GFFormBinder`。
+- 新增 `GFLevelEntry`。
+- 新增 `GFLevelCatalog`。
+- 新增 `GFLevelProgressModel`。
+- 新增 `GFGridOccupancy`。
+- `GFInputBinding.get_contribution()` 新增可选参数 `deadzone_override`，默认值保持旧行为。
+- `GFInputDeviceUtility` 新增 `active_player_changed`、`auto_assign_joypads_on_input`、`auto_assign_axis_threshold`、`active_player_index`、`remove_assignment()`、`get_player_for_device()`、`get_player_for_event()`、`handle_input_event()`、`assign_device_to_next_player()`、`set_active_player()`、`set_player_deadzone()`、`get_player_deadzone()`、`get_device_name()`。
+- `GFInputMappingUtility` 新增玩家级动作信号与 `get_action_value_for_player()`、`get_action_vector_for_player()`、`is_action_active_for_player()`、`was_action_just_started_for_player()`、`consume_action_for_player()`、`clear_player_input_state()`。
+- `GFLevelUtility` 新增 `catalog`、`set_catalog()`、`get_catalog()`、`get_level_entry()`、`get_catalog_levels()`、`complete_current_level()`、`start_next_level()`、`unlock_level()`、`is_level_unlocked()`。
+- 无破坏性 API 变更；旧输入、关卡和存档调用保持可用。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目无需修改现有 `GFInputUtility`、`GFInputDeviceUtility`、`GFInputMappingUtility` 或 `GFLevelUtility` 调用。
+2. 需要统一设置页时，注册 `GFSettingsUtility`；需要直接应用窗口、语言或音频设置时，再注册 `GFDisplaySettingsUtility`。
+3. 本地多人项目可继续使用全局输入查询，但建议将角色控制改为 `*_for_player()` 系列接口，并让 `GFInputDeviceUtility` 管理设备席位。
+4. 关卡项目如果已有导表，可继续使用 `GFConfigProvider`；若更适合资源化列表，可补充 `GFLevelCatalog` 并按需注册 `GFLevelProgressModel`。
+5. 格子玩法如需运行时占用/预约，可在项目自己的 `System` 中持有 `GFGridOccupancy`，路径搜索和胜负规则仍由项目层实现。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `README.md`
+- `addons/gf/README.md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/11. 基础层 (Foundation Layer).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/plugin.cfg`
+- `addons/gf/input/gf_input_binding.gd`
+- `addons/gf/utilities/gf_input_device_utility.gd`
+- `addons/gf/utilities/gf_input_mapping_utility.gd`
+- `addons/gf/utilities/gf_level_utility.gd`
+- `addons/gf/utilities/gf_setting_definition.gd`
+- `addons/gf/utilities/gf_settings_utility.gd`
+- `addons/gf/utilities/gf_display_settings_utility.gd`
+- `addons/gf/utilities/gf_control_value_adapter.gd`
+- `addons/gf/utilities/gf_form_binder.gd`
+- `addons/gf/utilities/gf_level_entry.gd`
+- `addons/gf/utilities/gf_level_catalog.gd`
+- `addons/gf/extensions/domain/gf_level_progress_model.gd`
+- `addons/gf/foundation/math/gf_grid_occupancy.gd`
+- `tests/gf_core/test_gf_settings_utility.gd`
+- `tests/gf_core/test_gf_display_settings_utility.gd`
+- `tests/gf_core/test_gf_form_binder.gd`
+- `tests/gf_core/test_gf_grid_occupancy.gd`
+- `tests/gf_core/test_gf_input_device_utility.gd`
+- `tests/gf_core/test_gf_input_mapping_utility.gd`
+- `tests/gf_core/test_gf_level_utility.gd`
+
 ## [1.17.1] - 2026-04-29
 
 **版本概述**：修复资源化输入映射在项目启动阶段的内部 Router 挂载时序问题，避免框架初始化发生在场景树子节点 setup 流程中时输入路由节点添加失败。

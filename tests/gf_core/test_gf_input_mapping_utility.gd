@@ -173,6 +173,36 @@ func test_deferred_router_attach_is_canceled_after_dispose() -> void:
 	assert_null(_find_router_node(), "Utility 已销毁时，延迟挂载不应留下输入 Router。")
 
 
+## 验证同一动作可以按输入设备映射维护玩家级状态。
+func test_player_action_state_is_scoped_by_device_assignment() -> void:
+	var arch := GFArchitecture.new()
+	var devices := GFInputDeviceUtility.new()
+	devices.include_keyboard_mouse = false
+	devices.include_touch = false
+	devices.max_players = 2
+	await arch.register_utility_instance(devices)
+	await arch.register_utility_instance(_utility)
+
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [
+			_make_joy_button_binding(JOY_BUTTON_A),
+		]),
+	])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_joy_button_event(0, JOY_BUTTON_A, true))
+	_utility.handle_input_event(_make_joy_button_event(1, JOY_BUTTON_A, true))
+	_utility.handle_input_event(_make_joy_button_event(0, JOY_BUTTON_A, false))
+
+	assert_false(_utility.is_action_active_for_player(0, &"jump"), "0 号玩家释放后自己的动作应结束。")
+	assert_true(_utility.is_action_active_for_player(1, &"jump"), "1 号玩家仍按住时自己的动作应保持活跃。")
+	assert_true(_utility.is_action_active(&"jump"), "全局动作状态应聚合仍活跃的设备来源。")
+
+	arch.dispose()
+	_utility = null
+	await get_tree().process_frame
+
+
 # --- 私有/辅助方法 ---
 
 func _make_action(action_id: StringName, value_type: GFInputActionBase.ValueType = GFInputActionBase.ValueType.BOOL) -> GFInputActionBase:
@@ -213,6 +243,12 @@ func _make_joy_axis_binding(axis: JoyAxis, target: GFInputBindingBase.ValueTarge
 	return binding
 
 
+func _make_joy_button_binding(button: JoyButton) -> GFInputBindingBase:
+	var binding := GFInputBindingBase.new()
+	binding.input_event = _make_joy_button_event(0, button, true)
+	return binding
+
+
 func _make_key_event(key: Key, pressed: bool) -> InputEventKey:
 	var event := InputEventKey.new()
 	event.keycode = key
@@ -225,6 +261,15 @@ func _make_joy_motion_event(axis: JoyAxis, axis_value: float) -> InputEventJoypa
 	var event := InputEventJoypadMotion.new()
 	event.axis = axis
 	event.axis_value = axis_value
+	return event
+
+
+func _make_joy_button_event(device: int, button: JoyButton, pressed: bool) -> InputEventJoypadButton:
+	var event := InputEventJoypadButton.new()
+	event.device = device
+	event.button_index = button
+	event.pressed = pressed
+	event.pressure = 1.0 if pressed else 0.0
 	return event
 
 

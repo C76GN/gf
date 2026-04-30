@@ -41,6 +41,7 @@ var _level: Object
 var _config: TestConfigProvider
 var _history: GFCommandHistoryUtility
 var _actions: GFActionQueueSystem
+var _progress: GFLevelProgressModel
 
 
 # --- Godot 生命周期方法 ---
@@ -51,6 +52,7 @@ func before_each() -> void:
 	_config = TestConfigProvider.new()
 	_history = GFCommandHistoryUtility.new()
 	_actions = GFActionQueueSystem.new()
+	_progress = GFLevelProgressModel.new()
 
 	_config.records = {
 		&"levels": {
@@ -62,6 +64,7 @@ func before_each() -> void:
 	}
 
 	await _arch.register_utility_instance(_config)
+	await _arch.register_model_instance(_progress)
 	await _arch.register_utility_instance(_history)
 	await _arch.register_system_instance(_actions)
 	await _arch.register_utility_instance(_level)
@@ -83,6 +86,16 @@ func test_start_level_loads_data_from_config_provider() -> void:
 	assert_eq(data.get("name"), "Level 1", "start_level 应从配置工具读取关卡数据。")
 	assert_eq(_level.current_level_id, 1, "当前关卡 ID 应更新。")
 	assert_eq(_level.current_level_data.get("moves"), 10, "当前关卡数据应保存在工具中。")
+
+
+func test_init_preserves_catalog_assigned_before_lifecycle() -> void:
+	var level: Object = GF_LEVEL_UTILITY.new()
+	var catalog := _make_catalog()
+
+	level.catalog = catalog
+	level.init()
+
+	assert_eq(level.get_catalog(), catalog, "init 不应清空 Installer 或外部提前注入的目录资源。")
 
 
 func test_start_level_emits_signal() -> void:
@@ -152,3 +165,65 @@ func test_win_and_lose_current_level_emit_signals() -> void:
 
 	assert_signal_emitted(_level, "level_won", "胜利时应发出 level_won。")
 	assert_signal_emitted(_level, "level_lost", "失败时应发出 level_lost。")
+
+
+func test_load_level_data_falls_back_to_catalog_entry() -> void:
+	_config.records.clear()
+	_level.set_catalog(_make_catalog())
+
+	var data: Dictionary = _level.start_level(&"level_1")
+
+	assert_eq(data.get("scene_path"), "res://levels/level_1.tscn", "配置表缺失时应从目录条目读取场景路径。")
+	assert_eq(data.get("difficulty"), "intro", "目录条目 metadata 应进入关卡数据。")
+
+
+func test_complete_current_level_updates_progress_and_unlocks_next_levels() -> void:
+	_config.records.clear()
+	_level.set_catalog(_make_catalog())
+	_level.start_level(&"level_1")
+
+	_level.complete_current_level({ "stars": 3 })
+
+	assert_true(_progress.is_level_completed(&"level_1"), "完成关卡应写入通用进度模型。")
+	assert_true(_progress.is_level_unlocked(&"level_2"), "完成关卡应可按目录顺序解锁下一关。")
+	assert_true(_progress.is_level_unlocked(&"bonus"), "完成关卡应可解锁条目声明的额外关卡。")
+	assert_eq(_progress.get_level_result(&"level_1").get("stars"), 3, "完成结果应存入进度模型。")
+
+
+func test_start_next_level_uses_catalog_order() -> void:
+	_config.records.clear()
+	_level.set_catalog(_make_catalog())
+	_level.start_level(&"level_1")
+
+	var data: Dictionary = _level.start_next_level()
+
+	assert_eq(_level.current_level_id, &"level_2", "start_next_level 应切换到目录顺序中的下一关。")
+	assert_eq(data.get("scene_path"), "res://levels/level_2.tscn", "返回数据应来自下一关目录条目。")
+
+
+# --- 私有/辅助方法 ---
+
+func _make_catalog() -> GFLevelCatalog:
+	var level_1 := GFLevelEntry.new()
+	level_1.level_id = &"level_1"
+	level_1.pack_id = &"main"
+	level_1.scene_path = "res://levels/level_1.tscn"
+	level_1.sort_order = 1
+	level_1.metadata = { "difficulty": "intro" }
+	level_1.unlocks_on_complete = [&"bonus"]
+
+	var level_2 := GFLevelEntry.new()
+	level_2.level_id = &"level_2"
+	level_2.pack_id = &"main"
+	level_2.scene_path = "res://levels/level_2.tscn"
+	level_2.sort_order = 2
+
+	var bonus := GFLevelEntry.new()
+	bonus.level_id = &"bonus"
+	bonus.pack_id = &"bonus"
+	bonus.scene_path = "res://levels/bonus.tscn"
+	bonus.sort_order = 10
+
+	var catalog := GFLevelCatalog.new()
+	catalog.entries = [level_1, level_2, bonus]
+	return catalog
