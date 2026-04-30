@@ -16,6 +16,34 @@
 
 ---
 
+## [1.20.1] - 2026-04-30
+
+**版本概述**：补齐 `GFController` 的通用宿主节点绑定能力，统一 Controller 访问被控制场景节点的推荐方式，避免项目层把 Godot 编辑器 `owner` 误当作运行时宿主引用。
+
+### 🚀 新增特性 (Added)
+- **Controller 宿主绑定**：`GFController` 新增 `host_node_path`、`host`、`get_host()`、`has_host()` 与 `get_host_as()`，为 UI、输入、动画和物理桥接控制器提供统一的宿主节点访问方式。
+
+### 🔄 机制更改 (Changed)
+- **Controller 宿主引用语义统一**：文档示例从直接依赖 Godot `owner` 收敛到 `GFController.get_host()` / `host_node_path`，避免把编辑器场景所有权误用为运行时控制目标。
+
+### 🔌 API 变动说明 (API Changes)
+- `GFController` 新增 `host_node_path`、`host`、`get_host()`、`has_host()` 与 `get_host_as()`。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果旧 Controller 使用 `owner as SomeNode` 作为运行时宿主引用，建议改为默认父节点宿主 `get_host_as(SomeNode) as SomeNode`。
+2. 如果 Controller 不在宿主直接子级，请在 Inspector 或代码中配置 `host_node_path` 指向宿主节点。
+3. 角色、载具、敌人等物理节点仍应继承 `CharacterBody2D` / `RigidBody2D` 等 Godot 原生类型；`GFController` 作为子节点负责接入 GF 架构与场景节点。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `addons/gf/plugin.cfg`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/docs/wiki/01. 架构概览 (Architecture).md`
+- `addons/gf/docs/wiki/02. 生命周期与初始化 (Lifecycle).md`
+- `addons/gf/docs/wiki/09. 最佳实践 (Best Practices).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `tests/gf_core/test_gf_singleton.gd`
+
 ## [1.20.0] - 2026-04-30
 
 **版本概述**：面向框架核心运行时做稳健性与诊断能力增强，补齐异步命令、场景切换、事件派发、节点上下文、对象池、节点状态机启动时机、UI 栈和存储路径等通用边界处理，同时保持所有新增能力为可配置、可继承或可组合的抽象接口。

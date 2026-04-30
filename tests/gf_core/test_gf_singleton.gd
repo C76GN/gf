@@ -77,6 +77,15 @@ class ScopedController extends GFController:
 	func get_parent_utility() -> ParentScopedUtility:
 		return get_utility(ParentScopedUtility) as ParentScopedUtility
 
+class ControllerHost extends Node:
+	pass
+
+class DerivedControllerHost extends ControllerHost:
+	pass
+
+class OtherControllerHost extends Node:
+	pass
+
 class ScopedContext extends GFNodeContextBase:
 	var local_utility: LocalScopedUtility = null
 	var lookup_system: LocalLookupSystem = null
@@ -698,6 +707,63 @@ func test_controller_waits_for_context_ready() -> void:
 	assert_not_null(controller.get_local_utility(), "等待完成后 Controller 应能获取局部依赖。")
 
 	context.queue_free()
+	await get_tree().process_frame
+
+
+## 验证 Controller 默认把父节点解析为宿主节点。
+func test_controller_resolves_parent_host_by_default() -> void:
+	var host := DerivedControllerHost.new()
+	var controller := ScopedController.new()
+
+	add_child(host)
+	host.add_child(controller)
+	await get_tree().process_frame
+
+	assert_eq(controller.get_host(), host, "Controller 默认应把父节点作为宿主。")
+	assert_eq(controller.host, host, "Controller.host 应代理 get_host()。")
+	assert_true(controller.has_host(), "父节点存在时 has_host() 应返回 true。")
+	assert_eq(controller.get_host_as(ControllerHost), host, "get_host_as() 应支持脚本基类匹配。")
+	assert_eq(controller.get_host_as(Node), host, "get_host_as() 应支持 Godot 原生类型匹配。")
+	assert_null(controller.get_host_as(OtherControllerHost), "类型不匹配时 get_host_as() 应返回 null。")
+
+	host.queue_free()
+	await get_tree().process_frame
+
+
+## 验证 Controller 可通过 host_node_path 指定非父节点宿主。
+func test_controller_resolves_configured_host_path() -> void:
+	var scene_root := Node.new()
+	var host := ControllerHost.new()
+	var branch := Node.new()
+	var controller := ScopedController.new()
+	host.name = "RuntimeHost"
+	branch.name = "ControllerBranch"
+	controller.host_node_path = NodePath("../../RuntimeHost")
+
+	add_child(scene_root)
+	scene_root.add_child(host)
+	scene_root.add_child(branch)
+	branch.add_child(controller)
+	await get_tree().process_frame
+
+	assert_eq(controller.get_host(), host, "Controller 应按 host_node_path 解析宿主。")
+
+	scene_root.queue_free()
+	await get_tree().process_frame
+
+
+## 验证 Controller 宿主路径缺失时安全返回 null。
+func test_controller_missing_host_returns_null() -> void:
+	var controller := ScopedController.new()
+	controller.host_node_path = NodePath("MissingHost")
+	add_child(controller)
+	await get_tree().process_frame
+
+	assert_null(controller.get_host(), "宿主路径不存在时 get_host() 应返回 null。")
+	assert_false(controller.has_host(), "宿主路径不存在时 has_host() 应返回 false。")
+	assert_null(controller.get_host_as(Node), "宿主不存在时 get_host_as() 应返回 null。")
+
+	controller.queue_free()
 	await get_tree().process_frame
 
 
