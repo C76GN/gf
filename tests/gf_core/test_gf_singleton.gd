@@ -291,7 +291,7 @@ func before_each() -> void:
 
 func after_each() -> void:
 	if Gf.has_architecture():
-		var arch := Gf.get_architecture()
+		var arch: GFArchitecture = Gf.get_architecture()
 		arch.dispose()
 		await Gf.set_architecture(GFArchitecture.new())
 

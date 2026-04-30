@@ -35,6 +35,15 @@ extends Resource
 ## 可选应用版本。
 @export var app_version: String = ""
 
+## 是否持久化匿名 client id。
+@export var persist_client_id: bool = true
+
+## client id 持久化文件路径。
+@export var client_id_storage_path: String = "user://gf_analytics_client.cfg"
+
+## 应用关闭通知到来时是否尝试 flush 剩余事件。
+@export var flush_on_shutdown: bool = true
+
 ## 自定义 HTTP Header。
 @export var headers: Dictionary = {}
 

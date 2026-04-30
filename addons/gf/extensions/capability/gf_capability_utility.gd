@@ -751,7 +751,7 @@ func _get_or_create_container(receiver: Node, capability: Node) -> Node:
 
 	var container := _create_container_node(receiver, capability)
 	container.set_meta(META_CAPABILITY_CONTAINER, true)
-	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
+	_try_attach_capability_container_script(container)
 	receiver.add_child(container, true, Node.INTERNAL_MODE_BACK)
 	return container
 
@@ -772,6 +772,20 @@ func _create_container_node(receiver: Node, capability: Node) -> Node:
 		container = Node.new()
 		container.name = "GFCapabilityContainer"
 	return container
+
+
+func _try_attach_capability_container_script(container: Node) -> void:
+	var container_script := GF_CAPABILITY_CONTAINER_BASE as Script
+	if container_script == null or not container_script.can_instantiate():
+		push_warning("[GFCapabilityUtility] 能力容器脚本不可用，已改用元数据标记容器。")
+		return
+
+	var base_type := String(container_script.get_instance_base_type())
+	if not base_type.is_empty() and not container.is_class(base_type):
+		push_warning("[GFCapabilityUtility] 能力容器节点类型与脚本基类不匹配，已改用元数据标记容器。")
+		return
+
+	container.set_script(container_script)
 
 
 func _configure_control_container(container: Control) -> void:

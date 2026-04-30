@@ -41,7 +41,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	if arch != null:
 		arch.dispose()
 		await Gf.set_architecture(GFArchitecture.new())
@@ -54,7 +54,7 @@ func test_transient_cleanup() -> void:
 	_scene_util.mark_transient(DummyModel)
 	_scene_util.cleanup_transients()
 
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	assert_null(arch.get_model(DummyModel), "标记为瞬态的 Model 应在清理后注销。")
 	assert_true(model.disposed, "注销 Model 时应调用 dispose()。")
 
@@ -86,7 +86,7 @@ func test_unmark_transient() -> void:
 	_scene_util.unmark_transient(DummyModel)
 	_scene_util.cleanup_transients()
 
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	assert_not_null(arch.get_model(DummyModel), "取消瞬态标记后不应再被清理。")
 	assert_false(model.disposed, "取消标记后的 Model 不应触发 dispose()。")
 
@@ -126,7 +126,7 @@ func test_failed_load_preserves_transients() -> void:
 			break
 		await get_tree().process_frame
 
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	assert_eq(arch.get_model(DummyModel), model, "异步切场失败后不应清理仍属于当前场景的瞬态 Model。")
 	assert_false(model.disposed, "异步切场失败不应触发瞬态 Model 的 dispose()。")
 	assert_push_error("[GFSceneUtility] 异步加载完成，但目标资源不是 PackedScene：res://icon.svg")

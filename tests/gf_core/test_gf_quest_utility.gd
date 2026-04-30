@@ -30,7 +30,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	if arch != null:
 		arch.dispose()
 		await Gf.set_architecture(GFArchitecture.new())
@@ -95,7 +95,7 @@ func test_zero_target_quest_completes_immediately() -> void:
 func test_dispose_unregisters_simple_event_listener() -> void:
 	_quest.start_quest(&"cleanup_listener", &"enemy_died", 1)
 
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	arch.unregister_utility(_quest.get_script() as Script)
 
 	assert_true(_quest.disposed_called, "注销 Utility 时应执行 dispose。")

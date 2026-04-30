@@ -20,6 +20,8 @@ func after_each() -> void:
 	if _analytics != null:
 		_analytics.dispose()
 	_analytics = null
+	_remove_file_if_exists("user://gf_analytics_client.cfg")
+	_remove_file_if_exists("user://test_gf_analytics_client.cfg")
 
 
 # --- 测试方法 ---
@@ -80,3 +82,80 @@ func test_disabled_config_ignores_events() -> void:
 	_analytics.track(&"ignored")
 
 	assert_eq(_analytics.get_queue_size(), 0, "禁用后不应记录事件。")
+
+
+## 验证持久 client id 可跨实例复用。
+func test_persistent_client_id_survives_new_instance() -> void:
+	var config := GFAnalyticsConfig.new()
+	config.client_id_storage_path = "user://test_gf_analytics_client.cfg"
+	config.flush_interval_seconds = 0.0
+	config.auto_capture_context = false
+
+	var first := GFAnalyticsUtility.new()
+	first.configure(config)
+	first.init()
+	var client_id := first.get_client_id()
+	first.dispose()
+
+	var second := GFAnalyticsUtility.new()
+	second.configure(config)
+	second.init()
+
+	assert_false(client_id.is_empty(), "首次初始化应生成 client id。")
+	assert_eq(second.get_client_id(), client_id, "第二个实例应读取已持久化的 client id。")
+	second.dispose()
+
+
+## 验证 init 不会覆盖提前 identify 的稳定 ID。
+func test_identify_before_init_is_preserved() -> void:
+	var analytics := GFAnalyticsUtility.new()
+	analytics.identify("pre-init-client")
+	analytics.init()
+
+	assert_eq(analytics.get_client_id(), "pre-init-client", "init 不应覆盖提前设置的 client id。")
+	analytics.dispose()
+
+
+## 验证自定义 transport hook 可接管 flush。
+func test_transport_callback_receives_payload() -> void:
+	var captured := { "payload": {} }
+	_analytics.transport_callback = func(payload: Dictionary) -> Dictionary:
+		captured["payload"] = payload
+		return { "success": true, "accepted": 1, "custom": true }
+
+	_analytics.track(&"opened")
+	_analytics.flush()
+
+	var captured_payload := captured["payload"] as Dictionary
+	assert_true(captured_payload.has("events"), "transport hook 应收到由事件批次构建的 payload。")
+	assert_eq(_analytics.get_queue_size(), 0, "自定义 transport 成功后应清空本批队列。")
+
+
+## 验证 shutdown 会 flush 剩余事件并阻止后续记录。
+func test_shutdown_flushes_and_ignores_future_events() -> void:
+	_analytics.track(&"before_shutdown")
+
+	_analytics.shutdown()
+	_analytics.track(&"after_shutdown")
+
+	assert_eq(_analytics.get_queue_size(), 0, "shutdown dry-run flush 后队列应为空，后续事件应被忽略。")
+
+
+## 验证 shutdown 在同步 flush 路径中会清空超过单批大小的队列。
+func test_shutdown_flushes_all_synchronous_batches() -> void:
+	_analytics.config.batch_size = 10
+	_analytics.config.max_queue_size = 10
+	for index: int in range(5):
+		_analytics.track(&"queued", { "index": index })
+	_analytics.config.batch_size = 2
+
+	_analytics.shutdown()
+
+	assert_eq(_analytics.get_queue_size(), 0, "shutdown 应连续 flush dry-run 批次直到队列清空。")
+
+
+# --- 私有/辅助方法 ---
+
+func _remove_file_if_exists(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)

@@ -36,6 +36,9 @@ func after_each() -> void:
 
 		for file_name: String in [
 			"test_legacy.json",
+			"test_integrity.json",
+			"test_checksum_only.json",
+			"test_legacy_version.json",
 			"recover_from_backup.json",
 			"recover_from_temp.json",
 			"recover_from_stale_temp.json",
@@ -233,3 +236,81 @@ func test_load_data_discards_stale_temp_when_primary_file_already_exists() -> vo
 
 	assert_eq(int(loaded.get("hp")), 11, "已有主文件时，应优先保留已提交数据。")
 	assert_false(FileAccess.file_exists(temp_path), "恢复完成后应清理悬挂临时文件。")
+
+
+func test_integrity_checksum_rejects_tampered_data() -> void:
+	_storage.encrypt_key = 0
+	_storage.include_storage_metadata = true
+	_storage.use_integrity_checksum = true
+	_storage.strict_integrity = true
+	var file_name := "test_integrity.json"
+	assert_eq(_storage.save_data(file_name, { "coins": 10 }), OK, "应能保存带 checksum 的数据。")
+
+	var path := _storage._get_full_path(file_name)
+	var content := FileAccess.get_file_as_string(path)
+	var tampered := JSON.parse_string(content) as Dictionary
+	tampered["coins"] = 99
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(JSON.stringify(tampered))
+	file.close()
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+
+	assert_true(loaded.is_empty(), "严格校验失败时不应返回被篡改数据。")
+	assert_signal_emitted(_storage, "data_integrity_failed", "校验失败应发出信号。")
+
+
+func test_checksum_without_storage_metadata_does_not_write_version() -> void:
+	_storage.encrypt_key = 0
+	_storage.include_storage_metadata = false
+	_storage.use_integrity_checksum = true
+	var file_name := "test_checksum_only.json"
+
+	assert_eq(_storage.save_data(file_name, { "coins": 10 }), OK, "应能保存只带 checksum 的数据。")
+	var loaded := _storage.load_data(file_name)
+	var metadata := loaded.get("_meta") as Dictionary
+
+	assert_eq(int(loaded.get("coins")), 10, "只启用 checksum 时应能正常读取。")
+	assert_true(metadata.has("checksum"), "只启用 checksum 时仍应写入 checksum。")
+	assert_false(metadata.has("version"), "未启用 include_storage_metadata 时不应写入 version。")
+	assert_false(metadata.has("timestamp"), "未启用 include_storage_metadata 时不应写入 timestamp。")
+
+
+func test_load_data_result_reports_missing_file() -> void:
+	var result := _storage.load_data_result("missing_result.json")
+
+	assert_false(bool(result.get("ok")), "缺失文件的结构化读取结果应标记失败。")
+	assert_eq(String(result.get("error")), "File not found", "缺失文件应返回明确错误。")
+
+
+func test_load_data_applies_version_defaults() -> void:
+	_storage.encrypt_key = 0
+	_storage.save_version = 2
+	_storage.default_values_for_new_keys = {
+		"stats": {
+			"hp": 100,
+		},
+		"unlocked": true,
+	}
+	var file_name := "test_legacy_version.json"
+	var legacy_data := {
+		"_meta": {
+			"version": 1,
+		},
+		"stats": {},
+	}
+	var codec := GFStorageCodec.new()
+	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
+	file.store_buffer(codec.encode(legacy_data, { "obfuscation_key": 0 }))
+	file.close()
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+	var metadata := loaded.get("_meta") as Dictionary
+	var stats := loaded.get("stats") as Dictionary
+
+	assert_eq(int(metadata.get("version")), 2, "迁移后版本应更新为当前 save_version。")
+	assert_eq(int(stats.get("hp")), 100, "迁移时应深合并新增默认字段。")
+	assert_eq(loaded.get("unlocked"), true, "迁移时应补齐顶层新增默认字段。")
+	assert_signal_emitted(_storage, "data_migrated", "旧版本数据迁移后应发出信号。")

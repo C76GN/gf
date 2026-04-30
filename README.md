@@ -164,13 +164,14 @@ Gf.send_command(command)
 - `GFRemoteCacheUtility`：通用远程文本/JSON 请求、本地 TTL 缓存与失败回退。
 - `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、filter/map/delay/debounce/once 链式处理。
 - `GFSceneUtility`：异步场景切换与瞬态模块清理。
+- `GFStorageUtility` / `GFStorageCodec`：槽位存档、元数据、事务恢复、Resource 存取、完整性校验、版本迁移和可配置编码。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFSettingsUtility` / `GFDisplaySettingsUtility`：抽象设置注册、持久化、显示/语言/音频应用，以及设置界面控件绑定辅助。
 - `GFObjectPoolUtility`：节点对象池。
 - `GFAudioUtility`：BGM/SFX 播放、资源化音频片段/集合、音量总线、SFX 对象池与并发上限控制。
 - `GFInputMappingUtility` / `GFInputAction` / `GFInputContext`：资源化输入动作、上下文切换、运行时重绑定、全局与玩家级动作状态查询。
 - `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、活跃玩家追踪、通用触屏虚拟摇杆与触屏按钮。
-- `GFAnalyticsUtility`：通用事件采集、批量 flush、本地 dry-run 与可选 HTTP 上报。
+- `GFAnalyticsUtility`：通用事件采集、稳定 client id、批量 flush、本地 dry-run、传输 hook 与可选 HTTP 上报。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFCommandSequence`：顺序执行 `GFSequenceStep`、命令对象或任意 callable 的通用流程编排器。
 - `GFActionQueueSystem`：表现动作队列。

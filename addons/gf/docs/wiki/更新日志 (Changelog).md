@@ -16,6 +16,76 @@
 
 ---
 
+## [1.19.0] - 2026-04-30
+
+**版本概述**：增强本地持久化与运行时分析工具的通用能力，新增可配置存档 Codec、完整性校验、版本迁移、编辑器存档查看器和可插拔分析传输接口，让项目在不绑定具体业务结构的前提下获得更稳健的数据读写与事件上报基础。
+
+### 🚀 新增特性 (Added)
+- **通用存档 Codec**：新增 `GFStorageCodec`，支持稳定排序 JSON、Godot Variant 二进制、可选 Deflate 压缩、SHA-256 完整性校验、轻量 XOR 混淆和 `_meta` 元信息。
+- **存档版本迁移入口**：`GFStorageUtility` 新增 `save_version`、`default_values_for_new_keys` 与 `migrate_data()`，项目可继承并按自身 schema 实现版本升级逻辑。
+- **结构化读取结果**：`GFStorageUtility` 新增 `load_data_result()` 与 `last_load_result`，可在读取后获取 `ok`、`metadata`、`integrity_valid` 与 `error` 等诊断信息。
+- **存档诊断信号**：`GFStorageUtility` 新增 `data_integrity_failed` 与 `data_migrated` 信号，便于项目层展示损坏存档提示、迁移日志或遥测记录。
+- **编辑器存档查看器**：新增 `GF Save Viewer` Dock，可在编辑器中按格式、压缩、校验和混淆参数读取本地存档并查看 JSON 结构。
+- **分析工具可插拔传输**：`GFAnalyticsUtility` 新增 `payload_builder`、`transport_callback` 与 `response_parser`，支持项目接入任意后端、SDK、离线上报或测试替身。
+- **稳定匿名 client id**：`GFAnalyticsConfig` 新增 `persist_client_id`、`client_id_storage_path` 与 `flush_on_shutdown`，`GFAnalyticsUtility` 可跨会话复用匿名客户端标识，并在关闭通知时尝试 flush 剩余事件。
+
+### 🔄 机制更改 (Changed)
+- **存档写入管线抽象化**：`GFStorageUtility` 的纯数据、槽位数据和元数据写入现在统一走 `GFStorageCodec`，保留原有事务提交和 `user://` 路径管理能力。
+- **旧存档兼容**：默认配置仍保持原有 JSON + XOR/Base64 读取方式，并在解码失败时尝试回退读取明文 JSON，降低旧项目升级成本。
+- **分析事件标识增强**：`GFAnalyticsUtility` 生成 UUID 风格的 `client_id` 与 `session_id`，事件 payload 默认保留通用 `events` 批量结构。
+- **关闭监听挂载更稳健**：分析工具的关闭监听节点使用延迟挂载与生命周期序列守卫，避免启动或销毁阶段产生场景树挂载时序问题。
+
+### 🐛 Bug 修复 (Fixed)
+- **解码类型防护**：`GFStorageUtility` 与 `GF Save Viewer` 在解码结果不是字典时会返回诊断错误，不再触发无效类型转换。
+- **Codec 边界处理**：`GFStorageCodec` 正确区分空字典载荷与空 bytes，并修复仅启用 checksum 时的校验基准不一致问题。
+- **Checksum 元信息边界**：`GFStorageUtility` 只启用 checksum 时不再额外写入 `version` 与 `timestamp`，`include_storage_metadata` 的语义更清晰。
+- **编辑器启动兼容**：`GF Save Viewer` 改为由 `plugin.gd` 使用原生控件构建，并将 `GFStorageCodec` 标记为 `@tool`，避免首次打开项目时因自定义 Dock 脚本实例化触发无效脚本挂载错误。
+- **存档查看器布局收敛**：`GF Save Viewer` 移除过大的硬最小尺寸并收紧按钮/标签宽度，避免 Dock 面板挤压编辑器其他内容。
+- **能力容器挂脚本保护**：编辑器与运行时 Capability 容器在动态挂载 `GFCapabilityContainer` 脚本前会验证脚本资源和基类匹配，避免 Godot 底层输出无上下文的 `Cannot set object script`。
+- **分析关闭 flush 完整性**：`GFAnalyticsUtility.shutdown()` 在 dry-run 或同步 transport 路径下会连续 flush 剩余批次，不再只处理第一批。
+- **分析关闭监听清理**：`GFAnalyticsUtility.dispose()` 会立即移除并释放关闭监听节点，避免测试和热重载阶段留下 orphan。
+- **测试脚本解析兼容**：核心测试中的架构对象改为显式 `GFArchitecture` 类型，避免 Godot 4.6 编辑器加载测试脚本时出现 `Cannot infer the type` 解析错误。
+- **完整性失败降级为可处理诊断**：严格校验失败会通过 `data_integrity_failed` 与 warning 暴露，不再把用户存档损坏直接提升为脚本错误。
+- **日志清理边界**：`GFLogUtility` 只清理自身生成的 `gf_log_*.log` 文件，避免误删 Godot 或项目层放在同目录下的其他日志。
+- **测试环境清理**：分析工具测试会清理默认 client id 文件，避免持久化状态污染后续测试。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFStorageCodec`。
+- `GFStorageUtility` 新增 `codec`、`file_format`、`use_compression`、`use_integrity_checksum`、`strict_integrity`、`include_storage_metadata`、`save_version`、`default_values_for_new_keys`、`last_load_result`。
+- `GFStorageUtility` 新增 `load_data_result()` 与可重写 `migrate_data()`。
+- `GFStorageUtility` 新增 `data_integrity_failed` 与 `data_migrated` 信号。
+- `GFAnalyticsConfig` 新增 `persist_client_id`、`client_id_storage_path` 与 `flush_on_shutdown`。
+- `GFAnalyticsUtility` 新增 `payload_builder`、`transport_callback`、`response_parser` 与 `shutdown()`。
+- 无破坏性 API 变更；旧存档保存、读取、槽位、Resource 存取和 analytics dry-run 调用保持可用。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目可直接升级；默认 `GFStorageUtility` 仍使用 JSON 格式与原有混淆密钥，现有 `save_data()`、`load_data()`、`save_slot()`、`load_slot()` 调用无需修改。
+2. 需要存档损坏检测时，开启 `use_integrity_checksum`，并按项目体验监听 `data_integrity_failed`。
+3. 需要 schema 版本升级时，设置 `save_version`，使用 `default_values_for_new_keys` 补齐简单新字段；复杂迁移可继承 `GFStorageUtility` 并重写 `migrate_data()`。
+4. 需要节省空间或处理大存档时，可开启 `use_compression`；需要非文本载荷时，可把 `file_format` 设置为 `GFStorageCodec.Format.BINARY`。
+5. 需要接入真实分析后端时，优先使用 `transport_callback` 或 `payload_builder` 适配项目已有 SDK；只有直接 HTTP JSON 上报时才需要配置 `endpoint_url`。
+6. 如果项目已有自己的用户标识体系，可继续调用 `identify()` 写入业务侧匿名 ID；若不希望框架落盘匿名 ID，可将 `persist_client_id` 设为 `false`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `README.md`
+- `addons/gf/README.md`
+- `addons/gf/docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/editor/gf_capability_inspector_plugin.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/utilities/gf_storage_codec.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_analytics_config.gd`
+- `addons/gf/utilities/gf_analytics_utility.gd`
+- `addons/gf/utilities/gf_log_utility.gd`
+- `tests/gf_core/test_gf_storage_codec.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+- `tests/gf_core/test_gf_analytics_utility.gd`
+- `tests/gf_core/test_gf_log_utility.gd`
+
 ## [1.18.0] - 2026-04-30
 
 **版本概述**：融合通用设置、玩家输入、关卡进度与网格占用等横向能力，补齐设置页、多人输入、本地关卡目录和格子运行时状态的抽象基础，同时保持框架不绑定具体玩法业务。

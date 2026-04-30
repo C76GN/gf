@@ -1,10 +1,24 @@
 ## GFStorageUtility: 基于 `user://` 的轻量存档系统。
 ##
 ## 支持槽位存档、元数据分离读取、`Resource` 存取，
-## 以及简单的 XOR + Base64 文本混淆，适合通用本地持久化场景。
+## 以及可配置 codec、完整性校验、版本迁移和简单混淆，适合通用本地持久化场景。
 ## 该混淆不提供安全加密能力，请勿用于保护敏感数据。
 class_name GFStorageUtility
 extends GFUtility
+
+
+# --- 信号 ---
+
+## 解码数据失败或发现完整性校验失败后发出。
+## @param file_name: 文件名。
+## @param error: 错误描述。
+signal data_integrity_failed(file_name: String, error: String)
+
+## 数据版本迁移后发出。
+## @param file_name: 文件名。
+## @param from_version: 原版本。
+## @param to_version: 目标版本。
+signal data_migrated(file_name: String, from_version: int, to_version: int)
 
 
 # --- 常量 ---
@@ -21,6 +35,35 @@ var encrypt_key: int = 42
 
 ## 保存子目录名；为空时直接写入 `user://`。
 var save_dir_name: String = "saves"
+
+## 存档 codec。为 null 时会自动创建默认 GFStorageCodec。
+var codec: GFStorageCodec = GFStorageCodec.new()
+
+## 数据序列化格式。
+var file_format: GFStorageCodec.Format = GFStorageCodec.Format.JSON
+
+## 是否压缩存档载荷。
+var use_compression: bool = false
+
+## 是否写入并校验 SHA-256 完整性校验。
+var use_integrity_checksum: bool = false
+
+## 完整性校验失败时是否拒绝读取。
+var strict_integrity: bool = true
+
+## 是否写入 `_meta.version`、`_meta.timestamp` 等通用元信息。
+var include_storage_metadata: bool = false
+
+## 当前存档数据版本。小于 1 会被钳制为 1。
+var save_version: int = 1:
+	set(value):
+		save_version = maxi(value, 1)
+
+## 读取旧版本数据时需要补齐的新字段默认值。
+var default_values_for_new_keys: Dictionary = {}
+
+## 迁移后的最近一次读取结果，包含 ok、data、metadata、integrity_valid、error。
+var last_load_result: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -183,6 +226,26 @@ func save_data(file_name: String, data: Dictionary) -> Error:
 ## @return 反序列化后的字典数据。
 func load_data(file_name: String) -> Dictionary:
 	return _read_json(file_name)
+
+
+## 读取纯字典数据并返回 codec 结果。
+## @param file_name: 目标文件名。
+## @return 结果字典，包含 ok、data、metadata、integrity_valid、error。
+func load_data_result(file_name: String) -> Dictionary:
+	_read_json(file_name)
+	return last_load_result.duplicate(true)
+
+
+## 迁移存档数据。项目可继承 GFStorageUtility 并重写该方法。
+## @param data: 已读取的数据副本。
+## @param _from_version: 原版本。
+## @param _to_version: 目标版本。
+## @return 迁移后的数据。
+func migrate_data(data: Dictionary, _from_version: int, _to_version: int) -> Dictionary:
+	var migrated := data.duplicate(true)
+	if not default_values_for_new_keys.is_empty():
+		_deep_merge_defaults(migrated, default_values_for_new_keys)
+	return migrated
 
 
 # --- 私有/辅助方法 ---
@@ -483,17 +546,8 @@ func _write_json(file_name: String, data: Dictionary) -> Error:
 		push_error("[GFStorageUtility] 无法写入文件：%s，错误码：%s" % [path, FileAccess.get_open_error()])
 		return FileAccess.get_open_error()
 
-	var json_str := JSON.stringify(data, "\t")
-
-	if encrypt_key != 0:
-		var key_byte := _get_obfuscation_key_byte()
-		var bytes := json_str.to_utf8_buffer()
-		for i in range(bytes.size()):
-			bytes[i] = bytes[i] ^ key_byte
-		file.store_string(Marshalls.raw_to_base64(bytes))
-	else:
-		file.store_string(json_str)
-
+	var bytes := _get_codec().encode(data, _get_codec_options())
+	file.store_buffer(bytes)
 	file.close()
 	return OK
 
@@ -515,42 +569,123 @@ func _read_json(file_name: String) -> Dictionary:
 
 	var path := _get_full_path(file_name)
 	if not FileAccess.file_exists(path):
+		last_load_result = _make_load_result(false, {}, "File not found", true)
 		return {}
 
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
-		push_error("[GFStorageUtility] 无法读取文件：%s，错误码：%s" % [path, FileAccess.get_open_error()])
+		var open_error := FileAccess.get_open_error()
+		push_error("[GFStorageUtility] 无法读取文件：%s，错误码：%s" % [path, open_error])
+		last_load_result = _make_load_result(
+			false,
+			{},
+			"File open failed: %s" % error_string(open_error),
+			true
+		)
 		return {}
 
-	var content := file.get_as_text()
+	var bytes := file.get_buffer(file.get_length())
 	file.close()
 
-	if content.is_empty():
+	if bytes.is_empty():
+		last_load_result = _make_load_result(false, {}, "File is empty", true)
 		return {}
 
-	var json_str := content
-	if encrypt_key != 0:
-		var bytes := Marshalls.base64_to_raw(content)
-		if not bytes.is_empty():
-			var key_byte := _get_obfuscation_key_byte()
-			for i in range(bytes.size()):
-				bytes[i] = bytes[i] ^ key_byte
-			json_str = bytes.get_string_from_utf8()
-
-	var parse_result: Variant = JSON.parse_string(json_str)
-	if parse_result == null:
-		var fallback_result: Variant = JSON.parse_string(content)
-		if fallback_result != null and typeof(fallback_result) == TYPE_DICTIONARY:
-			return fallback_result as Dictionary
-
-		push_error("[GFStorageUtility] JSON 解析失败，文件路径：%s" % path)
+	var result := _get_codec().decode(bytes, _get_codec_options())
+	last_load_result = result.duplicate(true)
+	if not bool(result.get("ok", false)):
+		var error := String(result.get("error", "Decode failed"))
+		data_integrity_failed.emit(file_name, error)
+		if not bool(result.get("integrity_valid", true)):
+			push_warning("[GFStorageUtility] 读取数据失败：%s，原因：%s" % [path, error])
+		else:
+			push_error("[GFStorageUtility] 读取数据失败：%s，原因：%s" % [path, error])
 		return {}
 
-	if typeof(parse_result) == TYPE_DICTIONARY:
-		return parse_result as Dictionary
+	if not bool(result.get("integrity_valid", true)):
+		data_integrity_failed.emit(file_name, String(result.get("error", "Integrity checksum mismatch")))
 
-	return {}
+	var data_value: Variant = result.get("data", {})
+	if not (data_value is Dictionary):
+		last_load_result = {
+			"ok": false,
+			"data": {},
+			"metadata": {},
+			"integrity_valid": bool(result.get("integrity_valid", true)),
+			"error": "Decoded storage payload is not a Dictionary.",
+		}
+		data_integrity_failed.emit(file_name, String(last_load_result["error"]))
+		return {}
+
+	var data: Dictionary = data_value as Dictionary
+	data = _apply_schema_migrations(file_name, data)
+	last_load_result["data"] = data
+	last_load_result["metadata"] = _get_storage_metadata(data)
+	return data
 
 
-func _get_obfuscation_key_byte() -> int:
-	return encrypt_key & 0xff
+func _get_codec() -> GFStorageCodec:
+	if codec == null:
+		codec = GFStorageCodec.new()
+	return codec
+
+
+func _get_codec_options() -> Dictionary:
+	return {
+		"format": file_format,
+		"use_compression": use_compression,
+		"use_integrity_checksum": use_integrity_checksum,
+		"strict_integrity": strict_integrity,
+		"include_metadata": include_storage_metadata,
+		"version": save_version,
+		"obfuscation_key": encrypt_key,
+	}
+
+
+func _apply_schema_migrations(file_name: String, data: Dictionary) -> Dictionary:
+	var metadata := _get_storage_metadata(data)
+	var from_version := int(metadata.get("version", 1))
+	var to_version := save_version
+	if from_version >= to_version:
+		if not default_values_for_new_keys.is_empty():
+			_deep_merge_defaults(data, default_values_for_new_keys)
+		return data
+
+	var migrated := migrate_data(data, from_version, to_version)
+	var migrated_metadata := _get_storage_metadata(migrated)
+	migrated_metadata["version"] = to_version
+	migrated[GFStorageCodec.META_KEY] = migrated_metadata
+	data_migrated.emit(file_name, from_version, to_version)
+	return migrated
+
+
+func _get_storage_metadata(data: Dictionary) -> Dictionary:
+	return _get_codec().get_metadata(data)
+
+
+func _make_load_result(ok: bool, data: Dictionary, error: String, integrity_valid: bool) -> Dictionary:
+	return {
+		"ok": ok,
+		"data": data,
+		"metadata": _get_storage_metadata(data),
+		"integrity_valid": integrity_valid,
+		"error": error,
+	}
+
+
+func _deep_merge_defaults(base: Dictionary, defaults: Dictionary) -> void:
+	for key: Variant in defaults.keys():
+		if not base.has(key):
+			base[key] = _duplicate_collection(defaults[key])
+			continue
+
+		if base[key] is Dictionary and defaults[key] is Dictionary:
+			_deep_merge_defaults(base[key], defaults[key])
+
+
+func _duplicate_collection(value: Variant) -> Variant:
+	if value is Dictionary:
+		return (value as Dictionary).duplicate(true)
+	if value is Array:
+		return (value as Array).duplicate(true)
+	return value

@@ -42,7 +42,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	if arch != null:
 		arch.dispose()
 	Gf._architecture = null

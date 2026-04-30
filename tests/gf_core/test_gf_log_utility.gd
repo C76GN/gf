@@ -87,7 +87,7 @@ func test_old_logs_cleanup() -> void:
 	dir.list_dir_begin()
 	var file_name := dir.get_next()
 	while file_name != "":
-		if not dir.current_is_dir() and file_name.ends_with(".log"):
+		if not dir.current_is_dir() and file_name.begins_with("gf_log_") and file_name.ends_with(".log"):
 			count += 1
 		file_name = dir.get_next()
 	dir.list_dir_end()

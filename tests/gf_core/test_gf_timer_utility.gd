@@ -21,7 +21,7 @@ func before_each() -> void:
 
 
 func after_each() -> void:
-	var arch := Gf.get_architecture()
+	var arch: GFArchitecture = Gf.get_architecture()
 	if arch != null:
 		arch.dispose()
 		await Gf.set_architecture(GFArchitecture.new())
