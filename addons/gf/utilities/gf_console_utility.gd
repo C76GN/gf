@@ -41,6 +41,7 @@ func init() -> void:
 	_console_gui.name = "GFConsoleOverlay"
 	_console_gui.toggle_key = toggle_key
 	_console_gui.max_output_lines = max_output_lines
+	_console_gui.command_name_provider = Callable(self, "get_command_names")
 	_console_gui.command_submitted.connect(_on_command_submitted)
 
 	var tree := Engine.get_main_loop() as SceneTree
@@ -92,6 +93,27 @@ func register_command(cmd_name: String, callback: Callable, description: String)
 ## @param cmd_name: 指令名称。
 func unregister_command(cmd_name: String) -> void:
 	_commands.erase(cmd_name)
+
+
+## 获取当前已注册命令名称。
+## @return 排序后的命令名称数组。
+func get_command_names() -> PackedStringArray:
+	var names := PackedStringArray()
+	for cmd_name: String in _commands.keys():
+		names.append(cmd_name)
+	names.sort()
+	return names
+
+
+## 根据前缀获取命令补全候选。
+## @param prefix: 命令名前缀。
+## @return 排序后的候选命令名数组。
+func suggest_commands(prefix: String) -> PackedStringArray:
+	var suggestions := PackedStringArray()
+	for cmd_name: String in get_command_names():
+		if prefix.is_empty() or cmd_name.begins_with(prefix):
+			suggestions.append(cmd_name)
+	return suggestions
 
 
 ## 解析并执行一条原始输入。
@@ -179,6 +201,7 @@ class _GFConsoleGUI extends CanvasLayer:
 	# --- 公共变量 ---
 
 	var toggle_key: Key
+	var command_name_provider: Callable
 
 	var max_output_lines: int = 1000:
 		set(value):
@@ -197,6 +220,8 @@ class _GFConsoleGUI extends CanvasLayer:
 	var _output_lines: PackedStringArray = PackedStringArray()
 	var _pending_lines: PackedStringArray = PackedStringArray()
 	var _flush_queued: bool = false
+	var _command_history: PackedStringArray = PackedStringArray()
+	var _history_index: int = -1
 
 
 	# --- Godot 生命周期方法 ---
@@ -264,6 +289,15 @@ class _GFConsoleGUI extends CanvasLayer:
 				visible = not visible
 				if visible:
 					_input_field.call_deferred("grab_focus")
+				get_viewport().set_input_as_handled()
+			elif visible and _input_field.has_focus() and event.keycode == KEY_UP:
+				_show_previous_history()
+				get_viewport().set_input_as_handled()
+			elif visible and _input_field.has_focus() and event.keycode == KEY_DOWN:
+				_show_next_history()
+				get_viewport().set_input_as_handled()
+			elif visible and _input_field.has_focus() and event.keycode == KEY_TAB:
+				_apply_command_completion()
 				get_viewport().set_input_as_handled()
 
 
@@ -334,12 +368,65 @@ class _GFConsoleGUI extends CanvasLayer:
 		_output.append_text("\n".join(_output_lines) + "\n")
 
 
+	func _show_previous_history() -> void:
+		if _command_history.is_empty():
+			return
+		if _history_index < 0:
+			_history_index = _command_history.size() - 1
+		else:
+			_history_index = maxi(_history_index - 1, 0)
+		_set_input_text(_command_history[_history_index])
+
+
+	func _show_next_history() -> void:
+		if _command_history.is_empty() or _history_index < 0:
+			return
+		_history_index += 1
+		if _history_index >= _command_history.size():
+			_history_index = -1
+			_set_input_text("")
+			return
+		_set_input_text(_command_history[_history_index])
+
+
+	func _apply_command_completion() -> void:
+		if not command_name_provider.is_valid():
+			return
+
+		var text := _input_field.text
+		var parts := text.split(" ", false)
+		var prefix := parts[0] if parts.size() > 0 else text
+		var names_variant: Variant = command_name_provider.call()
+		var names := PackedStringArray()
+		if names_variant is PackedStringArray:
+			names = names_variant
+		elif names_variant is Array:
+			for name_variant: Variant in names_variant:
+				names.append(String(name_variant))
+
+		var matches := PackedStringArray()
+		for cmd_name: String in names:
+			if cmd_name.begins_with(prefix):
+				matches.append(cmd_name)
+		if matches.size() == 1:
+			_set_input_text(matches[0] + " ")
+		elif matches.size() > 1:
+			append_text("[color=cyan]%s[/color]" % ", ".join(matches))
+
+
+	func _set_input_text(text: String) -> void:
+		_input_field.text = text
+		_input_field.caret_column = text.length()
+
+
 	# --- 信号处理函数 ---
 
 	func _on_input_submitted(text: String) -> void:
 		if text.strip_edges().is_empty():
 			return
 
+		_command_history.append(text)
+		_history_index = -1
 		command_submitted.emit(text)
 		_input_field.clear()
 

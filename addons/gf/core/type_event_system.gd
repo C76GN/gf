@@ -8,6 +8,7 @@ class_name TypeEventSystem
 # --- 私有变量 ---
 
 var _event_listeners: Dictionary = {}
+var _assignable_event_listeners: Dictionary = {}
 var _simple_event_listeners: Dictionary = {}
 
 var _is_iterating_type: bool = false
@@ -15,6 +16,8 @@ var _type_dispatch_depth: int = 0
 var _clear_requested_type: bool = false
 var _pending_removes_type: Array = []
 var _pending_adds_type: Array = []
+var _pending_removes_assignable_type: Array = []
+var _pending_adds_assignable_type: Array = []
 var _pending_owner_removes_type: Array[int] = []
 
 var _is_iterating_simple: bool = false
@@ -85,6 +88,43 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 		_remove_entry_by_callable(listeners, on_event)
 
 
+## 注册可赋值类型事件监听器。
+## 监听 base_event_type 时，也会收到继承自该脚本类型的事件实例。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param on_event: 事件发送时执行的回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+## @param owner: 可选监听拥有者，用于批量注销。
+func register_assignable(base_event_type: Script, on_event: Callable, priority: int = 0, owner: Object = null) -> void:
+	assert(on_event.is_valid(), "[TypeEventSystem] 尝试注册无效的可赋值事件回调函数。")
+	_validate_callable_min_args(on_event, 1, "可赋值事件回调", "事件实例")
+
+	if _type_dispatch_depth > 0:
+		_pending_adds_assignable_type.append({
+			"event_type": base_event_type,
+			"callable": on_event,
+			"priority": priority,
+			"owner_ref": _make_owner_ref(owner),
+			"owner_id": _owner_instance_id(owner),
+		})
+		return
+
+	_add_listener_entry(_assignable_event_listeners, base_event_type, on_event, priority, owner)
+
+
+## 注销可赋值类型事件监听器。
+## @param base_event_type: 注册时使用的基类脚本类型。
+## @param on_event: 要移除的回调函数。
+func unregister_assignable(base_event_type: Script, on_event: Callable) -> void:
+	if _assignable_event_listeners.has(base_event_type):
+		if _type_dispatch_depth > 0:
+			_remove_pending_assignable_type_add(base_event_type, on_event)
+			_pending_removes_assignable_type.append({ "event_type": base_event_type, "callable": on_event })
+			return
+
+		var listeners := _assignable_event_listeners[base_event_type] as Array
+		_remove_entry_by_callable(listeners, on_event)
+
+
 ## 将事件实例发送给其脚本类型的所有注册监听器。
 ## @param event_instance: 要分发的事件实例。
 func send(event_instance: Object) -> void:
@@ -98,36 +138,22 @@ func send(event_instance: Object) -> void:
 	if event_type == null:
 		push_error("[GDCore] 发送的事件必须是附加了脚本的类实例。")
 		return
-	if not _event_listeners.has(event_type):
+	if not _event_listeners.has(event_type) and not _has_assignable_listeners_for_event(event_type):
 		return
 
-	var listeners := _event_listeners[event_type] as Array
 	_type_dispatch_depth += 1
 	_is_iterating_type = true
 
-	for entry: Dictionary in listeners:
-		if _clear_requested_type:
-			break
-
-		var callback: Callable = entry.callable
-
-		if _entry_owner_is_released(entry):
-			_pending_removes_type.append({ "event_type": event_type, "callable": callback })
-			continue
-		if _is_pending_owner_remove(entry, _pending_owner_removes_type):
-			continue
-		if not callback.is_valid() or (callback.get_object() != null and not is_instance_valid(callback.get_object())):
-			_pending_removes_type.append({ "event_type": event_type, "callable": callback })
-			continue
-		if _is_pending_type_remove(event_type, callback):
-			continue
-
-		callback.call(event_instance)
-
-		if _clear_requested_type:
-			break
-		if event_instance.get("is_consumed") == true:
-			break
+	if _event_listeners.has(event_type):
+		var listeners := _event_listeners[event_type] as Array
+		_dispatch_type_listener_entries(event_instance, event_type, listeners, false)
+	if not _clear_requested_type and event_instance.get("is_consumed") != true:
+		for base_event_type: Script in _assignable_event_listeners.keys():
+			if _clear_requested_type or event_instance.get("is_consumed") == true:
+				break
+			if _script_extends_or_equals(event_type as Script, base_event_type):
+				var listeners := _assignable_event_listeners[base_event_type] as Array
+				_dispatch_type_listener_entries(event_instance, base_event_type, listeners, true)
 
 	_type_dispatch_depth = maxi(_type_dispatch_depth - 1, 0)
 	_is_iterating_type = _type_dispatch_depth > 0
@@ -232,10 +258,13 @@ func unregister_owner(owner: Object) -> void:
 	var owner_id := owner.get_instance_id()
 	if _type_dispatch_depth > 0:
 		_remove_pending_type_adds_for_owner_id(owner_id)
+		_remove_pending_assignable_type_adds_for_owner_id(owner_id)
 		_append_unique_int(_pending_owner_removes_type, owner_id)
 		_queue_pending_type_removes_for_owner_id(owner_id)
+		_queue_pending_assignable_type_removes_for_owner_id(owner_id)
 	else:
 		_remove_owner_from_type_listeners(owner_id)
+		_remove_owner_from_assignable_type_listeners(owner_id)
 
 	if _simple_dispatch_depth > 0:
 		_remove_pending_simple_adds_for_owner_id(owner_id)
@@ -245,13 +274,30 @@ func unregister_owner(owner: Object) -> void:
 		_remove_owner_from_simple_listeners(owner_id)
 
 
+## 获取事件系统诊断统计。
+## @return 包含类型事件、可赋值事件和简单事件监听数量的字典。
+func get_debug_stats() -> Dictionary:
+	return {
+		"type_events": _collect_listener_stats(_event_listeners),
+		"assignable_type_events": _collect_listener_stats(_assignable_event_listeners),
+		"simple_events": _collect_simple_listener_stats(),
+		"pending_type_adds": _pending_adds_type.size() + _pending_adds_assignable_type.size(),
+		"pending_type_removes": _pending_removes_type.size() + _pending_removes_assignable_type.size(),
+		"pending_simple_adds": _pending_adds_simple.size(),
+		"pending_simple_removes": _pending_removes_simple.size(),
+	}
+
+
 ## 清空所有已注册的事件监听器（包括类型事件和简单事件）。
 func clear() -> void:
 	_event_listeners.clear()
+	_assignable_event_listeners.clear()
 	_simple_event_listeners.clear()
 	_pending_removes_type.clear()
+	_pending_removes_assignable_type.clear()
 	_pending_removes_simple.clear()
 	_pending_adds_type.clear()
+	_pending_adds_assignable_type.clear()
 	_pending_adds_simple.clear()
 	_pending_owner_removes_type.clear()
 	_pending_owner_removes_simple.clear()
@@ -278,6 +324,13 @@ func _is_pending_type_remove(event_type: Script, on_event: Callable) -> bool:
 	return false
 
 
+func _is_pending_assignable_type_remove(event_type: Script, on_event: Callable) -> bool:
+	for pending: Dictionary in _pending_removes_assignable_type:
+		if pending.event_type == event_type and pending.callable == on_event:
+			return true
+	return false
+
+
 func _is_pending_simple_remove(event_id: StringName, on_event: Callable) -> bool:
 	for pending: Dictionary in _pending_removes_simple:
 		if pending.event_id == event_id and pending.callable == on_event:
@@ -290,11 +343,129 @@ func _is_pending_owner_remove(entry: Dictionary, pending_owner_ids: Array[int]) 
 	return owner_id > 0 and pending_owner_ids.has(owner_id)
 
 
+func _add_listener_entry(
+	registry: Dictionary,
+	event_type: Script,
+	on_event: Callable,
+	priority: int,
+	owner: Object
+) -> void:
+	if not registry.has(event_type):
+		registry[event_type] = []
+	var listeners := registry[event_type] as Array
+
+	for entry: Dictionary in listeners:
+		if entry.callable == on_event:
+			return
+
+	var new_entry := {
+		"callable": on_event,
+		"priority": priority,
+		"owner_ref": _make_owner_ref(owner),
+		"owner_id": _owner_instance_id(owner),
+	}
+	var inserted: bool = false
+	for i: int in range(listeners.size()):
+		var entry := listeners[i] as Dictionary
+		if priority > entry.priority:
+			listeners.insert(i, new_entry)
+			inserted = true
+			break
+	if not inserted:
+		listeners.append(new_entry)
+
+
+func _dispatch_type_listener_entries(
+	event_instance: Object,
+	event_type: Script,
+	listeners: Array,
+	assignable: bool
+) -> void:
+	for entry: Dictionary in listeners:
+		if _clear_requested_type:
+			break
+
+		var callback: Callable = entry.callable
+		if _entry_owner_is_released(entry):
+			_append_pending_type_remove(event_type, callback, assignable)
+			continue
+		if _is_pending_owner_remove(entry, _pending_owner_removes_type):
+			continue
+		if not callback.is_valid() or (callback.get_object() != null and not is_instance_valid(callback.get_object())):
+			_append_pending_type_remove(event_type, callback, assignable)
+			continue
+		if assignable:
+			if _is_pending_assignable_type_remove(event_type, callback):
+				continue
+		elif _is_pending_type_remove(event_type, callback):
+			continue
+
+		callback.call(event_instance)
+
+		if _clear_requested_type or event_instance.get("is_consumed") == true:
+			break
+
+
+func _append_pending_type_remove(event_type: Script, callback: Callable, assignable: bool) -> void:
+	if assignable:
+		_pending_removes_assignable_type.append({ "event_type": event_type, "callable": callback })
+	else:
+		_pending_removes_type.append({ "event_type": event_type, "callable": callback })
+
+
+func _has_assignable_listeners_for_event(event_type: Script) -> bool:
+	for base_event_type: Script in _assignable_event_listeners.keys():
+		if _script_extends_or_equals(event_type, base_event_type):
+			return true
+	return false
+
+
+func _script_extends_or_equals(script_cls: Script, base_script: Script) -> bool:
+	var current := script_cls
+	while current != null:
+		if current == base_script:
+			return true
+		current = current.get_base_script()
+	return false
+
+
+func _collect_listener_stats(registry: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for event_type: Script in registry.keys():
+		result[_script_debug_key(event_type)] = (registry[event_type] as Array).size()
+	return result
+
+
+func _collect_simple_listener_stats() -> Dictionary:
+	var result: Dictionary = {}
+	for event_id: StringName in _simple_event_listeners.keys():
+		result[String(event_id)] = (_simple_event_listeners[event_id] as Array).size()
+	return result
+
+
+func _script_debug_key(script_cls: Script) -> String:
+	if script_cls == null:
+		return ""
+	var global_name := script_cls.get_global_name()
+	if global_name != &"":
+		return String(global_name)
+	if not script_cls.resource_path.is_empty():
+		return script_cls.resource_path
+	return "Script:%d" % script_cls.get_instance_id()
+
+
 func _remove_pending_type_add(event_type: Script, on_event: Callable) -> void:
 	for i: int in range(_pending_adds_type.size() - 1, -1, -1):
 		var pending := _pending_adds_type[i] as Dictionary
 		if pending.event_type == event_type and pending.callable == on_event:
 			_pending_adds_type.remove_at(i)
+
+
+func _remove_pending_assignable_type_add(event_type: Script, on_event: Callable) -> void:
+	for i: int in range(_pending_adds_assignable_type.size() - 1, -1, -1):
+		var pending := _pending_adds_assignable_type[i] as Dictionary
+		if pending.event_type == event_type and pending.callable == on_event:
+			_pending_adds_assignable_type.remove_at(i)
 
 
 func _remove_pending_simple_add(event_id: StringName, on_event: Callable) -> void:
@@ -309,6 +480,13 @@ func _remove_pending_type_adds_for_owner_id(owner_id: int) -> void:
 		var pending := _pending_adds_type[i] as Dictionary
 		if _entry_owner_id(pending) == owner_id:
 			_pending_adds_type.remove_at(i)
+
+
+func _remove_pending_assignable_type_adds_for_owner_id(owner_id: int) -> void:
+	for i: int in range(_pending_adds_assignable_type.size() - 1, -1, -1):
+		var pending := _pending_adds_assignable_type[i] as Dictionary
+		if _entry_owner_id(pending) == owner_id:
+			_pending_adds_assignable_type.remove_at(i)
 
 
 func _remove_pending_simple_adds_for_owner_id(owner_id: int) -> void:
@@ -326,6 +504,14 @@ func _queue_pending_type_removes_for_owner_id(owner_id: int) -> void:
 				_pending_removes_type.append({ "event_type": event_type, "callable": entry.callable })
 
 
+func _queue_pending_assignable_type_removes_for_owner_id(owner_id: int) -> void:
+	for event_type: Script in _assignable_event_listeners:
+		var listeners := _assignable_event_listeners[event_type] as Array
+		for entry: Dictionary in listeners:
+			if _entry_owner_id(entry) == owner_id:
+				_pending_removes_assignable_type.append({ "event_type": event_type, "callable": entry.callable })
+
+
 func _queue_pending_simple_removes_for_owner_id(owner_id: int) -> void:
 	for event_id: StringName in _simple_event_listeners:
 		var listeners := _simple_event_listeners[event_id] as Array
@@ -341,8 +527,15 @@ func _flush_type_pending() -> void:
 			_remove_entry_by_callable(listeners, pending.callable)
 	_pending_removes_type.clear()
 
+	for pending: Dictionary in _pending_removes_assignable_type:
+		if _assignable_event_listeners.has(pending.event_type):
+			var listeners := _assignable_event_listeners[pending.event_type] as Array
+			_remove_entry_by_callable(listeners, pending.callable)
+	_pending_removes_assignable_type.clear()
+
 	for owner_id: int in _pending_owner_removes_type:
 		_remove_owner_from_type_listeners(owner_id)
+		_remove_owner_from_assignable_type_listeners(owner_id)
 	_pending_owner_removes_type.clear()
 
 	for pending: Dictionary in _pending_adds_type:
@@ -351,6 +544,13 @@ func _flush_type_pending() -> void:
 			continue
 		register(pending.event_type, pending.callable, pending.priority, binding_owner)
 	_pending_adds_type.clear()
+
+	for pending: Dictionary in _pending_adds_assignable_type:
+		var binding_owner := _owner_from_ref(pending.get("owner_ref"))
+		if pending.get("owner_ref") != null and binding_owner == null:
+			continue
+		register_assignable(pending.event_type, pending.callable, pending.priority, binding_owner)
+	_pending_adds_assignable_type.clear()
 
 
 func _flush_simple_pending() -> void:
@@ -375,6 +575,12 @@ func _flush_simple_pending() -> void:
 func _remove_owner_from_type_listeners(owner_id: int) -> void:
 	for event_type: Script in _event_listeners:
 		var listeners := _event_listeners[event_type] as Array
+		_remove_entries_by_owner_id(listeners, owner_id)
+
+
+func _remove_owner_from_assignable_type_listeners(owner_id: int) -> void:
+	for event_type: Script in _assignable_event_listeners:
+		var listeners := _assignable_event_listeners[event_type] as Array
 		_remove_entries_by_owner_id(listeners, owner_id)
 
 

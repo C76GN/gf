@@ -56,6 +56,24 @@ func set_value(new_value: Variant) -> void:
 	value_changed.emit(old_value, new_value)
 
 
+## 强制发出 value_changed 信号。
+## 适合在 Array、Dictionary 或 Object 发生原地变更后，由业务层显式通知监听者。
+func force_emit() -> void:
+	value_changed.emit(_value, _value)
+
+
+## 断开指定 Node 与 Callable 的绑定关系。
+## @param node: 绑定生命周期的节点。
+## @param callable: 要解绑的回调函数。
+func unbind(node: Node, callable: Callable) -> void:
+	if not is_instance_valid(node) or not callable.is_valid():
+		return
+
+	_disconnect_node_binding(node, callable)
+	if not _has_node_binding_for_callable(callable) and value_changed.is_connected(callable):
+		value_changed.disconnect(callable)
+
+
 ## 断开 value_changed 信号上的所有连接，用于 UI 节点销毁时手动清理绑定关系。
 func unbind_all() -> void:
 	for connection: Dictionary in value_changed.get_connections():
@@ -106,7 +124,7 @@ func bind_to(node: Node, callable: Callable) -> void:
 
 
 func _on_node_exited(node: Node, callable: Callable) -> void:
-	_remove_node_binding(node, callable)
+	_disconnect_node_binding(node, callable)
 	if not _has_node_binding_for_callable(callable) and value_changed.is_connected(callable):
 		value_changed.disconnect(callable)
 
@@ -126,10 +144,16 @@ func _find_node_binding_index(node: Node, callable: Callable) -> int:
 	return -1
 
 
-func _remove_node_binding(node: Node, callable: Callable) -> void:
+func _disconnect_node_binding(node: Node, callable: Callable) -> void:
 	var binding_index := _find_node_binding_index(node, callable)
-	if binding_index != -1:
-		_node_bindings.remove_at(binding_index)
+	if binding_index == -1:
+		return
+
+	var binding: Dictionary = _node_bindings[binding_index]
+	var exit_callable: Callable = binding.get("exit_callable", Callable())
+	if is_instance_valid(node) and exit_callable.is_valid() and node.tree_exited.is_connected(exit_callable):
+		node.tree_exited.disconnect(exit_callable)
+	_node_bindings.remove_at(binding_index)
 
 
 func _has_node_binding_for_callable(callable: Callable) -> bool:

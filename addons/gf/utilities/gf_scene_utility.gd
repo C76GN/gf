@@ -97,8 +97,21 @@ func load_scene_async(path: String, loading_scene_path: String = "") -> void:
 		push_warning("[GFSceneUtility] 当前已有场景正在加载中：%s" % _target_path)
 		return
 
+	var validation_error := _validate_scene_resource_path(path, "load_scene_async")
+	if not validation_error.is_empty():
+		push_error(validation_error)
+		scene_load_failed.emit(path)
+		return
+
+	var effective_loading_scene_path := loading_scene_path
+	if not effective_loading_scene_path.is_empty():
+		var loading_validation_error := _validate_scene_resource_path(effective_loading_scene_path, "loading_scene")
+		if not loading_validation_error.is_empty():
+			push_warning(loading_validation_error)
+			effective_loading_scene_path = ""
+
 	_target_path = path
-	_loading_scene_path = loading_scene_path
+	_loading_scene_path = effective_loading_scene_path
 	_is_loading = true
 	_previous_pause_state = _get_paused()
 	_previous_scene_path = _get_current_scene_path()
@@ -224,6 +237,19 @@ func _restore_previous_scene_if_needed() -> void:
 	var error := _do_change_scene_sync(_previous_scene_path)
 	if error != OK:
 		push_error("[GFSceneUtility] 恢复上一场景失败：%s (错误码：%d)" % [_previous_scene_path, error])
+
+
+func _validate_scene_resource_path(path: String, label: String) -> String:
+	if path.is_empty():
+		return "[GFSceneUtility] %s 失败：path 为空。" % label
+	if not ResourceLoader.exists(path):
+		return "[GFSceneUtility] %s 失败：资源不存在：%s" % [label, path]
+
+	var extension := path.get_extension().to_lower()
+	var scene_extensions := ResourceLoader.get_recognized_extensions_for_type("PackedScene")
+	if not scene_extensions.has(extension):
+		return "[GFSceneUtility] %s 失败：资源不是 PackedScene：%s" % [label, path]
+	return ""
 
 
 func _reset_loading_state() -> void:

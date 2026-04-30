@@ -16,6 +16,87 @@
 
 ---
 
+## [1.20.0] - 2026-04-30
+
+**版本概述**：面向框架核心运行时做稳健性与诊断能力增强，补齐异步命令、场景切换、事件派发、节点上下文、对象池、节点状态机启动时机、UI 栈和存储路径等通用边界处理，同时保持所有新增能力为可配置、可继承或可组合的抽象接口。
+
+### 🚀 新增特性 (Added)
+- **可赋值类型事件监听**：`TypeEventSystem`、`GFArchitecture`、`Gf` 与 `GFSystem/GFUtility/GFController` 新增 assignable 事件注册接口，可监听基类并接收子类事件实例。
+- **运行时诊断快照**：`TypeEventSystem.get_debug_stats()`、`GFArchitecture.get_event_debug_stats()`、`GFArchitecture.get_debug_lifecycle_state()` 与 `GFObjectPoolUtility.get_debug_snapshot()` 提供监听、生命周期、tick 缓存、工厂绑定和对象池状态统计。
+- **节点上下文失败通知**：`GFNodeContext` 新增 `context_failed` 信号与 `context_wait_timeout_seconds`，避免等待父级架构或 scoped 架构初始化时无限挂起。
+- **BindableProperty 精细解绑**：新增 `unbind(node, callable)` 与 `force_emit()`，支持单个节点绑定移除和当前值强制广播。
+- **对象池配置与查询**：`GFObjectPoolUtility` 新增 `manage_descendant_active_state`、`prune_invalid_on_each_operation`、`get_active_count()`、`get_active_nodes()` 与 `prune_invalid_nodes()`。
+- **控制台交互能力**：`GFConsoleUtility` 新增命令名查询、前缀建议、输入历史上下切换和 Tab 自动补全。
+- **存储路径控制**：`GFStorageUtility` 新增 `allow_absolute_paths` 与 `create_directories_for_nested_paths`，支持拒绝绝对路径并自动创建嵌套目录。
+- **节点状态机启动模式**：`GFNodeStateMachine` 新增 `StartMode`、`start_mode`、`start()` 与 `start_group()`，可选择保持 ready 自动启动、等待宿主 ready 后启动或完全手动启动。
+- **状态组手动启动**：`GFNodeStateGroup` 新增 `auto_start` 与 `start()`，支持只加载状态节点但暂不进入 `initial_state`。
+
+### 🔄 机制更改 (Changed)
+- **场景异步加载前置校验**：`GFSceneUtility.load_scene_async()` 在切换 loading scene、暂停时间或发起线程加载前先校验目标路径与资源扩展类型，失败时只发出失败信号，不改变当前场景状态。
+- **资源异步加载回调隔离**：`GFAssetUtility` 允许同一路径的空 `type_hint` 与强 `type_hint` 请求合并，但每个回调按自身类型要求接收资源或 `null`。
+- **状态机清理语义收紧**：节点状态机清空状态组时会断开旧 group 信号；状态组清空 states 时会退出当前状态与暂停栈状态。
+- **节点状态机加载与启动解耦**：节点状态机现在可只加载状态结构而不立即进入初始状态，避免状态 `_enter()` 早于宿主节点 `_ready()` 时访问未完成初始化的宿主字段。
+- **UI 栈防重复入栈**：`GFUIUtility` 会清理失效栈项并拒绝同一面板实例重复加入多个 UI 栈，同时支持安全接管外部父节点下的面板。
+- **对象池生命周期边界**：对象池销毁后会拒绝新的 acquire、release 与 prewarm 请求，避免 dispose 后继续复用失效池状态。
+- **插件 AutoLoad 保护**：编辑器插件只移除指向 GF Framework 自身的 `Gf` AutoLoad，不再覆盖或删除项目已有的同名 AutoLoad。
+
+### 🐛 Bug 修复 (Fixed)
+- **异步命令历史栈错位**：`GFCommandHistoryUtility.undo_last()` 与 `redo()` 发现异步命令时会拒绝同步 API 并恢复原栈，提示使用 async 版本。
+- **场景加载失败副作用**：错误目标资源不再先进入 loading 状态或清理瞬态模块，避免当前场景被无效路径破坏。
+- **状态机信号泄漏**：`GFNodeStateMachine.clear_state_groups()` 断开 group 信号，旧 group 后续事件不再转发到状态机。
+- **状态组清空漏退出**：`GFNodeStateGroup.clear_states(false)` 会退出当前状态与暂停栈状态，避免状态 process mode 和业务状态滞留。
+- **存储嵌套路径写入失败**：保存普通 JSON、事务 JSON 与 Resource 前会按需创建父目录。
+- **绝对路径误写入**：当 `allow_absolute_paths` 为 `false` 时，绝对路径会降级到存档目录 basename，并输出诊断错误。
+- **异步资源加载 type_hint 误判**：同一路径 pending 请求不再因空类型提示和强类型提示组合而错误拒绝或错误分发。
+
+### 🔌 API 变动说明 (API Changes)
+- `TypeEventSystem` 新增 `register_assignable()`、`unregister_assignable()`、`get_debug_stats()`。
+- `GFArchitecture` 新增 `register_assignable_event()`、`register_assignable_event_owned()`、`unregister_assignable_event()`、`get_event_debug_stats()`、`get_debug_lifecycle_state()`。
+- `Gf` 新增 `listen_assignable()`、`listen_assignable_owned()`、`unlisten_assignable()`。
+- `GFSystem`、`GFUtility`、`GFController` 新增 `register_assignable_event()` 与 `unregister_assignable_event()`。
+- `GFNodeContext` 新增 `context_failed` 与 `context_wait_timeout_seconds`。
+- `BindableProperty` 新增 `unbind()` 与 `force_emit()`。
+- `GFObjectPoolUtility` 新增对象池诊断、active 查询、失效节点清理和子节点状态管理开关。
+- `GFStorageUtility` 新增绝对路径和嵌套目录创建开关。
+- `GFNodeStateMachine` 新增 `StartMode` 枚举、`start_mode` 导出项、`start()` 与 `start_group()`。
+- `GFNodeStateGroup` 新增 `auto_start` 导出项与 `start()`；`initialize()` 增加可选参数 `start_initial_state`，旧调用保持兼容。
+- 同步 `GFCommandHistoryUtility.undo_last()` / `redo()` 对异步命令的行为更严格；异步命令应使用 `await undo_last_async()` / `await redo_async()`。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果项目的 Command `execute()` 或 `undo()` 返回 `Signal`，请把同步 `undo_last()` / `redo()` 调用迁移到 `await undo_last_async()` / `await redo_async()`。
+2. 如果旧项目依赖无效场景路径先切到 loading scene 再失败，请调整为监听 `scene_load_failed`；新版本会在任何状态变更前失败返回。
+3. 如果项目已有同名 `Gf` AutoLoad 且不是 GF Framework，插件不会覆盖或删除它；需要使用框架 facade 时请手动处理 AutoLoad 命名冲突。
+4. 如果对象池只希望管理根节点状态，可将 `manage_descendant_active_state` 设为 `false`；如果希望批量操作后手动清理失效引用，可将 `prune_invalid_on_each_operation` 设为 `false` 并调用 `prune_invalid_nodes()`。
+5. 如果存档文件名来自用户输入，建议保持 `allow_absolute_paths = false`，避免用户输入绕过存档目录。
+6. 需要监听事件继承层级时，使用 assignable 事件接口；原 `register_event()` / `listen()` 仍保持精确脚本匹配语义。
+7. 如果 `GFNodeState` 的 `_enter()` 依赖宿主节点 `_ready()` 中初始化的字段，请在 Inspector 或宿主 `_enter_tree()` 阶段把状态机 `start_mode` 设置为 `AFTER_HOST_READY`；需要完全由宿主控制时设置为 `MANUAL` 并在宿主 `_ready()` 末尾调用 `state_machine.start()`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `addons/gf/docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `addons/gf/plugin.cfg`
+- `addons/gf/plugin.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/bindable_property.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_group.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_machine.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_command_history_utility.gd`
+- `addons/gf/utilities/gf_console_utility.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_ui_utility.gd`
+- `tests/gf_core/test_type_event_system.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_node_state_machine.gd`
+
 ## [1.19.0] - 2026-04-30
 
 **版本概述**：增强本地持久化与运行时分析工具的通用能力，新增可配置存档 Codec、完整性校验、版本迁移、编辑器存档查看器和可插拔分析传输接口，让项目在不绑定具体业务结构的前提下获得更稳健的数据读写与事件上报基础。

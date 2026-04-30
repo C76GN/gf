@@ -34,6 +34,9 @@ signal requested_transition(group_name: StringName, state_name: StringName, args
 ## ready 时是否自动从子节点加载状态。
 @export var reload_states_on_ready: bool = true
 
+## 初始化后是否自动进入 initial_state。关闭后可通过 start() 手动启动。
+@export var auto_start: bool = true
+
 ## 每个状态组保留的历史状态名数量。
 @export_range(1, 256, 1) var history_max_size: int = 32
 
@@ -80,15 +83,17 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 初始化状态组。
-func initialize(machine: Object = null) -> void:
+## @param machine: 所属节点状态机。
+## @param start_initial_state: 本次初始化是否允许自动进入 initial_state。
+func initialize(machine: Object = null, start_initial_state: bool = true) -> void:
 	_is_ready = true
 	if machine != null:
 		_machine_ref = weakref(machine)
 		_setup_existing_states()
 	if reload_states_on_ready:
 		reload_states_from_children()
-	if initial_state != &"" and _current_state == null:
-		transition_to(initial_state, initial_args)
+	if auto_start and start_initial_state:
+		start()
 
 
 ## 获取状态组注册名。
@@ -310,11 +315,19 @@ func is_in_state(query_state_name: StringName) -> bool:
 ## 重启当前状态；若当前没有状态，则尝试进入初始状态。
 func restart(args: Dictionary = {}) -> void:
 	if _current_state == null:
-		if initial_state != &"":
-			transition_to(initial_state, args if not args.is_empty() else initial_args)
+		start(args)
 		return
 
 	transition_to(get_current_state_name(), args)
+
+
+## 进入初始状态。若已有当前状态则保持不变。
+## @param args: 启动时传给初始状态的参数；为空时使用 initial_args。
+func start(args: Dictionary = {}) -> void:
+	if _current_state != null or initial_state == &"":
+		return
+
+	transition_to(initial_state, args if not args.is_empty() else initial_args)
 
 
 ## 获取所有状态。
@@ -328,6 +341,7 @@ func get_states() -> Array[Node]:
 ## 清空状态。
 func clear_states(free_states: bool = false) -> void:
 	var states := get_states()
+	_exit_active_states_for_clear()
 	_states.clear()
 	_current_state = null
 	_state_stack.clear()
@@ -362,6 +376,20 @@ func _get_machine() -> Object:
 func _setup_existing_states() -> void:
 	for state: Node in _states.values():
 		state.call("setup", _get_machine(), self)
+
+
+func _exit_active_states_for_clear() -> void:
+	var current_state := _current_state
+	var stacked_states := _state_stack.duplicate()
+	_is_exiting_current_state = true
+	if current_state != null and current_state.has_method("exit"):
+		current_state.call("exit", &"", {})
+	for state_variant: Variant in stacked_states:
+		var state := state_variant as Node
+		if state != null and state != current_state and state.has_method("exit"):
+			state.call("exit", &"", {})
+	_is_exiting_current_state = false
+	_queued_exit_transition.clear()
 
 
 func _is_node_state(node: Node) -> bool:
@@ -432,8 +460,8 @@ func _reload_from_children_deferred() -> void:
 	_reload_queued = false
 	if _is_ready and reload_states_on_ready:
 		reload_states_from_children()
-		if initial_state != &"" and _current_state == null:
-			transition_to(initial_state, initial_args)
+		if auto_start:
+			start()
 
 
 func _on_child_entered_tree(_child: Node) -> void:

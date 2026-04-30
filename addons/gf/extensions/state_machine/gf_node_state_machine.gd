@@ -17,6 +17,19 @@ signal state_group_removed(group: Node)
 signal state_changed(group: Node, old_state: Node, new_state: Node)
 
 
+# --- 枚举 ---
+
+## 节点状态机初始状态启动时机。
+enum StartMode {
+	## 状态机 ready 时启动，保持旧版本默认行为。
+	ON_READY,
+	## 等待宿主节点 ready 后启动。
+	AFTER_HOST_READY,
+	## 只加载状态，不自动启动；由外部调用 start()。
+	MANUAL,
+}
+
+
 # --- 常量 ---
 
 const INTERNAL_GROUP_NAME: StringName = &"_internal"
@@ -39,6 +52,9 @@ const GFNodeStateMachineConfigBase = preload("res://addons/gf/extensions/state_m
 ## ready 时是否自动从子节点加载状态与状态组。
 @export var reload_on_ready: bool = true
 
+## 初始状态启动模式。
+@export var start_mode: StartMode = StartMode.ON_READY
+
 
 # --- 私有变量 ---
 
@@ -48,11 +64,13 @@ var _group_state_changed_callables: Dictionary = {}
 var _is_ready: bool = false
 var _reload_queued: bool = false
 var _is_reloading: bool = false
+var _lifecycle_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 func _enter_tree() -> void:
+	_lifecycle_serial += 1
 	if not child_entered_tree.is_connected(_on_child_entered_tree):
 		child_entered_tree.connect(_on_child_entered_tree)
 
@@ -61,9 +79,12 @@ func _ready() -> void:
 	_is_ready = true
 	if reload_on_ready:
 		reload_from_children()
+	if start_mode == StartMode.AFTER_HOST_READY:
+		_start_after_host_ready()
 
 
 func _exit_tree() -> void:
+	_lifecycle_serial += 1
 	_is_ready = false
 	_reload_queued = false
 	if child_entered_tree.is_connected(_on_child_entered_tree):
@@ -130,6 +151,31 @@ func pop_state(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = 
 	return bool(group.call("pop_state", args))
 
 
+## 启动所有已加载状态组的初始状态。若尚未加载状态，则会先从子节点加载。
+## @param args: 启动时传给初始状态的参数；为空时使用各状态组 initial_args。
+func start(args: Dictionary = {}) -> void:
+	if _groups.is_empty():
+		reload_from_children()
+
+	for group: Node in _groups.values():
+		_start_group_node(group, args)
+
+
+## 启动指定状态组的初始状态。若尚未加载状态，则会先从子节点加载。
+## @param group_name: 要启动的状态组名。
+## @param args: 启动时传给初始状态的参数；为空时使用该状态组 initial_args。
+func start_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> void:
+	if _groups.is_empty():
+		reload_from_children()
+
+	var group := get_state_group(group_name)
+	if group == null:
+		push_warning("[GFNodeStateMachine] start_group 失败，未找到状态组：%s" % group_name)
+		return
+
+	_start_group_node(group, args)
+
+
 ## 添加状态组。
 func add_state_group(group: Node) -> void:
 	if not _is_node_state_group(group):
@@ -143,13 +189,11 @@ func add_state_group(group: Node) -> void:
 	_groups[key] = group
 	var changed_callable := _on_group_current_state_changed.bind(group)
 	_group_state_changed_callables[key] = changed_callable
-	var changed_signal: Signal = group.get("current_state_changed")
-	var transition_signal: Signal = group.get("requested_transition")
-	if not changed_signal.is_connected(changed_callable):
-		changed_signal.connect(changed_callable)
-	if not transition_signal.is_connected(transition_group_to):
-		transition_signal.connect(transition_group_to)
-	group.call("initialize", self)
+	_connect_state_group_signals(group, changed_callable)
+	if group is GFNodeStateGroupBase:
+		group.call("initialize", self, _should_start_group_on_initialize())
+	else:
+		group.call("initialize", self)
 	state_group_added.emit(group)
 
 
@@ -162,12 +206,7 @@ func remove_state_group(group: Node) -> bool:
 	if not _groups.has(key):
 		return false
 	var changed_callable: Callable = _group_state_changed_callables.get(key, Callable())
-	var changed_signal: Signal = group.get("current_state_changed")
-	var transition_signal: Signal = group.get("requested_transition")
-	if changed_callable.is_valid() and changed_signal.is_connected(changed_callable):
-		changed_signal.disconnect(changed_callable)
-	if transition_signal.is_connected(transition_group_to):
-		transition_signal.disconnect(transition_group_to)
+	_disconnect_state_group_signals(group, changed_callable)
 	_groups.erase(key)
 	_group_state_changed_callables.erase(key)
 	state_group_removed.emit(group)
@@ -277,6 +316,10 @@ func clear_state_groups(free_groups: bool = false) -> void:
 	var groups: Array[Node] = []
 	for group: Node in _groups.values():
 		groups.append(group)
+	for group: Node in groups:
+		var key := group.call("get_group_name") as StringName
+		var changed_callable: Callable = _group_state_changed_callables.get(key, Callable())
+		_disconnect_state_group_signals(group, changed_callable)
 	_groups.clear()
 	_group_state_changed_callables.clear()
 	for group: Node in groups:
@@ -330,6 +373,69 @@ func _is_node_state_group(node: Node) -> bool:
 	if not node.get("current_state_changed") is Signal:
 		return false
 	return node.get("requested_transition") is Signal
+
+
+func _connect_state_group_signals(group: Node, changed_callable: Callable) -> void:
+	var changed_signal: Signal = group.get("current_state_changed")
+	var transition_signal: Signal = group.get("requested_transition")
+	if changed_callable.is_valid() and not changed_signal.is_connected(changed_callable):
+		changed_signal.connect(changed_callable)
+	if not transition_signal.is_connected(transition_group_to):
+		transition_signal.connect(transition_group_to)
+
+
+func _disconnect_state_group_signals(group: Node, changed_callable: Callable) -> void:
+	var changed_signal: Signal = group.get("current_state_changed")
+	var transition_signal: Signal = group.get("requested_transition")
+	if changed_callable.is_valid() and changed_signal.is_connected(changed_callable):
+		changed_signal.disconnect(changed_callable)
+	if transition_signal.is_connected(transition_group_to):
+		transition_signal.disconnect(transition_group_to)
+
+
+func _start_group_node(group: Node, args: Dictionary) -> void:
+	if group.has_method("start"):
+		group.call("start", args)
+		return
+
+	var initial_state_name := StringName(group.get("initial_state"))
+	if initial_state_name == &"":
+		return
+	group.call("transition_to", initial_state_name, args)
+
+
+func _should_start_group_on_initialize() -> bool:
+	match start_mode:
+		StartMode.ON_READY:
+			return true
+		StartMode.AFTER_HOST_READY:
+			return _is_host_ready()
+		StartMode.MANUAL:
+			return false
+		_:
+			return true
+
+
+func _is_host_ready() -> bool:
+	var host := get_parent()
+	return host == null or host.is_node_ready()
+
+
+func _is_lifecycle_current(lifecycle_serial: int) -> bool:
+	return _lifecycle_serial == lifecycle_serial and is_inside_tree()
+
+
+func _start_after_host_ready() -> void:
+	var current_serial := _lifecycle_serial
+	var host := get_parent()
+	if host != null and not host.is_node_ready():
+		await host.ready
+	if not _is_lifecycle_current(current_serial):
+		return
+	if start_mode != StartMode.AFTER_HOST_READY:
+		return
+
+	start()
 
 
 func _on_group_current_state_changed(

@@ -205,6 +205,11 @@ func _add_panel_instance(panel: Node, layer: Layer, config_callback: Callable) -
 		push_error("[GFUIUtility] 目标层级的 CanvasLayer 不可用。")
 		return false
 
+	_prune_all_layer_stacks()
+	if _is_panel_in_any_stack(panel):
+		push_warning("[GFUIUtility] 面板实例已在 UI 栈中，忽略重复入栈。")
+		return false
+
 	_prune_layer_stack(layer)
 	var stack: Array = _panel_stacks[layer]
 	var hidden_panel: CanvasItem = null
@@ -223,8 +228,16 @@ func _add_panel_instance(panel: Node, layer: Layer, config_callback: Callable) -
 
 	stack.push_back(panel)
 	panel.tree_exited.connect(_on_panel_tree_exited.bind(panel, layer), CONNECT_ONE_SHOT)
-	canvas.add_child(panel)
+	if panel.get_parent() != null and panel.get_parent() != canvas:
+		panel.get_parent().remove_child(panel)
+	if panel.get_parent() != canvas:
+		canvas.add_child(panel)
 	return true
+
+
+func _prune_all_layer_stacks() -> void:
+	for layer_idx: int in _panel_stacks.keys():
+		_prune_layer_stack(layer_idx as Layer)
 
 
 func _prune_layer_stack(layer: Layer) -> void:
@@ -238,6 +251,13 @@ func _prune_layer_stack(layer: Layer) -> void:
 			stack.remove_at(index)
 	if removed_top and _auto_hide_under:
 		_reveal_top_panel(layer)
+
+
+func _is_panel_in_any_stack(panel: Node) -> bool:
+	for stack: Array in _panel_stacks.values():
+		if stack.has(panel):
+			return true
+	return false
 
 
 func _reveal_top_panel(layer: Layer) -> void:

@@ -73,6 +73,31 @@ func test_push_and_pop_panel_instance() -> void:
 	assert_true(panel1.visible, "弹出顶层后，下层面板应重新可见。")
 
 
+func test_push_panel_instance_rejects_duplicate_instance() -> void:
+	var panel := Control.new()
+
+	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
+
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "重复压入后栈顶仍应是原面板。")
+	assert_eq((_ui_utility._panel_stacks[GFUIUtility.Layer.POPUP] as Array).size(), 1, "同一面板实例不应重复进入栈。")
+	assert_push_warning("[GFUIUtility] 面板实例已在 UI 栈中，忽略重复入栈。")
+
+
+func test_push_panel_instance_reparents_external_node() -> void:
+	var external_parent := Node.new()
+	add_child(external_parent)
+	var panel := Control.new()
+	external_parent.add_child(panel)
+
+	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
+
+	assert_eq(panel.get_parent(), _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP), "已挂载面板应迁移到目标 CanvasLayer。")
+	assert_false(external_parent.get_children().has(panel), "迁移后原父节点不应继续持有面板。")
+
+	external_parent.queue_free()
+
+
 func test_external_free_of_top_panel_prunes_stack_and_reveals_under_panel() -> void:
 	var panel1 := Control.new()
 	var panel2 := Control.new()

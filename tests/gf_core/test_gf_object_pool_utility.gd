@@ -63,6 +63,19 @@ func _make_control_scene() -> PackedScene:
 	return scene
 
 
+## 创建一个带子节点的 Control PackedScene。
+func _make_nested_control_scene() -> PackedScene:
+	var root := Control.new()
+	var child := Control.new()
+	child.name = "Child"
+	root.add_child(child)
+	child.owner = root
+	var scene := PackedScene.new()
+	scene.pack(root)
+	root.free()
+	return scene
+
+
 ## 创建一个带对象池 hook 的 PackedScene。
 func _make_hooked_scene() -> PackedScene:
 	var node := HookedNode.new()
@@ -118,6 +131,19 @@ func test_release_disables_visible_node_and_acquire_restores_it() -> void:
 	assert_eq(reused, node, "再次 acquire 应复用同一 Control。")
 	assert_true(reused.visible, "复用后 Control 应恢复可见。")
 	assert_eq(reused.process_mode, Node.PROCESS_MODE_INHERIT, "复用后应恢复原 process_mode。")
+
+
+func test_can_disable_descendant_active_state_management() -> void:
+	var nested_scene := _make_nested_control_scene()
+	_pool.manage_descendant_active_state = false
+	var root := _pool.acquire(nested_scene, _parent) as Control
+	var child := root.get_node("Child") as Control
+
+	_pool.release(root, nested_scene)
+
+	assert_false(root.visible, "关闭递归管理时仍应隐藏根节点。")
+	assert_true(child.visible, "关闭递归管理时不应改写子节点 visible 属性。")
+	assert_eq(child.process_mode, Node.PROCESS_MODE_INHERIT, "关闭递归管理时不应改写子节点 process_mode。")
 
 
 ## 验证 release 后再次 acquire 复用同一节点而不创建新实例。
@@ -249,6 +275,27 @@ func test_available_count_changes_with_acquire_release() -> void:
 
 	_pool.release(node, _scene)
 	assert_eq(_pool.get_available_count(_scene), 2, "release 后可用数应恢复为 2。")
+
+
+func test_active_count_and_debug_snapshot_report_pool_state() -> void:
+	var node: Node = _pool.acquire(_scene, _parent)
+	var snapshot := _pool.get_debug_snapshot()
+	var key := "PackedScene:%d" % _scene.get_instance_id()
+
+	assert_eq(_pool.get_active_count(_scene), 1, "acquire 后 active 数应为 1。")
+	assert_eq(int((snapshot[key] as Dictionary).get("active")), 1, "诊断快照应包含 active 数。")
+	assert_eq(int((snapshot[key] as Dictionary).get("available")), 0, "诊断快照应包含 available 数。")
+
+	_pool.release(node, _scene)
+
+
+func test_disposed_pool_rejects_new_operations() -> void:
+	_pool.dispose()
+
+	var node := _pool.acquire(_scene, _parent)
+
+	assert_null(node, "dispose 后 acquire 应返回 null。")
+	assert_push_warning("[GFObjectPoolUtility] 对象池已销毁，忽略 acquire。")
 
 
 ## 验证重复 release 同一个节点不会导致池内出现重复引用。

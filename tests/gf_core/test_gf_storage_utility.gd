@@ -42,10 +42,14 @@ func after_each() -> void:
 			"recover_from_backup.json",
 			"recover_from_temp.json",
 			"recover_from_stale_temp.json",
+			"nested/test_nested.json",
 		]:
 			_cleanup_file_family(file_name)
 
 		_cleanup_file_family("test_resource.tres")
+		var nested_dir := _storage._get_full_path("nested")
+		if DirAccess.dir_exists_absolute(nested_dir):
+			DirAccess.remove_absolute(nested_dir)
 
 		_storage = null
 
@@ -113,6 +117,24 @@ func test_legacy_methods() -> void:
 	_storage.save_data("test_legacy.json", {"old": "data"})
 	var d := _storage.load_data("test_legacy.json")
 	assert_eq(d.get("old"), "data", "旧版纯数据 API 仍应正常读写。")
+
+
+func test_save_data_creates_nested_directories() -> void:
+	_storage.encrypt_key = 0
+	var err := _storage.save_data("nested/test_nested.json", {"value": 7})
+
+	assert_eq(err, OK, "嵌套相对路径应自动创建目录并写入。")
+	assert_true(FileAccess.file_exists(_storage._get_full_path("nested/test_nested.json")), "嵌套路径文件应存在。")
+	assert_eq(int(_storage.load_data("nested/test_nested.json").get("value")), 7, "嵌套路径数据应可读取。")
+
+
+func test_absolute_path_can_be_rejected_to_save_directory() -> void:
+	_storage.allow_absolute_paths = false
+
+	var path := _storage._get_full_path("C:/outside/save.json")
+
+	assert_eq(path, "user://test_saves/save.json", "禁用绝对路径后应收敛到存档目录同名文件。")
+	assert_push_error("[GFStorageUtility] 已禁用绝对路径：C:/outside/save.json")
 
 
 func test_save_and_load_resource() -> void:

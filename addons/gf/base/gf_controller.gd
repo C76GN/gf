@@ -126,6 +126,25 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 		architecture.unregister_event(event_type, callback)
 
 
+## 注册可赋值类型事件监听器。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_assignable_event_owned(self, base_event_type, callback, priority)
+
+
+## 注销可赋值类型事件监听器。
+## @param base_event_type: 注册时使用的基类脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.unregister_assignable_event(base_event_type, callback)
+
+
 ## 通过事件系统发送类型事件。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:

@@ -51,6 +51,31 @@ func test_unregister_command() -> void:
 	assert_false(_console._commands.has("temp_cmd"), "注销后命令应被移除。")
 
 
+func test_get_command_names_returns_sorted_names() -> void:
+	var cb := func(_args: PackedStringArray) -> void:
+		pass
+
+	_console.register_command("zeta", cb, "Z。")
+	_console.register_command("alpha", cb, "A。")
+	var names := _console.get_command_names()
+
+	assert_true(names.find("alpha") < names.find("zeta"), "命令名应按字典序返回。")
+
+
+func test_suggest_commands_filters_by_prefix() -> void:
+	var cb := func(_args: PackedStringArray) -> void:
+		pass
+
+	_console.register_command("teleport", cb, "传送。")
+	_console.register_command("time_scale", cb, "时间。")
+	_console.register_command("spawn", cb, "生成。")
+	var suggestions := _console.suggest_commands("t")
+
+	assert_true(suggestions.has("teleport"), "前缀匹配应返回 teleport。")
+	assert_true(suggestions.has("time_scale"), "前缀匹配应返回 time_scale。")
+	assert_false(suggestions.has("spawn"), "不匹配前缀的命令不应返回。")
+
+
 func test_execute_command_calls_callback() -> void:
 	var called := {"count": 0}
 	var cb := func(_args: PackedStringArray) -> void:

@@ -83,11 +83,26 @@ func _exit_tree() -> void:
 func _ensure_autoload() -> void:
 	if not ProjectSettings.has_setting("autoload/%s" % AUTOLOAD_NAME):
 		add_autoload_singleton(AUTOLOAD_NAME, AUTOLOAD_PATH)
+	elif not _autoload_points_to_gf():
+		push_warning("[GFPlugin] 已存在名为 Gf 的 AutoLoad，且目标不是 GF Framework；插件不会覆盖该设置。")
 
 
 func _remove_autoload() -> void:
-	if ProjectSettings.has_setting("autoload/%s" % AUTOLOAD_NAME):
+	if ProjectSettings.has_setting("autoload/%s" % AUTOLOAD_NAME) and _autoload_points_to_gf():
 		remove_autoload_singleton(AUTOLOAD_NAME)
+
+
+func _autoload_points_to_gf() -> bool:
+	var setting_path := "autoload/%s" % AUTOLOAD_NAME
+	var raw_value: Variant = ProjectSettings.get_setting(setting_path, "")
+	var autoload_value := String(raw_value).trim_prefix("*")
+	if autoload_value == AUTOLOAD_PATH:
+		return true
+
+	var uid := ResourceLoader.get_resource_uid(AUTOLOAD_PATH)
+	if uid == -1:
+		return false
+	return autoload_value == ResourceUID.id_to_text(uid)
 
 
 func _ensure_installers_setting() -> void:

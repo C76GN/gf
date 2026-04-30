@@ -225,6 +225,20 @@ func test_undo_last_empty_stack_returns_false() -> void:
 	assert_false(result, "空栈时 undo_last 应返回 false。")
 
 
+## 验证同步 undo 遇到异步命令时会回滚撤销栈并提示使用异步接口。
+func test_undo_last_rejects_async_command_and_restores_stack() -> void:
+	var cmd := ManualAsyncCommand.new()
+	_history.record(cmd)
+
+	var result: bool = _history.undo_last()
+
+	assert_false(result, "同步 undo_last 不应接受异步命令。")
+	assert_true(cmd.undo_called, "同步 undo_last 应调用命令以识别返回值。")
+	assert_eq(_history.undo_count, 1, "异步命令被拒绝后应放回撤销栈。")
+	assert_eq(_history.redo_count, 0, "异步命令被拒绝后不应进入重做栈。")
+	assert_push_warning("[GFCommandHistoryUtility] undo_last() 不支持异步命令，请使用 await undo_last_async()。")
+
+
 # --- 测试：redo ---
 
 ## 验证 redo 重新执行被撤销的命令。
@@ -258,6 +272,21 @@ func test_redo_moves_back_to_undo_stack() -> void:
 func test_redo_empty_stack_returns_false() -> void:
 	var result: bool = _history.redo()
 	assert_false(result, "空栈时 redo 应返回 false。")
+
+
+## 验证同步 redo 遇到异步命令时会回滚重做栈并提示使用异步接口。
+func test_redo_rejects_async_command_and_restores_stack() -> void:
+	var counter := {"value": 0}
+	var cmd := AsyncCounterCommand.new(counter, 5, 0)
+	_history.record(cmd)
+	await _history.undo_last_async()
+
+	var result: bool = _history.redo()
+
+	assert_false(result, "同步 redo 不应接受异步命令。")
+	assert_eq(_history.undo_count, 0, "异步 redo 被拒绝后不应进入撤销栈。")
+	assert_eq(_history.redo_count, 1, "异步 redo 被拒绝后应放回重做栈。")
+	assert_push_warning("[GFCommandHistoryUtility] redo() 不支持异步命令，请使用 await redo_async()。")
 
 
 ## 验证 undo_last_async 会等待异步撤销命令完成后再移动到重做栈。

@@ -191,6 +191,27 @@ func test_pending_load_rejects_same_path_with_different_type_hint() -> void:
 	assert_eq((_utility as TrackingAssetUtility).requested_type_hints, ["Resource"], "同一路径冲突请求不应重复发起 threaded request。")
 
 
+func test_pending_load_allows_empty_type_hint_with_strong_type_hint() -> void:
+	_utility = CompletingAssetUtility.new()
+	_utility.init()
+	var completing := _utility as CompletingAssetUtility
+	var results: Array = []
+
+	_utility.load_async("res://compatible_path.tres", func(res: Resource) -> void:
+		results.append({ "generic": res })
+	)
+	var packed_callback := func(res: Resource) -> void:
+		results.append({ "packed": res })
+	_utility.load_async("res://compatible_path.tres", packed_callback, "PackedScene")
+	completing.complete = true
+	_utility.tick()
+
+	assert_eq(completing.requested_count, 1, "兼容 type_hint 的并发请求不应重复发起 threaded request。")
+	assert_eq(results.size(), 2, "兼容 type_hint 的并发请求应保留各自回调。")
+	assert_eq((results[0] as Dictionary).get("generic"), completing.loaded_resource, "空 type_hint 回调应收到加载资源。")
+	assert_null((results[1] as Dictionary).get("packed"), "强 type_hint 回调应按自身类型要求校验资源。")
+
+
 func test_failed_load_notifies_callback_with_null() -> void:
 	_utility = FailingAssetUtility.new()
 	_utility.init()

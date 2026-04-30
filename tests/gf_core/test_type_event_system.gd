@@ -28,6 +28,10 @@ class TestEventB:
 	pass
 
 
+class TestEventChild extends TestEventA:
+	pass
+
+
 class SimpleReceiver:
 	var payload: Variant = null
 
@@ -48,6 +52,77 @@ func test_register_and_send() -> void:
 	_system.send(evt)
 
 	assert_eq(state.value, 42, "回调应接收到事件并读取 value。")
+
+
+## 验证普通类型事件保持精确脚本匹配。
+func test_exact_listener_does_not_receive_child_event() -> void:
+	var state := {"count": 0}
+	_system.register(TestEventA, func(_e: TestEventA) -> void:
+		state.count += 1
+	)
+
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.count, 0, "普通 register 应保持精确类型匹配。")
+
+
+## 验证可赋值类型监听能收到子类事件。
+func test_assignable_listener_receives_child_event() -> void:
+	var state := {"count": 0}
+	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+		state.count += 1
+	)
+
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.count, 1, "register_assignable 应接收继承自基类的事件。")
+
+
+## 验证可赋值类型监听可注销。
+func test_unregister_assignable_listener() -> void:
+	var state := {"count": 0}
+	var callback := func(_e: TestEventA) -> void:
+		state.count += 1
+	_system.register_assignable(TestEventA, callback)
+	_system.unregister_assignable(TestEventA, callback)
+
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.count, 0, "unregister_assignable 后不应再收到子类事件。")
+
+
+## 验证 owner 注销会移除可赋值类型监听。
+func test_unregister_owner_removes_assignable_listeners() -> void:
+	var listener_owner := RefCounted.new()
+	var state := {"count": 0}
+	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+		state.count += 1
+	, 0, listener_owner)
+
+	_system.send(TestEventChild.new())
+	_system.unregister_owner(listener_owner)
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.count, 1, "owner 注销后可赋值类型监听不应继续触发。")
+
+
+## 验证诊断统计会报告各事件轨道监听数量。
+func test_debug_stats_reports_listener_counts() -> void:
+	_system.register(TestEventA, func(_e: TestEventA) -> void:
+		pass
+	)
+	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+		pass
+	)
+	_system.register_simple(&"debug_simple", func(_payload: Variant) -> void:
+		pass
+	)
+
+	var stats := _system.get_debug_stats()
+
+	assert_eq(_sum_listener_counts(stats.get("type_events", {})), 1, "诊断统计应包含精确类型监听数量。")
+	assert_eq(_sum_listener_counts(stats.get("assignable_type_events", {})), 1, "诊断统计应包含可赋值类型监听数量。")
+	assert_eq(_sum_listener_counts(stats.get("simple_events", {})), 1, "诊断统计应包含简单事件监听数量。")
 
 
 ## 验证 unregister 后，send 不再调用该回调。
@@ -504,3 +579,11 @@ func test_register_then_unregister_during_dispatch_does_not_leave_listener() -> 
 	_system.send(TestEventA.new())
 
 	assert_eq(state.count, 2, "同一轮派发中先注册再注销的类型事件回调不应残留到下一次派发。")
+
+
+func _sum_listener_counts(value: Variant) -> int:
+	var listeners := value as Dictionary
+	var total := 0
+	for count: Variant in listeners.values():
+		total += int(count)
+	return total

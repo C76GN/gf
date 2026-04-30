@@ -54,6 +54,12 @@ var strict_integrity: bool = true
 ## 是否写入 `_meta.version`、`_meta.timestamp` 等通用元信息。
 var include_storage_metadata: bool = false
 
+## 是否允许传入绝对路径。关闭后绝对路径会被收敛到存档目录下的同名文件。
+var allow_absolute_paths: bool = true
+
+## 写入嵌套相对路径时是否自动创建目录。
+var create_directories_for_nested_paths: bool = true
+
 ## 当前存档数据版本。小于 1 会被钳制为 1。
 var save_version: int = 1:
 	set(value):
@@ -85,6 +91,9 @@ func init() -> void:
 func save_resource(file_name: String, resource: Resource) -> Error:
 	init()
 	var path := _get_full_path(file_name)
+	var dir_error := _ensure_parent_directory(path)
+	if dir_error != OK:
+		return dir_error
 	return ResourceSaver.save(resource, path)
 
 
@@ -267,7 +276,10 @@ func _get_save_base_path() -> String:
 
 func _get_full_path(file_name: String) -> String:
 	if file_name.is_absolute_path():
-		return file_name
+		if allow_absolute_paths:
+			return file_name
+		push_error("[GFStorageUtility] 已禁用绝对路径：%s" % file_name)
+		file_name = file_name.get_file()
 
 	if save_dir_name.is_empty():
 		return "user://" + file_name
@@ -541,6 +553,9 @@ func _move_file(from_path: String, to_path: String) -> Error:
 
 func _write_json(file_name: String, data: Dictionary) -> Error:
 	var path := _get_full_path(file_name)
+	var dir_error := _ensure_parent_directory(path)
+	if dir_error != OK:
+		return dir_error
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		push_error("[GFStorageUtility] 无法写入文件：%s，错误码：%s" % [path, FileAccess.get_open_error()])
@@ -554,6 +569,9 @@ func _write_json(file_name: String, data: Dictionary) -> Error:
 
 func _write_plain_json(file_name: String, data: Dictionary) -> Error:
 	var path := _get_full_path(file_name)
+	var dir_error := _ensure_parent_directory(path)
+	if dir_error != OK:
+		return dir_error
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		push_error("[GFStorageUtility] 无法写入文件：%s，错误码：%s" % [path, FileAccess.get_open_error()])
@@ -562,6 +580,22 @@ func _write_plain_json(file_name: String, data: Dictionary) -> Error:
 	file.store_string(JSON.stringify(data, "\t"))
 	file.close()
 	return OK
+
+
+func _ensure_parent_directory(path: String) -> Error:
+	if not create_directories_for_nested_paths:
+		return OK
+
+	var base_dir := path.get_base_dir()
+	if base_dir.is_empty() or base_dir == "user://":
+		return OK
+	if DirAccess.dir_exists_absolute(base_dir):
+		return OK
+
+	var error := DirAccess.make_dir_recursive_absolute(base_dir)
+	if error != OK:
+		push_error("[GFStorageUtility] 无法创建目录：%s，错误码：%s" % [base_dir, error])
+	return error
 
 
 func _read_json(file_name: String) -> Dictionary:

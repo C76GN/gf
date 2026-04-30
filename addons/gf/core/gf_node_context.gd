@@ -12,6 +12,10 @@ extends Node
 ## @param architecture: 当前上下文使用的架构实例。
 signal context_ready(architecture: GFArchitecture)
 
+## 当上下文无法继续等待或初始化时发出。
+## @param reason: 失败原因。
+signal context_failed(reason: String)
+
 
 # --- 枚举 ---
 
@@ -35,6 +39,9 @@ enum ScopeMode {
 ## 是否由该节点驱动 Scoped 架构的 tick 与 physics_tick。
 @export var process_scoped_ticks: bool = true
 
+## 等待父级架构或当前上下文 ready 的超时时间。小于等于 0 时禁用超时。
+@export var context_wait_timeout_seconds: float = 30.0
+
 
 # --- 公共变量 ---
 
@@ -57,7 +64,9 @@ func _enter_tree() -> void:
 	_setup_architecture()
 	if _owns_architecture:
 		var context_architecture := _architecture
-		await _wait_for_parent_architecture_ready(context_architecture)
+		var parent_ready := await _wait_for_parent_architecture_ready(context_architecture)
+		if not parent_ready:
+			return
 		if not _is_owned_architecture_current(context_architecture):
 			return
 		await install(context_architecture)
@@ -119,11 +128,16 @@ func is_context_ready() -> bool:
 ## 等待上下文架构完成初始化并返回该架构。
 ## @return 当前上下文架构；上下文失效时返回 null。
 func wait_until_ready() -> GFArchitecture:
+	var start_msec := Time.get_ticks_msec()
 	while _architecture != null and not _architecture.is_inited():
 		if not is_inside_tree():
 			return null
 		var waiting_architecture := _architecture
-		await waiting_architecture.initialization_finished
+		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待上下文初始化超时。")
+		if not timeout_reason.is_empty():
+			_fail_context(timeout_reason)
+			return null
+		await get_tree().process_frame
 		if _architecture != waiting_architecture:
 			return null
 
@@ -201,21 +215,27 @@ func _initialize_owned_architecture(architecture_instance: GFArchitecture = null
 		context_ready.emit(initializing_architecture)
 
 
-func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture = null) -> void:
+func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture = null) -> bool:
 	var scoped_architecture := architecture_instance
 	if scoped_architecture == null:
 		scoped_architecture = _architecture
 	if scoped_architecture == null:
-		return
+		return true
 
 	var parent_architecture := scoped_architecture.get_parent_architecture()
+	var start_msec := Time.get_ticks_msec()
 	while parent_architecture != null and not parent_architecture.is_inited():
 		if not _is_owned_architecture_current(scoped_architecture):
-			return
-		await parent_architecture.initialization_finished
+			return false
+		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待父级架构初始化超时。")
+		if not timeout_reason.is_empty():
+			_fail_context(timeout_reason)
+			return false
+		await get_tree().process_frame
 		if not _is_owned_architecture_current(scoped_architecture):
-			return
+			return false
 		parent_architecture = scoped_architecture.get_parent_architecture()
+	return true
 
 
 func _find_parent_architecture() -> GFArchitecture:
@@ -237,6 +257,22 @@ func _should_tick_owned_architecture() -> bool:
 		and _owns_architecture
 		and _architecture != null
 	)
+
+
+func _get_wait_timeout_reason(start_msec: int, reason: String) -> String:
+	if context_wait_timeout_seconds <= 0.0:
+		return ""
+	var elapsed_msec := Time.get_ticks_msec() - start_msec
+	if elapsed_msec >= int(context_wait_timeout_seconds * 1000.0):
+		return reason
+	return ""
+
+
+func _fail_context(reason: String) -> void:
+	if reason.is_empty():
+		return
+	push_warning("[GFNodeContext] %s" % reason)
+	context_failed.emit(reason)
 
 
 func _is_owned_architecture_current(architecture_instance: GFArchitecture) -> bool:

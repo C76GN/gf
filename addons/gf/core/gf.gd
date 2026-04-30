@@ -279,11 +279,34 @@ func listen_owned(listener_owner: Object, event_type: Script, on_event: Callable
 	if arch != null:
 		arch.register_event_owned(listener_owner, event_type, on_event, priority)
 
+## 快捷注册可赋值类型事件监听。
+func listen_assignable(base_event_type: Script, on_event: Callable, priority: int = 0) -> void:
+	var arch := _get_architecture_or_null("listen_assignable")
+	if arch != null:
+		arch.register_assignable_event(base_event_type, on_event, priority)
+
+## 快捷注册带拥有者的可赋值类型事件监听。
+func listen_assignable_owned(
+	listener_owner: Object,
+	base_event_type: Script,
+	on_event: Callable,
+	priority: int = 0
+) -> void:
+	var arch := _get_architecture_or_null("listen_assignable_owned")
+	if arch != null:
+		arch.register_assignable_event_owned(listener_owner, base_event_type, on_event, priority)
+
 ## 快捷注销类型事件监听（别名：unlisten）。
 func unlisten(event_type: Script, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("unlisten")
 	if arch != null:
 		arch.unregister_event(event_type, on_event)
+
+## 快捷注销可赋值类型事件监听。
+func unlisten_assignable(base_event_type: Script, on_event: Callable) -> void:
+	var arch := _get_architecture_or_null("unlisten_assignable")
+	if arch != null:
+		arch.unregister_assignable_event(base_event_type, on_event)
 
 ## 快捷注册轻量事件监听（别名：listen_simple）。
 func listen_simple(event_id: StringName, on_event: Callable) -> void:

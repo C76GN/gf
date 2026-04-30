@@ -66,6 +66,18 @@ func test_signal_parameters_are_correct() -> void:
 	assert_eq(params[1], 99, "new_value 应为变化后的值 99。")
 
 
+## 验证 force_emit 可在引用类型原地变更后主动广播。
+func test_force_emit_broadcasts_current_value() -> void:
+	var prop := BindableProperty.new({ "hp": 10 })
+	watch_signals(prop)
+
+	var value := prop.get_value() as Dictionary
+	value["hp"] = 5
+	prop.force_emit()
+
+	assert_signal_emitted_with_parameters(prop, "value_changed", [value, value])
+
+
 # --- 测试：unbind_all ---
 
 ## 验证 unbind_all 后，修改值不再调用已断开的回调。
@@ -115,6 +127,29 @@ func test_unbind_all_removes_tree_exited_helper_connections() -> void:
 
 	_prop.unbind_all()
 	assert_eq(node.tree_exited.get_connections().size(), 0, "unbind_all 后不应残留 tree_exited 自动解绑监听。")
+
+
+## 验证 unbind 只移除指定节点与回调，不影响其他监听者。
+func test_unbind_removes_single_node_binding_only() -> void:
+	var first_count := {"value": 0}
+	var second_count := {"value": 0}
+	var first_node := Node.new()
+	var second_node := Node.new()
+	var first_callback := func(_o: Variant, _n: Variant) -> void:
+		first_count.value += 1
+	var second_callback := func(_o: Variant, _n: Variant) -> void:
+		second_count.value += 1
+	add_child_autofree(first_node)
+	add_child_autofree(second_node)
+
+	_prop.bind_to(first_node, first_callback)
+	_prop.bind_to(second_node, second_callback)
+	_prop.unbind(first_node, first_callback)
+	_prop.set_value(1)
+
+	assert_eq(first_count.value, 0, "被 unbind 的回调不应再触发。")
+	assert_eq(second_count.value, 1, "其他节点绑定不应受影响。")
+	assert_eq(first_node.tree_exited.get_connections().size(), 0, "指定节点的 tree_exited 辅助连接应被清理。")
 
 
 # --- 测试：bind_to (Task 4) ---

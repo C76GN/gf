@@ -43,6 +43,12 @@ const HOOK_ON_ACQUIRE: StringName = &"on_gf_pool_acquire"
 ## 每个 PackedScene 最多保留的可用节点数量。为 0 时不限制。
 var max_available_per_scene: int = 0
 
+## 是否递归管理子节点的 process_mode、visible 与 disabled 状态。
+var manage_descendant_active_state: bool = true
+
+## 是否在 acquire/release/count 等高频操作前立即清理失效节点。
+var prune_invalid_on_each_operation: bool = true
+
 
 # --- 私有变量 ---
 
@@ -54,6 +60,7 @@ var _all_nodes: Dictionary = {}
 var _available_pools: Dictionary = {}
 var _lifecycle_serial: int = 0
 var _pool_root: Node = null
+var _is_disposed: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -61,6 +68,7 @@ var _pool_root: Node = null
 ## 第一阶段初始化：清空内部池字典。
 func init() -> void:
 	_lifecycle_serial += 1
+	_is_disposed = false
 	if is_instance_valid(_pool_root):
 		_pool_root.queue_free()
 	_all_nodes = {}
@@ -71,6 +79,7 @@ func init() -> void:
 ## 销毁阶段：释放所有池中的节点。
 func dispose() -> void:
 	_lifecycle_serial += 1
+	_is_disposed = true
 	for scene in _all_nodes:
 		var pool: Array = _all_nodes[scene]
 		for node in pool:
@@ -90,6 +99,9 @@ func dispose() -> void:
 ## @param parent: 新实例化的节点将被加入此父节点（释放节点不会改变父节点）。
 ## @return 可直接使用的节点实例。
 func acquire(scene: PackedScene, parent: Node) -> Node:
+	if _is_disposed:
+		push_warning("[GFObjectPoolUtility] 对象池已销毁，忽略 acquire。")
+		return null
 	if not is_instance_valid(scene):
 		push_error("[GFObjectPoolUtility] 传入了无效的 PackedScene。")
 		return null
@@ -98,7 +110,7 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 		_available_pools[scene] = []
 		_all_nodes[scene] = []
 
-	_prune_invalid_scene_nodes(scene)
+	_prune_invalid_scene_nodes_if_needed(scene)
 
 	var available_pool: Array = _available_pools[scene]
 
@@ -137,6 +149,9 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 ## @param node: 要归还的节点实例（必须由此工具创建）。
 ## @param scene: 该节点所属的 PackedScene 资源，用于匹配正确的池。
 func release(node: Node, scene: PackedScene) -> void:
+	if _is_disposed:
+		push_warning("[GFObjectPoolUtility] 对象池已销毁，忽略 release。")
+		return
 	if not is_instance_valid(node):
 		return
 
@@ -148,7 +163,7 @@ func release(node: Node, scene: PackedScene) -> void:
 		push_warning("[GFObjectPoolUtility] release 失败：节点未记录所属 PackedScene。")
 		return
 
-	_prune_invalid_scene_nodes(owner_scene)
+	_prune_invalid_scene_nodes_if_needed(owner_scene)
 
 	if not _all_nodes.has(owner_scene) or not (_all_nodes[owner_scene] as Array).has(node):
 		push_warning("[GFObjectPoolUtility] release 失败：节点不属于当前对象池。")
@@ -176,6 +191,9 @@ func release(node: Node, scene: PackedScene) -> void:
 ## @param parent: 预热节点将加入此父节点。
 ## @param count: 预热的数量。
 func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
+	if _is_disposed:
+		push_warning("[GFObjectPoolUtility] 对象池已销毁，忽略 prewarm。")
+		return
 	if not _ensure_scene_pool(scene):
 		return
 	if count <= 0:
@@ -192,6 +210,9 @@ func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 ## @param count: 预热的数量。
 ## @param batch_size: 每帧最多实例化数量；小于等于 0 时退化为同步预热。
 func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int = 32) -> void:
+	if _is_disposed:
+		push_warning("[GFObjectPoolUtility] 对象池已销毁，忽略 prewarm_async。")
+		return
 	if not _ensure_scene_pool(scene):
 		return
 	if count <= 0:
@@ -224,13 +245,57 @@ func get_available_count(scene: PackedScene) -> int:
 	if not _available_pools.has(scene):
 		return 0
 
-	_prune_invalid_scene_nodes(scene)
+	_prune_invalid_scene_nodes_if_needed(scene)
 
 	var count: int = 0
 	for item in _available_pools[scene]:
 		if is_instance_valid(item) and not item.is_queued_for_deletion():
 			count += 1
 	return count
+
+
+## 获取指定场景当前正在使用中的节点数量。
+## @param scene: 要查询的 PackedScene 资源。
+## @return 当前激活节点数量。
+func get_active_count(scene: PackedScene) -> int:
+	return get_active_nodes(scene).size()
+
+
+## 获取指定场景当前正在使用中的节点列表。
+## @param scene: 要查询的 PackedScene 资源。
+## @return 当前激活节点数组。
+func get_active_nodes(scene: PackedScene) -> Array[Node]:
+	var result: Array[Node] = []
+	if not _all_nodes.has(scene):
+		return result
+
+	_prune_invalid_scene_nodes_if_needed(scene)
+	for item in _all_nodes[scene]:
+		var node := item as Node
+		if is_instance_valid(node) and bool(node.get_meta(_META_ACTIVE, false)):
+			result.append(node)
+	return result
+
+
+## 主动清理全部池中的失效节点引用。
+func prune_invalid_nodes() -> void:
+	for scene: PackedScene in _all_nodes.keys():
+		_prune_invalid_scene_nodes(scene)
+
+
+## 获取对象池诊断快照。
+## @return 以资源路径或实例 ID 为键的池状态字典。
+func get_debug_snapshot() -> Dictionary:
+	prune_invalid_nodes()
+	var snapshot: Dictionary = {}
+	for scene: PackedScene in _all_nodes.keys():
+		var key := _get_scene_debug_key(scene)
+		snapshot[key] = {
+			"total": (_all_nodes[scene] as Array).size(),
+			"available": get_available_count(scene),
+			"active": get_active_count(scene),
+		}
+	return snapshot
 
 
 # --- 私有/辅助方法 ---
@@ -250,7 +315,7 @@ func _ensure_scene_pool(scene: PackedScene) -> bool:
 		_available_pools[scene] = []
 		_all_nodes[scene] = []
 
-	_prune_invalid_scene_nodes(scene)
+	_prune_invalid_scene_nodes_if_needed(scene)
 	return true
 
 
@@ -317,6 +382,8 @@ func _prepare_node_for_pool(node: Node) -> void:
 
 func _set_node_tree_active_state(node: Node, active: bool) -> void:
 	_set_node_active_state(node, active)
+	if not manage_descendant_active_state:
+		return
 	for child: Node in node.get_children():
 		_set_node_tree_active_state(child, active)
 
@@ -386,3 +453,16 @@ func _prune_invalid_scene_nodes(scene: PackedScene) -> void:
 			var node_variant: Variant = available_pool[i]
 			if not is_instance_valid(node_variant) or node_variant.is_queued_for_deletion():
 				available_pool.remove_at(i)
+
+
+func _prune_invalid_scene_nodes_if_needed(scene: PackedScene) -> void:
+	if prune_invalid_on_each_operation:
+		_prune_invalid_scene_nodes(scene)
+
+
+func _get_scene_debug_key(scene: PackedScene) -> String:
+	if scene == null:
+		return ""
+	if not scene.resource_path.is_empty():
+		return scene.resource_path
+	return "PackedScene:%d" % scene.get_instance_id()

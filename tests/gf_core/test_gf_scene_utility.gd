@@ -92,23 +92,13 @@ func test_unmark_transient() -> void:
 
 
 func test_failed_load_restores_previous_scene_after_loading_scene() -> void:
-	var original_scene_path := _scene_util.current_scene_path
 	var loading_scene_path := "res://addons/gut/gui/NormalGui.tscn"
 
 	_scene_util.load_scene_async("res://icon.svg", loading_scene_path)
 
-	for _i in range(120):
-		_scene_util.tick(0.0)
-		if not _scene_util._is_loading:
-			break
-		await get_tree().process_frame
-
-	assert_push_error("[GFSceneUtility] 异步加载完成，但目标资源不是 PackedScene：res://icon.svg")
-	assert_false(_scene_util._is_loading, "加载失败后应退出 loading 状态。")
-	assert_eq(_scene_util.sync_scene_changes.size(), 2, "失败流程应先切到 loading scene，再恢复到原场景。")
-	assert_eq(_scene_util.sync_scene_changes[0], loading_scene_path, "第一步应切换到 loading scene。")
-	assert_eq(_scene_util.sync_scene_changes[1], original_scene_path, "失败后应恢复到原场景路径。")
-	assert_eq(_scene_util.current_scene_path, original_scene_path, "最终场景应恢复为原场景。")
+	assert_push_error("[GFSceneUtility] load_scene_async 失败：资源不是 PackedScene：res://icon.svg")
+	assert_false(_scene_util._is_loading, "前置校验失败后不应进入 loading 状态。")
+	assert_eq(_scene_util.sync_scene_changes.size(), 0, "前置校验失败不应切到 loading scene。")
 	assert_eq(_scene_util.packed_scene_changes, 0, "错误资源不应触发正式场景切换。")
 
 
@@ -120,13 +110,17 @@ func test_failed_load_preserves_transients() -> void:
 
 	scene_util.load_scene_async("res://icon.svg", "res://addons/gut/gui/NormalGui.tscn")
 
-	for _i in range(120):
-		scene_util.tick(0.0)
-		if not scene_util._is_loading:
-			break
-		await get_tree().process_frame
-
 	var arch: GFArchitecture = Gf.get_architecture()
 	assert_eq(arch.get_model(DummyModel), model, "异步切场失败后不应清理仍属于当前场景的瞬态 Model。")
 	assert_false(model.disposed, "异步切场失败不应触发瞬态 Model 的 dispose()。")
-	assert_push_error("[GFSceneUtility] 异步加载完成，但目标资源不是 PackedScene：res://icon.svg")
+	assert_push_error("[GFSceneUtility] load_scene_async 失败：资源不是 PackedScene：res://icon.svg")
+
+
+func test_empty_scene_path_fails_before_loading_state_changes() -> void:
+	watch_signals(_scene_util)
+
+	_scene_util.load_scene_async("")
+
+	assert_false(_scene_util._is_loading, "空路径不应进入 loading 状态。")
+	assert_signal_emitted(_scene_util, "scene_load_failed", "前置校验失败仍应发出失败信号。")
+	assert_push_error("[GFSceneUtility] load_scene_async 失败：path 为空。")

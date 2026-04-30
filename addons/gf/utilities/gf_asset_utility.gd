@@ -77,7 +77,7 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 	if _pending.has(path):
 		var pending_request := _pending[path] as Dictionary
 		var pending_type_hint := String(pending_request.get("type_hint", ""))
-		if pending_type_hint != type_hint:
+		if not _pending_type_hints_are_compatible(pending_type_hint, type_hint):
 			push_warning("[GFAssetUtility] 已存在相同路径但 type_hint 不同的加载请求，已拒绝新请求：%s (%s -> %s)" % [path, pending_type_hint, type_hint])
 			on_loaded.call(null)
 			return
@@ -86,8 +86,8 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 		if bool(pending_request.get("cancelled", false)):
 			callbacks.clear()
 			pending_request["cancelled"] = false
-		if not callbacks.has(on_loaded):
-			callbacks.append(on_loaded)
+		if not _callback_entries_have_callable(callbacks, on_loaded):
+			callbacks.append(_make_callback_entry(on_loaded, type_hint))
 		return
 
 	var error := _request_threaded(path, type_hint)
@@ -98,7 +98,7 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 
 	_pending[path] = {
 		"type_hint": type_hint,
-		"callbacks": [on_loaded],
+		"callbacks": [_make_callback_entry(on_loaded, type_hint)],
 		"cancelled": false,
 	}
 
@@ -231,13 +231,46 @@ func _poll_pending() -> void:
 
 
 func _dispatch_callbacks(callbacks: Array, resource: Resource) -> void:
-	for callback: Callable in callbacks:
+	for callback_entry: Variant in callbacks:
+		var entry := callback_entry as Dictionary
+		var callback: Callable = Callable()
+		var type_hint := ""
+		if entry != null:
+			callback = entry.get("callable", Callable())
+			type_hint = String(entry.get("type_hint", ""))
+		elif callback_entry is Callable:
+			callback = callback_entry as Callable
 		if callback.is_valid():
-			callback.call(resource)
+			callback.call(resource if resource == null or _is_resource_compatible(resource, type_hint) else null)
 
 
 func _is_resource_compatible(resource: Resource, type_hint: String) -> bool:
 	return type_hint.is_empty() or resource.is_class(type_hint)
+
+
+func _pending_type_hints_are_compatible(pending_type_hint: String, requested_type_hint: String) -> bool:
+	return (
+		pending_type_hint == requested_type_hint
+		or pending_type_hint.is_empty()
+		or requested_type_hint.is_empty()
+	)
+
+
+func _make_callback_entry(callback: Callable, type_hint: String) -> Dictionary:
+	return {
+		"callable": callback,
+		"type_hint": type_hint,
+	}
+
+
+func _callback_entries_have_callable(callbacks: Array, callback: Callable) -> bool:
+	for callback_entry: Variant in callbacks:
+		var entry := callback_entry as Dictionary
+		if entry != null and entry.get("callable", Callable()) == callback:
+			return true
+		if callback_entry is Callable and callback_entry == callback:
+			return true
+	return false
 
 
 func _touch_cache(path: String) -> void:

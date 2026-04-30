@@ -253,6 +253,12 @@ class DummyQuery extends GFQuery:
 	func execute() -> Variant:
 		return "query_success"
 
+class BaseArchitectureEvent extends RefCounted:
+	pass
+
+class ChildArchitectureEvent extends BaseArchitectureEvent:
+	pass
+
 class FactoryNode extends Node:
 	pass
 
@@ -744,6 +750,27 @@ func test_inherited_context_waits_for_parent_architecture_init() -> void:
 	await get_tree().process_frame
 
 
+## 验证等待上下文 ready 时可通过超时失败退出。
+func test_context_wait_until_ready_times_out_when_parent_never_initializes() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = GFArchitecture.new()
+
+	var context := InheritedContext.new()
+	context.context_wait_timeout_seconds = 0.01
+	add_child(context)
+	watch_signals(context)
+
+	var architecture := await context.wait_until_ready()
+
+	assert_null(architecture, "父架构一直未初始化时，wait_until_ready 应在超时后返回 null。")
+	assert_signal_emitted(context, "context_failed", "等待超时应发出 context_failed。")
+	assert_push_warning("[GFNodeContext] 等待上下文初始化超时。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
 ## 验证子 Scoped NodeContext 初始化前会等待父 Scoped 架构 ready。
 func test_child_scoped_context_waits_for_parent_scoped_context_ready() -> void:
 	if Gf.has_architecture():
@@ -892,6 +919,54 @@ func test_unregister_utility_removes_owned_event_listeners() -> void:
 	arch.send_simple_event(&"owned_event")
 
 	assert_eq(utility.event_count, 1, "Utility 注销后不应继续收到 owner-bound 事件。")
+	arch.dispose()
+
+
+## 验证架构可赋值事件监听会接收子类事件。
+func test_architecture_assignable_event_listener_receives_child_event() -> void:
+	var arch := GFArchitecture.new()
+	var state := {"count": 0}
+	arch.register_assignable_event(BaseArchitectureEvent, func(_event: BaseArchitectureEvent) -> void:
+		state.count += 1
+	)
+
+	arch.send_event(ChildArchitectureEvent.new())
+
+	assert_eq(state.count, 1, "架构可赋值事件监听应接收子类事件。")
+	arch.dispose()
+
+
+## 验证架构诊断快照会报告模块生命周期与工厂绑定状态。
+func test_architecture_debug_lifecycle_state_reports_modules_and_factories() -> void:
+	var arch := GFArchitecture.new()
+	var utility := TickUtility.new()
+	await arch.register_utility_instance(utility)
+	arch.register_factory(
+		FactoryCommand,
+		func() -> Object:
+			return FactoryCommand.new(),
+		GFBindingLifetimes.Lifetime.SINGLETON
+	)
+
+	var before_init := arch.get_debug_lifecycle_state()
+	var before_utilities := before_init.get("utilities", {}) as Dictionary
+	var before_utility_entry := before_utilities.values()[0] as Dictionary
+
+	assert_false(bool(before_init.get("inited", true)), "初始化前诊断快照应报告未初始化。")
+	assert_eq(int(before_utility_entry.get("stage")), 0, "初始化前模块应停留在 registered 阶段。")
+
+	await arch.init()
+	var after_init := arch.get_debug_lifecycle_state()
+	var after_utilities := after_init.get("utilities", {}) as Dictionary
+	var after_factories := after_init.get("factories", {}) as Dictionary
+	var after_utility_entry := after_utilities.values()[0] as Dictionary
+	var factory_entry := after_factories.values()[0] as Dictionary
+
+	assert_true(bool(after_init.get("inited", false)), "初始化后诊断快照应报告已初始化。")
+	assert_eq(int(after_utility_entry.get("stage")), 3, "初始化后模块应进入 ready 阶段。")
+	assert_true(bool(after_utility_entry.get("has_tick", false)), "诊断快照应报告 tick 能力。")
+	assert_eq(int(factory_entry.get("lifetime")), GFBindingLifetimes.Lifetime.SINGLETON, "诊断快照应报告工厂生命周期。")
+
 	arch.dispose()
 
 

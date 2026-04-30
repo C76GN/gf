@@ -289,11 +289,41 @@ func register_event_owned(owner: Object, event_type: Script, on_event: Callable,
 	_event_system.register(event_type, on_event, priority, owner)
 
 
+## 为脚本类型注册可赋值事件监听器。
+## 监听基类事件时，也会收到继承自该脚本类型的事件实例。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param on_event: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_assignable_event(base_event_type: Script, on_event: Callable, priority: int = 0) -> void:
+	_event_system.register_assignable(base_event_type, on_event, priority)
+
+
+## 为脚本类型注册带拥有者的可赋值事件监听器。
+## @param owner: 监听器拥有者。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param on_event: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_assignable_event_owned(
+	owner: Object,
+	base_event_type: Script,
+	on_event: Callable,
+	priority: int = 0
+) -> void:
+	_event_system.register_assignable(base_event_type, on_event, priority, owner)
+
+
 ## 为脚本类型注销事件监听器。
 ## @param event_type: 要注销的脚本类型。
 ## @param on_event: 要移除的回调函数。
 func unregister_event(event_type: Script, on_event: Callable) -> void:
 	_event_system.unregister(event_type, on_event)
+
+
+## 注销可赋值类型事件监听器。
+## @param base_event_type: 注册时使用的基类脚本类型。
+## @param on_event: 要移除的回调函数。
+func unregister_assignable_event(base_event_type: Script, on_event: Callable) -> void:
+	_event_system.unregister_assignable(base_event_type, on_event)
 
 
 ## 注册轻量级 StringName 事件监听器。
@@ -329,6 +359,12 @@ func unregister_owner_events(owner: Object) -> void:
 ## @param payload: 可选的事件附加数据。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	_event_system.send_simple(event_id, payload)
+
+
+## 获取事件系统诊断统计。
+## @return 包含各事件轨道监听数量与 pending 操作数量的字典。
+func get_event_debug_stats() -> Dictionary:
+	return _event_system.get_debug_stats()
 
 
 # --- 注册方法 ---
@@ -801,6 +837,30 @@ func restore_global_snapshot(data: Dictionary, command_builder: Callable = Calla
 				push_warning("[GFArchitecture] restore_global_snapshot：快照包含命令历史数据，但未提供有效的 command_builder，跳过历史恢复。")
 
 
+## 获取架构模块生命周期诊断快照。
+## @return 包含 Model、System、Utility、Factory、Alias 与 Tick 缓存状态的字典。
+func get_debug_lifecycle_state() -> Dictionary:
+	return {
+		"inited": _inited,
+		"is_initializing": _is_initializing,
+		"models": _collect_module_debug_state(_models),
+		"systems": _collect_module_debug_state(_systems),
+		"utilities": _collect_module_debug_state(_utilities),
+		"factories": _collect_factory_debug_state(),
+		"aliases": {
+			"models": _model_aliases.size(),
+			"systems": _system_aliases.size(),
+			"utilities": _utility_aliases.size(),
+		},
+		"tick": {
+			"systems": _tick_systems.size(),
+			"physics_systems": _physics_systems.size(),
+			"utilities": _tick_utilities.size(),
+			"physics_utilities": _physics_utilities.size(),
+		},
+	}
+
+
 # --- 私有/内部方法 ---
 
 func _reset_project_installers() -> void:
@@ -837,6 +897,87 @@ func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float) 
 	if ignores_time_scale:
 		return raw_delta
 	return scaled_delta
+
+
+func _collect_module_debug_state(registry: Dictionary) -> Dictionary:
+	var result: Dictionary = {}
+	for script_cls: Script in registry.keys():
+		var instance := registry[script_cls] as Object
+		var stage: int = _module_lifecycle_stages.get(instance, 0)
+		var ignores_pause: bool = (
+			instance != null
+			and "ignore_pause" in instance
+			and instance.get("ignore_pause") == true
+		)
+		var ignores_time_scale: bool = (
+			instance != null
+			and "ignore_time_scale" in instance
+			and instance.get("ignore_time_scale") == true
+		)
+		result[_get_script_debug_key(script_cls, instance)] = {
+			"stage": stage,
+			"stage_name": _get_lifecycle_stage_name(stage),
+			"ready": stage >= 3,
+			"has_tick": instance != null and instance.has_method("tick"),
+			"has_physics_tick": instance != null and instance.has_method("physics_tick"),
+			"ignore_pause": ignores_pause,
+			"ignore_time_scale": ignores_time_scale,
+		}
+	return result
+
+
+func _collect_factory_debug_state() -> Dictionary:
+	var result: Dictionary = {}
+	for script_cls: Script in _factories.keys():
+		var binding := _factories[script_cls] as Object
+		var lifetime := -1
+		if binding != null and "lifetime" in binding:
+			lifetime = int(binding.get("lifetime"))
+		result[_get_script_debug_key(script_cls)] = {
+			"lifetime": lifetime,
+			"lifetime_name": _get_binding_lifetime_name(lifetime),
+			"valid": binding != null,
+		}
+	return result
+
+
+func _get_lifecycle_stage_name(stage: int) -> String:
+	match stage:
+		0:
+			return "registered"
+		1:
+			return "init"
+		2:
+			return "async_init"
+		3:
+			return "ready"
+		_:
+			return "unknown"
+
+
+func _get_binding_lifetime_name(lifetime: int) -> String:
+	match lifetime:
+		GFBindingLifetimesBase.Lifetime.TRANSIENT:
+			return "transient"
+		GFBindingLifetimesBase.Lifetime.SINGLETON:
+			return "singleton"
+		_:
+			return "unknown"
+
+
+func _get_script_debug_key(script_cls: Script, instance: Object = null) -> String:
+	if script_cls != null:
+		var global_name: StringName = script_cls.get_global_name()
+		if global_name != &"":
+			return String(global_name)
+		if not script_cls.resource_path.is_empty():
+			return script_cls.resource_path
+	if instance != null:
+		var instance_script := instance.get_script() as Script
+		if instance_script != null and not instance_script.resource_path.is_empty():
+			return instance_script.resource_path
+		return "Instance:%d" % instance.get_instance_id()
+	return ""
 
 
 ## 从脚本类获取用于序列化的稳定字符串键。
