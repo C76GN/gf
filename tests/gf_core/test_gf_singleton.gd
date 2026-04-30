@@ -262,6 +262,10 @@ class DummyQuery extends GFQuery:
 	func execute() -> Variant:
 		return "query_success"
 
+class UtilityLookupQuery extends GFQuery:
+	func execute() -> Variant:
+		return get_utility(DummyUtility)
+
 class BaseArchitectureEvent extends RefCounted:
 	pass
 
@@ -335,6 +339,14 @@ func test_send_query_proxy() -> void:
 	var query := DummyQuery.new()
 	var result = Gf.send_query(query)
 	assert_eq(result, "query_success", "Gf.send_query 应当正确执行并返回结果")
+
+
+## 验证 GFQuery 基类可访问当前架构的 Utility。
+func test_query_can_get_utility_from_injected_architecture() -> void:
+	var query := UtilityLookupQuery.new()
+	var result := Gf.send_query(query) as DummyUtility
+
+	assert_eq(result, Gf.get_utility(DummyUtility), "GFQuery.get_utility 应当解析当前架构中的 Utility。")
 
 
 ## 验证文档推荐的 register_* -> init 启动流程可用

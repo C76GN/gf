@@ -16,6 +16,27 @@
 
 ---
 
+## [1.20.2] - 2026-04-30
+
+**版本概述**：补齐 `GFQuery` 的 Utility 依赖访问能力，让 Query 与 Command、Model、System、Utility 的基类访问 API 保持一致。
+
+### 🚀 新增特性 (Added)
+- **Query Utility 访问**：`GFQuery` 新增 `get_utility(utility_type: Script) -> Object`，查询对象可在架构注入后读取注册的 Utility。
+
+### 🔌 API 变动说明 (API Changes)
+- `GFQuery` 新增 `get_utility(utility_type: Script) -> Object`。
+
+### 📘 升级指南 (Migration Guide)
+1. 需要在 Query 内读取 Utility 时，可通过 `Gf.send_query()` 或 `create_instance()` 创建或执行 Query，以获得正确架构注入。
+2. Query 仍应保持只读语义，避免在 `execute()` 内通过 Utility 触发状态写入或副作用。
+
+### 📁 核心受影响文件 (Affected Files)
+- `ASSET_LIBRARY.md`
+- `addons/gf/plugin.cfg`
+- `addons/gf/base/gf_query.gd`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `tests/gf_core/test_gf_singleton.gd`
+
 ## [1.20.1] - 2026-04-30
 
 **版本概述**：补齐 `GFController` 的通用宿主节点绑定能力，统一 Controller 访问被控制场景节点的推荐方式，避免项目层把 Godot 编辑器 `owner` 误当作运行时宿主引用。

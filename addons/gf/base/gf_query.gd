@@ -46,6 +46,16 @@ func get_system(system_type: Script) -> Object:
 	return architecture.get_system(system_type)
 
 
+## 通过类型获取 Utility 实例。
+## @param utility_type: 工具的脚本类型。
+## @return 工具实例。
+func get_utility(utility_type: Script) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(utility_type)
+
+
 # --- 私有/辅助方法 ---
 
 func _get_architecture() -> GFArchitecture:
