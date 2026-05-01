@@ -96,6 +96,24 @@ func test_play_bgm_clip_applies_settings() -> void:
 	assert_almost_eq(_audio._bgm_player.pitch_scale, 1.25, 0.001, "BGM Clip 应应用音高配置。")
 
 
+func test_play_bgm_clip_tracks_history() -> void:
+	var first := GFAudioClip.new()
+	first.path = "res://audio/first.ogg"
+	first.stream = AudioStreamGenerator.new()
+	var second := GFAudioClip.new()
+	second.path = "res://audio/second.ogg"
+	second.stream = AudioStreamGenerator.new()
+
+	_audio.max_bgm_history = 1
+	_audio.play_bgm_clip(first)
+	_audio.play_bgm_clip(second)
+
+	var history := _audio.get_bgm_history()
+	assert_eq(history.size(), 1, "BGM 历史应遵守容量上限。")
+	assert_eq(history[0], "res://audio/second.ogg", "历史中应保留最新 BGM key。")
+	assert_eq(_audio.get_current_bgm_key(), "res://audio/second.ogg", "当前 BGM key 应指向最新请求。")
+
+
 func test_play_sfx_and_pool() -> void:
 	var stream := AudioStreamGenerator.new()
 	_audio._play_sfx_stream(stream)
@@ -132,6 +150,27 @@ func test_play_sfx_from_bank_applies_clip_settings() -> void:
 	assert_eq(player.bus, "Master", "SFX Clip 应应用总线配置。")
 	assert_almost_eq(player.volume_db, -3.0, 0.001, "SFX Clip 应应用音量配置。")
 	assert_almost_eq(player.pitch_scale, 0.8, 0.001, "SFX Clip 应应用音高配置。")
+
+
+func test_play_ambient_clip_uses_channel_player() -> void:
+	var stream := AudioStreamGenerator.new()
+	var clip := GFAudioClip.new()
+	clip.stream = stream
+	clip.bus_name = "Master"
+	clip.volume_db = -4.0
+	clip.pitch_scale = 0.9
+
+	_audio.play_ambient_clip(clip, &"rain")
+
+	assert_true(_audio.is_ambient_playing(&"rain"), "播放环境音后指定通道应处于播放状态。")
+	var player := _audio._ambient_players[&"rain"] as AudioStreamPlayer
+	assert_eq(player.stream, stream, "环境音通道应写入对应音频流。")
+	assert_eq(player.bus, "Master", "环境音应应用总线配置。")
+	assert_almost_eq(player.volume_db, -4.0, 0.001, "环境音应应用音量配置。")
+	assert_almost_eq(player.pitch_scale, 0.9, 0.001, "环境音应应用音高配置。")
+
+	_audio.stop_ambient(&"rain")
+	assert_false(_audio.is_ambient_playing(&"rain"), "停止通道后环境音应结束。")
 
 
 func test_play_bgm_ignores_stale_async_load() -> void:

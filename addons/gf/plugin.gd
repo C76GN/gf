@@ -17,6 +17,7 @@ enum GFMenuId {
 	GENERATE_NODE_STATE,
 	GENERATE_NODE_STATE_MACHINE,
 	GENERATE_ACCESSORS,
+	GENERATE_PROJECT_ACCESSORS,
 }
 
 
@@ -28,6 +29,8 @@ const INSTALLERS_SETTING: String = "gf/project/installers"
 const INSTALLERS_DEFAULT := []
 const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
 const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
+const PROJECT_ACCESS_OUTPUT_SETTING: String = "gf/codegen/project_access_output_path"
+const PROJECT_ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_project_access.gd"
 const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/editor/gf_access_generator.gd"
 const CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_capability_inspector_plugin.gd"
 const NODE_STATE_MACHINE_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_node_state_machine_inspector_plugin.gd"
@@ -35,7 +38,7 @@ const SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/utilities/gf_stor
 const SAVE_VIEWER_FORMAT_JSON: int = 0
 const SAVE_VIEWER_FORMAT_BINARY: int = 1
 const SAVE_VIEWER_LABEL_WIDTH: float = 72.0
-const SAVE_VIEWER_OUTPUT_MIN_HEIGHT: float = 96.0
+const SAVE_VIEWER_OUTPUT_MIN_HEIGHT: float = 40.0
 
 
 # --- 私有变量 ---
@@ -45,6 +48,7 @@ var _current_template_type: String = ""
 var _capability_inspector_plugin: EditorInspectorPlugin
 var _node_state_machine_inspector_plugin: EditorInspectorPlugin
 var _save_viewer_dock: Control
+var _save_viewer_bottom_button: Button
 var _save_viewer_path_edit: LineEdit
 var _save_viewer_format_option: OptionButton
 var _save_viewer_obfuscation_key_spin: SpinBox
@@ -133,6 +137,11 @@ func _ensure_codegen_settings() -> void:
 		ProjectSettings.set_initial_value(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT)
 		should_save = true
 
+	if not ProjectSettings.has_setting(PROJECT_ACCESS_OUTPUT_SETTING):
+		ProjectSettings.set_setting(PROJECT_ACCESS_OUTPUT_SETTING, PROJECT_ACCESS_OUTPUT_DEFAULT)
+		ProjectSettings.set_initial_value(PROJECT_ACCESS_OUTPUT_SETTING, PROJECT_ACCESS_OUTPUT_DEFAULT)
+		should_save = true
+
 	ProjectSettings.add_property_info({
 		"name": ACCESS_OUTPUT_SETTING,
 		"type": TYPE_STRING,
@@ -140,6 +149,14 @@ func _ensure_codegen_settings() -> void:
 		"hint_string": "*.gd",
 	})
 	ProjectSettings.set_as_basic(ACCESS_OUTPUT_SETTING, true)
+
+	ProjectSettings.add_property_info({
+		"name": PROJECT_ACCESS_OUTPUT_SETTING,
+		"type": TYPE_STRING,
+		"hint": PROPERTY_HINT_FILE,
+		"hint_string": "*.gd",
+	})
+	ProjectSettings.set_as_basic(PROJECT_ACCESS_OUTPUT_SETTING, true)
 
 	if should_save:
 		ProjectSettings.save()
@@ -182,7 +199,7 @@ func _setup_save_viewer_dock() -> void:
 		return
 
 	_save_viewer_dock = _create_save_viewer_dock()
-	add_control_to_dock(DOCK_SLOT_RIGHT_BL, _save_viewer_dock)
+	_save_viewer_bottom_button = add_control_to_bottom_panel(_save_viewer_dock, "GF Save Viewer")
 
 
 func _load_inspector_plugin(script_path: String, label: String) -> EditorInspectorPlugin:
@@ -210,9 +227,10 @@ func _cleanup_inspector_tools() -> void:
 
 func _cleanup_save_viewer_dock() -> void:
 	if is_instance_valid(_save_viewer_dock):
-		remove_control_from_docks(_save_viewer_dock)
+		remove_control_from_bottom_panel(_save_viewer_dock)
 		_save_viewer_dock.queue_free()
 	_save_viewer_dock = null
+	_save_viewer_bottom_button = null
 	_save_viewer_path_edit = null
 	_save_viewer_format_option = null
 	_save_viewer_obfuscation_key_spin = null
@@ -277,6 +295,28 @@ func _generate_accessors() -> void:
 		print("[GF Framework] 成功生成强类型访问器: ", output_path)
 	else:
 		push_error("[GF Framework] 强类型访问器生成失败: %s" % error_string(error))
+
+
+func _generate_project_accessors() -> void:
+	var output_path := String(ProjectSettings.get_setting(
+		PROJECT_ACCESS_OUTPUT_SETTING,
+		PROJECT_ACCESS_OUTPUT_DEFAULT
+	))
+	var generator_script := load(ACCESS_GENERATOR_SCRIPT_PATH) as Script
+	if generator_script == null or not generator_script.can_instantiate():
+		push_error("[GF Framework] 项目常量访问器生成器加载失败。")
+		return
+
+	var generator: Variant = generator_script.new()
+	if generator == null or not generator.has_method("generate_project_access"):
+		push_error("[GF Framework] 项目常量访问器生成器实例化失败。")
+		return
+
+	var error: Error = generator.generate_project_access(output_path)
+	if error == OK:
+		print("[GF Framework] 成功生成项目常量访问器: ", output_path)
+	else:
+		push_error("[GF Framework] 项目常量访问器生成失败: %s" % error_string(error))
 
 
 func _create_save_viewer_dock() -> Control:
@@ -479,6 +519,7 @@ func _populate_gf_menu() -> void:
 
 	_gf_menu.add_separator("代码生成")
 	_gf_menu.add_item("生成强类型访问器", GFMenuId.GENERATE_ACCESSORS)
+	_gf_menu.add_item("生成项目常量访问器", GFMenuId.GENERATE_PROJECT_ACCESSORS)
 
 
 func _on_gf_menu_id_pressed(id: int) -> void:
@@ -501,6 +542,8 @@ func _on_gf_menu_id_pressed(id: int) -> void:
 			_show_dialog("NodeStateMachine")
 		GFMenuId.GENERATE_ACCESSORS:
 			_generate_accessors()
+		GFMenuId.GENERATE_PROJECT_ACCESSORS:
+			_generate_project_accessors()
 
 
 func _get_template(type: String) -> String:

@@ -37,10 +37,10 @@ func _ready() -> void:
 - Lifecycle-managed `GFModel`, `GFSystem`, `GFController`, and `GFUtility` modules.
 - Project installers and declarative binding helpers for assembling game modules.
 - Typed events, string events, bindable properties, commands, queries, and factories.
-- Foundation helpers for big numbers, fixed decimals, resourceized formulas, number formatting, grid math, and progression curves.
-- Runtime utilities for versioned storage, codecs, settings, display/audio application, assets, remote text/JSON caching, scenes, time, timers, input buffering, resourceized input mapping, player-scoped input device assignment, touch controls, audio banks, analytics transports, UI, logging, quests, object pools, and native signal connections.
-- Extensions for pure-code and node-based state machines, including resourceized node-state configuration, state history, and stack-style child states.
-- Editor tools for generating typed accessors, inspecting save payloads, common GF script templates, node-state initial-state selection, and reusable Node3D/Mesh/MeshLibrary thumbnail rendering.
+- Foundation helpers for big numbers, fixed decimals, resourceized formulas, number formatting, grid math, 3D spatial hashing, and progression curves.
+- Runtime utilities for versioned storage, codecs, save graph composition, save pipelines, settings, display/audio application, assets, remote text/JSON caching, scenes, time, timers, input buffering, resourceized input mapping with modifiers/triggers and 3D values, player-scoped input device assignment, touch controls, audio banks, ambient channels, analytics transports, UI, logging, quests, object pools, and native signal connections.
+- Extensions for pure-code and node-based state machines, resourceized flow graphs, pluggable network backends, node-state configuration, state history, and stack-style child states.
+- Editor tools for generating typed accessors and project constants, inspecting save payloads, common GF script templates, node-state initial-state selection, and reusable Node3D/Mesh/MeshLibrary thumbnail rendering.
 
 ## Chinese Summary
 

@@ -163,3 +163,18 @@ func test_lazy_log_builds_message_when_enabled() -> void:
 
 	assert_eq(counter["build"], 1, "未被过滤的 lazy 日志应执行 message_builder。")
 	assert_eq(received["msg"], "built", "lazy 日志应输出构造后的消息。")
+
+
+func test_memory_entries_are_capped_and_ordered() -> void:
+	_log_util.max_memory_entries = 2
+	_log_util.clear_memory_entries()
+
+	_log_util.info("Memory", "one")
+	_log_util.info("Memory", "two")
+	_log_util.info("Memory", "three")
+
+	var entries := _log_util.get_recent_entries()
+	assert_eq(entries.size(), 2, "内存日志应遵守容量上限。")
+	assert_eq(entries[0]["message"], "two", "内存日志应保留较新的条目并保持从旧到新排序。")
+	assert_eq(entries[1]["message"], "three", "最新条目应位于末尾。")
+	assert_eq(_log_util.get_dropped_memory_entry_count(), 1, "超出容量的条目应计入丢弃数量。")

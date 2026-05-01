@@ -25,12 +25,25 @@ enum ValueTarget {
 	AXIS_2D_Y_POSITIVE,
 	## 二维轴 Y 负向。
 	AXIS_2D_Y_NEGATIVE,
+	## 三维轴 X 正向。
+	AXIS_3D_X_POSITIVE,
+	## 三维轴 X 负向。
+	AXIS_3D_X_NEGATIVE,
+	## 三维轴 Y 正向。
+	AXIS_3D_Y_POSITIVE,
+	## 三维轴 Y 负向。
+	AXIS_3D_Y_NEGATIVE,
+	## 三维轴 Z 正向。
+	AXIS_3D_Z_POSITIVE,
+	## 三维轴 Z 负向。
+	AXIS_3D_Z_NEGATIVE,
 }
 
 
 # --- 常量 ---
 
 const GFInputActionBase = preload("res://addons/gf/input/gf_input_action.gd")
+const GFInputModifierBase = preload("res://addons/gf/input/gf_input_modifier.gd")
 
 
 # --- 导出变量 ---
@@ -46,6 +59,9 @@ const GFInputActionBase = preload("res://addons/gf/input/gf_input_action.gd")
 
 ## 输入贡献缩放。
 @export var scale: float = 1.0
+
+## 绑定级输入修饰器，按顺序作用于该绑定产生的贡献值。
+@export var modifiers: Array[GFInputModifierBase] = []
 
 ## 是否按设备 ID 精确匹配。关闭时同类按键、鼠标按钮或手柄按钮可跨设备匹配。
 @export var match_device: bool = false
@@ -67,6 +83,7 @@ func duplicate_binding() -> Resource:
 	binding.value_target = value_target
 	binding.deadzone = deadzone
 	binding.scale = scale
+	binding.modifiers = _duplicate_modifiers()
 	binding.match_device = match_device
 	binding.display_name = display_name
 	binding.remappable = remappable
@@ -107,16 +124,16 @@ func matches_event(event: InputEvent) -> bool:
 ## @param event: 运行时输入事件。
 ## @param action_value_type: 动作值类型。
 ## @param deadzone_override: 可选死区覆盖；小于 0 时使用绑定自身 deadzone。
-## @return 二维向量贡献；布尔与一维轴使用 x 分量。
+## @return 三维向量贡献；布尔与一维轴使用 x 分量，二维轴使用 x/y 分量。
 func get_contribution(
 	event: InputEvent,
 	action_value_type: GFInputActionBase.ValueType,
 	deadzone_override: float = -1.0
-) -> Vector2:
+) -> Vector3:
 	var effective_deadzone := deadzone if deadzone_override < 0.0 else clampf(deadzone_override, 0.0, 1.0)
 	var raw_value := _read_event_value(event, effective_deadzone)
 	if value_target == ValueTarget.AUTO:
-		return _get_auto_contribution(raw_value, action_value_type)
+		return _get_auto_contribution(raw_value, event, action_value_type)
 
 	var strength := _get_target_strength(event, raw_value, value_target)
 	if strength < effective_deadzone:
@@ -124,21 +141,33 @@ func get_contribution(
 
 	match value_target:
 		ValueTarget.BOOL:
-			return Vector2(strength * scale, 0.0)
+			return _apply_modifiers(Vector3(strength * scale, 0.0, 0.0), event, action_value_type)
 		ValueTarget.AXIS_1D_POSITIVE:
-			return Vector2(strength * scale, 0.0)
+			return _apply_modifiers(Vector3(strength * scale, 0.0, 0.0), event, action_value_type)
 		ValueTarget.AXIS_1D_NEGATIVE:
-			return Vector2(-strength * scale, 0.0)
+			return _apply_modifiers(Vector3(-strength * scale, 0.0, 0.0), event, action_value_type)
 		ValueTarget.AXIS_2D_X_POSITIVE:
-			return Vector2(strength * scale, 0.0)
+			return _apply_modifiers(Vector3(strength * scale, 0.0, 0.0), event, action_value_type)
 		ValueTarget.AXIS_2D_X_NEGATIVE:
-			return Vector2(-strength * scale, 0.0)
+			return _apply_modifiers(Vector3(-strength * scale, 0.0, 0.0), event, action_value_type)
 		ValueTarget.AXIS_2D_Y_POSITIVE:
-			return Vector2(0.0, strength * scale)
+			return _apply_modifiers(Vector3(0.0, strength * scale, 0.0), event, action_value_type)
 		ValueTarget.AXIS_2D_Y_NEGATIVE:
-			return Vector2(0.0, -strength * scale)
+			return _apply_modifiers(Vector3(0.0, -strength * scale, 0.0), event, action_value_type)
+		ValueTarget.AXIS_3D_X_POSITIVE:
+			return _apply_modifiers(Vector3(strength * scale, 0.0, 0.0), event, action_value_type)
+		ValueTarget.AXIS_3D_X_NEGATIVE:
+			return _apply_modifiers(Vector3(-strength * scale, 0.0, 0.0), event, action_value_type)
+		ValueTarget.AXIS_3D_Y_POSITIVE:
+			return _apply_modifiers(Vector3(0.0, strength * scale, 0.0), event, action_value_type)
+		ValueTarget.AXIS_3D_Y_NEGATIVE:
+			return _apply_modifiers(Vector3(0.0, -strength * scale, 0.0), event, action_value_type)
+		ValueTarget.AXIS_3D_Z_POSITIVE:
+			return _apply_modifiers(Vector3(0.0, 0.0, strength * scale), event, action_value_type)
+		ValueTarget.AXIS_3D_Z_NEGATIVE:
+			return _apply_modifiers(Vector3(0.0, 0.0, -strength * scale), event, action_value_type)
 		_:
-			return Vector2.ZERO
+			return Vector3.ZERO
 
 
 ## 获取显示名称。
@@ -201,22 +230,55 @@ func _read_event_value(event: InputEvent, effective_deadzone: float) -> float:
 func _get_target_strength(event: InputEvent, raw_value: float, target: ValueTarget) -> float:
 	if event is InputEventJoypadMotion:
 		match target:
-			ValueTarget.AXIS_1D_POSITIVE, ValueTarget.AXIS_2D_X_POSITIVE, ValueTarget.AXIS_2D_Y_POSITIVE:
+			ValueTarget.AXIS_1D_POSITIVE, ValueTarget.AXIS_2D_X_POSITIVE, ValueTarget.AXIS_2D_Y_POSITIVE, ValueTarget.AXIS_3D_X_POSITIVE, ValueTarget.AXIS_3D_Y_POSITIVE, ValueTarget.AXIS_3D_Z_POSITIVE:
 				return maxf(raw_value, 0.0)
-			ValueTarget.AXIS_1D_NEGATIVE, ValueTarget.AXIS_2D_X_NEGATIVE, ValueTarget.AXIS_2D_Y_NEGATIVE:
+			ValueTarget.AXIS_1D_NEGATIVE, ValueTarget.AXIS_2D_X_NEGATIVE, ValueTarget.AXIS_2D_Y_NEGATIVE, ValueTarget.AXIS_3D_X_NEGATIVE, ValueTarget.AXIS_3D_Y_NEGATIVE, ValueTarget.AXIS_3D_Z_NEGATIVE:
 				return maxf(-raw_value, 0.0)
 			_:
 				return absf(raw_value)
 	return absf(raw_value)
 
 
-func _get_auto_contribution(raw_value: float, action_value_type: GFInputActionBase.ValueType) -> Vector2:
+func _get_auto_contribution(
+	raw_value: float,
+	event: InputEvent,
+	action_value_type: GFInputActionBase.ValueType
+) -> Vector3:
 	match action_value_type:
 		GFInputActionBase.ValueType.BOOL:
-			return Vector2(absf(raw_value) * scale, 0.0)
+			return _apply_modifiers(Vector3(absf(raw_value) * scale, 0.0, 0.0), event, action_value_type)
 		GFInputActionBase.ValueType.AXIS_1D:
-			return Vector2(raw_value * scale, 0.0)
+			return _apply_modifiers(Vector3(raw_value * scale, 0.0, 0.0), event, action_value_type)
 		GFInputActionBase.ValueType.AXIS_2D:
-			return Vector2(raw_value * scale, 0.0)
+			return _apply_modifiers(Vector3(raw_value * scale, 0.0, 0.0), event, action_value_type)
+		GFInputActionBase.ValueType.AXIS_3D:
+			return _apply_modifiers(Vector3(raw_value * scale, 0.0, 0.0), event, action_value_type)
 		_:
-			return Vector2.ZERO
+			return Vector3.ZERO
+
+
+func _apply_modifiers(
+	value: Vector3,
+	event: InputEvent,
+	action_value_type: GFInputActionBase.ValueType
+) -> Vector3:
+	var result := value
+	for modifier: GFInputModifierBase in modifiers:
+		if modifier != null:
+			if action_value_type == GFInputActionBase.ValueType.AXIS_3D:
+				result = modifier.modify_3d(result, event, null)
+			else:
+				var modified := modifier.modify(Vector2(result.x, result.y), event, null)
+				result = Vector3(modified.x, modified.y, result.z)
+	return result
+
+
+func _duplicate_modifiers() -> Array[GFInputModifierBase]:
+	var result: Array[GFInputModifierBase] = []
+	for modifier: GFInputModifierBase in modifiers:
+		if modifier == null:
+			continue
+		var duplicate_modifier := modifier.duplicate_modifier()
+		if duplicate_modifier != null:
+			result.append(duplicate_modifier)
+	return result

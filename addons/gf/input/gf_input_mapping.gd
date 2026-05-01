@@ -7,6 +7,8 @@ extends Resource
 
 const GFInputActionBase = preload("res://addons/gf/input/gf_input_action.gd")
 const GFInputBindingBase = preload("res://addons/gf/input/gf_input_binding.gd")
+const GFInputModifierBase = preload("res://addons/gf/input/gf_input_modifier.gd")
+const GFInputTriggerBase = preload("res://addons/gf/input/gf_input_trigger.gd")
 
 
 # --- 导出变量 ---
@@ -16,6 +18,12 @@ const GFInputBindingBase = preload("res://addons/gf/input/gf_input_binding.gd")
 
 ## 动作绑定列表。多个绑定会合并为同一个动作值。
 @export var bindings: Array[GFInputBindingBase] = []
+
+## 映射级输入修饰器，按顺序作用于该动作聚合后的值。
+@export var modifiers: Array[GFInputModifierBase] = []
+
+## 可选触发器，全部满足后动作才会被视为活跃。
+@export var triggers: Array[GFInputTriggerBase] = []
 
 ## 可选显示名称覆盖。
 @export var display_name: String = ""

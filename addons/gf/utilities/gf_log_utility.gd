@@ -64,20 +64,32 @@ var flush_immediately: bool = false
 ## 最小输出等级。低于该等级的日志不会打印、写文件或发信号。
 var min_level: int = LogLevel.DEBUG
 
+## 内存中最多保留的最近日志条数。设为 0 可关闭内存缓存。
+var max_memory_entries: int:
+	get:
+		return _max_memory_entries
+	set(value):
+		_max_memory_entries = maxi(value, 0)
+		_trim_memory_entries()
+
 
 # --- 私有变量 ---
 
 var _max_log_files: int = 10
+var _max_memory_entries: int = 500
 var _file: FileAccess
 var _log_file_path: String
 var _muted_tags: Dictionary = {}
 var _last_file_flush_msec: int = 0
+var _memory_entries: Array[Dictionary] = []
+var _memory_dropped_count: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 ## 第一阶段初始化：创建日志目录、打开日志文件、清理旧文件。
 func init() -> void:
+	clear_memory_entries()
 	if not DirAccess.dir_exists_absolute(_LOG_DIR):
 		DirAccess.make_dir_recursive_absolute(_LOG_DIR)
 
@@ -185,6 +197,43 @@ func is_tag_muted(tag: String) -> bool:
 	return _muted_tags.get(tag, false)
 
 
+## 获取最近的内存日志条目。
+## @param count: 读取数量；小于 0 表示全部。
+## @return 从旧到新的日志条目数组。
+func get_recent_entries(count: int = -1) -> Array[Dictionary]:
+	if count < 0 or count >= _memory_entries.size():
+		return _memory_entries.duplicate(true)
+	return _memory_entries.slice(_memory_entries.size() - count).duplicate(true)
+
+
+## 按偏移读取内存日志条目。
+## @param offset: 从最旧条目开始的偏移。
+## @param count: 读取数量；小于 0 表示直到末尾。
+## @return 从旧到新的日志条目数组。
+func get_entries(offset: int = 0, count: int = -1) -> Array[Dictionary]:
+	var safe_offset := clampi(offset, 0, _memory_entries.size())
+	var end := _memory_entries.size() if count < 0 else mini(safe_offset + count, _memory_entries.size())
+	return _memory_entries.slice(safe_offset, end).duplicate(true)
+
+
+## 获取当前内存日志条目数量。
+## @return 条目数量。
+func get_memory_entry_count() -> int:
+	return _memory_entries.size()
+
+
+## 获取因内存上限被丢弃的日志条目数量。
+## @return 丢弃数量。
+func get_dropped_memory_entry_count() -> int:
+	return _memory_dropped_count
+
+
+## 清空内存日志缓存。
+func clear_memory_entries() -> void:
+	_memory_entries.clear()
+	_memory_dropped_count = 0
+
+
 # --- 私有方法 ---
 
 func _log(level: int, tag: String, msg: String) -> void:
@@ -202,6 +251,7 @@ func _log(level: int, tag: String, msg: String) -> void:
 		datetime.second,
 	]
 	var formatted := "[%s][%s][%s] %s" % [timestamp, level_str, tag, msg]
+	_append_memory_entry(timestamp, level, level_str, tag, msg, formatted)
 
 	# 写入文件
 	if _file != null:
@@ -277,3 +327,32 @@ func _flush_file_if_needed(level: int) -> void:
 	):
 		_file.flush()
 		_last_file_flush_msec = now
+
+
+func _append_memory_entry(
+	timestamp: String,
+	level: int,
+	level_name: String,
+	tag: String,
+	message: String,
+	text: String
+) -> void:
+	if _max_memory_entries <= 0:
+		_memory_dropped_count += 1
+		return
+
+	_memory_entries.append({
+		"timestamp": timestamp,
+		"level": level,
+		"level_name": level_name,
+		"tag": tag,
+		"message": message,
+		"text": text,
+	})
+	_trim_memory_entries()
+
+
+func _trim_memory_entries() -> void:
+	while _memory_entries.size() > _max_memory_entries:
+		_memory_entries.pop_front()
+		_memory_dropped_count += 1

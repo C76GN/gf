@@ -64,3 +64,24 @@ func test_build_source_skips_duplicate_function_names() -> void:
 
 	assert_eq(source.count("static func get_player_model"), 1, "重复函数名应只保留一个。")
 	assert_push_warning("[GFAccessGenerator] 函数名重复，已跳过：get_player_model")
+
+
+func test_build_project_source_generates_layer_input_and_setting_constants() -> void:
+	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var source: String = generator.build_project_source({
+		"layers": [
+			{
+				"group": "2d_physics",
+				"name": "Player",
+				"index": 3,
+			},
+		],
+		"input_actions": [&"jump"],
+		"settings": ["gf/project/installers"],
+	})
+
+	assert_true(source.contains("class_name GFProjectAccess"), "应生成项目常量访问器类。")
+	assert_true(source.contains("const PHYSICS_2D_PLAYER_LAYER: int = 3"), "应生成层序号常量。")
+	assert_true(source.contains("const PHYSICS_2D_PLAYER_BIT: int = 4"), "应生成层 bit 常量。")
+	assert_true(source.contains("const JUMP: StringName = &\"jump\""), "应生成输入动作常量。")
+	assert_true(source.contains("const GF_PROJECT_INSTALLERS: String = \"gf/project/installers\""), "应生成设置键常量。")

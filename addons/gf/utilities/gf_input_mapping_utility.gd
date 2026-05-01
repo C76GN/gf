@@ -45,7 +45,9 @@ const GFInputActionBase = preload("res://addons/gf/input/gf_input_action.gd")
 const GFInputBindingBase = preload("res://addons/gf/input/gf_input_binding.gd")
 const GFInputContextBase = preload("res://addons/gf/input/gf_input_context.gd")
 const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
+const GFInputModifierBase = preload("res://addons/gf/input/gf_input_modifier.gd")
 const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
+const GFInputTriggerBase = preload("res://addons/gf/input/gf_input_trigger.gd")
 
 
 # --- 私有变量 ---
@@ -57,11 +59,17 @@ var _binding_to_action: Dictionary = {}
 var _player_binding_values: Dictionary = {}
 var _player_binding_to_action: Dictionary = {}
 var _actions: Dictionary = {}
+var _action_modifiers: Dictionary = {}
+var _action_triggers: Dictionary = {}
+var _action_trigger_states: Dictionary = {}
 var _action_values: Dictionary = {}
 var _action_active: Dictionary = {}
+var _raw_action_active: Dictionary = {}
 var _just_started: Dictionary = {}
 var _player_action_values: Dictionary = {}
 var _player_action_active: Dictionary = {}
+var _player_raw_action_active: Dictionary = {}
+var _player_trigger_states: Dictionary = {}
 var _player_just_started: Dictionary = {}
 var _remap_config: GFInputRemapConfigBase
 var _timestamp: int = 0
@@ -91,6 +99,7 @@ func dispose() -> void:
 func tick(_delta: float) -> void:
 	_just_started.clear()
 	_player_just_started.clear()
+	_refresh_triggered_action_states(_delta)
 
 
 # --- 公共方法 ---
@@ -201,7 +210,7 @@ func handle_input_event(event: InputEvent) -> void:
 
 ## 获取动作当前值。
 ## @param action_id: 动作标识。
-## @return bool、float 或 Vector2，取决于动作值类型。
+## @return bool、float、Vector2 或 Vector3，取决于动作值类型。
 func get_action_value(action_id: StringName) -> Variant:
 	if _action_values.has(action_id):
 		return _action_values[action_id]
@@ -214,9 +223,17 @@ func get_action_value(action_id: StringName) -> Variant:
 
 ## 获取动作当前二维向量值。
 ## @param action_id: 动作标识。
-## @return 二维向量值；布尔与一维轴使用 x 分量。
+## @return 二维向量值；三维轴会返回 x/y 分量。
 func get_action_vector(action_id: StringName) -> Vector2:
-	return _calculate_action_vector(action_id)
+	var vector := _calculate_action_vector3(action_id)
+	return Vector2(vector.x, vector.y)
+
+
+## 获取动作当前三维向量值。
+## @param action_id: 动作标识。
+## @return 三维向量值；非三维动作的 z 分量为 0。
+func get_action_vector3(action_id: StringName) -> Vector3:
+	return _calculate_action_vector3(action_id)
 
 
 ## 检查动作是否活跃。
@@ -246,7 +263,7 @@ func consume_action(action_id: StringName) -> bool:
 ## 获取指定玩家动作当前值。
 ## @param player_index: 玩家索引。
 ## @param action_id: 动作标识。
-## @return bool、float 或 Vector2，取决于动作值类型。
+## @return bool、float、Vector2 或 Vector3，取决于动作值类型。
 func get_action_value_for_player(player_index: int, action_id: StringName) -> Variant:
 	var key := _make_player_action_key(player_index, action_id)
 	if _player_action_values.has(key):
@@ -261,9 +278,18 @@ func get_action_value_for_player(player_index: int, action_id: StringName) -> Va
 ## 获取指定玩家动作当前二维向量值。
 ## @param player_index: 玩家索引。
 ## @param action_id: 动作标识。
-## @return 二维向量值；布尔与一维轴使用 x 分量。
+## @return 二维向量值；三维轴会返回 x/y 分量。
 func get_action_vector_for_player(player_index: int, action_id: StringName) -> Vector2:
-	return _calculate_player_action_vector(player_index, action_id)
+	var vector := _calculate_player_action_vector3(player_index, action_id)
+	return Vector2(vector.x, vector.y)
+
+
+## 获取指定玩家动作当前三维向量值。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return 三维向量值；非三维动作的 z 分量为 0。
+func get_action_vector3_for_player(player_index: int, action_id: StringName) -> Vector3:
+	return _calculate_player_action_vector3(player_index, action_id)
 
 
 ## 检查指定玩家动作是否活跃。
@@ -422,6 +448,8 @@ func _rebuild_effective_entries() -> void:
 	_clear_runtime_state(true)
 	_effective_entries.clear()
 	_actions.clear()
+	_action_modifiers.clear()
+	_action_triggers.clear()
 
 	for context: GFInputContextBase in _get_sorted_contexts():
 		var context_id := context.get_context_id()
@@ -457,6 +485,8 @@ func _rebuild_effective_entries() -> void:
 				})
 
 			_actions[action_id] = mapping.action
+			_action_modifiers[action_id] = _duplicate_modifiers(mapping.modifiers)
+			_action_triggers[action_id] = _duplicate_triggers(mapping.triggers)
 			_effective_entries.append({
 				"context": context,
 				"mapping": mapping,
@@ -519,10 +549,12 @@ func _refresh_action_state(action_id: StringName, action: GFInputActionBase) -> 
 	var previous_value: Variant = _action_values.get(action_id, _default_value_for_type(action.value_type))
 	var previous_active := bool(_action_active.get(action_id, false))
 	var next_value: Variant = _calculate_action_value(action_id, action.value_type)
-	var next_active := _is_value_active(next_value, action)
+	var raw_active := _is_value_active(next_value, action)
+	var next_active := _evaluate_action_triggers(action_id, raw_active, next_value, 0.0)
 
 	_action_values[action_id] = next_value
 	_action_active[action_id] = next_active
+	_raw_action_active[action_id] = raw_active
 
 	if not _values_equal(previous_value, next_value):
 		action_value_changed.emit(action_id, next_value)
@@ -534,31 +566,31 @@ func _refresh_action_state(action_id: StringName, action: GFInputActionBase) -> 
 		action_completed.emit(action_id, next_value)
 
 
-func _calculate_action_vector(action_id: StringName) -> Vector2:
-	var total := Vector2.ZERO
+func _calculate_action_vector3(action_id: StringName) -> Vector3:
+	var total := Vector3.ZERO
 	for key: String in _binding_values.keys():
 		if _binding_to_action.get(key) == action_id:
-			total += _binding_values[key] as Vector2
+			total += _binding_values[key] as Vector3
 	if total.length() > 1.0:
 		total = total.normalized()
-	return total
+	return _apply_mapping_modifiers(action_id, total)
 
 
-func _calculate_player_action_vector(player_index: int, action_id: StringName) -> Vector2:
-	var total := Vector2.ZERO
+func _calculate_player_action_vector3(player_index: int, action_id: StringName) -> Vector3:
+	var total := Vector3.ZERO
 	var prefix := "%d/" % player_index
 	for key: String in _player_binding_values.keys():
 		if not key.begins_with(prefix):
 			continue
 		if _player_binding_to_action.get(key) == action_id:
-			total += _player_binding_values[key] as Vector2
+			total += _player_binding_values[key] as Vector3
 	if total.length() > 1.0:
 		total = total.normalized()
-	return total
+	return _apply_mapping_modifiers(action_id, total)
 
 
 func _calculate_action_value(action_id: StringName, value_type: GFInputActionBase.ValueType) -> Variant:
-	var vector := _calculate_action_vector(action_id)
+	var vector := _calculate_action_vector3(action_id)
 	return _calculate_value_from_vector(vector, value_type)
 
 
@@ -567,17 +599,19 @@ func _calculate_player_action_value(
 	action_id: StringName,
 	value_type: GFInputActionBase.ValueType
 ) -> Variant:
-	var vector := _calculate_player_action_vector(player_index, action_id)
+	var vector := _calculate_player_action_vector3(player_index, action_id)
 	return _calculate_value_from_vector(vector, value_type)
 
 
-func _calculate_value_from_vector(vector: Vector2, value_type: GFInputActionBase.ValueType) -> Variant:
+func _calculate_value_from_vector(vector: Vector3, value_type: GFInputActionBase.ValueType) -> Variant:
 	match value_type:
 		GFInputActionBase.ValueType.BOOL:
 			return vector.length() > 0.0
 		GFInputActionBase.ValueType.AXIS_1D:
 			return clampf(vector.x, -1.0, 1.0)
 		GFInputActionBase.ValueType.AXIS_2D:
+			return Vector2(vector.x, vector.y)
+		GFInputActionBase.ValueType.AXIS_3D:
 			return vector
 		_:
 			return null
@@ -591,6 +625,8 @@ func _default_value_for_type(value_type: GFInputActionBase.ValueType) -> Variant
 			return 0.0
 		GFInputActionBase.ValueType.AXIS_2D:
 			return Vector2.ZERO
+		GFInputActionBase.ValueType.AXIS_3D:
+			return Vector3.ZERO
 		_:
 			return null
 
@@ -603,6 +639,8 @@ func _is_value_active(value: Variant, action: GFInputActionBase) -> bool:
 			return absf(float(value)) >= action.activation_threshold
 		GFInputActionBase.ValueType.AXIS_2D:
 			return (value as Vector2).length() >= action.activation_threshold
+		GFInputActionBase.ValueType.AXIS_3D:
+			return (value as Vector3).length() >= action.activation_threshold
 		_:
 			return false
 
@@ -612,6 +650,8 @@ func _values_equal(left: Variant, right: Variant) -> bool:
 		return is_equal_approx(float(left), float(right))
 	if left is Vector2 and right is Vector2:
 		return (left as Vector2).is_equal_approx(right as Vector2)
+	if left is Vector3 and right is Vector3:
+		return (left as Vector3).is_equal_approx(right as Vector3)
 	return left == right
 
 
@@ -639,10 +679,13 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 	_player_binding_to_action.clear()
 	_action_values.clear()
 	_action_active.clear()
+	_raw_action_active.clear()
 	_just_started.clear()
 	_player_action_values.clear()
 	_player_action_active.clear()
+	_player_raw_action_active.clear()
 	_player_just_started.clear()
+	_reset_all_trigger_states()
 
 
 func _clear_player_runtime_state(player_index: int, emit_completed: bool = false) -> void:
@@ -666,6 +709,8 @@ func _clear_player_runtime_state(player_index: int, emit_completed: bool = false
 		if key.begins_with(prefix):
 			_player_action_values.erase(key)
 			_player_action_active.erase(key)
+			_player_raw_action_active.erase(key)
+			_player_trigger_states.erase(key)
 			_player_just_started.erase(key)
 
 
@@ -717,10 +762,12 @@ func _refresh_player_action_state(
 	var previous_value: Variant = _player_action_values.get(key, _default_value_for_type(action.value_type))
 	var previous_active := bool(_player_action_active.get(key, false))
 	var next_value: Variant = _calculate_player_action_value(player_index, action_id, action.value_type)
-	var next_active := _is_value_active(next_value, action)
+	var raw_active := _is_value_active(next_value, action)
+	var next_active := _evaluate_player_action_triggers(player_index, action_id, raw_active, next_value, 0.0)
 
 	_player_action_values[key] = next_value
 	_player_action_active[key] = next_active
+	_player_raw_action_active[key] = raw_active
 
 	if not _values_equal(previous_value, next_value):
 		player_action_value_changed.emit(player_index, action_id, next_value)
@@ -747,6 +794,194 @@ func _get_player_deadzone(player_index: int) -> float:
 	if devices == null:
 		return -1.0
 	return devices.get_player_deadzone(player_index, -1.0)
+
+
+func _refresh_triggered_action_states(delta: float) -> void:
+	if _action_triggers.is_empty():
+		return
+
+	for action_id_variant: Variant in _action_triggers.keys():
+		var action_id := action_id_variant as StringName
+		var triggers := _action_triggers.get(action_id, []) as Array
+		if triggers.is_empty():
+			continue
+		var action := _actions.get(action_id) as GFInputActionBase
+		if action == null:
+			continue
+		var value: Variant = _action_values.get(action_id, _default_value_for_type(action.value_type))
+		var raw_active := bool(_raw_action_active.get(action_id, false))
+		_set_action_active_from_triggers(action_id, action, value, raw_active, delta)
+
+	for player_key_variant: Variant in _player_raw_action_active.keys():
+		var player_key := String(player_key_variant)
+		var parts := player_key.split("/", false, 1)
+		if parts.size() != 2:
+			continue
+		var player_index := int(parts[0])
+		var action_id := StringName(parts[1])
+		var action := _actions.get(action_id) as GFInputActionBase
+		if action == null:
+			continue
+		var value: Variant = _player_action_values.get(player_key, _default_value_for_type(action.value_type))
+		var raw_active := bool(_player_raw_action_active.get(player_key, false))
+		_set_player_action_active_from_triggers(player_index, action_id, action, value, raw_active, delta)
+
+
+func _set_action_active_from_triggers(
+	action_id: StringName,
+	action: GFInputActionBase,
+	value: Variant,
+	raw_active: bool,
+	delta: float
+) -> void:
+	var previous_active := bool(_action_active.get(action_id, false))
+	var next_active := _evaluate_action_triggers(action_id, raw_active, value, delta)
+	_action_active[action_id] = next_active
+	if not previous_active and next_active:
+		_just_started[action_id] = true
+		action_started.emit(action_id, value)
+	elif previous_active and not next_active:
+		action_completed.emit(action_id, _default_value_for_type(action.value_type))
+
+
+func _set_player_action_active_from_triggers(
+	player_index: int,
+	action_id: StringName,
+	action: GFInputActionBase,
+	value: Variant,
+	raw_active: bool,
+	delta: float
+) -> void:
+	var key := _make_player_action_key(player_index, action_id)
+	var previous_active := bool(_player_action_active.get(key, false))
+	var next_active := _evaluate_player_action_triggers(player_index, action_id, raw_active, value, delta)
+	_player_action_active[key] = next_active
+	if not previous_active and next_active:
+		_player_just_started[key] = true
+		player_action_started.emit(player_index, action_id, value)
+	elif previous_active and not next_active:
+		player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
+
+
+func _evaluate_action_triggers(
+	action_id: StringName,
+	raw_active: bool,
+	value: Variant,
+	delta: float
+) -> bool:
+	return _evaluate_triggers(
+		action_id,
+		-1,
+		_action_triggers.get(action_id, []) as Array,
+		_get_action_trigger_states(action_id),
+		raw_active,
+		value,
+		delta
+	)
+
+
+func _evaluate_player_action_triggers(
+	player_index: int,
+	action_id: StringName,
+	raw_active: bool,
+	value: Variant,
+	delta: float
+) -> bool:
+	var key := _make_player_action_key(player_index, action_id)
+	return _evaluate_triggers(
+		action_id,
+		player_index,
+		_action_triggers.get(action_id, []) as Array,
+		_get_player_trigger_states(key),
+		raw_active,
+		value,
+		delta
+	)
+
+
+func _evaluate_triggers(
+	action_id: StringName,
+	player_index: int,
+	triggers: Array,
+	states: Array[Dictionary],
+	raw_active: bool,
+	value: Variant,
+	delta: float
+) -> bool:
+	if triggers.is_empty():
+		return raw_active
+
+	var any_ongoing := false
+	for index: int in range(triggers.size()):
+		var trigger := triggers[index] as GFInputTriggerBase
+		if trigger == null:
+			continue
+		while states.size() <= index:
+			states.append({})
+		var state := states[index]
+		trigger.prepare_runtime(action_id, self, player_index, state)
+		var trigger_state: int = trigger.update(raw_active, value, delta, state)
+		if trigger_state == GFInputTriggerBase.TriggerState.INACTIVE:
+			return false
+		if trigger_state == GFInputTriggerBase.TriggerState.ONGOING:
+			any_ongoing = true
+
+	return not any_ongoing
+
+
+func _get_action_trigger_states(action_id: StringName) -> Array[Dictionary]:
+	if not _action_trigger_states.has(action_id):
+		var states: Array[Dictionary] = []
+		_action_trigger_states[action_id] = states
+	return _action_trigger_states[action_id] as Array[Dictionary]
+
+
+func _get_player_trigger_states(player_action_key: String) -> Array[Dictionary]:
+	if not _player_trigger_states.has(player_action_key):
+		var states: Array[Dictionary] = []
+		_player_trigger_states[player_action_key] = states
+	return _player_trigger_states[player_action_key] as Array[Dictionary]
+
+
+func _reset_all_trigger_states() -> void:
+	_action_trigger_states.clear()
+	_player_trigger_states.clear()
+
+
+func _apply_mapping_modifiers(action_id: StringName, value: Vector3) -> Vector3:
+	var modifiers := _action_modifiers.get(action_id, []) as Array
+	var action := _actions.get(action_id) as GFInputActionBase
+	var result := value
+	for modifier: GFInputModifierBase in modifiers:
+		if modifier != null:
+			if action != null and action.value_type == GFInputActionBase.ValueType.AXIS_3D:
+				result = modifier.modify_3d(result, null, action)
+			else:
+				var modified := modifier.modify(Vector2(result.x, result.y), null, action)
+				result = Vector3(modified.x, modified.y, result.z)
+	return result
+
+
+func _duplicate_modifiers(modifiers: Array[GFInputModifierBase]) -> Array[GFInputModifierBase]:
+	var result: Array[GFInputModifierBase] = []
+	for modifier: GFInputModifierBase in modifiers:
+		if modifier == null:
+			continue
+		var duplicate_modifier := modifier.duplicate_modifier()
+		if duplicate_modifier != null:
+			result.append(duplicate_modifier)
+	return result
+
+
+func _duplicate_triggers(triggers: Array[GFInputTriggerBase]) -> Array[GFInputTriggerBase]:
+	var result: Array[GFInputTriggerBase] = []
+	for trigger: GFInputTriggerBase in triggers:
+		if trigger == null:
+			continue
+		var duplicate_trigger := trigger.duplicate_trigger()
+		if duplicate_trigger != null:
+			result.append(duplicate_trigger)
+	return result
 
 
 func _get_input_device_utility() -> GFInputDeviceUtility:

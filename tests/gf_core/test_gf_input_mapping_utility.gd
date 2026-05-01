@@ -6,10 +6,15 @@ extends GutTest
 
 const GFInputActionBase = preload("res://addons/gf/input/gf_input_action.gd")
 const GFInputBindingBase = preload("res://addons/gf/input/gf_input_binding.gd")
+const GFInputChordTriggerBase = preload("res://addons/gf/input/gf_input_chord_trigger.gd")
 const GFInputContextBase = preload("res://addons/gf/input/gf_input_context.gd")
 const GFInputFormatterBase = preload("res://addons/gf/input/gf_input_formatter.gd")
+const GFInputHoldTriggerBase = preload("res://addons/gf/input/gf_input_hold_trigger.gd")
 const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
 const GFInputMappingUtilityBase = preload("res://addons/gf/utilities/gf_input_mapping_utility.gd")
+const GFInputPulseTriggerBase = preload("res://addons/gf/input/gf_input_pulse_trigger.gd")
+const GFInputTapTriggerBase = preload("res://addons/gf/input/gf_input_tap_trigger.gd")
+const GFInputScaleModifierBase = preload("res://addons/gf/input/gf_input_scale_modifier.gd")
 
 
 # --- 私有变量 ---
@@ -136,6 +141,134 @@ func test_joy_axis_directional_binding_respects_axis_sign() -> void:
 
 	assert_gt(float(_utility.get_action_value(&"look_x")), 0.0, "正向轴值应触发正向绑定。")
 	assert_true(_utility.is_action_active(&"look_x"), "符号匹配且超过阈值时动作应活跃。")
+
+
+## 验证映射级修饰器会作用于聚合后的动作值。
+func test_mapping_modifier_scales_aggregated_value() -> void:
+	var action := _make_action(&"move_x", GFInputActionBase.ValueType.AXIS_1D)
+	action.activation_threshold = 0.1
+	var scale := GFInputScaleModifierBase.new()
+	scale.scale_x = 0.5
+	var mapping := _make_mapping(action, [
+		_make_joy_axis_binding(JOY_AXIS_LEFT_X, GFInputBindingBase.ValueTarget.AUTO),
+	])
+	mapping.modifiers = [scale]
+	var context := _make_context(&"gameplay", [mapping])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_joy_motion_event(JOY_AXIS_LEFT_X, 0.8))
+
+	assert_almost_eq(float(_utility.get_action_value(&"move_x")), 0.4, 0.001, "映射级修饰器应缩放聚合值。")
+
+
+## 验证三维轴动作可以聚合不同方向绑定并应用三维修饰器。
+func test_axis_3d_action_combines_directional_bindings() -> void:
+	var action := _make_action(&"move_3d", GFInputActionBase.ValueType.AXIS_3D)
+	action.activation_threshold = 0.1
+	var scale := GFInputScaleModifierBase.new()
+	scale.scale_z = 0.5
+	var mapping := _make_mapping(action, [
+		_make_key_binding(KEY_D, GFInputBindingBase.ValueTarget.AXIS_3D_X_POSITIVE),
+		_make_key_binding(KEY_E, GFInputBindingBase.ValueTarget.AXIS_3D_Z_POSITIVE),
+	])
+	mapping.modifiers = [scale]
+	var context := _make_context(&"gameplay", [mapping])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_D, true))
+	_utility.handle_input_event(_make_key_event(KEY_E, true))
+
+	var value := _utility.get_action_value(&"move_3d") as Vector3
+	assert_gt(value.x, 0.0, "D 键应贡献 X 正向。")
+	assert_almost_eq(value.z, sqrt(0.5) * 0.5, 0.001, "三维修饰器应缩放归一化后的 Z 分量。")
+	assert_true(_utility.is_action_active(&"move_3d"), "三维轴超过阈值时动作应活跃。")
+
+
+## 验证长按触发器会延迟动作活跃状态。
+func test_hold_trigger_delays_action_activation_until_tick_threshold() -> void:
+	var action := _make_action(&"charge")
+	var trigger := GFInputHoldTriggerBase.new()
+	trigger.hold_seconds = 0.1
+	var mapping := _make_mapping(action, [
+		_make_key_binding(KEY_C),
+	])
+	mapping.triggers = [trigger]
+	var context := _make_context(&"gameplay", [mapping])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_C, true))
+
+	assert_false(_utility.is_action_active(&"charge"), "刚按下时长按动作不应立刻活跃。")
+	_utility.tick(0.05)
+	assert_false(_utility.is_action_active(&"charge"), "未达到长按时间前不应活跃。")
+	_utility.tick(0.06)
+	assert_true(_utility.is_action_active(&"charge"), "达到长按时间后应活跃。")
+	assert_true(_utility.was_action_just_started(&"charge"), "长按完成帧应记录 just started。")
+
+
+## 验证短按触发器会在释放时触发一次。
+func test_tap_trigger_activates_on_quick_release() -> void:
+	var action := _make_action(&"tap")
+	var trigger := GFInputTapTriggerBase.new()
+	trigger.max_tap_seconds = 0.2
+	var mapping := _make_mapping(action, [
+		_make_key_binding(KEY_T),
+	])
+	mapping.triggers = [trigger]
+	var context := _make_context(&"gameplay", [mapping])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_T, true))
+	_utility.tick(0.05)
+	_utility.handle_input_event(_make_key_event(KEY_T, false))
+
+	assert_true(_utility.is_action_active(&"tap"), "短按释放时动作应短暂活跃。")
+	assert_true(_utility.was_action_just_started(&"tap"), "短按释放帧应记录 just started。")
+
+
+## 验证脉冲触发器会在持续输入时按间隔重复触发。
+func test_pulse_trigger_repeats_while_raw_input_is_active() -> void:
+	var action := _make_action(&"repeat")
+	var trigger := GFInputPulseTriggerBase.new()
+	trigger.interval_seconds = 0.1
+	trigger.trigger_immediately = false
+	var mapping := _make_mapping(action, [
+		_make_key_binding(KEY_R),
+	])
+	mapping.triggers = [trigger]
+	var context := _make_context(&"gameplay", [mapping])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_R, true))
+	_utility.tick(0.05)
+	assert_false(_utility.is_action_active(&"repeat"), "未达到间隔前不应触发。")
+	_utility.tick(0.06)
+
+	assert_true(_utility.is_action_active(&"repeat"), "达到间隔后应触发一次。")
+
+
+## 验证组合触发器依赖另一个抽象动作，而不是具体按键。
+func test_chord_trigger_requires_another_action_active() -> void:
+	var chord := GFInputChordTriggerBase.new()
+	chord.required_action_id = &"modifier"
+	var chord_mapping := _make_mapping(_make_action(&"special"), [
+		_make_key_binding(KEY_K),
+	])
+	chord_mapping.triggers = [chord]
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"modifier"), [
+			_make_key_binding(KEY_SHIFT),
+		]),
+		chord_mapping,
+	])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_K, true))
+	assert_false(_utility.is_action_active(&"special"), "缺少组合动作时不应触发。")
+
+	_utility.handle_input_event(_make_key_event(KEY_SHIFT, true))
+	_utility.handle_input_event(_make_key_event(KEY_K, true))
+	assert_true(_utility.is_action_active(&"special"), "组合动作活跃后应触发。")
 
 
 ## 验证可重绑条目会返回上下文、动作和有效事件。

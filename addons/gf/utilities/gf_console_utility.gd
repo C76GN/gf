@@ -116,6 +116,31 @@ func suggest_commands(prefix: String) -> PackedStringArray:
 	return suggestions
 
 
+## 根据字符串相似度获取可能的命令名，用于未知命令诊断。
+## @param cmd_name: 用户输入的命令名。
+## @param limit: 最多返回的候选数量。
+## @param threshold: 最低相似度，范围 0 到 1。
+## @return 按相似度降序排列的候选命令名。
+func suggest_similar_commands(cmd_name: String, limit: int = 3, threshold: float = 0.5) -> PackedStringArray:
+	if cmd_name.is_empty() or _commands.is_empty() or limit <= 0:
+		return PackedStringArray()
+
+	var scored: Array = []
+	for registered_name: String in _commands.keys():
+		var score := cmd_name.similarity(registered_name)
+		if score >= threshold:
+			scored.append([score, registered_name])
+	scored.sort_custom(func(a: Array, b: Array) -> bool:
+		return float(a[0]) > float(b[0])
+	)
+
+	var suggestions := PackedStringArray()
+	var result_count := mini(limit, scored.size())
+	for index: int in range(result_count):
+		suggestions.append(String(scored[index][1]))
+	return suggestions
+
+
 ## 解析并执行一条原始输入。
 ## @param raw_input: 用户输入的完整字符串。
 ## @return 找到并成功执行命令时返回 `true`。
@@ -132,7 +157,16 @@ func execute_command(raw_input: String) -> bool:
 
 	if not _commands.has(cmd_name):
 		if is_instance_valid(_console_gui):
-			_console_gui.append_text("[color=red]未知指令：%s。输入 'help' 查看帮助。[/color]" % cmd_name)
+			var similar_commands := suggest_similar_commands(cmd_name)
+			if similar_commands.is_empty():
+				_console_gui.append_text("[color=red]未知指令：%s。输入 'help' 查看帮助。[/color]" % cmd_name)
+			else:
+				_console_gui.append_text(
+					"[color=red]未知指令：%s。你是不是想输入：%s？[/color]" % [
+						cmd_name,
+						", ".join(similar_commands),
+					]
+				)
 		return false
 
 	var entry: Dictionary = _commands[cmd_name]

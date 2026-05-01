@@ -37,25 +37,42 @@ var max_sfx_players: int = 32
 ## SFX 超出并发上限时采用的处理策略。
 var sfx_overflow_policy: SFXOverflowPolicy = SFXOverflowPolicy.SKIP_NEW
 
+## 默认 BGM 淡入淡出秒数。单次播放传入负数时使用该值。
+var bgm_crossfade_seconds: float = 0.0
+
+## BGM 历史记录最大数量。
+var max_bgm_history: int = 16
+
 
 # --- 私有变量 ---
 
 var _bgm_player: AudioStreamPlayer
+var _bgm_fade_player: AudioStreamPlayer
 var _sfx_scene: PackedScene
 var _root: Node
 var _bgm_request_serial: int = 0
+var _bgm_fade_serial: int = 0
 var _sfx_lifecycle_serial: int = 0
 var _missing_bus_warnings: Dictionary = {}
 var _active_sfx_players: Array[AudioStreamPlayer] = []
+var _bgm_history: PackedStringArray = PackedStringArray()
+var _current_bgm_key: String = ""
+var _ambient_players: Dictionary = {}
+var _ambient_request_serials: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
 	_bgm_request_serial = 0
+	_bgm_fade_serial = 0
 	_sfx_lifecycle_serial += 1
 	_missing_bus_warnings.clear()
 	_active_sfx_players.clear()
+	_bgm_history = PackedStringArray()
+	_current_bgm_key = ""
+	_ambient_players.clear()
+	_ambient_request_serials.clear()
 	# 动态创建用于池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
@@ -65,19 +82,27 @@ func init() -> void:
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.name = "GFBGMPlayer"
 	_bgm_player.bus = _resolve_bus_name(BGM_BUS_NAME)
+	_bgm_fade_player = AudioStreamPlayer.new()
+	_bgm_fade_player.name = "GFBGMFadePlayer"
+	_bgm_fade_player.bus = _resolve_bus_name(BGM_BUS_NAME)
 	
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
 		_root = tree.root
 		_root.call_deferred("add_child", _bgm_player)
+		_root.call_deferred("add_child", _bgm_fade_player)
 
 
 func dispose() -> void:
 	_bgm_request_serial += 1
+	_bgm_fade_serial += 1
 	_sfx_lifecycle_serial += 1
 	_release_all_sfx_players()
+	_free_all_ambient_players()
 	if is_instance_valid(_bgm_player):
 		_bgm_player.queue_free()
+	if is_instance_valid(_bgm_fade_player):
+		_bgm_fade_player.queue_free()
 	_root = null
 	
 	# SFX 节点由 ObjectPoolUtility 管理并随其一起被清理
@@ -87,7 +112,8 @@ func dispose() -> void:
 
 ## 播放 BGM（背景音乐）
 ## @param path: 音频资源的路径
-func play_bgm(path: String) -> void:
+## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
+func play_bgm(path: String, crossfade_seconds: float = -1.0) -> void:
 	_bgm_request_serial += 1
 	var request_serial := _bgm_request_serial
 	if path.is_empty():
@@ -97,16 +123,17 @@ func play_bgm(path: String) -> void:
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(path) as AudioStream
-		_apply_bgm_request(request_serial, stream)
+		_apply_bgm_request(request_serial, stream, crossfade_seconds, path)
 	else:
 		var on_loaded := func(res: Resource) -> void:
-			_apply_bgm_request(request_serial, res as AudioStream)
+			_apply_bgm_request(request_serial, res as AudioStream, crossfade_seconds, path)
 		asset_util.load_async(path, on_loaded)
 
 
 ## 播放资源化 BGM 配置。
 ## @param clip: 音频片段配置。
-func play_bgm_clip(clip: GFAudioClip) -> void:
+## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
+func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -> void:
 	if clip == null or not clip.has_source():
 		return
 
@@ -115,15 +142,16 @@ func play_bgm_clip(clip: GFAudioClip) -> void:
 	var bus_name := clip.resolve_bus(BGM_BUS_NAME)
 	var volume_db := clip.volume_db
 	var pitch_scale := clip.pitch_scale
+	var history_key := _get_clip_history_key(clip)
 
 	if clip.stream != null:
-		_apply_bgm_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale)
+		_apply_bgm_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale, crossfade_seconds, history_key)
 		return
 
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(clip.path) as AudioStream
-		_apply_bgm_request_with_settings(request_serial, stream, bus_name, volume_db, pitch_scale)
+		_apply_bgm_request_with_settings(request_serial, stream, bus_name, volume_db, pitch_scale, crossfade_seconds, history_key)
 	else:
 		var on_loaded := func(res: Resource) -> void:
 			_apply_bgm_request_with_settings(
@@ -131,7 +159,9 @@ func play_bgm_clip(clip: GFAudioClip) -> void:
 				res as AudioStream,
 				bus_name,
 				volume_db,
-				pitch_scale
+				pitch_scale,
+				crossfade_seconds,
+				history_key
 			)
 		asset_util.load_async(clip.path, on_loaded)
 
@@ -139,17 +169,134 @@ func play_bgm_clip(clip: GFAudioClip) -> void:
 ## 从音频集合播放 BGM。
 ## @param bank: 音频集合。
 ## @param clip_id: 片段标识。
-func play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName) -> void:
+## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
+func play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName, crossfade_seconds: float = -1.0) -> void:
 	if bank == null:
 		return
 
-	play_bgm_clip(bank.get_clip(clip_id))
+	play_bgm_clip(bank.get_clip(clip_id), crossfade_seconds)
 
 
 ## 停止当前 BGM。
-func stop_bgm() -> void:
+## @param fade_seconds: 淡出秒数。
+func stop_bgm(fade_seconds: float = 0.0) -> void:
+	_bgm_fade_serial += 1
+	_current_bgm_key = ""
 	if is_instance_valid(_bgm_player):
-		_bgm_player.stop()
+		_stop_player(_bgm_player, fade_seconds)
+	if is_instance_valid(_bgm_fade_player):
+		_bgm_fade_player.stop()
+
+
+## 获取 BGM 播放历史。
+## @return 从旧到新的历史 key。
+func get_bgm_history() -> PackedStringArray:
+	return PackedStringArray(_bgm_history)
+
+
+## 获取当前 BGM key。
+## @return 当前 BGM key；无播放时为空。
+func get_current_bgm_key() -> String:
+	return _current_bgm_key
+
+
+## 清空 BGM 历史。
+func clear_bgm_history() -> void:
+	_bgm_history = PackedStringArray()
+
+
+## 播放环境音。
+## @param path: 音频资源路径。
+## @param channel: 环境音通道。
+## @param fade_seconds: 淡入秒数。
+func play_ambient(path: String, channel: StringName = &"default", fade_seconds: float = 0.0) -> void:
+	if path.is_empty():
+		stop_ambient(channel, fade_seconds)
+		return
+
+	var request_serial := _next_ambient_request_serial(channel)
+	var asset_util := _get_asset_util()
+	if asset_util == null:
+		var stream := load(path) as AudioStream
+		_apply_ambient_request(request_serial, channel, stream, BGM_BUS_NAME, 0.0, 1.0, fade_seconds)
+	else:
+		var on_loaded := func(res: Resource) -> void:
+			_apply_ambient_request(request_serial, channel, res as AudioStream, BGM_BUS_NAME, 0.0, 1.0, fade_seconds)
+		asset_util.load_async(path, on_loaded)
+
+
+## 播放资源化环境音配置。
+## @param clip: 音频片段配置。
+## @param channel: 环境音通道。
+## @param fade_seconds: 淡入秒数。
+func play_ambient_clip(
+	clip: GFAudioClip,
+	channel: StringName = &"default",
+	fade_seconds: float = 0.0
+) -> void:
+	if clip == null or not clip.has_source():
+		return
+
+	var request_serial := _next_ambient_request_serial(channel)
+	var bus_name := clip.resolve_bus(BGM_BUS_NAME)
+	var volume_db := clip.volume_db
+	var pitch_scale := clip.pitch_scale
+
+	if clip.stream != null:
+		_apply_ambient_request(request_serial, channel, clip.stream, bus_name, volume_db, pitch_scale, fade_seconds)
+		return
+
+	var asset_util := _get_asset_util()
+	if asset_util == null:
+		var stream := load(clip.path) as AudioStream
+		_apply_ambient_request(request_serial, channel, stream, bus_name, volume_db, pitch_scale, fade_seconds)
+	else:
+		var on_loaded := func(res: Resource) -> void:
+			_apply_ambient_request(request_serial, channel, res as AudioStream, bus_name, volume_db, pitch_scale, fade_seconds)
+		asset_util.load_async(clip.path, on_loaded)
+
+
+## 从音频集合播放环境音。
+## @param bank: 音频集合。
+## @param clip_id: 片段标识。
+## @param channel: 环境音通道。
+## @param fade_seconds: 淡入秒数。
+func play_ambient_from_bank(
+	bank: GFAudioBank,
+	clip_id: StringName,
+	channel: StringName = &"default",
+	fade_seconds: float = 0.0
+) -> void:
+	if bank == null:
+		return
+
+	play_ambient_clip(bank.get_clip(clip_id), channel, fade_seconds)
+
+
+## 停止指定环境音通道。
+## @param channel: 环境音通道。
+## @param fade_seconds: 淡出秒数。
+func stop_ambient(channel: StringName = &"default", fade_seconds: float = 0.0) -> void:
+	_next_ambient_request_serial(channel)
+	var player := _ambient_players.get(channel) as AudioStreamPlayer
+	if player != null:
+		_stop_player(player, fade_seconds)
+
+
+## 停止所有环境音通道。
+## @param fade_seconds: 淡出秒数。
+func stop_all_ambient(fade_seconds: float = 0.0) -> void:
+	var channels := _ambient_players.keys()
+	for channel_variant: Variant in channels:
+		stop_ambient(StringName(channel_variant), fade_seconds)
+
+
+## 检查环境音通道是否正在播放。
+## @param channel: 环境音通道。
+## @return 正在播放时返回 true。
+func is_ambient_playing(channel: StringName = &"default") -> bool:
+	var player := _ambient_players.get(channel) as AudioStreamPlayer
+	return is_instance_valid(player) and player.playing
 
 
 ## 播放 SFX（音效），自动从池中分配播放器
@@ -242,22 +389,33 @@ func _play_bgm_stream_with_settings(
 	stream: AudioStream,
 	bus_name: String,
 	volume_db: float,
-	pitch_scale: float
+	pitch_scale: float,
+	crossfade_seconds: float = -1.0,
+	history_key: String = ""
 ) -> void:
 	if stream == null or not is_instance_valid(_bgm_player):
 		return
-	_bgm_player.bus = _resolve_bus_name(bus_name)
-	_bgm_player.volume_db = volume_db
-	_bgm_player.pitch_scale = pitch_scale
-	_bgm_player.stream = stream
+
+	_record_bgm_history(history_key)
+	var fade_seconds := _resolve_bgm_crossfade_seconds(crossfade_seconds)
+	if fade_seconds > 0.0 and _bgm_player.playing and _bgm_player.stream != null:
+		_start_bgm_crossfade(stream, bus_name, volume_db, pitch_scale, fade_seconds)
+		return
+
+	_apply_player_settings(_bgm_player, stream, bus_name, volume_db, pitch_scale)
 	_bgm_player.play()
 
 
-func _apply_bgm_request(request_serial: int, stream: AudioStream) -> void:
+func _apply_bgm_request(
+	request_serial: int,
+	stream: AudioStream,
+	crossfade_seconds: float = -1.0,
+	history_key: String = ""
+) -> void:
 	if request_serial != _bgm_request_serial:
 		return
 
-	_play_bgm_stream(stream)
+	_play_bgm_stream_with_settings(stream, BGM_BUS_NAME, 0.0, 1.0, crossfade_seconds, history_key)
 
 
 func _apply_bgm_request_with_settings(
@@ -265,12 +423,198 @@ func _apply_bgm_request_with_settings(
 	stream: AudioStream,
 	bus_name: String,
 	volume_db: float,
-	pitch_scale: float
+	pitch_scale: float,
+	crossfade_seconds: float = -1.0,
+	history_key: String = ""
 ) -> void:
 	if request_serial != _bgm_request_serial:
 		return
 
-	_play_bgm_stream_with_settings(stream, bus_name, volume_db, pitch_scale)
+	_play_bgm_stream_with_settings(stream, bus_name, volume_db, pitch_scale, crossfade_seconds, history_key)
+
+
+func _start_bgm_crossfade(
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float,
+	fade_seconds: float
+) -> void:
+	if not is_instance_valid(_bgm_fade_player):
+		_apply_player_settings(_bgm_player, stream, bus_name, volume_db, pitch_scale)
+		_bgm_player.play()
+		return
+
+	_bgm_fade_serial += 1
+	var fade_serial := _bgm_fade_serial
+	_apply_player_settings(_bgm_fade_player, stream, bus_name, -80.0, pitch_scale)
+	_bgm_fade_player.play()
+
+	var tween := _create_tween_or_null()
+	if tween == null:
+		_complete_bgm_crossfade(fade_serial, volume_db)
+		return
+
+	tween.tween_property(_bgm_player, "volume_db", -80.0, fade_seconds)
+	tween.parallel().tween_property(_bgm_fade_player, "volume_db", volume_db, fade_seconds)
+	var finished_callback := func() -> void:
+		_complete_bgm_crossfade(fade_serial, volume_db)
+	tween.finished.connect(finished_callback, CONNECT_ONE_SHOT)
+
+
+func _complete_bgm_crossfade(fade_serial: int, target_volume_db: float) -> void:
+	if fade_serial != _bgm_fade_serial:
+		return
+	if not is_instance_valid(_bgm_player) or not is_instance_valid(_bgm_fade_player):
+		return
+
+	_bgm_player.stop()
+	var previous_player := _bgm_player
+	_bgm_player = _bgm_fade_player
+	_bgm_player.volume_db = target_volume_db
+	_bgm_fade_player = previous_player
+	_bgm_fade_player.volume_db = 0.0
+
+
+func _apply_player_settings(
+	player: AudioStreamPlayer,
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float
+) -> void:
+	player.bus = _resolve_bus_name(bus_name)
+	player.volume_db = volume_db
+	player.pitch_scale = pitch_scale
+	player.stream = stream
+
+
+func _resolve_bgm_crossfade_seconds(crossfade_seconds: float) -> float:
+	var seconds := bgm_crossfade_seconds if crossfade_seconds < 0.0 else crossfade_seconds
+	return maxf(seconds, 0.0)
+
+
+func _record_bgm_history(history_key: String) -> void:
+	if history_key.is_empty():
+		return
+
+	_current_bgm_key = history_key
+	if _bgm_history.is_empty() or _bgm_history[_bgm_history.size() - 1] != history_key:
+		_bgm_history.append(history_key)
+
+	var limit := maxi(max_bgm_history, 0)
+	while limit > 0 and _bgm_history.size() > limit:
+		_bgm_history.remove_at(0)
+	if limit == 0:
+		_bgm_history = PackedStringArray()
+
+
+func _get_clip_history_key(clip: GFAudioClip) -> String:
+	if clip == null:
+		return ""
+	if not clip.path.is_empty():
+		return clip.path
+	if not clip.resource_path.is_empty():
+		return clip.resource_path
+	return "clip:%d" % clip.get_instance_id()
+
+
+func _next_ambient_request_serial(channel: StringName) -> int:
+	var next_serial := int(_ambient_request_serials.get(channel, 0)) + 1
+	_ambient_request_serials[channel] = next_serial
+	return next_serial
+
+
+func _apply_ambient_request(
+	request_serial: int,
+	channel: StringName,
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float,
+	fade_seconds: float
+) -> void:
+	if request_serial != int(_ambient_request_serials.get(channel, 0)):
+		return
+
+	_play_ambient_stream_with_settings(channel, stream, bus_name, volume_db, pitch_scale, fade_seconds)
+
+
+func _play_ambient_stream_with_settings(
+	channel: StringName,
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float,
+	fade_seconds: float
+) -> void:
+	if stream == null:
+		return
+
+	var player := _get_or_create_ambient_player(channel)
+	if player == null:
+		return
+
+	var should_fade := fade_seconds > 0.0
+	_apply_player_settings(player, stream, bus_name, -80.0 if should_fade else volume_db, pitch_scale)
+	player.play()
+	if should_fade:
+		_fade_player_volume(player, volume_db, fade_seconds)
+
+
+func _get_or_create_ambient_player(channel: StringName) -> AudioStreamPlayer:
+	var existing := _ambient_players.get(channel) as AudioStreamPlayer
+	if is_instance_valid(existing):
+		return existing
+	if not is_instance_valid(_root):
+		return null
+
+	var player := AudioStreamPlayer.new()
+	player.name = "GFAmbientPlayer_%s" % String(channel)
+	player.bus = _resolve_bus_name(BGM_BUS_NAME)
+	_root.add_child(player)
+	_ambient_players[channel] = player
+	return player
+
+
+func _free_all_ambient_players() -> void:
+	for player_variant: Variant in _ambient_players.values():
+		var player := player_variant as AudioStreamPlayer
+		if is_instance_valid(player):
+			player.queue_free()
+	_ambient_players.clear()
+	_ambient_request_serials.clear()
+
+
+func _stop_player(player: AudioStreamPlayer, fade_seconds: float) -> void:
+	if not is_instance_valid(player):
+		return
+	if fade_seconds <= 0.0 or not player.playing:
+		player.stop()
+		return
+
+	var tween := _fade_player_volume(player, -80.0, fade_seconds)
+	if tween != null:
+		var finished_callback := func() -> void:
+			if is_instance_valid(player):
+				player.stop()
+		tween.finished.connect(finished_callback, CONNECT_ONE_SHOT)
+
+
+func _fade_player_volume(player: AudioStreamPlayer, volume_db: float, fade_seconds: float) -> Tween:
+	var tween := _create_tween_or_null()
+	if tween == null:
+		player.volume_db = volume_db
+		return null
+
+	tween.tween_property(player, "volume_db", volume_db, maxf(fade_seconds, 0.0))
+	return tween
+
+
+func _create_tween_or_null() -> Tween:
+	if is_instance_valid(_root):
+		return _root.create_tween()
+	return null
 
 
 func _apply_sfx_request(request_serial: int, stream: AudioStream) -> void:

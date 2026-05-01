@@ -4,11 +4,11 @@ GF Framework is a lightweight game architecture framework for Godot 4. It keeps 
 
 ## English Overview
 
-- `Foundation`: pure value objects, algorithms, resourceized formulas, formatting helpers, big numbers, fixed decimals, progression curves, and offline reward calculations.
+- `Foundation`: pure value objects, algorithms, resourceized formulas, formatting helpers, big numbers, fixed decimals, progression curves, spatial hashes, and offline reward calculations.
 - `GFModel`: data layer for game state, snapshots, and save/restore methods through `to_dict()` / `from_dict()`.
 - `GFSystem`: logic layer for rules, events, commands, queries, and frame-based updates.
 - `GFController`: presentation layer based on `Node`, connecting Godot scenes, UI, input, and framework data.
-- `GFUtility`: runtime services such as storage, resource loading, remote caching, time, object pools, UI stack handling, audio, and logging.
+- `GFUtility`: runtime services such as storage, save graph composition, resource loading, remote caching, time, object pools, UI stack handling, audio, input, and logging.
 
 ## Installation
 
@@ -42,7 +42,7 @@ func _ready() -> void:
 
 ## Included Modules
 
-GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties, commands and queries, state machines, command sequences, turn-flow helpers, action queues, object pooling, scene switching, storage helpers, settings and display adapters, audio banks, player-scoped input device assignment, analytics events, capability components, interaction flows, lightweight combat helpers, generic domain models, grid occupancy primitives, and editor tools for typed accessor generation.
+GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties, commands and queries, state machines, command sequences, turn-flow helpers, action queues, object pooling, scene switching, storage helpers, save graph composition, settings and display adapters, audio banks with BGM/ambient helpers, player-scoped input mapping with modifiers and triggers, analytics events, capability components, interaction flows, lightweight combat helpers, generic domain models, grid occupancy primitives, 3D spatial hashing, and editor tools for typed accessor generation.
 
 ## Testing
 
@@ -156,7 +156,7 @@ Gf.send_command(command)
 - `GFNumberFormatter`：统一的完整显示、紧凑缩写、科学计数法格式化工具。
 - `GFProgressionMath`：价格曲线、收益曲线、里程碑倍率、软上限与分段离线收益结算工具。
 - `GFGridMath`：网格索引、邻居、泛洪、BFS 与两折连线等纯算法工具。
-- `GFGridOccupancy`：通用格子占用与预约结构，可用于棋盘、战棋、推箱子和解谜类 System 的运行时状态。
+- `GFGridOccupancy` / `GFSpatialHash3D`：通用格子占用、预约与 3D 空间哈希结构，可用于棋盘、战棋、推箱子、解谜和大量 3D 实体粗筛查询。
 - `GFFormula` / `GFFormulaSet`：资源化公式与参数容器，适合把可替换计算策略从系统逻辑中抽离。
 - `TypeEventSystem`：强类型事件与轻量 `StringName` 事件。
 - `BindableProperty`：响应式属性，适合 Model 到 UI 的数据绑定。
@@ -164,21 +164,22 @@ Gf.send_command(command)
 - `GFRemoteCacheUtility`：通用远程文本/JSON 请求、本地 TTL 缓存与失败回退。
 - `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、filter/map/delay/debounce/once 链式处理。
 - `GFSceneUtility`：异步场景切换与瞬态模块清理。
-- `GFStorageUtility` / `GFStorageCodec`：槽位存档、元数据、事务恢复、Resource 存取、完整性校验、版本迁移和可配置编码。
+- `GFStorageUtility` / `GFStorageCodec` / `GFSaveGraphUtility`：槽位存档、元数据、事务恢复、Resource 存取、完整性校验、版本迁移、可配置编码、通用节点存档图编排、默认节点序列化器和存档 pipeline。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFSettingsUtility` / `GFDisplaySettingsUtility`：抽象设置注册、持久化、显示/语言/音频应用，以及设置界面控件绑定辅助。
 - `GFObjectPoolUtility`：节点对象池。
-- `GFAudioUtility`：BGM/SFX 播放、资源化音频片段/集合、音量总线、SFX 对象池与并发上限控制。
-- `GFInputMappingUtility` / `GFInputAction` / `GFInputContext`：资源化输入动作、上下文切换、运行时重绑定、全局与玩家级动作状态查询。
+- `GFAudioUtility`：BGM/SFX/环境音播放、BGM 淡入淡出与历史、资源化音频片段/集合、音量总线、SFX 对象池与并发上限控制。
+- `GFInputMappingUtility` / `GFInputAction` / `GFInputContext`：资源化输入动作、上下文切换、运行时重绑定、一维/二维/三维动作值、修饰器、触发器、全局与玩家级动作状态查询。
 - `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、活跃玩家追踪、通用触屏虚拟摇杆与触屏按钮。
 - `GFAnalyticsUtility`：通用事件采集、稳定 client id、批量 flush、本地 dry-run、传输 hook 与可选 HTTP 上报。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFCommandSequence`：顺序执行 `GFSequenceStep`、命令对象或任意 callable 的通用流程编排器。
+- `GFFlowGraph` / `GFFlowRunner`：资源化通用流程图执行基础。
 - `GFActionQueueSystem`：表现动作队列。
 - `GFActionQueueSystem` 命名队列：可为战斗、对白、教程等不同表现流创建独立队列，并支持绑定节点生命周期。
 - `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
 - `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState`：面向场景树的可选状态机扩展，支持配置资源、状态历史、栈式子状态与节点宿主访问。
-- `GFConsoleUtility`：运行时开发者控制台，支持命令注册、日志接入、标签过滤与输出行数上限。
+- `GFConsoleUtility` / `GFLogUtility`：运行时开发者控制台与集中式日志，支持命令注册、日志接入、标签过滤、输出行数上限和内存日志环形缓存。
 - `GFCombatSystem`：轻量战斗扩展。
 - `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载、启停、索引查询可复用能力。
 - `GFCapabilityContainer`：场景树能力容器，支持把子节点注册为父节点能力。
@@ -187,9 +188,10 @@ Gf.send_command(command)
 - `GFInteractionContext`：轻量交互上下文，便于在命令、事件或能力方法之间传递 sender、target 与 payload。
 - `GFInteractions`：交互上下文与链式交互流程创建入口。
 - `GFTurnFlowSystem`：通用回合阶段与行动解析流程系统。
+- `GFNetworkUtility` / `GFNetworkBackend`：可插拔网络后端、通用消息载体、消息序列化和限流基础。
 - `GFInventoryModel` / `GFLevelProgressModel` / `GFTraitSet` / `GFEquipmentSet`：库存、关卡进度、特征和槽位的通用数据模型。
 - `GFThumbnailRenderer`：可复用的编辑器 3D/Mesh/MeshLibrary 缩略图渲染辅助节点。
-- `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `工具 > GF > 生成强类型访问器` 菜单生成 `GFAccess`。
+- `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `工具 > GF > 生成强类型访问器` 和 `生成项目常量访问器` 菜单生成 `GFAccess` / `GFProjectAccess`。
 
 ## 测试
 

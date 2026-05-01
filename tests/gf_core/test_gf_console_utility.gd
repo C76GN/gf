@@ -76,6 +76,18 @@ func test_suggest_commands_filters_by_prefix() -> void:
 	assert_false(suggestions.has("spawn"), "不匹配前缀的命令不应返回。")
 
 
+func test_suggest_similar_commands_returns_likely_matches() -> void:
+	var cb := func(_args: PackedStringArray) -> void:
+		pass
+
+	_console.register_command("teleport", cb, "传送。")
+	_console.register_command("time_scale", cb, "时间。")
+	var suggestions := _console.suggest_similar_commands("teleprt")
+
+	assert_gt(suggestions.size(), 0, "拼写接近已注册命令时应返回候选。")
+	assert_eq(suggestions[0], "teleport", "最接近的命令应排在第一位。")
+
+
 func test_execute_command_calls_callback() -> void:
 	var called := {"count": 0}
 	var cb := func(_args: PackedStringArray) -> void:
