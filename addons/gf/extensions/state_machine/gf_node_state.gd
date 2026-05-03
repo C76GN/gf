@@ -126,9 +126,44 @@ func initialize() -> void:
 	_initialize()
 
 
+## 判断是否允许进入状态。
+## @param previous_state: 来源状态名。
+## @param args: 切换参数。
+## @return 允许进入返回 true。
+func can_enter(previous_state: StringName = &"", args: Dictionary = {}) -> bool:
+	return _can_enter(previous_state, args)
+
+
+## 判断是否允许离开状态。
+## @param next_state: 目标状态名。
+## @param args: 切换参数。
+## @return 允许离开返回 true。
+func can_exit(next_state: StringName = &"", args: Dictionary = {}) -> bool:
+	return _can_exit(next_state, args)
+
+
+## 获取状态组共享黑板。
+## @return 黑板字典；没有状态组时返回空字典。
+func get_blackboard() -> Dictionary:
+	var group := get_group()
+	if group != null and group.has_method("get_blackboard"):
+		return group.call("get_blackboard") as Dictionary
+	return {}
+
+
 ## 状态初始化扩展点。
 func _initialize() -> void:
 	pass
+
+
+## 状态进入守卫扩展点。
+func _can_enter(_previous_state: StringName = &"", _args: Dictionary = {}) -> bool:
+	return true
+
+
+## 状态退出守卫扩展点。
+func _can_exit(_next_state: StringName = &"", _args: Dictionary = {}) -> bool:
+	return true
 
 
 ## 状态进入扩展点。

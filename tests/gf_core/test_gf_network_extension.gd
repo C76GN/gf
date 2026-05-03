@@ -5,7 +5,10 @@ extends GutTest
 # --- 常量 ---
 
 const GFNetworkBackendBase = preload("res://addons/gf/extensions/network/gf_network_backend.gd")
+const GFNetworkChannelBase = preload("res://addons/gf/extensions/network/gf_network_channel.gd")
+const GFENetNetworkBackendBase = preload("res://addons/gf/extensions/network/gf_enet_network_backend.gd")
 const GFNetworkMessageBase = preload("res://addons/gf/extensions/network/gf_network_message.gd")
+const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/network/gf_network_message_validator.gd")
 const GFNetworkRateLimiterBase = preload("res://addons/gf/extensions/network/gf_network_rate_limiter.gd")
 const GFNetworkSerializerBase = preload("res://addons/gf/extensions/network/gf_network_serializer.gd")
 const GFNetworkUtilityBase = preload("res://addons/gf/extensions/network/gf_network_utility.gd")
@@ -16,10 +19,18 @@ const GFNetworkUtilityBase = preload("res://addons/gf/extensions/network/gf_netw
 class FakeBackend extends GFNetworkBackend:
 	var sent_peer_id: int = 0
 	var sent_bytes: PackedByteArray = PackedByteArray()
+	var sent_options: Dictionary = {}
 
-	func send_bytes(peer_id: int, bytes: PackedByteArray, _options: Dictionary = {}) -> Error:
+	func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) -> Error:
 		sent_peer_id = peer_id
 		sent_bytes = bytes
+		sent_options = options.duplicate(true)
+		return OK
+
+	func host(_options: Dictionary = {}) -> Error:
+		return OK
+
+	func connect_to_endpoint(_endpoint: String, _options: Dictionary = {}) -> Error:
 		return OK
 
 
@@ -69,3 +80,62 @@ func test_network_rate_limiter_refills_tokens() -> void:
 	limiter.tick(0.5)
 
 	assert_true(limiter.consume(), "恢复足够令牌后应允许消费。")
+
+
+## 验证网络频道会合并发送选项并进入调试快照。
+func test_network_channel_controls_send_options() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	var backend := FakeBackend.new()
+	utility.set_backend(backend)
+	var channel := GFNetworkChannelBase.new()
+	channel.channel_id = &"state"
+	channel.transfer_channel = 2
+	channel.reliable = false
+	utility.register_channel(channel)
+
+	var error := utility.send_message_on_channel(3, GFNetworkMessageBase.new(&"state", {}), &"state")
+	var snapshot := utility.get_debug_snapshot()
+
+	assert_eq(error, OK, "通道发送应成功。")
+	assert_eq(backend.sent_options.get("channel"), 2, "通道编号应写入后端发送选项。")
+	assert_false(bool(backend.sent_options.get("reliable", true)), "通道可靠性应写入后端发送选项。")
+	assert_eq((snapshot["channels"] as Array).size(), 1, "调试快照应包含已注册通道。")
+
+
+## 验证消息校验器会拒绝不合规消息。
+func test_network_message_validator_rejects_invalid_message() -> void:
+	var validator := GFNetworkMessageValidatorBase.new()
+
+	var report := validator.validate_message(GFNetworkMessageBase.new(&"", {}))
+
+	assert_false(bool(report["ok"]), "默认校验器不应允许空消息类型。")
+	assert_true((report["errors"] as PackedStringArray).has("empty_message_type"), "校验报告应包含 empty_message_type。")
+
+
+## 验证 NetworkUtility 会维护通用会话状态。
+func test_network_utility_tracks_session_state() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	utility.set_backend(FakeBackend.new())
+
+	var host_error := utility.host({ "port": 9000, "max_clients": 8 })
+	var host_snapshot := utility.get_debug_snapshot()
+	utility.disconnect_network()
+	utility.connect_to_endpoint("127.0.0.1:9000")
+	var client_snapshot := utility.get_debug_snapshot()
+
+	assert_eq(host_error, OK, "主机会话启动应成功。")
+	assert_eq((host_snapshot["session"] as Dictionary).get("mode_name"), "host", "主机会话应记录 host 模式。")
+	assert_eq((host_snapshot["session"] as Dictionary).get("max_peers"), 8, "主机会话应记录最大连接数。")
+	assert_eq((client_snapshot["session"] as Dictionary).get("mode_name"), "client", "客户端连接应记录 client 模式。")
+
+
+## 验证网络工具与可选 ENet 后端提供调试快照。
+func test_network_debug_snapshots_are_available() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	utility.set_backend(FakeBackend.new())
+
+	var utility_snapshot := utility.get_debug_snapshot()
+	var enet_snapshot := GFENetNetworkBackendBase.new().get_debug_snapshot()
+
+	assert_true(bool(utility_snapshot["backend_configured"]), "设置后端后快照应标记已配置。")
+	assert_eq(enet_snapshot["connection_status_name"], "disconnected", "未连接 ENet 后端应报告 disconnected。")

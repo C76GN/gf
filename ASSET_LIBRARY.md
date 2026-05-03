@@ -16,7 +16,7 @@ Everything else is excluded from GitHub archive downloads through `.gitattribute
 - Description:
 
 ```text
-GF Framework is a lightweight architecture framework for Godot 4. It helps organize games into models, systems, controllers, utilities, and foundation helpers with managed lifecycles, typed events, bindable properties, commands and queries, installers, capability components, action queues, state machines, resourceized flow graphs, pluggable network backend foundations, versioned storage/codecs, save graph composition with pipeline hooks, settings/audio/scene/remote-cache utilities, player-scoped input mapping with modifiers, triggers, and 3D values, analytics transport hooks, grid and 3D spatial helpers, and lightweight combat helpers.
+GF Framework is a lightweight architecture framework for Godot 4. It helps organize games into models, systems, controllers, utilities, and foundation helpers with managed lifecycles, typed events, bindable properties, commands and queries, installers, capability components, action queues, state machines with guards and blackboards, resourceized flow graphs with port metadata, connections, and validation, pluggable network backend foundations with optional ENet transport plus session/channel metadata, versioned storage/codecs, save graph composition with pipeline hooks and diagnostics, settings/audio/scene/remote-cache utilities, player-scoped input mapping with modifiers, triggers, 3D values, and conflict reports, analytics transport hooks, governed runtime diagnostics, notification queues, grid and 3D spatial helpers, generic domain data models, and lightweight combat helpers.
 
 Enable the plugin to register the Gf AutoLoad and use the editor tools for generating GF module templates, typed accessors, and project constants.
 ```
@@ -27,7 +27,7 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for gener
 - Repository URL: `https://github.com/C76GN/gf`
 - Issues URL: `https://github.com/C76GN/gf/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `1.21.0`
+- Asset Version: `1.22.0`
 - Download Commit/URL: `TODO_AFTER_RELEASE_COMMIT`
 - Icon URL: `https://raw.githubusercontent.com/C76GN/gf/TODO_AFTER_RELEASE_COMMIT/addons/gf/icon.png`
 

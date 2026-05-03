@@ -58,3 +58,12 @@ func send_bytes(_peer_id: int, _bytes: PackedByteArray, _options: Dictionary = {
 ## @param _delta: 帧间隔。
 func poll(_delta: float) -> void:
 	pass
+
+
+## 获取后端调试快照。
+## @return 调试信息字典。
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"backend": get_script().resource_path if get_script() != null else "",
+		"available": false,
+	}

@@ -8,9 +8,12 @@ extends RefCounted
 # --- 常量 ---
 
 const GFNodeSerializerBase = preload("res://addons/gf/extensions/save/gf_node_serializer.gd")
+const GFNodeAnimationPlayerSerializerBase = preload("res://addons/gf/extensions/save/gf_node_animation_player_serializer.gd")
+const GFNodeAudioStreamPlayerSerializerBase = preload("res://addons/gf/extensions/save/gf_node_audio_stream_player_serializer.gd")
 const GFNodeCanvasItemSerializerBase = preload("res://addons/gf/extensions/save/gf_node_canvas_item_serializer.gd")
 const GFNodeControlSerializerBase = preload("res://addons/gf/extensions/save/gf_node_control_serializer.gd")
 const GFNodeRangeSerializerBase = preload("res://addons/gf/extensions/save/gf_node_range_serializer.gd")
+const GFNodeTimerSerializerBase = preload("res://addons/gf/extensions/save/gf_node_timer_serializer.gd")
 const GFNodeTransform2DSerializerBase = preload("res://addons/gf/extensions/save/gf_node_transform_2d_serializer.gd")
 const GFNodeTransform3DSerializerBase = preload("res://addons/gf/extensions/save/gf_node_transform_3d_serializer.gd")
 
@@ -29,6 +32,9 @@ func _init(include_default_serializers: bool = true) -> void:
 		register_serializer(GFNodeCanvasItemSerializerBase.new())
 		register_serializer(GFNodeControlSerializerBase.new())
 		register_serializer(GFNodeRangeSerializerBase.new())
+		register_serializer(GFNodeTimerSerializerBase.new())
+		register_serializer(GFNodeAnimationPlayerSerializerBase.new())
+		register_serializer(GFNodeAudioStreamPlayerSerializerBase.new())
 
 
 # --- 公共方法 ---

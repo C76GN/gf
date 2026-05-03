@@ -117,6 +117,8 @@ func _run_graph(graph: GFFlowGraph, context: GFFlowContext) -> void:
 		node_completed.emit(node_id, node)
 
 		var next_ids := node.get_next_nodes(context)
+		if next_ids.is_empty() and not context.has_next_nodes_override() and node.next_node_ids.is_empty():
+			next_ids = graph.get_connected_node_ids_from(node_id)
 		for next_id: String in next_ids:
 			pending.append(next_id)
 

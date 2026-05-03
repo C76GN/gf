@@ -5,6 +5,11 @@ class_name GFFlowNode
 extends Resource
 
 
+# --- 常量 ---
+
+const GFFlowPortBase = preload("res://addons/gf/extensions/flow/gf_flow_port.gd")
+
+
 # --- 导出变量 ---
 
 ## 节点稳定标识。
@@ -15,6 +20,15 @@ extends Resource
 
 ## 返回 Signal 时是否等待。
 @export var wait_for_result: bool = true
+
+## 输入端口描述。仅用于编辑器、校验和项目层数据连接。
+@export var input_ports: Array[GFFlowPortBase] = []
+
+## 输出端口描述。仅用于编辑器、校验和项目层数据连接。
+@export var output_ports: Array[GFFlowPortBase] = []
+
+## 项目自定义元数据。框架不解释该字段。
+@export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
@@ -30,6 +44,70 @@ func execute(_context: GFFlowContext) -> Variant:
 ## @param context: 流程上下文。
 ## @return 后继节点标识列表。
 func get_next_nodes(context: GFFlowContext) -> PackedStringArray:
-	if context != null and not context.next_node_ids.is_empty():
+	if context != null and context.has_next_nodes_override():
 		return context.next_node_ids.duplicate()
 	return next_node_ids.duplicate()
+
+
+## 获取输入端口。
+## @return 输入端口数组。
+func get_input_ports() -> Array[GFFlowPortBase]:
+	return input_ports.duplicate()
+
+
+## 获取输出端口。
+## @return 输出端口数组。
+func get_output_ports() -> Array[GFFlowPortBase]:
+	return output_ports.duplicate()
+
+
+## 按端口标识查找输入端口。
+## @param port_id: 端口标识。
+## @return 输入端口；不存在时返回 null。
+func get_input_port(port_id: StringName) -> GFFlowPortBase:
+	return _find_port(input_ports, port_id)
+
+
+## 按端口标识查找输出端口。
+## @param port_id: 端口标识。
+## @return 输出端口；不存在时返回 null。
+func get_output_port(port_id: StringName) -> GFFlowPortBase:
+	return _find_port(output_ports, port_id)
+
+
+## 描述节点端口。
+## @return 端口描述字典。
+func describe_ports() -> Dictionary:
+	return {
+		"inputs": _describe_ports(input_ports),
+		"outputs": _describe_ports(output_ports),
+	}
+
+
+## 描述节点。
+## @return 节点描述字典。
+func describe_node() -> Dictionary:
+	return {
+		"node_id": node_id,
+		"next_node_ids": next_node_ids.duplicate(),
+		"wait_for_result": wait_for_result,
+		"ports": describe_ports(),
+		"metadata": metadata.duplicate(true),
+	}
+
+
+# --- 私有/辅助方法 ---
+
+func _find_port(ports: Array[GFFlowPortBase], port_id: StringName) -> GFFlowPortBase:
+	for port: GFFlowPortBase in ports:
+		if port != null and port.get_port_id() == port_id:
+			return port
+	return null
+
+
+func _describe_ports(ports: Array[GFFlowPortBase]) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for port: GFFlowPortBase in ports:
+		if port != null:
+			result.append(port.describe())
+	return result

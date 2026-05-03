@@ -6,6 +6,11 @@ class_name GFConsoleUtility
 extends GFUtility
 
 
+# --- 常量 ---
+
+const GFConsoleCommandDefinitionBase = preload("res://addons/gf/utilities/gf_console_command_definition.gd")
+
+
 # --- 公共变量 ---
 
 ## 呼出或隐藏控制台的快捷键；默认为 `KEY_F1`。
@@ -82,11 +87,27 @@ func dispose() -> void:
 ## @param cmd_name: 指令名称。
 ## @param callback: 指令回调，签名为 `func(args: PackedStringArray) -> void`。
 ## @param description: 指令说明文本。
-func register_command(cmd_name: String, callback: Callable, description: String) -> void:
+## @param metadata: 项目自定义元数据。
+func register_command(cmd_name: String, callback: Callable, description: String, metadata: Dictionary = {}) -> void:
 	_commands[cmd_name] = {
 		"callback": callback,
 		"description": description,
+		"metadata": metadata.duplicate(true),
 	}
+
+
+## 注册资源化控制台命令。
+## @param definition: 命令资源定义。
+## @param callback: 指令回调，签名为 `func(args: PackedStringArray) -> void`。
+func register_command_definition(definition: GFConsoleCommandDefinitionBase, callback: Callable) -> void:
+	if definition == null or not callback.is_valid():
+		return
+
+	for cmd_name: String in definition.get_all_names():
+		register_command(cmd_name, callback, definition.description, {
+			"definition": definition,
+			"primary_command_name": definition.command_name,
+		})
 
 
 ## 注销控制台命令。

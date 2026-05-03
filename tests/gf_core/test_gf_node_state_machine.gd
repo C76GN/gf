@@ -81,6 +81,19 @@ class HostReadyTrackingNodeState:
 		host_ready_at_enter = host_node != null and "ready_called" in host_node and host_node.get("ready_called") == true
 
 
+class GuardedNodeState:
+	extends TrackingNodeState
+
+	var allow_enter: bool = true
+	var allow_exit: bool = true
+
+	func _can_enter(_previous_state: StringName = &"", _args: Dictionary = {}) -> bool:
+		return allow_enter
+
+	func _can_exit(_next_state: StringName = &"", _args: Dictionary = {}) -> bool:
+		return allow_exit
+
+
 # --- 测试 ---
 
 func test_internal_group_loads_direct_child_states() -> void:
@@ -349,6 +362,46 @@ func test_state_can_access_machine_host() -> void:
 	await get_tree().process_frame
 
 	assert_eq(idle.get_host(), host, "状态应能获取状态机所在宿主节点。")
+
+
+func test_state_guard_can_block_transition() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := GuardedNodeState.new()
+	var run := GuardedNodeState.new()
+	idle.name = "Idle"
+	run.name = "Run"
+	run.allow_enter = false
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	machine.add_child(run)
+	await get_tree().process_frame
+
+	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	watch_signals(group)
+	machine.transition_to(&"Run")
+
+	assert_eq(machine.get_current_state(), idle, "目标状态拒绝进入时应保持当前状态。")
+	assert_eq(idle.exit_count, 0, "进入守卫失败时旧状态不应退出。")
+	assert_signal_emitted(group, "transition_blocked", "守卫阻止切换时应发出 transition_blocked。")
+
+
+func test_state_group_blackboard_is_shared_with_states() -> void:
+	var group: Node = GFNodeStateGroupBase.new()
+	var idle := TrackingNodeState.new()
+	group.name = "Body"
+	group.group_name = &"Body"
+	group.initial_state = &"Idle"
+	group.auto_start = false
+	idle.name = "Idle"
+	add_child_autofree(group)
+	group.add_child(idle)
+	await get_tree().process_frame
+
+	var blackboard := idle.get_blackboard()
+	blackboard["speed"] = 4
+
+	assert_eq(group.blackboard.get("speed"), 4, "状态应能访问并修改状态组共享黑板。")
 
 
 func test_clear_state_groups_disconnects_external_group_signals() -> void:

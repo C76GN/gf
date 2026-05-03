@@ -38,8 +38,8 @@ func _ready() -> void:
 - Project installers and declarative binding helpers for assembling game modules.
 - Typed events, string events, bindable properties, commands, queries, and factories.
 - Foundation helpers for big numbers, fixed decimals, resourceized formulas, number formatting, grid math, 3D spatial hashing, and progression curves.
-- Runtime utilities for versioned storage, codecs, save graph composition, save pipelines, settings, display/audio application, assets, remote text/JSON caching, scenes, time, timers, input buffering, resourceized input mapping with modifiers/triggers and 3D values, player-scoped input device assignment, touch controls, audio banks, ambient channels, analytics transports, UI, logging, quests, object pools, and native signal connections.
-- Extensions for pure-code and node-based state machines, resourceized flow graphs, pluggable network backends, node-state configuration, state history, and stack-style child states.
+- Runtime utilities for versioned storage, codecs, save graph composition, save pipelines, save diagnostics, settings, display/audio application, assets, remote text/JSON caching, scenes, time, timers, input buffering, resourceized input mapping with modifiers/triggers, 3D values, conflict reports, player-scoped input device assignment, touch controls, audio banks, ambient channels, analytics transports, UI, logging, governed diagnostics, notification queues, quests, object pools, and native signal connections.
+- Extensions for pure-code and node-based state machines, state guards and blackboards, resourceized flow graphs with port metadata, connections and validation, pluggable network backends with optional ENet transport, network session/channel metadata, node-state configuration, state history, and stack-style child states.
 - Editor tools for generating typed accessors and project constants, inspecting save payloads, common GF script templates, node-state initial-state selection, and reusable Node3D/Mesh/MeshLibrary thumbnail rendering.
 
 ## Chinese Summary

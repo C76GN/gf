@@ -2,6 +2,9 @@
 extends GutTest
 
 
+const GFConsoleCommandDefinitionBase = preload("res://addons/gf/utilities/gf_console_command_definition.gd")
+
+
 var _console: GFConsoleUtility
 
 
@@ -112,6 +115,21 @@ func test_execute_command_passes_args() -> void:
 	assert_eq(captured_args.size(), 2, "参数数量应为 2。")
 	assert_eq(captured_args[0], "hello", "第一个参数应为 hello。")
 	assert_eq(captured_args[1], "world", "第二个参数应为 world。")
+
+
+func test_register_command_definition_registers_aliases() -> void:
+	var definition := GFConsoleCommandDefinitionBase.new()
+	definition.command_name = "primary"
+	definition.aliases = PackedStringArray(["alias"])
+	var called := { "count": 0 }
+	var cb := func(_args: PackedStringArray) -> void:
+		called["count"] += 1
+
+	_console.register_command_definition(definition, cb)
+	var result := _console.execute_command("alias")
+
+	assert_true(result, "资源化命令别名应可执行。")
+	assert_eq(called["count"], 1, "别名应调用同一回调。")
 
 
 func test_execute_unknown_command_returns_false() -> void:

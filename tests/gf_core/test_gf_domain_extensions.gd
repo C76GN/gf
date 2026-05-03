@@ -63,3 +63,27 @@ func test_equipment_set_checks_slot_tags() -> void:
 	equipment.unequip(&"slot_a")
 
 	assert_eq(equipment.get_equipped_item(&"slot_a"), &"", "卸载后槽位应为空。")
+
+
+## 验证通用属性集合可限制范围、序列化并接入 Trait 计算。
+func test_attribute_set_clamps_serializes_and_applies_traits() -> void:
+	var attributes := GFAttributeSet.new()
+	attributes.define_attribute(&"stamina", 10.0, 8.0, 0.0, 12.0, { "group": "core" })
+	attributes.adjust_value(&"stamina", 10.0)
+
+	assert_eq(attributes.get_value(&"stamina"), 12.0, "属性当前值应被范围限制。")
+
+	var stamina_trait := GFTrait.new()
+	stamina_trait.target_id = &"stamina"
+	stamina_trait.value = 3.0
+	stamina_trait.combine_mode = GFTrait.CombineMode.ADD
+	var traits := GFTraitSet.new()
+	traits.add_trait(stamina_trait)
+
+	assert_eq(attributes.get_value_with_traits(&"stamina", traits), 15.0, "Trait 应能在属性当前值上计算。")
+
+	var restored := GFAttributeSet.new()
+	restored.from_dict(attributes.to_dict())
+
+	assert_eq(restored.get_value(&"stamina"), 12.0, "恢复后当前值应一致。")
+	assert_eq(restored.get_metadata(&"stamina").get("group"), "core", "恢复后元数据应一致。")

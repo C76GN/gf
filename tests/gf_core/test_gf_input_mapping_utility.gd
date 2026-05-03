@@ -7,12 +7,14 @@ extends GutTest
 const GFInputActionBase = preload("res://addons/gf/input/gf_input_action.gd")
 const GFInputBindingBase = preload("res://addons/gf/input/gf_input_binding.gd")
 const GFInputChordTriggerBase = preload("res://addons/gf/input/gf_input_chord_trigger.gd")
+const GFInputConflictAnalyzerBase = preload("res://addons/gf/input/gf_input_conflict_analyzer.gd")
 const GFInputContextBase = preload("res://addons/gf/input/gf_input_context.gd")
 const GFInputFormatterBase = preload("res://addons/gf/input/gf_input_formatter.gd")
 const GFInputHoldTriggerBase = preload("res://addons/gf/input/gf_input_hold_trigger.gd")
 const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
 const GFInputMappingUtilityBase = preload("res://addons/gf/utilities/gf_input_mapping_utility.gd")
 const GFInputPulseTriggerBase = preload("res://addons/gf/input/gf_input_pulse_trigger.gd")
+const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
 const GFInputTapTriggerBase = preload("res://addons/gf/input/gf_input_tap_trigger.gd")
 const GFInputScaleModifierBase = preload("res://addons/gf/input/gf_input_scale_modifier.gd")
 
@@ -296,6 +298,44 @@ func test_input_formatter_formats_key_modifiers() -> void:
 	event.shift_pressed = true
 
 	assert_eq(GFInputFormatterBase.input_event_as_text(event), "Ctrl + Shift + K", "组合键文本应稳定。")
+
+
+## 验证输入冲突分析器会使用重映射后的有效事件。
+func test_input_conflict_analyzer_reports_remap_conflicts() -> void:
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [
+			_make_key_binding(KEY_SPACE),
+		]),
+		_make_mapping(_make_action(&"confirm"), [
+			_make_key_binding(KEY_ENTER),
+		]),
+	])
+	var remap_config := GFInputRemapConfigBase.new()
+	remap_config.set_binding(&"gameplay", &"confirm", 0, _make_key_event(KEY_SPACE, true))
+
+	var conflicts := GFInputConflictAnalyzerBase.analyze_context(context, remap_config)
+
+	assert_eq(conflicts.size(), 1, "重映射到同一按键后应报告一个冲突。")
+	assert_eq(conflicts[0]["event_text"], "Space", "冲突文本应使用有效事件。")
+
+
+## 验证输入冲突分析器可构建完整重绑定报告。
+func test_input_conflict_analyzer_builds_rebind_report() -> void:
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [
+			_make_key_binding(KEY_SPACE),
+		]),
+		_make_mapping(_make_action(&"confirm"), [
+			_make_key_binding(KEY_SPACE),
+		]),
+	])
+
+	var report := GFInputConflictAnalyzerBase.build_rebind_report([context])
+
+	assert_false(bool(report["ok"]), "存在冲突时报告 ok 应为 false。")
+	assert_eq(report["context_count"], 1, "报告应包含上下文数量。")
+	assert_eq(report["item_count"], 2, "报告应包含绑定条目数量。")
+	assert_eq(report["conflict_count"], 1, "报告应包含冲突数量。")
 
 
 ## 验证延迟挂载在 Utility 销毁后不会留下输入路由节点。

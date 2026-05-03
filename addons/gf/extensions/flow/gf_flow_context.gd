@@ -13,6 +13,9 @@ var values: Dictionary = {}
 ## 下一个节点覆盖。流程节点可写入该列表动态控制分支。
 var next_node_ids: PackedStringArray = PackedStringArray()
 
+## 是否显式覆盖了下一个节点。允许节点用空列表表达“停止继续推进”。
+var has_next_node_override: bool = false
+
 
 # --- 私有变量 ---
 
@@ -65,8 +68,16 @@ func get_value(key: StringName, default_value: Variant = null) -> Variant:
 ## @param node_ids: 节点标识列表。
 func set_next_nodes(node_ids: PackedStringArray) -> void:
 	next_node_ids = node_ids.duplicate()
+	has_next_node_override = true
+
+
+## 检查当前节点是否显式覆盖了后继节点。
+## @return 已覆盖返回 true。
+func has_next_nodes_override() -> bool:
+	return has_next_node_override
 
 
 ## 清空下一个节点覆盖。
 func clear_next_nodes() -> void:
 	next_node_ids.clear()
+	has_next_node_override = false

@@ -76,6 +76,65 @@ func clear_pipeline_steps() -> void:
 	pipeline_steps.clear()
 
 
+## 检查 Scope 树的可保存结构。
+## @param scope: 根 Scope。
+## @param context: 调用上下文字典。
+## @return 诊断报告。
+func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionary:
+	var report := {
+		"ok": true,
+		"scope_key": String(scope.get_scope_key()) if scope != null else "",
+		"scope_count": 0,
+		"source_count": 0,
+		"enabled_scope_count": 0,
+		"enabled_source_count": 0,
+		"scopes": [],
+		"sources": [],
+		"issues": [],
+	}
+	if scope == null:
+		_append_diagnostic_issue(report, "error", "null_scope", "", "", "Scope is null.")
+		report["ok"] = false
+		return report
+
+	_inspect_scope_recursive(scope, context, report, String(scope.get_scope_key()))
+	report["ok"] = _report_has_no_error_issues(report)
+	return report
+
+
+## 校验载荷是否能匹配当前 Scope 树。
+## @param scope: 根 Scope。
+## @param payload: 待校验载荷。
+## @param strict: 为 true 时把缺失 Source/Scope 视为错误；否则视为警告。
+## @return 诊断报告。
+func validate_payload_for_scope(scope: GFSaveScopeBase, payload: Dictionary, strict: bool = false) -> Dictionary:
+	var report := {
+		"ok": true,
+		"scope_key": String(scope.get_scope_key()) if scope != null else "",
+		"checked_source_count": 0,
+		"checked_scope_count": 0,
+		"missing": [],
+		"issues": [],
+	}
+	if scope == null:
+		_append_diagnostic_issue(report, "error", "null_scope", "", "", "Scope is null.")
+		report["ok"] = false
+		return report
+	if payload.is_empty():
+		_append_diagnostic_issue(report, "error", "empty_payload", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload is empty.")
+		report["ok"] = false
+		return report
+
+	if String(payload.get("format", "")) != FORMAT_ID:
+		_append_diagnostic_issue(report, "error", "format_mismatch", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload format does not match GF save graph.")
+	if int(payload.get("format_version", -1)) > FORMAT_VERSION:
+		_append_diagnostic_issue(report, "warning", "future_format_version", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload format version is newer than this utility.")
+
+	_validate_payload_scope_recursive(scope, payload, strict, report, String(scope.get_scope_key()))
+	report["ok"] = _report_has_no_error_issues(report)
+	return report
+
+
 ## 采集 Scope 存档图。
 ## @param scope: 根 Scope。
 ## @param context: 调用上下文字典。
@@ -259,6 +318,116 @@ func _get_sources_for_scope(scope: GFSaveScopeBase) -> Array[GFSaveSourceBase]:
 	return result
 
 
+func _inspect_scope_recursive(
+	scope: GFSaveScopeBase,
+	context: Dictionary,
+	report: Dictionary,
+	scope_path: String
+) -> void:
+	report["scope_count"] = int(report.get("scope_count", 0)) + 1
+	if scope.can_save_scope(context):
+		report["enabled_scope_count"] = int(report.get("enabled_scope_count", 0)) + 1
+
+	var scope_key := String(scope.get_scope_key())
+	(report["scopes"] as Array).append({
+		"key": scope_key,
+		"path": _get_node_debug_path(scope),
+		"can_save": scope.can_save_scope(context),
+		"can_load": scope.can_load_scope(context),
+		"phase": scope.phase,
+	})
+
+	var source_key_counts: Dictionary = {}
+	for source: GFSaveSourceBase in _get_sources_for_scope(scope):
+		report["source_count"] = int(report.get("source_count", 0)) + 1
+		if source.can_save_source(context):
+			report["enabled_source_count"] = int(report.get("enabled_source_count", 0)) + 1
+
+		var source_key := _make_scoped_source_key(scope, source)
+		source_key_counts[source_key] = int(source_key_counts.get(source_key, 0)) + 1
+		var target := source.get_target_node()
+		var serializer_ids := _get_source_serializer_ids(source, target)
+		(report["sources"] as Array).append({
+			"key": source_key,
+			"path": _get_node_debug_path(source),
+			"target_path": _get_node_debug_path(target),
+			"can_save": source.can_save_source(context),
+			"can_load": source.can_load_source(context),
+			"phase": source.phase,
+			"serializer_ids": serializer_ids,
+		})
+
+		if source_key.is_empty():
+			_append_diagnostic_issue(report, "error", "empty_source_key", scope_path, _get_node_debug_path(source), "Save source key is empty.")
+		if source.can_save_source(context) and not source.target_node_path.is_empty() and target == null:
+			_append_diagnostic_issue(report, "warning", "missing_target", source_key, _get_node_debug_path(source), "Save source target node is missing.")
+		if (
+			source.can_save_source(context)
+			and target != null
+			and (source.use_registry_serializers or not source.serializers.is_empty())
+			and serializer_ids.is_empty()
+		):
+			_append_diagnostic_issue(report, "warning", "no_matching_serializer", source_key, _get_node_debug_path(source), "No configured serializer supports the target node.")
+
+	for source_key_variant: Variant in source_key_counts.keys():
+		var count := int(source_key_counts[source_key_variant])
+		if count > 1:
+			_append_diagnostic_issue(report, "error", "duplicate_source_key", String(source_key_variant), _get_node_debug_path(scope), "Duplicate save source key in the same scope.")
+
+	var child_scope_key_counts: Dictionary = {}
+	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
+		var child_key := String(child_scope.get_scope_key())
+		child_scope_key_counts[child_key] = int(child_scope_key_counts.get(child_key, 0)) + 1
+	for child_key_variant: Variant in child_scope_key_counts.keys():
+		var count := int(child_scope_key_counts[child_key_variant])
+		if count > 1:
+			_append_diagnostic_issue(report, "error", "duplicate_scope_key", String(child_key_variant), _get_node_debug_path(scope), "Duplicate child scope key in the same scope.")
+
+	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
+		_inspect_scope_recursive(child_scope, context, report, "%s/%s" % [scope_path, String(child_scope.get_scope_key())])
+
+
+func _validate_payload_scope_recursive(
+	scope: GFSaveScopeBase,
+	payload: Dictionary,
+	strict: bool,
+	report: Dictionary,
+	scope_path: String
+) -> void:
+	report["checked_scope_count"] = int(report.get("checked_scope_count", 0)) + 1
+	var severity := "error" if strict else "warning"
+	var source_index := _index_sources_by_key(scope)
+	var source_payloads: Dictionary = payload.get("sources", {}) as Dictionary
+	if source_payloads == null:
+		_append_diagnostic_issue(report, "error", "invalid_sources_payload", scope_path, _get_node_debug_path(scope), "Payload sources must be a Dictionary.")
+		source_payloads = {}
+	for source_key_variant: Variant in source_payloads.keys():
+		report["checked_source_count"] = int(report.get("checked_source_count", 0)) + 1
+		var source_key := String(source_key_variant)
+		if not source_index.has(source_key):
+			(report["missing"] as Array).append("%s:%s" % [scope_path, source_key])
+			_append_diagnostic_issue(report, severity, "missing_source", source_key, _get_node_debug_path(scope), "Payload source does not exist in the current scope.")
+
+	var child_scope_index := _index_child_scopes(scope)
+	var child_payloads: Dictionary = payload.get("scopes", {}) as Dictionary
+	if child_payloads == null:
+		_append_diagnostic_issue(report, "error", "invalid_scopes_payload", scope_path, _get_node_debug_path(scope), "Payload scopes must be a Dictionary.")
+		child_payloads = {}
+	for child_key_variant: Variant in child_payloads.keys():
+		var child_key := String(child_key_variant)
+		var child_scope := child_scope_index.get(child_key) as GFSaveScopeBase
+		if child_scope == null:
+			(report["missing"] as Array).append("%s/%s" % [scope_path, child_key])
+			_append_diagnostic_issue(report, severity, "missing_scope", child_key, _get_node_debug_path(scope), "Payload child scope does not exist in the current scope.")
+			continue
+
+		var child_payload := child_payloads[child_key_variant] as Dictionary
+		if child_payload == null:
+			_append_diagnostic_issue(report, "error", "invalid_child_payload", child_key, _get_node_debug_path(child_scope), "Child scope payload must be a Dictionary.")
+			continue
+		_validate_payload_scope_recursive(child_scope, child_payload, strict, report, "%s/%s" % [scope_path, child_key])
+
+
 func _collect_sources(root_scope: GFSaveScopeBase, current: Node, result: Array[GFSaveSourceBase]) -> void:
 	for child: Node in current.get_children():
 		if child is GFSaveScopeBase:
@@ -440,3 +609,54 @@ func _run_after_apply_steps(
 
 func _get_storage_utility() -> GFStorageUtility:
 	return get_utility(GFStorageUtility) as GFStorageUtility
+
+
+func _get_source_serializer_ids(source: GFSaveSourceBase, target: Node) -> PackedStringArray:
+	var result := PackedStringArray()
+	if target == null:
+		return result
+
+	if not source.serializers.is_empty():
+		for serializer: GFNodeSerializer in source.serializers:
+			if serializer != null and serializer.supports_node(target):
+				result.append(String(serializer.get_serializer_id()))
+		return result
+
+	if source.use_registry_serializers and serializer_registry != null:
+		for serializer: GFNodeSerializer in serializer_registry.get_serializers_for_node(target):
+			if serializer != null:
+				result.append(String(serializer.get_serializer_id()))
+	return result
+
+
+func _append_diagnostic_issue(
+	report: Dictionary,
+	severity: String,
+	kind: String,
+	key: String,
+	path: String,
+	message: String
+) -> void:
+	(report["issues"] as Array).append({
+		"severity": severity,
+		"kind": kind,
+		"key": key,
+		"path": path,
+		"message": message,
+	})
+
+
+func _report_has_no_error_issues(report: Dictionary) -> bool:
+	for issue_variant: Variant in report.get("issues", []):
+		var issue := issue_variant as Dictionary
+		if issue != null and String(issue.get("severity", "")) == "error":
+			return false
+	return true
+
+
+func _get_node_debug_path(node: Node) -> String:
+	if node == null:
+		return ""
+	if node.is_inside_tree():
+		return String(node.get_path())
+	return node.name

@@ -16,6 +16,9 @@ signal state_removed(state: Node)
 ## 当前状态切换后发出。
 signal current_state_changed(old_state: Node, new_state: Node)
 
+## 状态切换被守卫阻止后发出。
+signal transition_blocked(from_state: Node, to_state_name: StringName, args: Dictionary, reason: String)
+
 ## 子状态请求跨组切换时发出。
 signal requested_transition(group_name: StringName, state_name: StringName, args: Dictionary)
 
@@ -42,6 +45,9 @@ signal requested_transition(group_name: StringName, state_name: StringName, args
 
 ## push_state 可叠加的最大栈深度。
 @export_range(1, 64, 1) var max_stack_depth: int = 8
+
+## 状态组共享黑板。框架不解释其中字段。
+@export var blackboard: Dictionary = {}
 
 
 # --- 私有变量 ---
@@ -124,6 +130,8 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 	var previous_name: StringName = &""
 	if previous_state != null:
 		previous_name = previous_state.call("get_state_name")
+	if not _can_transition(previous_state, next_state, next_state_name, previous_name, args):
+		return
 	if previous_state != null:
 		_is_exiting_current_state = true
 		previous_state.call("exit", next_state_name, args)
@@ -138,6 +146,10 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 				_warn_missing_state(next_state_name)
 				return
 			next_state = _states[next_state_name] as Node
+			if not _can_enter_state(next_state, previous_name, args):
+				_current_state = null
+				_emit_transition_blocked(previous_state, next_state_name, args, "enter_guard")
+				return
 
 	if not _state_stack.is_empty():
 		_clear_stack(next_state_name, args)
@@ -178,6 +190,8 @@ func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
 		return
 
 	var previous_name := previous_state.call("get_state_name") as StringName
+	if not _can_transition(previous_state, next_state, next_state_name, previous_name, args):
+		return
 	previous_state.call("pause", next_state_name, args)
 	_state_stack.append(previous_state)
 	_current_state = next_state
@@ -208,6 +222,9 @@ func pop_state(args: Dictionary = {}) -> bool:
 
 	var previous_name := previous_state.call("get_state_name") as StringName
 	var restore_name := restore_state.call("get_state_name") as StringName
+	if not _can_transition(previous_state, restore_state, restore_name, previous_name, args):
+		_state_stack.append(restore_state)
+		return false
 
 	_transition_serial += 1
 	_is_exiting_current_state = true
@@ -298,6 +315,12 @@ func get_state_history() -> Array[StringName]:
 ## 获取当前暂停栈深度。
 func get_stack_depth() -> int:
 	return _state_stack.size()
+
+
+## 获取状态组共享黑板。
+## @return 黑板字典。
+func get_blackboard() -> Dictionary:
+	return blackboard
 
 
 ## 判断指定状态是否为当前状态或暂停栈中的状态。
@@ -410,6 +433,38 @@ func _is_node_state(node: Node) -> bool:
 
 func _warn_missing_state(state_name: StringName) -> void:
 	push_warning("[GFNodeStateGroup] 切换失败，未找到状态：%s" % state_name)
+
+
+func _can_transition(
+	previous_state: Node,
+	next_state: Node,
+	next_state_name: StringName,
+	previous_state_name: StringName,
+	args: Dictionary
+) -> bool:
+	if not _can_exit_state(previous_state, next_state_name, args):
+		_emit_transition_blocked(previous_state, next_state_name, args, "exit_guard")
+		return false
+	if not _can_enter_state(next_state, previous_state_name, args):
+		_emit_transition_blocked(previous_state, next_state_name, args, "enter_guard")
+		return false
+	return true
+
+
+func _can_exit_state(state: Node, next_state_name: StringName, args: Dictionary) -> bool:
+	if state == null or not state.has_method("can_exit"):
+		return true
+	return bool(state.call("can_exit", next_state_name, args))
+
+
+func _can_enter_state(state: Node, previous_state_name: StringName, args: Dictionary) -> bool:
+	if state == null or not state.has_method("can_enter"):
+		return true
+	return bool(state.call("can_enter", previous_state_name, args))
+
+
+func _emit_transition_blocked(from_state: Node, to_state_name: StringName, args: Dictionary, reason: String) -> void:
+	transition_blocked.emit(from_state, to_state_name, args.duplicate(true), reason)
 
 
 func _push_history(state_name: StringName) -> void:
