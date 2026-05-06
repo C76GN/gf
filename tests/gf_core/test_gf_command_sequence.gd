@@ -33,6 +33,37 @@ class ManualSignalStep extends GFSequenceStep:
 		return completed
 
 
+class UndoableRecordingStep extends RecordingStep:
+	func undo() -> void:
+		order.append("undo_" + label)
+
+
+class FailingStep extends GFSequenceStep:
+	var order: Array[String] = []
+	var label: String = ""
+	var result: Dictionary = {}
+
+	func _init(p_order: Array[String], p_label: String, p_error: String = "failed") -> void:
+		order = p_order
+		label = p_label
+		result = {
+			"ok": false,
+			"error": p_error,
+		}
+
+	func execute(_context: GFSequenceContext) -> Variant:
+		order.append(label)
+		return result
+
+
+class SuccessFlagFailingStep extends FailingStep:
+	func _init(p_order: Array[String], p_label: String) -> void:
+		super._init(p_order, p_label)
+		result = {
+			"success": false,
+		}
+
+
 # --- 测试方法 ---
 
 ## 验证同步步骤按顺序执行并共享上下文。
@@ -133,3 +164,50 @@ func test_sequence_signal_timeout_continues() -> void:
 
 	assert_push_warning("[GFCommandSequence] 等待 Signal 超时，序列将继续执行后续步骤。")
 	assert_eq(order, ["wait", "after"], "Signal 超时后应继续执行后续步骤。")
+
+
+func test_sequence_stop_on_error_reports_failure() -> void:
+	var order: Array[String] = []
+	var sequence := GFCommandSequence.new([
+		RecordingStep.new(order, "before"),
+		FailingStep.new(order, "fail", "broken"),
+		RecordingStep.new(order, "after"),
+	]).with_failure_policy(true, false)
+	watch_signals(sequence)
+
+	sequence.run()
+
+	assert_eq(order, ["before", "fail"], "stop_on_error 时失败后不应继续执行后续步骤。")
+	assert_true(bool(sequence.last_run_report["failed"]), "运行报告应标记失败。")
+	assert_eq(sequence.last_run_report["failed_index"], 1, "运行报告应记录失败步骤索引。")
+	assert_eq(sequence.last_run_report["error"], "broken", "运行报告应记录失败原因。")
+	assert_eq(sequence.last_run_report["succeeded"], 1, "运行报告应只统计失败前已成功步骤。")
+	assert_signal_emitted(sequence, "step_failed", "失败步骤应发出 step_failed。")
+	assert_signal_emitted(sequence, "sequence_failed", "stop_on_error 时序列应发出 sequence_failed。")
+
+
+func test_sequence_rollback_on_failure_undoes_completed_steps_reverse_order() -> void:
+	var order: Array[String] = []
+	var sequence := GFCommandSequence.new([
+		UndoableRecordingStep.new(order, "first"),
+		UndoableRecordingStep.new(order, "second"),
+		FailingStep.new(order, "fail"),
+		RecordingStep.new(order, "after"),
+	]).with_failure_policy(true, true)
+
+	sequence.run()
+
+	assert_eq(order, ["first", "second", "fail", "undo_second", "undo_first"], "失败回滚应逆序 undo 已完成步骤。")
+	assert_true(bool(sequence.last_run_report["rolled_back"]), "运行报告应标记已回滚。")
+
+
+func test_sequence_success_false_uses_default_error() -> void:
+	var order: Array[String] = []
+	var sequence := GFCommandSequence.new([
+		SuccessFlagFailingStep.new(order, "fail"),
+	]).with_failure_policy(true, false)
+
+	sequence.run()
+
+	assert_true(bool(sequence.last_run_report["failed"]), "success=false 应被识别为失败。")
+	assert_eq(sequence.last_run_report["error"], "Step failed.", "缺少错误字段时应提供稳定默认错误。")

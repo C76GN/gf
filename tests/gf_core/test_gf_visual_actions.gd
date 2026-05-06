@@ -5,6 +5,8 @@ extends GutTest
 const GF_MOVE_TWEEN_ACTION := preload("res://addons/gf/extensions/action_queue/gf_move_tween_action.gd")
 const GF_FLASH_ACTION := preload("res://addons/gf/extensions/action_queue/gf_flash_action.gd")
 const GF_AUDIO_ACTION := preload("res://addons/gf/extensions/action_queue/gf_audio_action.gd")
+const GF_CONFIGURED_TWEEN_ACTION := preload("res://addons/gf/extensions/action_queue/gf_configured_tween_action.gd")
+const GF_TWEEN_ACTION_CONFIG := preload("res://addons/gf/extensions/action_queue/gf_tween_action_config.gd")
 
 
 class TestAudioUtility:
@@ -79,6 +81,34 @@ func test_move_tween_action_wait_ends_when_target_exits_tree() -> void:
 	await get_tree().process_frame
 
 	assert_true(completed[0], "Tween 目标节点退出树时，等待应立即结束。")
+
+
+func test_configured_tween_action_applies_zero_duration_steps_immediately() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+
+	var config := GF_TWEEN_ACTION_CONFIG.new()
+	config.add_property_step(^"position", Vector2(8.0, 12.0), 0.0)
+	var action: GFVisualAction = config.create_action(node)
+	var result: Variant = action.execute()
+
+	assert_null(result, "零时长配置化 Tween 应立即完成。")
+	assert_eq(node.position, Vector2(8.0, 12.0), "零时长配置化 Tween 应写入目标属性。")
+
+
+func test_configured_tween_action_waits_for_timed_steps() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+
+	var config := GF_TWEEN_ACTION_CONFIG.new()
+	config.add_property_step(^"position", Vector2(16.0, 4.0), 0.01)
+	var action: GFVisualAction = config.create_action(node)
+	var result: Variant = action.execute()
+
+	assert_true(result is Signal, "带时长的配置化 Tween 应返回完成 Signal。")
+	await action.await_result_safely(result)
+	assert_almost_eq(node.position.x, 16.0, 0.01, "配置化 Tween 完成后应写入 x。")
+	assert_almost_eq(node.position.y, 4.0, 0.01, "配置化 Tween 完成后应写入 y。")
 
 
 func test_flash_action_restores_modulate() -> void:

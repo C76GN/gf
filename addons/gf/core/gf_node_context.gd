@@ -39,6 +39,12 @@ enum ScopeMode {
 ## 是否由该节点驱动 Scoped 架构的 tick 与 physics_tick。
 @export var process_scoped_ticks: bool = true
 
+## Scoped 架构是否启用严格依赖查询。开启后本地未注册的依赖不会回退父级架构。
+@export var strict_dependency_lookup: bool = false
+
+## Scoped 架构中单个模块 async_init() 的最长等待时间。小于等于 0 时继承架构默认行为。
+@export var module_async_init_timeout_seconds: float = 0.0
+
 ## 等待父级架构或当前上下文 ready 的超时时间。小于等于 0 时禁用超时。
 @export var context_wait_timeout_seconds: float = 30.0
 
@@ -102,13 +108,13 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 安装当前上下文的局部模块。仅在 SCOPED 模式下调用。
-## @param architecture_instance: 当前上下文创建的局部架构。
+## @param _architecture_instance: 当前上下文创建的局部架构。
 func install(_architecture_instance: GFArchitecture) -> void:
 	pass
 
 
 ## 使用声明式装配器安装当前上下文的局部模块。仅在 SCOPED 模式下调用。
-## @param binder: 当前上下文创建的局部架构装配器。
+## @param _binder: 当前上下文创建的局部架构装配器。
 func install_bindings(_binder: Variant) -> void:
 	pass
 
@@ -173,13 +179,42 @@ func get_utility(utility_type: Script) -> Object:
 	return _architecture.get_utility(utility_type)
 
 
+## 仅从当前上下文架构获取 Model，不回退父级架构。
+## @param model_type: 模型脚本类型。
+## @return 当前上下文架构中的模型实例。
+func get_local_model(model_type: Script) -> Object:
+	if _architecture == null:
+		return null
+	return _architecture.get_local_model(model_type)
+
+
+## 仅从当前上下文架构获取 System，不回退父级架构。
+## @param system_type: 系统脚本类型。
+## @return 当前上下文架构中的系统实例。
+func get_local_system(system_type: Script) -> Object:
+	if _architecture == null:
+		return null
+	return _architecture.get_local_system(system_type)
+
+
+## 仅从当前上下文架构获取 Utility，不回退父级架构。
+## @param utility_type: 工具脚本类型。
+## @return 当前上下文架构中的工具实例。
+func get_local_utility(utility_type: Script) -> Object:
+	if _architecture == null:
+		return null
+	return _architecture.get_local_utility(utility_type)
+
+
 ## 向任意对象注入当前上下文架构依赖。
+## @param instance: 要注册、替换或注入的实例。
 func inject_object(instance: Object) -> void:
 	if _architecture != null:
 		_architecture.inject_object(instance)
 
 
 ## 递归向节点树中实现注入 Hook 的节点注入当前上下文架构。
+## @param node: 目标节点。
 func inject_node_tree(node: Node) -> void:
 	if _architecture != null:
 		_architecture.inject_node_tree(node)
@@ -198,6 +233,9 @@ func _setup_architecture() -> void:
 
 		ScopeMode.SCOPED:
 			_architecture = GFArchitecture.new(parent_architecture)
+			_architecture.strict_dependency_lookup = strict_dependency_lookup
+			if module_async_init_timeout_seconds > 0.0:
+				_architecture.module_async_init_timeout_seconds = module_async_init_timeout_seconds
 			_owns_architecture = true
 			_is_context_ready = false
 
@@ -213,6 +251,8 @@ func _initialize_owned_architecture(architecture_instance: GFArchitecture = null
 	if _is_owned_architecture_current(initializing_architecture) and initializing_architecture.is_inited():
 		_is_context_ready = true
 		context_ready.emit(initializing_architecture)
+	elif _is_owned_architecture_current(initializing_architecture) and initializing_architecture.has_initialization_failed():
+		_fail_context(initializing_architecture.last_initialization_error)
 
 
 func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture = null) -> bool:

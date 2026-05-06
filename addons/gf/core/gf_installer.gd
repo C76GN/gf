@@ -9,12 +9,12 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 将项目模块注册到架构。
-## @param architecture: 当前即将初始化的架构实例。
+## @param _architecture: 当前即将初始化的架构实例。
 func install(_architecture: GFArchitecture) -> void:
 	pass
 
 
 ## 使用声明式装配器注册项目模块。
-## @param binder: 绑定到当前架构的装配器。
+## @param _binder: 绑定到当前架构的装配器。
 func install_bindings(_binder: Variant) -> void:
 	pass

@@ -55,14 +55,14 @@ func dispose() -> void:
 
 ## 每帧更新回调。子类可以重写此方法以实现帧逻辑。
 ## 由架构在 _process 中统一驱动，无需 System 继承 Node。
-## @param delta: 距上一帧的时间（秒）。
+## @param _delta: 距上一帧的时间（秒）。
 func tick(_delta: float) -> void:
 	pass
 
 
 ## 物理帧更新回调。子类可以重写此方法以实现物理帧逻辑。
 ## 由架构在 _physics_process 中统一驱动，无需 System 继承 Node。
-## @param delta: 距上一物理帧的时间（秒）。
+## @param _delta: 距上一物理帧的时间（秒）。
 func physics_tick(_delta: float) -> void:
 	pass
 

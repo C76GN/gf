@@ -20,6 +20,14 @@ class OrderAction:
 		return null
 
 
+## 执行前判定为无效的测试动作。
+class InvalidOrderAction:
+	extends OrderAction
+
+	func is_valid() -> bool:
+		return false
+
+
 ## 模拟死锁信号动作。
 class DeadlockSignalAction:
 	extends GFVisualAction
@@ -283,6 +291,17 @@ func test_enqueue_fire_and_forget_does_not_wait_for_signal() -> void:
 
 	assert_eq(order, ["ASYNC_FAF", "NEXT"], "fire-and-forget 动作不应阻塞后续动作。")
 	assert_false(_system.is_processing, "队列应在 fire-and-forget 后正常排空。")
+
+
+func test_action_queue_skips_invalid_action_before_execute() -> void:
+	var order: Array = []
+	_system.enqueue(InvalidOrderAction.new(order, "SKIP"))
+	_system.enqueue(OrderAction.new(order, "RUN"))
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["RUN"], "执行前失效的动作应被跳过。")
 
 
 func test_action_queue_injects_scoped_architecture_into_actions() -> void:

@@ -23,6 +23,7 @@ var _is_server: bool = false
 
 ## 启动 ENet 主机。
 ## 支持 options: port, max_clients, max_channels, in_bandwidth, out_bandwidth。
+## @param options: 操作选项字典。
 func host(options: Dictionary = {}) -> Error:
 	var port := int(options.get("port", 0))
 	if port <= 0:
@@ -52,6 +53,8 @@ func host(options: Dictionary = {}) -> Error:
 
 ## 连接 ENet 远端。
 ## endpoint 可传 "host:port"，或通过 options.port 传端口。
+## @param endpoint: 网络连接端点。
+## @param options: 操作选项字典。
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 	var parsed := _parse_endpoint(endpoint, options)
 	var address := String(parsed.get("address", ""))
@@ -86,6 +89,9 @@ func disconnect_backend() -> void:
 
 ## 发送 bytes。
 ## options 支持 reliable, transfer_mode, channel。
+## @param peer_id: 目标网络 peer 标识。
+## @param bytes: 要发送的字节数据。
+## @param options: 操作选项字典。
 func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) -> Error:
 	if _peer == null:
 		return ERR_UNCONFIGURED
@@ -101,6 +107,7 @@ func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) 
 
 
 ## 轮询 ENet 事件和收包。
+## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func poll(_delta: float) -> void:
 	if _peer == null:
 		return

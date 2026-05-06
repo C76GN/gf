@@ -96,6 +96,8 @@ func dispose() -> void:
 	_router = null
 
 
+## 推进运行时逻辑。
+## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func tick(_delta: float) -> void:
 	_just_started.clear()
 	_player_just_started.clear()

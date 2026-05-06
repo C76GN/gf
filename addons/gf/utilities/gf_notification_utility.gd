@@ -50,6 +50,8 @@ var _next_notification_id: int = 1
 
 # --- Godot 生命周期方法 ---
 
+## 推进运行时逻辑。
+## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if _active_notification.is_empty():
 		_start_next_notification()

@@ -219,6 +219,8 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 
 	_simple_dispatch_depth += 1
 	_is_iterating_simple = true
+	var has_pending_owner_removes := not _pending_owner_removes_simple.is_empty()
+	var has_pending_removes := not _pending_removes_simple.is_empty()
 
 	for entry: Dictionary in listeners:
 		if _clear_requested_simple:
@@ -228,19 +230,25 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 
 		if _entry_owner_is_released(entry):
 			_pending_removes_simple.append({ "event_id": event_id, "callable": callback })
+			has_pending_removes = true
 			continue
-		if _is_pending_owner_remove(entry, _pending_owner_removes_simple):
+		if has_pending_owner_removes and _is_pending_owner_remove(entry, _pending_owner_removes_simple):
 			continue
 		if not callback.is_valid() or (callback.get_object() != null and not is_instance_valid(callback.get_object())):
 			_pending_removes_simple.append({ "event_id": event_id, "callable": callback })
+			has_pending_removes = true
 			continue
-		if _is_pending_simple_remove(event_id, callback):
+		if has_pending_removes and _is_pending_simple_remove(event_id, callback):
 			continue
 
 		callback.call(payload)
 
 		if _clear_requested_simple:
 			break
+		if not has_pending_owner_removes and not _pending_owner_removes_simple.is_empty():
+			has_pending_owner_removes = true
+		if not has_pending_removes and not _pending_removes_simple.is_empty():
+			has_pending_removes = true
 
 	_simple_dispatch_depth = maxi(_simple_dispatch_depth - 1, 0)
 	_is_iterating_simple = _simple_dispatch_depth > 0

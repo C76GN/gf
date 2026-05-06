@@ -142,6 +142,21 @@ func test_reducing_cache_size_evicts_immediately() -> void:
 	assert_false(_utility.is_cached("res://b.tres"), "较旧的缓存项应被淘汰。")
 
 
+func test_pinned_cache_entry_is_not_lru_evicted() -> void:
+	_utility.max_cache_size = 2
+	_utility.put_cache("res://a.tres", Resource.new())
+	_utility.put_cache("res://b.tres", Resource.new())
+	_utility.pin_cache("res://a.tres")
+	_utility.put_cache("res://c.tres", Resource.new())
+
+	assert_true(_utility.is_cached("res://a.tres"), "被 pin 的缓存项不应参与 LRU 淘汰。")
+	assert_false(_utility.is_cached("res://b.tres"), "未 pin 的最旧缓存项应被淘汰。")
+	assert_true(_utility.is_cache_pinned("res://a.tres"), "pin 状态应可查询。")
+
+	_utility.unpin_cache("res://a.tres")
+	assert_false(_utility.is_cache_pinned("res://a.tres"), "unpin 后应移除锁定状态。")
+
+
 func test_setting_cache_size_to_zero_clears_existing_cache() -> void:
 	_utility.put_cache("res://a.tres", Resource.new())
 	_utility.put_cache("res://b.tres", Resource.new())

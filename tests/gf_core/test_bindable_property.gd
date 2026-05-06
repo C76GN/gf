@@ -201,3 +201,67 @@ func test_bind_to_same_callable_survives_until_last_bound_node_exits() -> void:
 
 	first_node.free()
 	second_node.free()
+
+
+func test_reactive_effect_runs_when_any_source_changes() -> void:
+	var first := BindableProperty.new(1)
+	var second := BindableProperty.new(2)
+	var values: Array[int] = []
+	var effect := GFReactiveEffect.new([first, second], func() -> int:
+		var total := int(first.value) + int(second.value)
+		values.append(total)
+		return total
+	)
+
+	first.value = 3
+	second.value = 4
+	effect.stop()
+	first.value = 10
+
+	assert_eq(values, [3, 5, 7], "effect 应立即运行，并在来源变化时刷新；stop 后不再运行。")
+
+
+func test_reactive_effect_stops_with_owner_node() -> void:
+	var prop := BindableProperty.new(1)
+	var owner_node := Node.new()
+	var count := {"value": 0}
+	add_child(owner_node)
+
+	var effect := GFReactiveEffect.new([prop], func() -> void:
+		count.value += 1
+	, owner_node, false)
+
+	prop.value = 2
+	remove_child(owner_node)
+	owner_node.tree_exited.emit()
+	prop.value = 3
+
+	assert_eq(count.value, 1, "owner 退出树后 effect 应自动停止。")
+	assert_false(effect.is_active(), "owner 退出树后 effect 应进入非激活状态。")
+	owner_node.free()
+
+
+func test_computed_property_updates_from_sources() -> void:
+	var first := BindableProperty.new(2)
+	var second := BindableProperty.new(3)
+	var computed := GFComputedProperty.new([first, second], func() -> int:
+		return int(first.value) * int(second.value)
+	)
+
+	assert_eq(computed.value, 6, "computed 属性应立即计算初始值。")
+
+	first.value = 4
+
+	assert_eq(computed.value, 12, "来源属性变化后 computed 属性应刷新。")
+
+
+func test_computed_property_rejects_external_set() -> void:
+	var source := BindableProperty.new(1)
+	var computed := GFComputedProperty.new([source], func() -> int:
+		return int(source.value) + 1
+	)
+
+	computed.value = 10
+
+	assert_eq(computed.value, 2, "外部写入 computed 属性不应改变派生值。")
+	assert_push_error("[GFComputedProperty] 当前属性由 compute 回调派生，请修改来源属性。")

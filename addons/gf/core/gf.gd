@@ -56,7 +56,7 @@ func get_architecture() -> GFArchitecture:
 
 
 ## 设置并初始化架构实例。该方法内部使用 await，调用方应加 await。
-## @param architecture: 要注册的 GFArchitecture 实例。
+## @param architecture_instance: 要注册的 GFArchitecture 实例。
 func set_architecture(architecture_instance: GFArchitecture) -> void:
 	if architecture_instance == null:
 		push_error("[GDCore] set_architecture 失败：传入的架构实例为空。")
@@ -100,36 +100,45 @@ func _exit_tree() -> void:
 
 
 ## 便捷注册 System 实例。
+## @param instance: 要注册、替换或注入的实例。
 func register_system(instance: Object) -> void:
 	await create_architecture().register_system_instance(instance)
 
 ## 便捷注册 Model 实例。
+## @param instance: 要注册、替换或注入的实例。
 func register_model(instance: Object) -> void:
 	await create_architecture().register_model_instance(instance)
 
 ## 便捷注册 Utility 实例。
+## @param instance: 要注册、替换或注入的实例。
 func register_utility(instance: Object) -> void:
 	await create_architecture().register_utility_instance(instance)
 
 ## 便捷替换 System 实例。
+## @param instance: 要注册、替换或注入的实例。
 func replace_system(instance: Object) -> void:
 	var script := _get_instance_script_or_null(instance, "replace_system")
 	if script != null:
 		await create_architecture().replace_system(script, instance)
 
 ## 便捷替换 Model 实例。
+## @param instance: 要注册、替换或注入的实例。
 func replace_model(instance: Object) -> void:
 	var script := _get_instance_script_or_null(instance, "replace_model")
 	if script != null:
 		await create_architecture().replace_model(script, instance)
 
 ## 便捷替换 Utility 实例。
+## @param instance: 要注册、替换或注入的实例。
 func replace_utility(instance: Object) -> void:
 	var script := _get_instance_script_or_null(instance, "replace_utility")
 	if script != null:
 		await create_architecture().replace_utility(script, instance)
 
 ## 注册短生命周期对象工厂。
+## @param script_cls: 要注册、查询或创建的脚本类型。
+## @param factory: 用于创建实例的工厂绑定。
+## @param lifetime: 工厂实例生命周期策略。
 func register_factory(
 	script_cls: Script,
 	factory: Callable,
@@ -138,10 +147,15 @@ func register_factory(
 	create_architecture().register_factory(script_cls, factory, lifetime)
 
 ## 注册已有实例作为短生命周期工厂入口。
+## @param script_cls: 要注册、查询或创建的脚本类型。
+## @param instance: 要注册、替换或注入的实例。
 func register_factory_instance(script_cls: Script, instance: Object) -> void:
 	create_architecture().register_factory_instance(script_cls, instance)
 
 ## 替换短生命周期对象工厂。
+## @param script_cls: 要注册、查询或创建的脚本类型。
+## @param factory: 用于创建实例的工厂绑定。
+## @param lifetime: 工厂实例生命周期策略。
 func replace_factory(
 	script_cls: Script,
 	factory: Callable,
@@ -150,10 +164,13 @@ func replace_factory(
 	create_architecture().replace_factory(script_cls, factory, lifetime)
 
 ## 替换已有实例工厂入口。
+## @param script_cls: 要注册、查询或创建的脚本类型。
+## @param instance: 要注册、替换或注入的实例。
 func replace_factory_instance(script_cls: Script, instance: Object) -> void:
 	create_architecture().replace_factory_instance(script_cls, instance)
 
 ## 注销短生命周期对象工厂。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func unregister_factory(script_cls: Script) -> void:
 	var arch := _get_architecture_or_null("unregister_factory")
 	if arch != null:
@@ -161,6 +178,7 @@ func unregister_factory(script_cls: Script) -> void:
 
 
 ## 检查当前架构或父级架构是否注册了指定工厂。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func has_factory(script_cls: Script) -> bool:
 	var arch := _get_architecture_or_null("has_factory")
 	if arch == null:
@@ -169,6 +187,7 @@ func has_factory(script_cls: Script) -> bool:
 
 
 ## 创建短生命周期对象实例。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func create_instance(script_cls: Script) -> Object:
 	var arch := _get_architecture_or_null("create_instance")
 	if arch == null:
@@ -177,6 +196,7 @@ func create_instance(script_cls: Script) -> Object:
 
 
 ## 向任意对象注入当前架构依赖。
+## @param instance: 要注册、替换或注入的实例。
 func inject_object(instance: Object) -> void:
 	var arch := _get_architecture_or_null("inject_object")
 	if arch != null:
@@ -184,6 +204,7 @@ func inject_object(instance: Object) -> void:
 
 
 ## 递归向节点树中实现注入 Hook 的节点注入当前架构。
+## @param node: 目标节点。
 func inject_node_tree(node: Node) -> void:
 	var arch := _get_architecture_or_null("inject_node_tree")
 	if arch != null:
@@ -191,36 +212,49 @@ func inject_node_tree(node: Node) -> void:
 
 
 ## 便捷注册 System 实例，并额外登记一个查询别名。
+## @param instance: 要注册、替换或注入的实例。
+## @param alias_cls: 要注册的别名脚本类型。
 func register_system_as(instance: Object, alias_cls: Script) -> void:
 	await create_architecture().register_system_instance_as(instance, alias_cls)
 
 ## 便捷注册 Model 实例，并额外登记一个查询别名。
+## @param instance: 要注册、替换或注入的实例。
+## @param alias_cls: 要注册的别名脚本类型。
 func register_model_as(instance: Object, alias_cls: Script) -> void:
 	await create_architecture().register_model_instance_as(instance, alias_cls)
 
 ## 便捷注册 Utility 实例，并额外登记一个查询别名。
+## @param instance: 要注册、替换或注入的实例。
+## @param alias_cls: 要注册的别名脚本类型。
 func register_utility_as(instance: Object, alias_cls: Script) -> void:
 	await create_architecture().register_utility_instance_as(instance, alias_cls)
 
 ## 为已注册 System 添加查询别名。
+## @param alias_cls: 要注册的别名脚本类型。
+## @param target_cls: 别名指向的目标脚本类型。
 func register_system_alias(alias_cls: Script, target_cls: Script) -> void:
 	var arch := _get_architecture_or_null("register_system_alias")
 	if arch != null:
 		arch.register_system_alias(alias_cls, target_cls)
 
 ## 为已注册 Model 添加查询别名。
+## @param alias_cls: 要注册的别名脚本类型。
+## @param target_cls: 别名指向的目标脚本类型。
 func register_model_alias(alias_cls: Script, target_cls: Script) -> void:
 	var arch := _get_architecture_or_null("register_model_alias")
 	if arch != null:
 		arch.register_model_alias(alias_cls, target_cls)
 
 ## 为已注册 Utility 添加查询别名。
+## @param alias_cls: 要注册的别名脚本类型。
+## @param target_cls: 别名指向的目标脚本类型。
 func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
 	var arch := _get_architecture_or_null("register_utility_alias")
 	if arch != null:
 		arch.register_utility_alias(alias_cls, target_cls)
 
 ## 获取 System 实例。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func get_system(script_cls: Script) -> Object:
 	var arch := _get_architecture_or_null("get_system")
 	if arch == null:
@@ -228,6 +262,7 @@ func get_system(script_cls: Script) -> Object:
 	return arch.get_system(script_cls)
 
 ## 获取 Model 实例。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func get_model(script_cls: Script) -> Object:
 	var arch := _get_architecture_or_null("get_model")
 	if arch == null:
@@ -235,13 +270,42 @@ func get_model(script_cls: Script) -> Object:
 	return arch.get_model(script_cls)
 
 ## 获取 Utility 实例。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func get_utility(script_cls: Script) -> Object:
 	var arch := _get_architecture_or_null("get_utility")
 	if arch == null:
 		return null
 	return arch.get_utility(script_cls)
 
+
+## 仅从当前全局架构获取 System，不回退父级架构。
+## @param script_cls: 要注册、查询或创建的脚本类型。
+func get_local_system(script_cls: Script) -> Object:
+	var arch := _get_architecture_or_null("get_local_system")
+	if arch == null:
+		return null
+	return arch.get_local_system(script_cls)
+
+
+## 仅从当前全局架构获取 Model，不回退父级架构。
+## @param script_cls: 要注册、查询或创建的脚本类型。
+func get_local_model(script_cls: Script) -> Object:
+	var arch := _get_architecture_or_null("get_local_model")
+	if arch == null:
+		return null
+	return arch.get_local_model(script_cls)
+
+
+## 仅从当前全局架构获取 Utility，不回退父级架构。
+## @param script_cls: 要注册、查询或创建的脚本类型。
+func get_local_utility(script_cls: Script) -> Object:
+	var arch := _get_architecture_or_null("get_local_utility")
+	if arch == null:
+		return null
+	return arch.get_local_utility(script_cls)
+
 ## 便捷发送全局命令。
+## @param command: 要执行的命令实例。
 func send_command(command: Object) -> Variant:
 	var arch := _get_architecture_or_null("send_command")
 	if arch == null:
@@ -249,6 +313,7 @@ func send_command(command: Object) -> Variant:
 	return arch.send_command(command)
 
 ## 便捷发送查询。
+## @param query: 查询矩形或查询命令。
 func send_query(query: Object) -> Variant:
 	var arch := _get_architecture_or_null("send_query")
 	if arch == null:
@@ -256,36 +321,53 @@ func send_query(query: Object) -> Variant:
 	return arch.send_query(query)
 
 ## 便捷发送带载体的强类型事件。
+## @param event_instance: 要派发的事件实例。
 func send_event(event_instance: Object) -> void:
 	var arch := _get_architecture_or_null("send_event")
 	if arch != null:
 		arch.send_event(event_instance)
 
 ## 便捷发送无参数的轻量级事件。
+## @param event_id: 简单事件标识符。
+## @param payload: 随事件或交互传递的数据。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	var arch := _get_architecture_or_null("send_simple_event")
 	if arch != null:
 		arch.send_simple_event(event_id, payload)
 
 ## 快捷注册类型事件监听（别名：listen）。
+## @param event_type: 要监听或取消监听的事件脚本类型。
+## @param on_event: 事件触发时执行的回调。
+## @param priority: 监听器优先级，数值越大越先执行。
 func listen(event_type: Script, on_event: Callable, priority: int = 0) -> void:
 	var arch := _get_architecture_or_null("listen")
 	if arch != null:
 		arch.register_event(event_type, on_event, priority)
 
 ## 快捷注册带拥有者的类型事件监听。
+## @param listener_owner: 监听回调的拥有者，用于批量注销。
+## @param event_type: 要监听或取消监听的事件脚本类型。
+## @param on_event: 事件触发时执行的回调。
+## @param priority: 监听器优先级，数值越大越先执行。
 func listen_owned(listener_owner: Object, event_type: Script, on_event: Callable, priority: int = 0) -> void:
 	var arch := _get_architecture_or_null("listen_owned")
 	if arch != null:
 		arch.register_event_owned(listener_owner, event_type, on_event, priority)
 
 ## 快捷注册可赋值类型事件监听。
+## @param base_event_type: 要监听或取消监听的基类事件脚本类型。
+## @param on_event: 事件触发时执行的回调。
+## @param priority: 监听器优先级，数值越大越先执行。
 func listen_assignable(base_event_type: Script, on_event: Callable, priority: int = 0) -> void:
 	var arch := _get_architecture_or_null("listen_assignable")
 	if arch != null:
 		arch.register_assignable_event(base_event_type, on_event, priority)
 
 ## 快捷注册带拥有者的可赋值类型事件监听。
+## @param listener_owner: 监听回调的拥有者，用于批量注销。
+## @param base_event_type: 要监听或取消监听的基类事件脚本类型。
+## @param on_event: 事件触发时执行的回调。
+## @param priority: 监听器优先级，数值越大越先执行。
 func listen_assignable_owned(
 	listener_owner: Object,
 	base_event_type: Script,
@@ -297,54 +379,69 @@ func listen_assignable_owned(
 		arch.register_assignable_event_owned(listener_owner, base_event_type, on_event, priority)
 
 ## 快捷注销类型事件监听（别名：unlisten）。
+## @param event_type: 要监听或取消监听的事件脚本类型。
+## @param on_event: 事件触发时执行的回调。
 func unlisten(event_type: Script, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("unlisten")
 	if arch != null:
 		arch.unregister_event(event_type, on_event)
 
 ## 快捷注销可赋值类型事件监听。
+## @param base_event_type: 要监听或取消监听的基类事件脚本类型。
+## @param on_event: 事件触发时执行的回调。
 func unlisten_assignable(base_event_type: Script, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("unlisten_assignable")
 	if arch != null:
 		arch.unregister_assignable_event(base_event_type, on_event)
 
 ## 快捷注册轻量事件监听（别名：listen_simple）。
+## @param event_id: 简单事件标识符。
+## @param on_event: 事件触发时执行的回调。
 func listen_simple(event_id: StringName, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("listen_simple")
 	if arch != null:
 		arch.register_simple_event(event_id, on_event)
 
 ## 快捷注册带拥有者的轻量事件监听。
+## @param listener_owner: 监听回调的拥有者，用于批量注销。
+## @param event_id: 简单事件标识符。
+## @param on_event: 事件触发时执行的回调。
 func listen_simple_owned(listener_owner: Object, event_id: StringName, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("listen_simple_owned")
 	if arch != null:
 		arch.register_simple_event_owned(listener_owner, event_id, on_event)
 
 ## 快捷注销轻量事件监听（别名：unlisten_simple）。
+## @param event_id: 简单事件标识符。
+## @param on_event: 事件触发时执行的回调。
 func unlisten_simple(event_id: StringName, on_event: Callable) -> void:
 	var arch := _get_architecture_or_null("unlisten_simple")
 	if arch != null:
 		arch.unregister_simple_event(event_id, on_event)
 
 ## 快捷注销某个拥有者注册过的所有事件监听。
+## @param listener_owner: 监听回调的拥有者，用于批量注销。
 func unlisten_owner(listener_owner: Object) -> void:
 	var arch := _get_architecture_or_null("unlisten_owner")
 	if arch != null:
 		arch.unregister_owner_events(listener_owner)
 
 ## 注销 System 实例。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func unregister_system(script_cls: Script) -> void:
 	var arch := _get_architecture_or_null("unregister_system")
 	if arch != null:
 		arch.unregister_system(script_cls)
 
 ## 注销 Model 实例。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func unregister_model(script_cls: Script) -> void:
 	var arch := _get_architecture_or_null("unregister_model")
 	if arch != null:
 		arch.unregister_model(script_cls)
 
 ## 注销 Utility 实例。
+## @param script_cls: 要注册、查询或创建的脚本类型。
 func unregister_utility(script_cls: Script) -> void:
 	var arch := _get_architecture_or_null("unregister_utility")
 	if arch != null:

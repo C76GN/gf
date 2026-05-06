@@ -47,45 +47,54 @@ func _init(
 # --- 公共方法 ---
 
 ## 注入当前上下文所属架构。
+## @param architecture: 用于依赖注入和能力查询的架构实例。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
 
 
 ## 设置 sender 并返回自身，便于链式构造。
+## @param value: 要写入或修改的值。
 func with_sender(value: Object) -> GFInteractionContext:
 	sender = value
 	return self
 
 
 ## 设置 target 并返回自身，便于链式构造。
+## @param value: 要写入或修改的值。
 func with_target(value: Object) -> GFInteractionContext:
 	target = value
 	return self
 
 
 ## 设置 payload 并返回自身，便于链式构造。
+## @param value: 要写入或修改的值。
 func with_payload(value: Variant) -> GFInteractionContext:
 	payload = value
 	return self
 
 
 ## 设置 group_name 并返回自身，便于链式构造。
+## @param value: 要写入或修改的值。
 func with_group(value: StringName) -> GFInteractionContext:
 	group_name = value
 	return self
 
 
 ## 获取 sender 上的指定能力。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func get_sender_capability(capability_type: Script) -> Object:
 	return get_capability(sender, capability_type)
 
 
 ## 获取 target 上的指定能力。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func get_target_capability(capability_type: Script) -> Object:
 	return get_capability(target, capability_type)
 
 
 ## 获取任意 receiver 上的指定能力。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func get_capability(receiver: Object, capability_type: Script) -> Object:
 	var capability_utility := _get_capability_utility()
 	if capability_utility == null:
@@ -94,6 +103,7 @@ func get_capability(receiver: Object, capability_type: Script) -> Object:
 
 
 ## 获取当前 group_name 分组中的 receiver。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func get_group_receivers(capability_type: Script = null) -> Array[Object]:
 	if group_name == &"":
 		return [] as Array[Object]

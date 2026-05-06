@@ -13,6 +13,7 @@ const FORMAT_VERSION: int = 1
 const GFNodeSerializerRegistryBase = preload("res://addons/gf/extensions/save/gf_node_serializer_registry.gd")
 const GFSaveEntityFactoryBase = preload("res://addons/gf/extensions/save/gf_save_entity_factory.gd")
 const GFSaveIdentityBase = preload("res://addons/gf/extensions/save/gf_save_identity.gd")
+const GFSavePipelineContextBase = preload("res://addons/gf/extensions/save/gf_save_pipeline_context.gd")
 const GFSavePipelineStepBase = preload("res://addons/gf/extensions/save/gf_save_pipeline_step.gd")
 const GFSaveScopeBase = preload("res://addons/gf/extensions/save/gf_save_scope.gd")
 const GFSaveSourceBase = preload("res://addons/gf/extensions/save/gf_save_source.gd")
@@ -74,6 +75,20 @@ func remove_pipeline_step(step: GFSavePipelineStepBase) -> void:
 ## 清空存档流程步骤。
 func clear_pipeline_steps() -> void:
 	pipeline_steps.clear()
+
+
+## 创建存档流程上下文。
+## @param operation: 操作类型。
+## @param scope: 可选根 Scope。
+## @param shared: 初始共享数据。
+## @return 新上下文。
+func create_pipeline_context(
+	operation: StringName,
+	scope: GFSaveScopeBase = null,
+	shared: Dictionary = {}
+) -> GFSavePipelineContextBase:
+	var root_scope_key := StringName(scope.get_scope_key()) if scope != null else &""
+	return GFSavePipelineContextBase.new(operation, root_scope_key, shared)
 
 
 ## 检查 Scope 树的可保存结构。
@@ -143,7 +158,14 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 	if scope == null or not scope.can_save_scope(context):
 		return {}
 
+	var owns_pipeline_context := not _has_pipeline_context(context)
+	context = _ensure_pipeline_context(context, &"gather", scope)
+	var pipeline_context := _get_pipeline_context(context)
+	if owns_pipeline_context:
+		pipeline_context.record_event(&"gather_started", scope)
+
 	_run_before_gather_steps(scope, context)
+	pipeline_context.record_event(&"gather_scope_started", scope)
 	scope.before_save(context)
 	var payload := {
 		"format": FORMAT_ID,
@@ -161,10 +183,16 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 		var source_key := _make_unique_key(_make_scoped_source_key(scope, source), payload["sources"] as Dictionary)
 		var descriptor := source.describe_source(scope)
 		_merge_identity_descriptor(source, descriptor)
+		pipeline_context.record_event(&"gather_source_started", scope, source, "", {
+			"source_key": source_key,
+		})
 		payload["sources"][source_key] = {
 			"descriptor": descriptor,
 			"data": source.gather_save_data(context, serializer_registry),
 		}
+		pipeline_context.record_event(&"gather_source_finished", scope, source, "", {
+			"source_key": source_key,
+		})
 
 	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
 		var child_payload := gather_scope(child_scope, context)
@@ -174,7 +202,16 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 		payload["scopes"][child_key] = child_payload
 
 	scope.after_save(payload, context)
-	return _run_after_gather_steps(scope, payload, context)
+	var final_payload := _run_after_gather_steps(scope, payload, context)
+	pipeline_context.record_event(&"gather_scope_finished", scope, null, "", {
+		"source_count": (final_payload.get("sources", {}) as Dictionary).size(),
+		"scope_count": (final_payload.get("scopes", {}) as Dictionary).size(),
+	})
+	if owns_pipeline_context:
+		pipeline_context.finish()
+		if bool(context.get("include_pipeline_trace", false)):
+			final_payload["pipeline_trace"] = pipeline_context.to_dict(true)
+	return final_payload
 
 
 ## 应用 Scope 存档图。
@@ -194,7 +231,14 @@ func apply_scope(
 	if payload.is_empty() or not scope.can_load_scope(context):
 		return _make_apply_result(true, 0, [], [])
 
+	var owns_pipeline_context := not _has_pipeline_context(context)
+	context = _ensure_pipeline_context(context, &"apply", scope)
+	var pipeline_context := _get_pipeline_context(context)
+	if owns_pipeline_context:
+		pipeline_context.record_event(&"apply_started", scope)
+
 	payload = _run_before_apply_steps(scope, payload, context)
+	pipeline_context.record_event(&"apply_scope_started", scope)
 	scope.before_load(payload, context)
 	var applied := 0
 	var errors: Array[String] = []
@@ -218,17 +262,31 @@ func apply_scope(
 		if source == null:
 			missing.append(source_key)
 			if strict:
-				errors.append("Missing source: %s" % source_key)
+				var missing_source_error := "Missing source: %s" % source_key
+				errors.append(missing_source_error)
+				pipeline_context.add_error(missing_source_error, { "source_key": source_key })
+			else:
+				pipeline_context.record_event(&"apply_source_missing", scope, null, "", {
+					"source_key": source_key,
+				}, &"warning")
 			continue
 		if not source.can_load_source(context):
 			continue
 
+		pipeline_context.record_event(&"apply_source_started", scope, source, "", {
+			"source_key": source_key,
+		})
 		var result := source.apply_save_data(source_payload.get("data"), context, serializer_registry)
 		if bool(result.get("ok", false)):
 			applied += 1
 			source.after_load(source_payload.get("data"), context)
+			pipeline_context.record_event(&"apply_source_finished", scope, source, "", {
+				"source_key": source_key,
+			})
 		else:
-			errors.append("%s: %s" % [source_key, String(result.get("error", "Apply failed"))])
+			var source_error := "%s: %s" % [source_key, String(result.get("error", "Apply failed"))]
+			errors.append(source_error)
+			pipeline_context.add_error(source_error, { "source_key": source_key })
 
 	var child_scope_index := _index_child_scopes(scope)
 	var child_payloads: Dictionary = payload.get("scopes", {}) as Dictionary
@@ -238,7 +296,13 @@ func apply_scope(
 		if child_scope == null:
 			missing.append(child_key)
 			if strict:
-				errors.append("Missing scope: %s" % child_key)
+				var missing_scope_error := "Missing scope: %s" % child_key
+				errors.append(missing_scope_error)
+				pipeline_context.add_error(missing_scope_error, { "scope_key": child_key })
+			else:
+				pipeline_context.record_event(&"apply_scope_missing", scope, null, "", {
+					"scope_key": child_key,
+				}, &"warning")
 			continue
 
 		var child_result := apply_scope(child_scope, child_payloads[child_key_variant] as Dictionary, context, strict)
@@ -251,12 +315,22 @@ func apply_scope(
 			missing.append("%s/%s" % [child_key, missing_key])
 
 	scope.after_load(payload, context)
-	return _run_after_apply_steps(
+	var final_result := _run_after_apply_steps(
 		scope,
 		payload,
 		_make_apply_result(errors.is_empty(), applied, errors, missing),
 		context
 	)
+	pipeline_context.record_event(&"apply_scope_finished", scope, null, "", {
+		"applied": int(final_result.get("applied", 0)),
+		"error_count": (final_result.get("errors", []) as Array).size(),
+		"missing_count": (final_result.get("missing", []) as Array).size(),
+	})
+	if owns_pipeline_context:
+		pipeline_context.finish()
+		if bool(context.get("include_pipeline_trace", false)):
+			final_result["pipeline_trace"] = pipeline_context.to_dict(true)
+	return final_result
 
 
 ## 采集并保存 Scope。
@@ -555,9 +629,32 @@ func _make_apply_result(ok: bool, applied: int, errors: Array[String], missing: 
 	}
 
 
+func _ensure_pipeline_context(
+	context: Dictionary,
+	operation: StringName,
+	scope: GFSaveScopeBase
+) -> Dictionary:
+	if _has_pipeline_context(context):
+		return context
+
+	var result := context.duplicate()
+	var shared := result.get("pipeline_shared", {}) as Dictionary
+	result["pipeline_context"] = create_pipeline_context(operation, scope, shared if shared != null else {})
+	return result
+
+
+func _has_pipeline_context(context: Dictionary) -> bool:
+	return context.get("pipeline_context") is GFSavePipelineContextBase
+
+
+func _get_pipeline_context(context: Dictionary) -> GFSavePipelineContextBase:
+	return context.get("pipeline_context") as GFSavePipelineContextBase
+
+
 func _run_before_gather_steps(scope: GFSaveScopeBase, context: Dictionary) -> void:
 	for step: GFSavePipelineStepBase in pipeline_steps:
 		if step != null and step.enabled:
+			_record_pipeline_step_event(context, &"before_gather_step", scope, step)
 			step.before_gather_scope(scope, context)
 
 
@@ -570,6 +667,7 @@ func _run_after_gather_steps(
 	for step: GFSavePipelineStepBase in pipeline_steps:
 		if step == null or not step.enabled:
 			continue
+		_record_pipeline_step_event(context, &"after_gather_step", scope, step)
 		var next_payload: Variant = step.after_gather_scope(scope, result, context)
 		if next_payload is Dictionary:
 			result = next_payload as Dictionary
@@ -585,6 +683,7 @@ func _run_before_apply_steps(
 	for step: GFSavePipelineStepBase in pipeline_steps:
 		if step == null or not step.enabled:
 			continue
+		_record_pipeline_step_event(context, &"before_apply_step", scope, step)
 		var next_payload: Variant = step.before_apply_scope(scope, result, context)
 		if next_payload is Dictionary:
 			result = next_payload as Dictionary
@@ -601,10 +700,26 @@ func _run_after_apply_steps(
 	for step: GFSavePipelineStepBase in pipeline_steps:
 		if step == null or not step.enabled:
 			continue
+		_record_pipeline_step_event(context, &"after_apply_step", scope, step)
 		var next_result: Variant = step.after_apply_scope(scope, payload, final_result, context)
 		if next_result is Dictionary:
 			final_result = next_result as Dictionary
 	return final_result
+
+
+func _record_pipeline_step_event(
+	context: Dictionary,
+	stage: StringName,
+	scope: GFSaveScopeBase,
+	step: GFSavePipelineStepBase
+) -> void:
+	var pipeline_context := _get_pipeline_context(context)
+	if pipeline_context == null:
+		return
+	pipeline_context.record_event(stage, scope, null, "", {
+		"step_id": step.step_id,
+		"step_script": step.get_script().resource_path if step.get_script() != null else "",
+	})
 
 
 func _get_storage_utility() -> GFStorageUtility:

@@ -95,6 +95,8 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 通过路径切换状态。path 可为 "State" 或 "Group/State"。
+## @param path: 资源路径或状态路径。
+## @param args: 状态切换时传递的可选参数。
 func transition_to(path: StringName, args: Dictionary = {}) -> void:
 	var text := String(path)
 	var parts := text.split("/", false)
@@ -107,6 +109,9 @@ func transition_to(path: StringName, args: Dictionary = {}) -> void:
 
 
 ## 切换指定状态组到指定状态。
+## @param group_name: 能力组或状态组名称。
+## @param state_name: 目标状态名称。
+## @param args: 状态切换时传递的可选参数。
 func transition_group_to(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -116,6 +121,8 @@ func transition_group_to(group_name: StringName, state_name: StringName, args: D
 
 
 ## 暂停当前内部状态并叠加进入一个子状态。path 可为 "State" 或 "Group/State"。
+## @param path: 资源路径或状态路径。
+## @param args: 状态切换时传递的可选参数。
 func push_state(path: StringName, args: Dictionary = {}) -> void:
 	var text := String(path)
 	var parts := text.split("/", false)
@@ -128,6 +135,9 @@ func push_state(path: StringName, args: Dictionary = {}) -> void:
 
 
 ## 暂停指定状态组当前状态并叠加进入一个子状态。
+## @param group_name: 能力组或状态组名称。
+## @param state_name: 目标状态名称。
+## @param args: 状态切换时传递的可选参数。
 func push_group_state(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -140,6 +150,8 @@ func push_group_state(group_name: StringName, state_name: StringName, args: Dict
 
 
 ## 弹出指定状态组的栈式子状态。
+## @param group_name: 能力组或状态组名称。
+## @param args: 状态切换时传递的可选参数。
 func pop_state(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> bool:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -177,6 +189,7 @@ func start_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary 
 
 
 ## 添加状态组。
+## @param group: 所属状态组。
 func add_state_group(group: Node) -> void:
 	if not _is_node_state_group(group):
 		return
@@ -198,6 +211,7 @@ func add_state_group(group: Node) -> void:
 
 
 ## 移除状态组。
+## @param group: 所属状态组。
 func remove_state_group(group: Node) -> bool:
 	if not _is_node_state_group(group):
 		return false
@@ -214,6 +228,7 @@ func remove_state_group(group: Node) -> bool:
 
 
 ## 获取状态组。
+## @param group_name: 能力组或状态组名称。
 func get_state_group(group_name: StringName) -> Node:
 	return _groups.get(group_name) as Node
 
@@ -227,6 +242,7 @@ func get_current_state() -> Node:
 
 
 ## 获取指定状态组当前状态名。
+## @param group_name: 能力组或状态组名称。
 func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -> StringName:
 	var group := get_state_group(group_name)
 	if group == null or not group.has_method("get_current_state_name"):
@@ -235,6 +251,7 @@ func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -> Str
 
 
 ## 获取指定状态组状态历史。
+## @param group_name: 能力组或状态组名称。
 func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -> Array[StringName]:
 	var result: Array[StringName] = []
 	var group := get_state_group(group_name)
@@ -248,6 +265,7 @@ func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -> Array[St
 
 
 ## 获取指定状态组暂停栈深度。
+## @param group_name: 能力组或状态组名称。
 func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -> int:
 	var group := get_state_group(group_name)
 	if group == null or not group.has_method("get_stack_depth"):
@@ -256,6 +274,7 @@ func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -> int:
 
 
 ## 判断 path 指向的状态是否为当前状态或暂停栈中的状态。
+## @param path: 资源路径或状态路径。
 func is_in_state(path: StringName) -> bool:
 	var text := String(path)
 	var parts := text.split("/", false)
@@ -268,6 +287,8 @@ func is_in_state(path: StringName) -> bool:
 
 
 ## 重启指定状态组当前状态。
+## @param group_name: 能力组或状态组名称。
+## @param args: 状态切换时传递的可选参数。
 func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> void:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -311,6 +332,7 @@ func reload_from_children() -> void:
 
 
 ## 清空所有状态组。
+## @param free_groups: 清理状态组时是否释放节点。
 func clear_state_groups(free_groups: bool = false) -> void:
 	var old_internal_group := _internal_group
 	var groups: Array[Node] = []

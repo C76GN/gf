@@ -84,6 +84,10 @@ func add_connection(
 
 
 ## 移除指定节点连接。
+## @param from_node_id: 连接起点节点标识。
+## @param from_port_id: 连接起点端口标识。
+## @param to_node_id: 目标标识。
+## @param to_port_id: 目标标识。
 ## @return 移除成功返回 true。
 func remove_connection(
 	from_node_id: StringName,
@@ -108,6 +112,10 @@ func remove_connections_for_node(node_id: StringName) -> void:
 
 
 ## 检查连接是否存在。
+## @param from_node_id: 连接起点节点标识。
+## @param from_port_id: 连接起点端口标识。
+## @param to_node_id: 目标标识。
+## @param to_port_id: 目标标识。
 ## @return 存在返回 true。
 func has_connection(
 	from_node_id: StringName,

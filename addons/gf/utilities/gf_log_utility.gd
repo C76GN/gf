@@ -82,6 +82,7 @@ var _log_file_path: String
 var _muted_tags: Dictionary = {}
 var _last_file_flush_msec: int = 0
 var _memory_entries: Array[Dictionary] = []
+var _memory_head: int = 0
 var _memory_dropped_count: int = 0
 
 
@@ -132,6 +133,8 @@ func debug(tag: String, msg: String) -> void:
 
 
 ## 延迟输出 DEBUG 级别日志。只有日志未被过滤时才调用 message_builder。
+## @param tag: 日志标签。
+## @param message_builder: 延迟构造日志消息的回调。
 func debug_lazy(tag: String, message_builder: Callable) -> void:
 	_log_lazy(LogLevel.DEBUG, tag, message_builder)
 
@@ -144,6 +147,8 @@ func info(tag: String, msg: String) -> void:
 
 
 ## 延迟输出 INFO 级别日志。只有日志未被过滤时才调用 message_builder。
+## @param tag: 日志标签。
+## @param message_builder: 延迟构造日志消息的回调。
 func info_lazy(tag: String, message_builder: Callable) -> void:
 	_log_lazy(LogLevel.INFO, tag, message_builder)
 
@@ -156,6 +161,8 @@ func warn(tag: String, msg: String) -> void:
 
 
 ## 延迟输出 WARN 级别日志。只有日志未被过滤时才调用 message_builder。
+## @param tag: 日志标签。
+## @param message_builder: 延迟构造日志消息的回调。
 func warn_lazy(tag: String, message_builder: Callable) -> void:
 	_log_lazy(LogLevel.WARN, tag, message_builder)
 
@@ -168,6 +175,8 @@ func error(tag: String, msg: String) -> void:
 
 
 ## 延迟输出 ERROR 级别日志。只有日志未被过滤时才调用 message_builder。
+## @param tag: 日志标签。
+## @param message_builder: 延迟构造日志消息的回调。
 func error_lazy(tag: String, message_builder: Callable) -> void:
 	_log_lazy(LogLevel.ERROR, tag, message_builder)
 
@@ -180,6 +189,8 @@ func fatal(tag: String, msg: String) -> void:
 
 
 ## 延迟输出 FATAL 级别日志。只有日志未被过滤时才调用 message_builder。
+## @param tag: 日志标签。
+## @param message_builder: 延迟构造日志消息的回调。
 func fatal_lazy(tag: String, message_builder: Callable) -> void:
 	_log_lazy(LogLevel.FATAL, tag, message_builder)
 
@@ -201,9 +212,10 @@ func is_tag_muted(tag: String) -> bool:
 ## @param count: 读取数量；小于 0 表示全部。
 ## @return 从旧到新的日志条目数组。
 func get_recent_entries(count: int = -1) -> Array[Dictionary]:
-	if count < 0 or count >= _memory_entries.size():
-		return _memory_entries.duplicate(true)
-	return _memory_entries.slice(_memory_entries.size() - count).duplicate(true)
+	var size := _memory_entries.size()
+	if count < 0 or count >= size:
+		return get_entries(0, -1)
+	return get_entries(size - count, count)
 
 
 ## 按偏移读取内存日志条目。
@@ -213,7 +225,12 @@ func get_recent_entries(count: int = -1) -> Array[Dictionary]:
 func get_entries(offset: int = 0, count: int = -1) -> Array[Dictionary]:
 	var safe_offset := clampi(offset, 0, _memory_entries.size())
 	var end := _memory_entries.size() if count < 0 else mini(safe_offset + count, _memory_entries.size())
-	return _memory_entries.slice(safe_offset, end).duplicate(true)
+	var result: Array[Dictionary] = []
+	for logical_index in range(safe_offset, end):
+		var physical_index := _memory_logical_to_physical(logical_index)
+		if physical_index >= 0 and physical_index < _memory_entries.size():
+			result.append(_memory_entries[physical_index].duplicate(true))
+	return result
 
 
 ## 获取当前内存日志条目数量。
@@ -231,6 +248,7 @@ func get_dropped_memory_entry_count() -> int:
 ## 清空内存日志缓存。
 func clear_memory_entries() -> void:
 	_memory_entries.clear()
+	_memory_head = 0
 	_memory_dropped_count = 0
 
 
@@ -341,18 +359,48 @@ func _append_memory_entry(
 		_memory_dropped_count += 1
 		return
 
-	_memory_entries.append({
+	var entry := {
 		"timestamp": timestamp,
 		"level": level,
 		"level_name": level_name,
 		"tag": tag,
 		"message": message,
 		"text": text,
-	})
-	_trim_memory_entries()
+	}
+	if _memory_entries.size() < _max_memory_entries:
+		_memory_entries.append(entry)
+		_memory_head = _memory_entries.size() % _max_memory_entries
+		return
+
+	_memory_entries[_memory_head] = entry
+	_memory_head = (_memory_head + 1) % _max_memory_entries
+	_memory_dropped_count += 1
 
 
 func _trim_memory_entries() -> void:
-	while _memory_entries.size() > _max_memory_entries:
-		_memory_entries.pop_front()
-		_memory_dropped_count += 1
+	if _max_memory_entries <= 0:
+		_memory_dropped_count += _memory_entries.size()
+		_memory_entries.clear()
+		_memory_head = 0
+		return
+
+	if _memory_entries.size() <= _max_memory_entries:
+		return
+
+	var retained_count := _max_memory_entries
+	var dropped_count := _memory_entries.size() - retained_count
+	var retained: Array[Dictionary] = []
+	for entry: Dictionary in get_recent_entries(retained_count):
+		retained.append(entry)
+
+	_memory_entries = retained
+	_memory_head = _memory_entries.size() % _max_memory_entries
+	_memory_dropped_count += dropped_count
+
+
+func _memory_logical_to_physical(logical_index: int) -> int:
+	if _memory_entries.is_empty():
+		return -1
+	if _max_memory_entries <= 0 or _memory_entries.size() < _max_memory_entries:
+		return logical_index
+	return (_memory_head + logical_index) % _memory_entries.size()

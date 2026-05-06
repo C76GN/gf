@@ -16,6 +16,11 @@ extends GFInputTrigger
 
 # --- 公共方法 ---
 
+## 准备输入动作运行时状态。
+## @param _action_id: 当前输入动作标识，默认实现不直接使用。
+## @param input_utility: 输入运行时依赖的 GFInputUtility 实例。
+## @param player_index: 玩家索引。
+## @param state: 触发器运行时状态字典。
 func prepare_runtime(
 	_action_id: StringName,
 	input_utility: Object,
@@ -26,6 +31,11 @@ func prepare_runtime(
 	state["player_index"] = player_index
 
 
+## 更新运行时状态。
+## @param raw_active: 原始输入是否处于激活状态。
+## @param _value: 输入值，默认实现不直接使用。
+## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
+## @param state: 触发器运行时状态字典。
 func update(raw_active: bool, _value: Variant, _delta: float, state: Dictionary) -> TriggerState:
 	if not raw_active:
 		return TriggerState.INACTIVE

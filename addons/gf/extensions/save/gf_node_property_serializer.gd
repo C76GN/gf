@@ -22,6 +22,9 @@ func _init() -> void:
 
 # --- 公共方法 ---
 
+## 采集节点的可保存状态。
+## @param node: 目标节点。
+## @param _context: 操作上下文字典，默认实现不直接使用。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	if node == null:
 		return {}
@@ -35,6 +38,10 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	return result
 
 
+## 将序列化数据应用到节点。
+## @param node: 目标节点。
+## @param payload: 随事件或交互传递的数据。
+## @param _context: 操作上下文字典，默认实现不直接使用。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
 	if node == null:
 		return make_result(false, "Node is null.")

@@ -18,6 +18,8 @@ var _active_entities: Dictionary = {}
 
 # --- GFSystem 生命周期方法 ---
 
+## 推进运行时逻辑。
+## @param p_delta: 本帧时间增量（秒）。
 func tick(p_delta: float) -> void:
 	_cleanup_invalid_entities()
 	var ids := _active_entities.keys()

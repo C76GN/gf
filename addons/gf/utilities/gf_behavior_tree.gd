@@ -26,7 +26,7 @@ class BTNode extends RefCounted:
 	var name: String = "BTNode"
 	
 	## 执行该节点的逻辑。子类应重写此方法。
-	## @param _blackboard: 运行时共享的数据字典。
+## @param _blackboard: 运行时共享的数据字典。
 	## @return 返回 Status 枚举。
 	func tick(_blackboard: Dictionary) -> int:
 		return Status.SUCCESS
@@ -42,6 +42,8 @@ class Sequence extends BTNode:
 		name = "Sequence"
 		_children = children_nodes
 		
+## 推进运行时逻辑。
+## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	func tick(blackboard: Dictionary) -> int:
 		while _current_child_idx < _children.size():
 			var status: int = _children[_current_child_idx].tick(blackboard)
@@ -64,6 +66,8 @@ class Selector extends BTNode:
 		name = "Selector"
 		_children = children_nodes
 		
+## 推进运行时逻辑。
+## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	func tick(blackboard: Dictionary) -> int:
 		while _current_child_idx < _children.size():
 			var status: int = _children[_current_child_idx].tick(blackboard)
@@ -85,6 +89,8 @@ class Action extends BTNode:
 		name = "Action"
 		_action_func = action_func
 		
+## 推进运行时逻辑。
+## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	func tick(blackboard: Dictionary) -> int:
 		if _action_func.is_valid():
 			return _action_func.call(blackboard) as int
@@ -100,6 +106,8 @@ class Condition extends BTNode:
 		name = "Condition"
 		_condition_func = condition_func
 		
+## 推进运行时逻辑。
+## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	func tick(blackboard: Dictionary) -> int:
 		if _condition_func.is_valid():
 			if _condition_func.call(blackboard) == true:
@@ -116,6 +124,8 @@ class Inverter extends BTNode:
 		name = "Inverter"
 		_child = child_node
 		
+## 推进运行时逻辑。
+## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	func tick(blackboard: Dictionary) -> int:
 		if _child == null:
 			return Status.FAILURE

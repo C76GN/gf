@@ -11,6 +11,8 @@ const GF_INTERACTION_FLOW_BASE := preload("res://addons/gf/extensions/interactio
 # --- 公共方法 ---
 
 ## 创建以 sender 为发起者的交互流程。
+## @param sender: 交互发起者。
+## @param architecture: 用于依赖注入和能力查询的架构实例。
 static func with_sender(sender: Object, architecture: GFArchitecture = null) -> Object:
 	var context := GFInteractionContext.new(sender)
 	var flow := GF_INTERACTION_FLOW_BASE.new(context)
@@ -19,6 +21,11 @@ static func with_sender(sender: Object, architecture: GFArchitecture = null) -> 
 
 
 ## 创建一次 sender 到 target 的交互上下文。
+## @param sender: 交互发起者。
+## @param target: 交互目标对象。
+## @param payload: 随事件或交互传递的数据。
+## @param group_name: 能力组或状态组名称。
+## @param architecture: 用于依赖注入和能力查询的架构实例。
 static func between(
 	sender: Object,
 	target: Object,

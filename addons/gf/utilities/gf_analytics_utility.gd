@@ -84,6 +84,8 @@ func dispose() -> void:
 	_shutdown_watcher = null
 
 
+## 推进运行时逻辑。
+## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if _shutdown or not config.enabled or config.flush_interval_seconds <= 0.0 or delta <= 0.0:
 		return

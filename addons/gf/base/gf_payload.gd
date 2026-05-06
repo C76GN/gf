@@ -33,7 +33,7 @@ func to_dict() -> Dictionary:
 
 ## 从字典反序列化并填充此载体的字段。
 ## 子类应重写此方法以恢复所有相关字段。
-## @param data: 包含字段数据的字典（通常来自 to_dict() 的结果）。
+## @param _data: 包含字段数据的字典（通常来自 to_dict() 的结果）。
 func from_dict(_data: Dictionary) -> void:
 	pass
 

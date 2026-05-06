@@ -5,9 +5,11 @@ extends GutTest
 # --- 常量 ---
 
 const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/save/gf_save_graph_utility.gd")
+const GFSavePipelineContextBase = preload("res://addons/gf/extensions/save/gf_save_pipeline_context.gd")
 const GFSavePipelineStepBase = preload("res://addons/gf/extensions/save/gf_save_pipeline_step.gd")
 const GFSaveScopeBase = preload("res://addons/gf/extensions/save/gf_save_scope.gd")
 const GFSaveSourceBase = preload("res://addons/gf/extensions/save/gf_save_source.gd")
+const GFSaveSlotWorkflowBase = preload("res://addons/gf/extensions/save/gf_save_slot_workflow.gd")
 
 
 # --- 辅助类 ---
@@ -178,6 +180,50 @@ func test_pipeline_step_can_modify_gathered_payload() -> void:
 	assert_eq(payload.get("pipeline_marker", ""), "applied", "pipeline step 应能修改采集载荷。")
 
 
+## 验证存档流程可按需输出通用 trace。
+func test_gather_scope_can_include_pipeline_trace() -> void:
+	var payload := _utility.gather_scope(_scope, { "include_pipeline_trace": true })
+	var trace := payload.get("pipeline_trace", {}) as Dictionary
+
+	assert_false(trace.is_empty(), "启用 include_pipeline_trace 时应写入流程 trace。")
+	assert_eq(trace.get("operation"), &"gather", "trace 应记录 gather 操作。")
+	assert_gt(int(trace.get("event_count", 0)), 0, "trace 应包含流程事件。")
+	assert_true(_has_trace_stage(trace, &"gather_scope_finished"), "trace 应记录 Scope 完成阶段。")
+
+
+## 验证调用方也可以显式传入流程上下文并在外部读取。
+func test_pipeline_context_can_be_shared_by_caller() -> void:
+	var pipeline_context := _utility.create_pipeline_context(&"gather", _scope, { "source": "test" })
+
+	_utility.gather_scope(_scope, { "pipeline_context": pipeline_context })
+
+	assert_eq(pipeline_context.operation, &"gather", "外部上下文应保留操作类型。")
+	assert_eq(pipeline_context.shared.get("source", ""), "test", "外部上下文应保留共享数据。")
+	assert_gt(pipeline_context.events.size(), 0, "外部上下文应收集流程事件。")
+
+
+## 验证通用槽位工作流能构建元数据和卡片。
+func test_save_slot_workflow_builds_metadata_and_card() -> void:
+	var workflow := GFSaveSlotWorkflowBase.new()
+	workflow.active_slot_index = 2
+	workflow.slot_role = &"manual"
+
+	var metadata := workflow.build_active_metadata("", { "score": 10 })
+	var summary := {
+		"slot_id": 2,
+		"metadata": metadata.to_dict(true),
+		"modified_time": 123,
+	}
+	var card := workflow.build_card_for_index(2, summary)
+
+	assert_eq(metadata.slot_id, &"slot_2", "槽位元数据应按模板生成逻辑标识。")
+	assert_eq(metadata.display_name, "Slot 2", "槽位元数据应有通用兜底展示名。")
+	assert_eq(metadata.custom_metadata.get("score"), 10, "槽位元数据应保留项目自定义字段。")
+	assert_eq(metadata.custom_metadata.get("slot_role"), &"manual", "槽位角色应写入自定义元数据。")
+	assert_false(card.is_empty, "已有摘要应生成非空卡片。")
+	assert_true(card.is_active, "当前槽位卡片应标记为 active。")
+
+
 ## 验证 Scope 诊断会报告同作用域重复 Source key。
 func test_inspect_scope_reports_duplicate_source_keys() -> void:
 	var target_a := Node2D.new()
@@ -231,5 +277,13 @@ func _has_issue(report: Dictionary, kind: String) -> bool:
 	for issue_variant: Variant in report.get("issues", []):
 		var issue := issue_variant as Dictionary
 		if issue != null and String(issue.get("kind", "")) == kind:
+			return true
+	return false
+
+
+func _has_trace_stage(trace: Dictionary, stage: StringName) -> bool:
+	for event_variant: Variant in trace.get("events", []):
+		var event := event_variant as Dictionary
+		if event != null and StringName(event.get("stage", &"")) == stage:
 			return true
 	return false

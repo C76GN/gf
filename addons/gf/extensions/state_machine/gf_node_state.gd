@@ -42,6 +42,8 @@ func _ready() -> void:
 # --- 公共方法 ---
 
 ## 由状态组调用，注入状态机与状态组引用。
+## @param machine: 关联的节点状态机。
+## @param group: 所属状态组。
 func setup(machine: Object, group: Object) -> void:
 	_machine_ref = weakref(machine) if machine != null else null
 	_group_ref = weakref(group) if group != null else null
@@ -82,30 +84,40 @@ func get_state_name() -> StringName:
 
 
 ## 进入状态。
+## @param previous_state: 上一个状态名称。
+## @param args: 状态切换时传递的可选参数。
 func enter(previous_state: StringName = &"", args: Dictionary = {}) -> void:
 	_set_state_enabled(true)
 	_enter(previous_state, args)
 
 
 ## 离开状态。
+## @param next_state: 下一个状态名称。
+## @param args: 状态切换时传递的可选参数。
 func exit(next_state: StringName = &"", args: Dictionary = {}) -> void:
 	_exit(next_state, args)
 	_set_state_enabled(false)
 
 
 ## 进入栈式子状态时暂停当前状态。
+## @param next_state: 下一个状态名称。
+## @param args: 状态切换时传递的可选参数。
 func pause(next_state: StringName = &"", args: Dictionary = {}) -> void:
 	_pause(next_state, args)
 	_set_state_enabled(false)
 
 
 ## 弹出栈式子状态后恢复当前状态。
+## @param previous_state: 上一个状态名称。
+## @param args: 状态切换时传递的可选参数。
 func resume(previous_state: StringName = &"", args: Dictionary = {}) -> void:
 	_set_state_enabled(true)
 	_resume(previous_state, args)
 
 
 ## 请求切换状态。path 可为 "State" 或 "Group/State"。
+## @param path: 资源路径或状态路径。
+## @param args: 状态切换时传递的可选参数。
 func transition_to(path: StringName, args: Dictionary = {}) -> void:
 	var text := String(path)
 	var parts := text.split("/", false)

@@ -58,6 +58,9 @@ func _init(
 # --- 公共方法 ---
 
 ## 静态工厂方法：创建基础加值修饰器。
+## @param p_value: 修饰器数值。
+## @param p_attribute_id: 修饰器作用的属性标识。
+## @param p_source_id: 修饰器来源标识。
 static func create_base_add(
 	p_value: float,
 	p_attribute_id: StringName = &"",
@@ -67,6 +70,9 @@ static func create_base_add(
 
 
 ## 静态工厂方法：创建百分比加值修饰器。
+## @param p_value: 修饰器数值。
+## @param p_attribute_id: 修饰器作用的属性标识。
+## @param p_source_id: 修饰器来源标识。
 static func create_percent_add(
 	p_value: float,
 	p_attribute_id: StringName = &"",
@@ -76,6 +82,9 @@ static func create_percent_add(
 
 
 ## 静态工厂方法：创建最终加值修饰器。
+## @param p_value: 修饰器数值。
+## @param p_attribute_id: 修饰器作用的属性标识。
+## @param p_source_id: 修饰器来源标识。
 static func create_final_add(
 	p_value: float,
 	p_attribute_id: StringName = &"",

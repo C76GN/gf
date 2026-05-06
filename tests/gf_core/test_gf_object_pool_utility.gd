@@ -227,6 +227,13 @@ func test_prewarm_async_stops_after_dispose() -> void:
 	assert_true(_parent.get_child_count() <= count_after_dispose, "dispose 后未完成的 prewarm_async 不应继续创建节点。")
 
 
+func test_prewarm_async_budget_completes_nodes() -> void:
+	await _pool.prewarm_async_budget(_scene, _parent, 3, 0.001)
+
+	assert_eq(_parent.get_child_count(), 3, "prewarm_async_budget 应完成指定数量的预热。")
+	assert_eq(_pool.get_available_count(_scene), 3, "prewarm_async_budget 后可用节点数应正确。")
+
+
 func test_release_reparents_to_pool_root_and_survives_original_parent_free() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
 	_pool.release(node, _scene)

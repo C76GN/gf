@@ -28,13 +28,13 @@ func dispose() -> void:
 
 
 ## 进入此状态时调用。子类可重写以执行进入逻辑（如初始化动画）。
-## @param msg: 从上一个状态或调用方传递过来的可选参数字典。
+## @param _msg: 从上一个状态或调用方传递过来的可选参数字典。
 func enter(_msg: Dictionary = {}) -> void:
 	pass
 
 
 ## 每帧更新时调用，用于处理持续性逻辑（如计时、轮询）。
-## @param delta: 上一帧的时间间隔（秒）。
+## @param _delta: 上一帧的时间间隔（秒）。
 func update(_delta: float) -> void:
 	pass
 

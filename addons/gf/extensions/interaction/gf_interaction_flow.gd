@@ -25,6 +25,7 @@ func _init(p_context: GFInteractionContext = null) -> void:
 # --- 公共方法 ---
 
 ## 注入当前交互所属架构。
+## @param architecture: 用于依赖注入和能力查询的架构实例。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
 	if context != null:
@@ -32,34 +33,40 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 
 
 ## 设置交互目标。
+## @param target: 交互目标对象。
 func to(target: Object) -> GFInteractionFlow:
 	context.with_target(target)
 	return self
 
 
 ## 设置交互 payload。
+## @param payload: 随事件或交互传递的数据。
 func with_payload(payload: Variant) -> GFInteractionFlow:
 	context.with_payload(payload)
 	return self
 
 
 ## 设置交互分组。
+## @param group_name: 能力组或状态组名称。
 func in_group(group_name: StringName) -> GFInteractionFlow:
 	context.with_group(group_name)
 	return self
 
 
 ## 获取 sender 上的指定能力。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func sender_as(capability_type: Script) -> Object:
 	return context.get_sender_capability(capability_type)
 
 
 ## 获取 target 上的指定能力。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func target_as(capability_type: Script) -> Object:
 	return context.get_target_capability(capability_type)
 
 
 ## 执行命令。命令可通过 interaction_context 属性或 set_interaction_context(context) 接收上下文。
+## @param command: 要执行的命令实例。
 func execute(command: Object) -> Variant:
 	if command == null:
 		return null
@@ -74,6 +81,7 @@ func execute(command: Object) -> Variant:
 
 
 ## 发送事件。事件可通过 interaction_context 属性或 set_interaction_context(context) 接收上下文。
+## @param event_instance: 要派发的事件实例。
 func send_event(event_instance: Object) -> void:
 	if event_instance == null:
 		return

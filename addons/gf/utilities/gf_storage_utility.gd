@@ -20,6 +20,16 @@ signal data_integrity_failed(file_name: String, error: String)
 ## @param to_version: 目标版本。
 signal data_migrated(file_name: String, from_version: int, to_version: int)
 
+## 异步保存完成后发出。
+## @param file_name: 文件名。
+## @param error: Godot 的 Error 结果码。
+signal save_completed(file_name: String, error: Error)
+
+## 异步读取完成后发出。
+## @param file_name: 文件名。
+## @param result: 读取结果，包含 ok、data、metadata、integrity_valid、error。
+signal load_completed(file_name: String, result: Dictionary)
+
 
 # --- 常量 ---
 
@@ -72,14 +82,24 @@ var default_values_for_new_keys: Dictionary = {}
 var last_load_result: Dictionary = {}
 
 
+# --- 私有变量 ---
+
+var _async_tasks: Array[Dictionary] = []
+
+
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	ignore_pause = true
 	var dir_path := "user://"
 	if not save_dir_name.is_empty():
 		dir_path += save_dir_name
 		if not DirAccess.dir_exists_absolute(dir_path):
 			DirAccess.make_dir_recursive_absolute(dir_path)
+
+
+func dispose() -> void:
+	_wait_for_async_tasks()
 
 
 # --- 公共方法（Resource 存取） ---
@@ -245,6 +265,69 @@ func load_data_result(file_name: String) -> Dictionary:
 	return last_load_result.duplicate(true)
 
 
+## 在线程中异步保存纯字典数据。完成后从主线程发出 save_completed。
+## @param file_name: 目标文件名。
+## @param data: 要保存的字典。
+## @return 启动线程的 Error 结果码。
+func save_data_async(file_name: String, data: Dictionary) -> Error:
+	init()
+	_recover_transaction_files([file_name])
+
+	var thread := Thread.new()
+	var error := thread.start(Callable(self, "_save_data_thread").bind(
+		file_name,
+		_get_full_path(file_name),
+		_get_full_path(_get_temp_filename(file_name)),
+		_get_full_path(_get_backup_filename(file_name)),
+		_get_full_path(_get_transaction_filename(file_name)),
+		data.duplicate(true),
+		_get_codec_options()
+	))
+	if error != OK:
+		push_error("[GFStorageUtility] 无法启动异步保存线程：%s，错误码：%s" % [file_name, error])
+		save_completed.emit(file_name, error)
+		return error
+
+	_async_tasks.append({
+		"type": &"save",
+		"file_name": file_name,
+		"thread": thread,
+	})
+	return OK
+
+
+## 在线程中异步读取纯字典数据。完成后从主线程发出 load_completed。
+## @param file_name: 目标文件名。
+## @return 启动线程的 Error 结果码。
+func load_data_async(file_name: String) -> Error:
+	_recover_transaction_files([file_name])
+
+	var thread := Thread.new()
+	var error := thread.start(Callable(self, "_load_data_thread").bind(
+		file_name,
+		_get_full_path(file_name),
+		_get_codec_options()
+	))
+	if error != OK:
+		push_error("[GFStorageUtility] 无法启动异步读取线程：%s，错误码：%s" % [file_name, error])
+		var failed_result := _make_load_result(false, {}, "Thread start failed: %s" % error_string(error), true)
+		load_completed.emit(file_name, failed_result)
+		return error
+
+	_async_tasks.append({
+		"type": &"load",
+		"file_name": file_name,
+		"thread": thread,
+	})
+	return OK
+
+
+## 驱动异步存档任务完成检查。
+## @param _delta: 为兼容统一 tick 签名而保留的参数。
+func tick(_delta: float = 0.0) -> void:
+	_poll_async_tasks()
+
+
 ## 迁移存档数据。项目可继承 GFStorageUtility 并重写该方法。
 ## @param data: 已读取的数据副本。
 ## @param _from_version: 原版本。
@@ -258,6 +341,218 @@ func migrate_data(data: Dictionary, _from_version: int, _to_version: int) -> Dic
 
 
 # --- 私有/辅助方法 ---
+
+func _poll_async_tasks() -> void:
+	for i in range(_async_tasks.size() - 1, -1, -1):
+		var task := _async_tasks[i] as Dictionary
+		var thread := task.get("thread") as Thread
+		if thread == null or thread.is_alive():
+			continue
+
+		var result_variant: Variant = thread.wait_to_finish()
+		_async_tasks.remove_at(i)
+		var file_name := String(task.get("file_name", ""))
+		var task_type := StringName(task.get("type", &""))
+		if task_type == &"save":
+			var save_result := result_variant as Dictionary
+			var error: Error = ERR_BUG
+			if save_result != null:
+				error = int(save_result.get("error", ERR_BUG))
+			save_completed.emit(file_name, error)
+		elif task_type == &"load":
+			_complete_async_load(file_name, result_variant)
+
+
+func _wait_for_async_tasks() -> void:
+	for task: Dictionary in _async_tasks:
+		var thread := task.get("thread") as Thread
+		if thread != null:
+			thread.wait_to_finish()
+	_async_tasks.clear()
+
+
+func _complete_async_load(file_name: String, result_variant: Variant) -> void:
+	var result := result_variant as Dictionary
+	if result == null:
+		result = _make_load_result(false, {}, "Async load failed", true)
+
+	last_load_result = result.duplicate(true)
+	if not bool(result.get("ok", false)):
+		if _should_emit_load_integrity_failed(result):
+			data_integrity_failed.emit(file_name, String(result.get("error", "Decode failed")))
+		load_completed.emit(file_name, last_load_result.duplicate(true))
+		return
+
+	if not bool(result.get("integrity_valid", true)):
+		data_integrity_failed.emit(file_name, String(result.get("error", "Integrity checksum mismatch")))
+
+	var data_value: Variant = result.get("data", {})
+	if not (data_value is Dictionary):
+		last_load_result = {
+			"ok": false,
+			"data": {},
+			"metadata": {},
+			"integrity_valid": bool(result.get("integrity_valid", true)),
+			"error": "Decoded storage payload is not a Dictionary.",
+		}
+		data_integrity_failed.emit(file_name, String(last_load_result["error"]))
+		load_completed.emit(file_name, last_load_result.duplicate(true))
+		return
+
+	var data: Dictionary = data_value as Dictionary
+	data = _apply_schema_migrations(file_name, data)
+	last_load_result["data"] = data
+	last_load_result["metadata"] = _get_storage_metadata(data)
+	load_completed.emit(file_name, last_load_result.duplicate(true))
+
+
+func _should_emit_load_integrity_failed(result: Dictionary) -> bool:
+	var error := String(result.get("error", ""))
+	if error == "File not found" or error == "File is empty" or error.begins_with("File open failed"):
+		return false
+	return true
+
+
+func _save_data_thread(
+	file_name: String,
+	final_path: String,
+	temp_path: String,
+	backup_path: String,
+	transaction_path: String,
+	data: Dictionary,
+	codec_options: Dictionary
+) -> Dictionary:
+	var dir_error := _ensure_absolute_parent_directory(final_path)
+	if dir_error != OK:
+		return { "error": dir_error }
+
+	var codec := GFStorageCodec.new()
+	var bytes := codec.encode(data, codec_options)
+	var write_error := _write_buffer_absolute(temp_path, bytes)
+	if write_error != OK:
+		_remove_absolute_file_if_exists(temp_path)
+		return { "error": write_error }
+
+	var had_final := FileAccess.file_exists(final_path)
+	var marker_error := _write_plain_json_absolute(transaction_path, {
+		"files": [file_name],
+		"committed": false,
+		"had_final": had_final,
+	})
+	if marker_error != OK:
+		_remove_absolute_file_if_exists(temp_path)
+		return { "error": marker_error }
+
+	var backed_up := false
+	var committed := false
+	if had_final:
+		var backup_error := DirAccess.rename_absolute(final_path, backup_path)
+		if backup_error != OK:
+			_remove_absolute_file_if_exists(temp_path)
+			_remove_absolute_file_if_exists(transaction_path)
+			return { "error": backup_error }
+		backed_up = true
+
+	var commit_error := DirAccess.rename_absolute(temp_path, final_path)
+	if commit_error != OK:
+		_rollback_absolute_transaction(final_path, temp_path, backup_path, backed_up, committed)
+		_remove_absolute_file_if_exists(transaction_path)
+		return { "error": commit_error }
+	committed = true
+
+	var complete_marker_error := _write_plain_json_absolute(transaction_path, {
+		"files": [file_name],
+		"committed": true,
+		"had_final": had_final,
+	})
+	if complete_marker_error != OK:
+		_rollback_absolute_transaction(final_path, temp_path, backup_path, backed_up, committed)
+		_remove_absolute_file_if_exists(transaction_path)
+		return { "error": complete_marker_error }
+
+	_remove_absolute_file_if_exists(backup_path)
+	_remove_absolute_file_if_exists(transaction_path)
+	return { "error": OK }
+
+
+func _load_data_thread(file_name: String, path: String, codec_options: Dictionary) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return _make_thread_load_result(false, {}, "File not found", true)
+
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return _make_thread_load_result(
+			false,
+			{},
+			"File open failed: %s" % error_string(FileAccess.get_open_error()),
+			true
+		)
+
+	var bytes := file.get_buffer(file.get_length())
+	file.close()
+	if bytes.is_empty():
+		return _make_thread_load_result(false, {}, "File is empty", true)
+
+	var codec := GFStorageCodec.new()
+	return codec.decode(bytes, codec_options)
+
+
+func _make_thread_load_result(ok: bool, data: Dictionary, error: String, integrity_valid: bool) -> Dictionary:
+	var codec := GFStorageCodec.new()
+	return {
+		"ok": ok,
+		"data": data,
+		"metadata": codec.get_metadata(data),
+		"integrity_valid": integrity_valid,
+		"error": error,
+	}
+
+
+func _ensure_absolute_parent_directory(path: String) -> Error:
+	var base_dir := path.get_base_dir()
+	if base_dir.is_empty() or base_dir == "user://":
+		return OK
+	if DirAccess.dir_exists_absolute(base_dir):
+		return OK
+	return DirAccess.make_dir_recursive_absolute(base_dir)
+
+
+func _write_buffer_absolute(path: String, bytes: PackedByteArray) -> Error:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_buffer(bytes)
+	file.close()
+	return OK
+
+
+func _write_plain_json_absolute(path: String, data: Dictionary) -> Error:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+	file.store_string(JSON.stringify(data, "\t"))
+	file.close()
+	return OK
+
+
+func _remove_absolute_file_if_exists(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(path)
+
+
+func _rollback_absolute_transaction(
+	final_path: String,
+	temp_path: String,
+	backup_path: String,
+	backed_up: bool,
+	committed: bool
+) -> void:
+	if committed or backed_up:
+		_remove_absolute_file_if_exists(final_path)
+	_remove_absolute_file_if_exists(temp_path)
+	if backed_up and FileAccess.file_exists(backup_path):
+		DirAccess.rename_absolute(backup_path, final_path)
+
 
 func _get_data_filename(slot_id: int) -> String:
 	return "slot_%d_data.sav" % slot_id

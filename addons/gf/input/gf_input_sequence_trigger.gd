@@ -21,6 +21,8 @@ extends GFInputTrigger
 
 # --- 公共方法 ---
 
+## 重置输入触发器运行时状态。
+## @param state: 触发器运行时状态字典。
 func reset_trigger_state(state: Dictionary) -> void:
 	state.clear()
 	state["sequence_index"] = 0
@@ -28,6 +30,11 @@ func reset_trigger_state(state: Dictionary) -> void:
 	state["completed"] = false
 
 
+## 准备输入动作运行时状态。
+## @param _action_id: 当前输入动作标识，默认实现不直接使用。
+## @param input_utility: 输入运行时依赖的 GFInputUtility 实例。
+## @param player_index: 玩家索引。
+## @param state: 触发器运行时状态字典。
 func prepare_runtime(
 	_action_id: StringName,
 	input_utility: Object,
@@ -38,6 +45,11 @@ func prepare_runtime(
 	state["player_index"] = player_index
 
 
+## 更新运行时状态。
+## @param raw_active: 原始输入是否处于激活状态。
+## @param _value: 输入值，默认实现不直接使用。
+## @param delta: 本帧时间增量（秒）。
+## @param state: 触发器运行时状态字典。
 func update(raw_active: bool, _value: Variant, delta: float, state: Dictionary) -> TriggerState:
 	if required_action_ids.is_empty():
 		return TriggerState.TRIGGERED if raw_active else TriggerState.INACTIVE

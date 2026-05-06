@@ -358,11 +358,15 @@ class _GFConsoleGUI extends CanvasLayer:
 
 	# --- 公共方法 ---
 
+## 向控制台输出追加一行文本。
+## @param bbcode_line: 要追加的一行 BBCode 文本。
 	func append_text(bbcode_line: String) -> void:
 		_pending_lines.append(bbcode_line)
 		_queue_flush()
 
 
+## 向控制台输出追加多行文本。
+## @param bbcode_lines: 要追加的 BBCode 文本行列表。
 	func append_lines(bbcode_lines: PackedStringArray) -> void:
 		for bbcode_line: String in bbcode_lines:
 			_pending_lines.append(bbcode_line)
@@ -380,6 +384,8 @@ class _GFConsoleGUI extends CanvasLayer:
 		_flush_pending_lines()
 
 
+## 检查日志标签是否被忽略。
+## @param tag: 日志标签。
 	func is_tag_ignored(tag: String) -> bool:
 		if _ignored_tags.is_empty():
 			return false

@@ -45,6 +45,7 @@ const _LAYER_TYPES: Dictionary = {
 # --- 公共方法 ---
 
 ## 扫描项目 class_name 脚本并生成访问器。
+## @param output_path: 生成文件输出路径。
 func generate(output_path: String = DEFAULT_OUTPUT_PATH) -> Error:
 	var records := collect_records()
 	var source := build_source(records)
@@ -52,6 +53,7 @@ func generate(output_path: String = DEFAULT_OUTPUT_PATH) -> Error:
 
 
 ## 生成项目常量访问器。
+## @param output_path: 生成文件输出路径。
 func generate_project_access(output_path: String = DEFAULT_PROJECT_OUTPUT_PATH) -> Error:
 	var records := collect_project_records()
 	var source := build_project_source(records)
@@ -95,6 +97,7 @@ func collect_project_records() -> Dictionary:
 
 
 ## 根据记录生成访问器源码。测试可直接调用该方法验证输出。
+## @param records: 生成访问器时使用的类型记录列表。
 func build_source(records: Array) -> String:
 	var output := PackedStringArray()
 	output.append("## GFAccess: 自动生成的强类型 GF 访问器。")
@@ -158,6 +161,7 @@ func build_source(records: Array) -> String:
 
 
 ## 根据项目常量记录生成访问器源码。
+## @param records: 生成访问器时使用的类型记录列表。
 func build_project_source(records: Dictionary) -> String:
 	var output := PackedStringArray()
 	output.append("## GFProjectAccess: 自动生成的项目常量访问器。")
@@ -174,6 +178,8 @@ func build_project_source(records: Dictionary) -> String:
 
 
 ## 保存生成源码到指定路径。
+## @param output_path: 生成文件输出路径。
+## @param source: 源对象或资源。
 func save_source(output_path: String, source: String) -> Error:
 	if output_path.is_empty():
 		push_error("[GFAccessGenerator] 输出路径为空。")

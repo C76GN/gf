@@ -55,6 +55,11 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 获取远程文本。callback 签名为 `func(result: Dictionary) -> void`。
+## @param url: 远程资源 URL。
+## @param callback: 操作完成或事件触发时执行的回调。
+## @param ttl_seconds: 缓存有效期（秒）。
+## @param force_refresh: 为 true 时忽略现有缓存并重新请求。
+## @param headers: HTTP 请求头字典。
 func fetch_text(
 	url: String,
 	callback: Callable = Callable(),
@@ -66,6 +71,11 @@ func fetch_text(
 
 
 ## 获取远程 JSON。成功时 result["data"] 为解析结果。
+## @param url: 远程资源 URL。
+## @param callback: 操作完成或事件触发时执行的回调。
+## @param ttl_seconds: 缓存有效期（秒）。
+## @param force_refresh: 为 true 时忽略现有缓存并重新请求。
+## @param headers: HTTP 请求头字典。
 func fetch_json(
 	url: String,
 	callback: Callable = Callable(),
@@ -77,6 +87,8 @@ func fetch_json(
 
 
 ## 判断 URL 当前是否存在有效缓存。
+## @param url: 远程资源 URL。
+## @param ttl_seconds: 缓存有效期（秒）。
 func has_valid_cache(url: String, ttl_seconds: int = -1) -> bool:
 	if url.is_empty():
 		return false
@@ -95,6 +107,8 @@ func has_valid_cache(url: String, ttl_seconds: int = -1) -> bool:
 
 
 ## 读取有效文本缓存；不存在或过期时返回空字符串。
+## @param url: 远程资源 URL。
+## @param ttl_seconds: 缓存有效期（秒）。
 func get_cached_text(url: String, ttl_seconds: int = -1) -> String:
 	if not has_valid_cache(url, ttl_seconds):
 		return ""
@@ -102,6 +116,7 @@ func get_cached_text(url: String, ttl_seconds: int = -1) -> String:
 
 
 ## 移除指定 URL 的缓存。
+## @param url: 远程资源 URL。
 func remove_cache(url: String) -> Error:
 	var path := _get_cache_path(url)
 	if not FileAccess.file_exists(path):

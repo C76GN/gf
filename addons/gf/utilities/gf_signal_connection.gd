@@ -50,6 +50,7 @@ func _init(
 # --- 公共方法 ---
 
 ## 增加过滤步骤。predicate 返回 false 时停止本次回调。
+## @param predicate: 用于过滤信号参数的回调。
 func filter(predicate: Callable) -> GFSignalConnection:
 	if predicate.is_valid():
 		_operations.append({
@@ -60,6 +61,7 @@ func filter(predicate: Callable) -> GFSignalConnection:
 
 
 ## 增加映射步骤。mapper 的返回值会替换后续回调参数。
+## @param mapper: 用于转换信号参数的回调。
 func map(mapper: Callable) -> GFSignalConnection:
 	if mapper.is_valid():
 		_operations.append({
@@ -70,6 +72,7 @@ func map(mapper: Callable) -> GFSignalConnection:
 
 
 ## 延迟指定秒数后再继续处理。
+## @param seconds: 延迟或防抖时间（秒）。
 func delay(seconds: float) -> GFSignalConnection:
 	_operations.append({
 		"type": OperationType.DELAY,
@@ -79,6 +82,7 @@ func delay(seconds: float) -> GFSignalConnection:
 
 
 ## 防抖处理。连续触发时只保留静默期后的最后一次。
+## @param seconds: 延迟或防抖时间（秒）。
 func debounce(seconds: float) -> GFSignalConnection:
 	_operations.append({
 		"type": OperationType.DEBOUNCE,
@@ -126,6 +130,7 @@ func is_active() -> bool:
 
 
 ## 当前连接是否属于指定 owner。
+## @param owner: 监听或连接的拥有者。
 func is_owned_by(owner: Object) -> bool:
 	if owner == null or _owner_ref == null:
 		return false
@@ -133,6 +138,9 @@ func is_owned_by(owner: Object) -> bool:
 
 
 ## 检查连接是否匹配指定 Signal、回调和可选 owner。
+## @param source_signal: 要连接或断开的 Godot 信号。
+## @param callback: 操作完成或事件触发时执行的回调。
+## @param owner: 监听或连接的拥有者。
 func matches(source_signal: Signal, callback: Callable, owner: Object = null) -> bool:
 	if _source_signal != source_signal:
 		return false

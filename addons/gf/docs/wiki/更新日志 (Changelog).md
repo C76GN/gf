@@ -16,6 +16,197 @@
 
 ---
 
+## [1.23.0] - 2026-05-06
+
+**版本概述**：围绕 GF 的横向框架能力继续补强，新增响应式组合、瓦片/网格、3D 表面材质、场景预加载与配置化切换、存档槽位工作流、存档流程 trace、输入展示 provider、调试绘制命令缓冲、配置化 Tween 动作、能力诊断和流程失败治理。新增内容保持抽象、可选接入，不把自动铺砖、脚步声、关卡、战斗或 UI 等业务语义写入框架层。
+
+### 🚀 新增特性 (Added)
+- **响应式组合辅助**：新增 `GFReactiveEffect`，可监听多个 `BindableProperty` 并在任一来源变化时执行回调，支持绑定 `Node` 生命周期。
+- **只读派生属性**：新增 `GFComputedProperty`，可由多个 `BindableProperty` 派生只读值，用于局部 UI/Controller 数据组合。
+- **瓦片数据快照**：新增 `GFTileMapCache`，提供通用格子字典数据缓存、`TileMapLayer` 采集、差分比较和 `to_dict()` / `from_dict()`。
+- **瓦片邻域规则表**：新增 `GFTileRuleSet`，用邻域值序列解析结果，支持 fallback 邻域值、默认结果、权重结果和确定性选择。
+- **3D 表面材质查询**：新增 `GFSurfaceUtility`，可根据 RayCast/碰撞命中的 face index 推导 `MeshInstance3D` surface、基础材质、override 材质和 active material。
+- **场景资源预加载缓存**：`GFSceneUtility` 新增场景预加载信号、LRU PackedScene 缓存、取消预加载、缓存状态查询和调试快照。
+- **资源化场景切换配置**：新增 `GFSceneTransitionConfig`，并为 `GFSceneUtility` 增加 `load_scene_with_transition()`，可用资源描述目标场景、loading scene、预加载和缓存策略。
+- **通用存档槽位工作流**：新增 `GFSaveSlotMetadata`、`GFSaveSlotCard` 与 `GFSaveSlotWorkflow`，用于构建槽位元数据、读档卡片 DTO 和槽位索引/逻辑标识映射。
+- **存档流程上下文与事件**：新增 `GFSavePipelineContext` 与 `GFSavePipelineEvent`，`GFSaveGraphUtility` 可按需输出采集/应用流程 trace，也允许调用方传入上下文收集事件。
+- **输入展示 provider**：新增 `GFInputTextProvider` 与 `GFInputIconProvider`，允许项目为平台、设备、本地化或图标字体扩展输入展示。
+- **调试绘制命令缓冲**：新增 `GFDebugDrawUtility`，提供 2D/3D 线段、矩形、圆、文本和自定义命令的通用缓冲、频道过滤和生命周期管理。
+- **配置化 Tween 动作**：新增 `GFTweenActionStep`、`GFTweenActionConfig` 与 `GFConfiguredTweenAction`，可把表现属性动画资源化后交给 `GFActionQueueSystem` 编排。
+- **能力诊断报告**：`GFCapabilityUtility` 新增 `inspect_receiver()` 与 `validate_receiver_dependencies()`，便于调试能力、依赖和分组状态。
+- **命令序列失败治理**：`GFCommandSequence` 新增失败信号、失败策略、运行报告和可选逆序回滚。
+- **架构初始化超时保护**：`GFArchitecture` 新增 `module_async_init_timeout_seconds`、`initialization_failed`、`last_initialization_error` 与 `has_initialization_failed()`，可在开发期或高风险模块初始化中避免 `async_init()` 永久挂起。
+- **严格依赖查询模式**：`GFArchitecture` 新增 `strict_dependency_lookup` 与 `get_local_model()` / `get_local_system()` / `get_local_utility()`；`GFNodeContext` 新增同名严格查询开关和本地查询代理，便于分屏、战斗房间等局部上下文暴露漏注册依赖。
+- **存档异步纯数据管线**：`GFStorageUtility` 新增 `save_data_async()`、`load_data_async()`、`save_completed` 与 `load_completed`，把字典编码、解码和文件 IO 移到线程执行，完成通知回到主线程。
+- **时间缩放保护**：`GFTimeUtility` 新增 `max_scaled_delta`、`physics_substep_max_delta`、`max_physics_substeps`、`get_physics_scaled_delta_steps()` 与 `should_substep_physics()`，可限制高倍速或掉帧后的单步 delta。
+- **资源缓存锁定**：`GFAssetUtility` 新增 `pin_cache()`、`unpin_cache()` 与 `is_cache_pinned()`，可让关键预加载资源暂时跳过 LRU 淘汰。
+- **对象池时间预算预热**：`GFObjectPoolUtility` 新增 `prewarm_async_budget()`，按单帧毫秒预算分批实例化复杂场景。
+- **表现动作条件跳过**：`GFVisualAction` 新增 `is_valid()` 与 `can_execute()`，`GFActionQueueSystem` 和 `GFVisualActionGroup` 会在执行前跳过无效动作。
+- **API 注释校验测试**：新增 `test_api_docs_validation.gd`，自动校验公开 API 带参数函数必须提供 `## @param`，并与函数签名在名称、数量和顺序上双向一致。
+
+### 🔄 机制更改 (Changed)
+- **日志内存缓存改为环形缓冲**：`GFLogUtility` 的内存日志保留最新条目，避免长时间运行时数组无限增长；`get_recent_entries()` 支持在环形缓存上稳定分页读取。
+- **场景切换可复用预加载资源**：`GFSceneUtility.load_scene_async()` 会优先使用已预加载的 `PackedScene`，也可按 `cache_loaded_scenes` 将正常加载完成的场景写入缓存。
+- **场景切换缓存策略可按次覆盖**：`GFSceneUtility.load_scene_with_transition()` 会把 `GFSceneTransitionConfig.cache_loaded_scene` 捕获到当前加载任务，不污染全局默认缓存策略。
+- **存档图流程自动记录通用事件**：`GFSaveGraphUtility.gather_scope()` / `apply_scope()` 会在 context 中维护可选 `GFSavePipelineContext`，记录 Scope、Source 和 PipelineStep 的通用阶段事件。
+- **输入格式化改为 provider 优先**：`GFInputFormatter` 保持原有文本 API，同时优先尝试已注册 provider，并新增 RichText 与 Texture2D 图标查询入口。
+- **命令序列失败结果协议收敛**：`GFCommandSequence` 会识别 `{"ok": false}`、`{"success": false}`、`{"status": "error"}` / `failed` / `failure` 这类失败字典，并把失败步骤写入 `last_run_report.results`。
+- **瓦片规则内部结构更稳健**：`GFTileRuleSet` 的 trie 节点使用 `branches` / `results` 分区，允许邻域值本身为 `"results"` 等普通字符串。
+- **物理帧可选子步进驱动**：当注册的 `GFTimeUtility.physics_substep_max_delta > 0` 且缩放后物理 delta 超过阈值时，`GFArchitecture.physics_tick()` 会把该帧拆成多个缩放子步驱动模块；默认关闭，旧项目行为不变。
+- **定点数大位移除法减少分配**：`GFFixedDecimal` 的字符串除法、减法和按位乘法改为数组收集后一次 join，降低极端精度路径中的字符串拼接压力。
+- **轻量事件派发热路径优化**：`TypeEventSystem.send_simple()` 在 pending 列表为空时跳过每监听器数组扫描，降低高频简单事件的固定开销。
+- **API 注释校验收紧**：`test_api_docs_validation.gd` 支持多行签名和带逗号默认值解析；公开函数名不以 `_` 开头且带参数时强制要求 `@param`，私有函数与 Godot 生命周期函数继续豁免。
+
+### 🐛 Bug 修复 (Fixed)
+- **命令序列失败步骤统计修正**：当 `stop_on_error = false` 时，失败步骤不再被计入成功步骤和回滚候选，但仍会发出 `step_completed` 以保持旧的继续执行语义。
+- **命令序列空错误兜底**：失败字典未提供 `error` / `message` / `reason` 时，运行报告使用稳定默认错误 `"Step failed."`。
+- **响应式测试生命周期修正**：`GFReactiveEffect` 测试显式持有 effect 引用，并避免局部变量遮蔽 `Node.owner`。
+- **3D 表面工具测试清理**：`GFSurfaceUtility` 测试创建的 `MeshInstance3D` 交由 GUT 自动释放，不再产生 orphan 报告。
+- **API 注释参数名修正**：修正 `Gf.set_architecture()` 文档中的 `@param` 名称，避免注释与签名不一致。
+- **公开 API @param 注释补齐**：补齐公开 API 参数说明，并修正抽象基类、能力查询、Buff、命令历史和配置 provider 中 `@param` 与函数签名不一致的问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFReactiveEffect`。
+- 新增 `GFComputedProperty`。
+- 新增 `GFTileMapCache`。
+- 新增 `GFTileRuleSet`。
+- 新增 `GFSurfaceUtility`。
+- 新增 `GFSceneTransitionConfig`。
+- 新增 `GFSavePipelineContext`。
+- 新增 `GFSavePipelineEvent`。
+- 新增 `GFSaveSlotMetadata`。
+- 新增 `GFSaveSlotCard`。
+- 新增 `GFSaveSlotWorkflow`。
+- 新增 `GFInputTextProvider`。
+- 新增 `GFInputIconProvider`。
+- 新增 `GFDebugDrawUtility`。
+- 新增 `GFTweenActionStep`。
+- 新增 `GFTweenActionConfig`。
+- 新增 `GFConfiguredTweenAction`。
+- `GFSceneUtility` 新增 `scene_preload_started`、`scene_preload_progress`、`scene_preload_completed`、`scene_preload_failed` 与 `scene_preload_cancelled` 信号。
+- `GFSceneUtility` 新增 `SceneResourceState` 枚举。
+- `GFSceneUtility` 新增 `max_preloaded_scene_resources` 与 `cache_loaded_scenes`。
+- `GFSceneUtility` 新增 `preload_scene()`、`preload_scenes()`、`cancel_scene_preload()`、`cancel_all_scene_preloads()`、`is_scene_preloading()`、`is_scene_preloaded()`、`get_preloaded_scene()`、`put_preloaded_scene()`、`remove_preloaded_scene()`、`clear_preloaded_scenes()`、`get_preloading_scene_paths()`、`get_scene_cache_debug_snapshot()` 与 `get_scene_resource_state()`。
+- `GFSceneUtility` 新增 `load_scene_with_transition(config: GFSceneTransitionConfig) -> Error`。
+- `GFSaveGraphUtility` 新增 `create_pipeline_context(operation: StringName, scope: GFSaveScope = null, shared: Dictionary = {}) -> GFSavePipelineContext`。
+- `GFSaveGraphUtility.gather_scope()` 支持通过 context 传入 `pipeline_context` 或 `include_pipeline_trace`。
+- `GFSaveGraphUtility.apply_scope()` 支持通过 context 传入 `pipeline_context` 或 `include_pipeline_trace`。
+- `GFInputFormatter.input_event_as_text()`、`binding_as_text()` 与 `mapping_as_text()` 新增可选 `options: Dictionary = {}` 参数，旧调用保持兼容。
+- `GFInputFormatter` 新增 `input_event_as_rich_text()`、`input_event_icon()`、`binding_as_rich_text()`、`mapping_as_rich_text()`、`add_text_provider()`、`remove_text_provider()`、`clear_text_providers()`、`get_text_providers()`、`add_icon_provider()`、`remove_icon_provider()`、`clear_icon_providers()` 与 `get_icon_providers()`。
+- `GFCapabilityUtility` 新增 `inspect_receiver()` 与 `validate_receiver_dependencies()`。
+- `GFCommandSequence` 新增 `step_failed` 与 `sequence_failed` 信号。
+- `GFCommandSequence` 新增 `stop_on_error`、`rollback_on_failure` 与 `last_run_report`。
+- `GFCommandSequence` 新增 `with_failure_policy(should_stop_on_error: bool = true, should_rollback_on_failure: bool = false) -> GFCommandSequence`。
+- `GFArchitecture` 新增 `initialization_failed(reason: String)` 信号。
+- `GFArchitecture` 新增 `module_async_init_timeout_seconds`、`strict_dependency_lookup` 与 `last_initialization_error`。
+- `GFArchitecture` 新增 `has_initialization_failed()`、`get_local_model()`、`get_local_system()` 与 `get_local_utility()`。
+- `Gf` 新增 `get_local_model()`、`get_local_system()` 与 `get_local_utility()`。
+- `GFNodeContext` 新增 `strict_dependency_lookup`、`module_async_init_timeout_seconds`、`get_local_model()`、`get_local_system()` 与 `get_local_utility()`。
+- `GFController` 新增 `get_local_model()`、`get_local_system()` 与 `get_local_utility()`。
+- `GFStorageUtility` 新增 `save_completed(file_name: String, error: Error)` 与 `load_completed(file_name: String, result: Dictionary)` 信号。
+- `GFStorageUtility` 新增 `save_data_async(file_name: String, data: Dictionary) -> Error` 与 `load_data_async(file_name: String) -> Error`。
+- `GFTimeUtility` 新增 `max_scaled_delta`、`physics_substep_max_delta`、`max_physics_substeps`、`get_physics_scaled_delta_steps()` 与 `should_substep_physics()`。
+- `GFAssetUtility` 新增 `pin_cache()`、`unpin_cache()` 与 `is_cache_pinned()`。
+- `GFObjectPoolUtility` 新增 `prewarm_async_budget(scene: PackedScene, parent: Node, count: int, msec_budget_per_frame: float = 8.0) -> void`。
+- `GFVisualAction` 新增 `is_valid()` 与 `can_execute()`。
+- 无破坏性 API 变更；旧项目不使用新增能力时无需修改现有调用。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧项目可直接升级；新增类和 Utility 均为可选接入。
+2. 如果项目已有 UI 多属性刷新逻辑，可逐步用 `GFReactiveEffect` 或 `GFComputedProperty` 替代临时事件转发；核心状态仍应放在项目 `Model` 中。
+3. 如果项目有 TileMap 编辑器工具、自动铺砖或地图差分刷新，可用 `GFTileMapCache` / `GFTileRuleSet` 作为纯数据底座；邻域采样顺序、规则含义和最终落图策略仍由项目层决定。
+4. 如果项目需要按 3D 命中材质分发脚步声、弹孔或特效，可注册 `GFSurfaceUtility` 并读取 surface/material；材质标签和效果映射仍由项目层维护。
+5. 如果项目已有场景加载入口，可按需调用 `GFSceneUtility.preload_scene()` 预热场景资源；loading UI、解锁规则和传送流程不进入 GF 内部。
+6. 如果项目希望把场景切换参数资源化，可使用 `GFSceneTransitionConfig`，并通过 `GFSceneUtility.load_scene_with_transition()` 发起切换。
+7. 如果项目需要读档选单数据，可使用 `GFSaveSlotWorkflow` 生成 `GFSaveSlotMetadata` 与 `GFSaveSlotCard`；真正的数据字段和 UI 布局仍由项目层决定。
+8. 如果项目需要存档流程审计，可在 context 中传入 `include_pipeline_trace = true`，或显式创建并复用 `GFSavePipelineContext`。
+9. 如果项目已有输入图标或本地化系统，可注册 `GFInputTextProvider` / `GFInputIconProvider`，无需替换现有输入映射资源。
+10. 如果项目需要开发期绘制碰撞、路径或范围，可注册 `GFDebugDrawUtility` 收集命令，再用项目自己的 Overlay 渲染。
+11. 如果项目有可复用表现 Tween，可用 `GFTweenActionConfig` 资源化步骤，并生成 `GFConfiguredTweenAction` 加入 `GFActionQueueSystem`。
+12. 如果项目已有能力调试面板，可接入 `GFCapabilityUtility.inspect_receiver()` 展示能力依赖和分组报告。
+13. 如果项目使用 `GFCommandSequence` 编排可失败流程，可通过 `with_failure_policy()` 开启失败停止和可选回滚；已有不关心失败字典的序列保持继续执行行为。
+14. 如果项目存在网络、远程配置或大资源预加载等高风险初始化，可为开发期架构设置 `module_async_init_timeout_seconds`，并监听 `initialization_failed` 输出诊断。
+15. 如果项目使用 `GFNodeContext.SCOPED` 承载独立战斗、房间或分屏玩家状态，可开启 `strict_dependency_lookup`，让漏注册的局部依赖立刻报错；需要显式读取父级依赖时保持默认关闭或调用父架构。
+16. 如果项目存档数据较大，可把纯字典保存/读取入口迁移到 `save_data_async()` / `load_data_async()`，并在注册为 Utility 后由架构 tick 派发完成信号。
+17. 如果项目使用高倍速或快进物理逻辑，可设置 `GFTimeUtility.physics_substep_max_delta` 和 `max_physics_substeps`，避免单次 `physics_tick` delta 过大。
+18. 如果项目批量预加载表现资源，可在使用期间对关键资源调用 `pin_cache()`，使用结束后调用 `unpin_cache()` 恢复 LRU 淘汰。
+19. 如果项目动作队列中的表现依赖运行时目标，可在自定义 `GFVisualAction.is_valid()` 或 `can_execute()` 中检查目标是否仍有效，框架会自动跳过失效动作。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf_reactive_effect.gd`
+- `addons/gf/core/gf_computed_property.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/plugin.gd`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/base/gf_payload.gd`
+- `addons/gf/base/gf_rule.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/core/gf_installer.gd`
+- `addons/gf/editor/gf_access_generator.gd`
+- `addons/gf/editor/gf_editor_type_index.gd`
+- `addons/gf/foundation/math/gf_tile_map_cache.gd`
+- `addons/gf/foundation/math/gf_tile_rule_set.gd`
+- `addons/gf/foundation/numeric/gf_fixed_decimal.gd`
+- `addons/gf/utilities/gf_surface_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_scene_transition_config.gd`
+- `addons/gf/utilities/gf_debug_draw_utility.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_time_utility.gd`
+- `addons/gf/utilities/gf_log_utility.gd`
+- `addons/gf/utilities/gf_config_provider.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/extensions/combat/gf_buff.gd`
+- `addons/gf/extensions/combat/gf_combat_system.gd`
+- `addons/gf/extensions/combat/gf_modifier.gd`
+- `addons/gf/extensions/command/gf_undoable_command.gd`
+- `addons/gf/extensions/interaction/gf_interaction_context.gd`
+- `addons/gf/extensions/interaction/gf_interaction_flow.gd`
+- `addons/gf/extensions/interaction/gf_interactions.gd`
+- `addons/gf/extensions/network/gf_enet_network_backend.gd`
+- `addons/gf/extensions/network/gf_network_utility.gd`
+- `addons/gf/extensions/state_machine/gf_state.gd`
+- `addons/gf/extensions/sequence/gf_command_sequence.gd`
+- `addons/gf/extensions/save/gf_save_graph_utility.gd`
+- `addons/gf/extensions/save/gf_save_pipeline_context.gd`
+- `addons/gf/extensions/save/gf_save_pipeline_event.gd`
+- `addons/gf/extensions/save/gf_save_slot_metadata.gd`
+- `addons/gf/extensions/save/gf_save_slot_card.gd`
+- `addons/gf/extensions/save/gf_save_slot_workflow.gd`
+- `addons/gf/input/gf_input_formatter.gd`
+- `addons/gf/input/gf_input_text_provider.gd`
+- `addons/gf/input/gf_input_icon_provider.gd`
+- `addons/gf/input/gf_input_*_modifier.gd`
+- `addons/gf/input/gf_input_*_trigger.gd`
+- `addons/gf/extensions/action_queue/gf_tween_action_step.gd`
+- `addons/gf/extensions/action_queue/gf_tween_action_config.gd`
+- `addons/gf/extensions/action_queue/gf_configured_tween_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action.gd`
+- `addons/gf/extensions/action_queue/gf_visual_action_group.gd`
+- `addons/gf/extensions/action_queue/gf_action_queue_system.gd`
+- `tests/gf_core/test_api_docs_validation.gd`
+- `tests/gf_core/test_bindable_property.gd`
+- `tests/gf_core/test_gf_tile_utilities.gd`
+- `tests/gf_core/test_gf_surface_utility.gd`
+- `tests/gf_core/test_gf_scene_utility.gd`
+- `tests/gf_core/test_gf_save_graph_utility.gd`
+- `tests/gf_core/test_gf_input_mapping_utility.gd`
+- `tests/gf_core/test_gf_visual_actions.gd`
+- `tests/gf_core/test_gf_debug_draw_utility.gd`
+- `tests/gf_core/test_gf_log_utility.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+- `tests/gf_core/test_gf_command_sequence.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+- `tests/gf_core/test_gf_time_utility.gd`
+- `tests/gf_core/test_gf_asset_utility.gd`
+- `tests/gf_core/test_gf_object_pool_utility.gd`
+
 ## [1.22.0] - 2026-05-01
 
 **版本概述**：围绕开发期诊断、流程图协议、网络后端、输入重绑定检查和通用领域数据继续补强框架横向能力。新增能力均以独立工具、可选后端、资源描述或纯数据结构提供，不把任何项目业务、玩法节点或同步规则写入 GF。

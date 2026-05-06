@@ -34,6 +34,7 @@ var _cache: Dictionary = {}
 ## LRU 访问序号，数值越大表示越新。
 var _cache_access_order: Dictionary = {}
 var _cache_access_serial: int = 0
+var _pinned_cache_paths: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -43,6 +44,7 @@ func init() -> void:
 	_pending = {}
 	_cache.clear()
 	_cache_access_order.clear()
+	_pinned_cache_paths.clear()
 	_cache_access_serial = 0
 
 
@@ -50,6 +52,7 @@ func dispose() -> void:
 	_pending.clear()
 	_cache.clear()
 	_cache_access_order.clear()
+	_pinned_cache_paths.clear()
 	_cache_access_serial = 0
 
 
@@ -177,12 +180,14 @@ func put_cache(path: String, resource: Resource) -> void:
 func remove_cache(path: String) -> void:
 	_cache.erase(path)
 	_cache_access_order.erase(path)
+	_pinned_cache_paths.erase(path)
 
 
 ## 清空全部缓存。
 func clear_cache() -> void:
 	_cache.clear()
 	_cache_access_order.clear()
+	_pinned_cache_paths.clear()
 	_cache_access_serial = 0
 
 
@@ -190,6 +195,28 @@ func clear_cache() -> void:
 ## @return 当前缓存中的资源数。
 func get_cache_count() -> int:
 	return _cache.size()
+
+
+## 锁定指定缓存路径，使其不参与 LRU 淘汰。
+## @param path: 资源路径。
+func pin_cache(path: String) -> void:
+	if path.is_empty():
+		return
+	_pinned_cache_paths[path] = true
+
+
+## 解除指定缓存路径的 LRU 锁定。
+## @param path: 资源路径。
+func unpin_cache(path: String) -> void:
+	_pinned_cache_paths.erase(path)
+	_evict_lru()
+
+
+## 检查指定缓存路径是否已被锁定。
+## @param path: 资源路径。
+## @return 已锁定返回 true。
+func is_cache_pinned(path: String) -> bool:
+	return bool(_pinned_cache_paths.get(path, false))
 
 
 # --- 私有/辅助方法 ---
@@ -281,7 +308,7 @@ func _touch_cache(path: String) -> void:
 func _evict_lru() -> void:
 	while _cache.size() > max_cache_size and max_cache_size > 0:
 		var oldest_path := _get_oldest_cached_path()
-		if not _cache.has(oldest_path):
+		if oldest_path.is_empty() or not _cache.has(oldest_path):
 			return
 
 		_cache.erase(oldest_path)
@@ -293,6 +320,8 @@ func _get_oldest_cached_path() -> String:
 	var oldest_access := 0
 	var has_oldest := false
 	for path: String in _cache:
+		if is_cache_pinned(path):
+			continue
 		var access := int(_cache_access_order.get(path, 0))
 		if not has_oldest or access < oldest_access:
 			oldest_path = path

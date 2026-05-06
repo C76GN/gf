@@ -178,3 +178,36 @@ func test_memory_entries_are_capped_and_ordered() -> void:
 	assert_eq(entries[0]["message"], "two", "内存日志应保留较新的条目并保持从旧到新排序。")
 	assert_eq(entries[1]["message"], "three", "最新条目应位于末尾。")
 	assert_eq(_log_util.get_dropped_memory_entry_count(), 1, "超出容量的条目应计入丢弃数量。")
+
+
+func test_memory_entries_support_offset_reads_after_wrap() -> void:
+	_log_util.max_memory_entries = 3
+	_log_util.clear_memory_entries()
+
+	_log_util.info("Memory", "one")
+	_log_util.info("Memory", "two")
+	_log_util.info("Memory", "three")
+	_log_util.info("Memory", "four")
+
+	var entries := _log_util.get_entries(1, 2)
+	assert_eq(entries.size(), 2, "按偏移读取应返回请求数量。")
+	assert_eq(entries[0]["message"], "three", "环形缓冲按偏移读取应保持逻辑顺序。")
+	assert_eq(entries[1]["message"], "four", "环形缓冲最新条目应位于读取结果末尾。")
+
+
+func test_lowering_memory_limit_keeps_newest_entries() -> void:
+	_log_util.max_memory_entries = 4
+	_log_util.clear_memory_entries()
+
+	_log_util.info("Memory", "one")
+	_log_util.info("Memory", "two")
+	_log_util.info("Memory", "three")
+	_log_util.info("Memory", "four")
+
+	_log_util.max_memory_entries = 2
+
+	var entries := _log_util.get_recent_entries()
+	assert_eq(entries.size(), 2, "降低容量后内存日志应立即裁剪。")
+	assert_eq(entries[0]["message"], "three", "降低容量后应保留较新的条目。")
+	assert_eq(entries[1]["message"], "four", "降低容量后最新条目应位于末尾。")
+	assert_eq(_log_util.get_dropped_memory_entry_count(), 2, "降低容量裁剪的条目应计入丢弃数量。")

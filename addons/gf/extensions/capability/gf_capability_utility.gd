@@ -72,6 +72,8 @@ func dispose() -> void:
 	_elapsed_since_prune = 0.0
 
 
+## 推进运行时逻辑。
+## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if delta < 0.0:
 		return
@@ -87,12 +89,16 @@ func tick(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 检查对象是否拥有指定能力。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func has_capability(receiver: Object, capability_type: Script) -> bool:
 	return get_capability(receiver, capability_type) != null
 
 
 ## 获取对象上的指定能力。
 ## 未命中精确类型时，会尝试寻找唯一的子类能力。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func get_capability(receiver: Object, capability_type: Script) -> Object:
 	var record := _find_capability_record(receiver, capability_type)
 	if record.is_empty():
@@ -101,6 +107,7 @@ func get_capability(receiver: Object, capability_type: Script) -> Object:
 
 
 ## 获取对象当前拥有的所有能力类型。
+## @param receiver: 能力接收对象。
 func get_capability_types(receiver: Object) -> Array[Script]:
 	if not is_instance_valid(receiver):
 		return [] as Array[Script]
@@ -109,6 +116,7 @@ func get_capability_types(receiver: Object) -> Array[Script]:
 
 
 ## 获取所有拥有指定能力的 receiver。
+## @param capability_type: 要查询的能力脚本类型。
 ## @param include_subclasses: 为 true 时同时匹配指定能力的子类能力。
 func get_receivers_with(capability_type: Script, include_subclasses: bool = true) -> Array[Object]:
 	if capability_type == null:
@@ -135,6 +143,7 @@ func prune_invalid_receivers() -> void:
 
 
 ## 获取当前已挂载的指定能力实例列表。
+## @param capability_type: 要查询的能力脚本类型。
 ## @param include_subclasses: 为 true 时同时返回指定能力的子类能力实例。
 func get_capabilities(capability_type: Script, include_subclasses: bool = true) -> Array[Object]:
 	if capability_type == null:
@@ -157,6 +166,8 @@ func get_capabilities(capability_type: Script, include_subclasses: bool = true) 
 
 
 ## 把 receiver 加入一个能力查询分组。
+## @param receiver: 能力接收对象。
+## @param group_name: 能力组或状态组名称。
 func add_receiver_to_group(receiver: Object, group_name: StringName) -> void:
 	if not is_instance_valid(receiver) or group_name == &"":
 		return
@@ -172,6 +183,8 @@ func add_receiver_to_group(receiver: Object, group_name: StringName) -> void:
 
 
 ## 从一个能力查询分组移除 receiver。
+## @param receiver: 能力接收对象。
+## @param group_name: 能力组或状态组名称。
 func remove_receiver_from_group(receiver: Object, group_name: StringName) -> void:
 	if not is_instance_valid(receiver) or group_name == &"":
 		return
@@ -191,6 +204,7 @@ func remove_receiver_from_group(receiver: Object, group_name: StringName) -> voi
 
 
 ## 获取 receiver 当前所属的能力查询分组。
+## @param receiver: 能力接收对象。
 func get_receiver_groups(receiver: Object) -> Array[StringName]:
 	if not is_instance_valid(receiver):
 		return [] as Array[StringName]
@@ -206,6 +220,7 @@ func get_receiver_groups(receiver: Object) -> Array[StringName]:
 
 
 ## 获取指定分组内的 receiver。
+## @param group_name: 能力组或状态组名称。
 func get_receivers_in_group(group_name: StringName) -> Array[Object]:
 	if group_name == &"":
 		return [] as Array[Object]
@@ -221,6 +236,9 @@ func get_receivers_in_group(group_name: StringName) -> Array[Object]:
 
 
 ## 获取指定分组内拥有某个能力的 receiver。
+## @param group_name: 能力组或状态组名称。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
+## @param include_subclasses: 为 true 时同时匹配指定类型的子类。
 func get_receivers_in_group_with(
 	group_name: StringName,
 	capability_type: Script,
@@ -240,11 +258,17 @@ func get_receivers_in_group_with(
 
 ## 给对象挂载指定能力类型。
 ## provider 可为 Callable、PackedScene、Object；为空时使用 capability_type.new()。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
+## @param provider: 用于创建能力实例的 provider。
 func add_capability(receiver: Object, capability_type: Script, provider: Variant = null) -> Object:
 	return _add_capability(receiver, capability_type, provider, true)
 
 
 ## 给对象挂载指定能力类型，并标记为自动依赖能力。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
+## @param provider: 用于创建能力实例的 provider。
 func add_required_capability(receiver: Object, capability_type: Script, provider: Variant = null) -> Object:
 	return _add_capability(receiver, capability_type, provider, false)
 
@@ -287,6 +311,9 @@ func _add_capability(receiver: Object, capability_type: Script, provider: Varian
 
 
 ## 给对象挂载一个已经存在的能力实例。
+## @param receiver: 能力接收对象。
+## @param capability: 要挂载的能力实例。
+## @param as_type: 能力实例注册时使用的类型；为 null 时使用实例脚本类型。
 func add_capability_instance(receiver: Object, capability: Object, as_type: Script = null) -> Object:
 	if not is_instance_valid(receiver):
 		push_error("[GFCapabilityUtility] add_capability_instance 失败：receiver 无效。")
@@ -323,6 +350,9 @@ func add_capability_instance(receiver: Object, capability: Object, as_type: Scri
 
 
 ## 实例化 PackedScene 并作为能力挂载。
+## @param receiver: 能力接收对象。
+## @param scene: 要实例化的能力场景资源。
+## @param as_type: 能力实例注册时使用的类型；为 null 时使用实例脚本类型。
 func add_scene_capability(receiver: Node, scene: PackedScene, as_type: Script = null) -> Object:
 	if not is_instance_valid(receiver):
 		push_error("[GFCapabilityUtility] add_scene_capability 失败：receiver 无效。")
@@ -343,6 +373,9 @@ func add_scene_capability(receiver: Node, scene: PackedScene, as_type: Script = 
 
 
 ## 设置对象上指定能力的启停状态。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
+## @param active: 要设置的激活状态。
 func set_capability_active(receiver: Object, capability_type: Script, active: bool) -> void:
 	var record := _find_capability_record(receiver, capability_type)
 	if record.is_empty():
@@ -361,6 +394,8 @@ func set_capability_active(receiver: Object, capability_type: Script, active: bo
 
 
 ## 查询对象上指定能力当前是否启用。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func is_capability_active(receiver: Object, capability_type: Script) -> bool:
 	var record := _find_capability_record(receiver, capability_type)
 	if record.is_empty():
@@ -373,6 +408,8 @@ func is_capability_active(receiver: Object, capability_type: Script) -> bool:
 
 
 ## 从对象移除指定能力。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func remove_capability(receiver: Object, capability_type: Script) -> void:
 	var record := _find_capability_record(receiver, capability_type)
 	if record.is_empty():
@@ -392,6 +429,7 @@ func remove_capability(receiver: Object, capability_type: Script) -> void:
 
 
 ## 清空对象上的所有能力。
+## @param receiver: 能力接收对象。
 func clear_capabilities(receiver: Object) -> void:
 	if not is_instance_valid(receiver):
 		return
@@ -402,6 +440,7 @@ func clear_capabilities(receiver: Object) -> void:
 
 
 ## 清空 receiver 所属的所有能力查询分组。
+## @param receiver: 能力接收对象。
 func clear_receiver_groups(receiver: Object) -> void:
 	if not is_instance_valid(receiver):
 		return
@@ -409,6 +448,72 @@ func clear_receiver_groups(receiver: Object) -> void:
 	var group_names := get_receiver_groups(receiver)
 	for group_name: StringName in group_names:
 		remove_receiver_from_group(receiver, group_name)
+
+
+## 检查 receiver 上能力依赖是否完整。
+## @param receiver: 目标对象。
+## @return 统一检查结果，包含 ok 与 missing_dependencies。
+func validate_receiver_dependencies(receiver: Object) -> Dictionary:
+	var report := inspect_receiver(receiver)
+	return {
+		"ok": bool(report.get("ok", false)),
+		"missing_dependencies": report.get("missing_dependencies", []),
+	}
+
+
+## 获取 receiver 能力诊断报告。
+## @param receiver: 目标对象。
+## @return 能力、依赖、缺失项和分组信息。
+func inspect_receiver(receiver: Object) -> Dictionary:
+	if not is_instance_valid(receiver):
+		return {
+			"ok": false,
+			"error": "Receiver is invalid.",
+			"receiver_id": -1,
+			"capability_count": 0,
+			"capabilities": [],
+			"missing_dependencies": [],
+			"groups": [],
+		}
+
+	var capability_reports: Array[Dictionary] = []
+	var missing_dependencies: Array[Dictionary] = []
+	for capability_type: Script in get_capability_types(receiver):
+		var capability := _get_capability_instance(receiver, capability_type)
+		if capability == null:
+			continue
+
+		var required_types := _get_required_capabilities(capability)
+		var missing_for_capability: Array[Dictionary] = []
+		for required_type: Script in required_types:
+			if get_capability(receiver, required_type) != null:
+				continue
+			var missing_entry := {
+				"capability": _get_script_key(capability_type),
+				"required": _get_script_key(required_type),
+			}
+			missing_for_capability.append(missing_entry)
+			missing_dependencies.append(missing_entry)
+
+		capability_reports.append({
+			"type": _get_script_key(capability_type),
+			"active": _read_capability_active(capability),
+			"top_level": _is_capability_top_level(receiver, capability_type),
+			"required": _script_array_to_keys(required_types),
+			"registered_dependencies": _script_array_to_keys(_get_dependency_types(receiver, capability_type)),
+			"dependency_of": _script_array_to_keys(_get_dependency_owner_types(receiver, capability_type)),
+			"missing_dependencies": missing_for_capability,
+		})
+
+	return {
+		"ok": missing_dependencies.is_empty(),
+		"error": "",
+		"receiver_id": receiver.get_instance_id(),
+		"capability_count": capability_reports.size(),
+		"capabilities": capability_reports,
+		"missing_dependencies": missing_dependencies,
+		"groups": get_receiver_groups(receiver),
+	}
 
 
 # --- 私有/辅助方法 ---
@@ -1030,6 +1135,14 @@ func _get_script_key(script: Script) -> String:
 	if not script.resource_path.is_empty():
 		return script.resource_path
 	return str(script.get_instance_id())
+
+
+func _script_array_to_keys(scripts: Array[Script]) -> PackedStringArray:
+	var result := PackedStringArray()
+	for script: Script in scripts:
+		result.append(_get_script_key(script))
+	result.sort()
+	return result
 
 
 func _get_creation_key(receiver: Object, capability_type: Script) -> String:

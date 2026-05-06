@@ -64,6 +64,7 @@ func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
 
 
 ## 通过当前架构获取 Model。
+## @param model_type: 要获取的 Model 脚本类型。
 func get_model(model_type: Script) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -72,6 +73,7 @@ func get_model(model_type: Script) -> Object:
 
 
 ## 通过当前架构获取 System。
+## @param system_type: 目标类型。
 func get_system(system_type: Script) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -80,6 +82,7 @@ func get_system(system_type: Script) -> Object:
 
 
 ## 通过当前架构获取 Utility。
+## @param utility_type: 要获取的 Utility 脚本类型。
 func get_utility(utility_type: Script) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -88,6 +91,7 @@ func get_utility(utility_type: Script) -> Object:
 
 
 ## 获取当前 receiver 上的其他能力。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func get_capability(capability_type: Script) -> Object:
 	if receiver == null:
 		return null

@@ -36,6 +36,9 @@ var owner: Object = null
 # --- 公共方法 ---
 
 ## 初始化 Buff，由系统或工厂调用。
+## @param p_id: Buff 标识。
+## @param p_duration: Buff 持续时间（秒）。
+## @param p_owner: Buff 所属对象。
 func setup(p_id: StringName, p_duration: float, p_owner: Object) -> void:
 	id = p_id
 	duration = p_duration
@@ -54,6 +57,7 @@ func on_remove() -> void:
 
 
 ## 当 Buff 层数增加时触发（通常用于刷新持续时间）。
+## @param p_new_duration: 刷新后的持续时间（秒）。
 func on_refresh(p_new_duration: float) -> void:
 	duration = p_new_duration
 	time_left = p_new_duration
@@ -62,7 +66,7 @@ func on_refresh(p_new_duration: float) -> void:
 
 
 ## 周期性触发逻辑。
-## @param p_delta: 帧间隔。
+## @param _p_delta: 帧间隔。
 func on_tick(_p_delta: float) -> void:
 	pass
 

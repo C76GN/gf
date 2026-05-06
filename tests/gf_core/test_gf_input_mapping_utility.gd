@@ -11,12 +11,35 @@ const GFInputConflictAnalyzerBase = preload("res://addons/gf/input/gf_input_conf
 const GFInputContextBase = preload("res://addons/gf/input/gf_input_context.gd")
 const GFInputFormatterBase = preload("res://addons/gf/input/gf_input_formatter.gd")
 const GFInputHoldTriggerBase = preload("res://addons/gf/input/gf_input_hold_trigger.gd")
+const GFInputIconProviderBase = preload("res://addons/gf/input/gf_input_icon_provider.gd")
 const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
 const GFInputMappingUtilityBase = preload("res://addons/gf/utilities/gf_input_mapping_utility.gd")
 const GFInputPulseTriggerBase = preload("res://addons/gf/input/gf_input_pulse_trigger.gd")
 const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
 const GFInputTapTriggerBase = preload("res://addons/gf/input/gf_input_tap_trigger.gd")
 const GFInputScaleModifierBase = preload("res://addons/gf/input/gf_input_scale_modifier.gd")
+const GFInputTextProviderBase = preload("res://addons/gf/input/gf_input_text_provider.gd")
+
+
+# --- 辅助类 ---
+
+class CustomKeyTextProvider extends GFInputTextProvider:
+	func _init(p_priority: int = 0) -> void:
+		priority = p_priority
+
+	func supports_event(input_event: InputEvent, _options: Dictionary = {}) -> bool:
+		return input_event is InputEventKey and (input_event as InputEventKey).keycode == KEY_K
+
+	func get_event_text(_input_event: InputEvent, options: Dictionary = {}) -> String:
+		return String(options.get("label", "Custom K"))
+
+
+class CustomKeyIconProvider extends GFInputIconProvider:
+	func supports_event(input_event: InputEvent, _options: Dictionary = {}) -> bool:
+		return input_event is InputEventKey and (input_event as InputEventKey).keycode == KEY_K
+
+	func get_event_rich_text(_input_event: InputEvent, _options: Dictionary = {}) -> String:
+		return "[color=yellow]K[/color]"
 
 
 # --- 私有变量 ---
@@ -32,6 +55,8 @@ func before_each() -> void:
 
 
 func after_each() -> void:
+	GFInputFormatterBase.clear_text_providers()
+	GFInputFormatterBase.clear_icon_providers()
 	if _utility != null:
 		_utility.dispose()
 		_utility = null
@@ -298,6 +323,23 @@ func test_input_formatter_formats_key_modifiers() -> void:
 	event.shift_pressed = true
 
 	assert_eq(GFInputFormatterBase.input_event_as_text(event), "Ctrl + Shift + K", "组合键文本应稳定。")
+
+
+## 验证输入格式化工具可注册文本 provider。
+func test_input_formatter_uses_text_provider() -> void:
+	var provider := CustomKeyTextProvider.new(10)
+	GFInputFormatterBase.add_text_provider(provider)
+
+	assert_eq(GFInputFormatterBase.input_event_as_text(_make_key_event(KEY_K, true)), "Custom K", "文本 provider 应覆盖默认按键文本。")
+	assert_eq(GFInputFormatterBase.input_event_as_text(_make_key_event(KEY_K, true), { "label": "Keyboard K" }), "Keyboard K", "格式化 options 应传递给 provider。")
+
+
+## 验证输入格式化工具可注册 RichText 图标 provider。
+func test_input_formatter_uses_icon_provider_for_rich_text() -> void:
+	GFInputFormatterBase.add_icon_provider(CustomKeyIconProvider.new())
+
+	assert_eq(GFInputFormatterBase.input_event_as_rich_text(_make_key_event(KEY_K, true)), "[color=yellow]K[/color]", "图标 provider 应优先生成 RichText。")
+	assert_eq(GFInputFormatterBase.input_event_as_rich_text(_make_key_event(KEY_SPACE, true)), "Space", "无图标 provider 时应回退到文本。")
 
 
 ## 验证输入冲突分析器会使用重映射后的有效事件。

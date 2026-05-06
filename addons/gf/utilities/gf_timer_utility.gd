@@ -22,6 +22,8 @@ func dispose() -> void:
 	_pending_timers.clear()
 
 
+## 推进运行时逻辑。
+## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if _pending_timers.is_empty() or delta <= 0.0:
 		return

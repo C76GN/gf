@@ -24,6 +24,8 @@ signal property_removed(key: StringName, old_value: Variant)
 # --- 公共方法 ---
 
 ## 设置属性值。
+## @param key: 属性键。
+## @param value: 要写入或修改的值。
 func set_property_value(key: StringName, value: Variant) -> void:
 	if key == &"":
 		return
@@ -37,16 +39,20 @@ func set_property_value(key: StringName, value: Variant) -> void:
 
 
 ## 获取属性值。
+## @param key: 属性键。
+## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_property_value(key: StringName, default_value: Variant = null) -> Variant:
 	return values.get(key, default_value)
 
 
 ## 检查属性是否存在。
+## @param key: 属性键。
 func has_property_value(key: StringName) -> bool:
 	return values.has(key)
 
 
 ## 移除属性。
+## @param key: 属性键。
 func remove_property_value(key: StringName) -> bool:
 	if not values.has(key):
 		return false
@@ -65,26 +71,36 @@ func clear_properties() -> void:
 
 
 ## 获取 int 属性。
+## @param key: 属性键。
+## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_int(key: StringName, default_value: int = 0) -> int:
 	return int(values.get(key, default_value))
 
 
 ## 获取 float 属性。
+## @param key: 属性键。
+## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_float(key: StringName, default_value: float = 0.0) -> float:
 	return float(values.get(key, default_value))
 
 
 ## 获取 bool 属性。
+## @param key: 属性键。
+## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_bool(key: StringName, default_value: bool = false) -> bool:
 	return bool(values.get(key, default_value))
 
 
 ## 获取 String 属性。
+## @param key: 属性键。
+## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_string(key: StringName, default_value: String = "") -> String:
 	return String(values.get(key, default_value))
 
 
 ## 获取 Vector2 属性。
+## @param key: 属性键。
+## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_vector2(key: StringName, default_value: Vector2 = Vector2.ZERO) -> Vector2:
 	var value: Variant = values.get(key, default_value)
 	if value is Vector2:
@@ -93,6 +109,8 @@ func get_vector2(key: StringName, default_value: Vector2 = Vector2.ZERO) -> Vect
 
 
 ## 获取 Color 属性。
+## @param key: 属性键。
+## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_color(key: StringName, default_value: Color = Color.WHITE) -> Color:
 	var value: Variant = values.get(key, default_value)
 	if value is Color:

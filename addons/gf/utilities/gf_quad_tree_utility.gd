@@ -174,6 +174,9 @@ class QTNode:
 
 	# --- 公共方法 ---
 
+## 插入空间索引记录。
+## @param entity_id: 实体唯一标识。
+## @param rect: 矩形区域。
 	func insert(entity_id: int, rect: Rect2) -> void:
 		if is_split:
 			for child: QTNode in children:
@@ -188,6 +191,9 @@ class QTNode:
 			_split()
 
 
+## 移除空间索引记录。
+## @param entity_id: 实体唯一标识。
+## @param rect: 矩形区域。
 	func remove(entity_id: int, rect: Rect2) -> void:
 		if is_split:
 			for child: QTNode in children:
@@ -199,6 +205,9 @@ class QTNode:
 		entity_rects.erase(entity_id)
 
 
+## 查询矩形范围内的空间索引记录。
+## @param query: 查询矩形或查询命令。
+## @param result: 用于接收查询结果的数组。
 	func query_rect(query: Rect2, result: Array[int]) -> void:
 		if not node_bounds.intersects(query):
 			return

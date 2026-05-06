@@ -425,6 +425,31 @@ func test_property_bag_capability_stores_typed_values() -> void:
 	assert_false(bag.has_property_value(&"title"), "移除后属性不应继续存在。")
 
 
+func test_inspect_receiver_reports_dependencies_and_groups() -> void:
+	var receiver := RefCounted.new()
+	_utility.add_receiver_to_group(receiver, &"targets")
+	_utility.add_capability(receiver, DamageCapability)
+
+	var report: Dictionary = _utility.inspect_receiver(receiver)
+	var validation: Dictionary = _utility.validate_receiver_dependencies(receiver)
+	var dependency_report: Dictionary = _find_capability_report_with_dependencies(report)
+
+	assert_true(bool(report["ok"]), "自动补齐依赖后 receiver 诊断应为 ok。")
+	assert_true(bool(validation["ok"]), "依赖校验应复用诊断结果。")
+	assert_eq(report["capability_count"], 2, "诊断应包含主能力和自动补齐的依赖能力。")
+	assert_true((report["groups"] as Array).has(&"targets"), "诊断应包含 receiver 分组。")
+	assert_false(dependency_report.is_empty(), "诊断应标出拥有依赖的能力。")
+	assert_eq((dependency_report["registered_dependencies"] as PackedStringArray).size(), 1, "主能力应记录一个已注册依赖。")
+
+
+func test_inspect_invalid_receiver_returns_error_report() -> void:
+	var report: Dictionary = _utility.inspect_receiver(null)
+
+	assert_false(bool(report["ok"]), "无效 receiver 的诊断应失败。")
+	assert_eq(report["receiver_id"], -1, "无效 receiver 应返回哨兵 id。")
+	assert_eq(report["error"], "Receiver is invalid.", "无效 receiver 应返回错误原因。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_counting_capability_scene() -> PackedScene:
@@ -434,3 +459,11 @@ func _make_counting_capability_scene() -> PackedScene:
 	node.free()
 	CountingCapabilityNode.created_nodes.clear()
 	return scene
+
+
+func _find_capability_report_with_dependencies(report: Dictionary) -> Dictionary:
+	for entry: Dictionary in report.get("capabilities", []):
+		var dependencies := entry.get("registered_dependencies", PackedStringArray()) as PackedStringArray
+		if dependencies.size() > 0:
+			return entry
+	return {}

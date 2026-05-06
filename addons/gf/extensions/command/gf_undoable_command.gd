@@ -34,7 +34,7 @@ func undo() -> Variant:
 
 
 ## 判断 execute() 返回后是否应该写入命令历史。
-## @param execute_result: execute() 的最终返回值。
+## @param _execute_result: execute() 的最终返回值。
 ## @return 返回 false 时，GFCommandHistoryUtility 不会记录该命令。
 func should_record(_execute_result: Variant) -> bool:
 	return true

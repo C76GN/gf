@@ -51,6 +51,19 @@ func execute() -> Variant:
 	return null
 
 
+## 判断动作在入队消费时是否仍然有效。
+## 子类可根据目标节点、战斗目标或运行时状态决定是否跳过。
+## @return 有效返回 true。
+func is_valid() -> bool:
+	return true
+
+
+## 判断动作是否可以执行。默认委托 is_valid()，便于子类覆盖更明确的语义。
+## @return 可以执行返回 true。
+func can_execute() -> bool:
+	return is_valid()
+
+
 ## 注入当前动作执行所在的架构实例。
 ## @param architecture: 当前架构。
 func inject_dependencies(architecture: GFArchitecture) -> void:

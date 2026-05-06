@@ -110,6 +110,8 @@ func get_group_name() -> StringName:
 
 
 ## 切换到指定状态。
+## @param next_state_name: 要切换到的目标状态名称。
+## @param args: 状态切换时传递的可选参数。
 func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 	if not _states.has(next_state_name):
 		_warn_missing_state(next_state_name)
@@ -162,6 +164,8 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 
 
 ## 暂停当前状态并叠加进入一个子状态。
+## @param next_state_name: 要切换到的目标状态名称。
+## @param args: 状态切换时传递的可选参数。
 func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
 	if not _states.has(next_state_name):
 		_warn_missing_state(next_state_name)
@@ -201,6 +205,7 @@ func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
 
 
 ## 退出当前子状态并恢复上一层状态。
+## @param args: 状态切换时传递的可选参数。
 func pop_state(args: Dictionary = {}) -> bool:
 	if _state_stack.is_empty():
 		return false
@@ -249,6 +254,7 @@ func pop_state(args: Dictionary = {}) -> bool:
 
 
 ## 添加状态节点。
+## @param state: 触发器运行时状态字典。
 func add_state(state: Node) -> void:
 	if not _is_node_state(state):
 		return
@@ -268,6 +274,7 @@ func add_state(state: Node) -> void:
 
 
 ## 移除状态节点。
+## @param state: 触发器运行时状态字典。
 func remove_state(state: Node) -> bool:
 	if not _is_node_state(state):
 		return false
@@ -288,6 +295,7 @@ func remove_state(state: Node) -> bool:
 
 
 ## 获取状态。
+## @param query_state_name: 目标名称。
 func get_state(query_state_name: StringName) -> Node:
 	return _states.get(query_state_name) as Node
 
@@ -324,6 +332,7 @@ func get_blackboard() -> Dictionary:
 
 
 ## 判断指定状态是否为当前状态或暂停栈中的状态。
+## @param query_state_name: 目标名称。
 func is_in_state(query_state_name: StringName) -> bool:
 	if get_current_state_name() == query_state_name:
 		return true
@@ -336,6 +345,7 @@ func is_in_state(query_state_name: StringName) -> bool:
 
 
 ## 重启当前状态；若当前没有状态，则尝试进入初始状态。
+## @param args: 状态切换时传递的可选参数。
 func restart(args: Dictionary = {}) -> void:
 	if _current_state == null:
 		start(args)
@@ -362,6 +372,7 @@ func get_states() -> Array[Node]:
 
 
 ## 清空状态。
+## @param free_states: 为 true 时同时释放已移除的状态节点。
 func clear_states(free_states: bool = false) -> void:
 	var states := get_states()
 	_exit_active_states_for_clear()

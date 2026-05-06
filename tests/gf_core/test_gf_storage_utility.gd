@@ -39,6 +39,7 @@ func after_each() -> void:
 			"test_integrity.json",
 			"test_checksum_only.json",
 			"test_legacy_version.json",
+			"test_async.json",
 			"recover_from_backup.json",
 			"recover_from_temp.json",
 			"recover_from_stale_temp.json",
@@ -117,6 +118,26 @@ func test_legacy_methods() -> void:
 	_storage.save_data("test_legacy.json", {"old": "data"})
 	var d := _storage.load_data("test_legacy.json")
 	assert_eq(d.get("old"), "data", "旧版纯数据 API 仍应正常读写。")
+
+
+func test_async_save_and_load_data_emit_completion_signals() -> void:
+	_storage.encrypt_key = 0
+	watch_signals(_storage)
+
+	var save_error := _storage.save_data_async("test_async.json", { "coins": 123 })
+	await _pump_storage_async_tasks()
+
+	assert_eq(save_error, OK, "异步保存应成功启动。")
+	assert_signal_emitted(_storage, "save_completed", "异步保存完成时应发出 save_completed。")
+	assert_eq(int(_storage.load_data("test_async.json").get("coins")), 123, "异步保存后的数据应可被同步读取。")
+
+	var load_error := _storage.load_data_async("test_async.json")
+	await _pump_storage_async_tasks()
+
+	assert_eq(load_error, OK, "异步读取应成功启动。")
+	assert_signal_emitted(_storage, "load_completed", "异步读取完成时应发出 load_completed。")
+	assert_true(bool(_storage.last_load_result.get("ok")), "异步读取结果应标记成功。")
+	assert_eq(int((_storage.last_load_result.get("data") as Dictionary).get("coins")), 123, "异步读取应恢复保存的数据。")
 
 
 func test_save_data_creates_nested_directories() -> void:
@@ -336,3 +357,11 @@ func test_load_data_applies_version_defaults() -> void:
 	assert_eq(int(stats.get("hp")), 100, "迁移时应深合并新增默认字段。")
 	assert_eq(loaded.get("unlocked"), true, "迁移时应补齐顶层新增默认字段。")
 	assert_signal_emitted(_storage, "data_migrated", "旧版本数据迁移后应发出信号。")
+
+
+func _pump_storage_async_tasks() -> void:
+	for _i in range(120):
+		_storage.tick(0.0)
+		if _storage._async_tasks.is_empty():
+			return
+		await get_tree().process_frame

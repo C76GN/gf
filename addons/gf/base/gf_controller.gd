@@ -129,6 +129,36 @@ func get_utility(utility_type: Script) -> Object:
 	return architecture.get_utility(utility_type)
 
 
+## 仅从当前 Controller 所属架构获取 Model，不回退父级架构。
+## @param model_type: 模型的脚本类型。
+## @return 当前架构中的模型实例。
+func get_local_model(model_type: Script) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_model(model_type)
+
+
+## 仅从当前 Controller 所属架构获取 System，不回退父级架构。
+## @param system_type: 系统的脚本类型。
+## @return 当前架构中的系统实例。
+func get_local_system(system_type: Script) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_system(system_type)
+
+
+## 仅从当前 Controller 所属架构获取 Utility，不回退父级架构。
+## @param utility_type: 工具的脚本类型。
+## @return 当前架构中的工具实例。
+func get_local_utility(utility_type: Script) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_utility(utility_type)
+
+
 # --- 命令与查询 ---
 
 ## 向架构发送命令。支持 await：'await send_command(MyCommand.new())'。

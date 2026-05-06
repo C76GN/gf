@@ -9,8 +9,8 @@ extends GFUtility
 # --- 公共方法 ---
 
 ## 根据表名和 ID 获取单条记录。
-## @param table_name: 表名。
-## @param id: 记录的唯一标识符。
+## @param _table_name: 表名。
+## @param _id: 记录的唯一标识符。
 ## @return 返回对应的记录数据，默认返回 null 并报错。
 func get_record(_table_name: StringName, _id: Variant) -> Variant:
 	push_error("[GFConfigProvider] 子类必须实现 get_record() 方法。")
@@ -18,7 +18,7 @@ func get_record(_table_name: StringName, _id: Variant) -> Variant:
 
 
 ## 根据表名获取整张表的数据。
-## @param table_name: 表名。
+## @param _table_name: 表名。
 ## @return 返回整张表的数据，默认返回 null 并报错。
 func get_table(_table_name: StringName) -> Variant:
 	push_error("[GFConfigProvider] 子类必须实现 get_table() 方法。")

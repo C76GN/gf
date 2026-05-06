@@ -71,10 +71,10 @@ class LocalLookupSystem extends GFSystem:
 		parent_utility = get_utility(ParentScopedUtility) as ParentScopedUtility
 
 class ScopedController extends GFController:
-	func get_local_utility() -> LocalScopedUtility:
+	func get_local_scoped_utility() -> LocalScopedUtility:
 		return get_utility(LocalScopedUtility) as LocalScopedUtility
 
-	func get_parent_utility() -> ParentScopedUtility:
+	func get_parent_scoped_utility() -> ParentScopedUtility:
 		return get_utility(ParentScopedUtility) as ParentScopedUtility
 
 class ControllerHost extends Node:
@@ -528,6 +528,23 @@ func test_child_architecture_falls_back_to_parent() -> void:
 	parent_arch.dispose()
 
 
+## 验证严格依赖查询模式不会静默回退父架构。
+func test_strict_dependency_lookup_blocks_parent_fallback() -> void:
+	var parent_arch := GFArchitecture.new()
+	var parent_utility := ParentScopedUtility.new()
+	await parent_arch.register_utility_instance(parent_utility)
+
+	var child_arch := GFArchitecture.new(parent_arch)
+	child_arch.strict_dependency_lookup = true
+	var resolved := child_arch.get_utility(ParentScopedUtility)
+
+	assert_null(resolved, "严格查询模式下，子架构缺失本地 Utility 时不应回退父架构。")
+	assert_push_error_count(1, "严格查询缺失依赖时应输出明确错误。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
 ## 验证子架构中的失效 alias 不会遮蔽父架构回退。
 func test_stale_child_alias_does_not_shadow_parent_fallback() -> void:
 	var parent_arch := GFArchitecture.new()
@@ -690,8 +707,8 @@ func test_scoped_node_context_owns_local_architecture() -> void:
 	assert_eq(inherited_utility, parent_utility, "局部架构应回退获取父架构依赖。")
 	assert_eq(lookup_system.local_utility, local_utility, "Scoped System 的基类 get_utility 应优先访问局部架构。")
 	assert_eq(lookup_system.parent_utility, parent_utility, "Scoped System 的基类 get_utility 应能回退父架构。")
-	assert_eq(controller.get_local_utility(), local_utility, "Scoped Controller 应沿场景树找到局部架构。")
-	assert_eq(controller.get_parent_utility(), parent_utility, "Scoped Controller 应通过局部架构回退父架构。")
+	assert_eq(controller.get_local_scoped_utility(), local_utility, "Scoped Controller 应沿场景树找到局部架构。")
+	assert_eq(controller.get_parent_scoped_utility(), parent_utility, "Scoped Controller 应通过局部架构回退父架构。")
 
 	context.queue_free()
 	await get_tree().process_frame
@@ -716,7 +733,7 @@ func test_controller_waits_for_context_ready() -> void:
 	var architecture := await controller.wait_for_context_ready()
 
 	assert_eq(architecture, context.get_architecture(), "Controller 应等待并返回最近上下文的架构。")
-	assert_not_null(controller.get_local_utility(), "等待完成后 Controller 应能获取局部依赖。")
+	assert_not_null(controller.get_local_scoped_utility(), "等待完成后 Controller 应能获取局部依赖。")
 
 	context.queue_free()
 	await get_tree().process_frame
@@ -1090,6 +1107,30 @@ func test_concurrent_init_waits_for_active_initialization() -> void:
 	assert_true(second_state["done"], "第二个 init 调用应在同一轮初始化完成后返回。")
 	assert_true(arch.is_inited(), "架构应处于已初始化状态。")
 	assert_true(slow_utility.ready_called, "慢初始化 Utility 最终应进入 ready 阶段。")
+
+
+## 验证模块 async_init 超时会结束初始化流程并唤醒等待者。
+func test_module_async_init_timeout_fails_initialization() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var arch := GFArchitecture.new()
+	arch.module_async_init_timeout_seconds = 0.001
+	var slow_utility := SlowInitUtility.new()
+	await arch.register_utility_instance(slow_utility)
+	watch_signals(arch)
+
+	await arch.init()
+
+	assert_true(slow_utility.async_started, "超时前模块应已进入 async_init。")
+	assert_false(arch.is_inited(), "async_init 超时后架构不应标记为已初始化。")
+	assert_true(arch.has_initialization_failed(), "架构应记录初始化失败状态。")
+	assert_true(arch.last_initialization_error.contains("async_init 超时"), "失败原因应包含超时诊断。")
+	assert_signal_emitted(arch, "initialization_failed", "async_init 超时时应发出 initialization_failed。")
+	assert_push_error_count(1, "async_init 超时时应输出一条错误。")
+
+	arch.dispose()
 
 
 ## 验证 dispose 会唤醒等待中的并发 init 调用，且旧初始化恢复后不会写回状态。

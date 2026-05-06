@@ -17,8 +17,14 @@ signal step_started(index: int, step: Variant)
 ## 步骤执行完毕时发出。
 signal step_completed(index: int, step: Variant)
 
+## 步骤报告失败时发出。
+signal step_failed(index: int, step: Variant, error: String)
+
 ## 序列全部执行完成时发出。
 signal sequence_completed
+
+## 序列因步骤失败而停止时发出。
+signal sequence_failed(report: Dictionary)
 
 ## 序列被取消时发出。
 signal sequence_cancelled
@@ -40,6 +46,15 @@ var signal_timeout_seconds: float = 30.0
 
 ## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
 var signal_timeout_respects_time_scale: bool = true
+
+## 步骤返回失败结果时是否停止后续步骤。
+var stop_on_error: bool = false
+
+## stop_on_error 生效后，是否对已完成且实现 undo() 的步骤逆序回滚。
+var rollback_on_failure: bool = false
+
+## 最近一次运行报告。
+var last_run_report: Dictionary = {}
 
 
 # --- 私有变量 ---
@@ -75,6 +90,11 @@ func run(p_steps: Array = []) -> void:
 	var run_steps := p_steps if not p_steps.is_empty() else steps
 	is_running = true
 	_cancel_requested = false
+	var completed_steps: Array = []
+	var results: Array[Dictionary] = []
+	var failed := false
+	var failed_index := -1
+	var failed_error := ""
 	sequence_started.emit()
 
 	for index: int in range(run_steps.size()):
@@ -91,11 +111,41 @@ func run(p_steps: Array = []) -> void:
 			await _await_signal_safely(result as Signal)
 			if _cancel_requested:
 				break
+		var step_error := _get_step_error(result)
+		if not step_error.is_empty():
+			failed = true
+			failed_index = index
+			failed_error = step_error
+			results.append(_make_step_report(index, false, step_error, result))
+			step_failed.emit(index, step, step_error)
+			if stop_on_error:
+				break
+			step_completed.emit(index, step)
+			continue
+
 		step_completed.emit(index, step)
+		completed_steps.append(step)
+		results.append(_make_step_report(index, true, "", result))
 
 	is_running = false
+	var rolled_back := false
+	if failed and stop_on_error and rollback_on_failure:
+		await _rollback_steps(completed_steps)
+		rolled_back = true
+
+	last_run_report = {
+		"cancelled": _cancel_requested,
+		"failed": failed,
+		"failed_index": failed_index,
+		"error": failed_error,
+		"succeeded": completed_steps.size(),
+		"rolled_back": rolled_back,
+		"results": results,
+	}
 	if _cancel_requested:
 		sequence_cancelled.emit()
+	elif failed and stop_on_error:
+		sequence_failed.emit(last_run_report)
 	else:
 		sequence_completed.emit()
 
@@ -111,6 +161,19 @@ func cancel() -> void:
 func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFCommandSequence:
 	signal_timeout_seconds = maxf(seconds, 0.0)
 	signal_timeout_respects_time_scale = respect_time_scale
+	return self
+
+
+## 设置失败处理策略，并返回自身以便链式调用。
+## @param should_stop_on_error: 是否在失败结果后停止。
+## @param should_rollback_on_failure: 是否逆序调用已完成步骤 undo()。
+## @return 当前序列。
+func with_failure_policy(
+	should_stop_on_error: bool = true,
+	should_rollback_on_failure: bool = false
+) -> GFCommandSequence:
+	stop_on_error = should_stop_on_error
+	rollback_on_failure = should_rollback_on_failure
 	return self
 
 
@@ -130,6 +193,52 @@ func _execute_step(step: Variant) -> Variant:
 		if callable.is_valid():
 			return callable.call()
 	return null
+
+
+func _get_step_error(result: Variant) -> String:
+	if not (result is Dictionary):
+		return ""
+
+	var data := result as Dictionary
+	var failed := false
+	if data.has("ok") and not bool(data.get("ok", true)):
+		failed = true
+	if data.has("success") and not bool(data.get("success", true)):
+		failed = true
+
+	var status := String(data.get("status", "")).to_lower()
+	if status == "error" or status == "failed" or status == "failure":
+		failed = true
+
+	if not failed:
+		return ""
+
+	var error_value: Variant = data.get("error", data.get("message", data.get("reason", "")))
+	if error_value is Dictionary or error_value is Array:
+		return JSON.stringify(error_value)
+
+	var error := String(error_value)
+	return error if not error.is_empty() else "Step failed."
+
+
+func _make_step_report(index: int, ok: bool, error: String, result: Variant) -> Dictionary:
+	return {
+		"index": index,
+		"ok": ok,
+		"error": error,
+		"result": result,
+	}
+
+
+func _rollback_steps(completed_steps: Array) -> void:
+	for index: int in range(completed_steps.size() - 1, -1, -1):
+		var step := completed_steps[index] as Object
+		if step == null or not step.has_method("undo"):
+			continue
+		_inject_step(step)
+		var result: Variant = step.call("undo")
+		if result is Signal:
+			await _await_signal_safely(result as Signal)
 
 
 func _inject_step(step: Object) -> void:

@@ -647,14 +647,21 @@ func get_dependency_removal_policy() -> int:
 	return super.get_dependency_removal_policy()
 
 
+## 处理能力添加通知。
+## @param target: 交互目标对象。
 func on_gf_capability_added(target: Object) -> void:
 	super.on_gf_capability_added(target)
 
 
+## 处理能力移除通知。
+## @param target: 交互目标对象。
 func on_gf_capability_removed(target: Object) -> void:
 	super.on_gf_capability_removed(target)
 
 
+## 处理能力激活状态变化通知。
+## @param _target: 能力目标对象，默认回调不直接使用。
+## @param _active: 能力激活状态，默认回调不直接使用。
 func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
 	pass
 

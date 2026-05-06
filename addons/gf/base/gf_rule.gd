@@ -11,7 +11,7 @@ extends Resource
 # --- 公共方法 ---
 
 ## 执行规则逻辑。子类必须重写此方法。
-## @param context: 传递给规则的上下文数据，通常是一个 GFPayload 子类实例。
+## @param _context: 传递给规则的上下文数据，通常是一个 GFPayload 子类实例。
 ## @return 规则执行结果，同步返回 Variant，异步返回一个 Signal 供 await。
 func execute(_context: Object = null) -> Variant:
 	return null

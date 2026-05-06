@@ -16,6 +16,8 @@ var _scene_root_script_cache: Dictionary = {}
 # --- 公共方法 ---
 
 ## 收集继承指定脚本基类的全局脚本类。
+## @param base_script: 要匹配的基类脚本。
+## @param excluded_scripts: 收集类型时需要排除的脚本列表。
 func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Script] = []) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	if base_script == null:
@@ -48,6 +50,8 @@ func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Scri
 
 
 ## 收集根脚本继承指定基类的场景。
+## @param base_script: 要匹配的基类脚本。
+## @param used_paths: 已使用的资源路径集合。
 func collect_scene_roots_extending(base_script: Script, used_paths: Dictionary = {}) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	if base_script == null or not Engine.is_editor_hint():
@@ -93,6 +97,7 @@ func collect_scene_roots_extending(base_script: Script, used_paths: Dictionary =
 
 
 ## 获取 PackedScene 根节点脚本。
+## @param path: 资源路径或状态路径。
 func get_scene_root_script(path: String) -> Script:
 	if _scene_root_script_cache.has(path):
 		return _scene_root_script_cache[path] as Script

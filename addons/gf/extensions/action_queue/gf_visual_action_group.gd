@@ -90,6 +90,9 @@ func _do_parallel_async(current_serial: int) -> void:
 			continue
 
 		_inject_action_dependencies(action)
+		if not action.can_execute():
+			continue
+
 		var result: Variant = action.execute()
 		if action.should_wait_for_result(result):
 			pending_state["count"] = int(pending_state["count"]) + 1
@@ -108,6 +111,9 @@ func _do_sequence_async(current_serial: int) -> void:
 			continue
 
 		_inject_action_dependencies(action)
+		if not action.can_execute():
+			continue
+
 		var result: Variant = action.execute()
 		if action.should_wait_for_result(result):
 			await action.await_result_safely(result, _is_execution_serial_current.bind(current_serial))

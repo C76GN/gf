@@ -55,6 +55,8 @@ var _channels: Dictionary = {}
 
 # --- Godot 生命周期方法 ---
 
+## 推进运行时逻辑。
+## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if backend != null:
 		backend.poll(delta)

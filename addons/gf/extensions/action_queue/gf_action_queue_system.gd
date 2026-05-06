@@ -57,6 +57,7 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 将一个动作加入顺序队列。
+## @param action: 要处理的表现动作。
 func enqueue(action: GFVisualAction) -> void:
 	if not is_instance_valid(action):
 		return
@@ -66,6 +67,7 @@ func enqueue(action: GFVisualAction) -> void:
 
 
 ## 将一个动作以显式 fire-and-forget 模式加入队列。
+## @param action: 要处理的表现动作。
 func enqueue_fire_and_forget(action: GFVisualAction) -> void:
 	if not is_instance_valid(action):
 		return
@@ -75,6 +77,7 @@ func enqueue_fire_and_forget(action: GFVisualAction) -> void:
 
 
 ## 将一批动作加入队列并并行执行。
+## @param actions: 要处理的表现动作列表。
 func enqueue_parallel(actions: Array[GFVisualAction]) -> void:
 	if actions.is_empty():
 		return
@@ -85,6 +88,7 @@ func enqueue_parallel(actions: Array[GFVisualAction]) -> void:
 
 
 ## 将一个动作插入队列头部。
+## @param action: 要处理的表现动作。
 func push_front(action: GFVisualAction) -> void:
 	if not is_instance_valid(action):
 		return
@@ -94,6 +98,7 @@ func push_front(action: GFVisualAction) -> void:
 
 
 ## 将一个动作以显式 fire-and-forget 模式插入队列头部。
+## @param action: 要处理的表现动作。
 func push_front_fire_and_forget(action: GFVisualAction) -> void:
 	if not is_instance_valid(action):
 		return
@@ -103,6 +108,7 @@ func push_front_fire_and_forget(action: GFVisualAction) -> void:
 
 
 ## 将一批并行动作插入队列头部。
+## @param actions: 要处理的表现动作列表。
 func push_front_parallel(actions: Array[GFVisualAction]) -> void:
 	if actions.is_empty():
 		return
@@ -127,6 +133,7 @@ func clear_queue(stop_current: bool = false) -> void:
 
 
 ## 获取或创建一个命名动作队列。
+## @param queue_name: 动作队列名称。
 func get_named_queue(queue_name: StringName) -> GFActionQueueSystem:
 	if queue_name == &"":
 		push_error("[GFActionQueueSystem] get_named_queue 失败：queue_name 为空。")
@@ -144,6 +151,8 @@ func get_named_queue(queue_name: StringName) -> GFActionQueueSystem:
 
 
 ## 创建或获取一个绑定到节点生命周期的命名队列。
+## @param queue_name: 动作队列名称。
+## @param linked_node: 与队列生命周期绑定的节点。
 func get_linked_queue(queue_name: StringName, linked_node: Node) -> GFActionQueueSystem:
 	var queue := get_named_queue(queue_name)
 	if queue == null:
@@ -153,11 +162,14 @@ func get_linked_queue(queue_name: StringName, linked_node: Node) -> GFActionQueu
 
 
 ## 将当前队列绑定到节点生命周期；节点失效后队列会停止并清空。
+## @param linked_node: 与队列生命周期绑定的节点。
 func bind_to_node(linked_node: Node) -> void:
 	_linked_node_ref = weakref(linked_node) if linked_node != null else null
 
 
 ## 将动作加入指定命名队列。
+## @param queue_name: 动作队列名称。
+## @param action: 要处理的表现动作。
 func enqueue_to(queue_name: StringName, action: GFVisualAction) -> void:
 	var queue := get_named_queue(queue_name)
 	if queue != null:
@@ -165,6 +177,8 @@ func enqueue_to(queue_name: StringName, action: GFVisualAction) -> void:
 
 
 ## 将动作以 fire-and-forget 模式加入指定命名队列。
+## @param queue_name: 动作队列名称。
+## @param action: 要处理的表现动作。
 func enqueue_fire_and_forget_to(queue_name: StringName, action: GFVisualAction) -> void:
 	var queue := get_named_queue(queue_name)
 	if queue != null:
@@ -172,6 +186,8 @@ func enqueue_fire_and_forget_to(queue_name: StringName, action: GFVisualAction) 
 
 
 ## 将一批动作加入指定命名队列并行执行。
+## @param queue_name: 动作队列名称。
+## @param actions: 要处理的表现动作列表。
 func enqueue_parallel_to(queue_name: StringName, actions: Array[GFVisualAction]) -> void:
 	var queue := get_named_queue(queue_name)
 	if queue != null:
@@ -179,6 +195,8 @@ func enqueue_parallel_to(queue_name: StringName, actions: Array[GFVisualAction])
 
 
 ## 将动作插入指定命名队列头部。
+## @param queue_name: 动作队列名称。
+## @param action: 要处理的表现动作。
 func push_front_to(queue_name: StringName, action: GFVisualAction) -> void:
 	var queue := get_named_queue(queue_name)
 	if queue != null:
@@ -186,6 +204,8 @@ func push_front_to(queue_name: StringName, action: GFVisualAction) -> void:
 
 
 ## 清理指定命名队列。
+## @param queue_name: 动作队列名称。
+## @param stop_current: 是否停止当前正在执行的动作。
 func clear_named_queue(queue_name: StringName, stop_current: bool = false) -> void:
 	var queue := _named_queues.get(queue_name) as GFActionQueueSystem
 	if queue != null:
@@ -193,6 +213,7 @@ func clear_named_queue(queue_name: StringName, stop_current: bool = false) -> vo
 
 
 ## 清理所有命名队列。
+## @param stop_current: 是否停止当前正在执行的动作。
 func clear_all_named_queues(stop_current: bool = false) -> void:
 	for queue: GFActionQueueSystem in _named_queues.values():
 		if queue != null:
@@ -209,6 +230,7 @@ func skip_current_action() -> void:
 
 
 ## 驱动命名队列的生命周期清理。
+## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func tick(_delta: float) -> void:
 	if _linked_node_ref != null and _linked_node_ref.get_ref() == null:
 		clear_queue(true)
@@ -241,6 +263,10 @@ func _process_queue() -> void:
 
 		_current_action = action
 		_inject_action_dependencies(action)
+		if not action.can_execute():
+			_current_action = null
+			continue
+
 		var result: Variant = action.execute()
 		if action.should_wait_for_result(result):
 			await action.await_result_safely(result, _is_processing_serial_current.bind(current_serial))
