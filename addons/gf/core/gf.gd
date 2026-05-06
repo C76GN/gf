@@ -51,7 +51,7 @@ func create_binder() -> Variant:
 ## @return GFArchitecture 实例，如果未注册则返回 null。
 func get_architecture() -> GFArchitecture:
 	if _architecture == null:
-		push_error("[GDCore] 架构尚未初始化，请先注册架构。")
+		push_error("[GF] 架构尚未初始化，请先注册架构。")
 	return _architecture
 
 
@@ -59,7 +59,7 @@ func get_architecture() -> GFArchitecture:
 ## @param architecture_instance: 要注册的 GFArchitecture 实例。
 func set_architecture(architecture_instance: GFArchitecture) -> void:
 	if architecture_instance == null:
-		push_error("[GDCore] set_architecture 失败：传入的架构实例为空。")
+		push_error("[GF] set_architecture 失败：传入的架构实例为空。")
 		return
 		
 	if _architecture != null and _architecture != architecture_instance:
@@ -313,7 +313,7 @@ func send_command(command: Object) -> Variant:
 	return arch.send_command(command)
 
 ## 便捷发送查询。
-## @param query: 查询矩形或查询命令。
+## @param query: 查询对象。
 func send_query(query: Object) -> Variant:
 	var arch := _get_architecture_or_null("send_query")
 	if arch == null:
@@ -452,18 +452,18 @@ func unregister_utility(script_cls: Script) -> void:
 
 func _get_architecture_or_null(context: String) -> GFArchitecture:
 	if _architecture == null:
-		push_error("[GDCore] %s 失败：架构尚未初始化，请先注册架构。" % context)
+		push_error("[GF] %s 失败：架构尚未初始化，请先注册架构。" % context)
 		return null
 	return _architecture
 
 
 func _get_instance_script_or_null(instance: Object, context: String) -> Script:
 	if instance == null:
-		push_error("[GDCore] %s 失败：实例为空。" % context)
+		push_error("[GF] %s 失败：实例为空。" % context)
 		return null
 	var script := instance.get_script() as Script
 	if script == null:
-		push_error("[GDCore] %s 失败：实例未附加脚本。" % context)
+		push_error("[GF] %s 失败：实例未附加脚本。" % context)
 		return null
 	return script
 
@@ -508,30 +508,30 @@ func _get_project_installer_paths() -> Array[String]:
 			if typeof(path_variant) == TYPE_STRING:
 				installer_paths.append(String(path_variant))
 			else:
-				push_warning("[GDCore] 项目 Installer 配置包含非字符串项，已跳过。")
+				push_warning("[GF] 项目 Installer 配置包含非字符串项，已跳过。")
 		return installer_paths
 
-	push_error("[GDCore] 项目 Installer 配置必须是路径数组。")
+	push_error("[GF] 项目 Installer 配置必须是路径数组。")
 	return installer_paths
 
 
 func _create_installer(path: String) -> Object:
 	if path.is_empty():
-		push_error("[GDCore] 项目 Installer 路径为空。")
+		push_error("[GF] 项目 Installer 路径为空。")
 		return null
 
 	var installer_script := load(path) as Script
 	if installer_script == null:
-		push_error("[GDCore] 无法加载项目 Installer：%s" % path)
+		push_error("[GF] 无法加载项目 Installer：%s" % path)
 		return null
 
 	if not installer_script.can_instantiate():
-		push_error("[GDCore] 项目 Installer 无法实例化：%s" % path)
+		push_error("[GF] 项目 Installer 无法实例化：%s" % path)
 		return null
 
 	var instance: Object = installer_script.new()
 	if not (instance is GFInstallerBase):
-		push_error("[GDCore] 项目 Installer 必须继承 GFInstaller：%s" % path)
+		push_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % path)
 		return null
 
 	return instance

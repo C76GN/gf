@@ -37,6 +37,11 @@ var module_async_init_timeout_seconds: float = 0.0:
 	set(value):
 		module_async_init_timeout_seconds = maxf(value, 0.0)
 
+## 单个生命周期阶段最多扫描模块注册表的次数，避免模块在生命周期中无限注册新模块。
+var module_lifecycle_max_stage_passes: int = 256:
+	set(value):
+		module_lifecycle_max_stage_passes = maxi(value, 1)
+
 ## 严格依赖查询模式。开启后本架构查询不到本地模块时不会回退父级架构。
 var strict_dependency_lookup: bool = false
 
@@ -569,7 +574,7 @@ func has_factory(script_cls: Script) -> bool:
 		return false
 	if _factories.has(script_cls):
 		return true
-	if _parent_architecture != null:
+	if _parent_architecture != null and not strict_dependency_lookup:
 		return _parent_architecture.has_factory(script_cls)
 	return false
 
@@ -600,11 +605,11 @@ func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
 ## @param instance: 系统实例，必须附加有 GDScript 脚本。
 func register_system_instance(instance: Object) -> void:
 	if instance == null:
-		push_error("[GDCore] register_system_instance 失败：实例为空。")
+		push_error("[GFArchitecture] register_system_instance 失败：实例为空。")
 		return
 	var script := instance.get_script() as Script
 	if script == null:
-		push_error("[GDCore] register_system_instance 失败：实例未附加脚本。")
+		push_error("[GFArchitecture] register_system_instance 失败：实例未附加脚本。")
 		return
 	await register_system(script, instance)
 
@@ -613,11 +618,11 @@ func register_system_instance(instance: Object) -> void:
 ## @param instance: 模型实例，必须附加有 GDScript 脚本。
 func register_model_instance(instance: Object) -> void:
 	if instance == null:
-		push_error("[GDCore] register_model_instance 失败：实例为空。")
+		push_error("[GFArchitecture] register_model_instance 失败：实例为空。")
 		return
 	var script := instance.get_script() as Script
 	if script == null:
-		push_error("[GDCore] register_model_instance 失败：实例未附加脚本。")
+		push_error("[GFArchitecture] register_model_instance 失败：实例未附加脚本。")
 		return
 	await register_model(script, instance)
 
@@ -626,11 +631,11 @@ func register_model_instance(instance: Object) -> void:
 ## @param instance: 工具实例，必须附加有 GDScript 脚本。
 func register_utility_instance(instance: Object) -> void:
 	if instance == null:
-		push_error("[GDCore] register_utility_instance 失败：实例为空。")
+		push_error("[GFArchitecture] register_utility_instance 失败：实例为空。")
 		return
 	var script := instance.get_script() as Script
 	if script == null:
-		push_error("[GDCore] register_utility_instance 失败：实例未附加脚本。")
+		push_error("[GFArchitecture] register_utility_instance 失败：实例未附加脚本。")
 		return
 	await register_utility(script, instance)
 
@@ -1097,16 +1102,29 @@ func _create_instance_for_requester(script_cls: Script, requesting_architecture:
 			return null
 		return binding.get_instance(requesting_architecture)
 
-	if _parent_architecture != null:
+	if _parent_architecture != null and not strict_dependency_lookup:
 		return _parent_architecture._create_instance_for_requester(script_cls, requesting_architecture)
 
-	push_error("[GFArchitecture] create_instance 失败：未注册工厂。")
+	if strict_dependency_lookup:
+		push_error("[GFArchitecture] strict_dependency_lookup：当前架构未注册工厂：%s" % script_cls.resource_path)
+	else:
+		push_error("[GFArchitecture] create_instance 失败：未注册工厂。")
 	return null
 
 
 func _advance_all_modules_to_stage(target_stage: int, lifecycle_serial: int) -> void:
+	var pass_count := 0
 	while true:
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
+			return
+		if pass_count >= module_lifecycle_max_stage_passes:
+			_fail_initialization(
+				"[GFArchitecture] 生命周期阶段推进超过上限：stage=%d, max_passes=%d。" % [
+					target_stage,
+					module_lifecycle_max_stage_passes,
+				],
+				lifecycle_serial
+			)
 			return
 
 		var progressed: bool = false
@@ -1118,6 +1136,7 @@ func _advance_all_modules_to_stage(target_stage: int, lifecycle_serial: int) -> 
 			progressed = true
 		if not progressed:
 			return
+		pass_count += 1
 
 
 func _advance_registry_to_stage(registry: Dictionary, target_stage: int, lifecycle_serial: int) -> bool:

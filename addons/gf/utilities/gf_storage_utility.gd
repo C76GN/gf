@@ -70,6 +70,11 @@ var allow_absolute_paths: bool = true
 ## 写入嵌套相对路径时是否自动创建目录。
 var create_directories_for_nested_paths: bool = true
 
+## 同时运行的异步存取线程数量。小于 1 时会被钳制为 1。
+var max_async_thread_count: int = 4:
+	set(value):
+		max_async_thread_count = maxi(value, 1)
+
 ## 当前存档数据版本。小于 1 会被钳制为 1。
 var save_version: int = 1:
 	set(value):
@@ -85,17 +90,17 @@ var last_load_result: Dictionary = {}
 # --- 私有变量 ---
 
 var _async_tasks: Array[Dictionary] = []
+var _async_queue: Array[Dictionary] = []
+var _async_file_locks: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
 	ignore_pause = true
-	var dir_path := "user://"
-	if not save_dir_name.is_empty():
-		dir_path += save_dir_name
-		if not DirAccess.dir_exists_absolute(dir_path):
-			DirAccess.make_dir_recursive_absolute(dir_path)
+	var dir_path := _get_save_base_path()
+	if not DirAccess.dir_exists_absolute(dir_path):
+		DirAccess.make_dir_recursive_absolute(dir_path)
 
 
 func dispose() -> void:
@@ -271,28 +276,14 @@ func load_data_result(file_name: String) -> Dictionary:
 ## @return 启动线程的 Error 结果码。
 func save_data_async(file_name: String, data: Dictionary) -> Error:
 	init()
-	_recover_transaction_files([file_name])
-
-	var thread := Thread.new()
-	var error := thread.start(Callable(self, "_save_data_thread").bind(
-		file_name,
-		_get_full_path(file_name),
-		_get_full_path(_get_temp_filename(file_name)),
-		_get_full_path(_get_backup_filename(file_name)),
-		_get_full_path(_get_transaction_filename(file_name)),
-		data.duplicate(true),
-		_get_codec_options()
-	))
-	if error != OK:
-		push_error("[GFStorageUtility] 无法启动异步保存线程：%s，错误码：%s" % [file_name, error])
-		save_completed.emit(file_name, error)
-		return error
-
-	_async_tasks.append({
+	_async_queue.append({
 		"type": &"save",
 		"file_name": file_name,
-		"thread": thread,
+		"file_key": _get_async_file_key(file_name),
+		"data": data.duplicate(true),
+		"codec_options": _get_codec_options(),
 	})
+	_start_queued_async_tasks()
 	return OK
 
 
@@ -300,25 +291,13 @@ func save_data_async(file_name: String, data: Dictionary) -> Error:
 ## @param file_name: 目标文件名。
 ## @return 启动线程的 Error 结果码。
 func load_data_async(file_name: String) -> Error:
-	_recover_transaction_files([file_name])
-
-	var thread := Thread.new()
-	var error := thread.start(Callable(self, "_load_data_thread").bind(
-		file_name,
-		_get_full_path(file_name),
-		_get_codec_options()
-	))
-	if error != OK:
-		push_error("[GFStorageUtility] 无法启动异步读取线程：%s，错误码：%s" % [file_name, error])
-		var failed_result := _make_load_result(false, {}, "Thread start failed: %s" % error_string(error), true)
-		load_completed.emit(file_name, failed_result)
-		return error
-
-	_async_tasks.append({
+	_async_queue.append({
 		"type": &"load",
 		"file_name": file_name,
-		"thread": thread,
+		"file_key": _get_async_file_key(file_name),
+		"codec_options": _get_codec_options(),
 	})
+	_start_queued_async_tasks()
 	return OK
 
 
@@ -351,6 +330,7 @@ func _poll_async_tasks() -> void:
 
 		var result_variant: Variant = thread.wait_to_finish()
 		_async_tasks.remove_at(i)
+		_async_file_locks.erase(String(task.get("file_key", "")))
 		var file_name := String(task.get("file_name", ""))
 		var task_type := StringName(task.get("type", &""))
 		if task_type == &"save":
@@ -361,6 +341,7 @@ func _poll_async_tasks() -> void:
 			save_completed.emit(file_name, error)
 		elif task_type == &"load":
 			_complete_async_load(file_name, result_variant)
+	_start_queued_async_tasks()
 
 
 func _wait_for_async_tasks() -> void:
@@ -369,6 +350,73 @@ func _wait_for_async_tasks() -> void:
 		if thread != null:
 			thread.wait_to_finish()
 	_async_tasks.clear()
+	_async_queue.clear()
+	_async_file_locks.clear()
+
+
+func _start_queued_async_tasks() -> void:
+	while _async_tasks.size() < maxi(max_async_thread_count, 1):
+		var task_index := _find_startable_async_task_index()
+		if task_index < 0:
+			return
+
+		var task := _async_queue[task_index] as Dictionary
+		_async_queue.remove_at(task_index)
+		_start_async_task(task)
+
+
+func _find_startable_async_task_index() -> int:
+	for i in range(_async_queue.size()):
+		var task := _async_queue[i] as Dictionary
+		var file_key := String(task.get("file_key", ""))
+		if file_key.is_empty() or not _async_file_locks.has(file_key):
+			return i
+	return -1
+
+
+func _start_async_task(task: Dictionary) -> void:
+	var file_name := String(task.get("file_name", ""))
+	var task_type := StringName(task.get("type", &""))
+	var thread := Thread.new()
+	_recover_transaction_files([file_name])
+
+	var error: Error = ERR_INVALID_PARAMETER
+	if task_type == &"save":
+		error = thread.start(Callable(self, "_save_data_thread").bind(
+			file_name,
+			_get_full_path(file_name),
+			_get_full_path(_get_temp_filename(file_name)),
+			_get_full_path(_get_backup_filename(file_name)),
+			_get_full_path(_get_transaction_filename(file_name)),
+			task.get("data", {}) as Dictionary,
+			task.get("codec_options", {}) as Dictionary
+		))
+	elif task_type == &"load":
+		error = thread.start(Callable(self, "_load_data_thread").bind(
+			file_name,
+			_get_full_path(file_name),
+			task.get("codec_options", {}) as Dictionary
+		))
+
+	if error != OK:
+		_emit_async_start_failed(task, error)
+		return
+
+	task["thread"] = thread
+	_async_file_locks[String(task.get("file_key", ""))] = true
+	_async_tasks.append(task)
+
+
+func _emit_async_start_failed(task: Dictionary, error: Error) -> void:
+	var file_name := String(task.get("file_name", ""))
+	var task_type := StringName(task.get("type", &""))
+	if task_type == &"save":
+		push_error("[GFStorageUtility] 无法启动异步保存线程：%s，错误码：%s" % [file_name, error])
+		save_completed.emit(file_name, error)
+	elif task_type == &"load":
+		push_error("[GFStorageUtility] 无法启动异步读取线程：%s，错误码：%s" % [file_name, error])
+		var failed_result := _make_load_result(false, {}, "Thread start failed: %s" % error_string(error), true)
+		load_completed.emit(file_name, failed_result)
 
 
 func _complete_async_load(file_name: String, result_variant: Variant) -> void:
@@ -522,8 +570,9 @@ func _write_buffer_absolute(path: String, bytes: PackedByteArray) -> Error:
 	if file == null:
 		return FileAccess.get_open_error()
 	file.store_buffer(bytes)
+	var error := file.get_error()
 	file.close()
-	return OK
+	return error
 
 
 func _write_plain_json_absolute(path: String, data: Dictionary) -> Error:
@@ -531,8 +580,9 @@ func _write_plain_json_absolute(path: String, data: Dictionary) -> Error:
 	if file == null:
 		return FileAccess.get_open_error()
 	file.store_string(JSON.stringify(data, "\t"))
+	var error := file.get_error()
 	file.close()
-	return OK
+	return error
 
 
 func _remove_absolute_file_if_exists(path: String) -> void:
@@ -566,7 +616,7 @@ func _get_save_base_path() -> String:
 	if save_dir_name.is_empty():
 		return "user://"
 
-	return "user://" + save_dir_name
+	return "user://" + _sanitize_storage_relative_path(save_dir_name, "save_dir_name")
 
 
 func _get_full_path(file_name: String) -> String:
@@ -576,10 +626,33 @@ func _get_full_path(file_name: String) -> String:
 		push_error("[GFStorageUtility] 已禁用绝对路径：%s" % file_name)
 		file_name = file_name.get_file()
 
+	file_name = _sanitize_storage_relative_path(file_name, "file_name")
 	if save_dir_name.is_empty():
 		return "user://" + file_name
 
-	return "user://" + save_dir_name + "/" + file_name
+	return _get_save_base_path() + "/" + file_name
+
+
+func _sanitize_storage_relative_path(path: String, label: String) -> String:
+	var original_path := path
+	var normalized := path.replace("\\", "/").simplify_path()
+	if normalized == ".":
+		normalized = ""
+	if _is_parent_directory_path(normalized):
+		push_error("[GFStorageUtility] 已拒绝跨目录路径（%s）：%s" % [label, original_path])
+		normalized = original_path.get_file()
+	if normalized.is_empty() or normalized == "." or normalized == "..":
+		push_error("[GFStorageUtility] %s 为空。" % label)
+		return "_invalid_storage_file"
+	return normalized
+
+
+func _is_parent_directory_path(path: String) -> bool:
+	return path == ".." or path.begins_with("../") or path.contains("/../")
+
+
+func _get_async_file_key(file_name: String) -> String:
+	return _get_full_path(file_name)
 
 
 func _parse_slot_id_from_meta_filename(file_name: String) -> int:
@@ -858,8 +931,11 @@ func _write_json(file_name: String, data: Dictionary) -> Error:
 
 	var bytes := _get_codec().encode(data, _get_codec_options())
 	file.store_buffer(bytes)
+	var write_error := file.get_error()
 	file.close()
-	return OK
+	if write_error != OK:
+		push_error("[GFStorageUtility] 写入文件失败：%s，错误码：%s" % [path, write_error])
+	return write_error
 
 
 func _write_plain_json(file_name: String, data: Dictionary) -> Error:
@@ -873,8 +949,11 @@ func _write_plain_json(file_name: String, data: Dictionary) -> Error:
 		return FileAccess.get_open_error()
 
 	file.store_string(JSON.stringify(data, "\t"))
+	var write_error := file.get_error()
 	file.close()
-	return OK
+	if write_error != OK:
+		push_error("[GFStorageUtility] 写入文件失败：%s，错误码：%s" % [path, write_error])
+	return write_error
 
 
 func _ensure_parent_directory(path: String) -> Error:

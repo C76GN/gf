@@ -19,6 +19,12 @@ var _endpoint: String = ""
 var _is_server: bool = false
 
 
+# --- 公共变量 ---
+
+## 每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。
+var max_packets_per_poll: int = 64
+
+
 # --- 公共方法 ---
 
 ## 启动 ENet 主机。
@@ -114,10 +120,16 @@ func poll(_delta: float) -> void:
 
 	_peer.poll()
 	_update_connection_status()
-	while _peer != null and _peer.get_available_packet_count() > 0:
+	var processed_packets := 0
+	while (
+		_peer != null
+		and _peer.get_available_packet_count() > 0
+		and (max_packets_per_poll <= 0 or processed_packets < max_packets_per_poll)
+	):
 		var peer_id := _peer.get_packet_peer()
 		var bytes := _peer.get_packet()
 		message_received.emit(peer_id, bytes)
+		processed_packets += 1
 
 
 ## 获取后端调试快照。
@@ -131,6 +143,7 @@ func get_debug_snapshot() -> Dictionary:
 		"connection_status": status,
 		"connection_status_name": _get_status_name(status),
 		"available_packet_count": 0 if _peer == null else _peer.get_available_packet_count(),
+		"max_packets_per_poll": max_packets_per_poll,
 	}
 
 
@@ -169,12 +182,24 @@ func _close_peer(emit_signal: bool) -> void:
 
 
 func _parse_endpoint(endpoint: String, options: Dictionary) -> Dictionary:
-	var address := endpoint
+	var address := endpoint.strip_edges()
 	var port := int(options.get("port", 0))
-	var separator_index := endpoint.rfind(":")
-	if separator_index > 0 and separator_index < endpoint.length() - 1:
-		address = endpoint.substr(0, separator_index)
-		port = int(endpoint.substr(separator_index + 1))
+	if address.begins_with("["):
+		var bracket_index := address.find("]")
+		if bracket_index > 0:
+			var host := address.substr(1, bracket_index - 1)
+			if bracket_index < address.length() - 2 and address.substr(bracket_index + 1, 1) == ":":
+				port = int(address.substr(bracket_index + 2))
+			address = host
+	elif port <= 0:
+		var separator_index := address.rfind(":")
+		if (
+			separator_index > 0
+			and separator_index < address.length() - 1
+			and address.find(":") == separator_index
+		):
+			port = int(address.substr(separator_index + 1))
+			address = address.substr(0, separator_index)
 	return {
 		"address": address,
 		"port": port,

@@ -254,7 +254,7 @@ func pop_state(args: Dictionary = {}) -> bool:
 
 
 ## 添加状态节点。
-## @param state: 触发器运行时状态字典。
+## @param state: 状态节点。
 func add_state(state: Node) -> void:
 	if not _is_node_state(state):
 		return
@@ -274,7 +274,7 @@ func add_state(state: Node) -> void:
 
 
 ## 移除状态节点。
-## @param state: 触发器运行时状态字典。
+## @param state: 状态节点。
 func remove_state(state: Node) -> bool:
 	if not _is_node_state(state):
 		return false

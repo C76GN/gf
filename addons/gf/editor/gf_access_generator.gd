@@ -31,6 +31,9 @@ const _BASE_COMMAND_SCRIPT: Script = preload("res://addons/gf/base/gf_command.gd
 const _BASE_QUERY_SCRIPT: Script = preload("res://addons/gf/base/gf_query.gd")
 const _BASE_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_capability.gd")
 const _BASE_NODE_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_node_capability.gd")
+const _BASE_NODE_2D_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_node_2d_capability.gd")
+const _BASE_NODE_3D_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_node_3d_capability.gd")
+const _BASE_CONTROL_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_control_capability.gd")
 const _LAYER_TYPES: Dictionary = {
 	"2d_render": 20,
 	"2d_physics": 32,
@@ -323,6 +326,9 @@ func _resolve_kind(script: Script) -> int:
 	if (
 		_script_extends_or_equals(script, _BASE_CAPABILITY_SCRIPT)
 		or _script_extends_or_equals(script, _BASE_NODE_CAPABILITY_SCRIPT)
+		or _script_extends_or_equals(script, _BASE_NODE_2D_CAPABILITY_SCRIPT)
+		or _script_extends_or_equals(script, _BASE_NODE_3D_CAPABILITY_SCRIPT)
+		or _script_extends_or_equals(script, _BASE_CONTROL_CAPABILITY_SCRIPT)
 	):
 		return TargetKind.CAPABILITY
 

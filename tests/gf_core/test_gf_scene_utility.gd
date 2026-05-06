@@ -19,6 +19,7 @@ class TestSceneUtility extends GFSceneUtility:
 	var current_scene_path: String = "res://tests/current_scene.tscn"
 	var sync_scene_changes: Array[String] = []
 	var packed_scene_changes: int = 0
+	var packed_scene_change_error: bool = false
 
 	func _get_current_scene_path() -> String:
 		return current_scene_path
@@ -29,6 +30,8 @@ class TestSceneUtility extends GFSceneUtility:
 		return OK
 
 	func _do_change_scene(_scene: PackedScene) -> bool:
+		if packed_scene_change_error:
+			return false
 		packed_scene_changes += 1
 		return true
 
@@ -160,6 +163,18 @@ func test_load_scene_async_uses_preloaded_scene() -> void:
 	assert_eq(_scene_util.packed_scene_changes, 1, "命中预加载缓存时应直接切换 PackedScene。")
 	assert_false(_scene_util._is_loading, "缓存命中完成切场后应重置 loading 状态。")
 	assert_signal_emitted(_scene_util, "scene_load_completed", "缓存命中也应发出加载完成信号。")
+
+
+func test_scene_load_completed_is_not_emitted_when_scene_change_fails() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	_scene_util.put_preloaded_scene(scene_path, _make_empty_scene())
+	_scene_util.packed_scene_change_error = true
+	watch_signals(_scene_util)
+
+	_scene_util.load_scene_async(scene_path)
+
+	assert_signal_not_emitted(_scene_util, "scene_load_completed", "切场失败时不应发出完成信号。")
+	assert_signal_emitted(_scene_util, "scene_load_failed", "切场失败应发出失败信号。")
 
 
 func test_scene_transition_config_can_drive_scene_load() -> void:

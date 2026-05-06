@@ -151,6 +151,27 @@ func matches(source_signal: Signal, callback: Callable, owner: Object = null) ->
 	return true
 
 
+func _matches_configuration(
+	source_signal: Signal,
+	callback: Callable,
+	owner: Object,
+	default_args: Array,
+	connect_flags: int,
+	once: bool
+) -> bool:
+	if _source_signal != source_signal:
+		return false
+	if _callback != callback:
+		return false
+	if not _owner_matches_exact(owner):
+		return false
+	if _default_args != default_args:
+		return false
+	if _connect_flags != connect_flags:
+		return false
+	return _is_once == once
+
+
 ## owner 或 signal 发射源失效时清理连接。
 func prune_if_invalid() -> bool:
 	if _source_signal.is_null():
@@ -181,6 +202,12 @@ func _on_signal_emitted(
 	var args := _collect_args([arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8])
 	_serial += 1
 	_process_async(args, _serial)
+
+
+func _owner_matches_exact(owner: Object) -> bool:
+	if owner == null:
+		return _owner_ref == null
+	return is_owned_by(owner)
 
 
 func _process_async(args: Array, serial: int) -> void:

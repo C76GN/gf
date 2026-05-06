@@ -43,6 +43,8 @@ func after_each() -> void:
 			"recover_from_backup.json",
 			"recover_from_temp.json",
 			"recover_from_stale_temp.json",
+			"queued_async.json",
+			"escape.json",
 			"nested/test_nested.json",
 		]:
 			_cleanup_file_family(file_name)
@@ -156,6 +158,26 @@ func test_absolute_path_can_be_rejected_to_save_directory() -> void:
 
 	assert_eq(path, "user://test_saves/save.json", "禁用绝对路径后应收敛到存档目录同名文件。")
 	assert_push_error("[GFStorageUtility] 已禁用绝对路径：C:/outside/save.json")
+
+
+func test_parent_directory_path_is_rebased_to_save_directory_file_name() -> void:
+	var path := _storage._get_full_path("../escape.json")
+
+	assert_eq(path, "user://test_saves/escape.json", "跨目录相对路径应收敛到存档目录内的同名文件。")
+	assert_push_error("[GFStorageUtility] 已拒绝跨目录路径（file_name）：../escape.json")
+
+
+func test_async_saves_to_same_file_are_serialized() -> void:
+	_storage.encrypt_key = 0
+	_storage.max_async_thread_count = 2
+
+	assert_eq(_storage.save_data_async("queued_async.json", { "value": 1 }), OK, "第一次异步保存应入队。")
+	assert_eq(_storage.save_data_async("queued_async.json", { "value": 2 }), OK, "同文件第二次异步保存应入队等待。")
+	assert_eq(_storage.save_data_async("queued_async.json", { "value": 3 }), OK, "同文件第三次异步保存应入队等待。")
+
+	await _pump_storage_async_tasks()
+
+	assert_eq(int(_storage.load_data("queued_async.json").get("value")), 3, "同文件异步保存应按入队顺序串行，最终保留最后一次数据。")
 
 
 func test_save_and_load_resource() -> void:
@@ -362,6 +384,6 @@ func test_load_data_applies_version_defaults() -> void:
 func _pump_storage_async_tasks() -> void:
 	for _i in range(120):
 		_storage.tick(0.0)
-		if _storage._async_tasks.is_empty():
+		if _storage._async_tasks.is_empty() and _storage._async_queue.is_empty():
 			return
 		await get_tree().process_frame

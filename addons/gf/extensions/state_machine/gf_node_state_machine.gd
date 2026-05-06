@@ -55,6 +55,9 @@ const GFNodeStateMachineConfigBase = preload("res://addons/gf/extensions/state_m
 ## 初始状态启动模式。
 @export var start_mode: StartMode = StartMode.ON_READY
 
+## 运行时重新从子节点加载时，是否尽量恢复各状态组的当前状态。
+@export var preserve_current_state_on_reload: bool = true
+
 
 # --- 私有变量 ---
 
@@ -64,6 +67,7 @@ var _group_state_changed_callables: Dictionary = {}
 var _is_ready: bool = false
 var _reload_queued: bool = false
 var _is_reloading: bool = false
+var _preserve_reload_state_active: bool = false
 var _lifecycle_serial: int = 0
 
 
@@ -302,6 +306,9 @@ func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionar
 
 ## 从子节点重新加载状态和状态组。
 func reload_from_children() -> void:
+	var should_preserve_state := preserve_current_state_on_reload and not _groups.is_empty()
+	var state_snapshot := _capture_state_snapshot() if should_preserve_state else {}
+	_preserve_reload_state_active = should_preserve_state
 	_is_reloading = true
 	clear_state_groups()
 	_internal_group = GFNodeStateGroupBase.new()
@@ -329,6 +336,9 @@ func reload_from_children() -> void:
 		_free_internal_group(_internal_group)
 		_internal_group = null
 	_is_reloading = false
+	_preserve_reload_state_active = false
+	if should_preserve_state:
+		_restore_state_snapshot(state_snapshot)
 
 
 ## 清空所有状态组。
@@ -427,6 +437,8 @@ func _start_group_node(group: Node, args: Dictionary) -> void:
 
 
 func _should_start_group_on_initialize() -> bool:
+	if _preserve_reload_state_active:
+		return false
 	match start_mode:
 		StartMode.ON_READY:
 			return true
@@ -525,3 +537,32 @@ func _reload_from_children_deferred() -> void:
 
 func _on_child_entered_tree(_child: Node) -> void:
 	_queue_reload_from_children()
+
+
+func _capture_state_snapshot() -> Dictionary:
+	var result: Dictionary = {}
+	for group_key: Variant in _groups.keys():
+		var group := _groups[group_key] as Node
+		if group == null or not group.has_method("get_current_state_name"):
+			continue
+		var current_state_name := group.call("get_current_state_name") as StringName
+		if current_state_name == &"":
+			continue
+		result[group_key] = {
+			"current_state": current_state_name,
+		}
+	return result
+
+
+func _restore_state_snapshot(snapshot: Dictionary) -> void:
+	for group_key: Variant in _groups.keys():
+		var group := _groups[group_key] as Node
+		if group == null:
+			continue
+
+		var group_snapshot := snapshot.get(group_key, {}) as Dictionary
+		var current_state_name := StringName(group_snapshot.get("current_state", &"")) if group_snapshot != null else &""
+		if current_state_name != &"" and group.has_method("get_state") and group.call("get_state", current_state_name) != null:
+			group.call("transition_to", current_state_name, {})
+		elif _should_start_group_on_initialize():
+			_start_group_node(group, {})

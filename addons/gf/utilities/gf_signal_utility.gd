@@ -32,23 +32,7 @@ func connect_signal(
 	default_args: Array = [],
 	connect_flags: int = 0
 ) -> GFSignalConnection:
-	var existing := _find_connection(source_signal, callback, owner)
-	if existing != null:
-		return existing
-
-	var connection := GFSignalConnection.new(
-		source_signal,
-		callback,
-		owner,
-		default_args,
-		connect_flags,
-		self
-	)
-	_connections.append(connection)
-	connection.start()
-	if not connection.is_active():
-		_connections.erase(connection)
-	return connection
+	return _connect_signal(source_signal, callback, owner, default_args, connect_flags, false)
 
 
 ## 创建一次性 Signal 连接。
@@ -64,7 +48,7 @@ func connect_once(
 	default_args: Array = [],
 	connect_flags: int = 0
 ) -> GFSignalConnection:
-	return connect_signal(source_signal, callback, owner, default_args, connect_flags).once()
+	return _connect_signal(source_signal, callback, owner, default_args, connect_flags, true)
 
 
 ## 断开指定 Signal 与回调的连接。
@@ -120,10 +104,46 @@ func get_connection_count() -> int:
 
 # --- 私有/辅助方法 ---
 
-func _find_connection(source_signal: Signal, callback: Callable, owner: Object) -> GFSignalConnection:
+func _connect_signal(
+	source_signal: Signal,
+	callback: Callable,
+	owner: Object,
+	default_args: Array,
+	connect_flags: int,
+	once: bool
+) -> GFSignalConnection:
+	var existing := _find_connection(source_signal, callback, owner, default_args, connect_flags, once)
+	if existing != null:
+		return existing
+
+	var connection := GFSignalConnection.new(
+		source_signal,
+		callback,
+		owner,
+		default_args,
+		connect_flags,
+		self
+	)
+	if once:
+		connection.once()
+	_connections.append(connection)
+	connection.start()
+	if not connection.is_active():
+		_connections.erase(connection)
+	return connection
+
+
+func _find_connection(
+	source_signal: Signal,
+	callback: Callable,
+	owner: Object,
+	default_args: Array,
+	connect_flags: int,
+	once: bool
+) -> GFSignalConnection:
 	prune_invalid_connections()
 	for connection: GFSignalConnection in _connections:
-		if _connection_matches(connection, source_signal, callback, owner):
+		if connection._matches_configuration(source_signal, callback, owner, default_args, connect_flags, once):
 			return connection
 	return null
 

@@ -32,7 +32,7 @@ func async_init() -> void:
 	pass
 
 
-## 第二阶段初始化。子类可以重写此方法。
+## 第三阶段初始化。子类可以重写此方法。
 ## 约束：此时所有模块已完成 'init'，可安全跨模块获取依赖。
 func ready() -> void:
 	pass

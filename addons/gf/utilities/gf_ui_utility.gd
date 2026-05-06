@@ -88,7 +88,7 @@ func push_panel_async(path: String, layer: Layer = Layer.POPUP, config_callback:
 		if not _add_panel_instance(panel_instance, layer, config_callback) and is_instance_valid(panel_instance):
 			panel_instance.queue_free()
 
-	asset_util.load_async(path, on_loaded)
+	asset_util.load_async(path, on_loaded, "PackedScene")
 
 
 ## 同步压入一个面板场景。

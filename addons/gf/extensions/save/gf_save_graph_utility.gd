@@ -180,7 +180,10 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 			continue
 
 		source.before_save(context)
-		var source_key := _make_unique_key(_make_scoped_source_key(scope, source), payload["sources"] as Dictionary)
+		var source_key := _make_scoped_source_key(scope, source)
+		if (payload["sources"] as Dictionary).has(source_key):
+			push_error("[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复 Source key：%s" % source_key)
+			return {}
 		var descriptor := source.describe_source(scope)
 		_merge_identity_descriptor(source, descriptor)
 		pipeline_context.record_event(&"gather_source_started", scope, source, "", {
@@ -198,7 +201,10 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 		var child_payload := gather_scope(child_scope, context)
 		if child_payload.is_empty():
 			continue
-		var child_key := _make_unique_key(String(child_scope.get_scope_key()), payload["scopes"] as Dictionary)
+		var child_key := String(child_scope.get_scope_key())
+		if (payload["scopes"] as Dictionary).has(child_key):
+			push_error("[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复子 Scope key：%s" % child_key)
+			return {}
 		payload["scopes"][child_key] = child_payload
 
 	scope.after_save(payload, context)
@@ -228,7 +234,9 @@ func apply_scope(
 ) -> Dictionary:
 	if scope == null:
 		return _make_apply_result(false, 0, ["Scope is null."], [])
-	if payload.is_empty() or not scope.can_load_scope(context):
+	if payload.is_empty():
+		return _make_apply_result(false, 0, ["Save payload is empty."], [])
+	if not scope.can_load_scope(context):
 		return _make_apply_result(true, 0, [], [])
 
 	var owns_pipeline_context := not _has_pipeline_context(context)
@@ -383,7 +391,7 @@ func load_scope(
 
 func _get_sources_for_scope(scope: GFSaveScopeBase) -> Array[GFSaveSourceBase]:
 	var result: Array[GFSaveSourceBase] = []
-	_collect_sources(scope, scope, result)
+	_collect_sources(scope, result)
 	result.sort_custom(func(left: GFSaveSourceBase, right: GFSaveSourceBase) -> bool:
 		if left.phase != right.phase:
 			return left.phase < right.phase
@@ -502,13 +510,13 @@ func _validate_payload_scope_recursive(
 		_validate_payload_scope_recursive(child_scope, child_payload, strict, report, "%s/%s" % [scope_path, child_key])
 
 
-func _collect_sources(root_scope: GFSaveScopeBase, current: Node, result: Array[GFSaveSourceBase]) -> void:
+func _collect_sources(current: Node, result: Array[GFSaveSourceBase]) -> void:
 	for child: Node in current.get_children():
 		if child is GFSaveScopeBase:
 			continue
 		if child is GFSaveSourceBase:
 			result.append(child as GFSaveSourceBase)
-		_collect_sources(root_scope, child, result)
+		_collect_sources(child, result)
 
 
 func _get_child_scopes(scope: GFSaveScopeBase) -> Array[GFSaveScopeBase]:
@@ -539,18 +547,6 @@ func _make_scoped_source_key(scope: GFSaveScopeBase, source: GFSaveSourceBase) -
 	if prefix.is_empty():
 		return key
 	return "%s/%s" % [prefix, key]
-
-
-func _make_unique_key(base_key: String, existing: Dictionary) -> String:
-	if not existing.has(base_key):
-		return base_key
-
-	var index := 2
-	var candidate := "%s#%d" % [base_key, index]
-	while existing.has(candidate):
-		index += 1
-		candidate = "%s#%d" % [base_key, index]
-	return candidate
 
 
 func _merge_identity_descriptor(source: GFSaveSourceBase, descriptor: Dictionary) -> void:

@@ -13,6 +13,12 @@ extends RefCounted
 signal effect_ran(value: Variant)
 
 
+# --- 公共变量 ---
+
+## 单次 run 中最多补跑的次数，避免回调持续写入来源属性造成死循环。
+var max_reruns_per_run: int = 8
+
+
 # --- 私有变量 ---
 
 var _sources: Array[BindableProperty] = []
@@ -21,6 +27,7 @@ var _owner_ref: WeakRef = null
 var _connections: Array[Dictionary] = []
 var _active: bool = false
 var _running: bool = false
+var _rerun_requested: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -75,13 +82,27 @@ func configure(
 ## 手动执行 effect。
 ## @return 回调返回值；回调无效时返回 null。
 func run() -> Variant:
-	if not _active or _running or not _callback.is_valid():
+	if not _active or not _callback.is_valid():
+		return null
+	if _running:
+		_rerun_requested = true
 		return null
 
-	_running = true
-	var value: Variant = _callback.call()
-	_running = false
-	effect_ran.emit(value)
+	var value: Variant = null
+	var rerun_count := 0
+	while _active and _callback.is_valid():
+		_running = true
+		_rerun_requested = false
+		value = _callback.call()
+		_running = false
+		effect_ran.emit(value)
+
+		if not _rerun_requested:
+			break
+		rerun_count += 1
+		if rerun_count >= maxi(max_reruns_per_run, 1):
+			push_warning("[GFReactiveEffect] run 停止补跑：达到 max_reruns_per_run。")
+			break
 	return value
 
 
@@ -109,6 +130,7 @@ func stop() -> void:
 	_owner_ref = null
 	_active = false
 	_running = false
+	_rerun_requested = false
 
 
 ## 检查 effect 是否处于激活状态。

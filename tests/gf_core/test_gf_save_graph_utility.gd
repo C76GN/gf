@@ -224,6 +224,24 @@ func test_save_slot_workflow_builds_metadata_and_card() -> void:
 	assert_true(card.is_active, "当前槽位卡片应标记为 active。")
 
 
+## 验证槽位工作流可从逻辑 slot_id 反推索引。
+func test_save_slot_workflow_indexes_string_slot_ids() -> void:
+	var workflow := GFSaveSlotWorkflowBase.new()
+	var metadata := workflow.build_slot_metadata(3, "Slot 3")
+	var summaries := [{
+		"slot_id": metadata.slot_id,
+		"metadata": metadata.to_dict(true),
+		"modified_time": 123,
+	}]
+
+	var cards := workflow.build_cards_for_indices([3], summaries)
+	var auto_cards := workflow.build_cards_for_indices([], summaries)
+
+	assert_eq(cards.size(), 1, "显式索引应能命中字符串 slot_id 摘要。")
+	assert_false(cards[0].is_empty, "字符串 slot_id 摘要不应被误判为空槽。")
+	assert_eq(auto_cards.size(), 0, "空索引入口应由 build_cards_from_storage 负责从 storage 推导。")
+
+
 ## 验证 Scope 诊断会报告同作用域重复 Source key。
 func test_inspect_scope_reports_duplicate_source_keys() -> void:
 	var target_a := Node2D.new()
@@ -239,6 +257,31 @@ func test_inspect_scope_reports_duplicate_source_keys() -> void:
 
 	assert_false(bool(report["ok"]), "重复 Source key 应使诊断报告失败。")
 	assert_true(_has_issue(report, "duplicate_source_key"), "诊断报告应包含 duplicate_source_key。")
+
+
+## 验证采集重复 Source key 会失败，避免产生无法回放的 key#2 载荷。
+func test_gather_scope_rejects_duplicate_source_keys() -> void:
+	var target_a := Node2D.new()
+	target_a.name = "TargetA"
+	_scope.add_child(target_a)
+	var target_b := Node2D.new()
+	target_b.name = "TargetB"
+	_scope.add_child(target_b)
+	_scope.add_child(_make_source(&"state", NodePath("../TargetA")))
+	_scope.add_child(_make_source(&"state", NodePath("../TargetB")))
+
+	var payload := _utility.gather_scope(_scope)
+
+	assert_true(payload.is_empty(), "重复 Source key 不应生成存档载荷。")
+	assert_push_error("[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复 Source key：state")
+
+
+## 验证空载荷应用会显式失败。
+func test_apply_scope_rejects_empty_payload() -> void:
+	var result := _utility.apply_scope(_scope, {})
+
+	assert_false(bool(result["ok"]), "空载荷不应被视为成功应用。")
+	assert_true((result["errors"] as Array).has("Save payload is empty."), "空载荷应返回明确错误。")
 
 
 ## 验证载荷校验会报告当前 Scope 中不存在的 Source。

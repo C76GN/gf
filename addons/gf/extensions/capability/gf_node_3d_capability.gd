@@ -1,9 +1,8 @@
-## GFNodeCapability: 可直接作为场景节点使用的能力组件基类。
+## GFNode3DCapability: 可直接作为 3D 场景节点使用的能力组件基类。
 ##
-## 适合承载通用节点逻辑、输入、动画或子节点引用的局部能力。
-## 需要 2D/3D/UI 空间继承时，优先使用 GFNode2DCapability、GFNode3DCapability 或 GFControlCapability。
-class_name GFNodeCapability
-extends Node
+## 适合承载需要 3D 变换、碰撞、输入或子节点引用的局部能力。
+class_name GFNode3DCapability
+extends Node3D
 
 
 # --- 常量 ---

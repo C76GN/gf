@@ -280,6 +280,12 @@ func _on_backend_message_received(peer_id: int, bytes: PackedByteArray) -> void:
 		message_rejected.emit(peer_id, "decode_failed", {})
 		return
 	if validator != null:
+		var channel := _resolve_inbound_channel(message)
+		if channel != null:
+			var channel_bytes_report: Dictionary = validator.validate_bytes(bytes, channel)
+			if not bool(channel_bytes_report.get("ok", false)):
+				message_rejected.emit(peer_id, "invalid_packet", channel_bytes_report)
+				return
 		var message_report: Dictionary = validator.validate_message(message)
 		if not bool(message_report.get("ok", false)):
 			message_rejected.emit(peer_id, "invalid_message", message_report)
@@ -293,3 +299,14 @@ func _describe_channels() -> Array[Dictionary]:
 		if channel != null:
 			result.append(channel.describe())
 	return result
+
+
+func _resolve_inbound_channel(message: GFNetworkMessage) -> GFNetworkChannelBase:
+	if message == null:
+		return null
+	if _channels.has(message.message_type):
+		return _channels[message.message_type] as GFNetworkChannelBase
+	var channel_id := StringName(message.payload.get("channel_id", &""))
+	if channel_id != &"" and _channels.has(channel_id):
+		return _channels[channel_id] as GFNetworkChannelBase
+	return null

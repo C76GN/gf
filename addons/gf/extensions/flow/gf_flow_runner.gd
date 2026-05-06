@@ -130,12 +130,18 @@ func _await_signal_safely(result_signal: Signal) -> void:
 	var target_obj: Object = result_signal.get_object()
 	if not is_instance_valid(target_obj):
 		return
+	if target_obj is Node and not (target_obj as Node).is_inside_tree():
+		return
 
 	var completed := [false]
 	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
 		completed[0] = true
 
 	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
+	var tree_exit_signal := Signal()
+	if target_obj is Node and result_signal != (target_obj as Node).tree_exited:
+		(target_obj as Node).tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+		tree_exit_signal = (target_obj as Node).tree_exited
 	var timeout_msec := signal_timeout_seconds * 1000.0
 	var elapsed_timeout_msec := 0.0
 	var last_timeout_msec := Time.get_ticks_msec()
@@ -150,9 +156,12 @@ func _await_signal_safely(result_signal: Signal) -> void:
 		last_timeout_msec = current_timeout_msec
 		if not is_instance_valid(target_obj):
 			break
+		if target_obj is Node and not (target_obj as Node).is_inside_tree():
+			break
 		await Engine.get_main_loop().process_frame
 
 	_disconnect_signal_if_connected(result_signal, on_resume)
+	_disconnect_signal_if_connected(tree_exit_signal, on_resume)
 
 
 func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:

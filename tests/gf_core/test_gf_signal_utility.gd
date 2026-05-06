@@ -129,6 +129,38 @@ func test_connect_once_disconnects_after_first_emit() -> void:
 	assert_eq(_utility.get_connection_count(), 0, "一次性连接触发后应从工具追踪中移除。")
 
 
+func test_connect_once_does_not_mutate_existing_persistent_connection() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+	var callback := func(value: int) -> void:
+		received.append(value)
+
+	_utility.connect_signal(emitter.changed, callback)
+	_utility.connect_once(emitter.changed, callback)
+
+	emitter.emit_changed(1)
+	emitter.emit_changed(2)
+	await get_tree().process_frame
+
+	assert_eq(received, [1, 1, 2], "同一回调的常驻连接和一次性连接应各自保持语义。")
+	assert_eq(_utility.get_connection_count(), 1, "一次性连接移除后应保留常驻连接。")
+
+
+func test_connect_signal_distinguishes_default_args() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+	var callback := func(prefix: String, value: int) -> void:
+		received.append("%s:%s" % [prefix, value])
+
+	_utility.connect_signal(emitter.changed, callback, null, ["a"])
+	_utility.connect_signal(emitter.changed, callback, null, ["b"])
+	emitter.emit_changed(5)
+
+	await get_tree().process_frame
+
+	assert_eq(received, ["a:5", "b:5"], "相同 Signal/回调但默认参数不同应保留为两个连接。")
+
+
 func test_disconnect_owner_removes_owned_connections() -> void:
 	var emitter := TestEmitter.new()
 	var listener_owner := TestOwner.new()

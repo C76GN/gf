@@ -497,8 +497,8 @@ func _show_loading_scene_if_needed() -> void:
 
 
 func _complete_loading(path: String, scene: PackedScene) -> void:
-	scene_load_completed.emit(path, scene)
 	if _do_change_scene(scene):
+		scene_load_completed.emit(path, scene)
 		_set_paused(_previous_pause_state)
 		_reset_loading_state()
 	else:
@@ -580,9 +580,15 @@ func _validate_scene_resource_path(path: String, label: String) -> String:
 
 	var extension := path.get_extension().to_lower()
 	var scene_extensions := ResourceLoader.get_recognized_extensions_for_type("PackedScene")
-	if not scene_extensions.has(extension):
-		return "[GFSceneUtility] %s 失败：资源不是 PackedScene：%s" % [label, path]
-	return ""
+	if scene_extensions.has(extension):
+		return ""
+
+	if path.begins_with("uid://"):
+		var scene := ResourceLoader.load(path, "PackedScene") as PackedScene
+		if scene != null:
+			return ""
+
+	return "[GFSceneUtility] %s 失败：资源不是 PackedScene：%s" % [label, path]
 
 
 func _reset_loading_state() -> void:

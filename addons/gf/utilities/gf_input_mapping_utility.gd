@@ -75,6 +75,8 @@ var _remap_config: GFInputRemapConfigBase
 var _timestamp: int = 0
 var _router: _GFInputRouter
 var _router_attach_serial: int = 0
+var _clear_just_started_queued: bool = false
+var _just_started_clear_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
@@ -99,8 +101,6 @@ func dispose() -> void:
 ## 推进运行时逻辑。
 ## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func tick(_delta: float) -> void:
-	_just_started.clear()
-	_player_just_started.clear()
 	_refresh_triggered_action_states(_delta)
 
 
@@ -563,6 +563,7 @@ func _refresh_action_state(action_id: StringName, action: GFInputActionBase) -> 
 
 	if not previous_active and next_active:
 		_just_started[action_id] = true
+		_queue_clear_just_started_after_frame()
 		action_started.emit(action_id, next_value)
 	elif previous_active and not next_active:
 		action_completed.emit(action_id, next_value)
@@ -657,6 +658,31 @@ func _values_equal(left: Variant, right: Variant) -> bool:
 	return left == right
 
 
+func _queue_clear_just_started_after_frame() -> void:
+	if _clear_just_started_queued:
+		return
+
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+
+	_clear_just_started_queued = true
+	_clear_just_started_after_frame(_just_started_clear_serial)
+
+
+func _clear_just_started_after_frame(clear_serial: int) -> void:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+
+	await tree.process_frame
+	if clear_serial != _just_started_clear_serial:
+		return
+	_just_started.clear()
+	_player_just_started.clear()
+	_clear_just_started_queued = false
+
+
 func _clear_runtime_state(emit_completed: bool = false) -> void:
 	if emit_completed:
 		for action_id: StringName in _action_active.keys():
@@ -687,6 +713,8 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 	_player_action_active.clear()
 	_player_raw_action_active.clear()
 	_player_just_started.clear()
+	_clear_just_started_queued = false
+	_just_started_clear_serial += 1
 	_reset_all_trigger_states()
 
 
@@ -776,6 +804,7 @@ func _refresh_player_action_state(
 
 	if not previous_active and next_active:
 		_player_just_started[key] = true
+		_queue_clear_just_started_after_frame()
 		player_action_started.emit(player_index, action_id, next_value)
 	elif previous_active and not next_active:
 		player_action_completed.emit(player_index, action_id, next_value)
@@ -841,6 +870,7 @@ func _set_action_active_from_triggers(
 	_action_active[action_id] = next_active
 	if not previous_active and next_active:
 		_just_started[action_id] = true
+		_queue_clear_just_started_after_frame()
 		action_started.emit(action_id, value)
 	elif previous_active and not next_active:
 		action_completed.emit(action_id, _default_value_for_type(action.value_type))
@@ -860,6 +890,7 @@ func _set_player_action_active_from_triggers(
 	_player_action_active[key] = next_active
 	if not previous_active and next_active:
 		_player_just_started[key] = true
+		_queue_clear_just_started_after_frame()
 		player_action_started.emit(player_index, action_id, value)
 	elif previous_active and not next_active:
 		player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))

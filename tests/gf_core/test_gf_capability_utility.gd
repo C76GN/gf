@@ -5,6 +5,9 @@ extends GutTest
 
 const GF_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_capability.gd")
 const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_capability.gd")
+const GF_NODE_2D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_2d_capability.gd")
+const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_3d_capability.gd")
+const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_control_capability.gd")
 const GF_CAPABILITY_UTILITY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_utility.gd")
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/gf_capability_container.gd")
 const GF_INTERACTION_CONTEXT_BASE := preload("res://addons/gf/extensions/interaction/gf_interaction_context.gd")
@@ -67,6 +70,30 @@ class ActiveNodeCapability extends GF_NODE_CAPABILITY_BASE:
 
 	func on_gf_capability_active_changed(_target: Object, is_active: bool) -> void:
 		active_events.append(is_active)
+
+
+class Spatial2DCapability extends GF_NODE_2D_CAPABILITY_BASE:
+	var added_receiver: Object = null
+
+	func on_gf_capability_added(target: Object) -> void:
+		super.on_gf_capability_added(target)
+		added_receiver = target
+
+
+class Spatial3DCapability extends GF_NODE_3D_CAPABILITY_BASE:
+	var added_receiver: Object = null
+
+	func on_gf_capability_added(target: Object) -> void:
+		super.on_gf_capability_added(target)
+		added_receiver = target
+
+
+class UICapability extends GF_CONTROL_CAPABILITY_BASE:
+	var added_receiver: Object = null
+
+	func on_gf_capability_added(target: Object) -> void:
+		super.on_gf_capability_added(target)
+		added_receiver = target
 
 
 class InjectedChildNode extends Node:
@@ -256,6 +283,58 @@ func test_node2d_capability_uses_node2d_container() -> void:
 	assert_true(capability.get_parent() is Node2D, "Node2D 能力应挂入 Node2D 容器以保留空间继承。")
 	assert_eq(capability.get_parent().get_parent(), receiver, "Node2D 能力容器应挂在 receiver 下。")
 	assert_eq(capability.added_receiver, receiver, "Node2D 能力应收到 added hook。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_node2d_capability_base_uses_node2d_container_and_helpers() -> void:
+	var receiver := Node2D.new()
+	add_child(receiver)
+
+	var capability := _utility.add_capability(receiver, Spatial2DCapability) as Spatial2DCapability
+	await get_tree().process_frame
+
+	assert_not_null(capability, "GFNode2DCapability 子类应创建成功。")
+	assert_true(capability is Node2D, "GFNode2DCapability 子类应保留 Node2D 类型。")
+	assert_true(capability.get_parent() is Node2D, "GFNode2DCapability 应挂入 Node2D 容器。")
+	assert_eq(capability.receiver, receiver, "GFNode2DCapability 应记录 receiver。")
+	assert_eq(capability.added_receiver, receiver, "GFNode2DCapability 应收到 added hook。")
+	assert_eq(capability.get_utility(GF_CAPABILITY_UTILITY_BASE), _utility, "GFNode2DCapability 应保留架构 helper。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_node3d_capability_base_uses_node3d_container() -> void:
+	var receiver := Node3D.new()
+	add_child(receiver)
+
+	var capability := _utility.add_capability(receiver, Spatial3DCapability) as Spatial3DCapability
+	await get_tree().process_frame
+
+	assert_not_null(capability, "GFNode3DCapability 子类应创建成功。")
+	assert_true(capability is Node3D, "GFNode3DCapability 子类应保留 Node3D 类型。")
+	assert_true(capability.get_parent() is Node3D, "GFNode3DCapability 应挂入 Node3D 容器。")
+	assert_eq(capability.receiver, receiver, "GFNode3DCapability 应记录 receiver。")
+	assert_eq(capability.added_receiver, receiver, "GFNode3DCapability 应收到 added hook。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_control_capability_base_uses_control_container() -> void:
+	var receiver := Control.new()
+	add_child(receiver)
+
+	var capability := _utility.add_capability(receiver, UICapability) as UICapability
+	await get_tree().process_frame
+
+	assert_not_null(capability, "GFControlCapability 子类应创建成功。")
+	assert_true(capability is Control, "GFControlCapability 子类应保留 Control 类型。")
+	assert_true(capability.get_parent() is Control, "GFControlCapability 应挂入 Control 容器。")
+	assert_eq(capability.receiver, receiver, "GFControlCapability 应记录 receiver。")
+	assert_eq(capability.added_receiver, receiver, "GFControlCapability 应收到 added hook。")
 
 	receiver.queue_free()
 	await get_tree().process_frame

@@ -167,7 +167,7 @@ func cancel(path: String, type_hint: String = "") -> void:
 ## @param path: 资源路径。
 ## @param resource: 要缓存的资源实例。
 func put_cache(path: String, resource: Resource) -> void:
-	if max_cache_size <= 0:
+	if path.is_empty() or resource == null or max_cache_size <= 0:
 		return
 
 	_cache[path] = resource
@@ -272,7 +272,17 @@ func _dispatch_callbacks(callbacks: Array, resource: Resource) -> void:
 
 
 func _is_resource_compatible(resource: Resource, type_hint: String) -> bool:
-	return type_hint.is_empty() or resource.is_class(type_hint)
+	if resource == null:
+		return false
+	if type_hint.is_empty() or resource.is_class(type_hint):
+		return true
+
+	var script := resource.get_script() as Script
+	while script != null:
+		if String(script.get_global_name()) == type_hint or script.resource_path == type_hint:
+			return true
+		script = script.get_base_script()
+	return false
 
 
 func _pending_type_hints_are_compatible(pending_type_hint: String, requested_type_hint: String) -> bool:

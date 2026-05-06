@@ -1173,7 +1173,7 @@ func test_facade_returns_null_when_architecture_missing() -> void:
 
 	var model = Gf.get_model(DummyModel)
 
-	assert_push_error("[GDCore] get_model 失败：架构尚未初始化，请先注册架构。")
+	assert_push_error("[GF] get_model 失败：架构尚未初始化，请先注册架构。")
 	assert_null(model, "架构缺失时 get_model 应安全返回 null。")
 
 

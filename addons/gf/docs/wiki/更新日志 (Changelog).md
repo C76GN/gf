@@ -16,6 +16,105 @@
 
 ---
 
+## [1.23.1] - 2026-05-06
+
+**版本概述**：收敛 GF 1.23.0 引入的大型扩展能力中的可靠性边界，重点修复存储写入校验、异步存档调度、存档图重复 key、空间节点能力基类、场景 UID 校验、Signal 去重语义、事件优先级、输入 just-started 生命周期、网络收包预算和运行时状态机 reload 行为。
+
+### 🚀 新增特性 (Added)
+- **异步存档并发预算**：`GFStorageUtility` 新增 `max_async_thread_count`，异步保存/读取会进入内部队列，并按同文件串行、不同文件受预算限制的策略启动线程。
+- **空间节点能力基类**：新增 `GFNode2DCapability`、`GFNode3DCapability` 与 `GFControlCapability`，分别继承 `Node2D`、`Node3D` 与 `Control`，便于通用能力保留空间变换或 UI 布局语义。
+- **响应式补跑上限**：`GFReactiveEffect` 新增 `max_reruns_per_run`，当 effect 回调运行中再次修改来源属性时会补跑，并用上限避免自激循环。
+- **节点状态机 reload 状态保持**：`GFNodeStateMachine` 新增 `preserve_current_state_on_reload`，运行时从子节点重新加载状态时会尽量恢复原当前状态。
+- **ENet 收包预算**：`GFENetNetworkBackend` 新增 `max_packets_per_poll`，默认每帧最多派发 64 个入站包，避免异常流量占满单帧。
+- **架构生命周期扫描上限**：`GFArchitecture` 新增 `module_lifecycle_max_stage_passes`，避免模块在生命周期回调中无限注册新模块导致初始化阶段无法结束。
+
+### 🔄 机制更改 (Changed)
+- **存储路径收敛**：`GFStorageUtility` 会规范化相对路径，并拒绝 `../` 形式的跨目录路径；禁用绝对路径时仍回落到存档目录内同名文件。
+- **Signal 连接去重更精确**：`GFSignalUtility` 去重现在同时匹配 once 语义、owner、默认参数和连接标记；`connect_once()` 不再把已有常驻连接意外改成一次性连接。
+- **类型事件优先级全局排序**：`TypeEventSystem` 会把精确监听和可赋值监听合并后按 priority 排序；同优先级仍保持注册顺序。
+- **输入 just-started 生命周期延后**：`GFInputMappingUtility` 不再在 Utility tick 开头清理 just-started，而是保留到当前帧结束，便于 Controller `_process` 稳定消费。
+- **节点能力共享实现收敛**：`GFNodeCapability` 与空间节点能力基类共用内部 support 脚本处理架构注入和能力查询，减少不同原生父类基类之间的重复实现。
+- **严格依赖模式覆盖工厂回退**：`GFArchitecture.strict_dependency_lookup` 现在也会阻止工厂查找回退到父架构。
+- **入站网络通道校验**：`GFNetworkUtility` 在解码入站消息后，会按 `message_type` 或 payload 中的 `channel_id` 匹配注册通道，并应用通道级包体大小限制。
+- **场景完成信号时机收敛**：`GFSceneUtility.scene_load_completed` 只在目标场景切换成功后发出；切换失败只发出 `scene_load_failed`。
+- **节点能力编辑器识别范围**：Capability Inspector、GF 模板菜单与强类型访问器生成器会识别 `GFNode2DCapability`、`GFNode3DCapability` 与 `GFControlCapability` 子类。
+
+### 🐛 Bug 修复 (Fixed)
+- **存储写入静默成功**：修复 `GFStorageUtility` 写入 buffer/string 后未检查 `FileAccess.get_error()`，导致磁盘满或写入失败时仍返回 `OK` 的问题。
+- **异步保存旧结果覆盖新结果**：修复同一文件多次异步保存可能并发提交、旧结果覆盖新结果的问题。
+- **存档图重复 Source key 无法回放**：`GFSaveGraphUtility.gather_scope()` 遇到同一 Scope 内重复 Source/子 Scope key 时会失败并报错，不再生成 `key#2` 这类无法匹配应用端 source 的载荷。
+- **空存档载荷误报成功**：`GFSaveGraphUtility.apply_scope()` 对空 payload 返回失败，避免坏档被当作成功应用。
+- **槽位逻辑 ID 索引错误**：`GFSaveSlotWorkflow` 可从默认 `slot_{index}` 形式和尾部数字的逻辑 `slot_id` 中反推索引，不再把 `"slot_1"` 强转为 `0`。
+- **UID 场景路径被误拒绝**：`GFSceneUtility` 对普通路径使用 `PackedScene` 识别扩展名校验，对 `uid://` 路径同步加载确认类型，既支持无扩展名场景 UID，也避免 `icon.svg` 这类非场景资源误入加载流程。
+- **事件 owner ID 误判为空**：`TypeEventSystem` 只将 `0` 视为无 owner，兼容 Godot 4.6 下可能为负数的 `Object.get_instance_id()`，避免同 Callable 不同 owner 被误去重或派发期 owner 注销失效。
+- **能力 Inspector 控件生命周期**：`GFCapabilityInspectorPlugin` 会先构建完整自定义 Inspector UI，再交给 Godot Inspector 管理，避免选中已挂载能力的宿主时偶发 `previously freed instance` 编辑器报错。
+- **Asset 缓存 null 条目**：`GFAssetUtility.put_cache()` 会拒绝空路径或 null Resource，并补强脚本 `class_name` / 脚本路径形式的类型提示兼容。
+- **Flow 等待 Node 退出树悬挂**：`GFFlowRunner` 等待 Node 信号时会监听 `tree_exited`，避免节点离树后流程长期等待。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFStorageUtility.max_async_thread_count: int`。
+- 新增 `GFNode2DCapability`。
+- 新增 `GFNode3DCapability`。
+- 新增 `GFControlCapability`。
+- 新增 `GFReactiveEffect.max_reruns_per_run: int`。
+- 新增 `GFNodeStateMachine.preserve_current_state_on_reload: bool`。
+- 新增 `GFENetNetworkBackend.max_packets_per_poll: int`。
+- 新增 `GFArchitecture.module_lifecycle_max_stage_passes: int`。
+- 无破坏性函数签名变更；但 `strict_dependency_lookup` 对工厂父级回退的语义更严格，开启该模式的项目应显式在局部架构注册需要的工厂。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果项目使用 `GFStorageUtility.save_data_async()` 高频自动保存，建议按磁盘 IO 压力调整 `max_async_thread_count`；同一文件现在会按调用顺序串行提交。
+2. 如果项目依赖 `connect_once()` 复用已有连接并把它改为一次性连接，需要改为显式保存返回的 `GFSignalConnection` 并调用 `once()`。
+3. 如果项目开启了 `strict_dependency_lookup` 且仍希望从父架构创建工厂实例，需要在局部架构显式注册对应工厂，或关闭严格模式。
+4. 如果项目在类型事件中同时注册 exact 与 assignable listener，请按全局 priority 重新确认事件消费顺序。
+5. 如果项目有运行时动态增删 `GFNodeStateMachine` 子状态，默认会尽量保持当前状态；需要旧的重载即重启行为时可关闭 `preserve_current_state_on_reload`。
+6. 如果项目已有 2D、3D 或 UI Node 能力，建议把需要空间变换或 UI 布局继承的能力基类切换为 `GFNode2DCapability`、`GFNode3DCapability` 或 `GFControlCapability`；不依赖空间分支的能力继续使用 `GFNodeCapability`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_reactive_effect.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/plugin.gd`
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/editor/gf_access_generator.gd`
+- `addons/gf/editor/gf_capability_inspector_plugin.gd`
+- `addons/gf/extensions/flow/gf_flow_runner.gd`
+- `addons/gf/extensions/network/gf_enet_network_backend.gd`
+- `addons/gf/extensions/network/gf_network_utility.gd`
+- `addons/gf/extensions/capability/gf_node_capability.gd`
+- `addons/gf/extensions/capability/gf_node_capability_support.gd`
+- `addons/gf/extensions/capability/gf_node_2d_capability.gd`
+- `addons/gf/extensions/capability/gf_node_3d_capability.gd`
+- `addons/gf/extensions/capability/gf_control_capability.gd`
+- `addons/gf/extensions/save/gf_save_graph_utility.gd`
+- `addons/gf/extensions/save/gf_save_slot_workflow.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_group.gd`
+- `addons/gf/extensions/state_machine/gf_node_state_machine.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_input_mapping_utility.gd`
+- `addons/gf/utilities/gf_quad_tree_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_signal_connection.gd`
+- `addons/gf/utilities/gf_signal_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_ui_utility.gd`
+- `addons/gf/docs/wiki/12. 能力组件 (Capabilities).md`
+- `addons/gf/docs/wiki/更新日志 (Changelog).md`
+- `tests/gf_core/test_gf_access_generator.gd`
+- `tests/gf_core/test_bindable_property.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+- `tests/gf_core/test_gf_input_mapping_utility.gd`
+- `tests/gf_core/test_gf_network_extension.gd`
+- `tests/gf_core/test_gf_save_graph_utility.gd`
+- `tests/gf_core/test_gf_scene_utility.gd`
+- `tests/gf_core/test_gf_signal_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+- `tests/gf_core/test_type_event_system.gd`
+
 ## [1.23.0] - 2026-05-06
 
 **版本概述**：围绕 GF 的横向框架能力继续补强，新增响应式组合、瓦片/网格、3D 表面材质、场景预加载与配置化切换、存档槽位工作流、存档流程 trace、输入展示 provider、调试绘制命令缓冲、配置化 Tween 动作、能力诊断和流程失败治理。新增内容保持抽象、可选接入，不把自动铺砖、脚步声、关卡、战斗或 UI 等业务语义写入框架层。

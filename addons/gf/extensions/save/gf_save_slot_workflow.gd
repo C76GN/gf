@@ -188,7 +188,9 @@ func build_cards_from_storage(storage: GFStorageUtility, indices: Array = []) ->
 	var target_indices := indices.duplicate()
 	if target_indices.is_empty():
 		for summary: Dictionary in summaries:
-			target_indices.append(int(summary.get("slot_id", summary.get("slot_index", 0))))
+			var summary_index := _get_summary_slot_index(summary)
+			if summary_index >= 0:
+				target_indices.append(summary_index)
 	return build_cards_for_indices(target_indices, summaries)
 
 
@@ -214,7 +216,45 @@ func _index_summaries(summaries: Array) -> Dictionary:
 		var summary := summary_variant as Dictionary
 		if summary == null:
 			continue
-		var index := int(summary.get("slot_id", summary.get("slot_index", -1)))
+		var index := _get_summary_slot_index(summary)
 		if index >= 0:
 			result[index] = summary
 	return result
+
+
+func _get_summary_slot_index(summary: Dictionary) -> int:
+	if summary.has("slot_index"):
+		return int(summary.get("slot_index", -1))
+
+	var slot_id: Variant = summary.get("slot_id", null)
+	if slot_id == null:
+		return -1
+	if slot_id is int or slot_id is float:
+		return int(slot_id)
+
+	var slot_id_text := String(slot_id)
+	if slot_id_text.is_valid_int():
+		return slot_id_text.to_int()
+	return _parse_slot_index_from_id(slot_id_text)
+
+
+func _parse_slot_index_from_id(slot_id: String) -> int:
+	var marker := "{index}"
+	var marker_index := slot_id_template.find(marker)
+	if marker_index >= 0:
+		var prefix := slot_id_template.substr(0, marker_index)
+		var suffix := slot_id_template.substr(marker_index + marker.length())
+		if slot_id.begins_with(prefix) and slot_id.ends_with(suffix):
+			var index_text := slot_id.trim_prefix(prefix).trim_suffix(suffix)
+			if index_text.is_valid_int():
+				return index_text.to_int()
+
+	var digits := ""
+	for i in range(slot_id.length() - 1, -1, -1):
+		var character := slot_id.substr(i, 1)
+		if not character.is_valid_int():
+			break
+		digits = character + digits
+	if digits.is_valid_int():
+		return digits.to_int()
+	return -1

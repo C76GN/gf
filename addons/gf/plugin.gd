@@ -14,6 +14,9 @@ enum GFMenuId {
 	GENERATE_COMMAND,
 	GENERATE_CAPABILITY,
 	GENERATE_NODE_CAPABILITY,
+	GENERATE_NODE_2D_CAPABILITY,
+	GENERATE_NODE_3D_CAPABILITY,
+	GENERATE_CONTROL_CAPABILITY,
 	GENERATE_NODE_STATE,
 	GENERATE_NODE_STATE_MACHINE,
 	GENERATE_ACCESSORS,
@@ -514,6 +517,9 @@ func _populate_gf_menu() -> void:
 	_gf_menu.add_separator("扩展模板")
 	_gf_menu.add_item("生成 Capability", GFMenuId.GENERATE_CAPABILITY)
 	_gf_menu.add_item("生成 NodeCapability", GFMenuId.GENERATE_NODE_CAPABILITY)
+	_gf_menu.add_item("生成 Node2DCapability", GFMenuId.GENERATE_NODE_2D_CAPABILITY)
+	_gf_menu.add_item("生成 Node3DCapability", GFMenuId.GENERATE_NODE_3D_CAPABILITY)
+	_gf_menu.add_item("生成 ControlCapability", GFMenuId.GENERATE_CONTROL_CAPABILITY)
 	_gf_menu.add_item("生成 NodeState", GFMenuId.GENERATE_NODE_STATE)
 	_gf_menu.add_item("生成 NodeStateMachine", GFMenuId.GENERATE_NODE_STATE_MACHINE)
 
@@ -536,6 +542,12 @@ func _on_gf_menu_id_pressed(id: int) -> void:
 			_show_dialog("Capability")
 		GFMenuId.GENERATE_NODE_CAPABILITY:
 			_show_dialog("NodeCapability")
+		GFMenuId.GENERATE_NODE_2D_CAPABILITY:
+			_show_dialog("Node2DCapability")
+		GFMenuId.GENERATE_NODE_3D_CAPABILITY:
+			_show_dialog("Node3DCapability")
+		GFMenuId.GENERATE_CONTROL_CAPABILITY:
+			_show_dialog("ControlCapability")
 		GFMenuId.GENERATE_NODE_STATE:
 			_show_dialog("NodeState")
 		GFMenuId.GENERATE_NODE_STATE_MACHINE:
@@ -627,7 +639,13 @@ func execute() -> Variant:
 # --- 私有辅助方法 ---
 
 """
-	elif type == "Capability" or type == "NodeCapability":
+	elif (
+		type == "Capability"
+		or type == "NodeCapability"
+		or type == "Node2DCapability"
+		or type == "Node3DCapability"
+		or type == "ControlCapability"
+	):
 		return base_template + """# --- 公共变量 ---
 
 
@@ -743,6 +761,12 @@ func _ready() -> void:
 
 func _get_base_class(type: String) -> String:
 	match type:
+		"Node2DCapability":
+			return "GFNode2DCapability"
+		"Node3DCapability":
+			return "GFNode3DCapability"
+		"ControlCapability":
+			return "GFControlCapability"
 		"NodeState":
 			return "GFNodeState"
 		"NodeStateMachine":

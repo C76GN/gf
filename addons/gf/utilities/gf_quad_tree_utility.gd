@@ -206,7 +206,7 @@ class QTNode:
 
 
 ## 查询矩形范围内的空间索引记录。
-## @param query: 查询矩形或查询命令。
+## @param query: 查询矩形。
 ## @param result: 用于接收查询结果的数组。
 	func query_rect(query: Rect2, result: Array[int]) -> void:
 		if not node_bounds.intersects(query):

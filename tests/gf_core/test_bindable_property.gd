@@ -221,6 +221,21 @@ func test_reactive_effect_runs_when_any_source_changes() -> void:
 	assert_eq(values, [3, 5, 7], "effect 应立即运行，并在来源变化时刷新；stop 后不再运行。")
 
 
+func test_reactive_effect_reruns_when_source_changes_during_callback() -> void:
+	var prop := BindableProperty.new(1)
+	var values: Array[int] = []
+	var effect := GFReactiveEffect.new([prop], func() -> int:
+		var value := int(prop.value)
+		values.append(value)
+		if value == 1:
+			prop.value = 2
+		return value
+	)
+
+	assert_eq(values, [1, 2], "callback 运行中发生的来源变化应在本轮结束后补跑一次。")
+	effect.stop()
+
+
 func test_reactive_effect_stops_with_owner_node() -> void:
 	var prop := BindableProperty.new(1)
 	var owner_node := Node.new()

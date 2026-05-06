@@ -106,6 +106,23 @@ func test_unregister_owner_removes_assignable_listeners() -> void:
 	assert_eq(state.count, 1, "owner 注销后可赋值类型监听不应继续触发。")
 
 
+## 验证相同 Callable 可以用不同 owner 注册为独立监听。
+func test_same_callable_can_register_with_different_owners() -> void:
+	var owner_a := RefCounted.new()
+	var owner_b := RefCounted.new()
+	var state := {"count": 0}
+	var callback := func(_e: TestEventA) -> void:
+		state.count += 1
+
+	_system.register(TestEventA, callback, 0, owner_a)
+	_system.register(TestEventA, callback, 0, owner_b)
+	_system.send(TestEventA.new())
+	_system.unregister_owner(owner_a)
+	_system.send(TestEventA.new())
+
+	assert_eq(state.count, 3, "不同 owner 的同一 Callable 应分别注册并可独立注销。")
+
+
 ## 验证诊断统计会报告各事件轨道监听数量。
 func test_debug_stats_reports_listener_counts() -> void:
 	_system.register(TestEventA, func(_e: TestEventA) -> void:
@@ -432,6 +449,21 @@ func test_priority_high_executes_first() -> void:
 	assert_eq(state.order.size(), 2, "两个回调都应被调用。")
 	assert_eq(state.order[0], "high", "高优先级应先执行。")
 	assert_eq(state.order[1], "low", "低优先级应后执行。")
+
+
+## 验证精确监听与可赋值监听按全局优先级合并排序。
+func test_exact_and_assignable_listeners_share_priority_order() -> void:
+	var state := {"order": []}
+	_system.register(TestEventChild, func(_e: TestEventChild) -> void:
+		state.order.append("exact_low")
+	, 0)
+	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+		state.order.append("assignable_high")
+	, 10)
+
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.order, ["assignable_high", "exact_low"], "精确与可赋值监听应按全局 priority 排序。")
 
 
 ## 验证相同优先级保持注册顺序。

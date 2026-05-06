@@ -86,6 +86,23 @@ func test_bool_action_press_consume_and_release() -> void:
 	assert_false(_utility.is_action_active(&"jump"), "释放按键后动作应结束。")
 
 
+## 验证 just started 状态会保留到当前帧结束。
+func test_just_started_survives_utility_tick_until_next_frame() -> void:
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [
+			_make_key_binding(KEY_SPACE),
+		]),
+	])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_SPACE, true))
+	_utility.tick(0.0)
+
+	assert_true(_utility.was_action_just_started(&"jump"), "Utility tick 后当前帧仍应能读取 just started。")
+	await get_tree().process_frame
+	assert_false(_utility.was_action_just_started(&"jump"), "下一帧应自动清理 just started。")
+
+
 ## 验证上下文优先级可以阻断较低优先级的同输入动作。
 func test_higher_priority_context_blocks_lower_priority_same_input() -> void:
 	var high_context := _make_context(&"menu", [

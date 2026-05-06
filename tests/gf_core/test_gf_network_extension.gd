@@ -102,6 +102,37 @@ func test_network_channel_controls_send_options() -> void:
 	assert_eq((snapshot["channels"] as Array).size(), 1, "调试快照应包含已注册通道。")
 
 
+## 验证入站消息会按 message_type 匹配通道包体上限。
+func test_network_utility_rejects_inbound_packet_over_channel_limit() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	var backend := FakeBackend.new()
+	utility.set_backend(backend)
+	var channel := GFNetworkChannelBase.new()
+	channel.channel_id = &"state"
+	channel.max_packet_size = 8
+	utility.register_channel(channel)
+	watch_signals(utility)
+
+	var bytes := utility.serializer.serialize_message(GFNetworkMessageBase.new(&"state", { "payload": "too large" }))
+	backend.message_received.emit(1, bytes)
+
+	assert_signal_emitted(utility, "message_rejected", "超过通道上限的入站消息应被拒绝。")
+	assert_signal_not_emitted(utility, "message_received", "被拒绝的入站消息不应继续广播。")
+
+
+## 验证 ENet endpoint 解析支持带括号 IPv6 和 options.port。
+func test_enet_endpoint_parser_supports_ipv6_forms() -> void:
+	var backend := GFENetNetworkBackendBase.new()
+
+	var bracketed := backend._parse_endpoint("[::1]:9000", {})
+	var option_port := backend._parse_endpoint("2001:db8::1", { "port": 9001 })
+
+	assert_eq(bracketed.get("address"), "::1", "带括号 IPv6 应去掉括号。")
+	assert_eq(int(bracketed.get("port")), 9000, "带括号 IPv6 应解析端口。")
+	assert_eq(option_port.get("address"), "2001:db8::1", "未带端口的 IPv6 应保持完整地址。")
+	assert_eq(int(option_port.get("port")), 9001, "IPv6 可通过 options.port 指定端口。")
+
+
 ## 验证消息校验器会拒绝不合规消息。
 func test_network_message_validator_rejects_invalid_message() -> void:
 	var validator := GFNetworkMessageValidatorBase.new()
@@ -139,3 +170,4 @@ func test_network_debug_snapshots_are_available() -> void:
 
 	assert_true(bool(utility_snapshot["backend_configured"]), "设置后端后快照应标记已配置。")
 	assert_eq(enet_snapshot["connection_status_name"], "disconnected", "未连接 ENet 后端应报告 disconnected。")
+	assert_eq(int(enet_snapshot["max_packets_per_poll"]), 64, "ENet 快照应包含每帧收包预算。")

@@ -4,6 +4,9 @@ extends GutTest
 # --- 常量 ---
 
 const GF_ACCESS_GENERATOR_BASE := preload("res://addons/gf/editor/gf_access_generator.gd")
+const GF_NODE_2D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_2d_capability.gd")
+const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_3d_capability.gd")
+const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_control_capability.gd")
 
 
 # --- 测试用例 ---
@@ -64,6 +67,14 @@ func test_build_source_skips_duplicate_function_names() -> void:
 
 	assert_eq(source.count("static func get_player_model"), 1, "重复函数名应只保留一个。")
 	assert_push_warning("[GFAccessGenerator] 函数名重复，已跳过：get_player_model")
+
+
+func test_resolve_kind_accepts_spatial_node_capability_bases() -> void:
+	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+
+	assert_eq(generator._resolve_kind(GF_NODE_2D_CAPABILITY_BASE), GF_ACCESS_GENERATOR_BASE.TargetKind.CAPABILITY, "GFNode2DCapability 应识别为能力。")
+	assert_eq(generator._resolve_kind(GF_NODE_3D_CAPABILITY_BASE), GF_ACCESS_GENERATOR_BASE.TargetKind.CAPABILITY, "GFNode3DCapability 应识别为能力。")
+	assert_eq(generator._resolve_kind(GF_CONTROL_CAPABILITY_BASE), GF_ACCESS_GENERATOR_BASE.TargetKind.CAPABILITY, "GFControlCapability 应识别为能力。")
 
 
 func test_build_project_source_generates_layer_input_and_setting_constants() -> void:
