@@ -180,6 +180,19 @@ func test_architecture_restore_all_models_state() -> void:
 	assert_almost_eq(settings_model.volume, 0.3, 0.001, "volume 应恢复为 0.3。")
 
 
+## 验证全局快照中的 models 字段类型错误时安全跳过。
+func test_restore_global_snapshot_skips_non_dictionary_models_data() -> void:
+	var arch := GFArchitecture.new()
+	var score_model: Variant = _create_score_model_fixture()
+	score_model.score = 55
+	arch.register_model_instance(score_model)
+
+	arch.restore_global_snapshot({ "models": [] })
+
+	assert_eq(score_model.score, 55, "models 不是 Dictionary 时不应修改已注册 Model。")
+	assert_push_warning("[GFArchitecture] restore_global_snapshot：models 必须是 Dictionary，已跳过 Model 恢复。")
+
+
 ## 验证 get_global_snapshot 包含 Model 与 CommandHistory 数据，及 restore_global_snapshot 正确恢复。
 func test_architecture_global_snapshot_preserves_redo_history() -> void:
 	var arch := GFArchitecture.new()

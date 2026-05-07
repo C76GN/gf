@@ -25,6 +25,17 @@
 - `ASSET_LIBRARY.md`：仅当 Asset Library 描述、版本、最低 Godot 版本或发布元数据变化时更新。
 - `addons/gf/plugin.cfg`：仅在明确进行版本号升级时更新。
 
+修改任何 `.gd` 文件后，额外执行以下布局检查：
+
+- 对照 `CODING_STYLE.md` 的代码布局顺序检查被修改文件。
+- 顶层 section 必须遵循 `CODING_STYLE.md` 的整体顺序，不得在私有/辅助或内部类 section 后回到普通公共区。
+- 以下划线 `_` 开头的内部方法，不得放在公共方法、获取方法、注册方法、事件方法等普通公共区。
+- 供子类重写的 `_` 方法必须放在明确的可重写钩子或虚方法区。
+- Godot 生命周期方法和信号回调方法必须放在对应区，或在确有必要时放在私有/辅助区。
+- 通过反射、`has_method()`、`call()` 或约定名称调用的内部方法，不因此变成公共方法；仍按命名和语义归类。
+- 带 `class_name` 的文件必须先写文件级 `##` 说明，再声明 `class_name` 与 `extends`。
+- 顶层内部类必须放在明确的内部类 section 中，并优先位于文件末尾。
+
 ### 公开 API 变更
 
 公开 API 包括 `class_name`、信号、导出变量、公共变量、枚举、公共方法、Resource 字段、ProjectSettings 项、存档格式和已文档化的行为。
@@ -65,6 +76,8 @@
 ```powershell
 godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_core -ginclude_subdirs -gexit
 ```
+
+该测试集包含静态维护检查，例如 API 注释同步和 GDScript 布局约束。能用机器稳定判断的维护规则，应优先补到测试或工具中，而不是只写在文字说明里。
 
 ## Wiki 维护标准
 

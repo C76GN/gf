@@ -1,12 +1,10 @@
-class_name GFArchitecture
-
-
 ## GFArchitecture: 管理 Model、System 和 Utility 的注册与生命周期的容器。
 ##
 ## 生命周期遵循三阶段初始化协议：
 ##   阶段一 (init)       ：所有模块执行自身内部变量初始化。
 ##   阶段二 (async_init) ：所有模块串行执行异步初始化（可使用 await）。
 ##   阶段三 (ready)      ：所有模块均已完成 init，可安全进行跨模块依赖获取。
+class_name GFArchitecture
 
 
 # --- 信号 ---
@@ -95,6 +93,21 @@ func is_inited() -> bool:
 ## @return 最近一次初始化失败返回 true。
 func has_initialization_failed() -> bool:
 	return _initialization_failed
+
+
+## 检查当前架构生命周期是否仍处于可安全继续异步写回的活动状态。
+## @return 正在初始化或已完成初始化，且未被 dispose() 或失败保护中断时返回 true。
+func is_lifecycle_active() -> bool:
+	return (_is_initializing or _inited) and not _initialization_failed
+
+
+## 将当前架构标记为初始化失败，并唤醒等待初始化或 Installer 的调用方。
+## @param reason: 初始化失败原因。
+func fail_initialization(reason: String) -> void:
+	var failure_reason := reason
+	if failure_reason.is_empty():
+		failure_reason = "[GFArchitecture] 初始化失败。"
+	_fail_initialization(failure_reason, _lifecycle_serial)
 
 
 ## 获取父级架构。Scoped 架构会在本地未找到依赖时回退到父级架构查询。
@@ -199,12 +212,15 @@ func dispose() -> void:
 	for system in _systems.values():
 		if system.has_method("dispose"):
 			system.dispose()
+		_clear_injected_scope(system)
 	for model in _models.values():
 		if model.has_method("dispose"):
 			model.dispose()
+		_clear_injected_scope(model)
 	for utility in _utilities.values():
 		if utility.has_method("dispose"):
 			utility.dispose()
+		_clear_injected_scope(utility)
 	for binding_variant: Variant in _factories.values():
 		var binding := binding_variant as Object
 		if binding != null and binding.has_method("clear_cached_instance"):
@@ -689,6 +705,7 @@ func unregister_system(script_cls: Script) -> void:
 			system.dispose()
 		if system is Object:
 			_event_system.unregister_owner(system)
+			_clear_injected_scope(system)
 		_module_lifecycle_stages.erase(system)
 		_systems.erase(registered_key)
 		_remove_aliases_for(_system_aliases, registered_key)
@@ -707,6 +724,7 @@ func unregister_model(script_cls: Script) -> void:
 			model.dispose()
 		if model is Object:
 			_event_system.unregister_owner(model)
+			_clear_injected_scope(model)
 		_module_lifecycle_stages.erase(model)
 		_models.erase(registered_key)
 		_remove_aliases_for(_model_aliases, registered_key)
@@ -724,6 +742,7 @@ func unregister_utility(script_cls: Script) -> void:
 			utility.dispose()
 		if utility is Object:
 			_event_system.unregister_owner(utility)
+			_clear_injected_scope(utility)
 		_module_lifecycle_stages.erase(utility)
 		_utilities.erase(registered_key)
 		_remove_aliases_for(_utility_aliases, registered_key)
@@ -876,7 +895,11 @@ func get_global_snapshot() -> Dictionary:
 ## @param command_builder: 【可选】如果需要恢复历史记录，必须传入用于反序列化具体 Command 实例的 Callable。
 func restore_global_snapshot(data: Dictionary, command_builder: Callable = Callable()) -> void:
 	if data.has("models"):
-		restore_all_models_state(data["models"])
+		var models_data: Variant = data["models"]
+		if typeof(models_data) == TYPE_DICTIONARY:
+			restore_all_models_state(models_data)
+		else:
+			push_warning("[GFArchitecture] restore_global_snapshot：models 必须是 Dictionary，已跳过 Model 恢复。")
 		
 	if data.has("command_history"):
 		var history_util := get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
@@ -1226,6 +1249,7 @@ func _fail_initialization(reason: String, lifecycle_serial: int) -> void:
 	_lifecycle_serial += 1
 	_is_initializing = false
 	_inited = false
+	_stop_project_installers_after_failure()
 	push_error(reason)
 	initialization_failed.emit(reason)
 	initialization_finished.emit()
@@ -1239,10 +1263,26 @@ func _track_registered_module(instance: Object) -> void:
 
 
 func _inject_dependencies_if_needed(instance: Object) -> void:
+	if instance != null and instance.has_method("_gf_set_dependency_scope"):
+		instance.call("_gf_set_dependency_scope", self)
 	if instance != null and instance.has_method("inject_dependencies"):
 		instance.inject_dependencies(self)
 	if instance != null and instance.has_method("inject"):
 		instance.inject(self)
+
+
+func _clear_injected_scope(instance: Object) -> void:
+	if instance != null and instance.has_method("_gf_set_dependency_scope"):
+		instance.call("_gf_set_dependency_scope", null)
+	elif instance != null and instance.has_method("_release_dependency_scope"):
+		instance.call("_release_dependency_scope")
+
+
+func _stop_project_installers_after_failure() -> void:
+	var was_running := _project_installers_running
+	_project_installers_running = false
+	if was_running:
+		project_installers_finished.emit()
 
 
 func _inject_node_tree(node: Node) -> void:

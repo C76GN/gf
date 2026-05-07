@@ -11,18 +11,18 @@ extends GFNetworkBackend
 const BROADCAST_PEER_ID: int = -1
 
 
+# --- 公共变量 ---
+
+## 每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。
+var max_packets_per_poll: int = 64
+
+
 # --- 私有变量 ---
 
 var _peer: ENetMultiplayerPeer
 var _last_status: int = MultiplayerPeer.CONNECTION_DISCONNECTED
 var _endpoint: String = ""
 var _is_server: bool = false
-
-
-# --- 公共变量 ---
-
-## 每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。
-var max_packets_per_poll: int = 64
 
 
 # --- 公共方法 ---

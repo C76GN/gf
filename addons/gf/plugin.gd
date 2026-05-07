@@ -30,6 +30,8 @@ const AUTOLOAD_NAME: String = "Gf"
 const AUTOLOAD_PATH: String = "res://addons/gf/core/gf.gd"
 const INSTALLERS_SETTING: String = "gf/project/installers"
 const INSTALLERS_DEFAULT := []
+const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_error"
+const FAIL_ON_INSTALLER_ERROR_DEFAULT: bool = false
 const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
 const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
 const PROJECT_ACCESS_OUTPUT_SETTING: String = "gf/codegen/project_access_output_path"
@@ -85,7 +87,7 @@ func _exit_tree() -> void:
 	_cleanup_generator_tools()
 
 
-# --- 编辑器工具 ---
+# --- 私有/编辑器工具 ---
 
 func _ensure_autoload() -> void:
 	if not ProjectSettings.has_setting("autoload/%s" % AUTOLOAD_NAME):
@@ -119,6 +121,10 @@ func _ensure_installers_setting() -> void:
 		ProjectSettings.set_setting(INSTALLERS_SETTING, INSTALLERS_DEFAULT)
 		ProjectSettings.set_initial_value(INSTALLERS_SETTING, INSTALLERS_DEFAULT)
 		should_save = true
+	if not ProjectSettings.has_setting(FAIL_ON_INSTALLER_ERROR_SETTING):
+		ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, FAIL_ON_INSTALLER_ERROR_DEFAULT)
+		ProjectSettings.set_initial_value(FAIL_ON_INSTALLER_ERROR_SETTING, FAIL_ON_INSTALLER_ERROR_DEFAULT)
+		should_save = true
 
 	ProjectSettings.add_property_info({
 		"name": INSTALLERS_SETTING,
@@ -127,6 +133,11 @@ func _ensure_installers_setting() -> void:
 		"hint_string": "%d/%d:*.gd" % [TYPE_STRING, PROPERTY_HINT_FILE],
 	})
 	ProjectSettings.set_as_basic(INSTALLERS_SETTING, true)
+	ProjectSettings.add_property_info({
+		"name": FAIL_ON_INSTALLER_ERROR_SETTING,
+		"type": TYPE_BOOL,
+	})
+	ProjectSettings.set_as_basic(FAIL_ON_INSTALLER_ERROR_SETTING, true)
 
 	if should_save:
 		ProjectSettings.save()
@@ -701,6 +712,9 @@ func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
 
 
 # --- 公共方法 ---
+
+
+# --- 虚方法（由子类重写） ---
 
 func _initialize() -> void:
 	pass

@@ -1,11 +1,9 @@
-class_name GFDebugOverlayUtility
-extends GFUtility
-
-
 ## GFDebugOverlayUtility: 框架内部 Debugger 控制台。
 ##
 ## 纯代码驱动的悬浮监控面板，可以通过快捷键（默认 `~`）呼出。
 ## 实时利用反射遍历架构中所有注册的 GFModel，在屏幕角落打印其数据变量。
+class_name GFDebugOverlayUtility
+extends GFUtility
 
 
 # --- 公共变量 ---

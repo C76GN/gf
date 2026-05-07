@@ -5,13 +5,6 @@ class_name GFNetworkUtility
 extends GFUtility
 
 
-# --- 常量 ---
-
-const GFNetworkChannelBase = preload("res://addons/gf/extensions/network/gf_network_channel.gd")
-const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/network/gf_network_message_validator.gd")
-const GFNetworkSessionBase = preload("res://addons/gf/extensions/network/gf_network_session.gd")
-
-
 # --- 信号 ---
 
 ## 收到消息后发出。
@@ -31,6 +24,13 @@ signal peer_connected(peer_id: int)
 
 ## 远端节点断开后发出。
 signal peer_disconnected(peer_id: int)
+
+
+# --- 常量 ---
+
+const GFNetworkChannelBase = preload("res://addons/gf/extensions/network/gf_network_channel.gd")
+const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/network/gf_network_message_validator.gd")
+const GFNetworkSessionBase = preload("res://addons/gf/extensions/network/gf_network_session.gd")
 
 
 # --- 公共变量 ---

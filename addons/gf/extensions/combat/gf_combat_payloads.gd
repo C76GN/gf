@@ -1,8 +1,6 @@
+## GFCombatPayloads: 存放战斗相关的事件载体类。
 class_name GFCombatPayloads
 extends Node
-
-
-## GFCombatPayloads: 存放战斗相关的事件载体类。
 
 
 # --- 内部类 ---

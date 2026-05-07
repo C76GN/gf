@@ -41,6 +41,14 @@ class SimpleReceiver:
 
 # --- 测试：类型事件 ---
 
+## 验证无效 Callable 不会通过 assert 造成不一致行为，而是输出错误并跳过注册。
+func test_register_invalid_callable_reports_error_without_listener() -> void:
+	_system.register(TestEventA, Callable())
+	_system.send(TestEventA.new())
+
+	assert_push_error("[TypeEventSystem] 注册的类型事件回调无效。")
+
+
 ## 验证注册后，send 能正确调用回调。
 func test_register_and_send() -> void:
 	var state := {"value": - 1}
@@ -76,6 +84,25 @@ func test_assignable_listener_receives_child_event() -> void:
 	_system.send(TestEventChild.new())
 
 	assert_eq(state.count, 1, "register_assignable 应接收继承自基类的事件。")
+
+
+## 验证类型事件派发缓存会在注册和注销后刷新。
+func test_type_dispatch_cache_updates_after_register_and_unregister() -> void:
+	var state := {"assignable": 0, "exact": 0}
+	var assignable_callback := func(_e: TestEventA) -> void:
+		state.assignable += 1
+	var exact_callback := func(_e: TestEventChild) -> void:
+		state.exact += 1
+
+	_system.register_assignable(TestEventA, assignable_callback)
+	_system.send(TestEventChild.new())
+	_system.register(TestEventChild, exact_callback)
+	_system.send(TestEventChild.new())
+	_system.unregister_assignable(TestEventA, assignable_callback)
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.assignable, 2, "注销可赋值监听后缓存不应继续触发旧回调。")
+	assert_eq(state.exact, 2, "后续新增的精确监听应进入刷新后的缓存。")
 
 
 ## 验证可赋值类型监听可注销。

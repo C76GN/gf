@@ -273,43 +273,6 @@ func add_required_capability(receiver: Object, capability_type: Script, provider
 	return _add_capability(receiver, capability_type, provider, false)
 
 
-func _add_capability(receiver: Object, capability_type: Script, provider: Variant = null, is_top_level: bool = true) -> Object:
-	if not _validate_receiver_and_type(receiver, capability_type, "add_capability"):
-		return null
-
-	var existing := get_capability(receiver, capability_type)
-	if existing != null:
-		if is_top_level:
-			_mark_capability_top_level(receiver, capability_type, true)
-		return existing
-
-	var creation_key := _get_creation_key(receiver, capability_type)
-	if _creation_stack.has(creation_key):
-		push_error("[GFCapabilityUtility] 检测到循环能力依赖：%s" % _describe_creation_stack(creation_key))
-		return null
-
-	_creation_stack.append(creation_key)
-	var should_free_on_failure := _should_free_created_capability_on_failure(provider)
-	var capability := _create_capability(capability_type, provider)
-	if capability == null:
-		_creation_stack.pop_back()
-		return null
-
-	var dependency_result := _ensure_required_capabilities(receiver, capability)
-	if not bool(dependency_result.get("ok", false)):
-		_rollback_created_dependencies(receiver, dependency_result.get("created_types", []))
-		if should_free_on_failure:
-			_free_unregistered_capability(capability)
-		_creation_stack.pop_back()
-		return null
-
-	_register_capability(receiver, capability_type, capability, is_top_level)
-	for dependency_type: Script in dependency_result.get("types", []):
-		_record_dependency(receiver, capability_type, dependency_type)
-	_creation_stack.pop_back()
-	return capability
-
-
 ## 给对象挂载一个已经存在的能力实例。
 ## @param receiver: 能力接收对象。
 ## @param capability: 要挂载的能力实例。
@@ -517,6 +480,43 @@ func inspect_receiver(receiver: Object) -> Dictionary:
 
 
 # --- 私有/辅助方法 ---
+
+func _add_capability(receiver: Object, capability_type: Script, provider: Variant = null, is_top_level: bool = true) -> Object:
+	if not _validate_receiver_and_type(receiver, capability_type, "add_capability"):
+		return null
+
+	var existing := get_capability(receiver, capability_type)
+	if existing != null:
+		if is_top_level:
+			_mark_capability_top_level(receiver, capability_type, true)
+		return existing
+
+	var creation_key := _get_creation_key(receiver, capability_type)
+	if _creation_stack.has(creation_key):
+		push_error("[GFCapabilityUtility] 检测到循环能力依赖：%s" % _describe_creation_stack(creation_key))
+		return null
+
+	_creation_stack.append(creation_key)
+	var should_free_on_failure := _should_free_created_capability_on_failure(provider)
+	var capability := _create_capability(capability_type, provider)
+	if capability == null:
+		_creation_stack.pop_back()
+		return null
+
+	var dependency_result := _ensure_required_capabilities(receiver, capability)
+	if not bool(dependency_result.get("ok", false)):
+		_rollback_created_dependencies(receiver, dependency_result.get("created_types", []))
+		if should_free_on_failure:
+			_free_unregistered_capability(capability)
+		_creation_stack.pop_back()
+		return null
+
+	_register_capability(receiver, capability_type, capability, is_top_level)
+	for dependency_type: Script in dependency_result.get("types", []):
+		_record_dependency(receiver, capability_type, dependency_type)
+	_creation_stack.pop_back()
+	return capability
+
 
 func _validate_receiver_and_type(receiver: Object, capability_type: Script, context: String) -> bool:
 	if not is_instance_valid(receiver):

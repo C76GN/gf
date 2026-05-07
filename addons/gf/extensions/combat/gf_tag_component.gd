@@ -1,11 +1,9 @@
-class_name GFTagComponent
-extends RefCounted
-
-
 ## GFTagComponent: 标签组件。
 ## 
 ## 基于 StringName 管理实体的标签及层数（如 &"State.Stun", &"Element.Fire"）。
 ## 标签系统通常用于技能释放前提检查、伤害加成判定等。
+class_name GFTagComponent
+extends RefCounted
 
 
 # --- 信号 ---

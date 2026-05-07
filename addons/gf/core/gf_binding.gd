@@ -112,6 +112,8 @@ func _inject_if_needed(instance: Object, architecture: GFArchitecture) -> void:
 	if instance == null or architecture == null:
 		return
 
+	if instance.has_method("_gf_set_dependency_scope"):
+		instance.call("_gf_set_dependency_scope", architecture)
 	if instance.has_method("inject_dependencies"):
 		instance.inject_dependencies(architecture)
 	if instance.has_method("inject"):

@@ -139,6 +139,9 @@ func wait_until_ready() -> GFArchitecture:
 		if not is_inside_tree():
 			return null
 		var waiting_architecture := _architecture
+		if waiting_architecture.has_initialization_failed():
+			_fail_context(_get_architecture_failure_reason(waiting_architecture, "上下文架构初始化失败。"))
+			return null
 		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待上下文初始化超时。")
 		if not timeout_reason.is_empty():
 			_fail_context(timeout_reason)
@@ -252,7 +255,7 @@ func _initialize_owned_architecture(architecture_instance: GFArchitecture = null
 		_is_context_ready = true
 		context_ready.emit(initializing_architecture)
 	elif _is_owned_architecture_current(initializing_architecture) and initializing_architecture.has_initialization_failed():
-		_fail_context(initializing_architecture.last_initialization_error)
+		_fail_context(_get_architecture_failure_reason(initializing_architecture, "上下文架构初始化失败。"))
 
 
 func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture = null) -> bool:
@@ -266,6 +269,9 @@ func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture =
 	var start_msec := Time.get_ticks_msec()
 	while parent_architecture != null and not parent_architecture.is_inited():
 		if not _is_owned_architecture_current(scoped_architecture):
+			return false
+		if parent_architecture.has_initialization_failed():
+			_fail_context(_get_architecture_failure_reason(parent_architecture, "父级架构初始化失败。"))
 			return false
 		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待父级架构初始化超时。")
 		if not timeout_reason.is_empty():
@@ -313,6 +319,12 @@ func _fail_context(reason: String) -> void:
 		return
 	push_warning("[GFNodeContext] %s" % reason)
 	context_failed.emit(reason)
+
+
+func _get_architecture_failure_reason(architecture_instance: GFArchitecture, fallback_reason: String) -> String:
+	if architecture_instance != null and not architecture_instance.last_initialization_error.is_empty():
+		return architecture_instance.last_initialization_error
+	return fallback_reason
 
 
 func _is_owned_architecture_current(architecture_instance: GFArchitecture) -> bool:

@@ -5,9 +5,11 @@ extends GutTest
 # --- 常量 ---
 
 const INSTALLERS_SETTING: String = "gf/project/installers"
+const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_error"
 const TEST_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_test_installer.gd"
 const ASYNC_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_async_binding_installer.gd"
 const BLOCKING_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_blocking_binding_installer.gd"
+const INVALID_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_invalid_installer.gd"
 const BLOCKING_INSTALLER_STARTED_SETTING: String = "gf/test/blocking_installer_started"
 const BLOCKING_INSTALLER_RELEASE_SETTING: String = "gf/test/release_blocking_installer"
 const GFNodeContextBase = preload("res://addons/gf/core/gf_node_context.gd")
@@ -45,6 +47,12 @@ class DisposableUtility extends GFUtility:
 		disposed = true
 
 class InjectedUtility extends GFUtility:
+	var injected_architecture: GFArchitecture = null
+
+	func inject_dependencies(architecture: GFArchitecture) -> void:
+		injected_architecture = architecture
+
+class OverrideInjectedLookupUtility extends GFUtility:
 	var injected_architecture: GFArchitecture = null
 
 	func inject_dependencies(architecture: GFArchitecture) -> void:
@@ -511,6 +519,35 @@ func test_register_injects_architecture_when_hook_exists() -> void:
 	await arch.register_utility_instance(utility)
 
 	assert_eq(utility.injected_architecture, arch, "注册时应把当前架构注入到模块。")
+	assert_eq(utility.get_utility(InjectedUtility), utility, "覆写 inject_dependencies 且未调用 super 时，基类访问仍应绑定当前架构。")
+	arch.unregister_utility(InjectedUtility)
+	assert_null(utility.get_utility(InjectedUtility), "注销后即使自定义注入 Hook 未调用 super，也不应回退全局架构。")
+	assert_push_error("[GFUtility] 依赖作用域已释放，无法继续访问架构。")
+	arch.dispose()
+
+
+## 验证模块覆写 inject_dependencies 且不调用 super 时，基类依赖访问仍绑定当前架构。
+func test_register_sets_internal_scope_before_custom_inject_hook() -> void:
+	var arch := GFArchitecture.new()
+	var utility := OverrideInjectedLookupUtility.new()
+
+	await arch.register_utility_instance(utility)
+
+	assert_eq(utility.injected_architecture, arch, "自定义 inject_dependencies 仍应接收当前架构。")
+	assert_eq(utility.get_utility(OverrideInjectedLookupUtility), utility, "内部依赖作用域应先于自定义注入钩子绑定。")
+	arch.dispose()
+
+
+## 验证注销后的模块不会继续通过基类访问回退到全局架构。
+func test_unregistered_utility_does_not_fallback_to_global_architecture() -> void:
+	var arch := GFArchitecture.new()
+	var utility := DummyUtility.new()
+
+	await arch.register_utility_instance(utility)
+	arch.unregister_utility(DummyUtility)
+
+	assert_null(utility.get_utility(DummyUtility), "注销后的 Utility 不应回退访问全局架构。")
+	assert_push_error("[GFUtility] 依赖作用域已释放，无法继续访问架构。")
 	arch.dispose()
 
 
@@ -637,6 +674,34 @@ func test_project_installer_awaits_async_install_bindings_before_init() -> void:
 	assert_true(installed_utility.ready_called, "异步 install_bindings 注册的 Utility 应参与本轮生命周期。")
 
 
+## 验证严格 Installer 错误模式会中断架构初始化并记录失败原因。
+func test_project_installer_strict_error_fails_initialization() -> void:
+	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	var previous_fail_on_error: Variant = ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, false)
+	ProjectSettings.set_setting(INSTALLERS_SETTING, [INVALID_INSTALLER_PATH])
+	ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, true)
+
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+	var architecture := Gf.get_architecture()
+
+	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
+	ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, previous_fail_on_error)
+
+	assert_false(architecture.is_inited(), "严格 Installer 错误模式下架构不应继续初始化。")
+	assert_true(architecture.has_initialization_failed(), "严格 Installer 错误模式下应标记初始化失败。")
+	assert_eq(architecture.last_initialization_error, "[GF] 项目 Installer 必须继承 GFInstaller：%s" % INVALID_INSTALLER_PATH)
+	assert_push_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % INVALID_INSTALLER_PATH)
+	assert_push_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % INVALID_INSTALLER_PATH)
+
+	await Gf.init()
+	assert_true(architecture.is_inited(), "修正 Installer 配置后再次 Gf.init() 应允许重试初始化。")
+	assert_false(architecture.has_initialization_failed(), "重试成功后应清除旧的初始化失败状态。")
+
+
 ## 验证并发 Gf.init() 会等待正在运行的项目 Installer，而不是跳过未完成的装配。
 func test_concurrent_gf_init_waits_for_active_project_installers() -> void:
 	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
@@ -734,6 +799,32 @@ func test_controller_waits_for_context_ready() -> void:
 
 	assert_eq(architecture, context.get_architecture(), "Controller 应等待并返回最近上下文的架构。")
 	assert_not_null(controller.get_local_scoped_utility(), "等待完成后 Controller 应能获取局部依赖。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
+## 验证 Controller 等待到上下文失败时返回 null，而不是回退未就绪架构。
+func test_controller_wait_for_context_ready_returns_null_when_context_failed() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+
+	var failed_arch := GFArchitecture.new()
+	failed_arch.fail_initialization("[test] parent failed")
+	assert_push_error("[test] parent failed")
+	Gf._architecture = failed_arch
+
+	var context := InheritedContext.new()
+	var controller := ScopedController.new()
+	context.add_child(controller)
+	add_child(context)
+	watch_signals(context)
+
+	var architecture := await controller.wait_for_context_ready()
+
+	assert_null(architecture, "上下文失败时 Controller.wait_for_context_ready() 应返回 null。")
+	assert_signal_emitted(context, "context_failed", "上下文失败应发出 context_failed。")
+	assert_push_warning("[GFNodeContext] [test] parent failed")
 
 	context.queue_free()
 	await get_tree().process_frame
@@ -887,6 +978,29 @@ func test_child_scoped_context_waits_for_parent_scoped_context_ready() -> void:
 	assert_true(child_context.lookup_system.parent_ready_at_ready, "子 Scoped 模块 ready 时父架构应已经 ready。")
 
 	parent_context.queue_free()
+	await get_tree().process_frame
+
+
+## 验证子 Scoped NodeContext 会识别父级架构初始化失败并停止等待。
+func test_child_scoped_context_fails_when_parent_architecture_failed() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+
+	var failed_arch := GFArchitecture.new()
+	failed_arch.fail_initialization("[test] scoped parent failed")
+	assert_push_error("[test] scoped parent failed")
+	Gf._architecture = failed_arch
+
+	var child_context := ChildScopedContext.new()
+	watch_signals(child_context)
+	add_child(child_context)
+	await get_tree().process_frame
+
+	assert_false(child_context.is_context_ready(), "父级架构失败时子 Scoped 上下文不应继续初始化。")
+	assert_signal_emitted(child_context, "context_failed", "父级失败应发出 context_failed。")
+	assert_push_warning("[GFNodeContext] [test] scoped parent failed")
+
+	child_context.queue_free()
 	await get_tree().process_frame
 
 

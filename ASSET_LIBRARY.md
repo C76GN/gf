@@ -25,7 +25,7 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for gener
 - Repository URL: `https://github.com/C76GN/gf`
 - Issues URL: `https://github.com/C76GN/gf/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `1.23.1`
+- Asset Version: `1.23.2`
 - Download Commit/URL: `TODO_AFTER_RELEASE_COMMIT`
 - Icon URL: `https://raw.githubusercontent.com/C76GN/gf/TODO_AFTER_RELEASE_COMMIT/addons/gf/icon.png`
 

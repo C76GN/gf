@@ -23,16 +23,6 @@ signal quest_progressed(quest_id: StringName, current: int, target: int)
 signal quest_completed(quest_id: StringName)
 
 
-# --- 内部类 ---
-
-class QuestData extends RefCounted:
-	var quest_id: StringName
-	var event_id: StringName
-	var target_count: int = 1
-	var current_count: int = 0
-	var is_completed: bool = false
-
-
 # --- 私有变量 ---
 
 ## 任务表：`quest_id -> QuestData`。
@@ -196,3 +186,13 @@ func _payload_to_amount(payload: Variant) -> int:
 		return roundi(current_payload)
 
 	return 1
+
+
+# --- 内部类 ---
+
+class QuestData extends RefCounted:
+	var quest_id: StringName
+	var event_id: StringName
+	var target_count: int = 1
+	var current_count: int = 0
+	var is_completed: bool = false

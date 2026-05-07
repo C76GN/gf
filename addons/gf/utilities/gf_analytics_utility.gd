@@ -432,6 +432,8 @@ func _free_shutdown_watcher(watcher: Node) -> void:
 	watcher.free()
 
 
+# --- 内部类 ---
+
 class _GFAnalyticsShutdownWatcher extends Node:
 	var shutdown_callback: Callable
 

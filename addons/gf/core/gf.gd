@@ -8,13 +8,11 @@ extends Node
 
 ## 项目级启动安装器配置。值为 GDScript 路径数组，脚本需继承 GFInstaller。
 const INSTALLERS_SETTING: String = "gf/project/installers"
+
+## 项目级 Installer 创建失败时是否中断架构初始化。
+const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_error"
 const GFInstallerBase = preload("res://addons/gf/core/gf_installer.gd")
 const GFBindingLifetimesBase = preload("res://addons/gf/core/gf_binding_lifetimes.gd")
-
-
-# --- 私有变量 ---
-
-var _architecture: GFArchitecture = null
 
 
 # --- 公共变量 ---
@@ -23,6 +21,35 @@ var _architecture: GFArchitecture = null
 var architecture: GFArchitecture:
 	get:
 		return get_architecture()
+
+
+# --- 私有变量 ---
+
+var _architecture: GFArchitecture = null
+var _architecture_assignment_serial: int = 0
+var _last_project_installer_error: String = ""
+
+
+# --- Godot 生命周期方法 ---
+
+## 每帧驱动架构的 tick 循环，由架构分发给 System 与实现 tick() 的 Utility。
+func _process(delta: float) -> void:
+	if _architecture != null:
+		_architecture.tick(delta)
+
+
+## 每物理帧驱动架构的 physics_tick 循环，由架构分发给 System 与实现 physics_tick() 的 Utility。
+func _physics_process(delta: float) -> void:
+	if _architecture != null:
+		_architecture.physics_tick(delta)
+
+
+## 节点退出树时清理架构。
+func _exit_tree() -> void:
+	if _architecture != null:
+		_architecture_assignment_serial += 1
+		_architecture.dispose()
+		_architecture = null
 
 
 # --- 公共方法 ---
@@ -37,6 +64,7 @@ func has_architecture() -> bool:
 ## @return 当前可用的 GFArchitecture 实例。
 func create_architecture() -> GFArchitecture:
 	if _architecture == null:
+		_architecture_assignment_serial += 1
 		_architecture = GFArchitecture.new()
 	return _architecture
 
@@ -61,42 +89,32 @@ func set_architecture(architecture_instance: GFArchitecture) -> void:
 	if architecture_instance == null:
 		push_error("[GF] set_architecture 失败：传入的架构实例为空。")
 		return
-		
+
+	_architecture_assignment_serial += 1
+	var assignment_serial := _architecture_assignment_serial
 	if _architecture != null and _architecture != architecture_instance:
 		_architecture.dispose()
 	_architecture = architecture_instance
-	await _run_project_installers(_architecture)
-	if not _architecture.is_inited():
-		await _architecture.init()
+	var installers_ready := await _run_project_installers(architecture_instance)
+	if not _is_architecture_assignment_current(architecture_instance, assignment_serial):
+		return
+	if not installers_ready:
+		return
+	if not architecture_instance.is_inited():
+		await architecture_instance.init()
 
 
 ## 初始化当前架构。若尚未创建架构，则自动创建默认 GFArchitecture。
 func init() -> void:
 	var current_arch := create_architecture()
-	await _run_project_installers(current_arch)
+	var assignment_serial := _architecture_assignment_serial
+	var installers_ready := await _run_project_installers(current_arch)
+	if not _is_architecture_assignment_current(current_arch, assignment_serial):
+		return
+	if not installers_ready:
+		return
 	if not current_arch.is_inited():
 		await current_arch.init()
-
-
-# --- Godot 生命周期方法 ---
-
-## 每帧驱动架构的 tick 循环，由架构分发给 System 与实现 tick() 的 Utility。
-func _process(delta: float) -> void:
-	if _architecture != null:
-		_architecture.tick(delta)
-
-
-## 每物理帧驱动架构的 physics_tick 循环，由架构分发给 System 与实现 physics_tick() 的 Utility。
-func _physics_process(delta: float) -> void:
-	if _architecture != null:
-		_architecture.physics_tick(delta)
-
-
-## 节点退出树时清理架构。
-func _exit_tree() -> void:
-	if _architecture != null:
-		_architecture.dispose()
-		_architecture = null
 
 
 ## 便捷注册 System 实例。
@@ -468,33 +486,47 @@ func _get_instance_script_or_null(instance: Object, context: String) -> Script:
 	return script
 
 
-func _run_project_installers(architecture_instance: GFArchitecture) -> void:
-	if architecture_instance == null or architecture_instance.has_project_installers_applied():
-		return
+func _run_project_installers(architecture_instance: GFArchitecture) -> bool:
+	if architecture_instance == null:
+		return false
+	if architecture_instance.has_project_installers_applied():
+		return true
 
 	if architecture_instance.is_project_installers_running():
 		await architecture_instance.project_installers_finished
-		return
+		return not architecture_instance.has_initialization_failed() and architecture_instance.has_project_installers_applied()
 
 	if not architecture_instance.begin_project_installers():
-		return
+		return architecture_instance.has_project_installers_applied()
 
 	var installer_paths := _get_project_installer_paths()
+	if installer_paths.is_empty() and not _last_project_installer_error.is_empty():
+		if _should_fail_on_project_installer_error():
+			architecture_instance.fail_initialization(_last_project_installer_error)
+			return false
+
 	for path: String in installer_paths:
 		var installer: Object = _create_installer(path)
+		if installer == null:
+			if _should_fail_on_project_installer_error():
+				architecture_instance.fail_initialization(_last_project_installer_error)
+				return false
+			continue
 		if installer != null:
 			await installer.install(architecture_instance)
 			if not architecture_instance.is_project_installers_running():
-				return
+				return false
 			if installer.has_method("install_bindings"):
 				await installer.install_bindings(architecture_instance.create_binder())
 		if not architecture_instance.is_project_installers_running():
-			return
+			return false
 
 	architecture_instance.finish_project_installers()
+	return true
 
 
 func _get_project_installer_paths() -> Array[String]:
+	_last_project_installer_error = ""
 	var raw_paths: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
 	var installer_paths: Array[String] = []
 
@@ -511,27 +543,41 @@ func _get_project_installer_paths() -> Array[String]:
 				push_warning("[GF] 项目 Installer 配置包含非字符串项，已跳过。")
 		return installer_paths
 
-	push_error("[GF] 项目 Installer 配置必须是路径数组。")
+	_report_project_installer_error("[GF] 项目 Installer 配置必须是路径数组。")
 	return installer_paths
 
 
 func _create_installer(path: String) -> Object:
+	_last_project_installer_error = ""
 	if path.is_empty():
-		push_error("[GF] 项目 Installer 路径为空。")
+		_report_project_installer_error("[GF] 项目 Installer 路径为空。")
 		return null
 
 	var installer_script := load(path) as Script
 	if installer_script == null:
-		push_error("[GF] 无法加载项目 Installer：%s" % path)
+		_report_project_installer_error("[GF] 无法加载项目 Installer：%s" % path)
 		return null
 
 	if not installer_script.can_instantiate():
-		push_error("[GF] 项目 Installer 无法实例化：%s" % path)
+		_report_project_installer_error("[GF] 项目 Installer 无法实例化：%s" % path)
 		return null
 
 	var instance: Object = installer_script.new()
 	if not (instance is GFInstallerBase):
-		push_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % path)
+		_report_project_installer_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % path)
 		return null
 
 	return instance
+
+
+func _should_fail_on_project_installer_error() -> bool:
+	return bool(ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, false))
+
+
+func _report_project_installer_error(message: String) -> void:
+	_last_project_installer_error = message
+	push_error(message)
+
+
+func _is_architecture_assignment_current(architecture_instance: GFArchitecture, assignment_serial: int) -> bool:
+	return _architecture == architecture_instance and _architecture_assignment_serial == assignment_serial

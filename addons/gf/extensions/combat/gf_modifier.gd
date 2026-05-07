@@ -1,12 +1,10 @@
-class_name GFModifier
-extends RefCounted
-
-
 ## GFModifier: 属性修饰器数据类。
 ##
 ## 定义了如何修改一个通用属性（如加值、乘值）。
 ## `attribute_id` 表示目标属性，`source_id` 表示来源，避免把“改谁”和“从哪来”混在一起。
 ## 通常由 Buff、装备或被动技能产生。
+class_name GFModifier
+extends RefCounted
 
 
 # --- 枚举 ---

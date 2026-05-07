@@ -24,6 +24,8 @@ var ignore_time_scale: bool = false
 # --- 私有变量 ---
 
 var _architecture_ref: WeakRef = null
+var _dependency_scope_was_bound: bool = false
+var _dependency_scope_released: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -57,7 +59,7 @@ func dispose() -> void:
 ## 注入当前模块所属的架构实例。由 GFArchitecture 在注册模块时自动调用。
 ## @param architecture: 当前注册该模块的架构。
 func inject_dependencies(architecture: GFArchitecture) -> void:
-	_architecture_ref = weakref(architecture) if architecture != null else null
+	_gf_set_dependency_scope(architecture)
 
 
 ## 通过类型获取 Model 实例。
@@ -165,6 +167,16 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 
 # --- 私有/辅助方法 ---
 
+func _gf_set_dependency_scope(architecture: GFArchitecture) -> void:
+	if architecture == null:
+		_release_dependency_scope()
+		return
+
+	_dependency_scope_was_bound = true
+	_dependency_scope_released = false
+	_architecture_ref = weakref(architecture)
+
+
 func _get_architecture() -> GFArchitecture:
 	var architecture := _get_architecture_or_null()
 	if architecture != null:
@@ -172,9 +184,21 @@ func _get_architecture() -> GFArchitecture:
 	return GFAutoload.get_architecture()
 
 
+func _release_dependency_scope() -> void:
+	_architecture_ref = null
+	if _dependency_scope_was_bound:
+		_dependency_scope_released = true
+
+
 func _get_architecture_or_null() -> GFArchitecture:
+	if _dependency_scope_released:
+		push_error("[GFUtility] 依赖作用域已释放，无法继续访问架构。")
+		return null
 	if _architecture_ref != null:
 		var architecture := _architecture_ref.get_ref() as GFArchitecture
 		if architecture != null:
 			return architecture
+		if _dependency_scope_was_bound:
+			push_error("[GFUtility] 注入的架构已失效，无法回退到全局架构。")
+			return null
 	return GFAutoload.get_architecture_or_null()

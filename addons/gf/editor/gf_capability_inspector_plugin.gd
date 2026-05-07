@@ -17,7 +17,7 @@ const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/capabili
 const GF_EDITOR_TYPE_INDEX_BASE := preload("res://addons/gf/editor/gf_editor_type_index.gd")
 
 
-# --- 公共方法 ---
+# --- Godot 回调方法 ---
 
 func _can_handle(object: Object) -> bool:
 	return object is Node and not object is GF_CAPABILITY_CONTAINER_BASE

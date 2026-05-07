@@ -1,11 +1,9 @@
-class_name GFBehaviorTree
-
-
 ## GFBehaviorTree: 轻量级、纯代码的行为树极简实现。
 ##
 ## 提供无需编辑器的、以代码方式构建 AI 逻辑的轻量级方案。
 ## 可以在任何 System 中通过 Runner 来驱动 tick()。核心节点包含
 ## Sequence、Selector、Action、Condition 等。
+class_name GFBehaviorTree
 
 
 # --- 枚举 ---
@@ -26,7 +24,7 @@ class BTNode extends RefCounted:
 	var name: String = "BTNode"
 	
 	## 执行该节点的逻辑。子类应重写此方法。
-## @param _blackboard: 运行时共享的数据字典。
+	## @param _blackboard: 运行时共享的数据字典。
 	## @return 返回 Status 枚举。
 	func tick(_blackboard: Dictionary) -> int:
 		return Status.SUCCESS

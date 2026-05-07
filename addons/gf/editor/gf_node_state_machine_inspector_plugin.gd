@@ -10,7 +10,7 @@ const GF_NODE_STATE_BASE := preload("res://addons/gf/extensions/state_machine/gf
 const GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/extensions/state_machine/gf_node_state_machine.gd")
 
 
-# --- 公共方法 ---
+# --- Godot 回调方法 ---
 
 func _can_handle(object: Object) -> bool:
 	return object is GF_NODE_STATE_MACHINE_BASE

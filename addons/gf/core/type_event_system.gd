@@ -10,6 +10,7 @@ class_name TypeEventSystem
 var _event_listeners: Dictionary = {}
 var _assignable_event_listeners: Dictionary = {}
 var _simple_event_listeners: Dictionary = {}
+var _type_dispatch_cache: Dictionary = {}
 
 var _is_iterating_type: bool = false
 var _type_dispatch_depth: int = 0
@@ -40,8 +41,8 @@ func register(event_type: Script, on_event: Callable, priority: int = 0, owner: 
 	if event_type == null:
 		push_error("[TypeEventSystem] register 失败：event_type 为空。")
 		return
-	assert(on_event.is_valid(), "[TypeEventSystem] 尝试注册无效的事件回调函数。")
-	_validate_callable_min_args(on_event, 1, "类型事件回调", "事件实例")
+	if not _validate_callable_min_args(on_event, 1, "类型事件回调", "事件实例"):
+		return
 
 	if _type_dispatch_depth > 0:
 		_pending_adds_type.append({
@@ -81,8 +82,8 @@ func register_assignable(base_event_type: Script, on_event: Callable, priority: 
 	if base_event_type == null:
 		push_error("[TypeEventSystem] register_assignable 失败：base_event_type 为空。")
 		return
-	assert(on_event.is_valid(), "[TypeEventSystem] 尝试注册无效的可赋值事件回调函数。")
-	_validate_callable_min_args(on_event, 1, "可赋值事件回调", "事件实例")
+	if not _validate_callable_min_args(on_event, 1, "可赋值事件回调", "事件实例"):
+		return
 
 	if _type_dispatch_depth > 0:
 		_pending_adds_assignable_type.append({
@@ -120,18 +121,16 @@ func send(event_instance: Object) -> void:
 		return
 
 	var event_type: Variant = event_instance.get_script()
-	assert(event_type != null, "[TypeEventSystem] 发送的事件实例必须附加继承了 RefCounted 或 Object 的脚本类！")
-
 	if event_type == null:
 		push_error("[TypeEventSystem] 发送的事件必须是附加了脚本的类实例。")
 		return
-	if not _event_listeners.has(event_type) and not _has_assignable_listeners_for_event(event_type):
+	var dispatch_entries := _get_type_dispatch_entries(event_type as Script)
+	if dispatch_entries.is_empty():
 		return
 
 	_type_dispatch_depth += 1
 	_is_iterating_type = true
 
-	var dispatch_entries := _get_type_dispatch_entries(event_type as Script)
 	_dispatch_type_listener_entries(event_instance, dispatch_entries)
 
 	_type_dispatch_depth = maxi(_type_dispatch_depth - 1, 0)
@@ -148,8 +147,8 @@ func send(event_instance: Object) -> void:
 ## @param on_event: 回调函数，签名为 func(payload: Variant)。
 ## @param owner: 可选监听拥有者，用于批量注销。
 func register_simple(event_id: StringName, on_event: Callable, owner: Object = null) -> void:
-	assert(on_event.is_valid(), "[TypeEventSystem] 尝试注册无效的简单事件回调函数。")
-	_validate_callable_min_args(on_event, 1, "简单事件回调", "payload")
+	if not _validate_callable_min_args(on_event, 1, "简单事件回调", "payload"):
+		return
 
 	if _simple_dispatch_depth > 0:
 		_pending_adds_simple.append({
@@ -279,6 +278,7 @@ func clear() -> void:
 	_event_listeners.clear()
 	_assignable_event_listeners.clear()
 	_simple_event_listeners.clear()
+	_invalidate_type_dispatch_cache()
 	_pending_removes_type.clear()
 	_pending_removes_assignable_type.clear()
 	_pending_removes_simple.clear()
@@ -364,9 +364,13 @@ func _add_listener_entry(
 			break
 	if not inserted:
 		listeners.append(new_entry)
+	_invalidate_type_dispatch_cache()
 
 
 func _get_type_dispatch_entries(event_type: Script) -> Array[Dictionary]:
+	if _type_dispatch_cache.has(event_type):
+		return _duplicate_dispatch_entries(_type_dispatch_cache[event_type] as Array)
+
 	var result: Array[Dictionary] = []
 	if _event_listeners.has(event_type):
 		var exact_listeners := _event_listeners[event_type] as Array
@@ -393,7 +397,8 @@ func _get_type_dispatch_entries(event_type: Script) -> Array[Dictionary]:
 			return left_priority > right_priority
 		return int(left.get("order", 0)) < int(right.get("order", 0))
 	)
-	return result
+	_type_dispatch_cache[event_type] = result
+	return _duplicate_dispatch_entries(result)
 
 
 func _dispatch_type_listener_entries(event_instance: Object, listeners: Array[Dictionary]) -> void:
@@ -429,13 +434,6 @@ func _append_pending_type_remove(event_type: Script, callback: Callable, assigna
 		_pending_removes_assignable_type.append({ "event_type": event_type, "callable": callback })
 	else:
 		_pending_removes_type.append({ "event_type": event_type, "callable": callback })
-
-
-func _has_assignable_listeners_for_event(event_type: Script) -> bool:
-	for base_event_type: Script in _assignable_event_listeners.keys():
-		if _script_extends_or_equals(event_type, base_event_type):
-			return true
-	return false
 
 
 func _script_extends_or_equals(script_cls: Script, base_script: Script) -> bool:
@@ -599,17 +597,25 @@ func _remove_owner_from_simple_listeners(owner_id: int) -> void:
 
 
 func _remove_entry_by_callable(listeners: Array, on_event: Callable) -> void:
+	var removed := false
 	for i: int in range(listeners.size() - 1, -1, -1):
 		var entry := listeners[i] as Dictionary
 		if entry.callable == on_event:
 			listeners.remove_at(i)
+			removed = true
+	if removed:
+		_invalidate_type_dispatch_cache()
 
 
 func _remove_entries_by_owner_id(listeners: Array, owner_id: int) -> void:
+	var removed := false
 	for i: int in range(listeners.size() - 1, -1, -1):
 		var entry := listeners[i] as Dictionary
 		if _entry_owner_id(entry) == owner_id:
 			listeners.remove_at(i)
+			removed = true
+	if removed:
+		_invalidate_type_dispatch_cache()
 
 
 func _entry_owner_is_released(entry: Dictionary) -> bool:
@@ -674,22 +680,37 @@ func _pending_listener_order(pending: Dictionary) -> int:
 	return _next_listener_order()
 
 
-func _validate_callable_min_args(on_event: Callable, min_args: int, callback_label: String, arg_label: String) -> void:
+func _validate_callable_min_args(on_event: Callable, min_args: int, callback_label: String, arg_label: String) -> bool:
+	if not on_event.is_valid():
+		push_error("[TypeEventSystem] 注册的%s无效。" % callback_label)
+		return false
+
 	var target_obj: Object = on_event.get_object()
 	if target_obj == null or on_event.is_custom():
-		return
+		return true
 
 	var method_name: StringName = on_event.get_method()
 	var methods: Array[Dictionary] = target_obj.get_method_list()
 	for m: Dictionary in methods:
 		if m["name"] == String(method_name):
-			assert(
-				m["args"].size() >= min_args,
-				"[TypeEventSystem] 注册的%s %s 必须至少包含 %d 个参数用于接收%s！" % [
+			if m["args"].size() < min_args:
+				push_error("[TypeEventSystem] 注册的%s %s 必须至少包含 %d 个参数用于接收%s！" % [
 					callback_label,
 					method_name,
 					min_args,
 					arg_label,
-				]
-			)
+				])
+				return false
 			break
+	return true
+
+
+func _duplicate_dispatch_entries(entries: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry: Dictionary in entries:
+		result.append(entry.duplicate())
+	return result
+
+
+func _invalidate_type_dispatch_cache() -> void:
+	_type_dispatch_cache.clear()

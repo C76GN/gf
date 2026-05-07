@@ -1024,6 +1024,8 @@ func _get_input_device_utility() -> GFInputDeviceUtility:
 	return arch.get_utility(GFInputDeviceUtility) as GFInputDeviceUtility
 
 
+# --- 内部类 ---
+
 class _GFInputRouter extends Node:
 	var input_callback: Callable
 	var focus_lost_callback: Callable

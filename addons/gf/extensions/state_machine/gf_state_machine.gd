@@ -43,13 +43,15 @@ var _is_exiting_current_state: bool = false
 var _queued_exit_transition: Dictionary = {}
 
 
-# --- 公共方法 ---
+# --- Godot 生命周期方法 ---
 
 ## 创建状态机并注入框架上下文。
 ## @param context: 可选上下文对象，用于守卫 get_model/get_system/get_utility 调用。
 func _init(context: Object = null) -> void:
 	_context_ref = weakref(context) if context != null else null
 
+
+# --- 公共方法 ---
 
 ## 注册一个状态。注册后，状态机会自动注入自身引用。
 ## @param state_name: 用于标识和切换该状态的唯一名称。

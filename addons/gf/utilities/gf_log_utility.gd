@@ -7,6 +7,15 @@ class_name GFLogUtility
 extends GFUtility
 
 
+# --- 信号 ---
+
+## 每次打印日志时发出，供 UI 控制台等消费者捕捉。
+## @param level: LogLevel 枚举值。
+## @param tag: 日志标签。
+## @param message: 日志内容。
+signal log_emitted(level: int, tag: String, message: String)
+
+
 # --- 枚举 ---
 
 ## 日志等级，数值越大越严重。
@@ -22,15 +31,6 @@ enum LogLevel {
 	## 致命错误
 	FATAL,
 }
-
-
-# --- 信号 ---
-
-## 每次打印日志时发出，供 UI 控制台等消费者捕捉。
-## @param level: LogLevel 枚举值。
-## @param tag: 日志标签。
-## @param message: 日志内容。
-signal log_emitted(level: int, tag: String, message: String)
 
 
 # --- 常量 ---

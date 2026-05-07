@@ -163,6 +163,8 @@ func get_blackboard() -> Dictionary:
 	return {}
 
 
+# --- 虚方法（由子类重写） ---
+
 ## 状态初始化扩展点。
 func _initialize() -> void:
 	pass

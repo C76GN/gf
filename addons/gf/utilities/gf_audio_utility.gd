@@ -7,17 +7,6 @@ class_name GFAudioUtility
 extends GFUtility
 
 
-# --- 常量 ---
-
-## 默认 BGM 音频总线名。
-const BGM_BUS_NAME: String = "BGM"
-
-## 默认 SFX 音频总线名。
-const SFX_BUS_NAME: String = "SFX"
-
-const _FALLBACK_BUS_NAME: String = "Master"
-
-
 # --- 枚举 ---
 
 ## SFX 超出并发上限时的处理策略。
@@ -27,6 +16,17 @@ enum SFXOverflowPolicy {
 	## 停止最早播放的 SFX，并播放新的请求。
 	STOP_OLDEST,
 }
+
+
+# --- 常量 ---
+
+## 默认 BGM 音频总线名。
+const BGM_BUS_NAME: String = "BGM"
+
+## 默认 SFX 音频总线名。
+const SFX_BUS_NAME: String = "SFX"
+
+const _FALLBACK_BUS_NAME: String = "Master"
 
 
 # --- 公共变量 ---

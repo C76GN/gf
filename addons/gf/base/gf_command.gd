@@ -1,17 +1,17 @@
-class_name GFCommand
-
-
 ## GFCommand: 命令抽象基类。
 ##
 ## 子类必须实现 'execute' 方法来定义命令逻辑。
 ## 'execute' 可返回 null（同步命令）或一个 Signal（异步命令）。
 ## 调用方可使用 'await send_command(MyCommand.new())' 等待异步命令完成。
 ## 提供对 Model、System、Utility 的访问以及发送命令和事件的能力。
+class_name GFCommand
 
 
 # --- 私有变量 ---
 
 var _architecture_ref: WeakRef = null
+var _dependency_scope_was_bound: bool = false
+var _dependency_scope_released: bool = false
 
 
 # --- 公共方法 ---
@@ -19,7 +19,7 @@ var _architecture_ref: WeakRef = null
 ## 注入当前命令执行所在的架构实例。
 ## @param architecture: 当前执行命令的架构。
 func inject_dependencies(architecture: GFArchitecture) -> void:
-	_architecture_ref = weakref(architecture) if architecture != null else null
+	_gf_set_dependency_scope(architecture)
 
 
 ## 执行命令逻辑。子类必须重写此方法。
@@ -87,6 +87,16 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 
 # --- 私有/辅助方法 ---
 
+func _gf_set_dependency_scope(architecture: GFArchitecture) -> void:
+	if architecture == null:
+		_release_dependency_scope()
+		return
+
+	_dependency_scope_was_bound = true
+	_dependency_scope_released = false
+	_architecture_ref = weakref(architecture)
+
+
 func _get_architecture() -> GFArchitecture:
 	var architecture := _get_architecture_or_null()
 	if architecture != null:
@@ -94,9 +104,21 @@ func _get_architecture() -> GFArchitecture:
 	return GFAutoload.get_architecture()
 
 
+func _release_dependency_scope() -> void:
+	_architecture_ref = null
+	if _dependency_scope_was_bound:
+		_dependency_scope_released = true
+
+
 func _get_architecture_or_null() -> GFArchitecture:
+	if _dependency_scope_released:
+		push_error("[GFCommand] 依赖作用域已释放，无法继续访问架构。")
+		return null
 	if _architecture_ref != null:
 		var architecture := _architecture_ref.get_ref() as GFArchitecture
 		if architecture != null:
 			return architecture
+		if _dependency_scope_was_bound:
+			push_error("[GFCommand] 注入的架构已失效，无法回退到全局架构。")
+			return null
 	return GFAutoload.get_architecture_or_null()

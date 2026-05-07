@@ -108,6 +108,8 @@ func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
 	return branched
 
 
+# --- 私有/辅助方法 ---
+
 func _stable_hash(text: String) -> int:
 	var hash_value: int = _FNV_32_OFFSET
 	var bytes := text.to_utf8_buffer()

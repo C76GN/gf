@@ -151,6 +151,23 @@ func matches(source_signal: Signal, callback: Callable, owner: Object = null) ->
 	return true
 
 
+## owner 或 signal 发射源失效时清理连接。
+func prune_if_invalid() -> bool:
+	if _source_signal.is_null():
+		disconnect_signal()
+		return true
+	var source_obj := _source_signal.get_object()
+	if not is_instance_valid(source_obj):
+		disconnect_signal()
+		return true
+	if _owner_ref != null and _owner_ref.get_ref() == null:
+		disconnect_signal()
+		return true
+	return false
+
+
+# --- 私有/辅助方法 ---
+
 func _matches_configuration(
 	source_signal: Signal,
 	callback: Callable,
@@ -171,23 +188,6 @@ func _matches_configuration(
 		return false
 	return _is_once == once
 
-
-## owner 或 signal 发射源失效时清理连接。
-func prune_if_invalid() -> bool:
-	if _source_signal.is_null():
-		disconnect_signal()
-		return true
-	var source_obj := _source_signal.get_object()
-	if not is_instance_valid(source_obj):
-		disconnect_signal()
-		return true
-	if _owner_ref != null and _owner_ref.get_ref() == null:
-		disconnect_signal()
-		return true
-	return false
-
-
-# --- 私有/辅助方法 ---
 
 func _on_signal_emitted(
 	arg1: Variant = null,

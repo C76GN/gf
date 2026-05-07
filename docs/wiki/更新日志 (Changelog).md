@@ -22,6 +22,86 @@
 
 ---
 
+## [1.23.2] - 2026-05-07
+
+**版本概述**：核心架构可靠性维护，聚焦全局架构切换、Installer 失败策略、上下文失败传播、事件系统热路径、注销后的依赖作用域边界，以及维护规则机器化。
+
+### 🚀 新增特性 (Added)
+- **架构生命周期活动查询**：`GFArchitecture` 新增 `is_lifecycle_active()` 与 `fail_initialization()`，便于长异步流程恢复后判断当前架构是否仍可安全写回，也允许启动流程显式标记初始化失败。
+- **Installer 严格失败策略**：新增项目设置 `gf/project/fail_on_installer_error`，可让项目级 Installer 配置或实例化错误直接中断架构初始化。
+
+### 🔄 机制更改 (Changed)
+- **注销模块的注入作用域释放**：`GFModel`、`GFSystem`、`GFUtility`、`GFCommand` 与 `GFQuery` 被注入后若所属作用域释放，将不再静默回退到全局架构。
+- **类型事件派发表缓存**：`TypeEventSystem` 会缓存 exact 与 assignable listener 合并后的派发表，并在注册、注销、owner 清理和 clear 时失效缓存。
+- **类型事件注册校验收敛**：无效 Callable 或参数数量不足的对象方法会输出运行时错误并跳过注册，不再依赖 debug assert。
+- **全局架构切换串行保护**：`Gf.set_architecture()` / `Gf.init()` 在 await Installer 后会确认当前架构仍是同一次赋值，避免并发切换后旧流程继续初始化新架构。
+- **维护规则机器化**：补充 GDScript section 布局规则和 GUT 静态检查，覆盖 section 顺序、下划线方法归类、私有变量归类和公共方法误入私有区等问题；插件生成的 NodeState 模板也会把可重写钩子放入独立 section。
+- **文件级说明顺序统一**：补充 `class_name` 文件级说明顺序检查，并统一少量旧文件头部布局，让 `##` 类说明位于 `class_name` 之前。
+- **内部类 section 统一**：补充内部类布局检查，要求顶层内部类放入明确的内部类 section，并调整少量旧文件的内部类位置或 section 标记。
+
+### 🐛 Bug 修复 (Fixed)
+- **NodeContext 父级失败等待悬挂**：`GFNodeContext.wait_until_ready()` 和子 scoped 上下文等待父级时会识别 `has_initialization_failed()`，失败后返回 `null` 并发出 `context_failed`。
+- **Controller 上下文失败错误回退**：`GFController.wait_for_context_ready()` 在最近上下文失败时返回 `null`，不再回退到同一个未就绪或失败架构。
+- **Controller 事件清理归属**：`GFController` 会记录注册事件时使用的架构，并在注销或退出树时清理对应架构上的 owner 监听。
+- **全局快照类型防御**：`GFArchitecture.restore_global_snapshot()` 遇到非 `Dictionary` 的 `models` 字段时会跳过恢复并警告，避免错误快照触发运行时类型问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFArchitecture.is_lifecycle_active() -> bool`。
+- 新增 `GFArchitecture.fail_initialization(reason: String) -> void`。
+- 新增项目设置 `gf/project/fail_on_installer_error: bool`。
+- 无破坏性函数签名变更；旧项目默认仍会跳过错误 Installer，只有显式开启 `gf/project/fail_on_installer_error` 才中断初始化。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果项目希望 Installer 配置错误在开发期或 CI 中立即失败，可开启 `gf/project/fail_on_installer_error`；旧项目默认保持跳过错误 Installer 的兼容行为。
+2. 如果长异步模块在超时或架构释放后仍可能恢复，应在恢复后检查当前架构生命周期是否仍 active，再写回外部状态。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_binding.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/editor/gf_capability_inspector_plugin.gd`
+- `addons/gf/editor/gf_node_state_machine_inspector_plugin.gd`
+- `addons/gf/plugin.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/extensions/network/gf_enet_network_backend.gd`
+- `addons/gf/extensions/network/gf_network_utility.gd`
+- `addons/gf/extensions/state_machine/gf_node_state.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/utilities/gf_audio_utility.gd`
+- `addons/gf/utilities/gf_log_utility.gd`
+- `addons/gf/utilities/gf_seed_utility.gd`
+- `addons/gf/utilities/gf_signal_connection.gd`
+- `addons/gf/base/gf_controller.gd`
+- `addons/gf/base/gf_command.gd`
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/base/gf_query.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/extensions/combat/gf_combat_payloads.gd`
+- `addons/gf/extensions/combat/gf_modifier.gd`
+- `addons/gf/extensions/combat/gf_tag_component.gd`
+- `addons/gf/utilities/gf_behavior_tree.gd`
+- `addons/gf/utilities/gf_debug_overlay_utility.gd`
+- `addons/gf/utilities/gf_analytics_utility.gd`
+- `addons/gf/utilities/gf_input_mapping_utility.gd`
+- `addons/gf/utilities/gf_quest_utility.gd`
+- `addons/gf/plugin.cfg`
+- `ASSET_LIBRARY.md`
+- `AI_MAINTENANCE.md`
+- `CODING_STYLE.md`
+- `docs/wiki/01. 架构概览 (Architecture).md`
+- `docs/wiki/02. 生命周期与初始化 (Lifecycle).md`
+- `docs/wiki/03. 更新机制 (Update Loop).md`
+- `docs/wiki/更新日志 (Changelog).md`
+- `tests/gf_core/test_gdscript_layout_validation.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_type_event_system.gd`
+- `tests/gf_core/test_gf_model_serialization.gd`
+
+---
+
 ## [1.23.1] - 2026-05-06
 
 **版本概述**：收敛 GF 1.23.0 引入的大型扩展能力中的可靠性边界，重点修复存储写入校验、异步存档调度、存档图重复 key、空间节点能力基类、场景 UID 校验、Signal 去重语义、事件优先级、输入 just-started 生命周期、网络收包预算和运行时状态机 reload 行为。
