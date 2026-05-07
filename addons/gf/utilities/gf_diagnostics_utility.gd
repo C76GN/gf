@@ -14,6 +14,9 @@ signal snapshot_collected(snapshot: Dictionary)
 ## 执行诊断命令后发出。
 signal diagnostic_command_executed(command_name: StringName, result: Dictionary)
 
+## 采样诊断监控项后发出。
+signal monitor_sampled(monitor_id: StringName, sample: Dictionary)
+
 
 # --- 枚举 ---
 
@@ -54,6 +57,9 @@ var allow_danger_commands: bool = false
 # --- 私有变量 ---
 
 var _commands: Dictionary = {}
+var _monitors: Dictionary = {}
+var _monitor_presets: Dictionary = {}
+var _monitor_order_counter: int = 0
 var _console_utility: GFConsoleUtility = null
 var _console_command_registered: bool = false
 
@@ -61,9 +67,11 @@ var _console_command_registered: bool = false
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	_register_builtin_monitors()
 	register_command(&"diagnostics.snapshot", Callable(self, "_command_collect_snapshot"), "采集 GF 诊断快照。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.performance", Callable(self, "_command_collect_performance"), "采集性能监视器快照。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.logs", Callable(self, "_command_collect_logs"), "读取最近日志缓存。", CommandTier.OBSERVE)
+	register_command(&"diagnostics.monitors", Callable(self, "_command_collect_monitors"), "采集已注册诊断监控项。", CommandTier.OBSERVE)
 
 
 func ready() -> void:
@@ -76,6 +84,9 @@ func dispose() -> void:
 	_console_utility = null
 	_console_command_registered = false
 	_commands.clear()
+	_monitors.clear()
+	_monitor_presets.clear()
+	_monitor_order_counter = 0
 
 
 # --- 公共方法 ---
@@ -136,6 +147,172 @@ func get_command_catalog() -> Dictionary:
 			"tier_name": _get_tier_name(tier),
 		}
 	return result
+
+
+## 注册诊断监控项。
+## @param monitor_id: 监控项唯一标识。
+## @param provider: 无参数采样回调。
+## @param options: 可选元数据，支持 label、group、visible、metadata、min_interval_seconds。
+## @return 注册成功返回 true。
+func register_monitor(monitor_id: StringName, provider: Callable, options: Dictionary = {}) -> bool:
+	if monitor_id == &"" or not provider.is_valid():
+		return false
+
+	var entry := {
+		"provider": provider,
+		"label": String(options.get("label", String(monitor_id))),
+		"group": String(options.get("group", "Runtime")),
+		"visible": bool(options.get("visible", true)),
+		"metadata": (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {},
+		"min_interval_seconds": maxf(float(options.get("min_interval_seconds", 0.0)), 0.0),
+		"order": _monitor_order_counter,
+		"last_sample_time": -INF,
+		"last_sample": {},
+	}
+	_monitor_order_counter += 1
+	_monitors[monitor_id] = entry
+	return true
+
+
+## 注销诊断监控项。
+## @param monitor_id: 监控项唯一标识。
+func unregister_monitor(monitor_id: StringName) -> void:
+	_monitors.erase(monitor_id)
+	for preset_id: StringName in _monitor_presets.keys():
+		var preset := _monitor_presets[preset_id] as Dictionary
+		var ids := preset.get("monitor_ids", PackedStringArray()) as PackedStringArray
+		if ids.has(String(monitor_id)):
+			ids.remove_at(ids.find(String(monitor_id)))
+
+
+## 检查诊断监控项是否存在。
+## @param monitor_id: 监控项唯一标识。
+## @return 存在返回 true。
+func has_monitor(monitor_id: StringName) -> bool:
+	return _monitors.has(monitor_id)
+
+
+## 获取诊断监控项目录。
+## @return 监控项元数据字典。
+func get_monitor_catalog() -> Dictionary:
+	var result: Dictionary = {}
+	for monitor_id: StringName in _monitors.keys():
+		var entry := _monitors[monitor_id] as Dictionary
+		result[monitor_id] = {
+			"label": String(entry.get("label", String(monitor_id))),
+			"group": String(entry.get("group", "Runtime")),
+			"visible": bool(entry.get("visible", true)),
+			"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
+			"min_interval_seconds": float(entry.get("min_interval_seconds", 0.0)),
+		}
+	return result
+
+
+## 注册诊断监控预设。
+## @param preset_id: 预设唯一标识。
+## @param monitor_ids: 预设包含的监控项标识。
+## @param options: 可选元数据，支持 label、metadata。
+## @return 注册成功返回 true。
+func register_monitor_preset(
+	preset_id: StringName,
+	monitor_ids: PackedStringArray,
+	options: Dictionary = {}
+) -> bool:
+	if preset_id == &"":
+		return false
+
+	_monitor_presets[preset_id] = {
+		"monitor_ids": monitor_ids.duplicate(),
+		"label": String(options.get("label", String(preset_id))),
+		"metadata": (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {},
+	}
+	return true
+
+
+## 注销诊断监控预设。
+## @param preset_id: 预设唯一标识。
+func unregister_monitor_preset(preset_id: StringName) -> void:
+	_monitor_presets.erase(preset_id)
+
+
+## 检查诊断监控预设是否存在。
+## @param preset_id: 预设唯一标识。
+## @return 存在返回 true。
+func has_monitor_preset(preset_id: StringName) -> bool:
+	return _monitor_presets.has(preset_id)
+
+
+## 获取诊断监控预设列表。
+## @return 预设标识列表。
+func get_monitor_preset_ids() -> PackedStringArray:
+	var result := PackedStringArray()
+	for preset_id: StringName in _monitor_presets.keys():
+		result.append(String(preset_id))
+	result.sort()
+	return result
+
+
+## 采集诊断监控快照。
+## @param monitor_ids: 指定监控项；为空时采集全部可见监控项。
+## @param include_hidden: 为 true 时包含 visible=false 的监控项。
+## @return 监控快照字典。
+func collect_monitor_snapshot(
+	monitor_ids: PackedStringArray = PackedStringArray(),
+	include_hidden: bool = false
+) -> Dictionary:
+	var selected_ids := monitor_ids.duplicate()
+	if selected_ids.is_empty():
+		for monitor_id: StringName in _monitors.keys():
+			selected_ids.append(String(monitor_id))
+
+	selected_ids.sort()
+	var monitors: Dictionary = {}
+	for id_text: String in selected_ids:
+		var monitor_id := StringName(id_text)
+		if not _monitors.has(monitor_id):
+			continue
+
+		var entry := _monitors[monitor_id] as Dictionary
+		if not include_hidden and not bool(entry.get("visible", true)):
+			continue
+		monitors[monitor_id] = _sample_monitor(monitor_id, entry)
+
+	return {
+		"timestamp_unix": Time.get_unix_time_from_system(),
+		"monitor_count": monitors.size(),
+		"monitors": monitors,
+	}
+
+
+## 按预设采集诊断监控快照。
+## @param preset_id: 预设唯一标识。
+## @param include_hidden: 为 true 时包含 visible=false 的监控项。
+## @return 监控快照字典。
+func collect_monitor_preset(preset_id: StringName, include_hidden: bool = false) -> Dictionary:
+	if not _monitor_presets.has(preset_id):
+		return collect_monitor_snapshot(PackedStringArray(), include_hidden)
+
+	var preset := _monitor_presets[preset_id] as Dictionary
+	var ids := preset.get("monitor_ids", PackedStringArray()) as PackedStringArray
+	var snapshot := collect_monitor_snapshot(ids, include_hidden)
+	snapshot["preset_id"] = preset_id
+	snapshot["preset_label"] = String(preset.get("label", String(preset_id)))
+	snapshot["preset_metadata"] = (preset.get("metadata", {}) as Dictionary).duplicate(true)
+	return snapshot
+
+
+## 导出诊断监控快照。
+## @param snapshot: collect_monitor_snapshot() 或 collect_monitor_preset() 返回值。
+## @param format: 导出格式，支持 json、text、csv。
+## @return 导出文本。
+func export_monitor_snapshot(snapshot: Dictionary, format: StringName = &"json") -> String:
+	match format:
+		&"text":
+			return _export_monitor_snapshot_as_text(snapshot)
+		&"csv":
+			return _export_monitor_snapshot_as_csv(snapshot)
+		_:
+			return JSON.stringify(snapshot, "\t")
 
 
 ## 设置诊断认证 token。
@@ -219,6 +396,20 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	if network_utility != null:
 		snapshot["network"] = network_utility.get_debug_snapshot()
 
+	if bool(options.get("include_monitors", true)):
+		var preset_id := StringName(options.get("monitor_preset", &""))
+		if preset_id != &"":
+			snapshot["monitors"] = collect_monitor_preset(
+				preset_id,
+				bool(options.get("include_hidden_monitors", false))
+			)
+		else:
+			var monitor_ids := options.get("monitor_ids", PackedStringArray()) as PackedStringArray
+			snapshot["monitors"] = collect_monitor_snapshot(
+				monitor_ids if monitor_ids != null else PackedStringArray(),
+				bool(options.get("include_hidden_monitors", false))
+			)
+
 	snapshot_collected.emit(snapshot)
 	return snapshot
 
@@ -295,6 +486,225 @@ func _command_collect_logs(args: Dictionary) -> Dictionary:
 		int(args.get("recent_log_count", default_recent_log_count)),
 		bool(args.get("include_recent_logs", true))
 	)
+
+
+func _command_collect_monitors(args: Dictionary) -> Dictionary:
+	var preset_id := StringName(args.get("preset_id", &""))
+	if preset_id != &"":
+		return collect_monitor_preset(preset_id, bool(args.get("include_hidden", false)))
+
+	var monitor_ids := args.get("monitor_ids", PackedStringArray()) as PackedStringArray
+	return collect_monitor_snapshot(
+		monitor_ids if monitor_ids != null else PackedStringArray(),
+		bool(args.get("include_hidden", false))
+	)
+
+
+func _register_builtin_monitors() -> void:
+	register_monitor(&"performance.fps", Callable(self, "_monitor_performance_fps"), {
+		"label": "FPS",
+		"group": "Performance",
+	})
+	register_monitor(&"performance.process_time", Callable(self, "_monitor_performance_process_time"), {
+		"label": "Process Time",
+		"group": "Performance",
+	})
+	register_monitor(&"performance.physics_process_time", Callable(self, "_monitor_performance_physics_time"), {
+		"label": "Physics Time",
+		"group": "Performance",
+	})
+	register_monitor(&"performance.static_memory", Callable(self, "_monitor_performance_static_memory"), {
+		"label": "Static Memory",
+		"group": "Performance",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"performance.node_count", Callable(self, "_monitor_performance_node_count"), {
+		"label": "Nodes",
+		"group": "Performance",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"architecture.models", Callable(self, "_monitor_architecture_model_count"), {
+		"label": "Models",
+		"group": "Architecture",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"architecture.systems", Callable(self, "_monitor_architecture_system_count"), {
+		"label": "Systems",
+		"group": "Architecture",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"architecture.utilities", Callable(self, "_monitor_architecture_utility_count"), {
+		"label": "Utilities",
+		"group": "Architecture",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"event_system.stats", Callable(self, "_monitor_event_system_stats"), {
+		"label": "Event Stats",
+		"group": "Architecture",
+		"min_interval_seconds": 0.25,
+	})
+
+	register_monitor_preset(&"minimal", PackedStringArray([
+		"performance.fps",
+		"performance.process_time",
+		"performance.physics_process_time",
+	]), { "label": "Minimal" })
+	register_monitor_preset(&"performance", PackedStringArray([
+		"performance.fps",
+		"performance.process_time",
+		"performance.physics_process_time",
+		"performance.static_memory",
+		"performance.node_count",
+	]), { "label": "Performance" })
+	register_monitor_preset(&"architecture", PackedStringArray([
+		"architecture.models",
+		"architecture.systems",
+		"architecture.utilities",
+		"event_system.stats",
+	]), { "label": "Architecture" })
+	register_monitor_preset(&"overlay", PackedStringArray([
+		"performance.fps",
+		"architecture.models",
+		"architecture.systems",
+		"architecture.utilities",
+	]), { "label": "Overlay" })
+
+
+func _sample_monitor(monitor_id: StringName, entry: Dictionary) -> Dictionary:
+	var now_seconds := Time.get_ticks_msec() / 1000.0
+	var min_interval_seconds := float(entry.get("min_interval_seconds", 0.0))
+	var last_sample := entry.get("last_sample", {}) as Dictionary
+	if (
+		min_interval_seconds > 0.0
+		and not last_sample.is_empty()
+		and now_seconds - float(entry.get("last_sample_time", -INF)) < min_interval_seconds
+	):
+		return last_sample.duplicate(true)
+
+	var provider: Callable = entry.get("provider", Callable())
+	var sample := {
+		"id": monitor_id,
+		"label": String(entry.get("label", String(monitor_id))),
+		"group": String(entry.get("group", "Runtime")),
+		"value": null,
+		"valid": false,
+		"error": "",
+		"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
+		"sampled_at_unix": Time.get_unix_time_from_system(),
+	}
+	if not provider.is_valid():
+		sample["error"] = "Monitor provider is invalid."
+	else:
+		sample["value"] = provider.call()
+		sample["valid"] = true
+
+	entry["last_sample_time"] = now_seconds
+	entry["last_sample"] = sample.duplicate(true)
+	monitor_sampled.emit(monitor_id, sample)
+	return sample
+
+
+func _monitor_performance_fps() -> float:
+	return Performance.get_monitor(Performance.TIME_FPS)
+
+
+func _monitor_performance_process_time() -> float:
+	return Performance.get_monitor(Performance.TIME_PROCESS)
+
+
+func _monitor_performance_physics_time() -> float:
+	return Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS)
+
+
+func _monitor_performance_static_memory() -> float:
+	return Performance.get_monitor(Performance.MEMORY_STATIC)
+
+
+func _monitor_performance_node_count() -> float:
+	return Performance.get_monitor(Performance.OBJECT_NODE_COUNT)
+
+
+func _monitor_architecture_model_count() -> int:
+	return _get_architecture_debug_section_count("models")
+
+
+func _monitor_architecture_system_count() -> int:
+	return _get_architecture_debug_section_count("systems")
+
+
+func _monitor_architecture_utility_count() -> int:
+	return _get_architecture_debug_section_count("utilities")
+
+
+func _monitor_event_system_stats() -> Dictionary:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return {}
+	return architecture.get_event_debug_stats()
+
+
+func _get_architecture_debug_section_count(section_name: String) -> int:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return 0
+
+	var state := architecture.get_debug_lifecycle_state()
+	var section := state.get(section_name, {}) as Dictionary
+	return section.size() if section != null else 0
+
+
+func _export_monitor_snapshot_as_text(snapshot: Dictionary) -> String:
+	var lines := PackedStringArray()
+	var monitors := snapshot.get("monitors", {}) as Dictionary
+	if monitors == null:
+		return ""
+
+	var ids := PackedStringArray()
+	for monitor_id: Variant in monitors.keys():
+		ids.append(String(monitor_id))
+	ids.sort()
+	for id_text: String in ids:
+		var sample := monitors[StringName(id_text)] as Dictionary
+		if sample == null:
+			continue
+		lines.append("%s [%s]: %s" % [
+			String(sample.get("label", id_text)),
+			String(sample.get("group", "Runtime")),
+			str(sample.get("value", null)),
+		])
+	return "\n".join(lines)
+
+
+func _export_monitor_snapshot_as_csv(snapshot: Dictionary) -> String:
+	var lines := PackedStringArray(["id,label,group,value,valid,error"])
+	var monitors := snapshot.get("monitors", {}) as Dictionary
+	if monitors == null:
+		return "\n".join(lines)
+
+	var ids := PackedStringArray()
+	for monitor_id: Variant in monitors.keys():
+		ids.append(String(monitor_id))
+	ids.sort()
+	for id_text: String in ids:
+		var sample := monitors[StringName(id_text)] as Dictionary
+		if sample == null:
+			continue
+		lines.append(",".join(PackedStringArray([
+			_escape_csv(id_text),
+			_escape_csv(String(sample.get("label", id_text))),
+			_escape_csv(String(sample.get("group", "Runtime"))),
+			_escape_csv(str(sample.get("value", null))),
+			_escape_csv(str(sample.get("valid", false))),
+			_escape_csv(String(sample.get("error", ""))),
+		])))
+	return "\n".join(lines)
+
+
+func _escape_csv(value: String) -> String:
+	var escaped := value.replace("\"", "\"\"")
+	if escaped.contains(",") or escaped.contains("\n") or escaped.contains("\""):
+		return "\"%s\"" % escaped
+	return escaped
 
 
 func _on_console_diagnostics_command(_args: PackedStringArray) -> void:

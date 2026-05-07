@@ -16,6 +16,9 @@ extends Resource
 ## 切换前是否先发起预加载。
 @export var preload_before_change: bool = false
 
+## preload_before_change 为 true 时，是否把预加载结果写入固定缓存。
+@export var preload_as_fixed_cache: bool = false
+
 ## 本次切换完成后是否允许写入 GFSceneUtility 缓存。
 @export var cache_loaded_scene: bool = true
 
@@ -32,6 +35,7 @@ func to_dict() -> Dictionary:
 		"target_scene_path": target_scene_path,
 		"loading_scene_path": loading_scene_path,
 		"preload_before_change": preload_before_change,
+		"preload_as_fixed_cache": preload_as_fixed_cache,
 		"cache_loaded_scene": cache_loaded_scene,
 		"metadata": metadata.duplicate(true),
 	}
@@ -43,6 +47,7 @@ func apply_dict(data: Dictionary) -> void:
 	target_scene_path = String(data.get("target_scene_path", target_scene_path))
 	loading_scene_path = String(data.get("loading_scene_path", loading_scene_path))
 	preload_before_change = bool(data.get("preload_before_change", preload_before_change))
+	preload_as_fixed_cache = bool(data.get("preload_as_fixed_cache", preload_as_fixed_cache))
 	cache_loaded_scene = bool(data.get("cache_loaded_scene", cache_loaded_scene))
 	var metadata_data := data.get("metadata", {}) as Dictionary
 	metadata = metadata_data.duplicate(true) if metadata_data != null else {}

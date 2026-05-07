@@ -67,6 +67,39 @@ func test_handle_input_event_auto_assigns_joypad_to_empty_player() -> void:
 	assert_signal_emitted(utility, "active_player_changed", "活跃玩家变化时应发出信号。")
 
 
+## 验证 join 输入只在匹配模板时请求本地玩家加入。
+func test_handle_join_input_event_emits_join_request() -> void:
+	var utility := GFInputDeviceUtility.new()
+	utility.max_players = 2
+	utility.include_keyboard_mouse = false
+	utility.include_touch = false
+	utility.refresh_connected_devices()
+	utility.configure_default_join_events(false, true)
+	watch_signals(utility)
+
+	var player_index := utility.handle_join_input_event(_make_joy_button_event(4, JOY_BUTTON_START, true))
+
+	assert_eq(player_index, 0, "未登记手柄的 join 输入应占用第一个空玩家席位。")
+	assert_eq(utility.get_assignment(0).device_id, 4, "join 自动分配应记录手柄设备 ID。")
+	assert_signal_emitted(utility, "player_join_requested", "匹配 join 输入时应发出加入请求信号。")
+
+
+## 验证非 join 输入不会触发加入请求。
+func test_handle_join_input_event_ignores_unconfigured_input() -> void:
+	var utility := GFInputDeviceUtility.new()
+	utility.max_players = 1
+	utility.include_keyboard_mouse = false
+	utility.include_touch = false
+	utility.refresh_connected_devices()
+	utility.configure_default_join_events(false, true)
+	watch_signals(utility)
+
+	var player_index := utility.handle_join_input_event(_make_joy_button_event(4, JOY_BUTTON_X, true))
+
+	assert_eq(player_index, -1, "未配置的输入不应触发加入。")
+	assert_signal_not_emitted(utility, "player_join_requested", "非 join 输入不应发出加入请求。")
+
+
 ## 验证弱手柄轴噪声不会触发自动分配。
 func test_joypad_axis_noise_does_not_auto_assign() -> void:
 	var utility := GFInputDeviceUtility.new()
@@ -90,6 +123,19 @@ func test_player_deadzone_override() -> void:
 
 	utility.set_player_deadzone(2, -1.0)
 	assert_eq(utility.get_player_deadzone(2, -1.0), -1.0, "传入负数应清除玩家级死区覆盖。")
+
+
+## 验证玩家震动封装只接受手柄设备。
+func test_vibration_for_player_requires_joypad_assignment() -> void:
+	var utility := GFInputDeviceUtility.new()
+	utility.include_keyboard_mouse = false
+	utility.include_touch = false
+	utility.set_assignment(utility.create_assignment(0, GFInputDeviceAssignment.DeviceType.KEYBOARD_MOUSE, 0))
+	utility.set_assignment(utility.create_assignment(1, GFInputDeviceAssignment.DeviceType.JOYPAD, 6))
+
+	assert_false(utility.start_vibration_for_player(0, 1.5, -1.0, -2.0), "非手柄玩家不应启动震动。")
+	assert_true(utility.start_vibration_for_player(1, 1.5, -1.0, -2.0), "手柄玩家应能启动震动。")
+	assert_true(utility.stop_vibration_for_player(1), "手柄玩家应能停止震动。")
 
 
 # --- 私有/辅助方法 ---

@@ -1,0 +1,12 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://tests/gf_core/fixtures/scene_signal_audit_receiver.gd" id="1"]
+
+[node name="Root" type="Node"]
+
+[node name="Button" type="Button" parent="."]
+
+[node name="Receiver" type="Node" parent="."]
+script = ExtResource("1")
+
+[connection signal="pressed" from="Button" to="Receiver" method="missing_method"]

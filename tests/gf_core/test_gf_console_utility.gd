@@ -170,6 +170,38 @@ func test_console_output_batches_until_flush() -> void:
 	assert_eq(_console._console_gui._output_lines[0], "batched", "flush 后应保留待输出内容。")
 
 
+func test_console_background_alpha_updates_gui() -> void:
+	_console.background_alpha = 0.42
+
+	assert_almost_eq(_console.background_alpha, 0.42, 0.001, "控制台透明度配置应保存在工具上。")
+	assert_almost_eq(_console._console_gui.background_alpha, 0.42, 0.001, "控制台透明度配置应同步到 GUI。")
+	assert_almost_eq(_console._console_gui._panel_style.bg_color.a, 0.42, 0.001, "GUI 背景样式应立即应用透明度。")
+
+
+func test_console_background_alpha_is_clamped() -> void:
+	_console.background_alpha = 2.0
+
+	assert_almost_eq(_console.background_alpha, 1.0, 0.001, "透明度上限应被钳制为 1。")
+	assert_almost_eq(_console._console_gui._panel_style.bg_color.a, 1.0, 0.001, "GUI 样式透明度也应应用钳制结果。")
+
+
+func test_console_windowed_mode_uses_panel_layout_and_resize_handle() -> void:
+	_console.windowed = true
+
+	assert_true(_console._console_gui.windowed, "窗口模式配置应同步到 GUI。")
+	assert_true(_console._console_gui._resize_handle.visible, "窗口模式应显示缩放手柄。")
+	assert_gt(_console._console_gui._panel.size.x, 0.0, "窗口模式应给面板设置有效宽度。")
+	assert_gt(_console._console_gui._panel.size.y, 0.0, "窗口模式应给面板设置有效高度。")
+
+
+func test_console_keep_topmost_updates_layer() -> void:
+	_console.keep_topmost = false
+	assert_eq(_console._console_gui.layer, 1, "关闭 keep_topmost 后应使用普通层级。")
+
+	_console.keep_topmost = true
+	assert_eq(_console._console_gui.layer, 150, "开启 keep_topmost 后应使用高层级。")
+
+
 func test_dispose_disconnects_log_signal() -> void:
 	var arch := GFArchitecture.new()
 	var log_util := GFLogUtility.new()

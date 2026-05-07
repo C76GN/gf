@@ -23,6 +23,47 @@ var max_output_lines: int = 1000:
 		if is_instance_valid(_console_gui):
 			_console_gui.max_output_lines = max_output_lines
 
+## 控制台背景透明度，范围 0 到 1。
+var background_alpha: float = 0.85:
+	set(value):
+		background_alpha = clampf(value, 0.0, 1.0)
+		if is_instance_valid(_console_gui):
+			_console_gui.background_alpha = background_alpha
+
+## 是否使用可拖拽、可缩放的窗口模式。默认 false 保持全屏覆盖。
+var windowed: bool = false:
+	set(value):
+		windowed = value
+		if is_instance_valid(_console_gui):
+			_console_gui.windowed = windowed
+
+## 窗口模式初始尺寸相对视口比例。
+var initial_window_size_ratio: Vector2 = Vector2(0.72, 0.55):
+	set(value):
+		initial_window_size_ratio = Vector2(
+			clampf(value.x, 0.2, 1.0),
+			clampf(value.y, 0.2, 1.0)
+		)
+		if is_instance_valid(_console_gui):
+			_console_gui.initial_window_size_ratio = initial_window_size_ratio
+
+## 窗口模式最小尺寸。
+var minimum_window_size: Vector2 = Vector2(360.0, 220.0):
+	set(value):
+		minimum_window_size = Vector2(maxf(value.x, 120.0), maxf(value.y, 80.0))
+		if is_instance_valid(_console_gui):
+			_console_gui.minimum_window_size = minimum_window_size
+
+## 是否把控制台放在较高 CanvasLayer 层级。
+var keep_topmost: bool = true:
+	set(value):
+		keep_topmost = value
+		if is_instance_valid(_console_gui):
+			_console_gui.keep_topmost = keep_topmost
+
+## 是否只在 debug 构建中创建控制台 GUI。
+var debug_only: bool = false
+
 
 # --- 私有变量 ---
 
@@ -39,6 +80,9 @@ var _connected_log_util: GFLogUtility = null
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	if debug_only and not OS.is_debug_build():
+		return
+
 	register_command("help", _cmd_help, "显示所有可用指令。")
 	register_command("clear", _cmd_clear, "清空控制台输出。")
 
@@ -46,6 +90,11 @@ func init() -> void:
 	_console_gui.name = "GFConsoleOverlay"
 	_console_gui.toggle_key = toggle_key
 	_console_gui.max_output_lines = max_output_lines
+	_console_gui.background_alpha = background_alpha
+	_console_gui.windowed = windowed
+	_console_gui.initial_window_size_ratio = initial_window_size_ratio
+	_console_gui.minimum_window_size = minimum_window_size
+	_console_gui.keep_topmost = keep_topmost
 	_console_gui.command_name_provider = Callable(self, "get_command_names")
 	_console_gui.command_submitted.connect(_on_command_submitted)
 
@@ -253,6 +302,14 @@ class _GFConsoleGUI extends CanvasLayer:
 	signal command_submitted(raw_input: String)
 
 
+	# --- 常量 ---
+
+	const _DEFAULT_LAYER: int = 1
+	const _TOPMOST_LAYER: int = 150
+	const _WINDOW_MARGIN: float = 16.0
+	const _RESIZE_HANDLE_SIZE: float = 18.0
+
+
 	# --- 公共变量 ---
 
 	var toggle_key: Key
@@ -265,41 +322,80 @@ class _GFConsoleGUI extends CanvasLayer:
 			if is_instance_valid(_output):
 				_render_output()
 
+	var background_alpha: float = 0.85:
+		set(value):
+			background_alpha = clampf(value, 0.0, 1.0)
+			_apply_background_alpha()
+
+	var windowed: bool = false:
+		set(value):
+			windowed = value
+			_layout_console()
+
+	var initial_window_size_ratio: Vector2 = Vector2(0.72, 0.55):
+		set(value):
+			initial_window_size_ratio = Vector2(
+				clampf(value.x, 0.2, 1.0),
+				clampf(value.y, 0.2, 1.0)
+			)
+			_window_layout_initialized = false
+			_layout_console()
+
+	var minimum_window_size: Vector2 = Vector2(360.0, 220.0):
+		set(value):
+			minimum_window_size = Vector2(maxf(value.x, 120.0), maxf(value.y, 80.0))
+			_layout_console()
+
+	var keep_topmost: bool = true:
+		set(value):
+			keep_topmost = value
+			_apply_layer()
+
 
 	# --- 私有变量 ---
 
+	var _panel: PanelContainer
+	var _panel_style: StyleBoxFlat
 	var _output: RichTextLabel
 	var _input_field: LineEdit
 	var _filter_input: LineEdit
+	var _resize_handle: Panel
 	var _ignored_tags: PackedStringArray = PackedStringArray()
 	var _output_lines: PackedStringArray = PackedStringArray()
 	var _pending_lines: PackedStringArray = PackedStringArray()
 	var _flush_queued: bool = false
 	var _command_history: PackedStringArray = PackedStringArray()
 	var _history_index: int = -1
+	var _window_layout_initialized: bool = false
+	var _dragging: bool = false
+	var _resizing: bool = false
+	var _drag_offset: Vector2 = Vector2.ZERO
+	var _resize_origin_mouse: Vector2 = Vector2.ZERO
+	var _resize_origin_size: Vector2 = Vector2.ZERO
 
 
 	# --- Godot 生命周期方法 ---
 
 	func _init() -> void:
-		layer = 150
+		_apply_layer()
 		visible = false
 		process_mode = Node.PROCESS_MODE_ALWAYS
 
-		var panel := PanelContainer.new()
-		panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		_panel = PanelContainer.new()
+		_panel.name = "Panel"
+		_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+		add_child(_panel)
 
-		var style := StyleBoxFlat.new()
-		style.bg_color = Color(0.05, 0.05, 0.1, 0.85)
-		panel.add_theme_stylebox_override("panel", style)
-		add_child(panel)
+		_panel_style = StyleBoxFlat.new()
+		_panel_style.bg_color = Color(0.05, 0.05, 0.1, background_alpha)
+		_panel.add_theme_stylebox_override("panel", _panel_style)
 
 		var margin := MarginContainer.new()
 		margin.add_theme_constant_override("margin_left", 12)
 		margin.add_theme_constant_override("margin_top", 12)
 		margin.add_theme_constant_override("margin_right", 12)
 		margin.add_theme_constant_override("margin_bottom", 12)
-		panel.add_child(margin)
+		_panel.add_child(margin)
 
 		var vbox := VBoxContainer.new()
 		margin.add_child(vbox)
@@ -311,6 +407,8 @@ class _GFConsoleGUI extends CanvasLayer:
 		header.text = "[ GF Developer Console ]"
 		header.modulate = Color(0.4, 0.8, 1.0)
 		header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		header.mouse_filter = Control.MOUSE_FILTER_STOP
+		header.gui_input.connect(_on_header_gui_input)
 		header_hbox.add_child(header)
 
 		var filter_label := Label.new()
@@ -337,12 +435,36 @@ class _GFConsoleGUI extends CanvasLayer:
 		_input_field.text_submitted.connect(_on_input_submitted)
 		vbox.add_child(_input_field)
 
+		_resize_handle = Panel.new()
+		_resize_handle.mouse_filter = Control.MOUSE_FILTER_STOP
+		_resize_handle.mouse_default_cursor_shape = Control.CURSOR_FDIAGSIZE
+		_resize_handle.visible = false
+		_resize_handle.gui_input.connect(_on_resize_handle_gui_input)
+		var resize_style := StyleBoxFlat.new()
+		resize_style.bg_color = Color(0.4, 0.8, 1.0, 0.45)
+		_resize_handle.add_theme_stylebox_override("panel", resize_style)
+		add_child(_resize_handle)
+
+		_layout_console()
+
+
+	func _ready() -> void:
+		_apply_layer()
+		_apply_background_alpha()
+		_layout_console()
+
 
 	func _input(event: InputEvent) -> void:
+		if visible and (_dragging or _resizing):
+			_update_window_interaction(event)
+			get_viewport().set_input_as_handled()
+			return
+
 		if event is InputEventKey and event.pressed and not event.echo:
 			if event.keycode == toggle_key:
 				visible = not visible
 				if visible:
+					_layout_console()
 					_input_field.call_deferred("grab_focus")
 				get_viewport().set_input_as_handled()
 			elif visible and _input_field.has_focus() and event.keycode == KEY_UP:
@@ -394,6 +516,122 @@ class _GFConsoleGUI extends CanvasLayer:
 
 
 	# --- 私有/辅助方法 ---
+
+	func _apply_layer() -> void:
+		layer = _TOPMOST_LAYER if keep_topmost else _DEFAULT_LAYER
+
+
+	func _apply_background_alpha() -> void:
+		if _panel_style == null:
+			return
+
+		var color := _panel_style.bg_color
+		color.a = background_alpha
+		_panel_style.bg_color = color
+
+
+	func _layout_console() -> void:
+		if not is_instance_valid(_panel):
+			return
+
+		if not windowed:
+			_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			_panel.position = Vector2.ZERO
+			_window_layout_initialized = false
+			if is_instance_valid(_resize_handle):
+				_resize_handle.visible = false
+			return
+
+		_panel.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+		if not _window_layout_initialized:
+			var viewport_size := _get_viewport_size()
+			var target_size := Vector2(
+				viewport_size.x * initial_window_size_ratio.x,
+				viewport_size.y * initial_window_size_ratio.y
+			)
+			_panel.position = Vector2(_WINDOW_MARGIN, _WINDOW_MARGIN)
+			_panel.size = _get_clamped_window_size(target_size)
+			_window_layout_initialized = true
+		else:
+			_panel.size = _get_clamped_window_size(_panel.size)
+
+		_clamp_panel_rect()
+		_sync_resize_handle()
+
+
+	func _get_viewport_size() -> Vector2:
+		var viewport := get_viewport()
+		if viewport == null:
+			return Vector2.ZERO
+
+		var viewport_rect := viewport.get_visible_rect()
+		return Vector2(viewport_rect.size.x, viewport_rect.size.y)
+
+
+	func _get_clamped_window_size(requested_size: Vector2) -> Vector2:
+		var viewport_size := _get_viewport_size()
+		if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
+			return minimum_window_size
+
+		var max_size := Vector2(
+			maxf(1.0, viewport_size.x - _WINDOW_MARGIN * 2.0),
+			maxf(1.0, viewport_size.y - _WINDOW_MARGIN * 2.0)
+		)
+		var min_size := Vector2(
+			minf(minimum_window_size.x, max_size.x),
+			minf(minimum_window_size.y, max_size.y)
+		)
+		return Vector2(
+			clampf(requested_size.x, min_size.x, max_size.x),
+			clampf(requested_size.y, min_size.y, max_size.y)
+		)
+
+
+	func _clamp_panel_rect() -> void:
+		if not is_instance_valid(_panel):
+			return
+
+		_panel.size = _get_clamped_window_size(_panel.size)
+		var viewport_size := _get_viewport_size()
+		var max_position := viewport_size - _panel.size - Vector2(_WINDOW_MARGIN, _WINDOW_MARGIN)
+		var safe_max_position := Vector2(
+			maxf(_WINDOW_MARGIN, max_position.x),
+			maxf(_WINDOW_MARGIN, max_position.y)
+		)
+		_panel.position = Vector2(
+			clampf(_panel.position.x, _WINDOW_MARGIN, safe_max_position.x),
+			clampf(_panel.position.y, _WINDOW_MARGIN, safe_max_position.y)
+		)
+
+
+	func _sync_resize_handle() -> void:
+		if not is_instance_valid(_resize_handle) or not is_instance_valid(_panel):
+			return
+
+		_resize_handle.visible = windowed
+		_resize_handle.position = _panel.position + _panel.size - Vector2(_RESIZE_HANDLE_SIZE, _RESIZE_HANDLE_SIZE)
+		_resize_handle.size = Vector2(_RESIZE_HANDLE_SIZE, _RESIZE_HANDLE_SIZE)
+
+
+	func _update_window_interaction(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			_dragging = false
+			_resizing = false
+			return
+
+		if not (event is InputEventMouseMotion):
+			return
+
+		var mouse_position := get_viewport().get_mouse_position()
+		if _dragging:
+			_panel.position = mouse_position - _drag_offset
+			_clamp_panel_rect()
+			_sync_resize_handle()
+		elif _resizing:
+			_panel.size = _resize_origin_size + mouse_position - _resize_origin_mouse
+			_clamp_panel_rect()
+			_sync_resize_handle()
+
 
 	func _queue_flush() -> void:
 		if _flush_queued:
@@ -497,3 +735,34 @@ class _GFConsoleGUI extends CanvasLayer:
 			_ignored_tags.clear()
 		else:
 			_ignored_tags = text.replace(" ", "").split(",", false)
+
+
+	func _on_header_gui_input(event: InputEvent) -> void:
+		if not windowed or not is_instance_valid(_panel):
+			return
+
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			_dragging = event.pressed
+			_resizing = false
+			if _dragging:
+				_drag_offset = get_viewport().get_mouse_position() - _panel.position
+			get_viewport().set_input_as_handled()
+		elif event is InputEventMouseMotion and _dragging:
+			_update_window_interaction(event)
+			get_viewport().set_input_as_handled()
+
+
+	func _on_resize_handle_gui_input(event: InputEvent) -> void:
+		if not windowed or not is_instance_valid(_panel):
+			return
+
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			_resizing = event.pressed
+			_dragging = false
+			if _resizing:
+				_resize_origin_mouse = get_viewport().get_mouse_position()
+				_resize_origin_size = _panel.size
+			get_viewport().set_input_as_handled()
+		elif event is InputEventMouseMotion and _resizing:
+			_update_window_interaction(event)
+			get_viewport().set_input_as_handled()

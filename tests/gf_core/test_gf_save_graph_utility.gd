@@ -256,7 +256,22 @@ func test_inspect_scope_reports_duplicate_source_keys() -> void:
 	var report := _utility.inspect_scope(_scope)
 
 	assert_false(bool(report["ok"]), "重复 Source key 应使诊断报告失败。")
+	assert_false(bool(report["healthy"]), "存在错误时健康状态应失败。")
+	assert_gt(int(report["error_count"]), 0, "健康报告应统计错误数量。")
+	assert_false(String(report["next_action"]).is_empty(), "健康报告应提供下一步建议。")
 	assert_true(_has_issue(report, "duplicate_source_key"), "诊断报告应包含 duplicate_source_key。")
+
+
+## 验证 Scope 健康报告会给出摘要与无操作建议。
+func test_scope_health_report_includes_summary_for_valid_scope() -> void:
+	var report := _utility.build_scope_health_report(_scope)
+
+	assert_true(bool(report["ok"]), "有效 Scope 应通过检查。")
+	assert_true(bool(report["healthy"]), "无警告和错误时应为健康。")
+	assert_eq(report["error_count"], 0, "有效 Scope 不应有错误。")
+	assert_eq(report["warning_count"], 0, "有效 Scope 不应有警告。")
+	assert_eq(report["next_action"], "No action required.", "健康报告无需后续动作。")
+	assert_true(String(report["summary"]).contains("healthy"), "健康报告应包含摘要。")
 
 
 ## 验证采集重复 Source key 会失败，避免产生无法回放的 key#2 载荷。
@@ -302,6 +317,8 @@ func test_validate_payload_for_scope_reports_missing_source() -> void:
 	var report := _utility.validate_payload_for_scope(_scope, payload, true)
 
 	assert_false(bool(report["ok"]), "strict 校验下缺失 Source 应失败。")
+	assert_gt(int(report["error_count"]), 0, "载荷健康报告应统计错误数量。")
+	assert_false(String(report["next_action"]).is_empty(), "载荷健康报告应提供下一步建议。")
 	assert_true(_has_issue(report, "missing_source"), "诊断报告应包含 missing_source。")
 
 

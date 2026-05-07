@@ -27,6 +27,7 @@ class TestSceneUtility extends GFSceneUtility:
 	var sync_scene_changes: Array[String] = []
 	var packed_scene_changes: int = 0
 	var packed_scene_change_error: bool = false
+	var loading_scene_node: Node = null
 
 	func _get_current_scene_path() -> String:
 		return current_scene_path
@@ -41,6 +42,24 @@ class TestSceneUtility extends GFSceneUtility:
 			return false
 		packed_scene_changes += 1
 		return true
+
+	func _get_loading_scene_node() -> Node:
+		return loading_scene_node
+
+
+class FakeLoadingScene extends Node:
+	var faded_in: bool = false
+	var faded_out: bool = false
+	var progress_values: Array[float] = []
+
+	func fade_in() -> void:
+		faded_in = true
+
+	func fade_out() -> void:
+		faded_out = true
+
+	func set_progress(value: float) -> void:
+		progress_values.append(value)
 
 
 func before_each() -> void:
@@ -157,6 +176,21 @@ func test_preloaded_scene_cache_uses_lru_eviction() -> void:
 	assert_true(_scene_util.is_scene_preloaded("res://addons/gut/gui/GutRunner.tscn"), "新写入的预加载场景应保留。")
 
 
+func test_fixed_preloaded_scene_survives_lru_eviction() -> void:
+	_scene_util.max_preloaded_scene_resources = 1
+	_scene_util.put_preloaded_scene("res://addons/gut/gui/NormalGui.tscn", _make_empty_scene(), true)
+	_scene_util.put_preloaded_scene("res://addons/gut/gui/MinGui.tscn", _make_empty_scene())
+	_scene_util.put_preloaded_scene("res://addons/gut/gui/GutRunner.tscn", _make_empty_scene())
+
+	var snapshot := _scene_util.get_scene_cache_debug_snapshot()
+	var preload_cache := snapshot["preload_cache"] as Dictionary
+
+	assert_true(_scene_util.is_scene_preloaded("res://addons/gut/gui/NormalGui.tscn"), "固定缓存不应被 LRU 淘汰。")
+	assert_true(_scene_util.is_preloaded_scene_fixed("res://addons/gut/gui/NormalGui.tscn"), "固定缓存状态应可查询。")
+	assert_false(_scene_util.is_scene_preloaded("res://addons/gut/gui/MinGui.tscn"), "临时缓存仍应按 LRU 淘汰。")
+	assert_true((preload_cache["fixed_paths"] as PackedStringArray).has("res://addons/gut/gui/NormalGui.tscn"), "快照应包含固定缓存路径。")
+
+
 func test_setting_preloaded_scene_limit_to_zero_clears_cache() -> void:
 	_scene_util.put_preloaded_scene("res://addons/gut/gui/NormalGui.tscn", _make_empty_scene())
 
@@ -209,6 +243,25 @@ func test_scene_cache_debug_snapshot_reports_cached_paths() -> void:
 
 	assert_eq(preload_cache["size"], 1, "调试快照应包含预加载缓存数量。")
 	assert_true((preload_cache["paths"] as PackedStringArray).has("res://addons/gut/gui/NormalGui.tscn"), "调试快照应包含缓存路径。")
+
+
+func test_loading_screen_protocol_receives_progress_and_exit() -> void:
+	var loading_scene := FakeLoadingScene.new()
+	_scene_util.loading_scene_node = loading_scene
+	_scene_util._loading_scene_path = "res://tests/loading.tscn"
+	_scene_util._is_showing_loading_scene = true
+	watch_signals(_scene_util)
+
+	_scene_util._call_loading_scene_optional_method(_scene_util.loading_screen_fade_in_method)
+	_scene_util._emit_scene_load_progress("res://tests/target.tscn", 0.5)
+	_scene_util._notify_loading_scene_exit_if_needed()
+
+	assert_true(loading_scene.faded_in, "loading scene 应收到 fade_in。")
+	assert_eq(loading_scene.progress_values, [0.5], "loading scene 应收到进度回调。")
+	assert_true(loading_scene.faded_out, "loading scene 应收到 fade_out。")
+	assert_signal_emitted(_scene_util, "loading_scene_hidden", "退出 loading scene 应发出信号。")
+
+	loading_scene.free()
 
 
 func _make_empty_scene() -> PackedScene:

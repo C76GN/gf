@@ -48,6 +48,40 @@ signal scene_preload_failed(path: String)
 ## @param path: 目标场景路径。
 signal scene_preload_cancelled(path: String)
 
+## 当一次场景切换流程开始时发出。
+## @param path: 目标场景路径。
+## @param previous_path: 切换前场景路径。
+signal scene_switch_started(path: String, previous_path: String)
+
+## 当一次场景切换流程完成时发出。
+## @param path: 目标场景路径。
+## @param previous_path: 切换前场景路径。
+signal scene_switch_completed(path: String, previous_path: String)
+
+## 当一次场景切换流程失败时发出。
+## @param path: 目标场景路径。
+## @param previous_path: 切换前场景路径。
+## @param message: 失败说明。
+signal scene_switch_failed(path: String, previous_path: String, message: String)
+
+## 当 loading scene 切入后发出。
+## @param path: loading scene 路径。
+signal loading_scene_shown(path: String)
+
+## 当 loading scene 准备退出时发出。
+## @param path: loading scene 路径。
+signal loading_scene_hidden(path: String)
+
+## 当场景资源写入预加载缓存后发出。
+## @param path: 场景路径。
+## @param fixed: 是否写入固定缓存。
+signal scene_cache_added(path: String, fixed: bool)
+
+## 当场景资源从预加载缓存移除后发出。
+## @param path: 场景路径。
+## @param fixed: 是否来自固定缓存。
+signal scene_cache_removed(path: String, fixed: bool)
+
 
 # --- 枚举 ---
 
@@ -78,12 +112,24 @@ var max_preloaded_scene_resources: int:
 	set(value):
 		_max_preloaded_scene_resources = maxi(value, 0)
 		if _max_preloaded_scene_resources == 0:
-			clear_preloaded_scenes()
+			clear_preloaded_scenes(false)
 			return
 		_evict_preloaded_scenes()
 
 ## 通过 load_scene_async() 加载完成的目标场景是否写入预加载缓存。
 var cache_loaded_scenes: bool = true
+
+## loading scene 可选淡入方法名；目标节点存在该方法时会被调用。
+var loading_screen_fade_in_method: StringName = &"fade_in"
+
+## loading scene 可选淡出方法名；目标节点存在该方法时会被调用。
+var loading_screen_fade_out_method: StringName = &"fade_out"
+
+## loading scene 可选进度更新方法名；不存在时会回退到 update_progress。
+var loading_screen_progress_method: StringName = &"set_progress"
+
+## loading scene 进度更新回退方法名。
+var loading_screen_progress_fallback_method: StringName = &"update_progress"
 
 
 # --- 私有变量 ---
@@ -96,9 +142,12 @@ var _transient_scripts: Array[Script] = []
 var _previous_pause_state: bool = false
 var _previous_scene_path: String = ""
 var _is_showing_loading_scene: bool = false
+var _loading_scene_exit_notified: bool = false
 var _active_load_uses_preload_request: bool = false
 var _active_load_cache_loaded_scene: bool = true
+var _active_loading_progress: float = 0.0
 var _preload_requests: Dictionary = {}
+var _fixed_preloaded_scenes: Dictionary = {}
 var _preloaded_scenes: Dictionary = {}
 var _preloaded_scene_access_order: Dictionary = {}
 var _preloaded_scene_access_serial: int = 0
@@ -142,10 +191,11 @@ func load_scene_async(path: String, loading_scene_path: String = "") -> void:
 	var effective_loading_scene_path := _resolve_loading_scene_path(loading_scene_path)
 	_begin_loading_state(path, effective_loading_scene_path, cache_loaded_scenes)
 	scene_load_started.emit(path)
+	scene_switch_started.emit(path, _previous_scene_path)
 
 	var cached_scene := get_preloaded_scene(path)
 	if cached_scene != null:
-		scene_load_progress.emit(path, 1.0)
+		_emit_scene_load_progress(path, 1.0)
 		_complete_loading(path, cached_scene)
 		return
 
@@ -172,7 +222,7 @@ func load_scene_with_transition(config: GFSceneTransitionConfigBase) -> Error:
 		return ERR_INVALID_PARAMETER
 
 	if config.preload_before_change:
-		var preload_error := preload_scene(config.target_scene_path)
+		var preload_error := preload_scene(config.target_scene_path, config.preload_as_fixed_cache)
 		if preload_error != OK:
 			return preload_error
 
@@ -183,10 +233,11 @@ func load_scene_with_transition(config: GFSceneTransitionConfigBase) -> Error:
 	return OK
 
 
-## 预加载一个场景资源并放入 LRU 缓存。
+## 预加载一个场景资源并放入缓存。
 ## @param path: 目标场景资源路径。
+## @param fixed: 为 true 时写入固定缓存，不受 LRU 容量淘汰影响。
 ## @return 发起请求的 Godot Error。
-func preload_scene(path: String) -> Error:
+func preload_scene(path: String, fixed: bool = false) -> Error:
 	var validation_error := _validate_scene_resource_path(path, "preload_scene")
 	if not validation_error.is_empty():
 		push_error(validation_error)
@@ -208,6 +259,7 @@ func preload_scene(path: String) -> Error:
 	_preload_requests[path] = {
 		"progress": 0.0,
 		"cancelled": false,
+		"fixed": fixed,
 	}
 	scene_preload_started.emit(path)
 	return OK
@@ -215,11 +267,12 @@ func preload_scene(path: String) -> Error:
 
 ## 批量预加载场景资源。
 ## @param paths: 场景路径数组。
+## @param fixed: 为 true 时全部写入固定缓存。
 ## @return path -> Error 的结果字典。
-func preload_scenes(paths: PackedStringArray) -> Dictionary:
+func preload_scenes(paths: PackedStringArray, fixed: bool = false) -> Dictionary:
 	var result: Dictionary = {}
 	for path: String in paths:
-		result[path] = preload_scene(path)
+		result[path] = preload_scene(path, fixed)
 	return result
 
 
@@ -253,13 +306,17 @@ func is_scene_preloading(path: String) -> bool:
 ## @param path: 场景路径。
 ## @return 已缓存时返回 true。
 func is_scene_preloaded(path: String) -> bool:
-	return _preloaded_scenes.has(path)
+	return _preloaded_scenes.has(path) or _fixed_preloaded_scenes.has(path)
 
 
 ## 获取已预加载的 PackedScene。
 ## @param path: 场景路径。
 ## @return 命中缓存时返回 PackedScene，否则返回 null。
 func get_preloaded_scene(path: String) -> PackedScene:
+	var fixed_scene := _fixed_preloaded_scenes.get(path) as PackedScene
+	if fixed_scene != null:
+		return fixed_scene
+
 	var scene := _preloaded_scenes.get(path) as PackedScene
 	if scene != null:
 		_touch_preloaded_scene(path)
@@ -269,27 +326,85 @@ func get_preloaded_scene(path: String) -> PackedScene:
 ## 手动写入预加载缓存。
 ## @param path: 场景路径。
 ## @param scene: PackedScene 实例。
-func put_preloaded_scene(path: String, scene: PackedScene) -> void:
-	if path.is_empty() or scene == null or max_preloaded_scene_resources <= 0:
+## @param fixed: 为 true 时写入固定缓存。
+func put_preloaded_scene(path: String, scene: PackedScene, fixed: bool = false) -> void:
+	if path.is_empty() or scene == null:
 		return
 
+	if fixed:
+		_preloaded_scenes.erase(path)
+		_preloaded_scene_access_order.erase(path)
+		_fixed_preloaded_scenes[path] = scene
+		scene_cache_added.emit(path, true)
+		return
+
+	if max_preloaded_scene_resources <= 0:
+		return
+
+	_fixed_preloaded_scenes.erase(path)
 	_preloaded_scenes[path] = scene
 	_touch_preloaded_scene(path)
 	_evict_preloaded_scenes()
+	scene_cache_added.emit(path, false)
 
 
 ## 移除一个预加载场景资源。
 ## @param path: 场景路径。
 func remove_preloaded_scene(path: String) -> void:
+	var was_fixed := _fixed_preloaded_scenes.has(path)
+	var was_temporary := _preloaded_scenes.has(path)
+	_fixed_preloaded_scenes.erase(path)
 	_preloaded_scenes.erase(path)
 	_preloaded_scene_access_order.erase(path)
+	if was_fixed:
+		scene_cache_removed.emit(path, true)
+	if was_temporary:
+		scene_cache_removed.emit(path, false)
 
 
 ## 清空所有预加载场景资源。
-func clear_preloaded_scenes() -> void:
+## @param include_fixed: 为 true 时同时清空固定缓存。
+func clear_preloaded_scenes(include_fixed: bool = true) -> void:
+	var fixed_paths := _get_sorted_string_keys(_fixed_preloaded_scenes)
+	var temporary_paths := _get_sorted_string_keys(_preloaded_scenes)
+	if include_fixed:
+		_fixed_preloaded_scenes.clear()
+		for path: String in fixed_paths:
+			scene_cache_removed.emit(path, true)
 	_preloaded_scenes.clear()
 	_preloaded_scene_access_order.clear()
 	_preloaded_scene_access_serial = 0
+	for path: String in temporary_paths:
+		scene_cache_removed.emit(path, false)
+
+
+## 把已缓存场景移动到固定缓存。
+## @param path: 场景路径。
+## @return 移动成功返回 true。
+func move_preloaded_scene_to_fixed(path: String) -> bool:
+	var scene := get_preloaded_scene(path)
+	if scene == null:
+		return false
+	put_preloaded_scene(path, scene, true)
+	return true
+
+
+## 把已缓存场景移动到临时 LRU 缓存。
+## @param path: 场景路径。
+## @return 移动成功返回 true。
+func move_preloaded_scene_to_temporary(path: String) -> bool:
+	var scene := get_preloaded_scene(path)
+	if scene == null:
+		return false
+	put_preloaded_scene(path, scene, false)
+	return true
+
+
+## 检查已缓存场景是否位于固定缓存。
+## @param path: 场景路径。
+## @return 固定缓存命中时返回 true。
+func is_preloaded_scene_fixed(path: String) -> bool:
+	return _fixed_preloaded_scenes.has(path)
 
 
 ## 获取正在预加载的场景路径列表。
@@ -310,12 +425,18 @@ func get_scene_cache_debug_snapshot() -> Dictionary:
 	return {
 		"is_loading": _is_loading,
 		"target_path": _target_path,
+		"loading_progress": _active_loading_progress,
+		"loading_scene_path": _loading_scene_path,
 		"current_scene": _get_current_scene_path(),
 		"previous_scene": _previous_scene_path,
 		"preload_cache": {
-			"size": _preloaded_scenes.size(),
+			"size": _fixed_preloaded_scenes.size() + _preloaded_scenes.size(),
 			"max_size": max_preloaded_scene_resources,
-			"paths": _get_sorted_string_keys(_preloaded_scenes),
+			"fixed_size": _fixed_preloaded_scenes.size(),
+			"temporary_size": _preloaded_scenes.size(),
+			"fixed_paths": _get_sorted_string_keys(_fixed_preloaded_scenes),
+			"temporary_paths": _get_sorted_string_keys(_preloaded_scenes),
+			"paths": _get_all_preloaded_scene_paths(),
 		},
 		"preloading": {
 			"size": preloading_paths.size(),
@@ -335,6 +456,37 @@ func get_scene_resource_state(path: String) -> int:
 	if is_scene_preloaded(path):
 		return SceneResourceState.PRELOADED
 	return SceneResourceState.NOT_LOADED
+
+
+## 获取当前异步加载进度。
+## @return 当前加载进度，未加载时为 0。
+func get_loading_progress() -> float:
+	return _active_loading_progress
+
+
+## 获取单个场景资源的缓存与加载信息。
+## @param path: 场景路径。
+## @return 场景资源状态字典。
+func get_scene_resource_info(path: String) -> Dictionary:
+	var request := _preload_requests.get(path, {}) as Dictionary
+	var progress := 0.0
+	if _is_loading and _target_path == path:
+		progress = _active_loading_progress
+	elif request != null and not request.is_empty():
+		progress = float(request.get("progress", 0.0))
+	elif is_scene_preloaded(path):
+		progress = 1.0
+	return {
+		"path": path,
+		"exists": ResourceLoader.exists(path),
+		"state": get_scene_resource_state(path),
+		"is_loading": _is_loading and _target_path == path,
+		"is_preloading": is_scene_preloading(path),
+		"is_preloaded": is_scene_preloaded(path),
+		"is_fixed_cache": is_preloaded_scene_fixed(path),
+		"progress": progress,
+		"file_size_bytes": _get_resource_file_size(path),
+	}
 
 
 ## 标记一个脚本类型为瞬态实例。
@@ -386,7 +538,7 @@ func _poll_active_scene_load() -> void:
 	match status:
 		ResourceLoader.THREAD_LOAD_IN_PROGRESS:
 			var ratio: float = progress[0] if progress.size() > 0 else 0.0
-			scene_load_progress.emit(_target_path, ratio)
+			_emit_scene_load_progress(_target_path, ratio)
 
 		ResourceLoader.THREAD_LOAD_LOADED:
 			var loaded_path := _target_path
@@ -407,7 +559,7 @@ func _poll_active_preload_scene() -> void:
 	if not _preload_requests.has(_target_path):
 		var cached_scene := get_preloaded_scene(_target_path)
 		if cached_scene != null:
-			scene_load_progress.emit(_target_path, 1.0)
+			_emit_scene_load_progress(_target_path, 1.0)
 			_complete_loading(_target_path, cached_scene)
 		else:
 			_fail_loading(_target_path, "[GFSceneUtility] 场景预加载未完成：%s" % _target_path)
@@ -418,7 +570,7 @@ func _poll_active_preload_scene() -> void:
 		_fail_loading(_target_path, "[GFSceneUtility] 场景预加载已取消：%s" % _target_path)
 		return
 
-	scene_load_progress.emit(_target_path, float(request.get("progress", 0.0)))
+	_emit_scene_load_progress(_target_path, float(request.get("progress", 0.0)))
 
 
 func _poll_preload_requests() -> void:
@@ -451,7 +603,7 @@ func _poll_preload_requests() -> void:
 				if scene == null:
 					scene_preload_failed.emit(path)
 					continue
-				put_preloaded_scene(path, scene)
+				put_preloaded_scene(path, scene, bool(request.get("fixed", false)))
 				scene_preload_completed.emit(path, scene)
 
 			ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
@@ -469,6 +621,8 @@ func _begin_loading_state(path: String, loading_scene_path: String, should_cache
 	_previous_pause_state = _get_paused()
 	_previous_scene_path = _get_current_scene_path()
 	_is_showing_loading_scene = false
+	_loading_scene_exit_notified = false
+	_active_loading_progress = 0.0
 	_set_paused(true)
 
 
@@ -494,13 +648,67 @@ func _show_loading_scene_if_needed() -> void:
 	var loading_error := _do_change_scene_sync(_loading_scene_path)
 	if loading_error == OK:
 		_is_showing_loading_scene = true
+		loading_scene_shown.emit(_loading_scene_path)
+		_call_loading_scene_optional_method(loading_screen_fade_in_method)
 	else:
 		push_error("[GFSceneUtility] 无法切换到 loading scene：%s (错误码：%d)" % [_loading_scene_path, loading_error])
 
 
+func _emit_scene_load_progress(path: String, progress: float) -> void:
+	_active_loading_progress = clampf(progress, 0.0, 1.0)
+	scene_load_progress.emit(path, _active_loading_progress)
+	_call_loading_scene_progress_method(_active_loading_progress)
+
+
+func _notify_loading_scene_exit_if_needed() -> void:
+	if not _is_showing_loading_scene or _loading_scene_exit_notified:
+		return
+
+	_loading_scene_exit_notified = true
+	_call_loading_scene_optional_method(loading_screen_fade_out_method)
+	loading_scene_hidden.emit(_loading_scene_path)
+
+
+func _call_loading_scene_progress_method(progress: float) -> void:
+	if not _is_showing_loading_scene:
+		return
+
+	var loading_scene := _get_loading_scene_node()
+	if loading_scene == null:
+		return
+	if loading_screen_progress_method != &"" and loading_scene.has_method(loading_screen_progress_method):
+		loading_scene.call(loading_screen_progress_method, progress)
+		return
+	if loading_screen_progress_fallback_method != &"" and loading_scene.has_method(loading_screen_progress_fallback_method):
+		loading_scene.call(loading_screen_progress_fallback_method, progress)
+
+
+func _call_loading_scene_optional_method(method_name: StringName) -> void:
+	if method_name == &"":
+		return
+
+	var loading_scene := _get_loading_scene_node()
+	if loading_scene != null and loading_scene.has_method(method_name):
+		loading_scene.call(method_name)
+
+
+func _get_loading_scene_node() -> Node:
+	if not _is_showing_loading_scene:
+		return null
+
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if scene_tree == null:
+		return null
+	return scene_tree.current_scene
+
+
 func _complete_loading(path: String, scene: PackedScene) -> void:
+	var previous_path := _previous_scene_path
+	_notify_loading_scene_exit_if_needed()
 	if _do_change_scene(scene):
+		_is_showing_loading_scene = false
 		scene_load_completed.emit(path, scene)
+		scene_switch_completed.emit(path, previous_path)
 		_set_paused(_previous_pause_state)
 		_reset_loading_state()
 	else:
@@ -555,8 +763,12 @@ func _fail_loading(path: String, message: String) -> void:
 	if not message.is_empty():
 		push_error(message)
 
+	var previous_path := _previous_scene_path
 	scene_load_failed.emit(path)
+	scene_switch_failed.emit(path, previous_path, message)
+	_notify_loading_scene_exit_if_needed()
 	_restore_previous_scene_if_needed()
+	_is_showing_loading_scene = false
 	_set_paused(_previous_pause_state)
 	_reset_loading_state()
 
@@ -599,8 +811,10 @@ func _reset_loading_state() -> void:
 	_loading_scene_path = ""
 	_previous_scene_path = ""
 	_is_showing_loading_scene = false
+	_loading_scene_exit_notified = false
 	_active_load_uses_preload_request = false
 	_active_load_cache_loaded_scene = true
+	_active_loading_progress = 0.0
 
 
 func _get_current_scene_path() -> String:
@@ -643,3 +857,24 @@ func _get_sorted_string_keys(data: Dictionary) -> PackedStringArray:
 		result.append(String(key))
 	result.sort()
 	return result
+
+
+func _get_all_preloaded_scene_paths() -> PackedStringArray:
+	var result := _get_sorted_string_keys(_fixed_preloaded_scenes)
+	for path: String in _get_sorted_string_keys(_preloaded_scenes):
+		if not result.has(path):
+			result.append(path)
+	result.sort()
+	return result
+
+
+func _get_resource_file_size(path: String) -> int:
+	if path.is_empty() or path.begins_with("uid://") or not FileAccess.file_exists(path):
+		return -1
+
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return -1
+	var size := file.get_length()
+	file.close()
+	return size

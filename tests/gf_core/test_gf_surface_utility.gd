@@ -15,6 +15,16 @@ func test_surface_index_maps_across_mesh_surfaces() -> void:
 	assert_eq(utility.get_surface_index(mesh_instance, 2), -1, "超出范围的 face index 应返回 -1。")
 
 
+func test_surface_index_maps_unindexed_mesh_surfaces() -> void:
+	var utility := GFSurfaceUtilityBase.new()
+	var mesh_instance := _make_two_surface_mesh_instance(false)
+	add_child_autofree(mesh_instance)
+
+	assert_eq(utility.get_surface_index(mesh_instance, 0), 0, "无索引 surface 的第一个三角面应映射到 surface 0。")
+	assert_eq(utility.get_surface_index(mesh_instance, 1), 1, "无索引 surface 的第二个三角面应映射到 surface 1。")
+	assert_eq(utility.get_surface_index(mesh_instance, 2), -1, "无索引 surface 超出范围时应返回 -1。")
+
+
 func test_surface_utility_returns_base_override_and_active_materials() -> void:
 	var utility := GFSurfaceUtilityBase.new()
 	var mesh_instance := _make_two_surface_mesh_instance()
@@ -53,17 +63,17 @@ func test_surface_utility_cache_can_be_cleared() -> void:
 	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 0, "clear_cache 后缓存应为空。")
 
 
-func _make_two_surface_mesh_instance() -> MeshInstance3D:
+func _make_two_surface_mesh_instance(use_indices: bool = true) -> MeshInstance3D:
 	var mesh := ArrayMesh.new()
-	_add_triangle_surface(mesh, Vector3.ZERO, _make_material(Color.RED))
-	_add_triangle_surface(mesh, Vector3(4.0, 0.0, 0.0), _make_material(Color.BLUE))
+	_add_triangle_surface(mesh, Vector3.ZERO, _make_material(Color.RED), use_indices)
+	_add_triangle_surface(mesh, Vector3(4.0, 0.0, 0.0), _make_material(Color.BLUE), use_indices)
 
 	var mesh_instance := MeshInstance3D.new()
 	mesh_instance.mesh = mesh
 	return mesh_instance
 
 
-func _add_triangle_surface(mesh: ArrayMesh, offset: Vector3, material: Material) -> void:
+func _add_triangle_surface(mesh: ArrayMesh, offset: Vector3, material: Material, use_indices: bool = true) -> void:
 	var arrays := []
 	arrays.resize(Mesh.ARRAY_MAX)
 	arrays[Mesh.ARRAY_VERTEX] = PackedVector3Array([
@@ -71,7 +81,8 @@ func _add_triangle_surface(mesh: ArrayMesh, offset: Vector3, material: Material)
 		offset + Vector3(1.0, 0.0, 0.0),
 		offset + Vector3(0.0, 1.0, 0.0),
 	])
-	arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
+	if use_indices:
+		arrays[Mesh.ARRAY_INDEX] = PackedInt32Array([0, 1, 2])
 	mesh.add_surface_from_arrays(Mesh.PRIMITIVE_TRIANGLES, arrays)
 	mesh.surface_set_material(mesh.get_surface_count() - 1, material)
 

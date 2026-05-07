@@ -10,6 +10,8 @@ const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capabili
 const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_control_capability.gd")
 const GF_CAPABILITY_UTILITY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_utility.gd")
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/gf_capability_container.gd")
+const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe.gd")
+const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe_entry.gd")
 const GF_INTERACTION_CONTEXT_BASE := preload("res://addons/gf/extensions/interaction/gf_interaction_context.gd")
 const GF_INTERACTIONS_BASE := preload("res://addons/gf/extensions/interaction/gf_interactions.gd")
 const GF_PROPERTY_BAG_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_property_bag_capability.gd")
@@ -529,6 +531,41 @@ func test_inspect_invalid_receiver_returns_error_report() -> void:
 	assert_eq(report["error"], "Receiver is invalid.", "无效 receiver 应返回错误原因。")
 
 
+func test_capability_recipe_applies_entries_and_groups() -> void:
+	var receiver := RefCounted.new()
+	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
+	recipe.recipe_id = &"test_recipe"
+	recipe.groups = [&"targets"]
+	var entry := GF_CAPABILITY_RECIPE_ENTRY_BASE.new()
+	entry.capability_type = ActiveCapability
+	entry.active = false
+	recipe.entries = [entry]
+
+	var result: Dictionary = _utility.apply_recipe(receiver, recipe)
+
+	assert_true(bool(result["ok"]), "有效 Recipe 应应用成功。")
+	assert_true(_utility.has_capability(receiver, ActiveCapability), "Recipe 应挂载能力。")
+	assert_false(_utility.is_capability_active(receiver, ActiveCapability), "Recipe 应应用默认启停状态。")
+	assert_true(_utility.get_receivers_in_group(&"targets").has(receiver), "Recipe 应添加分组。")
+
+	var removed: Dictionary = _utility.remove_recipe(receiver, recipe)
+
+	assert_true(bool(removed["ok"]), "移除 Recipe 应成功。")
+	assert_false(_utility.has_capability(receiver, ActiveCapability), "remove_recipe 应移除能力。")
+	assert_false(_utility.get_receivers_in_group(&"targets").has(receiver), "remove_recipe 应移除分组。")
+
+
+func test_capability_recipe_validation_reports_invalid_entries() -> void:
+	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
+	recipe.entries = [GF_CAPABILITY_RECIPE_ENTRY_BASE.new()]
+
+	var report: Dictionary = recipe.validate_recipe()
+
+	assert_false(bool(report["ok"]), "无效条目应使 Recipe 校验失败。")
+	assert_true(_has_issue(report, "invalid_entry"), "Recipe 校验应报告 invalid_entry。")
+	assert_false(String(report["next_action"]).is_empty(), "Recipe 校验应提供下一步建议。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_counting_capability_scene() -> PackedScene:
@@ -546,3 +583,11 @@ func _find_capability_report_with_dependencies(report: Dictionary) -> Dictionary
 		if dependencies.size() > 0:
 			return entry
 	return {}
+
+
+func _has_issue(report: Dictionary, kind: String) -> bool:
+	for issue_variant: Variant in report.get("issues", []):
+		var issue := issue_variant as Dictionary
+		if issue != null and String(issue.get("kind", "")) == kind:
+			return true
+	return false

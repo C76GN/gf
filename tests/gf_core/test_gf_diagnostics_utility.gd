@@ -60,3 +60,27 @@ func test_diagnostics_collects_architecture_snapshot() -> void:
 	assert_true(architecture.has("utilities"), "架构快照应包含 Utility 状态。")
 
 	arch.dispose()
+
+
+## 验证诊断监控注册表可采样、预设和导出。
+func test_diagnostics_monitor_registry_collects_custom_monitor() -> void:
+	var diagnostics := GFDiagnosticsUtility.new()
+	diagnostics.init()
+	var provider := func() -> int:
+		return 7
+
+	assert_true(diagnostics.register_monitor(&"test.value", provider, {
+		"label": "Value",
+		"group": "Tests",
+	}), "有效监控项应注册成功。")
+	assert_true(diagnostics.register_monitor_preset(&"test", PackedStringArray(["test.value"])), "监控预设应注册成功。")
+
+	var snapshot := diagnostics.collect_monitor_snapshot(PackedStringArray(["test.value"]))
+	var monitors := snapshot["monitors"] as Dictionary
+	var sample := monitors[&"test.value"] as Dictionary
+	var preset_snapshot := diagnostics.collect_monitor_preset(&"test")
+	var exported_text := diagnostics.export_monitor_snapshot(preset_snapshot, &"text")
+
+	assert_eq(sample["value"], 7, "监控快照应包含 provider 返回值。")
+	assert_eq(preset_snapshot["preset_id"], &"test", "预设快照应记录预设 id。")
+	assert_true("Value" in exported_text, "文本导出应包含监控标签。")

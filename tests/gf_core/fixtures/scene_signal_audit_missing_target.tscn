@@ -1,0 +1,7 @@
+[gd_scene format=3]
+
+[node name="Root" type="Node"]
+
+[node name="Button" type="Button" parent="."]
+
+[connection signal="pressed" from="Button" to="MissingReceiver" method="on_pressed"]

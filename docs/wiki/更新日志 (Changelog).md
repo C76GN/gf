@@ -18,7 +18,118 @@
 
 ## 维护策略
 
-本页面只保留最近三个大版本线的更新记录，当前保留 `1.24.x`、`1.23.x` 与 `1.22.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个大版本线的更新记录，当前保留 `1.25.x`、`1.24.x` 与 `1.23.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [1.25.0] - 2026-05-08
+
+**版本概述**：增强运行时调试、日志、本地多人输入、场景切换、存档图健康检查、流程图编辑器辅助、能力组合与开发期维护基础设施，在保持旧调用兼容的前提下，为常用框架能力补充更通用的验证、监控和组合入口。
+
+### 🚀 新增特性 (Added)
+- **结构化日志上下文**：`GFLogUtility` 各等级日志方法和 `log()` 可附加 `Dictionary` 上下文，日志条目会保留 `context`、`level_name`、`text`、时间戳等结构化字段。
+- **日志 Sink 扩展点**：新增 `GFLogSink` 基类，项目可通过 `add_sink()` 接入 JSONL、编辑器面板、本地诊断或其他自定义采集目标。
+- **JSONL 日志 Sink**：新增 `GFJsonLineLogSink`，可把结构化日志条目写入一行一个 JSON 对象的本地文件，便于测试、诊断工具和离线分析读取。
+- **结构化日志信号**：`GFLogUtility` 新增 `log_entry_emitted(entry)`，在保留 `log_emitted(level, tag, message)` 的同时广播完整条目。
+- **控制台窗口模式**：`GFConsoleUtility` 新增可配置窗口模式，支持拖拽、缩放、背景透明度、初始尺寸比例、最小尺寸、层级和 debug-only 创建策略。
+- **调试覆盖层 Watch**：`GFDebugOverlayUtility` 新增通用运行时 watch API，可显示项目主动推送或由 provider 拉取的小型调试值，不要求这些值进入 `GFModel`。
+- **诊断监控注册表**：`GFDiagnosticsUtility` 新增 monitor / preset 机制，可采集内置性能、架构和项目自定义监控项，并导出 JSON、文本或 CSV。
+- **存档图健康报告**：`GFSaveGraphUtility.inspect_scope()` 与 `validate_payload_for_scope()` 报告新增健康摘要、错误/警告计数、issue 统计和 `next_action`，并提供 `build_scope_health_report()` / `build_payload_health_report()` 语义入口。
+- **场景缓存分层与 Loading 协议**：`GFSceneUtility` 支持固定预加载缓存、场景资源信息快照、加载进度查询、切换流程信号和 loading scene 可选 `fade_in` / `fade_out` / `set_progress` / `update_progress` 协议。
+- **流程图编辑器辅助**：`GFFlowNode` 新增显示名、分类和编辑器布局元数据，`GFFlowGraph` 新增编辑器目录、编辑器报告和 Inspector 校验辅助。
+- **能力组合 Recipe**：新增 `GFCapabilityRecipe` 与 `GFCapabilityRecipeEntry`，`GFCapabilityUtility` 可按 Recipe 批量应用或移除能力和分组。
+- **输入配置 Profile Bank**：新增 `GFInputProfileBank`，用于保存、切换和复制多个命名 `GFInputRemapConfig`，不绑定账号、UI、存档槽或玩家业务语义。
+- **本地加入输入与手柄反馈**：`GFInputDeviceUtility` 新增 join 输入模板、玩家加入请求信号，以及按玩家席位转发手柄震动的薄封装。
+- **场景信号连接审计**：新增 `GFSceneSignalAudit`，可在开发期扫描 `.tscn` 中保存的编辑器信号连接，报告缺失节点、缺失信号、缺失方法和参数数量不匹配。
+
+### 🔄 机制更改 (Changed)
+- **日志输出链路统一**：低于 `min_level` 或被 tag 静音的日志不会写文件、进入内存缓存、写入 sink 或发出日志信号；`*_lazy()` 现在也会延迟构造可选上下文。
+- **控制台默认兼容**：`GFConsoleUtility.windowed` 默认仍为 `false`，保持原全屏覆盖行为；只有显式启用时才使用窗口面板。
+- **输入扩展保持 opt-in**：join 输入默认不启用，只有项目填充 `join_events` 或调用 `configure_default_join_events()` 后才会响应加入请求。
+- **Debug Overlay 可消费诊断预设**：注册 `GFDiagnosticsUtility` 时，Debug Overlay 默认合并显示 `overlay` 监控预设；项目可切换预设或关闭该行为。
+- **表面材质查询轻量化**：`GFSurfaceUtility` 优先从 Mesh surface arrays 统计面数，减少材质查询前的几何分析开销，并保留兼容回退路径。
+
+### 🐛 Bug 修复 (Fixed)
+- **Debug Overlay 兼容性**：改用内部 BBCode 转义逻辑，避免 Godot 4.6 中缺失 `String.escape_bbcode()` 导致脚本解析失败，并在释放时先停用 overlay 回调，避免销毁期间访问已释放架构。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFLogSink`。
+- 新增 `GFJsonLineLogSink`。
+- 新增 `GFInputProfileBank`。
+- 新增 `GFSceneSignalAudit`。
+- 新增 `GFCapabilityRecipe`。
+- 新增 `GFCapabilityRecipeEntry`。
+- `GFJsonLineLogSink` 提供 `file_path`、`omit_formatted_text`、`flush_interval_msec`、`flush_immediately`、`max_jsonl_files` 与 `get_file_path()`。
+- `GFInputProfileBank` 提供 `set_profile()`、`ensure_profile()`、`get_profile()`、`has_profile()`、`remove_profile()`、`get_profile_ids()`、`clear_profiles()`、`set_active_profile()`、`get_active_profile()` 与 `duplicate_bank()`。
+- `GFSceneSignalAudit` 提供 `audit_directory()`、`audit_scene_paths()`、`audit_scene()` 与 `collect_scene_paths()`。
+- 新增 `GFLogUtility.log_entry_emitted(entry: Dictionary)`。
+- 新增 `GFLogUtility.add_sink(sink)`、`remove_sink(sink, shutdown := true)`、`clear_sinks(shutdown := true)`、`get_sinks()`、`flush_sinks()`、`get_log_file_path()`。
+- `GFLogUtility.debug/info/warn/error/fatal/log()` 新增可选 `context: Dictionary = {}` 参数；旧调用保持可用。
+- `GFLogUtility.*_lazy()` 新增可选 `context_builder: Callable = Callable()` 参数；旧调用保持可用。
+- 新增 `GFConsoleUtility.background_alpha`、`windowed`、`initial_window_size_ratio`、`minimum_window_size`、`keep_topmost`、`debug_only`。
+- 新增 `GFDebugOverlayUtility.watch_value()`、`push_watch_value()`、`remove_watch()`、`clear_watches()`、`has_watch()` 与 `get_watch_snapshot()`。
+- 新增 `GFDebugOverlayUtility.include_diagnostics_monitors`、`diagnostics_monitor_preset` 与 `set_diagnostics_monitor_preset()`。
+- 新增 `GFDiagnosticsUtility.monitor_sampled`、`register_monitor()`、`unregister_monitor()`、`has_monitor()`、`get_monitor_catalog()`、`register_monitor_preset()`、`unregister_monitor_preset()`、`has_monitor_preset()`、`get_monitor_preset_ids()`、`collect_monitor_snapshot()`、`collect_monitor_preset()` 与 `export_monitor_snapshot()`。
+- 新增 `GFSaveGraphUtility.build_scope_health_report()` 与 `build_payload_health_report()`；`inspect_scope()` / `validate_payload_for_scope()` 返回值新增 `healthy`、`error_count`、`warning_count`、`issue_counts_by_kind`、`summary`、`next_action`。
+- 新增 `GFSceneUtility.scene_switch_started`、`scene_switch_completed`、`scene_switch_failed`、`loading_scene_shown`、`loading_scene_hidden`、`scene_cache_added`、`scene_cache_removed`。
+- `GFSceneUtility.preload_scene()`、`preload_scenes()`、`put_preloaded_scene()`、`clear_preloaded_scenes()` 新增兼容可选参数；新增 `move_preloaded_scene_to_fixed()`、`move_preloaded_scene_to_temporary()`、`is_preloaded_scene_fixed()`、`get_loading_progress()` 与 `get_scene_resource_info()`。
+- 新增 `GFSceneTransitionConfig.preload_as_fixed_cache`。
+- 新增 `GFFlowNode.display_name`、`category`、`editor_position`、`editor_size`、`editor_collapsed`、`get_display_name()` 与 `describe_editor()`。
+- 新增 `GFFlowGraph.editor_groups`、`editor_metadata`、`set_node_editor_position()`、`set_node_editor_layout()`、`get_editor_catalog()` 与 `build_editor_report()`。
+- 新增 `GFCapabilityUtility.apply_recipe()` 与 `remove_recipe()`。
+- 新增 `GFInputDeviceUtility.player_join_requested(player_index, assignment, event)`。
+- 新增 `GFInputDeviceUtility.join_events` 与 `auto_assign_devices_on_join`。
+- 新增 `GFInputDeviceUtility.handle_join_input_event()`、`is_join_input_event()`、`configure_default_join_events()`、`clear_join_events()`、`start_vibration_for_player()` 与 `stop_vibration_for_player()`。
+- 无破坏性函数签名变更。
+
+### 📘 升级指南 (Migration Guide)
+1. 旧日志调用无需修改；需要结构化字段时，把上下文作为最后一个参数传入即可。
+2. 自定义日志 sink 应继承 `GFLogSink`，并把 sink 视为输出目标，不要在 sink 内反向持有业务生命周期。
+3. 控制台仍默认全屏；需要边运行边观察时设置 `windowed = true`，发布构建可按项目策略设置 `debug_only = true` 或不注册该工具。
+4. Debug Overlay 仍会反射已注册 `GFModel`；项目只在需要观察非 Model 临时值时额外注册 watch，避免把业务字段或敏感信息默认暴露到覆盖层。
+5. 需要更稳定的运行时调试面板时，优先把通用指标注册为 `GFDiagnosticsUtility` monitor，再让 Overlay、控制台或编辑器工具按预设消费；不要把一次性业务字段硬塞进框架内置 monitor。
+6. 需要多套输入重映射配置时，可把现有 `GFInputRemapConfig` 放入 `GFInputProfileBank`；旧的单配置调用方式保持可用。
+7. 本地多人加入流程应显式配置 join 输入模板，并在收到 `player_join_requested` 后由项目层决定 UI、角色、队伍或出生点。
+8. `GFSceneSignalAudit` 和 SaveGraph 当前场景校验都是可选开发期工具，不需要注册到 `GFArchitecture`；项目可在 CI、编辑器按钮或维护脚本中按需调用。
+9. 需要实体能力预设时，用 `GFCapabilityRecipe` 描述组合结构，把具体数值、目标规则和表现逻辑继续放在项目能力资源或项目系统中。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/utilities/gf_log_sink.gd`
+- `addons/gf/utilities/gf_json_line_log_sink.gd`
+- `addons/gf/utilities/gf_log_utility.gd`
+- `addons/gf/utilities/gf_console_utility.gd`
+- `addons/gf/utilities/gf_debug_overlay_utility.gd`
+- `addons/gf/utilities/gf_diagnostics_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_scene_transition_config.gd`
+- `addons/gf/extensions/save/gf_save_graph_utility.gd`
+- `addons/gf/extensions/flow/gf_flow_node.gd`
+- `addons/gf/extensions/flow/gf_flow_graph.gd`
+- `addons/gf/extensions/capability/gf_capability_recipe.gd`
+- `addons/gf/extensions/capability/gf_capability_recipe_entry.gd`
+- `addons/gf/extensions/capability/gf_capability_utility.gd`
+- `addons/gf/editor/gf_flow_graph_inspector_plugin.gd`
+- `addons/gf/utilities/gf_input_device_utility.gd`
+- `addons/gf/utilities/gf_surface_utility.gd`
+- `addons/gf/input/gf_input_profile_bank.gd`
+- `addons/gf/editor/gf_scene_signal_audit.gd`
+- `tests/gf_core/test_gf_log_utility.gd`
+- `tests/gf_core/test_gf_console_utility.gd`
+- `tests/gf_core/test_gf_debug_overlay_utility.gd`
+- `tests/gf_core/test_gf_diagnostics_utility.gd`
+- `tests/gf_core/test_gf_scene_utility.gd`
+- `tests/gf_core/test_gf_save_graph_utility.gd`
+- `tests/gf_core/test_gf_flow_graph.gd`
+- `tests/gf_core/test_gf_capability_utility.gd`
+- `tests/gf_core/test_gf_input_device_utility.gd`
+- `tests/gf_core/test_gf_surface_utility.gd`
+- `tests/gf_core/test_gf_input_profile_bank.gd`
+- `tests/gf_core/test_gf_scene_signal_audit.gd`
+- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `docs/wiki/12. 能力组件 (Capabilities).md`
+- `docs/wiki/01. 架构概览 (Architecture).md`
+- `docs/wiki/更新日志 (Changelog).md`
 
 ---
 
@@ -491,105 +602,3 @@
 - `tests/gf_core/test_gf_time_utility.gd`
 - `tests/gf_core/test_gf_asset_utility.gd`
 - `tests/gf_core/test_gf_object_pool_utility.gd`
-
-## [1.22.0] - 2026-05-01
-
-**版本概述**：围绕开发期诊断、流程图协议、网络后端、输入重绑定检查和通用领域数据继续补强框架横向能力。新增能力均以独立工具、可选后端、资源描述或纯数据结构提供，不把任何项目业务、玩法节点或同步规则写入 GF。
-
-### 🚀 新增特性 (Added)
-- **存档图诊断**：`GFSaveGraphUtility` 新增 `inspect_scope()` 与 `validate_payload_for_scope()`，可提前检查重复 Source/Scope key、缺失目标、无匹配序列化器和载荷缺失项。
-- **输入冲突分析**：新增 `GFInputConflictAnalyzer`，支持读取 `GFInputContext` 与可选 `GFInputRemapConfig`，用于改键界面或编辑器检查有效绑定冲突。
-- **输入重绑定报告**：`GFInputConflictAnalyzer` 新增 `build_rebind_report()`，可一次返回上下文数量、有效绑定条目和冲突列表，便于设置界面与编辑器工具消费。
-- **流程图端口与连接协议**：新增 `GFFlowPort`；`GFFlowNode` 新增输入/输出端口与元数据描述；`GFFlowGraph` 新增连接表、图描述和结构校验。
-- **流程图连接执行**：`GFFlowRunner` 可在节点未指定 `next_node_ids` 且上下文未显式覆盖后继时，使用 `GFFlowGraph.connections` 推进后续节点。
-- **默认节点序列化器扩展**：默认注册表新增 `GFNodeTimerSerializer`、`GFNodeAnimationPlayerSerializer` 与 `GFNodeAudioStreamPlayerSerializer`，覆盖更多 Godot 通用节点状态。
-- **ENet 网络后端**：新增 `GFENetNetworkBackend`，作为 `GFNetworkBackend` 的可选实现，提供 host/connect/send/poll 的 bytes 传输边界。
-- **网络会话与通道描述**：新增 `GFNetworkSession`、`GFNetworkChannel` 与 `GFNetworkMessageValidator`；`GFNetworkUtility` 支持频道发送、消息校验、会话状态与更完整调试快照。
-- **运行时诊断工具**：新增 `GFDiagnosticsUtility`，聚合架构生命周期、事件系统、性能监视器、日志缓存和可选网络状态，并支持注册诊断命令。
-- **诊断命令治理**：`GFDiagnosticsUtility` 新增命令等级、认证 token、危险命令开关与命令目录，便于开发期诊断桥接保持可控。
-- **通用通知队列**：新增 `GFNotificationUtility`，提供通知入队、去重、时长推进和生命周期信号，不规定任何 UI 样式。
-- **资源化控制台命令定义**：新增 `GFConsoleCommandDefinition`，`GFConsoleUtility` 支持从资源定义注册主命令与别名。
-- **节点状态守卫与黑板**：`GFNodeState` 新增进入/退出守卫；`GFNodeStateGroup` 新增共享 `blackboard` 与 `transition_blocked` 信号。
-- **通用属性集合**：新增 `GFAttributeSet`，提供可序列化数值属性、上下限、当前值调整、元数据和可选 `GFTraitSet` 计算入口。
-
-### 🔄 机制更改 (Changed)
-- **流程图数据描述增强**：`GFFlowNode` 仍保持执行职责不变，但可携带端口与元数据；`GFFlowGraph` 负责连接校验，项目层仍决定端口数据和节点语义。
-- **上下文空后继语义收敛**：`GFFlowContext.set_next_nodes(PackedStringArray())` 现在会被视为显式停止推进，不再与“没有覆盖”混淆。
-- **网络后端边界增强**：现有项目自定义后端不受影响；网络会话、频道和校验只描述传输元信息，不改变项目消息协议或同步规则。
-- **诊断能力集中化与治理**：日志、架构生命周期、事件系统和网络状态可通过 `GFDiagnosticsUtility` 聚合读取；可执行命令默认只允许观察类操作。
-- **存档默认覆盖面扩展**：默认序列化器覆盖更多 Godot 通用节点，但项目业务状态仍需项目层显式序列化。
-
-### 🔌 API 变动说明 (API Changes)
-- `GFSaveGraphUtility` 新增 `inspect_scope(scope: GFSaveScope, context: Dictionary = {}) -> Dictionary`。
-- `GFSaveGraphUtility` 新增 `validate_payload_for_scope(scope: GFSaveScope, payload: Dictionary, strict: bool = false) -> Dictionary`。
-- 新增 `GFInputConflictAnalyzer`，包含 `analyze_context()`、`analyze_contexts()`、`build_rebind_report()`、`collect_binding_items()`、`get_event_signature()` 与 `are_events_equivalent()`。
-- 新增 `GFFlowPort`。
-- `GFFlowNode` 新增 `input_ports`、`output_ports`、`metadata`、`get_input_ports()`、`get_output_ports()`、`get_input_port()`、`get_output_port()`、`describe_ports()` 与 `describe_node()`。
-- `GFFlowContext` 新增 `has_next_node_override` 与 `has_next_nodes_override()`。
-- `GFFlowGraph` 新增 `connections`、`add_connection()`、`remove_connection()`、`remove_connections_for_node()`、`has_connection()`、`get_connections_from()`、`get_connections_to()`、`get_connected_node_ids_from()`、`describe_graph()` 与 `validate_graph()`。
-- 新增 `GFNodeTimerSerializer`、`GFNodeAnimationPlayerSerializer` 与 `GFNodeAudioStreamPlayerSerializer`。
-- 新增 `GFENetNetworkBackend`。
-- 新增 `GFNetworkSession`、`GFNetworkChannel` 与 `GFNetworkMessageValidator`。
-- `GFNetworkUtility` 新增 `validator`、`session`、`register_channel()`、`unregister_channel()`、`get_channel()`、`get_channel_ids()`、`clear_channels()`、`send_message_on_channel()` 与 `message_rejected` 信号。
-- `GFNetworkBackend` 与 `GFNetworkUtility` 新增 `get_debug_snapshot()`。
-- 新增 `GFDiagnosticsUtility`。
-- `GFDiagnosticsUtility.register_command()` 新增可选 `tier` 参数；新增 `CommandTier`、`max_command_tier`、`require_auth_token`、`auth_token`、`allow_danger_commands`、`get_command_catalog()` 与 `set_auth_token()`。
-- 新增 `GFNotificationUtility`。
-- 新增 `GFConsoleCommandDefinition`；`GFConsoleUtility.register_command()` 新增可选 `metadata` 参数，新增 `register_command_definition()`。
-- `GFNodeState` 新增 `can_enter()`、`can_exit()`、`get_blackboard()`、`_can_enter()` 与 `_can_exit()`。
-- `GFNodeStateGroup` 新增 `blackboard`、`transition_blocked` 与 `get_blackboard()`。
-- 新增 `GFAttributeSet`。
-- 无破坏性 API 变更；旧项目不使用新增能力时无需修改现有调用。
-
-### 📘 升级指南 (Migration Guide)
-1. 旧项目可直接升级；新增类均为可选接入。
-2. 如果项目已有改键界面，可在保存覆盖前调用 `GFInputConflictAnalyzer.analyze_context()` 或 `analyze_contexts()`，冲突处理策略仍由项目层决定。
-3. 如果项目已有改键界面，可改用 `build_rebind_report()` 一次性获取有效绑定条目与冲突列表。
-4. 如果项目使用 `GFFlowGraph` 做可视化编辑，可逐步为自定义节点资源补充 `GFFlowPort` 与 `connections`；运行器仍兼容旧 `next_node_ids`。
-5. 如果项目需要直接使用 Godot ENet，可创建 `GFENetNetworkBackend` 并传给 `GFNetworkUtility.set_backend()`；房间、鉴权、同步对象和重连仍留在项目层。
-6. 如果项目需要区分可靠/不可靠或频道发送，可注册 `GFNetworkChannel` 后使用 `send_message_on_channel()`；后端仍可自行解释具体 options。
-7. 如果项目已有调试面板，可注册 `GFDiagnosticsUtility` 并读取 `collect_snapshot()`；需要执行控制类命令时显式提高 `max_command_tier`，生产构建建议保持默认观察等级。
-8. 如果项目需要通用通知入口，可注册 `GFNotificationUtility` 并监听 `notification_started` / `notification_finished` 渲染自己的 UI。
-9. 如果项目需要通用数值容器，可用 `GFAttributeSet` 管理属性当前值与范围，再按需要叠加 `GFTraitSet`；具体属性语义仍由项目层命名。
-
-### 📁 核心受影响文件 (Affected Files)
-- `ASSET_LIBRARY.md`
-- `README.md`
-- `addons/gf/README.md`
-- `addons/gf/plugin.cfg`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `docs/wiki/更新日志 (Changelog).md`
-- `addons/gf/extensions/domain/gf_attribute_set.gd`
-- `addons/gf/extensions/flow/gf_flow_graph.gd`
-- `addons/gf/extensions/flow/gf_flow_context.gd`
-- `addons/gf/extensions/flow/gf_flow_node.gd`
-- `addons/gf/extensions/flow/gf_flow_port.gd`
-- `addons/gf/extensions/flow/gf_flow_runner.gd`
-- `addons/gf/extensions/network/gf_network_channel.gd`
-- `addons/gf/extensions/network/gf_network_message_validator.gd`
-- `addons/gf/extensions/network/gf_network_session.gd`
-- `addons/gf/extensions/network/gf_enet_network_backend.gd`
-- `addons/gf/extensions/network/gf_network_backend.gd`
-- `addons/gf/extensions/network/gf_network_utility.gd`
-- `addons/gf/extensions/save/gf_node_animation_player_serializer.gd`
-- `addons/gf/extensions/save/gf_node_audio_stream_player_serializer.gd`
-- `addons/gf/extensions/save/gf_node_serializer_registry.gd`
-- `addons/gf/extensions/save/gf_node_timer_serializer.gd`
-- `addons/gf/extensions/save/gf_save_graph_utility.gd`
-- `addons/gf/extensions/state_machine/gf_node_state.gd`
-- `addons/gf/extensions/state_machine/gf_node_state_group.gd`
-- `addons/gf/utilities/gf_console_command_definition.gd`
-- `addons/gf/utilities/gf_console_utility.gd`
-- `addons/gf/input/gf_input_conflict_analyzer.gd`
-- `addons/gf/utilities/gf_diagnostics_utility.gd`
-- `addons/gf/utilities/gf_notification_utility.gd`
-- `tests/gf_core/test_gf_console_utility.gd`
-- `tests/gf_core/test_gf_diagnostics_utility.gd`
-- `tests/gf_core/test_gf_domain_extensions.gd`
-- `tests/gf_core/test_gf_flow_graph.gd`
-- `tests/gf_core/test_gf_input_mapping_utility.gd`
-- `tests/gf_core/test_gf_network_extension.gd`
-- `tests/gf_core/test_gf_node_state_machine.gd`
-- `tests/gf_core/test_gf_notification_utility.gd`
-- `tests/gf_core/test_gf_save_graph_utility.gd`

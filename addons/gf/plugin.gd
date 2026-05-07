@@ -21,6 +21,7 @@ enum GFMenuId {
 	GENERATE_NODE_STATE_MACHINE,
 	GENERATE_ACCESSORS,
 	GENERATE_PROJECT_ACCESSORS,
+	VALIDATE_SAVE_GRAPH,
 }
 
 
@@ -41,11 +42,15 @@ const PROJECT_ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_project_acc
 const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/editor/gf_access_generator.gd"
 const CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_capability_inspector_plugin.gd"
 const NODE_STATE_MACHINE_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_node_state_machine_inspector_plugin.gd"
+const FLOW_GRAPH_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_flow_graph_inspector_plugin.gd"
+const SAVE_GRAPH_UTILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_graph_utility.gd"
+const SAVE_SCOPE_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_scope.gd"
 const SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/utilities/gf_storage_codec.gd"
 const SAVE_VIEWER_FORMAT_JSON: int = 0
 const SAVE_VIEWER_FORMAT_BINARY: int = 1
 const SAVE_VIEWER_LABEL_WIDTH: float = 72.0
 const SAVE_VIEWER_OUTPUT_MIN_HEIGHT: float = 40.0
+const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
 
 
 # --- 私有变量 ---
@@ -54,6 +59,7 @@ var _file_dialog: FileDialog
 var _current_template_type: String = ""
 var _capability_inspector_plugin: EditorInspectorPlugin
 var _node_state_machine_inspector_plugin: EditorInspectorPlugin
+var _flow_graph_inspector_plugin: EditorInspectorPlugin
 var _save_viewer_dock: Control
 var _save_viewer_bottom_button: Button
 var _save_viewer_path_edit: LineEdit
@@ -65,6 +71,8 @@ var _save_viewer_strict_check: CheckBox
 var _save_viewer_status_label: Label
 var _save_viewer_output: TextEdit
 var _save_viewer_file_dialog: FileDialog
+var _diagnostic_dialog: AcceptDialog
+var _diagnostic_output: TextEdit
 var _gf_menu: PopupMenu
 var _plugin_active: bool = false
 
@@ -84,6 +92,7 @@ func _enter_tree() -> void:
 func _exit_tree() -> void:
 	_plugin_active = false
 	_remove_autoload()
+	_cleanup_diagnostic_dialog()
 	_cleanup_save_viewer_dock()
 	_cleanup_inspector_tools()
 	_cleanup_generator_tools()
@@ -220,6 +229,13 @@ func _setup_inspector_tools() -> void:
 	if _node_state_machine_inspector_plugin != null:
 		add_inspector_plugin(_node_state_machine_inspector_plugin)
 
+	_flow_graph_inspector_plugin = _load_inspector_plugin(
+		FLOW_GRAPH_INSPECTOR_PLUGIN_SCRIPT_PATH,
+		"流程图 Inspector"
+	)
+	if _flow_graph_inspector_plugin != null:
+		add_inspector_plugin(_flow_graph_inspector_plugin)
+
 
 func _setup_save_viewer_dock() -> void:
 	if not _plugin_active or is_instance_valid(_save_viewer_dock):
@@ -250,6 +266,9 @@ func _cleanup_inspector_tools() -> void:
 	if _node_state_machine_inspector_plugin != null:
 		remove_inspector_plugin(_node_state_machine_inspector_plugin)
 		_node_state_machine_inspector_plugin = null
+	if _flow_graph_inspector_plugin != null:
+		remove_inspector_plugin(_flow_graph_inspector_plugin)
+		_flow_graph_inspector_plugin = null
 
 
 func _cleanup_save_viewer_dock() -> void:
@@ -267,6 +286,13 @@ func _cleanup_save_viewer_dock() -> void:
 	_save_viewer_status_label = null
 	_save_viewer_output = null
 	_save_viewer_file_dialog = null
+
+
+func _cleanup_diagnostic_dialog() -> void:
+	if is_instance_valid(_diagnostic_dialog):
+		_diagnostic_dialog.queue_free()
+	_diagnostic_dialog = null
+	_diagnostic_output = null
 
 
 func _cleanup_generator_tools() -> void:
@@ -531,6 +557,89 @@ func _set_save_viewer_status(message: String, is_error: bool) -> void:
 		push_warning("[GF Save Viewer] " + message)
 
 
+func _validate_current_scene_save_graph() -> void:
+	var scene_root := EditorInterface.get_edited_scene_root()
+	if scene_root == null:
+		_show_diagnostic_dialog("GF SaveGraph Health", "当前没有正在编辑的场景。")
+		return
+
+	var scope_script := load(SAVE_SCOPE_SCRIPT_PATH) as Script
+	var utility_script := load(SAVE_GRAPH_UTILITY_SCRIPT_PATH) as Script
+	if scope_script == null or utility_script == null or not utility_script.can_instantiate():
+		_show_diagnostic_dialog("GF SaveGraph Health", "GF SaveGraph 诊断脚本不可用。")
+		return
+
+	var scopes: Array[Node] = []
+	_collect_save_scopes(scene_root, scope_script, scopes)
+	if scopes.is_empty():
+		_show_diagnostic_dialog("GF SaveGraph Health", "当前场景未找到 GFSaveScope。")
+		return
+
+	var utility: Variant = utility_script.new()
+	var lines := PackedStringArray()
+	lines.append("Scene: %s" % scene_root.scene_file_path)
+	lines.append("Scope count: %d" % scopes.size())
+	lines.append("")
+	for scope: Node in scopes:
+		var report: Dictionary = utility.inspect_scope(scope)
+		lines.append("[%s] %s" % [String(scope.get_path()), String(report.get("summary", ""))])
+		lines.append("Next: %s" % String(report.get("next_action", "")))
+		for issue_variant: Variant in report.get("issues", []):
+			var issue := issue_variant as Dictionary
+			if issue == null:
+				continue
+			lines.append("- %s %s %s: %s" % [
+				String(issue.get("severity", "")),
+				String(issue.get("kind", "")),
+				String(issue.get("path", "")),
+				String(issue.get("message", "")),
+			])
+		lines.append("")
+
+	_show_diagnostic_dialog("GF SaveGraph Health", "\n".join(lines))
+
+
+func _collect_save_scopes(node: Node, scope_script: Script, result: Array[Node]) -> void:
+	if node.get_script() == scope_script or _script_extends_or_equals(node.get_script() as Script, scope_script):
+		result.append(node)
+
+	for child: Node in node.get_children():
+		_collect_save_scopes(child, scope_script, result)
+
+
+func _show_diagnostic_dialog(title: String, text: String) -> void:
+	if not is_instance_valid(_diagnostic_dialog):
+		_diagnostic_dialog = AcceptDialog.new()
+		var dialog_min_size := Vector2i(
+			int(DIAGNOSTIC_DIALOG_MIN_SIZE.x),
+			int(DIAGNOSTIC_DIALOG_MIN_SIZE.y)
+		)
+		_diagnostic_dialog.min_size = dialog_min_size
+		_diagnostic_output = TextEdit.new()
+		_diagnostic_output.editable = false
+		_diagnostic_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		_diagnostic_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		_diagnostic_dialog.add_child(_diagnostic_output)
+		EditorInterface.get_base_control().add_child(_diagnostic_dialog)
+
+	_diagnostic_dialog.title = title
+	if is_instance_valid(_diagnostic_output):
+		_diagnostic_output.text = text
+	_diagnostic_dialog.popup_centered(Vector2i(
+		int(DIAGNOSTIC_DIALOG_MIN_SIZE.x),
+		int(DIAGNOSTIC_DIALOG_MIN_SIZE.y)
+	))
+
+
+func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
+	var current := candidate
+	while current != null:
+		if current == expected:
+			return true
+		current = current.get_base_script()
+	return false
+
+
 func _populate_gf_menu() -> void:
 	_gf_menu.add_separator("核心模块")
 	_gf_menu.add_item("生成 System", GFMenuId.GENERATE_SYSTEM)
@@ -550,6 +659,9 @@ func _populate_gf_menu() -> void:
 	_gf_menu.add_separator("代码生成")
 	_gf_menu.add_item("生成强类型访问器", GFMenuId.GENERATE_ACCESSORS)
 	_gf_menu.add_item("生成项目常量访问器", GFMenuId.GENERATE_PROJECT_ACCESSORS)
+
+	_gf_menu.add_separator("诊断")
+	_gf_menu.add_item("校验当前场景 SaveGraph", GFMenuId.VALIDATE_SAVE_GRAPH)
 
 
 func _on_gf_menu_id_pressed(id: int) -> void:
@@ -580,6 +692,8 @@ func _on_gf_menu_id_pressed(id: int) -> void:
 			_generate_accessors()
 		GFMenuId.GENERATE_PROJECT_ACCESSORS:
 			_generate_project_accessors()
+		GFMenuId.VALIDATE_SAVE_GRAPH:
+			_validate_current_scene_save_graph()
 
 
 func _get_template(type: String) -> String:

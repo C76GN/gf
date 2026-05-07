@@ -16,6 +16,12 @@ extends Resource
 ## 节点连接列表。连接结构为 from_node_id/from_port_id/to_node_id/to_port_id/metadata。
 @export var connections: Array[Dictionary] = []
 
+## 编辑器分组数据。结构由编辑器工具解释，运行时不读取。
+@export var editor_groups: Array[Dictionary] = []
+
+## 编辑器或项目工具的附加元数据。
+@export var editor_metadata: Dictionary = {}
+
 
 # --- 公共方法 ---
 
@@ -173,6 +179,78 @@ func get_connected_node_ids_from(node_id: StringName, port_id: StringName = &"")
 	return result
 
 
+## 设置节点编辑器位置。
+## @param node_id: 节点标识。
+## @param position: 编辑器坐标。
+## @return 设置成功返回 true。
+func set_node_editor_position(node_id: StringName, position: Vector2) -> bool:
+	var node := get_node(node_id)
+	if node == null:
+		return false
+	node.editor_position = position
+	return true
+
+
+## 设置节点编辑器布局。
+## @param node_id: 节点标识。
+## @param position: 编辑器坐标。
+## @param size: 编辑器尺寸；Vector2.ZERO 表示由编辑器自行决定。
+## @param collapsed: 是否折叠显示。
+## @return 设置成功返回 true。
+func set_node_editor_layout(
+	node_id: StringName,
+	position: Vector2,
+	size: Vector2 = Vector2.ZERO,
+	collapsed: bool = false
+) -> bool:
+	var node := get_node(node_id)
+	if node == null:
+		return false
+	node.editor_position = position
+	node.editor_size = size
+	node.editor_collapsed = collapsed
+	return true
+
+
+## 获取编辑器或可视化工具可消费的节点目录。
+## @return 节点目录字典。
+func get_editor_catalog() -> Dictionary:
+	var node_entries: Array[Dictionary] = []
+	var categories: Dictionary = {}
+	for node: GFFlowNode in nodes:
+		if node == null:
+			continue
+
+		var category := String(node.category)
+		if category.is_empty():
+			category = "Flow"
+		var entry := {
+			"node_id": node.node_id,
+			"display_name": node.get_display_name(),
+			"category": category,
+			"ports": node.describe_ports(),
+			"editor": node.describe_editor(),
+			"metadata": node.metadata.duplicate(true),
+		}
+		node_entries.append(entry)
+		if not categories.has(category):
+			categories[category] = []
+		(categories[category] as Array).append(entry)
+
+	node_entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_category := String(left.get("category", ""))
+		var right_category := String(right.get("category", ""))
+		if left_category != right_category:
+			return left_category < right_category
+		return String(left.get("display_name", "")) < String(right.get("display_name", ""))
+	)
+	return {
+		"node_count": node_entries.size(),
+		"nodes": node_entries,
+		"categories": categories,
+	}
+
+
 ## 描述流程图结构。
 ## @return 图描述字典。
 func describe_graph() -> Dictionary:
@@ -186,6 +264,10 @@ func describe_graph() -> Dictionary:
 		"nodes": node_descriptions,
 		"connection_count": connections.size(),
 		"connections": _describe_connections(),
+		"editor": {
+			"groups": editor_groups.duplicate(true),
+			"metadata": editor_metadata.duplicate(true),
+		},
 	}
 
 
@@ -194,7 +276,14 @@ func describe_graph() -> Dictionary:
 func validate_graph() -> Dictionary:
 	var report := {
 		"ok": true,
+		"healthy": true,
 		"node_count": nodes.size(),
+		"connection_count": connections.size(),
+		"error_count": 0,
+		"warning_count": 0,
+		"issue_counts_by_kind": {},
+		"summary": "",
+		"next_action": "",
 		"issues": [],
 	}
 	var node_ids: Dictionary = {}
@@ -227,10 +316,107 @@ func validate_graph() -> Dictionary:
 
 	_validate_connections(report, node_ids)
 	report["ok"] = _validation_has_no_error_issues(report)
-	return report
+	return _finalize_validation_report(report)
+
+
+## 构建面向编辑器和可视化工具的流程图报告。
+## @return 包含校验、目录和编辑器元数据的报告。
+func build_editor_report() -> Dictionary:
+	var validation := validate_graph()
+	return {
+		"ok": bool(validation.get("ok", false)),
+		"healthy": bool(validation.get("healthy", false)),
+		"summary": String(validation.get("summary", "")),
+		"next_action": String(validation.get("next_action", "")),
+		"validation": validation,
+		"catalog": get_editor_catalog(),
+		"editor": {
+			"groups": editor_groups.duplicate(true),
+			"metadata": editor_metadata.duplicate(true),
+		},
+	}
 
 
 # --- 私有/辅助方法 ---
+
+func _finalize_validation_report(report: Dictionary) -> Dictionary:
+	var error_count := 0
+	var warning_count := 0
+	var issue_counts_by_kind: Dictionary = {}
+	for issue_variant: Variant in report.get("issues", []):
+		var issue := issue_variant as Dictionary
+		if issue == null:
+			continue
+
+		var severity := String(issue.get("severity", ""))
+		var kind := String(issue.get("kind", "unknown"))
+		issue_counts_by_kind[kind] = int(issue_counts_by_kind.get(kind, 0)) + 1
+		if severity == "error":
+			error_count += 1
+		elif severity == "warning":
+			warning_count += 1
+
+	report["error_count"] = error_count
+	report["warning_count"] = warning_count
+	report["issue_counts_by_kind"] = issue_counts_by_kind
+	report["ok"] = error_count == 0
+	report["healthy"] = error_count == 0 and warning_count == 0
+	report["summary"] = _make_validation_summary(error_count, warning_count)
+	report["next_action"] = _get_next_action_for_validation_report(report)
+	return report
+
+
+func _make_validation_summary(error_count: int, warning_count: int) -> String:
+	if error_count > 0:
+		return "Flow graph has %d error(s) and %d warning(s)." % [error_count, warning_count]
+	if warning_count > 0:
+		return "Flow graph has %d warning(s)." % warning_count
+	return "Flow graph is healthy."
+
+
+func _get_next_action_for_validation_report(report: Dictionary) -> String:
+	var first_warning: Dictionary = {}
+	for issue_variant: Variant in report.get("issues", []):
+		var issue := issue_variant as Dictionary
+		if issue == null:
+			continue
+		if String(issue.get("severity", "")) == "error":
+			return _get_next_action_for_issue(issue)
+		if first_warning.is_empty() and String(issue.get("severity", "")) == "warning":
+			first_warning = issue
+
+	if not first_warning.is_empty():
+		return _get_next_action_for_issue(first_warning)
+	return "No action required."
+
+
+func _get_next_action_for_issue(issue: Dictionary) -> String:
+	match String(issue.get("kind", "")):
+		"null_node":
+			return "Remove the null entry or replace it with a valid GFFlowNode resource."
+		"empty_node_id":
+			return "Assign a stable node_id to every flow node."
+		"duplicate_node_id":
+			return "Rename one of the duplicated flow node ids."
+		"missing_start_node":
+			return "Set start_node_id to an existing node or leave it empty for manual runner selection."
+		"missing_next_node":
+			return "Create the referenced next node or remove it from next_node_ids."
+		"invalid_connection":
+			return "Fill both from_node_id and to_node_id for every flow connection."
+		"duplicate_connection":
+			return "Remove the duplicated flow connection."
+		"missing_connection_from_node":
+			return "Create the connection source node or remove the connection."
+		"missing_connection_to_node":
+			return "Create the connection target node or remove the connection."
+		"missing_connection_input_port", "missing_connection_output_port":
+			return "Update the connection port id or add the missing port to the node."
+		"input_port_allows_single_connection", "output_port_allows_single_connection":
+			return "Enable allow_multiple on the port or keep only one connection."
+		_:
+			return "Review the first reported flow graph issue before using this graph."
+
 
 func _validate_node_ports(node: GFFlowNode, report: Dictionary) -> void:
 	_validate_ports(node.node_id, "input", node.input_ports, report)

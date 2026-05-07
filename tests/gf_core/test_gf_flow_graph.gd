@@ -175,6 +175,28 @@ func test_flow_graph_describes_connections() -> void:
 	assert_eq((connections[0]["metadata"] as Dictionary).get("label"), "ok", "连接元数据应保留。")
 
 
+## 验证流程图提供编辑器目录和布局元数据。
+func test_flow_graph_editor_catalog_describes_nodes() -> void:
+	var graph := GFFlowGraphBase.new()
+	var node := GFFlowNodeBase.new()
+	node.node_id = &"start"
+	node.display_name = "Start"
+	node.category = &"Core"
+	graph.nodes = [node]
+
+	assert_true(graph.set_node_editor_layout(&"start", Vector2(12.0, 24.0), Vector2(160.0, 80.0), true), "应能设置节点编辑器布局。")
+	var report := graph.build_editor_report()
+	var catalog := report["catalog"] as Dictionary
+	var nodes := catalog["nodes"] as Array
+	var editor := nodes[0]["editor"] as Dictionary
+
+	assert_true(bool(report["ok"]), "有效流程图编辑器报告应通过。")
+	assert_eq(nodes[0]["display_name"], "Start", "目录应包含显示名。")
+	assert_eq(nodes[0]["category"], "Core", "目录应包含分类。")
+	assert_eq(editor["position"], Vector2(12.0, 24.0), "目录应包含编辑器位置。")
+	assert_true(bool(editor["collapsed"]), "目录应包含折叠状态。")
+
+
 ## 验证流程图校验会报告缺失后继节点。
 func test_flow_graph_validate_reports_missing_next_node() -> void:
 	var order: Array[String] = []
@@ -187,6 +209,8 @@ func test_flow_graph_validate_reports_missing_next_node() -> void:
 	var report := graph.validate_graph()
 
 	assert_false(bool(report["ok"]), "缺失后继节点应使校验失败。")
+	assert_gt(int(report["error_count"]), 0, "校验报告应统计错误数量。")
+	assert_false(String(report["next_action"]).is_empty(), "校验报告应包含下一步建议。")
 	assert_true(_has_issue(report, "missing_next_node"), "校验报告应包含 missing_next_node。")
 
 

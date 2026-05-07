@@ -98,11 +98,17 @@ func create_pipeline_context(
 func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionary:
 	var report := {
 		"ok": true,
+		"healthy": true,
 		"scope_key": String(scope.get_scope_key()) if scope != null else "",
 		"scope_count": 0,
 		"source_count": 0,
 		"enabled_scope_count": 0,
 		"enabled_source_count": 0,
+		"error_count": 0,
+		"warning_count": 0,
+		"issue_counts_by_kind": {},
+		"summary": "",
+		"next_action": "",
 		"scopes": [],
 		"sources": [],
 		"issues": [],
@@ -110,11 +116,19 @@ func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictiona
 	if scope == null:
 		_append_diagnostic_issue(report, "error", "null_scope", "", "", "Scope is null.")
 		report["ok"] = false
-		return report
+		return _finalize_diagnostic_report(report, "Save scope")
 
 	_inspect_scope_recursive(scope, context, report, String(scope.get_scope_key()))
 	report["ok"] = _report_has_no_error_issues(report)
-	return report
+	return _finalize_diagnostic_report(report, "Save scope")
+
+
+## 构建 Scope 健康报告。
+## @param scope: 根 Scope。
+## @param context: 调用上下文字典。
+## @return 含 summary、next_action 与 issue 统计的诊断报告。
+func build_scope_health_report(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionary:
+	return inspect_scope(scope, context)
 
 
 ## 校验载荷是否能匹配当前 Scope 树。
@@ -125,20 +139,26 @@ func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictiona
 func validate_payload_for_scope(scope: GFSaveScopeBase, payload: Dictionary, strict: bool = false) -> Dictionary:
 	var report := {
 		"ok": true,
+		"healthy": true,
 		"scope_key": String(scope.get_scope_key()) if scope != null else "",
 		"checked_source_count": 0,
 		"checked_scope_count": 0,
+		"error_count": 0,
+		"warning_count": 0,
+		"issue_counts_by_kind": {},
+		"summary": "",
+		"next_action": "",
 		"missing": [],
 		"issues": [],
 	}
 	if scope == null:
 		_append_diagnostic_issue(report, "error", "null_scope", "", "", "Scope is null.")
 		report["ok"] = false
-		return report
+		return _finalize_diagnostic_report(report, "Save payload")
 	if payload.is_empty():
 		_append_diagnostic_issue(report, "error", "empty_payload", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload is empty.")
 		report["ok"] = false
-		return report
+		return _finalize_diagnostic_report(report, "Save payload")
 
 	if String(payload.get("format", "")) != FORMAT_ID:
 		_append_diagnostic_issue(report, "error", "format_mismatch", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload format does not match GF save graph.")
@@ -147,7 +167,16 @@ func validate_payload_for_scope(scope: GFSaveScopeBase, payload: Dictionary, str
 
 	_validate_payload_scope_recursive(scope, payload, strict, report, String(scope.get_scope_key()))
 	report["ok"] = _report_has_no_error_issues(report)
-	return report
+	return _finalize_diagnostic_report(report, "Save payload")
+
+
+## 构建载荷匹配健康报告。
+## @param scope: 根 Scope。
+## @param payload: 待校验载荷。
+## @param strict: 为 true 时把缺失 Source/Scope 视为错误；否则视为警告。
+## @return 含 summary、next_action 与 issue 统计的诊断报告。
+func build_payload_health_report(scope: GFSaveScopeBase, payload: Dictionary, strict: bool = false) -> Dictionary:
+	return validate_payload_for_scope(scope, payload, strict)
 
 
 ## 采集 Scope 存档图。
@@ -388,6 +417,87 @@ func load_scope(
 
 
 # --- 私有/辅助方法 ---
+
+func _finalize_diagnostic_report(report: Dictionary, subject: String) -> Dictionary:
+	var error_count := 0
+	var warning_count := 0
+	var issue_counts_by_kind: Dictionary = {}
+	for issue_variant: Variant in report.get("issues", []):
+		var issue := issue_variant as Dictionary
+		if issue == null:
+			continue
+
+		var severity := String(issue.get("severity", ""))
+		var kind := String(issue.get("kind", "unknown"))
+		issue_counts_by_kind[kind] = int(issue_counts_by_kind.get(kind, 0)) + 1
+		if severity == "error":
+			error_count += 1
+		elif severity == "warning":
+			warning_count += 1
+
+	report["error_count"] = error_count
+	report["warning_count"] = warning_count
+	report["issue_counts_by_kind"] = issue_counts_by_kind
+	report["ok"] = error_count == 0
+	report["healthy"] = error_count == 0 and warning_count == 0
+	report["summary"] = _make_diagnostic_summary(subject, error_count, warning_count)
+	report["next_action"] = _get_next_action_for_diagnostic_report(report)
+	return report
+
+
+func _make_diagnostic_summary(subject: String, error_count: int, warning_count: int) -> String:
+	if error_count > 0:
+		return "%s has %d error(s) and %d warning(s)." % [subject, error_count, warning_count]
+	if warning_count > 0:
+		return "%s has %d warning(s)." % [subject, warning_count]
+	return "%s is healthy." % subject
+
+
+func _get_next_action_for_diagnostic_report(report: Dictionary) -> String:
+	var first_warning: Dictionary = {}
+	for issue_variant: Variant in report.get("issues", []):
+		var issue := issue_variant as Dictionary
+		if issue == null:
+			continue
+		if String(issue.get("severity", "")) == "error":
+			return _get_next_action_for_issue(issue)
+		if first_warning.is_empty() and String(issue.get("severity", "")) == "warning":
+			first_warning = issue
+
+	if not first_warning.is_empty():
+		return _get_next_action_for_issue(first_warning)
+	return "No action required."
+
+
+func _get_next_action_for_issue(issue: Dictionary) -> String:
+	match String(issue.get("kind", "")):
+		"null_scope":
+			return "Select or pass a valid GFSaveScope before running save graph diagnostics."
+		"empty_payload":
+			return "Load or gather a non-empty GF save graph payload before applying it."
+		"format_mismatch":
+			return "Use a payload generated by GFSaveGraphUtility or migrate it before applying."
+		"future_format_version":
+			return "Upgrade GF or run a project-level payload migration before applying this payload."
+		"invalid_sources_payload", "invalid_scopes_payload", "invalid_child_payload":
+			return "Fix the payload structure before applying it to the current scope tree."
+		"empty_source_key":
+			return "Assign a stable source_key to every GFSaveSource."
+		"duplicate_source_key":
+			return "Rename one of the GFSaveSource source_key values inside the same scope."
+		"duplicate_scope_key":
+			return "Rename one of the child GFSaveScope scope_key values under the same parent."
+		"missing_target":
+			return "Fix the GFSaveSource target_node_path or disable the source when the target is optional."
+		"no_matching_serializer":
+			return "Register a matching serializer or assign explicit serializers for this target node type."
+		"missing_source":
+			return "Restore the missing GFSaveSource, ignore it intentionally, or provide a project migration path."
+		"missing_scope":
+			return "Restore the missing GFSaveScope, ignore it intentionally, or provide a project migration path."
+		_:
+			return "Review the first reported save graph issue before using this data."
+
 
 func _get_sources_for_scope(scope: GFSaveScopeBase) -> Array[GFSaveSourceBase]:
 	var result: Array[GFSaveSourceBase] = []

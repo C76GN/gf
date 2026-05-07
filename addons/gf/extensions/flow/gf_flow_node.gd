@@ -15,6 +15,12 @@ const GFFlowPortBase = preload("res://addons/gf/extensions/flow/gf_flow_port.gd"
 ## 节点稳定标识。
 @export var node_id: StringName = &""
 
+## 节点显示名；为空时回退到 node_id。
+@export var display_name: String = ""
+
+## 节点分类，仅供编辑器、搜索或项目工具使用。
+@export var category: StringName = &""
+
 ## 默认后继节点列表。
 @export var next_node_ids: PackedStringArray = PackedStringArray()
 
@@ -29,6 +35,15 @@ const GFFlowPortBase = preload("res://addons/gf/extensions/flow/gf_flow_port.gd"
 
 ## 项目自定义元数据。框架不解释该字段。
 @export var metadata: Dictionary = {}
+
+## 编辑器中的节点位置。
+@export var editor_position: Vector2 = Vector2.ZERO
+
+## 编辑器中的节点尺寸；为 ZERO 时表示由编辑器自行决定。
+@export var editor_size: Vector2 = Vector2.ZERO
+
+## 编辑器中是否折叠显示。
+@export var editor_collapsed: bool = false
 
 
 # --- 公共方法 ---
@@ -47,6 +62,16 @@ func get_next_nodes(context: GFFlowContext) -> PackedStringArray:
 	if context != null and context.has_next_nodes_override():
 		return context.next_node_ids.duplicate()
 	return next_node_ids.duplicate()
+
+
+## 获取节点显示名。
+## @return 显示名。
+func get_display_name() -> String:
+	if not display_name.is_empty():
+		return display_name
+	if node_id != &"":
+		return String(node_id)
+	return "Flow Node"
 
 
 ## 获取输入端口。
@@ -84,14 +109,29 @@ func describe_ports() -> Dictionary:
 	}
 
 
+## 描述节点编辑器元数据。
+## @return 编辑器元数据字典。
+func describe_editor() -> Dictionary:
+	return {
+		"display_name": get_display_name(),
+		"category": category,
+		"position": editor_position,
+		"size": editor_size,
+		"collapsed": editor_collapsed,
+	}
+
+
 ## 描述节点。
 ## @return 节点描述字典。
 func describe_node() -> Dictionary:
 	return {
 		"node_id": node_id,
+		"display_name": get_display_name(),
+		"category": category,
 		"next_node_ids": next_node_ids.duplicate(),
 		"wait_for_result": wait_for_result,
 		"ports": describe_ports(),
+		"editor": describe_editor(),
 		"metadata": metadata.duplicate(true),
 	}
 

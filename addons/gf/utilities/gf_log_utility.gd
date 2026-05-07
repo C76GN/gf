@@ -1,8 +1,8 @@
 ## GFLogUtility: 集中式日志系统。
 ##
 ## 取代原生 print / push_error，提供分级日志（DEBUG → FATAL），
-## 每条日志同时写入本地按日期命名的日志文件，并通过信号广播给
-## 控制台等消费者。启动时自动清理超出保留上限的旧日志文件。
+## 每条日志同时写入本地按日期命名的日志文件，进入内存环形缓存，
+## 并通过信号和可插拔 sink 广播结构化日志条目。
 class_name GFLogUtility
 extends GFUtility
 
@@ -14,6 +14,10 @@ extends GFUtility
 ## @param tag: 日志标签。
 ## @param message: 日志内容。
 signal log_emitted(level: int, tag: String, message: String)
+
+## 每次打印日志时发出完整结构化条目。
+## @param entry: 日志条目副本。
+signal log_entry_emitted(entry: Dictionary)
 
 
 # --- 枚举 ---
@@ -35,6 +39,7 @@ enum LogLevel {
 
 # --- 常量 ---
 
+const GFLogSink = preload("res://addons/gf/utilities/gf_log_sink.gd")
 const _LOG_DIR: String = "user://logs/"
 
 static var _LEVEL_NAMES: PackedStringArray = PackedStringArray([
@@ -84,6 +89,8 @@ var _last_file_flush_msec: int = 0
 var _memory_entries: Array[Dictionary] = []
 var _memory_head: int = 0
 var _memory_dropped_count: int = 0
+var _sinks: Array[GFLogSink] = []
+var _is_initialized: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -113,14 +120,25 @@ func init() -> void:
 		_last_file_flush_msec = Time.get_ticks_msec()
 
 	_cleanup_old_logs()
+	_is_initialized = true
+	for sink: GFLogSink in _sinks:
+		if sink != null:
+			sink.init(self)
 
 
 ## 销毁时关闭文件句柄。
 func dispose() -> void:
+	flush_sinks()
+	for sink: GFLogSink in _sinks:
+		if sink != null:
+			sink.shutdown()
+
 	if _file != null:
 		_file.flush()
 		_file.close()
 		_file = null
+
+	_is_initialized = false
 
 
 # --- 公共方法 ---
@@ -128,71 +146,90 @@ func dispose() -> void:
 ## 输出 DEBUG 级别日志。
 ## @param tag: 日志标签（如模块名）。
 ## @param msg: 日志内容。
-func debug(tag: String, msg: String) -> void:
-	_log(LogLevel.DEBUG, tag, msg)
+## @param context: 结构化上下文字典。
+func debug(tag: String, msg: String, context: Dictionary = {}) -> void:
+	_log(LogLevel.DEBUG, tag, msg, context)
 
 
 ## 延迟输出 DEBUG 级别日志。只有日志未被过滤时才调用 message_builder。
 ## @param tag: 日志标签。
 ## @param message_builder: 延迟构造日志消息的回调。
-func debug_lazy(tag: String, message_builder: Callable) -> void:
-	_log_lazy(LogLevel.DEBUG, tag, message_builder)
+## @param context_builder: 延迟构造结构化上下文的回调。
+func debug_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
+	_log_lazy(LogLevel.DEBUG, tag, message_builder, context_builder)
 
 
 ## 输出 INFO 级别日志。
 ## @param tag: 日志标签。
 ## @param msg: 日志内容。
-func info(tag: String, msg: String) -> void:
-	_log(LogLevel.INFO, tag, msg)
+## @param context: 结构化上下文字典。
+func info(tag: String, msg: String, context: Dictionary = {}) -> void:
+	_log(LogLevel.INFO, tag, msg, context)
 
 
 ## 延迟输出 INFO 级别日志。只有日志未被过滤时才调用 message_builder。
 ## @param tag: 日志标签。
 ## @param message_builder: 延迟构造日志消息的回调。
-func info_lazy(tag: String, message_builder: Callable) -> void:
-	_log_lazy(LogLevel.INFO, tag, message_builder)
+## @param context_builder: 延迟构造结构化上下文的回调。
+func info_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
+	_log_lazy(LogLevel.INFO, tag, message_builder, context_builder)
 
 
 ## 输出 WARN 级别日志。
 ## @param tag: 日志标签。
 ## @param msg: 日志内容。
-func warn(tag: String, msg: String) -> void:
-	_log(LogLevel.WARN, tag, msg)
+## @param context: 结构化上下文字典。
+func warn(tag: String, msg: String, context: Dictionary = {}) -> void:
+	_log(LogLevel.WARN, tag, msg, context)
 
 
 ## 延迟输出 WARN 级别日志。只有日志未被过滤时才调用 message_builder。
 ## @param tag: 日志标签。
 ## @param message_builder: 延迟构造日志消息的回调。
-func warn_lazy(tag: String, message_builder: Callable) -> void:
-	_log_lazy(LogLevel.WARN, tag, message_builder)
+## @param context_builder: 延迟构造结构化上下文的回调。
+func warn_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
+	_log_lazy(LogLevel.WARN, tag, message_builder, context_builder)
 
 
 ## 输出 ERROR 级别日志。
 ## @param tag: 日志标签。
 ## @param msg: 日志内容。
-func error(tag: String, msg: String) -> void:
-	_log(LogLevel.ERROR, tag, msg)
+## @param context: 结构化上下文字典。
+func error(tag: String, msg: String, context: Dictionary = {}) -> void:
+	_log(LogLevel.ERROR, tag, msg, context)
 
 
 ## 延迟输出 ERROR 级别日志。只有日志未被过滤时才调用 message_builder。
 ## @param tag: 日志标签。
 ## @param message_builder: 延迟构造日志消息的回调。
-func error_lazy(tag: String, message_builder: Callable) -> void:
-	_log_lazy(LogLevel.ERROR, tag, message_builder)
+## @param context_builder: 延迟构造结构化上下文的回调。
+func error_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
+	_log_lazy(LogLevel.ERROR, tag, message_builder, context_builder)
 
 
 ## 输出 FATAL 级别日志。
 ## @param tag: 日志标签。
 ## @param msg: 日志内容。
-func fatal(tag: String, msg: String) -> void:
-	_log(LogLevel.FATAL, tag, msg)
+## @param context: 结构化上下文字典。
+func fatal(tag: String, msg: String, context: Dictionary = {}) -> void:
+	_log(LogLevel.FATAL, tag, msg, context)
 
 
 ## 延迟输出 FATAL 级别日志。只有日志未被过滤时才调用 message_builder。
 ## @param tag: 日志标签。
 ## @param message_builder: 延迟构造日志消息的回调。
-func fatal_lazy(tag: String, message_builder: Callable) -> void:
-	_log_lazy(LogLevel.FATAL, tag, message_builder)
+## @param context_builder: 延迟构造结构化上下文的回调。
+func fatal_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
+	_log_lazy(LogLevel.FATAL, tag, message_builder, context_builder)
+
+
+## 输出指定等级日志。
+## @param level: LogLevel 枚举值。
+## @param tag: 日志标签。
+## @param msg: 日志内容。
+## @param context: 结构化上下文字典。
+func log(level: int, tag: String, msg: String, context: Dictionary = {}) -> void:
+	_log(level, tag, msg, context)
 
 
 ## 动态设置是否忽略特定标签的日志。
@@ -206,6 +243,56 @@ func set_tag_muted(tag: String, muted: bool) -> void:
 ## @param tag: 日志标签。
 func is_tag_muted(tag: String) -> bool:
 	return _muted_tags.get(tag, false)
+
+
+## 注册日志 sink。
+## @param sink: 要注册的 sink 实例。
+func add_sink(sink: GFLogSink) -> void:
+	if sink == null or _sinks.has(sink):
+		return
+
+	_sinks.append(sink)
+	if _is_initialized:
+		sink.init(self)
+
+
+## 注销日志 sink。
+## @param sink: 要注销的 sink 实例。
+## @param shutdown: 是否调用 sink.shutdown()。
+func remove_sink(sink: GFLogSink, shutdown: bool = true) -> void:
+	var index := _sinks.find(sink)
+	if index < 0:
+		return
+
+	_sinks.remove_at(index)
+	if shutdown and sink != null:
+		sink.shutdown()
+
+
+## 清空所有日志 sink。
+## @param shutdown: 是否调用每个 sink 的 shutdown()。
+func clear_sinks(shutdown: bool = true) -> void:
+	if shutdown:
+		for sink: GFLogSink in _sinks:
+			if sink != null:
+				sink.shutdown()
+	_sinks.clear()
+
+
+## 获取已注册日志 sink。
+## @return sink 列表副本。
+func get_sinks() -> Array[GFLogSink]:
+	var result: Array[GFLogSink] = []
+	for sink: GFLogSink in _sinks:
+		result.append(sink)
+	return result
+
+
+## 刷新所有日志 sink。
+func flush_sinks() -> void:
+	for sink: GFLogSink in _sinks:
+		if sink != null:
+			sink.flush()
 
 
 ## 获取最近的内存日志条目。
@@ -245,6 +332,12 @@ func get_dropped_memory_entry_count() -> int:
 	return _memory_dropped_count
 
 
+## 获取当前日志文件路径。
+## @return 日志文件路径。
+func get_log_file_path() -> String:
+	return _log_file_path
+
+
 ## 清空内存日志缓存。
 func clear_memory_entries() -> void:
 	_memory_entries.clear()
@@ -254,10 +347,10 @@ func clear_memory_entries() -> void:
 
 # --- 私有方法 ---
 
-func _log(level: int, tag: String, msg: String) -> void:
+func _log(level: int, tag: String, msg: String, context: Dictionary = {}) -> void:
 	if not _should_log(level, tag):
 		return
-		
+
 	var level_str: String = _LEVEL_NAMES[level] if level < _LEVEL_NAMES.size() else "UNKNOWN"
 	var datetime := Time.get_datetime_dict_from_system()
 	var timestamp := "%04d-%02d-%02d %02d:%02d:%02d" % [
@@ -268,15 +361,14 @@ func _log(level: int, tag: String, msg: String) -> void:
 		datetime.minute,
 		datetime.second,
 	]
-	var formatted := "[%s][%s][%s] %s" % [timestamp, level_str, tag, msg]
-	_append_memory_entry(timestamp, level, level_str, tag, msg, formatted)
+	var entry := _make_entry(timestamp, level, level_str, tag, msg, context)
+	var formatted := String(entry["text"])
+	_append_memory_entry(entry)
 
-	# 写入文件
 	if _file != null:
 		_file.store_line(formatted)
 		_flush_file_if_needed(level)
 
-	# 控制台输出
 	match level:
 		LogLevel.ERROR, LogLevel.FATAL:
 			push_error(formatted)
@@ -285,17 +377,30 @@ func _log(level: int, tag: String, msg: String) -> void:
 		_:
 			print(formatted)
 
+	_write_sinks(entry)
 	log_emitted.emit(level, tag, msg)
+	log_entry_emitted.emit(entry.duplicate(true))
 
 
-func _log_lazy(level: int, tag: String, message_builder: Callable) -> void:
+func _log_lazy(
+	level: int,
+	tag: String,
+	message_builder: Callable,
+	context_builder: Callable = Callable()
+) -> void:
 	if not _should_log(level, tag):
 		return
 	if not message_builder.is_valid():
 		push_error("[GFLogUtility] lazy 日志收到无效 message_builder。")
 		return
 
-	_log(level, tag, String(message_builder.call()))
+	var context: Dictionary = {}
+	if context_builder.is_valid():
+		var context_variant: Variant = context_builder.call()
+		if context_variant is Dictionary:
+			context = (context_variant as Dictionary).duplicate(true)
+
+	_log(level, tag, String(message_builder.call()), context)
 
 
 func _should_log(level: int, tag: String) -> bool:
@@ -347,32 +452,49 @@ func _flush_file_if_needed(level: int) -> void:
 		_last_file_flush_msec = now
 
 
-func _append_memory_entry(
+func _make_entry(
 	timestamp: String,
 	level: int,
 	level_name: String,
 	tag: String,
 	message: String,
-	text: String
-) -> void:
-	if _max_memory_entries <= 0:
-		_memory_dropped_count += 1
-		return
+	context: Dictionary
+) -> Dictionary:
+	var safe_context := context.duplicate(true)
+	var text := "[%s][%s][%s] %s" % [timestamp, level_name, tag, message]
+	if not safe_context.is_empty():
+		text += " " + JSON.stringify(safe_context)
 
-	var entry := {
+	return {
 		"timestamp": timestamp,
+		"unix_time": Time.get_unix_time_from_system(),
+		"ticks_msec": Time.get_ticks_msec(),
 		"level": level,
 		"level_name": level_name,
 		"tag": tag,
 		"message": message,
+		"context": safe_context,
 		"text": text,
 	}
+
+
+func _write_sinks(entry: Dictionary) -> void:
+	for sink: GFLogSink in _sinks:
+		if sink != null:
+			sink.write(entry.duplicate(true))
+
+
+func _append_memory_entry(entry: Dictionary) -> void:
+	if _max_memory_entries <= 0:
+		_memory_dropped_count += 1
+		return
+
 	if _memory_entries.size() < _max_memory_entries:
-		_memory_entries.append(entry)
+		_memory_entries.append(entry.duplicate(true))
 		_memory_head = _memory_entries.size() % _max_memory_entries
 		return
 
-	_memory_entries[_memory_head] = entry
+	_memory_entries[_memory_head] = entry.duplicate(true)
 	_memory_head = (_memory_head + 1) % _max_memory_entries
 	_memory_dropped_count += 1
 

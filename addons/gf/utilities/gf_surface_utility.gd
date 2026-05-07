@@ -124,15 +124,37 @@ func _get_surface_face_counts(mesh: Mesh) -> Array[int]:
 
 	var face_counts: Array[int] = []
 	for surface_index: int in range(mesh.get_surface_count()):
-		var mesh_data_tool := MeshDataTool.new()
-		var error := mesh_data_tool.create_from_surface(mesh, surface_index)
-		if error != OK:
-			face_counts.append(0)
-		else:
-			face_counts.append(mesh_data_tool.get_face_count())
+		face_counts.append(_get_surface_face_count(mesh, surface_index))
 
 	_surface_face_counts_by_mesh[cache_key] = face_counts.duplicate()
 	return face_counts
+
+
+func _get_surface_face_count(mesh: Mesh, surface_index: int) -> int:
+	var arrays := mesh.surface_get_arrays(surface_index)
+	if arrays.size() > Mesh.ARRAY_INDEX:
+		var index_data: Variant = arrays[Mesh.ARRAY_INDEX]
+		if index_data is PackedInt32Array:
+			var indices: PackedInt32Array = index_data
+			if not indices.is_empty():
+				return indices.size() / 3
+
+	if arrays.size() > Mesh.ARRAY_VERTEX:
+		var vertex_data: Variant = arrays[Mesh.ARRAY_VERTEX]
+		if vertex_data is PackedVector3Array:
+			var vertices: PackedVector3Array = vertex_data
+			if not vertices.is_empty():
+				return vertices.size() / 3
+
+	return _get_surface_face_count_with_mesh_data_tool(mesh, surface_index)
+
+
+func _get_surface_face_count_with_mesh_data_tool(mesh: Mesh, surface_index: int) -> int:
+	var mesh_data_tool := MeshDataTool.new()
+	var error := mesh_data_tool.create_from_surface(mesh, surface_index)
+	if error != OK:
+		return 0
+	return mesh_data_tool.get_face_count()
 
 
 func _get_mesh_cache_key(mesh: Mesh) -> int:

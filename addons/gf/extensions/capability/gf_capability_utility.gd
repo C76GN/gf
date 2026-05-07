@@ -45,6 +45,8 @@ const HOOK_ON_ADDED: StringName = &"on_gf_capability_added"
 const HOOK_ON_REMOVED: StringName = &"on_gf_capability_removed"
 const HOOK_ON_ACTIVE_CHANGED: StringName = &"on_gf_capability_active_changed"
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/gf_capability_container.gd")
+const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe.gd")
+const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe_entry.gd")
 
 
 # --- 私有变量 ---
@@ -413,6 +415,107 @@ func clear_receiver_groups(receiver: Object) -> void:
 		remove_receiver_from_group(receiver, group_name)
 
 
+## 把能力组合 Recipe 应用到 receiver。
+## @param receiver: 能力接收对象。
+## @param recipe: 能力组合资源。
+## @param options: 可选参数，支持 skip_groups 与 validate_after_apply。
+## @return 应用报告。
+func apply_recipe(receiver: Object, recipe: GF_CAPABILITY_RECIPE_BASE, options: Dictionary = {}) -> Dictionary:
+	var result := {
+		"ok": true,
+		"recipe_id": recipe.recipe_id if recipe != null else &"",
+		"added": [],
+		"reused": [],
+		"failed": [],
+		"groups": [],
+		"dependency_validation": {},
+	}
+	if not is_instance_valid(receiver):
+		result["ok"] = false
+		(result["failed"] as Array).append({
+			"kind": "invalid_receiver",
+			"message": "Receiver is invalid.",
+		})
+		return result
+	if recipe == null:
+		result["ok"] = false
+		(result["failed"] as Array).append({
+			"kind": "invalid_recipe",
+			"message": "Recipe is null.",
+		})
+		return result
+
+	if not bool(options.get("skip_groups", false)):
+		for group_name: StringName in recipe.groups:
+			if group_name == &"":
+				continue
+			add_receiver_to_group(receiver, group_name)
+			(result["groups"] as Array).append(group_name)
+
+	for index: int in range(recipe.entries.size()):
+		var entry := recipe.entries[index]
+		_apply_recipe_entry(receiver, entry, index, result)
+
+	if bool(options.get("validate_after_apply", true)):
+		var validation := validate_receiver_dependencies(receiver)
+		result["dependency_validation"] = validation
+		if not bool(validation.get("ok", false)):
+			result["ok"] = false
+
+	if not (result["failed"] as Array).is_empty():
+		result["ok"] = false
+	return result
+
+
+## 移除 Recipe 描述的能力和可选分组。
+## @param receiver: 能力接收对象。
+## @param recipe: 能力组合资源。
+## @param remove_groups: 是否同步移除 Recipe groups。
+## @return 移除报告。
+func remove_recipe(receiver: Object, recipe: GF_CAPABILITY_RECIPE_BASE, remove_groups: bool = true) -> Dictionary:
+	var result := {
+		"ok": true,
+		"recipe_id": recipe.recipe_id if recipe != null else &"",
+		"removed": [],
+		"skipped": [],
+		"groups_removed": [],
+	}
+	if not is_instance_valid(receiver) or recipe == null:
+		result["ok"] = false
+		return result
+
+	for index: int in range(recipe.entries.size() - 1, -1, -1):
+		var entry := recipe.entries[index]
+		var capability_type := _resolve_recipe_entry_type(receiver, entry)
+		if capability_type == null:
+			(result["skipped"] as Array).append({
+				"index": index,
+				"kind": "unknown_type",
+			})
+			continue
+		if not has_capability(receiver, capability_type):
+			(result["skipped"] as Array).append({
+				"index": index,
+				"type": _get_script_key(capability_type),
+				"kind": "missing_capability",
+			})
+			continue
+
+		remove_capability(receiver, capability_type)
+		(result["removed"] as Array).append({
+			"index": index,
+			"type": _get_script_key(capability_type),
+		})
+
+	if remove_groups:
+		for group_name: StringName in recipe.groups:
+			if group_name == &"":
+				continue
+			remove_receiver_from_group(receiver, group_name)
+			(result["groups_removed"] as Array).append(group_name)
+	return result
+
+
 ## 检查 receiver 上能力依赖是否完整。
 ## @param receiver: 目标对象。
 ## @return 统一检查结果，包含 ok 与 missing_dependencies。
@@ -480,6 +583,89 @@ func inspect_receiver(receiver: Object) -> Dictionary:
 
 
 # --- 私有/辅助方法 ---
+
+func _apply_recipe_entry(
+	receiver: Object,
+	entry: GF_CAPABILITY_RECIPE_ENTRY_BASE,
+	index: int,
+	result: Dictionary
+) -> void:
+	if entry == null:
+		_append_recipe_failure(result, index, "null_entry", "Recipe entry is null.")
+		return
+	if not entry.is_valid_entry():
+		_append_recipe_failure(result, index, "invalid_entry", "Recipe entry requires capability_type or scene.")
+		return
+
+	var capability_type := entry.capability_type
+	var had_capability := capability_type != null and has_capability(receiver, capability_type)
+	var capability: Object = null
+	if entry.scene != null:
+		if not (receiver is Node):
+			_append_recipe_failure(result, index, "scene_requires_node", "Scene capability requires a Node receiver.")
+			return
+		capability = add_scene_capability(receiver as Node, entry.scene, capability_type)
+	else:
+		capability = add_capability(receiver, capability_type)
+
+	if capability == null:
+		_append_recipe_failure(result, index, "add_failed", "Capability could not be added.")
+		return
+
+	if capability_type == null:
+		capability_type = capability.get_script() as Script
+	if capability_type != null:
+		set_capability_active(receiver, capability_type, entry.active)
+
+	var entry_report := {
+		"index": index,
+		"type": _get_script_key(capability_type),
+		"active": entry.active,
+		"metadata": entry.metadata.duplicate(true),
+	}
+	if had_capability:
+		(result["reused"] as Array).append(entry_report)
+	else:
+		(result["added"] as Array).append(entry_report)
+
+
+func _append_recipe_failure(result: Dictionary, index: int, kind: String, message: String) -> void:
+	(result["failed"] as Array).append({
+		"index": index,
+		"kind": kind,
+		"message": message,
+	})
+
+
+func _resolve_recipe_entry_type(receiver: Object, entry: GF_CAPABILITY_RECIPE_ENTRY_BASE) -> Script:
+	if entry == null:
+		return null
+	if entry.capability_type != null:
+		return entry.capability_type
+	if not is_instance_valid(receiver):
+		return null
+	if entry.scene == null:
+		return null
+	return _get_packed_scene_root_script(entry.scene)
+
+
+func _get_packed_scene_root_script(scene: PackedScene) -> Script:
+	if scene == null:
+		return null
+
+	var state := scene.get_state()
+	if state == null:
+		return null
+
+	for node_index: int in range(state.get_node_count()):
+		if not state.get_node_path(node_index, true).is_empty():
+			continue
+
+		for property_index: int in range(state.get_node_property_count(node_index)):
+			if state.get_node_property_name(node_index, property_index) == &"script":
+				return state.get_node_property_value(node_index, property_index) as Script
+	return null
+
 
 func _add_capability(receiver: Object, capability_type: Script, provider: Variant = null, is_top_level: bool = true) -> Object:
 	if not _validate_receiver_and_type(receiver, capability_type, "add_capability"):
