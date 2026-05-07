@@ -17,6 +17,10 @@ export_credentials.cfg
 data_*/
 mono_crash.*.json
 
+# Python maintenance tools
+__pycache__/
+*.py[cod]
+
 # Repomix files
 repomix-output.txt
 **/framework_code.txt
@@ -30,5 +34,5 @@ unstaged_changes.diff
 
 build/
 
+# AI 临时工作区：任务记录、本地审计、生成的上下文文件等不进入 Git。
 ai_analysis
-
