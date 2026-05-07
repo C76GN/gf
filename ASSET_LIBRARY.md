@@ -2,13 +2,11 @@
 
 This file is maintainer-facing metadata for Godot Asset Library submissions. Godot does not read this file at runtime; keep it updated so future version bumps and AI-assisted release work can update the submission form consistently.
 
-This repository is prepared for Godot Asset Library submission with a focused archive payload:
+This repository is prepared for Godot Asset Library submission with a focused installable payload:
 
 - `addons/gf/**`
-- `README.md`
-- `LICENSE.md`
 
-Everything else is excluded from GitHub archive downloads through `.gitattributes`.
+The plugin folder contains its own `README.md` and `LICENSE.md`. Root-level docs, tests, and maintainer files are excluded from GitHub archive downloads through `.gitattributes`, so `docs/wiki` stays in the repository without being installed with the addon.
 
 ## Submission Form Values
 
@@ -63,6 +61,6 @@ When the asset version changes, update these locations together:
 
 1. `addons/gf/plugin.cfg`
 2. `ASSET_LIBRARY.md`
-3. `addons/gf/docs/wiki/更新日志 (Changelog).md`
+3. `docs/wiki/更新日志 (Changelog).md`
 4. The Godot Asset Library `Download Commit/URL` after the release commit is pushed.
 5. The Godot Asset Library `Icon URL` so it uses the same release commit.

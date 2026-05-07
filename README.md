@@ -206,7 +206,7 @@ godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_
 
 ## 文档
 
-更完整的设计说明在 `addons/gf/docs/wiki`：
+更完整的设计说明在根目录 `docs/wiki`：
 
 > GitHub Wiki 的页面标题由文件名决定，因此本目录中的 Wiki 页面文件名采用“可直接展示”的标题命名，而不是下划线式文档名。
 
