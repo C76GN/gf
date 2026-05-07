@@ -98,6 +98,17 @@ func test_push_panel_instance_reparents_external_node() -> void:
 	external_parent.queue_free()
 
 
+func test_push_panel_instance_applies_config_callback() -> void:
+	var panel := Control.new()
+
+	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP, func(instance: Node) -> void:
+		instance.name = "ConfiguredPanel"
+	)
+
+	assert_eq(panel.name, "ConfiguredPanel", "已实例化面板入栈前应执行配置回调。")
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "配置后的面板应正常入栈。")
+
+
 func test_external_free_of_top_panel_prunes_stack_and_reveals_under_panel() -> void:
 	var panel1 := Control.new()
 	var panel2 := Control.new()

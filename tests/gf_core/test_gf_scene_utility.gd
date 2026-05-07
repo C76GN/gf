@@ -15,6 +15,13 @@ class DummyModel extends GFModel:
 		disposed = true
 
 
+class DummyUtility extends GFUtility:
+	var disposed := false
+
+	func dispose() -> void:
+		disposed = true
+
+
 class TestSceneUtility extends GFSceneUtility:
 	var current_scene_path: String = "res://tests/current_scene.tscn"
 	var sync_scene_changes: Array[String] = []
@@ -56,13 +63,18 @@ func after_each() -> void:
 func test_transient_cleanup() -> void:
 	var model := DummyModel.new()
 	Gf.register_model(model)
+	var utility := DummyUtility.new()
+	Gf.register_utility(utility)
 
 	_scene_util.mark_transient(DummyModel)
+	_scene_util.mark_transient(DummyUtility)
 	_scene_util.cleanup_transients()
 
 	var arch: GFArchitecture = Gf.get_architecture()
 	assert_null(arch.get_model(DummyModel), "标记为瞬态的 Model 应在清理后注销。")
 	assert_true(model.disposed, "注销 Model 时应调用 dispose()。")
+	assert_null(arch.get_utility(DummyUtility), "标记为瞬态的 Utility 应在清理后注销。")
+	assert_true(utility.disposed, "注销 Utility 时应调用 dispose()。")
 
 
 func test_transient_cleanup_uses_injected_architecture() -> void:

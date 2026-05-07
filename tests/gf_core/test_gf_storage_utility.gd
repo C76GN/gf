@@ -38,6 +38,7 @@ func after_each() -> void:
 			"test_legacy.json",
 			"test_integrity.json",
 			"test_checksum_only.json",
+			"test_missing_checksum.json",
 			"test_legacy_version.json",
 			"test_async.json",
 			"recover_from_backup.json",
@@ -178,6 +179,27 @@ func test_async_saves_to_same_file_are_serialized() -> void:
 	await _pump_storage_async_tasks()
 
 	assert_eq(int(_storage.load_data("queued_async.json").get("value")), 3, "同文件异步保存应按入队顺序串行，最终保留最后一次数据。")
+
+
+func test_dispose_notifies_queued_async_tasks_as_failed() -> void:
+	_storage.encrypt_key = 0
+	_storage.max_async_thread_count = 1
+	var completed: Array = []
+	_storage.save_completed.connect(func(file_name: String, error: Error) -> void:
+		completed.append([file_name, error])
+	)
+
+	assert_eq(_storage.save_data_async("queued_async.json", { "value": 1 }), OK, "第一次异步保存应启动。")
+	assert_eq(_storage.save_data_async("queued_async.json", { "value": 2 }), OK, "同文件第二次异步保存应留在队列中。")
+
+	_storage.dispose()
+
+	var saw_cancelled_queue := false
+	for entry: Array in completed:
+		if String(entry[0]) == "queued_async.json" and int(entry[1]) == ERR_UNAVAILABLE:
+			saw_cancelled_queue = true
+			break
+	assert_true(saw_cancelled_queue, "dispose 应对尚未开始的异步任务发出失败通知。")
 
 
 func test_save_and_load_resource() -> void:
@@ -340,6 +362,24 @@ func test_checksum_without_storage_metadata_does_not_write_version() -> void:
 	assert_true(metadata.has("checksum"), "只启用 checksum 时仍应写入 checksum。")
 	assert_false(metadata.has("version"), "未启用 include_storage_metadata 时不应写入 version。")
 	assert_false(metadata.has("timestamp"), "未启用 include_storage_metadata 时不应写入 timestamp。")
+
+
+func test_require_integrity_checksum_rejects_missing_checksum_file() -> void:
+	_storage.encrypt_key = 0
+	_storage.use_integrity_checksum = true
+	_storage.strict_integrity = true
+	_storage.require_integrity_checksum = true
+	var file_name := "test_missing_checksum.json"
+	var codec := GFStorageCodec.new()
+	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
+	file.store_buffer(codec.encode({ "coins": 10 }, { "obfuscation_key": 0 }))
+	file.close()
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+
+	assert_true(loaded.is_empty(), "要求 checksum 时，缺少 checksum 的存档不应返回数据。")
+	assert_signal_emitted(_storage, "data_integrity_failed", "缺少 checksum 应发出完整性失败信号。")
 
 
 func test_load_data_result_reports_missing_file() -> void:

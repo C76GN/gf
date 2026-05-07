@@ -114,12 +114,17 @@ func push_panel(path: String, layer: Layer = Layer.POPUP, config_callback: Calla
 ## 压入一个已实例化的面板节点。
 ## @param panel_instance: 面板实例。
 ## @param layer: 目标层级。
-func push_panel_instance(panel_instance: Node, layer: Layer = Layer.POPUP) -> void:
+## @param config_callback: 入栈前的可选配置回调。
+func push_panel_instance(
+	panel_instance: Node,
+	layer: Layer = Layer.POPUP,
+	config_callback: Callable = Callable()
+) -> void:
 	if not is_instance_valid(panel_instance):
 		push_error("[GFUIUtility] 传入的 panel_instance 无效。")
 		return
 
-	_add_panel_instance(panel_instance, layer, Callable())
+	_add_panel_instance(panel_instance, layer, config_callback)
 
 
 ## 弹出指定层级的顶部面板。

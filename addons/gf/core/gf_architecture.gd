@@ -290,8 +290,9 @@ func physics_tick(delta: float) -> void:
 
 
 ## 执行命令实例。支持 await：'await send_command(MyCommand.new())'。
+## command 缺少 execute() 方法时会输出 warning 并返回 null。
 ## @param command: 要执行的命令实例。
-## @return 命令的执行结果（null 或 Signal）。
+## @return 命令 execute() 的返回值；空对象或缺少 execute() 时返回 null。
 func send_command(command: Object) -> Variant:
 	if command == null:
 		push_error("[GFArchitecture] send_command 失败：command 为空。")
@@ -300,12 +301,14 @@ func send_command(command: Object) -> Variant:
 	_inject_dependencies_if_needed(command)
 	if command.has_method("execute"):
 		return command.execute()
+	push_warning("[GFArchitecture] send_command 失败：command 缺少 execute() 方法，已忽略。")
 	return null
 
 
 ## 执行查询实例并返回结果。
+## query 缺少 execute() 方法时会输出 warning 并返回 null。
 ## @param query: 要执行的查询实例。
-## @return 查询执行的结果。
+## @return 查询 execute() 的返回值；空对象或缺少 execute() 时返回 null。
 func send_query(query: Object) -> Variant:
 	if query == null:
 		push_error("[GFArchitecture] send_query 失败：query 为空。")
@@ -314,6 +317,7 @@ func send_query(query: Object) -> Variant:
 	_inject_dependencies_if_needed(query)
 	if query.has_method("execute"):
 		return query.execute()
+	push_warning("[GFArchitecture] send_query 失败：query 缺少 execute() 方法，已忽略。")
 	return null
 
 

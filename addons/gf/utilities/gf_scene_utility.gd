@@ -364,6 +364,8 @@ func cleanup_transients() -> void:
 			arch.unregister_system(script_cls)
 		if arch.has_method("unregister_model"):
 			arch.unregister_model(script_cls)
+		if arch.has_method("unregister_utility"):
+			arch.unregister_utility(script_cls)
 
 	_transient_scripts.clear()
 

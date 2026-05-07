@@ -53,6 +53,24 @@ func test_checksum_without_extra_metadata_roundtrips() -> void:
 	assert_true(bool(result.get("integrity_valid")), "checksum 应通过校验。")
 
 
+func test_require_integrity_checksum_rejects_missing_checksum() -> void:
+	var codec := GFStorageCodec.new()
+	var bytes := codec.encode({ "coins": 10 }, {
+		"obfuscation_key": 0,
+	})
+
+	var result := codec.decode(bytes, {
+		"use_integrity_checksum": true,
+		"strict_integrity": true,
+		"require_integrity_checksum": true,
+		"obfuscation_key": 0,
+	})
+
+	assert_false(bool(result.get("ok")), "要求 checksum 时，缺少 checksum 的载荷应被拒绝。")
+	assert_false(bool(result.get("integrity_valid")), "缺少 checksum 应标记完整性失败。")
+	assert_eq(String(result.get("error")), "Integrity checksum missing", "应返回明确的缺失 checksum 错误。")
+
+
 func test_empty_dictionary_is_valid_payload() -> void:
 	var codec := GFStorageCodec.new()
 

@@ -70,8 +70,9 @@ func test_execute_after_zero_delay_runs_immediately() -> void:
 
 
 func test_execute_after_rejects_invalid_callback() -> void:
-	_timer_util.execute_after(1.0, Callable())
+	var handle := _timer_util.execute_after(1.0, Callable())
 
+	assert_eq(handle, 0, "无效回调不应返回有效句柄。")
 	assert_push_error("[GFTimerUtility] execute_after 失败：传入的 callback 无效。")
 	assert_true(_timer_util._pending_timers.is_empty(), "无效回调不应加入待执行队列。")
 
@@ -89,6 +90,22 @@ func test_multiple_timers_fire_in_registration_order() -> void:
 	_arch.tick(0.2)
 
 	assert_eq(order, ["first", "second"], "同一 tick 中多个到期定时器应按注册顺序执行。")
+
+
+func test_cancel_prevents_pending_timer_from_firing() -> void:
+	var fired := [false]
+
+	var handle := _timer_util.execute_after(0.5, func() -> void:
+		fired[0] = true
+	)
+
+	assert_gt(handle, 0, "排队定时器应返回有效句柄。")
+	assert_true(_timer_util.cancel(handle), "未触发的定时器应可取消。")
+	assert_false(_timer_util.cancel(handle), "同一句柄取消一次后不应再次命中。")
+
+	_arch.tick(0.5)
+
+	assert_false(fired[0], "已取消的定时器不应触发。")
 
 
 func test_dispose_clears_pending_timers() -> void:

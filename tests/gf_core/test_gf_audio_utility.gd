@@ -80,6 +80,17 @@ func test_play_bgm() -> void:
 	assert_false(_audio._bgm_player.playing, "传入空路径应停止播放。")
 
 
+func test_play_bgm_empty_path_respects_crossfade() -> void:
+	var stream := AudioStreamGenerator.new()
+	_audio._play_bgm_stream(stream)
+
+	_audio.play_bgm("", 0.05)
+
+	assert_true(_audio._bgm_player.playing, "传入淡出时间时，空路径停止 BGM 应先执行淡出。")
+	await get_tree().create_timer(0.08).timeout
+	assert_false(_audio._bgm_player.playing, "淡出完成后 BGM 应停止播放。")
+
+
 func test_play_bgm_clip_applies_settings() -> void:
 	var stream := AudioStreamGenerator.new()
 	var clip := GFAudioClip.new()
@@ -240,5 +251,16 @@ func test_sfx_capacity_can_stop_oldest_request() -> void:
 
 func test_bus_volume() -> void:
 	# "Master" 是默认存在的总线
+	var bus_idx := AudioServer.get_bus_index("Master")
+	var original_db := AudioServer.get_bus_volume_db(bus_idx)
+	var original_muted := AudioServer.is_bus_mute(bus_idx)
+
 	_audio.set_bus_volume("Master", 0.5)
 	assert_almost_eq(_audio.get_bus_volume("Master"), 0.5, 0.05, "音量设置取回应该近乎一致。")
+
+	_audio.set_bus_volume("Master", 0.0)
+	assert_true(AudioServer.is_bus_mute(bus_idx), "设置 0.0 时应真正静音总线。")
+	assert_eq(_audio.get_bus_volume("Master"), 0.0, "静音总线读取音量应返回 0.0。")
+
+	AudioServer.set_bus_volume_db(bus_idx, original_db)
+	AudioServer.set_bus_mute(bus_idx, original_muted)

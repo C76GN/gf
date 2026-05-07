@@ -96,7 +96,7 @@ func dispose() -> void:
 
 ## 从池中获取一个节点实例。若池为空则自动实例化并加入父节点。
 ## @param scene: 要实例化的 PackedScene 资源。
-## @param parent: 新实例化的节点将被加入此父节点（释放节点不会改变父节点）。
+## @param parent: 借出的节点将加入或移动到此父节点；释放时会移动到内部池根节点。
 ## @return 可直接使用的节点实例。
 func acquire(scene: PackedScene, parent: Node) -> Node:
 	if _is_disposed:

@@ -18,7 +18,74 @@
 
 ## 维护策略
 
-本页面只保留最近三个大版本线的更新记录，当前保留 `1.23.x`、`1.22.x` 与 `1.21.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个大版本线的更新记录，当前保留 `1.24.x`、`1.23.x` 与 `1.22.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [1.24.0] - 2026-05-07
+
+**版本概述**：收敛事件、命令、查询、规则和撤销历史的边界说明，增强 Command / Query 误用诊断，并加固 Utility 工具箱中的存储、音频、场景瞬态清理、定时器和 UI 入栈行为。
+
+### 🚀 新增特性 (Added)
+- **严格 checksum 缺失校验**：`GFStorageCodec` / `GFStorageUtility` 新增 `require_integrity_checksum`，可在启用完整性校验时把缺少 `_meta.checksum` 的旧载荷视为失败。
+- **可取消逻辑定时器**：`GFTimerUtility.execute_after()` 现在会为排队任务返回句柄，新增 `cancel(handle)` 取消尚未触发的延迟回调。
+- **实例面板配置回调**：`GFUIUtility.push_panel_instance()` 新增可选 `config_callback`，与同步/异步场景入栈接口保持一致。
+
+### 🔄 机制更改 (Changed)
+- **Command / Query 误用诊断**：`GFArchitecture.send_command()` 与 `send_query()` 收到缺少 `execute()` 方法的对象时会输出 warning 并继续返回 `null`，避免错误对象被静默忽略。
+- **Storage dispose 完成通知**：`GFStorageUtility.dispose()` 会等待已启动的异步任务并发出对应完成信号，对尚未开始的队列任务发出失败结果，避免等待方悬挂。
+- **音频总线静音语义**：`GFAudioUtility.set_bus_volume(bus, 0.0)` 会真正 mute 总线，`get_bus_volume()` 对 mute 总线返回 `0.0`。
+
+### 📚 文档 (Docs)
+- **事件边界说明**：修正 Simple Event 可携带 `Variant` payload、Type Event 推荐而非强制继承 `GFPayload`、`is_consumed` 字段约定、同步监听器和 exact / assignable 重复监听语义。
+- **Command / Query / Rule 约定**：明确 Command 不提供事务、自动回滚或幂等保护，Query 只读性由项目规范保证，`GFRule.validate()` 不会自动执行且 `GFRule` 不参与架构注入。
+- **撤销历史限制**：补充 `GFUndoableCommand.set_snapshot()` 对对象引用快照的限制，以及 `GFCommandHistoryUtility` 异步超时不会取消已开始副作用的说明。
+- **Utility 边界说明**：补充 Asset / Scene 取消不等于中止 Godot 线程请求、Signal 参数上限、Storage 绝对路径兼容默认、Debug Overlay 敏感字段风险、Analytics shutdown 尽力 flush 和同步 transport hook 约定。
+- **数据绑定说明**：明确普通 `BindableProperty` 不阻止外部写入，推荐对外暴露只读视图，并补充引用值原地变更需要 `force_emit()` 或重新 `set_value()` 的边界。
+
+### 🐛 Bug 修复 (Fixed)
+- **瞬态 Utility 未清理**：`GFSceneUtility.cleanup_transients()` 现在会同时注销标记为 transient 的 `GFUtility`，不再只处理 System / Model。
+- **空 BGM 路径忽略淡出参数**：`GFAudioUtility.play_bgm("", crossfade_seconds)` 现在会按传入淡出时长停止当前 BGM。
+- **对象池注释误导**：修正 `GFObjectPoolUtility.acquire()` 参数说明，明确释放节点会移动到内部池根节点。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFStorageCodec.require_integrity_checksum: bool`。
+- 新增 `GFStorageCodec.has_integrity_checksum(data: Dictionary) -> bool`。
+- 新增 `GFStorageUtility.require_integrity_checksum: bool`。
+- `GFTimerUtility.execute_after(delay: float, callback: Callable)` 返回值从 `void` 扩展为 `int` 句柄；忽略返回值的旧调用保持可用。
+- 新增 `GFTimerUtility.cancel(handle: int) -> bool`。
+- `GFUIUtility.push_panel_instance(panel_instance: Node, layer: Layer = Layer.POPUP)` 新增可选 `config_callback: Callable = Callable()` 参数；旧调用保持可用。
+- `send_command()` / `send_query()` 对无 `execute()` 对象的返回值仍为 `null`，但现在会额外输出 warning。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果项目依赖 `send_command()` / `send_query()` 静默忽略普通对象，升级后会看到新的 warning；应改为传入实现 `execute()` 的 Command / Query，或直接调用项目自己的普通对象方法。
+2. 在 `GFNodeContext` 局部上下文中，依赖框架访问器的 Command / Query 应通过当前 architecture 创建或发送，避免未注入对象回退到全局架构。
+3. 旧存档默认仍兼容缺少 checksum 的载荷；只有同时启用 `use_integrity_checksum`、`strict_integrity` 和 `require_integrity_checksum` 时，缺少 checksum 才会被拒绝。
+4. 如果项目此前用 `set_bus_volume(bus, 0.0)` 期望保留极低但非静音的音量，请改用一个大于 `0.0` 的线性音量值。
+5. `GFTimerUtility.execute_after()` 的旧调用无需修改；需要取消任务时保存返回句柄并传给 `cancel(handle)`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/utilities/gf_audio_utility.gd`
+- `addons/gf/utilities/gf_object_pool_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_storage_codec.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_timer_utility.gd`
+- `addons/gf/utilities/gf_ui_utility.gd`
+- `tests/gf_core/test_gf_singleton.gd`
+- `tests/gf_core/test_gf_audio_utility.gd`
+- `tests/gf_core/test_gf_scene_utility.gd`
+- `tests/gf_core/test_gf_storage_codec.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+- `tests/gf_core/test_gf_timer_utility.gd`
+- `tests/gf_core/test_gf_ui_utility.gd`
+- `docs/wiki/04. 事件系统 (Event System).md`
+- `docs/wiki/05. 数据绑定 (Data Binding).md`
+- `docs/wiki/06. 命令与查询 (Commands & Queries).md`
+- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `docs/wiki/Home.md`
 
 ---
 
@@ -526,105 +593,3 @@
 - `tests/gf_core/test_gf_node_state_machine.gd`
 - `tests/gf_core/test_gf_notification_utility.gd`
 - `tests/gf_core/test_gf_save_graph_utility.gd`
-
-## [1.21.0] - 2026-05-01
-
-**版本概述**：围绕通用输入、节点存档图、流程编排、网络抽象、运行时诊断、音频编排和 3D 空间查询补强框架横向能力。新增内容均以可组合 Resource、Node Hook、后端接口或纯逻辑数据结构提供，不绑定具体业务字段、实体类型、协议平台或玩法规则。
-
-### 🚀 新增特性 (Added)
-- **输入修饰器与触发器**：新增 `GFInputModifier`、死区/缩放/归一化/范围映射修饰器，以及 `GFInputTrigger`、`GFInputHoldTrigger`，可在 Binding/Mapping 层组合处理轴值和长按触发。
-- **输入检测增强**：`GFInputDetector` 新增按动作值类型检测、倒计时接收窗口和便捷 `detect_bool()` / `detect_axis_1d()` / `detect_axis_2d()`。
-- **通用节点存档图**：新增 `GFSaveScope`、`GFSaveSource`、`GFSaveIdentity`、`GFSaveGraphUtility`、节点序列化器注册表和实体工厂基类，支持项目层按 Scope/Source 组合保存和恢复节点状态。
-- **存档 Pipeline**：新增 `GFSavePipelineStep` 与 `GFSaveGraphUtility.pipeline_steps`，可在 Scope 采集/应用前后插入版本适配、校验、调试标记或通用载荷处理。
-- **默认节点序列化器**：新增 Node2D/Node3D Transform、CanvasItem、Control、Range 序列化器与显式属性白名单序列化器，作为可替换的通用节点状态片段。
-- **输入三维动作值**：`GFInputAction.ValueType` 新增 `AXIS_3D`，`GFInputBinding.ValueTarget` 新增三维 X/Y/Z 正负向目标，`GFInputMappingUtility` 新增三维动作值查询。
-- **输入触发器扩展**：新增按下、释放、短按、周期脉冲、组合动作和动作序列触发器，覆盖常见输入语义但不绑定具体按键或业务行为。
-- **资源化流程图基础**：新增 `GFFlowContext`、`GFFlowNode`、`GFFlowGraph` 与 `GFFlowRunner`，提供节点执行、动态分支、Signal 等待、取消和循环保护。
-- **网络抽象基础**：新增 `GFNetworkMessage`、`GFNetworkSerializer`、`GFNetworkBackend`、`GFNetworkUtility` 与 `GFNetworkRateLimiter`，为项目层接入任意传输后端提供统一边界。
-- **项目常量访问器生成**：`GFAccessGenerator` 新增项目常量访问器生成能力，可生成命名层、InputMap 动作和 GF ProjectSettings 键名常量。
-- **日志内存环形缓存**：`GFLogUtility` 新增最近日志条目缓存、分页读取、容量上限和丢弃计数，便于控制台和调试面板直接读取历史日志。
-- **控制台相似命令建议**：`GFConsoleUtility` 新增相似命令候选查询，未知命令可提示最接近的已注册命令。
-- **音频编排增强**：`GFAudioUtility` 新增 BGM 淡入淡出、BGM 播放历史、当前 BGM key、环境音 channel 播放/停止，以及资源化环境音入口。
-- **3D 空间哈希**：新增 `GFSpatialHash3D`，提供纯逻辑 AABB 插入、更新、移除、范围查询和半径查询。
-
-### 🔄 机制更改 (Changed)
-- **输入动作活跃判定解耦**：`GFInputMappingUtility` 在聚合绑定值后先应用 Mapping 修饰器，再由可选 Trigger 决定动作是否活跃；未配置 Trigger 时保持原始活跃语义。
-- **输入内部值模型扩展**：输入聚合内部使用三维向量表示贡献，旧二维查询 API 保持兼容并返回 X/Y 分量。
-- **玩家级输入状态一致性**：玩家级动作向量现在也应用 Mapping 修饰器，并在清理玩家状态时同步清理 raw active 与 trigger runtime state。
-- **BGM 播放请求兼容增强**：原 `play_bgm()` / `play_bgm_clip()` / `play_bgm_from_bank()` 保持可用，并通过可选参数接入单次淡入淡出。
-- **Save Viewer 默认位置调整**：`GF Save Viewer` 现在默认加入编辑器底部面板区域，与测试面板等工具使用同类停靠位置，减少右侧 Inspector 空间占用。
-
-### 🐛 Bug 修复 (Fixed)
-- **输入 Mapping 重建残留**：重建有效输入条目时同步清理 Mapping 修饰器和触发器缓存，避免上下文切换后旧配置残留。
-- **AUTO 绑定事件透传**：`GFInputBinding` 的 AUTO 贡献路径现在会把原生 `InputEvent` 传给绑定级修饰器。
-- **输入触发器脚本解析冲突**：`GFInputTrigger` 的状态重置方法避开 Godot `Resource.reset_state()` 内置方法名，修复 LSP 解析 `GFInputTrigger` / `GFInputHoldTrigger` 失败的问题。
-
-### 🔌 API 变动说明 (API Changes)
-- `GFInputBinding` 新增 `modifiers: Array[GFInputModifier]`。
-- `GFInputBinding.ValueTarget` 新增三维轴正负向枚举项。
-- `GFInputMapping` 新增 `modifiers: Array[GFInputModifier]` 与 `triggers: Array[GFInputTrigger]`。
-- `GFInputAction.ValueType` 新增 `AXIS_3D`。
-- `GFInputMappingUtility` 新增 `get_action_vector3()` 与 `get_action_vector3_for_player()`。
-- `GFInputModifier` 新增 `modify_3d(value: Vector3, event: InputEvent = null, action: GFInputAction = null) -> Vector3`。
-- `GFInputTrigger` 新增 `prepare_runtime(action_id: StringName, input_utility: Object, player_index: int, state: Dictionary) -> void`。
-- `GFInputDetector` 新增 `countdown_seconds`、`begin_detection_for_value_type()`、`begin_detection_for_action()`、`detect_bool()`、`detect_axis_1d()`、`detect_axis_2d()`、`detect_axis_3d()`、`get_countdown_remaining()` 与 `is_accepting_input()`。
-- `GFConsoleUtility` 新增 `suggest_similar_commands(cmd_name: String, limit: int = 3, threshold: float = 0.5) -> PackedStringArray`。
-- `GFLogUtility` 新增 `max_memory_entries`、`get_recent_entries()`、`get_entries()`、`get_memory_entry_count()`、`get_dropped_memory_entry_count()` 与 `clear_memory_entries()`。
-- `GFAudioUtility` 新增 `bgm_crossfade_seconds`、`max_bgm_history`、`get_bgm_history()`、`get_current_bgm_key()`、`clear_bgm_history()`、`play_ambient()`、`play_ambient_clip()`、`play_ambient_from_bank()`、`stop_ambient()`、`stop_all_ambient()` 与 `is_ambient_playing()`；BGM 播放方法增加可选 `crossfade_seconds` 参数。
-- 新增 `GFSaveGraphUtility`、`GFSaveScope`、`GFSaveSource`、`GFSaveIdentity`、`GFSaveEntityFactory`、`GFSavePipelineStep`、`GFNodeSerializer`、`GFNodeSerializerRegistry`、`GFNodePropertySerializer`、`GFNodeTransform2DSerializer`、`GFNodeTransform3DSerializer`、`GFNodeCanvasItemSerializer`、`GFNodeControlSerializer`、`GFNodeRangeSerializer`。
-- 新增 `GFFlowContext`、`GFFlowNode`、`GFFlowGraph`、`GFFlowRunner`。
-- 新增 `GFNetworkMessage`、`GFNetworkSerializer`、`GFNetworkBackend`、`GFNetworkUtility`、`GFNetworkRateLimiter`。
-- `GFAccessGenerator` 新增 `generate_project_access()`、`collect_project_records()` 与 `build_project_source()`。
-- 新增 `GFSpatialHash3D`。
-- 无破坏性 API 变更；未使用新增配置的旧输入、日志、音频和存档调用保持原行为。
-
-### 📘 升级指南 (Migration Guide)
-1. 旧项目可直接升级；输入 Mapping 未配置 `modifiers` / `triggers` 时行为保持原样。
-2. 如需长按、死区重映射、摇杆归一化或轴值缩放，优先把通用转换放进 `GFInputModifier` / `GFInputTrigger`，具体移动、攻击、菜单规则仍放在项目层。
-3. 如需三维输入，使用 `GFInputAction.ValueType.AXIS_3D` 和三维 `ValueTarget`，读取时使用 `get_action_vector3()`；旧二维接口无需迁移。
-4. 如需保存场景树局部状态，可在根节点下放置 `GFSaveScope` 与若干 `GFSaveSource`，再由项目层决定 Source 数据 schema、自定义序列化器或 Pipeline 步骤。
-5. 如需资源化流程编排，优先继承 `GFFlowNode` 写项目自己的节点资源，再用 `GFFlowRunner` 执行；不要把剧情、任务或教程规则写进框架节点。
-6. 如需网络能力，继承 `GFNetworkBackend` 接入项目选择的传输层，并通过 `GFNetworkUtility` 发送/接收 `GFNetworkMessage`。
-7. 如需运行时调试面板读取历史日志，使用 `GFLogUtility.get_recent_entries()`，不必额外监听并复制 `log_emitted`。
-8. 如需环境音或 BGM 淡入淡出，可使用新增音频参数和 channel API；原 SFX 池化与音量总线接口无需迁移。
-9. 3D 项目需要大量实体粗筛时可在 System 内持有 `GFSpatialHash3D`，再在查询结果上执行项目自己的精确规则。
-
-### 📁 核心受影响文件 (Affected Files)
-- `ASSET_LIBRARY.md`
-- `README.md`
-- `addons/gf/README.md`
-- `addons/gf/plugin.cfg`
-- `addons/gf/plugin.gd`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `docs/wiki/11. 基础层 (Foundation Layer).md`
-- `docs/wiki/更新日志 (Changelog).md`
-- `addons/gf/input/gf_input_binding.gd`
-- `addons/gf/input/gf_input_detector.gd`
-- `addons/gf/input/gf_input_mapping.gd`
-- `addons/gf/input/gf_input_modifier.gd`
-- `addons/gf/input/gf_input_trigger.gd`
-- `addons/gf/input/gf_input_pressed_trigger.gd`
-- `addons/gf/input/gf_input_released_trigger.gd`
-- `addons/gf/input/gf_input_tap_trigger.gd`
-- `addons/gf/input/gf_input_pulse_trigger.gd`
-- `addons/gf/input/gf_input_chord_trigger.gd`
-- `addons/gf/input/gf_input_sequence_trigger.gd`
-- `addons/gf/utilities/gf_input_mapping_utility.gd`
-- `addons/gf/utilities/gf_console_utility.gd`
-- `addons/gf/utilities/gf_log_utility.gd`
-- `addons/gf/utilities/gf_audio_utility.gd`
-- `addons/gf/extensions/save/`
-- `addons/gf/extensions/flow/`
-- `addons/gf/extensions/network/`
-- `addons/gf/editor/gf_access_generator.gd`
-- `addons/gf/foundation/math/gf_spatial_hash_3d.gd`
-- `tests/gf_core/test_gf_input_mapping_utility.gd`
-- `tests/gf_core/test_gf_input_detector.gd`
-- `tests/gf_core/test_gf_console_utility.gd`
-- `tests/gf_core/test_gf_save_graph_utility.gd`
-- `tests/gf_core/test_gf_flow_graph.gd`
-- `tests/gf_core/test_gf_network_extension.gd`
-- `tests/gf_core/test_gf_access_generator.gd`
-- `tests/gf_core/test_gf_spatial_hash_3d.gd`
-- `tests/gf_core/test_gf_log_utility.gd`
-- `tests/gf_core/test_gf_audio_utility.gd`

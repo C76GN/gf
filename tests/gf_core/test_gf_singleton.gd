@@ -32,6 +32,9 @@ class DummyUtility extends GFUtility:
 class NotUtility extends RefCounted:
 	pass
 
+class NoExecuteObject extends RefCounted:
+	pass
+
 class UtilityBase extends GFUtility:
 	pass
 
@@ -1430,6 +1433,20 @@ func test_architecture_null_inputs_are_rejected() -> void:
 	assert_push_error("[GFArchitecture] send_query 失败：query 为空。")
 	assert_push_error("[GFArchitecture] send_event 失败：event_instance 为空。")
 	assert_push_error("[GFArchitecture] register_utility_instance_as 失败：实例为空。")
+	arch.dispose()
+
+
+## 验证命令/查询误传没有 execute() 的对象时会输出警告并安全返回 null。
+func test_architecture_warns_when_command_or_query_lacks_execute() -> void:
+	var arch := GFArchitecture.new()
+
+	var command_result: Variant = arch.send_command(NoExecuteObject.new())
+	var query_result: Variant = arch.send_query(NoExecuteObject.new())
+
+	assert_null(command_result, "缺少 execute() 的 command 应返回 null。")
+	assert_null(query_result, "缺少 execute() 的 query 应返回 null。")
+	assert_push_warning("[GFArchitecture] send_command 失败：command 缺少 execute() 方法，已忽略。")
+	assert_push_warning("[GFArchitecture] send_query 失败：query 缺少 execute() 方法，已忽略。")
 	arch.dispose()
 
 

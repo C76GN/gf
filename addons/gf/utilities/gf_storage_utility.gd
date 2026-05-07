@@ -61,6 +61,9 @@ var use_integrity_checksum: bool = false
 ## 完整性校验失败时是否拒绝读取。
 var strict_integrity: bool = true
 
+## 启用完整性校验时，是否要求载荷必须包含 `_meta.checksum`。
+var require_integrity_checksum: bool = false
+
 ## 是否写入 `_meta.version`、`_meta.timestamp` 等通用元信息。
 var include_storage_metadata: bool = false
 
@@ -331,16 +334,7 @@ func _poll_async_tasks() -> void:
 		var result_variant: Variant = thread.wait_to_finish()
 		_async_tasks.remove_at(i)
 		_async_file_locks.erase(String(task.get("file_key", "")))
-		var file_name := String(task.get("file_name", ""))
-		var task_type := StringName(task.get("type", &""))
-		if task_type == &"save":
-			var save_result := result_variant as Dictionary
-			var error: Error = ERR_BUG
-			if save_result != null:
-				error = int(save_result.get("error", ERR_BUG))
-			save_completed.emit(file_name, error)
-		elif task_type == &"load":
-			_complete_async_load(file_name, result_variant)
+		_complete_finished_async_task(task, result_variant)
 	_start_queued_async_tasks()
 
 
@@ -348,10 +342,12 @@ func _wait_for_async_tasks() -> void:
 	for task: Dictionary in _async_tasks:
 		var thread := task.get("thread") as Thread
 		if thread != null:
-			thread.wait_to_finish()
+			var result_variant: Variant = thread.wait_to_finish()
+			_complete_finished_async_task(task, result_variant)
 	_async_tasks.clear()
-	_async_queue.clear()
 	_async_file_locks.clear()
+	_fail_queued_async_tasks("Storage utility disposed before task started.")
+	_async_queue.clear()
 
 
 func _start_queued_async_tasks() -> void:
@@ -417,6 +413,31 @@ func _emit_async_start_failed(task: Dictionary, error: Error) -> void:
 		push_error("[GFStorageUtility] 无法启动异步读取线程：%s，错误码：%s" % [file_name, error])
 		var failed_result := _make_load_result(false, {}, "Thread start failed: %s" % error_string(error), true)
 		load_completed.emit(file_name, failed_result)
+
+
+func _complete_finished_async_task(task: Dictionary, result_variant: Variant) -> void:
+	var file_name := String(task.get("file_name", ""))
+	var task_type := StringName(task.get("type", &""))
+	if task_type == &"save":
+		var save_result := result_variant as Dictionary
+		var error: Error = ERR_BUG
+		if save_result != null:
+			error = int(save_result.get("error", ERR_BUG))
+		save_completed.emit(file_name, error)
+	elif task_type == &"load":
+		_complete_async_load(file_name, result_variant)
+
+
+func _fail_queued_async_tasks(reason: String) -> void:
+	for task: Dictionary in _async_queue:
+		var file_name := String(task.get("file_name", ""))
+		var task_type := StringName(task.get("type", &""))
+		if task_type == &"save":
+			save_completed.emit(file_name, ERR_UNAVAILABLE)
+		elif task_type == &"load":
+			var failed_result := _make_load_result(false, {}, reason, true)
+			last_load_result = failed_result.duplicate(true)
+			load_completed.emit(file_name, failed_result)
 
 
 func _complete_async_load(file_name: String, result_variant: Variant) -> void:
@@ -1044,6 +1065,7 @@ func _get_codec_options() -> Dictionary:
 		"use_compression": use_compression,
 		"use_integrity_checksum": use_integrity_checksum,
 		"strict_integrity": strict_integrity,
+		"require_integrity_checksum": require_integrity_checksum,
 		"include_metadata": include_storage_metadata,
 		"version": save_version,
 		"obfuscation_key": encrypt_key,

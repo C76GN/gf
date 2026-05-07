@@ -117,7 +117,7 @@ func play_bgm(path: String, crossfade_seconds: float = -1.0) -> void:
 	_bgm_request_serial += 1
 	var request_serial := _bgm_request_serial
 	if path.is_empty():
-		stop_bgm()
+		stop_bgm(crossfade_seconds)
 		return
 		
 	var asset_util := _get_asset_util()
@@ -363,7 +363,12 @@ func play_sfx_from_bank(bank: GFAudioBank, clip_id: StringName) -> void:
 func set_bus_volume(bus_name: String, volume_linear: float) -> void:
 	var bus_idx := AudioServer.get_bus_index(bus_name)
 	if bus_idx >= 0:
-		var db := linear_to_db(maxf(volume_linear, 0.0001))
+		if volume_linear <= 0.0:
+			AudioServer.set_bus_volume_db(bus_idx, -80.0)
+			AudioServer.set_bus_mute(bus_idx, true)
+			return
+		AudioServer.set_bus_mute(bus_idx, false)
+		var db := linear_to_db(minf(volume_linear, 1.0))
 		AudioServer.set_bus_volume_db(bus_idx, db)
 	else:
 		push_warning("[GFAudioUtility] 无法找到音轨总线: " + bus_name)
@@ -375,6 +380,8 @@ func set_bus_volume(bus_name: String, volume_linear: float) -> void:
 func get_bus_volume(bus_name: String) -> float:
 	var bus_idx := AudioServer.get_bus_index(bus_name)
 	if bus_idx >= 0:
+		if AudioServer.is_bus_mute(bus_idx):
+			return 0.0
 		return db_to_linear(AudioServer.get_bus_volume_db(bus_idx))
 	return 0.0
 

@@ -45,6 +45,9 @@ const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 ## 校验失败时是否拒绝读取。
 @export var strict_integrity: bool = true
 
+## 启用完整性校验时，是否要求载荷必须包含 `_meta.checksum`。
+@export var require_integrity_checksum: bool = false
+
 ## 是否写入 `_meta.version` 和 `_meta.timestamp`。
 @export var include_metadata: bool = false
 
@@ -95,6 +98,11 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 	var key := _get_int_option(options, "obfuscation_key", obfuscation_key)
 	var should_verify_checksum := _get_bool_option(options, "use_integrity_checksum", use_integrity_checksum)
 	var should_reject_bad_checksum := _get_bool_option(options, "strict_integrity", strict_integrity)
+	var should_require_checksum := _get_bool_option(
+		options,
+		"require_integrity_checksum",
+		require_integrity_checksum
+	)
 	var payload_bytes := _decode_obfuscation(bytes, key)
 	if payload_bytes.is_empty():
 		return _make_result(false, {}, "Payload is empty", true)
@@ -120,7 +128,12 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 
 	var integrity_valid := true
 	if should_verify_checksum:
-		integrity_valid = verify_integrity(data, active_format)
+		var has_checksum := has_integrity_checksum(data)
+		integrity_valid = has_checksum and verify_integrity(data, active_format)
+		if not has_checksum and not should_require_checksum:
+			integrity_valid = true
+		elif not has_checksum and should_reject_bad_checksum:
+			return _make_result(false, data, "Integrity checksum missing", false)
 		if not integrity_valid and should_reject_bad_checksum:
 			return _make_result(false, data, "Integrity checksum mismatch", false)
 
@@ -184,6 +197,13 @@ func get_metadata(data: Dictionary) -> Dictionary:
 	if metadata_variant is Dictionary:
 		return (metadata_variant as Dictionary).duplicate(true)
 	return {}
+
+
+## 判断字典是否包含完整性 checksum。
+## @param data: 存档数据。
+## @return 包含 `_meta.checksum` 时返回 true。
+func has_integrity_checksum(data: Dictionary) -> bool:
+	return get_metadata(data).has(CHECKSUM_KEY)
 
 
 # --- 私有/辅助方法 ---
