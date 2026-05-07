@@ -11,6 +11,9 @@ const INSTALLERS_SETTING: String = "gf/project/installers"
 
 ## 项目级 Installer 创建失败时是否中断架构初始化。
 const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_error"
+
+## 项目级 Installer 单个 install()/install_bindings() 的最长等待时间。小于等于 0 时不启用超时。
+const INSTALLER_TIMEOUT_SETTING: String = "gf/project/installer_timeout_seconds"
 const GFInstallerBase = preload("res://addons/gf/core/gf_installer.gd")
 const GFBindingLifetimesBase = preload("res://addons/gf/core/gf_binding_lifetimes.gd")
 
@@ -513,16 +516,109 @@ func _run_project_installers(architecture_instance: GFArchitecture) -> bool:
 				return false
 			continue
 		if installer != null:
-			await installer.install(architecture_instance)
-			if not architecture_instance.is_project_installers_running():
+			var install_completed := await _await_project_installer_install(installer, architecture_instance, path)
+			if not install_completed or not architecture_instance.is_project_installers_running():
 				return false
 			if installer.has_method("install_bindings"):
-				await installer.install_bindings(architecture_instance.create_binder())
+				var bindings_completed := await _await_project_installer_bindings(installer, architecture_instance, path)
+				if not bindings_completed:
+					return false
 		if not architecture_instance.is_project_installers_running():
 			return false
 
 	architecture_instance.finish_project_installers()
 	return true
+
+
+func _await_project_installer_install(
+	installer: Object,
+	architecture_instance: GFArchitecture,
+	path: String
+) -> bool:
+	var timeout_seconds := _get_project_installer_timeout_seconds()
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if timeout_seconds <= 0.0 or scene_tree == null:
+		await installer.install(architecture_instance)
+		return not architecture_instance.has_initialization_failed()
+
+	var completion_state := { "done": false }
+	_complete_project_installer_install(installer, architecture_instance, completion_state)
+	return await _wait_for_project_installer_step(
+		completion_state,
+		architecture_instance,
+		path,
+		"install",
+		timeout_seconds,
+		scene_tree
+	)
+
+
+func _await_project_installer_bindings(
+	installer: Object,
+	architecture_instance: GFArchitecture,
+	path: String
+) -> bool:
+	var timeout_seconds := _get_project_installer_timeout_seconds()
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if timeout_seconds <= 0.0 or scene_tree == null:
+		await installer.install_bindings(architecture_instance.create_binder())
+		return not architecture_instance.has_initialization_failed()
+
+	var completion_state := { "done": false }
+	_complete_project_installer_bindings(installer, architecture_instance, completion_state)
+	return await _wait_for_project_installer_step(
+		completion_state,
+		architecture_instance,
+		path,
+		"install_bindings",
+		timeout_seconds,
+		scene_tree
+	)
+
+
+func _complete_project_installer_install(
+	installer: Object,
+	architecture_instance: GFArchitecture,
+	completion_state: Dictionary
+) -> void:
+	await installer.install(architecture_instance)
+	completion_state["done"] = true
+
+
+func _complete_project_installer_bindings(
+	installer: Object,
+	architecture_instance: GFArchitecture,
+	completion_state: Dictionary
+) -> void:
+	await installer.install_bindings(architecture_instance.create_binder())
+	completion_state["done"] = true
+
+
+func _wait_for_project_installer_step(
+	completion_state: Dictionary,
+	architecture_instance: GFArchitecture,
+	path: String,
+	stage: String,
+	timeout_seconds: float,
+	scene_tree: SceneTree
+) -> bool:
+	var start_msec := Time.get_ticks_msec()
+	var timeout_msec := int(timeout_seconds * 1000.0)
+	while not bool(completion_state.get("done", false)):
+		if architecture_instance.has_initialization_failed() or not architecture_instance.is_project_installers_running():
+			return false
+		var elapsed_msec := Time.get_ticks_msec() - start_msec
+		if elapsed_msec >= timeout_msec:
+			architecture_instance.fail_initialization(
+				"[GF] 项目 Installer 超时：%s 的 %s() 超过 %.2f 秒。" % [
+					path,
+					stage,
+					timeout_seconds,
+				]
+			)
+			return false
+		await scene_tree.process_frame
+	return not architecture_instance.has_initialization_failed()
 
 
 func _get_project_installer_paths() -> Array[String]:
@@ -572,6 +668,10 @@ func _create_installer(path: String) -> Object:
 
 func _should_fail_on_project_installer_error() -> bool:
 	return bool(ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, false))
+
+
+func _get_project_installer_timeout_seconds() -> float:
+	return maxf(float(ProjectSettings.get_setting(INSTALLER_TIMEOUT_SETTING, 0.0)), 0.0)
 
 
 func _report_project_installer_error(message: String) -> void:

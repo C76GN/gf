@@ -6,6 +6,7 @@ extends GutTest
 
 const INSTALLERS_SETTING: String = "gf/project/installers"
 const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_error"
+const INSTALLER_TIMEOUT_SETTING: String = "gf/project/installer_timeout_seconds"
 const TEST_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_test_installer.gd"
 const ASYNC_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_async_binding_installer.gd"
 const BLOCKING_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_blocking_binding_installer.gd"
@@ -137,6 +138,17 @@ class ChildScopedContext extends GFNodeContextBase:
 	func install(architecture_instance: GFArchitecture) -> void:
 		lookup_system = ParentReadyLookupSystem.new()
 		architecture_instance.register_system_instance(lookup_system)
+
+class ManualInitScopedContext extends GFNodeContextBase:
+	var utility: TickUtility = null
+
+	func _init() -> void:
+		scope_mode = GFNodeContextBase.ScopeMode.SCOPED
+		auto_init = false
+
+	func install(architecture_instance: GFArchitecture) -> void:
+		utility = TickUtility.new()
+		architecture_instance.register_utility_instance(utility)
 
 class FactoryCommand extends GFCommand:
 	func get_parent_utility_from_command() -> ParentScopedUtility:
@@ -490,6 +502,23 @@ func test_register_utility_alias_resolves_base_type() -> void:
 	assert_eq(Gf.get_utility(UtilityBase), concrete, "显式 alias 应让基类查询解析到指定实现。")
 
 
+## 验证隐式基类查询缓存会在注册表变化时失效，避免返回旧的唯一匹配。
+func test_assignable_lookup_cache_invalidates_when_registry_changes() -> void:
+	var arch := GFArchitecture.new()
+	var concrete := ConcreteUtility.new()
+	var alternate := AlternateConcreteUtility.new()
+
+	await arch.register_utility_instance(concrete)
+	assert_eq(arch.get_utility(UtilityBase), concrete, "首次基类查询应解析到唯一实现。")
+
+	await arch.register_utility_instance(alternate)
+	assert_null(arch.get_utility(UtilityBase), "新增第二个实现后，旧的基类查询缓存不应继续返回旧实例。")
+
+	arch.unregister_utility(AlternateConcreteUtility)
+	assert_eq(arch.get_utility(UtilityBase), concrete, "移除歧义实现后，基类查询应重新解析唯一实现。")
+	arch.dispose()
+
+
 ## 验证重复注册会给出明确 warning，且 replace_utility 会释放旧实例并接管新实例。
 func test_duplicate_register_warns_and_replace_utility() -> void:
 	if Gf.has_architecture():
@@ -636,6 +665,18 @@ func test_binder_registers_modules_alias_and_factory_lifetimes() -> void:
 	arch.dispose()
 
 
+## 验证 factory 绑定不支持 alias 时会提示，避免误以为 alias 已生效。
+func test_factory_binding_warns_when_alias_is_ignored() -> void:
+	var arch := GFArchitecture.new()
+	var binder: Variant = arch.create_binder()
+
+	binder.bind_factory(FactoryCommand).with_alias(UtilityBase).as_transient()
+
+	assert_true(arch.has_factory(FactoryCommand), "Factory alias 被忽略时，原始工厂绑定仍应完成。")
+	assert_push_warning("[GFBindBuilder] with_alias() 仅对 Model/System/Utility 有效，Factory 绑定会忽略 alias。")
+	arch.dispose()
+
+
 ## 验证项目 Installer 会在 Gf.init() 初始化前自动注册模块。
 func test_project_installer_registers_modules_before_init() -> void:
 	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
@@ -743,6 +784,39 @@ func test_concurrent_gf_init_waits_for_active_project_installers() -> void:
 	assert_true(installed_utility.ready_called, "阻塞 Installer 注册的 Utility 应参与本轮生命周期。")
 
 
+## 验证项目 Installer 单步超时会中断初始化并记录失败原因。
+func test_project_installer_timeout_fails_initialization() -> void:
+	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	var previous_timeout: Variant = ProjectSettings.get_setting(INSTALLER_TIMEOUT_SETTING, 0.0)
+	var previous_started: Variant = ProjectSettings.get_setting(BLOCKING_INSTALLER_STARTED_SETTING, false)
+	var previous_release: Variant = ProjectSettings.get_setting(BLOCKING_INSTALLER_RELEASE_SETTING, false)
+	ProjectSettings.set_setting(INSTALLERS_SETTING, [BLOCKING_BINDING_INSTALLER_PATH])
+	ProjectSettings.set_setting(INSTALLER_TIMEOUT_SETTING, 0.01)
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_STARTED_SETTING, false)
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_RELEASE_SETTING, false)
+
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+	var architecture := Gf.get_architecture()
+
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_RELEASE_SETTING, true)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
+	ProjectSettings.set_setting(INSTALLER_TIMEOUT_SETTING, previous_timeout)
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_STARTED_SETTING, previous_started)
+	ProjectSettings.set_setting(BLOCKING_INSTALLER_RELEASE_SETTING, previous_release)
+
+	var expected_error := "[GF] 项目 Installer 超时：%s 的 install_bindings() 超过 0.01 秒。" % BLOCKING_BINDING_INSTALLER_PATH
+	assert_false(architecture.is_inited(), "Installer 超时后架构不应继续初始化。")
+	assert_true(architecture.has_initialization_failed(), "Installer 超时后架构应标记初始化失败。")
+	assert_eq(architecture.last_initialization_error, expected_error)
+	assert_push_error(expected_error)
+
+
 ## 验证 Scoped NodeContext 会创建局部架构、回退父架构并在退出树时释放局部模块。
 func test_scoped_node_context_owns_local_architecture() -> void:
 	if Gf.has_architecture():
@@ -799,6 +873,32 @@ func test_controller_waits_for_context_ready() -> void:
 
 	assert_eq(architecture, context.get_architecture(), "Controller 应等待并返回最近上下文的架构。")
 	assert_not_null(controller.get_local_scoped_utility(), "等待完成后 Controller 应能获取局部依赖。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
+## 验证 auto_init=false 的 Scoped NodeContext 可通过公开 API 手动完成初始化。
+func test_scoped_node_context_initialize_context_runs_manual_lifecycle() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var context := ManualInitScopedContext.new()
+	add_child(context)
+	watch_signals(context)
+	await get_tree().process_frame
+
+	assert_false(context.is_context_ready(), "auto_init=false 时上下文不应自动 ready。")
+	assert_not_null(context.utility, "上下文仍应完成局部安装。")
+	assert_false(context.utility.ready_called, "手动初始化前局部 Utility 不应进入 ready。")
+
+	var architecture := await context.initialize_context()
+
+	assert_not_null(architecture, "initialize_context 应返回初始化完成的局部架构。")
+	assert_true(context.is_context_ready(), "手动初始化后上下文应进入 ready。")
+	assert_true(context.utility.ready_called, "手动初始化应驱动局部模块 ready。")
+	assert_signal_emitted(context, "context_ready", "手动初始化成功应发出 context_ready。")
 
 	context.queue_free()
 	await get_tree().process_frame
@@ -1057,6 +1157,30 @@ func test_has_factory_checks_parent_without_instantiating() -> void:
 
 	child_arch.dispose()
 	parent_arch.dispose()
+
+
+## 验证未知工厂生命周期会在注册期暴露，而不是延迟到 create_instance()。
+func test_factory_registration_rejects_unknown_lifetime() -> void:
+	var arch := GFArchitecture.new()
+
+	arch.register_factory(
+		FactoryCommand,
+		func() -> Object:
+			return FactoryCommand.new(),
+		999
+	)
+	assert_false(arch.has_factory(FactoryCommand), "非法生命周期不应写入工厂注册表。")
+	assert_push_error("[GFArchitecture] register_factory 失败：未知工厂生命周期：999。")
+
+	arch.replace_factory(
+		FactoryCommand,
+		func() -> Object:
+			return FactoryCommand.new(),
+		999
+	)
+	assert_false(arch.has_factory(FactoryCommand), "replace_factory 也不应接受非法生命周期。")
+	assert_push_error("[GFArchitecture] replace_factory 失败：未知工厂生命周期：999。")
+	arch.dispose()
 
 
 ## 验证 Singleton 工厂缓存的节点失效后会重新创建实例。

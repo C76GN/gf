@@ -22,6 +22,39 @@
 
 ---
 
+## [1.23.3] - 2026-05-07
+
+**版本概述**：生命周期与依赖注入体验优化，聚焦 Installer 超时、Scoped Context 手动初始化、工厂误用提示、访问器注入一致性和隐式基类查询热路径。
+
+### 🚀 新增特性 (Added)
+- **Installer 超时保护**：新增项目设置 `gf/project/installer_timeout_seconds`，可限制单个项目级 Installer `install()` 或 `install_bindings()` 的等待时间。
+- **NodeContext 手动初始化入口**：`GFNodeContext` 新增 `initialize_context()`，让 `auto_init=false` 的 scoped 上下文可以通过公开 API 统一完成初始化并沿用 `context_ready` / `context_failed` 信号语义。
+
+### 🔄 机制更改 (Changed)
+- **隐式基类查询缓存**：`GFArchitecture` 会缓存唯一的 assignable 查询结果，并在注册、注销、alias 或 dispose 时失效缓存，减少热路径重复继承树扫描。
+- **工厂注册期校验**：`register_factory()` 与 `replace_factory()` 会在注册期拒绝未知 lifecycle 值，避免错误延迟到 `create_instance()` 才暴露。
+- **Factory alias 误用提示**：`GFBindBuilder.with_alias()` 用在 factory 绑定时会输出 warning，并继续完成原始 factory 绑定。
+- **访问器 fallback 注入一致性**：`GFAccessGenerator` 生成的 `new()` fallback 路径会先绑定内部依赖作用域，再调用自定义注入 Hook，和 `GFArchitecture.inject_object()` / factory 注入路径保持一致。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFNodeContext.initialize_context() -> GFArchitecture`。
+- 新增项目设置 `gf/project/installer_timeout_seconds: float`，默认 `0.0` 表示不启用超时。
+- 无破坏性函数签名变更。
+
+### 📘 升级指南 (Migration Guide)
+1. 如果项目级 Installer 可能长期等待外部资源，可设置 `gf/project/installer_timeout_seconds`；超时无法强制取消 Godot coroutine，Installer 恢复后仍应避免继续写回失效架构。
+2. 如果 `GFNodeContext.auto_init=false`，推荐改用 `await context.initialize_context()` 完成手动初始化，而不是直接调用 `context.get_architecture().init()`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_bind_builder.gd`
+- `addons/gf/core/gf_node_context.gd`
+- `addons/gf/editor/gf_access_generator.gd`
+- `addons/gf/plugin.gd`
+
+---
+
 ## [1.23.2] - 2026-05-07
 
 **版本概述**：核心架构可靠性维护，聚焦全局架构切换、Installer 失败策略、上下文失败传播、事件系统热路径、注销后的依赖作用域边界，以及维护规则机器化。

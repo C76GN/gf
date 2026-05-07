@@ -66,6 +66,9 @@ func from_instance(instance: Object) -> Variant:
 ## @param alias_cls: 调用 get_* 时使用的抽象脚本类型。
 ## @return 当前 Builder，便于继续声明生命周期。
 func with_alias(alias_cls: Script) -> Variant:
+	if _target_kind == TargetKind.FACTORY:
+		push_warning("[GFBindBuilder] with_alias() 仅对 Model/System/Utility 有效，Factory 绑定会忽略 alias。")
+		return self
 	_alias_cls = alias_cls
 	return self
 

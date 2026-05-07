@@ -56,6 +56,9 @@ var _factories: Dictionary = {}
 var _system_aliases: Dictionary = {}
 var _model_aliases: Dictionary = {}
 var _utility_aliases: Dictionary = {}
+var _system_assignable_cache: Dictionary = {}
+var _model_assignable_cache: Dictionary = {}
+var _utility_assignable_cache: Dictionary = {}
 var _module_lifecycle_stages: Dictionary = {}
 var _event_system: TypeEventSystem
 var _time_utility: GFTimeUtility
@@ -232,6 +235,7 @@ func dispose() -> void:
 	_model_aliases.clear()
 	_system_aliases.clear()
 	_utility_aliases.clear()
+	_clear_assignable_lookup_caches()
 	_module_lifecycle_stages.clear()
 	_event_system.clear()
 	_time_utility = null
@@ -433,6 +437,7 @@ func register_system(script_cls: Script, instance: Object) -> void:
 
 	_inject_dependencies_if_needed(instance)
 	_systems[script_cls] = instance
+	_system_assignable_cache.clear()
 	_track_registered_module(instance)
 	_refresh_tick_caches()
 	if _inited:
@@ -451,6 +456,7 @@ func register_model(script_cls: Script, instance: Object) -> void:
 
 	_inject_dependencies_if_needed(instance)
 	_models[script_cls] = instance
+	_model_assignable_cache.clear()
 	_track_registered_module(instance)
 	if _inited:
 		await _initialize_registered_module(instance)
@@ -468,6 +474,7 @@ func register_utility(script_cls: Script, instance: Object) -> void:
 
 	_inject_dependencies_if_needed(instance)
 	_utilities[script_cls] = instance
+	_utility_assignable_cache.clear()
 	_track_registered_module(instance)
 	_refresh_cached_utility_refs()
 	_refresh_tick_caches()
@@ -524,6 +531,8 @@ func register_factory(
 	if not factory.is_valid():
 		push_error("[GFArchitecture] register_factory 失败：factory 无效。")
 		return
+	if not _validate_factory_lifetime(lifetime, "register_factory"):
+		return
 	if _factories.has(script_cls):
 		push_warning("[GFArchitecture] register_factory：类型已注册，已忽略重复注册。若需要替换，请使用 replace_factory()。")
 		return
@@ -560,6 +569,8 @@ func replace_factory(
 		return
 	if not factory.is_valid():
 		push_error("[GFArchitecture] replace_factory 失败：factory 无效。")
+		return
+	if not _validate_factory_lifetime(lifetime, "replace_factory"):
 		return
 	_factories[script_cls] = GFBindingBase.new(script_cls, factory, self, lifetime, true)
 
@@ -601,6 +612,7 @@ func has_factory(script_cls: Script) -> bool:
 ## @param target_cls: 已注册 System 的实际脚本类。
 func register_system_alias(alias_cls: Script, target_cls: Script) -> void:
 	_register_alias(_system_aliases, _systems, alias_cls, target_cls, "System")
+	_system_assignable_cache.clear()
 
 
 ## 为已注册 Model 增加一个额外查询别名。
@@ -608,6 +620,7 @@ func register_system_alias(alias_cls: Script, target_cls: Script) -> void:
 ## @param target_cls: 已注册 Model 的实际脚本类。
 func register_model_alias(alias_cls: Script, target_cls: Script) -> void:
 	_register_alias(_model_aliases, _models, alias_cls, target_cls, "Model")
+	_model_assignable_cache.clear()
 
 
 ## 为已注册 Utility 增加一个额外查询别名。
@@ -615,6 +628,7 @@ func register_model_alias(alias_cls: Script, target_cls: Script) -> void:
 ## @param target_cls: 已注册 Utility 的实际脚本类。
 func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
 	_register_alias(_utility_aliases, _utilities, alias_cls, target_cls, "Utility")
+	_utility_assignable_cache.clear()
 
 
 ## 便捷注册 System 实例，自动从实例获取脚本类作为注册键。
@@ -709,9 +723,11 @@ func unregister_system(script_cls: Script) -> void:
 		_module_lifecycle_stages.erase(system)
 		_systems.erase(registered_key)
 		_remove_aliases_for(_system_aliases, registered_key)
+		_system_assignable_cache.clear()
 		_refresh_tick_caches()
 	else:
 		_system_aliases.erase(script_cls)
+		_system_assignable_cache.clear()
 
 
 ## 注销 Model 实例。
@@ -728,8 +744,10 @@ func unregister_model(script_cls: Script) -> void:
 		_module_lifecycle_stages.erase(model)
 		_models.erase(registered_key)
 		_remove_aliases_for(_model_aliases, registered_key)
+		_model_assignable_cache.clear()
 	else:
 		_model_aliases.erase(script_cls)
+		_model_assignable_cache.clear()
 
 
 ## 注销 Utility 实例。
@@ -746,10 +764,12 @@ func unregister_utility(script_cls: Script) -> void:
 		_module_lifecycle_stages.erase(utility)
 		_utilities.erase(registered_key)
 		_remove_aliases_for(_utility_aliases, registered_key)
+		_utility_assignable_cache.clear()
 		_refresh_cached_utility_refs()
 		_refresh_tick_caches()
 	else:
 		_utility_aliases.erase(script_cls)
+		_utility_assignable_cache.clear()
 
 
 # --- 获取方法 ---
@@ -758,7 +778,7 @@ func unregister_utility(script_cls: Script) -> void:
 ## @param script_cls: 脚本类。
 ## @return 系统实例，如果未找到则返回 null。
 func get_system(script_cls: Script) -> Object:
-	var instance := _get_local_registered_instance(_systems, _system_aliases, script_cls, "System")
+	var instance := _get_local_registered_instance(_systems, _system_aliases, _system_assignable_cache, script_cls, "System")
 	if instance != null:
 		return instance
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_systems, script_cls):
@@ -772,7 +792,7 @@ func get_system(script_cls: Script) -> Object:
 ## @param script_cls: 脚本类。
 ## @return 模型实例，如果未找到则返回 null。
 func get_model(script_cls: Script) -> Object:
-	var instance := _get_local_registered_instance(_models, _model_aliases, script_cls, "Model")
+	var instance := _get_local_registered_instance(_models, _model_aliases, _model_assignable_cache, script_cls, "Model")
 	if instance != null:
 		return instance
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_models, script_cls):
@@ -786,7 +806,7 @@ func get_model(script_cls: Script) -> Object:
 ## @param script_cls: 脚本类。
 ## @return 工具实例，如果未找到则返回 null。
 func get_utility(script_cls: Script) -> Object:
-	var instance := _get_local_registered_instance(_utilities, _utility_aliases, script_cls, "Utility")
+	var instance := _get_local_registered_instance(_utilities, _utility_aliases, _utility_assignable_cache, script_cls, "Utility")
 	if instance != null:
 		return instance
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_utilities, script_cls):
@@ -800,21 +820,21 @@ func get_utility(script_cls: Script) -> Object:
 ## @param script_cls: 脚本类。
 ## @return 当前架构中的系统实例，如果未找到则返回 null。
 func get_local_system(script_cls: Script) -> Object:
-	return _get_local_registered_instance(_systems, _system_aliases, script_cls, "System")
+	return _get_local_registered_instance(_systems, _system_aliases, _system_assignable_cache, script_cls, "System")
 
 
 ## 仅从当前架构获取 Model，不回退父级架构。
 ## @param script_cls: 脚本类。
 ## @return 当前架构中的模型实例，如果未找到则返回 null。
 func get_local_model(script_cls: Script) -> Object:
-	return _get_local_registered_instance(_models, _model_aliases, script_cls, "Model")
+	return _get_local_registered_instance(_models, _model_aliases, _model_assignable_cache, script_cls, "Model")
 
 
 ## 仅从当前架构获取 Utility，不回退父级架构。
 ## @param script_cls: 脚本类。
 ## @return 当前架构中的工具实例，如果未找到则返回 null。
 func get_local_utility(script_cls: Script) -> Object:
-	return _get_local_registered_instance(_utilities, _utility_aliases, script_cls, "Utility")
+	return _get_local_registered_instance(_utilities, _utility_aliases, _utility_assignable_cache, script_cls, "Utility")
 
 
 ## 通过已注册工厂创建短生命周期对象。
@@ -1052,6 +1072,17 @@ func _get_binding_lifetime_name(lifetime: int) -> String:
 			return "singleton"
 		_:
 			return "unknown"
+
+
+func _validate_factory_lifetime(lifetime: int, context: String) -> bool:
+	if (
+		lifetime == GFBindingLifetimesBase.Lifetime.TRANSIENT
+		or lifetime == GFBindingLifetimesBase.Lifetime.SINGLETON
+	):
+		return true
+
+	push_error("[GFArchitecture] %s 失败：未知工厂生命周期：%s。" % [context, str(lifetime)])
+	return false
 
 
 func _get_script_debug_key(script_cls: Script, instance: Object = null) -> String:
@@ -1409,11 +1440,24 @@ func _resolve_registered_key(registry: Dictionary, aliases: Dictionary, script_c
 	return null
 
 
-func _get_local_registered_instance(registry: Dictionary, aliases: Dictionary, script_cls: Script, label: String) -> Object:
+func _get_local_registered_instance(
+	registry: Dictionary,
+	aliases: Dictionary,
+	assignable_cache: Dictionary,
+	script_cls: Script,
+	label: String
+) -> Object:
 	var registered_key := _resolve_registered_key(registry, aliases, script_cls)
 	if registered_key != null:
 		return registry.get(registered_key)
-	return _find_assignable_instance(registry, script_cls, label)
+	registered_key = _resolve_assignable_cached_key(registry, assignable_cache, script_cls)
+	if registered_key != null:
+		return registry.get(registered_key)
+	registered_key = _find_assignable_registered_key(registry, script_cls, label)
+	if registered_key != null:
+		assignable_cache[script_cls] = registered_key
+		return registry.get(registered_key)
+	return null
 
 
 func _report_strict_lookup_miss(script_cls: Script, label: String) -> void:
@@ -1432,13 +1476,23 @@ func _remove_aliases_for(aliases: Dictionary, registered_key: Script) -> void:
 		aliases.erase(alias_cls)
 
 
-func _find_assignable_instance(registry: Dictionary, script_cls: Script, label: String) -> Object:
+func _resolve_assignable_cached_key(registry: Dictionary, assignable_cache: Dictionary, script_cls: Script) -> Script:
+	if script_cls == null or not assignable_cache.has(script_cls):
+		return null
+	var cached_key := assignable_cache[script_cls] as Script
+	if cached_key != null and registry.has(cached_key):
+		return cached_key
+	assignable_cache.erase(script_cls)
+	return null
+
+
+func _find_assignable_registered_key(registry: Dictionary, script_cls: Script, label: String) -> Script:
 	if script_cls == null:
 		return null
-	var matches: Array[Object] = []
+	var matches: Array[Script] = []
 	for registered_script: Script in registry:
 		if _script_extends_or_equals(registered_script, script_cls):
-			matches.append(registry[registered_script])
+			matches.append(registered_script)
 	if matches.size() == 1:
 		return matches[0]
 	if matches.size() > 1:
@@ -1462,3 +1516,9 @@ func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
 			return true
 		current = current.get_base_script()
 	return false
+
+
+func _clear_assignable_lookup_caches() -> void:
+	_system_assignable_cache.clear()
+	_model_assignable_cache.clear()
+	_utility_assignable_cache.clear()

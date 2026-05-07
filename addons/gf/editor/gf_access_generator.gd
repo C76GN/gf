@@ -155,6 +155,8 @@ func build_source(records: Array) -> String:
 	output.append("static func _inject_if_needed(instance: Object, architecture: GFArchitecture) -> void:")
 	output.append("\tif instance == null or architecture == null:")
 	output.append("\t\treturn")
+	output.append("\tif instance.has_method(\"_gf_set_dependency_scope\"):")
+	output.append("\t\tinstance.call(\"_gf_set_dependency_scope\", architecture)")
 	output.append("\tif instance.has_method(\"inject_dependencies\"):")
 	output.append("\t\tinstance.inject_dependencies(architecture)")
 	output.append("\tif instance.has_method(\"inject\"):")

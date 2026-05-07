@@ -71,6 +71,31 @@
 - `docs/wiki/更新日志 (Changelog).md`
 - `README.md` 与 `addons/gf/README.md`，如果公开概览发生变化
 
+版本与提交流程：
+
+- 功能开发、修复或文档补充过程中，如果需要记录发布说明，先写入 `docs/wiki/更新日志 (Changelog).md` 的 `[未发布]` 小节；如果没有 `[未发布]` 小节，就在最新正式版本上方创建。
+- 在用户确认本轮修改没有问题之前，不要把 `[未发布]` 改成具体版本号，也不要更新 `addons/gf/plugin.cfg` 或 `ASSET_LIBRARY.md` 的版本号。
+- 用户确认进入发布或提交阶段后，根据实际变更确定 SemVer 版本号：兼容 bug 修复或小型加固用 patch；向后兼容的新公开 API、设置或功能通常用 minor；破坏兼容只允许在用户明确批准后按 major 处理。
+- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
+- 除非用户明确要求 AI 直接提交，否则只准备 commit message 和待提交文件清单，让用户手动提交。若用户明确要求 AI 提交，提交前必须再次运行相关测试和文档/API 校验。
+- 提交后不要自动创建 Git tag；只有用户明确要求打 tag 时，才创建对应版本 tag。
+
+Commit message 模板：
+
+```text
+<Imperative summary>
+
+<One paragraph or short bullet-style body describing what changed. Files changed: list the main modules, tests, docs, and metadata touched. Purpose: explain why the change exists and what project-level problem it solves.>
+```
+
+示例：
+
+```text
+Release 1.23.3 lifecycle dependency hardening
+
+Add installer timeout protection, manual scoped context initialization, assignable lookup caching, factory lifetime validation, factory alias warnings, and GFAccess fallback injection consistency. Files changed: core lifecycle and binding scripts under addons/gf/core, accessor generation under addons/gf/editor, plugin project settings metadata, focused gf_core tests, lifecycle/accessor wiki docs, changelog, plugin.cfg, and ASSET_LIBRARY.md. Purpose: make lifecycle and dependency ownership failures surface earlier while keeping GF 1.x behavior compatible.
+```
+
 源码变更后优先运行：
 
 ```powershell

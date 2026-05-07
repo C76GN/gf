@@ -62,6 +62,7 @@ var architecture: GFArchitecture:
 var _architecture: GFArchitecture = null
 var _owns_architecture: bool = false
 var _is_context_ready: bool = false
+var _is_context_installing: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -69,18 +70,24 @@ var _is_context_ready: bool = false
 func _enter_tree() -> void:
 	_setup_architecture()
 	if _owns_architecture:
+		_is_context_installing = true
 		var context_architecture := _architecture
 		var parent_ready := await _wait_for_parent_architecture_ready(context_architecture)
 		if not parent_ready:
+			_is_context_installing = false
 			return
 		if not _is_owned_architecture_current(context_architecture):
+			_is_context_installing = false
 			return
 		await install(context_architecture)
 		if not _is_owned_architecture_current(context_architecture):
+			_is_context_installing = false
 			return
 		await install_bindings(context_architecture.create_binder())
 		if not _is_owned_architecture_current(context_architecture):
+			_is_context_installing = false
 			return
+		_is_context_installing = false
 		if auto_init:
 			await _initialize_owned_architecture(context_architecture)
 	elif _architecture == null:
@@ -103,6 +110,7 @@ func _exit_tree() -> void:
 	_architecture = null
 	_owns_architecture = false
 	_is_context_ready = false
+	_is_context_installing = false
 
 
 # --- 公共方法 ---
@@ -129,6 +137,38 @@ func get_architecture() -> GFArchitecture:
 ## @return 已完成初始化返回 true。
 func is_context_ready() -> bool:
 	return _is_context_ready
+
+
+## 手动初始化当前 Scoped 上下文。适合 auto_init 为 false 时，在 install()/install_bindings() 完成后统一触发初始化与 context_ready/context_failed 信号。
+## @return 初始化完成的架构；上下文失效或初始化失败时返回 null。
+func initialize_context() -> GFArchitecture:
+	if _architecture == null:
+		return null
+	if not _owns_architecture:
+		return await wait_until_ready()
+	if _is_context_ready:
+		return _architecture
+
+	var context_architecture := _architecture
+	while _is_context_installing:
+		if not is_inside_tree():
+			return null
+		await get_tree().process_frame
+		if _architecture != context_architecture:
+			return null
+
+	if not _is_owned_architecture_current(context_architecture):
+		return null
+	var parent_ready := await _wait_for_parent_architecture_ready(context_architecture)
+	if not parent_ready:
+		return null
+	if not _is_owned_architecture_current(context_architecture):
+		return null
+
+	await _initialize_owned_architecture(context_architecture)
+	if _is_owned_architecture_current(context_architecture) and context_architecture.is_inited():
+		return context_architecture
+	return null
 
 
 ## 等待上下文架构完成初始化并返回该架构。

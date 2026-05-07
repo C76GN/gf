@@ -32,6 +32,8 @@ const INSTALLERS_SETTING: String = "gf/project/installers"
 const INSTALLERS_DEFAULT := []
 const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_error"
 const FAIL_ON_INSTALLER_ERROR_DEFAULT: bool = false
+const INSTALLER_TIMEOUT_SETTING: String = "gf/project/installer_timeout_seconds"
+const INSTALLER_TIMEOUT_DEFAULT: float = 0.0
 const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
 const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
 const PROJECT_ACCESS_OUTPUT_SETTING: String = "gf/codegen/project_access_output_path"
@@ -125,6 +127,10 @@ func _ensure_installers_setting() -> void:
 		ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, FAIL_ON_INSTALLER_ERROR_DEFAULT)
 		ProjectSettings.set_initial_value(FAIL_ON_INSTALLER_ERROR_SETTING, FAIL_ON_INSTALLER_ERROR_DEFAULT)
 		should_save = true
+	if not ProjectSettings.has_setting(INSTALLER_TIMEOUT_SETTING):
+		ProjectSettings.set_setting(INSTALLER_TIMEOUT_SETTING, INSTALLER_TIMEOUT_DEFAULT)
+		ProjectSettings.set_initial_value(INSTALLER_TIMEOUT_SETTING, INSTALLER_TIMEOUT_DEFAULT)
+		should_save = true
 
 	ProjectSettings.add_property_info({
 		"name": INSTALLERS_SETTING,
@@ -138,6 +144,13 @@ func _ensure_installers_setting() -> void:
 		"type": TYPE_BOOL,
 	})
 	ProjectSettings.set_as_basic(FAIL_ON_INSTALLER_ERROR_SETTING, true)
+	ProjectSettings.add_property_info({
+		"name": INSTALLER_TIMEOUT_SETTING,
+		"type": TYPE_FLOAT,
+		"hint": PROPERTY_HINT_RANGE,
+		"hint_string": "0,600,0.1,or_greater",
+	})
+	ProjectSettings.set_as_basic(INSTALLER_TIMEOUT_SETTING, true)
 
 	if should_save:
 		ProjectSettings.save()
