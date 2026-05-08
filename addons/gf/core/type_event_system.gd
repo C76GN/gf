@@ -14,6 +14,8 @@ var _type_dispatch_cache: Dictionary = {}
 
 var _is_iterating_type: bool = false
 var _type_dispatch_depth: int = 0
+var _type_dispatch_count: int = 0
+var _max_type_dispatch_depth_observed: int = 0
 var _clear_requested_type: bool = false
 var _pending_removes_type: Array = []
 var _pending_adds_type: Array = []
@@ -23,6 +25,8 @@ var _pending_owner_removes_type: Array[int] = []
 
 var _is_iterating_simple: bool = false
 var _simple_dispatch_depth: int = 0
+var _simple_dispatch_count: int = 0
+var _max_simple_dispatch_depth_observed: int = 0
 var _clear_requested_simple: bool = false
 var _pending_removes_simple: Array = []
 var _pending_adds_simple: Array = []
@@ -129,6 +133,8 @@ func send(event_instance: Object) -> void:
 		return
 
 	_type_dispatch_depth += 1
+	_type_dispatch_count += 1
+	_max_type_dispatch_depth_observed = maxi(_max_type_dispatch_depth_observed, _type_dispatch_depth)
 	_is_iterating_type = true
 
 	_dispatch_type_listener_entries(event_instance, dispatch_entries)
@@ -198,6 +204,8 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	var listeners := _simple_event_listeners[event_id] as Array
 
 	_simple_dispatch_depth += 1
+	_simple_dispatch_count += 1
+	_max_simple_dispatch_depth_observed = maxi(_max_simple_dispatch_depth_observed, _simple_dispatch_depth)
 	_is_iterating_simple = true
 	var has_pending_owner_removes := not _pending_owner_removes_simple.is_empty()
 	var has_pending_removes := not _pending_removes_simple.is_empty()
@@ -270,6 +278,12 @@ func get_debug_stats() -> Dictionary:
 		"pending_type_removes": _pending_removes_type.size() + _pending_removes_assignable_type.size(),
 		"pending_simple_adds": _pending_adds_simple.size(),
 		"pending_simple_removes": _pending_removes_simple.size(),
+		"type_dispatch_count": _type_dispatch_count,
+		"simple_dispatch_count": _simple_dispatch_count,
+		"type_dispatch_depth": _type_dispatch_depth,
+		"simple_dispatch_depth": _simple_dispatch_depth,
+		"max_type_dispatch_depth_observed": _max_type_dispatch_depth_observed,
+		"max_simple_dispatch_depth_observed": _max_simple_dispatch_depth_observed,
 	}
 
 
@@ -299,6 +313,10 @@ func clear() -> void:
 		_simple_dispatch_depth = 0
 		_is_iterating_simple = false
 		_clear_requested_simple = false
+	_type_dispatch_count = 0
+	_simple_dispatch_count = 0
+	_max_type_dispatch_depth_observed = 0
+	_max_simple_dispatch_depth_observed = 0
 
 
 # --- 私有/辅助方法 ---

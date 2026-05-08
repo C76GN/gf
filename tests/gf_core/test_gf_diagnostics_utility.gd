@@ -62,6 +62,36 @@ func test_diagnostics_collects_architecture_snapshot() -> void:
 	arch.dispose()
 
 
+## 验证诊断快照会聚合已注册工具的 get_debug_snapshot。
+func test_diagnostics_collects_tool_debug_snapshots() -> void:
+	var arch := GFArchitecture.new()
+	var diagnostics := GFDiagnosticsUtility.new()
+	var timer := GFTimerUtility.new()
+	var download := GFDownloadUtility.new()
+	var action_queue := GFActionQueueSystem.new()
+	await arch.register_utility_instance(timer)
+	await arch.register_utility_instance(download)
+	await arch.register_utility_instance(diagnostics)
+	await arch.register_system_instance(action_queue)
+	await arch.init()
+
+	timer.execute_after(1.0, func() -> void:
+		pass
+	)
+	var snapshot := diagnostics.collect_snapshot({
+		"include_recent_logs": false,
+	})
+	var tools := snapshot["tools"] as Dictionary
+	var timer_snapshot := tools[&"timer"] as Dictionary
+
+	assert_true(tools.has(&"timer"), "工具快照应包含 TimerUtility。")
+	assert_true(tools.has(&"download"), "工具快照应包含 DownloadUtility。")
+	assert_true(tools.has(&"action_queue"), "工具快照应包含 ActionQueueSystem。")
+	assert_eq(int(timer_snapshot["pending_count"]), 1, "Timer 快照应保留工具自身诊断数据。")
+
+	arch.dispose()
+
+
 ## 验证诊断监控注册表可采样、预设和导出。
 func test_diagnostics_monitor_registry_collects_custom_monitor() -> void:
 	var diagnostics := GFDiagnosticsUtility.new()
@@ -84,3 +114,21 @@ func test_diagnostics_monitor_registry_collects_custom_monitor() -> void:
 	assert_eq(sample["value"], 7, "监控快照应包含 provider 返回值。")
 	assert_eq(preset_snapshot["preset_id"], &"test", "预设快照应记录预设 id。")
 	assert_true("Value" in exported_text, "文本导出应包含监控标签。")
+
+
+## 验证内置工具监控预设可采样。
+func test_diagnostics_builtin_tools_monitor_preset() -> void:
+	var arch := GFArchitecture.new()
+	var diagnostics := GFDiagnosticsUtility.new()
+	var timer := GFTimerUtility.new()
+	await arch.register_utility_instance(timer)
+	await arch.register_utility_instance(diagnostics)
+	await arch.init()
+
+	var snapshot := diagnostics.collect_monitor_preset(&"tools")
+	var monitors := snapshot["monitors"] as Dictionary
+
+	assert_true(diagnostics.has_monitor_preset(&"tools"), "Diagnostics 应注册 tools 监控预设。")
+	assert_true(monitors.has(&"tools.timer"), "tools 预设应包含 Timer 监控项。")
+
+	arch.dispose()

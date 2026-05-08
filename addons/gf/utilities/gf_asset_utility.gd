@@ -219,6 +219,38 @@ func is_cache_pinned(path: String) -> bool:
 	return bool(_pinned_cache_paths.get(path, false))
 
 
+## 获取资源加载工具诊断快照。
+## @return 诊断快照字典。
+func get_debug_snapshot() -> Dictionary:
+	var cached_paths := PackedStringArray()
+	for path: String in _cache.keys():
+		cached_paths.append(path)
+	cached_paths.sort()
+
+	var pending_paths := PackedStringArray()
+	for path: String in _pending.keys():
+		var pending_request := _pending[path] as Dictionary
+		if not bool(pending_request.get("cancelled", false)):
+			pending_paths.append(path)
+	pending_paths.sort()
+
+	var pinned_paths := PackedStringArray()
+	for path: String in _pinned_cache_paths.keys():
+		if bool(_pinned_cache_paths.get(path, false)):
+			pinned_paths.append(path)
+	pinned_paths.sort()
+
+	return {
+		"max_cache_size": max_cache_size,
+		"cache_count": _cache.size(),
+		"cached_paths": cached_paths,
+		"pending_count": pending_paths.size(),
+		"pending_paths": pending_paths,
+		"pinned_count": pinned_paths.size(),
+		"pinned_paths": pinned_paths,
+	}
+
+
 # --- 私有/辅助方法 ---
 
 func _poll_pending() -> void:

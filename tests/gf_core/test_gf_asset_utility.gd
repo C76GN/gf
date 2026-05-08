@@ -273,3 +273,20 @@ func test_cancel_clears_callbacks_but_reuses_underlying_request_for_retry() -> v
 	assert_eq(results.size(), 1, "取消前的旧回调不应再触发。")
 	assert_eq((results[0] as Dictionary).get("new"), completing.loaded_resource, "重试回调应收到完成资源。")
 	assert_eq(_utility.get_cached("res://retry_resource.tres"), completing.loaded_resource, "底层请求完成后仍应写入缓存。")
+
+
+func test_debug_snapshot_reports_cache_pending_and_pinned_state() -> void:
+	_utility = TrackingAssetUtility.new()
+	_utility.init()
+	_utility.put_cache("res://cached.tres", Resource.new())
+	_utility.pin_cache("res://cached.tres")
+	_utility.load_async("res://pending.tres", func(_res: Resource) -> void:
+		pass
+	)
+
+	var snapshot := _utility.get_debug_snapshot()
+
+	assert_eq(int(snapshot["cache_count"]), 1, "快照应报告缓存数量。")
+	assert_eq(int(snapshot["pending_count"]), 1, "快照应报告 pending 数量。")
+	assert_eq(int(snapshot["pinned_count"]), 1, "快照应报告 pinned 数量。")
+	assert_true((snapshot["cached_paths"] as PackedStringArray).has("res://cached.tres"), "快照应包含缓存路径。")

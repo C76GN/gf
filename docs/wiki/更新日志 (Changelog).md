@@ -22,6 +22,48 @@
 
 ---
 
+## [1.26.0] - 2026-05-08
+
+**版本概述**：补齐通用导表校验、文件下载、运行时工具快照与开发期资源表格能力，保持框架抽象边界，不引入具体业务规则。
+
+### 🚀 新增特性 (Added)
+- **导表结构声明与导入校验**：新增 `GFConfigTableColumn`、`GFConfigTableSchema` 与 `GFConfigTableImporter`，支持 JSON/CSV 解析、字段类型校验、必填/空值检查、默认值转换和统一 issue 报告。
+- **ConfigProvider Schema 注册**：`GFConfigProvider` 新增 schema 注册、查询、校验和记录转换入口，子类仍可保持原有 `get_record()` / `get_table()` 适配方式。
+- **通用文件下载队列**：新增 `GFDownloadTask` 与 `GFDownloadUtility`，支持顺序下载、临时文件提交、可选续传、SHA-256 校验、暂停、取消、结果缓存和诊断快照。
+- **定时器调度增强**：`GFTimerUtility` 新增重复任务、owner 绑定任务、owner 批量取消和 debug snapshot。
+- **运行时工具快照**：`GFAssetUtility`、`GFRemoteCacheUtility`、`GFActionQueueSystem` 新增 `get_debug_snapshot()`，`GFDiagnosticsUtility` 新增工具快照聚合、`diagnostics.tools` 命令和 `tools` 监控预设。
+- **事件系统派发统计**：`TypeEventSystem.get_debug_stats()` 新增派发次数、当前派发深度和历史最大嵌套深度。
+- **开发期资源表格控件**：新增 `GFEditorValueField` 与 `GFResourceTableEditor`，用于通用 Resource 属性输入、扫描、列推导和单元格提交。
+
+### 🔄 机制更改 (Changed)
+- `GFTimerUtility.cancel()` 现在可在重复任务回调执行期间取消当前句柄，避免回调结束后再次排入队列。
+- `GFDiagnosticsUtility.collect_snapshot()` 的结果新增 `tools` 字段；未注册对应工具时自动跳过，不影响旧调用。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFConfigTableColumn`、`GFConfigTableSchema`、`GFConfigTableImporter`。
+- 新增 `GFDownloadTask`、`GFDownloadUtility`。
+- 新增 `GFEditorValueField`、`GFResourceTableEditor`。
+- `GFConfigProvider` 新增 `register_schema()`、`unregister_schema()`、`has_schema()`、`get_schema()`、`get_schema_ids()`、`validate_record()`、`validate_table()` 与 `coerce_record()`。
+- `GFTimerUtility` 新增 `execute_after_owned()`、`execute_repeating()`、`execute_repeating_owned()`、`cancel_owner()` 与 `get_debug_snapshot()`。
+- `GFDiagnosticsUtility` 新增内置命令 `diagnostics.tools`，`collect_snapshot()` 返回值新增 `tools` 字段，内置监控预设新增 `tools`。
+- `GFAssetUtility`、`GFRemoteCacheUtility`、`GFActionQueueSystem` 新增 `get_debug_snapshot()`。
+- `TypeEventSystem.get_debug_stats()` 返回值新增派发统计字段。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目不需要迁移；所有新增能力均为向后兼容 API。需要导表校验时，先用 `GFConfigTableSchema` 描述结构，再在现有 `GFConfigProvider` 子类初始化阶段注册 schema。
+- 需要下载文件时优先使用 `GFDownloadUtility`；只拉取远程文本或 JSON 并复用 TTL 缓存时继续使用 `GFRemoteCacheUtility`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/utilities/gf_config_provider.gd`
+- `addons/gf/utilities/gf_timer_utility.gd`
+- `addons/gf/utilities/gf_diagnostics_utility.gd`
+- `addons/gf/utilities/gf_download_utility.gd`
+- `addons/gf/editor/gf_resource_table_editor.gd`
+- `tests/gf_core/**`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+
+---
+
 ## [1.25.0] - 2026-05-08
 
 **版本概述**：增强运行时调试、日志、本地多人输入、场景切换、存档图健康检查、流程图编辑器辅助、能力组合与开发期维护基础设施，在保持旧调用兼容的前提下，为常用框架能力补充更通用的验证、监控和组合入口。

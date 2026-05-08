@@ -169,6 +169,28 @@ func test_debug_stats_reports_listener_counts() -> void:
 	assert_eq(_sum_listener_counts(stats.get("simple_events", {})), 1, "诊断统计应包含简单事件监听数量。")
 
 
+## 验证诊断统计会报告派发次数和嵌套深度。
+func test_debug_stats_reports_dispatch_counts_and_depth() -> void:
+	var state := {"nested_sent": false}
+	_system.register(TestEventA, func(_e: TestEventA) -> void:
+		if not state.nested_sent:
+			state.nested_sent = true
+			_system.send(TestEventA.new())
+	)
+	_system.register_simple(&"debug_depth", func(_payload: Variant) -> void:
+		if state.nested_sent:
+			return
+	)
+
+	_system.send(TestEventA.new())
+	_system.send_simple(&"debug_depth")
+	var stats := _system.get_debug_stats()
+
+	assert_eq(int(stats["type_dispatch_count"]), 2, "嵌套类型事件应记录两次派发。")
+	assert_eq(int(stats["max_type_dispatch_depth_observed"]), 2, "嵌套类型事件应记录最大深度。")
+	assert_eq(int(stats["simple_dispatch_count"]), 1, "简单事件派发次数应记录到诊断统计。")
+
+
 ## 验证 unregister 后，send 不再调用该回调。
 func test_unregister() -> void:
 	var state := {"count": 0}

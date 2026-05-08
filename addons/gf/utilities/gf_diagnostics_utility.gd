@@ -72,6 +72,7 @@ func init() -> void:
 	register_command(&"diagnostics.performance", Callable(self, "_command_collect_performance"), "采集性能监视器快照。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.logs", Callable(self, "_command_collect_logs"), "读取最近日志缓存。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.monitors", Callable(self, "_command_collect_monitors"), "采集已注册诊断监控项。", CommandTier.OBSERVE)
+	register_command(&"diagnostics.tools", Callable(self, "_command_collect_tools"), "采集已注册 GF 工具快照。", CommandTier.OBSERVE)
 
 
 func ready() -> void:
@@ -377,6 +378,7 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 		"performance": {},
 		"logs": {},
 		"network": {},
+		"tools": {},
 	}
 
 	var architecture := _get_architecture_or_null()
@@ -395,6 +397,7 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	var network_utility := get_utility(GFNetworkUtility) as GFNetworkUtility
 	if network_utility != null:
 		snapshot["network"] = network_utility.get_debug_snapshot()
+	snapshot["tools"] = _collect_tool_debug_snapshots()
 
 	if bool(options.get("include_monitors", true)):
 		var preset_id := StringName(options.get("monitor_preset", &""))
@@ -500,6 +503,10 @@ func _command_collect_monitors(args: Dictionary) -> Dictionary:
 	)
 
 
+func _command_collect_tools(_args: Dictionary) -> Dictionary:
+	return _collect_tool_debug_snapshots()
+
+
 func _register_builtin_monitors() -> void:
 	register_monitor(&"performance.fps", Callable(self, "_monitor_performance_fps"), {
 		"label": "FPS",
@@ -543,6 +550,26 @@ func _register_builtin_monitors() -> void:
 		"group": "Architecture",
 		"min_interval_seconds": 0.25,
 	})
+	register_monitor(&"tools.asset", Callable(self, "_monitor_tool_asset_snapshot"), {
+		"label": "Asset Utility",
+		"group": "Tools",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"tools.timer", Callable(self, "_monitor_tool_timer_snapshot"), {
+		"label": "Timer Utility",
+		"group": "Tools",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"tools.download", Callable(self, "_monitor_tool_download_snapshot"), {
+		"label": "Download Utility",
+		"group": "Tools",
+		"min_interval_seconds": 0.25,
+	})
+	register_monitor(&"tools.action_queue", Callable(self, "_monitor_tool_action_queue_snapshot"), {
+		"label": "Action Queue",
+		"group": "Tools",
+		"min_interval_seconds": 0.25,
+	})
 
 	register_monitor_preset(&"minimal", PackedStringArray([
 		"performance.fps",
@@ -562,6 +589,12 @@ func _register_builtin_monitors() -> void:
 		"architecture.utilities",
 		"event_system.stats",
 	]), { "label": "Architecture" })
+	register_monitor_preset(&"tools", PackedStringArray([
+		"tools.asset",
+		"tools.timer",
+		"tools.download",
+		"tools.action_queue",
+	]), { "label": "Tools" })
 	register_monitor_preset(&"overlay", PackedStringArray([
 		"performance.fps",
 		"architecture.models",
@@ -641,6 +674,46 @@ func _monitor_event_system_stats() -> Dictionary:
 	if architecture == null:
 		return {}
 	return architecture.get_event_debug_stats()
+
+
+func _monitor_tool_asset_snapshot() -> Dictionary:
+	return _get_instance_debug_snapshot(get_utility(GFAssetUtility))
+
+
+func _monitor_tool_timer_snapshot() -> Dictionary:
+	return _get_instance_debug_snapshot(get_utility(GFTimerUtility))
+
+
+func _monitor_tool_download_snapshot() -> Dictionary:
+	return _get_instance_debug_snapshot(get_utility(GFDownloadUtility))
+
+
+func _monitor_tool_action_queue_snapshot() -> Dictionary:
+	return _get_instance_debug_snapshot(get_system(GFActionQueueSystem))
+
+
+func _collect_tool_debug_snapshots() -> Dictionary:
+	var result: Dictionary = {}
+	_add_tool_debug_snapshot(result, &"asset", get_utility(GFAssetUtility))
+	_add_tool_debug_snapshot(result, &"timer", get_utility(GFTimerUtility))
+	_add_tool_debug_snapshot(result, &"remote_cache", get_utility(GFRemoteCacheUtility))
+	_add_tool_debug_snapshot(result, &"download", get_utility(GFDownloadUtility))
+	_add_tool_debug_snapshot(result, &"object_pool", get_utility(GFObjectPoolUtility))
+	_add_tool_debug_snapshot(result, &"action_queue", get_system(GFActionQueueSystem))
+	return result
+
+
+func _add_tool_debug_snapshot(result: Dictionary, key: StringName, instance: Object) -> void:
+	var snapshot := _get_instance_debug_snapshot(instance)
+	if not snapshot.is_empty():
+		result[key] = snapshot
+
+
+func _get_instance_debug_snapshot(instance: Object) -> Dictionary:
+	if instance == null or not instance.has_method("get_debug_snapshot"):
+		return {}
+	var value: Variant = instance.call("get_debug_snapshot")
+	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
 
 
 func _get_architecture_debug_section_count(section_name: String) -> int:

@@ -118,3 +118,64 @@ func test_dispose_clears_pending_timers() -> void:
 	_timer_util.tick(0.2)
 
 	assert_false(fired[0], "dispose 后残留定时器不应触发。")
+
+
+func test_execute_repeating_runs_expected_count() -> void:
+	var fired := {"count": 0}
+
+	var handle := _timer_util.execute_repeating(0.1, func() -> void:
+		fired["count"] += 1
+	, 3)
+
+	assert_gt(handle, 0, "重复定时器应返回有效句柄。")
+	_arch.tick(0.1)
+	_arch.tick(0.1)
+	_arch.tick(0.1)
+	_arch.tick(0.1)
+
+	assert_eq(fired["count"], 3, "repeat_count 为 3 时应只触发三次。")
+	assert_eq(int(_timer_util.get_debug_snapshot()["pending_count"]), 0, "有限重复完成后不应继续保留待执行任务。")
+
+
+func test_owner_bound_timer_is_dropped_when_owner_is_released() -> void:
+	var fired := [false]
+	var timer_owner: RefCounted = RefCounted.new()
+
+	_timer_util.execute_after_owned(timer_owner, 0.1, func() -> void:
+		fired[0] = true
+	)
+	timer_owner = null
+	_arch.tick(0.2)
+
+	assert_false(fired[0], "owner 释放后绑定定时器不应触发。")
+	assert_eq(int(_timer_util.get_debug_snapshot()["pending_count"]), 0, "释放 owner 后绑定任务应被清理。")
+
+
+func test_cancel_owner_removes_owned_timers() -> void:
+	var fired := {"count": 0}
+	var timer_owner := RefCounted.new()
+
+	_timer_util.execute_after_owned(timer_owner, 0.1, func() -> void:
+		fired["count"] += 1
+	)
+	_timer_util.execute_repeating_owned(timer_owner, 0.1, func() -> void:
+		fired["count"] += 1
+	)
+	var removed := _timer_util.cancel_owner(timer_owner)
+	_arch.tick(0.2)
+
+	assert_eq(removed, 2, "cancel_owner 应取消同一 owner 的全部任务。")
+	assert_eq(fired["count"], 0, "被 cancel_owner 移除的任务不应触发。")
+
+
+func test_cancel_repeating_timer_from_callback_stops_next_repeat() -> void:
+	var fired := {"count": 0, "handle": 0}
+	fired["handle"] = _timer_util.execute_repeating(0.1, func() -> void:
+		fired["count"] += 1
+		_timer_util.cancel(int(fired["handle"]))
+	)
+
+	_arch.tick(0.1)
+	_arch.tick(0.1)
+
+	assert_eq(fired["count"], 1, "回调内取消重复任务后不应再次触发。")

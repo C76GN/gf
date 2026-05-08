@@ -229,6 +229,26 @@ func skip_current_action() -> void:
 	_try_start_processing()
 
 
+## 获取动作队列诊断快照。
+## @return 诊断快照字典。
+func get_debug_snapshot() -> Dictionary:
+	var named_snapshots: Dictionary = {}
+	for queue_name: StringName in _named_queues.keys():
+		var queue := _named_queues[queue_name] as GFActionQueueSystem
+		if queue != null:
+			named_snapshots[queue_name] = queue.get_debug_snapshot()
+
+	return {
+		"is_processing": is_processing,
+		"queued_count": maxi(_queue.size() - _queue_head_index, 0),
+		"has_current_action": is_instance_valid(_current_action),
+		"processing_serial": _processing_serial,
+		"named_queue_count": _named_queues.size(),
+		"named_queues": named_snapshots,
+		"linked_node_alive": _linked_node_ref != null and _linked_node_ref.get_ref() != null,
+	}
+
+
 ## 驱动命名队列的生命周期清理。
 ## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func tick(_delta: float) -> void:

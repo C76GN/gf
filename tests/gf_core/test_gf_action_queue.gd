@@ -499,3 +499,19 @@ func test_skip_current_action_continues_with_next_action() -> void:
 
 	assert_true(waiting_action.cancelled, "skip_current_action 应取消当前动作。")
 	assert_eq(order, ["WAIT", "NEXT"], "skip_current_action 后应继续执行后续动作。")
+
+
+func test_debug_snapshot_reports_queue_and_named_queue_state() -> void:
+	_system.is_processing = true
+	_system.enqueue(OrderAction.new([], "A"))
+	var named_queue := _system.get_named_queue(&"named")
+	named_queue.is_processing = true
+	_system.enqueue_to(&"named", OrderAction.new([], "B"))
+
+	var snapshot := _system.get_debug_snapshot()
+	var named_queues := snapshot["named_queues"] as Dictionary
+	var named_snapshot := named_queues[&"named"] as Dictionary
+
+	assert_eq(int(snapshot["queued_count"]), 1, "快照应报告主队列待执行数量。")
+	assert_eq(int(snapshot["named_queue_count"]), 1, "快照应报告命名队列数量。")
+	assert_eq(int(named_snapshot["queued_count"]), 1, "命名队列快照应报告自身待执行数量。")

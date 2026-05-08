@@ -140,6 +140,21 @@ func clear_cache() -> void:
 	dir.list_dir_end()
 
 
+## 获取远程缓存工具诊断快照。
+## @return 诊断快照字典。
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"cache_dir_name": cache_dir_name,
+		"cache_dir_path": _get_cache_dir_path(),
+		"default_ttl_seconds": default_ttl_seconds,
+		"timeout_seconds": timeout_seconds,
+		"max_cache_entries": max_cache_entries,
+		"pending_count": _pending_requests.size(),
+		"active_url": String(_active_request.get("url", "")),
+		"has_active_request": not _active_request.is_empty(),
+	}
+
+
 # --- 私有/辅助方法 ---
 
 func _queue_fetch(
