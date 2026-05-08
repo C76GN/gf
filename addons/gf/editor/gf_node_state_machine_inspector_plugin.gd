@@ -73,13 +73,27 @@ func _populate_initial_state_options(option: OptionButton, target: Node) -> void
 		option.select(index)
 
 
-func _collect_direct_states(target: Node) -> Array[StringName]:
+static func _collect_direct_states(target: Node) -> Array[StringName]:
 	var result: Array[StringName] = []
 	for child: Node in target.get_children():
 		if child is GF_NODE_STATE_BASE:
-			result.append(child.call("get_state_name") as StringName)
+			result.append(_get_editor_state_name(child))
 	result.sort()
 	return result
+
+
+static func _get_editor_state_name(state: Node) -> StringName:
+	var state_name_value: Variant = state.get("state_name")
+	if state_name_value is StringName:
+		var state_name := state_name_value as StringName
+		if state_name != &"":
+			return state_name
+	elif state_name_value is String:
+		var state_name_text := String(state_name_value)
+		if not state_name_text.is_empty():
+			return StringName(state_name_text)
+
+	return StringName(state.name)
 
 
 func _get_initial_state(target: Node) -> StringName:

@@ -189,7 +189,18 @@ func _create_capability_properties(capability: Node) -> Control:
 			false
 		)
 		if editor_property != null:
-			properties.add_child(editor_property)
+			var row := HBoxContainer.new()
+			row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+
+			var label := Label.new()
+			label.text = _get_property_display_name(property_name)
+			label.tooltip_text = property_name
+			label.custom_minimum_size = Vector2(128, 0)
+			row.add_child(label)
+
+			editor_property.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+			row.add_child(editor_property)
+			properties.add_child(row)
 
 	return properties
 
@@ -198,6 +209,8 @@ func _is_editable_capability_property(property_info: Dictionary) -> bool:
 	var usage := int(property_info.get("usage", 0))
 	if (usage & PROPERTY_USAGE_EDITOR) == 0:
 		return false
+	if (usage & PROPERTY_USAGE_SCRIPT_VARIABLE) == 0:
+		return false
 
 	var property_name := String(property_info.get("name", ""))
 	return (
@@ -205,6 +218,12 @@ func _is_editable_capability_property(property_info: Dictionary) -> bool:
 		and property_name != "script"
 		and property_name != "active"
 	)
+
+
+func _get_property_display_name(property_name: String) -> String:
+	if property_name.is_empty():
+		return ""
+	return property_name.capitalize()
 
 
 func _get_capability_display_name(capability: Node) -> String:
@@ -232,7 +251,7 @@ func _get_or_create_capability_container(target: Node, capability: Node) -> Node
 	var container := _create_capability_container_node(target, capability)
 	container.set_meta(META_CAPABILITY_CONTAINER, true)
 	_try_attach_capability_container_script(container)
-	target.add_child(container, true, Node.INTERNAL_MODE_BACK)
+	target.add_child(container, true)
 	_set_owner_recursive(container, EditorInterface.get_edited_scene_root())
 	return container
 
@@ -298,7 +317,7 @@ func _is_capability_container(node: Node) -> bool:
 func _get_capability_nodes(target: Node) -> Array[Node]:
 	var result: Array[Node] = []
 	for container: Node in _get_capability_containers(target):
-		for child in container.get_children():
+		for child in container.get_children(true):
 			var node := child as Node
 			if node != null and node.get_script() != null:
 				result.append(node)
@@ -336,8 +355,9 @@ func _add_capability_node(target: Node, candidate: Dictionary) -> void:
 
 	var container := _get_or_create_capability_container(target, node)
 	node.name = _make_unique_child_name(container, String(candidate["default_name"]))
-	container.add_child(node, true, Node.INTERNAL_MODE_BACK)
+	container.add_child(node, true)
 	_set_owner_recursive(node, EditorInterface.get_edited_scene_root())
+	_select_editor_node(node)
 	EditorInterface.inspect_object(node)
 
 
@@ -348,8 +368,9 @@ func _remove_capability_node(target: Node, capability: Node) -> void:
 	var container := capability.get_parent()
 	capability.queue_free()
 	if is_instance_valid(target):
+		_select_editor_node(target)
 		EditorInterface.inspect_object(target)
-	if is_instance_valid(container) and container.get_child_count() <= 1:
+	if is_instance_valid(container) and container.get_child_count(true) <= 1:
 		container.queue_free()
 
 
@@ -364,12 +385,24 @@ func _make_unique_child_name(parent: Node, base_name: String) -> String:
 	return "%s%d" % [clean_name, index]
 
 
+func _select_editor_node(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+
+	var selection := EditorInterface.get_selection()
+	if selection == null:
+		return
+
+	selection.clear()
+	selection.add_node(node)
+
+
 func _set_owner_recursive(node: Node, owner: Node) -> void:
 	if owner == null:
 		return
 
 	node.owner = owner
-	for child: Node in node.get_children():
+	for child: Node in node.get_children(true):
 		_set_owner_recursive(child, owner)
 
 

@@ -8,6 +8,7 @@ const GFNodeStateBase = preload("res://addons/gf/extensions/state_machine/gf_nod
 const GFNodeStateGroupBase = preload("res://addons/gf/extensions/state_machine/gf_node_state_group.gd")
 const GFNodeStateMachineBase = preload("res://addons/gf/extensions/state_machine/gf_node_state_machine.gd")
 const GFNodeStateMachineConfigBase = preload("res://addons/gf/extensions/state_machine/gf_node_state_machine_config.gd")
+const GFNodeStateMachineInspectorPluginBase = preload("res://addons/gf/editor/gf_node_state_machine_inspector_plugin.gd")
 
 
 # --- 辅助子类 ---
@@ -112,6 +113,25 @@ func test_internal_group_loads_direct_child_states() -> void:
 	assert_eq(machine.get_current_state(), idle, "直接子状态应进入内部状态组。")
 	assert_eq(idle.enter_count, 1, "初始状态应被进入。")
 	assert_eq(run.initialized_count, 1, "未激活状态也应完成初始化。")
+
+
+func test_editor_inspector_collects_state_names_from_exports() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle: Node = GFNodeStateBase.new()
+	idle.name = "IdleNode"
+	idle.state_name = &"idle"
+	var run: Node = GFNodeStateBase.new()
+	run.name = "Run"
+	machine.add_child(idle)
+	machine.add_child(run)
+
+	var states := GFNodeStateMachineInspectorPluginBase._collect_direct_states(machine) as Array[StringName]
+
+	assert_eq(states.size(), 2, "Inspector 应收集直接子状态。")
+	assert_has(states, &"idle", "Inspector 应优先使用导出的 state_name。")
+	assert_has(states, &"Run", "state_name 为空时应退回节点名称。")
+
+	machine.free()
 
 
 func test_manual_start_mode_loads_without_entering_initial_state() -> void:

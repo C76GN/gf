@@ -392,6 +392,23 @@ func test_scene_container_registers_child_capabilities() -> void:
 	await get_tree().process_frame
 
 
+func test_scene_container_registers_child_capabilities_before_ready_frame() -> void:
+	var receiver := Node.new()
+	var container := Node.new()
+	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
+	var child_capability := CapabilityNode.new()
+	container.add_child(child_capability)
+	receiver.add_child(container)
+
+	add_child(receiver)
+
+	assert_eq(_utility.get_capability(receiver, CapabilityNode), child_capability, "场景容器进树时应立即注册子节点能力。")
+	assert_eq(child_capability.added_receiver, receiver, "立即注册也应触发 added hook。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_scene_container_unregisters_children_when_removed() -> void:
 	var receiver := Node.new()
 	var container := Node.new()
