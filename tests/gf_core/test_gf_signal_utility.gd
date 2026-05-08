@@ -113,6 +113,60 @@ func test_debounce_keeps_last_emit() -> void:
 	assert_eq(received, [2], "防抖应只保留静默期后的最后一次触发。")
 
 
+func test_throttle_limits_signal_frequency() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+
+	_utility.connect_signal(emitter.changed, func(value: int) -> void:
+		received.append(value)
+	).throttle(0.03)
+
+	emitter.emit_changed(1)
+	emitter.emit_changed(2)
+	await get_tree().create_timer(0.04).timeout
+	emitter.emit_changed(3)
+	await get_tree().process_frame
+
+	assert_eq(received, [1, 3], "节流应保留窗口内首次触发，并允许窗口后的新触发。")
+
+
+func test_skip_take_scan_and_start_with_can_chain() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+
+	_utility.connect_signal(emitter.changed, func(value: int) -> void:
+		received.append(value)
+	).skip(1).take(2).scan(0, func(accumulator: int, value: int) -> int:
+		return accumulator + value
+	).start_with([1])
+
+	emitter.emit_changed(2)
+	emitter.emit_changed(3)
+	emitter.emit_changed(4)
+	await get_tree().process_frame
+
+	assert_eq(received, [2, 5], "skip/take/scan/start_with 应按链式顺序组合。")
+	assert_eq(_utility.get_connection_count(), 0, "take 耗尽后连接应自动移除。")
+
+
+func test_connect_any_and_disconnect_connections() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+	var callback := func(value: Variant) -> void:
+		received.append(value)
+
+	var connections: Array[GFSignalConnection] = _utility.connect_any([emitter.changed, emitter.optional_payload], callback)
+	emitter.emit_changed(1)
+	emitter.emit_optional_payload("two")
+	await get_tree().process_frame
+
+	assert_eq(received, [1, "two"], "connect_any 应把多个 Signal 接到同一个回调。")
+	_utility.disconnect_connections(connections)
+	emitter.emit_changed(3)
+	await get_tree().process_frame
+	assert_eq(received, [1, "two"], "disconnect_connections 应断开批量连接。")
+
+
 func test_connect_once_disconnects_after_first_emit() -> void:
 	var emitter := TestEmitter.new()
 	var count: Array = []

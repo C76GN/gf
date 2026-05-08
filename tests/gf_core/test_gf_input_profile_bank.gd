@@ -76,6 +76,23 @@ func test_remove_active_profile_selects_remaining_profile() -> void:
 	assert_eq(bank.active_profile_id, &"second", "移除 active profile 后应选择剩余 profile。")
 
 
+## 验证重映射配置可序列化到字典再恢复。
+func test_remap_config_to_dict_roundtrip_preserves_events_and_unbinds() -> void:
+	var config := GFInputRemapConfigBase.new()
+	config.set_binding(&"gameplay", &"jump", 0, _make_key_event(KEY_SPACE, true))
+	config.unbind(&"gameplay", &"jump", 1)
+	config.set_custom_data("profile_name", "Keyboard")
+
+	var restored := GFInputRemapConfigBase.from_dict(config.to_dict())
+	var event := restored.get_bound_event_or_null(&"gameplay", &"jump", 0) as InputEventKey
+
+	assert_not_null(event, "序列化恢复后应保留 InputEvent。")
+	assert_eq(event.physical_keycode, KEY_SPACE, "InputEventKey 字段应恢复。")
+	assert_true(restored.has_binding(&"gameplay", &"jump", 1), "显式解绑也应被序列化。")
+	assert_null(restored.get_bound_event_or_null(&"gameplay", &"jump", 1), "显式解绑恢复后应返回 null。")
+	assert_eq(restored.get_custom_data("profile_name"), "Keyboard", "custom_data 应恢复。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_key_event(key: Key, pressed: bool) -> InputEventKey:

@@ -59,6 +59,8 @@ var _bgm_history: PackedStringArray = PackedStringArray()
 var _current_bgm_key: String = ""
 var _ambient_players: Dictionary = {}
 var _ambient_request_serials: Dictionary = {}
+var _audio_rng: RandomNumberGenerator = RandomNumberGenerator.new()
+var _audio_banks: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -73,6 +75,8 @@ func init() -> void:
 	_current_bgm_key = ""
 	_ambient_players.clear()
 	_ambient_request_serials.clear()
+	_audio_rng.randomize()
+	_audio_banks.clear()
 	# 动态创建用于池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
@@ -104,6 +108,7 @@ func dispose() -> void:
 	if is_instance_valid(_bgm_fade_player):
 		_bgm_fade_player.queue_free()
 	_root = null
+	_audio_banks.clear()
 	
 	# SFX 节点由 ObjectPoolUtility 管理并随其一起被清理
 
@@ -141,7 +146,7 @@ func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -> void:
 	var request_serial := _bgm_request_serial
 	var bus_name := clip.resolve_bus(BGM_BUS_NAME)
 	var volume_db := clip.volume_db
-	var pitch_scale := clip.pitch_scale
+	var pitch_scale := clip.resolve_pitch(_audio_rng)
 	var history_key := _get_clip_history_key(clip)
 
 	if clip.stream != null:
@@ -174,7 +179,19 @@ func play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName, crossfade_second
 	if bank == null:
 		return
 
-	play_bgm_clip(bank.get_clip(clip_id), crossfade_seconds)
+	play_bgm_clip(bank.get_clip_with_fallback(clip_id, _audio_rng), crossfade_seconds)
+
+
+## 按事件 ID 播放注册音频集合中的 BGM。
+## @param event_id: 音频事件标识。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
+func play_bgm_event(
+	event_id: StringName,
+	bank_id: StringName = &"",
+	crossfade_seconds: float = -1.0
+) -> void:
+	play_bgm_clip(_get_registered_clip(event_id, bank_id), crossfade_seconds)
 
 
 ## 停止当前 BGM。
@@ -203,6 +220,37 @@ func get_current_bgm_key() -> String:
 ## 清空 BGM 历史。
 func clear_bgm_history() -> void:
 	_bgm_history = PackedStringArray()
+
+
+## 注册一个全局音频集合，供事件式播放接口使用。
+## @param bank_id: 音频集合标识。
+## @param bank: 音频集合。
+func register_audio_bank(bank_id: StringName, bank: GFAudioBank) -> void:
+	if bank_id == &"":
+		push_error("[GFAudioUtility] register_audio_bank 失败：bank_id 为空。")
+		return
+	if bank == null:
+		_audio_banks.erase(bank_id)
+		return
+	_audio_banks[bank_id] = bank
+
+
+## 移除一个全局音频集合。
+## @param bank_id: 音频集合标识。
+func unregister_audio_bank(bank_id: StringName) -> void:
+	_audio_banks.erase(bank_id)
+
+
+## 清空全局音频集合注册表。
+func clear_audio_banks() -> void:
+	_audio_banks.clear()
+
+
+## 获取全局音频集合。
+## @param bank_id: 音频集合标识。
+## @return 音频集合；不存在时返回 null。
+func get_audio_bank(bank_id: StringName) -> GFAudioBank:
+	return _audio_banks.get(bank_id) as GFAudioBank
 
 
 ## 播放环境音。
@@ -240,7 +288,7 @@ func play_ambient_clip(
 	var request_serial := _next_ambient_request_serial(channel)
 	var bus_name := clip.resolve_bus(BGM_BUS_NAME)
 	var volume_db := clip.volume_db
-	var pitch_scale := clip.pitch_scale
+	var pitch_scale := clip.resolve_pitch(_audio_rng)
 
 	if clip.stream != null:
 		_apply_ambient_request(request_serial, channel, clip.stream, bus_name, volume_db, pitch_scale, fade_seconds)
@@ -270,7 +318,21 @@ func play_ambient_from_bank(
 	if bank == null:
 		return
 
-	play_ambient_clip(bank.get_clip(clip_id), channel, fade_seconds)
+	play_ambient_clip(bank.get_clip_with_fallback(clip_id, _audio_rng), channel, fade_seconds)
+
+
+## 按事件 ID 播放注册音频集合中的环境音。
+## @param event_id: 音频事件标识。
+## @param channel: 环境音通道。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @param fade_seconds: 淡入秒数。
+func play_ambient_event(
+	event_id: StringName,
+	channel: StringName = &"default",
+	bank_id: StringName = &"",
+	fade_seconds: float = 0.0
+) -> void:
+	play_ambient_clip(_get_registered_clip(event_id, bank_id), channel, fade_seconds)
 
 
 ## 停止指定环境音通道。
@@ -325,7 +387,7 @@ func play_sfx_clip(clip: GFAudioClip) -> void:
 	var request_serial := _sfx_lifecycle_serial
 	var bus_name := clip.resolve_bus(SFX_BUS_NAME)
 	var volume_db := clip.volume_db
-	var pitch_scale := clip.pitch_scale
+	var pitch_scale := clip.resolve_pitch(_audio_rng)
 
 	if clip.stream != null:
 		_apply_sfx_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale)
@@ -354,7 +416,56 @@ func play_sfx_from_bank(bank: GFAudioBank, clip_id: StringName) -> void:
 	if bank == null:
 		return
 
-	play_sfx_clip(bank.get_clip(clip_id))
+	play_sfx_clip(bank.get_clip_with_fallback(clip_id, _audio_rng))
+
+
+## 按事件 ID 播放注册音频集合中的 SFX。
+## @param event_id: 音频事件标识。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+func play_sfx_event(event_id: StringName, bank_id: StringName = &"") -> void:
+	play_sfx_clip(_get_registered_clip(event_id, bank_id))
+
+
+## 按事件 ID 在 2D 节点位置播放注册音频集合中的 SFX。
+## @param event_id: 音频事件标识。
+## @param source: 2D 声源节点。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @return 创建的播放器；无法播放时返回 null。
+func play_sfx_event_2d(
+	event_id: StringName,
+	source: Node2D,
+	bank_id: StringName = &""
+) -> AudioStreamPlayer2D:
+	return play_sfx_clip_2d(_get_registered_clip(event_id, bank_id), source)
+
+
+## 按事件 ID 在 3D 节点位置播放注册音频集合中的 SFX。
+## @param event_id: 音频事件标识。
+## @param source: 3D 声源节点。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @return 创建的播放器；无法播放时返回 null。
+func play_sfx_event_3d(
+	event_id: StringName,
+	source: Node3D,
+	bank_id: StringName = &""
+) -> AudioStreamPlayer3D:
+	return play_sfx_clip_3d(_get_registered_clip(event_id, bank_id), source)
+
+
+## 在 2D 节点位置播放资源化 SFX 配置。
+## @param clip: 音频片段配置。
+## @param source: 2D 声源节点。
+## @return 创建的播放器；无法播放时返回 null。
+func play_sfx_clip_2d(clip: GFAudioClip, source: Node2D) -> AudioStreamPlayer2D:
+	return _play_spatial_sfx_clip(clip, source) as AudioStreamPlayer2D
+
+
+## 在 3D 节点位置播放资源化 SFX 配置。
+## @param clip: 音频片段配置。
+## @param source: 3D 声源节点。
+## @return 创建的播放器；无法播放时返回 null。
+func play_sfx_clip_3d(clip: GFAudioClip, source: Node3D) -> AudioStreamPlayer3D:
+	return _play_spatial_sfx_clip(clip, source) as AudioStreamPlayer3D
 
 
 ## 设置音频总线音量
@@ -387,6 +498,111 @@ func get_bus_volume(bus_name: String) -> float:
 
 
 # --- 私有辅助方法 ---
+
+func _get_registered_clip(event_id: StringName, bank_id: StringName = &"") -> GFAudioClip:
+	if event_id == &"":
+		return null
+	if bank_id != &"":
+		var bank := get_audio_bank(bank_id)
+		return bank.get_clip_with_fallback(event_id, _audio_rng) if bank != null else null
+
+	var bank_ids := PackedStringArray()
+	for key: Variant in _audio_banks.keys():
+		bank_ids.append(String(key))
+	bank_ids.sort()
+	for key_text: String in bank_ids:
+		var bank := _audio_banks.get(StringName(key_text)) as GFAudioBank
+		if bank == null:
+			continue
+		var clip := bank.get_clip_with_fallback(event_id, _audio_rng)
+		if clip != null:
+			return clip
+	return null
+
+
+func _play_spatial_sfx_clip(clip: GFAudioClip, source: Node) -> Node:
+	if clip == null or not clip.has_source() or not is_instance_valid(source):
+		return null
+
+	var parent := _get_spatial_sfx_parent(source)
+	if parent == null:
+		return null
+
+	var player: Node = null
+	if source is Node3D:
+		player = AudioStreamPlayer3D.new()
+		(player as AudioStreamPlayer3D).global_position = (source as Node3D).global_position
+	elif source is Node2D:
+		player = AudioStreamPlayer2D.new()
+		(player as AudioStreamPlayer2D).global_position = (source as Node2D).global_position
+	else:
+		return null
+
+	player.name = "GFSpatialSFXPlayer"
+	parent.add_child(player)
+
+	var request_serial := _sfx_lifecycle_serial
+	var bus_name := clip.resolve_bus(SFX_BUS_NAME)
+	var volume_db := clip.volume_db
+	var pitch_scale := clip.resolve_pitch(_audio_rng)
+	if clip.stream != null:
+		_apply_spatial_sfx_request(request_serial, player, clip.stream, bus_name, volume_db, pitch_scale)
+		return player
+
+	var asset_util := _get_asset_util()
+	if asset_util == null:
+		var stream := load(clip.path) as AudioStream
+		_apply_spatial_sfx_request(request_serial, player, stream, bus_name, volume_db, pitch_scale)
+	else:
+		var on_loaded := func(res: Resource) -> void:
+			_apply_spatial_sfx_request(request_serial, player, res as AudioStream, bus_name, volume_db, pitch_scale)
+		asset_util.load_async(clip.path, on_loaded)
+	return player
+
+
+func _apply_spatial_sfx_request(
+	request_serial: int,
+	player: Node,
+	stream: AudioStream,
+	bus_name: String,
+	volume_db: float,
+	pitch_scale: float
+) -> void:
+	if request_serial != _sfx_lifecycle_serial:
+		if is_instance_valid(player):
+			player.queue_free()
+		return
+	if stream == null or not is_instance_valid(player):
+		if is_instance_valid(player):
+			player.queue_free()
+		return
+
+	if player is AudioStreamPlayer2D:
+		var player_2d := player as AudioStreamPlayer2D
+		player_2d.bus = _resolve_bus_name(bus_name)
+		player_2d.volume_db = volume_db
+		player_2d.pitch_scale = pitch_scale
+		player_2d.stream = stream
+		player_2d.finished.connect(player_2d.queue_free, CONNECT_ONE_SHOT)
+		player_2d.play()
+	elif player is AudioStreamPlayer3D:
+		var player_3d := player as AudioStreamPlayer3D
+		player_3d.bus = _resolve_bus_name(bus_name)
+		player_3d.volume_db = volume_db
+		player_3d.pitch_scale = pitch_scale
+		player_3d.stream = stream
+		player_3d.finished.connect(player_3d.queue_free, CONNECT_ONE_SHOT)
+		player_3d.play()
+	else:
+		player.queue_free()
+
+
+func _get_spatial_sfx_parent(source: Node) -> Node:
+	var tree := source.get_tree()
+	if tree != null and tree.current_scene != null:
+		return tree.current_scene
+	return _root if is_instance_valid(_root) else source
+
 
 func _play_bgm_stream(stream: AudioStream) -> void:
 	_play_bgm_stream_with_settings(stream, BGM_BUS_NAME, 0.0, 1.0)

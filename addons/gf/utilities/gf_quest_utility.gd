@@ -12,6 +12,10 @@ extends GFUtility
 ## @param quest_id: 任务 ID。
 signal quest_started(quest_id: StringName)
 
+## 当任务进入可接取状态时发出。
+## @param quest_id: 任务 ID。
+signal quest_available(quest_id: StringName)
+
 ## 当任务进度变化时发出。
 ## @param quest_id: 任务 ID。
 ## @param current: 当前进度。
@@ -21,6 +25,23 @@ signal quest_progressed(quest_id: StringName, current: int, target: int)
 ## 当任务完成时发出。
 ## @param quest_id: 完成的任务 ID。
 signal quest_completed(quest_id: StringName)
+
+## 当任务完成条件被阻塞器拒绝时发出。
+## @param quest_id: 任务 ID。
+## @param reason: 阻塞原因。
+signal quest_completion_blocked(quest_id: StringName, reason: String)
+
+## 当任务取消时发出。
+## @param quest_id: 任务 ID。
+signal quest_cancelled(quest_id: StringName)
+
+
+# --- 常量 ---
+
+const STATUS_AVAILABLE: StringName = &"available"
+const STATUS_ACTIVE: StringName = &"active"
+const STATUS_COMPLETED: StringName = &"completed"
+const STATUS_CANCELLED: StringName = &"cancelled"
 
 
 # --- 公共变量 ---
@@ -70,27 +91,108 @@ func start_quest(quest_id: StringName, target_event: StringName, target_count: i
 		push_warning("[GFQuestUtility] 任务已存在：%s" % quest_id)
 		return
 
-	var data := QuestData.new()
-	data.quest_id = quest_id
-	data.event_id = target_event
-	data.target_count = target_count
+	var data := _create_quest_data(quest_id, target_event, target_count, {})
+	data.status = STATUS_ACTIVE
 	_quests[quest_id] = data
 
 	quest_started.emit(quest_id)
 
 	if target_count <= 0:
-		data.is_completed = true
 		quest_progressed.emit(quest_id, data.current_count, data.target_count)
-		quest_completed.emit(quest_id)
+		_try_complete_quest(data)
 		return
 
-	if not _event_to_quests.has(target_event):
-		_event_to_quests[target_event] = [] as Array[StringName]
-		_register_event_handler(target_event)
+	_attach_quest_to_event(data)
 
-	var list: Array = _event_to_quests[target_event]
-	if not list.has(quest_id):
-		list.append(quest_id)
+
+## 定义一个可接取任务，但暂不开始监听事件。
+## @param quest_id: 任务 ID。
+## @param target_event: 推进该任务的事件 ID。
+## @param target_count: 完成任务所需的累计次数。
+## @param metadata: 任务元数据。框架不解释该字段。
+func define_quest(
+	quest_id: StringName,
+	target_event: StringName,
+	target_count: int = 1,
+	metadata: Dictionary = {}
+) -> void:
+	if quest_id == &"":
+		push_error("[GFQuestUtility] quest_id 不能为空。")
+		return
+	if _quests.has(quest_id):
+		push_warning("[GFQuestUtility] 任务已存在：%s" % quest_id)
+		return
+
+	var data := _create_quest_data(quest_id, target_event, target_count, metadata)
+	data.status = STATUS_AVAILABLE
+	_quests[quest_id] = data
+	quest_available.emit(quest_id)
+
+
+## 接取一个已定义任务，并开始监听事件。
+## @param quest_id: 任务 ID。
+## @return 接取成功返回 true。
+func accept_quest(quest_id: StringName) -> bool:
+	var data := _quests.get(quest_id) as QuestData
+	if data == null or data.status == STATUS_COMPLETED or data.status == STATUS_CANCELLED:
+		return false
+	if data.status == STATUS_ACTIVE:
+		return true
+	if data.event_id == &"":
+		push_error("[GFQuestUtility] accept_quest 失败：target_event 为空。")
+		return false
+
+	data.status = STATUS_ACTIVE
+	quest_started.emit(quest_id)
+	if data.target_count <= 0:
+		quest_progressed.emit(quest_id, data.current_count, data.target_count)
+		_try_complete_quest(data)
+	else:
+		_attach_quest_to_event(data)
+	return true
+
+
+## 手动完成一个任务。
+## @param quest_id: 任务 ID。
+## @return 完成成功返回 true。
+func complete_quest(quest_id: StringName) -> bool:
+	var data := _quests.get(quest_id) as QuestData
+	if data == null:
+		return false
+	return _try_complete_quest(data)
+
+
+## 取消一个任务。
+## @param quest_id: 任务 ID。
+## @return 取消成功返回 true。
+func cancel_quest(quest_id: StringName) -> bool:
+	var data := _quests.get(quest_id) as QuestData
+	if data == null or data.status == STATUS_COMPLETED or data.status == STATUS_CANCELLED:
+		return false
+	_detach_quest_from_event(data)
+	data.status = STATUS_CANCELLED
+	quest_cancelled.emit(quest_id)
+	return true
+
+
+## 添加完成阻塞器。阻塞器返回 false 或包含 ok=false 的 Dictionary 时阻止完成。
+## @param quest_id: 任务 ID。
+## @param blocker: 阻塞器回调。
+func add_completion_blocker(quest_id: StringName, blocker: Callable) -> void:
+	if not blocker.is_valid():
+		return
+	var data := _quests.get(quest_id) as QuestData
+	if data == null:
+		return
+	data.completion_blockers.append(blocker)
+
+
+## 清空任务完成阻塞器。
+## @param quest_id: 任务 ID。
+func clear_completion_blockers(quest_id: StringName) -> void:
+	var data := _quests.get(quest_id) as QuestData
+	if data != null:
+		data.completion_blockers.clear()
 
 
 ## 手动触发一次任务事件。
@@ -129,6 +231,52 @@ func get_quest_progress(quest_id: StringName) -> float:
 	return 0.0
 
 
+## 获取任务状态。
+## @param quest_id: 任务 ID。
+## @return 状态文本。
+func get_quest_status(quest_id: StringName) -> StringName:
+	var data := _quests.get(quest_id) as QuestData
+	return data.status if data != null else &""
+
+
+## 获取指定状态的任务 ID。
+## @param status: 任务状态。
+## @return 任务 ID 列表。
+func get_quests_by_status(status: StringName) -> PackedStringArray:
+	var result := PackedStringArray()
+	for quest_id: StringName in _quests.keys():
+		var data := _quests[quest_id] as QuestData
+		if data != null and data.status == status:
+			result.append(String(quest_id))
+	result.sort()
+	return result
+
+
+## 获取任务报告。
+## @param quest_id: 任务 ID。
+## @return 任务报告字典。
+func get_quest_report(quest_id: StringName) -> Dictionary:
+	var data := _quests.get(quest_id) as QuestData
+	if data == null:
+		return {}
+	return data.to_dict()
+
+
+## 获取任务系统调试快照。
+## @return 调试快照字典。
+func get_debug_snapshot() -> Dictionary:
+	var reports: Dictionary = {}
+	for quest_id: StringName in _quests.keys():
+		var data := _quests[quest_id] as QuestData
+		if data != null:
+			reports[String(quest_id)] = data.to_dict()
+	return {
+		"quest_count": _quests.size(),
+		"event_count": _event_to_quests.size(),
+		"quests": reports,
+	}
+
+
 # --- 私有/辅助方法 ---
 
 func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
@@ -142,15 +290,14 @@ func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
 	var list: Array = (_event_to_quests[event_id] as Array).duplicate()
 	for quest_id: StringName in list:
 		var q := _quests.get(quest_id) as QuestData
-		if q == null or q.is_completed:
+		if q == null or q.status != STATUS_ACTIVE or q.is_completed:
 			continue
 
 		q.current_count += amount
 		if q.current_count >= q.target_count:
 			q.current_count = q.target_count
-			q.is_completed = true
 			quest_progressed.emit(quest_id, q.current_count, q.target_count)
-			quest_completed.emit(quest_id)
+			_try_complete_quest(q)
 		else:
 			quest_progressed.emit(quest_id, q.current_count, q.target_count)
 
@@ -200,6 +347,63 @@ func _payload_to_amount(payload: Variant) -> int:
 	return 1
 
 
+func _create_quest_data(
+	quest_id: StringName,
+	target_event: StringName,
+	target_count: int,
+	metadata: Dictionary
+) -> QuestData:
+	var data := QuestData.new()
+	data.quest_id = quest_id
+	data.event_id = target_event
+	data.target_count = target_count
+	data.metadata = metadata.duplicate(true)
+	return data
+
+
+func _attach_quest_to_event(data: QuestData) -> void:
+	if data == null or data.event_id == &"":
+		return
+	if not _event_to_quests.has(data.event_id):
+		_event_to_quests[data.event_id] = [] as Array[StringName]
+		_register_event_handler(data.event_id)
+
+	var list: Array = _event_to_quests[data.event_id]
+	if not list.has(data.quest_id):
+		list.append(data.quest_id)
+
+
+func _detach_quest_from_event(data: QuestData) -> void:
+	if data == null or data.event_id == &"" or not _event_to_quests.has(data.event_id):
+		return
+	var list: Array = _event_to_quests[data.event_id]
+	list.erase(data.quest_id)
+
+
+func _try_complete_quest(data: QuestData) -> bool:
+	if data == null or data.is_completed or data.status == STATUS_CANCELLED:
+		return false
+
+	for blocker: Callable in data.completion_blockers:
+		if not blocker.is_valid():
+			continue
+		var result: Variant = blocker.call(data.quest_id, data.to_dict())
+		if result is Dictionary:
+			if not bool((result as Dictionary).get("ok", false)):
+				var reason := String((result as Dictionary).get("reason", "blocked"))
+				quest_completion_blocked.emit(data.quest_id, reason)
+				return false
+		elif result == false:
+			quest_completion_blocked.emit(data.quest_id, "blocked")
+			return false
+
+	_detach_quest_from_event(data)
+	data.is_completed = true
+	data.status = STATUS_COMPLETED
+	quest_completed.emit(data.quest_id)
+	return true
+
+
 # --- 内部类 ---
 
 class QuestData extends RefCounted:
@@ -208,3 +412,18 @@ class QuestData extends RefCounted:
 	var target_count: int = 1
 	var current_count: int = 0
 	var is_completed: bool = false
+	var status: StringName = &"available"
+	var metadata: Dictionary = {}
+	var completion_blockers: Array[Callable] = []
+
+	func to_dict() -> Dictionary:
+		return {
+			"quest_id": String(quest_id),
+			"event_id": String(event_id),
+			"target_count": target_count,
+			"current_count": current_count,
+			"is_completed": is_completed,
+			"status": String(status),
+			"metadata": metadata.duplicate(true),
+			"completion_blocker_count": completion_blockers.size(),
+		}

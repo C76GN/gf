@@ -79,3 +79,18 @@ func test_sensor_broadcast_to_group_sends_to_receivers() -> void:
 
 	assert_eq(reports.size(), 2, "广播应发送给分组中的所有接收器。")
 	assert_eq(receiver_a.validate_count + receiver_b.validate_count, 2, "每个接收器都应收到一次交互。")
+
+
+func test_sensor_collision_candidates_resolve_receiver_ancestors() -> void:
+	var sensor := GFInteractionSensor.new()
+	var receiver := RecordingReceiver.new()
+	var collider_child := Node.new()
+	add_child_autofree(sensor)
+	add_child_autofree(receiver)
+	receiver.add_child(collider_child)
+
+	var reports := sensor._send_to_collision_candidates([collider_child], 0, {"value": 3}, &"hit")
+
+	assert_eq(reports.size(), 1, "碰撞候选应能向上解析到交互接收器。")
+	assert_true(bool(reports[0]["ok"]), "解析到的接收器应正常接收交互。")
+	assert_same(receiver.received_context.target, receiver, "交互上下文 target 应使用解析后的接收器。")

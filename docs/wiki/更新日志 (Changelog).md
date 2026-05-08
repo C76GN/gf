@@ -18,7 +18,56 @@
 
 ## 维护策略
 
-本页面只保留最近三个大版本线的更新记录，当前保留 `1.29.x`、`1.28.x` 与 `1.27.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个大版本线的更新记录，当前保留 `1.30.x`、`1.29.x` 与 `1.28.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [1.30.0] - 2026-05-08
+
+**版本概述**：融合通用运行时工具增强，补齐信号链式操作、音频事件集合、任务队列、任务生命周期、交互检测桥接、场景后台激活和构建元数据辅助。
+
+### 🚀 新增特性 (Added)
+- 新增 `GFJob` 与 `GFJobQueueUtility`，提供通用等待/执行/完成/失败/取消任务状态、进度更新、队列暂停和调试快照。
+- `GFSignalConnection` 新增 `throttle()`、`skip()`、`take()`、`first()`、`scan()` 与 `start_with()`；`GFSignalUtility` 新增 `connect_any()` 与 `disconnect_connections()`。
+- `GFAudioClip` 新增候选权重和 pitch 随机范围；`GFAudioBank` 支持同一 ID 多候选、权重抽取与分层 ID 回退；`GFAudioUtility` 新增注册音频集合、事件式 BGM/环境音/SFX 播放和 2D/3D 空间 SFX 播放入口。
+- `GFQuestUtility` 新增可用/接取/完成/取消生命周期、完成阻塞器、状态查询、任务报告和调试快照。
+- `GFSceneUtility` 新增 `begin_background_scene_load()`、`activate_background_scene()` 与 `get_background_scene_params()`，用于后台预加载后延迟激活。
+- `GFInteractionSensor` 新增 RayCast2D/RayCast3D/Area2D/Area3D 到交互接收器的通用桥接方法。
+- `GFInputRemapConfig` 新增 `to_dict()`、`apply_dict()`、`from_dict()` 与 `duplicate_config()`，用于保存、恢复和复制运行时改键覆盖与显式解绑。
+- `GFBuildInfo` 新增 `tag`、`commit_count`、`is_dirty` 字段，以及可选 Git 元数据采集和写入 ProjectSettings 的静态辅助方法。
+- `GFSceneSignalAudit` 新增 `build_signal_graph(root, options)`，可生成运行中节点树的信号连接图快照。
+
+### 🔄 机制更改 (Changed)
+- `GFAudioUtility.play_*_from_bank()` 会使用 `GFAudioBank.get_clip_with_fallback()`，旧的单片段 bank 仍保持兼容。
+- `GFSceneUtility.get_scene_cache_debug_snapshot()` 新增 `background.paths` 字段。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 API 均为向后兼容；旧调用保持有效。
+- `GFBuildInfo.to_dict()` / `apply_dict()` 返回和读取的字典新增 `tag`、`commit_count` 与 `is_dirty` 字段。
+- `GFInputRemapConfig.to_dict()` 输出的是适合持久化的覆盖字典，不会包含默认输入上下文绑定。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移；单片段 `GFAudioBank`、`start_quest()`、`load_scene_async()` 和现有 Signal 连接代码保持原语义。
+- 需要保存改键时，把 `GFInputRemapConfig.to_dict()` 放进项目自己的设置或存档，再用 `from_dict()` 恢复。
+- 新的任务队列只管理状态和报告，不会替项目取消外部线程、下载或长任务；取消语义应由业务处理器自行响应。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/utilities/gf_signal_utility.gd`
+- `addons/gf/utilities/gf_signal_connection.gd`
+- `addons/gf/utilities/gf_audio_clip.gd`
+- `addons/gf/utilities/gf_audio_bank.gd`
+- `addons/gf/utilities/gf_audio_utility.gd`
+- `addons/gf/utilities/gf_job.gd`
+- `addons/gf/utilities/gf_job_queue_utility.gd`
+- `addons/gf/utilities/gf_quest_utility.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `addons/gf/utilities/gf_build_info.gd`
+- `addons/gf/input/gf_input_remap_config.gd`
+- `addons/gf/extensions/interaction/gf_interaction_sensor.gd`
+- `addons/gf/editor/gf_scene_signal_audit.gd`
+- `tests/gf_core/**`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `docs/wiki/12. 能力组件 (Capabilities).md`
 
 ---
 
@@ -109,183 +158,6 @@
 - `tests/gf_core/**`
 - `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
 - `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `docs/wiki/12. 能力组件 (Capabilities).md`
-
----
-
-## [1.27.1] - 2026-05-08
-
-**版本概述**：修复能力容器运行时注册时机与 GF 编辑器 Inspector 的可见性、属性显示和状态机下拉框占位实例报错。
-
-### 🔄 机制更改 (Changed)
-- `GFCapabilityContainer` 进入场景树时会先同步扫描子节点能力，再保留一次延迟扫描兜底，使随场景摆放的 `GFNodeCapability` 可在宿主 `_ready()` 或状态 `_enter()` 中被立即查询。
-- GF Capabilities Inspector 通过“添加”创建的能力容器与能力节点现在作为可见场景节点加入场景树；内联属性区域只展示能力脚本自身导出变量，并补充属性标签。
-
-### 🐛 Bug 修复 (Fixed)
-- 修复 `GFNodeStateMachine` Inspector 枚举直接子状态时对非 `@tool` 状态脚本占位实例调用 `get_state_name()`，导致编辑器输出报错的问题。
-
-### 🔌 API 变动说明 (API Changes)
-- 无公开 API 签名变化。
-
-### 📘 升级指南 (Migration Guide)
-- 已用旧版 Inspector 添加出的 internal 能力节点仍会被识别；新添加的能力会在场景树中可见，便于手动检查、重命名与保存。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/extensions/capability/gf_capability_container.gd`
-- `addons/gf/editor/gf_capability_inspector_plugin.gd`
-- `addons/gf/editor/gf_node_state_machine_inspector_plugin.gd`
-- `tests/gf_core/test_gf_capability_utility.gd`
-- `tests/gf_core/test_gf_node_state_machine.gd`
-- `docs/wiki/12. 能力组件 (Capabilities).md`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-
-## [1.27.0] - 2026-05-08
-
-**版本概述**：修复输入上下文优先级、存档图错误传播、槽位索引、分析队列回灌、本地多人设备映射、网络通道、远程缓存、能力组件、任务与关卡流程中的边界问题，并补充若干兼容型诊断和玩法辅助 API。
-
-### 🚀 新增特性 (Added)
-- **结构化槽位读取结果**：`GFStorageUtility` 新增 `load_slot_result()` 与 `load_slot_meta_result()`，用于区分合法空字典、缺失文件、非法槽位和解码失败。
-- **异步存档收敛入口**：`GFStorageUtility.wait_for_async_tasks()` 可等待已入队和正在执行的异步纯数据任务完成，便于同一路径混合同步/异步读写前主动收敛顺序。
-- **JSON 数字归一化开关**：`GFStorageUtility` 与 `GFStorageCodec` 新增 `normalize_json_numbers`，默认保持旧的 JSON float 到 int 归一化语义，需要类型保真时可关闭。
-- **触屏 index 精确匹配**：`GFInputBinding.match_touch_index` 可让 `InputEventScreenTouch.index` 参与匹配，默认关闭以保留任意触摸兼容语义。
-- **Flow 超时时间缩放**：`GFFlowRunner` 新增 `signal_timeout_respects_time_scale`，`with_signal_timeout()` 新增可选 `respect_time_scale` 参数，与 Action / Sequence 的 Signal 等待语义对齐。
-- **Tween 步骤校验**：`GFTweenActionStep` 新增 `can_apply_to()` 与 `get_validation_error()`，可在执行前检查目标属性和相对值类型。
-- **网络消息通道元信息**：`GFNetworkMessage` 新增 `channel_id`，`GFNetworkUtility.send_message_on_channel()` 会在发送副本中写入逻辑通道，入站校验可按通道应用包体上限。
-- **远程缓存队列控制**：`GFRemoteCacheUtility` 新增 `max_pending_requests`、`cache_key_builder`、`cancel()` 与 `cancel_all()`，并支持同缓存 key 请求合并。
-- **战斗运行时移除 API**：`GFCombatSystem` 新增 `remove_buff()`、`clear_buffs()` 与 `remove_skill()`，便于项目层驱散 Buff 或取消技能驱动。
-- **任务与关卡严格边界**：`GFQuestUtility` 新增 `allow_negative_progress`；`GFLevelUtility` 新增 `fail_on_missing_level_data`。
-- **导表严格转换报告**：`GFConfigTableColumn` 新增 `try_coerce_value()`，`GFConfigTableSchema` 新增 `fail_on_coerce_error` 与 `require_unique_id`，用于把坏数据转换失败和重复 ID 纳入校验报告。
-- **控制台命令安全边界**：`GFConsoleUtility` 新增命令风险等级、`max_command_tier`、`require_danger_confirmation` 与 `max_history_size`。
-- **编辑器工具安全选项**：`GFEditorValueField` 新增 `value_parse_failed`，`GFResourceTableEditor` 新增 `auto_save_committed_resources` 与 `resource_save_failed`，`GFAccessGenerator` 新增禁止覆盖参数，`GFThumbnailRenderer` 新增批量预览取消开关。
-
-### 🔄 机制更改 (Changed)
-- 同一 `action_id` 出现在多个启用的输入上下文时，动作定义、Mapping 级修饰器和触发器现在按上下文处理顺序采用第一个定义，避免低优先级上下文反向覆盖高优先级上下文。
-- `GFInputDeviceUtility.set_assignment()` 现在受 `max_players` 约束，并会把同一物理设备从旧玩家席位移动到新玩家席位；已登记手柄的活跃玩家切换使用新的 `active_player_axis_threshold` 过滤摇杆漂移。
-- `GFAnalyticsConfig.build_headers()` 会忽略空 Header 名和包含 CR/LF 的 Header 键值。
-- `GFTweenActionStep.append_to_tween()` / `apply_instant()` 遇到无效目标属性或不兼容相对值时会跳过步骤并发出警告。
-- `GFNetworkUtility.host()` / `connect_to_endpoint()` 会先准备会话状态再调用后端，避免后端立即发出 connected 时会话 peer 信息仍为默认值。
-- `GFRemoteCacheUtility` 的缓存 key 现在包含 URL、请求格式与 headers；JSON 响应会先解析成功再写入缓存，解析失败时不会污染 TTL 缓存。
-- `GFCapabilityUtility` 会拒绝同一能力实例挂载到多个 receiver，反向查询会过滤失效能力实例；自动生成的空能力容器会在最后一个 Node 能力移除后释放。
-- `GFCapabilityContainer` 离开场景树时会注销此前注册的子能力。
-- `GFCapabilityUtility.set_capability_active()` 重新启用 Node 能力时，会保留停用期间项目层手动改过的 `process_mode`。
-- `GFQuestUtility` 默认忽略负数进度 payload，并拒绝空 `quest_id` 或空 `target_event`。
-- `GFLevelUtility` 的开始/重开信号现在发出关卡数据副本，避免监听者污染内部 `current_level_data`。
-- `GFSkill.execute(manual_target)` 在手动目标未通过 targeting rule 校验时不再以空目标执行，即使 `max_count <= 0` 表示不截断目标。
-- `GFBuff` 使用旧 `source_id` / `source_tag` 作为目标属性兼容回退时会输出迁移 warning。
-- `GFConsoleUtility.debug_only` 默认改为 `true`，发布构建需要显式关闭该选项才会创建开发者控制台；命令参数解析现在支持引号和反斜杠转义。
-- `GFNotificationUtility` 显式 key 去重时只按 key 匹配，无 key 时才按消息文本匹配；`max_queue_size = 0` 现在表示不保留等待队列。
-- `GFConfigProvider.get_schema()` 现在返回 schema 副本，避免调用方修改 Provider 内部校验规则；CSV 导入会去掉 UTF-8 BOM 并默认拒绝重复表头。
-- `GFEditorTypeIndex.collect_scene_roots_extending()` 可传入 root path 过滤场景扫描；`GFThumbnailRenderer` 会把渲染尺寸钳制到至少 1 像素。
-
-### 🐛 Bug 修复 (Fixed)
-- 修复 `GFInputMappingUtility` 中低优先级重复 `action_id` 会覆盖高优先级动作修饰器、触发器和动作定义的问题。
-- 修复 `GFSaveGraphUtility.gather_scope()` 在子 Scope 采集失败时静默跳过子树、生成部分存档的问题；错误现在会传播到父 Scope 并写入 `GFSavePipelineContext`。
-- 修复 `GFStorageUtility.save_slot(-1)` 会写出不可被 `list_slots()` 枚举的负数槽位文件的问题。
-- 修复 `GFSaveSlotCard.configure_from_slot_summary()` 把 `"slot_3"` 这类字符串 `slot_id` 解析成错误整数索引的问题。
-- 修复 `GFAnalyticsUtility` flush 失败回灌批次后可能超过 `max_queue_size` 的问题。
-- 修复 `GFInputDeviceUtility` 已分配手柄的微弱轴漂移会切换 `active_player_index` 的问题。
-- 修复手柄断连时若存在重复映射只移除第一条的问题。
-- 修复按 `send_message_on_channel()` 发送的消息在入站侧无法可靠匹配原通道，导致通道级包体上限可能失效的问题。
-- 修复 `GFRemoteCacheUtility.fetch_json()` 在 HTTP 成功但 JSON 无效时仍写入坏缓存的问题。
-- 修复同一 `GFCapability` / `GFNodeCapability` 实例可被挂载到多个 receiver 造成 receiver 状态串线的问题。
-- 修复 `GFCapabilityContainer` 被移除但 receiver 仍存活时能力索引可能残留的问题。
-- 修复 `GFQuestUtility` 默认允许负数进度 payload 导致任务进度倒退的问题。
-- 修复 `GFLevelUtility.level_started` / `level_restarted` 信号暴露内部 Dictionary 引用的问题。
-- 修复手动目标技能在目标校验失败且 `max_count <= 0` 时仍可能执行空目标的问题。
-- 修复 `GFFormula.calculate_float()` 遇到非法数字字符串时静默返回 `0.0` 而不是 fallback 的问题。
-- 修复 `GFGridOccupancy.prune_invalid_receivers()` 清理失效对象占用时不会发出 `cell_released` 的问题。
-- 修复 `GFSeedUtility` 直接 `new()` 后未手动 `init()` 调用公共方法会空引用的问题。
-- 修复 `GFEditorValueField` Array/Dictionary 输入 JSON 解析失败时会静默提交空容器的问题。
-- 修复 `GFConsoleUtility` 日志 BBCode 未转义和负数日志等级索引异常语义的问题。
-- 修复 GF 编辑器脚本模板生成会直接覆盖已有文件的问题。
-
-### 🔌 API 变动说明 (API Changes)
-- 新增 `GFStorageUtility.load_slot_result(slot_id: int) -> Dictionary`。
-- 新增 `GFStorageUtility.load_slot_meta_result(slot_id: int) -> Dictionary`。
-- 新增 `GFStorageUtility.wait_for_async_tasks() -> void`。
-- 新增 `GFStorageUtility.normalize_json_numbers: bool`。
-- 新增 `GFStorageCodec.normalize_json_numbers: bool`。
-- 新增 `GFInputBinding.match_touch_index: bool`。
-- 新增 `GFInputDeviceUtility.active_player_axis_threshold: float`。
-- 新增 `GFFlowRunner.signal_timeout_respects_time_scale: bool`。
-- `GFFlowRunner.with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFFlowRunner` 新增可选参数，旧的一参调用保持兼容。
-- 新增 `GFTweenActionStep.can_apply_to(target: Object) -> bool`。
-- 新增 `GFTweenActionStep.get_validation_error(target: Object) -> String`。
-- 新增 `GFNetworkMessage.channel_id: StringName`。
-- 新增 `GFRemoteCacheUtility.max_pending_requests: int`。
-- 新增 `GFRemoteCacheUtility.cache_key_builder: Callable`。
-- `GFRemoteCacheUtility.has_valid_cache(url, ttl_seconds, headers, format)` 新增可选参数，旧的一参/两参调用保持兼容。
-- `GFRemoteCacheUtility.get_cached_text(url, ttl_seconds, headers)` 新增可选参数，旧调用保持兼容。
-- `GFRemoteCacheUtility.remove_cache(url, headers, format)` 新增可选参数，旧调用保持兼容。
-- 新增 `GFRemoteCacheUtility.cancel(url, headers, format) -> int`。
-- 新增 `GFRemoteCacheUtility.cancel_all() -> int`。
-- 新增 `GFCombatSystem.remove_buff(p_entity: Object, p_buff_id: StringName) -> bool`。
-- 新增 `GFCombatSystem.clear_buffs(p_entity: Object, predicate: Callable = Callable()) -> int`。
-- 新增 `GFCombatSystem.remove_skill(p_entity: Object, p_skill: GFSkill) -> bool`。
-- 新增 `GFQuestUtility.allow_negative_progress: bool`。
-- 新增 `GFLevelUtility.fail_on_missing_level_data: bool`。
-- 新增 `GFConfigTableColumn.try_coerce_value(value: Variant) -> Dictionary`。
-- 新增 `GFConfigTableSchema.fail_on_coerce_error: bool`。
-- 新增 `GFConfigTableSchema.require_unique_id: bool`。
-- 新增 `GFConsoleUtility.CommandTier`、`GFConsoleUtility.max_command_tier`、`GFConsoleUtility.require_danger_confirmation` 与 `GFConsoleUtility.max_history_size`。
-- `GFConsoleUtility.debug_only` 默认值从 `false` 改为 `true`。
-- 新增 `GFEditorValueField.value_parse_failed(text: String, error_message: String)`。
-- 新增 `GFResourceTableEditor.auto_save_committed_resources: bool` 与 `resource_save_failed(resource: Resource, path: String, error: Error)`。
-- `GFAccessGenerator.generate()`、`generate_project_access()` 与 `save_source()` 新增可选 `overwrite_existing` 参数，旧调用保持兼容。
-- `GFEditorTypeIndex.collect_scene_roots_extending()` 新增可选 `root_paths` 参数，旧调用保持兼容。
-- 新增 `GFThumbnailRenderer.cancel_preview_generation: bool`。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目通常不需要迁移；新增 API 均保持默认兼容语义。
-- 如果项目曾依赖负数 `slot_id` 写入隐藏槽位，应改用项目自己的文件名或逻辑 `slot_id` 映射，不再通过 `GFStorageUtility.save_slot()` 写负数整数槽。
-- 如果项目手动把同一键鼠、触控、手柄或自定义设备分配给多个玩家，升级后应改为不同 `device_id` 或使用 `DeviceType.AI` 与负数设备 ID 表示虚拟席位。
-- 如果项目希望 Flow Signal 超时不受暂停和 time_scale 影响，调用 `runner.with_signal_timeout(seconds, false)` 或设置 `signal_timeout_respects_time_scale = false`。
-- 如果项目依赖 `GFRemoteCacheUtility` 同 URL 在 text/json 或不同 headers 间共享缓存，应改用 `cache_key_builder` 显式定义兼容 key；默认行为会按格式和 headers 隔离缓存。
-- 如果项目确实需要任务进度扣减，设置 `GFQuestUtility.allow_negative_progress = true`；默认负数 amount 会被忽略。
-- 如果项目希望缺失关卡 ID 仍按空数据启动，保持 `GFLevelUtility.fail_on_missing_level_data = false`；正式环境建议开启严格模式。
-- 新代码应显式填写 `GFModifier.attribute_id`；旧的 `source_id` / `source_tag` 目标属性回退仍可用，但会输出 warning。
-- 如果项目在发布构建中确实需要 `GFConsoleUtility`，现在必须显式设置 `debug_only = false`，并建议用命令 `tier`、`max_command_tier` 和 `--confirm` 限制高风险指令。
-- 如果项目曾依赖 `GFConfigTableSchema.coerce_values` 把非法数据静默转为 `0`、`ZERO` 或 `WHITE` 后通过校验，应清理导表数据，或临时设置 `fail_on_coerce_error = false` 保留旧式宽松导入。
-- 如果项目工具需要反复覆盖访问器生成文件，可以继续使用默认 `overwrite_existing = true`；模板生成现在会拒绝覆盖已有脚本，请改选新路径或先手动删除旧文件。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/input/gf_input_binding.gd`
-- `addons/gf/utilities/gf_input_mapping_utility.gd`
-- `addons/gf/utilities/gf_input_device_utility.gd`
-- `addons/gf/utilities/gf_storage_utility.gd`
-- `addons/gf/utilities/gf_storage_codec.gd`
-- `addons/gf/utilities/gf_analytics_utility.gd`
-- `addons/gf/extensions/save/gf_save_graph_utility.gd`
-- `addons/gf/extensions/save/gf_save_slot_card.gd`
-- `addons/gf/extensions/flow/gf_flow_runner.gd`
-- `addons/gf/extensions/action_queue/gf_tween_action_step.gd`
-- `addons/gf/extensions/network/**`
-- `addons/gf/extensions/capability/**`
-- `addons/gf/extensions/combat/**`
-- `addons/gf/utilities/gf_remote_cache_utility.gd`
-- `addons/gf/utilities/gf_quest_utility.gd`
-- `addons/gf/utilities/gf_level_utility.gd`
-- `addons/gf/foundation/formula/gf_formula.gd`
-- `addons/gf/foundation/math/gf_grid_occupancy.gd`
-- `addons/gf/utilities/gf_config_table_column.gd`
-- `addons/gf/utilities/gf_config_table_schema.gd`
-- `addons/gf/utilities/gf_config_table_importer.gd`
-- `addons/gf/utilities/gf_config_provider.gd`
-- `addons/gf/utilities/gf_seed_utility.gd`
-- `addons/gf/utilities/gf_notification_utility.gd`
-- `addons/gf/utilities/gf_console_utility.gd`
-- `addons/gf/editor/gf_editor_value_field.gd`
-- `addons/gf/editor/gf_resource_table_editor.gd`
-- `addons/gf/editor/gf_access_generator.gd`
-- `addons/gf/editor/gf_editor_type_index.gd`
-- `addons/gf/editor/gf_thumbnail_renderer.gd`
-- `addons/gf/plugin.gd`
-- `tests/gf_core/**`
-- `docs/wiki/01. 架构概览 (Architecture).md`
-- `docs/wiki/11. 基础层 (Foundation Layer).md`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `docs/wiki/10. 战斗扩展 (Combat Extension).md`
 - `docs/wiki/12. 能力组件 (Capabilities).md`
 
 ---

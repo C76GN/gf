@@ -162,14 +162,15 @@ Gf.send_command(command)
 - `BindableProperty` / `GFReactiveEffect` / `GFComputedProperty`：响应式属性、组合副作用和只读派生属性，适合 Model 到 UI 的局部数据绑定。
 - `GFAssetUtility`：异步资源加载与 LRU 缓存。
 - `GFRemoteCacheUtility`：通用远程文本/JSON 请求、本地 TTL 缓存与失败回退。
-- `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、filter/map/delay/debounce/once 链式处理。
-- `GFSceneUtility` / `GFSceneTransitionConfig`：异步场景切换、预加载 LRU 缓存、切换参数、场景历史、资源化切换配置、加载状态快照与瞬态模块清理。
+- `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、批量连接、filter/map/delay/debounce/throttle/take/scan/once 链式处理。
+- `GFJobQueueUtility` / `GFJob`：通用任务队列、进度、暂停、完成/失败/取消状态和诊断快照。
+- `GFSceneUtility` / `GFSceneTransitionConfig`：异步场景切换、后台预加载激活、预加载 LRU 缓存、切换参数、场景历史、资源化切换配置、加载状态快照与瞬态模块清理。
 - `GFSurfaceUtility`：根据 3D 碰撞 face index 查询 Mesh surface 与材质，不绑定材质业务语义。
 - `GFStorageUtility` / `GFStorageCodec` / `GFSaveGraphUtility` / `GFSaveSlotWorkflow`：槽位存档、元数据、读档卡片 DTO、事务恢复、Resource 存取、完整性校验、版本迁移、可配置编码、通用节点存档图编排、默认节点序列化器、存档 pipeline trace 和结构诊断。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFSettingsUtility` / `GFDisplaySettingsUtility`：抽象设置注册、持久化、显示/语言/音频应用，以及设置界面控件绑定辅助。
 - `GFObjectPoolUtility`：节点对象池。
-- `GFAudioUtility`：BGM/SFX/环境音播放、BGM 淡入淡出与历史、资源化音频片段/集合、音量总线、SFX 对象池与并发上限控制。
+- `GFAudioUtility`：BGM/SFX/环境音播放、BGM 淡入淡出与历史、资源化音频片段/集合、音频事件 ID、候选权重、pitch 随机、2D/3D 空间 SFX、音量总线、SFX 对象池与并发上限控制。
 - `GFInputMappingUtility` / `GFInputAction` / `GFInputContext` / `GFInputFormatter` / `GFInputConflictAnalyzer`：资源化输入动作、上下文切换、运行时重绑定、一维/二维/三维动作值、修饰器、触发器、文本/图标 provider、冲突分析与重绑定报告、全局与玩家级动作状态查询。
 - `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、活跃玩家追踪、通用触屏虚拟摇杆与触屏按钮。
 - `GFAnalyticsUtility`：通用事件采集、稳定 client id、批量 flush、本地 dry-run、传输 hook 与可选 HTTP 上报。
@@ -187,11 +188,11 @@ Gf.send_command(command)
 - `GFCapabilityContainer`：场景树能力容器，支持把子节点注册为父节点能力。
 - `GFNodeCapability`：可直接作为场景节点使用的能力基类，适合碰撞、输入、动画和子节点引用。
 - `GFPropertyBagCapability`：轻量动态属性包能力，适合原型、调试和少量运行时键值。
-- `GFInteractionContext` / `GFInteractionSensor` / `GFInteractionReceiver`：轻量交互上下文与通用交互收发节点，便于在命令、事件、能力方法或场景节点之间传递 sender、target 与 payload。
+- `GFInteractionContext` / `GFInteractionSensor` / `GFInteractionReceiver`：轻量交互上下文与通用交互收发节点，便于在命令、事件、能力方法、RayCast/Area 检测或场景节点之间传递 sender、target 与 payload。
 - `GFInteractions`：交互上下文与链式交互流程创建入口。
 - `GFTurnFlowSystem`：通用回合阶段与行动解析流程系统。
 - `GFNetworkUtility` / `GFNetworkBackend` / `GFENetNetworkBackend`：可插拔网络后端、可选 ENet 传输、通用消息载体、消息序列化、会话/通道描述、消息校验、限流基础和调试快照。
-- `GFBuildInfo` / `GFBuildInfoUtility`：构建信息快照，用于诊断、日志、存档元数据或项目版本界面。
+- `GFBuildInfo` / `GFBuildInfoUtility`：构建信息快照和可选 Git 元数据写入辅助，用于诊断、日志、存档元数据或项目版本界面。
 - `GFDiagnosticsUtility`：运行时构建、架构、事件、性能、日志和可选网络状态快照，以及带等级和认证治理的可注册诊断命令。
 - `GFNotificationUtility`：通用通知队列、去重、时长推进和生命周期信号，不规定具体 UI 表现。
 - `GFInventoryModel` / `GFLevelProgressModel` / `GFAttributeSet` / `GFTraitSet` / `GFEquipmentSet`：库存、关卡进度、数值属性、特征和槽位的通用数据模型。

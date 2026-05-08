@@ -7,6 +7,11 @@ func test_build_info_roundtrip_deep_copies_metadata() -> void:
 	info.project_name = "GF Test"
 	info.project_version = "1.0.0"
 	info.framework_version = "1.27.1"
+	info.commit_hash = "abc123"
+	info.branch = "main"
+	info.tag = "v1.0.0"
+	info.commit_count = 12
+	info.is_dirty = true
 	info.metadata = {
 		"channel": "test",
 		"nested": {
@@ -18,6 +23,9 @@ func test_build_info_roundtrip_deep_copies_metadata() -> void:
 	(copy.metadata["nested"] as Dictionary)["value"] = 2
 
 	assert_eq(copy.project_name, "GF Test", "构建信息应可从字典恢复。")
+	assert_eq(copy.tag, "v1.0.0", "构建标签应参与序列化。")
+	assert_eq(copy.commit_count, 12, "提交数量应参与序列化。")
+	assert_true(copy.is_dirty, "工作区 dirty 标记应参与序列化。")
 	assert_eq((info.metadata["nested"] as Dictionary)["value"], 1, "metadata 应深拷贝，避免外部修改原始对象。")
 
 

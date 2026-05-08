@@ -123,6 +123,34 @@ func test_zero_target_quest_completes_immediately() -> void:
 	assert_signal_emitted(_quest, "quest_completed", "立即完成任务应发出完成信号。")
 
 
+func test_quest_lifecycle_blocker_and_debug_snapshot() -> void:
+	watch_signals(_quest)
+	_quest.define_quest(&"gated", &"gate_event", 1, {"chapter": 1})
+	assert_eq(_quest.get_quest_status(&"gated"), GFQuestUtility.STATUS_AVAILABLE, "define_quest 应创建可接取任务。")
+	assert_signal_emitted(_quest, "quest_available", "任务进入 available 时应发出信号。")
+
+	var gate := { "allow": false }
+	_quest.add_completion_blocker(&"gated", func(_quest_id: StringName, _report: Dictionary) -> Dictionary:
+		return {"ok": bool(gate["allow"]), "reason": "locked"}
+	)
+
+	assert_true(_quest.accept_quest(&"gated"), "可接取任务应能进入 active。")
+	_quest.emit_quest_event(&"gate_event", 1)
+	assert_eq(_quest.get_quest_status(&"gated"), GFQuestUtility.STATUS_ACTIVE, "被阻塞时任务应保持 active。")
+	assert_signal_emitted(_quest, "quest_completion_blocked", "完成阻塞器拒绝时应发出阻塞信号。")
+
+	gate["allow"] = true
+	assert_true(_quest.complete_quest(&"gated"), "阻塞解除后应允许手动完成。")
+	assert_eq(_quest.get_quest_status(&"gated"), GFQuestUtility.STATUS_COMPLETED, "完成后状态应更新。")
+	assert_true(_quest.get_quests_by_status(GFQuestUtility.STATUS_COMPLETED).has("gated"), "状态查询应包含完成任务。")
+	var snapshot := _quest.get_debug_snapshot()
+	assert_eq(snapshot["quest_count"], 1, "调试快照应统计任务数量。")
+	var quests := snapshot["quests"] as Dictionary
+	var gated_report := quests["gated"] as Dictionary
+	var metadata := gated_report["metadata"] as Dictionary
+	assert_eq(metadata["chapter"], 1, "任务报告应保留 metadata。")
+
+
 func test_dispose_unregisters_simple_event_listener() -> void:
 	_quest.start_quest(&"cleanup_listener", &"enemy_died", 1)
 

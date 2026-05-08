@@ -23,6 +23,15 @@ extends Resource
 ## 播放音高。
 @export_range(0.01, 4.0, 0.01) var pitch_scale: float = 1.0
 
+## 在同一片段 ID 存在多个候选时的抽取权重；小于等于 0 表示不参与随机抽取。
+@export_range(0.0, 1000.0, 0.01) var weight: float = 1.0
+
+## 播放音高随机下限，会乘到 pitch_scale 上。
+@export_range(0.01, 4.0, 0.01) var pitch_random_min: float = 1.0
+
+## 播放音高随机上限，会乘到 pitch_scale 上。
+@export_range(0.01, 4.0, 0.01) var pitch_random_max: float = 1.0
+
 
 # --- 公共方法 ---
 
@@ -40,3 +49,22 @@ func resolve_bus(default_bus: String) -> String:
 		return default_bus
 	return bus_name
 
+
+## 解析本次播放使用的实际音高。
+## @param rng: 可选随机数生成器；为空时使用确定性的 pitch_scale。
+## @return 实际播放音高。
+func resolve_pitch(rng: RandomNumberGenerator = null) -> float:
+	var min_pitch := clampf(pitch_random_min, 0.01, 4.0)
+	var max_pitch := clampf(pitch_random_max, 0.01, 4.0)
+	if min_pitch > max_pitch:
+		var swapped := min_pitch
+		min_pitch = max_pitch
+		max_pitch = swapped
+	if rng == null:
+		return clampf(pitch_scale, 0.01, 16.0)
+	var random_scale := 1.0
+	if not is_equal_approx(min_pitch, max_pitch):
+		random_scale = rng.randf_range(min_pitch, max_pitch)
+	else:
+		random_scale = min_pitch
+	return clampf(pitch_scale * random_scale, 0.01, 16.0)

@@ -163,6 +163,68 @@ func test_play_sfx_from_bank_applies_clip_settings() -> void:
 	assert_almost_eq(player.pitch_scale, 0.8, 0.001, "SFX Clip 应应用音高配置。")
 
 
+func test_audio_bank_supports_variants_and_fallback() -> void:
+	var first := GFAudioClip.new()
+	first.stream = AudioStreamGenerator.new()
+	var second := GFAudioClip.new()
+	second.stream = AudioStreamGenerator.new()
+	second.weight = 3.0
+
+	var bank := GFAudioBank.new()
+	var clips: Array[GFAudioClip] = [first, second]
+	bank.set_clips(&"ui+select", clips)
+
+	assert_eq(bank.get_clip(&"ui+select"), first, "兼容 get_clip 时应返回第一个有效候选。")
+	assert_eq(bank.get_clips(&"ui+select").size(), 2, "同一 ID 应可保存多个候选片段。")
+	assert_eq(bank.get_clip_with_fallback(&"ui+select+primary"), first, "分层 ID 缺失时应逐级回退。")
+
+
+func test_audio_clip_resolve_pitch_without_rng_uses_base_pitch() -> void:
+	var clip := GFAudioClip.new()
+	clip.pitch_scale = 1.25
+	clip.pitch_random_min = 0.5
+	clip.pitch_random_max = 2.0
+
+	assert_almost_eq(clip.resolve_pitch(null), 1.25, 0.001, "未传入 RNG 时应保持基础音高。")
+
+
+func test_registered_audio_bank_event_uses_clip_settings() -> void:
+	var stream := AudioStreamGenerator.new()
+	var clip := GFAudioClip.new()
+	clip.stream = stream
+	clip.bus_name = "Master"
+	clip.pitch_scale = 0.5
+	clip.pitch_random_min = 2.0
+	clip.pitch_random_max = 2.0
+
+	var bank := GFAudioBank.new()
+	bank.set_clip(&"confirm", clip)
+	_audio.register_audio_bank(&"ui", bank)
+	_audio.play_sfx_event(&"confirm", &"ui")
+
+	assert_eq(_audio._active_sfx_players.size(), 1, "事件式 SFX 应复用注册的音频集合。")
+	var player := _audio._active_sfx_players[0] as AudioStreamPlayer
+	assert_eq(player.stream, stream, "事件式 SFX 应播放对应音频流。")
+	assert_almost_eq(player.pitch_scale, 1.0, 0.001, "事件式 SFX 应应用片段音高随机范围。")
+
+
+func test_play_sfx_clip_2d_creates_spatial_player() -> void:
+	var source := Node2D.new()
+	add_child_autofree(source)
+	var stream := AudioStreamGenerator.new()
+	var clip := GFAudioClip.new()
+	clip.stream = stream
+	clip.bus_name = "Master"
+
+	var player := _audio.play_sfx_clip_2d(clip, source)
+
+	assert_not_null(player, "2D 空间 SFX 应创建播放器。")
+	assert_eq(player.stream, stream, "2D 空间 SFX 应写入对应音频流。")
+	assert_eq(player.bus, "Master", "2D 空间 SFX 应应用总线配置。")
+	if is_instance_valid(player):
+		player.queue_free()
+
+
 func test_play_ambient_clip_uses_channel_player() -> void:
 	var stream := AudioStreamGenerator.new()
 	var clip := GFAudioClip.new()

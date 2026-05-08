@@ -1,6 +1,7 @@
 ## GFSignalConnection: 可管理的 Godot Signal 链式连接。
 ##
-## 连接支持默认参数、过滤、映射、延迟、防抖、一次性触发和 owner 归属清理。
+## 连接支持默认参数、过滤、映射、延迟、防抖、节流、次数限制、
+## 累积转换、一次性触发和 owner 归属清理。
 class_name GFSignalConnection
 extends RefCounted
 
@@ -12,6 +13,10 @@ enum OperationType {
 	MAP,
 	DELAY,
 	DEBOUNCE,
+	THROTTLE,
+	SKIP,
+	TAKE,
+	SCAN,
 }
 
 
@@ -88,6 +93,63 @@ func debounce(seconds: float) -> GFSignalConnection:
 		"type": OperationType.DEBOUNCE,
 		"seconds": maxf(seconds, 0.0),
 	})
+	return self
+
+
+## 节流处理。指定秒数内只允许首次触发继续传递。
+## @param seconds: 节流时间（秒）。
+func throttle(seconds: float) -> GFSignalConnection:
+	_operations.append({
+		"type": OperationType.THROTTLE,
+		"seconds": maxf(seconds, 0.0),
+		"last_msec": -1,
+	})
+	return self
+
+
+## 跳过前 count 次成功进入该步骤的触发。
+## @param count: 需要跳过的次数。
+func skip(count: int) -> GFSignalConnection:
+	_operations.append({
+		"type": OperationType.SKIP,
+		"remaining": maxi(count, 0),
+	})
+	return self
+
+
+## 只允许前 count 次成功进入该步骤的触发继续传递，耗尽后自动断开。
+## @param count: 允许传递的次数。
+func take(count: int) -> GFSignalConnection:
+	_operations.append({
+		"type": OperationType.TAKE,
+		"remaining": maxi(count, 0),
+	})
+	return self
+
+
+## 只允许第一次成功进入该步骤的触发继续传递，之后自动断开。
+func first() -> GFSignalConnection:
+	return take(1)
+
+
+## 对信号参数执行累积转换。reducer 第一个参数为当前累积值，后续参数为当前信号参数。
+## @param accumulator: 初始累积值。
+## @param reducer: 累积转换回调。
+func scan(accumulator: Variant, reducer: Callable) -> GFSignalConnection:
+	if reducer.is_valid():
+		_operations.append({
+			"type": OperationType.SCAN,
+			"accumulator": accumulator,
+			"callable": reducer,
+		})
+	return self
+
+
+## 立即用指定参数主动执行一次链式处理。
+## @param value: 初始参数；Array 会按参数列表传入，Callable 会被调用并使用其返回值。
+func start_with(value: Variant) -> GFSignalConnection:
+	_serial += 1
+	_process_async(_normalize_start_args(value), _serial)
 	return self
 
 
@@ -212,6 +274,7 @@ func _owner_matches_exact(owner: Object) -> bool:
 
 func _process_async(args: Array, serial: int) -> void:
 	var current_args := args.duplicate()
+	var should_disconnect_after_callback := false
 	for operation: Dictionary in _operations:
 		if serial != _serial or prune_if_invalid():
 			return
@@ -236,6 +299,37 @@ func _process_async(args: Array, serial: int) -> void:
 				if serial != _serial:
 					return
 
+			OperationType.THROTTLE:
+				var now_msec := Time.get_ticks_msec()
+				var last_msec := int(operation.get("last_msec", -1))
+				var wait_msec := int(float(operation["seconds"]) * 1000.0)
+				if last_msec >= 0 and wait_msec > 0 and now_msec - last_msec < wait_msec:
+					return
+				operation["last_msec"] = now_msec
+
+			OperationType.SKIP:
+				var skip_remaining := int(operation.get("remaining", 0))
+				if skip_remaining > 0:
+					operation["remaining"] = skip_remaining - 1
+					return
+
+			OperationType.TAKE:
+				var take_remaining := int(operation.get("remaining", 0))
+				if take_remaining <= 0:
+					disconnect_signal()
+					_unregister_from_utility()
+					return
+				operation["remaining"] = take_remaining - 1
+				should_disconnect_after_callback = int(operation["remaining"]) <= 0
+
+			OperationType.SCAN:
+				var reducer := operation["callable"] as Callable
+				var reducer_args := [operation.get("accumulator")]
+				reducer_args.append_array(current_args)
+				var accumulator: Variant = reducer.callv(reducer_args)
+				operation["accumulator"] = accumulator
+				current_args = [accumulator]
+
 	if serial != _serial or prune_if_invalid():
 		return
 
@@ -243,7 +337,7 @@ func _process_async(args: Array, serial: int) -> void:
 	final_args.append_array(current_args)
 	_callback.callv(final_args)
 
-	if _is_once:
+	if _is_once or should_disconnect_after_callback:
 		disconnect_signal()
 		_unregister_from_utility()
 
@@ -283,6 +377,16 @@ func _collect_args(raw_args: Array) -> Array:
 	while not args.is_empty() and args.back() == null:
 		args.pop_back()
 	return args
+
+
+func _normalize_start_args(value: Variant) -> Array:
+	if value is Callable:
+		var callable := value as Callable
+		if not callable.is_valid():
+			return []
+		var returned: Variant = callable.call()
+		return returned if returned is Array else [returned]
+	return value if value is Array else [value]
 
 
 func _get_source_signal_argument_count() -> int:

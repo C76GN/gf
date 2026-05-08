@@ -26,6 +26,15 @@ extends Resource
 ## 构建对应的分支名。
 @export var branch: String = ""
 
+## 构建对应的标签名。
+@export var tag: String = ""
+
+## 构建对应的提交数量或流水线序号。
+@export var commit_count: int = 0
+
+## 构建来源工作区是否存在未提交改动。
+@export var is_dirty: bool = false
+
 ## 构建时间，建议使用 UTC ISO 文本。
 @export var build_time_utc: String = ""
 
@@ -54,6 +63,9 @@ func to_dict() -> Dictionary:
 		"build_id": build_id,
 		"commit_hash": commit_hash,
 		"branch": branch,
+		"tag": tag,
+		"commit_count": commit_count,
+		"is_dirty": is_dirty,
 		"build_time_utc": build_time_utc,
 		"engine_version": engine_version,
 		"platform_name": platform_name,
@@ -71,6 +83,9 @@ func apply_dict(data: Dictionary) -> void:
 	build_id = String(data.get("build_id", build_id))
 	commit_hash = String(data.get("commit_hash", commit_hash))
 	branch = String(data.get("branch", branch))
+	tag = String(data.get("tag", tag))
+	commit_count = int(data.get("commit_count", commit_count))
+	is_dirty = bool(data.get("is_dirty", is_dirty))
 	build_time_utc = String(data.get("build_time_utc", build_time_utc))
 	engine_version = String(data.get("engine_version", engine_version))
 	platform_name = String(data.get("platform_name", platform_name))
@@ -89,6 +104,9 @@ static func collect() -> GFBuildInfo:
 	info.build_id = _get_project_setting_text("gf/build/id")
 	info.commit_hash = _get_project_setting_text("gf/build/commit_hash")
 	info.branch = _get_project_setting_text("gf/build/branch")
+	info.tag = _get_project_setting_text("gf/build/tag")
+	info.commit_count = int(ProjectSettings.get_setting("gf/build/commit_count", 0))
+	info.is_dirty = bool(ProjectSettings.get_setting("gf/build/is_dirty", false))
 	info.build_time_utc = _get_project_setting_text("gf/build/time_utc")
 	info.engine_version = _format_engine_version(Engine.get_version_info())
 	info.platform_name = OS.get_name()
@@ -105,6 +123,50 @@ static func from_dict(data: Dictionary) -> GFBuildInfo:
 	var info := GFBuildInfo.new()
 	info.apply_dict(data)
 	return info
+
+
+## 从当前 Git 工作区收集构建元数据。该方法通常由导出脚本或编辑器工具调用。
+## @param work_dir: Git 工作区目录。
+## @return Git 构建元数据。
+static func collect_git_metadata(work_dir: String = "res://") -> Dictionary:
+	var native_dir := ProjectSettings.globalize_path(work_dir)
+	var short_hash := _run_git(native_dir, ["rev-parse", "--short=12", "HEAD"])
+	var branch_name := _run_git(native_dir, ["rev-parse", "--abbrev-ref", "HEAD"])
+	var tag_name := _run_git(native_dir, ["describe", "--tags", "--abbrev=0"])
+	var count_text := _run_git(native_dir, ["rev-list", "--count", "HEAD"])
+	var dirty_text := _run_git(native_dir, ["status", "--porcelain"])
+	return {
+		"commit_hash": short_hash,
+		"branch": branch_name,
+		"tag": tag_name,
+		"commit_count": count_text.to_int() if not count_text.is_empty() else 0,
+		"is_dirty": not dirty_text.is_empty(),
+		"build_time_utc": Time.get_datetime_string_from_system(true, false),
+	}
+
+
+## 把 Git 构建元数据写入 ProjectSettings，供 collect() 在运行时读取。
+## @param work_dir: Git 工作区目录。
+## @param extra_metadata: 项目自定义构建元数据。
+## @param save_settings: 是否立即保存 ProjectSettings。
+## @return 写入的构建元数据。
+static func write_git_metadata_to_project_settings(
+	work_dir: String = "res://",
+	extra_metadata: Dictionary = {},
+	save_settings: bool = false
+) -> Dictionary:
+	var git_data := collect_git_metadata(work_dir)
+	ProjectSettings.set_setting("gf/build/commit_hash", git_data.get("commit_hash", ""))
+	ProjectSettings.set_setting("gf/build/branch", git_data.get("branch", ""))
+	ProjectSettings.set_setting("gf/build/tag", git_data.get("tag", ""))
+	ProjectSettings.set_setting("gf/build/commit_count", int(git_data.get("commit_count", 0)))
+	ProjectSettings.set_setting("gf/build/is_dirty", bool(git_data.get("is_dirty", false)))
+	ProjectSettings.set_setting("gf/build/time_utc", git_data.get("build_time_utc", ""))
+	if not extra_metadata.is_empty():
+		ProjectSettings.set_setting("gf/build/metadata", extra_metadata.duplicate(true))
+	if save_settings:
+		ProjectSettings.save()
+	return git_data
 
 
 ## 复制构建信息。
@@ -142,3 +204,14 @@ static func _format_engine_version(version_info: Dictionary) -> String:
 	if not status.is_empty():
 		result += ".%s" % status
 	return result
+
+
+static func _run_git(native_dir: String, args: Array) -> String:
+	var output: Array = []
+	var git_args := PackedStringArray(["-C", native_dir])
+	for arg: Variant in args:
+		git_args.append(String(arg))
+	var exit_code := OS.execute("git", git_args, output, true, false)
+	if exit_code != OK or output.is_empty():
+		return ""
+	return String(output[0]).strip_edges()

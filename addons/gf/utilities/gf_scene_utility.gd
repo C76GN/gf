@@ -170,6 +170,7 @@ var _fixed_preloaded_scenes: Dictionary = {}
 var _preloaded_scenes: Dictionary = {}
 var _preloaded_scene_access_order: Dictionary = {}
 var _preloaded_scene_access_serial: int = 0
+var _background_scene_params: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -188,6 +189,7 @@ func tick(_delta: float) -> void:
 func dispose() -> void:
 	_reset_loading_state()
 	_preload_requests.clear()
+	_background_scene_params.clear()
 	clear_preloaded_scenes()
 
 
@@ -296,6 +298,58 @@ func preload_scene(path: String, fixed: bool = false) -> Error:
 	return OK
 
 
+## 后台加载一个场景并记录稍后激活时使用的参数。
+## @param path: 目标场景资源路径。
+## @param params: 激活该场景时传入的参数。
+## @param fixed: 为 true 时写入固定缓存，不受 LRU 容量淘汰影响。
+## @return 发起请求的 Godot Error。
+func begin_background_scene_load(path: String, params: Dictionary = {}, fixed: bool = false) -> Error:
+	var error := preload_scene(path, fixed)
+	if error == OK:
+		_background_scene_params[path] = params.duplicate(true)
+	return error
+
+
+## 激活已经后台加载或正在后台加载的场景。
+## @param path: 目标场景资源路径。
+## @param loading_scene_path: 可选的过渡场景路径。
+## @param minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。
+## @return 发起切换的 Godot Error。
+func activate_background_scene(
+	path: String,
+	loading_scene_path: String = "",
+	minimum_duration_seconds: float = -1.0
+) -> Error:
+	if _is_loading:
+		push_warning("[GFSceneUtility] 当前已有场景正在加载中：%s" % _target_path)
+		return ERR_BUSY
+
+	var validation_error := _validate_scene_resource_path(path, "activate_background_scene")
+	if not validation_error.is_empty():
+		push_error(validation_error)
+		return ERR_INVALID_PARAMETER
+
+	if not is_scene_preloading(path) and not is_scene_preloaded(path):
+		return ERR_DOES_NOT_EXIST
+
+	var params := (_background_scene_params.get(path, {}) as Dictionary)
+	load_scene_async(
+		path,
+		loading_scene_path,
+		params.duplicate(true) if params != null else {},
+		minimum_duration_seconds
+	)
+	return OK
+
+
+## 获取后台场景记录的参数副本。
+## @param path: 场景路径。
+## @return 参数副本；没有记录时返回空字典。
+func get_background_scene_params(path: String) -> Dictionary:
+	var params := _background_scene_params.get(path, {}) as Dictionary
+	return params.duplicate(true) if params != null else {}
+
+
 ## 批量预加载场景资源。
 ## @param paths: 场景路径数组。
 ## @param fixed: 为 true 时全部写入固定缓存。
@@ -387,6 +441,7 @@ func remove_preloaded_scene(path: String) -> void:
 	_fixed_preloaded_scenes.erase(path)
 	_preloaded_scenes.erase(path)
 	_preloaded_scene_access_order.erase(path)
+	_background_scene_params.erase(path)
 	if was_fixed:
 		scene_cache_removed.emit(path, true)
 	if was_temporary:
@@ -404,6 +459,11 @@ func clear_preloaded_scenes(include_fixed: bool = true) -> void:
 			scene_cache_removed.emit(path, true)
 	_preloaded_scenes.clear()
 	_preloaded_scene_access_order.clear()
+	if include_fixed:
+		_background_scene_params.clear()
+	else:
+		for path: String in temporary_paths:
+			_background_scene_params.erase(path)
 	_preloaded_scene_access_serial = 0
 	for path: String in temporary_paths:
 		scene_cache_removed.emit(path, false)
@@ -479,6 +539,9 @@ func get_scene_cache_debug_snapshot() -> Dictionary:
 		"preloading": {
 			"size": preloading_paths.size(),
 			"paths": preloading_paths,
+		},
+		"background": {
+			"paths": _get_sorted_string_keys(_background_scene_params),
 		},
 	}
 
@@ -853,6 +916,7 @@ func _complete_loading(path: String, scene: PackedScene) -> void:
 		_is_showing_loading_scene = false
 		_push_scene_history(previous_path, _current_scene_params)
 		_current_scene_params = _active_transition_params.duplicate(true)
+		_background_scene_params.erase(path)
 		scene_load_completed.emit(path, scene)
 		scene_switch_completed.emit(path, previous_path)
 		_set_paused(_previous_pause_state)

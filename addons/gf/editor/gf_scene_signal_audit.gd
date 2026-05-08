@@ -174,7 +174,72 @@ static func collect_scene_paths(root_path: String = "res://", options: Dictionar
 	return result
 
 
+## 构建运行中节点树的信号连接图快照。
+## @param root: 需要扫描的根节点。
+## @param options: 选项，支持 `include_internal`、`persistent_only` 与 `include_empty_signals`。
+## @return 信号连接图报告。
+static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictionary:
+	if root == null:
+		return {
+			"ok": false,
+			"root_path": "",
+			"node_count": 0,
+			"signal_count": 0,
+			"connection_count": 0,
+			"signals": [],
+			"connections": [],
+			"message": "root 为空。",
+		}
+
+	var include_internal := bool(options.get("include_internal", false))
+	var persistent_only := bool(options.get("persistent_only", false))
+	var include_empty_signals := bool(options.get("include_empty_signals", false))
+	var nodes: Array[Node] = []
+	_collect_signal_graph_nodes(root, nodes, include_internal)
+
+	var signal_entries: Array[Dictionary] = []
+	var connection_entries: Array[Dictionary] = []
+	for node: Node in nodes:
+		for signal_info: Dictionary in node.get_signal_list():
+			var signal_name := StringName(signal_info.get("name", ""))
+			if signal_name == &"":
+				continue
+
+			var raw_connections := node.get_signal_connection_list(signal_name)
+			var connections: Array = []
+			for connection_info: Dictionary in raw_connections:
+				if persistent_only and (int(connection_info.get("flags", 0)) & CONNECT_PERSIST) == 0:
+					continue
+				connections.append(connection_info)
+
+			if include_empty_signals or not connections.is_empty():
+				signal_entries.append({
+					"node_path": _relative_node_path(root, node),
+					"signal_name": String(signal_name),
+					"argument_count": _get_signal_argument_count(node, signal_name),
+					"connection_count": connections.size(),
+				})
+
+			for connection_info: Dictionary in connections:
+				connection_entries.append(_make_runtime_connection_entry(root, node, signal_name, connection_info))
+
+	return {
+		"ok": true,
+		"root_path": root.get_path(),
+		"node_count": nodes.size(),
+		"signal_count": signal_entries.size(),
+		"connection_count": connection_entries.size(),
+		"signals": signal_entries,
+		"connections": connection_entries,
+	}
+
+
 # --- 私有/辅助方法 ---
+
+static func _collect_signal_graph_nodes(root: Node, result: Array[Node], include_internal: bool) -> void:
+	result.append(root)
+	for child: Node in root.get_children(include_internal):
+		_collect_signal_graph_nodes(child, result, include_internal)
 
 static func _collect_scene_paths_recursive(
 	root_path: String,
@@ -218,6 +283,36 @@ static func _get_node_or_root(root: Node, path: NodePath) -> Node:
 	if path.is_empty() or String(path) == ".":
 		return root
 	return root.get_node_or_null(path)
+
+
+static func _make_runtime_connection_entry(
+	root: Node,
+	source_node: Node,
+	signal_name: StringName,
+	connection_info: Dictionary
+) -> Dictionary:
+	var callback := connection_info.get("callable") as Callable
+	var target_object := callback.get_object() if callback.is_valid() else null
+	var target_path := ""
+	if target_object is Node:
+		target_path = _relative_node_path(root, target_object as Node)
+
+	return {
+		"source_node_path": _relative_node_path(root, source_node),
+		"target_node_path": target_path,
+		"signal_name": String(signal_name),
+		"method_name": String(callback.get_method()) if callback.is_valid() else "",
+		"flags": int(connection_info.get("flags", 0)),
+		"is_persistent": (int(connection_info.get("flags", 0)) & CONNECT_PERSIST) != 0,
+	}
+
+
+static func _relative_node_path(root: Node, node: Node) -> String:
+	if root == node:
+		return "."
+	if root.is_ancestor_of(node):
+		return String(root.get_path_to(node))
+	return String(node.get_path())
 
 
 static func _build_parameter_count_issue(

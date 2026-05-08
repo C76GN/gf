@@ -102,6 +102,85 @@ func get_custom_data(key: Variant, default_value: Variant = null) -> Variant:
 	return custom_data.get(key, default_value)
 
 
+## 转换为可写入 JSON/存档的 Dictionary。
+## @return 重映射配置字典。
+func to_dict() -> Dictionary:
+	var serialized_events: Dictionary = {}
+	for context_key: Variant in remapped_events.keys():
+		var context_map := remapped_events[context_key] as Dictionary
+		if context_map == null:
+			continue
+
+		var serialized_context: Dictionary = {}
+		for action_key: Variant in context_map.keys():
+			var action_map := context_map[action_key] as Dictionary
+			if action_map == null:
+				continue
+
+			var serialized_action: Dictionary = {}
+			for binding_key: Variant in action_map.keys():
+				serialized_action[str(int(binding_key))] = _event_to_record(action_map[binding_key] as InputEvent)
+			if not serialized_action.is_empty():
+				serialized_context[String(action_key)] = serialized_action
+
+		if not serialized_context.is_empty():
+			serialized_events[String(context_key)] = serialized_context
+
+	return {
+		"remapped_events": serialized_events,
+		"custom_data": custom_data.duplicate(true),
+	}
+
+
+## 应用由 to_dict() 生成的重映射配置。
+## @param data: 重映射配置字典。
+func apply_dict(data: Dictionary) -> void:
+	remapped_events.clear()
+	var serialized_events := data.get("remapped_events", {}) as Dictionary
+	if serialized_events != null:
+		for context_key: Variant in serialized_events.keys():
+			var context_map := serialized_events[context_key] as Dictionary
+			if context_map == null:
+				continue
+
+			for action_key: Variant in context_map.keys():
+				var action_map := context_map[action_key] as Dictionary
+				if action_map == null:
+					continue
+
+				for binding_key: Variant in action_map.keys():
+					var binding_index := String(binding_key).to_int()
+					if binding_index < 0:
+						continue
+					var record := action_map[binding_key] as Dictionary
+					if record == null:
+						continue
+					if bool(record.get("unbound", false)):
+						unbind(StringName(context_key), StringName(action_key), binding_index)
+					else:
+						var input_event := _event_from_record(record)
+						if input_event != null:
+							set_binding(StringName(context_key), StringName(action_key), binding_index, input_event)
+
+	var custom_data_value := data.get("custom_data", {}) as Dictionary
+	custom_data = custom_data_value.duplicate(true) if custom_data_value != null else {}
+
+
+## 从 Dictionary 创建重映射配置。
+## @param data: 重映射配置字典。
+## @return 新重映射配置。
+static func from_dict(data: Dictionary) -> GFInputRemapConfig:
+	var config := GFInputRemapConfig.new()
+	config.apply_dict(data)
+	return config
+
+
+## 复制重映射配置。
+## @return 深拷贝后的重映射配置。
+func duplicate_config() -> GFInputRemapConfig:
+	return GFInputRemapConfig.from_dict(to_dict())
+
+
 # --- 私有/辅助方法 ---
 
 func _ensure_action_map(context_id: StringName, action_id: StringName) -> Dictionary:
@@ -113,3 +192,20 @@ func _ensure_action_map(context_id: StringName, action_id: StringName) -> Dictio
 		context_map[action_id] = {}
 
 	return context_map[action_id] as Dictionary
+
+
+func _event_to_record(input_event: InputEvent) -> Dictionary:
+	if input_event == null:
+		return {"unbound": true}
+	return {
+		"unbound": false,
+		"event": var_to_str(input_event),
+	}
+
+
+func _event_from_record(record: Dictionary) -> InputEvent:
+	var event_text := String(record.get("event", ""))
+	if event_text.is_empty():
+		return null
+	var value: Variant = str_to_var(event_text)
+	return value as InputEvent

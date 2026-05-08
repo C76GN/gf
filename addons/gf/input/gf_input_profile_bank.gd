@@ -165,4 +165,10 @@ func _find_profile_key(profile_id: StringName) -> Variant:
 func _duplicate_config(config: GFInputRemapConfigBase) -> GFInputRemapConfigBase:
 	if config == null:
 		return null
-	return config.duplicate(true) as GFInputRemapConfigBase
+	if config.has_method("duplicate_config"):
+		return config.duplicate_config()
+
+	var duplicated := GFInputRemapConfigBase.new()
+	duplicated.remapped_events = config.remapped_events.duplicate(true)
+	duplicated.custom_data = config.custom_data.duplicate(true)
+	return duplicated

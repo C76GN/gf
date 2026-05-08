@@ -10,6 +10,23 @@ const PARAMETER_MISMATCH_SCENE: String = "res://tests/gf_core/fixtures/scene_sig
 const GF_SCENE_SIGNAL_AUDIT := preload("res://addons/gf/editor/gf_scene_signal_audit.gd")
 
 
+# --- 辅助子类 ---
+
+class GraphEmitter:
+	extends Node
+
+	signal ping(value: int)
+
+
+class GraphReceiver:
+	extends Node
+
+	var last_value: int = 0
+
+	func receive(value: int) -> void:
+		last_value = value
+
+
 # --- 测试用例 ---
 
 func test_audit_scene_accepts_valid_editor_connection() -> void:
@@ -61,3 +78,25 @@ func test_collect_scene_paths_respects_gdignore() -> void:
 
 	assert_true(paths.has(VALID_SCENE), "收集器应包含普通 fixture 场景。")
 	assert_false(paths.has("res://tests/gf_core/fixtures/scene_signal_audit_ignored/ignored_scene.tscn"), "默认应跳过包含 .gdignore 的目录。")
+
+
+func test_build_signal_graph_reports_runtime_connections() -> void:
+	var root := Node.new()
+	var emitter := GraphEmitter.new()
+	var receiver := GraphReceiver.new()
+	root.name = "Root"
+	emitter.name = "Emitter"
+	receiver.name = "Receiver"
+	add_child_autofree(root)
+	root.add_child(emitter)
+	root.add_child(receiver)
+	emitter.ping.connect(receiver.receive)
+
+	var graph: Dictionary = GF_SCENE_SIGNAL_AUDIT.build_signal_graph(root)
+
+	assert_true(bool(graph["ok"]), "运行时信号图应成功构建。")
+	assert_eq(graph["connection_count"], 1, "信号图应记录运行时连接数量。")
+	var connection := (graph["connections"] as Array)[0] as Dictionary
+	assert_eq(connection["source_node_path"], "Emitter", "连接应记录相对源节点路径。")
+	assert_eq(connection["target_node_path"], "Receiver", "连接应记录相对目标节点路径。")
+	assert_eq(connection["method_name"], "receive", "连接应记录目标方法名。")

@@ -211,6 +211,20 @@ func test_load_scene_async_uses_preloaded_scene() -> void:
 	assert_signal_emitted(_scene_util, "scene_load_completed", "缓存命中也应发出加载完成信号。")
 
 
+func test_background_scene_load_can_activate_cached_scene_with_params() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	_scene_util.put_preloaded_scene(scene_path, _make_empty_scene())
+
+	var preload_error := _scene_util.begin_background_scene_load(scene_path, { "spawn": "door_b" })
+	var activate_error := _scene_util.activate_background_scene(scene_path)
+
+	assert_eq(preload_error, OK, "后台加载应复用已有预加载缓存。")
+	assert_eq(activate_error, OK, "已缓存后台场景应可激活。")
+	assert_eq(_scene_util.packed_scene_changes, 1, "激活后台场景应切换 PackedScene。")
+	assert_eq(_scene_util.get_current_scene_params()["spawn"], "door_b", "激活时应应用后台加载记录的参数。")
+	assert_true(_scene_util.get_background_scene_params(scene_path).is_empty(), "激活完成后应清理后台参数记录。")
+
+
 func test_scene_load_completed_is_not_emitted_when_scene_change_fails() -> void:
 	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
 	_scene_util.put_preloaded_scene(scene_path, _make_empty_scene())
