@@ -227,12 +227,74 @@ func test_scene_transition_config_can_drive_scene_load() -> void:
 	var config := GFSceneTransitionConfigBase.new()
 	config.target_scene_path = "res://addons/gut/gui/NormalGui.tscn"
 	config.cache_loaded_scene = false
+	config.params = { "spawn": "door_a" }
+	config.minimum_duration_seconds = 0.25
 
 	var error := _scene_util.load_scene_with_transition(config)
 
 	assert_eq(error, OK, "场景切换配置应能发起加载。")
 	assert_true(_scene_util._is_loading, "配置化场景切换应进入加载状态。")
 	assert_false(_scene_util._active_load_cache_loaded_scene, "配置化场景切换应应用本次缓存策略。")
+	assert_eq(_scene_util._active_transition_params["spawn"], "door_a", "配置化场景切换应应用切换参数。")
+	assert_almost_eq(_scene_util._active_transition_minimum_seconds, 0.25, 0.001, "配置化场景切换应应用最短时长。")
+
+
+func test_scene_transition_config_serializes_params_and_minimum_duration() -> void:
+	var config := GFSceneTransitionConfigBase.new()
+	config.target_scene_path = "res://target.tscn"
+	config.params = {
+		"spawn": "door_a",
+		"nested": {
+			"value": 1,
+		},
+	}
+	config.minimum_duration_seconds = 0.5
+
+	var copy := GFSceneTransitionConfigBase.from_dict(config.to_dict())
+	(copy.params["nested"] as Dictionary)["value"] = 2
+
+	assert_eq(copy.params["spawn"], "door_a", "切换参数应可序列化。")
+	assert_almost_eq(copy.minimum_duration_seconds, 0.5, 0.001, "最短时长应可序列化。")
+	assert_eq((config.params["nested"] as Dictionary)["value"], 1, "切换参数应深拷贝。")
+
+
+func test_minimum_transition_duration_delays_cached_completion_and_sets_params() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	_scene_util.put_preloaded_scene(scene_path, _make_empty_scene())
+	_scene_util.default_transition_minimum_seconds = 1.0
+
+	_scene_util.load_scene_async(scene_path, "", { "spawn": "door_a" })
+
+	assert_true(_scene_util._is_loading, "最短时长未到时应保持 loading 状态。")
+	assert_eq(_scene_util.packed_scene_changes, 0, "最短时长未到时不应切换目标场景。")
+	assert_true(_scene_util._pending_loaded_scene != null, "已加载场景应等待最短时长结束。")
+
+	_scene_util._active_transition_started_msec = Time.get_ticks_msec() - 2000
+	_scene_util.tick(0.0)
+	var history := _scene_util.get_scene_history()
+
+	assert_false(_scene_util._is_loading, "最短时长结束后应完成切换。")
+	assert_eq(_scene_util.packed_scene_changes, 1, "应切换目标场景。")
+	assert_eq(_scene_util.get_current_scene_params()["spawn"], "door_a", "完成后应保存当前场景参数。")
+	assert_eq(history.size(), 1, "成功切换后应记录上一场景。")
+	assert_eq(history[0]["path"], "res://tests/current_scene.tscn", "历史应记录切换前场景路径。")
+
+
+func test_load_previous_scene_uses_history_params() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	_scene_util.put_preloaded_scene(scene_path, _make_empty_scene())
+	_scene_util._scene_history.append({
+		"path": scene_path,
+		"params": {
+			"return_to": "hub",
+		},
+	})
+
+	var error := _scene_util.load_previous_scene()
+
+	assert_eq(error, OK, "有历史场景时应能发起返回切换。")
+	assert_eq(_scene_util.packed_scene_changes, 1, "命中缓存的历史场景应完成切换。")
+	assert_eq(_scene_util.get_current_scene_params()["return_to"], "hub", "返回上一场景应使用历史参数。")
 
 
 func test_scene_cache_debug_snapshot_reports_cached_paths() -> void:

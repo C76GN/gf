@@ -1042,6 +1042,10 @@ func _attach_node_capability(receiver: Object, capability: Object) -> void:
 
 	var receiver_node := receiver as Node
 	var capability_node := capability as Node
+	var existing_parent := capability_node.get_parent()
+	if _is_existing_receiver_container(receiver_node, existing_parent):
+		return
+
 	var container := _get_or_create_container(receiver_node, capability_node)
 	if capability_node.get_parent() == container:
 		return
@@ -1049,7 +1053,7 @@ func _attach_node_capability(receiver: Object, capability: Object) -> void:
 	if capability_node.get_parent() != null:
 		capability_node.reparent(container, false)
 	else:
-		container.add_child(capability_node, true, Node.INTERNAL_MODE_BACK)
+		_add_child_to_container(container, capability_node)
 
 
 func _get_or_create_container(receiver: Node, capability: Node) -> Node:
@@ -1060,7 +1064,7 @@ func _get_or_create_container(receiver: Node, capability: Node) -> Node:
 	var container := _create_container_node(receiver, capability)
 	container.set_meta(META_CAPABILITY_CONTAINER, true)
 	_try_attach_capability_container_script(container)
-	receiver.add_child(container, true, Node.INTERNAL_MODE_BACK)
+	_add_child_to_receiver(receiver, container)
 	return container
 
 
@@ -1115,11 +1119,34 @@ func _container_matches_capability(container: Node, capability: Node) -> bool:
 	return not (container is Node2D) and not (container is Node3D) and not (container is Control)
 
 
+func _is_existing_receiver_container(receiver: Node, container: Node) -> bool:
+	return (
+		receiver != null
+		and container != null
+		and container.get_parent() == receiver
+		and _is_capability_container(container)
+	)
+
+
 func _is_capability_container(node: Node) -> bool:
 	return (
 		node is GF_CAPABILITY_CONTAINER_BASE
 		or bool(node.get_meta(META_CAPABILITY_CONTAINER, false))
 	)
+
+
+func _add_child_to_receiver(receiver: Node, child: Node) -> void:
+	if receiver.is_inside_tree() and not receiver.is_node_ready():
+		receiver.add_child.call_deferred(child, true, Node.INTERNAL_MODE_BACK)
+	else:
+		receiver.add_child(child, true, Node.INTERNAL_MODE_BACK)
+
+
+func _add_child_to_container(container: Node, child: Node) -> void:
+	if container.is_inside_tree() and not container.is_node_ready():
+		container.add_child.call_deferred(child, true, Node.INTERNAL_MODE_BACK)
+	else:
+		container.add_child(child, true, Node.INTERNAL_MODE_BACK)
 
 
 func _read_capability_active(capability: Object) -> bool:
@@ -1320,26 +1347,45 @@ func _free_capability(capability: Object, detach_node: bool) -> void:
 	if capability is Node:
 		var node := capability as Node
 		var parent := node.get_parent()
-		if detach_node and node.get_parent() != null:
-			node.get_parent().remove_child(node)
-			_free_empty_generated_container(parent)
-		node.queue_free()
+		if detach_node and parent != null and not parent.is_queued_for_deletion() and not node.is_queued_for_deletion():
+			_detach_capability_node(parent, node)
+		if not node.is_queued_for_deletion():
+			node.queue_free()
 	elif capability is RefCounted:
 		pass
 	else:
 		capability.free()
 
 
+func _detach_capability_node(parent: Node, node: Node) -> void:
+	if parent.is_inside_tree() and not parent.is_node_ready():
+		parent.remove_child.call_deferred(node)
+		Callable(self, "_free_empty_generated_container").call_deferred(parent)
+		return
+
+	parent.remove_child(node)
+	_free_empty_generated_container(parent)
+
+
 func _free_empty_generated_container(container: Node) -> void:
 	if container == null:
+		return
+	if container.is_queued_for_deletion():
 		return
 	if not bool(container.get_meta(META_CAPABILITY_CONTAINER, false)):
 		return
 	if container.get_child_count(true) > 0:
 		return
 
-	if container.get_parent() != null:
-		container.get_parent().remove_child(container)
+	var parent := container.get_parent()
+	if parent != null:
+		if parent.is_queued_for_deletion():
+			return
+		if parent.is_inside_tree() and not parent.is_node_ready():
+			parent.remove_child.call_deferred(container)
+			container.queue_free()
+			return
+		parent.remove_child(container)
 	container.queue_free()
 
 

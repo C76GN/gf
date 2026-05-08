@@ -137,6 +137,16 @@ class CountingCapabilityNode extends CapabilityNode:
 		created_nodes.append(self)
 
 
+class EnterTreeAddReceiver extends Node:
+	var utility: Object = null
+	var capability_type: Script = null
+	var added_capability: Object = null
+
+	func _enter_tree() -> void:
+		if utility != null and capability_type != null:
+			added_capability = utility.add_capability(self, capability_type)
+
+
 class BaseCapability extends GF_CAPABILITY_BASE:
 	pass
 
@@ -404,6 +414,47 @@ func test_scene_container_registers_child_capabilities_before_ready_frame() -> v
 
 	assert_eq(_utility.get_capability(receiver, CapabilityNode), child_capability, "场景容器进树时应立即注册子节点能力。")
 	assert_eq(child_capability.added_receiver, receiver, "立即注册也应触发 added hook。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_scene_spatial_container_keeps_existing_plain_node_capability() -> void:
+	var receiver := Node2D.new()
+	var container := Node2D.new()
+	container.name = "GFCapabilityContainer2D"
+	container.set_meta(GF_CAPABILITY_UTILITY_BASE.META_CAPABILITY_CONTAINER, true)
+	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
+	var child_capability := CapabilityNode.new()
+	container.add_child(child_capability)
+	receiver.add_child(container)
+
+	add_child(receiver)
+
+	assert_eq(_utility.get_capability(receiver, CapabilityNode), child_capability, "空间容器中已有的普通 Node 能力也应注册。")
+	assert_eq(child_capability.get_parent(), container, "场景中已摆放的能力不应在进树注册时被重挂到新容器。")
+
+	await get_tree().process_frame
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_add_capability_during_receiver_enter_tree_defers_container_attachment() -> void:
+	var receiver := EnterTreeAddReceiver.new()
+	receiver.utility = _utility
+	receiver.capability_type = CapabilityNode
+
+	add_child(receiver)
+
+	assert_not_null(receiver.added_capability, "receiver _enter_tree 中添加能力应立即返回实例。")
+	assert_eq(_utility.get_capability(receiver, CapabilityNode), receiver.added_capability, "即使容器延迟挂树，能力也应立即可查询。")
+
+	await get_tree().process_frame
+
+	var capability := receiver.added_capability as CapabilityNode
+	assert_not_null(capability.get_parent(), "延迟后能力应挂入容器。")
+	assert_eq(capability.get_parent().get_parent(), receiver, "延迟创建的容器应挂在 receiver 下。")
 
 	receiver.queue_free()
 	await get_tree().process_frame

@@ -1,7 +1,7 @@
 ## GFSceneUtility: 场景与流程切换管理器。
 ##
 ## 封装原生场景切换，支持带有 `loading scene` 的异步加载、PackedScene
-## 资源预加载缓存，并可在切换完成后清理不需要跨场景保留的 `System/Model`。
+## 资源预加载缓存、切换参数、场景历史，并可在切换完成后清理不需要跨场景保留的 `System/Model`。
 class_name GFSceneUtility
 extends GFUtility
 
@@ -131,10 +131,22 @@ var loading_screen_progress_method: StringName = &"set_progress"
 ## loading scene 进度更新回退方法名。
 var loading_screen_progress_fallback_method: StringName = &"update_progress"
 
+## 默认 loading scene 最短保留秒数；单次切换可覆盖。
+var default_transition_minimum_seconds: float = 0.0
+
+## 最多保留的场景历史数量；设为 0 表示不记录历史。
+var max_scene_history: int:
+	get:
+		return _max_scene_history
+	set(value):
+		_max_scene_history = maxi(value, 0)
+		_trim_scene_history()
+
 
 # --- 私有变量 ---
 
 var _max_preloaded_scene_resources: int = 8
+var _max_scene_history: int = 16
 var _target_path: String = ""
 var _is_loading: bool = false
 var _loading_scene_path: String = ""
@@ -146,6 +158,13 @@ var _loading_scene_exit_notified: bool = false
 var _active_load_uses_preload_request: bool = false
 var _active_load_cache_loaded_scene: bool = true
 var _active_loading_progress: float = 0.0
+var _active_transition_started_msec: int = 0
+var _active_transition_minimum_seconds: float = 0.0
+var _active_transition_params: Dictionary = {}
+var _current_scene_params: Dictionary = {}
+var _pending_loaded_path: String = ""
+var _pending_loaded_scene: PackedScene = null
+var _scene_history: Array[Dictionary] = []
 var _preload_requests: Dictionary = {}
 var _fixed_preloaded_scenes: Dictionary = {}
 var _preloaded_scenes: Dictionary = {}
@@ -177,7 +196,14 @@ func dispose() -> void:
 ## 异步切换场景。
 ## @param path: 目标场景资源路径。
 ## @param loading_scene_path: 可选的过渡场景路径。
-func load_scene_async(path: String, loading_scene_path: String = "") -> void:
+## @param params: 本次切换参数；完成后可通过 get_current_scene_params() 读取。
+## @param minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。
+func load_scene_async(
+	path: String,
+	loading_scene_path: String = "",
+	params: Dictionary = {},
+	minimum_duration_seconds: float = -1.0
+) -> void:
 	if _is_loading:
 		push_warning("[GFSceneUtility] 当前已有场景正在加载中：%s" % _target_path)
 		return
@@ -189,14 +215,14 @@ func load_scene_async(path: String, loading_scene_path: String = "") -> void:
 		return
 
 	var effective_loading_scene_path := _resolve_loading_scene_path(loading_scene_path)
-	_begin_loading_state(path, effective_loading_scene_path, cache_loaded_scenes)
+	_begin_loading_state(path, effective_loading_scene_path, cache_loaded_scenes, params, minimum_duration_seconds)
 	scene_load_started.emit(path)
 	scene_switch_started.emit(path, _previous_scene_path)
 
 	var cached_scene := get_preloaded_scene(path)
 	if cached_scene != null:
 		_emit_scene_load_progress(path, 1.0)
-		_complete_loading(path, cached_scene)
+		_schedule_complete_loading(path, cached_scene)
 		return
 
 	if is_scene_preloading(path):
@@ -228,7 +254,12 @@ func load_scene_with_transition(config: GFSceneTransitionConfigBase) -> Error:
 
 	var previous_cache_loaded_scenes := cache_loaded_scenes
 	cache_loaded_scenes = config.cache_loaded_scene
-	load_scene_async(config.target_scene_path, config.loading_scene_path)
+	load_scene_async(
+		config.target_scene_path,
+		config.loading_scene_path,
+		config.params,
+		config.minimum_duration_seconds
+	)
 	cache_loaded_scenes = previous_cache_loaded_scenes
 	return OK
 
@@ -429,6 +460,13 @@ func get_scene_cache_debug_snapshot() -> Dictionary:
 		"loading_scene_path": _loading_scene_path,
 		"current_scene": _get_current_scene_path(),
 		"previous_scene": _previous_scene_path,
+		"transition": {
+			"minimum_duration_seconds": _active_transition_minimum_seconds,
+			"params": _active_transition_params.duplicate(true),
+			"current_params": _current_scene_params.duplicate(true),
+			"history_size": _scene_history.size(),
+			"pending_completion": _pending_loaded_scene != null,
+		},
 		"preload_cache": {
 			"size": _fixed_preloaded_scenes.size() + _preloaded_scenes.size(),
 			"max_size": max_preloaded_scene_resources,
@@ -489,6 +527,67 @@ func get_scene_resource_info(path: String) -> Dictionary:
 	}
 
 
+## 获取当前场景参数副本。
+## @return 当前场景参数。
+func get_current_scene_params() -> Dictionary:
+	return _current_scene_params.duplicate(true)
+
+
+## 获取场景历史副本。
+## @return 场景历史列表，最新项位于数组末尾。
+func get_scene_history() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry: Dictionary in _scene_history:
+		result.append(entry.duplicate(true))
+	return result
+
+
+## 清空场景历史。
+func clear_scene_history() -> void:
+	_scene_history.clear()
+
+
+## 弹出最近一个场景历史项。
+## @return 历史项；没有历史时返回空字典。
+func pop_scene_history() -> Dictionary:
+	if _scene_history.is_empty():
+		return {}
+	var entry := _scene_history.pop_back()
+	return entry.duplicate(true)
+
+
+## 切换到最近一个历史场景。
+## @param loading_scene_path: 可选 loading scene 路径。
+## @param minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。
+## @return 发起切换的 Godot Error。
+func load_previous_scene(loading_scene_path: String = "", minimum_duration_seconds: float = -1.0) -> Error:
+	if _is_loading:
+		push_warning("[GFSceneUtility] 当前已有场景正在加载中：%s" % _target_path)
+		return ERR_BUSY
+	if _scene_history.is_empty():
+		return ERR_DOES_NOT_EXIST
+
+	var entry := _scene_history[_scene_history.size() - 1] as Dictionary
+	var path := String(entry.get("path", ""))
+	var params := entry.get("params", {}) as Dictionary
+	if path.is_empty():
+		return ERR_INVALID_DATA
+
+	var validation_error := _validate_scene_resource_path(path, "load_previous_scene")
+	if not validation_error.is_empty():
+		push_error(validation_error)
+		return ERR_INVALID_PARAMETER
+
+	_scene_history.remove_at(_scene_history.size() - 1)
+	load_scene_async(
+		path,
+		loading_scene_path,
+		params.duplicate(true) if params != null else {},
+		minimum_duration_seconds
+	)
+	return OK
+
+
 ## 标记一个脚本类型为瞬态实例。
 ## @param script_cls: 需要在下次切场景时清理的脚本类型。
 func mark_transient(script_cls: Script) -> void:
@@ -528,6 +627,10 @@ func _poll_active_scene_load() -> void:
 	if not _is_loading or _target_path.is_empty():
 		return
 
+	if _pending_loaded_scene != null:
+		_complete_pending_scene_if_ready()
+		return
+
 	if _active_load_uses_preload_request:
 		_poll_active_preload_scene()
 		return
@@ -549,7 +652,7 @@ func _poll_active_scene_load() -> void:
 
 			if _active_load_cache_loaded_scene:
 				put_preloaded_scene(loaded_path, scene)
-			_complete_loading(loaded_path, scene)
+			_schedule_complete_loading(loaded_path, scene)
 
 		ResourceLoader.THREAD_LOAD_FAILED, ResourceLoader.THREAD_LOAD_INVALID_RESOURCE:
 			_fail_loading(_target_path, "[GFSceneUtility] 场景异步加载失败：%s" % _target_path)
@@ -560,7 +663,7 @@ func _poll_active_preload_scene() -> void:
 		var cached_scene := get_preloaded_scene(_target_path)
 		if cached_scene != null:
 			_emit_scene_load_progress(_target_path, 1.0)
-			_complete_loading(_target_path, cached_scene)
+			_schedule_complete_loading(_target_path, cached_scene)
 		else:
 			_fail_loading(_target_path, "[GFSceneUtility] 场景预加载未完成：%s" % _target_path)
 		return
@@ -612,12 +715,26 @@ func _poll_preload_requests() -> void:
 					scene_preload_failed.emit(path)
 
 
-func _begin_loading_state(path: String, loading_scene_path: String, should_cache_loaded_scene: bool) -> void:
+func _begin_loading_state(
+	path: String,
+	loading_scene_path: String,
+	should_cache_loaded_scene: bool,
+	params: Dictionary,
+	minimum_duration_seconds: float
+) -> void:
 	_target_path = path
 	_loading_scene_path = loading_scene_path
 	_is_loading = true
 	_active_load_uses_preload_request = false
 	_active_load_cache_loaded_scene = should_cache_loaded_scene
+	_active_transition_started_msec = Time.get_ticks_msec()
+	_active_transition_minimum_seconds = maxf(
+		minimum_duration_seconds if minimum_duration_seconds >= 0.0 else default_transition_minimum_seconds,
+		0.0
+	)
+	_active_transition_params = params.duplicate(true)
+	_pending_loaded_path = ""
+	_pending_loaded_scene = null
 	_previous_pause_state = _get_paused()
 	_previous_scene_path = _get_current_scene_path()
 	_is_showing_loading_scene = false
@@ -702,11 +819,40 @@ func _get_loading_scene_node() -> Node:
 	return scene_tree.current_scene
 
 
+func _schedule_complete_loading(path: String, scene: PackedScene) -> void:
+	_pending_loaded_path = path
+	_pending_loaded_scene = scene
+	_complete_pending_scene_if_ready()
+
+
+func _complete_pending_scene_if_ready() -> bool:
+	if _pending_loaded_scene == null:
+		return false
+	if not _is_transition_minimum_elapsed():
+		return false
+
+	var path := _pending_loaded_path
+	var scene := _pending_loaded_scene
+	_pending_loaded_path = ""
+	_pending_loaded_scene = null
+	_complete_loading(path, scene)
+	return true
+
+
+func _is_transition_minimum_elapsed() -> bool:
+	if _active_transition_minimum_seconds <= 0.0:
+		return true
+	var elapsed_seconds := float(Time.get_ticks_msec() - _active_transition_started_msec) / 1000.0
+	return elapsed_seconds >= _active_transition_minimum_seconds
+
+
 func _complete_loading(path: String, scene: PackedScene) -> void:
 	var previous_path := _previous_scene_path
 	_notify_loading_scene_exit_if_needed()
 	if _do_change_scene(scene):
 		_is_showing_loading_scene = false
+		_push_scene_history(previous_path, _current_scene_params)
+		_current_scene_params = _active_transition_params.duplicate(true)
 		scene_load_completed.emit(path, scene)
 		scene_switch_completed.emit(path, previous_path)
 		_set_paused(_previous_pause_state)
@@ -805,6 +951,23 @@ func _validate_scene_resource_path(path: String, label: String) -> String:
 	return "[GFSceneUtility] %s 失败：资源不是 PackedScene：%s" % [label, path]
 
 
+func _push_scene_history(path: String, params: Dictionary) -> void:
+	if path.is_empty() or max_scene_history <= 0:
+		return
+
+	_scene_history.append({
+		"path": path,
+		"params": params.duplicate(true),
+		"timestamp_unix": Time.get_unix_time_from_system(),
+	})
+	_trim_scene_history()
+
+
+func _trim_scene_history() -> void:
+	while _scene_history.size() > _max_scene_history:
+		_scene_history.remove_at(0)
+
+
 func _reset_loading_state() -> void:
 	_is_loading = false
 	_target_path = ""
@@ -815,6 +978,11 @@ func _reset_loading_state() -> void:
 	_active_load_uses_preload_request = false
 	_active_load_cache_loaded_scene = true
 	_active_loading_progress = 0.0
+	_active_transition_started_msec = 0
+	_active_transition_minimum_seconds = 0.0
+	_active_transition_params.clear()
+	_pending_loaded_path = ""
+	_pending_loaded_scene = null
 
 
 func _get_current_scene_path() -> String:

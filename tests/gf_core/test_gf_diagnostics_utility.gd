@@ -92,6 +92,31 @@ func test_diagnostics_collects_tool_debug_snapshots() -> void:
 	arch.dispose()
 
 
+## 验证诊断快照会使用已注册的构建信息工具。
+func test_diagnostics_collects_build_info_snapshot() -> void:
+	var arch := GFArchitecture.new()
+	var diagnostics := GFDiagnosticsUtility.new()
+	var build_info_utility := GFBuildInfoUtility.new()
+	await arch.register_utility_instance(build_info_utility)
+	await arch.register_utility_instance(diagnostics)
+	await arch.init()
+	var build_info := GFBuildInfo.new()
+	build_info.project_name = "GF Test"
+	build_info.build_id = "diagnostics-build"
+	build_info_utility.set_build_info(build_info)
+
+	var snapshot := diagnostics.collect_snapshot({
+		"include_recent_logs": false,
+	})
+	var build := snapshot["build"] as Dictionary
+	var tools := snapshot["tools"] as Dictionary
+
+	assert_eq(build["build_id"], "diagnostics-build", "诊断快照应使用 BuildInfoUtility 的稳定副本。")
+	assert_true(tools.has(&"build_info"), "工具快照应包含 BuildInfoUtility。")
+
+	arch.dispose()
+
+
 ## 验证诊断监控注册表可采样、预设和导出。
 func test_diagnostics_monitor_registry_collects_custom_monitor() -> void:
 	var diagnostics := GFDiagnosticsUtility.new()

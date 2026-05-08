@@ -197,6 +197,32 @@ func test_flow_graph_editor_catalog_describes_nodes() -> void:
 	assert_true(bool(editor["collapsed"]), "目录应包含折叠状态。")
 
 
+## 验证 FlowGraph 编辑器视图模型包含端口索引、布局和连接信息。
+func test_flow_graph_editor_model_builds_graph_edit_ready_data() -> void:
+	var graph := GFFlowGraphBase.new()
+	var start := GFFlowNodeBase.new()
+	start.node_id = &"start"
+	start.display_name = "Start"
+	start.output_ports = [_make_port(&"done", GFFlowPort.Direction.OUTPUT)]
+	start.editor_position = Vector2(10.0, 20.0)
+	var end := GFFlowNodeBase.new()
+	end.node_id = &"end"
+	end.input_ports = [_make_port(&"enter", GFFlowPort.Direction.INPUT)]
+	graph.nodes = [start, end]
+	graph.add_connection(&"start", &"done", &"end", &"enter")
+	var editor_model := GFFlowGraphEditorModel.new()
+
+	var view_model := editor_model.build_view_model(graph)
+	var nodes := view_model["nodes"] as Array
+	var connections := view_model["connections"] as Array
+
+	assert_true(bool(view_model["ok"]), "有效流程图应生成 ok 视图模型。")
+	assert_eq(nodes[0]["position"], Vector2(10.0, 20.0), "节点布局应进入视图模型。")
+	assert_eq(((nodes[0] as Dictionary)["output_port_indices"] as Dictionary)[&"done"], 0, "输出端口应有稳定索引。")
+	assert_eq(connections[0]["from_port_index"], 0, "连接应包含 GraphEdit 可用的输出端口索引。")
+	assert_eq(connections[0]["to_port_index"], 0, "连接应包含 GraphEdit 可用的输入端口索引。")
+
+
 ## 验证流程图校验会报告缺失后继节点。
 func test_flow_graph_validate_reports_missing_next_node() -> void:
 	var order: Array[String] = []

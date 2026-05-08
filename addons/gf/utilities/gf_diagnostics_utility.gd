@@ -373,6 +373,7 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	var snapshot := {
 		"timestamp_unix": Time.get_unix_time_from_system(),
 		"engine": Engine.get_version_info(),
+		"build": GFBuildInfo.collect().to_dict(),
 		"architecture": {},
 		"event_system": {},
 		"performance": {},
@@ -388,6 +389,10 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 
 	if include_performance_monitors:
 		snapshot["performance"] = collect_performance_snapshot()
+
+	var build_info_utility := get_utility(GFBuildInfoUtility) as GFBuildInfoUtility
+	if build_info_utility != null:
+		snapshot["build"] = build_info_utility.get_build_info_dict()
 
 	snapshot["logs"] = collect_log_snapshot(
 		int(options.get("recent_log_count", default_recent_log_count)),
@@ -694,6 +699,7 @@ func _monitor_tool_action_queue_snapshot() -> Dictionary:
 
 func _collect_tool_debug_snapshots() -> Dictionary:
 	var result: Dictionary = {}
+	_add_tool_debug_snapshot(result, &"build_info", get_utility(GFBuildInfoUtility))
 	_add_tool_debug_snapshot(result, &"asset", get_utility(GFAssetUtility))
 	_add_tool_debug_snapshot(result, &"timer", get_utility(GFTimerUtility))
 	_add_tool_debug_snapshot(result, &"remote_cache", get_utility(GFRemoteCacheUtility))
