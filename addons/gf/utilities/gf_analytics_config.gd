@@ -55,5 +55,27 @@ extends Resource
 func build_headers() -> PackedStringArray:
 	var result := PackedStringArray(["Content-Type: application/json"])
 	for key: Variant in headers:
-		result.append("%s: %s" % [String(key), String(headers[key])])
+		var header_name := String(key).strip_edges()
+		var header_value := String(headers[key])
+		if not _is_valid_header(header_name, header_value):
+			push_warning("[GFAnalyticsConfig] 忽略非法 HTTP Header：%s" % _escape_header_for_log(header_name))
+			continue
+		result.append("%s: %s" % [header_name, header_value])
 	return result
+
+
+# --- 私有/辅助方法 ---
+
+func _is_valid_header(header_name: String, header_value: String) -> bool:
+	if header_name.is_empty():
+		return false
+	return (
+		not header_name.contains("\r")
+		and not header_name.contains("\n")
+		and not header_value.contains("\r")
+		and not header_value.contains("\n")
+	)
+
+
+func _escape_header_for_log(header_name: String) -> String:
+	return header_name.replace("\r", "\\r").replace("\n", "\\n")

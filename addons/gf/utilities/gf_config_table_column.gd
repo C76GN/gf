@@ -67,32 +67,43 @@ func get_field_key() -> StringName:
 ## @param value: 输入值。
 ## @return 转换后的值。
 func coerce_value(value: Variant) -> Variant:
+	return try_coerce_value(value).get("value")
+
+
+## 尝试将输入值转换为当前列要求的类型，并返回转换报告。
+## @param value: 输入值。
+## @return 包含 ok、value 与 message 的转换报告。
+func try_coerce_value(value: Variant) -> Dictionary:
 	if value == null:
-		return null
+		return _make_coerce_result(true, null)
 
 	match value_type:
 		ValueType.BOOL:
-			return _coerce_bool(value)
+			return _try_coerce_bool(value)
 		ValueType.INT:
-			return int(value)
+			return _try_coerce_int(value)
 		ValueType.FLOAT:
-			return float(value)
+			return _try_coerce_float(value)
 		ValueType.STRING:
-			return str(value)
+			return _make_coerce_result(true, str(value))
 		ValueType.STRING_NAME:
-			return StringName(str(value))
+			return _make_coerce_result(true, StringName(str(value)))
 		ValueType.VECTOR2:
-			return _coerce_vector2(value)
+			return _try_coerce_vector2(value)
 		ValueType.VECTOR2I:
-			return _coerce_vector2i(value)
+			return _try_coerce_vector2i(value)
 		ValueType.COLOR:
-			return _coerce_color(value)
+			return _try_coerce_color(value)
 		ValueType.DICTIONARY:
-			return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+			if value is Dictionary:
+				return _make_coerce_result(true, (value as Dictionary).duplicate(true))
+			return _make_coerce_result(false, {}, "值无法转换为 Dictionary。")
 		ValueType.ARRAY:
-			return (value as Array).duplicate(true) if value is Array else []
+			if value is Array:
+				return _make_coerce_result(true, (value as Array).duplicate(true))
+			return _make_coerce_result(false, [], "值无法转换为 Array。")
 		_:
-			return value
+			return _make_coerce_result(true, value)
 
 
 ## 检查输入值是否符合当前列声明。
@@ -156,6 +167,137 @@ func describe() -> Dictionary:
 
 
 # --- 私有/辅助方法 ---
+
+func _make_coerce_result(ok: bool, coerced_value: Variant, message: String = "") -> Dictionary:
+	return {
+		"ok": ok,
+		"value": coerced_value,
+		"message": message,
+	}
+
+
+func _try_coerce_bool(value: Variant) -> Dictionary:
+	if typeof(value) == TYPE_BOOL:
+		return _make_coerce_result(true, bool(value))
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_FLOAT:
+		return _make_coerce_result(true, float(value) != 0.0)
+	if typeof(value) == TYPE_STRING or typeof(value) == TYPE_STRING_NAME:
+		var text := String(value).strip_edges().to_lower()
+		if text in ["true", "1", "yes", "on"]:
+			return _make_coerce_result(true, true)
+		if text in ["false", "0", "no", "off"]:
+			return _make_coerce_result(true, false)
+		return _make_coerce_result(false, false, "值无法转换为 bool。")
+	return _make_coerce_result(false, bool(value), "值无法转换为 bool。")
+
+
+func _try_coerce_int(value: Variant) -> Dictionary:
+	if typeof(value) == TYPE_INT or typeof(value) == TYPE_BOOL:
+		return _make_coerce_result(true, int(value))
+	if typeof(value) == TYPE_FLOAT:
+		var float_value := float(value)
+		if is_nan(float_value) or is_inf(float_value):
+			return _make_coerce_result(false, 0, "值无法转换为 int。")
+		return _make_coerce_result(true, int(float_value))
+	if typeof(value) == TYPE_STRING or typeof(value) == TYPE_STRING_NAME:
+		var text := String(value).strip_edges()
+		if text.is_valid_int():
+			return _make_coerce_result(true, text.to_int())
+		return _make_coerce_result(false, int(value), "值无法转换为 int。")
+	return _make_coerce_result(false, int(value), "值无法转换为 int。")
+
+
+func _try_coerce_float(value: Variant) -> Dictionary:
+	if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT or typeof(value) == TYPE_BOOL:
+		var float_value := float(value)
+		if is_nan(float_value) or is_inf(float_value):
+			return _make_coerce_result(false, 0.0, "值无法转换为 float。")
+		return _make_coerce_result(true, float_value)
+	if typeof(value) == TYPE_STRING or typeof(value) == TYPE_STRING_NAME:
+		var text := String(value).strip_edges()
+		if text.is_valid_float():
+			return _make_coerce_result(true, text.to_float())
+		return _make_coerce_result(false, float(value), "值无法转换为 float。")
+	return _make_coerce_result(false, float(value), "值无法转换为 float。")
+
+
+func _try_coerce_vector2(value: Variant) -> Dictionary:
+	if value is Vector2 or value is Vector2i:
+		return _make_coerce_result(true, _coerce_vector2(value))
+	if value is Dictionary:
+		var data := value as Dictionary
+		var x := _try_coerce_float(data.get("x"))
+		var y := _try_coerce_float(data.get("y"))
+		if bool(x.get("ok", false)) and bool(y.get("ok", false)):
+			return _make_coerce_result(true, Vector2(float(x["value"]), float(y["value"])))
+		return _make_coerce_result(false, Vector2.ZERO, "值无法转换为 Vector2。")
+	if value is Array:
+		var values := value as Array
+		if values.size() >= 2:
+			var x := _try_coerce_float(values[0])
+			var y := _try_coerce_float(values[1])
+			if bool(x.get("ok", false)) and bool(y.get("ok", false)):
+				return _make_coerce_result(true, Vector2(float(x["value"]), float(y["value"])))
+	return _make_coerce_result(false, Vector2.ZERO, "值无法转换为 Vector2。")
+
+
+func _try_coerce_vector2i(value: Variant) -> Dictionary:
+	if value is Vector2i or value is Vector2:
+		return _make_coerce_result(true, _coerce_vector2i(value))
+	if value is Dictionary:
+		var data := value as Dictionary
+		var x := _try_coerce_float(data.get("x"))
+		var y := _try_coerce_float(data.get("y"))
+		if bool(x.get("ok", false)) and bool(y.get("ok", false)):
+			return _make_coerce_result(true, Vector2i(roundi(float(x["value"])), roundi(float(y["value"]))))
+		return _make_coerce_result(false, Vector2i.ZERO, "值无法转换为 Vector2i。")
+	if value is Array:
+		var values := value as Array
+		if values.size() >= 2:
+			var x := _try_coerce_float(values[0])
+			var y := _try_coerce_float(values[1])
+			if bool(x.get("ok", false)) and bool(y.get("ok", false)):
+				return _make_coerce_result(true, Vector2i(roundi(float(x["value"])), roundi(float(y["value"]))))
+	return _make_coerce_result(false, Vector2i.ZERO, "值无法转换为 Vector2i。")
+
+
+func _try_coerce_color(value: Variant) -> Dictionary:
+	if value is Color:
+		return _make_coerce_result(true, value)
+	if value is Dictionary:
+		var data := value as Dictionary
+		var r := _try_coerce_float(data.get("r"))
+		var g := _try_coerce_float(data.get("g"))
+		var b := _try_coerce_float(data.get("b"))
+		var a := _try_coerce_float(data.get("a", 1.0))
+		if (
+			bool(r.get("ok", false))
+			and bool(g.get("ok", false))
+			and bool(b.get("ok", false))
+			and bool(a.get("ok", false))
+		):
+			return _make_coerce_result(true, Color(float(r["value"]), float(g["value"]), float(b["value"]), float(a["value"])))
+		return _make_coerce_result(false, Color.WHITE, "值无法转换为 Color。")
+	if value is Array:
+		var values := value as Array
+		if values.size() >= 3:
+			var r := _try_coerce_float(values[0])
+			var g := _try_coerce_float(values[1])
+			var b := _try_coerce_float(values[2])
+			var a := _try_coerce_float(values[3] if values.size() >= 4 else 1.0)
+			if (
+				bool(r.get("ok", false))
+				and bool(g.get("ok", false))
+				and bool(b.get("ok", false))
+				and bool(a.get("ok", false))
+			):
+				return _make_coerce_result(true, Color(float(r["value"]), float(g["value"]), float(b["value"]), float(a["value"])))
+	if typeof(value) == TYPE_STRING or typeof(value) == TYPE_STRING_NAME:
+		var text := String(value).strip_edges()
+		if not text.is_empty():
+			return _make_coerce_result(true, Color(text))
+	return _make_coerce_result(false, Color.WHITE, "值无法转换为 Color。")
+
 
 func _coerce_bool(value: Variant) -> bool:
 	if typeof(value) == TYPE_STRING:

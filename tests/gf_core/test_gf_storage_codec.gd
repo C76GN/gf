@@ -97,6 +97,22 @@ func test_empty_bytes_are_invalid_payload() -> void:
 	assert_eq(String(result.get("error")), "Payload is empty", "空 bytes 应返回明确诊断。")
 
 
+func test_json_number_normalization_can_be_disabled() -> void:
+	var codec := GFStorageCodec.new()
+	var bytes := "{\"whole\": 1.0}".to_utf8_buffer()
+
+	var normalized := codec.decode(bytes, {
+		"obfuscation_key": 0,
+	})
+	var preserved := codec.decode(bytes, {
+		"obfuscation_key": 0,
+		"normalize_json_numbers": false,
+	})
+
+	assert_eq(typeof((normalized.get("data") as Dictionary).get("whole")), TYPE_INT, "默认应保持旧的整数归一化语义。")
+	assert_eq(typeof((preserved.get("data") as Dictionary).get("whole")), TYPE_FLOAT, "关闭归一化后应保留 JSON float 类型。")
+
+
 func test_compression_and_obfuscation_roundtrip() -> void:
 	var codec := GFStorageCodec.new()
 	var data := {

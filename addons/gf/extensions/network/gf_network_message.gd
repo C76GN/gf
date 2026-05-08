@@ -19,6 +19,9 @@ var tick: int = 0
 ## 发送者标识。
 var sender_id: int = -1
 
+## 逻辑网络通道标识。为空时入站侧可继续按 message_type 或 payload.channel_id 推断。
+var channel_id: StringName = &""
+
 ## 消息载荷。
 var payload: Dictionary = {}
 
@@ -30,13 +33,15 @@ func _init(
 	p_payload: Dictionary = {},
 	p_sequence: int = 0,
 	p_tick: int = 0,
-	p_sender_id: int = -1
+	p_sender_id: int = -1,
+	p_channel_id: StringName = &""
 ) -> void:
 	message_type = p_message_type
 	payload = p_payload.duplicate(true)
 	sequence = p_sequence
 	tick = p_tick
 	sender_id = p_sender_id
+	channel_id = p_channel_id
 
 
 # --- 公共方法 ---
@@ -49,6 +54,7 @@ func to_dict() -> Dictionary:
 		"sequence": sequence,
 		"tick": tick,
 		"sender_id": sender_id,
+		"channel_id": channel_id,
 		"payload": payload.duplicate(true),
 	}
 
@@ -60,5 +66,6 @@ func from_dict(data: Dictionary) -> void:
 	sequence = int(data.get("sequence", 0))
 	tick = int(data.get("tick", 0))
 	sender_id = int(data.get("sender_id", -1))
+	channel_id = StringName(data.get("channel_id", &""))
 	var payload_variant: Variant = data.get("payload", {})
 	payload = (payload_variant as Dictionary).duplicate(true) if payload_variant is Dictionary else {}

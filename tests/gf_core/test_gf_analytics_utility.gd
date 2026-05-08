@@ -61,6 +61,40 @@ func test_queue_respects_max_size() -> void:
 	assert_eq(_analytics.get_queue_size(), 2, "队列不应超过 max_queue_size。")
 
 
+## 验证失败批次回灌后仍遵守队列上限。
+func test_failed_flush_requeue_respects_max_size() -> void:
+	_analytics.config.max_queue_size = 2
+	_analytics.track(&"queued_a")
+	_analytics.track(&"queued_b")
+	var failed_batch: Array = [
+		{ "event": "failed_a" },
+		{ "event": "failed_b" },
+	]
+
+	_analytics._finish_flush({ "success": false, "error": "offline" }, failed_batch)
+
+	assert_eq(_analytics.get_queue_size(), 2, "失败批次回灌后队列仍不应超过 max_queue_size。")
+	assert_eq(String(_analytics._queue[0].get("event")), "failed_a", "失败批次应保留在队列前端。")
+	assert_eq(String(_analytics._queue[1].get("event")), "failed_b", "失败批次顺序应保持。")
+
+
+## 验证自定义 HTTP Header 会过滤空名和 CR/LF 注入。
+func test_analytics_headers_reject_invalid_entries() -> void:
+	var config := GFAnalyticsConfig.new()
+	config.headers = {
+		"X-Ok": "yes",
+		"X-Bad\r\nInjected": "no",
+		"": "empty",
+	}
+
+	var headers := config.build_headers()
+
+	assert_eq(headers.size(), 2, "只应包含默认 Content-Type 和合法自定义 Header。")
+	assert_true(headers.has("X-Ok: yes"), "合法 Header 应保留。")
+	assert_push_warning("[GFAnalyticsConfig] 忽略非法 HTTP Header：X-Bad\\r\\nInjected")
+	assert_push_warning("[GFAnalyticsConfig] 忽略非法 HTTP Header：")
+
+
 ## 验证运行时代码写入非法批量配置时会被钳制，不会破坏队列。
 func test_runtime_config_values_are_clamped() -> void:
 	_analytics.config.max_queue_size = 0

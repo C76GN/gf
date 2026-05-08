@@ -33,10 +33,10 @@ enum Level {
 ## 默认展示时长。
 var default_duration_seconds: float = 3.0
 
-## 最大排队数量。
+## 最大排队数量。设为 0 时只允许当前通知，不保留等待队列。
 var max_queue_size: int = 32
 
-## 是否抑制同 key 或同消息重复入队。
+## 是否抑制重复入队。有显式 key 时按 key 去重，否则按消息文本去重。
 var suppress_duplicates: bool = true
 
 
@@ -89,10 +89,10 @@ func push_notification(
 
 	var notification := _make_notification(message, title, level, options)
 	_queue.append(notification)
-	_trim_queue()
 	notification_queued.emit(notification.duplicate(true))
 	if _active_notification.is_empty():
 		_start_next_notification()
+	_trim_queue()
 	return int(notification["id"])
 
 
@@ -160,6 +160,7 @@ func _make_notification(
 	var notification := {
 		"id": _next_notification_id,
 		"key": String(options.get("key", message)),
+		"dedupe_key": String(options.get("key", "")),
 		"title": title,
 		"message": message,
 		"level": level,
@@ -183,14 +184,14 @@ func _start_next_notification() -> void:
 
 
 func _trim_queue() -> void:
-	var max_size := maxi(max_queue_size, 1)
+	var max_size := maxi(max_queue_size, 0)
 	while _queue.size() > max_size:
 		var dropped := _queue.pop_front()
 		notification_finished.emit(dropped.duplicate(true), "dropped")
 
 
 func _find_duplicate_notification_id(message: String, options: Dictionary) -> int:
-	var key := String(options.get("key", message))
+	var key := String(options.get("key", ""))
 	if _matches_notification(_active_notification, key, message):
 		return int(_active_notification.get("id", 0))
 
@@ -203,4 +204,10 @@ func _find_duplicate_notification_id(message: String, options: Dictionary) -> in
 func _matches_notification(notification: Dictionary, key: String, message: String) -> bool:
 	if notification.is_empty():
 		return false
-	return String(notification.get("key", "")) == key or String(notification.get("message", "")) == message
+
+	var notification_key := String(notification.get("dedupe_key", ""))
+	if not key.is_empty():
+		return notification_key == key
+	if not notification_key.is_empty():
+		return false
+	return String(notification.get("message", "")) == message

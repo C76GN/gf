@@ -47,6 +47,14 @@ func test_formula_type_helpers() -> void:
 	), "字符串 true 应可转为 bool。")
 
 
+## 验证非法数字字符串不会静默变成 0。
+func test_formula_float_uses_fallback_for_invalid_string() -> void:
+	var formula := ValueFormula.new(&"value", 0.0)
+	var parameter := GFFormulaParameter.new().set_value(&"value", "not-a-number")
+
+	assert_almost_eq(formula.calculate_float(parameter, -3.5), -3.5, 0.001, "非法数字字符串应返回 fallback。")
+
+
 ## 验证公式集合按 StringName 调度公式。
 func test_formula_set_calculates_registered_formula() -> void:
 	var formula_set := GFFormulaSet.new()

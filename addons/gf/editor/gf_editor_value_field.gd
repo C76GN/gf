@@ -12,6 +12,9 @@ extends HBoxContainer
 ## 控件值变化时发出。
 signal value_changed(value: Variant)
 
+## Array/Dictionary JSON 输入解析失败时发出。
+signal value_parse_failed(text: String, error_message: String)
+
 
 # --- 私有变量 ---
 
@@ -137,7 +140,10 @@ func _read_editor_value() -> Variant:
 		TYPE_COLOR:
 			return (_editor as ColorPickerButton).color
 		TYPE_ARRAY, TYPE_DICTIONARY:
-			return _parse_json_value((_editor as LineEdit).text)
+			var parse_result := _try_parse_json_value((_editor as LineEdit).text)
+			if not bool(parse_result.get("ok", false)):
+				return _value
+			return parse_result.get("value")
 		_:
 			return (_editor as LineEdit).text
 
@@ -161,11 +167,19 @@ func _stringify_value(value: Variant) -> String:
 	return str(value)
 
 
-func _parse_json_value(text: String) -> Variant:
+func _try_parse_json_value(text: String) -> Dictionary:
 	var json := JSON.new()
 	if json.parse(text) != OK:
-		return [] if int(_property_info.get("type", TYPE_STRING)) == TYPE_ARRAY else {}
-	return json.data
+		return {
+			"ok": false,
+			"value": _value,
+			"error": json.get_error_message(),
+		}
+	return {
+		"ok": true,
+		"value": json.data,
+		"error": "",
+	}
 
 
 func _emit_value_changed(value: Variant) -> void:
@@ -190,4 +204,13 @@ func _on_color_changed(color: Color) -> void:
 
 
 func _on_text_changed(_text: String) -> void:
+	var value_type := int(_property_info.get("type", TYPE_STRING))
+	if value_type == TYPE_ARRAY or value_type == TYPE_DICTIONARY:
+		var parse_result := _try_parse_json_value((_editor as LineEdit).text)
+		if not bool(parse_result.get("ok", false)):
+			value_parse_failed.emit((_editor as LineEdit).text, String(parse_result.get("error", "")))
+			return
+		_emit_value_changed(parse_result.get("value"))
+		return
+
 	_emit_value_changed(_read_editor_value())

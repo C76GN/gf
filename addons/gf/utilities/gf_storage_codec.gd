@@ -62,6 +62,9 @@ const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 ## 解压时允许的最大输出字节数。
 @export var max_decompressed_bytes: int = 64 * 1024 * 1024
 
+## JSON 解码时是否把接近整数的 float 归一为 int。Binary 格式不受影响。
+@export var normalize_json_numbers: bool = true
+
 
 # --- 公共方法 ---
 
@@ -98,6 +101,7 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 	var key := _get_int_option(options, "obfuscation_key", obfuscation_key)
 	var should_verify_checksum := _get_bool_option(options, "use_integrity_checksum", use_integrity_checksum)
 	var should_reject_bad_checksum := _get_bool_option(options, "strict_integrity", strict_integrity)
+	var should_normalize_json_numbers := _get_bool_option(options, "normalize_json_numbers", normalize_json_numbers)
 	var should_require_checksum := _get_bool_option(
 		options,
 		"require_integrity_checksum",
@@ -115,10 +119,14 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 		if payload_bytes.is_empty() and not bytes.is_empty():
 			return _make_result(false, {}, "Decompression failed", true)
 
-	var deserialize_result := _try_deserialize_dictionary(payload_bytes, active_format)
+	var deserialize_result := _try_deserialize_dictionary(
+		payload_bytes,
+		active_format,
+		should_normalize_json_numbers
+	)
 	var data := deserialize_result["data"] as Dictionary
 	if not bool(deserialize_result.get("ok", false)) and not payload_bytes.is_empty():
-		var fallback_result := _try_legacy_plain_json(bytes)
+		var fallback_result := _try_legacy_plain_json(bytes, should_normalize_json_numbers)
 		if bool(fallback_result.get("ok", false)):
 			data = fallback_result["data"] as Dictionary
 			deserialize_result = fallback_result
@@ -248,11 +256,15 @@ func _serialize_dictionary(data: Dictionary, p_format: Format) -> PackedByteArra
 
 
 func _deserialize_dictionary(bytes: PackedByteArray, p_format: Format) -> Dictionary:
-	var result := _try_deserialize_dictionary(bytes, p_format)
+	var result := _try_deserialize_dictionary(bytes, p_format, normalize_json_numbers)
 	return result["data"] as Dictionary
 
 
-func _try_deserialize_dictionary(bytes: PackedByteArray, p_format: Format) -> Dictionary:
+func _try_deserialize_dictionary(
+	bytes: PackedByteArray,
+	p_format: Format,
+	should_normalize_json_numbers: bool
+) -> Dictionary:
 	match p_format:
 		Format.BINARY:
 			var value: Variant = bytes_to_var(bytes)
@@ -262,7 +274,10 @@ func _try_deserialize_dictionary(bytes: PackedByteArray, p_format: Format) -> Di
 		_:
 			var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 			if parsed is Dictionary:
-				return { "ok": true, "data": _normalize_numbers(parsed) as Dictionary }
+				var data := parsed as Dictionary
+				if should_normalize_json_numbers:
+					data = _normalize_numbers(data) as Dictionary
+				return { "ok": true, "data": data }
 			return { "ok": false, "data": {} }
 
 
@@ -322,10 +337,13 @@ func _obfuscate_bytes(bytes: PackedByteArray, key: int) -> PackedByteArray:
 	return result
 
 
-func _try_legacy_plain_json(bytes: PackedByteArray) -> Dictionary:
+func _try_legacy_plain_json(bytes: PackedByteArray, should_normalize_json_numbers: bool) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 	if parsed is Dictionary:
-		return { "ok": true, "data": parsed as Dictionary }
+		var data := parsed as Dictionary
+		if should_normalize_json_numbers:
+			data = _normalize_numbers(data) as Dictionary
+		return { "ok": true, "data": data }
 	return { "ok": false, "data": {} }
 
 

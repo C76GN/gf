@@ -36,6 +36,18 @@ func test_get_global_seed() -> void:
 	assert_eq(_seed_util.get_global_seed(), 98765, "get_global_seed 应返回正确的种子值。")
 
 
+func test_direct_new_lazily_initializes_rng() -> void:
+	var seed_util := GFSeedUtility.new()
+
+	seed_util.set_global_seed(123)
+	var state := seed_util.get_state()
+	var rng := seed_util.get_branched_rng("lazy")
+
+	assert_eq(seed_util.get_global_seed(), 123, "直接 new 后公共方法应能懒初始化 RNG。")
+	assert_eq(typeof(state), TYPE_INT, "懒初始化后应能读取 RNG 状态。")
+	assert_true(rng != null, "懒初始化后应能派生子 RNG。")
+
+
 func test_get_branched_rng_uniqueness() -> void:
 	_seed_util.set_global_seed(12345)
 	var rng1 := _seed_util.get_branched_rng("test")

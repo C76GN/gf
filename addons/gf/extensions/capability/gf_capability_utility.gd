@@ -133,7 +133,7 @@ func get_receivers_with(capability_type: Script, include_subclasses: bool = true
 			if seen_ids.has(receiver_id):
 				continue
 			var receiver := _get_receiver_from_id(receiver_id)
-			if receiver != null:
+			if receiver != null and _get_capability_instance(receiver, registered_type) != null:
 				seen_ids[receiver_id] = true
 				result.append(receiver)
 	return result
@@ -292,6 +292,9 @@ func add_capability_instance(receiver: Object, capability: Object, as_type: Scri
 		capability_type = capability.get_script() as Script
 	if capability_type == null:
 		push_error("[GFCapabilityUtility] add_capability_instance 失败：能力实例缺少脚本类型。")
+		return null
+
+	if not _can_attach_capability_instance(receiver, capability):
 		return null
 
 	var existing := get_capability(receiver, capability_type)
@@ -785,6 +788,20 @@ func _get_required_capabilities(capability: Object) -> Array[Script]:
 	return result
 
 
+func _can_attach_capability_instance(receiver: Object, capability: Object) -> bool:
+	if capability == null or not ("receiver" in capability):
+		return true
+
+	var existing_receiver := capability.get("receiver") as Object
+	if existing_receiver == null or existing_receiver == receiver:
+		return true
+	if not is_instance_valid(existing_receiver):
+		return true
+
+	push_error("[GFCapabilityUtility] 同一个能力实例不能挂载到多个 receiver。")
+	return false
+
+
 func _register_capability(receiver: Object, capability_type: Script, capability: Object, is_top_level: bool) -> void:
 	var types := _get_capability_type_list(receiver)
 	types.append(capability_type)
@@ -1135,13 +1152,17 @@ func _set_node_tree_active_state(node: Node, active: bool) -> void:
 
 
 func _set_node_active_state(node: Node, active: bool) -> void:
+	if active:
+		if node.has_meta(META_ORIGINAL_PROCESS_MODE):
+			var original_process_mode := node.get_meta(META_ORIGINAL_PROCESS_MODE)
+			if node.process_mode == Node.PROCESS_MODE_DISABLED:
+				node.process_mode = original_process_mode
+			node.remove_meta(META_ORIGINAL_PROCESS_MODE)
+		return
+
 	if not node.has_meta(META_ORIGINAL_PROCESS_MODE):
 		node.set_meta(META_ORIGINAL_PROCESS_MODE, node.process_mode)
-
-	if active:
-		node.process_mode = node.get_meta(META_ORIGINAL_PROCESS_MODE)
-	else:
-		node.process_mode = Node.PROCESS_MODE_DISABLED
+	node.process_mode = Node.PROCESS_MODE_DISABLED
 
 
 func _track_capability_index(receiver: Object, capability_type: Script) -> void:
@@ -1298,13 +1319,28 @@ func _free_capability(capability: Object, detach_node: bool) -> void:
 
 	if capability is Node:
 		var node := capability as Node
+		var parent := node.get_parent()
 		if detach_node and node.get_parent() != null:
 			node.get_parent().remove_child(node)
+			_free_empty_generated_container(parent)
 		node.queue_free()
 	elif capability is RefCounted:
 		pass
 	else:
 		capability.free()
+
+
+func _free_empty_generated_container(container: Node) -> void:
+	if container == null:
+		return
+	if not bool(container.get_meta(META_CAPABILITY_CONTAINER, false)):
+		return
+	if container.get_child_count(true) > 0:
+		return
+
+	if container.get_parent() != null:
+		container.get_parent().remove_child(container)
+	container.queue_free()
 
 
 func _get_capability_meta_name(capability_type: Script) -> StringName:

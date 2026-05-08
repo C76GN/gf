@@ -40,7 +40,11 @@ extends Resource
 ## @param duration_scale: 时长缩放。
 ## @return 创建的 Tweener。
 func append_to_tween(tween: Tween, target: Object, duration_scale: float = 1.0) -> Variant:
-	if tween == null or not is_instance_valid(target) or property_name.is_empty():
+	if tween == null:
+		return null
+	var validation_error := get_validation_error(target)
+	if not validation_error.is_empty():
+		push_warning("[GFTweenActionStep] 跳过无效 Tween 步骤：%s" % validation_error)
 		return null
 
 	if parallel:
@@ -61,7 +65,9 @@ func append_to_tween(tween: Tween, target: Object, duration_scale: float = 1.0) 
 ## 立即应用步骤目标值。
 ## @param target: 目标对象。
 func apply_instant(target: Object) -> void:
-	if not is_instance_valid(target) or property_name.is_empty():
+	var validation_error := get_validation_error(target)
+	if not validation_error.is_empty():
+		push_warning("[GFTweenActionStep] 跳过无效即时步骤：%s" % validation_error)
 		return
 	if as_relative:
 		target.set_indexed(property_name, _resolve_relative_value(target))
@@ -84,6 +90,32 @@ func duplicate_step() -> GFTweenActionStep:
 	return step
 
 
+## 检查目标对象是否能应用当前步骤。
+## @param target: 目标对象。
+## @return 可应用时返回 true。
+func can_apply_to(target: Object) -> bool:
+	return get_validation_error(target).is_empty()
+
+
+## 获取当前步骤对目标对象的校验错误。
+## @param target: 目标对象。
+## @return 校验通过时返回空字符串。
+func get_validation_error(target: Object) -> String:
+	if not is_instance_valid(target):
+		return "Target is invalid."
+	if property_name.is_empty():
+		return "Property name is empty."
+
+	var root_property := _get_root_property_name()
+	if root_property.is_empty():
+		return "Property name is empty."
+	if not _has_property(target, root_property):
+		return "Property not found: %s" % root_property
+	if as_relative and not _can_resolve_relative_value(target):
+		return "Relative value type mismatch for property: %s" % String(property_name)
+	return ""
+
+
 # --- 私有/辅助方法 ---
 
 func _resolve_relative_value(target: Object) -> Variant:
@@ -97,3 +129,35 @@ func _resolve_relative_value(target: Object) -> Variant:
 	if current_value is Color and target_value is Color:
 		return (current_value as Color) + (target_value as Color)
 	return target_value
+
+
+func _can_resolve_relative_value(target: Object) -> bool:
+	var current_value: Variant = target.get_indexed(property_name)
+	return (
+		(current_value is float or current_value is int)
+		and (target_value is float or target_value is int)
+	) or (
+		current_value is Vector2
+		and target_value is Vector2
+	) or (
+		current_value is Vector3
+		and target_value is Vector3
+	) or (
+		current_value is Color
+		and target_value is Color
+	)
+
+
+func _get_root_property_name() -> String:
+	var path_text := String(property_name)
+	var separator_index := path_text.find(":")
+	if separator_index >= 0:
+		return path_text.substr(0, separator_index)
+	return path_text
+
+
+func _has_property(target: Object, property: String) -> bool:
+	for property_info: Dictionary in target.get_property_list():
+		if String(property_info.get("name", "")) == property:
+			return true
+	return false

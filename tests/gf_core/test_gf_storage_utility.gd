@@ -41,6 +41,7 @@ func after_each() -> void:
 			"test_missing_checksum.json",
 			"test_legacy_version.json",
 			"test_async.json",
+			"test_wait_async.json",
 			"recover_from_backup.json",
 			"recover_from_temp.json",
 			"recover_from_stale_temp.json",
@@ -71,6 +72,15 @@ func test_save_and_load_slot() -> void:
 
 	var loaded_data := _storage.load_slot(1)
 	assert_eq(loaded_data.get("name"), "Hero", "读取的核心数据应与保存值一致。")
+
+
+func test_negative_slot_id_is_rejected() -> void:
+	var error := _storage.save_slot(-1, {"hp": 1}, {"level": 1})
+
+	assert_eq(error, ERR_INVALID_PARAMETER, "负数 slot_id 不应写入槽位文件。")
+	assert_false(_storage.has_slot(-1), "负数 slot_id 不应被视为有效槽位。")
+	assert_true(_storage.load_slot(-1).is_empty(), "负数 slot_id 读取应返回空字典。")
+	assert_push_error("[GFStorageUtility] save_slot 失败：slot_id 必须大于等于 0，当前为 -1。")
 
 
 func test_encryption() -> void:
@@ -387,6 +397,30 @@ func test_load_data_result_reports_missing_file() -> void:
 
 	assert_false(bool(result.get("ok")), "缺失文件的结构化读取结果应标记失败。")
 	assert_eq(String(result.get("error")), "File not found", "缺失文件应返回明确错误。")
+
+
+func test_load_slot_result_reports_missing_or_invalid_slot() -> void:
+	var missing_result := _storage.load_slot_result(8)
+	var invalid_result := _storage.load_slot_result(-1)
+
+	assert_false(bool(missing_result.get("ok")), "缺失槽位的结构化读取结果应标记失败。")
+	assert_eq(String(missing_result.get("error")), "File not found", "缺失槽位应返回明确错误。")
+	assert_false(bool(invalid_result.get("ok")), "非法槽位的结构化读取结果应标记失败。")
+	assert_eq(String(invalid_result.get("error")), "Invalid slot_id: -1", "非法槽位应返回明确错误。")
+
+
+func test_wait_for_async_tasks_drains_queued_tasks() -> void:
+	_storage.encrypt_key = 0
+	_storage.max_async_thread_count = 1
+
+	assert_eq(_storage.save_data_async("test_wait_async.json", { "value": 1 }), OK, "第一次异步保存应启动。")
+	assert_eq(_storage.save_data_async("test_wait_async.json", { "value": 2 }), OK, "同文件第二次异步保存应排队。")
+
+	_storage.wait_for_async_tasks()
+
+	assert_true(_storage._async_tasks.is_empty(), "等待后不应残留运行中任务。")
+	assert_true(_storage._async_queue.is_empty(), "等待后不应残留排队任务。")
+	assert_eq(int(_storage.load_data("test_wait_async.json").get("value")), 2, "等待应处理完整队列并保留最后一次写入。")
 
 
 func test_load_data_applies_version_defaults() -> void:

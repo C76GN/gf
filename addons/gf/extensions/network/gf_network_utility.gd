@@ -125,9 +125,12 @@ func clear_channels() -> void:
 func host(options: Dictionary = {}) -> Error:
 	if backend == null:
 		return ERR_UNCONFIGURED
-	var error := backend.host(options)
-	if error == OK and session != null:
+
+	if session != null:
 		session.start_host(options)
+	var error := backend.host(options)
+	if error != OK and session != null:
+		session.close("host_failed")
 	return error
 
 
@@ -138,9 +141,12 @@ func host(options: Dictionary = {}) -> Error:
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 	if backend == null:
 		return ERR_UNCONFIGURED
-	var error := backend.connect_to_endpoint(endpoint, options)
-	if error == OK and session != null:
+
+	if session != null:
 		session.start_client(endpoint, options)
+	var error := backend.connect_to_endpoint(endpoint, options)
+	if error != OK and session != null:
+		session.close("connect_failed")
 	return error
 
 
@@ -176,7 +182,8 @@ func send_message_on_channel(
 	var channel := get_channel(channel_id)
 	if channel == null:
 		return ERR_DOES_NOT_EXIST
-	return _send_message_internal(peer_id, message, channel.build_send_options(options), channel)
+	var channel_message := _copy_message_for_channel(message, channel_id)
+	return _send_message_internal(peer_id, channel_message, channel.build_send_options(options), channel)
 
 
 ## 获取网络工具调试快照。
@@ -248,7 +255,8 @@ func _disconnect_backend_signals(target_backend: GFNetworkBackend) -> void:
 
 func _on_backend_connected() -> void:
 	if session != null:
-		session.mark_connected()
+		if not (session.mode == GFNetworkSessionBase.Mode.HOST and session.is_connected):
+			session.mark_connected()
 	connected.emit()
 
 
@@ -304,9 +312,25 @@ func _describe_channels() -> Array[Dictionary]:
 func _resolve_inbound_channel(message: GFNetworkMessage) -> GFNetworkChannelBase:
 	if message == null:
 		return null
+	if message.channel_id != &"" and _channels.has(message.channel_id):
+		return _channels[message.channel_id] as GFNetworkChannelBase
 	if _channels.has(message.message_type):
 		return _channels[message.message_type] as GFNetworkChannelBase
 	var channel_id := StringName(message.payload.get("channel_id", &""))
 	if channel_id != &"" and _channels.has(channel_id):
 		return _channels[channel_id] as GFNetworkChannelBase
 	return null
+
+
+func _copy_message_for_channel(message: GFNetworkMessage, channel_id: StringName) -> GFNetworkMessage:
+	if message == null:
+		return null
+
+	return GFNetworkMessage.new(
+		message.message_type,
+		message.payload,
+		message.sequence,
+		message.tick,
+		message.sender_id,
+		channel_id
+	)

@@ -22,6 +22,12 @@ extends Resource
 ## 是否在校验前按字段声明尝试类型转换。
 @export var coerce_values: bool = false
 
+## 启用 coerce_values 时，转换失败是否作为校验错误。
+@export var fail_on_coerce_error: bool = true
+
+## 校验 Array 表时是否要求 id_field 唯一。
+@export var require_unique_id: bool = false
+
 ## 可选元数据，供导入器、编辑器或项目层扩展使用。
 @export var metadata: Dictionary = {}
 
@@ -68,7 +74,7 @@ func get_column_names() -> PackedStringArray:
 ## @return 校验报告字典。
 func validate_record(record: Dictionary, row_key: Variant = null) -> Dictionary:
 	var report: Dictionary = _make_report(1)
-	var working_record: Dictionary = coerce_record(record) if coerce_values else record
+	var working_record: Dictionary = _coerce_record_for_validation(record, row_key, report) if coerce_values else record
 	var declared_fields: Dictionary = {}
 
 	for column: GFConfigTableColumn in columns:
@@ -157,6 +163,8 @@ func duplicate_schema() -> GFConfigTableSchema:
 	schema.id_field = id_field
 	schema.allow_extra_fields = allow_extra_fields
 	schema.coerce_values = coerce_values
+	schema.fail_on_coerce_error = fail_on_coerce_error
+	schema.require_unique_id = require_unique_id
 	schema.metadata = metadata.duplicate(true)
 	for column: GFConfigTableColumn in columns:
 		schema.columns.append(column.duplicate_column() if column != null else null)
@@ -176,6 +184,8 @@ func describe() -> Dictionary:
 		"columns": column_descriptions,
 		"allow_extra_fields": allow_extra_fields,
 		"coerce_values": coerce_values,
+		"fail_on_coerce_error": fail_on_coerce_error,
+		"require_unique_id": require_unique_id,
 		"metadata": metadata.duplicate(true),
 	}
 
@@ -184,6 +194,7 @@ func describe() -> Dictionary:
 
 func _validate_array_table(rows: Array, report: Dictionary) -> void:
 	report["row_count"] = rows.size()
+	var seen_ids: Dictionary = {}
 	for index: int in range(rows.size()):
 		var row: Variant = rows[index]
 		if not (row is Dictionary):
@@ -193,6 +204,7 @@ func _validate_array_table(rows: Array, report: Dictionary) -> void:
 		var record := row as Dictionary
 		var row_key: Variant = record.get(id_field, index) if id_field != &"" else index
 		_merge_report(report, validate_record(record, row_key))
+		_validate_unique_id(record, row_key, seen_ids, report)
 
 
 func _validate_dictionary_table(table: Dictionary, report: Dictionary) -> void:
@@ -217,6 +229,65 @@ func _make_report(row_count: int) -> Dictionary:
 		"warning_count": 0,
 		"issues": [],
 	}
+
+
+func _coerce_record_for_validation(record: Dictionary, row_key: Variant, report: Dictionary) -> Dictionary:
+	var result: Dictionary = record.duplicate(true)
+	for column: GFConfigTableColumn in columns:
+		if column == null or column.get_field_key() == &"":
+			continue
+
+		var field_key := column.get_field_key()
+		var has_value := result.has(field_key)
+		if not has_value and column.default_value == null:
+			continue
+
+		var source_value: Variant = result[field_key] if has_value else column.default_value
+		var coerce_result := column.try_coerce_value(source_value)
+		result[field_key] = coerce_result.get("value")
+		if fail_on_coerce_error and not bool(coerce_result.get("ok", false)):
+			_add_issue(
+				report,
+				"error",
+				"coerce_failed",
+				row_key,
+				field_key,
+				String(coerce_result.get("message", "字段类型转换失败：%s。" % str(field_key)))
+			)
+	return result
+
+
+func _validate_unique_id(
+	record: Dictionary,
+	row_key: Variant,
+	seen_ids: Dictionary,
+	report: Dictionary
+) -> void:
+	if not require_unique_id or id_field == &"" or not record.has(id_field):
+		return
+
+	var id_value: Variant = record[id_field]
+	var id_column := get_column(id_field)
+	if coerce_values and id_column != null:
+		id_value = id_column.coerce_value(id_value)
+
+	var id_key := _make_variant_key(id_value)
+	if seen_ids.has(id_key):
+		_add_issue(
+			report,
+			"error",
+			"duplicate_id",
+			row_key,
+			id_field,
+			"记录 ID 重复：%s。" % str(id_value)
+		)
+		return
+
+	seen_ids[id_key] = row_key
+
+
+func _make_variant_key(value: Variant) -> String:
+	return "%d:%s" % [typeof(value), str(value)]
 
 
 func _add_issue(

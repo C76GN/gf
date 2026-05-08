@@ -246,7 +246,7 @@ func prune_invalid_receivers() -> void:
 			keys_to_release.append(receiver_key)
 
 	for receiver_key: String in keys_to_release:
-		_release_by_key(receiver_key)
+		_release_by_key(receiver_key, true)
 
 	var reservation_keys_to_release: Array[String] = []
 	for receiver_key: String in _reservation_records.keys():
@@ -318,12 +318,13 @@ func _record_is_valid(record: Dictionary) -> bool:
 	return true
 
 
-func _release_by_key(receiver_key: String) -> void:
+func _release_by_key(receiver_key: String, emit_cell_signal: bool = false) -> void:
 	var record := _get_record(_receiver_records, receiver_key)
 	if record.is_empty():
 		return
 
 	var cell := record["cell"] as Vector2i
+	var receiver: Variant = _record_to_receiver(record)
 	var cell_key := _cell_key(cell)
 	if _cell_occupants.has(cell_key):
 		(_cell_occupants[cell_key] as Array).erase(receiver_key)
@@ -332,6 +333,8 @@ func _release_by_key(receiver_key: String) -> void:
 
 	_receiver_records.erase(receiver_key)
 	_release_reservation_by_key(receiver_key)
+	if emit_cell_signal:
+		cell_released.emit(receiver, cell)
 
 
 func _release_reservation_by_key(receiver_key: String) -> void:

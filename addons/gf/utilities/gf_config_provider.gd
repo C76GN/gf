@@ -57,9 +57,10 @@ func has_schema(table_name: StringName) -> bool:
 
 ## 获取导表结构声明。
 ## @param table_name: 表名。
-## @return 已注册时返回 schema，否则返回 null。
+## @return 已注册时返回 schema 拷贝，否则返回 null。
 func get_schema(table_name: StringName) -> GFConfigTableSchema:
-	return _schemas.get(table_name) as GFConfigTableSchema
+	var schema := _schemas.get(table_name) as GFConfigTableSchema
+	return schema.duplicate_schema() if schema != null else null
 
 
 ## 获取已注册的导表结构标识。

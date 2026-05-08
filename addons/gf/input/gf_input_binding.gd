@@ -9,7 +9,7 @@ extends Resource
 
 ## 输入值贡献目标。
 enum ValueTarget {
-	## 根据动作值类型自动映射。
+	## 根据动作值类型自动映射；二维/三维轴默认写入 X 分量，需要其他分量时使用显式 AXIS_* 目标。
 	AUTO,
 	## 只作为开关输入。
 	BOOL,
@@ -66,6 +66,10 @@ const GFInputModifierBase = preload("res://addons/gf/input/gf_input_modifier.gd"
 ## 是否按设备 ID 精确匹配。关闭时同类按键、鼠标按钮或手柄按钮可跨设备匹配。
 @export var match_device: bool = false
 
+## 是否按触点 index 精确匹配 InputEventScreenTouch。
+## 默认关闭以保持“任意触摸”绑定的兼容语义。
+@export var match_touch_index: bool = false
+
 ## 覆盖显示名称。
 @export var display_name: String = ""
 
@@ -85,6 +89,7 @@ func duplicate_binding() -> Resource:
 	binding.scale = scale
 	binding.modifiers = _duplicate_modifiers()
 	binding.match_device = match_device
+	binding.match_touch_index = match_touch_index
 	binding.display_name = display_name
 	binding.remappable = remappable
 	return binding as Resource
@@ -115,7 +120,10 @@ func matches_event(event: InputEvent) -> bool:
 		return (input_event as InputEventJoypadMotion).axis == (event as InputEventJoypadMotion).axis
 
 	if input_event is InputEventScreenTouch and event is InputEventScreenTouch:
-		return true
+		return (
+			not match_touch_index
+			or (input_event as InputEventScreenTouch).index == (event as InputEventScreenTouch).index
+		)
 
 	return input_event.is_match(event, true)
 

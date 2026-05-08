@@ -175,6 +175,7 @@ func test_buff_modifier_supports_legacy_source_tag_attribute_fallback() -> void:
 	system.add_buff(entity, buff)
 
 	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "旧 source_tag 写法仍应作为目标属性回退。")
+	assert_push_warning("[GFBuff] Modifier attribute_id 为空，已回退 source_id。新代码应显式填写 attribute_id。")
 
 
 func test_buff_ignores_freed_owner() -> void:
@@ -325,6 +326,64 @@ func test_duplicate_buff_refresh_updates_duration_and_stacks() -> void:
 	assert_eq(buff.stacks, 2, "重复 Buff 应在 max_stacks 允许时增加层数。")
 	assert_eq(buff.duration, -1.0, "重复 Buff 刷新应同步新的 duration。")
 	assert_eq(buff.time_left, -1.0, "重复 Buff 刷新应同步新的剩余时间。")
+
+
+func test_remove_buff_removes_effects_and_reports_result() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	entity.add_attr(&"ATK", 10.0)
+	system.register_entity(entity)
+
+	var buff := GFBuff.new()
+	buff.modifiers.append(GFModifier.create_base_add(5.0, &"ATK", &"PowerUp"))
+	buff.tags.append(&"Buffed")
+	buff.setup(&"PowerUp", -1.0, entity)
+	system.add_buff(entity, buff)
+
+	var removed := system.remove_buff(entity, &"PowerUp")
+	var missing := system.remove_buff(entity, &"Missing")
+
+	assert_true(removed, "remove_buff 应报告成功移除。")
+	assert_false(missing, "remove_buff 未命中时应返回 false。")
+	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 10.0, "remove_buff 应移除属性修饰器。")
+	assert_false(entity.tag_component.has_tag(&"Buffed"), "remove_buff 应移除标签。")
+
+
+func test_clear_buffs_supports_optional_predicate() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+
+	var keep_buff := GFBuff.new()
+	keep_buff.setup(&"Keep", -1.0, entity)
+	var remove_buff := GFBuff.new()
+	remove_buff.setup(&"Remove", -1.0, entity)
+	system.add_buff(entity, keep_buff)
+	system.add_buff(entity, remove_buff)
+
+	var removed_count := system.clear_buffs(entity, func(buff: GFBuff) -> bool:
+		return buff.id == &"Remove"
+	)
+
+	assert_eq(removed_count, 1, "clear_buffs 应只移除 predicate 匹配的 Buff。")
+	assert_true(system._entities[entity]["buffs"].has(keep_buff), "未匹配的 Buff 应保留。")
+	assert_false(system._entities[entity]["buffs"].has(remove_buff), "匹配的 Buff 应移除。")
+
+
+func test_remove_skill_disconnects_cooldown_tracking() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+	var skill := GFSkill.new(entity)
+	skill.cooldown_max = 1.0
+	system.add_skill(entity, skill)
+
+	var removed := system.remove_skill(entity, skill)
+	skill.execute()
+
+	assert_true(removed, "remove_skill 应报告成功移除。")
+	assert_false(skill.is_connected(&"cooldown_started", Callable(system, "_on_skill_cooldown_started")), "remove_skill 应断开冷却信号。")
+	assert_false(system._active_entities.has(entity.get_instance_id()), "移除技能后冷却信号不应重新激活实体。")
 
 
 ## 测试 GFAttribute 的强制重算。

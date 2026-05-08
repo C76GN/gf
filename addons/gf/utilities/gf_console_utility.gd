@@ -6,9 +6,23 @@ class_name GFConsoleUtility
 extends GFUtility
 
 
+# --- 枚举 ---
+
+## 控制台命令风险等级。
+enum CommandTier {
+	## 只读观察类命令。
+	OBSERVE,
+	## 会改变运行时状态的控制类命令。
+	CONTROL,
+	## 删档、跳关、重连等高风险命令。
+	DANGER,
+}
+
+
 # --- 常量 ---
 
 const GFConsoleCommandDefinitionBase = preload("res://addons/gf/utilities/gf_console_command_definition.gd")
+const DANGER_CONFIRMATION_ARGUMENT: String = "--confirm"
 
 
 # --- 公共变量 ---
@@ -22,6 +36,13 @@ var max_output_lines: int = 1000:
 		max_output_lines = maxi(value, 1)
 		if is_instance_valid(_console_gui):
 			_console_gui.max_output_lines = max_output_lines
+
+## 控制台最多保留的历史命令数量。
+var max_history_size: int = 100:
+	set(value):
+		max_history_size = maxi(value, 1)
+		if is_instance_valid(_console_gui):
+			_console_gui.max_history_size = max_history_size
 
 ## 控制台背景透明度，范围 0 到 1。
 var background_alpha: float = 0.85:
@@ -61,8 +82,14 @@ var keep_topmost: bool = true:
 		if is_instance_valid(_console_gui):
 			_console_gui.keep_topmost = keep_topmost
 
-## 是否只在 debug 构建中创建控制台 GUI。
-var debug_only: bool = false
+## 是否只在 debug 构建中创建控制台 GUI。发布构建需要显式关闭此项才会创建控制台。
+var debug_only: bool = true
+
+## 允许执行的最高命令风险等级。
+var max_command_tier: CommandTier = CommandTier.CONTROL
+
+## 执行 DANGER 命令时是否要求传入 `--confirm` 参数。
+var require_danger_confirmation: bool = true
 
 
 # --- 私有变量 ---
@@ -90,6 +117,7 @@ func init() -> void:
 	_console_gui.name = "GFConsoleOverlay"
 	_console_gui.toggle_key = toggle_key
 	_console_gui.max_output_lines = max_output_lines
+	_console_gui.max_history_size = max_history_size
 	_console_gui.background_alpha = background_alpha
 	_console_gui.windowed = windowed
 	_console_gui.initial_window_size_ratio = initial_window_size_ratio
@@ -219,7 +247,10 @@ func execute_command(raw_input: String) -> bool:
 	if trimmed.is_empty():
 		return false
 
-	var parts := trimmed.split(" ", false)
+	var parts := _parse_command_line(trimmed)
+	if parts.is_empty():
+		return false
+
 	var cmd_name: String = parts[0]
 	var args := PackedStringArray()
 	for i in range(1, parts.size()):
@@ -229,23 +260,106 @@ func execute_command(raw_input: String) -> bool:
 		if is_instance_valid(_console_gui):
 			var similar_commands := suggest_similar_commands(cmd_name)
 			if similar_commands.is_empty():
-				_console_gui.append_text("[color=red]未知指令：%s。输入 'help' 查看帮助。[/color]" % cmd_name)
+				_console_gui.append_text("[color=red]未知指令：%s。输入 'help' 查看帮助。[/color]" % _escape_bbcode_text(cmd_name))
 			else:
 				_console_gui.append_text(
 					"[color=red]未知指令：%s。你是不是想输入：%s？[/color]" % [
-						cmd_name,
-						", ".join(similar_commands),
+						_escape_bbcode_text(cmd_name),
+						_escape_bbcode_text(", ".join(similar_commands)),
 					]
 				)
 		return false
 
 	var entry: Dictionary = _commands[cmd_name]
+	if not _prepare_command_execution(cmd_name, entry, args):
+		return false
+
 	var cb: Callable = entry["callback"]
 	cb.call(args)
 	return true
 
 
 # --- 私有/辅助方法 ---
+
+func _parse_command_line(raw_input: String) -> PackedStringArray:
+	var parts := PackedStringArray()
+	var current := ""
+	var in_quotes := false
+	var quote_char := ""
+	var escaping := false
+	var token_started := false
+
+	for index: int in range(raw_input.length()):
+		var ch := raw_input.substr(index, 1)
+		if escaping:
+			current += ch
+			token_started = true
+			escaping = false
+			continue
+
+		if ch == "\\":
+			escaping = true
+			token_started = true
+			continue
+
+		if in_quotes:
+			if ch == quote_char:
+				in_quotes = false
+			else:
+				current += ch
+			continue
+
+		if ch == "\"" or ch == "'":
+			in_quotes = true
+			quote_char = ch
+			token_started = true
+		elif ch == " " or ch == "\t":
+			if token_started:
+				parts.append(current)
+				current = ""
+				token_started = false
+		else:
+			current += ch
+			token_started = true
+
+	if escaping:
+		current += "\\"
+	if token_started:
+		parts.append(current)
+	return parts
+
+
+func _prepare_command_execution(cmd_name: String, entry: Dictionary, args: PackedStringArray) -> bool:
+	var tier := _get_command_tier(entry)
+	if tier > max_command_tier:
+		if is_instance_valid(_console_gui):
+			_console_gui.append_text("[color=red]指令风险等级超过当前允许范围：%s。[/color]" % _escape_bbcode_text(cmd_name))
+		return false
+
+	if tier == CommandTier.DANGER and require_danger_confirmation:
+		var confirmation_index := args.find(DANGER_CONFIRMATION_ARGUMENT)
+		if confirmation_index < 0:
+			if is_instance_valid(_console_gui):
+				_console_gui.append_text("[color=yellow]危险指令需要追加 %s 确认。[/color]" % DANGER_CONFIRMATION_ARGUMENT)
+			return false
+		args.remove_at(confirmation_index)
+
+	return true
+
+
+func _get_command_tier(entry: Dictionary) -> CommandTier:
+	var metadata: Dictionary = entry.get("metadata", {})
+	var tier_value: Variant = metadata.get("tier", CommandTier.OBSERVE)
+	return clampi(int(tier_value), CommandTier.OBSERVE, CommandTier.DANGER)
+
+
+func _escape_bbcode_text(value: Variant) -> String:
+	return _escape_bbcode_string(String(value))
+
+
+static func _escape_bbcode_string(text: String) -> String:
+	return text.replace("[", "[lb]").replace("]", "[rb]")
+
 
 func _cmd_help(_args: PackedStringArray) -> void:
 	if not is_instance_valid(_console_gui):
@@ -255,7 +369,10 @@ func _cmd_help(_args: PackedStringArray) -> void:
 	for cmd_name: String in _commands:
 		var entry: Dictionary = _commands[cmd_name]
 		var desc: String = entry["description"]
-		_console_gui.append_text("  [color=white]%s[/color] - %s" % [cmd_name, desc])
+		_console_gui.append_text("  [color=white]%s[/color] - %s" % [
+			_escape_bbcode_text(cmd_name),
+			_escape_bbcode_text(desc),
+		])
 	_console_gui.append_text("[color=cyan]----------------[/color]")
 
 
@@ -266,7 +383,7 @@ func _cmd_clear(_args: PackedStringArray) -> void:
 
 func _on_command_submitted(raw_input: String) -> void:
 	if is_instance_valid(_console_gui):
-		_console_gui.append_text("[color=gray]> %s[/color]" % raw_input)
+		_console_gui.append_text("[color=gray]> %s[/color]" % _escape_bbcode_text(raw_input))
 
 	execute_command(raw_input)
 
@@ -290,8 +407,13 @@ func _on_log_emitted(level: int, tag: String, message: String) -> void:
 			color = "white"
 
 	var level_names: PackedStringArray = PackedStringArray(["DEBUG", "INFO", "WARN", "ERROR", "FATAL"])
-	var level_str: String = level_names[level] if level < level_names.size() else "UNKNOWN"
-	_console_gui.append_text("[color=%s][%s][%s] %s[/color]" % [color, level_str, tag, message])
+	var level_str: String = level_names[level] if level >= 0 and level < level_names.size() else "UNKNOWN"
+	_console_gui.append_text("[color=%s][%s][%s] %s[/color]" % [
+		color,
+		level_str,
+		_escape_bbcode_text(tag),
+		_escape_bbcode_text(message),
+	])
 
 
 # --- 内部类 ---
@@ -321,6 +443,11 @@ class _GFConsoleGUI extends CanvasLayer:
 			_trim_output_lines()
 			if is_instance_valid(_output):
 				_render_output()
+
+	var max_history_size: int = 100:
+		set(value):
+			max_history_size = maxi(value, 1)
+			_trim_command_history()
 
 	var background_alpha: float = 0.85:
 		set(value):
@@ -710,7 +837,15 @@ class _GFConsoleGUI extends CanvasLayer:
 		if matches.size() == 1:
 			_set_input_text(matches[0] + " ")
 		elif matches.size() > 1:
-			append_text("[color=cyan]%s[/color]" % ", ".join(matches))
+			append_text("[color=cyan]%s[/color]" % GFConsoleUtility._escape_bbcode_string(", ".join(matches)))
+
+
+	func _trim_command_history() -> void:
+		var max_size := maxi(max_history_size, 1)
+		while _command_history.size() > max_size:
+			_command_history.remove_at(0)
+		if _history_index >= _command_history.size():
+			_history_index = -1
 
 
 	func _set_input_text(text: String) -> void:
@@ -725,6 +860,7 @@ class _GFConsoleGUI extends CanvasLayer:
 			return
 
 		_command_history.append(text)
+		_trim_command_history()
 		_history_index = -1
 		command_submitted.emit(text)
 		_input_field.clear()

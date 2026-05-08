@@ -49,18 +49,20 @@ const _LAYER_TYPES: Dictionary = {
 
 ## 扫描项目 class_name 脚本并生成访问器。
 ## @param output_path: 生成文件输出路径。
-func generate(output_path: String = DEFAULT_OUTPUT_PATH) -> Error:
+## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+func generate(output_path: String = DEFAULT_OUTPUT_PATH, overwrite_existing: bool = true) -> Error:
 	var records := collect_records()
 	var source := build_source(records)
-	return save_source(output_path, source)
+	return save_source(output_path, source, overwrite_existing)
 
 
 ## 生成项目常量访问器。
 ## @param output_path: 生成文件输出路径。
-func generate_project_access(output_path: String = DEFAULT_PROJECT_OUTPUT_PATH) -> Error:
+## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+func generate_project_access(output_path: String = DEFAULT_PROJECT_OUTPUT_PATH, overwrite_existing: bool = true) -> Error:
 	var records := collect_project_records()
 	var source := build_project_source(records)
-	return save_source(output_path, source)
+	return save_source(output_path, source, overwrite_existing)
 
 
 ## 收集当前项目中可生成访问器的 GF 类型记录。
@@ -185,10 +187,15 @@ func build_project_source(records: Dictionary) -> String:
 ## 保存生成源码到指定路径。
 ## @param output_path: 生成文件输出路径。
 ## @param source: 源对象或资源。
-func save_source(output_path: String, source: String) -> Error:
+## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+func save_source(output_path: String, source: String, overwrite_existing: bool = true) -> Error:
 	if output_path.is_empty():
 		push_error("[GFAccessGenerator] 输出路径为空。")
 		return ERR_INVALID_PARAMETER
+
+	if FileAccess.file_exists(output_path) and not overwrite_existing:
+		push_warning("[GFAccessGenerator] 目标文件已存在，已跳过：%s" % output_path)
+		return ERR_ALREADY_EXISTS
 
 	DirAccess.make_dir_recursive_absolute(output_path.get_base_dir())
 	var file := FileAccess.open(output_path, FileAccess.WRITE)

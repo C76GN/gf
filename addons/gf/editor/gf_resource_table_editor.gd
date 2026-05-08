@@ -15,6 +15,15 @@ signal resource_selected(resource: Resource)
 ## 单元格值提交后发出。
 signal cell_value_committed(resource: Resource, property: StringName, old_value: Variant, new_value: Variant)
 
+## 自动保存资源失败时发出。
+signal resource_save_failed(resource: Resource, path: String, error: Error)
+
+
+# --- 公共变量 ---
+
+## 提交单元格后是否自动保存已绑定路径的 Resource。
+var auto_save_committed_resources: bool = false
+
 
 # --- 私有变量 ---
 
@@ -130,6 +139,7 @@ func commit_cell_value(row_index: int, property: StringName, new_value: Variant)
 	var old_value: Variant = resource.get(property)
 	resource.set(property, new_value)
 	cell_value_committed.emit(resource, property, old_value, new_value)
+	_save_resource_if_requested(resource)
 	refresh()
 	return true
 
@@ -219,6 +229,19 @@ func _resource_has_property(resource: Resource, property: StringName) -> bool:
 		if StringName(property_info.get("name", "")) == property:
 			return true
 	return false
+
+
+func _save_resource_if_requested(resource: Resource) -> void:
+	if not auto_save_committed_resources:
+		return
+
+	var path := resource.resource_path
+	if path.is_empty():
+		return
+
+	var error := ResourceSaver.save(resource, path)
+	if error != OK:
+		resource_save_failed.emit(resource, path, error)
 
 
 func _resource_label(resource: Resource, row_index: int) -> String:

@@ -114,6 +114,71 @@ func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 	_update_active_status(p_entity)
 
 
+## 移除实体上的指定 Buff。
+## @param p_entity: 实体对象。
+## @param p_buff_id: Buff 标识。
+## @return 找到并移除 Buff 时返回 true。
+func remove_buff(p_entity: Object, p_buff_id: StringName) -> bool:
+	if not _entities.has(p_entity):
+		return false
+
+	var data: Dictionary = _entities[p_entity]
+	var buffs: Array = data["buffs"]
+	for index in range(buffs.size() - 1, -1, -1):
+		var buff := buffs[index] as GFBuff
+		if buff != null and buff.id == p_buff_id:
+			_remove_buff_at(p_entity, buffs, index, true)
+			_update_active_status(p_entity)
+			return true
+	return false
+
+
+## 清理实体上的 Buff。predicate 为空时清理全部；否则仅清理返回 true 的 Buff。
+## @param p_entity: 实体对象。
+## @param predicate: 可选过滤回调，签名为 `func(buff: GFBuff) -> bool`。
+## @return 被清理的 Buff 数量。
+func clear_buffs(p_entity: Object, predicate: Callable = Callable()) -> int:
+	if not _entities.has(p_entity):
+		return 0
+
+	var data: Dictionary = _entities[p_entity]
+	var buffs: Array = data["buffs"]
+	var removed_count := 0
+	for index in range(buffs.size() - 1, -1, -1):
+		var buff := buffs[index] as GFBuff
+		if buff == null:
+			buffs.remove_at(index)
+			continue
+		if predicate.is_valid() and not bool(predicate.call(buff)):
+			continue
+		_remove_buff_at(p_entity, buffs, index, true)
+		removed_count += 1
+
+	if removed_count > 0:
+		_update_active_status(p_entity)
+	return removed_count
+
+
+## 移除实体上的指定技能。
+## @param p_entity: 实体对象。
+## @param p_skill: 技能实例。
+## @return 找到并移除技能时返回 true。
+func remove_skill(p_entity: Object, p_skill: GFSkill) -> bool:
+	if p_skill == null or not _entities.has(p_entity):
+		return false
+
+	var data: Dictionary = _entities[p_entity]
+	var skills: Array = data["skills"]
+	if not skills.has(p_skill):
+		return false
+
+	if p_skill.is_connected(&"cooldown_started", _on_skill_cooldown_started):
+		p_skill.cooldown_started.disconnect(_on_skill_cooldown_started)
+	skills.erase(p_skill)
+	_update_active_status(p_entity)
+	return true
+
+
 # --- 私有/辅助方法 ---
 
 ## 更新实体的活跃状态。
@@ -203,6 +268,17 @@ func _send_combat_event(event_instance: Object) -> void:
 		arch.send_event(event_instance)
 
 
+func _remove_buff_at(p_entity: Object, buffs: Array, index: int, remove_effects: bool) -> void:
+	var buff := buffs[index] as GFBuff
+	buffs.remove_at(index)
+	if buff == null:
+		return
+
+	var removed_id := buff.id
+	if remove_effects:
+		buff.on_remove()
+	_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, removed_id))
+
 
 
 func _process_entity(p_entity: Object, p_delta: float) -> void:
@@ -223,13 +299,12 @@ func _process_entity(p_entity: Object, p_delta: float) -> void:
 			buff_index -= 1
 			continue
 		if buff.update(p_delta):
-			var removed_id := buff.id
 			if buff_index < buffs.size() and buffs[buff_index] == buff:
-				buffs.remove_at(buff_index)
+				_remove_buff_at(p_entity, buffs, buff_index, true)
 			else:
 				buffs.erase(buff)
-			buff.on_remove()
-			_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, removed_id))
+				buff.on_remove()
+				_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, buff.id))
 		buff_index -= 1
 
 	if not _entities.has(p_entity):

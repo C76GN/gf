@@ -70,6 +70,24 @@ func test_build_source_skips_duplicate_function_names() -> void:
 	assert_push_warning("[GFAccessGenerator] 函数名重复，已跳过：get_player_model")
 
 
+func test_save_source_can_refuse_overwrite() -> void:
+	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var path := "user://gf_access_generator_no_overwrite.gd"
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string("old")
+	file.close()
+
+	var error: Error = generator.save_source(path, "new", false)
+	var read_file := FileAccess.open(path, FileAccess.READ)
+	var content := read_file.get_as_text()
+	read_file.close()
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
+
+	assert_eq(error, ERR_ALREADY_EXISTS, "禁止覆盖时已有目标文件应返回 ERR_ALREADY_EXISTS。")
+	assert_eq(content, "old", "禁止覆盖时不应改写已有文件。")
+	assert_push_warning("[GFAccessGenerator] 目标文件已存在，已跳过：%s" % path)
+
+
 func test_resolve_kind_accepts_spatial_node_capability_bases() -> void:
 	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
 

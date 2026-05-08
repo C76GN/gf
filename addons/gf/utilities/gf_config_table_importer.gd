@@ -29,7 +29,7 @@ static func parse_json_table(text: String) -> Dictionary:
 
 ## 解析 CSV 表文本。
 ## @param text: CSV 文本。
-## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines。
+## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers。
 ## @return 结果字典，包含 success、data 与 error。
 static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionary:
 	var delimiter := str(options.get("delimiter", ","))
@@ -37,15 +37,24 @@ static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionar
 		delimiter = ","
 	var trim_cells := bool(options.get("trim_cells", true))
 	var skip_empty_lines := bool(options.get("skip_empty_lines", true))
-	var rows := _parse_csv_rows(text, delimiter.substr(0, 1), trim_cells)
+	var reject_duplicate_headers := bool(options.get("reject_duplicate_headers", true))
+	var rows := _parse_csv_rows(_normalize_csv_text(text), delimiter.substr(0, 1), trim_cells)
 	if rows.is_empty():
 		return {
 			"success": true,
 			"data": [],
 			"error": "",
-		}
+	}
 
 	var header := rows[0] as PackedStringArray
+	var header_error := _validate_csv_header(header, reject_duplicate_headers)
+	if not header_error.is_empty():
+		return {
+			"success": false,
+			"data": null,
+			"error": header_error,
+		}
+
 	var records: Array[Dictionary] = []
 	for row_index: int in range(1, rows.size()):
 		var row := rows[row_index] as PackedStringArray
@@ -84,7 +93,7 @@ static func validate_json_table(text: String, schema: GFConfigTableSchema) -> Di
 ## 解析并校验 CSV 表文本。
 ## @param text: CSV 文本。
 ## @param schema: 表结构声明。
-## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines。
+## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers。
 ## @return 校验报告；解析失败时返回失败报告。
 static func validate_csv_table(text: String, schema: GFConfigTableSchema, options: Dictionary = {}) -> Dictionary:
 	if schema == null:
@@ -135,6 +144,24 @@ static func _parse_csv_rows(text: String, delimiter: String, trim_cells: bool) -
 	if row.size() > 1 or not _csv_row_is_empty(row):
 		rows.append(row)
 	return rows
+
+
+static func _normalize_csv_text(text: String) -> String:
+	return text.trim_prefix("\ufeff")
+
+
+static func _validate_csv_header(header: PackedStringArray, reject_duplicate_headers: bool) -> String:
+	if not reject_duplicate_headers:
+		return ""
+
+	var seen: Dictionary = {}
+	for column_name: String in header:
+		if column_name.is_empty():
+			continue
+		if seen.has(column_name):
+			return "CSV header has duplicate column: %s" % column_name
+		seen[column_name] = true
+	return ""
 
 
 static func _csv_row_is_empty(row: PackedStringArray) -> bool:

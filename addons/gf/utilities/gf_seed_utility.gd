@@ -35,6 +35,7 @@ func init() -> void:
 ## 设置全局主种子，并同步应用到主 RNG。
 ## @param seed_hash: 用于驱动主随机数序列的整数种子。
 func set_global_seed(seed_hash: int) -> void:
+	_ensure_rng()
 	_global_seed = seed_hash
 	_rng.seed = seed_hash
 	_branch_counters.clear()
@@ -42,24 +43,28 @@ func set_global_seed(seed_hash: int) -> void:
 
 ## 获取当前全局主种子。
 func get_global_seed() -> int:
+	_ensure_rng()
 	return _global_seed
 
 
 ## 获取当前主 RNG 的内部精确状态。
 ## @return 当前的内部状态值。
 func get_state() -> int:
+	_ensure_rng()
 	return _rng.state
 
 
 ## 恢复主 RNG 的内部精确状态。
 ## @param state: 要恢复的内部状态值。
 func set_state(state: int) -> void:
+	_ensure_rng()
 	_rng.state = state
 
 
 ## 获取包含主种子、主 RNG 状态与分支计数的完整随机状态。
 ## @return 可序列化的完整随机状态。
 func get_full_state() -> Dictionary:
+	_ensure_rng()
 	return {
 		&"version": 1,
 		&"global_seed": _global_seed,
@@ -71,6 +76,7 @@ func get_full_state() -> Dictionary:
 ## 恢复完整随机状态；传入旧版整数状态时退化为 set_state()。
 ## @param state: get_full_state() 产生的字典，或旧版主 RNG 整数状态。
 func set_full_state(state: Variant) -> void:
+	_ensure_rng()
 	if state is Dictionary:
 		var snapshot: Dictionary = state
 		_global_seed = int(snapshot.get(&"global_seed", snapshot.get("global_seed", _global_seed)))
@@ -94,6 +100,7 @@ func set_full_state(state: Variant) -> void:
 ## @param string_seed: 用于标识子随机流用途的字符串（如 "loot_table"、"enemy_ai"）。
 ## @return 一个已完成种子初始化的独立 RandomNumberGenerator 实例。
 func get_branched_rng(string_seed: String) -> RandomNumberGenerator:
+	_ensure_rng()
 	var branched := RandomNumberGenerator.new()
 	var branch_index: int = int(_branch_counters.get(string_seed, 0))
 	_branch_counters[string_seed] = branch_index + 1
@@ -116,3 +123,8 @@ func _stable_hash(text: String) -> int:
 	for value: int in bytes:
 		hash_value = ((hash_value ^ value) * _FNV_32_PRIME) & _UINT_32_MASK
 	return hash_value
+
+
+func _ensure_rng() -> void:
+	if _rng == null:
+		init()

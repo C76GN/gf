@@ -37,6 +37,23 @@ func test_set_assignment_replaces_same_player() -> void:
 	assert_eq(assignments[1].device_id, 3, "替换后的设备 ID 应生效。")
 
 
+## 验证手动映射受玩家上限约束，并保持同一设备只归属一个玩家。
+func test_set_assignment_rejects_out_of_range_and_keeps_device_unique() -> void:
+	var utility := GFInputDeviceUtility.new()
+	utility.max_players = 2
+	utility.include_keyboard_mouse = false
+	utility.include_touch = false
+
+	utility.set_assignment(utility.create_assignment(0, GFInputDeviceAssignment.DeviceType.JOYPAD, 5))
+	utility.set_assignment(utility.create_assignment(1, GFInputDeviceAssignment.DeviceType.JOYPAD, 5))
+	utility.set_assignment(utility.create_assignment(2, GFInputDeviceAssignment.DeviceType.CUSTOM, 77))
+
+	assert_null(utility.get_assignment(0), "同一手柄重新分配给 1 号玩家后，应移除旧玩家映射。")
+	assert_eq(utility.get_player_for_device(GFInputDeviceAssignment.DeviceType.JOYPAD, 5), 1, "同一设备应只映射到最新玩家。")
+	assert_null(utility.get_assignment(2), "越过 max_players 的手动映射应被拒绝。")
+	assert_push_warning("[GFInputDeviceUtility] 忽略越界玩家设备映射：2")
+
+
 ## 验证返回的映射是拷贝，避免外部直接污染内部表。
 func test_get_assignments_returns_copies() -> void:
 	var utility := GFInputDeviceUtility.new()
@@ -112,6 +129,23 @@ func test_joypad_axis_noise_does_not_auto_assign() -> void:
 
 	assert_eq(player_index, -1, "低于自动分配阈值的轴输入不应占用玩家席位。")
 	assert_null(utility.get_assignment(0), "噪声输入后不应生成映射。")
+
+
+## 验证已登记手柄的弱轴漂移不会切换最近活跃玩家。
+func test_assigned_joypad_axis_noise_does_not_switch_active_player() -> void:
+	var utility := GFInputDeviceUtility.new()
+	utility.max_players = 2
+	utility.include_keyboard_mouse = false
+	utility.include_touch = false
+	utility.set_assignment(utility.create_assignment(0, GFInputDeviceAssignment.DeviceType.JOYPAD, 1))
+	utility.set_assignment(utility.create_assignment(1, GFInputDeviceAssignment.DeviceType.JOYPAD, 2))
+	utility.set_active_player(0)
+
+	assert_eq(utility.handle_input_event(_make_joy_motion_event(2, JOY_AXIS_LEFT_X, 0.05)), 1, "已登记设备仍应能解析到玩家。")
+	assert_eq(utility.active_player_index, 0, "低于 active_player_axis_threshold 的轴漂移不应切换活跃玩家。")
+
+	assert_eq(utility.handle_input_event(_make_joy_motion_event(2, JOY_AXIS_LEFT_X, 0.5)), 1, "有效轴输入应解析到玩家。")
+	assert_eq(utility.active_player_index, 1, "达到 active_player_axis_threshold 的轴输入应切换活跃玩家。")
 
 
 ## 验证玩家级死区覆盖可设置和清除。

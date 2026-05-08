@@ -32,6 +32,30 @@ func test_schema_coerce_record_applies_column_types_and_defaults() -> void:
 	assert_eq(record["power"], 1.0, "缺失字段应补默认值并转换。")
 
 
+func test_schema_coerce_validation_reports_invalid_conversion() -> void:
+	var schema := _make_item_schema()
+	schema.coerce_values = true
+
+	var report := schema.validate_record({ "id": "bad", "name": "Potion", "power": "abc" }, "bad")
+	var issues := report["issues"] as Array
+
+	assert_false(bool(report["ok"]), "严格转换失败时校验应失败。")
+	assert_true(_has_issue_code(issues, "coerce_failed"), "错误报告应包含转换失败。")
+
+
+func test_schema_can_report_duplicate_array_ids() -> void:
+	var schema := _make_item_schema()
+	schema.require_unique_id = true
+
+	var report := schema.validate_table([
+		{ "id": 1, "name": "Potion", "power": 1.0 },
+		{ "id": 1, "name": "Ether", "power": 2.0 },
+	])
+
+	assert_false(bool(report["ok"]), "要求唯一 ID 时重复记录应失败。")
+	assert_true(_has_issue_code(report["issues"] as Array, "duplicate_id"), "错误报告应包含重复 ID。")
+
+
 func test_config_provider_registers_schema_and_validates_table() -> void:
 	var provider := GFConfigProvider.new()
 	var schema := _make_item_schema()
@@ -45,6 +69,19 @@ func test_config_provider_registers_schema_and_validates_table() -> void:
 	assert_eq(provider.get_schema_ids(), PackedStringArray(["items"]), "schema id 应排序返回。")
 
 
+func test_config_provider_get_schema_returns_copy() -> void:
+	var provider := GFConfigProvider.new()
+	var schema := _make_item_schema()
+	assert_true(provider.register_schema(schema), "有效 schema 应注册成功。")
+
+	var schema_copy := provider.get_schema(&"items")
+	schema_copy.columns.clear()
+
+	var report := provider.validate_record(&"items", { "id": 1, "name": "Potion", "power": 2.0 })
+
+	assert_true(bool(report["ok"]), "修改 get_schema 返回值不应污染 Provider 内部 schema。")
+
+
 func test_csv_importer_parses_quotes_and_validates_with_coercion() -> void:
 	var schema := _make_item_schema()
 	schema.coerce_values = true
@@ -56,6 +93,22 @@ func test_csv_importer_parses_quotes_and_validates_with_coercion() -> void:
 	assert_true(bool(parsed["success"]), "CSV 应解析成功。")
 	assert_eq((rows[0] as Dictionary)["name"], "A,B", "引号内逗号应保留为单元格内容。")
 	assert_true(bool(report["ok"]), "启用 coerce_values 后 CSV 字符串值应可通过 schema 校验。")
+
+
+func test_csv_importer_strips_bom_from_first_header() -> void:
+	var parsed := GFConfigTableImporter.parse_csv_table("\ufeffid,name,power\n1,Potion,2.0\n")
+	var rows := parsed["data"] as Array
+	var row := rows[0] as Dictionary
+
+	assert_true(bool(parsed["success"]), "带 UTF-8 BOM 的 CSV 应解析成功。")
+	assert_true(row.has(&"id"), "BOM 不应污染第一列表头。")
+
+
+func test_csv_importer_reports_duplicate_headers() -> void:
+	var parsed := GFConfigTableImporter.parse_csv_table("id,id\n1,2\n")
+
+	assert_false(bool(parsed["success"]), "重复表头应报告解析失败。")
+	assert_true(String(parsed["error"]).contains("duplicate"), "错误信息应说明重复表头。")
 
 
 func test_json_importer_reports_parse_failure_as_validation_report() -> void:

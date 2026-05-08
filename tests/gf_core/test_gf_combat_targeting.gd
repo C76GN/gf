@@ -27,11 +27,13 @@ class DummyEntity:
 class TestSkill extends GFSkill:
 	var last_targets: Array[Object] = []
 	var candidates: Array = []
+	var execute_count: int = 0
 
 	func get_targeting_candidates() -> Array:
 		return candidates
 
 	func _on_execute(p_targets: Array[Object]) -> void:
+		execute_count += 1
 		last_targets = p_targets
 
 
@@ -228,6 +230,24 @@ func test_skill_manual_target_defaults_center_to_owner_position() -> void:
 	test_skill.execute(target)
 	assert_eq(test_skill.last_targets.size(), 1)
 	assert_eq(test_skill.last_targets[0], target)
+
+
+func test_skill_manual_target_rejects_invalid_target_when_max_count_is_unlimited() -> void:
+	var rule := GFSkillTargetingRule.new()
+	rule.radius = 10.0
+	rule.max_count = 0
+
+	var owner_entity := DummyEntity.new()
+	owner_entity.global_position = Vector2.ZERO
+	var target := DummyEntity.new()
+	target.global_position = Vector2(100, 0)
+
+	var test_skill := TestSkill.new(owner_entity)
+	test_skill.targeting_rule = rule
+
+	test_skill.execute(target)
+
+	assert_eq(test_skill.execute_count, 0, "手动目标未通过 targeting_rule 校验时不应以空目标执行。")
 
 
 func test_skill_explicit_origin_cast_center_is_respected() -> void:

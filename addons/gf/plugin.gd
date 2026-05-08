@@ -313,6 +313,10 @@ func _show_dialog(type: String) -> void:
 
 
 func _on_file_selected(path: String) -> void:
+	if FileAccess.file_exists(path):
+		push_error("[GF Framework] 文件已存在，已取消生成: %s" % path)
+		return
+
 	var file_name := path.get_file().get_basename()
 	var class_name_str := file_name.to_pascal_case()
 			

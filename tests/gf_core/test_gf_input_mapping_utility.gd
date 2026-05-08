@@ -205,6 +205,33 @@ func test_mapping_modifier_scales_aggregated_value() -> void:
 	assert_almost_eq(float(_utility.get_action_value(&"move_x")), 0.4, 0.001, "映射级修饰器应缩放聚合值。")
 
 
+## 验证同一 action_id 出现在多个上下文时，高优先级动作定义不会被低优先级覆盖。
+func test_duplicate_action_id_keeps_higher_priority_definition() -> void:
+	var high_action := _make_action(&"move_x", GFInputActionBase.ValueType.AXIS_1D)
+	high_action.activation_threshold = 0.1
+	var high_scale := GFInputScaleModifierBase.new()
+	high_scale.scale_x = 0.5
+	var high_mapping := _make_mapping(high_action, [
+		_make_key_binding(KEY_D, GFInputBindingBase.ValueTarget.AXIS_1D_POSITIVE),
+	])
+	high_mapping.modifiers = [high_scale]
+
+	var low_action := _make_action(&"move_x", GFInputActionBase.ValueType.AXIS_1D)
+	low_action.activation_threshold = 0.1
+	var low_scale := GFInputScaleModifierBase.new()
+	low_scale.scale_x = 2.0
+	var low_mapping := _make_mapping(low_action, [
+		_make_key_binding(KEY_A, GFInputBindingBase.ValueTarget.AXIS_1D_POSITIVE),
+	])
+	low_mapping.modifiers = [low_scale]
+
+	_utility.enable_context(_make_context(&"low", [low_mapping]), 0)
+	_utility.enable_context(_make_context(&"high", [high_mapping]), 10)
+	_utility.handle_input_event(_make_key_event(KEY_D, true))
+
+	assert_almost_eq(float(_utility.get_action_value(&"move_x")), 0.5, 0.001, "重复 action_id 应保留高优先级映射的修饰器。")
+
+
 ## 验证三维轴动作可以聚合不同方向绑定并应用三维修饰器。
 func test_axis_3d_action_combines_directional_bindings() -> void:
 	var action := _make_action(&"move_3d", GFInputActionBase.ValueType.AXIS_3D)
@@ -313,6 +340,19 @@ func test_chord_trigger_requires_another_action_active() -> void:
 	_utility.handle_input_event(_make_key_event(KEY_SHIFT, true))
 	_utility.handle_input_event(_make_key_event(KEY_K, true))
 	assert_true(_utility.is_action_active(&"special"), "组合动作活跃后应触发。")
+
+
+## 验证触屏绑定可按需精确匹配触点 index。
+func test_touch_binding_can_match_touch_index() -> void:
+	var binding := GFInputBindingBase.new()
+	binding.input_event = _make_touch_event(1, true)
+
+	assert_true(binding.matches_event(_make_touch_event(2, true)), "默认触屏绑定应保持任意触点兼容语义。")
+
+	binding.match_touch_index = true
+
+	assert_true(binding.matches_event(_make_touch_event(1, true)), "启用 index 匹配后应接受同一触点。")
+	assert_false(binding.matches_event(_make_touch_event(2, true)), "启用 index 匹配后应拒绝不同触点。")
 
 
 ## 验证可重绑条目会返回上下文、动作和有效事件。
@@ -502,6 +542,13 @@ func _make_joy_button_event(device: int, button: JoyButton, pressed: bool) -> In
 	event.button_index = button
 	event.pressed = pressed
 	event.pressure = 1.0 if pressed else 0.0
+	return event
+
+
+func _make_touch_event(index: int, pressed: bool) -> InputEventScreenTouch:
+	var event := InputEventScreenTouch.new()
+	event.index = index
+	event.pressed = pressed
 	return event
 
 

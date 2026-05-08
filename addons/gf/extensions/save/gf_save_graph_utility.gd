@@ -211,7 +211,12 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 		source.before_save(context)
 		var source_key := _make_scoped_source_key(scope, source)
 		if (payload["sources"] as Dictionary).has(source_key):
-			push_error("[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复 Source key：%s" % source_key)
+			var duplicate_source_error := "[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复 Source key：%s" % source_key
+			push_error(duplicate_source_error)
+			pipeline_context.add_error(duplicate_source_error, {
+				"scope_key": String(scope.get_scope_key()),
+				"source_key": source_key,
+			})
 			return {}
 		var descriptor := source.describe_source(scope)
 		_merge_identity_descriptor(source, descriptor)
@@ -227,12 +232,25 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 		})
 
 	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
+		if not child_scope.can_save_scope(context):
+			continue
 		var child_payload := gather_scope(child_scope, context)
 		if child_payload.is_empty():
-			continue
+			var child_gather_error := "[GFSaveGraphUtility] gather_scope 失败：子 Scope 采集失败：%s" % String(child_scope.get_scope_key())
+			push_error(child_gather_error)
+			pipeline_context.add_error(child_gather_error, {
+				"scope_key": String(scope.get_scope_key()),
+				"child_scope_key": String(child_scope.get_scope_key()),
+			})
+			return {}
 		var child_key := String(child_scope.get_scope_key())
 		if (payload["scopes"] as Dictionary).has(child_key):
-			push_error("[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复子 Scope key：%s" % child_key)
+			var duplicate_child_error := "[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复子 Scope key：%s" % child_key
+			push_error(duplicate_child_error)
+			pipeline_context.add_error(duplicate_child_error, {
+				"scope_key": String(scope.get_scope_key()),
+				"child_scope_key": child_key,
+			})
 			return {}
 		payload["scopes"][child_key] = child_payload
 

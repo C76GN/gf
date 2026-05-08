@@ -34,12 +34,18 @@ class FakeBackend extends GFNetworkBackend:
 		return OK
 
 
+class EagerConnectedBackend extends FakeBackend:
+	func host(_options: Dictionary = {}) -> Error:
+		connected.emit()
+		return OK
+
+
 # --- 测试方法 ---
 
 ## 验证消息序列化可保留通用元信息与载荷。
 func test_network_serializer_round_trips_message() -> void:
 	var serializer := GFNetworkSerializerBase.new()
-	var message := GFNetworkMessageBase.new(&"state", { "hp": 10 }, 7, 12, 3)
+	var message := GFNetworkMessageBase.new(&"state", { "hp": 10 }, 7, 12, 3, &"state_channel")
 
 	var decoded := serializer.deserialize_message(serializer.serialize_message(message))
 
@@ -48,6 +54,7 @@ func test_network_serializer_round_trips_message() -> void:
 	assert_eq(decoded.sequence, 7, "sequence 应保留。")
 	assert_eq(decoded.tick, 12, "tick 应保留。")
 	assert_eq(decoded.sender_id, 3, "sender_id 应保留。")
+	assert_eq(decoded.channel_id, &"state_channel", "channel_id 应保留。")
 	assert_eq(decoded.payload.get("hp", 0), 10, "payload 应保留。")
 
 
@@ -102,6 +109,24 @@ func test_network_channel_controls_send_options() -> void:
 	assert_eq((snapshot["channels"] as Array).size(), 1, "调试快照应包含已注册通道。")
 
 
+## 验证按通道发送会写入消息通道元信息，且不修改原始消息 payload。
+func test_send_message_on_channel_serializes_channel_id_metadata() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	var backend := FakeBackend.new()
+	utility.set_backend(backend)
+	var channel := GFNetworkChannelBase.new()
+	channel.channel_id = &"state"
+	utility.register_channel(channel)
+	var message := GFNetworkMessageBase.new(&"state_delta", { "value": 1 })
+
+	var error := utility.send_message_on_channel(3, message, &"state")
+	var decoded := utility.serializer.deserialize_message(backend.sent_bytes)
+
+	assert_eq(error, OK, "通道发送应成功。")
+	assert_eq(decoded.channel_id, &"state", "发送副本应包含逻辑通道。")
+	assert_false(message.payload.has("channel_id"), "通道元信息不应污染业务 payload。")
+
+
 ## 验证入站消息会按 message_type 匹配通道包体上限。
 func test_network_utility_rejects_inbound_packet_over_channel_limit() -> void:
 	var utility := GFNetworkUtilityBase.new()
@@ -114,6 +139,24 @@ func test_network_utility_rejects_inbound_packet_over_channel_limit() -> void:
 	watch_signals(utility)
 
 	var bytes := utility.serializer.serialize_message(GFNetworkMessageBase.new(&"state", { "payload": "too large" }))
+	backend.message_received.emit(1, bytes)
+
+	assert_signal_emitted(utility, "message_rejected", "超过通道上限的入站消息应被拒绝。")
+	assert_signal_not_emitted(utility, "message_received", "被拒绝的入站消息不应继续广播。")
+
+
+## 验证入站消息可按 channel_id 元信息匹配通道包体上限。
+func test_network_utility_rejects_inbound_packet_over_channel_id_limit() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	var backend := FakeBackend.new()
+	utility.set_backend(backend)
+	var channel := GFNetworkChannelBase.new()
+	channel.channel_id = &"state"
+	channel.max_packet_size = 8
+	utility.register_channel(channel)
+	watch_signals(utility)
+
+	var bytes := utility.serializer.serialize_message(GFNetworkMessageBase.new(&"state_delta", { "payload": "too large" }, 0, 0, -1, &"state"))
 	backend.message_received.emit(1, bytes)
 
 	assert_signal_emitted(utility, "message_rejected", "超过通道上限的入站消息应被拒绝。")
@@ -158,6 +201,22 @@ func test_network_utility_tracks_session_state() -> void:
 	assert_eq((host_snapshot["session"] as Dictionary).get("mode_name"), "host", "主机会话应记录 host 模式。")
 	assert_eq((host_snapshot["session"] as Dictionary).get("max_peers"), 8, "主机会话应记录最大连接数。")
 	assert_eq((client_snapshot["session"] as Dictionary).get("mode_name"), "client", "客户端连接应记录 client 模式。")
+
+
+## 验证后端在 host() 内立即报告 connected 时，会话已经带有主机 peer 信息且不会重复派发。
+func test_network_utility_host_session_is_ready_before_eager_backend_connected() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	utility.set_backend(EagerConnectedBackend.new())
+	var connected_peer_ids: Array[int] = []
+	utility.session.session_connected.connect(func(local_peer_id: int) -> void:
+		connected_peer_ids.append(local_peer_id)
+	)
+
+	var error := utility.host({ "port": 9000, "local_peer_id": 9 })
+
+	assert_eq(error, OK, "主机会话启动应成功。")
+	assert_eq(connected_peer_ids, [9], "后端立即 connected 不应造成 session_connected 重复或使用默认 peer。")
+	assert_eq(utility.session.local_peer_id, 9, "会话应保留配置的本地 peer。")
 
 
 ## 验证网络工具与可选 ENet 后端提供调试快照。

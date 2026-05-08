@@ -24,8 +24,10 @@ signal player_join_requested(player_index: int, assignment: GFInputDeviceAssignm
 
 # --- 公共变量 ---
 
-## 自动扫描时允许的最大本地玩家数。
-var max_players: int = 4
+## 允许的最大本地玩家数。
+var max_players: int = 4:
+	set(value):
+		max_players = maxi(value, 0)
 
 ## 是否为 0 号玩家自动分配键鼠。
 var include_keyboard_mouse: bool = true
@@ -38,6 +40,11 @@ var auto_assign_joypads_on_input: bool = true
 
 ## 未登记手柄轴输入需要达到该幅度才会触发自动分配，避免漂移噪声抢占席位。
 var auto_assign_axis_threshold: float = 0.75
+
+## 已登记手柄轴输入需要达到该幅度才会切换最近活跃玩家。
+var active_player_axis_threshold: float = 0.2:
+	set(value):
+		active_player_axis_threshold = clampf(value, 0.0, 1.0)
 
 ## 可触发本地玩家加入请求的输入事件模板。为空时不启用 join 检测。
 var join_events: Array[InputEvent] = []
@@ -124,14 +131,27 @@ func create_assignment(
 func set_assignment(assignment: GFInputDeviceAssignment) -> void:
 	if assignment == null:
 		return
+	if assignment.player_index < 0 or assignment.player_index >= max_players:
+		push_warning("[GFInputDeviceUtility] 忽略越界玩家设备映射：%d" % assignment.player_index)
+		return
 
-	for index: int in range(_assignments.size()):
-		if _assignments[index].player_index == assignment.player_index:
-			_assignments[index] = assignment
-			assignments_changed.emit(get_assignments())
-			return
+	var next_assignment := assignment.duplicate_assignment()
+	var replaced := false
+	for index: int in range(_assignments.size() - 1, -1, -1):
+		var current := _assignments[index]
+		if current.player_index == next_assignment.player_index:
+			_assignments[index] = next_assignment
+			replaced = true
+			continue
+		if (
+			_should_enforce_unique_device(next_assignment)
+			and current.device_type == next_assignment.device_type
+			and current.device_id == next_assignment.device_id
+		):
+			_assignments.remove_at(index)
 
-	_assignments.append(assignment)
+	if not replaced:
+		_assignments.append(next_assignment)
 	_assignments.sort_custom(func(a: GFInputDeviceAssignment, b: GFInputDeviceAssignment) -> bool:
 		return a.player_index < b.player_index
 	)
@@ -455,7 +475,7 @@ func _is_event_active_enough_for_active_player(event: InputEvent) -> bool:
 	if event is InputEventJoypadButton:
 		return (event as InputEventJoypadButton).pressed
 	if event is InputEventJoypadMotion:
-		return absf((event as InputEventJoypadMotion).axis_value) > 0.0
+		return absf((event as InputEventJoypadMotion).axis_value) >= active_player_axis_threshold
 	return true
 
 
@@ -495,10 +515,19 @@ func _set_active_player(player_index: int) -> void:
 	active_player_changed.emit(active_player_index)
 
 
+func _should_enforce_unique_device(assignment: GFInputDeviceAssignment) -> bool:
+	if assignment == null:
+		return false
+	if assignment.device_type == GFInputDeviceAssignment.DeviceType.AI and assignment.device_id < 0:
+		return false
+	return true
+
+
 func _on_joy_connection_changed(device: int, connected: bool) -> void:
 	if connected:
 		return
 
+	var changed := false
 	for index: int in range(_assignments.size() - 1, -1, -1):
 		var assignment := _assignments[index]
 		if (
@@ -506,5 +535,6 @@ func _on_joy_connection_changed(device: int, connected: bool) -> void:
 			and assignment.device_id == device
 		):
 			_assignments.remove_at(index)
-			assignments_changed.emit(get_assignments())
-			return
+			changed = true
+	if changed:
+		assignments_changed.emit(get_assignments())

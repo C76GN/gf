@@ -106,6 +106,28 @@ func test_start_level_emits_signal() -> void:
 	assert_signal_emitted(_level, "level_started", "开始关卡时应发出 level_started。")
 
 
+func test_start_level_signal_data_cannot_mutate_current_state() -> void:
+	_level.level_started.connect(func(_level_id: Variant, signal_payload: Dictionary) -> void:
+		signal_payload["moves"] = 0
+	)
+
+	var data: Dictionary = _level.start_level(1)
+
+	assert_eq(data.get("moves"), 10, "返回数据应保持关卡配置值。")
+	assert_eq(_level.current_level_data.get("moves"), 10, "信号监听者不应通过 Dictionary 引用污染 current_level_data。")
+
+
+func test_strict_start_level_rejects_missing_data() -> void:
+	_config.records.clear()
+	_level.fail_on_missing_level_data = true
+
+	var data: Dictionary = _level.start_level(&"missing")
+
+	assert_true(data.is_empty(), "严格模式下缺失关卡数据应返回空字典。")
+	assert_null(_level.current_level_id, "严格模式下缺失关卡不应更新 current_level_id。")
+	assert_push_error("[GFLevelUtility] 找不到关卡数据：missing")
+
+
 func test_restart_level_clears_runtime_and_emits_signal() -> void:
 	var command := TestCommand.new()
 	_history.record(command)

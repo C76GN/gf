@@ -1,4 +1,4 @@
-## 测试 GFMoveTweenAction、GFFlashAction 与 GFAudioAction 的基础行为。
+## 测试 GFMoveTweenAction、GFFlashAction、GFAudioAction 与 GFTweenActionStep 的基础行为。
 extends GutTest
 
 
@@ -7,6 +7,7 @@ const GF_FLASH_ACTION := preload("res://addons/gf/extensions/action_queue/gf_fla
 const GF_AUDIO_ACTION := preload("res://addons/gf/extensions/action_queue/gf_audio_action.gd")
 const GF_CONFIGURED_TWEEN_ACTION := preload("res://addons/gf/extensions/action_queue/gf_configured_tween_action.gd")
 const GF_TWEEN_ACTION_CONFIG := preload("res://addons/gf/extensions/action_queue/gf_tween_action_config.gd")
+const GFTWEEN_ACTION_STEP := preload("res://addons/gf/extensions/action_queue/gf_tween_action_step.gd")
 
 
 class TestAudioUtility:
@@ -109,6 +110,75 @@ func test_configured_tween_action_waits_for_timed_steps() -> void:
 	await action.await_result_safely(result)
 	assert_almost_eq(node.position.x, 16.0, 0.01, "配置化 Tween 完成后应写入 x。")
 	assert_almost_eq(node.position.y, 4.0, 0.01, "配置化 Tween 完成后应写入 y。")
+
+
+func test_tween_action_step_apply_instant_relative_vector2() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	node.position = Vector2(10.0, 20.0)
+	var step := GFTWEEN_ACTION_STEP.new() as GFTweenActionStep
+	step.property_name = ^"position"
+	step.target_value = Vector2(1.0, 2.0)
+	step.as_relative = true
+	step.apply_instant(node)
+	assert_eq(node.position, Vector2(11.0, 22.0), "相对 Vector2 应与当前位置相加。")
+
+
+func test_tween_action_step_apply_instant_relative_rotation_scalar() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	node.rotation = 1.0
+	var step := GFTWEEN_ACTION_STEP.new() as GFTweenActionStep
+	step.property_name = ^"rotation"
+	step.target_value = 0.5
+	step.as_relative = true
+	step.apply_instant(node)
+	assert_almost_eq(node.rotation, 1.5, 0.0001, "相对浮点属性应与当前值相加。")
+
+
+func test_tween_action_step_duplicate_step_preserves_exported_fields() -> void:
+	var step := GFTWEEN_ACTION_STEP.new() as GFTweenActionStep
+	step.property_name = ^"modulate"
+	step.target_value = Color.RED
+	step.duration = 0.5
+	step.delay = 0.1
+	step.as_relative = true
+	step.parallel = true
+	step.transition_type = Tween.TRANS_LINEAR
+	step.ease_type = Tween.EASE_IN_OUT
+	var dup := step.duplicate_step()
+	assert_ne(dup, step, "duplicate_step 应创建新 Resource。")
+	assert_eq(dup.property_name, step.property_name)
+	assert_eq(dup.target_value, step.target_value)
+	assert_eq(dup.duration, 0.5)
+	assert_eq(dup.delay, 0.1)
+	assert_true(dup.as_relative)
+	assert_true(dup.parallel)
+	assert_eq(dup.transition_type, Tween.TRANS_LINEAR)
+	assert_eq(dup.ease_type, Tween.EASE_IN_OUT)
+
+
+func test_tween_action_step_rejects_relative_type_mismatch() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	var step := GFTWEEN_ACTION_STEP.new() as GFTweenActionStep
+	step.property_name = ^"position"
+	step.target_value = 5
+	step.as_relative = true
+	assert_false(step.can_apply_to(node), "position 为 Vector2 时不应与标量 target 做相对相加。")
+	assert_true(
+		step.get_validation_error(node).contains("Relative"),
+		"校验错误应提示相对值类型不兼容。"
+	)
+
+
+func test_tween_action_step_append_to_tween_returns_null_for_null_tween() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	var step := GFTWEEN_ACTION_STEP.new() as GFTweenActionStep
+	step.property_name = ^"position"
+	step.target_value = Vector2.ZERO
+	assert_null(step.append_to_tween(null, node), "Tween 为 null 时应安全返回 null。")
 
 
 func test_flash_action_restores_modulate() -> void:

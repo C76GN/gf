@@ -33,7 +33,10 @@ func calculate_float(parameter: GFFormulaParameter = null, fallback: float = 0.0
 	if typeof(result) == TYPE_BOOL:
 		return 1.0 if result else 0.0
 	if typeof(result) == TYPE_STRING or typeof(result) == TYPE_STRING_NAME:
-		return String(result).to_float()
+		var text := String(result).strip_edges()
+		if text.is_valid_float():
+			return text.to_float()
+		return fallback
 	return fallback
 
 
@@ -62,4 +65,3 @@ func calculate_bool(parameter: GFFormulaParameter = null, fallback: bool = false
 		if text == "false" or text == "no" or text == "0":
 			return false
 	return fallback
-

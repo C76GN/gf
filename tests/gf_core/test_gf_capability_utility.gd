@@ -183,6 +183,20 @@ func test_add_and_get_capability() -> void:
 	assert_eq(capability.added_receiver, receiver, "挂载后应调用 added hook。")
 
 
+func test_same_capability_instance_cannot_attach_to_multiple_receivers() -> void:
+	var receiver_a := RefCounted.new()
+	var receiver_b := RefCounted.new()
+	var capability := HealthCapability.new()
+
+	var first: Object = _utility.add_capability_instance(receiver_a, capability, HealthCapability)
+	var second: Object = _utility.add_capability_instance(receiver_b, capability, HealthCapability)
+
+	assert_eq(first, capability, "能力实例应能挂载到第一个 receiver。")
+	assert_null(second, "同一个能力实例不应挂载到第二个 receiver。")
+	assert_false(_utility.has_capability(receiver_b, HealthCapability), "第二个 receiver 不应留下能力记录。")
+	assert_push_error("[GFCapabilityUtility] 同一个能力实例不能挂载到多个 receiver。")
+
+
 func test_required_capabilities_are_created_first() -> void:
 	var receiver := RefCounted.new()
 
@@ -274,6 +288,24 @@ func test_node_capability_is_attached_to_container() -> void:
 	await get_tree().process_frame
 
 
+func test_removing_last_node_capability_cleans_generated_container() -> void:
+	var receiver := Node.new()
+	add_child(receiver)
+
+	var capability := _utility.add_capability(receiver, CapabilityNode) as CapabilityNode
+	await get_tree().process_frame
+	var container := capability.get_parent()
+
+	_utility.remove_capability(receiver, CapabilityNode)
+	await get_tree().process_frame
+
+	assert_false(_utility.has_capability(receiver, CapabilityNode), "移除 Node 能力后 receiver 不应保留能力。")
+	assert_false(is_instance_valid(container), "自动生成的空能力容器应被释放。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_node2d_capability_uses_node2d_container() -> void:
 	var receiver := Node2D.new()
 	add_child(receiver)
@@ -360,6 +392,27 @@ func test_scene_container_registers_child_capabilities() -> void:
 	await get_tree().process_frame
 
 
+func test_scene_container_unregisters_children_when_removed() -> void:
+	var receiver := Node.new()
+	var container := Node.new()
+	container.set_script(GF_CAPABILITY_CONTAINER_BASE)
+	var child_capability := CapabilityNode.new()
+	container.add_child(child_capability)
+	receiver.add_child(container)
+	add_child(receiver)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	receiver.remove_child(container)
+	await get_tree().process_frame
+
+	assert_false(_utility.has_capability(receiver, CapabilityNode), "场景容器离树时应注销已注册子能力。")
+
+	container.queue_free()
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_add_scene_capability_frees_ignored_duplicate_instance() -> void:
 	var receiver := Node.new()
 	add_child(receiver)
@@ -425,6 +478,23 @@ func test_node_capability_active_state_disables_processing() -> void:
 
 	assert_true(capability.active, "Node 能力重新启用后 active 属性应恢复。")
 	assert_eq(capability.process_mode, original_process_mode, "Node 能力重新启用后应恢复原 process_mode。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_node_capability_active_restore_preserves_runtime_process_mode_change() -> void:
+	var receiver := Node.new()
+	add_child(receiver)
+
+	var capability := _utility.add_capability(receiver, ActiveNodeCapability) as ActiveNodeCapability
+	await get_tree().process_frame
+
+	_utility.set_capability_active(receiver, ActiveNodeCapability, false)
+	capability.process_mode = Node.PROCESS_MODE_ALWAYS
+	_utility.set_capability_active(receiver, ActiveNodeCapability, true)
+
+	assert_eq(capability.process_mode, Node.PROCESS_MODE_ALWAYS, "停用期间项目层修改 process_mode 时，重新启用不应覆盖该修改。")
 
 	receiver.queue_free()
 	await get_tree().process_frame

@@ -486,9 +486,10 @@ func _rebuild_effective_entries() -> void:
 					"key": _make_binding_key(context_id, action_id, index),
 				})
 
-			_actions[action_id] = mapping.action
-			_action_modifiers[action_id] = _duplicate_modifiers(mapping.modifiers)
-			_action_triggers[action_id] = _duplicate_triggers(mapping.triggers)
+			if not _actions.has(action_id):
+				_actions[action_id] = mapping.action
+				_action_modifiers[action_id] = _duplicate_modifiers(mapping.modifiers)
+				_action_triggers[action_id] = _duplicate_triggers(mapping.triggers)
 			_effective_entries.append({
 				"context": context,
 				"mapping": mapping,

@@ -10,6 +10,7 @@ var _console: GFConsoleUtility
 
 func before_each() -> void:
 	_console = GFConsoleUtility.new()
+	_console.debug_only = false
 	_console.init()
 	await get_tree().process_frame
 
@@ -117,6 +118,34 @@ func test_execute_command_passes_args() -> void:
 	assert_eq(captured_args[1], "world", "第二个参数应为 world。")
 
 
+func test_execute_command_supports_quotes_and_escapes() -> void:
+	var captured_args := PackedStringArray()
+	var cb := func(args: PackedStringArray) -> void:
+		for a: String in args:
+			captured_args.append(a)
+
+	_console.register_command("echo", cb, "回显参数。")
+	_console.execute_command("echo \"red potion\" path\\ with\\ spaces ''")
+
+	assert_eq(captured_args, PackedStringArray(["red potion", "path with spaces", ""]), "命令解析应支持引号、转义空格和空字符串参数。")
+
+
+func test_danger_command_requires_tier_and_confirmation() -> void:
+	var called := { "count": 0, "args": PackedStringArray() }
+	var cb := func(args: PackedStringArray) -> void:
+		called["count"] += 1
+		called["args"] = args
+
+	_console.register_command("wipe", cb, "危险指令。", { "tier": GFConsoleUtility.CommandTier.DANGER })
+
+	assert_false(_console.execute_command("wipe"), "默认最高 CONTROL 时不应执行 DANGER 指令。")
+	_console.max_command_tier = GFConsoleUtility.CommandTier.DANGER
+	assert_false(_console.execute_command("wipe"), "DANGER 指令缺少确认参数时不应执行。")
+	assert_true(_console.execute_command("wipe --confirm slot_1"), "DANGER 指令带确认参数后应执行。")
+	assert_eq(called["count"], 1, "危险指令只应成功执行一次。")
+	assert_eq(called["args"], PackedStringArray(["slot_1"]), "确认参数不应传入业务回调。")
+
+
 func test_register_command_definition_registers_aliases() -> void:
 	var definition := GFConsoleCommandDefinitionBase.new()
 	definition.command_name = "primary"
@@ -170,6 +199,26 @@ func test_console_output_batches_until_flush() -> void:
 	assert_eq(_console._console_gui._output_lines[0], "batched", "flush 后应保留待输出内容。")
 
 
+func test_console_escapes_log_bbcode_and_handles_negative_level() -> void:
+	_console._on_log_emitted(-1, "[tag]", "[b]message[/b]")
+	_console._console_gui.flush_output()
+	var line := String(_console._console_gui._output_lines[0])
+
+	assert_true(line.contains("UNKNOWN"), "非法日志等级应显示为 UNKNOWN。")
+	assert_false(line.contains("[b]message[/b]"), "日志正文中的 BBCode 不应被原样注入 RichText。")
+	assert_false(line.contains("[tag]"), "日志标签中的 BBCode 不应被原样注入 RichText。")
+
+
+func test_console_history_keeps_max_entries() -> void:
+	_console._console_gui.max_history_size = 2
+
+	_console._console_gui._on_input_submitted("one")
+	_console._console_gui._on_input_submitted("two")
+	_console._console_gui._on_input_submitted("three")
+
+	assert_eq(_console._console_gui._command_history, PackedStringArray(["two", "three"]), "命令历史应按上限裁剪。")
+
+
 func test_console_background_alpha_updates_gui() -> void:
 	_console.background_alpha = 0.42
 
@@ -200,6 +249,12 @@ func test_console_keep_topmost_updates_layer() -> void:
 
 	_console.keep_topmost = true
 	assert_eq(_console._console_gui.layer, 150, "开启 keep_topmost 后应使用高层级。")
+
+
+func test_console_is_debug_only_by_default() -> void:
+	var console := GFConsoleUtility.new()
+
+	assert_true(console.debug_only, "控制台默认应只在 debug 构建启用。")
 
 
 func test_dispose_disconnects_log_signal() -> void:

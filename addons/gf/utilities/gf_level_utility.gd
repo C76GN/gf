@@ -42,6 +42,9 @@ var current_level_data: Dictionary = {}
 ## 可选关卡目录资源。
 var catalog: GFLevelCatalog = null
 
+## 为 true 时，找不到关卡数据会拒绝启动或重开当前关卡。
+var fail_on_missing_level_data: bool = false
+
 
 # --- 私有变量 ---
 
@@ -134,10 +137,16 @@ func load_level_data(level_id: Variant) -> Dictionary:
 ## @param level_data_override: 可选的外部数据覆盖；为空时从配置表读取。
 ## @return 当前关卡数据副本。
 func start_level(level_id: Variant, level_data_override: Dictionary = {}) -> Dictionary:
+	var next_override := level_data_override.duplicate(true)
+	var next_data := next_override.duplicate(true) if not next_override.is_empty() else load_level_data(level_id)
+	if fail_on_missing_level_data and next_data.is_empty():
+		push_error("[GFLevelUtility] 找不到关卡数据：%s" % String(level_id))
+		return {}
+
 	current_level_id = level_id
-	_current_level_override = level_data_override.duplicate(true)
-	current_level_data = _resolve_level_data(level_id)
-	level_started.emit(current_level_id, current_level_data)
+	_current_level_override = next_override
+	current_level_data = next_data
+	level_started.emit(current_level_id, current_level_data.duplicate(true))
 	return current_level_data.duplicate(true)
 
 
@@ -151,8 +160,13 @@ func restart_level(clear_runtime: bool = true) -> Dictionary:
 	if clear_runtime:
 		clear_level_runtime()
 
-	current_level_data = _resolve_level_data(current_level_id)
-	level_restarted.emit(current_level_id, current_level_data)
+	var next_data := _resolve_level_data(current_level_id)
+	if fail_on_missing_level_data and next_data.is_empty():
+		push_error("[GFLevelUtility] 找不到关卡数据：%s" % String(current_level_id))
+		return {}
+
+	current_level_data = next_data
+	level_restarted.emit(current_level_id, current_level_data.duplicate(true))
 	return current_level_data.duplicate(true)
 
 

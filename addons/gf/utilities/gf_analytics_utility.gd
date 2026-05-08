@@ -324,11 +324,18 @@ func _finish_flush(result: Dictionary, batch: Array) -> void:
 	if not success:
 		for index: int in range(batch.size() - 1, -1, -1):
 			_queue.push_front(batch[index])
+		_trim_queue_to_max_size()
 		flush_failed.emit(result)
 
 	_pending_batch.clear()
 	_is_flushing = false
 	flush_completed.emit(result)
+
+
+func _trim_queue_to_max_size() -> void:
+	var max_queue_size := _get_max_queue_size()
+	while _queue.size() > max_queue_size:
+		_queue.pop_back()
 
 
 func _generate_id() -> String:

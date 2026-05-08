@@ -7,6 +7,12 @@ class_name GFThumbnailRenderer
 extends Node
 
 
+# --- 公共变量 ---
+
+## 请求取消正在进行的 MeshLibrary 批量预览生成。
+var cancel_preview_generation: bool = false
+
+
 # --- 私有变量 ---
 
 var _viewport: SubViewport
@@ -52,7 +58,7 @@ func render_node3d(source: Node3D, size: Vector2i = Vector2i(256, 256), transpar
 
 	_world_root.add_child(instance)
 	_prepare_instance(instance)
-	_render_prepare(size, transparent, _get_combined_aabb(instance))
+	_render_prepare(_normalize_render_size(size), transparent, _get_combined_aabb(instance))
 
 	await RenderingServer.frame_post_draw
 	return _viewport.get_texture().get_image()
@@ -119,10 +125,14 @@ func render_mesh_library_previews(
 	if mesh_library == null:
 		return 0
 
+	cancel_preview_generation = false
+	var safe_size := _normalize_render_size(size)
 	var generated_count := 0
 	var was_blocking := mesh_library.is_blocking_signals()
 	mesh_library.set_block_signals(true)
 	for item_id: int in mesh_library.get_item_list():
+		if cancel_preview_generation:
+			break
 		if not overwrite_existing and mesh_library.get_item_preview(item_id) != null:
 			continue
 
@@ -130,11 +140,12 @@ func render_mesh_library_previews(
 		if mesh == null:
 			continue
 
-		var texture: ImageTexture = await render_mesh_texture(mesh, size, true)
+		var texture: ImageTexture = await render_mesh_texture(mesh, safe_size, true)
 		if texture != null:
 			mesh_library.set_item_preview(item_id, texture)
 			generated_count += 1
 
+	cancel_preview_generation = false
 	mesh_library.set_block_signals(was_blocking)
 	if generated_count > 0:
 		mesh_library.emit_changed()
@@ -211,6 +222,10 @@ func _render_prepare(size: Vector2i, transparent: bool, bounds: AABB) -> void:
 	_camera.size = _calculate_orthographic_size_for_aabb(bounds, _camera) * 1.08
 	_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	RenderingServer.force_draw()
+
+
+func _normalize_render_size(size: Vector2i) -> Vector2i:
+	return Vector2i(maxi(size.x, 1), maxi(size.y, 1))
 
 
 func _get_combined_aabb(root: Node) -> AABB:

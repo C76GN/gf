@@ -34,6 +34,9 @@ var max_executed_nodes: int = 1024
 ## Signal 等待超时时间。小于等于 0 表示不启用超时。
 var signal_timeout_seconds: float = 30.0
 
+## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
+var signal_timeout_respects_time_scale: bool = true
+
 
 # --- 私有变量 ---
 
@@ -81,10 +84,12 @@ func cancel() -> void:
 
 
 ## 设置 Signal 等待超时时间。
-## @param seconds: 秒数。
+## @param seconds: 秒数；小于等于 0 时表示不启用超时。
+## @param respect_time_scale: 是否跟随 GFTimeUtility 的暂停与 time_scale。
 ## @return 当前执行器。
-func with_signal_timeout(seconds: float) -> GFFlowRunner:
+func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFFlowRunner:
 	signal_timeout_seconds = maxf(seconds, 0.0)
+	signal_timeout_respects_time_scale = respect_time_scale
 	return self
 
 
@@ -149,7 +154,7 @@ func _await_signal_safely(result_signal: Signal) -> void:
 	while not completed[0] and not _cancel_requested:
 		var current_timeout_msec := Time.get_ticks_msec()
 		if timeout_msec > 0.0:
-			elapsed_timeout_msec += float(current_timeout_msec - last_timeout_msec)
+			elapsed_timeout_msec += _get_timeout_elapsed_msec(last_timeout_msec, current_timeout_msec)
 			if elapsed_timeout_msec >= timeout_msec:
 				push_warning("[GFFlowRunner] 等待 Signal 超时，流程将继续执行后续节点。")
 				break
@@ -162,6 +167,26 @@ func _await_signal_safely(result_signal: Signal) -> void:
 
 	_disconnect_signal_if_connected(result_signal, on_resume)
 	_disconnect_signal_if_connected(tree_exit_signal, on_resume)
+
+
+func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
+	var elapsed_msec := float(current_msec - previous_msec)
+	if not signal_timeout_respects_time_scale:
+		return elapsed_msec
+
+	var time_utility := _get_time_utility()
+	if time_utility == null:
+		return elapsed_msec
+	if time_utility.is_paused:
+		return 0.0
+	return elapsed_msec * time_utility.time_scale
+
+
+func _get_time_utility() -> GFTimeUtility:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
 
 
 func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:

@@ -43,3 +43,28 @@ func test_notification_suppresses_duplicates() -> void:
 
 	assert_eq(second_id, first_id, "同 key 通知应返回已有通知 id。")
 	assert_eq(notifications.get_queue().size(), 0, "重复通知不应进入等待队列。")
+
+
+## 验证显式 key 不会因为正文相同而误去重。
+func test_notification_different_keys_allow_same_message() -> void:
+	var notifications := GFNotificationUtilityBase.new()
+
+	var first_id := notifications.push_notification("Saved", "", GFNotificationUtilityBase.Level.INFO, { "key": "settings" })
+	var second_id := notifications.push_notification("Saved", "", GFNotificationUtilityBase.Level.INFO, { "key": "profile" })
+
+	assert_ne(second_id, first_id, "不同 key 的相同正文通知不应被去重。")
+	assert_eq(notifications.get_queue().size(), 1, "第二条通知应进入等待队列。")
+
+
+## 验证 0 队列容量只保留当前通知。
+func test_notification_zero_queue_size_drops_waiting_notifications() -> void:
+	var notifications := GFNotificationUtilityBase.new()
+	notifications.max_queue_size = 0
+	watch_signals(notifications)
+
+	notifications.push_notification("Active", "", GFNotificationUtilityBase.Level.INFO, { "duration_seconds": 1.0 })
+	notifications.push_notification("Dropped", "", GFNotificationUtilityBase.Level.INFO, { "duration_seconds": 1.0 })
+
+	assert_eq(notifications.get_active_notification().get("message"), "Active", "0 队列容量仍应允许当前通知展示。")
+	assert_eq(notifications.get_queue().size(), 0, "0 队列容量不应保留等待通知。")
+	assert_signal_emitted(notifications, "notification_finished", "被丢弃通知应发出 finished 信号。")

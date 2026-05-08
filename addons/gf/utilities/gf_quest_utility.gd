@@ -23,6 +23,12 @@ signal quest_progressed(quest_id: StringName, current: int, target: int)
 signal quest_completed(quest_id: StringName)
 
 
+# --- 公共变量 ---
+
+## 是否允许事件传入负数进度。默认关闭，避免任务进度被异常 payload 反向扣减。
+var allow_negative_progress: bool = false
+
+
 # --- 私有变量 ---
 
 ## 任务表：`quest_id -> QuestData`。
@@ -56,6 +62,10 @@ func dispose() -> void:
 ## @param target_event: 推进该任务的事件 ID。
 ## @param target_count: 完成任务所需的累计次数。
 func start_quest(quest_id: StringName, target_event: StringName, target_count: int = 1) -> void:
+	if quest_id == &"" or target_event == &"":
+		push_error("[GFQuestUtility] quest_id 和 target_event 不能为空。")
+		return
+
 	if _quests.has(quest_id):
 		push_warning("[GFQuestUtility] 任务已存在：%s" % quest_id)
 		return
@@ -126,6 +136,8 @@ func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
 		return
 
 	var amount := _payload_to_amount(payload)
+	if not allow_negative_progress:
+		amount = maxi(amount, 0)
 
 	var list: Array = (_event_to_quests[event_id] as Array).duplicate()
 	for quest_id: StringName in list:

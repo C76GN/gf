@@ -99,6 +99,62 @@ func test_fetch_json_parses_data() -> void:
 	assert_eq(int((results[0]["data"] as Dictionary)["value"]), 3, "JSON 内容应被解析到 data。")
 
 
+func test_invalid_json_response_is_not_written_to_cache() -> void:
+	var results: Array[Dictionary] = []
+	_cache.responses.append({
+		"success": true,
+		"response_code": 200,
+		"content": "{invalid",
+	})
+
+	_cache.fetch_json("https://example.test/bad_json", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	await get_tree().process_frame
+
+	_cache.responses.append({
+		"success": true,
+		"response_code": 200,
+		"content": "{\"value\":4}",
+	})
+	_cache.fetch_json("https://example.test/bad_json", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	await get_tree().process_frame
+
+	assert_eq(_cache.request_count, 2, "无效 JSON 不应写入缓存并阻止后续刷新。")
+	assert_false(bool(results[0]["success"]), "无效 JSON 应返回失败。")
+	assert_true(bool(results[1]["success"]), "后续合法 JSON 应可成功返回。")
+	assert_eq(int((results[1]["data"] as Dictionary)["value"]), 4, "合法 JSON 应被解析。")
+
+
+func test_cache_key_separates_text_and_json_for_same_url() -> void:
+	var results: Array[Dictionary] = []
+	_cache.responses.append({
+		"success": true,
+		"response_code": 200,
+		"content": "plain",
+	})
+	_cache.responses.append({
+		"success": true,
+		"response_code": 200,
+		"content": "{\"value\":5}",
+	})
+
+	_cache.fetch_text("https://example.test/shared", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	await get_tree().process_frame
+	_cache.fetch_json("https://example.test/shared", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	await get_tree().process_frame
+
+	assert_eq(_cache.request_count, 2, "同 URL 的 text/json 缓存不应串用。")
+	assert_eq(results[0]["content"], "plain", "文本缓存应保留原始文本。")
+	assert_eq(int((results[1]["data"] as Dictionary)["value"]), 5, "JSON 请求应读取独立响应。")
+
+
 func test_failed_refresh_uses_stale_cache() -> void:
 	var results: Array[Dictionary] = []
 	_cache.responses.append({
@@ -126,3 +182,67 @@ func test_failed_refresh_uses_stale_cache() -> void:
 	assert_true(bool(results[1]["from_cache"]), "刷新失败回退结果应来自缓存。")
 	assert_true(bool(results[1]["stale"]), "刷新失败回退结果应标记为陈旧缓存。")
 	assert_eq(results[1]["content"], "old", "刷新失败应返回此前缓存内容。")
+
+
+func test_same_cache_key_requests_are_coalesced() -> void:
+	var results: Array[Dictionary] = []
+	_cache.responses.append({
+		"success": true,
+		"response_code": 200,
+		"content": "shared",
+	})
+
+	_cache.fetch_text("https://example.test/coalesced", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	_cache.fetch_text("https://example.test/coalesced", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	await get_tree().process_frame
+
+	assert_eq(_cache.request_count, 1, "相同缓存 key 的并发请求应合并为一次 HTTP。")
+	assert_eq(results.size(), 2, "合并请求仍应回调所有调用方。")
+	assert_eq(results[0]["content"], "shared", "合并请求应共享同一结果。")
+
+
+func test_pending_request_limit_rejects_excess_requests() -> void:
+	var results: Array[Dictionary] = []
+	_cache.max_pending_requests = 1
+	_cache.responses.append({ "success": true, "response_code": 200, "content": "a" })
+	_cache.responses.append({ "success": true, "response_code": 200, "content": "b" })
+
+	_cache.fetch_text("https://example.test/a", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	_cache.fetch_text("https://example.test/b", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	_cache.fetch_text("https://example.test/c", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+
+	assert_eq(results.size(), 1, "超过 pending 上限的请求应立即回调失败。")
+	assert_false(bool(results[0]["success"]), "超过 pending 上限的请求应失败。")
+	assert_eq(results[0]["error"], "Pending request limit exceeded", "失败原因应明确。")
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+
+func test_cancel_drops_pending_request_without_callback() -> void:
+	var results: Array[Dictionary] = []
+	_cache.responses.append({ "success": true, "response_code": 200, "content": "a" })
+	_cache.responses.append({ "success": true, "response_code": 200, "content": "b" })
+
+	_cache.fetch_text("https://example.test/active", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	_cache.fetch_text("https://example.test/pending", func(result: Dictionary) -> void:
+		results.append(result)
+	)
+	var cancelled := _cache.cancel("https://example.test/pending")
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(cancelled, 1, "取消 pending 请求应返回取消数量。")
+	assert_eq(results.size(), 1, "被取消的 pending 请求不应触发回调。")
+	assert_eq(results[0]["content"], "a", "未取消的 active 请求应正常完成。")

@@ -61,6 +61,20 @@ func test_prune_invalid_receiver_releases_stale_reservation() -> void:
 	assert_false(grid.is_cell_reserved(cell), "对象释放后预约应能被清理。")
 
 
+func test_prune_invalid_receiver_emits_cell_released() -> void:
+	var grid := GFGridOccupancy.new(Vector2i(2, 2))
+	var actor := Node.new()
+	var cell := Vector2i(1, 0)
+	watch_signals(grid)
+
+	assert_true(grid.occupy(actor, cell), "应能占用格子。")
+	actor.free()
+	grid.prune_invalid_receivers()
+
+	assert_false(grid.is_cell_occupied(cell), "对象释放后占用应能被清理。")
+	assert_signal_emitted(grid, "cell_released", "清理失效对象时也应通知格子释放。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_object() -> Object:

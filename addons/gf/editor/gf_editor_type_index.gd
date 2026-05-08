@@ -52,7 +52,12 @@ func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Scri
 ## 收集根脚本继承指定基类的场景。
 ## @param base_script: 要匹配的基类脚本。
 ## @param used_paths: 已使用的资源路径集合。
-func collect_scene_roots_extending(base_script: Script, used_paths: Dictionary = {}) -> Array[Dictionary]:
+## @param root_paths: 可选扫描根路径；为空时扫描整个资源树。
+func collect_scene_roots_extending(
+	base_script: Script,
+	used_paths: Dictionary = {},
+	root_paths: PackedStringArray = PackedStringArray()
+) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	if base_script == null or not Engine.is_editor_hint():
 		return records
@@ -77,6 +82,8 @@ func collect_scene_roots_extending(base_script: Script, used_paths: Dictionary =
 
 			var path := _join_resource_path(current_dir.get_path(), current_dir.get_file(i))
 			if used_paths.has(path):
+				continue
+			if not _path_matches_roots(path, root_paths):
 				continue
 
 			var script := get_scene_root_script(path)
@@ -147,6 +154,19 @@ func _join_resource_path(dir_path: String, file_name: String) -> String:
 	if dir_path.ends_with("/"):
 		return dir_path + file_name
 	return "%s/%s" % [dir_path, file_name]
+
+
+func _path_matches_roots(path: String, root_paths: PackedStringArray) -> bool:
+	if root_paths.is_empty():
+		return true
+
+	for root_path: String in root_paths:
+		var normalized_root := root_path
+		if not normalized_root.ends_with("/"):
+			normalized_root += "/"
+		if path == root_path or path.begins_with(normalized_root):
+			return true
+	return false
 
 
 func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:

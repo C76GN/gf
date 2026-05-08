@@ -515,3 +515,14 @@ func test_debug_snapshot_reports_queue_and_named_queue_state() -> void:
 	assert_eq(int(snapshot["queued_count"]), 1, "快照应报告主队列待执行数量。")
 	assert_eq(int(snapshot["named_queue_count"]), 1, "快照应报告命名队列数量。")
 	assert_eq(int(named_snapshot["queued_count"]), 1, "命名队列快照应报告自身待执行数量。")
+
+
+func test_tween_action_step_reports_invalid_property() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	var step := GFTweenActionStep.new()
+	step.property_name = ^"missing_property"
+	step.target_value = Vector2.ONE
+
+	assert_false(step.can_apply_to(node), "不存在的属性不应通过配置校验。")
+	assert_true(step.get_validation_error(node).contains("Property not found"), "校验错误应指出缺失属性。")

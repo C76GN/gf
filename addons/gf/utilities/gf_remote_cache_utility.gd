@@ -29,6 +29,12 @@ var timeout_seconds: float = 20.0
 ## 最大缓存条目数，超过后会按修改时间清理最旧条目。
 var max_cache_entries: int = 128
 
+## 最大等待队列长度。小于等于 0 表示不限制。
+var max_pending_requests: int = 64
+
+## 自定义缓存 key 构造器。签名为 `func(url: String, headers: PackedStringArray, format: StringName) -> String`。
+var cache_key_builder: Callable = Callable()
+
 
 # --- 私有变量 ---
 
@@ -89,11 +95,18 @@ func fetch_json(
 ## 判断 URL 当前是否存在有效缓存。
 ## @param url: 远程资源 URL。
 ## @param ttl_seconds: 缓存有效期（秒）。
-func has_valid_cache(url: String, ttl_seconds: int = -1) -> bool:
+## @param headers: HTTP 请求头。
+## @param format: 缓存格式标识。
+func has_valid_cache(
+	url: String,
+	ttl_seconds: int = -1,
+	headers: PackedStringArray = PackedStringArray(),
+	format: StringName = &"text"
+) -> bool:
 	if url.is_empty():
 		return false
 
-	var path := _get_cache_path(url)
+	var path := _get_cache_path(_build_cache_key(url, headers, format))
 	if not FileAccess.file_exists(path):
 		return false
 
@@ -109,19 +122,57 @@ func has_valid_cache(url: String, ttl_seconds: int = -1) -> bool:
 ## 读取有效文本缓存；不存在或过期时返回空字符串。
 ## @param url: 远程资源 URL。
 ## @param ttl_seconds: 缓存有效期（秒）。
-func get_cached_text(url: String, ttl_seconds: int = -1) -> String:
-	if not has_valid_cache(url, ttl_seconds):
+## @param headers: HTTP 请求头。
+func get_cached_text(
+	url: String,
+	ttl_seconds: int = -1,
+	headers: PackedStringArray = PackedStringArray()
+) -> String:
+	if not has_valid_cache(url, ttl_seconds, headers, &"text"):
 		return ""
-	return _read_cache_text(url)
+	return _read_cache_text(_build_cache_key(url, headers, &"text"))
 
 
 ## 移除指定 URL 的缓存。
 ## @param url: 远程资源 URL。
-func remove_cache(url: String) -> Error:
-	var path := _get_cache_path(url)
+## @param headers: HTTP 请求头。
+## @param format: 缓存格式标识。
+func remove_cache(
+	url: String,
+	headers: PackedStringArray = PackedStringArray(),
+	format: StringName = &"text"
+) -> Error:
+	var path := _get_cache_path(_build_cache_key(url, headers, format))
 	if not FileAccess.file_exists(path):
 		return OK
 	return DirAccess.remove_absolute(path)
+
+
+## 取消匹配 URL、headers 与 format 的等待或进行中请求，返回取消数量。
+## @param url: 远程资源 URL。
+## @param headers: HTTP 请求头。
+## @param format: 缓存格式标识。
+func cancel(
+	url: String,
+	headers: PackedStringArray = PackedStringArray(),
+	format: StringName = &"text"
+) -> int:
+	if url.is_empty():
+		return 0
+
+	return _cancel_by_cache_key(_build_cache_key(url, headers, format))
+
+
+## 取消所有等待或进行中请求，返回取消数量。
+func cancel_all() -> int:
+	var cancelled := _pending_requests.size()
+	_pending_requests.clear()
+	if not _active_request.is_empty():
+		cancelled += _get_request_callbacks(_active_request).size()
+		_cancel_http_request()
+		_active_request.clear()
+	_process_next_request()
+	return cancelled
 
 
 ## 清空当前缓存目录。
@@ -149,8 +200,10 @@ func get_debug_snapshot() -> Dictionary:
 		"default_ttl_seconds": default_ttl_seconds,
 		"timeout_seconds": timeout_seconds,
 		"max_cache_entries": max_cache_entries,
+		"max_pending_requests": max_pending_requests,
 		"pending_count": _pending_requests.size(),
 		"active_url": String(_active_request.get("url", "")),
+		"active_cache_key": String(_active_request.get("cache_key", "")),
 		"has_active_request": not _active_request.is_empty(),
 	}
 
@@ -170,17 +223,26 @@ func _queue_fetch(
 		return
 
 	var ttl := _resolve_ttl(ttl_seconds)
-	if not force_refresh and has_valid_cache(url, ttl):
-		var cached_result := _build_success(url, _read_cache_text(url), true, false, 200, format)
+	var cache_key := _build_cache_key(url, headers, format)
+	if not force_refresh and _has_valid_cache_key(cache_key, ttl):
+		var cached_result := _build_success(url, _read_cache_text(cache_key), true, false, 200, format)
 		_finish_immediate(callback, cached_result)
+		return
+
+	if _append_callback_to_existing_request(cache_key, callback):
+		return
+
+	if max_pending_requests > 0 and _pending_requests.size() >= max_pending_requests:
+		_finish_immediate(callback, _build_failure(url, 0, "Pending request limit exceeded"))
 		return
 
 	_pending_requests.append({
 		"url": url,
-		"callback": callback,
+		"callbacks": [callback],
 		"ttl_seconds": ttl,
 		"headers": headers,
 		"format": format,
+		"cache_key": cache_key,
 	})
 	_process_next_request()
 
@@ -193,6 +255,46 @@ func _process_next_request() -> void:
 	var error := _start_http_request(_active_request)
 	if error != OK:
 		_complete_active_request(false, 0, "", "Request failed: %s" % error_string(error))
+
+
+func _append_callback_to_existing_request(cache_key: String, callback: Callable) -> bool:
+	if not _active_request.is_empty() and String(_active_request.get("cache_key", "")) == cache_key:
+		(_active_request["callbacks"] as Array).append(callback)
+		return true
+
+	for request_data: Dictionary in _pending_requests:
+		if String(request_data.get("cache_key", "")) == cache_key:
+			(request_data["callbacks"] as Array).append(callback)
+			return true
+	return false
+
+
+func _cancel_by_cache_key(cache_key: String) -> int:
+	var cancelled := 0
+	var next_pending: Array[Dictionary] = []
+	for request_data: Dictionary in _pending_requests:
+		if String(request_data.get("cache_key", "")) == cache_key:
+			cancelled += _get_request_callbacks(request_data).size()
+		else:
+			next_pending.append(request_data)
+	_pending_requests = next_pending
+
+	if not _active_request.is_empty() and String(_active_request.get("cache_key", "")) == cache_key:
+		cancelled += _get_request_callbacks(_active_request).size()
+		_cancel_http_request()
+		_active_request.clear()
+		_process_next_request()
+	return cancelled
+
+
+func _cancel_http_request() -> void:
+	if is_instance_valid(_http_request):
+		_http_request.cancel_request()
+
+
+func _get_request_callbacks(request_data: Dictionary) -> Array:
+	var callbacks: Variant = request_data.get("callbacks", [])
+	return callbacks as Array if callbacks is Array else []
 
 
 func _start_http_request(request_data: Dictionary) -> Error:
@@ -236,25 +338,36 @@ func _complete_active_request(
 
 	var url := String(request_data["url"])
 	var format := request_data["format"] as StringName
-	var callback := request_data["callback"] as Callable
+	var callbacks := _get_request_callbacks(request_data)
+	var cache_key := String(request_data["cache_key"])
 	var result: Dictionary
 
 	if success:
-		_write_cache_text(url, content)
 		result = _build_success(url, content, false, false, response_code, format)
+		if bool(result.get("success", false)):
+			_write_cache_text(cache_key, content)
+		elif _has_cache_file(cache_key):
+			var parse_error := String(result.get("error", ""))
+			result = _build_success(url, _read_cache_text(cache_key), true, true, response_code, format)
+			result["error"] = parse_error
 	else:
 		result = _build_failure(url, response_code, error)
-		if _has_cache_file(url):
-			result = _build_success(url, _read_cache_text(url), true, true, response_code, format)
+		if _has_cache_file(cache_key):
+			result = _build_success(url, _read_cache_text(cache_key), true, true, response_code, format)
 			result["error"] = error
 
-	_finish_immediate(callback, result)
+	_finish_callbacks(callbacks, result)
 	_process_next_request()
 
 
 func _finish_immediate(callback: Callable, result: Dictionary) -> void:
-	if callback.is_valid():
-		callback.call(result)
+	_finish_callbacks([callback], result)
+
+
+func _finish_callbacks(callbacks: Array, result: Dictionary) -> void:
+	for callback: Callable in callbacks:
+		if callback.is_valid():
+			callback.call(result)
 
 	var url := String(result.get("url", ""))
 	if bool(result.get("success", false)):
@@ -323,16 +436,42 @@ func _get_cache_dir_path() -> String:
 	return "user://%s" % cache_dir_name
 
 
-func _get_cache_path(url: String) -> String:
-	return "%s/%s.cache" % [_get_cache_dir_path(), url.md5_text()]
+func _build_cache_key(url: String, headers: PackedStringArray, format: StringName) -> String:
+	if cache_key_builder.is_valid():
+		return String(cache_key_builder.call(url, headers, format))
+
+	var sorted_headers := headers.duplicate()
+	sorted_headers.sort()
+	return JSON.stringify([String(format), url, sorted_headers])
 
 
-func _has_cache_file(url: String) -> bool:
-	return FileAccess.file_exists(_get_cache_path(url))
+func _get_cache_path(cache_key: String) -> String:
+	return "%s/%s.cache" % [_get_cache_dir_path(), cache_key.md5_text()]
 
 
-func _read_cache_text(url: String) -> String:
-	var file := FileAccess.open(_get_cache_path(url), FileAccess.READ)
+func _has_valid_cache_key(cache_key: String, ttl_seconds: int) -> bool:
+	if cache_key.is_empty():
+		return false
+
+	var path := _get_cache_path(cache_key)
+	if not FileAccess.file_exists(path):
+		return false
+
+	var ttl := _resolve_ttl(ttl_seconds)
+	if ttl <= 0:
+		return false
+
+	var modified_time := FileAccess.get_modified_time(path)
+	var now := int(Time.get_unix_time_from_system())
+	return now - modified_time <= ttl
+
+
+func _has_cache_file(cache_key: String) -> bool:
+	return FileAccess.file_exists(_get_cache_path(cache_key))
+
+
+func _read_cache_text(cache_key: String) -> String:
+	var file := FileAccess.open(_get_cache_path(cache_key), FileAccess.READ)
 	if file == null:
 		return ""
 
@@ -341,11 +480,11 @@ func _read_cache_text(url: String) -> String:
 	return content
 
 
-func _write_cache_text(url: String, content: String) -> void:
+func _write_cache_text(cache_key: String, content: String) -> void:
 	_ensure_cache_dir()
-	var file := FileAccess.open(_get_cache_path(url), FileAccess.WRITE)
+	var file := FileAccess.open(_get_cache_path(cache_key), FileAccess.WRITE)
 	if file == null:
-		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % url)
+		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
 		return
 
 	file.store_string(content)

@@ -82,7 +82,7 @@ func as_wait_for_signal() -> GFVisualAction:
 	return self
 
 
-## 请求取消动作。基础实现不做处理，复合动作可重写以停止内部等待。
+## 请求取消动作。基础实现不做处理；持有 Tween、Timer、信号连接或外部任务的自定义动作应重写。
 func cancel() -> void:
 	pass
 

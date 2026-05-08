@@ -69,6 +69,37 @@ func test_float_payload_amount_is_rounded() -> void:
 	assert_eq(q_data.current_count, 2, "float 进度载荷应四舍五入为最接近的整数。")
 
 
+func test_negative_payload_amount_is_ignored_by_default() -> void:
+	_quest.start_quest(&"hold_progress", &"progress_event", 3)
+
+	Gf.send_simple_event(&"progress_event", 2)
+	Gf.send_simple_event(&"progress_event", -5)
+
+	var q_data: Object = _quest._quests[&"hold_progress"]
+	assert_eq(q_data.current_count, 2, "默认不应允许负数 payload 反向扣减任务进度。")
+
+
+func test_negative_payload_amount_can_be_enabled() -> void:
+	_quest.allow_negative_progress = true
+	_quest.start_quest(&"decay_progress", &"progress_event", 3)
+
+	Gf.send_simple_event(&"progress_event", 2)
+	Gf.send_simple_event(&"progress_event", -1)
+
+	var q_data: Object = _quest._quests[&"decay_progress"]
+	assert_eq(q_data.current_count, 1, "显式开启后应允许负数 payload 调整进度。")
+
+
+func test_start_quest_rejects_empty_ids() -> void:
+	_quest.start_quest(&"", &"event", 1)
+	_quest.start_quest(&"quest", &"", 1)
+
+	assert_false(_quest._quests.has(&""), "空 quest_id 不应注册任务。")
+	assert_false(_quest._quests.has(&"quest"), "空 target_event 不应注册任务。")
+	assert_push_error("[GFQuestUtility] quest_id 和 target_event 不能为空。")
+	assert_push_error("[GFQuestUtility] quest_id 和 target_event 不能为空。")
+
+
 func test_deep_payload_amount_falls_back_without_recursion_overflow() -> void:
 	_quest.start_quest(&"nested_payload", &"nested_event", 3)
 	var payload: Variant = { "amount": 1 }

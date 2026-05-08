@@ -55,6 +55,9 @@ var file_format: GFStorageCodec.Format = GFStorageCodec.Format.JSON
 ## 是否压缩存档载荷。
 var use_compression: bool = false
 
+## JSON 读取时是否把接近整数的 float 归一为 int。Binary 格式不受影响。
+var normalize_json_numbers: bool = true
+
 ## 是否写入并校验 SHA-256 完整性校验。
 var use_integrity_checksum: bool = false
 
@@ -143,6 +146,10 @@ func load_resource(file_name: String, type_hint: String = "") -> Resource:
 ## @param metadata: 展示用元数据。
 ## @return Godot 的 `Error` 结果码。
 func save_slot(slot_id: int, data: Dictionary, metadata: Dictionary = {}) -> Error:
+	if not _is_valid_slot_id(slot_id):
+		push_error("[GFStorageUtility] save_slot 失败：slot_id 必须大于等于 0，当前为 %d。" % slot_id)
+		return ERR_INVALID_PARAMETER
+
 	var data_file_name := _get_data_filename(slot_id)
 	var meta_file_name := _get_meta_filename(slot_id)
 	var data_temp_file_name := _get_temp_filename(data_file_name)
@@ -168,22 +175,49 @@ func save_slot(slot_id: int, data: Dictionary, metadata: Dictionary = {}) -> Err
 ## @param slot_id: 槽位 ID。
 ## @return 反序列化后的核心数据字典。
 func load_slot(slot_id: int) -> Dictionary:
+	if not _is_valid_slot_id(slot_id):
+		last_load_result = _make_load_result(false, {}, "Invalid slot_id: %d" % slot_id, true)
+		return {}
+
 	var data_file_name := _get_data_filename(slot_id)
 	return _read_json(data_file_name)
+
+
+## 读取槽位核心数据并返回 codec 结果。
+## @param slot_id: 槽位 ID。
+## @return 结果字典，包含 ok、data、metadata、integrity_valid、error。
+func load_slot_result(slot_id: int) -> Dictionary:
+	load_slot(slot_id)
+	return last_load_result.duplicate(true)
 
 
 ## 读取槽位元数据。
 ## @param slot_id: 槽位 ID。
 ## @return 反序列化后的元数据字典。
 func load_slot_meta(slot_id: int) -> Dictionary:
+	if not _is_valid_slot_id(slot_id):
+		last_load_result = _make_load_result(false, {}, "Invalid slot_id: %d" % slot_id, true)
+		return {}
+
 	var meta_file_name := _get_meta_filename(slot_id)
 	return _read_json(meta_file_name)
+
+
+## 读取槽位元数据并返回 codec 结果。
+## @param slot_id: 槽位 ID。
+## @return 结果字典，包含 ok、data、metadata、integrity_valid、error。
+func load_slot_meta_result(slot_id: int) -> Dictionary:
+	load_slot_meta(slot_id)
+	return last_load_result.duplicate(true)
 
 
 ## 检查槽位是否存在有效存档。
 ## @param slot_id: 槽位 ID。
 ## @return 核心数据与元数据文件都存在时返回 `true`。
 func has_slot(slot_id: int) -> bool:
+	if not _is_valid_slot_id(slot_id):
+		return false
+
 	_recover_transaction_files([
 		_get_data_filename(slot_id),
 		_get_meta_filename(slot_id),
@@ -229,6 +263,9 @@ func list_slots() -> Array[Dictionary]:
 ## 删除指定槽位的数据与元数据。
 ## @param slot_id: 槽位 ID。
 func delete_slot(slot_id: int) -> void:
+	if not _is_valid_slot_id(slot_id):
+		return
+
 	for file_name: String in [
 		_get_data_filename(slot_id),
 		_get_meta_filename(slot_id),
@@ -302,6 +339,29 @@ func load_data_async(file_name: String) -> Error:
 	})
 	_start_queued_async_tasks()
 	return OK
+
+
+## 等待已经入队和正在执行的异步纯数据任务全部完成。
+## 需要在同一路径上混合同步与异步读写时，可先调用该方法收敛顺序。
+func wait_for_async_tasks() -> void:
+	while not _async_tasks.is_empty() or not _async_queue.is_empty():
+		_start_queued_async_tasks()
+		if _async_tasks.is_empty():
+			break
+
+		var tasks := _async_tasks.duplicate()
+		_async_tasks.clear()
+		for task_variant: Variant in tasks:
+			var task := task_variant as Dictionary
+			if task == null:
+				continue
+			var thread := task.get("thread") as Thread
+			var result_variant: Variant = null
+			if thread != null:
+				result_variant = thread.wait_to_finish()
+			_async_file_locks.erase(String(task.get("file_key", "")))
+			_complete_finished_async_task(task, result_variant)
+		_start_queued_async_tasks()
 
 
 ## 驱动异步存档任务完成检查。
@@ -704,6 +764,10 @@ func _get_transaction_filename(file_name: String) -> String:
 	return file_name + _TRANSACTION_SUFFIX
 
 
+func _is_valid_slot_id(slot_id: int) -> bool:
+	return slot_id >= 0
+
+
 func _cleanup_transaction_files(file_names: Array[String]) -> void:
 	for file_name: String in file_names:
 		_remove_file_if_exists(_get_full_path(_get_temp_filename(file_name)))
@@ -901,6 +965,7 @@ func _read_transaction_marker(file_name: String) -> Dictionary:
 	var parsed: Variant = JSON.parse_string(content)
 	if parsed is Dictionary:
 		return parsed as Dictionary
+	push_warning("[GFStorageUtility] 事务标记格式无效，将按单文件恢复处理：%s" % path)
 	return {}
 
 
@@ -1063,6 +1128,7 @@ func _get_codec_options() -> Dictionary:
 	return {
 		"format": file_format,
 		"use_compression": use_compression,
+		"normalize_json_numbers": normalize_json_numbers,
 		"use_integrity_checksum": use_integrity_checksum,
 		"strict_integrity": strict_integrity,
 		"require_integrity_checksum": require_integrity_checksum,

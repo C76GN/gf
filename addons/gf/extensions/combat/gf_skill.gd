@@ -111,6 +111,8 @@ func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
 			var valid_targets := utility.find_targets(resolved_center, targeting_rule, [manual_target])
 			if not valid_targets.is_empty():
 				final_targets.append(manual_target)
+			else:
+				return
 		else:
 			final_targets.append(manual_target)
 	elif targeting_rule != null:

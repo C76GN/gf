@@ -52,7 +52,7 @@ func configure_from_slot_summary(
 ) -> GFSaveSlotCard:
 	var summary_metadata := summary.get("metadata", {}) as Dictionary
 	metadata = summary_metadata.duplicate(true) if summary_metadata != null else {}
-	slot_index = int(summary.get("slot_id", summary.get("slot_index", slot_index)))
+	slot_index = _get_summary_slot_index(summary, metadata, fallback_slot_id)
 	slot_id = StringName(metadata.get("slot_id", fallback_slot_id if fallback_slot_id != &"" else str(slot_index)))
 	display_name = String(metadata.get("display_name", ""))
 	description = String(metadata.get("description", ""))
@@ -117,3 +117,44 @@ func _to_string_array(value: Variant) -> PackedStringArray:
 		for item: Variant in value:
 			result.append(String(item))
 	return result
+
+
+func _get_summary_slot_index(
+	summary: Dictionary,
+	summary_metadata: Dictionary,
+	fallback_slot_id: StringName
+) -> int:
+	if summary.has("slot_index"):
+		return int(summary.get("slot_index", -1))
+
+	var candidates: Array = [
+		summary.get("slot_id", null),
+		summary_metadata.get("slot_id", null),
+		fallback_slot_id,
+	]
+	for candidate: Variant in candidates:
+		var parsed := _parse_slot_index(candidate)
+		if parsed >= 0:
+			return parsed
+	return slot_index
+
+
+func _parse_slot_index(value: Variant) -> int:
+	if value == null:
+		return -1
+	if value is int or value is float:
+		return int(value)
+
+	var text := String(value)
+	if text.is_valid_int():
+		return text.to_int()
+
+	var digits := ""
+	for index: int in range(text.length() - 1, -1, -1):
+		var character := text.substr(index, 1)
+		if not character.is_valid_int():
+			break
+		digits = character + digits
+	if digits.is_valid_int():
+		return digits.to_int()
+	return -1

@@ -239,6 +239,7 @@ func test_save_slot_workflow_indexes_string_slot_ids() -> void:
 
 	assert_eq(cards.size(), 1, "显式索引应能命中字符串 slot_id 摘要。")
 	assert_false(cards[0].is_empty, "字符串 slot_id 摘要不应被误判为空槽。")
+	assert_eq(cards[0].slot_index, 3, "字符串 slot_id 摘要应正确写入卡片整数索引。")
 	assert_eq(auto_cards.size(), 0, "空索引入口应由 build_cards_from_storage 负责从 storage 推导。")
 
 
@@ -289,6 +290,31 @@ func test_gather_scope_rejects_duplicate_source_keys() -> void:
 
 	assert_true(payload.is_empty(), "重复 Source key 不应生成存档载荷。")
 	assert_push_error("[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复 Source key：state")
+
+
+## 验证子 Scope 采集失败会传播到父 Scope，而不是被当作空子树跳过。
+func test_gather_scope_rejects_child_scope_failures() -> void:
+	var child_scope := GFSaveScopeBase.new()
+	child_scope.name = "ChildScope"
+	child_scope.scope_key = &"child"
+	_scope.add_child(child_scope)
+
+	var target_a := Node2D.new()
+	target_a.name = "TargetA"
+	child_scope.add_child(target_a)
+	var target_b := Node2D.new()
+	target_b.name = "TargetB"
+	child_scope.add_child(target_b)
+	child_scope.add_child(_make_source(&"state", NodePath("../TargetA")))
+	child_scope.add_child(_make_source(&"state", NodePath("../TargetB")))
+	var pipeline_context := _utility.create_pipeline_context(&"gather", _scope)
+
+	var payload := _utility.gather_scope(_scope, { "pipeline_context": pipeline_context })
+
+	assert_true(payload.is_empty(), "子 Scope 采集失败时，父 Scope 不应生成部分载荷。")
+	assert_gt(pipeline_context.errors.size(), 0, "采集失败应写入 pipeline_context.errors。")
+	assert_push_error("[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复 Source key：state")
+	assert_push_error("[GFSaveGraphUtility] gather_scope 失败：子 Scope 采集失败：child")
 
 
 ## 验证空载荷应用会显式失败。

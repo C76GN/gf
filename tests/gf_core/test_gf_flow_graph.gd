@@ -214,6 +214,27 @@ func test_flow_graph_validate_reports_missing_next_node() -> void:
 	assert_true(_has_issue(report, "missing_next_node"), "校验报告应包含 missing_next_node。")
 
 
+## 验证 Flow Signal 超时可以跟随 GFTimeUtility 的暂停与 time_scale。
+func test_flow_runner_signal_timeout_respects_time_utility() -> void:
+	var arch := GFArchitecture.new()
+	var time_utility := GFTimeUtility.new()
+	await arch.register_utility_instance(time_utility)
+	await arch.init()
+	var runner := GFFlowRunnerBase.new()
+	runner.inject_dependencies(arch)
+
+	time_utility.time_scale = 0.5
+	assert_almost_eq(runner._get_timeout_elapsed_msec(1000, 2000), 500.0, 0.001, "默认应按 GFTimeUtility.time_scale 推进超时。")
+
+	time_utility.is_paused = true
+	assert_almost_eq(runner._get_timeout_elapsed_msec(2000, 3000), 0.0, 0.001, "GFTimeUtility 暂停时超时不应推进。")
+
+	runner.with_signal_timeout(1.0, false)
+	assert_almost_eq(runner._get_timeout_elapsed_msec(3000, 4000), 1000.0, 0.001, "关闭 time scale 后应使用真实时间。")
+
+	arch.dispose()
+
+
 # --- 私有/辅助方法 ---
 
 func _has_issue(report: Dictionary, kind: String) -> bool:
