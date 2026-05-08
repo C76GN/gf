@@ -73,6 +73,125 @@ func test_push_and_pop_panel_instance() -> void:
 	assert_true(panel1.visible, "弹出顶层后，下层面板应重新可见。")
 
 
+func test_panel_signals_and_stack_snapshot() -> void:
+	var panel1 := Control.new()
+	panel1.name = "PanelOne"
+	var panel2 := Control.new()
+	panel2.name = "PanelTwo"
+	var opened: Array = []
+	var closed: Array = []
+	var navigation_tops: Array = []
+	_ui_utility.panel_opened.connect(func(panel: Node, _layer: int) -> void:
+		opened.append(panel)
+	)
+	_ui_utility.panel_closed.connect(func(panel: Node, _layer: int) -> void:
+		closed.append(panel)
+	)
+	_ui_utility.navigation_changed.connect(func(_layer: int, top_panel: Node) -> void:
+		navigation_tops.append(top_panel)
+	)
+
+	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
+	var stack := _ui_utility.get_panel_stack(GFUIUtility.Layer.POPUP)
+
+	assert_eq(opened, [panel1, panel2], "面板入栈应按顺序发出打开信号。")
+	assert_eq(stack, [panel1, panel2], "get_panel_stack 应按从底到顶返回副本。")
+	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 2, "栈数量应可查询。")
+	assert_true(_ui_utility.is_panel_open(panel1), "已入栈面板应报告为打开。")
+
+	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
+
+	assert_eq(closed, [panel2], "弹出面板应发出关闭信号。")
+	assert_eq(navigation_tops.back(), panel1, "弹出后导航信号应报告新的栈顶。")
+
+
+func test_modal_panel_options_and_cancel_dismiss() -> void:
+	var panel := Control.new()
+	var dismissed: Array = []
+	_ui_utility.panel_dismiss_requested.connect(func(requested_panel: Node, layer: int, reason: String) -> void:
+		dismissed.append([requested_panel, layer, reason])
+	)
+
+	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
+		"modal": true,
+		"metadata": {
+			"kind": "settings",
+		},
+	})
+	assert_true(_ui_utility.has_modal_open(GFUIUtility.Layer.POPUP), "modal 面板入栈后应可查询。")
+
+	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
+
+	assert_true(handled, "默认 modal 面板应允许取消关闭。")
+	assert_eq(dismissed, [[panel, GFUIUtility.Layer.POPUP, "cancel"]], "取消请求应发出信号。")
+	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "取消关闭后栈顶应为空。")
+
+
+func test_modal_can_refuse_cancel_dismiss() -> void:
+	var panel := Control.new()
+
+	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
+		"modal": true,
+		"dismiss_on_cancel": false,
+	})
+	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
+
+	assert_false(handled, "禁止取消关闭的 modal 不应被 request_dismiss_top 弹出。")
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "拒绝取消后面板应仍在栈顶。")
+
+
+func test_keep_focus_inside_top_modal() -> void:
+	var outside := Button.new()
+	var panel := Control.new()
+	var inside := Button.new()
+	outside.focus_mode = Control.FOCUS_ALL
+	inside.focus_mode = Control.FOCUS_ALL
+	add_child(outside)
+	panel.add_child(inside)
+
+	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
+		"modal": true,
+		"focus_on_open": false,
+	})
+	outside.grab_focus()
+	var corrected := _ui_utility.keep_focus_inside_top_modal(GFUIUtility.Layer.POPUP)
+
+	assert_true(corrected, "焦点落在 modal 外部时应能被拉回 modal 内部。")
+	assert_eq(get_viewport().gui_get_focus_owner(), inside, "焦点应移动到 modal 内第一个可聚焦控件。")
+
+	outside.queue_free()
+
+
+func test_replace_layer_instance_clears_old_stack() -> void:
+	var panel1 := Control.new()
+	var panel2 := Control.new()
+	var replacement := Control.new()
+
+	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
+	_ui_utility.replace_layer_instance(replacement, GFUIUtility.Layer.POPUP)
+
+	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 1, "替换层级后应只保留新面板。")
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), replacement, "替换层级后栈顶应为新面板。")
+
+
+func test_pop_to_panel_returns_to_existing_panel() -> void:
+	var panel1 := Control.new()
+	var panel2 := Control.new()
+	var panel3 := Control.new()
+
+	_ui_utility.push_panel_instance(panel1, GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel2, GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel3, GFUIUtility.Layer.POPUP)
+
+	var did_pop := _ui_utility.pop_to_panel(panel1, GFUIUtility.Layer.POPUP)
+
+	assert_true(did_pop, "目标面板存在时应成功回退。")
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel1, "回退后目标面板应成为栈顶。")
+	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 1, "目标面板上方的面板都应被弹出。")
+
+
 func test_push_panel_instance_rejects_duplicate_instance() -> void:
 	var panel := Control.new()
 

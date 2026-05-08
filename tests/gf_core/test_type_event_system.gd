@@ -191,6 +191,44 @@ func test_debug_stats_reports_dispatch_counts_and_depth() -> void:
 	assert_eq(int(stats["simple_dispatch_count"]), 1, "简单事件派发次数应记录到诊断统计。")
 
 
+## 验证最大派发深度能阻止递归事件无限嵌套。
+func test_max_dispatch_depth_stops_recursive_type_dispatch() -> void:
+	_system.max_dispatch_depth = 1
+	var state := {"count": 0}
+	_system.register(TestEventA, func(_e: TestEventA) -> void:
+		state.count += 1
+		_system.send(TestEventA.new())
+	)
+
+	_system.send(TestEventA.new())
+	var stats := _system.get_debug_stats()
+
+	assert_eq(state.count, 1, "达到最大深度后不应继续递归派发。")
+	assert_eq(int(stats["type_dispatch_count"]), 1, "被深度保护拒绝的派发不应计入成功派发次数。")
+	assert_push_error("[TypeEventSystem] type 事件派发超过最大嵌套深度 1")
+
+
+## 验证派发追踪会按容量保留最近记录。
+func test_dispatch_trace_records_recent_events() -> void:
+	_system.trace_enabled = true
+	_system.max_trace_entries = 2
+	_system.register(TestEventA, func(_e: TestEventA) -> void:
+		pass
+	)
+
+	_system.send_simple(&"missing_trace_event")
+	_system.send(TestEventA.new())
+	_system.send_simple(&"missing_trace_event_2")
+	var trace := _system.get_dispatch_trace()
+
+	assert_eq(trace.size(), 2, "追踪记录应按容量保留最近条目。")
+	assert_eq(String((trace[0] as Dictionary).get("track")), "type", "较旧的简单事件应被容量淘汰。")
+	assert_eq(String((trace[1] as Dictionary).get("event")), "missing_trace_event_2", "最新简单事件应保留。")
+
+	_system.clear_dispatch_trace()
+	assert_true(_system.get_dispatch_trace().is_empty(), "clear_dispatch_trace 应清空追踪记录。")
+
+
 ## 验证 unregister 后，send 不再调用该回调。
 func test_unregister() -> void:
 	var state := {"count": 0}

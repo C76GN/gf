@@ -5,13 +5,29 @@
 class_name TypeEventSystem
 
 
+# --- 公共变量 ---
+
+## 最大事件嵌套派发深度。小于等于 0 时不限制。
+var max_dispatch_depth: int = 0:
+	set(value):
+		max_dispatch_depth = maxi(value, 0)
+
+## 是否记录事件派发追踪。默认关闭，避免调试数据持有过多运行时引用。
+var trace_enabled: bool = false
+
+## 最多保留的事件派发追踪条目数。
+var max_trace_entries: int = 64:
+	set(value):
+		max_trace_entries = maxi(value, 0)
+		_trim_dispatch_trace()
+
+
 # --- 私有变量 ---
 
 var _event_listeners: Dictionary = {}
 var _assignable_event_listeners: Dictionary = {}
 var _simple_event_listeners: Dictionary = {}
 var _type_dispatch_cache: Dictionary = {}
-
 var _is_iterating_type: bool = false
 var _type_dispatch_depth: int = 0
 var _type_dispatch_count: int = 0
@@ -32,6 +48,7 @@ var _pending_removes_simple: Array = []
 var _pending_adds_simple: Array = []
 var _pending_owner_removes_simple: Array[int] = []
 var _listener_order_counter: int = 0
+var _dispatch_trace: Array[Dictionary] = []
 
 
 # --- 公共方法 (类型事件) ---
@@ -128,7 +145,12 @@ func send(event_instance: Object) -> void:
 	if event_type == null:
 		push_error("[TypeEventSystem] 发送的事件必须是附加了脚本的类实例。")
 		return
+	if _would_exceed_dispatch_depth(_type_dispatch_depth):
+		_report_dispatch_depth_exceeded("type", _script_debug_key(event_type as Script))
+		return
+
 	var dispatch_entries := _get_type_dispatch_entries(event_type as Script)
+	_record_dispatch_trace("type", _script_debug_key(event_type as Script), dispatch_entries.size(), _type_dispatch_depth + 1)
 	if dispatch_entries.is_empty():
 		return
 
@@ -199,9 +221,15 @@ func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param payload: 传递给监听器的数据，可为任意类型。
 func send_simple(event_id: StringName, payload: Variant = null) -> void:
+	if _would_exceed_dispatch_depth(_simple_dispatch_depth):
+		_report_dispatch_depth_exceeded("simple", String(event_id))
+		return
+
 	if not _simple_event_listeners.has(event_id):
+		_record_dispatch_trace("simple", String(event_id), 0, _simple_dispatch_depth + 1)
 		return
 	var listeners := _simple_event_listeners[event_id] as Array
+	_record_dispatch_trace("simple", String(event_id), listeners.size(), _simple_dispatch_depth + 1)
 
 	_simple_dispatch_depth += 1
 	_simple_dispatch_count += 1
@@ -284,7 +312,24 @@ func get_debug_stats() -> Dictionary:
 		"simple_dispatch_depth": _simple_dispatch_depth,
 		"max_type_dispatch_depth_observed": _max_type_dispatch_depth_observed,
 		"max_simple_dispatch_depth_observed": _max_simple_dispatch_depth_observed,
+		"max_dispatch_depth": max_dispatch_depth,
+		"trace_enabled": trace_enabled,
+		"trace_count": _dispatch_trace.size(),
 	}
+
+
+## 获取最近事件派发追踪条目。
+## @return 从旧到新的追踪条目副本。
+func get_dispatch_trace() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry: Dictionary in _dispatch_trace:
+		result.append(entry.duplicate(true))
+	return result
+
+
+## 清空事件派发追踪。
+func clear_dispatch_trace() -> void:
+	_dispatch_trace.clear()
 
 
 ## 清空所有已注册的事件监听器（包括类型事件和简单事件）。
@@ -452,6 +497,39 @@ func _append_pending_type_remove(event_type: Script, callback: Callable, assigna
 		_pending_removes_assignable_type.append({ "event_type": event_type, "callable": callback })
 	else:
 		_pending_removes_type.append({ "event_type": event_type, "callable": callback })
+
+
+func _would_exceed_dispatch_depth(current_depth: int) -> bool:
+	return max_dispatch_depth > 0 and current_depth >= max_dispatch_depth
+
+
+func _report_dispatch_depth_exceeded(track: String, event_key: String) -> void:
+	var key_suffix := "：%s" % event_key if not event_key.is_empty() else ""
+	push_error("[TypeEventSystem] %s 事件派发超过最大嵌套深度 %d%s。" % [track, max_dispatch_depth, key_suffix])
+
+
+func _record_dispatch_trace(track: String, event_key: String, listener_count: int, depth: int) -> void:
+	if not trace_enabled or max_trace_entries <= 0:
+		return
+
+	_dispatch_trace.append({
+		"track": track,
+		"event": event_key,
+		"listener_count": listener_count,
+		"depth": depth,
+		"dispatch_index": _type_dispatch_count + _simple_dispatch_count + 1,
+		"ticks_msec": Time.get_ticks_msec(),
+	})
+	_trim_dispatch_trace()
+
+
+func _trim_dispatch_trace() -> void:
+	if max_trace_entries <= 0:
+		_dispatch_trace.clear()
+		return
+
+	while _dispatch_trace.size() > max_trace_entries:
+		_dispatch_trace.pop_front()
 
 
 func _script_extends_or_equals(script_cls: Script, base_script: Script) -> bool:

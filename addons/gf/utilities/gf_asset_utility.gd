@@ -6,6 +6,23 @@ class_name GFAssetUtility
 extends GFUtility
 
 
+# --- 信号 ---
+
+## 创建资源句柄时发出。
+## @param handle: 新创建的资源句柄。
+signal asset_handle_acquired(handle: GFAssetHandle)
+
+## 资源句柄释放时发出。
+## @param path: 资源路径。
+## @param reference_count: 剩余引用数量。
+signal asset_handle_released(path: String, reference_count: int)
+
+## 资源分组预加载完成时发出。
+## @param group_id: 分组标识。
+## @param report: 预加载报告。
+signal asset_group_preloaded(group_id: StringName, report: Dictionary)
+
+
 # --- 公共变量 ---
 
 ## LRU 缓存最大容量；设为 `0` 时表示禁用缓存。
@@ -35,6 +52,13 @@ var _cache: Dictionary = {}
 var _cache_access_order: Dictionary = {}
 var _cache_access_serial: int = 0
 var _pinned_cache_paths: Dictionary = {}
+var _reference_counts: Dictionary = {}
+var _owner_reference_counts: Dictionary = {}
+var _owner_refs: Dictionary = {}
+var _owner_release_connected: Dictionary = {}
+var _handle_refs: Array[WeakRef] = []
+var _group_paths: Dictionary = {}
+var _group_pin_counts: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -45,6 +69,13 @@ func init() -> void:
 	_cache.clear()
 	_cache_access_order.clear()
 	_pinned_cache_paths.clear()
+	_reference_counts.clear()
+	_owner_reference_counts.clear()
+	_owner_refs.clear()
+	_owner_release_connected.clear()
+	_handle_refs.clear()
+	_group_paths.clear()
+	_group_pin_counts.clear()
 	_cache_access_serial = 0
 
 
@@ -53,6 +84,13 @@ func dispose() -> void:
 	_cache.clear()
 	_cache_access_order.clear()
 	_pinned_cache_paths.clear()
+	_reference_counts.clear()
+	_owner_reference_counts.clear()
+	_owner_refs.clear()
+	_owner_release_connected.clear()
+	_handle_refs.clear()
+	_group_paths.clear()
+	_group_pin_counts.clear()
 	_cache_access_serial = 0
 
 
@@ -104,6 +142,209 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 		"callbacks": [_make_callback_entry(on_loaded, type_hint)],
 		"cancelled": false,
 	}
+
+
+## 异步加载资源并在成功后返回所有权句柄。
+## @param path: 目标资源路径。
+## @param on_loaded: 加载完成回调，签名为 func(handle: GFAssetHandle)；失败时传入 null。
+## @param type_hint: 可选资源类型提示。
+## @param owner: 可选拥有者。若为 Node，会在退出树时自动释放其持有的句柄引用。
+## @param group_id: 可选资源分组。
+func load_handle_async(
+	path: String,
+	on_loaded: Callable,
+	type_hint: String = "",
+	owner: Object = null,
+	group_id: StringName = &""
+) -> void:
+	if path.is_empty() or not on_loaded.is_valid():
+		push_error("[GFAssetUtility] load_handle_async 失败：路径或回调无效。")
+		return
+
+	var on_resource_loaded := func(resource: Resource) -> void:
+		if resource == null:
+			on_loaded.call(null)
+			return
+
+		on_loaded.call(acquire_handle(path, owner, group_id, type_hint, resource))
+
+	load_async(path, on_resource_loaded, type_hint)
+
+
+## 为已缓存或指定资源创建所有权句柄。
+## @param path: 资源路径。
+## @param owner: 可选拥有者。若为 Node，会在退出树时自动释放其持有的句柄引用。
+## @param group_id: 可选资源分组。
+## @param type_hint: 可选资源类型提示。
+## @param resource_override: 可选资源实例；为空时使用当前缓存。
+## @return 成功时返回句柄；资源不可用时返回 null。
+func acquire_handle(
+	path: String,
+	owner: Object = null,
+	group_id: StringName = &"",
+	type_hint: String = "",
+	resource_override: Resource = null
+) -> GFAssetHandle:
+	if path.is_empty():
+		push_error("[GFAssetUtility] acquire_handle 失败：路径为空。")
+		return null
+
+	var resource := resource_override if resource_override != null else get_cached(path)
+	if resource == null:
+		return null
+	if not _is_resource_compatible(resource, type_hint):
+		push_warning("[GFAssetUtility] acquire_handle 失败：缓存资源类型与 type_hint 不匹配：%s (%s)" % [path, type_hint])
+		return null
+
+	if not is_cached(path):
+		put_cache(path, resource)
+
+	var owner_id := _owner_instance_id(owner)
+	_increment_reference(path, owner, group_id)
+
+	var handle := GFAssetHandle.new()
+	handle._setup(self, path, resource, type_hint, group_id, owner_id)
+	_track_handle(handle)
+	asset_handle_acquired.emit(handle)
+	return handle
+
+
+## 释放资源句柄。
+## @param handle: 要释放的资源句柄。
+## @return 释放成功返回 true。
+func release_handle(handle: GFAssetHandle) -> bool:
+	if handle == null or handle.path.is_empty() or handle.is_released():
+		return false
+
+	var path := handle.path
+	var remaining := _decrement_reference(path, handle.get_owner_id())
+	handle._release_local()
+	_prune_handle_refs()
+	asset_handle_released.emit(path, remaining)
+	return true
+
+
+## 释放指定 owner 持有的所有资源引用。
+## @param owner: 拥有者对象。
+## @return 释放的引用数量。
+func release_owner(owner: Object) -> int:
+	if owner == null:
+		return 0
+	return _release_owner_id(owner.get_instance_id())
+
+
+## 获取指定资源路径当前句柄引用数量。
+## @param path: 资源路径。
+## @return 引用数量。
+func get_asset_reference_count(path: String) -> int:
+	return int(_reference_counts.get(path, 0))
+
+
+## 注册资源路径到分组。
+## @param group_id: 分组标识。
+## @param path: 资源路径。
+## @param pin: 是否以分组名义锁定缓存，避免 LRU 淘汰。
+func register_group_path(group_id: StringName, path: String, pin: bool = false) -> void:
+	if group_id == &"" or path.is_empty():
+		return
+	if not _group_paths.has(group_id):
+		_group_paths[group_id] = {}
+	_group_paths[group_id][path] = true
+	if pin:
+		if not _group_pin_counts.has(group_id):
+			_group_pin_counts[group_id] = {}
+		var pin_counts := _group_pin_counts[group_id] as Dictionary
+		pin_counts[path] = int(pin_counts.get(path, 0)) + 1
+		pin_cache(path)
+
+
+## 获取分组中的资源路径。
+## @param group_id: 分组标识。
+## @return 路径列表。
+func get_group_paths(group_id: StringName) -> PackedStringArray:
+	var result := PackedStringArray()
+	var paths := _group_paths.get(group_id, {}) as Dictionary
+	for path: String in paths.keys():
+		result.append(path)
+	result.sort()
+	return result
+
+
+## 异步预加载资源分组。
+## @param group_id: 分组标识。
+## @param entries: 路径字符串，或包含 path/type_hint 字段的字典数组。
+## @param on_completed: 完成回调，签名为 func(report: Dictionary)。
+## @param options: 可选参数，支持 pin_cache。
+func preload_group_async(
+	group_id: StringName,
+	entries: Array,
+	on_completed: Callable = Callable(),
+	options: Dictionary = {}
+) -> void:
+	if group_id == &"":
+		push_error("[GFAssetUtility] preload_group_async 失败：group_id 为空。")
+		return
+
+	var pin_loaded := bool(options.get("pin_cache", true))
+	var report := {
+		"ok": true,
+		"group_id": group_id,
+		"paths": PackedStringArray(),
+		"failed_paths": PackedStringArray(),
+		"total": entries.size(),
+		"completed": 0,
+	}
+	var finished := [false]
+	if entries.is_empty():
+		_finish_group_preload(group_id, report, on_completed)
+		return
+
+	for entry: Variant in entries:
+		var request := _normalize_group_entry(entry)
+		var path := String(request.get("path", ""))
+		var type_hint := String(request.get("type_hint", ""))
+		if path.is_empty():
+			report["ok"] = false
+			(report["failed_paths"] as PackedStringArray).append(path)
+			report["completed"] = int(report["completed"]) + 1
+			continue
+
+		var request_path := path
+		var request_type_hint := type_hint
+		load_async(request_path, func(resource: Resource) -> void:
+			if resource == null:
+				report["ok"] = false
+				(report["failed_paths"] as PackedStringArray).append(request_path)
+			else:
+				register_group_path(group_id, request_path, pin_loaded)
+				(report["paths"] as PackedStringArray).append(request_path)
+
+			report["completed"] = int(report["completed"]) + 1
+			if int(report["completed"]) >= int(report["total"]) and not bool(finished[0]):
+				finished[0] = true
+				_finish_group_preload(group_id, report, on_completed)
+		, request_type_hint)
+
+	if int(report["completed"]) >= int(report["total"]) and not bool(finished[0]):
+		finished[0] = true
+		_finish_group_preload(group_id, report, on_completed)
+
+
+## 卸载资源分组。
+## @param group_id: 分组标识。
+## @param remove_unreferenced_cache: 是否移除没有句柄引用的缓存项。
+func unload_group(group_id: StringName, remove_unreferenced_cache: bool = false) -> void:
+	var paths := _group_paths.get(group_id, {}) as Dictionary
+	var pin_counts := _group_pin_counts.get(group_id, {}) as Dictionary
+	for path: String in paths.keys():
+		var pin_count := int(pin_counts.get(path, 0))
+		for _i: int in range(pin_count):
+			unpin_cache(path)
+		if remove_unreferenced_cache and get_asset_reference_count(path) <= 0:
+			remove_cache(path)
+
+	_group_paths.erase(group_id)
+	_group_pin_counts.erase(group_id)
 
 
 ## 驱动异步加载轮询。
@@ -181,6 +422,8 @@ func remove_cache(path: String) -> void:
 	_cache.erase(path)
 	_cache_access_order.erase(path)
 	_pinned_cache_paths.erase(path)
+	_reference_counts.erase(path)
+	_owner_reference_counts.erase(path)
 
 
 ## 清空全部缓存。
@@ -188,6 +431,12 @@ func clear_cache() -> void:
 	_cache.clear()
 	_cache_access_order.clear()
 	_pinned_cache_paths.clear()
+	_reference_counts.clear()
+	_owner_reference_counts.clear()
+	_owner_refs.clear()
+	_release_all_handles()
+	_group_paths.clear()
+	_group_pin_counts.clear()
 	_cache_access_serial = 0
 
 
@@ -202,13 +451,20 @@ func get_cache_count() -> int:
 func pin_cache(path: String) -> void:
 	if path.is_empty():
 		return
-	_pinned_cache_paths[path] = true
+	_pinned_cache_paths[path] = int(_pinned_cache_paths.get(path, 0)) + 1
 
 
 ## 解除指定缓存路径的 LRU 锁定。
 ## @param path: 资源路径。
 func unpin_cache(path: String) -> void:
-	_pinned_cache_paths.erase(path)
+	if not _pinned_cache_paths.has(path):
+		return
+
+	var count := int(_pinned_cache_paths.get(path, 0)) - 1
+	if count > 0:
+		_pinned_cache_paths[path] = count
+	else:
+		_pinned_cache_paths.erase(path)
 	_evict_lru()
 
 
@@ -216,7 +472,7 @@ func unpin_cache(path: String) -> void:
 ## @param path: 资源路径。
 ## @return 已锁定返回 true。
 func is_cache_pinned(path: String) -> bool:
-	return bool(_pinned_cache_paths.get(path, false))
+	return int(_pinned_cache_paths.get(path, 0)) > 0
 
 
 ## 获取资源加载工具诊断快照。
@@ -236,7 +492,7 @@ func get_debug_snapshot() -> Dictionary:
 
 	var pinned_paths := PackedStringArray()
 	for path: String in _pinned_cache_paths.keys():
-		if bool(_pinned_cache_paths.get(path, false)):
+		if int(_pinned_cache_paths.get(path, 0)) > 0:
 			pinned_paths.append(path)
 	pinned_paths.sort()
 
@@ -248,6 +504,8 @@ func get_debug_snapshot() -> Dictionary:
 		"pending_paths": pending_paths,
 		"pinned_count": pinned_paths.size(),
 		"pinned_paths": pinned_paths,
+		"reference_counts": _reference_counts.duplicate(),
+		"group_count": _group_paths.size(),
 	}
 
 
@@ -301,6 +559,147 @@ func _dispatch_callbacks(callbacks: Array, resource: Resource) -> void:
 			callback = callback_entry as Callable
 		if callback.is_valid():
 			callback.call(resource if resource == null or _is_resource_compatible(resource, type_hint) else null)
+
+
+func _owner_instance_id(owner: Object) -> int:
+	return owner.get_instance_id() if owner != null else 0
+
+
+func _increment_reference(path: String, owner: Object, group_id: StringName) -> void:
+	_reference_counts[path] = int(_reference_counts.get(path, 0)) + 1
+	pin_cache(path)
+	if group_id != &"":
+		register_group_path(group_id, path)
+
+	var owner_id := _owner_instance_id(owner)
+	if owner_id == 0:
+		return
+
+	if not _owner_reference_counts.has(path):
+		_owner_reference_counts[path] = {}
+	var owner_counts := _owner_reference_counts[path] as Dictionary
+	owner_counts[owner_id] = int(owner_counts.get(owner_id, 0)) + 1
+	_track_owner(owner)
+
+
+func _decrement_reference(path: String, owner_id: int, release_count: int = 1) -> int:
+	var count_to_release := maxi(release_count, 1)
+	var current_count := int(_reference_counts.get(path, 0))
+	var next_count := maxi(current_count - count_to_release, 0)
+	if next_count > 0:
+		_reference_counts[path] = next_count
+	else:
+		_reference_counts.erase(path)
+
+	for _i: int in range(current_count - next_count):
+		unpin_cache(path)
+
+	if owner_id != 0 and _owner_reference_counts.has(path):
+		var owner_counts := _owner_reference_counts[path] as Dictionary
+		var owner_count := int(owner_counts.get(owner_id, 0)) - count_to_release
+		if owner_count > 0:
+			owner_counts[owner_id] = owner_count
+		else:
+			owner_counts.erase(owner_id)
+		if owner_counts.is_empty():
+			_owner_reference_counts.erase(path)
+
+	return next_count
+
+
+func _track_owner(owner: Object) -> void:
+	if owner == null:
+		return
+
+	var owner_id := owner.get_instance_id()
+	_owner_refs[owner_id] = weakref(owner)
+	if owner is Node and not bool(_owner_release_connected.get(owner_id, false)):
+		(owner as Node).tree_exited.connect(_release_owner_id.bind(owner_id), CONNECT_ONE_SHOT)
+		_owner_release_connected[owner_id] = true
+
+
+func _track_handle(handle: GFAssetHandle) -> void:
+	if handle != null:
+		_handle_refs.append(weakref(handle))
+
+
+func _prune_handle_refs() -> void:
+	for index: int in range(_handle_refs.size() - 1, -1, -1):
+		var handle := _handle_refs[index].get_ref() as GFAssetHandle
+		if handle == null or handle.is_released():
+			_handle_refs.remove_at(index)
+
+
+func _release_all_handles() -> void:
+	for handle_ref: WeakRef in _handle_refs:
+		var handle := handle_ref.get_ref() as GFAssetHandle
+		if handle != null:
+			handle._release_local()
+	_handle_refs.clear()
+
+
+func _release_owner_handles(owner_id: int) -> void:
+	for index: int in range(_handle_refs.size() - 1, -1, -1):
+		var handle := _handle_refs[index].get_ref() as GFAssetHandle
+		if handle == null or handle.is_released():
+			_handle_refs.remove_at(index)
+		elif handle.get_owner_id() == owner_id:
+			handle._release_local()
+			_handle_refs.remove_at(index)
+
+
+func _release_owner_id(owner_id: int) -> int:
+	if owner_id == 0:
+		return 0
+
+	var released_count := 0
+	var paths: Array = _owner_reference_counts.keys()
+	for path: String in paths:
+		if not _owner_reference_counts.has(path):
+			continue
+
+		var owner_counts := _owner_reference_counts[path] as Dictionary
+		if not owner_counts.has(owner_id):
+			continue
+
+		var count := int(owner_counts.get(owner_id, 0))
+		released_count += count
+		var remaining := _decrement_reference(path, owner_id, count)
+		asset_handle_released.emit(path, remaining)
+
+	_release_owner_handles(owner_id)
+	_owner_refs.erase(owner_id)
+	_owner_release_connected.erase(owner_id)
+	return released_count
+
+
+func _normalize_group_entry(entry: Variant) -> Dictionary:
+	if entry is Dictionary:
+		var data := entry as Dictionary
+		return {
+			"path": String(data.get("path", "")),
+			"type_hint": String(data.get("type_hint", "")),
+		}
+
+	return {
+		"path": String(entry),
+		"type_hint": "",
+	}
+
+
+func _finish_group_preload(group_id: StringName, report: Dictionary, on_completed: Callable) -> void:
+	var paths: PackedStringArray = report.get("paths", PackedStringArray())
+	paths.sort()
+	report["paths"] = paths
+
+	var failed_paths: PackedStringArray = report.get("failed_paths", PackedStringArray())
+	failed_paths.sort()
+	report["failed_paths"] = failed_paths
+
+	var report_copy := report.duplicate(true)
+	asset_group_preloaded.emit(group_id, report_copy)
+	if on_completed.is_valid():
+		on_completed.call(report_copy.duplicate(true))
 
 
 func _is_resource_compatible(resource: Resource, type_hint: String) -> bool:

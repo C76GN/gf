@@ -105,6 +105,57 @@ func test_find_path_bfs_rejects_blocked_goal_and_invalid_callable() -> void:
 	assert_true(invalid_callable.is_empty(), "无效通行回调应返回空数组。")
 
 
+func test_find_path_a_star_uses_custom_step_cost() -> void:
+	var expensive := {
+		Vector2i(1, 0): true,
+	}
+	var path: Array[Vector2i] = GF_GRID_MATH.find_path_a_star(
+		Vector2i(3, 3),
+		Vector2i.ZERO,
+		Vector2i(2, 0),
+		func(_cell: Vector2i) -> bool:
+			return true,
+		false,
+		func(_from_cell: Vector2i, to_cell: Vector2i) -> float:
+			return 10.0 if expensive.has(to_cell) else 1.0
+	)
+
+	assert_false(path.is_empty(), "A* 应能找到可达路径。")
+	assert_eq(path.front(), Vector2i.ZERO, "路径应从起点开始。")
+	assert_eq(path.back(), Vector2i(2, 0), "路径应抵达终点。")
+	assert_false(path.has(Vector2i(1, 0)), "A* 应避开高代价格子。")
+
+
+func test_find_path_a_star_allows_diagonal_path() -> void:
+	var path: Array[Vector2i] = GF_GRID_MATH.find_path_a_star(
+		Vector2i(2, 2),
+		Vector2i.ZERO,
+		Vector2i(1, 1),
+		func(_cell: Vector2i) -> bool:
+			return true,
+		true,
+		Callable(),
+		&"octile"
+	)
+
+	assert_eq(path, [Vector2i.ZERO, Vector2i(1, 1)], "允许斜向移动时 A* 应能直接走对角。")
+
+
+func test_build_flow_field_points_toward_nearest_goal() -> void:
+	var field := GF_GRID_MATH.build_flow_field(
+		Vector2i(3, 1),
+		[Vector2i(2, 0)],
+		func(_cell: Vector2i) -> bool:
+			return true
+	)
+	var directions := field.get("directions", {}) as Dictionary
+	var costs := field.get("costs", {}) as Dictionary
+
+	assert_eq(directions.get(Vector2i(0, 0)), Vector2i.RIGHT, "Flow Field 应指向下一步方向。")
+	assert_eq(directions.get(Vector2i(2, 0)), Vector2i.ZERO, "目标格方向应为 ZERO。")
+	assert_eq(float(costs.get(Vector2i(0, 0))), 2.0, "Flow Field 应记录到目标的累计代价。")
+
+
 func test_can_connect_with_max_turns_uses_outer_border() -> void:
 	var blocked := {
 		Vector2i(1, 0): true,

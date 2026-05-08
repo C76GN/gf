@@ -16,6 +16,11 @@ signal notification_started(notification: Dictionary)
 ## 通知结束时发出。
 signal notification_finished(notification: Dictionary, reason: String)
 
+## 当前通知动作被触发时发出。
+## @param notification: 当前通知副本。
+## @param action_id: 动作标识。
+signal notification_action_invoked(notification: Dictionary, action_id: StringName)
+
 
 # --- 枚举 ---
 
@@ -25,6 +30,14 @@ enum Level {
 	SUCCESS,
 	WARNING,
 	ERROR,
+}
+
+## 通知优先级。数值越大越靠前。
+enum Priority {
+	LOW,
+	NORMAL,
+	HIGH,
+	CRITICAL,
 }
 
 
@@ -45,6 +58,7 @@ var suppress_duplicates: bool = true
 var _queue: Array[Dictionary] = []
 var _active_notification: Dictionary = {}
 var _active_remaining_seconds: float = 0.0
+var _active_paused: bool = false
 var _next_notification_id: int = 1
 
 
@@ -55,6 +69,8 @@ var _next_notification_id: int = 1
 func tick(delta: float) -> void:
 	if _active_notification.is_empty():
 		_start_next_notification()
+		return
+	if _active_paused or bool(_active_notification.get("sticky", false)):
 		return
 
 	_active_remaining_seconds -= maxf(delta, 0.0)
@@ -72,7 +88,7 @@ func dispose() -> void:
 ## @param message: 通知正文。
 ## @param title: 通知标题。
 ## @param level: 通知等级。
-## @param options: 可选参数，支持 duration_seconds、key、metadata。
+## @param options: 可选参数，支持 duration_seconds、key、metadata、priority、sticky、actions。
 ## @return 通知 id；被去重抑制时返回已有通知 id。
 func push_notification(
 	message: String,
@@ -105,6 +121,7 @@ func dismiss_active(reason: String = "dismissed") -> void:
 	var finished := _active_notification.duplicate(true)
 	_active_notification.clear()
 	_active_remaining_seconds = 0.0
+	_active_paused = false
 	notification_finished.emit(finished, reason)
 	_start_next_notification()
 
@@ -117,6 +134,7 @@ func clear_notifications(reason: String = "cleared") -> void:
 		notification_finished.emit(finished, reason)
 	_active_notification.clear()
 	_active_remaining_seconds = 0.0
+	_active_paused = false
 	_queue.clear()
 
 
@@ -124,6 +142,42 @@ func clear_notifications(reason: String = "cleared") -> void:
 ## @return 当前通知副本。
 func get_active_notification() -> Dictionary:
 	return _active_notification.duplicate(true)
+
+
+## 暂停当前通知倒计时。
+func pause_active() -> void:
+	if not _active_notification.is_empty():
+		_active_paused = true
+
+
+## 恢复当前通知倒计时。
+func resume_active() -> void:
+	_active_paused = false
+
+
+## 当前通知是否处于暂停状态。
+## @return 暂停时返回 true。
+func is_active_paused() -> bool:
+	return _active_paused
+
+
+## 触发当前通知的一个动作。
+## @param action_id: 动作标识。
+## @return 当前通知包含该动作时返回 true。
+func invoke_active_action(action_id: StringName) -> bool:
+	if _active_notification.is_empty() or action_id == &"":
+		return false
+
+	var actions := _active_notification.get("actions", []) as Array
+	if actions == null:
+		return false
+	for action: Dictionary in actions:
+		if StringName(action.get("id", &"")) == action_id:
+			notification_action_invoked.emit(_active_notification.duplicate(true), action_id)
+			if bool(action.get("dismiss", false)):
+				dismiss_active("action:%s" % action_id)
+			return true
+	return false
 
 
 ## 获取等待队列。
@@ -143,6 +197,7 @@ func get_debug_snapshot() -> Dictionary:
 		"queue": get_queue(),
 		"queue_size": _queue.size(),
 		"active_remaining_seconds": _active_remaining_seconds,
+		"active_paused": _active_paused,
 		"max_queue_size": max_queue_size,
 	}
 
@@ -164,8 +219,11 @@ func _make_notification(
 		"title": title,
 		"message": message,
 		"level": level,
+		"priority": clampi(int(options.get("priority", Priority.NORMAL)), Priority.LOW, Priority.CRITICAL),
+		"sticky": bool(options.get("sticky", false)),
 		"duration_seconds": maxf(float(options.get("duration_seconds", default_duration_seconds)), 0.0),
 		"created_at_unix": Time.get_unix_time_from_system(),
+		"actions": _normalize_actions(options.get("actions", [])),
 		"metadata": metadata,
 	}
 	_next_notification_id += 1
@@ -177,16 +235,18 @@ func _start_next_notification() -> void:
 		return
 
 	_active_notification = _queue.pop_front()
+	_active_paused = false
 	_active_remaining_seconds = float(_active_notification.get("duration_seconds", default_duration_seconds))
 	notification_started.emit(_active_notification.duplicate(true))
-	if _active_remaining_seconds <= 0.0:
+	if _active_remaining_seconds <= 0.0 and not bool(_active_notification.get("sticky", false)):
 		dismiss_active("timeout")
 
 
 func _trim_queue() -> void:
+	_sort_queue_by_priority()
 	var max_size := maxi(max_queue_size, 0)
 	while _queue.size() > max_size:
-		var dropped := _queue.pop_front()
+		var dropped := _queue.pop_back()
 		notification_finished.emit(dropped.duplicate(true), "dropped")
 
 
@@ -211,3 +271,46 @@ func _matches_notification(notification: Dictionary, key: String, message: Strin
 	if not notification_key.is_empty():
 		return false
 	return String(notification.get("message", "")) == message
+
+
+func _sort_queue_by_priority() -> void:
+	_queue.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_priority := int(left.get("priority", Priority.NORMAL))
+		var right_priority := int(right.get("priority", Priority.NORMAL))
+		if left_priority == right_priority:
+			return int(left.get("id", 0)) < int(right.get("id", 0))
+		return left_priority > right_priority
+	)
+
+
+func _normalize_actions(actions_variant: Variant) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if not (actions_variant is Array):
+		return result
+
+	for action_variant: Variant in (actions_variant as Array):
+		if action_variant is StringName or action_variant is String:
+			var action_id := StringName(action_variant)
+			if action_id != &"":
+				result.append({
+					"id": action_id,
+					"label": String(action_id),
+					"dismiss": false,
+					"metadata": {},
+				})
+			continue
+		if not (action_variant is Dictionary):
+			continue
+
+		var source := action_variant as Dictionary
+		var action_id := StringName(source.get("id", &""))
+		if action_id == &"":
+			continue
+		var metadata_variant: Variant = source.get("metadata", {})
+		result.append({
+			"id": action_id,
+			"label": String(source.get("label", action_id)),
+			"dismiss": bool(source.get("dismiss", false)),
+			"metadata": (metadata_variant as Dictionary).duplicate(true) if metadata_variant is Dictionary else {},
+		})
+	return result

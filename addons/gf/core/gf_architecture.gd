@@ -212,15 +212,15 @@ func dispose() -> void:
 	_is_initializing = false
 
 	_on_dispose()
-	for system in _systems.values():
+	for system in _get_modules_by_lifecycle_priority(_systems, true):
 		if system.has_method("dispose"):
 			system.dispose()
 		_clear_injected_scope(system)
-	for model in _models.values():
+	for model in _get_modules_by_lifecycle_priority(_models, true):
 		if model.has_method("dispose"):
 			model.dispose()
 		_clear_injected_scope(model)
-	for utility in _utilities.values():
+	for utility in _get_modules_by_lifecycle_priority(_utilities, true):
 		if utility.has_method("dispose"):
 			utility.dispose()
 		_clear_injected_scope(utility)
@@ -425,6 +425,31 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 ## @return 包含各事件轨道监听数量与 pending 操作数量的字典。
 func get_event_debug_stats() -> Dictionary:
 	return _event_system.get_debug_stats()
+
+
+## 配置事件系统调试与保护选项。
+## @param max_dispatch_depth: 最大嵌套派发深度；小于等于 0 表示不限制。
+## @param trace_enabled: 是否记录派发追踪。
+## @param max_trace_entries: 最多保留的追踪条目数。
+func configure_event_debugging(
+	max_dispatch_depth: int = 0,
+	trace_enabled: bool = false,
+	max_trace_entries: int = 64
+) -> void:
+	_event_system.max_dispatch_depth = max_dispatch_depth
+	_event_system.trace_enabled = trace_enabled
+	_event_system.max_trace_entries = max_trace_entries
+
+
+## 获取最近事件派发追踪条目。
+## @return 从旧到新的追踪条目副本。
+func get_event_dispatch_trace() -> Array[Dictionary]:
+	return _event_system.get_dispatch_trace()
+
+
+## 清空事件派发追踪。
+func clear_event_dispatch_trace() -> void:
+	_event_system.clear_dispatch_trace()
 
 
 # --- 注册方法 ---
@@ -1012,6 +1037,68 @@ func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float) 
 	return scaled_delta
 
 
+func _get_modules_by_lifecycle_priority(registry: Dictionary, reverse: bool = false) -> Array[Object]:
+	var entries: Array[Dictionary] = []
+	var order := 0
+	for instance: Object in registry.values():
+		entries.append({
+			"instance": instance,
+			"priority": _get_module_priority(instance, &"lifecycle_priority"),
+			"order": order,
+		})
+		order += 1
+
+	entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_priority := int(left.get("priority", 0))
+		var right_priority := int(right.get("priority", 0))
+		if left_priority == right_priority:
+			var left_order := int(left.get("order", 0))
+			var right_order := int(right.get("order", 0))
+			return left_order > right_order if reverse else left_order < right_order
+		return left_priority < right_priority if reverse else left_priority > right_priority
+	)
+
+	var result: Array[Object] = []
+	for entry: Dictionary in entries:
+		var instance := entry.get("instance") as Object
+		if instance != null:
+			result.append(instance)
+	return result
+
+
+func _sort_modules_for_tick(modules: Array[Object], priority_property: StringName) -> void:
+	var entries: Array[Dictionary] = []
+	for index: int in range(modules.size()):
+		var instance := modules[index]
+		entries.append({
+			"instance": instance,
+			"priority": _get_module_priority(instance, priority_property),
+			"order": index,
+		})
+
+	entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		var left_priority := int(left.get("priority", 0))
+		var right_priority := int(right.get("priority", 0))
+		if left_priority == right_priority:
+			return int(left.get("order", 0)) < int(right.get("order", 0))
+		return left_priority > right_priority
+	)
+
+	modules.clear()
+	for entry: Dictionary in entries:
+		var instance := entry.get("instance") as Object
+		if instance != null:
+			modules.append(instance)
+
+
+func _get_module_priority(instance: Object, property_name: StringName) -> int:
+	if instance == null:
+		return 0
+	if String(property_name) in instance:
+		return int(instance.get(property_name))
+	return 0
+
+
 func _collect_module_debug_state(registry: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for script_cls: Script in registry.keys():
@@ -1035,6 +1122,9 @@ func _collect_module_debug_state(registry: Dictionary) -> Dictionary:
 			"has_physics_tick": instance != null and instance.has_method("physics_tick"),
 			"ignore_pause": ignores_pause,
 			"ignore_time_scale": ignores_time_scale,
+			"lifecycle_priority": _get_module_priority(instance, &"lifecycle_priority"),
+			"tick_priority": _get_module_priority(instance, &"tick_priority"),
+			"physics_tick_priority": _get_module_priority(instance, &"physics_tick_priority"),
 		}
 	return result
 
@@ -1199,7 +1289,7 @@ func _advance_all_modules_to_stage(target_stage: int, lifecycle_serial: int) -> 
 
 func _advance_registry_to_stage(registry: Dictionary, target_stage: int, lifecycle_serial: int) -> bool:
 	var progressed: bool = false
-	for instance: Variant in registry.values():
+	for instance: Object in _get_modules_by_lifecycle_priority(registry):
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
 			return progressed
 
@@ -1408,6 +1498,11 @@ func _rebuild_tick_caches() -> void:
 			_tick_utilities.append(utility)
 		if utility.has_method("physics_tick"):
 			_physics_utilities.append(utility)
+
+	_sort_modules_for_tick(_tick_systems, &"tick_priority")
+	_sort_modules_for_tick(_physics_systems, &"physics_tick_priority")
+	_sort_modules_for_tick(_tick_utilities, &"tick_priority")
+	_sort_modules_for_tick(_physics_utilities, &"physics_tick_priority")
 
 
 func _flush_tick_cache_refresh() -> void:

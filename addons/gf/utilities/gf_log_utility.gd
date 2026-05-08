@@ -19,6 +19,10 @@ signal log_emitted(level: int, tag: String, message: String)
 ## @param entry: 日志条目副本。
 signal log_entry_emitted(entry: Dictionary)
 
+## 初始化时检测到上次运行未干净关闭后发出。
+## @param marker: 上次运行留下的标记数据。
+signal previous_crash_detected(marker: Dictionary)
+
 
 # --- 枚举 ---
 
@@ -41,6 +45,9 @@ enum LogLevel {
 
 const GFLogSink = preload("res://addons/gf/utilities/gf_log_sink.gd")
 const _LOG_DIR: String = "user://logs/"
+const _CRASH_MARKER_PATH: String = _LOG_DIR + "gf_log_running.marker"
+const _MAX_SANITIZE_DEPTH: int = 8
+const _MAX_SANITIZE_STRING_LENGTH: int = 2048
 
 static var _LEVEL_NAMES: PackedStringArray = PackedStringArray([
 	"DEBUG",
@@ -77,6 +84,12 @@ var max_memory_entries: int:
 		_max_memory_entries = maxi(value, 0)
 		_trim_memory_entries()
 
+## 是否写入运行中标记，用于下一次启动时判断上次是否未干净关闭。
+var crash_marker_enabled: bool = true
+
+## 当前日志 trace id。为空时 init() 会生成一个短 id。
+var trace_id: String = ""
+
 
 # --- 私有变量 ---
 
@@ -91,6 +104,10 @@ var _memory_head: int = 0
 var _memory_dropped_count: int = 0
 var _sinks: Array[GFLogSink] = []
 var _is_initialized: bool = false
+var _global_context: Dictionary = {}
+var _global_context_provider: Callable = Callable()
+var _last_shutdown_was_clean: bool = true
+var _previous_crash_marker: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -100,6 +117,11 @@ func init() -> void:
 	clear_memory_entries()
 	if not DirAccess.dir_exists_absolute(_LOG_DIR):
 		DirAccess.make_dir_recursive_absolute(_LOG_DIR)
+
+	if trace_id.is_empty():
+		trace_id = _generate_trace_id()
+	_check_previous_crash_marker()
+	_write_crash_marker()
 
 	var datetime := Time.get_datetime_dict_from_system()
 	var file_name := "gf_log_%04d%02d%02d_%02d%02d%02d_%03d.log" % [
@@ -121,6 +143,8 @@ func init() -> void:
 
 	_cleanup_old_logs()
 	_is_initialized = true
+	if not _last_shutdown_was_clean:
+		previous_crash_detected.emit(_previous_crash_marker.duplicate(true))
 	for sink: GFLogSink in _sinks:
 		if sink != null:
 			sink.init(self)
@@ -139,6 +163,7 @@ func dispose() -> void:
 		_file = null
 
 	_is_initialized = false
+	_mark_shutdown_clean()
 
 
 # --- 公共方法 ---
@@ -230,6 +255,58 @@ func fatal_lazy(tag: String, message_builder: Callable, context_builder: Callabl
 ## @param context: 结构化上下文字典。
 func log(level: int, tag: String, msg: String, context: Dictionary = {}) -> void:
 	_log(level, tag, msg, context)
+
+
+## 设置当前 trace id。
+## @param value: 新 trace id；为空时会重新生成。
+func set_trace_id(value: String) -> void:
+	trace_id = value if not value.is_empty() else _generate_trace_id()
+	if _is_initialized and crash_marker_enabled:
+		_write_crash_marker()
+
+
+## 获取当前 trace id。
+## @return trace id 字符串。
+func get_trace_id() -> String:
+	if trace_id.is_empty():
+		trace_id = _generate_trace_id()
+	return trace_id
+
+
+## 设置全局日志上下文字典。每条日志都会合并该字典，单条日志上下文优先级更高。
+## @param context: 全局上下文字典。
+func set_global_context(context: Dictionary) -> void:
+	_global_context = _sanitize_log_value(context) as Dictionary
+
+
+## 设置全局日志上下文提供者。每条日志输出时会调用一次，返回 Dictionary 时参与合并。
+## @param provider: 上下文提供者，签名为 `func() -> Dictionary`。
+func set_global_context_provider(provider: Callable) -> void:
+	_global_context_provider = provider
+
+
+## 清空全局日志上下文和上下文提供者。
+func clear_global_context() -> void:
+	_global_context.clear()
+	_global_context_provider = Callable()
+
+
+## 获取全局日志上下文字典副本。
+## @return 全局上下文字典副本。
+func get_global_context() -> Dictionary:
+	return _global_context.duplicate(true)
+
+
+## 获取上次运行是否干净关闭。
+## @return 没有检测到运行中标记时返回 true。
+func was_previous_shutdown_clean() -> bool:
+	return _last_shutdown_was_clean
+
+
+## 获取上次未干净关闭时留下的标记数据。
+## @return crash marker 副本。
+func get_previous_crash_marker() -> Dictionary:
+	return _previous_crash_marker.duplicate(true)
 
 
 ## 动态设置是否忽略特定标签的日志。
@@ -343,6 +420,13 @@ func clear_memory_entries() -> void:
 	_memory_entries.clear()
 	_memory_head = 0
 	_memory_dropped_count = 0
+
+
+## 清洗任意值，使它适合进入结构化日志和 JSON sink。
+## @param value: 要清洗的值。
+## @return 清洗后的值。
+static func sanitize_log_value(value: Variant) -> Variant:
+	return _sanitize_log_value(value)
 
 
 # --- 私有方法 ---
@@ -460,7 +544,7 @@ func _make_entry(
 	message: String,
 	context: Dictionary
 ) -> Dictionary:
-	var safe_context := context.duplicate(true)
+	var safe_context := _merge_log_context(context)
 	var text := "[%s][%s][%s] %s" % [timestamp, level_name, tag, message]
 	if not safe_context.is_empty():
 		text += " " + JSON.stringify(safe_context)
@@ -469,6 +553,7 @@ func _make_entry(
 		"timestamp": timestamp,
 		"unix_time": Time.get_unix_time_from_system(),
 		"ticks_msec": Time.get_ticks_msec(),
+		"trace_id": get_trace_id(),
 		"level": level,
 		"level_name": level_name,
 		"tag": tag,
@@ -526,3 +611,123 @@ func _memory_logical_to_physical(logical_index: int) -> int:
 	if _max_memory_entries <= 0 or _memory_entries.size() < _max_memory_entries:
 		return logical_index
 	return (_memory_head + logical_index) % _memory_entries.size()
+
+
+func _merge_log_context(context: Dictionary) -> Dictionary:
+	var merged := _global_context.duplicate(true)
+	if _global_context_provider.is_valid():
+		var provided: Variant = _global_context_provider.call()
+		if provided is Dictionary:
+			for key: Variant in (provided as Dictionary).keys():
+				merged[key] = (provided as Dictionary)[key]
+
+	for key: Variant in context.keys():
+		merged[key] = context[key]
+	if not merged.has("trace_id"):
+		merged["trace_id"] = get_trace_id()
+	return _sanitize_log_value(merged) as Dictionary
+
+
+static func _sanitize_log_value(value: Variant, depth: int = 0) -> Variant:
+	if depth >= _MAX_SANITIZE_DEPTH:
+		return "<max_depth>"
+
+	match typeof(value):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT:
+			return value
+		TYPE_STRING:
+			return _truncate_log_string(String(value))
+		TYPE_STRING_NAME, TYPE_NODE_PATH:
+			return _truncate_log_string(String(value))
+		TYPE_DICTIONARY:
+			var result: Dictionary = {}
+			var source := value as Dictionary
+			for key: Variant in source.keys():
+				result[String(key)] = _sanitize_log_value(source[key], depth + 1)
+			return result
+		TYPE_ARRAY:
+			var result: Array = []
+			for item: Variant in (value as Array):
+				result.append(_sanitize_log_value(item, depth + 1))
+			return result
+		TYPE_PACKED_BYTE_ARRAY:
+			return {
+				"type": "PackedByteArray",
+				"size": (value as PackedByteArray).size(),
+			}
+		TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY:
+			return {
+				"type": type_string(typeof(value)),
+				"size": value.size(),
+			}
+		TYPE_PACKED_STRING_ARRAY:
+			var strings: Array = []
+			for item: String in (value as PackedStringArray):
+				strings.append(_sanitize_log_value(item, depth + 1))
+			return strings
+		TYPE_OBJECT:
+			var object := value as Object
+			if object == null:
+				return null
+			var payload := {
+				"type": object.get_class(),
+				"id": object.get_instance_id(),
+			}
+			if object is Node:
+				var node := object as Node
+				payload["name"] = node.name
+				payload["path"] = str(node.get_path()) if node.is_inside_tree() else ""
+			return payload
+		_:
+			return _truncate_log_string(str(value))
+
+
+static func _truncate_log_string(value: String) -> String:
+	if value.length() <= _MAX_SANITIZE_STRING_LENGTH:
+		return value
+	return value.substr(0, _MAX_SANITIZE_STRING_LENGTH) + "...<truncated>"
+
+
+func _check_previous_crash_marker() -> void:
+	_previous_crash_marker.clear()
+	if not crash_marker_enabled:
+		_last_shutdown_was_clean = true
+		return
+	if not FileAccess.file_exists(_CRASH_MARKER_PATH):
+		_last_shutdown_was_clean = true
+		return
+
+	_last_shutdown_was_clean = false
+	var content := FileAccess.get_file_as_string(_CRASH_MARKER_PATH)
+	var parsed: Variant = JSON.parse_string(content)
+	if parsed is Dictionary:
+		_previous_crash_marker = _sanitize_log_value(parsed) as Dictionary
+
+
+func _write_crash_marker() -> void:
+	if not crash_marker_enabled:
+		return
+
+	var file := FileAccess.open(_CRASH_MARKER_PATH, FileAccess.WRITE)
+	if file == null:
+		return
+	file.store_string(JSON.stringify({
+		"trace_id": get_trace_id(),
+		"started_at": Time.get_datetime_string_from_system(true, true),
+		"ticks_msec": Time.get_ticks_msec(),
+	}))
+	file.close()
+
+
+func _mark_shutdown_clean() -> void:
+	if FileAccess.file_exists(_CRASH_MARKER_PATH):
+		DirAccess.remove_absolute(_CRASH_MARKER_PATH)
+
+
+func _generate_trace_id() -> String:
+	var source := "%s:%s:%s" % [
+		Time.get_unix_time_from_system(),
+		Time.get_ticks_usec(),
+		randi(),
+	]
+	return source.sha256_text().substr(0, 16)

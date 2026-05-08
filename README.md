@@ -4,7 +4,7 @@ GF Framework is a lightweight game architecture framework for Godot 4. It keeps 
 
 ## English Overview
 
-- `Foundation`: pure value objects, algorithms, resourceized formulas, formatting helpers, big numbers, fixed decimals, progression curves, tile/grid helpers, spatial hashes, and offline reward calculations.
+- `Foundation`: pure value objects, algorithms, resourceized formulas, formatting helpers, big numbers, fixed decimals, progression curves, grid pathfinding and flow fields, tile helpers, spatial hashes, and offline reward calculations.
 - `GFModel`: data layer for game state, snapshots, and save/restore methods through `to_dict()` / `from_dict()`.
 - `GFSystem`: logic layer for rules, events, commands, queries, and frame-based updates.
 - `GFController`: presentation layer based on `Node`, connecting Godot scenes, UI, input, and framework data.
@@ -42,7 +42,7 @@ func _ready() -> void:
 
 ## Included Modules
 
-GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties with computed/effect helpers, commands and queries, state machines with guards, command sequences, turn-flow helpers, action queues with resourceized tween configs, object pooling, scene switching with preload caching, transition params and history, storage helpers, save slot workflows, save graph composition, pipeline traces and diagnostics, settings and display adapters, build info snapshots, audio banks with BGM/ambient helpers, player-scoped input mapping with modifiers/triggers, conflict reports and formatter providers, debug draw command buffering, analytics events, capability components with inspection reports, interaction flows and interaction sender/receiver nodes, resourceized flow graphs with ports/connections/editor view models, optional ENet network transport with session/channel metadata, runtime diagnostics, notification queues, lightweight combat helpers, generic domain models, grid/tile primitives, 3D spatial hashing, 3D gravity fields, 3D surface material lookup, and editor tools for typed accessor generation.
+GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties with computed/effect helpers, commands and queries, state machines with guards, command sequences, turn-flow helpers, action queues with resourceized tween configs, object pooling, scene switching with preload caching, transition params and history, storage helpers, save slot workflows, save graph composition, pipeline traces and diagnostics, settings and display adapters, build info snapshots, asset handles and groups, audio banks with BGM/ambient helpers, player-scoped input mapping with modifiers/triggers, conflict reports and formatter providers, debug draw command buffering, analytics events, capability components with inspection reports, interaction flows and interaction sender/receiver nodes, resourceized flow graphs with ports/connections/editor view models, optional ENet network transport with session/channel metadata, runtime diagnostics, notification queues, lightweight combat helpers, generic domain models, grid pathfinding and tile primitives, 3D spatial hashing, 3D gravity fields, 3D surface material lookup, and editor tools for typed GF/config accessor generation.
 
 ## Testing
 
@@ -58,7 +58,7 @@ GF Framework 是一个面向 Godot 4 的轻量级游戏架构框架，核心目�
 
 ## 核心分层
 
-- `Foundation`：纯值对象、纯算法、资源化公式和纯格式化工具，不参与 `GFArchitecture` 注册，适合承载大数、定点数、显示格式化、价格/收益曲线与离线收益结算等基础件。
+- `Foundation`：纯值对象、纯算法、资源化公式和纯格式化工具，不参与 `GFArchitecture` 注册，适合承载大数、定点数、显示格式化、价格/收益曲线、网格寻路与离线收益结算等基础件。
 - `GFModel`：数据层，保存游戏状态，提供 `to_dict()` / `from_dict()` 用于存档与快照。
 - `GFSystem`：逻辑层，处理业务规则、事件响应、命令执行和逐帧逻辑。
 - `GFController`：表现层，继承 `Node`，连接 Godot 场景树、UI、输入和框架数据。

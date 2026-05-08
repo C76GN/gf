@@ -1,7 +1,7 @@
 ## GFGridMath: 网格类小游戏的纯算法工具。
 ##
-## 提供一维索引与二维格坐标转换、邻居枚举、泛洪搜索、BFS 路径查找
-## 以及连连看类“两折连线”判断。它不依赖 GFArchitecture，可直接在
+## 提供一维索引与二维格坐标转换、邻居枚举、泛洪搜索、BFS / A* 路径查找、
+## Flow Field 生成以及连连看类“两折连线”判断。它不依赖 GFArchitecture，可直接在
 ## Model、System、Controller 或测试中静态调用。
 class_name GFGridMath
 extends RefCounted
@@ -173,6 +173,131 @@ static func find_path_bfs(
 	return []
 
 
+## 使用 A* 查找一条低代价路径。
+## @param grid_size: 网格尺寸。
+## @param start: 起点格子。
+## @param goal: 终点格子。
+## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## @param allow_diagonal: 是否允许斜向移动。
+## @param step_cost: 可选代价回调，签名为 `func(from: Vector2i, to: Vector2i) -> float`；返回负数表示不可通行。
+## @param heuristic: 启发函数名称，支持 `manhattan`、`chebyshev`、`octile`、`euclidean`。
+## @return 包含起点与终点的路径；无法到达时返回空数组。
+static func find_path_a_star(
+	grid_size: Vector2i,
+	start: Vector2i,
+	goal: Vector2i,
+	is_walkable: Callable,
+	allow_diagonal: bool = false,
+	step_cost: Callable = Callable(),
+	heuristic: StringName = &"manhattan"
+) -> Array[Vector2i]:
+	if (
+		not is_in_bounds(start, grid_size)
+		or not is_in_bounds(goal, grid_size)
+		or not is_walkable.is_valid()
+	):
+		return []
+	if start == goal:
+		return [start]
+	if not bool(is_walkable.call(goal)):
+		return []
+
+	var open_set: Array[Vector2i] = [start]
+	var open_lookup: Dictionary = { start: true }
+	var closed: Dictionary = {}
+	var came_from: Dictionary = {}
+	var g_score: Dictionary = { start: 0.0 }
+	var f_score: Dictionary = { start: _heuristic_distance(start, goal, heuristic, allow_diagonal) }
+
+	while not open_set.is_empty():
+		var current := _take_lowest_score_cell(open_set, f_score)
+		open_lookup.erase(current)
+		if current == goal:
+			return _reconstruct_path(start, goal, came_from)
+
+		closed[current] = true
+		for next_cell: Vector2i in get_neighbors(current, grid_size, allow_diagonal):
+			if closed.has(next_cell) or not bool(is_walkable.call(next_cell)):
+				continue
+
+			var move_cost := _get_step_cost(current, next_cell, step_cost)
+			if move_cost < 0.0:
+				continue
+
+			var tentative_score := float(g_score.get(current, INF)) + move_cost
+			if tentative_score >= float(g_score.get(next_cell, INF)):
+				continue
+
+			came_from[next_cell] = current
+			g_score[next_cell] = tentative_score
+			f_score[next_cell] = tentative_score + _heuristic_distance(next_cell, goal, heuristic, allow_diagonal)
+			if not open_lookup.has(next_cell):
+				open_set.append(next_cell)
+				open_lookup[next_cell] = true
+
+	return []
+
+
+## 从一个或多个目标格生成 Flow Field。
+## @param grid_size: 网格尺寸。
+## @param goals: 目标格列表。
+## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## @param allow_diagonal: 是否允许斜向移动。
+## @param step_cost: 可选代价回调，签名为 `func(from: Vector2i, to: Vector2i) -> float`；返回负数表示不可通行。
+## @return 包含 `costs`、`directions` 和 `goals` 的字典；`directions[cell]` 是下一步方向。
+static func build_flow_field(
+	grid_size: Vector2i,
+	goals: Array[Vector2i],
+	is_walkable: Callable,
+	allow_diagonal: bool = false,
+	step_cost: Callable = Callable()
+) -> Dictionary:
+	var costs: Dictionary = {}
+	var directions: Dictionary = {}
+	var valid_goals: Array[Vector2i] = []
+	if grid_size.x <= 0 or grid_size.y <= 0 or not is_walkable.is_valid():
+		return {
+			"costs": costs,
+			"directions": directions,
+			"goals": valid_goals,
+		}
+
+	var frontier: Array[Vector2i] = []
+	for goal: Vector2i in goals:
+		if not is_in_bounds(goal, grid_size) or not bool(is_walkable.call(goal)) or costs.has(goal):
+			continue
+
+		costs[goal] = 0.0
+		directions[goal] = Vector2i.ZERO
+		valid_goals.append(goal)
+		frontier.append(goal)
+
+	while not frontier.is_empty():
+		var current := _take_lowest_score_cell(frontier, costs)
+		for next_cell: Vector2i in get_neighbors(current, grid_size, allow_diagonal):
+			if not bool(is_walkable.call(next_cell)):
+				continue
+
+			var move_cost := _get_step_cost(next_cell, current, step_cost)
+			if move_cost < 0.0:
+				continue
+
+			var next_cost := float(costs[current]) + move_cost
+			if next_cost >= float(costs.get(next_cell, INF)):
+				continue
+
+			costs[next_cell] = next_cost
+			directions[next_cell] = current - next_cell
+			if not frontier.has(next_cell):
+				frontier.append(next_cell)
+
+	return {
+		"costs": costs,
+		"directions": directions,
+		"goals": valid_goals,
+	}
+
+
 ## 判断两个格子是否能在指定转折次数内连通。
 ## @param grid_size: 网格尺寸。
 ## @param start: 起点格子。
@@ -263,6 +388,49 @@ static func _reconstruct_path(start: Vector2i, goal: Vector2i, came_from: Dictio
 		path.push_front(current)
 
 	return path
+
+
+static func _take_lowest_score_cell(cells: Array[Vector2i], scores: Dictionary) -> Vector2i:
+	var best_index := 0
+	var best_score := float(scores.get(cells[0], INF))
+	for index: int in range(1, cells.size()):
+		var score := float(scores.get(cells[index], INF))
+		if score < best_score:
+			best_index = index
+			best_score = score
+
+	var cell := cells[best_index]
+	cells.remove_at(best_index)
+	return cell
+
+
+static func _heuristic_distance(
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	heuristic: StringName,
+	allow_diagonal: bool
+) -> float:
+	var dx := absi(to_cell.x - from_cell.x)
+	var dy := absi(to_cell.y - from_cell.y)
+	match heuristic:
+		&"chebyshev":
+			return float(maxi(dx, dy))
+		&"octile":
+			var diagonal := mini(dx, dy)
+			var straight := maxi(dx, dy) - diagonal
+			return float(straight) + float(diagonal) * 1.41421356237
+		&"euclidean":
+			return sqrt(float(dx * dx + dy * dy))
+		_:
+			return float(maxi(dx, dy)) if allow_diagonal and heuristic == &"auto" else float(dx + dy)
+
+
+static func _get_step_cost(from_cell: Vector2i, to_cell: Vector2i, step_cost: Callable) -> float:
+	if step_cost.is_valid():
+		return float(step_cost.call(from_cell, to_cell))
+
+	var delta := to_cell - from_cell
+	return 1.41421356237 if absi(delta.x) == 1 and absi(delta.y) == 1 else 1.0
 
 
 static func _can_step_connector(

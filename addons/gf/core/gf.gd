@@ -356,6 +356,33 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	if arch != null:
 		arch.send_simple_event(event_id, payload)
 
+## 配置事件系统调试与保护选项。
+## @param max_dispatch_depth: 最大嵌套派发深度；小于等于 0 表示不限制。
+## @param trace_enabled: 是否记录派发追踪。
+## @param max_trace_entries: 最多保留的追踪条目数。
+func configure_event_debugging(
+	max_dispatch_depth: int = 0,
+	trace_enabled: bool = false,
+	max_trace_entries: int = 64
+) -> void:
+	var arch := _get_architecture_or_null("configure_event_debugging")
+	if arch != null:
+		arch.configure_event_debugging(max_dispatch_depth, trace_enabled, max_trace_entries)
+
+## 获取最近事件派发追踪条目。
+## @return 从旧到新的追踪条目副本。
+func get_event_dispatch_trace() -> Array[Dictionary]:
+	var arch := _get_architecture_or_null("get_event_dispatch_trace")
+	if arch == null:
+		return []
+	return arch.get_event_dispatch_trace()
+
+## 清空事件派发追踪。
+func clear_event_dispatch_trace() -> void:
+	var arch := _get_architecture_or_null("clear_event_dispatch_trace")
+	if arch != null:
+		arch.clear_event_dispatch_trace()
+
 ## 快捷注册类型事件监听（别名：listen）。
 ## @param event_type: 要监听或取消监听的事件脚本类型。
 ## @param on_event: 事件触发时执行的回调。

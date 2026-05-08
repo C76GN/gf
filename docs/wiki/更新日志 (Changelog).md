@@ -18,7 +18,68 @@
 
 ## 维护策略
 
-本页面只保留最近三个大版本线的更新记录，当前保留 `1.30.x`、`1.29.x` 与 `1.28.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个大版本线的更新记录，当前保留 `1.31.x`、`1.30.x` 与 `1.29.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [1.31.0] - 2026-05-09
+
+**版本概述**：补强框架级运行时可观察性、资源所有权、UI 栈导航、配置访问器生成、网格算法、存储迁移和通知队列能力，保持 1.x 默认兼容语义。
+
+### 🚀 新增特性 (Added)
+- `GFAssetUtility` 新增 `GFAssetHandle` 资源句柄、路径引用计数、owner 批量释放、资源分组预加载/卸载和分组锁定缓存。
+- `GFUIUtility` 新增面板打开/关闭/导航信号、层级替换、回退到指定面板、栈查询和诊断快照。
+- `TypeEventSystem` 新增最大嵌套派发深度保护、可选派发追踪和追踪清理 API，并通过 `GFArchitecture` / `Gf` 提供配置与读取入口。
+- `GFModel` / `GFSystem` / `GFUtility` 新增生命周期优先级；`GFSystem` / `GFUtility` 新增 tick 与 physics tick 优先级。
+- `GFGridMath` 新增 A* 路径查找和 Flow Field 生成。
+- 新增 `GFHexGridMath`，提供纯六边形坐标转换、邻居、范围、环、线段、视线、A*、Flow Field 和可达域算法。
+- 新增 `GFConfigAccessGenerator`，可根据 `GFConfigTableSchema` 生成静态导表访问器源码。
+- `GFLogUtility` 新增 trace id、全局上下文、日志值清洗和上次异常退出标记检测。
+- `GFNotificationUtility` 新增通知优先级、sticky 通知、暂停/恢复和动作触发信号。
+- `GFUIUtility` 新增面板 options、Modal 策略、取消请求和焦点约束辅助方法。
+- `GFStorageUtility` 新增注册式版本迁移链；新增 `GFStorageBackend` 与 `GFStorageConflictReport` 作为远端/同步扩展点。
+
+### 🔄 机制更改 (Changed)
+- 架构初始化在同一 Model/System/Utility 注册表内按 `lifecycle_priority` 从高到低推进，释放时反向处理；默认值 `0` 保持原注册顺序。
+- tick 缓存会按 `tick_priority` / `physics_tick_priority` 从高到低排序；默认值 `0` 保持原注册顺序。
+- `GFAssetUtility.pin_cache()` 现在以引用计数形式管理锁定，重复 pin 需要对应次数 unpin。
+- `GFNotificationUtility` 等待队列会按优先级调度；默认 `NORMAL` 优先级保持旧通知行为。
+- `GFStorageUtility.migrate_data()` 会先执行已注册迁移链，再应用版本默认值；未注册迁移时保持旧默认迁移行为。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 API 均为向后兼容；旧 `load_async()`、`push_panel()`、`push_notification()`、事件监听、BFS/Grid 和存储调用保持有效。
+- `GFAssetUtility.get_debug_snapshot()` 新增引用计数和分组数量字段。
+- `TypeEventSystem.get_debug_stats()` 新增最大深度、追踪开关和追踪数量字段。
+- `GFArchitecture.get_debug_lifecycle_state()` 的模块条目新增生命周期与 tick 优先级字段。
+- `GFLogUtility` 结构化日志条目新增 `trace_id` 字段，`context` 会包含已清洗后的全局上下文与单条日志上下文。
+- `GFUIUtility.get_debug_snapshot()` 的层级条目新增 `top_modal` 字段。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。只有存在明确依赖顺序或更新顺序需求时，才设置 `lifecycle_priority` / `tick_priority`；不要把业务流程顺序硬编码进框架基类。
+- 资源句柄适合表达“调用方仍持有该路径资源”的所有权；临时加载仍可继续使用 `load_async()`。
+- UI 新增方法只管理栈、状态信号和轻量面板策略，不替项目决定动画、输入路由、视觉层级或面板通信规则。
+- 六边形、通知、存储后端和日志增强均为通用工具层能力；项目应在业务层定义地形、阵营、上传、同步冲突解决和 UI 表现。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/utilities/gf_asset_utility.gd`
+- `addons/gf/utilities/gf_asset_handle.gd`
+- `addons/gf/utilities/gf_log_utility.gd`
+- `addons/gf/utilities/gf_notification_utility.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_storage_backend.gd`
+- `addons/gf/utilities/gf_storage_conflict_report.gd`
+- `addons/gf/utilities/gf_ui_utility.gd`
+- `addons/gf/foundation/math/gf_grid_math.gd`
+- `addons/gf/foundation/math/gf_hex_grid_math.gd`
+- `addons/gf/editor/gf_config_access_generator.gd`
+- `tests/gf_core/**`
+- `docs/wiki/**`
 
 ---
 
@@ -110,54 +171,3 @@
 - `tests/gf_core/test_gf_state_machine.gd`
 - `tests/gf_core/test_gf_node_state_machine.gd`
 - `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-
----
-
-## [1.28.0] - 2026-05-08
-
-**版本概述**：新增构建信息、交互收发、FlowGraph 视图模型与 3D 力场抽象，并增强场景切换参数、历史与过渡时长控制。
-
-### 🚀 新增特性 (Added)
-- 新增 `GFBuildInfo` 与 `GFBuildInfoUtility`，用于统一采集项目版本、GF 版本、构建号、提交号、分支、构建时间、Godot 版本、平台和自定义构建元数据。
-- 新增 `GFInteractionSensor` 与 `GFInteractionReceiver`，提供通用交互上下文发送、接收、交互 ID 过滤、自定义校验和统一结果报告。
-- 新增 `GFFlowGraphEditorModel`，把流程图节点、端口索引、连接端口索引、分组和校验结果整理为项目 GraphEdit 或调试面板可消费的视图模型。
-- 新增 `GFGravityField3D` 与 `GFGravityProbe3D`，提供通用 3D 加速度场、衰减采样和上下方向计算。
-
-### 🔄 机制更改 (Changed)
-- `GFSceneUtility` 支持切换参数、场景历史、返回上一场景和 loading scene 最短显示时长；`GFSceneTransitionConfig` 可资源化携带 `params` 与 `minimum_duration_seconds`。
-- `GFDiagnosticsUtility.collect_snapshot()` 新增 `build` 字段，并会把已注册 `GFBuildInfoUtility` 的调试快照聚合到 `tools.build_info`。
-
-### 🐛 Bug 修复 (Fixed)
-- 修复已摆放在 `GFCapabilityContainer2D` / `GFCapabilityContainer3D` / `GFCapabilityContainerControl` 下的子能力，在容器进树同步注册时可能被误判为需要迁移到新容器，导致能力无法立即查询或触发 Godot children setup 阶段 `add_child()` 报错的问题。
-- 修复能力容器随 receiver 退出树时，注销子能力可能在 busy parent 上 `remove_child()` 的边界问题。
-
-### 🔌 API 变动说明 (API Changes)
-- 新增 `GFSceneTransitionConfig.params: Dictionary`。
-- 新增 `GFSceneTransitionConfig.minimum_duration_seconds: float`。
-- `GFSceneUtility.load_scene_async(path, loading_scene_path = "", params = {}, minimum_duration_seconds = -1.0)` 新增可选参数，旧的二参调用保持兼容。
-- 新增 `GFSceneUtility.default_transition_minimum_seconds: float`、`max_scene_history: int`、`get_current_scene_params()`、`get_scene_history()`、`clear_scene_history()`、`pop_scene_history()` 与 `load_previous_scene()`。
-- `GFDiagnosticsUtility.collect_snapshot()` 返回值新增 `build` 字段。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目无需迁移；新增 API 均为向后兼容。需要传递入口参数时优先使用 `params`，不要把项目业务字段写进框架子类。
-- `GFBuildInfoUtility` 需要项目主动注册才会保存稳定副本；未注册时诊断快照会即时采集当前环境信息。
-- `GFInteractionSensor` / `GFInteractionReceiver` 只处理上下文和报告，碰撞范围、输入触发、冷却、权限和效果结算仍由项目层实现。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/utilities/gf_build_info.gd`
-- `addons/gf/utilities/gf_build_info_utility.gd`
-- `addons/gf/utilities/gf_scene_utility.gd`
-- `addons/gf/utilities/gf_scene_transition_config.gd`
-- `addons/gf/utilities/gf_diagnostics_utility.gd`
-- `addons/gf/extensions/capability/gf_capability_utility.gd`
-- `addons/gf/extensions/interaction/gf_interaction_sensor.gd`
-- `addons/gf/extensions/interaction/gf_interaction_receiver.gd`
-- `addons/gf/extensions/flow/gf_flow_graph_editor_model.gd`
-- `addons/gf/extensions/physics/gf_gravity_field_3d.gd`
-- `addons/gf/extensions/physics/gf_gravity_probe_3d.gd`
-- `tests/gf_core/**`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `docs/wiki/12. 能力组件 (Capabilities).md`
-
----

@@ -40,6 +40,7 @@ func after_each() -> void:
 			"test_checksum_only.json",
 			"test_missing_checksum.json",
 			"test_legacy_version.json",
+			"test_registered_migration.json",
 			"test_async.json",
 			"test_wait_async.json",
 			"recover_from_backup.json",
@@ -453,6 +454,59 @@ func test_load_data_applies_version_defaults() -> void:
 	assert_eq(int(stats.get("hp")), 100, "迁移时应深合并新增默认字段。")
 	assert_eq(loaded.get("unlocked"), true, "迁移时应补齐顶层新增默认字段。")
 	assert_signal_emitted(_storage, "data_migrated", "旧版本数据迁移后应发出信号。")
+
+
+func test_registered_migrations_run_as_version_chain() -> void:
+	_storage.encrypt_key = 0
+	_storage.save_version = 3
+	assert_true(_storage.register_migration(1, 2, func(data: Dictionary, _from_version: int, _to_version: int) -> Dictionary:
+		data["step_one"] = true
+		return data
+	), "应能注册 1 -> 2 迁移。")
+	assert_true(_storage.register_migration(2, 3, func(data: Dictionary, _from_version: int, _to_version: int) -> Dictionary:
+		data["step_two"] = true
+		return data
+	), "应能注册 2 -> 3 迁移。")
+	var file_name := "test_registered_migration.json"
+	var codec := GFStorageCodec.new()
+	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
+	file.store_buffer(codec.encode({
+		"_meta": {
+			"version": 1,
+		},
+		"value": 10,
+	}, { "obfuscation_key": 0 }))
+	file.close()
+
+	var loaded := _storage.load_data(file_name)
+	var migrations := _storage.get_registered_migrations()
+
+	assert_eq(loaded.get("step_one"), true, "第一段迁移应执行。")
+	assert_eq(loaded.get("step_two"), true, "第二段迁移应执行。")
+	assert_eq(int((loaded.get("_meta") as Dictionary).get("version")), 3, "迁移后版本应更新为当前版本。")
+	assert_eq(migrations.size(), 2, "迁移注册表应可查询。")
+
+
+func test_storage_backend_default_contract_and_conflict_report_roundtrip() -> void:
+	var backend := GFStorageBackend.new()
+	var report := GFStorageConflictReport.from_dict({
+		"file_name": "profile.json",
+		"key": "coins",
+		"local_value": 10,
+		"remote_value": 12,
+		"resolved_value": 12,
+		"resolution": GFStorageConflictReport.Resolution.USE_REMOTE,
+		"metadata": {
+			"source": "test",
+		},
+	})
+	var report_copy := report.duplicate_report()
+
+	assert_eq(backend.save_data("profile.json", {"coins": 10}), ERR_UNAVAILABLE, "默认后端不应假装支持写入。")
+	assert_false(bool(backend.load_data("profile.json").get("ok")), "默认后端读取应返回失败结果。")
+	assert_false(bool(backend.get_capabilities().get("sync")), "默认能力应声明不支持同步。")
+	assert_true(report.is_resolved(), "非 UNRESOLVED 冲突报告应视为已解决。")
+	assert_eq(report_copy.to_dict(), report.to_dict(), "冲突报告复制应保留所有字段。")
 
 
 func _pump_storage_async_tasks() -> void:

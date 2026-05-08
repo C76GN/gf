@@ -151,30 +151,5 @@ func _cleanup_old_jsonl_files() -> void:
 		DirAccess.remove_absolute(base_dir.path_join(files[index]))
 
 
-func _sanitize_for_json(value: Variant, depth: int = 0) -> Variant:
-	if depth > 16:
-		return "<max_depth>"
-
-	match typeof(value):
-		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
-			return value
-		TYPE_STRING_NAME, TYPE_NODE_PATH:
-			return String(value)
-		TYPE_ARRAY:
-			var result: Array = []
-			for item: Variant in value as Array:
-				result.append(_sanitize_for_json(item, depth + 1))
-			return result
-		TYPE_DICTIONARY:
-			var result: Dictionary = {}
-			var source := value as Dictionary
-			for key: Variant in source.keys():
-				result[String(key)] = _sanitize_for_json(source[key], depth + 1)
-			return result
-		TYPE_PACKED_BYTE_ARRAY, TYPE_PACKED_INT32_ARRAY, TYPE_PACKED_INT64_ARRAY, TYPE_PACKED_FLOAT32_ARRAY, TYPE_PACKED_FLOAT64_ARRAY, TYPE_PACKED_STRING_ARRAY, TYPE_PACKED_VECTOR2_ARRAY, TYPE_PACKED_VECTOR3_ARRAY, TYPE_PACKED_COLOR_ARRAY:
-			var result: Array = []
-			for item: Variant in value:
-				result.append(_sanitize_for_json(item, depth + 1))
-			return result
-		_:
-			return var_to_str(value)
+func _sanitize_for_json(value: Variant, _depth: int = 0) -> Variant:
+	return GFLogUtility.sanitize_log_value(value)

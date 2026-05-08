@@ -21,6 +21,18 @@ var ignore_pause: bool = false
 ## 该 System 的 tick / physics_tick 会接收到原始 delta。
 var ignore_time_scale: bool = false
 
+## 生命周期优先级。数值越大越早执行 init/async_init/ready，dispose 时越晚释放。
+## 默认 0 保持注册顺序语义；只有存在明确依赖顺序时才建议设置。
+var lifecycle_priority: int = 0
+
+## 每帧 tick 优先级。数值越大越早执行 tick()。
+## 默认 0 保持注册顺序语义。
+var tick_priority: int = 0
+
+## 物理帧 tick 优先级。数值越大越早执行 physics_tick()。
+## 默认 0 保持注册顺序语义。
+var physics_tick_priority: int = 0
+
 
 # --- 私有变量 ---
 

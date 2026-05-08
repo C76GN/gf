@@ -250,6 +250,34 @@ class RecordingSystem extends GFSystem:
 		order.append("system")
 
 
+class LowPriorityLifecycleUtility extends GFUtility:
+	var order: Array
+
+	func _init(p_order: Array) -> void:
+		order = p_order
+		lifecycle_priority = -10
+
+	func async_init() -> void:
+		order.append("low")
+
+	func dispose() -> void:
+		order.append("dispose_low")
+
+
+class HighPriorityLifecycleUtility extends GFUtility:
+	var order: Array
+
+	func _init(p_order: Array) -> void:
+		order = p_order
+		lifecycle_priority = 10
+
+	func async_init() -> void:
+		order.append("high")
+
+	func dispose() -> void:
+		order.append("dispose_high")
+
+
 class OwnedEventUtility extends GFUtility:
 	var event_count: int = 0
 
@@ -279,6 +307,28 @@ class UnregisteringTickSystem extends GFSystem:
 	func tick(_delta: float) -> void:
 		tick_order.append("unregistering")
 		_get_architecture().unregister_system(TickVictimSystem)
+
+
+class LowPriorityTickSystem extends GFSystem:
+	var tick_order: Array
+
+	func _init(p_tick_order: Array) -> void:
+		tick_order = p_tick_order
+		tick_priority = -10
+
+	func tick(_delta: float) -> void:
+		tick_order.append("low")
+
+
+class HighPriorityTickSystem extends GFSystem:
+	var tick_order: Array
+
+	func _init(p_tick_order: Array) -> void:
+		tick_order = p_tick_order
+		tick_priority = 10
+
+	func tick(_delta: float) -> void:
+		tick_order.append("high")
 
 
 class DummyQuery extends GFQuery:
@@ -486,6 +536,21 @@ func test_lifecycle_stage_order_prefers_utilities_before_systems() -> void:
 	await Gf.set_architecture(arch)
 
 	assert_eq(order, ["model", "utility", "system"], "async_init 阶段应先完成 Model，再完成 Utility，最后进入 System。")
+
+
+## 验证同一模块类型内生命周期优先级越高越早初始化、越晚释放。
+func test_lifecycle_priority_orders_modules_within_same_registry() -> void:
+	var order: Array = []
+	var arch := GFArchitecture.new()
+	await arch.register_utility_instance(LowPriorityLifecycleUtility.new(order))
+	await arch.register_utility_instance(HighPriorityLifecycleUtility.new(order))
+
+	await arch.init()
+
+	assert_eq(order, ["high", "low"], "同类模块内高 lifecycle_priority 应更早进入生命周期阶段。")
+
+	arch.dispose()
+	assert_eq(order, ["high", "low", "dispose_low", "dispose_high"], "释放时高 lifecycle_priority 应更晚释放。")
 
 
 ## 验证可通过显式 alias 以抽象基类获取具体实现。
@@ -1272,6 +1337,45 @@ func test_architecture_assignable_event_listener_receives_child_event() -> void:
 	arch.dispose()
 
 
+## 验证架构事件调试配置会代理到底层事件系统。
+func test_architecture_event_debugging_exposes_trace() -> void:
+	var arch := GFArchitecture.new()
+	arch.configure_event_debugging(4, true, 2)
+	arch.register_simple_event(&"trace_event", func(_payload: Variant) -> void:
+		pass
+	)
+
+	arch.send_simple_event(&"trace_event")
+	var trace := arch.get_event_dispatch_trace()
+	var stats := arch.get_event_debug_stats()
+
+	assert_eq(int(stats["max_dispatch_depth"]), 4, "架构应能配置事件最大深度。")
+	assert_true(bool(stats["trace_enabled"]), "架构应能开启事件追踪。")
+	assert_eq(trace.size(), 1, "开启追踪后应能读取派发记录。")
+	assert_eq(String((trace[0] as Dictionary).get("event")), "trace_event", "追踪记录应包含简单事件 ID。")
+
+	arch.clear_event_dispatch_trace()
+	assert_true(arch.get_event_dispatch_trace().is_empty(), "架构应能清空事件追踪。")
+	arch.dispose()
+
+
+## 验证 Gf 门面可访问事件追踪。
+func test_facade_event_debugging_proxies_architecture() -> void:
+	Gf.configure_event_debugging(0, true, 2)
+	Gf.listen_simple(&"facade_trace_event", func(_payload: Variant) -> void:
+		pass
+	)
+
+	Gf.send_simple_event(&"facade_trace_event")
+	var trace := Gf.get_event_dispatch_trace()
+
+	assert_eq(trace.size(), 1, "Gf 门面应能读取事件追踪。")
+	assert_eq(String((trace[0] as Dictionary).get("event")), "facade_trace_event", "门面追踪应来自当前架构。")
+
+	Gf.clear_event_dispatch_trace()
+	assert_true(Gf.get_event_dispatch_trace().is_empty(), "Gf 门面应能清空事件追踪。")
+
+
 ## 验证架构诊断快照会报告模块生命周期与工厂绑定状态。
 func test_architecture_debug_lifecycle_state_reports_modules_and_factories() -> void:
 	var arch := GFArchitecture.new()
@@ -1317,6 +1421,20 @@ func test_tick_skips_module_unregistered_earlier_in_same_frame() -> void:
 	arch.tick(0.016)
 
 	assert_eq(tick_order, ["unregistering"], "同一帧内已被注销的 System 不应继续 tick。")
+	arch.dispose()
+
+
+## 验证 tick 优先级越高越早驱动。
+func test_tick_priority_orders_system_tick_cache() -> void:
+	var arch := GFArchitecture.new()
+	var tick_order: Array = []
+	await arch.register_system_instance(LowPriorityTickSystem.new(tick_order))
+	await arch.register_system_instance(HighPriorityTickSystem.new(tick_order))
+	await arch.init()
+
+	arch.tick(0.016)
+
+	assert_eq(tick_order, ["high", "low"], "高 tick_priority 的 System 应更早 tick。")
 	arch.dispose()
 
 

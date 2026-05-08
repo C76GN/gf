@@ -175,6 +175,60 @@ func test_structured_log_entry_signal_includes_context() -> void:
 	assert_true(String(received_entry["text"]).contains("entity_id"), "格式化文本应包含上下文字段，便于文件和控制台查看。")
 
 
+func test_trace_id_and_global_context_are_merged_into_entries() -> void:
+	var received := {"entry": {}}
+	_log_util.set_trace_id("trace-test")
+	_log_util.set_global_context({
+		"session": "global",
+		"tags": PackedStringArray(["alpha", "beta"]),
+	})
+	_log_util.set_global_context_provider(func() -> Dictionary:
+		return {
+			"build": "debug",
+			"session": "provider",
+		}
+	)
+	_log_util.log_entry_emitted.connect(func(log_entry: Dictionary) -> void:
+		received["entry"] = log_entry
+	)
+
+	_log_util.info("Context", "merged", {
+		"session": "local",
+	})
+
+	var received_entry: Dictionary = received["entry"]
+	var context := received_entry["context"] as Dictionary
+	assert_eq(received_entry["trace_id"], "trace-test", "结构化条目应包含 trace_id。")
+	assert_eq(context["trace_id"], "trace-test", "上下文应默认带 trace_id。")
+	assert_eq(context["session"], "local", "单条日志上下文应覆盖 provider 和全局上下文。")
+	assert_eq(context["build"], "debug", "provider 上下文应参与合并。")
+	assert_eq(context["tags"], ["alpha", "beta"], "PackedStringArray 应清洗为普通数组。")
+
+
+func test_previous_crash_marker_is_reported_on_init() -> void:
+	_log_util.dispose()
+	_log_util = null
+	if not DirAccess.dir_exists_absolute(_LOG_DIR):
+		DirAccess.make_dir_recursive_absolute(_LOG_DIR)
+	var marker_file := FileAccess.open(_LOG_DIR + "gf_log_running.marker", FileAccess.WRITE)
+	marker_file.store_string(JSON.stringify({
+		"trace_id": "previous-trace",
+		"started_at": "2026-01-01T00:00:00",
+	}))
+	marker_file.close()
+
+	_log_util = GFLogUtility.new()
+	var received := {"marker": {}}
+	_log_util.previous_crash_detected.connect(func(marker: Dictionary) -> void:
+		received["marker"] = marker
+	)
+	_log_util.init()
+
+	assert_false(_log_util.was_previous_shutdown_clean(), "存在运行中标记时应报告上次未干净关闭。")
+	assert_eq(_log_util.get_previous_crash_marker()["trace_id"], "previous-trace", "应保留上次运行标记内容。")
+	assert_eq((received["marker"] as Dictionary)["trace_id"], "previous-trace", "初始化时应发出上次异常退出信号。")
+
+
 func test_sink_receives_structured_entries_and_lifecycle() -> void:
 	var sink := CapturingLogSink.new()
 
@@ -215,7 +269,8 @@ func test_json_line_log_sink_writes_sanitized_entries() -> void:
 	assert_eq(parsed["tag"], "JsonSink", "JSONL 应保留 tag 字段。")
 	assert_eq(parsed["message"], "structured", "JSONL 应保留 message 字段。")
 	assert_eq(parsed["context"]["profile"], "keyboard", "StringName 上下文应被转成 JSON 字符串。")
-	assert_true(String(parsed["context"]["position"]).contains("Vector2"), "非 JSON 原生值应被稳定字符串化。")
+	assert_true(parsed["context"]["position"] is String, "非 JSON 原生值应被稳定字符串化。")
+	assert_true(String(parsed["context"]["position"]).contains(","), "Vector2 字符串应保留坐标信息。")
 
 
 func test_json_line_log_sink_derives_path_and_cleans_old_default_files() -> void:

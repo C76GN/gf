@@ -98,6 +98,7 @@ var last_load_result: Dictionary = {}
 var _async_tasks: Array[Dictionary] = []
 var _async_queue: Array[Dictionary] = []
 var _async_file_locks: Dictionary = {}
+var _migration_steps: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -376,10 +377,57 @@ func tick(_delta: float = 0.0) -> void:
 ## @param _to_version: 目标版本。
 ## @return 迁移后的数据。
 func migrate_data(data: Dictionary, _from_version: int, _to_version: int) -> Dictionary:
-	var migrated := data.duplicate(true)
+	var migrated := _apply_registered_migrations(data, _from_version, _to_version)
 	if not default_values_for_new_keys.is_empty():
 		_deep_merge_defaults(migrated, default_values_for_new_keys)
 	return migrated
+
+
+## 注册一个版本迁移步骤。
+## @param from_version: 来源版本。
+## @param to_version: 目标版本，必须大于来源版本。
+## @param callback: 迁移回调，签名为 `func(data: Dictionary, from_version: int, to_version: int) -> Dictionary`。
+## @return 注册成功时返回 true。
+func register_migration(from_version: int, to_version: int, callback: Callable) -> bool:
+	if from_version < 1 or to_version <= from_version or not callback.is_valid():
+		push_error("[GFStorageUtility] register_migration 失败：版本范围或 callback 无效。")
+		return false
+
+	_migration_steps[_make_migration_key(from_version, to_version)] = {
+		"from_version": from_version,
+		"to_version": to_version,
+		"callback": callback,
+	}
+	return true
+
+
+## 注销一个版本迁移步骤。
+## @param from_version: 来源版本。
+## @param to_version: 目标版本。
+func unregister_migration(from_version: int, to_version: int) -> void:
+	_migration_steps.erase(_make_migration_key(from_version, to_version))
+
+
+## 清空所有注册的版本迁移步骤。
+func clear_migrations() -> void:
+	_migration_steps.clear()
+
+
+## 获取已注册迁移步骤。
+## @return 迁移步骤摘要数组。
+func get_registered_migrations() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry: Dictionary in _migration_steps.values():
+		result.append({
+			"from_version": int(entry.get("from_version", 0)),
+			"to_version": int(entry.get("to_version", 0)),
+		})
+	result.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		if int(left["from_version"]) == int(right["from_version"]):
+			return int(left["to_version"]) < int(right["to_version"])
+		return int(left["from_version"]) < int(right["from_version"])
+	)
+	return result
 
 
 # --- 私有/辅助方法 ---
@@ -1153,6 +1201,63 @@ func _apply_schema_migrations(file_name: String, data: Dictionary) -> Dictionary
 	migrated[GFStorageCodec.META_KEY] = migrated_metadata
 	data_migrated.emit(file_name, from_version, to_version)
 	return migrated
+
+
+func _apply_registered_migrations(data: Dictionary, from_version: int, to_version: int) -> Dictionary:
+	var migrated := data.duplicate(true)
+	var chain := _resolve_migration_chain(from_version, to_version)
+	if chain.is_empty():
+		return migrated
+
+	var current_version := from_version
+	for next_version: int in chain:
+		var entry := _migration_steps.get(_make_migration_key(current_version, next_version), {}) as Dictionary
+		var callback: Callable = entry.get("callback", Callable())
+		if not callback.is_valid():
+			push_warning("[GFStorageUtility] 迁移步骤无效，已跳过：%d -> %d。" % [current_version, next_version])
+			current_version = next_version
+			continue
+
+		var result: Variant = callback.call(migrated.duplicate(true), current_version, next_version)
+		if result is Dictionary:
+			migrated = result as Dictionary
+		else:
+			push_warning("[GFStorageUtility] 迁移步骤未返回 Dictionary，保留原数据：%d -> %d。" % [current_version, next_version])
+		current_version = next_version
+	return migrated
+
+
+func _resolve_migration_chain(from_version: int, to_version: int) -> Array[int]:
+	var chain: Array[int] = []
+	var current_version := from_version
+	while current_version < to_version:
+		var next_version := _find_next_migration_version(current_version, to_version)
+		if next_version <= current_version:
+			if not _migration_steps.is_empty():
+				push_warning("[GFStorageUtility] 未找到完整迁移链：%d -> %d。" % [from_version, to_version])
+			return []
+
+		chain.append(next_version)
+		current_version = next_version
+	return chain
+
+
+func _find_next_migration_version(from_version: int, to_version: int) -> int:
+	var best_version := 0
+	for entry: Dictionary in _migration_steps.values():
+		if int(entry.get("from_version", 0)) != from_version:
+			continue
+
+		var candidate := int(entry.get("to_version", 0))
+		if candidate > to_version:
+			continue
+		if best_version == 0 or candidate < best_version:
+			best_version = candidate
+	return best_version
+
+
+func _make_migration_key(from_version: int, to_version: int) -> String:
+	return "%d>%d" % [from_version, to_version]
 
 
 func _get_storage_metadata(data: Dictionary) -> Dictionary:

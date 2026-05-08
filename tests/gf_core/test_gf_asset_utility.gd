@@ -157,6 +157,65 @@ func test_pinned_cache_entry_is_not_lru_evicted() -> void:
 	assert_false(_utility.is_cache_pinned("res://a.tres"), "unpin 后应移除锁定状态。")
 
 
+func test_asset_handle_pins_cache_until_release() -> void:
+	_utility.max_cache_size = 1
+	var held_resource := Resource.new()
+	var handle := _utility.acquire_handle("res://held.tres", null, &"", "", held_resource)
+
+	assert_not_null(handle, "资源可用时应创建句柄。")
+	assert_eq(_utility.get_asset_reference_count("res://held.tres"), 1, "句柄应增加路径引用计数。")
+	assert_true(_utility.is_cache_pinned("res://held.tres"), "句柄持有期间缓存应被锁定。")
+
+	_utility.put_cache("res://other.tres", Resource.new())
+
+	assert_true(_utility.is_cached("res://held.tres"), "被句柄持有的资源不应被 LRU 淘汰。")
+	assert_false(_utility.is_cached("res://other.tres"), "容量不足时应淘汰未锁定的新缓存。")
+	assert_true(handle.release(), "第一次释放句柄应成功。")
+	assert_eq(_utility.get_asset_reference_count("res://held.tres"), 0, "释放后引用计数应归零。")
+	assert_false(_utility.is_cache_pinned("res://held.tres"), "释放后应解除缓存锁定。")
+	assert_false(handle.is_valid(), "释放后的句柄不应继续暴露资源。")
+
+
+func test_release_owner_releases_owned_asset_handles() -> void:
+	var handle_owner := Node.new()
+	var handle := _utility.acquire_handle("res://owned.tres", handle_owner, &"", "", Resource.new())
+
+	var released_count := _utility.release_owner(handle_owner)
+
+	assert_eq(released_count, 1, "release_owner 应释放该 owner 持有的句柄引用。")
+	assert_eq(_utility.get_asset_reference_count("res://owned.tres"), 0, "owner 释放后路径引用计数应归零。")
+	assert_true(handle.is_released(), "owner 释放后对应句柄也应失效。")
+
+	handle_owner.free()
+
+
+func test_preload_group_async_registers_and_unloads_group() -> void:
+	_utility = CompletingAssetUtility.new()
+	_utility.init()
+	var completing := _utility as CompletingAssetUtility
+	completing.complete = true
+	var reports: Array = []
+
+	_utility.preload_group_async(
+		&"items",
+		[{ "path": "res://item_a.tres", "type_hint": "Resource" }],
+		func(report: Dictionary) -> void:
+			reports.append(report),
+		{ "pin_cache": true }
+	)
+	_utility.tick()
+
+	assert_eq(reports.size(), 1, "分组预加载完成后应回调一次。")
+	assert_true(_utility.get_group_paths(&"items").has("res://item_a.tres"), "预加载成功的路径应注册到分组。")
+	assert_true(_utility.is_cache_pinned("res://item_a.tres"), "开启 pin_cache 时分组资源应被锁定。")
+
+	_utility.unload_group(&"items", true)
+
+	assert_true(_utility.get_group_paths(&"items").is_empty(), "卸载分组后路径列表应清空。")
+	assert_false(_utility.is_cache_pinned("res://item_a.tres"), "卸载分组后应解除分组锁定。")
+	assert_false(_utility.is_cached("res://item_a.tres"), "remove_unreferenced_cache 开启时无引用缓存应移除。")
+
+
 func test_setting_cache_size_to_zero_clears_existing_cache() -> void:
 	_utility.put_cache("res://a.tres", Resource.new())
 	_utility.put_cache("res://b.tres", Resource.new())
