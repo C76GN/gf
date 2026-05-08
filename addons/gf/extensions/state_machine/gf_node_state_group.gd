@@ -22,6 +22,9 @@ signal transition_blocked(from_state: Node, to_state_name: StringName, args: Dic
 ## 子状态请求跨组切换时发出。
 signal requested_transition(group_name: StringName, state_name: StringName, args: Dictionary)
 
+## 当前状态或暂停栈状态处理状态事件后发出。
+signal state_event_handled(event_id: StringName, handler_state: Node, payload: Variant)
+
 
 # --- 导出变量 ---
 
@@ -331,6 +334,19 @@ func get_blackboard() -> Dictionary:
 	return blackboard
 
 
+## 从当前状态开始向暂停栈上抛状态事件。
+## @param event_id: 状态事件标识。
+## @param payload: 状态事件载荷。
+## @return 有状态处理该事件时返回 true。
+func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
+	var candidates := _get_event_dispatch_candidates()
+	for state: Node in candidates:
+		if state.has_method("handle_state_event") and bool(state.call("handle_state_event", event_id, payload)):
+			state_event_handled.emit(event_id, state, payload)
+			return true
+	return false
+
+
 ## 判断指定状态是否为当前状态或暂停栈中的状态。
 ## @param query_state_name: 目标名称。
 func is_in_state(query_state_name: StringName) -> bool:
@@ -371,6 +387,19 @@ func get_states() -> Array[Node]:
 	return result
 
 
+## 获取状态组调试快照。
+## @return 包含当前状态、暂停栈、历史、注册状态和黑板副本的字典。
+func get_state_snapshot() -> Dictionary:
+	return {
+		"group_name": get_group_name(),
+		"current_state": get_current_state_name(),
+		"stack": _get_stack_state_names(),
+		"history": get_state_history(),
+		"states": _get_registered_state_names(),
+		"blackboard": blackboard.duplicate(true),
+	}
+
+
 ## 清空状态。
 ## @param free_states: 为 true 时同时释放已移除的状态节点。
 func clear_states(free_states: bool = false) -> void:
@@ -405,6 +434,32 @@ func _get_machine() -> Object:
 	if _machine_ref == null:
 		return null
 	return _machine_ref.get_ref()
+
+
+func _get_event_dispatch_candidates() -> Array[Node]:
+	var result: Array[Node] = []
+	if _current_state != null:
+		result.append(_current_state)
+	for index in range(_state_stack.size() - 1, -1, -1):
+		var state := _state_stack[index] as Node
+		if state != null and is_instance_valid(state):
+			result.append(state)
+	return result
+
+
+func _get_stack_state_names() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for state: Node in _state_stack:
+		if state != null and state.has_method("get_state_name"):
+			result.append(state.call("get_state_name") as StringName)
+	return result
+
+
+func _get_registered_state_names() -> Array[StringName]:
+	var result: Array[StringName] = []
+	for state_name: StringName in _states.keys():
+		result.append(state_name)
+	return result
 
 
 func _setup_existing_states() -> void:

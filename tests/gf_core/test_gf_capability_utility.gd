@@ -440,6 +440,39 @@ func test_scene_spatial_container_keeps_existing_plain_node_capability() -> void
 	await get_tree().process_frame
 
 
+func test_meta_only_spatial_container_lazily_registers_child_capability_on_query() -> void:
+	var receiver := Node2D.new()
+	var container := Node2D.new()
+	container.name = "GFCapabilityContainer2D"
+	container.set_meta(GF_CAPABILITY_UTILITY_BASE.META_CAPABILITY_CONTAINER, true)
+	var child_capability := Node2DCapability.new()
+	container.add_child(child_capability)
+	receiver.add_child(container)
+	add_child(receiver)
+
+	assert_eq(_utility.get_capability(receiver, Node2DCapability), child_capability, "只有元数据标记的 2D 容器也应在查询时同步注册子能力。")
+	assert_eq(child_capability.added_receiver, receiver, "懒同步注册也应触发 added hook。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
+func test_named_spatial_container_lazily_registers_plain_node_child_capability_on_query() -> void:
+	var receiver := Node2D.new()
+	var container := Node2D.new()
+	container.name = "GFCapabilityContainer2D"
+	var child_capability := CapabilityNode.new()
+	container.add_child(child_capability)
+	receiver.add_child(container)
+	add_child(receiver)
+
+	assert_eq(_utility.get_capability(receiver, CapabilityNode), child_capability, "旧场景中仅保留容器命名的 2D 容器也应能同步注册普通 Node 能力。")
+	assert_eq(child_capability.get_parent(), container, "查询同步不应把已摆放能力重挂到其他容器。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_add_capability_during_receiver_enter_tree_defers_container_attachment() -> void:
 	var receiver := EnterTreeAddReceiver.new()
 	receiver.utility = _utility

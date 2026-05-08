@@ -12,19 +12,23 @@ extends RefCounted
 
 ## 持有对所属状态机的弱引用，用于访问框架上下文和切换状态。
 var _machine_ref: WeakRef = null
+var _state_name: StringName = &""
 
 
 # --- 公共方法 ---
 
 ## 由 GFStateMachine 在内部调用，用于注入机器引用。
 ## @param machine: 拥有此状态的 GFStateMachine 实例。
-func setup(machine: GFStateMachine) -> void:
+## @param state_name: 该状态在状态机中的注册名。
+func setup(machine: GFStateMachine, state_name: StringName = &"") -> void:
 	_machine_ref = weakref(machine) if machine != null else null
+	_state_name = state_name
 
 
 ## 释放对状态机的引用，避免 RefCounted 环状引用。
 func dispose() -> void:
 	_machine_ref = null
+	_state_name = &""
 
 
 ## 进入此状态时调用。子类可重写以执行进入逻辑（如初始化动画）。
@@ -42,6 +46,36 @@ func update(_delta: float) -> void:
 ## 退出此状态时调用。子类可重写以执行清理逻辑（如停止动画）。
 func exit() -> void:
 	pass
+
+
+## 获取该状态在状态机中的注册名。
+## @return 注册名；未加入状态机时为空 StringName。
+func get_state_name() -> StringName:
+	return _state_name
+
+
+## 判断是否允许进入状态。用于 GFStateMachine 分层切换守卫。
+## @param _previous_state: 来源叶子状态名。
+## @param _msg: 状态切换参数。
+## @return 允许进入返回 true。
+func can_enter(_previous_state: StringName = &"", _msg: Dictionary = {}) -> bool:
+	return true
+
+
+## 判断是否允许离开状态。用于 GFStateMachine 分层切换守卫。
+## @param _next_state: 目标叶子状态名。
+## @param _msg: 状态切换参数。
+## @return 允许离开返回 true。
+func can_exit(_next_state: StringName = &"", _msg: Dictionary = {}) -> bool:
+	return true
+
+
+## 处理状态事件。返回 false 时事件会继续向父状态上抛。
+## @param _event_id: 状态事件标识。
+## @param _payload: 状态事件载荷。
+## @return 已处理返回 true。
+func handle_state_event(_event_id: StringName, _payload: Variant = null) -> bool:
+	return false
 
 
 ## 获取框架内的 Model 实例（委托给所属状态机）。
@@ -98,6 +132,45 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 	var machine := _get_machine()
 	if machine != null:
 		machine.change_state(state_name, msg)
+
+
+## 从所属状态机派发状态事件。
+## @param event_id: 状态事件标识。
+## @param payload: 状态事件载荷。
+## @return 有状态处理该事件时返回 true。
+func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
+	var machine := _get_machine()
+	if machine == null:
+		return false
+	return machine.dispatch_state_event(event_id, payload)
+
+
+## 获取当前状态在所属状态机中的父状态名。
+## @return 父状态名；未绑定状态机或没有父级时返回空 StringName。
+func get_parent_state_name() -> StringName:
+	var machine := _get_machine()
+	if machine == null:
+		return &""
+	return machine.get_parent_state_name(_state_name)
+
+
+## 判断指定状态是否在所属状态机当前激活路径中。
+## @param state_name: 要查询的状态名。
+## @return 处于激活路径中返回 true。
+func is_in_state(state_name: StringName) -> bool:
+	var machine := _get_machine()
+	if machine == null:
+		return false
+	return machine.is_in_state(state_name)
+
+
+## 获取所属状态机共享黑板。
+## @return 黑板字典；未绑定状态机时返回空字典。
+func get_blackboard() -> Dictionary:
+	var machine := _get_machine()
+	if machine == null:
+		return {}
+	return machine.get_blackboard()
 
 
 # --- 私有/辅助方法 ---

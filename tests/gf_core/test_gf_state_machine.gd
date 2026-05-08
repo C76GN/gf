@@ -12,21 +12,30 @@ var _fsm: GFStateMachine
 class TrackingState:
 	extends GFState
 
+	var state_id: StringName = &""
 	var enter_count: int = 0
 	var exit_count: int = 0
 	var update_count: int = 0
 	var dispose_count: int = 0
 	var last_msg: Dictionary = {}
+	var events: Array[String] = []
+
+	func _init(p_state_id: StringName = &"") -> void:
+		state_id = p_state_id
 
 	func enter(msg: Dictionary = {}) -> void:
 		enter_count += 1
 		last_msg = msg
+		if state_id != &"":
+			events.append("enter:%s" % state_id)
 
 	func update(_delta: float) -> void:
 		update_count += 1
 
 	func exit() -> void:
 		exit_count += 1
+		if state_id != &"":
+			events.append("exit:%s" % state_id)
 
 	func dispose() -> void:
 		dispose_count += 1
@@ -60,6 +69,32 @@ class ExitRedirectState:
 	func exit() -> void:
 		super.exit()
 		change_state(target_state_name)
+
+
+class GuardedState:
+	extends TrackingState
+
+	var allow_enter: bool = true
+	var allow_exit: bool = true
+
+	func can_enter(_previous_state: StringName = &"", _msg: Dictionary = {}) -> bool:
+		return allow_enter
+
+	func can_exit(_next_state: StringName = &"", _msg: Dictionary = {}) -> bool:
+		return allow_exit
+
+
+class EventHandlingState:
+	extends TrackingState
+
+	var handled_events: Array[StringName] = []
+
+	func handle_state_event(event_id: StringName, _payload: Variant = null) -> bool:
+		if handled_events.has(event_id):
+			events.append("handle:%s:%s" % [state_id, event_id])
+			return true
+		events.append("miss:%s:%s" % [state_id, event_id])
+		return false
 
 
 class DummyModel:
@@ -227,6 +262,131 @@ func test_state_can_request_change_state() -> void:
 	assert_eq(idle.exit_count, 1, "State.change_state 应委托状态机退出当前状态。")
 	assert_eq(run.enter_count, 1, "State.change_state 应委托状态机进入目标状态。")
 	assert_eq(_fsm.current_state_name, &"Run", "State.change_state 应更新状态机当前状态。")
+
+
+func test_hierarchical_start_enters_parent_then_child() -> void:
+	var grounded := TrackingState.new(&"Grounded")
+	var idle := TrackingState.new(&"Idle")
+	_fsm.add_state(&"Grounded", grounded)
+	_fsm.add_state(&"Idle", idle, &"Grounded")
+
+	_fsm.start(&"Idle", { "spawn": true })
+
+	assert_eq(_fsm.get_active_state_path(), [&"Grounded", &"Idle"], "启动子状态时应激活父状态路径。")
+	assert_true(_fsm.is_in_state(&"Grounded"), "父状态应处于激活路径。")
+	assert_eq(grounded.enter_count, 1, "父状态应先进入。")
+	assert_eq(idle.enter_count, 1, "子状态应进入。")
+	assert_eq(idle.last_msg.get("spawn"), true, "切换参数应传给叶子状态。")
+
+
+func test_hierarchical_sibling_transition_keeps_common_parent() -> void:
+	var grounded := TrackingState.new(&"Grounded")
+	var idle := TrackingState.new(&"Idle")
+	var run := TrackingState.new(&"Run")
+	_fsm.add_state(&"Grounded", grounded)
+	_fsm.add_state(&"Idle", idle, &"Grounded")
+	_fsm.add_state(&"Run", run, &"Grounded")
+	_fsm.start(&"Idle")
+
+	_fsm.change_state(&"Run")
+
+	assert_eq(grounded.exit_count, 0, "同父子状态切换不应退出公共父状态。")
+	assert_eq(idle.exit_count, 1, "离开叶子状态应调用 exit。")
+	assert_eq(run.enter_count, 1, "目标叶子状态应进入。")
+	assert_eq(_fsm.get_active_state_path(), [&"Grounded", &"Run"], "激活路径应切换到兄弟叶子。")
+
+
+func test_hierarchical_unrelated_transition_exits_child_then_parent() -> void:
+	var events: Array[String] = []
+	var grounded := TrackingState.new(&"Grounded")
+	var idle := TrackingState.new(&"Idle")
+	var airborne := TrackingState.new(&"Airborne")
+	grounded.events = events
+	idle.events = events
+	airborne.events = events
+	_fsm.add_state(&"Grounded", grounded)
+	_fsm.add_state(&"Idle", idle, &"Grounded")
+	_fsm.add_state(&"Airborne", airborne)
+	_fsm.start(&"Idle")
+	events.clear()
+
+	_fsm.change_state(&"Airborne")
+
+	assert_eq(events, ["exit:Idle", "exit:Grounded", "enter:Airborne"], "跨根状态切换应按 leaf -> root 退出，再进入目标。")
+	assert_eq(_fsm.get_active_state_path(), [&"Airborne"], "跨根切换后只应激活目标根状态。")
+
+
+func test_hierarchical_transition_guard_blocks_before_exit() -> void:
+	var idle := TrackingState.new()
+	var run := GuardedState.new()
+	run.allow_enter = false
+	_fsm.add_state(&"Idle", idle)
+	_fsm.add_state(&"Run", run)
+	_fsm.start(&"Idle")
+	watch_signals(_fsm)
+
+	_fsm.change_state(&"Run", { "reason": "test" })
+
+	assert_eq(_fsm.current_state_name, &"Idle", "进入守卫阻止时应保持当前状态。")
+	assert_eq(idle.exit_count, 0, "守卫失败不应退出当前状态。")
+	assert_signal_emitted_with_parameters(_fsm, "transition_blocked", [&"Idle", &"Run", { "reason": "test" }, &"enter_guard"])
+
+
+func test_state_event_bubbles_from_leaf_to_parent() -> void:
+	var parent := EventHandlingState.new(&"Parent")
+	var child := EventHandlingState.new(&"Child")
+	parent.handled_events.append(&"hit")
+	_fsm.add_state(&"Parent", parent)
+	_fsm.add_state(&"Child", child, &"Parent")
+	_fsm.start(&"Child")
+	parent.events.clear()
+	child.events.clear()
+	watch_signals(_fsm)
+
+	var handled := _fsm.dispatch_state_event(&"hit", { "damage": 3 })
+
+	assert_true(handled, "父状态应能处理子状态未处理的事件。")
+	assert_eq(child.events, ["miss:Child:hit"], "事件应先交给叶子状态。")
+	assert_eq(parent.events, ["handle:Parent:hit"], "叶子未处理时应上抛给父状态。")
+	assert_signal_emitted_with_parameters(_fsm, "state_event_handled", [&"hit", &"Parent", { "damage": 3 }])
+
+
+func test_update_can_include_ancestor_states() -> void:
+	var parent := TrackingState.new()
+	var child := TrackingState.new()
+	_fsm.add_state(&"Parent", parent)
+	_fsm.add_state(&"Child", child, &"Parent")
+	_fsm.start(&"Child")
+
+	_fsm.update(0.016)
+	_fsm.update(0.016, true)
+
+	assert_eq(parent.update_count, 1, "include_ancestors 为 true 时应更新父状态。")
+	assert_eq(child.update_count, 2, "默认更新叶子状态，包含父级时仍应更新叶子。")
+
+
+func test_state_snapshot_reports_hierarchy_and_blackboard() -> void:
+	_fsm.add_state(&"Parent", TrackingState.new())
+	_fsm.add_state(&"Child", TrackingState.new(), &"Parent")
+	_fsm.blackboard["mode"] = "combat"
+	_fsm.start(&"Child")
+
+	var snapshot := _fsm.get_state_snapshot()
+
+	assert_eq(snapshot.get("current_state"), &"Child", "快照应报告当前叶子状态。")
+	assert_eq(snapshot.get("active_path"), [&"Parent", &"Child"], "快照应报告激活路径。")
+	assert_eq((snapshot.get("parents") as Dictionary).get(&"Child"), &"Parent", "快照应报告父子关系。")
+	assert_eq((snapshot.get("blackboard") as Dictionary).get("mode"), "combat", "快照应包含黑板副本。")
+
+
+func test_set_state_parent_rejects_cycles() -> void:
+	_fsm.add_state(&"Parent", TrackingState.new())
+	_fsm.add_state(&"Child", TrackingState.new(), &"Parent")
+
+	var changed := _fsm.set_state_parent(&"Parent", &"Child")
+
+	assert_false(changed, "父子关系不能形成循环。")
+	assert_push_error("[GFStateMachine] 检测到循环状态父级：Parent -> Child")
 
 
 ## 验证 change_state 对未知状态名打印错误且不改变当前状态。

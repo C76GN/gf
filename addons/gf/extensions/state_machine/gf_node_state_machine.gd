@@ -16,6 +16,9 @@ signal state_group_removed(group: Node)
 ## 任意状态组切换状态后发出。
 signal state_changed(group: Node, old_state: Node, new_state: Node)
 
+## 任意状态组中的状态处理状态事件后发出。
+signal state_event_handled(group: Node, event_id: StringName, handler_state: Node, payload: Variant)
+
 
 # --- 枚举 ---
 
@@ -64,6 +67,7 @@ const GFNodeStateMachineConfigBase = preload("res://addons/gf/extensions/state_m
 var _groups: Dictionary = {}
 var _internal_group: Node = null
 var _group_state_changed_callables: Dictionary = {}
+var _group_state_event_handled_callables: Dictionary = {}
 var _is_ready: bool = false
 var _reload_queued: bool = false
 var _is_reloading: bool = false
@@ -304,6 +308,44 @@ func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionar
 	group.call("restart", args)
 
 
+## 派发状态事件。group_name 为空时会按已注册状态组顺序广播到所有组。
+## @param event_id: 状态事件标识。
+## @param payload: 状态事件载荷。
+## @param group_name: 可选目标状态组名；为空表示所有状态组。
+## @return 有状态处理该事件时返回 true。
+func dispatch_state_event(event_id: StringName, payload: Variant = null, group_name: StringName = &"") -> bool:
+	if group_name != &"":
+		var group := get_state_group(group_name)
+		if group == null or not group.has_method("dispatch_state_event"):
+			return false
+		return bool(group.call("dispatch_state_event", event_id, payload))
+
+	for group: Node in _groups.values():
+		if group.has_method("dispatch_state_event") and bool(group.call("dispatch_state_event", event_id, payload)):
+			return true
+	return false
+
+
+## 获取节点状态机调试快照。
+## @return 包含所有状态组当前状态、历史、栈深度和黑板副本的字典。
+func get_state_snapshot() -> Dictionary:
+	var groups: Dictionary = {}
+	for group_key: Variant in _groups.keys():
+		var group := _groups[group_key] as Node
+		if group == null:
+			continue
+		if group.has_method("get_state_snapshot"):
+			groups[group_key] = group.call("get_state_snapshot")
+		else:
+			groups[group_key] = {
+				"current_state": group.call("get_current_state_name") if group.has_method("get_current_state_name") else &"",
+			}
+	return {
+		"groups": groups,
+		"internal_group": INTERNAL_GROUP_NAME,
+	}
+
+
 ## 从子节点重新加载状态和状态组。
 func reload_from_children() -> void:
 	var should_preserve_state := preserve_current_state_on_reload and not _groups.is_empty()
@@ -354,6 +396,7 @@ func clear_state_groups(free_groups: bool = false) -> void:
 		_disconnect_state_group_signals(group, changed_callable)
 	_groups.clear()
 	_group_state_changed_callables.clear()
+	_group_state_event_handled_callables.clear()
 	for group: Node in groups:
 		state_group_removed.emit(group)
 		if group == _internal_group:
@@ -414,6 +457,13 @@ func _connect_state_group_signals(group: Node, changed_callable: Callable) -> vo
 		changed_signal.connect(changed_callable)
 	if not transition_signal.is_connected(transition_group_to):
 		transition_signal.connect(transition_group_to)
+	if group.get("state_event_handled") is Signal:
+		var key := group.call("get_group_name") as StringName
+		var handled_signal: Signal = group.get("state_event_handled")
+		var handled_callable := _on_group_state_event_handled.bind(group)
+		_group_state_event_handled_callables[key] = handled_callable
+		if not handled_signal.is_connected(handled_callable):
+			handled_signal.connect(handled_callable)
 
 
 func _disconnect_state_group_signals(group: Node, changed_callable: Callable) -> void:
@@ -423,6 +473,13 @@ func _disconnect_state_group_signals(group: Node, changed_callable: Callable) ->
 		changed_signal.disconnect(changed_callable)
 	if transition_signal.is_connected(transition_group_to):
 		transition_signal.disconnect(transition_group_to)
+	if group.get("state_event_handled") is Signal:
+		var key := group.call("get_group_name") as StringName
+		var handled_signal: Signal = group.get("state_event_handled")
+		var handled_callable: Callable = _group_state_event_handled_callables.get(key, Callable())
+		if handled_signal.is_connected(handled_callable):
+			handled_signal.disconnect(handled_callable)
+		_group_state_event_handled_callables.erase(key)
 
 
 func _start_group_node(group: Node, args: Dictionary) -> void:
@@ -478,6 +535,15 @@ func _on_group_current_state_changed(
 	group: Node
 ) -> void:
 	state_changed.emit(group, old_state, new_state)
+
+
+func _on_group_state_event_handled(
+	event_id: StringName,
+	handler_state: Node,
+	payload: Variant,
+	group: Node
+) -> void:
+	state_event_handled.emit(group, event_id, handler_state, payload)
 
 
 func _queue_reload_from_children() -> void:

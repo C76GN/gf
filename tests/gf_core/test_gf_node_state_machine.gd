@@ -95,6 +95,20 @@ class GuardedNodeState:
 		return allow_exit
 
 
+class EventHandlingNodeState:
+	extends TrackingNodeState
+
+	var handled_events: Array[StringName] = []
+	var events: Array[String] = []
+
+	func _handle_state_event(event_id: StringName, _payload: Variant = null) -> bool:
+		if handled_events.has(event_id):
+			events.append("handle:%s:%s" % [get_state_name(), event_id])
+			return true
+		events.append("miss:%s:%s" % [get_state_name(), event_id])
+		return false
+
+
 # --- 测试 ---
 
 func test_internal_group_loads_direct_child_states() -> void:
@@ -422,6 +436,75 @@ func test_state_group_blackboard_is_shared_with_states() -> void:
 	blackboard["speed"] = 4
 
 	assert_eq(group.blackboard.get("speed"), 4, "状态应能访问并修改状态组共享黑板。")
+
+
+func test_state_group_dispatches_event_from_current_to_stack() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := EventHandlingNodeState.new()
+	var menu := EventHandlingNodeState.new()
+	idle.name = "Idle"
+	menu.name = "Menu"
+	idle.handled_events.append(&"cancel")
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	machine.add_child(menu)
+	await get_tree().process_frame
+	machine.push_state(&"Menu")
+	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	watch_signals(group)
+
+	var handled: bool = group.dispatch_state_event(&"cancel", { "source": "input" })
+
+	assert_true(handled, "当前子状态未处理时，事件应继续交给暂停栈状态。")
+	assert_eq(menu.events, ["miss:Menu:cancel"], "事件应先交给当前状态。")
+	assert_eq(idle.events, ["handle:Idle:cancel"], "当前状态未处理后应交给暂停栈顶部。")
+	assert_signal_emitted_with_parameters(group, "state_event_handled", [&"cancel", idle, { "source": "input" }])
+
+
+func test_node_state_machine_dispatches_event_to_named_group_and_reemits() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var body_group: Node = GFNodeStateGroupBase.new()
+	var idle := EventHandlingNodeState.new()
+	body_group.name = "Body"
+	body_group.group_name = &"Body"
+	body_group.initial_state = &"Idle"
+	idle.name = "Idle"
+	idle.handled_events.append(&"hit")
+	add_child_autofree(machine)
+	machine.add_child(body_group)
+	body_group.add_child(idle)
+	await get_tree().process_frame
+	watch_signals(machine)
+
+	var handled: bool = machine.dispatch_state_event(&"hit", { "amount": 4 }, &"Body")
+
+	assert_true(handled, "节点状态机应能向指定状态组派发状态事件。")
+	assert_eq(idle.events, ["handle:Idle:hit"], "目标状态组当前状态应处理事件。")
+	assert_signal_emitted_with_parameters(machine, "state_event_handled", [body_group, &"hit", idle, { "amount": 4 }])
+
+
+func test_node_state_machine_snapshot_reports_groups() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var body_group: Node = GFNodeStateGroupBase.new()
+	var idle := TrackingNodeState.new()
+	body_group.name = "Body"
+	body_group.group_name = &"Body"
+	body_group.initial_state = &"Idle"
+	body_group.blackboard["speed"] = 5
+	idle.name = "Idle"
+	add_child_autofree(machine)
+	machine.add_child(body_group)
+	body_group.add_child(idle)
+	await get_tree().process_frame
+
+	var snapshot: Dictionary = machine.get_state_snapshot()
+	var groups: Dictionary = snapshot.get("groups") as Dictionary
+	var body_snapshot: Dictionary = groups.get(&"Body") as Dictionary
+
+	assert_eq(body_snapshot.get("current_state"), &"Idle", "状态机快照应报告状态组当前状态。")
+	assert_eq((body_snapshot.get("blackboard") as Dictionary).get("speed"), 5, "状态组快照应包含黑板副本。")
+	assert_has(body_snapshot.get("states") as Array, &"Idle", "状态组快照应包含已注册状态。")
 
 
 func test_clear_state_groups_disconnects_external_group_signals() -> void:

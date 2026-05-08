@@ -163,6 +163,14 @@ func get_blackboard() -> Dictionary:
 	return {}
 
 
+## 处理状态事件。返回 false 时事件会继续交给同组的暂停栈状态。
+## @param event_id: 状态事件标识。
+## @param payload: 状态事件载荷。
+## @return 已处理返回 true。
+func handle_state_event(event_id: StringName, payload: Variant = null) -> bool:
+	return _handle_state_event(event_id, payload)
+
+
 # --- 虚方法（由子类重写） ---
 
 ## 状态初始化扩展点。
@@ -198,6 +206,11 @@ func _pause(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
 ## 状态从栈式子状态恢复时的扩展点。
 func _resume(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
+
+
+## 状态事件处理扩展点。
+func _handle_state_event(_event_id: StringName, _payload: Variant = null) -> bool:
+	return false
 
 
 # --- 私有/辅助方法 ---

@@ -179,7 +179,8 @@ Gf.send_command(command)
 - `GFActionQueueSystem` / `GFTweenActionConfig`：表现动作队列、配置化 Tween 步骤和可复用表现动作资源。
 - `GFActionQueueSystem` 命名队列：可为战斗、对白、教程等不同表现流创建独立队列，并支持绑定节点生命周期。
 - `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
-- `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState`：面向场景树的可选状态机扩展，支持配置资源、状态历史、栈式子状态、守卫、黑板与节点宿主访问。
+- `GFStateMachine` / `GFState`：纯代码分层状态机，支持父子状态路径、最近公共祖先切换、进入/退出守卫、事件上抛、黑板和调试快照。
+- `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState`：面向场景树的可选状态机扩展，支持配置资源、状态历史、栈式子状态、守卫、黑板、状态事件分发、快照与节点宿主访问。
 - `GFConsoleUtility` / `GFConsoleCommandDefinition` / `GFLogUtility`：运行时开发者控制台与集中式日志，支持资源化命令定义、命令注册、日志接入、标签过滤、输出行数上限和内存日志环形缓存。
 - `GFCombatSystem`：轻量战斗扩展。
 - `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载、启停、索引查询和诊断可复用能力。

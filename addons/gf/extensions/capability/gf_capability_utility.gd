@@ -56,6 +56,7 @@ var _receiver_refs: Dictionary = {}
 var _capability_receivers: Dictionary = {}
 var _receiver_groups: Dictionary = {}
 var _receiver_group_names: Dictionary = {}
+var _scene_container_sync_receivers: Dictionary = {}
 var _elapsed_since_prune: float = 0.0
 
 
@@ -71,6 +72,7 @@ func dispose() -> void:
 	_capability_receivers.clear()
 	_receiver_groups.clear()
 	_receiver_group_names.clear()
+	_scene_container_sync_receivers.clear()
 	_elapsed_since_prune = 0.0
 
 
@@ -297,7 +299,8 @@ func add_capability_instance(receiver: Object, capability: Object, as_type: Scri
 	if not _can_attach_capability_instance(receiver, capability):
 		return null
 
-	var existing := get_capability(receiver, capability_type)
+	var existing_record := _find_capability_record(receiver, capability_type, false)
+	var existing := existing_record.get("instance", null) as Object
 	if existing != null:
 		if existing == capability:
 			_mark_capability_top_level(receiver, capability_type, true)
@@ -976,9 +979,12 @@ func _get_dependency_of_map(receiver: Object) -> Dictionary:
 	return receiver.get_meta(META_CAPABILITY_DEPENDENCY_OF) as Dictionary
 
 
-func _find_capability_record(receiver: Object, capability_type: Script) -> Dictionary:
+func _find_capability_record(receiver: Object, capability_type: Script, sync_scene_containers: bool = true) -> Dictionary:
 	if not _validate_receiver_and_type(receiver, capability_type, "get_capability"):
 		return {}
+
+	if sync_scene_containers:
+		_sync_scene_capability_containers(receiver)
 
 	var exact_instance := _get_capability_instance(receiver, capability_type)
 	if exact_instance != null:
@@ -1056,6 +1062,46 @@ func _attach_node_capability(receiver: Object, capability: Object) -> void:
 		_add_child_to_container(container, capability_node)
 
 
+func _sync_scene_capability_containers(receiver: Object) -> void:
+	if not (receiver is Node):
+		return
+
+	var receiver_node := receiver as Node
+	if not is_instance_valid(receiver_node):
+		return
+
+	var receiver_id := receiver_node.get_instance_id()
+	if _scene_container_sync_receivers.has(receiver_id):
+		return
+
+	_scene_container_sync_receivers[receiver_id] = true
+	for container: Node in _get_receiver_capability_containers(receiver_node):
+		_register_container_child_capabilities(receiver_node, container)
+	_scene_container_sync_receivers.erase(receiver_id)
+
+
+func _get_receiver_capability_containers(receiver: Node) -> Array[Node]:
+	var result: Array[Node] = []
+	for child_variant: Variant in receiver.get_children(true):
+		var child := child_variant as Node
+		if _is_capability_container(child):
+			result.append(child)
+	return result
+
+
+func _register_container_child_capabilities(receiver: Node, container: Node) -> void:
+	for child_variant: Variant in container.get_children():
+		var child := child_variant as Node
+		if child == null or _is_capability_container(child):
+			continue
+
+		var child_script := child.get_script() as Script
+		if child_script == null:
+			continue
+
+		add_capability_instance(receiver, child, child_script)
+
+
 func _get_or_create_container(receiver: Node, capability: Node) -> Node:
 	for child in receiver.get_children(true):
 		if _is_capability_container(child) and _container_matches_capability(child as Node, capability):
@@ -1129,10 +1175,18 @@ func _is_existing_receiver_container(receiver: Node, container: Node) -> bool:
 
 
 func _is_capability_container(node: Node) -> bool:
+	if node == null:
+		return false
+
 	return (
 		node is GF_CAPABILITY_CONTAINER_BASE
 		or bool(node.get_meta(META_CAPABILITY_CONTAINER, false))
+		or _is_capability_container_name(node.name)
 	)
+
+
+func _is_capability_container_name(node_name: StringName) -> bool:
+	return String(node_name).begins_with("GFCapabilityContainer")
 
 
 func _add_child_to_receiver(receiver: Node, child: Node) -> void:
