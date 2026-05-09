@@ -59,7 +59,7 @@ static func append_issue(
 		var field_name := String(field_key)
 		if field_name == "severity" or field_name == "kind" or field_name == "message":
 			continue
-		issue[field_key] = _duplicate_variant(fields[field_key])
+		issue[field_key] = GFVariantUtility.duplicate_variant(fields[field_key])
 
 	_get_issue_array(report).append(issue)
 	return issue
@@ -248,11 +248,3 @@ static func _get_option_bool(options: Dictionary, field_name: String, default_va
 	if not options.has(field_name):
 		return default_value
 	return bool(options[field_name])
-
-
-static func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

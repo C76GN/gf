@@ -23,6 +23,11 @@ signal hit_received(context: GFCombatHitContext, report: Dictionary)
 signal hit_rejected(context: GFCombatHitContext, report: Dictionary)
 
 
+# --- 常量 ---
+
+const _MESSAGE_RECEIVER_SUPPORT: Script = preload("res://addons/gf/extensions/common/gf_message_receiver_support.gd")
+
+
 # --- 导出变量 ---
 
 ## 是否允许接收命中。
@@ -51,84 +56,30 @@ var validation_callback: Callable = Callable()
 ## @param p_hit_id: 命中 ID。
 ## @return 可接受时返回 true。
 func can_receive_hit(p_hit_id: StringName = &"") -> bool:
-	if not enabled:
-		return false
-	if rejected_hit_ids.has(p_hit_id):
-		return false
-	if accepted_hit_ids.is_empty():
-		return true
-	return accepted_hit_ids.has(p_hit_id)
+	return bool(_MESSAGE_RECEIVER_SUPPORT._can_receive(enabled, accepted_hit_ids, rejected_hit_ids, p_hit_id))
 
 
 ## 接收一次命中。
 ## @param context: 命中上下文。
 ## @return 统一结果报告。
 func receive_hit(context: GFCombatHitContext) -> Dictionary:
-	if context == null:
-		var invalid_context_report := _make_report(false, &"", "invalid_context", "Hit context is null.")
-		hit_rejected.emit(context, invalid_context_report)
-		return invalid_context_report
-
-	if not enabled:
-		var disabled_report := _make_report(false, context.hit_id, "disabled", "Hurt box is disabled.")
-		hit_rejected.emit(context, disabled_report)
-		return disabled_report
-
-	if rejected_hit_ids.has(context.hit_id):
-		var rejected_report := _make_report(false, context.hit_id, "rejected_id", "Hit id is rejected.")
-		hit_rejected.emit(context, rejected_report)
-		return rejected_report
-
-	if not accepted_hit_ids.is_empty() and not accepted_hit_ids.has(context.hit_id):
-		var blocked_report := _make_report(false, context.hit_id, "unaccepted_id", "Hit id is not accepted.")
-		hit_rejected.emit(context, blocked_report)
-		return blocked_report
-
-	if context.target == null:
-		context.target = self
-
-	var report := _make_report(true, context.hit_id, "accepted", "")
-	hit_validating.emit(context, report.duplicate(true))
-	if validation_callback.is_valid():
-		report = _apply_validation_result(report, validation_callback.call(context, report.duplicate(true)))
-
-	if bool(report.get("ok", false)):
-		hit_received.emit(context, report)
-	else:
-		hit_rejected.emit(context, report)
-	return report
-
-
-# --- 私有/辅助方法 ---
-
-func _make_report(ok: bool, p_hit_id: StringName, reason: String, message: String) -> Dictionary:
-	return {
-		"ok": ok,
-		"hit_id": p_hit_id,
-		"receiver": self,
-		"reason": reason,
-		"message": message,
-		"metadata": metadata.duplicate(true),
-	}
-
-
-func _apply_validation_result(report: Dictionary, validation_result: Variant) -> Dictionary:
-	if validation_result is bool:
-		report["ok"] = bool(validation_result)
-		if not bool(validation_result) and String(report.get("reason", "")).is_empty():
-			report["reason"] = "validation_failed"
-		return report
-
-	if not validation_result is Dictionary:
-		return report
-
-	var result := validation_result as Dictionary
-	for key: Variant in result.keys():
-		if key == "metadata" and result[key] is Dictionary:
-			var merged_metadata := (report.get("metadata", {}) as Dictionary).duplicate(true)
-			for metadata_key: Variant in (result[key] as Dictionary).keys():
-				merged_metadata[metadata_key] = result[key][metadata_key]
-			report["metadata"] = merged_metadata
-		else:
-			report[key] = result[key]
+	var hit_id_value := context.hit_id if context != null else &""
+	var report: Dictionary = _MESSAGE_RECEIVER_SUPPORT._receive(
+		self,
+		context,
+		"hit_id",
+		hit_id_value,
+		enabled,
+		accepted_hit_ids,
+		rejected_hit_ids,
+		metadata,
+		validation_callback,
+		&"hit_validating",
+		&"hit_received",
+		&"hit_rejected",
+		"Hit context is null.",
+		"Hurt box is disabled.",
+		"Hit id is rejected.",
+		"Hit id is not accepted."
+	) as Dictionary
 	return report

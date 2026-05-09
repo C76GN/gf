@@ -96,11 +96,11 @@ func try_coerce_value(value: Variant) -> Dictionary:
 			return _try_coerce_color(value)
 		ValueType.DICTIONARY:
 			if value is Dictionary:
-				return _make_coerce_result(true, (value as Dictionary).duplicate(true))
+				return _make_coerce_result(true, GFVariantUtility.duplicate_variant(value))
 			return _make_coerce_result(false, {}, "值无法转换为 Dictionary。")
 		ValueType.ARRAY:
 			if value is Array:
-				return _make_coerce_result(true, (value as Array).duplicate(true))
+				return _make_coerce_result(true, GFVariantUtility.duplicate_variant(value))
 			return _make_coerce_result(false, [], "值无法转换为 Array。")
 		_:
 			return _make_coerce_result(true, value)
@@ -148,7 +148,7 @@ func duplicate_column() -> GFConfigTableColumn:
 	column.value_type = value_type
 	column.required = required
 	column.allow_null = allow_null
-	column.default_value = _duplicate_collection(default_value)
+	column.default_value = GFVariantUtility.duplicate_collection(default_value)
 	column.metadata = metadata.duplicate(true)
 	return column
 
@@ -161,7 +161,7 @@ func describe() -> Dictionary:
 		"value_type": value_type,
 		"required": required,
 		"allow_null": allow_null,
-		"default_value": _duplicate_collection(default_value),
+		"default_value": GFVariantUtility.duplicate_collection(default_value),
 		"metadata": metadata.duplicate(true),
 	}
 
@@ -361,11 +361,3 @@ func _coerce_color(value: Variant) -> Color:
 	if typeof(value) == TYPE_STRING:
 		return Color(str(value))
 	return Color.WHITE
-
-
-func _duplicate_collection(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

@@ -86,9 +86,9 @@ func coerce_value(value: Variant) -> Variant:
 		ValueType.COLOR:
 			return _coerce_color(value)
 		ValueType.DICTIONARY:
-			return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+			return GFVariantUtility.duplicate_variant(value) if value is Dictionary else {}
 		ValueType.ARRAY:
-			return (value as Array).duplicate(true) if value is Array else []
+			return GFVariantUtility.duplicate_variant(value) if value is Array else []
 		_:
 			return value
 
@@ -129,7 +129,7 @@ func is_value_valid(value: Variant) -> bool:
 func duplicate_definition() -> GFSettingDefinition:
 	var definition := GFSettingDefinition.new()
 	definition.key = key
-	definition.default_value = _duplicate_collection(default_value)
+	definition.default_value = GFVariantUtility.duplicate_collection(default_value)
 	definition.value_type = value_type
 	definition.persistent = persistent
 	definition.metadata = metadata.duplicate(true)
@@ -176,11 +176,3 @@ func _coerce_color(value: Variant) -> Color:
 	if typeof(value) == TYPE_STRING:
 		return Color(String(value))
 	return Color.WHITE
-
-
-func _duplicate_collection(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

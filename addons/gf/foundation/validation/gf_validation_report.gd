@@ -129,11 +129,11 @@ func merge(source: Variant, include_metadata: bool = true) -> RefCounted:
 			var source_metadata := source_object.get("metadata") as Dictionary
 			if source_metadata != null:
 				for key: Variant in source_metadata.keys():
-					metadata[key] = _duplicate_variant(source_metadata[key])
+					metadata[key] = GFVariantUtility.duplicate_variant(source_metadata[key])
 			var source_extra_fields := source_object.get("extra_fields") as Dictionary
 			if source_extra_fields != null:
 				for key: Variant in source_extra_fields.keys():
-					extra_fields[key] = _duplicate_variant(source_extra_fields[key])
+					extra_fields[key] = GFVariantUtility.duplicate_variant(source_extra_fields[key])
 	elif source is Dictionary:
 		var source_dict := source as Dictionary
 		var source_issues := source_dict.get("issues", []) as Array
@@ -143,7 +143,7 @@ func merge(source: Variant, include_metadata: bool = true) -> RefCounted:
 		if include_metadata and source_dict.get("metadata") is Dictionary:
 			var source_metadata := source_dict.get("metadata") as Dictionary
 			for key: Variant in source_metadata.keys():
-				metadata[key] = _duplicate_variant(source_metadata[key])
+				metadata[key] = GFVariantUtility.duplicate_variant(source_metadata[key])
 	return self
 
 
@@ -164,7 +164,7 @@ func apply_dict(data: Dictionary) -> void:
 	for field_key: Variant in data.keys():
 		if _is_reserved_report_field(String(field_key)):
 			continue
-		extra_fields[field_key] = _duplicate_variant(data[field_key])
+		extra_fields[field_key] = GFVariantUtility.duplicate_variant(data[field_key])
 
 
 ## 转换为报告字典。
@@ -174,7 +174,7 @@ func apply_dict(data: Dictionary) -> void:
 func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
 	var result := extra_fields.duplicate(true)
 	for field_key: Variant in additional_fields.keys():
-		result[field_key] = _duplicate_variant(additional_fields[field_key])
+		result[field_key] = GFVariantUtility.duplicate_variant(additional_fields[field_key])
 
 	var include_subject := _get_option_bool(options, "include_subject", not subject.is_empty())
 	var include_metadata := _get_option_bool(options, "include_metadata", not metadata.is_empty())
@@ -396,11 +396,3 @@ static func _is_reserved_report_field(field_name: String) -> bool:
 		or field_name == "summary"
 		or field_name == "next_action"
 	)
-
-
-static func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

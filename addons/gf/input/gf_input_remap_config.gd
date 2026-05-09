@@ -128,7 +128,7 @@ func to_dict() -> Dictionary:
 
 	return {
 		"remapped_events": serialized_events,
-		"custom_data": custom_data.duplicate(true),
+		"custom_data": GFVariantUtility.duplicate_variant(custom_data),
 	}
 
 
@@ -163,7 +163,7 @@ func apply_dict(data: Dictionary) -> void:
 							set_binding(StringName(context_key), StringName(action_key), binding_index, input_event)
 
 	var custom_data_value := data.get("custom_data", {}) as Dictionary
-	custom_data = custom_data_value.duplicate(true) if custom_data_value != null else {}
+	custom_data = GFVariantUtility.duplicate_variant(custom_data_value) if custom_data_value != null else {}
 
 
 ## 从 Dictionary 创建重映射配置。

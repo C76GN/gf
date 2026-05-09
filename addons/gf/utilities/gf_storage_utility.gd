@@ -379,7 +379,7 @@ func tick(_delta: float = 0.0) -> void:
 func migrate_data(data: Dictionary, _from_version: int, _to_version: int) -> Dictionary:
 	var migrated := _apply_registered_migrations(data, _from_version, _to_version)
 	if not default_values_for_new_keys.is_empty():
-		_deep_merge_defaults(migrated, default_values_for_new_keys)
+		GFVariantUtility.deep_merge_defaults(migrated, default_values_for_new_keys)
 	return migrated
 
 
@@ -1192,7 +1192,7 @@ func _apply_schema_migrations(file_name: String, data: Dictionary) -> Dictionary
 	var to_version := save_version
 	if from_version >= to_version:
 		if not default_values_for_new_keys.is_empty():
-			_deep_merge_defaults(data, default_values_for_new_keys)
+			GFVariantUtility.deep_merge_defaults(data, default_values_for_new_keys)
 		return data
 
 	var migrated := migrate_data(data, from_version, to_version)
@@ -1272,21 +1272,3 @@ func _make_load_result(ok: bool, data: Dictionary, error: String, integrity_vali
 		"integrity_valid": integrity_valid,
 		"error": error,
 	}
-
-
-func _deep_merge_defaults(base: Dictionary, defaults: Dictionary) -> void:
-	for key: Variant in defaults.keys():
-		if not base.has(key):
-			base[key] = _duplicate_collection(defaults[key])
-			continue
-
-		if base[key] is Dictionary and defaults[key] is Dictionary:
-			_deep_merge_defaults(base[key], defaults[key])
-
-
-func _duplicate_collection(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

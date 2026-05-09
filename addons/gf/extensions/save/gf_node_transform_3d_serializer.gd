@@ -5,6 +5,15 @@ class_name GFNodeTransform3DSerializer
 extends GFNodeSerializer
 
 
+# --- 常量 ---
+
+const _PROPERTY_SPECS: Array[Dictionary] = [
+	{ "key": "position", "kind": &"vector3" },
+	{ "key": "rotation", "kind": &"vector3" },
+	{ "key": "scale", "kind": &"vector3" },
+]
+
+
 # --- Godot 生命周期方法 ---
 
 func _init() -> void:
@@ -28,11 +37,7 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	if node_3d == null:
 		return {}
 
-	return {
-		"position": _vector3_to_array(node_3d.position),
-		"rotation": _vector3_to_array(node_3d.rotation),
-		"scale": _vector3_to_array(node_3d.scale),
-	}
+	return _gather_property_specs(node_3d, _PROPERTY_SPECS)
 
 
 ## 将序列化数据应用到节点。
@@ -44,26 +49,5 @@ func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictio
 	if node_3d == null:
 		return make_result(false, "Node is not Node3D.")
 
-	if payload.has("position"):
-		node_3d.position = _array_to_vector3(payload["position"], node_3d.position)
-	if payload.has("rotation"):
-		node_3d.rotation = _array_to_vector3(payload["rotation"], node_3d.rotation)
-	if payload.has("scale"):
-		node_3d.scale = _array_to_vector3(payload["scale"], node_3d.scale)
+	_apply_property_specs(node_3d, payload, _PROPERTY_SPECS)
 	return make_result(true)
-
-
-# --- 私有/辅助方法 ---
-
-func _vector3_to_array(value: Vector3) -> Array[float]:
-	return [value.x, value.y, value.z]
-
-
-func _array_to_vector3(value: Variant, fallback: Vector3) -> Vector3:
-	if not (value is Array):
-		return fallback
-
-	var array := value as Array
-	if array.size() < 3:
-		return fallback
-	return Vector3(float(array[0]), float(array[1]), float(array[2]))

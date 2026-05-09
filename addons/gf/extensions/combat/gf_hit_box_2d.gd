@@ -27,6 +27,11 @@ signal hit_accepted(context: GFCombatHitContext, receiver: Object, report: Dicti
 signal hit_rejected(context: GFCombatHitContext, receiver: Object, report: Dictionary)
 
 
+# --- 常量 ---
+
+const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/extensions/common/gf_message_dispatch_support.gd")
+
+
 # --- 导出变量 ---
 
 ## 是否允许发送命中。
@@ -63,7 +68,7 @@ func build_hit_context(
 	payload_override: Variant = null,
 	hit_id_override: StringName = &""
 ) -> GFCombatHitContext:
-	var context_payload: Variant = payload.duplicate(true) if payload_override == null else _duplicate_variant(payload_override)
+	var context_payload: Variant = payload.duplicate(true) if payload_override == null else GFVariantUtility.duplicate_variant(payload_override)
 	var effective_hit_id := hit_id_override if hit_id_override != &"" else hit_id
 	var context := GFCombatHitContext.new(_resolve_sender(), target, context_payload, effective_hit_id)
 	context.magnitude = magnitude
@@ -84,7 +89,19 @@ func send_to(
 	hit_id_override: StringName = &""
 ) -> Dictionary:
 	var context := build_hit_context(receiver, payload_override, hit_id_override)
-	var report := _dispatch_to_receiver(context, receiver)
+	var report: Dictionary = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
+		enabled,
+		metadata,
+		receiver,
+		&"receive_hit",
+		[context],
+		"hit_id",
+		context.hit_id,
+		"Hit box is disabled.",
+		"Hit receiver is null.",
+		"Receiver does not expose receive_hit().",
+		"Receiver returned an invalid hit report."
+	) as Dictionary
 	_emit_send_result(context, receiver, report)
 	return report
 
@@ -116,27 +133,19 @@ func broadcast_overlaps(
 	var candidates: Array = []
 	candidates.append_array(get_overlapping_areas())
 	candidates.append_array(get_overlapping_bodies())
-	return _send_to_collision_candidates(candidates, max_count, payload_override, hit_id_override)
+	var reports: Array[Dictionary] = []
+	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
+		self,
+		candidates,
+		max_count,
+		payload_override,
+		hit_id_override,
+		&"receive_hit"
+	))
+	return reports
 
 
 # --- 私有/辅助方法 ---
-
-func _dispatch_to_receiver(context: GFCombatHitContext, receiver: Object) -> Dictionary:
-	if not enabled:
-		return _make_report(false, context.hit_id, "disabled", "Hit box is disabled.")
-	if receiver == null:
-		return _make_report(false, context.hit_id, "missing_receiver", "Hit receiver is null.")
-	if not receiver.has_method("receive_hit"):
-		return _make_report(false, context.hit_id, "invalid_receiver", "Receiver does not expose receive_hit().")
-
-	var value: Variant = receiver.call("receive_hit", context)
-	return (value as Dictionary).duplicate(true) if value is Dictionary else _make_report(
-		false,
-		context.hit_id,
-		"invalid_report",
-		"Receiver returned an invalid hit report."
-	)
-
 
 func _emit_send_result(context: GFCombatHitContext, receiver: Object, report: Dictionary) -> void:
 	hit_sent.emit(context, receiver, report)
@@ -146,65 +155,9 @@ func _emit_send_result(context: GFCombatHitContext, receiver: Object, report: Di
 		hit_rejected.emit(context, receiver, report)
 
 
-func _send_to_collision_candidates(
-	candidates: Array,
-	max_count: int,
-	payload_override: Variant,
-	hit_id_override: StringName
-) -> Array[Dictionary]:
-	var reports: Array[Dictionary] = []
-	var visited_receivers: Dictionary = {}
-	for candidate: Object in candidates:
-		if max_count > 0 and reports.size() >= max_count:
-			break
-
-		var receiver := _resolve_hit_receiver(candidate)
-		if receiver == null:
-			continue
-		var receiver_id := receiver.get_instance_id()
-		if visited_receivers.has(receiver_id):
-			continue
-		visited_receivers[receiver_id] = true
-		reports.append(send_to(receiver, payload_override, hit_id_override))
-	return reports
-
-
-func _resolve_hit_receiver(candidate: Object) -> Object:
-	if candidate == null:
-		return null
-	if candidate.has_method("receive_hit"):
-		return candidate
-
-	var node := candidate as Node
-	while node != null:
-		if node.has_method("receive_hit"):
-			return node
-		node = node.get_parent()
-	return null
-
-
-func _make_report(ok: bool, p_hit_id: StringName, reason: String, message: String) -> Dictionary:
-	return {
-		"ok": ok,
-		"hit_id": p_hit_id,
-		"receiver": null,
-		"reason": reason,
-		"message": message,
-		"metadata": metadata.duplicate(true),
-	}
-
-
 func _resolve_sender() -> Object:
 	if sender_path != NodePath(""):
 		var sender := get_node_or_null(sender_path)
 		if sender != null:
 			return sender
 	return self
-
-
-func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

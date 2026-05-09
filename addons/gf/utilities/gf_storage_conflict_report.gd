@@ -68,9 +68,9 @@ func to_dict() -> Dictionary:
 	return {
 		"file_name": file_name,
 		"key": key,
-		"local_value": _duplicate_variant(local_value),
-		"remote_value": _duplicate_variant(remote_value),
-		"resolved_value": _duplicate_variant(resolved_value),
+		"local_value": GFVariantUtility.duplicate_variant(local_value),
+		"remote_value": GFVariantUtility.duplicate_variant(remote_value),
+		"resolved_value": GFVariantUtility.duplicate_variant(resolved_value),
 		"resolution": resolution,
 		"metadata": metadata.duplicate(true),
 	}
@@ -97,13 +97,3 @@ static func from_dict(data: Dictionary) -> GFStorageConflictReport:
 	var report := GFStorageConflictReport.new()
 	report.apply_dict(data)
 	return report
-
-
-# --- 私有/辅助方法 ---
-
-static func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

@@ -139,7 +139,7 @@ func duplicate_bank() -> GFInputProfileBank:
 		var profile_id := StringName(profile_id_string)
 		bank.set_profile(profile_id, get_profile(profile_id), true)
 	bank.active_profile_id = active_profile_id
-	bank.custom_data = custom_data.duplicate(true)
+	bank.custom_data = GFVariantUtility.duplicate_variant(custom_data)
 	return bank
 
 
@@ -169,6 +169,6 @@ func _duplicate_config(config: GFInputRemapConfigBase) -> GFInputRemapConfigBase
 		return config.duplicate_config()
 
 	var duplicated := GFInputRemapConfigBase.new()
-	duplicated.remapped_events = config.remapped_events.duplicate(true)
-	duplicated.custom_data = config.custom_data.duplicate(true)
+	duplicated.remapped_events = GFVariantUtility.duplicate_variant(config.remapped_events)
+	duplicated.custom_data = GFVariantUtility.duplicate_variant(config.custom_data)
 	return duplicated

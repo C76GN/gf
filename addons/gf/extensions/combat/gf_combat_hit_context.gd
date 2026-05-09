@@ -121,7 +121,7 @@ func to_dict() -> Dictionary:
 		"source": source,
 		"target": target,
 		"hit_id": hit_id,
-		"payload": _duplicate_variant(payload),
+		"payload": GFVariantUtility.duplicate_variant(payload),
 		"magnitude": magnitude,
 		"tags": tags.duplicate(),
 		"position_2d": position_2d,
@@ -130,13 +130,3 @@ func to_dict() -> Dictionary:
 		"normal_3d": normal_3d,
 		"metadata": metadata.duplicate(true),
 	}
-
-
-# --- 私有/辅助方法 ---
-
-func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

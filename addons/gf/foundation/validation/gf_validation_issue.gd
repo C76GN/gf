@@ -100,7 +100,7 @@ func apply_dict(data: Dictionary) -> void:
 	severity = normalize_severity(data.get("severity", severity))
 	kind = _read_string_name(data, "kind", _read_string_name(data, "code", _read_string_name(data, "type", kind)))
 	code = _read_string_name(data, "code", code)
-	key = _duplicate_variant(data.get("key", key))
+	key = GFVariantUtility.duplicate_variant(data.get("key", key))
 	path = String(data.get("path", path))
 	subject = String(data.get("subject", subject))
 	message = String(data.get("message", message))
@@ -111,7 +111,7 @@ func apply_dict(data: Dictionary) -> void:
 	for field_key: Variant in data.keys():
 		if _is_reserved_field(String(field_key)):
 			continue
-		extra_fields[field_key] = _duplicate_variant(data[field_key])
+		extra_fields[field_key] = GFVariantUtility.duplicate_variant(data[field_key])
 
 
 ## 转换为字典。
@@ -128,7 +128,7 @@ func to_dict(include_empty_fields: bool = false) -> Dictionary:
 	if include_empty_fields or code != &"":
 		result["code"] = String(code)
 	if include_empty_fields or key != null:
-		result["key"] = _duplicate_variant(key)
+		result["key"] = GFVariantUtility.duplicate_variant(key)
 	if include_empty_fields or not path.is_empty():
 		result["path"] = path
 	if include_empty_fields or not subject.is_empty():
@@ -137,7 +137,7 @@ func to_dict(include_empty_fields: bool = false) -> Dictionary:
 	for field_key: Variant in extra_fields.keys():
 		if _is_reserved_field(String(field_key)):
 			continue
-		result[field_key] = _duplicate_variant(extra_fields[field_key])
+		result[field_key] = GFVariantUtility.duplicate_variant(extra_fields[field_key])
 
 	if include_empty_fields or not metadata.is_empty():
 		result["metadata"] = metadata.duplicate(true)
@@ -245,11 +245,3 @@ static func _is_reserved_field(field_name: String) -> bool:
 		or field_name == "message"
 		or field_name == "metadata"
 	)
-
-
-static func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

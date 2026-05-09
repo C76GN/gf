@@ -2,6 +2,13 @@
 extends GutTest
 
 
+# --- 常量 ---
+
+const GF_MESSAGE_DISPATCH_SUPPORT := preload("res://addons/gf/extensions/common/gf_message_dispatch_support.gd")
+
+
+# --- 辅助类 ---
+
 class RecordingReceiver extends GFInteractionReceiver:
 	var received_context: GFInteractionContext = null
 	var validate_count: int = 0
@@ -19,6 +26,25 @@ class RecordingReceiver extends GFInteractionReceiver:
 			},
 		}
 
+
+class RecordingDispatchHost extends RefCounted:
+	var received_receiver: Object = null
+	var received_payload: Variant = null
+	var received_id: StringName = &""
+
+	func send_to(receiver: Object, payload_override: Variant = null, id_override: StringName = &"") -> Dictionary:
+		received_receiver = receiver
+		received_payload = payload_override
+		received_id = id_override
+		return {
+			"ok": true,
+			"receiver": receiver,
+			"interaction_id": id_override,
+			"metadata": {},
+		}
+
+
+# --- 测试方法 ---
 
 func test_sensor_send_to_receiver_builds_context_and_report() -> void:
 	var sensor := GFInteractionSensor.new()
@@ -82,15 +108,24 @@ func test_sensor_broadcast_to_group_sends_to_receivers() -> void:
 
 
 func test_sensor_collision_candidates_resolve_receiver_ancestors() -> void:
-	var sensor := GFInteractionSensor.new()
+	var host := RecordingDispatchHost.new()
 	var receiver := RecordingReceiver.new()
 	var collider_child := Node.new()
-	add_child_autofree(sensor)
 	add_child_autofree(receiver)
 	receiver.add_child(collider_child)
 
-	var reports := sensor._send_to_collision_candidates([collider_child], 0, {"value": 3}, &"hit")
+	var reports: Array[Dictionary] = []
+	reports.assign(GF_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
+		host,
+		[collider_child],
+		0,
+		{ "value": 3 },
+		&"hit",
+		&"receive_interaction"
+	))
 
 	assert_eq(reports.size(), 1, "碰撞候选应能向上解析到交互接收器。")
-	assert_true(bool(reports[0]["ok"]), "解析到的接收器应正常接收交互。")
-	assert_same(receiver.received_context.target, receiver, "交互上下文 target 应使用解析后的接收器。")
+	assert_true(bool(reports[0]["ok"]), "解析到的接收器应交给发送宿主。")
+	assert_same(host.received_receiver, receiver, "交互上下文 target 应使用解析后的接收器。")
+	assert_eq(host.received_payload, { "value": 3 }, "payload 覆盖值应透传给发送宿主。")
+	assert_eq(host.received_id, &"hit", "交互 ID 覆盖值应透传给发送宿主。")

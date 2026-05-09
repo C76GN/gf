@@ -27,6 +27,11 @@ signal interaction_accepted(context: GFInteractionContext, receiver: Object, rep
 signal interaction_rejected(context: GFInteractionContext, receiver: Object, report: Dictionary)
 
 
+# --- 常量 ---
+
+const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/extensions/common/gf_message_dispatch_support.gd")
+
+
 # --- 导出变量 ---
 
 ## 是否允许发送交互。
@@ -60,7 +65,7 @@ func build_context(
 	payload_override: Variant = null,
 	group_override: StringName = &""
 ) -> GFInteractionContext:
-	var context_payload: Variant = payload.duplicate(true) if payload_override == null else _duplicate_variant(payload_override)
+	var context_payload: Variant = payload.duplicate(true) if payload_override == null else GFVariantUtility.duplicate_variant(payload_override)
 	var context_group := group_override if group_override != &"" else group_name
 	var context := GFInteractionContext.new(_resolve_sender(), target, context_payload, context_group)
 	return context
@@ -78,7 +83,19 @@ func send_to(
 ) -> Dictionary:
 	var effective_interaction_id := interaction_id_override if interaction_id_override != &"" else interaction_id
 	var context := build_context(receiver, payload_override)
-	var report := _dispatch_to_receiver(context, receiver, effective_interaction_id)
+	var report: Dictionary = _MESSAGE_DISPATCH_SUPPORT._dispatch_to_receiver(
+		enabled,
+		metadata,
+		receiver,
+		&"receive_interaction",
+		[context, effective_interaction_id],
+		"interaction_id",
+		effective_interaction_id,
+		"Interaction sensor is disabled.",
+		"Interaction receiver is null.",
+		"Receiver does not expose receive_interaction().",
+		"Receiver returned an invalid interaction report."
+	) as Dictionary
 	_emit_send_result(context, receiver, report)
 	return report
 
@@ -127,7 +144,11 @@ func send_to_raycast_2d(
 ) -> Dictionary:
 	if raycast == null or not raycast.is_colliding():
 		return _make_report(false, interaction_id_override if interaction_id_override != &"" else interaction_id, "missing_receiver", "RayCast2D is not colliding.")
-	return send_to(_resolve_interaction_receiver(raycast.get_collider()), payload_override, interaction_id_override)
+	return send_to(
+		_MESSAGE_DISPATCH_SUPPORT._resolve_receiver(raycast.get_collider(), &"receive_interaction"),
+		payload_override,
+		interaction_id_override
+	)
 
 
 ## 向 RayCast3D 当前命中的接收对象发送交互。
@@ -142,7 +163,11 @@ func send_to_raycast_3d(
 ) -> Dictionary:
 	if raycast == null or not raycast.is_colliding():
 		return _make_report(false, interaction_id_override if interaction_id_override != &"" else interaction_id, "missing_receiver", "RayCast3D is not colliding.")
-	return send_to(_resolve_interaction_receiver(raycast.get_collider()), payload_override, interaction_id_override)
+	return send_to(
+		_MESSAGE_DISPATCH_SUPPORT._resolve_receiver(raycast.get_collider(), &"receive_interaction"),
+		payload_override,
+		interaction_id_override
+	)
 
 
 ## 向 Area2D 当前重叠的接收对象批量发送交互。
@@ -162,7 +187,16 @@ func broadcast_to_area_2d(
 	var candidates: Array = []
 	candidates.append_array(area.get_overlapping_areas())
 	candidates.append_array(area.get_overlapping_bodies())
-	return _send_to_collision_candidates(candidates, max_count, payload_override, interaction_id_override)
+	var reports: Array[Dictionary] = []
+	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
+		self,
+		candidates,
+		max_count,
+		payload_override,
+		interaction_id_override,
+		&"receive_interaction"
+	))
+	return reports
 
 
 ## 向 Area3D 当前重叠的接收对象批量发送交互。
@@ -182,27 +216,19 @@ func broadcast_to_area_3d(
 	var candidates: Array = []
 	candidates.append_array(area.get_overlapping_areas())
 	candidates.append_array(area.get_overlapping_bodies())
-	return _send_to_collision_candidates(candidates, max_count, payload_override, interaction_id_override)
+	var reports: Array[Dictionary] = []
+	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
+		self,
+		candidates,
+		max_count,
+		payload_override,
+		interaction_id_override,
+		&"receive_interaction"
+	))
+	return reports
 
 
 # --- 私有/辅助方法 ---
-
-func _dispatch_to_receiver(context: GFInteractionContext, receiver: Object, effective_interaction_id: StringName) -> Dictionary:
-	if not enabled:
-		return _make_report(false, effective_interaction_id, "disabled", "Interaction sensor is disabled.")
-	if receiver == null:
-		return _make_report(false, effective_interaction_id, "missing_receiver", "Interaction receiver is null.")
-	if not receiver.has_method("receive_interaction"):
-		return _make_report(false, effective_interaction_id, "invalid_receiver", "Receiver does not expose receive_interaction().")
-
-	var value: Variant = receiver.call("receive_interaction", context, effective_interaction_id)
-	return (value as Dictionary).duplicate(true) if value is Dictionary else _make_report(
-		false,
-		effective_interaction_id,
-		"invalid_report",
-		"Receiver returned an invalid interaction report."
-	)
-
 
 func _emit_send_result(context: GFInteractionContext, receiver: Object, report: Dictionary) -> void:
 	interaction_sent.emit(context, receiver, report)
@@ -210,43 +236,6 @@ func _emit_send_result(context: GFInteractionContext, receiver: Object, report: 
 		interaction_accepted.emit(context, receiver, report)
 	else:
 		interaction_rejected.emit(context, receiver, report)
-
-
-func _send_to_collision_candidates(
-	candidates: Array,
-	max_count: int,
-	payload_override: Variant,
-	interaction_id_override: StringName
-) -> Array[Dictionary]:
-	var reports: Array[Dictionary] = []
-	var visited_receivers: Dictionary = {}
-	for candidate: Object in candidates:
-		if max_count > 0 and reports.size() >= max_count:
-			break
-
-		var receiver := _resolve_interaction_receiver(candidate)
-		if receiver == null:
-			continue
-		var receiver_id := receiver.get_instance_id()
-		if visited_receivers.has(receiver_id):
-			continue
-		visited_receivers[receiver_id] = true
-		reports.append(send_to(receiver, payload_override, interaction_id_override))
-	return reports
-
-
-func _resolve_interaction_receiver(candidate: Object) -> Object:
-	if candidate == null:
-		return null
-	if candidate.has_method("receive_interaction"):
-		return candidate
-
-	var node := candidate as Node
-	while node != null:
-		if node.has_method("receive_interaction"):
-			return node
-		node = node.get_parent()
-	return null
 
 
 func _make_report(ok: bool, effective_interaction_id: StringName, reason: String, message: String) -> Dictionary:
@@ -266,11 +255,3 @@ func _resolve_sender() -> Object:
 		if sender != null:
 			return sender
 	return self
-
-
-func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

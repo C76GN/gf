@@ -5,6 +5,20 @@ class_name GFNodeRangeSerializer
 extends GFNodeSerializer
 
 
+# --- 常量 ---
+
+const _PROPERTY_SPECS: Array[Dictionary] = [
+	{ "key": "min_value", "kind": &"float" },
+	{ "key": "max_value", "kind": &"float" },
+	{ "key": "step", "kind": &"float" },
+	{ "key": "page", "kind": &"float" },
+	{ "key": "rounded", "kind": &"bool" },
+	{ "key": "allow_greater", "kind": &"bool" },
+	{ "key": "allow_lesser", "kind": &"bool" },
+	{ "key": "value", "kind": &"float" },
+]
+
+
 # --- Godot 生命周期方法 ---
 
 func _init() -> void:
@@ -28,16 +42,7 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	if range == null:
 		return {}
 
-	return {
-		"value": range.value,
-		"min_value": range.min_value,
-		"max_value": range.max_value,
-		"step": range.step,
-		"page": range.page,
-		"rounded": range.rounded,
-		"allow_greater": range.allow_greater,
-		"allow_lesser": range.allow_lesser,
-	}
+	return _gather_property_specs(range, _PROPERTY_SPECS)
 
 
 ## 将序列化数据应用到节点。
@@ -49,20 +54,5 @@ func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictio
 	if range == null:
 		return make_result(false, "Node is not Range.")
 
-	if payload.has("min_value"):
-		range.min_value = float(payload["min_value"])
-	if payload.has("max_value"):
-		range.max_value = float(payload["max_value"])
-	if payload.has("step"):
-		range.step = float(payload["step"])
-	if payload.has("page"):
-		range.page = float(payload["page"])
-	if payload.has("rounded"):
-		range.rounded = bool(payload["rounded"])
-	if payload.has("allow_greater"):
-		range.allow_greater = bool(payload["allow_greater"])
-	if payload.has("allow_lesser"):
-		range.allow_lesser = bool(payload["allow_lesser"])
-	if payload.has("value"):
-		range.value = float(payload["value"])
+	_apply_property_specs(range, payload, _PROPERTY_SPECS)
 	return make_result(true)

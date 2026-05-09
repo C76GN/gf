@@ -67,3 +67,112 @@ func make_result(ok: bool, error: String = "") -> Dictionary:
 		"ok": ok,
 		"error": error,
 	}
+
+
+# --- 私有/辅助方法 ---
+
+func _copy_property_to_payload(node: Object, payload: Dictionary, property_name: String) -> void:
+	if _has_property(node, property_name):
+		payload[property_name] = node.get(property_name)
+
+
+func _copy_properties_to_payload(node: Object, payload: Dictionary, property_names: PackedStringArray) -> void:
+	for property_name: String in property_names:
+		_copy_property_to_payload(node, payload, property_name)
+
+
+func _apply_property_from_payload(node: Object, payload: Dictionary, property_name: String) -> void:
+	if payload.has(property_name) and _has_property(node, property_name):
+		node.set(property_name, payload[property_name])
+
+
+func _apply_properties_from_payload(node: Object, payload: Dictionary, property_names: PackedStringArray) -> void:
+	for property_name: String in property_names:
+		_apply_property_from_payload(node, payload, property_name)
+
+
+func _gather_property_specs(node: Object, specs: Array[Dictionary]) -> Dictionary:
+	var result: Dictionary = {}
+	for spec: Dictionary in specs:
+		var key := String(spec.get("key", spec.get("property", "")))
+		var property_name := String(spec.get("property", key))
+		if key.is_empty() or property_name.is_empty() or not _has_property(node, property_name):
+			continue
+		result[key] = _encode_property_value(node.get(property_name), StringName(spec.get("kind", &"")))
+	return result
+
+
+func _apply_property_specs(node: Object, payload: Dictionary, specs: Array[Dictionary]) -> void:
+	for spec: Dictionary in specs:
+		var key := String(spec.get("key", spec.get("property", "")))
+		var property_name := String(spec.get("property", key))
+		if key.is_empty() or property_name.is_empty() or not payload.has(key) or not _has_property(node, property_name):
+			continue
+		node.set(property_name, _decode_property_value(
+			payload[key],
+			node.get(property_name),
+			StringName(spec.get("kind", &""))
+		))
+
+
+func _has_property(object: Object, property_name: String) -> bool:
+	if object == null:
+		return false
+	for property: Dictionary in object.get_property_list():
+		if String(property.get("name", "")) == property_name:
+			return true
+	return false
+
+
+func _vector2_to_array(value: Vector2) -> Array[float]:
+	return GFVariantUtility.vector2_to_array(value)
+
+
+func _array_to_vector2(value: Variant, fallback: Vector2) -> Vector2:
+	return GFVariantUtility.array_to_vector2(value, fallback)
+
+
+func _vector3_to_array(value: Vector3) -> Array[float]:
+	return GFVariantUtility.vector3_to_array(value)
+
+
+func _array_to_vector3(value: Variant, fallback: Vector3) -> Vector3:
+	return GFVariantUtility.array_to_vector3(value, fallback)
+
+
+func _color_to_array(value: Color) -> Array[float]:
+	return GFVariantUtility.color_to_array(value)
+
+
+func _array_to_color(value: Variant, fallback: Color) -> Color:
+	return GFVariantUtility.array_to_color(value, fallback)
+
+
+func _encode_property_value(value: Variant, kind: StringName) -> Variant:
+	match kind:
+		&"vector2":
+			return _vector2_to_array(value as Vector2)
+		&"vector3":
+			return _vector3_to_array(value as Vector3)
+		&"color":
+			return _color_to_array(value as Color)
+		_:
+			return value
+
+
+func _decode_property_value(value: Variant, fallback: Variant, kind: StringName) -> Variant:
+	match kind:
+		&"vector2":
+			return _array_to_vector2(value, fallback as Vector2)
+		&"vector3":
+			return _array_to_vector3(value, fallback as Vector3)
+		&"color":
+			return _array_to_color(value, fallback as Color)
+		&"float":
+			return float(value)
+		&"int":
+			return int(value)
+		&"bool":
+			return bool(value)
+		_:
+			return value

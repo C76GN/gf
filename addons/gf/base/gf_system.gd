@@ -10,6 +10,11 @@
 class_name GFSystem
 
 
+# --- 常量 ---
+
+const _DEPENDENCY_SCOPE_SUPPORT: Script = preload("res://addons/gf/base/gf_dependency_scope_support.gd")
+
+
 # --- 公共变量 ---
 
 ## 是否忽略全局暂停。为 true 时，即使 GFTimeUtility.is_paused 为 true，
@@ -36,9 +41,7 @@ var physics_tick_priority: int = 0
 
 # --- 私有变量 ---
 
-var _architecture_ref: WeakRef = null
-var _dependency_scope_was_bound: bool = false
-var _dependency_scope_released: bool = false
+var _dependency_scope: Dictionary = _DEPENDENCY_SCOPE_SUPPORT._make_scope()
 
 
 # --- Godot 生命周期方法 ---
@@ -197,13 +200,7 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 # --- 私有/辅助方法 ---
 
 func _gf_set_dependency_scope(architecture: GFArchitecture) -> void:
-	if architecture == null:
-		_release_dependency_scope()
-		return
-
-	_dependency_scope_was_bound = true
-	_dependency_scope_released = false
-	_architecture_ref = weakref(architecture)
+	_DEPENDENCY_SCOPE_SUPPORT._bind_scope(_dependency_scope, architecture)
 
 
 func _get_architecture() -> GFArchitecture:
@@ -214,20 +211,8 @@ func _get_architecture() -> GFArchitecture:
 
 
 func _release_dependency_scope() -> void:
-	_architecture_ref = null
-	if _dependency_scope_was_bound:
-		_dependency_scope_released = true
+	_DEPENDENCY_SCOPE_SUPPORT._release_scope(_dependency_scope)
 
 
 func _get_architecture_or_null() -> GFArchitecture:
-	if _dependency_scope_released:
-		push_error("[GFSystem] 依赖作用域已释放，无法继续访问架构。")
-		return null
-	if _architecture_ref != null:
-		var architecture := _architecture_ref.get_ref() as GFArchitecture
-		if architecture != null:
-			return architecture
-		if _dependency_scope_was_bound:
-			push_error("[GFSystem] 注入的架构已失效，无法回退到全局架构。")
-			return null
-	return GFAutoload.get_architecture_or_null()
+	return _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_null(_dependency_scope, "GFSystem") as GFArchitecture

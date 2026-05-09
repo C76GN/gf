@@ -18,7 +18,49 @@
 
 ## 维护策略
 
-本页面只保留最近三个大版本线的更新记录，当前保留 `1.32.x`、`1.31.x` 与 `1.30.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个大版本线的更新记录，当前保留 `1.33.x`、`1.32.x` 与 `1.31.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [1.33.0] - 2026-05-09
+
+**版本概述**：收敛框架内部重复辅助逻辑，新增通用 Variant Foundation 工具，并保持 GF 1.x 公开行为兼容。
+
+### 🚀 新增特性 (Added)
+- 新增 `GFVariantUtility`，提供 Dictionary/Array 深拷贝、递归默认值合并以及 Vector2/Vector3/Color 与数组之间的 JSON 友好转换。
+
+### 🔄 机制更改 (Changed)
+- Combat Hit/HurtBox、Interaction Sensor/Receiver、节点序列化器和基础依赖作用域改为复用内部 support 脚本，减少 2D/3D、收发桥接与基类重复实现，公开 API 与行为保持不变。
+- 节点序列化器的通用字段采集与应用改为规格表驱动，保留现有存档 payload 字段和应用顺序语义。
+- 校验、存储、导表字段、设置定义、输入重映射和交互/命中上下文的集合复制逻辑改为复用 `GFVariantUtility`。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFVariantUtility` 为向后兼容的 Foundation API，不需要注册到 `Gf.register_utility()`。
+- 未移除、重命名或改变现有公开类、信号、导出变量与公共方法签名。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。项目层若已有相同的 Dictionary/Array 深拷贝或 Vector/Color 数组转换辅助，可逐步替换为 `GFVariantUtility`。
+- `GFVariantUtility.duplicate_variant()` 不会序列化 `Object` / `Resource` 引用；需要持久化对象时仍应由项目层转换为纯数据。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/foundation/variant/gf_variant_utility.gd`
+- `addons/gf/base/gf_dependency_scope_support.gd`
+- `addons/gf/base/gf_model.gd`
+- `addons/gf/base/gf_system.gd`
+- `addons/gf/base/gf_utility.gd`
+- `addons/gf/base/gf_command.gd`
+- `addons/gf/base/gf_query.gd`
+- `addons/gf/extensions/common/**`
+- `addons/gf/extensions/combat/**`
+- `addons/gf/extensions/save/**`
+- `addons/gf/extensions/interaction/**`
+- `addons/gf/foundation/validation/**`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_config_table_column.gd`
+- `addons/gf/utilities/gf_setting_definition.gd`
+- `addons/gf/input/**`
+- `tests/gf_core/test_gf_variant_utility.gd`
+- `docs/wiki/11. 基础层 (Foundation Layer).md`
 
 ---
 
@@ -143,52 +185,3 @@
 - `addons/gf/editor/gf_config_access_generator.gd`
 - `tests/gf_core/**`
 - `docs/wiki/**`
-
----
-
-## [1.30.0] - 2026-05-08
-
-**版本概述**：融合通用运行时工具增强，补齐信号链式操作、音频事件集合、任务队列、任务生命周期、交互检测桥接、场景后台激活和构建元数据辅助。
-
-### 🚀 新增特性 (Added)
-- 新增 `GFJob` 与 `GFJobQueueUtility`，提供通用等待/执行/完成/失败/取消任务状态、进度更新、队列暂停和调试快照。
-- `GFSignalConnection` 新增 `throttle()`、`skip()`、`take()`、`first()`、`scan()` 与 `start_with()`；`GFSignalUtility` 新增 `connect_any()` 与 `disconnect_connections()`。
-- `GFAudioClip` 新增候选权重和 pitch 随机范围；`GFAudioBank` 支持同一 ID 多候选、权重抽取与分层 ID 回退；`GFAudioUtility` 新增注册音频集合、事件式 BGM/环境音/SFX 播放和 2D/3D 空间 SFX 播放入口。
-- `GFQuestUtility` 新增可用/接取/完成/取消生命周期、完成阻塞器、状态查询、任务报告和调试快照。
-- `GFSceneUtility` 新增 `begin_background_scene_load()`、`activate_background_scene()` 与 `get_background_scene_params()`，用于后台预加载后延迟激活。
-- `GFInteractionSensor` 新增 RayCast2D/RayCast3D/Area2D/Area3D 到交互接收器的通用桥接方法。
-- `GFInputRemapConfig` 新增 `to_dict()`、`apply_dict()`、`from_dict()` 与 `duplicate_config()`，用于保存、恢复和复制运行时改键覆盖与显式解绑。
-- `GFBuildInfo` 新增 `tag`、`commit_count`、`is_dirty` 字段，以及可选 Git 元数据采集和写入 ProjectSettings 的静态辅助方法。
-- `GFSceneSignalAudit` 新增 `build_signal_graph(root, options)`，可生成运行中节点树的信号连接图快照。
-
-### 🔄 机制更改 (Changed)
-- `GFAudioUtility.play_*_from_bank()` 会使用 `GFAudioBank.get_clip_with_fallback()`，旧的单片段 bank 仍保持兼容。
-- `GFSceneUtility.get_scene_cache_debug_snapshot()` 新增 `background.paths` 字段。
-
-### 🔌 API 变动说明 (API Changes)
-- 新增 API 均为向后兼容；旧调用保持有效。
-- `GFBuildInfo.to_dict()` / `apply_dict()` 返回和读取的字典新增 `tag`、`commit_count` 与 `is_dirty` 字段。
-- `GFInputRemapConfig.to_dict()` 输出的是适合持久化的覆盖字典，不会包含默认输入上下文绑定。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目无需迁移；单片段 `GFAudioBank`、`start_quest()`、`load_scene_async()` 和现有 Signal 连接代码保持原语义。
-- 需要保存改键时，把 `GFInputRemapConfig.to_dict()` 放进项目自己的设置或存档，再用 `from_dict()` 恢复。
-- 新的任务队列只管理状态和报告，不会替项目取消外部线程、下载或长任务；取消语义应由业务处理器自行响应。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/utilities/gf_signal_utility.gd`
-- `addons/gf/utilities/gf_signal_connection.gd`
-- `addons/gf/utilities/gf_audio_clip.gd`
-- `addons/gf/utilities/gf_audio_bank.gd`
-- `addons/gf/utilities/gf_audio_utility.gd`
-- `addons/gf/utilities/gf_job.gd`
-- `addons/gf/utilities/gf_job_queue_utility.gd`
-- `addons/gf/utilities/gf_quest_utility.gd`
-- `addons/gf/utilities/gf_scene_utility.gd`
-- `addons/gf/utilities/gf_build_info.gd`
-- `addons/gf/input/gf_input_remap_config.gd`
-- `addons/gf/extensions/interaction/gf_interaction_sensor.gd`
-- `addons/gf/editor/gf_scene_signal_audit.gd`
-- `tests/gf_core/**`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `docs/wiki/12. 能力组件 (Capabilities).md`
