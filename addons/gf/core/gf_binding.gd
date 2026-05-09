@@ -6,6 +6,7 @@ extends RefCounted
 # --- 常量 ---
 
 const GFBindingLifetimesBase = preload("res://addons/gf/core/gf_binding_lifetimes.gd")
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 
 
 # --- 公共变量 ---
@@ -136,13 +137,4 @@ func _instance_matches_key(instance: Object) -> bool:
 	if instance_script == null:
 		return false
 
-	return _script_extends_or_equals(instance_script, key as Script)
-
-
-func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
-	var current: Script = candidate
-	while current != null:
-		if current == expected:
-			return true
-		current = current.get_base_script()
-	return false
+	return _SCRIPT_TYPE_UTILITY.script_extends_or_equals(instance_script, key as Script)

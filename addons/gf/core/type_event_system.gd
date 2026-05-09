@@ -5,6 +5,11 @@
 class_name TypeEventSystem
 
 
+# --- 常量 ---
+
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
+
+
 # --- 公共变量 ---
 
 ## 最大事件嵌套派发深度。小于等于 0 时不限制。
@@ -548,10 +553,8 @@ func _get_script_ancestry(script_cls: Script) -> Dictionary:
 		return _script_ancestry_cache[script_cls] as Dictionary
 
 	var ancestry: Dictionary = {}
-	var current := script_cls
-	while current != null:
-		ancestry[current] = true
-		current = current.get_base_script()
+	for script: Script in _SCRIPT_TYPE_UTILITY.get_inheritance_chain(script_cls):
+		ancestry[script] = true
 	_script_ancestry_cache[script_cls] = ancestry
 	return ancestry
 

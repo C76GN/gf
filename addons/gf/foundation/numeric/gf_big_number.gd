@@ -17,6 +17,8 @@ const _ADDITION_DROP_THRESHOLD: int = 18
 ## to_plain_string() 默认保留的小数位数。
 const _DEFAULT_PLAIN_DECIMALS: int = 6
 
+const _DECIMAL_STRING_UTILITY: Script = preload("res://addons/gf/foundation/formatting/gf_decimal_string_utility.gd")
+
 
 # --- 公共变量 ---
 
@@ -100,7 +102,7 @@ static func from_string(value: String) -> GFBigNumber:
 		integer_part = trimmed.substr(0, decimal_index)
 		fractional_part = trimmed.substr(decimal_index + 1)
 
-	if not _is_valid_decimal_parts(integer_part, fractional_part, decimal_index != -1):
+	if not _DECIMAL_STRING_UTILITY.is_valid_decimal_parts(integer_part, fractional_part, decimal_index != -1):
 		push_error("[GFBigNumber] 无法解析数字字符串：%s" % value)
 		return GFBigNumber.zero()
 
@@ -331,7 +333,7 @@ func to_plain_string(decimal_places: int = _DEFAULT_PLAIN_DECIMALS, trim_zeroes:
 	if exponent > 15 or exponent < -decimal_places - 1:
 		return to_scientific_string(decimal_places, trim_zeroes)
 
-	return _format_decimal_value(to_float(), decimal_places, trim_zeroes, false)
+	return _DECIMAL_STRING_UTILITY.format_decimal_value(to_float(), decimal_places, trim_zeroes, false)
 
 
 ## 输出科学计数法字符串。
@@ -349,11 +351,11 @@ func to_scientific_string(
 
 	var output_mantissa := mantissa
 	var output_exponent := exponent
-	var mantissa_text := _format_decimal_value(output_mantissa, decimal_places, trim_zeroes, use_truncation)
+	var mantissa_text: String = _DECIMAL_STRING_UTILITY.format_decimal_value(output_mantissa, decimal_places, trim_zeroes, use_truncation)
 	if absf(mantissa_text.to_float()) >= 10.0:
 		output_mantissa /= 10.0
 		output_exponent += 1
-		mantissa_text = _format_decimal_value(output_mantissa, decimal_places, trim_zeroes, use_truncation)
+		mantissa_text = _DECIMAL_STRING_UTILITY.format_decimal_value(output_mantissa, decimal_places, trim_zeroes, use_truncation)
 
 	return "%se%d" % [mantissa_text, output_exponent]
 
@@ -392,67 +394,6 @@ static func _get_sign(value: float) -> int:
 		return -1
 
 	return 0
-
-
-static func _apply_decimal_places(value: float, decimal_places: int, use_truncation: bool) -> float:
-	if decimal_places <= 0:
-		if use_truncation:
-			return floor(value) if value >= 0.0 else ceil(value)
-		return round(value)
-
-	var scale := pow(10.0, decimal_places)
-	if use_truncation:
-		if value >= 0.0:
-			return floor(value * scale) / scale
-		return ceil(value * scale) / scale
-
-	return round(value * scale) / scale
-
-
-static func _format_decimal_value(
-	value: float,
-	decimal_places: int,
-	trim_zeroes: bool,
-	use_truncation: bool
-) -> String:
-	var adjusted_value := _apply_decimal_places(value, decimal_places, use_truncation)
-	if decimal_places <= 0:
-		return str(int(adjusted_value))
-
-	var text := ("%." + str(decimal_places) + "f") % adjusted_value
-	if trim_zeroes:
-		text = _trim_trailing_zeroes(text)
-	return text
-
-
-static func _trim_trailing_zeroes(text: String) -> String:
-	var result := text
-	while result.ends_with("0"):
-		result = result.left(result.length() - 1)
-
-	if result.ends_with("."):
-		result = result.left(result.length() - 1)
-
-	if result == "-0":
-		return "0"
-
-	return result
-
-
-static func _is_valid_decimal_parts(integer_part: String, fractional_part: String, has_decimal_point: bool) -> bool:
-	if has_decimal_point and integer_part.find(".") != -1:
-		return false
-	if integer_part.is_empty() and fractional_part.is_empty():
-		return false
-	return _contains_only_digits(integer_part) and _contains_only_digits(fractional_part)
-
-
-static func _contains_only_digits(text: String) -> bool:
-	for i in range(text.length()):
-		var character := text.substr(i, 1)
-		if character < "0" or character > "9":
-			return false
-	return true
 
 
 static func _is_fixed_decimal(value: Variant) -> bool:

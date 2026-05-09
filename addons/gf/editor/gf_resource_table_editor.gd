@@ -19,6 +19,11 @@ signal cell_value_committed(resource: Resource, property: StringName, old_value:
 signal resource_save_failed(resource: Resource, path: String, error: Error)
 
 
+# --- 常量 ---
+
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
+
+
 # --- 公共变量 ---
 
 ## 提交单元格后是否自动保存已绑定路径的 Resource。
@@ -94,7 +99,7 @@ static func load_resources_from_paths(paths: PackedStringArray, script_filter: S
 		var resource := ResourceLoader.load(path) as Resource
 		if resource == null:
 			continue
-		if script_filter != null and not _resource_script_extends_or_equals(resource, script_filter):
+		if script_filter != null and not _resource_matches_script_filter(resource, script_filter):
 			continue
 		result.append(resource)
 	return result
@@ -215,13 +220,8 @@ static func _normalize_extensions(extensions: PackedStringArray) -> PackedString
 	return result
 
 
-static func _resource_script_extends_or_equals(resource: Resource, script_filter: Script) -> bool:
-	var script := resource.get_script() as Script
-	while script != null:
-		if script == script_filter:
-			return true
-		script = script.get_base_script()
-	return false
+static func _resource_matches_script_filter(resource: Resource, script_filter: Script) -> bool:
+	return _SCRIPT_TYPE_UTILITY.script_extends_or_equals(resource.get_script() as Script, script_filter)
 
 
 func _resource_has_property(resource: Resource, property: StringName) -> bool:

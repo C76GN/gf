@@ -18,7 +18,59 @@
 
 ## 维护策略
 
-本页面只保留最近三个大版本线的更新记录，当前保留 `1.33.x`、`1.32.x` 与 `1.31.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个大版本线的更新记录，当前保留 `1.34.x`、`1.33.x` 与 `1.32.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [1.34.0] - 2026-05-09
+
+**版本概述**：新增一组通用运行时准备、诊断报告、输入图标、网络同步原语和 FlowGraph 编辑器元数据能力，保持 GF 1.x 兼容。
+
+### 🚀 新增特性 (Added)
+- 新增 `GFRenderWarmupManifest` 与 `GFRenderWarmupUtility`，支持按清单或节点树收集渲染资源，并按帧预算预热 Mesh、Material、Texture、Shader 等通用资源。
+- 新增 `GFSupportReportUtility`，支持聚合用户描述、构建信息、诊断快照、日志和项目自定义分区，并导出 JSON、写入文件或交给项目回调提交。
+- 新增 `GFInputIconAtlasProvider`，通过显式路径、纹理映射或路径模板把输入事件解析为项目自有图标资源。
+- 新增 `GFFixedTickClock`、`GFNetworkSnapshot` 与 `GFNetworkHistoryBuffer`，提供固定 tick、状态快照、浅层 delta 和有限历史缓冲原语。
+- 新增 `GFScriptTypeUtility` 与 `GFDecimalStringUtility`，将脚本继承判断和小数字符串规则收敛为可复用 Foundation API。
+
+### 🔄 机制更改 (Changed)
+- `GFFlowPort` 新增编辑器颜色、类型提示、类名提示和语义标签字段，并提供端口兼容性报告。
+- `GFFlowGraph` 新增可选 `validate_port_compatibility` 校验和连接兼容性查询；默认关闭，旧资源行为保持兼容。
+- 编辑器索引、访问器生成、能力系统、资源表过滤和插件诊断改为复用 `GFScriptTypeUtility`；数字格式化、大数和定点数解析改为复用 `GFDecimalStringUtility`。
+- FlowGraph 字典校验报告改为复用 `GFValidationUtility.finalize_report()`，异步 Signal 等待清理改为复用内部支持脚本，返回字段与等待语义保持兼容。
+- `GFRenderWarmupManifest` 与 `GFRenderWarmupUtility` 共用同一套预热条目规范化规则，避免清单描述与队列处理出现分叉。
+- `GFNetworkSnapshot` 差量删除列表保留原始 key 类型，避免非字符串状态键在浅层 delta 中丢失类型。
+
+### 🐛 Bug 修复 (Fixed)
+- 加固输入图标、渲染预热和支持报告中的 Variant 到文本转换，避免非字符串配置值触发 Godot `String` 构造错误。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 API 均为向后兼容；未移除、重命名或改变现有公开类、信号、导出变量与公共方法签名。
+- `GFRenderWarmupUtility` 与 `GFSupportReportUtility` 是可注册 Utility；网络同步原语为独立 `RefCounted`，不需要注册到架构。
+- `GFRenderWarmupManifest` 新增静态方法 `normalize_entry(entry)`；`GFScriptTypeUtility` 与 `GFDecimalStringUtility` 是 Foundation API，不需要注册到架构。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。需要更严格 FlowGraph 端口检查时，显式开启 `validate_port_compatibility`。
+- 输入图标、支持报告提交和网络同步策略仍由项目层配置；GF 只提供通用抽象和数据结构。
+- 项目层若已有同类脚本继承判断、小数字符串格式化或预热条目清洗辅助，可逐步替换为新的 Foundation / Manifest API。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/utilities/gf_render_warmup_manifest.gd`
+- `addons/gf/utilities/gf_render_warmup_utility.gd`
+- `addons/gf/utilities/gf_support_report_utility.gd`
+- `addons/gf/input/gf_input_icon_atlas_provider.gd`
+- `addons/gf/extensions/network/gf_fixed_tick_clock.gd`
+- `addons/gf/extensions/network/gf_network_snapshot.gd`
+- `addons/gf/extensions/network/gf_network_history_buffer.gd`
+- `addons/gf/extensions/flow/gf_flow_port.gd`
+- `addons/gf/extensions/flow/gf_flow_graph.gd`
+- `addons/gf/foundation/reflection/gf_script_type_utility.gd`
+- `addons/gf/foundation/formatting/gf_decimal_string_utility.gd`
+- `addons/gf/extensions/common/gf_async_wait_support.gd`
+- `tests/gf_core/**`
+- `docs/wiki/11. 基础层 (Foundation Layer).md`
+- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
 
 ---
 
@@ -122,66 +174,5 @@
 - `addons/gf/editor/gf_build_info_export_plugin.gd`
 - `addons/gf/editor/gf_scene_signal_audit.gd`
 - `addons/gf/utilities/gf_scene_utility.gd`
-- `tests/gf_core/**`
-- `docs/wiki/**`
-
----
-
-## [1.31.0] - 2026-05-09
-
-**版本概述**：补强框架级运行时可观察性、资源所有权、UI 栈导航、配置访问器生成、网格算法、存储迁移和通知队列能力，保持 1.x 默认兼容语义。
-
-### 🚀 新增特性 (Added)
-- `GFAssetUtility` 新增 `GFAssetHandle` 资源句柄、路径引用计数、owner 批量释放、资源分组预加载/卸载和分组锁定缓存。
-- `GFUIUtility` 新增面板打开/关闭/导航信号、层级替换、回退到指定面板、栈查询和诊断快照。
-- `TypeEventSystem` 新增最大嵌套派发深度保护、可选派发追踪和追踪清理 API，并通过 `GFArchitecture` / `Gf` 提供配置与读取入口。
-- `GFModel` / `GFSystem` / `GFUtility` 新增生命周期优先级；`GFSystem` / `GFUtility` 新增 tick 与 physics tick 优先级。
-- `GFGridMath` 新增 A* 路径查找和 Flow Field 生成。
-- 新增 `GFHexGridMath`，提供纯六边形坐标转换、邻居、范围、环、线段、视线、A*、Flow Field 和可达域算法。
-- 新增 `GFConfigAccessGenerator`，可根据 `GFConfigTableSchema` 生成静态导表访问器源码。
-- `GFLogUtility` 新增 trace id、全局上下文、日志值清洗和上次异常退出标记检测。
-- `GFNotificationUtility` 新增通知优先级、sticky 通知、暂停/恢复和动作触发信号。
-- `GFUIUtility` 新增面板 options、Modal 策略、取消请求和焦点约束辅助方法。
-- `GFStorageUtility` 新增注册式版本迁移链；新增 `GFStorageBackend` 与 `GFStorageConflictReport` 作为远端/同步扩展点。
-
-### 🔄 机制更改 (Changed)
-- 架构初始化在同一 Model/System/Utility 注册表内按 `lifecycle_priority` 从高到低推进，释放时反向处理；默认值 `0` 保持原注册顺序。
-- tick 缓存会按 `tick_priority` / `physics_tick_priority` 从高到低排序；默认值 `0` 保持原注册顺序。
-- `GFAssetUtility.pin_cache()` 现在以引用计数形式管理锁定，重复 pin 需要对应次数 unpin。
-- `GFNotificationUtility` 等待队列会按优先级调度；默认 `NORMAL` 优先级保持旧通知行为。
-- `GFStorageUtility.migrate_data()` 会先执行已注册迁移链，再应用版本默认值；未注册迁移时保持旧默认迁移行为。
-
-### 🔌 API 变动说明 (API Changes)
-- 新增 API 均为向后兼容；旧 `load_async()`、`push_panel()`、`push_notification()`、事件监听、BFS/Grid 和存储调用保持有效。
-- `GFAssetUtility.get_debug_snapshot()` 新增引用计数和分组数量字段。
-- `TypeEventSystem.get_debug_stats()` 新增最大深度、追踪开关和追踪数量字段。
-- `GFArchitecture.get_debug_lifecycle_state()` 的模块条目新增生命周期与 tick 优先级字段。
-- `GFLogUtility` 结构化日志条目新增 `trace_id` 字段，`context` 会包含已清洗后的全局上下文与单条日志上下文。
-- `GFUIUtility.get_debug_snapshot()` 的层级条目新增 `top_modal` 字段。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目无需迁移。只有存在明确依赖顺序或更新顺序需求时，才设置 `lifecycle_priority` / `tick_priority`；不要把业务流程顺序硬编码进框架基类。
-- 资源句柄适合表达“调用方仍持有该路径资源”的所有权；临时加载仍可继续使用 `load_async()`。
-- UI 新增方法只管理栈、状态信号和轻量面板策略，不替项目决定动画、输入路由、视觉层级或面板通信规则。
-- 六边形、通知、存储后端和日志增强均为通用工具层能力；项目应在业务层定义地形、阵营、上传、同步冲突解决和 UI 表现。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/base/gf_model.gd`
-- `addons/gf/base/gf_system.gd`
-- `addons/gf/base/gf_utility.gd`
-- `addons/gf/core/gf.gd`
-- `addons/gf/core/gf_architecture.gd`
-- `addons/gf/core/type_event_system.gd`
-- `addons/gf/utilities/gf_asset_utility.gd`
-- `addons/gf/utilities/gf_asset_handle.gd`
-- `addons/gf/utilities/gf_log_utility.gd`
-- `addons/gf/utilities/gf_notification_utility.gd`
-- `addons/gf/utilities/gf_storage_utility.gd`
-- `addons/gf/utilities/gf_storage_backend.gd`
-- `addons/gf/utilities/gf_storage_conflict_report.gd`
-- `addons/gf/utilities/gf_ui_utility.gd`
-- `addons/gf/foundation/math/gf_grid_math.gd`
-- `addons/gf/foundation/math/gf_hex_grid_math.gd`
-- `addons/gf/editor/gf_config_access_generator.gd`
 - `tests/gf_core/**`
 - `docs/wiki/**`

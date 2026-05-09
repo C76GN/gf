@@ -23,6 +23,11 @@ signal flow_completed
 signal flow_cancelled
 
 
+# --- 常量 ---
+
+const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/extensions/common/gf_async_wait_support.gd")
+
+
 # --- 公共变量 ---
 
 ## 当前是否正在执行。
@@ -165,21 +170,17 @@ func _await_signal_safely(result_signal: Signal) -> void:
 			break
 		await Engine.get_main_loop().process_frame
 
-	_disconnect_signal_if_connected(result_signal, on_resume)
-	_disconnect_signal_if_connected(tree_exit_signal, on_resume)
+	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
+	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(tree_exit_signal, on_resume)
 
 
 func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
-	var elapsed_msec := float(current_msec - previous_msec)
-	if not signal_timeout_respects_time_scale:
-		return elapsed_msec
-
-	var time_utility := _get_time_utility()
-	if time_utility == null:
-		return elapsed_msec
-	if time_utility.is_paused:
-		return 0.0
-	return elapsed_msec * time_utility.time_scale
+	return _GF_ASYNC_WAIT_SUPPORT.get_timeout_elapsed_msec(
+		previous_msec,
+		current_msec,
+		_get_time_utility(),
+		signal_timeout_respects_time_scale
+	)
 
 
 func _get_time_utility() -> GFTimeUtility:
@@ -187,15 +188,6 @@ func _get_time_utility() -> GFTimeUtility:
 	if architecture == null:
 		return null
 	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
-
-
-func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:
-	if target_signal.is_null():
-		return
-	if not is_instance_valid(target_signal.get_object()):
-		return
-	if target_signal.is_connected(callback):
-		target_signal.disconnect(callback)
 
 
 func _get_architecture_or_null() -> GFArchitecture:

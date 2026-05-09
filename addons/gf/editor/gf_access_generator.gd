@@ -34,6 +34,7 @@ const _BASE_NODE_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions
 const _BASE_NODE_2D_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_node_2d_capability.gd")
 const _BASE_NODE_3D_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_node_3d_capability.gd")
 const _BASE_CONTROL_CAPABILITY_SCRIPT: Script = preload("res://addons/gf/extensions/capability/gf_control_capability.gd")
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 const _LAYER_TYPES: Dictionary = {
 	"2d_render": 20,
 	"2d_physics": 32,
@@ -322,22 +323,22 @@ func _resolve_kind(script: Script) -> int:
 	if script == _BASE_CAPABILITY_SCRIPT or script == _BASE_NODE_CAPABILITY_SCRIPT:
 		return -1
 
-	if _script_extends_or_equals(script, _BASE_MODEL_SCRIPT):
+	if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_MODEL_SCRIPT):
 		return TargetKind.MODEL
-	if _script_extends_or_equals(script, _BASE_SYSTEM_SCRIPT):
+	if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_SYSTEM_SCRIPT):
 		return TargetKind.SYSTEM
-	if _script_extends_or_equals(script, _BASE_UTILITY_SCRIPT):
+	if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_UTILITY_SCRIPT):
 		return TargetKind.UTILITY
-	if _script_extends_or_equals(script, _BASE_COMMAND_SCRIPT):
+	if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_COMMAND_SCRIPT):
 		return TargetKind.COMMAND
-	if _script_extends_or_equals(script, _BASE_QUERY_SCRIPT):
+	if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_QUERY_SCRIPT):
 		return TargetKind.QUERY
 	if (
-		_script_extends_or_equals(script, _BASE_CAPABILITY_SCRIPT)
-		or _script_extends_or_equals(script, _BASE_NODE_CAPABILITY_SCRIPT)
-		or _script_extends_or_equals(script, _BASE_NODE_2D_CAPABILITY_SCRIPT)
-		or _script_extends_or_equals(script, _BASE_NODE_3D_CAPABILITY_SCRIPT)
-		or _script_extends_or_equals(script, _BASE_CONTROL_CAPABILITY_SCRIPT)
+		_SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_CAPABILITY_SCRIPT)
+		or _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_NODE_CAPABILITY_SCRIPT)
+		or _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_NODE_2D_CAPABILITY_SCRIPT)
+		or _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_NODE_3D_CAPABILITY_SCRIPT)
+		or _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, _BASE_CONTROL_CAPABILITY_SCRIPT)
 	):
 		return TargetKind.CAPABILITY
 
@@ -521,12 +522,3 @@ func _sort_records(records: Array[Dictionary]) -> void:
 			return left_kind < right_kind
 		return String(left["class_name"]) < String(right["class_name"])
 	)
-
-
-func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
-	var current := candidate
-	while current != null:
-		if current == expected:
-			return true
-		current = current.get_base_script()
-	return false

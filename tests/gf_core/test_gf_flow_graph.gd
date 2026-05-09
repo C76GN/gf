@@ -86,6 +86,9 @@ func test_flow_node_describes_ports() -> void:
 	output_port.port_id = &"success"
 	output_port.direction = GFFlowPort.Direction.OUTPUT
 	output_port.value_type = GFFlowPort.ValueType.BOOL
+	output_port.editor_color = Color.GREEN
+	output_port.type_hint = &"result"
+	output_port.semantic_tags = PackedStringArray(["logic"])
 	var node := GFFlowNodeBase.new()
 	node.node_id = &"check"
 	node.output_ports = [output_port]
@@ -95,6 +98,9 @@ func test_flow_node_describes_ports() -> void:
 
 	assert_eq(outputs.size(), 1, "节点描述应包含输出端口。")
 	assert_eq(outputs[0]["port_id"], &"success", "端口标识应保留。")
+	assert_eq(outputs[0]["editor_color"], Color.GREEN, "端口描述应包含编辑器颜色。")
+	assert_eq(outputs[0]["type_hint"], &"result", "端口描述应包含类型提示。")
+	assert_true((outputs[0]["semantic_tags"] as PackedStringArray).has("logic"), "端口描述应包含语义标签。")
 
 
 ## 验证流程图连接可驱动无 next_node_ids 的节点推进。
@@ -155,6 +161,35 @@ func test_flow_graph_validate_reports_connection_port_issues() -> void:
 
 	assert_false(bool(report["ok"]), "缺失连接端口应使校验失败。")
 	assert_true(_has_issue(report, "missing_connection_output_port"), "校验报告应包含 missing_connection_output_port。")
+
+
+## 验证流程图可选端口兼容性校验会报告类型不匹配。
+func test_flow_graph_validate_reports_incompatible_ports_when_enabled() -> void:
+	var graph := GFFlowGraphBase.new()
+	graph.validate_port_compatibility = true
+	var start := GFFlowNodeBase.new()
+	start.node_id = &"start"
+	start.output_ports = [_make_typed_port(&"value", GFFlowPort.Direction.OUTPUT, GFFlowPort.ValueType.NUMBER)]
+	var end := GFFlowNodeBase.new()
+	end.node_id = &"end"
+	end.input_ports = [_make_typed_port(&"value", GFFlowPort.Direction.INPUT, GFFlowPort.ValueType.STRING)]
+	graph.nodes = [start, end]
+	graph.connections = [
+		{
+			"from_node_id": &"start",
+			"from_port_id": &"value",
+			"to_node_id": &"end",
+			"to_port_id": &"value",
+			"metadata": {},
+		},
+	]
+
+	var report := graph.validate_graph()
+	var compatibility := graph.check_connection_compatibility(&"start", &"value", &"end", &"value")
+
+	assert_false(bool(report["ok"]), "启用严格校验后类型不匹配应失败。")
+	assert_true(_has_issue(report, "incompatible_connection_ports"), "校验报告应包含 incompatible_connection_ports。")
+	assert_false(bool(compatibility["ok"]), "兼容性检查应返回失败。")
 
 
 ## 验证流程图连接描述可供编辑器或可视化工具消费。
@@ -275,4 +310,14 @@ func _make_port(port_id: StringName, direction: GFFlowPort.Direction) -> GFFlowP
 	var port := GFFlowPortBase.new()
 	port.port_id = port_id
 	port.direction = direction
+	return port
+
+
+func _make_typed_port(
+	port_id: StringName,
+	direction: GFFlowPort.Direction,
+	value_type: GFFlowPort.ValueType
+) -> GFFlowPortBase:
+	var port := _make_port(port_id, direction)
+	port.value_type = value_type
 	return port

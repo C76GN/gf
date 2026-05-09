@@ -29,6 +29,7 @@ enum RoundingMode {
 const MAX_DECIMAL_PLACES: int = 18
 
 const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/foundation/numeric/gf_big_number.gd")
+const _DECIMAL_STRING_UTILITY: Script = preload("res://addons/gf/foundation/formatting/gf_decimal_string_utility.gd")
 const _MAX_INT_VALUE: int = 9_223_372_036_854_775_807
 const _MAX_INT_DIGITS: String = "9223372036854775807"
 
@@ -122,7 +123,7 @@ static func from_string(
 		integer_part = trimmed.substr(0, decimal_index)
 		fractional_part = trimmed.substr(decimal_index + 1)
 
-	if not _is_valid_decimal_parts(integer_part, fractional_part, decimal_index != -1):
+	if not _DECIMAL_STRING_UTILITY.is_valid_decimal_parts(integer_part, fractional_part, decimal_index != -1):
 		push_error("[GFFixedDecimal] 无法解析数字字符串：%s" % value)
 		return GFFixedDecimal.new(0, places)
 
@@ -674,22 +675,6 @@ static func _normalize_decimal_places(value: int) -> int:
 		push_error("[GFFixedDecimal] decimal_places 超出上限 %d，已自动钳制。" % MAX_DECIMAL_PLACES)
 		return MAX_DECIMAL_PLACES
 	return value
-
-
-static func _is_valid_decimal_parts(integer_part: String, fractional_part: String, has_decimal_point: bool) -> bool:
-	if has_decimal_point and integer_part.find(".") != -1:
-		return false
-	if integer_part.is_empty() and fractional_part.is_empty():
-		return false
-	return _contains_only_digits(integer_part) and _contains_only_digits(fractional_part)
-
-
-static func _contains_only_digits(text: String) -> bool:
-	for i in range(text.length()):
-		var character := text.substr(i, 1)
-		if character < "0" or character > "9":
-			return false
-	return true
 
 
 static func _parse_signed_digits(digits: String, sign: int) -> int:

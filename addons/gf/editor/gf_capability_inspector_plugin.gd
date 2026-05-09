@@ -437,15 +437,6 @@ func _set_node_active_state(node: Node, active: bool) -> void:
 		node.process_mode = Node.PROCESS_MODE_DISABLED
 
 
-func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
-	var current := candidate
-	while current != null:
-		if current == expected:
-			return true
-		current = current.get_base_script()
-	return false
-
-
 # --- 信号处理函数 ---
 
 func _on_add_menu_id_pressed(id: int, popup: PopupMenu, target: Node) -> void:

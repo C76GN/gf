@@ -44,6 +44,8 @@ const _AUTO_COMPACT_THRESHOLD: int = 3
 ## FULL 模式允许的最大普通十进制指数。
 const _FULL_MAX_EXPONENT: int = 15
 
+const _DECIMAL_STRING_UTILITY: Script = preload("res://addons/gf/foundation/formatting/gf_decimal_string_utility.gd")
+
 ## FULL 模式允许的最小普通十进制指数。
 const _FULL_MIN_EXPONENT: int = -6
 
@@ -152,13 +154,13 @@ static func format_full(
 		var big_value = value
 		if big_value.exponent > _FULL_MAX_EXPONENT or big_value.exponent < _FULL_MIN_EXPONENT:
 			return format_scientific(big_value, decimal_places, trim_zeroes, use_truncation)
-		text = _format_decimal_value(big_value.to_float(), decimal_places, trim_zeroes, use_truncation)
+		text = _DECIMAL_STRING_UTILITY.format_decimal_value(big_value.to_float(), decimal_places, trim_zeroes, use_truncation)
 	else:
 		match typeof(value):
 			TYPE_INT:
 				text = str(value)
 			TYPE_FLOAT:
-				text = _format_decimal_value(value, decimal_places, trim_zeroes, use_truncation)
+				text = _DECIMAL_STRING_UTILITY.format_decimal_value(value, decimal_places, trim_zeroes, use_truncation)
 			TYPE_STRING:
 				text = value
 			_:
@@ -201,7 +203,7 @@ static func format_compact(
 
 	var scaled_exponent: int = suffix_index * 3
 	var display_value: float = big_value.mantissa * pow(10.0, big_value.exponent - scaled_exponent)
-	var display_text: String = _format_decimal_value(
+	var display_text: String = _DECIMAL_STRING_UTILITY.format_decimal_value(
 		display_value,
 		decimal_places,
 		trim_zeroes,
@@ -212,7 +214,7 @@ static func format_compact(
 		suffix_index += 1
 		scaled_exponent = suffix_index * 3
 		display_value = big_value.mantissa * pow(10.0, big_value.exponent - scaled_exponent)
-		display_text = _format_decimal_value(display_value, decimal_places, trim_zeroes, use_truncation)
+		display_text = _DECIMAL_STRING_UTILITY.format_decimal_value(display_value, decimal_places, trim_zeroes, use_truncation)
 
 	return display_text + compact_suffixes[suffix_index]
 
@@ -242,7 +244,7 @@ static func format_scientific(
 		output_exponent = int(floor(float(big_value.exponent) / 3.0)) * 3
 
 	var display_value: float = big_value.mantissa * pow(10.0, big_value.exponent - output_exponent)
-	var display_text: String = _format_decimal_value(
+	var display_text: String = _DECIMAL_STRING_UTILITY.format_decimal_value(
 		display_value,
 		decimal_places,
 		trim_zeroes,
@@ -253,7 +255,7 @@ static func format_scientific(
 	if absf(reparsed) >= overflow_threshold:
 		output_exponent += 3 if engineering else 1
 		display_value = big_value.mantissa * pow(10.0, big_value.exponent - output_exponent)
-		display_text = _format_decimal_value(display_value, decimal_places, trim_zeroes, use_truncation)
+		display_text = _DECIMAL_STRING_UTILITY.format_decimal_value(display_value, decimal_places, trim_zeroes, use_truncation)
 
 	match style:
 		ScientificStyle.E_UPPER:
@@ -293,50 +295,6 @@ static func format_auto(
 
 
 # --- 私有/辅助方法 ---
-
-static func _apply_decimal_places(value: float, decimal_places: int, use_truncation: bool) -> float:
-	if decimal_places <= 0:
-		if use_truncation:
-			return floor(value) if value >= 0.0 else ceil(value)
-		return round(value)
-
-	var scale := pow(10.0, decimal_places)
-	if use_truncation:
-		if value >= 0.0:
-			return floor(value * scale) / scale
-		return ceil(value * scale) / scale
-
-	return round(value * scale) / scale
-
-
-static func _format_decimal_value(
-	value: float,
-	decimal_places: int,
-	trim_zeroes: bool,
-	use_truncation: bool
-) -> String:
-	var adjusted_value := _apply_decimal_places(value, decimal_places, use_truncation)
-	if decimal_places <= 0:
-		return str(int(adjusted_value))
-
-	var text := ("%." + str(decimal_places) + "f") % adjusted_value
-	if trim_zeroes:
-		text = _trim_trailing_zeroes(text)
-	return text
-
-
-static func _trim_trailing_zeroes(text: String) -> String:
-	var result := text
-	while result.ends_with("0"):
-		result = result.left(result.length() - 1)
-
-	if result.ends_with("."):
-		result = result.left(result.length() - 1)
-
-	if result == "-0":
-		return "0"
-
-	return result
 
 
 static func _group_integer_part(text: String) -> String:

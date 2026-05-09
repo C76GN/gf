@@ -5,6 +5,11 @@ class_name GFFlowGraph
 extends Resource
 
 
+# --- 常量 ---
+
+const _GF_VALIDATION_UTILITY_SCRIPT: Script = preload("res://addons/gf/foundation/validation/gf_validation_utility.gd")
+
+
 # --- 导出变量 ---
 
 ## 起始节点标识。
@@ -15,6 +20,9 @@ extends Resource
 
 ## 节点连接列表。连接结构为 from_node_id/from_port_id/to_node_id/to_port_id/metadata。
 @export var connections: Array[Dictionary] = []
+
+## 校验时是否把端口值类型和类名提示不兼容视为错误。默认关闭以保持旧资源兼容。
+@export var validate_port_compatibility: bool = false
 
 ## 编辑器分组数据。结构由编辑器工具解释，运行时不读取。
 @export var editor_groups: Array[Dictionary] = []
@@ -179,6 +187,56 @@ func get_connected_node_ids_from(node_id: StringName, port_id: StringName = &"")
 	return result
 
 
+## 检查指定连接端口的兼容性。
+## @param from_node_id: 来源节点。
+## @param from_port_id: 来源端口。
+## @param to_node_id: 目标节点。
+## @param to_port_id: 目标端口。
+## @return 兼容性报告。
+func check_connection_compatibility(
+	from_node_id: StringName,
+	from_port_id: StringName,
+	to_node_id: StringName,
+	to_port_id: StringName
+) -> Dictionary:
+	var from_node := get_node(from_node_id)
+	var to_node := get_node(to_node_id)
+	if from_node == null:
+		return _make_connection_compatibility_report(false, "missing_from_node", "Connection source node does not exist.")
+	if to_node == null:
+		return _make_connection_compatibility_report(false, "missing_to_node", "Connection target node does not exist.")
+	if from_port_id == &"" or to_port_id == &"":
+		return _make_connection_compatibility_report(true, "", "")
+
+	var output_port := from_node.get_output_port(from_port_id)
+	var input_port := to_node.get_input_port(to_port_id)
+	if output_port == null:
+		return _make_connection_compatibility_report(false, "missing_output_port", "Connection output port does not exist.")
+	if input_port == null:
+		return _make_connection_compatibility_report(false, "missing_input_port", "Connection input port does not exist.")
+
+	var report := output_port.get_compatibility_report(input_port)
+	report["from_node_id"] = from_node_id
+	report["from_port_id"] = from_port_id
+	report["to_node_id"] = to_node_id
+	report["to_port_id"] = to_port_id
+	return report
+
+
+## 获取所有连接的兼容性报告。
+## @return 兼容性报告列表。
+func get_connection_compatibility_report() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for connection: Dictionary in connections:
+		result.append(check_connection_compatibility(
+			StringName(connection.get("from_node_id", &"")),
+			StringName(connection.get("from_port_id", &"")),
+			StringName(connection.get("to_node_id", &"")),
+			StringName(connection.get("to_port_id", &""))
+		))
+	return result
+
+
 ## 设置节点编辑器位置。
 ## @param node_id: 节点标识。
 ## @param position: 编辑器坐标。
@@ -264,6 +322,7 @@ func describe_graph() -> Dictionary:
 		"nodes": node_descriptions,
 		"connection_count": connections.size(),
 		"connections": _describe_connections(),
+		"validate_port_compatibility": validate_port_compatibility,
 		"editor": {
 			"groups": editor_groups.duplicate(true),
 			"metadata": editor_metadata.duplicate(true),
@@ -315,8 +374,10 @@ func validate_graph() -> Dictionary:
 				_append_validation_issue(report, "error", "missing_next_node", String(node.node_id), "Next node does not exist: %s" % next_id)
 
 	_validate_connections(report, node_ids)
-	report["ok"] = _validation_has_no_error_issues(report)
-	return _finalize_validation_report(report)
+	return _GF_VALIDATION_UTILITY_SCRIPT.finalize_report(report, "Flow graph", {
+		"next_actions": _get_validation_next_actions(),
+		"fallback_action": "Review the first reported flow graph issue before using this graph.",
+	})
 
 
 ## 构建面向编辑器和可视化工具的流程图报告。
@@ -339,83 +400,23 @@ func build_editor_report() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
-func _finalize_validation_report(report: Dictionary) -> Dictionary:
-	var error_count := 0
-	var warning_count := 0
-	var issue_counts_by_kind: Dictionary = {}
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue == null:
-			continue
-
-		var severity := String(issue.get("severity", ""))
-		var kind := String(issue.get("kind", "unknown"))
-		issue_counts_by_kind[kind] = int(issue_counts_by_kind.get(kind, 0)) + 1
-		if severity == "error":
-			error_count += 1
-		elif severity == "warning":
-			warning_count += 1
-
-	report["error_count"] = error_count
-	report["warning_count"] = warning_count
-	report["issue_counts_by_kind"] = issue_counts_by_kind
-	report["ok"] = error_count == 0
-	report["healthy"] = error_count == 0 and warning_count == 0
-	report["summary"] = _make_validation_summary(error_count, warning_count)
-	report["next_action"] = _get_next_action_for_validation_report(report)
-	return report
-
-
-func _make_validation_summary(error_count: int, warning_count: int) -> String:
-	if error_count > 0:
-		return "Flow graph has %d error(s) and %d warning(s)." % [error_count, warning_count]
-	if warning_count > 0:
-		return "Flow graph has %d warning(s)." % warning_count
-	return "Flow graph is healthy."
-
-
-func _get_next_action_for_validation_report(report: Dictionary) -> String:
-	var first_warning: Dictionary = {}
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue == null:
-			continue
-		if String(issue.get("severity", "")) == "error":
-			return _get_next_action_for_issue(issue)
-		if first_warning.is_empty() and String(issue.get("severity", "")) == "warning":
-			first_warning = issue
-
-	if not first_warning.is_empty():
-		return _get_next_action_for_issue(first_warning)
-	return "No action required."
-
-
-func _get_next_action_for_issue(issue: Dictionary) -> String:
-	match String(issue.get("kind", "")):
-		"null_node":
-			return "Remove the null entry or replace it with a valid GFFlowNode resource."
-		"empty_node_id":
-			return "Assign a stable node_id to every flow node."
-		"duplicate_node_id":
-			return "Rename one of the duplicated flow node ids."
-		"missing_start_node":
-			return "Set start_node_id to an existing node or leave it empty for manual runner selection."
-		"missing_next_node":
-			return "Create the referenced next node or remove it from next_node_ids."
-		"invalid_connection":
-			return "Fill both from_node_id and to_node_id for every flow connection."
-		"duplicate_connection":
-			return "Remove the duplicated flow connection."
-		"missing_connection_from_node":
-			return "Create the connection source node or remove the connection."
-		"missing_connection_to_node":
-			return "Create the connection target node or remove the connection."
-		"missing_connection_input_port", "missing_connection_output_port":
-			return "Update the connection port id or add the missing port to the node."
-		"input_port_allows_single_connection", "output_port_allows_single_connection":
-			return "Enable allow_multiple on the port or keep only one connection."
-		_:
-			return "Review the first reported flow graph issue before using this graph."
+func _get_validation_next_actions() -> Dictionary:
+	return {
+		"null_node": "Remove the null entry or replace it with a valid GFFlowNode resource.",
+		"empty_node_id": "Assign a stable node_id to every flow node.",
+		"duplicate_node_id": "Rename one of the duplicated flow node ids.",
+		"missing_start_node": "Set start_node_id to an existing node or leave it empty for manual runner selection.",
+		"missing_next_node": "Create the referenced next node or remove it from next_node_ids.",
+		"invalid_connection": "Fill both from_node_id and to_node_id for every flow connection.",
+		"duplicate_connection": "Remove the duplicated flow connection.",
+		"missing_connection_from_node": "Create the connection source node or remove the connection.",
+		"missing_connection_to_node": "Create the connection target node or remove the connection.",
+		"missing_connection_input_port": "Update the connection port id or add the missing port to the node.",
+		"missing_connection_output_port": "Update the connection port id or add the missing port to the node.",
+		"input_port_allows_single_connection": "Enable allow_multiple on the port or keep only one connection.",
+		"output_port_allows_single_connection": "Enable allow_multiple on the port or keep only one connection.",
+		"incompatible_connection_ports": "Update the connected port value types or disable strict compatibility validation for this graph.",
+	}
 
 
 func _validate_node_ports(node: GFFlowNode, report: Dictionary) -> void:
@@ -470,6 +471,10 @@ func _validate_connections(report: Dictionary, node_ids: Dictionary) -> void:
 		var input_port := _validate_connection_port(to_node, to_port_id, true, report)
 		_count_connection_port(output_counts, from_node_id, from_port_id, output_port, false, report)
 		_count_connection_port(input_counts, to_node_id, to_port_id, input_port, true, report)
+		if validate_port_compatibility and output_port != null and input_port != null:
+			var compatibility := output_port.get_compatibility_report(input_port)
+			if not bool(compatibility.get("ok", false)):
+				_append_validation_issue(report, "error", "incompatible_connection_ports", String(from_node_id), String(compatibility.get("message", "")))
 
 
 func _validate_connection_port(
@@ -530,6 +535,8 @@ func _can_append_connection(
 		return false
 	if output_port != null and not output_port.allow_multiple and not get_connections_from(from_node_id, from_port_id).is_empty():
 		return false
+	if validate_port_compatibility and output_port != null and input_port != null and not output_port.is_compatible_with(input_port):
+		return false
 	return true
 
 
@@ -586,17 +593,12 @@ func _describe_connections() -> Array[Dictionary]:
 
 
 func _append_validation_issue(report: Dictionary, severity: String, kind: String, key: String, message: String) -> void:
-	(report["issues"] as Array).append({
-		"severity": severity,
-		"kind": kind,
-		"key": key,
+	_GF_VALIDATION_UTILITY_SCRIPT.append_issue(report, severity, StringName(kind), message, { "key": key })
+
+
+func _make_connection_compatibility_report(ok: bool, reason: String, message: String) -> Dictionary:
+	return {
+		"ok": ok,
+		"reason": reason,
 		"message": message,
-	})
-
-
-func _validation_has_no_error_issues(report: Dictionary) -> bool:
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue != null and String(issue.get("severity", "")) == "error":
-			return false
-	return true
+	}

@@ -6,6 +6,11 @@ class_name GFCommandHistoryUtility
 extends GFUtility
 
 
+# --- 常量 ---
+
+const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/extensions/common/gf_async_wait_support.gd")
+
+
 # --- 公共变量 ---
 
 ## 撤销栈的最大容量；为 0 时表示不限制。
@@ -359,14 +364,5 @@ func _await_command_signal(result_signal: Signal, lifecycle_serial: int) -> bool
 			break
 		await Engine.get_main_loop().process_frame
 
-	_disconnect_signal_if_connected(result_signal, on_resume)
+	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
 	return completed[0] and lifecycle_serial == _lifecycle_serial
-
-
-func _disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:
-	if target_signal.is_null():
-		return
-	if not is_instance_valid(target_signal.get_object()):
-		return
-	if target_signal.is_connected(callback):
-		target_signal.disconnect(callback)

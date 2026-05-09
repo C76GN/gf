@@ -47,6 +47,7 @@ const HOOK_ON_ACTIVE_CHANGED: StringName = &"on_gf_capability_active_changed"
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/gf_capability_container.gd")
 const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe.gd")
 const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe_entry.gd")
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 
 
 # --- 私有变量 ---
@@ -995,7 +996,7 @@ func _find_capability_record(receiver: Object, capability_type: Script, sync_sce
 
 	var matches: Array[Dictionary] = []
 	for registered_type in _get_capability_type_list(receiver):
-		if _script_extends_or_equals(registered_type, capability_type):
+		if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(registered_type, capability_type):
 			var instance := _get_capability_instance(receiver, registered_type)
 			if instance != null:
 				matches.append({
@@ -1285,7 +1286,7 @@ func _get_indexed_capability_types(capability_type: Script, include_subclasses: 
 	for registered_type: Script in _capability_receivers:
 		if registered_type == capability_type:
 			result.append(registered_type)
-		elif include_subclasses and _script_extends_or_equals(registered_type, capability_type):
+		elif include_subclasses and _SCRIPT_TYPE_UTILITY.script_extends_or_equals(registered_type, capability_type):
 			result.append(registered_type)
 	return result
 
@@ -1475,12 +1476,3 @@ func _describe_creation_stack(next_key: String) -> String:
 	var display_stack := _creation_stack.duplicate()
 	display_stack.append(next_key)
 	return " -> ".join(display_stack)
-
-
-func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
-	var current := candidate
-	while current != null:
-		if current == expected:
-			return true
-		current = current.get_base_script()
-	return false

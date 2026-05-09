@@ -12,6 +12,9 @@ const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/networ
 const GFNetworkRateLimiterBase = preload("res://addons/gf/extensions/network/gf_network_rate_limiter.gd")
 const GFNetworkSerializerBase = preload("res://addons/gf/extensions/network/gf_network_serializer.gd")
 const GFNetworkUtilityBase = preload("res://addons/gf/extensions/network/gf_network_utility.gd")
+const GFFixedTickClockBase = preload("res://addons/gf/extensions/network/gf_fixed_tick_clock.gd")
+const GFNetworkHistoryBufferBase = preload("res://addons/gf/extensions/network/gf_network_history_buffer.gd")
+const GFNetworkSnapshotBase = preload("res://addons/gf/extensions/network/gf_network_snapshot.gd")
 
 
 # --- 辅助类 ---
@@ -230,3 +233,58 @@ func test_network_debug_snapshots_are_available() -> void:
 	assert_true(bool(utility_snapshot["backend_configured"]), "设置后端后快照应标记已配置。")
 	assert_eq(enet_snapshot["connection_status_name"], "disconnected", "未连接 ENet 后端应报告 disconnected。")
 	assert_eq(int(enet_snapshot["max_packets_per_poll"]), 64, "ENet 快照应包含每帧收包预算。")
+
+
+## 验证固定 tick 时钟按预算推进并保留插值 alpha。
+func test_fixed_tick_clock_advances_with_budget() -> void:
+	var clock := GFFixedTickClockBase.new(10.0)
+	clock.max_steps_per_update = 2
+
+	var steps := clock.advance(0.35)
+
+	assert_eq(steps, 2, "单次推进应受最大步数限制。")
+	assert_eq(clock.current_tick, 2, "当前 tick 应推进两步。")
+	assert_true(clock.get_interpolation_alpha() <= 1.0, "插值 alpha 应保持在 0 到 1。")
+
+
+## 验证网络快照可以生成并应用浅层差量。
+func test_network_snapshot_delta_round_trips_state() -> void:
+	var start := GFNetworkSnapshotBase.new(10, { "hp": 10, "mana": 3 }, 2)
+	var target := GFNetworkSnapshotBase.new(12, { "hp": 8, "position": Vector2(1.0, 2.0) }, 2)
+
+	var delta := start.make_delta_to(target)
+	var applied := start.apply_delta(delta)
+
+	assert_true(bool(delta["ok"]), "有效目标快照应生成差量。")
+	assert_eq(applied.tick, 12, "应用差量后 tick 应更新。")
+	assert_eq(applied.get_value(&"hp"), 8, "变更字段应被应用。")
+	assert_false(applied.has_value(&"mana"), "目标中不存在的字段应被删除。")
+	assert_eq(applied.get_value(&"position"), Vector2(1.0, 2.0), "新增字段应被应用。")
+
+
+## 验证网络快照差量会保留非字符串删除键。
+func test_network_snapshot_delta_preserves_variant_erase_keys() -> void:
+	var start := GFNetworkSnapshotBase.new(1, { 7: "old", "hp": 10 }, 2)
+	var target := GFNetworkSnapshotBase.new(2, { "hp": 10 }, 2)
+
+	var delta := start.make_delta_to(target)
+	var applied := start.apply_delta(delta)
+
+	assert_true(bool(delta["ok"]), "有效目标快照应生成差量。")
+	assert_false(applied.state.has(7), "Variant 删除键应按原类型删除。")
+
+
+## 验证网络历史缓冲按容量保留最新快照并可查询最近 tick。
+func test_network_history_buffer_prunes_by_capacity() -> void:
+	var history := GFNetworkHistoryBufferBase.new(2)
+	history.add_state(1, { "value": 1 })
+	history.add_state(2, { "value": 2 })
+	history.add_state(3, { "value": 3 })
+
+	var closest := history.get_closest_snapshot(2)
+	var latest := history.get_latest_snapshot()
+
+	assert_false(history.has_snapshot(1), "超过容量后最旧快照应被裁剪。")
+	assert_eq(history.size(), 2, "历史数量应受 capacity 限制。")
+	assert_eq(closest.tick, 2, "应能查询最接近的快照。")
+	assert_eq(latest.tick, 3, "最新快照应为最大 tick。")

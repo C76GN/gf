@@ -7,6 +7,11 @@ class_name GFEditorTypeIndex
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
+
+
 # --- 私有变量 ---
 
 var _script_cache: Dictionary = {}
@@ -33,7 +38,7 @@ func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Scri
 		var script := _load_script(path)
 		if script == null or excluded_scripts.has(script):
 			continue
-		if not _script_extends_or_equals(script, base_script):
+		if not _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, base_script):
 			continue
 
 		used_paths[path] = true
@@ -87,7 +92,7 @@ func collect_scene_roots_extending(
 				continue
 
 			var script := get_scene_root_script(path)
-			if script == null or not _script_extends_or_equals(script, base_script):
+			if script == null or not _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, base_script):
 				continue
 
 			used_paths[path] = true
@@ -166,13 +171,4 @@ func _path_matches_roots(path: String, root_paths: PackedStringArray) -> bool:
 			normalized_root += "/"
 		if path == root_path or path.begins_with(normalized_root):
 			return true
-	return false
-
-
-func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
-	var current: Script = candidate
-	while current != null:
-		if current == expected:
-			return true
-		current = current.get_base_script()
 	return false

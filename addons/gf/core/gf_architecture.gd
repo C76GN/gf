@@ -25,6 +25,7 @@ signal project_installers_finished
 const GFBindingBase = preload("res://addons/gf/core/gf_binding.gd")
 const GFBinderBase = preload("res://addons/gf/core/gf_binder.gd")
 const GFBindingLifetimesBase = preload("res://addons/gf/core/gf_binding_lifetimes.gd")
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 
 
 # --- 公共变量 ---
@@ -1431,7 +1432,7 @@ func _validate_registration(script_cls: Script, instance: Object, label: String)
 	if instance_script == null:
 		push_error("[GFArchitecture] register_%s 失败：实例未附加脚本。" % label.to_lower())
 		return false
-	if not _script_extends_or_equals(instance_script, script_cls):
+	if not _SCRIPT_TYPE_UTILITY.script_extends_or_equals(instance_script, script_cls):
 		push_error("[GFArchitecture] register_%s 失败：实例脚本必须继承或等于注册脚本类型。" % label.to_lower())
 		return false
 
@@ -1590,7 +1591,7 @@ func _find_assignable_registered_key(registry: Dictionary, script_cls: Script, l
 		return null
 	var matches: Array[Script] = []
 	for registered_script: Script in registry:
-		if _script_extends_or_equals(registered_script, script_cls):
+		if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(registered_script, script_cls):
 			matches.append(registered_script)
 	if matches.size() == 1:
 		return matches[0]
@@ -1603,17 +1604,8 @@ func _has_assignable_instance(registry: Dictionary, script_cls: Script) -> bool:
 	if script_cls == null:
 		return false
 	for registered_script: Script in registry:
-		if _script_extends_or_equals(registered_script, script_cls):
+		if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(registered_script, script_cls):
 			return true
-	return false
-
-
-func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
-	var current: Script = candidate
-	while current != null:
-		if current == expected:
-			return true
-		current = current.get_base_script()
 	return false
 
 

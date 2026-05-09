@@ -47,6 +47,7 @@ const BUILD_INFO_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_
 const SAVE_GRAPH_UTILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_graph_utility.gd"
 const SAVE_SCOPE_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_scope.gd"
 const SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/utilities/gf_storage_codec.gd"
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 const SAVE_VIEWER_FORMAT_JSON: int = 0
 const SAVE_VIEWER_FORMAT_BINARY: int = 1
 const SAVE_VIEWER_LABEL_WIDTH: float = 72.0
@@ -680,7 +681,8 @@ func _validate_current_scene_save_graph() -> void:
 
 
 func _collect_save_scopes(node: Node, scope_script: Script, result: Array[Node]) -> void:
-	if node.get_script() == scope_script or _script_extends_or_equals(node.get_script() as Script, scope_script):
+	var node_script := node.get_script() as Script
+	if node_script == scope_script or _SCRIPT_TYPE_UTILITY.script_extends_or_equals(node_script, scope_script):
 		result.append(node)
 
 	for child: Node in node.get_children():
@@ -709,15 +711,6 @@ func _show_diagnostic_dialog(title: String, text: String) -> void:
 		int(DIAGNOSTIC_DIALOG_MIN_SIZE.x),
 		int(DIAGNOSTIC_DIALOG_MIN_SIZE.y)
 	))
-
-
-func _script_extends_or_equals(candidate: Script, expected: Script) -> bool:
-	var current := candidate
-	while current != null:
-		if current == expected:
-			return true
-		current = current.get_base_script()
-	return false
 
 
 func _populate_gf_menu() -> void:
