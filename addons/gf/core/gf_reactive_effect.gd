@@ -1,6 +1,6 @@
-## GFReactiveEffect: BindableProperty 的轻量响应式副作用。
+﻿## GFReactiveEffect: GFBindableProperty 的轻量响应式副作用。
 ##
-## 监听一组 BindableProperty，在任意来源变化时执行回调。可绑定 Node 生命周期，
+## 监听一组 GFBindableProperty，在任意来源变化时执行回调。可绑定 Node 生命周期，
 ## 适合 Controller 层组合多个 Model 属性，不要求项目引入新的状态模型。
 class_name GFReactiveEffect
 extends RefCounted
@@ -21,7 +21,7 @@ var max_reruns_per_run: int = 8
 
 # --- 私有变量 ---
 
-var _sources: Array[BindableProperty] = []
+var _sources: Array[GFBindableProperty] = []
 var _callback: Callable = Callable()
 var _owner_ref: WeakRef = null
 var _connections: Array[Dictionary] = []
@@ -33,12 +33,12 @@ var _rerun_requested: bool = false
 # --- Godot 生命周期方法 ---
 
 ## 构造函数。
-## @param sources: 要监听的 BindableProperty 列表。
+## @param sources: 要监听的 GFBindableProperty 列表。
 ## @param callback: 变化后执行的回调。
 ## @param owner: 可选 Node 生命周期宿主。
 ## @param run_immediately: 是否立即执行一次。
 func _init(
-	sources: Array[BindableProperty] = [],
+	sources: Array[GFBindableProperty] = [],
 	callback: Callable = Callable(),
 	owner: Node = null,
 	run_immediately: bool = true
@@ -50,12 +50,12 @@ func _init(
 # --- 公共方法 ---
 
 ## 配置并启动 effect。重复调用会先停止旧绑定。
-## @param sources: 要监听的 BindableProperty 列表。
+## @param sources: 要监听的 GFBindableProperty 列表。
 ## @param callback: 变化后执行的回调。
 ## @param owner: 可选 Node 生命周期宿主。
 ## @param run_immediately: 是否立即执行一次。
 func configure(
-	sources: Array[BindableProperty],
+	sources: Array[GFBindableProperty],
 	callback: Callable,
 	owner: Node = null,
 	run_immediately: bool = true
@@ -68,7 +68,7 @@ func configure(
 	if not _active:
 		return
 
-	for source: BindableProperty in _sources:
+	for source: GFBindableProperty in _sources:
 		_bind_source(source, owner)
 
 	var stop_callback := Callable(self, "stop")
@@ -109,7 +109,7 @@ func run() -> Variant:
 ## 停止 effect 并断开全部监听。
 func stop() -> void:
 	for connection: Dictionary in _connections:
-		var source := connection.get("source") as BindableProperty
+		var source := connection.get("source") as GFBindableProperty
 		var callback := connection.get("callable", Callable()) as Callable
 		var owner := _get_owner()
 		if source == null or not callback.is_valid():
@@ -140,14 +140,14 @@ func is_active() -> bool:
 
 
 ## 获取当前监听的属性列表。
-## @return BindableProperty 数组。
-func get_sources() -> Array[BindableProperty]:
+## @return GFBindableProperty 数组。
+func get_sources() -> Array[GFBindableProperty]:
 	return _sources.duplicate()
 
 
 # --- 私有/辅助方法 ---
 
-func _bind_source(source: BindableProperty, owner: Node) -> void:
+func _bind_source(source: GFBindableProperty, owner: Node) -> void:
 	var callback := Callable(self, "_on_source_changed")
 	_connections.append({
 		"source": source,
@@ -159,9 +159,9 @@ func _bind_source(source: BindableProperty, owner: Node) -> void:
 		source.value_changed.connect(callback)
 
 
-func _filter_sources(sources: Array[BindableProperty]) -> Array[BindableProperty]:
-	var result: Array[BindableProperty] = []
-	for source: BindableProperty in sources:
+func _filter_sources(sources: Array[GFBindableProperty]) -> Array[GFBindableProperty]:
+	var result: Array[GFBindableProperty] = []
+	for source: GFBindableProperty in sources:
 		if source != null and not result.has(source):
 			result.append(source)
 	return result

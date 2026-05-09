@@ -6,11 +6,6 @@ class_name GFBuff
 extends RefCounted
 
 
-# --- 常量 ---
-
-const META_LEGACY_ATTRIBUTE_FALLBACK_WARNED: StringName = &"_gf_legacy_attribute_fallback_warned"
-
-
 # --- 公共变量 ---
 
 ## Buff 的唯一标识名（通常用于排斥逻辑）。
@@ -105,10 +100,10 @@ func _apply_effects() -> void:
 
 	if valid_owner.has_method("get_attribute"):
 		for mod in modifiers:
-			if mod == null:
+			if mod == null or mod.attribute_id == &"":
 				continue
 
-			var attr := valid_owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
+			var attr := valid_owner.get_attribute(mod.attribute_id) as GFAttribute
 			if attr != null:
 				attr.add_modifier(mod)
 
@@ -127,10 +122,10 @@ func _remove_effects() -> void:
 
 	if valid_owner.has_method("get_attribute"):
 		for mod in modifiers:
-			if mod == null:
+			if mod == null or mod.attribute_id == &"":
 				continue
 
-			var attr := valid_owner.get_attribute(_get_modifier_attribute_id(mod)) as GFAttribute
+			var attr := valid_owner.get_attribute(mod.attribute_id) as GFAttribute
 			if attr != null:
 				attr.remove_modifier(mod)
 
@@ -139,13 +134,3 @@ func _get_valid_owner() -> Object:
 	if owner == null or not is_instance_valid(owner):
 		return null
 	return owner
-
-
-func _get_modifier_attribute_id(modifier: GFModifier) -> StringName:
-	if modifier.attribute_id != &"":
-		return modifier.attribute_id
-
-	if not bool(modifier.get_meta(META_LEGACY_ATTRIBUTE_FALLBACK_WARNED, false)):
-		modifier.set_meta(META_LEGACY_ATTRIBUTE_FALLBACK_WARNED, true)
-		push_warning("[GFBuff] Modifier attribute_id 为空，已回退 source_id。新代码应显式填写 attribute_id。")
-	return modifier.source_id

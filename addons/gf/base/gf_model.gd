@@ -18,7 +18,7 @@ const _DEPENDENCY_SCOPE_SUPPORT: Script = preload("res://addons/gf/base/gf_depen
 # --- 公共变量 ---
 
 ## 生命周期优先级。数值越大越早执行 init/async_init/ready，dispose 时越晚释放。
-## 默认 0 保持注册顺序语义；只有存在明确依赖顺序时才建议设置。
+## 默认 0 表示同优先级下按注册顺序执行；只有存在明确依赖顺序时才建议设置。
 var lifecycle_priority: int = 0
 
 

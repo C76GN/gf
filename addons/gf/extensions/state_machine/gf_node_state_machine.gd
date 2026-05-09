@@ -24,7 +24,7 @@ signal state_event_handled(group: Node, event_id: StringName, handler_state: Nod
 
 ## 节点状态机初始状态启动时机。
 enum StartMode {
-	## 状态机 ready 时启动，保持旧版本默认行为。
+	## 状态机 ready 时启动，适合需要旧版启动顺序的项目。
 	ON_READY,
 	## 等待宿主节点 ready 后启动。
 	AFTER_HOST_READY,
@@ -56,7 +56,7 @@ const GFNodeStateMachineConfigBase = preload("res://addons/gf/extensions/state_m
 @export var reload_on_ready: bool = true
 
 ## 初始状态启动模式。
-@export var start_mode: StartMode = StartMode.ON_READY
+@export var start_mode: StartMode = StartMode.AFTER_HOST_READY
 
 ## 运行时重新从子节点加载时，是否尽量恢复各状态组的当前状态。
 @export var preserve_current_state_on_reload: bool = true

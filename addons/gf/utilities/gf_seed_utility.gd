@@ -73,25 +73,19 @@ func get_full_state() -> Dictionary:
 	}
 
 
-## 恢复完整随机状态；传入旧版整数状态时退化为 set_state()。
-## @param state: get_full_state() 产生的字典，或旧版主 RNG 整数状态。
-func set_full_state(state: Variant) -> void:
+## 恢复完整随机状态。
+## @param state: get_full_state() 产生的字典。
+func set_full_state(state: Dictionary) -> void:
 	_ensure_rng()
-	if state is Dictionary:
-		var snapshot: Dictionary = state
-		_global_seed = int(snapshot.get(&"global_seed", snapshot.get("global_seed", _global_seed)))
-		_rng.seed = _global_seed
-		_rng.state = int(snapshot.get(&"rng_state", snapshot.get("rng_state", _rng.state)))
+	_global_seed = int(state.get(&"global_seed", state.get("global_seed", _global_seed)))
+	_rng.seed = _global_seed
+	_rng.state = int(state.get(&"rng_state", state.get("rng_state", _rng.state)))
 
-		var branch_counters: Variant = snapshot.get(
-			&"branch_counters",
-			snapshot.get("branch_counters", {})
-		)
-		_branch_counters = branch_counters.duplicate(true) if branch_counters is Dictionary else {}
-		return
-
-	if typeof(state) == TYPE_INT:
-		set_state(int(state))
+	var branch_counters: Variant = state.get(
+		&"branch_counters",
+		state.get("branch_counters", {})
+	)
+	_branch_counters = branch_counters.duplicate(true) if branch_counters is Dictionary else {}
 
 
 ## 基于主 RNG 当前状态与字符串标签，派生出一个独立的子 RNG。

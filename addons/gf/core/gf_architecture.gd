@@ -1,4 +1,4 @@
-## GFArchitecture: 管理 Model、System 和 Utility 的注册与生命周期的容器。
+﻿## GFArchitecture: 管理 Model、System 和 Utility 的注册与生命周期的容器。
 ##
 ## 生命周期遵循三阶段初始化协议：
 ##   阶段一 (init)       ：所有模块执行自身内部变量初始化。
@@ -31,7 +31,7 @@ const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflect
 # --- 公共变量 ---
 
 ## 单个模块 async_init() 的最长等待时间。小于等于 0 时不启用超时。
-## 默认关闭以保持旧项目的初始化语义。
+## 默认关闭；项目可按自身加载预算显式启用。
 var module_async_init_timeout_seconds: float = 0.0:
 	set(value):
 		module_async_init_timeout_seconds = maxf(value, 0.0)
@@ -61,7 +61,7 @@ var _system_assignable_cache: Dictionary = {}
 var _model_assignable_cache: Dictionary = {}
 var _utility_assignable_cache: Dictionary = {}
 var _module_lifecycle_stages: Dictionary = {}
-var _event_system: TypeEventSystem
+var _event_system: GFTypeEventSystem
 var _time_utility: GFTimeUtility
 var _inited: bool = false
 var _is_initializing: bool = false
@@ -82,7 +82,7 @@ var _initialization_failed: bool = false
 
 func _init(parent_architecture: GFArchitecture = null) -> void:
 	_parent_architecture = parent_architecture
-	_event_system = TypeEventSystem.new()
+	_event_system = GFTypeEventSystem.new()
 
 
 # --- 公共方法 ---
@@ -433,7 +433,7 @@ func get_event_debug_stats() -> Dictionary:
 ## @param trace_enabled: 是否记录派发追踪。
 ## @param max_trace_entries: 最多保留的追踪条目数。
 func configure_event_debugging(
-	max_dispatch_depth: int = 0,
+	max_dispatch_depth: int = GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH,
 	trace_enabled: bool = false,
 	max_trace_entries: int = 64
 ) -> void:

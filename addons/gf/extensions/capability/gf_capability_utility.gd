@@ -22,7 +22,7 @@ signal capability_active_changed(receiver: Object, capability_type: Script, capa
 
 ## 移除能力时自动补齐依赖的清理策略。
 enum DependencyRemovalPolicy {
-	## 保留依赖能力，完全兼容旧行为。
+	## 保留依赖能力，适合依赖能力需要在主能力移除后继续存在的场景。
 	KEEP_DEPENDENCIES,
 	## 移除仅由当前能力自动补齐且未被显式添加的依赖能力。
 	REMOVE_AUTO_DEPENDENCIES,
@@ -1360,12 +1360,12 @@ func _call_added_hook(receiver: Object, capability: Object) -> void:
 
 func _get_dependency_removal_policy(capability: Object) -> int:
 	if capability == null or not capability.has_method(HOOK_GET_DEPENDENCY_REMOVAL_POLICY):
-		return DependencyRemovalPolicy.KEEP_DEPENDENCIES
+		return DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
 
 	var raw_policy: Variant = capability.call(HOOK_GET_DEPENDENCY_REMOVAL_POLICY)
 	if typeof(raw_policy) != TYPE_INT:
 		push_warning("[GFCapabilityUtility] get_dependency_removal_policy() 必须返回 int，已使用默认策略。")
-		return DependencyRemovalPolicy.KEEP_DEPENDENCIES
+		return DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
 
 	var policy := int(raw_policy)
 	if (
@@ -1373,7 +1373,7 @@ func _get_dependency_removal_policy(capability: Object) -> int:
 		and policy != DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
 	):
 		push_warning("[GFCapabilityUtility] 未知依赖移除策略：%s，已使用默认策略。" % policy)
-		return DependencyRemovalPolicy.KEEP_DEPENDENCIES
+		return DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
 	return policy
 
 

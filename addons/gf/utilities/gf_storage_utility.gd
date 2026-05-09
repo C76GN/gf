@@ -55,8 +55,11 @@ var file_format: GFStorageCodec.Format = GFStorageCodec.Format.JSON
 ## 是否压缩存档载荷。
 var use_compression: bool = false
 
+## 解码失败时是否尝试按旧版未压缩、未混淆 JSON 读取原始 bytes。
+var allow_legacy_plain_json_fallback: bool = false
+
 ## JSON 读取时是否把接近整数的 float 归一为 int。Binary 格式不受影响。
-var normalize_json_numbers: bool = true
+var normalize_json_numbers: bool = false
 
 ## 是否写入并校验 SHA-256 完整性校验。
 var use_integrity_checksum: bool = false
@@ -65,13 +68,13 @@ var use_integrity_checksum: bool = false
 var strict_integrity: bool = true
 
 ## 启用完整性校验时，是否要求载荷必须包含 `_meta.checksum`。
-var require_integrity_checksum: bool = false
+var require_integrity_checksum: bool = true
 
 ## 是否写入 `_meta.version`、`_meta.timestamp` 等通用元信息。
 var include_storage_metadata: bool = false
 
 ## 是否允许传入绝对路径。关闭后绝对路径会被收敛到存档目录下的同名文件。
-var allow_absolute_paths: bool = true
+var allow_absolute_paths: bool = false
 
 ## 写入嵌套相对路径时是否自动创建目录。
 var create_directories_for_nested_paths: bool = true
@@ -1176,6 +1179,7 @@ func _get_codec_options() -> Dictionary:
 	return {
 		"format": file_format,
 		"use_compression": use_compression,
+		"allow_legacy_plain_json_fallback": allow_legacy_plain_json_fallback,
 		"normalize_json_numbers": normalize_json_numbers,
 		"use_integrity_checksum": use_integrity_checksum,
 		"strict_integrity": strict_integrity,

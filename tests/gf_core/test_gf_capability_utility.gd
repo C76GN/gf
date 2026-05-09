@@ -37,9 +37,9 @@ class DamageCapability extends GF_CAPABILITY_BASE:
 		return [HealthCapability]
 
 
-class AutoCleanupDamageCapability extends DamageCapability:
+class KeepDependencyDamageCapability extends DamageCapability:
 	func get_dependency_removal_policy() -> int:
-		return GF_CAPABILITY_UTILITY_BASE.DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
+		return GF_CAPABILITY_UTILITY_BASE.DependencyRemovalPolicy.KEEP_DEPENDENCIES
 
 
 class RollbackRootCapability extends GF_CAPABILITY_BASE:
@@ -221,10 +221,10 @@ func test_required_capabilities_are_created_first() -> void:
 func test_auto_dependency_cleanup_removes_unused_auto_dependency() -> void:
 	var receiver := RefCounted.new()
 
-	_utility.add_capability(receiver, AutoCleanupDamageCapability)
-	_utility.remove_capability(receiver, AutoCleanupDamageCapability)
+	_utility.add_capability(receiver, DamageCapability)
+	_utility.remove_capability(receiver, DamageCapability)
 
-	assert_false(_utility.has_capability(receiver, AutoCleanupDamageCapability), "主能力应被移除。")
+	assert_false(_utility.has_capability(receiver, DamageCapability), "主能力应被移除。")
 	assert_false(_utility.has_capability(receiver, HealthCapability), "仅由主能力自动补齐的依赖应被清理。")
 
 
@@ -232,10 +232,20 @@ func test_auto_dependency_cleanup_keeps_explicit_dependency() -> void:
 	var receiver := RefCounted.new()
 	_utility.add_capability(receiver, HealthCapability)
 
-	_utility.add_capability(receiver, AutoCleanupDamageCapability)
-	_utility.remove_capability(receiver, AutoCleanupDamageCapability)
+	_utility.add_capability(receiver, DamageCapability)
+	_utility.remove_capability(receiver, DamageCapability)
 
 	assert_true(_utility.has_capability(receiver, HealthCapability), "用户显式添加的依赖能力不应被级联清理。")
+
+
+func test_keep_dependency_policy_preserves_auto_dependency() -> void:
+	var receiver := RefCounted.new()
+
+	_utility.add_capability(receiver, KeepDependencyDamageCapability)
+	_utility.remove_capability(receiver, KeepDependencyDamageCapability)
+
+	assert_false(_utility.has_capability(receiver, KeepDependencyDamageCapability), "主能力应被移除。")
+	assert_true(_utility.has_capability(receiver, HealthCapability), "显式 KEEP_DEPENDENCIES 应保留自动补齐的依赖。")
 
 
 func test_dependency_creation_failure_rolls_back_auto_created_dependencies() -> void:

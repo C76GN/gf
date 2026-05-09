@@ -1,8 +1,8 @@
-## GFComputedProperty: 由多个 BindableProperty 派生的只读响应式属性。
+﻿## GFComputedProperty: 由多个 GFBindableProperty 派生的只读响应式属性。
 ##
 ## 通过 compute 回调计算自身值，并在任一来源属性变化时自动刷新。
 class_name GFComputedProperty
-extends BindableProperty
+extends GFBindableProperty
 
 
 # --- 私有变量 ---
@@ -13,12 +13,12 @@ var _effect: GFReactiveEffect = null
 # --- Godot 生命周期方法 ---
 
 ## 构造函数。
-## @param sources: 要监听的 BindableProperty 列表。
+## @param sources: 要监听的 GFBindableProperty 列表。
 ## @param compute: 用于计算当前值的回调。
 ## @param default_value: 初始默认值。
 ## @param owner: 可选 Node 生命周期宿主。
 func _init(
-	sources: Array[BindableProperty] = [],
+	sources: Array[GFBindableProperty] = [],
 	compute: Callable = Callable(),
 	default_value: Variant = null,
 	owner: Node = null
@@ -31,12 +31,12 @@ func _init(
 # --- 公共方法 ---
 
 ## 绑定来源属性与计算回调。重复调用会替换旧绑定。
-## @param sources: 要监听的 BindableProperty 列表。
+## @param sources: 要监听的 GFBindableProperty 列表。
 ## @param compute: 用于计算当前值的回调。
 ## @param owner: 可选 Node 生命周期宿主。
 ## @param run_immediately: 是否立即计算一次。
 func bind_sources(
-	sources: Array[BindableProperty],
+	sources: Array[GFBindableProperty],
 	compute: Callable,
 	owner: Node = null,
 	run_immediately: bool = true

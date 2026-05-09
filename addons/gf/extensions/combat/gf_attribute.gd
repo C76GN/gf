@@ -1,4 +1,4 @@
-## GFAttribute: 通用属性容器。
+﻿## GFAttribute: 通用属性容器。
 ## 
 ## 持有基础值并管理多个修饰器 (GFModifier)。
 ## 内部使用公式 (Base + BaseAdd) * (1.0 + PercentAdd) + FinalAdd 进行自动重算。
@@ -15,14 +15,14 @@ const _READ_ONLY_BINDABLE_PROPERTY_SCRIPT := preload("res://addons/gf/core/gf_re
 # --- 公共变量 ---
 
 ## 属性的只读响应式当前值。
-var current_value: BindableProperty:
+var current_value: GFBindableProperty:
 	get:
 		return _current_value_view
 
 
 # --- 私有变量 ---
 
-var _current_value_view: BindableProperty
+var _current_value_view: GFBindableProperty
 var _base_value: float = 0.0
 var _modifiers: Array[GFModifier] = []
 

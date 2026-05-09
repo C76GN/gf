@@ -21,8 +21,8 @@ const _GF_VALIDATION_UTILITY_SCRIPT: Script = preload("res://addons/gf/foundatio
 ## 节点连接列表。连接结构为 from_node_id/from_port_id/to_node_id/to_port_id/metadata。
 @export var connections: Array[Dictionary] = []
 
-## 校验时是否把端口值类型和类名提示不兼容视为错误。默认关闭以保持旧资源兼容。
-@export var validate_port_compatibility: bool = false
+## 校验时是否把端口值类型和类名提示不兼容视为错误。
+@export var validate_port_compatibility: bool = true
 
 ## 编辑器分组数据。结构由编辑器工具解释，运行时不读取。
 @export var editor_groups: Array[Dictionary] = []

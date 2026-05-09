@@ -158,8 +158,8 @@ Gf.send_command(command)
 - `GFGridMath`：网格索引、邻居、泛洪、BFS 与两折连线等纯算法工具。
 - `GFGridOccupancy` / `GFTileMapCache` / `GFTileRuleSet` / `GFSpatialHash3D`：通用格子占用、预约、瓦片数据快照/差分、邻域规则匹配与 3D 空间哈希结构，可用于棋盘、战棋、推箱子、解谜、自动铺砖和大量 3D 实体粗筛查询。
 - `GFFormula` / `GFFormulaSet`：资源化公式与参数容器，适合把可替换计算策略从系统逻辑中抽离。
-- `TypeEventSystem`：强类型事件与轻量 `StringName` 事件。
-- `BindableProperty` / `GFReactiveEffect` / `GFComputedProperty`：响应式属性、组合副作用和只读派生属性，适合 Model 到 UI 的局部数据绑定。
+- `GFTypeEventSystem`：强类型事件与轻量 `StringName` 事件。
+- `GFBindableProperty` / `GFReactiveEffect` / `GFComputedProperty`：响应式属性、组合副作用和只读派生属性，适合 Model 到 UI 的局部数据绑定。
 - `GFAssetUtility`：异步资源加载与 LRU 缓存。
 - `GFRemoteCacheUtility`：通用远程文本/JSON 请求、本地 TTL 缓存与失败回退。
 - `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、批量连接、filter/map/delay/debounce/throttle/take/scan/once 链式处理。

@@ -1,16 +1,16 @@
-## 测试 TypeEventSystem 的注册、发送、注销及遍历中注销的边界情况。
+﻿## 测试 GFTypeEventSystem 的注册、发送、注销及遍历中注销的边界情况。
 extends GutTest
 
 
 # --- 私有变量 ---
 
-var _system: TypeEventSystem
+var _system: GFTypeEventSystem
 
 
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
-	_system = TypeEventSystem.new()
+	_system = GFTypeEventSystem.new()
 
 
 func after_each() -> void:
@@ -46,7 +46,7 @@ func test_register_invalid_callable_reports_error_without_listener() -> void:
 	_system.register(TestEventA, Callable())
 	_system.send(TestEventA.new())
 
-	assert_push_error("[TypeEventSystem] 注册的类型事件回调无效。")
+	assert_push_error("[GFTypeEventSystem] 注册的类型事件回调无效。")
 
 
 ## 验证注册后，send 能正确调用回调。
@@ -228,6 +228,31 @@ func test_debug_stats_reports_dispatch_counts_and_depth() -> void:
 
 
 ## 验证最大派发深度能阻止递归事件无限嵌套。
+func test_max_dispatch_depth_defaults_to_guarded_value() -> void:
+	var stats := _system.get_debug_stats()
+
+	assert_eq(_system.max_dispatch_depth, GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH, "2.0 默认应启用事件嵌套保护。")
+	assert_eq(int(stats["max_dispatch_depth"]), GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH, "诊断统计应报告默认最大派发深度。")
+
+
+## 验证显式关闭最大派发深度时，有限递归事件仍可完整派发。
+func test_max_dispatch_depth_can_be_disabled_explicitly() -> void:
+	_system.max_dispatch_depth = 0
+	var state := {"count": 0}
+	_system.register(TestEventA, func(_e: TestEventA) -> void:
+		state.count += 1
+		if int(state.count) < 3:
+			_system.send(TestEventA.new())
+	)
+
+	_system.send(TestEventA.new())
+	var stats := _system.get_debug_stats()
+
+	assert_eq(state.count, 3, "显式设置 0 后应允许项目自己的有限递归事件链。")
+	assert_eq(int(stats["max_dispatch_depth"]), 0, "诊断统计应报告保护已关闭。")
+
+
+## 验证最大派发深度能阻止递归事件无限嵌套。
 func test_max_dispatch_depth_stops_recursive_type_dispatch() -> void:
 	_system.max_dispatch_depth = 1
 	var state := {"count": 0}
@@ -241,7 +266,7 @@ func test_max_dispatch_depth_stops_recursive_type_dispatch() -> void:
 
 	assert_eq(state.count, 1, "达到最大深度后不应继续递归派发。")
 	assert_eq(int(stats["type_dispatch_count"]), 1, "被深度保护拒绝的派发不应计入成功派发次数。")
-	assert_push_error("[TypeEventSystem] type 事件派发超过最大嵌套深度 1")
+	assert_push_error("[GFTypeEventSystem] type 事件派发超过最大嵌套深度 1")
 
 
 ## 验证派发追踪会按容量保留最近记录。

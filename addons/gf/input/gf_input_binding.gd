@@ -67,7 +67,7 @@ const GFInputModifierBase = preload("res://addons/gf/input/gf_input_modifier.gd"
 @export var match_device: bool = false
 
 ## 是否按触点 index 精确匹配 InputEventScreenTouch。
-## 默认关闭以保持“任意触摸”绑定的兼容语义。
+## 默认关闭，表示任意触点都可匹配该绑定。
 @export var match_touch_index: bool = false
 
 ## 覆盖显示名称。

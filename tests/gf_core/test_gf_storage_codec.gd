@@ -53,7 +53,7 @@ func test_checksum_without_extra_metadata_roundtrips() -> void:
 	assert_true(bool(result.get("integrity_valid")), "checksum 应通过校验。")
 
 
-func test_require_integrity_checksum_rejects_missing_checksum() -> void:
+func test_checksum_enabled_rejects_missing_checksum_by_default() -> void:
 	var codec := GFStorageCodec.new()
 	var bytes := codec.encode({ "coins": 10 }, {
 		"obfuscation_key": 0,
@@ -62,13 +62,30 @@ func test_require_integrity_checksum_rejects_missing_checksum() -> void:
 	var result := codec.decode(bytes, {
 		"use_integrity_checksum": true,
 		"strict_integrity": true,
-		"require_integrity_checksum": true,
 		"obfuscation_key": 0,
 	})
 
-	assert_false(bool(result.get("ok")), "要求 checksum 时，缺少 checksum 的载荷应被拒绝。")
+	assert_false(bool(result.get("ok")), "启用 checksum 时，缺少 checksum 的载荷默认应被拒绝。")
 	assert_false(bool(result.get("integrity_valid")), "缺少 checksum 应标记完整性失败。")
 	assert_eq(String(result.get("error")), "Integrity checksum missing", "应返回明确的缺失 checksum 错误。")
+
+
+func test_missing_checksum_can_be_allowed_for_migration() -> void:
+	var codec := GFStorageCodec.new()
+	var bytes := codec.encode({ "coins": 10 }, {
+		"obfuscation_key": 0,
+	})
+
+	var result := codec.decode(bytes, {
+		"use_integrity_checksum": true,
+		"strict_integrity": true,
+		"require_integrity_checksum": false,
+		"obfuscation_key": 0,
+	})
+
+	assert_true(bool(result.get("ok")), "迁移旧存档时可显式允许缺少 checksum 的载荷。")
+	assert_true(bool(result.get("integrity_valid")), "显式允许缺少 checksum 时应视为完整性通过。")
+	assert_eq(int((result.get("data") as Dictionary).get("coins")), 10, "旧载荷数据应保持可读。")
 
 
 func test_empty_dictionary_is_valid_payload() -> void:
@@ -97,20 +114,44 @@ func test_empty_bytes_are_invalid_payload() -> void:
 	assert_eq(String(result.get("error")), "Payload is empty", "空 bytes 应返回明确诊断。")
 
 
-func test_json_number_normalization_can_be_disabled() -> void:
+func test_json_number_normalization_is_disabled_by_default() -> void:
 	var codec := GFStorageCodec.new()
 	var bytes := "{\"whole\": 1.0}".to_utf8_buffer()
 
-	var normalized := codec.decode(bytes, {
-		"obfuscation_key": 0,
-	})
 	var preserved := codec.decode(bytes, {
 		"obfuscation_key": 0,
-		"normalize_json_numbers": false,
+	})
+	var normalized := codec.decode(bytes, {
+		"obfuscation_key": 0,
+		"normalize_json_numbers": true,
 	})
 
-	assert_eq(typeof((normalized.get("data") as Dictionary).get("whole")), TYPE_INT, "默认应保持旧的整数归一化语义。")
-	assert_eq(typeof((preserved.get("data") as Dictionary).get("whole")), TYPE_FLOAT, "关闭归一化后应保留 JSON float 类型。")
+	assert_eq(typeof((preserved.get("data") as Dictionary).get("whole")), TYPE_FLOAT, "2.0 默认应保留 JSON float 类型。")
+	assert_eq(typeof((normalized.get("data") as Dictionary).get("whole")), TYPE_INT, "迁移旧整数语义时可显式开启数字归一化。")
+
+
+func test_legacy_plain_json_fallback_is_disabled_by_default() -> void:
+	var codec := GFStorageCodec.new()
+	var bytes := "{\"coins\": 10}".to_utf8_buffer()
+
+	var result := codec.decode(bytes, {
+		"obfuscation_key": 77,
+	})
+
+	assert_false(bool(result.get("ok")), "配置混淆密钥后，2.0 默认不应静默读取旧版纯 JSON。")
+
+
+func test_legacy_plain_json_fallback_can_be_enabled_for_migration() -> void:
+	var codec := GFStorageCodec.new()
+	var bytes := "{\"coins\": 10}".to_utf8_buffer()
+
+	var result := codec.decode(bytes, {
+		"allow_legacy_plain_json_fallback": true,
+		"obfuscation_key": 77,
+	})
+
+	assert_true(bool(result.get("ok")), "迁移旧存档时可显式允许旧版纯 JSON 回退。")
+	assert_eq(int((result.get("data") as Dictionary).get("coins")), 10, "旧版纯 JSON 数据应保持可读。")
 
 
 func test_compression_and_obfuscation_roundtrip() -> void:

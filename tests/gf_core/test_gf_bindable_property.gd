@@ -1,16 +1,16 @@
-## 测试 BindableProperty 的值绑定、信号触发及 unbind_all 清理功能。
+﻿## 测试 GFBindableProperty 的值绑定、信号触发及 unbind_all 清理功能。
 extends GutTest
 
 
 # --- 私有变量 ---
 
-var _prop: BindableProperty
+var _prop: GFBindableProperty
 
 
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
-	_prop = BindableProperty.new(0)
+	_prop = GFBindableProperty.new(0)
 
 
 func after_each() -> void:
@@ -21,7 +21,7 @@ func after_each() -> void:
 
 ## 验证构造函数设置的初始值正确。
 func test_initial_value() -> void:
-	var prop_str := BindableProperty.new("hello")
+	var prop_str := GFBindableProperty.new("hello")
 	assert_eq(prop_str.get_value(), "hello", "初始值应为构造时传入的值。")
 
 
@@ -68,7 +68,7 @@ func test_signal_parameters_are_correct() -> void:
 
 ## 验证 force_emit 可在引用类型原地变更后主动广播。
 func test_force_emit_broadcasts_current_value() -> void:
-	var prop := BindableProperty.new({ "hp": 10 })
+	var prop := GFBindableProperty.new({ "hp": 10 })
 	watch_signals(prop)
 
 	var value := prop.get_value() as Dictionary
@@ -159,19 +159,19 @@ func test_bind_to_auto_unbinds_on_tree_exited() -> void:
 	var state := {"count": 0}
 	var node := Node.new()
 	add_child_autofree(node)
-	
+
 	_prop.bind_to(node, func(_o, _n): state.count += 1)
-	
+
 	_prop.set_value(1)
 	assert_eq(state.count, 1, "解绑前应触发一次。")
-	
+
 	# 模拟节点退出场景树
 	remove_child(node)
 	node.emit_signal("tree_exited")
-	
+
 	_prop.set_value(2)
 	assert_eq(state.count, 1, "节点退出树后，不应再触发回调（已自动解绑）。")
-	
+
 	node.free()
 
 
@@ -204,8 +204,8 @@ func test_bind_to_same_callable_survives_until_last_bound_node_exits() -> void:
 
 
 func test_reactive_effect_runs_when_any_source_changes() -> void:
-	var first := BindableProperty.new(1)
-	var second := BindableProperty.new(2)
+	var first := GFBindableProperty.new(1)
+	var second := GFBindableProperty.new(2)
 	var values: Array[int] = []
 	var effect := GFReactiveEffect.new([first, second], func() -> int:
 		var total := int(first.value) + int(second.value)
@@ -222,7 +222,7 @@ func test_reactive_effect_runs_when_any_source_changes() -> void:
 
 
 func test_reactive_effect_reruns_when_source_changes_during_callback() -> void:
-	var prop := BindableProperty.new(1)
+	var prop := GFBindableProperty.new(1)
 	var values: Array[int] = []
 	var effect := GFReactiveEffect.new([prop], func() -> int:
 		var value := int(prop.value)
@@ -237,7 +237,7 @@ func test_reactive_effect_reruns_when_source_changes_during_callback() -> void:
 
 
 func test_reactive_effect_stops_with_owner_node() -> void:
-	var prop := BindableProperty.new(1)
+	var prop := GFBindableProperty.new(1)
 	var owner_node := Node.new()
 	var count := {"value": 0}
 	add_child(owner_node)
@@ -257,8 +257,8 @@ func test_reactive_effect_stops_with_owner_node() -> void:
 
 
 func test_computed_property_updates_from_sources() -> void:
-	var first := BindableProperty.new(2)
-	var second := BindableProperty.new(3)
+	var first := GFBindableProperty.new(2)
+	var second := GFBindableProperty.new(3)
 	var computed := GFComputedProperty.new([first, second], func() -> int:
 		return int(first.value) * int(second.value)
 	)
@@ -271,7 +271,7 @@ func test_computed_property_updates_from_sources() -> void:
 
 
 func test_computed_property_rejects_external_set() -> void:
-	var source := BindableProperty.new(1)
+	var source := GFBindableProperty.new(1)
 	var computed := GFComputedProperty.new([source], func() -> int:
 		return int(source.value) + 1
 	)

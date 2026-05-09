@@ -783,12 +783,13 @@ func test_project_installer_awaits_async_install_bindings_before_init() -> void:
 	assert_true(installed_utility.ready_called, "异步 install_bindings 注册的 Utility 应参与本轮生命周期。")
 
 
-## 验证严格 Installer 错误模式会中断架构初始化并记录失败原因。
-func test_project_installer_strict_error_fails_initialization() -> void:
+## 验证 Installer 配置错误默认会中断架构初始化并记录失败原因。
+func test_project_installer_error_fails_initialization_by_default() -> void:
 	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
-	var previous_fail_on_error: Variant = ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, false)
+	var had_fail_on_error := ProjectSettings.has_setting(FAIL_ON_INSTALLER_ERROR_SETTING)
+	var previous_fail_on_error: Variant = ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, true)
 	ProjectSettings.set_setting(INSTALLERS_SETTING, [INVALID_INSTALLER_PATH])
-	ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, true)
+	ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, null)
 
 	if Gf.has_architecture():
 		Gf.get_architecture().dispose()
@@ -798,10 +799,10 @@ func test_project_installer_strict_error_fails_initialization() -> void:
 	var architecture := Gf.get_architecture()
 
 	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
-	ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, previous_fail_on_error)
+	_restore_project_setting(FAIL_ON_INSTALLER_ERROR_SETTING, had_fail_on_error, previous_fail_on_error)
 
-	assert_false(architecture.is_inited(), "严格 Installer 错误模式下架构不应继续初始化。")
-	assert_true(architecture.has_initialization_failed(), "严格 Installer 错误模式下应标记初始化失败。")
+	assert_false(architecture.is_inited(), "默认 Installer 错误策略下架构不应继续初始化。")
+	assert_true(architecture.has_initialization_failed(), "默认 Installer 错误策略下应标记初始化失败。")
 	assert_eq(architecture.last_initialization_error, "[GF] 项目 Installer 必须继承 GFInstaller：%s" % INVALID_INSTALLER_PATH)
 	assert_push_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % INVALID_INSTALLER_PATH)
 	assert_push_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % INVALID_INSTALLER_PATH)
@@ -809,6 +810,29 @@ func test_project_installer_strict_error_fails_initialization() -> void:
 	await Gf.init()
 	assert_true(architecture.is_inited(), "修正 Installer 配置后再次 Gf.init() 应允许重试初始化。")
 	assert_false(architecture.has_initialization_failed(), "重试成功后应清除旧的初始化失败状态。")
+
+
+## 验证显式关闭 Installer 错误失败时仍会跳过无效项，便于迁移期临时兼容。
+func test_project_installer_error_can_be_skipped_when_disabled() -> void:
+	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	var had_fail_on_error := ProjectSettings.has_setting(FAIL_ON_INSTALLER_ERROR_SETTING)
+	var previous_fail_on_error: Variant = ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, true)
+	ProjectSettings.set_setting(INSTALLERS_SETTING, [INVALID_INSTALLER_PATH])
+	ProjectSettings.set_setting(FAIL_ON_INSTALLER_ERROR_SETTING, false)
+
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+	var architecture := Gf.get_architecture()
+
+	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
+	_restore_project_setting(FAIL_ON_INSTALLER_ERROR_SETTING, had_fail_on_error, previous_fail_on_error)
+
+	assert_true(architecture.is_inited(), "显式关闭 Installer 错误失败后，架构应继续初始化。")
+	assert_false(architecture.has_initialization_failed(), "显式关闭 Installer 错误失败后，不应标记初始化失败。")
+	assert_push_error("[GF] 项目 Installer 必须继承 GFInstaller：%s" % INVALID_INSTALLER_PATH)
 
 
 ## 验证并发 Gf.init() 会等待正在运行的项目 Installer，而不是跳过未完成的装配。
@@ -1576,3 +1600,10 @@ func _await_arch_init(arch: GFArchitecture, state: Dictionary) -> void:
 func _await_gf_init(state: Dictionary) -> void:
 	await Gf.init()
 	state["done"] = true
+
+
+func _restore_project_setting(setting_name: String, had_setting: bool, previous_value: Variant) -> void:
+	if had_setting:
+		ProjectSettings.set_setting(setting_name, previous_value)
+	else:
+		ProjectSettings.set_setting(setting_name, null)

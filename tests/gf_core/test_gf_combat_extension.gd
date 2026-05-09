@@ -1,4 +1,4 @@
-extends "res://addons/gut/test.gd"
+﻿extends "res://addons/gut/test.gd"
 
 
 # --- 辅助类 (模拟战斗实体) ---
@@ -94,7 +94,7 @@ func test_modifier_separates_attribute_and_source() -> void:
 	assert_eq(attr.current_value.get_value(), 10.0, "按来源 ID 移除应清理匹配修饰器。")
 
 
-## 测试 BindableProperty 的响应式。
+## 测试 GFBindableProperty 的响应式。
 func test_attribute_reactivity() -> void:
 	var attr := GFAttribute.new(10.0)
 	var changed_count := [0]
@@ -177,7 +177,7 @@ func test_attribute_ignores_null_modifier() -> void:
 	assert_eq(attr.current_value.get_value(), 10.0, "空修饰器不应影响属性计算。")
 
 
-func test_buff_modifier_supports_legacy_source_tag_attribute_fallback() -> void:
+func test_buff_modifier_requires_explicit_attribute_id() -> void:
 	var system := GFCombatSystem.new()
 	var entity := MockEntity.new()
 	entity.add_attr(&"ATK", 10.0)
@@ -186,14 +186,13 @@ func test_buff_modifier_supports_legacy_source_tag_attribute_fallback() -> void:
 	var buff := GFBuff.new()
 	var mod := GFModifier.new()
 	mod.value = 5.0
-	mod.source_tag = &"ATK"
+	mod.source_id = &"ATK"
 	buff.modifiers.append(mod)
-	buff.setup(&"LegacyPowerUp", 1.0, entity)
+	buff.setup(&"InvalidPowerUp", 1.0, entity)
 
 	system.add_buff(entity, buff)
 
-	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "旧 source_tag 写法仍应作为目标属性回退。")
-	assert_push_warning("[GFBuff] Modifier attribute_id 为空，已回退 source_id。新代码应显式填写 attribute_id。")
+	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 10.0, "2.0 不应再把 source_id 当作目标属性回退。")
 
 
 func test_buff_ignores_freed_owner() -> void:

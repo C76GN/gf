@@ -7,6 +7,8 @@ extends RefCounted
 
 # --- 常量 ---
 
+## 默认全局最大包体大小，单位 bytes。
+const DEFAULT_MAX_PACKET_SIZE: int = 64 * 1024
 const GFNetworkChannelBase = preload("res://addons/gf/extensions/network/gf_network_channel.gd")
 
 
@@ -19,7 +21,7 @@ var allow_empty_message_type: bool = false
 var min_packet_size: int = 1
 
 ## 最大包体大小。小于等于 0 表示不限制。
-var max_packet_size: int = 0
+var max_packet_size: int = DEFAULT_MAX_PACKET_SIZE
 
 ## 所有消息都必须包含的 payload key。
 var required_payload_keys: PackedStringArray = PackedStringArray()

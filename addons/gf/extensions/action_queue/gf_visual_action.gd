@@ -33,7 +33,7 @@ const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/extensions/commo
 
 # --- 公共变量 ---
 
-## 动作完成模式。默认保持旧行为：返回 Signal 则等待，返回 null 则继续。
+## 动作完成模式。默认自动等待 Signal，返回 null 则继续。
 var completion_mode: CompletionMode = CompletionMode.AUTO
 
 ## 等待 Signal 的超时时间（秒）。小于等于 0 时表示不启用超时。

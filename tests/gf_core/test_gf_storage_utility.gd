@@ -39,6 +39,10 @@ func after_each() -> void:
 			"test_integrity.json",
 			"test_checksum_only.json",
 			"test_missing_checksum.json",
+			"test_missing_checksum_migration.json",
+			"test_plain_json_strict.json",
+			"test_plain_json_migration.json",
+			"test_json_number_preserve.json",
 			"test_legacy_version.json",
 			"test_registered_migration.json",
 			"test_async.json",
@@ -163,13 +167,18 @@ func test_save_data_creates_nested_directories() -> void:
 	assert_eq(int(_storage.load_data("nested/test_nested.json").get("value")), 7, "嵌套路径数据应可读取。")
 
 
-func test_absolute_path_can_be_rejected_to_save_directory() -> void:
-	_storage.allow_absolute_paths = false
-
+func test_absolute_path_is_rejected_to_save_directory_by_default() -> void:
 	var path := _storage._get_full_path("C:/outside/save.json")
 
-	assert_eq(path, "user://test_saves/save.json", "禁用绝对路径后应收敛到存档目录同名文件。")
+	assert_false(_storage.allow_absolute_paths, "2.0 默认应拒绝绝对路径。")
+	assert_eq(path, "user://test_saves/save.json", "绝对路径默认应收敛到存档目录同名文件。")
 	assert_push_error("[GFStorageUtility] 已禁用绝对路径：C:/outside/save.json")
+
+
+func test_absolute_path_can_be_enabled_for_trusted_tools() -> void:
+	_storage.allow_absolute_paths = true
+
+	assert_eq(_storage._get_full_path("C:/outside/save.json"), "C:/outside/save.json", "可信编辑器工具可显式启用绝对路径。")
 
 
 func test_parent_directory_path_is_rebased_to_save_directory_file_name() -> void:
@@ -366,20 +375,23 @@ func test_checksum_without_storage_metadata_does_not_write_version() -> void:
 	var file_name := "test_checksum_only.json"
 
 	assert_eq(_storage.save_data(file_name, { "coins": 10 }), OK, "应能保存只带 checksum 的数据。")
-	var loaded := _storage.load_data(file_name)
-	var metadata := loaded.get("_meta") as Dictionary
+	var result := _storage.load_data_result(file_name)
+	var loaded_variant: Variant = result.get("data", {})
+	var metadata_variant: Variant = result.get("metadata", {})
+	var loaded: Dictionary = loaded_variant as Dictionary if loaded_variant is Dictionary else {}
+	var metadata: Dictionary = metadata_variant as Dictionary if metadata_variant is Dictionary else {}
 
+	assert_true(bool(result.get("ok")), "只启用 checksum 时读取结果应成功。")
 	assert_eq(int(loaded.get("coins")), 10, "只启用 checksum 时应能正常读取。")
 	assert_true(metadata.has("checksum"), "只启用 checksum 时仍应写入 checksum。")
 	assert_false(metadata.has("version"), "未启用 include_storage_metadata 时不应写入 version。")
 	assert_false(metadata.has("timestamp"), "未启用 include_storage_metadata 时不应写入 timestamp。")
 
 
-func test_require_integrity_checksum_rejects_missing_checksum_file() -> void:
+func test_checksum_enabled_rejects_missing_checksum_file_by_default() -> void:
 	_storage.encrypt_key = 0
 	_storage.use_integrity_checksum = true
 	_storage.strict_integrity = true
-	_storage.require_integrity_checksum = true
 	var file_name := "test_missing_checksum.json"
 	var codec := GFStorageCodec.new()
 	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
@@ -391,6 +403,63 @@ func test_require_integrity_checksum_rejects_missing_checksum_file() -> void:
 
 	assert_true(loaded.is_empty(), "要求 checksum 时，缺少 checksum 的存档不应返回数据。")
 	assert_signal_emitted(_storage, "data_integrity_failed", "缺少 checksum 应发出完整性失败信号。")
+
+
+func test_missing_checksum_file_can_be_allowed_for_migration() -> void:
+	_storage.encrypt_key = 0
+	_storage.use_integrity_checksum = true
+	_storage.strict_integrity = true
+	_storage.require_integrity_checksum = false
+	var file_name := "test_missing_checksum_migration.json"
+	var codec := GFStorageCodec.new()
+	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
+	file.store_buffer(codec.encode({ "coins": 10 }, { "obfuscation_key": 0 }))
+	file.close()
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+
+	assert_eq(int(loaded.get("coins")), 10, "迁移旧存档时可显式允许缺少 checksum 的文件。")
+	assert_signal_not_emitted(_storage, "data_integrity_failed", "显式允许缺少 checksum 时不应发出完整性失败信号。")
+
+
+func test_legacy_plain_json_fallback_is_disabled_by_default() -> void:
+	var file_name := "test_plain_json_strict.json"
+	assert_eq(_storage._write_plain_json(file_name, { "coins": 10 }), OK, "应能构造旧版纯 JSON 文件。")
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+
+	assert_true(loaded.is_empty(), "配置混淆密钥后，2.0 默认不应静默读取旧版纯 JSON 文件。")
+	assert_signal_emitted(_storage, "data_integrity_failed", "旧版纯 JSON 回退关闭时应发出读取失败信号。")
+	assert_push_error("[GFStorageUtility] 读取数据失败：%s，原因：Payload is empty" % _storage._get_full_path(file_name))
+
+
+func test_legacy_plain_json_fallback_can_be_enabled_for_migration() -> void:
+	_storage.allow_legacy_plain_json_fallback = true
+	var file_name := "test_plain_json_migration.json"
+	assert_eq(_storage._write_plain_json(file_name, { "coins": 10 }), OK, "应能构造旧版纯 JSON 文件。")
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+
+	assert_eq(int(loaded.get("coins")), 10, "迁移旧存档时可显式允许旧版纯 JSON 文件。")
+	assert_signal_not_emitted(_storage, "data_integrity_failed", "显式允许旧版纯 JSON 回退时不应发出读取失败信号。")
+
+
+func test_json_number_normalization_is_disabled_by_default() -> void:
+	_storage.encrypt_key = 0
+	var file_name := "test_json_number_preserve.json"
+	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
+	file.store_string("{\"whole\": 1.0}")
+	file.close()
+
+	var preserved := _storage.load_data(file_name)
+	_storage.normalize_json_numbers = true
+	var normalized := _storage.load_data(file_name)
+
+	assert_eq(typeof(preserved.get("whole")), TYPE_FLOAT, "2.0 默认应保留 JSON float 类型。")
+	assert_eq(typeof(normalized.get("whole")), TYPE_INT, "迁移旧整数语义时可显式开启数字归一化。")
 
 
 func test_load_data_result_reports_missing_file() -> void:

@@ -166,6 +166,28 @@ func test_network_utility_rejects_inbound_packet_over_channel_id_limit() -> void
 	assert_signal_not_emitted(utility, "message_received", "被拒绝的入站消息不应继续广播。")
 
 
+## 验证入站通道匹配不再读取业务 payload.channel_id。
+func test_network_utility_does_not_resolve_channel_from_payload_field() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	var backend := FakeBackend.new()
+	utility.set_backend(backend)
+	var channel := GFNetworkChannelBase.new()
+	channel.channel_id = &"state"
+	channel.max_packet_size = 8
+	utility.register_channel(channel)
+	watch_signals(utility)
+
+	var message := GFNetworkMessageBase.new(
+		&"state_delta",
+		{ "channel_id": "state", "payload": "too large" }
+	)
+	var bytes := utility.serializer.serialize_message(message)
+	backend.message_received.emit(1, bytes)
+
+	assert_signal_not_emitted(utility, "message_rejected", "业务 payload.channel_id 不应触发通道级包体限制。")
+	assert_signal_emitted(utility, "message_received", "未携带通道元信息的消息应按普通消息广播。")
+
+
 ## 验证 ENet endpoint 解析支持带括号 IPv6 和 options.port。
 func test_enet_endpoint_parser_supports_ipv6_forms() -> void:
 	var backend := GFENetNetworkBackendBase.new()
@@ -187,6 +209,32 @@ func test_network_message_validator_rejects_invalid_message() -> void:
 
 	assert_false(bool(report["ok"]), "默认校验器不应允许空消息类型。")
 	assert_true((report["errors"] as PackedStringArray).has("empty_message_type"), "校验报告应包含 empty_message_type。")
+
+
+## 验证消息校验器默认启用全局包体上限。
+func test_network_message_validator_rejects_large_packet_by_default() -> void:
+	var validator := GFNetworkMessageValidatorBase.new()
+	var bytes := PackedByteArray()
+	bytes.resize(GFNetworkMessageValidatorBase.DEFAULT_MAX_PACKET_SIZE + 1)
+
+	var report := validator.validate_bytes(bytes)
+	var snapshot := validator.get_debug_snapshot()
+
+	assert_eq(int(snapshot["max_packet_size"]), GFNetworkMessageValidatorBase.DEFAULT_MAX_PACKET_SIZE, "2.0 默认应启用全局包体上限。")
+	assert_false(bool(report["ok"]), "超过默认全局上限的包体应被拒绝。")
+	assert_true((report["errors"] as PackedStringArray).has("packet_too_large"), "校验报告应包含 packet_too_large。")
+
+
+## 验证项目可显式关闭全局包体上限。
+func test_network_message_validator_can_disable_global_packet_limit() -> void:
+	var validator := GFNetworkMessageValidatorBase.new()
+	validator.max_packet_size = 0
+	var bytes := PackedByteArray()
+	bytes.resize(GFNetworkMessageValidatorBase.DEFAULT_MAX_PACKET_SIZE + 1)
+
+	var report := validator.validate_bytes(bytes)
+
+	assert_true(bool(report["ok"]), "显式设置 0 后应允许项目自定义大包策略。")
 
 
 ## 验证 NetworkUtility 会维护通用会话状态。

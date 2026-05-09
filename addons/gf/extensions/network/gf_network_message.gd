@@ -19,7 +19,7 @@ var tick: int = 0
 ## 发送者标识。
 var sender_id: int = -1
 
-## 逻辑网络通道标识。为空时入站侧可继续按 message_type 或 payload.channel_id 推断。
+## 逻辑网络通道标识。为空时入站侧可按 message_type 匹配同名通道。
 var channel_id: StringName = &""
 
 ## 消息载荷。

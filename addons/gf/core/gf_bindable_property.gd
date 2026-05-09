@@ -1,8 +1,8 @@
-## BindableProperty: 响应式数据绑定属性容器。
+﻿## GFBindableProperty: 响应式数据绑定属性容器。
 ##
 ## 封装一个 Variant 值，当值发生变化时自动发出 value_changed 信号。
 ## 可用于 Controller 直接监听 Model 数据变化，无需通过事件总线中转。
-class_name BindableProperty
+class_name GFBindableProperty
 extends RefCounted
 
 
@@ -94,13 +94,13 @@ func unbind_all() -> void:
 ## @param callable: 绑定的回调函数。
 func bind_to(node: Node, callable: Callable) -> void:
 	if not is_instance_valid(node):
-		push_error("[BindableProperty] 尝试绑定到一个无效的 Node。")
+		push_error("[GFBindableProperty] 尝试绑定到一个无效的 Node。")
 		return
-		
+
 	if not callable.is_valid():
-		push_error("[BindableProperty] 尝试绑定一个无效的 Callable。")
+		push_error("[GFBindableProperty] 尝试绑定一个无效的 Callable。")
 		return
-		
+
 	# 连接值变更信号
 	if not value_changed.is_connected(callable):
 		value_changed.connect(callable)

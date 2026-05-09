@@ -192,22 +192,40 @@ func test_start_can_reload_when_reload_on_ready_is_disabled() -> void:
 	assert_eq(idle.enter_count, 1, "延迟加载后应进入初始状态。")
 
 
-func test_after_host_ready_start_mode_waits_for_host_ready() -> void:
+func test_default_start_mode_waits_for_host_ready() -> void:
 	var host := ReadyHost.new()
 	var machine: Node = GFNodeStateMachineBase.new()
 	var idle := HostReadyTrackingNodeState.new()
 	idle.name = "Idle"
 	machine.initial_state = &"Idle"
-	machine.start_mode = GFNodeStateMachineBase.StartMode.AFTER_HOST_READY
-	add_child_autofree(host)
 	host.add_child(machine)
 	machine.add_child(idle)
+	add_child_autofree(host)
 
 	await get_tree().process_frame
 
 	assert_true(host.ready_called, "测试宿主应已进入 ready。")
-	assert_eq(machine.get_current_state(), idle, "AFTER_HOST_READY 应在宿主 ready 后进入初始状态。")
+	assert_eq(machine.start_mode, GFNodeStateMachineBase.StartMode.AFTER_HOST_READY, "2.0 默认应等待宿主 ready 后启动。")
+	assert_eq(machine.get_current_state(), idle, "默认启动模式应在宿主 ready 后进入初始状态。")
 	assert_true(idle.host_ready_at_enter, "状态 enter 发生时宿主应已经 ready。")
+
+
+func test_on_ready_start_mode_can_be_selected_for_legacy_order() -> void:
+	var host := ReadyHost.new()
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := HostReadyTrackingNodeState.new()
+	idle.name = "Idle"
+	machine.initial_state = &"Idle"
+	machine.start_mode = GFNodeStateMachineBase.StartMode.ON_READY
+	host.add_child(machine)
+	machine.add_child(idle)
+	add_child_autofree(host)
+
+	await get_tree().process_frame
+
+	assert_true(host.ready_called, "测试宿主应已进入 ready。")
+	assert_eq(machine.get_current_state(), idle, "旧启动模式仍应自动进入初始状态。")
+	assert_false(idle.host_ready_at_enter, "显式 ON_READY 时状态 enter 可早于宿主 ready。")
 
 
 func test_manual_start_mode_prevents_external_group_auto_start() -> void:

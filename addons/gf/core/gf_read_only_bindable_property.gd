@@ -1,9 +1,9 @@
-## GFReadOnlyBindableProperty: 只读响应式属性视图。
+﻿## GFReadOnlyBindableProperty: 只读响应式属性视图。
 ##
-## 复用 `BindableProperty` 的读取、信号和生命周期绑定能力，
+## 复用 `GFBindableProperty` 的读取、信号和生命周期绑定能力，
 ## 但阻止外部直接调用 `set_value()` 修改底层值。
 class_name GFReadOnlyBindableProperty
-extends BindableProperty
+extends GFBindableProperty
 
 
 # --- Godot 生命周期方法 ---

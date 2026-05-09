@@ -41,7 +41,7 @@ func get_required_capabilities() -> Array[Script]:
 
 ## 返回移除当前能力时对自动补齐依赖能力的处理策略。
 func get_dependency_removal_policy() -> int:
-	return GFCapabilityUtility.DependencyRemovalPolicy.KEEP_DEPENDENCIES
+	return GFCapabilityUtility.DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES
 
 
 ## 能力挂载到对象后调用。

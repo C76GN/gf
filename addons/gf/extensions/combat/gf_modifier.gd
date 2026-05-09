@@ -31,13 +31,6 @@ var attribute_id: StringName = &""
 ## 来源标识，例如 Buff ID、装备 ID 或被动技能 ID，用于查找和移除。
 var source_id: StringName = &""
 
-## 兼容旧字段名。新代码请使用 source_id。
-var source_tag: StringName:
-	get:
-		return source_id
-	set(p_source_tag):
-		source_id = p_source_tag
-
 
 # --- Godot 生命周期方法 ---
 

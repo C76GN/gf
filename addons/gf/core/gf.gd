@@ -1,4 +1,4 @@
-extends Node
+﻿extends Node
 
 
 ## Gf: 全局入口单例，负责架构生命周期管理。
@@ -361,7 +361,7 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 ## @param trace_enabled: 是否记录派发追踪。
 ## @param max_trace_entries: 最多保留的追踪条目数。
 func configure_event_debugging(
-	max_dispatch_depth: int = 0,
+	max_dispatch_depth: int = GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH,
 	trace_enabled: bool = false,
 	max_trace_entries: int = 64
 ) -> void:
@@ -694,7 +694,7 @@ func _create_installer(path: String) -> Object:
 
 
 func _should_fail_on_project_installer_error() -> bool:
-	return bool(ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, false))
+	return bool(ProjectSettings.get_setting(FAIL_ON_INSTALLER_ERROR_SETTING, true))
 
 
 func _get_project_installer_timeout_seconds() -> float:

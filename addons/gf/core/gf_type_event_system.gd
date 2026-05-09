@@ -1,19 +1,21 @@
-## TypeEventSystem: 基于类型和 StringName 的双轨事件系统内部实现。
+﻿## GFTypeEventSystem: 基于类型和 StringName 的双轨事件系统内部实现。
 ##
 ## 轨道一（类型事件）：使用 Script 类型作为键，以对象实例为载体分发事件。
 ## 轨道二（简单事件）：使用 StringName 作为键，以 Variant 为 payload 分发事件。
-class_name TypeEventSystem
+class_name GFTypeEventSystem
 
 
 # --- 常量 ---
 
+## 默认最大事件嵌套派发深度。
+const DEFAULT_MAX_DISPATCH_DEPTH: int = 64
 const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 
 
 # --- 公共变量 ---
 
 ## 最大事件嵌套派发深度。小于等于 0 时不限制。
-var max_dispatch_depth: int = 0:
+var max_dispatch_depth: int = DEFAULT_MAX_DISPATCH_DEPTH:
 	set(value):
 		max_dispatch_depth = maxi(value, 0)
 
@@ -66,7 +68,7 @@ var _dispatch_trace: Array[Dictionary] = []
 ## @param owner: 可选监听拥有者，用于批量注销。
 func register(event_type: Script, on_event: Callable, priority: int = 0, owner: Object = null) -> void:
 	if event_type == null:
-		push_error("[TypeEventSystem] register 失败：event_type 为空。")
+		push_error("[GFTypeEventSystem] register 失败：event_type 为空。")
 		return
 	if not _validate_callable_min_args(on_event, 1, "类型事件回调", "事件实例"):
 		return
@@ -107,7 +109,7 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 ## @param owner: 可选监听拥有者，用于批量注销。
 func register_assignable(base_event_type: Script, on_event: Callable, priority: int = 0, owner: Object = null) -> void:
 	if base_event_type == null:
-		push_error("[TypeEventSystem] register_assignable 失败：base_event_type 为空。")
+		push_error("[GFTypeEventSystem] register_assignable 失败：base_event_type 为空。")
 		return
 	if not _validate_callable_min_args(on_event, 1, "可赋值事件回调", "事件实例"):
 		return
@@ -144,12 +146,12 @@ func unregister_assignable(base_event_type: Script, on_event: Callable) -> void:
 ## @param event_instance: 要分发的事件实例。
 func send(event_instance: Object) -> void:
 	if event_instance == null:
-		push_error("[TypeEventSystem] 发送的事件实例为空。")
+		push_error("[GFTypeEventSystem] 发送的事件实例为空。")
 		return
 
 	var event_type: Variant = event_instance.get_script()
 	if event_type == null:
-		push_error("[TypeEventSystem] 发送的事件必须是附加了脚本的类实例。")
+		push_error("[GFTypeEventSystem] 发送的事件必须是附加了脚本的类实例。")
 		return
 	if _would_exceed_dispatch_depth(_type_dispatch_depth):
 		_report_dispatch_depth_exceeded("type", _script_debug_key(event_type as Script))
@@ -513,7 +515,7 @@ func _would_exceed_dispatch_depth(current_depth: int) -> bool:
 
 func _report_dispatch_depth_exceeded(track: String, event_key: String) -> void:
 	var key_suffix := "：%s" % event_key if not event_key.is_empty() else ""
-	push_error("[TypeEventSystem] %s 事件派发超过最大嵌套深度 %d%s。" % [track, max_dispatch_depth, key_suffix])
+	push_error("[GFTypeEventSystem] %s 事件派发超过最大嵌套深度 %d%s。" % [track, max_dispatch_depth, key_suffix])
 
 
 func _record_dispatch_trace(track: String, event_key: String, listener_count: int, depth: int) -> void:
@@ -808,7 +810,7 @@ func _pending_listener_order(pending: Dictionary) -> int:
 
 func _validate_callable_min_args(on_event: Callable, min_args: int, callback_label: String, arg_label: String) -> bool:
 	if not on_event.is_valid():
-		push_error("[TypeEventSystem] 注册的%s无效。" % callback_label)
+		push_error("[GFTypeEventSystem] 注册的%s无效。" % callback_label)
 		return false
 
 	var target_obj: Object = on_event.get_object()
@@ -820,7 +822,7 @@ func _validate_callable_min_args(on_event: Callable, min_args: int, callback_lab
 	for m: Dictionary in methods:
 		if m["name"] == String(method_name):
 			if m["args"].size() < min_args:
-				push_error("[TypeEventSystem] 注册的%s %s 必须至少包含 %d 个参数用于接收%s！" % [
+				push_error("[GFTypeEventSystem] 注册的%s %s 必须至少包含 %d 个参数用于接收%s！" % [
 					callback_label,
 					method_name,
 					min_args,

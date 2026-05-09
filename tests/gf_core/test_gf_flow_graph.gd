@@ -163,10 +163,9 @@ func test_flow_graph_validate_reports_connection_port_issues() -> void:
 	assert_true(_has_issue(report, "missing_connection_output_port"), "校验报告应包含 missing_connection_output_port。")
 
 
-## 验证流程图可选端口兼容性校验会报告类型不匹配。
-func test_flow_graph_validate_reports_incompatible_ports_when_enabled() -> void:
+## 验证流程图默认端口兼容性校验会报告类型不匹配。
+func test_flow_graph_validate_reports_incompatible_ports_by_default() -> void:
 	var graph := GFFlowGraphBase.new()
-	graph.validate_port_compatibility = true
 	var start := GFFlowNodeBase.new()
 	start.node_id = &"start"
 	start.output_ports = [_make_typed_port(&"value", GFFlowPort.Direction.OUTPUT, GFFlowPort.ValueType.NUMBER)]
@@ -187,9 +186,27 @@ func test_flow_graph_validate_reports_incompatible_ports_when_enabled() -> void:
 	var report := graph.validate_graph()
 	var compatibility := graph.check_connection_compatibility(&"start", &"value", &"end", &"value")
 
-	assert_false(bool(report["ok"]), "启用严格校验后类型不匹配应失败。")
+	assert_true(graph.validate_port_compatibility, "2.0 默认应启用端口兼容性校验。")
+	assert_false(bool(report["ok"]), "默认严格校验下类型不匹配应失败。")
 	assert_true(_has_issue(report, "incompatible_connection_ports"), "校验报告应包含 incompatible_connection_ports。")
 	assert_false(bool(compatibility["ok"]), "兼容性检查应返回失败。")
+
+
+## 验证流程图默认拒绝新增不兼容端口连接。
+func test_flow_graph_add_connection_rejects_incompatible_ports_by_default() -> void:
+	var graph := GFFlowGraphBase.new()
+	var start := GFFlowNodeBase.new()
+	start.node_id = &"start"
+	start.output_ports = [_make_typed_port(&"value", GFFlowPort.Direction.OUTPUT, GFFlowPort.ValueType.NUMBER)]
+	var end := GFFlowNodeBase.new()
+	end.node_id = &"end"
+	end.input_ports = [_make_typed_port(&"value", GFFlowPort.Direction.INPUT, GFFlowPort.ValueType.STRING)]
+	graph.nodes = [start, end]
+
+	assert_false(graph.add_connection(&"start", &"value", &"end", &"value"), "2.0 默认不应追加不兼容端口连接。")
+
+	graph.validate_port_compatibility = false
+	assert_true(graph.add_connection(&"start", &"value", &"end", &"value"), "项目可显式关闭端口兼容性校验以迁移旧资源。")
 
 
 ## 验证流程图连接描述可供编辑器或可视化工具消费。

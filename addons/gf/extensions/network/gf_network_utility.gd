@@ -316,9 +316,6 @@ func _resolve_inbound_channel(message: GFNetworkMessage) -> GFNetworkChannelBase
 		return _channels[message.channel_id] as GFNetworkChannelBase
 	if _channels.has(message.message_type):
 		return _channels[message.message_type] as GFNetworkChannelBase
-	var channel_id := StringName(message.payload.get("channel_id", &""))
-	if channel_id != &"" and _channels.has(channel_id):
-		return _channels[channel_id] as GFNetworkChannelBase
 	return null
 
 

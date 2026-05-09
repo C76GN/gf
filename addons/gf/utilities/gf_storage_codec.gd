@@ -46,7 +46,7 @@ const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 @export var strict_integrity: bool = true
 
 ## 启用完整性校验时，是否要求载荷必须包含 `_meta.checksum`。
-@export var require_integrity_checksum: bool = false
+@export var require_integrity_checksum: bool = true
 
 ## 是否写入 `_meta.version` 和 `_meta.timestamp`。
 @export var include_metadata: bool = false
@@ -62,8 +62,11 @@ const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 ## 解压时允许的最大输出字节数。
 @export var max_decompressed_bytes: int = 64 * 1024 * 1024
 
+## 解码失败时是否尝试按旧版未压缩、未混淆 JSON 读取原始 bytes。
+@export var allow_legacy_plain_json_fallback: bool = false
+
 ## JSON 解码时是否把接近整数的 float 归一为 int。Binary 格式不受影响。
-@export var normalize_json_numbers: bool = true
+@export var normalize_json_numbers: bool = false
 
 
 # --- 公共方法 ---
@@ -99,6 +102,11 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 	var active_format := _get_format(options)
 	var should_compress := _get_bool_option(options, "use_compression", use_compression)
 	var key := _get_int_option(options, "obfuscation_key", obfuscation_key)
+	var should_allow_legacy_plain_json := _get_bool_option(
+		options,
+		"allow_legacy_plain_json_fallback",
+		allow_legacy_plain_json_fallback
+	)
 	var should_verify_checksum := _get_bool_option(options, "use_integrity_checksum", use_integrity_checksum)
 	var should_reject_bad_checksum := _get_bool_option(options, "strict_integrity", strict_integrity)
 	var should_normalize_json_numbers := _get_bool_option(options, "normalize_json_numbers", normalize_json_numbers)
@@ -107,7 +115,7 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 		"require_integrity_checksum",
 		require_integrity_checksum
 	)
-	var payload_bytes := _decode_obfuscation(bytes, key)
+	var payload_bytes := _decode_obfuscation(bytes, key, should_allow_legacy_plain_json)
 	if payload_bytes.is_empty():
 		return _make_result(false, {}, "Payload is empty", true)
 
@@ -125,7 +133,11 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 		should_normalize_json_numbers
 	)
 	var data := deserialize_result["data"] as Dictionary
-	if not bool(deserialize_result.get("ok", false)) and not payload_bytes.is_empty():
+	if (
+		should_allow_legacy_plain_json
+		and not bool(deserialize_result.get("ok", false))
+		and not payload_bytes.is_empty()
+	):
 		var fallback_result := _try_legacy_plain_json(bytes, should_normalize_json_numbers)
 		if bool(fallback_result.get("ok", false)):
 			data = fallback_result["data"] as Dictionary
@@ -165,11 +177,15 @@ func deserialize_dictionary(bytes: PackedByteArray, p_format: Format = Format.JS
 
 
 ## 计算当前数据按指定格式序列化后的 SHA-256。
+## JSON 格式会在 checksum 输入中规范化整数字面量，避免不同 Godot 版本解析 JSON 数字类型导致误判损坏。
 ## @param data: 输入数据。
 ## @param p_format: 序列化格式。
 ## @return checksum hex 字符串。
 func calculate_checksum(data: Dictionary, p_format: Format = Format.JSON) -> String:
-	var bytes := _serialize_dictionary(data, p_format)
+	var checksum_data := data
+	if p_format == Format.JSON:
+		checksum_data = _normalize_numbers(data) as Dictionary
+	var bytes := _serialize_dictionary(checksum_data, p_format)
 	var hashing := HashingContext.new()
 	hashing.start(HashingContext.HASH_SHA256)
 	hashing.update(bytes)
@@ -319,14 +335,53 @@ func _normalize_numbers(value: Variant) -> Variant:
 	return value
 
 
-func _decode_obfuscation(bytes: PackedByteArray, key: int) -> PackedByteArray:
+func _decode_obfuscation(
+	bytes: PackedByteArray,
+	key: int,
+	should_allow_legacy_plain_json: bool
+) -> PackedByteArray:
 	if key == 0:
 		return bytes
 
-	var raw := Marshalls.base64_to_raw(bytes.get_string_from_utf8())
-	if raw.is_empty() and not bytes.is_empty():
+	var encoded_text := bytes.get_string_from_utf8().strip_edges()
+	if not _looks_like_base64_text(encoded_text):
+		return bytes if should_allow_legacy_plain_json else PackedByteArray()
+
+	var raw := Marshalls.base64_to_raw(encoded_text)
+	if raw.is_empty() and not bytes.is_empty() and should_allow_legacy_plain_json:
 		return bytes
 	return _obfuscate_bytes(raw, key)
+
+
+func _looks_like_base64_text(text: String) -> bool:
+	if text.is_empty() or text.length() % 4 != 0:
+		return false
+
+	var padding_count := 0
+	var padding_started := false
+	for index: int in range(text.length()):
+		var code := text.unicode_at(index)
+		if code == 61:
+			padding_started = true
+			padding_count += 1
+			if padding_count > 2:
+				return false
+			continue
+		if padding_started:
+			return false
+		if not _is_base64_code(code):
+			return false
+	return true
+
+
+func _is_base64_code(code: int) -> bool:
+	return (
+		(code >= 65 and code <= 90)
+		or (code >= 97 and code <= 122)
+		or (code >= 48 and code <= 57)
+		or code == 43
+		or code == 47
+	)
 
 
 func _obfuscate_bytes(bytes: PackedByteArray, key: int) -> PackedByteArray:
