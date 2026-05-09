@@ -737,6 +737,17 @@ func test_capability_recipe_validation_reports_invalid_entries() -> void:
 	assert_false(String(report["next_action"]).is_empty(), "Recipe 校验应提供下一步建议。")
 
 
+func test_capability_recipe_validation_reports_empty_recipe_as_healthy() -> void:
+	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
+
+	var report: Dictionary = recipe.validate_recipe()
+
+	assert_true(bool(report["ok"]), "空 Recipe 没有结构错误时应通过校验。")
+	assert_true(bool(report["healthy"]), "空 Recipe 没有警告时应视为健康。")
+	assert_eq(int(report["entry_count"]), 0, "报告应保留条目数量。")
+	assert_eq(String(report["summary"]), "Capability recipe is healthy.", "健康报告应提供稳定摘要。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_counting_capability_scene() -> PackedScene:

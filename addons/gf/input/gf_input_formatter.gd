@@ -7,6 +7,7 @@ extends RefCounted
 
 const GFInputBindingBase = preload("res://addons/gf/input/gf_input_binding.gd")
 const GFInputIconProviderBase = preload("res://addons/gf/input/gf_input_icon_provider.gd")
+const GFInputDeviceTextProviderBase = preload("res://addons/gf/input/gf_input_device_text_provider.gd")
 const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
 const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
 const GFInputTextProviderBase = preload("res://addons/gf/input/gf_input_text_provider.gd")
@@ -45,11 +46,10 @@ static func input_event_as_text(input_event: InputEvent, options: Dictionary = {
 		return _mouse_button_as_text((input_event as InputEventMouseButton).button_index)
 
 	if input_event is InputEventJoypadButton:
-		return "Joy Button %d" % int((input_event as InputEventJoypadButton).button_index)
+		return GFInputDeviceTextProviderBase.format_joypad_event(input_event, options)
 
 	if input_event is InputEventJoypadMotion:
-		var axis_event := input_event as InputEventJoypadMotion
-		return "Joy Axis %d" % int(axis_event.axis)
+		return GFInputDeviceTextProviderBase.format_joypad_event(input_event, options)
 
 	if input_event is InputEventScreenTouch:
 		return "Touch"

@@ -1,0 +1,147 @@
+## GFInventoryStack: 通用库存堆叠记录。
+##
+## 只保存物品标识、数量和实例数据，不解释实例数据的业务含义。
+class_name GFInventoryStack
+extends Resource
+
+
+# --- 导出变量 ---
+
+## 物品稳定标识。
+@export var item_id: StringName = &""
+
+## 当前堆叠数量。
+@export var amount: int:
+	get:
+		return _amount
+	set(value):
+		_amount = maxi(value, 0)
+
+## 项目自定义实例数据。框架只用于兼容性比较和序列化。
+@export var instance_data: Dictionary = {}
+
+
+# --- 私有变量 ---
+
+var _amount: int = 0
+
+
+# --- Godot 生命周期方法 ---
+
+func _init(stack_item_id: StringName = &"", stack_amount: int = 0, stack_instance_data: Dictionary = {}) -> void:
+	item_id = stack_item_id
+	amount = stack_amount
+	instance_data = stack_instance_data.duplicate(true)
+
+
+# --- 公共方法 ---
+
+## 检查堆叠是否为空。
+## @return 为空返回 true。
+func is_empty() -> bool:
+	return item_id == &"" or amount <= 0
+
+
+## 获取当前堆叠容量上限。
+## @param registry: 可选物品注册表。
+## @return 堆叠容量上限。
+func get_stack_limit(registry: GFInventoryItemRegistry = null) -> int:
+	if registry == null:
+		return 99
+	return registry.get_max_stack_amount(item_id)
+
+
+## 获取当前堆叠剩余空间。
+## @param registry: 可选物品注册表。
+## @return 剩余空间。
+func get_available_space(registry: GFInventoryItemRegistry = null) -> int:
+	if is_empty():
+		return get_stack_limit(registry)
+	return maxi(get_stack_limit(registry) - amount, 0)
+
+
+## 检查是否可与指定物品实例合并。
+## @param target_item_id: 目标物品标识。
+## @param target_instance_data: 目标实例数据。
+## @param registry: 可选物品注册表。
+## @return 可合并返回 true。
+func can_merge(
+	target_item_id: StringName,
+	target_instance_data: Dictionary = {},
+	registry: GFInventoryItemRegistry = null
+) -> bool:
+	if is_empty():
+		return true
+	if item_id != target_item_id:
+		return false
+	if registry == null:
+		return instance_data == target_instance_data
+	return registry.are_instance_data_compatible(item_id, instance_data, target_instance_data)
+
+
+## 增加数量并返回未加入的剩余数量。
+## @param add_amount: 尝试增加的数量。
+## @param registry: 可选物品注册表。
+## @return 未加入的剩余数量。
+func add_amount(add_amount: int, registry: GFInventoryItemRegistry = null) -> int:
+	if add_amount <= 0 or is_empty():
+		return maxi(add_amount, 0)
+	var accepted := mini(add_amount, get_available_space(registry))
+	amount += accepted
+	return add_amount - accepted
+
+
+## 移除数量并返回实际移除数量。
+## @param remove_amount: 尝试移除的数量。
+## @return 实际移除数量。
+func remove_amount(remove_amount: int) -> int:
+	if remove_amount <= 0 or is_empty():
+		return 0
+	var removed := mini(remove_amount, amount)
+	amount -= removed
+	if amount <= 0:
+		clear()
+	return removed
+
+
+## 清空堆叠。
+func clear() -> void:
+	item_id = &""
+	amount = 0
+	instance_data.clear()
+
+
+## 复制堆叠。
+## @return 新堆叠资源。
+func duplicate_stack() -> GFInventoryStack:
+	return GFInventoryStack.new(item_id, amount, instance_data)
+
+
+## 转换为字典。
+## @return 可序列化字典。
+func to_dict() -> Dictionary:
+	return {
+		"item_id": String(item_id),
+		"amount": amount,
+		"instance_data": instance_data.duplicate(true),
+	}
+
+
+## 应用字典数据。
+## @param data: 字典数据。
+func apply_dict(data: Dictionary) -> void:
+	item_id = StringName(String(data.get("item_id", item_id)))
+	amount = int(data.get("amount", amount))
+	var instance_data_value := data.get("instance_data", {}) as Dictionary
+	instance_data = instance_data_value.duplicate(true) if instance_data_value != null else {}
+	if amount <= 0:
+		clear()
+
+
+## 从字典创建堆叠。
+## @param data: 字典数据。
+## @return 堆叠资源。
+static func from_dict(data: Dictionary) -> GFInventoryStack:
+	var stack := GFInventoryStack.new()
+	stack.apply_dict(data)
+	return stack

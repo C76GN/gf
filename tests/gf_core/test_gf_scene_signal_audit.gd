@@ -100,3 +100,25 @@ func test_build_signal_graph_reports_runtime_connections() -> void:
 	assert_eq(connection["source_node_path"], "Emitter", "连接应记录相对源节点路径。")
 	assert_eq(connection["target_node_path"], "Receiver", "连接应记录相对目标节点路径。")
 	assert_eq(connection["method_name"], "receive", "连接应记录目标方法名。")
+
+
+func test_signal_graph_index_groups_runtime_connections() -> void:
+	var root := Node.new()
+	var emitter := GraphEmitter.new()
+	var receiver := GraphReceiver.new()
+	root.name = "Root"
+	emitter.name = "Emitter"
+	receiver.name = "Receiver"
+	add_child_autofree(root)
+	root.add_child(emitter)
+	root.add_child(receiver)
+	emitter.ping.connect(receiver.receive)
+
+	var graph: Dictionary = GF_SCENE_SIGNAL_AUDIT.build_signal_graph(root)
+	var index: Dictionary = GF_SCENE_SIGNAL_AUDIT.index_signal_graph(graph)
+	var outgoing := index["outgoing"] as Dictionary
+	var incoming := index["incoming"] as Dictionary
+
+	assert_true((index["nodes"] as Dictionary).has("Emitter"), "索引应包含节点条目。")
+	assert_eq((outgoing["Emitter"] as Array).size(), 1, "索引应按源节点归类输出连接。")
+	assert_eq((incoming["Receiver"] as Array).size(), 1, "索引应按目标节点归类输入连接。")

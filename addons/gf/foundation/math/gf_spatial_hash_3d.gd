@@ -52,7 +52,7 @@ func insert(entity: Variant, bounds: AABB) -> bool:
 	var normalized_bounds := _normalize_aabb(bounds)
 	var cells := _get_cells_for_aabb(normalized_bounds)
 	_entity_records[entity_key] = _make_entity_record(entity, normalized_bounds, cells)
-	for cell_key: String in cells:
+	for cell_key: Vector3i in cells:
 		if not _bucket_entities.has(cell_key):
 			_bucket_entities[cell_key] = []
 		var bucket := _bucket_entities[cell_key] as Array
@@ -170,7 +170,7 @@ func clear() -> void:
 func _query_candidate_keys(area: AABB) -> Array[String]:
 	var result: Array[String] = []
 	var seen: Dictionary = {}
-	for cell_key: String in _get_cells_for_aabb(area):
+	for cell_key: Vector3i in _get_cells_for_aabb(area):
 		var bucket := _bucket_entities.get(cell_key, []) as Array
 		for entity_key: String in bucket:
 			if seen.has(entity_key):
@@ -180,15 +180,15 @@ func _query_candidate_keys(area: AABB) -> Array[String]:
 	return result
 
 
-func _get_cells_for_aabb(bounds: AABB) -> Array[String]:
-	var cells: Array[String] = []
+func _get_cells_for_aabb(bounds: AABB) -> Array[Vector3i]:
+	var cells: Array[Vector3i] = []
 	var min_cell := _world_to_cell(bounds.position)
 	var max_corner := bounds.position + bounds.size
 	var max_cell := _world_to_cell(max_corner)
 	for x: int in range(min_cell.x, max_cell.x + 1):
 		for y: int in range(min_cell.y, max_cell.y + 1):
 			for z: int in range(min_cell.z, max_cell.z + 1):
-				cells.append(_cell_key(Vector3i(x, y, z)))
+				cells.append(Vector3i(x, y, z))
 	return cells
 
 
@@ -200,10 +200,6 @@ func _world_to_cell(position: Vector3) -> Vector3i:
 	)
 
 
-func _cell_key(cell: Vector3i) -> String:
-	return "%d:%d:%d" % [cell.x, cell.y, cell.z]
-
-
 func _make_entity_key(entity: Variant) -> String:
 	if entity == null:
 		return ""
@@ -212,7 +208,7 @@ func _make_entity_key(entity: Variant) -> String:
 	return "%d:%s" % [typeof(entity), str(entity)]
 
 
-func _make_entity_record(entity: Variant, bounds: AABB, cells: Array[String]) -> Dictionary:
+func _make_entity_record(entity: Variant, bounds: AABB, cells: Array[Vector3i]) -> Dictionary:
 	if entity is Object:
 		return {
 			"entity_ref": weakref(entity),
@@ -259,7 +255,7 @@ func _remove_by_key(entity_key: String) -> void:
 		return
 
 	var cells := record.get("cells", []) as Array
-	for cell_key: String in cells:
+	for cell_key: Vector3i in cells:
 		if not _bucket_entities.has(cell_key):
 			continue
 		var bucket := _bucket_entities[cell_key] as Array

@@ -52,3 +52,32 @@ func test_job_queue_pause_cancel_and_run_failure() -> void:
 	assert_eq(failed.error_message, "failed", "失败错误文本应写入任务。")
 	assert_eq(utility.get_debug_snapshot()["failed_count"], 1, "调试快照应统计失败任务。")
 	utility.dispose()
+
+
+func test_job_worker_processes_queue_batch() -> void:
+	var utility := GFJobQueueUtility.new()
+	utility.init()
+	var first := utility.enqueue(&"main", { "value": 1 })
+	var second := utility.enqueue(&"main", { "value": 2 })
+
+	var worker := GFJobWorker.new()
+	worker.auto_start = false
+	worker.queue_name = &"main"
+	worker.batch_size = 2
+	worker.set_queue_utility(utility)
+	worker.set_processor(func(job: GFJob) -> Dictionary:
+		return {
+			"ok": true,
+			"value": int((job.data as Dictionary).get("value", 0)) * 2,
+		}
+	)
+	worker.start()
+
+	var processed_count: int = await worker.process_batch()
+
+	assert_eq(processed_count, 2, "Worker 应按 batch_size 消费等待任务。")
+	assert_eq(first.status, GFJob.Status.COMPLETED, "第一个任务应完成。")
+	assert_eq(second.status, GFJob.Status.COMPLETED, "第二个任务应完成。")
+	assert_eq((second.result as Dictionary)["value"], 4, "处理器结果应写回任务。")
+	worker.free()
+	utility.dispose()

@@ -131,6 +131,9 @@ var loading_screen_progress_method: StringName = &"set_progress"
 ## loading scene 进度更新回退方法名。
 var loading_screen_progress_fallback_method: StringName = &"update_progress"
 
+## loading scene 可选错误显示方法名；目标节点存在该方法时会被调用并传入错误文本。
+var loading_screen_error_method: StringName = &"show_error"
+
 ## 默认 loading scene 最短保留秒数；单次切换可覆盖。
 var default_transition_minimum_seconds: float = 0.0
 
@@ -872,6 +875,15 @@ func _call_loading_scene_optional_method(method_name: StringName) -> void:
 		loading_scene.call(method_name)
 
 
+func _call_loading_scene_error_method(message: String) -> void:
+	if loading_screen_error_method == &"":
+		return
+
+	var loading_scene := _get_loading_scene_node()
+	if loading_scene != null and loading_scene.has_method(loading_screen_error_method):
+		loading_scene.call(loading_screen_error_method, message)
+
+
 func _get_loading_scene_node() -> Node:
 	if not _is_showing_loading_scene:
 		return null
@@ -976,6 +988,7 @@ func _fail_loading(path: String, message: String) -> void:
 	var previous_path := _previous_scene_path
 	scene_load_failed.emit(path)
 	scene_switch_failed.emit(path, previous_path, message)
+	_call_loading_scene_error_method(message)
 	_notify_loading_scene_exit_if_needed()
 	_restore_previous_scene_if_needed()
 	_is_showing_loading_scene = false

@@ -457,5 +457,5 @@ static func _can_step_connector(
 	)
 
 
-static func _make_connector_key(cell: Vector2i, direction_index: int) -> String:
-	return "%d:%d:%d" % [cell.x, cell.y, direction_index]
+static func _make_connector_key(cell: Vector2i, direction_index: int) -> Vector3i:
+	return Vector3i(cell.x, cell.y, direction_index)

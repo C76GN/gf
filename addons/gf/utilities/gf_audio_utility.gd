@@ -364,39 +364,56 @@ func is_ambient_playing(channel: StringName = &"default") -> bool:
 ## 播放 SFX（音效），自动从池中分配播放器
 ## @param path: 音频资源的路径
 func play_sfx(path: String) -> void:
-	if path.is_empty():
-		return
+	play_sfx_handle(path)
 
+
+## 播放 SFX 并返回控制句柄。
+## @param path: 音频资源的路径。
+## @return 控制句柄；路径为空时返回 null。
+func play_sfx_handle(path: String) -> GFAudioEmitterHandle:
+	if path.is_empty():
+		return null
+
+	var handle := GFAudioEmitterHandle.new(null, Callable(self, "_release_sfx_player"))
 	var request_serial := _sfx_lifecycle_serial
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(path) as AudioStream
-		_apply_sfx_request(request_serial, stream)
+		_apply_sfx_request(request_serial, stream, handle)
 	else:
 		var on_loaded := func(res: Resource) -> void:
-			_apply_sfx_request(request_serial, res as AudioStream)
+			_apply_sfx_request(request_serial, res as AudioStream, handle)
 		asset_util.load_async(path, on_loaded)
+	return handle
 
 
 ## 播放资源化 SFX 配置。
 ## @param clip: 音频片段配置。
 func play_sfx_clip(clip: GFAudioClip) -> void:
-	if clip == null or not clip.has_source():
-		return
+	play_sfx_clip_handle(clip)
 
+
+## 播放资源化 SFX 配置并返回控制句柄。
+## @param clip: 音频片段配置。
+## @return 控制句柄；片段无播放来源时返回 null。
+func play_sfx_clip_handle(clip: GFAudioClip) -> GFAudioEmitterHandle:
+	if clip == null or not clip.has_source():
+		return null
+
+	var handle := GFAudioEmitterHandle.new(null, Callable(self, "_release_sfx_player"))
 	var request_serial := _sfx_lifecycle_serial
 	var bus_name := clip.resolve_bus(SFX_BUS_NAME)
 	var volume_db := clip.volume_db
 	var pitch_scale := clip.resolve_pitch(_audio_rng)
 
 	if clip.stream != null:
-		_apply_sfx_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale)
-		return
+		_apply_sfx_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale, handle)
+		return handle
 
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(clip.path) as AudioStream
-		_apply_sfx_request_with_settings(request_serial, stream, bus_name, volume_db, pitch_scale)
+		_apply_sfx_request_with_settings(request_serial, stream, bus_name, volume_db, pitch_scale, handle)
 	else:
 		var on_loaded := func(res: Resource) -> void:
 			_apply_sfx_request_with_settings(
@@ -404,68 +421,178 @@ func play_sfx_clip(clip: GFAudioClip) -> void:
 				res as AudioStream,
 				bus_name,
 				volume_db,
-				pitch_scale
+				pitch_scale,
+				handle
 			)
 		asset_util.load_async(clip.path, on_loaded)
+	return handle
 
 
 ## 从音频集合播放 SFX。
 ## @param bank: 音频集合。
 ## @param clip_id: 片段标识。
 func play_sfx_from_bank(bank: GFAudioBank, clip_id: StringName) -> void:
-	if bank == null:
-		return
+	play_sfx_from_bank_handle(bank, clip_id)
 
-	play_sfx_clip(bank.get_clip_with_fallback(clip_id, _audio_rng))
+
+## 从音频集合播放 SFX 并返回控制句柄。
+## @param bank: 音频集合。
+## @param clip_id: 片段标识。
+## @return 控制句柄；无法播放时返回 null。
+func play_sfx_from_bank_handle(bank: GFAudioBank, clip_id: StringName) -> GFAudioEmitterHandle:
+	if bank == null:
+		return null
+
+	return play_sfx_clip_handle(bank.get_clip_with_fallback(clip_id, _audio_rng))
 
 
 ## 按事件 ID 播放注册音频集合中的 SFX。
 ## @param event_id: 音频事件标识。
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
 func play_sfx_event(event_id: StringName, bank_id: StringName = &"") -> void:
-	play_sfx_clip(_get_registered_clip(event_id, bank_id))
+	play_sfx_event_handle(event_id, bank_id)
+
+
+## 按事件 ID 播放注册音频集合中的 SFX 并返回控制句柄。
+## @param event_id: 音频事件标识。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @return 控制句柄；无法播放时返回 null。
+func play_sfx_event_handle(event_id: StringName, bank_id: StringName = &"") -> GFAudioEmitterHandle:
+	return play_sfx_clip_handle(_get_registered_clip(event_id, bank_id))
 
 
 ## 按事件 ID 在 2D 节点位置播放注册音频集合中的 SFX。
 ## @param event_id: 音频事件标识。
 ## @param source: 2D 声源节点。
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
 ## @return 创建的播放器；无法播放时返回 null。
 func play_sfx_event_2d(
 	event_id: StringName,
 	source: Node2D,
-	bank_id: StringName = &""
+	bank_id: StringName = &"",
+	follow_source: bool = false
 ) -> AudioStreamPlayer2D:
-	return play_sfx_clip_2d(_get_registered_clip(event_id, bank_id), source)
+	return play_sfx_clip_2d(_get_registered_clip(event_id, bank_id), source, follow_source)
+
+
+## 按事件 ID 在 2D 节点位置播放注册音频集合中的 SFX，并返回控制句柄。
+## @param event_id: 音频事件标识。
+## @param source: 2D 声源节点。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
+## @return 控制句柄；无法播放时返回 null。
+func play_sfx_event_2d_handle(
+	event_id: StringName,
+	source: Node2D,
+	bank_id: StringName = &"",
+	follow_source: bool = false
+) -> GFAudioEmitterHandle:
+	return play_sfx_clip_2d_handle(_get_registered_clip(event_id, bank_id), source, follow_source)
 
 
 ## 按事件 ID 在 3D 节点位置播放注册音频集合中的 SFX。
 ## @param event_id: 音频事件标识。
 ## @param source: 3D 声源节点。
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
 ## @return 创建的播放器；无法播放时返回 null。
 func play_sfx_event_3d(
 	event_id: StringName,
 	source: Node3D,
-	bank_id: StringName = &""
+	bank_id: StringName = &"",
+	follow_source: bool = false
 ) -> AudioStreamPlayer3D:
-	return play_sfx_clip_3d(_get_registered_clip(event_id, bank_id), source)
+	return play_sfx_clip_3d(_get_registered_clip(event_id, bank_id), source, follow_source)
+
+
+## 按事件 ID 在 3D 节点位置播放注册音频集合中的 SFX，并返回控制句柄。
+## @param event_id: 音频事件标识。
+## @param source: 3D 声源节点。
+## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
+## @return 控制句柄；无法播放时返回 null。
+func play_sfx_event_3d_handle(
+	event_id: StringName,
+	source: Node3D,
+	bank_id: StringName = &"",
+	follow_source: bool = false
+) -> GFAudioEmitterHandle:
+	return play_sfx_clip_3d_handle(_get_registered_clip(event_id, bank_id), source, follow_source)
 
 
 ## 在 2D 节点位置播放资源化 SFX 配置。
 ## @param clip: 音频片段配置。
 ## @param source: 2D 声源节点。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
 ## @return 创建的播放器；无法播放时返回 null。
-func play_sfx_clip_2d(clip: GFAudioClip, source: Node2D) -> AudioStreamPlayer2D:
-	return _play_spatial_sfx_clip(clip, source) as AudioStreamPlayer2D
+func play_sfx_clip_2d(
+	clip: GFAudioClip,
+	source: Node2D,
+	follow_source: bool = false
+) -> AudioStreamPlayer2D:
+	return _play_spatial_sfx_clip(clip, source, follow_source) as AudioStreamPlayer2D
+
+
+## 在 2D 节点位置播放资源化 SFX 配置，并返回控制句柄。
+## @param clip: 音频片段配置。
+## @param source: 2D 声源节点。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
+## @return 控制句柄；无法播放时返回 null。
+func play_sfx_clip_2d_handle(
+	clip: GFAudioClip,
+	source: Node2D,
+	follow_source: bool = false
+) -> GFAudioEmitterHandle:
+	var player := _play_spatial_sfx_clip(clip, source, follow_source)
+	if player == null:
+		return null
+	var handle := GFAudioEmitterHandle.new(player, Callable(self, "_queue_free_audio_player"))
+	if follow_source:
+		handle.bind_to_owner(source)
+	return handle
 
 
 ## 在 3D 节点位置播放资源化 SFX 配置。
 ## @param clip: 音频片段配置。
 ## @param source: 3D 声源节点。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
 ## @return 创建的播放器；无法播放时返回 null。
-func play_sfx_clip_3d(clip: GFAudioClip, source: Node3D) -> AudioStreamPlayer3D:
-	return _play_spatial_sfx_clip(clip, source) as AudioStreamPlayer3D
+func play_sfx_clip_3d(
+	clip: GFAudioClip,
+	source: Node3D,
+	follow_source: bool = false
+) -> AudioStreamPlayer3D:
+	return _play_spatial_sfx_clip(clip, source, follow_source) as AudioStreamPlayer3D
+
+
+## 在 3D 节点位置播放资源化 SFX 配置，并返回控制句柄。
+## @param clip: 音频片段配置。
+## @param source: 3D 声源节点。
+## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
+## @return 控制句柄；无法播放时返回 null。
+func play_sfx_clip_3d_handle(
+	clip: GFAudioClip,
+	source: Node3D,
+	follow_source: bool = false
+) -> GFAudioEmitterHandle:
+	var player := _play_spatial_sfx_clip(clip, source, follow_source)
+	if player == null:
+		return null
+	var handle := GFAudioEmitterHandle.new(player, Callable(self, "_queue_free_audio_player"))
+	if follow_source:
+		handle.bind_to_owner(source)
+	return handle
+
+
+## 获取环境音通道的控制句柄。
+## @param channel: 环境音通道。
+## @return 控制句柄；通道不存在时返回 null。
+func get_ambient_handle(channel: StringName = &"default") -> GFAudioEmitterHandle:
+	var player := _ambient_players.get(channel) as AudioStreamPlayer
+	if not is_instance_valid(player):
+		return null
+	return GFAudioEmitterHandle.new(player, Callable(self, "_stop_audio_player"), channel)
 
 
 ## 设置音频总线音量
@@ -520,21 +647,27 @@ func _get_registered_clip(event_id: StringName, bank_id: StringName = &"") -> GF
 	return null
 
 
-func _play_spatial_sfx_clip(clip: GFAudioClip, source: Node) -> Node:
+func _play_spatial_sfx_clip(clip: GFAudioClip, source: Node, follow_source: bool = false) -> Node:
 	if clip == null or not clip.has_source() or not is_instance_valid(source):
 		return null
 
-	var parent := _get_spatial_sfx_parent(source)
+	var parent := source if follow_source else _get_spatial_sfx_parent(source)
 	if parent == null:
 		return null
 
 	var player: Node = null
 	if source is Node3D:
 		player = AudioStreamPlayer3D.new()
-		(player as AudioStreamPlayer3D).global_position = (source as Node3D).global_position
+		if follow_source:
+			(player as AudioStreamPlayer3D).position = Vector3.ZERO
+		else:
+			(player as AudioStreamPlayer3D).global_position = (source as Node3D).global_position
 	elif source is Node2D:
 		player = AudioStreamPlayer2D.new()
-		(player as AudioStreamPlayer2D).global_position = (source as Node2D).global_position
+		if follow_source:
+			(player as AudioStreamPlayer2D).position = Vector2.ZERO
+		else:
+			(player as AudioStreamPlayer2D).global_position = (source as Node2D).global_position
 	else:
 		return null
 
@@ -840,11 +973,17 @@ func _create_tween_or_null() -> Tween:
 	return null
 
 
-func _apply_sfx_request(request_serial: int, stream: AudioStream) -> void:
+func _apply_sfx_request(
+	request_serial: int,
+	stream: AudioStream,
+	handle: GFAudioEmitterHandle = null
+) -> void:
 	if request_serial != _sfx_lifecycle_serial:
 		return
 
-	_play_sfx_stream(stream)
+	var player := _play_sfx_stream(stream)
+	if handle != null:
+		handle.set_player(player)
 
 
 func _apply_sfx_request_with_settings(
@@ -852,16 +991,19 @@ func _apply_sfx_request_with_settings(
 	stream: AudioStream,
 	bus_name: String,
 	volume_db: float,
-	pitch_scale: float
+	pitch_scale: float,
+	handle: GFAudioEmitterHandle = null
 ) -> void:
 	if request_serial != _sfx_lifecycle_serial:
 		return
 
-	_play_sfx_stream_with_settings(stream, bus_name, volume_db, pitch_scale)
+	var player := _play_sfx_stream_with_settings(stream, bus_name, volume_db, pitch_scale)
+	if handle != null:
+		handle.set_player(player)
 
 
-func _play_sfx_stream(stream: AudioStream) -> void:
-	_play_sfx_stream_with_settings(stream, SFX_BUS_NAME, 0.0, 1.0)
+func _play_sfx_stream(stream: AudioStream) -> AudioStreamPlayer:
+	return _play_sfx_stream_with_settings(stream, SFX_BUS_NAME, 0.0, 1.0)
 
 
 func _play_sfx_stream_with_settings(
@@ -869,20 +1011,20 @@ func _play_sfx_stream_with_settings(
 	bus_name: String,
 	volume_db: float,
 	pitch_scale: float
-) -> void:
+) -> AudioStreamPlayer:
 	if stream == null or not is_instance_valid(_root):
-		return
+		return null
 		
 	var pool := _get_pool_util()
 	if pool == null:
 		push_warning("[GFAudioUtility] GFObjectPoolUtility 未注册，正在略过 SFX。")
-		return
+		return null
 
 	if _is_sfx_capacity_full():
 		if sfx_overflow_policy == SFXOverflowPolicy.STOP_OLDEST:
 			_stop_oldest_sfx()
 		else:
-			return
+			return null
 		
 	var player := pool.acquire(_sfx_scene, _root) as AudioStreamPlayer
 	if player != null:
@@ -895,6 +1037,17 @@ func _play_sfx_stream_with_settings(
 			player.finished.connect(finished_callback, CONNECT_ONE_SHOT)
 		_track_sfx_player(player)
 		player.play()
+	return player
+
+
+func _stop_audio_player(player: Node) -> void:
+	if is_instance_valid(player) and player.has_method("stop"):
+		player.call("stop")
+
+
+func _queue_free_audio_player(player: Node) -> void:
+	if is_instance_valid(player):
+		player.queue_free()
 
 
 func _on_sfx_finished(player: AudioStreamPlayer) -> void:
@@ -973,6 +1126,7 @@ func _release_sfx_player(player: AudioStreamPlayer) -> void:
 	if not is_instance_valid(player):
 		return
 
+	_untrack_sfx_player(player)
 	var finished_callback := _get_sfx_finished_callback(player)
 	if player.finished.is_connected(finished_callback):
 		player.finished.disconnect(finished_callback)

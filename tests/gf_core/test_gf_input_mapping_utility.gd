@@ -399,6 +399,20 @@ func test_input_formatter_uses_icon_provider_for_rich_text() -> void:
 	assert_eq(GFInputFormatterBase.input_event_as_rich_text(_make_key_event(KEY_SPACE, true)), "Space", "无图标 provider 时应回退到文本。")
 
 
+## 验证输入格式化工具为 Joypad 提供通用方位文本，并允许覆盖。
+func test_input_formatter_formats_joypad_with_standard_labels() -> void:
+	assert_eq(GFInputFormatterBase.input_event_as_text(_make_joy_button_event(0, JOY_BUTTON_A, true)), "Button South", "手柄按钮应使用通用方位文本。")
+	assert_eq(GFInputFormatterBase.input_event_as_text(_make_joy_motion_event(JOY_AXIS_LEFT_X, 0.5)), "Left Stick X +", "手柄轴应显示方向。")
+	assert_eq(
+		GFInputFormatterBase.input_event_as_text(
+			_make_joy_button_event(0, JOY_BUTTON_A, true),
+			{ "joypad_button_labels": { JOY_BUTTON_A: "Confirm" } }
+		),
+		"Confirm",
+		"项目应可通过 options 覆盖手柄文本。"
+	)
+
+
 ## 验证输入冲突分析器会使用重映射后的有效事件。
 func test_input_conflict_analyzer_reports_remap_conflicts() -> void:
 	var context := _make_context(&"gameplay", [

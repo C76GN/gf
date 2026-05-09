@@ -131,7 +131,7 @@ func run_next_job(queue_name: StringName, processor: Callable) -> GFJob:
 	var value: Variant = processor.call(job)
 	if value is Dictionary and not bool((value as Dictionary).get("ok", true)):
 		fail_job(job.job_id, String((value as Dictionary).get("error", "")), value)
-	elif value == false:
+	elif value is bool and not bool(value):
 		fail_job(job.job_id, "", value)
 	else:
 		complete_job(job.job_id, value)

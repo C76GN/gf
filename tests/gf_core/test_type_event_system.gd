@@ -105,6 +105,42 @@ func test_type_dispatch_cache_updates_after_register_and_unregister() -> void:
 	assert_eq(state.exact, 2, "后续新增的精确监听应进入刷新后的缓存。")
 
 
+## 验证类型事件派发缓存只刷新受影响的类型条目。
+func test_type_dispatch_cache_invalidates_only_affected_entries() -> void:
+	var state := {"child": 0, "other": 0}
+	var child_callback := func(_e: TestEventA) -> void:
+		state.child += 1
+	var other_callback := func(_e: TestEventB) -> void:
+		state.other += 1
+
+	_system.register_assignable(TestEventA, child_callback)
+	_system.register(TestEventB, other_callback)
+	_system.send(TestEventChild.new())
+	_system.send(TestEventB.new())
+
+	assert_true(_system._type_dispatch_cache.has(TestEventChild), "子类事件派发后应建立缓存。")
+	assert_true(_system._type_dispatch_cache.has(TestEventB), "独立事件派发后应建立缓存。")
+
+	_system.register(TestEventB, func(_e: TestEventB) -> void:
+		state.other += 10
+	)
+
+	assert_true(_system._type_dispatch_cache.has(TestEventChild), "独立精确监听变更不应清掉子类事件缓存。")
+	assert_false(_system._type_dispatch_cache.has(TestEventB), "精确监听变更应刷新对应事件缓存。")
+
+	_system.send(TestEventB.new())
+	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+		state.child += 10
+	)
+
+	assert_false(_system._type_dispatch_cache.has(TestEventChild), "可赋值监听变更应刷新继承事件缓存。")
+	assert_true(_system._type_dispatch_cache.has(TestEventB), "不相关事件缓存应保留。")
+
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.child, 12, "刷新后的子类事件缓存应包含新增可赋值监听。")
+
+
 ## 验证可赋值类型监听可注销。
 func test_unregister_assignable_listener() -> void:
 	var state := {"count": 0}

@@ -18,7 +18,70 @@
 
 ## 维护策略
 
-本页面只保留最近三个大版本线的更新记录，当前保留 `1.31.x`、`1.30.x` 与 `1.29.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个大版本线的更新记录，当前保留 `1.32.x`、`1.31.x` 与 `1.30.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [1.32.0] - 2026-05-09
+
+**版本概述**：补齐一组通用框架能力：槽位库存、反馈采样、任务消费、音频集合挂载、输入文本、构建导出、信号图索引、音频播放句柄、场景命中桥接和校验报告基础件，保持 1.x 兼容。
+
+### 🚀 新增特性 (Added)
+- 新增 `GFInventoryItemDefinition`、`GFInventoryItemRegistry`、`GFInventoryStack`、`GFInventoryOperationResult` 与 `GFSlotInventoryModel`，提供可选槽位库存、堆叠容量、实例数据兼容、移动/交换和序列化能力。
+- 新增 `GFShakePreset`、`GFShakeUtility`、`GFShakeAction`、`GFShakeReceiver2D` 与 `GFShakeReceiver3D`，提供资源化反馈采样、命名 channel 播放、动作队列入口和 2D/3D 节点接收器。
+- 新增 `GFJobWorker`，可作为场景节点按批次消费 `GFJobQueueUtility` 队列。
+- 新增 `GFAudioBankMounter`，支持场景生命周期自动注册、恢复或卸载 `GFAudioBank`。
+- 新增 `GFInputDeviceTextProvider`，为 Joypad 输入提供通用方位文本和 options 覆盖。
+- 新增 `GFBuildInfoExportPlugin`，提供可选导出时 Git 构建元数据写入入口。
+- 新增 `GFAudioEmitterHandle` 与 `GFAudioUtility` 的 SFX/空间音效 handle 播放方法，用于主动停止、淡出、owner 绑定释放和读取本次播放状态；空间音效播放入口新增可选声源跟随。
+- 新增 `GFCombatHitContext`、`GFHitBox2D`、`GFHitBox3D`、`GFHurtBox2D` 与 `GFHurtBox3D`，提供通用 2D/3D 命中上下文收发桥接。
+- 新增 `GFValidationIssue`、`GFValidationReport` 与 `GFValidationUtility`，提供通用校验问题、报告聚合、摘要统计和字典报告兼容辅助。
+- `GFSceneSignalAudit` 新增运行时节点 DTO 与 `index_signal_graph()`，便于项目调试 UI 构建信号图索引。
+- `GFSceneUtility` 新增 loading scene 错误回调方法名 `loading_screen_error_method`，默认调用 `show_error(message)`。
+
+### 🔄 机制更改 (Changed)
+- `GFInputFormatter` 的 Joypad 默认文本从泛化编号升级为通用方位/轴文本；项目仍可通过 provider 或 options 覆盖。
+- GF 编辑器插件新增构建信息导出设置项，默认关闭自动写入，避免改变现有导出流程。
+- `GFCapabilityRecipe.validate_recipe()` 改为通过通用校验报告基础件生成结果，保留原有字典字段并补齐空报告摘要。
+- `GFSaveGraphUtility` 的诊断报告统计与下一步建议改为复用通用字典报告辅助，返回字段保持兼容。
+- `GFGridMath` 连线访问状态、`GFGridOccupancy` 格子索引和 `GFSpatialHash3D` 空间桶索引改用坐标值 key，减少高频查询中的临时字符串分配，公开 API 保持不变。
+- `TypeEventSystem` 类型派发缓存改为按受影响脚本类型局部失效，并缓存脚本继承链查询，降低动态监听注册/注销后的派发抖动。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 API 均为向后兼容；现有轻量 `GFInventoryModel`、`GFJobQueueUtility`、`GFAudioUtility`、`GFInputFormatter`、`GFCombatSystem`、`GFSceneUtility` 和字典式校验报告调用保持有效。
+- `GFValidationIssue`、`GFValidationReport` 与 `GFValidationUtility` 是新增 Foundation API，不需要注册到 `Gf.register_utility()`。
+- `GFAudioEmitterHandle` 新增 `bind_to_owner()`、`unbind_owner()`，调试快照新增 `owner_valid` 字段。
+- `GFAudioUtility` 新增 `play_sfx_handle()`、`play_sfx_clip_handle()`、`play_sfx_from_bank_handle()`、`play_sfx_event_handle()`、`play_sfx_clip_2d_handle()`、`play_sfx_clip_3d_handle()`、`play_sfx_event_2d_handle()`、`play_sfx_event_3d_handle()` 与 `get_ambient_handle()`；2D/3D 空间 SFX 播放方法新增可选 `follow_source` 参数，默认 `false` 保持旧行为。
+- `GFSceneSignalAudit.build_signal_graph()` 返回字典新增 `nodes` 字段。
+- `GFSceneUtility` 新增公开变量 `loading_screen_error_method`。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。需要格子背包时新增 `GFSlotInventoryModel`，不要替换已有计数型 `GFInventoryModel`。
+- 反馈采样只输出通用偏移；项目应自行决定目标节点、相机、UI 或 shader 的应用方式。
+- 音频 handle 只控制本次播放器，旧的 fire-and-forget 播放方法无需迁移；空间 SFX 默认仍是当前位置一次性播放，只有显式传入 `follow_source = true` 时才跟随声源节点。
+- Hit/HurtBox 只传递 `GFCombatHitContext` 和报告；项目仍应在业务层决定伤害、治疗、阵营、无敌帧或表现反馈。
+- 自动构建元数据默认关闭；需要导出时写入 Git 字段时，在 Project Settings 中启用 `gf/build/export/write_git_metadata`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/extensions/domain/**`
+- `addons/gf/extensions/feedback/**`
+- `addons/gf/extensions/combat/**`
+- `addons/gf/foundation/validation/**`
+- `addons/gf/foundation/math/gf_grid_math.gd`
+- `addons/gf/foundation/math/gf_grid_occupancy.gd`
+- `addons/gf/foundation/math/gf_spatial_hash_3d.gd`
+- `addons/gf/core/type_event_system.gd`
+- `addons/gf/extensions/capability/gf_capability_recipe.gd`
+- `addons/gf/extensions/save/gf_save_graph_utility.gd`
+- `addons/gf/utilities/gf_audio_emitter_handle.gd`
+- `addons/gf/utilities/gf_job_worker.gd`
+- `addons/gf/utilities/gf_audio_bank_mounter.gd`
+- `addons/gf/input/gf_input_device_text_provider.gd`
+- `addons/gf/editor/gf_build_info_export_plugin.gd`
+- `addons/gf/editor/gf_scene_signal_audit.gd`
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `tests/gf_core/**`
+- `docs/wiki/**`
 
 ---
 
@@ -129,45 +192,3 @@
 - `tests/gf_core/**`
 - `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
 - `docs/wiki/12. 能力组件 (Capabilities).md`
-
----
-
-## [1.29.0] - 2026-05-08
-
-**版本概述**：增强纯代码状态机与节点状态机的通用性，补齐分层状态路径、事件分发、守卫和运行时快照能力。
-
-### 🚀 新增特性 (Added)
-- `GFStateMachine` 支持通过 `parent_state_name` 注册父子状态路径，并按最近公共祖先执行分层状态切换。
-- `GFStateMachine` 新增进入/退出守卫、状态事件上抛、共享黑板、激活路径查询和调试快照。
-- `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState` 新增状态事件分发、处理信号和运行时状态快照。
-
-### 🔄 机制更改 (Changed)
-- `GFStateMachine.update(delta)` 默认仍只更新当前叶子状态；传入 `include_ancestors = true` 时可按 root -> leaf 顺序更新整条激活路径。
-- `GFNodeStateGroup` 的状态事件会先交给当前状态，再交给暂停栈中的状态，便于覆盖式状态把未处理事件交回下层状态。
-
-### 🐛 Bug 修复 (Fixed)
-- `GFCapabilityUtility.get_capability()` 会在查询时同步扫描 receiver 直属 GF 能力容器，修复旧场景或 Inspector 创建的 `GFCapabilityContainer2D` / `3D` / `Control` 仅保留容器标记或命名时，子能力在 receiver `_ready()` 中无法查询的问题。
-
-### 🔌 API 变动说明 (API Changes)
-- `GFStateMachine.add_state(state_name, state, parent_state_name = &"")` 新增可选父状态参数，旧二参调用保持兼容。
-- 新增 `GFStateMachine.transition_blocked`、`state_event_handled`、`blackboard`、`set_state_parent()`、`dispatch_state_event()`、`get_state()`、`get_current_state()`、`has_state()`、`get_state_names()`、`get_parent_state_name()`、`get_active_state_path()`、`is_in_state()`、`get_blackboard()` 与 `get_state_snapshot()`。
-- `GFStateMachine.update(delta, include_ancestors = false)` 新增可选参数，旧一参调用保持兼容。
-- `GFState.setup(machine, state_name = &"")` 新增可选注册名参数；新增 `get_state_name()`、`can_enter()`、`can_exit()`、`handle_state_event()`、`dispatch_state_event()`、`get_parent_state_name()`、`is_in_state()` 与 `get_blackboard()`。
-- 新增 `GFNodeState.handle_state_event()` 与 `_handle_state_event()`。
-- 新增 `GFNodeStateGroup.state_event_handled`、`dispatch_state_event()` 与 `get_state_snapshot()`。
-- 新增 `GFNodeStateMachine.state_event_handled`、`dispatch_state_event()` 与 `get_state_snapshot()`。
-
-### 📘 升级指南 (Migration Guide)
-- 旧状态机代码无需迁移；平铺状态注册和 `update(delta)` 的默认行为保持不变。
-- 需要真正分层语义时，为子状态注册 `parent_state_name`，并把跨多个子状态共享的逻辑放入父状态的 `enter()` / `exit()` / `handle_state_event()`。
-- 节点状态事件只负责分发和处理结果，不规定输入、动画、权限或业务效果；这些仍应由项目层状态脚本决定。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/extensions/state_machine/gf_state_machine.gd`
-- `addons/gf/extensions/state_machine/gf_state.gd`
-- `addons/gf/extensions/state_machine/gf_node_state_machine.gd`
-- `addons/gf/extensions/state_machine/gf_node_state_group.gd`
-- `addons/gf/extensions/state_machine/gf_node_state.gd`
-- `tests/gf_core/test_gf_state_machine.gd`
-- `tests/gf_core/test_gf_node_state_machine.gd`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`

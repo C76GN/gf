@@ -43,6 +43,59 @@ func test_inventory_model_serializes_items() -> void:
 	assert_eq(restored.get_item_metadata(&"item_a").get("tag"), "test", "恢复后元数据应一致。")
 
 
+## 验证槽位库存遵守堆叠容量、堆叠数量上限与序列化。
+func test_slot_inventory_respects_stack_rules_and_serializes() -> void:
+	var definition := GFInventoryItemDefinition.new()
+	definition.item_id = &"item_a"
+	definition.max_stack_amount = 5
+	definition.max_stack_count = 2
+	definition.stack_key_fields = PackedStringArray(["grade"])
+
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(definition)
+
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.set_slot_count(3)
+
+	var result := inventory.add_item(&"item_a", 12, { "grade": "basic" })
+
+	assert_false(result.ok, "容量不足时应返回部分成功。")
+	assert_eq(result.accepted_amount, 10, "两个堆叠最多应接受 10 个。")
+	assert_eq(result.remaining_amount, 2, "剩余数量应写入操作结果。")
+	assert_eq(inventory.get_item_total(&"item_a"), 10, "库存总数应统计全部兼容堆叠。")
+	assert_eq(inventory.get_occupied_slot_indices().size(), 2, "应占用两个槽位。")
+
+	var restored := GFSlotInventoryModel.new()
+	restored.registry = registry
+	restored.from_dict(inventory.to_dict())
+
+	assert_eq(restored.get_slot_count(), 3, "恢复后槽位数量应一致。")
+	assert_eq(restored.get_item_total(&"item_a"), 10, "恢复后物品总数应一致。")
+
+
+## 验证槽位拆分不会绕过最大堆叠数量上限。
+func test_slot_inventory_split_respects_stack_count_limit() -> void:
+	var definition := GFInventoryItemDefinition.new()
+	definition.item_id = &"item_a"
+	definition.max_stack_amount = 10
+	definition.max_stack_count = 1
+
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(definition)
+
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.set_slot_count(2)
+	inventory.add_item_to_slot(0, &"item_a", 5)
+
+	var result := inventory.move_between_slots(0, 1, 2)
+
+	assert_false(result.ok, "拆分会增加堆叠数量时应失败。")
+	assert_eq(result.reason, &"stack_count_limit", "失败原因应说明堆叠数量上限。")
+	assert_true(inventory.is_slot_empty(1), "失败后目标槽位应保持为空。")
+
+
 ## 验证槽位集合按标签规则挂载物品。
 func test_equipment_set_checks_slot_tags() -> void:
 	var slot := GFEquipmentSlot.new()

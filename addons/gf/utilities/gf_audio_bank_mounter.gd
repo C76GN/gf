@@ -1,0 +1,120 @@
+## GFAudioBankMounter: 场景生命周期驱动的音频集合挂载节点。
+##
+## 进入树时把 `GFAudioBank` 注册到 `GFAudioUtility`，退出树时按需恢复或卸载，
+## 让场景、UI 或模块可以拥有自己的音频事件集合而不写全局业务逻辑。
+class_name GFAudioBankMounter
+extends Node
+
+
+# --- 信号 ---
+
+## 音频集合挂载完成时发出。
+## @param bank_id: 音频集合标识。
+signal bank_mounted(bank_id: StringName)
+
+## 音频集合卸载完成时发出。
+## @param bank_id: 音频集合标识。
+signal bank_unmounted(bank_id: StringName)
+
+
+# --- 导出变量 ---
+
+## 音频集合标识。
+@export var bank_id: StringName = &""
+
+## 音频集合资源。
+@export var bank: GFAudioBank = null
+
+## ready 后是否自动挂载。
+@export var mount_on_ready: bool = true
+
+## 退出树时是否自动卸载。
+@export var unmount_on_exit: bool = true
+
+## 卸载时是否恢复同 ID 的旧音频集合。
+@export var restore_previous_bank: bool = true
+
+
+# --- 公共变量 ---
+
+## 可选音频工具实例；为空时从全局架构查询。
+var audio_utility: GFAudioUtility = null
+
+
+# --- 私有变量 ---
+
+var _mounted: bool = false
+var _previous_bank: GFAudioBank = null
+
+
+# --- Godot 生命周期方法 ---
+
+func _ready() -> void:
+	if mount_on_ready:
+		mount()
+
+
+func _exit_tree() -> void:
+	if unmount_on_exit:
+		unmount()
+
+
+# --- 公共方法 ---
+
+## 设置音频工具实例。
+## @param utility: 音频工具实例。
+func set_audio_utility(utility: GFAudioUtility) -> void:
+	audio_utility = utility
+
+
+## 挂载音频集合。
+## @return 挂载成功返回 true。
+func mount() -> bool:
+	if bank_id == &"" or bank == null:
+		return false
+	var utility := _get_audio_utility()
+	if utility == null:
+		return false
+
+	if not _mounted:
+		_previous_bank = utility.get_audio_bank(bank_id)
+	utility.register_audio_bank(bank_id, bank)
+	_mounted = true
+	bank_mounted.emit(bank_id)
+	return true
+
+
+## 卸载音频集合。
+## @return 卸载成功返回 true。
+func unmount() -> bool:
+	if not _mounted or bank_id == &"":
+		return false
+	var utility := _get_audio_utility()
+	if utility == null:
+		return false
+
+	if restore_previous_bank and _previous_bank != null:
+		utility.register_audio_bank(bank_id, _previous_bank)
+	else:
+		utility.unregister_audio_bank(bank_id)
+	_mounted = false
+	_previous_bank = null
+	bank_unmounted.emit(bank_id)
+	return true
+
+
+## 检查音频集合是否已挂载。
+## @return 已挂载返回 true。
+func is_mounted() -> bool:
+	return _mounted
+
+
+# --- 私有/辅助方法 ---
+
+func _get_audio_utility() -> GFAudioUtility:
+	if audio_utility != null:
+		return audio_utility
+	var architecture := GFAutoload.get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(GFAudioUtility) as GFAudioUtility

@@ -77,7 +77,7 @@ func can_occupy(receiver: Variant, cell: Vector2i) -> bool:
 	if receiver_key.is_empty():
 		return false
 
-	var reserved_by := String(_cell_reservations.get(_cell_key(cell), ""))
+	var reserved_by := String(_cell_reservations.get(cell, ""))
 	if not reserved_by.is_empty() and reserved_by != receiver_key:
 		return false
 
@@ -102,7 +102,7 @@ func occupy(receiver: Variant, cell: Vector2i) -> bool:
 	if current_cell != Vector2i(-1, -1):
 		release(receiver)
 
-	var cell_key := _cell_key(cell)
+	var cell_key := cell
 	if not _cell_occupants.has(cell_key):
 		_cell_occupants[cell_key] = []
 
@@ -124,7 +124,7 @@ func release(receiver: Variant) -> void:
 		return
 
 	var cell := record["cell"] as Vector2i
-	var cell_key := _cell_key(cell)
+	var cell_key := cell
 	if _cell_occupants.has(cell_key):
 		(_cell_occupants[cell_key] as Array).erase(receiver_key)
 		if (_cell_occupants[cell_key] as Array).is_empty():
@@ -154,7 +154,7 @@ func reserve_cell(receiver: Variant, cell: Vector2i) -> bool:
 
 	var receiver_key := _make_receiver_key(receiver)
 	release_reservation(receiver)
-	_cell_reservations[_cell_key(cell)] = receiver_key
+	_cell_reservations[cell] = receiver_key
 	_receiver_reservations[receiver_key] = cell
 	_reservation_records[receiver_key] = _make_receiver_record(receiver, cell)
 	cell_reserved.emit(receiver, cell)
@@ -183,7 +183,7 @@ func release_reservation(receiver: Variant) -> void:
 
 	var cell := _receiver_reservations[receiver_key] as Vector2i
 	_receiver_reservations.erase(receiver_key)
-	_cell_reservations.erase(_cell_key(cell))
+	_cell_reservations.erase(cell)
 	_reservation_records.erase(receiver_key)
 	reservation_released.emit(receiver, cell)
 
@@ -199,7 +199,7 @@ func is_cell_occupied(cell: Vector2i) -> bool:
 ## @param cell: 格子坐标。
 ## @return 被预约时返回 true。
 func is_cell_reserved(cell: Vector2i) -> bool:
-	return _cell_reservations.has(_cell_key(cell))
+	return _cell_reservations.has(cell)
 
 
 ## 获取格子中的所有接收者。
@@ -270,11 +270,7 @@ func clear() -> void:
 # --- 私有/辅助方法 ---
 
 func _get_occupant_keys(cell: Vector2i) -> Array:
-	return _cell_occupants.get(_cell_key(cell), []) as Array
-
-
-func _cell_key(cell: Vector2i) -> String:
-	return "%d:%d" % [cell.x, cell.y]
+	return _cell_occupants.get(cell, []) as Array
 
 
 func _make_receiver_key(receiver: Variant) -> String:
@@ -325,7 +321,7 @@ func _release_by_key(receiver_key: String, emit_cell_signal: bool = false) -> vo
 
 	var cell := record["cell"] as Vector2i
 	var receiver: Variant = _record_to_receiver(record)
-	var cell_key := _cell_key(cell)
+	var cell_key := cell
 	if _cell_occupants.has(cell_key):
 		(_cell_occupants[cell_key] as Array).erase(receiver_key)
 		if (_cell_occupants[cell_key] as Array).is_empty():
@@ -348,7 +344,7 @@ func _release_reservation_by_key(receiver_key: String) -> void:
 	if not record.is_empty():
 		receiver = _record_to_receiver(record)
 	_receiver_reservations.erase(receiver_key)
-	_cell_reservations.erase(_cell_key(cell))
+	_cell_reservations.erase(cell)
 	_reservation_records.erase(receiver_key)
 	reservation_released.emit(receiver, cell)
 

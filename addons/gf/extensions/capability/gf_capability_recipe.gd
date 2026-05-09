@@ -9,6 +9,7 @@ extends Resource
 # --- 常量 ---
 
 const GFCapabilityRecipeEntryBase = preload("res://addons/gf/extensions/capability/gf_capability_recipe_entry.gd")
+const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/foundation/validation/gf_validation_report.gd")
 
 
 # --- 导出变量 ---
@@ -64,35 +65,34 @@ func describe_recipe() -> Dictionary:
 ## 校验 Recipe 结构。
 ## @return 校验报告。
 func validate_recipe() -> Dictionary:
-	var report := {
-		"ok": true,
-		"healthy": true,
-		"entry_count": entries.size(),
-		"error_count": 0,
-		"warning_count": 0,
-		"issue_counts_by_kind": {},
-		"summary": "",
-		"next_action": "",
-		"issues": [],
-	}
+	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Capability recipe")
 
 	var seen_keys: Dictionary = {}
 	for index: int in range(entries.size()):
 		var entry := entries[index]
 		if entry == null:
-			_append_issue(report, "warning", "null_entry", str(index), "Recipe contains a null entry.")
+			report.add_warning(&"null_entry", "Recipe contains a null entry.", str(index))
 			continue
 		if not entry.is_valid_entry():
-			_append_issue(report, "error", "invalid_entry", str(index), "Recipe entry requires capability_type or scene.")
+			report.add_error(&"invalid_entry", "Recipe entry requires capability_type or scene.", str(index))
 			continue
 
 		var key := _get_entry_key(entry)
 		if not key.is_empty() and seen_keys.has(key):
-			_append_issue(report, "warning", "duplicate_entry", key, "Recipe contains duplicate capability entries.")
+			report.add_warning(&"duplicate_entry", "Recipe contains duplicate capability entries.", key)
 		seen_keys[key] = true
 
-	_finalize_report(report)
-	return report
+	return report.to_dict(
+		{ "entry_count": entries.size() },
+		{
+			"include_subject": false,
+			"include_metadata": false,
+			"include_info_count": false,
+			"include_issue_count": false,
+			"next_actions": _get_next_actions(),
+			"fallback_action": "Review the first reported capability recipe issue before applying it.",
+		}
+	)
 
 
 # --- 私有/辅助方法 ---
@@ -111,66 +111,9 @@ func _get_entry_key(entry: GFCapabilityRecipeEntryBase) -> String:
 	return ""
 
 
-func _append_issue(report: Dictionary, severity: String, kind: String, key: String, message: String) -> void:
-	(report["issues"] as Array).append({
-		"severity": severity,
-		"kind": kind,
-		"key": key,
-		"message": message,
-	})
-
-
-func _finalize_report(report: Dictionary) -> void:
-	var error_count := 0
-	var warning_count := 0
-	var issue_counts_by_kind: Dictionary = {}
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue == null:
-			continue
-
-		var severity := String(issue.get("severity", ""))
-		var kind := String(issue.get("kind", "unknown"))
-		issue_counts_by_kind[kind] = int(issue_counts_by_kind.get(kind, 0)) + 1
-		if severity == "error":
-			error_count += 1
-		elif severity == "warning":
-			warning_count += 1
-
-	report["error_count"] = error_count
-	report["warning_count"] = warning_count
-	report["issue_counts_by_kind"] = issue_counts_by_kind
-	report["ok"] = error_count == 0
-	report["healthy"] = error_count == 0 and warning_count == 0
-	if error_count > 0:
-		report["summary"] = "Capability recipe has %d error(s) and %d warning(s)." % [error_count, warning_count]
-	elif warning_count > 0:
-		report["summary"] = "Capability recipe has %d warning(s)." % warning_count
-	else:
-		report["summary"] = "Capability recipe is healthy."
-	report["next_action"] = _get_next_action(report)
-
-
-func _get_next_action(report: Dictionary) -> String:
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue != null and String(issue.get("severity", "")) == "error":
-			return _get_next_action_for_issue(issue)
-	for issue_variant: Variant in report.get("issues", []):
-		var issue := issue_variant as Dictionary
-		if issue != null and String(issue.get("severity", "")) == "warning":
-			return _get_next_action_for_issue(issue)
-	return "No action required."
-
-
-func _get_next_action_for_issue(issue: Dictionary) -> String:
-	match String(issue.get("kind", "")):
-		"null_entry":
-			return "Remove the null Recipe entry or replace it with a valid GFCapabilityRecipeEntry."
-		"invalid_entry":
-			return "Set capability_type or scene on every Recipe entry."
-		"duplicate_entry":
-			return "Remove duplicate entries unless the duplication is intentional metadata for project tools."
-		_:
-			return "Review the first reported capability recipe issue before applying it."
-
+func _get_next_actions() -> Dictionary:
+	return {
+		"null_entry": "Remove the null Recipe entry or replace it with a valid GFCapabilityRecipeEntry.",
+		"invalid_entry": "Set capability_type or scene on every Recipe entry.",
+		"duplicate_entry": "Remove duplicate entries unless the duplication is intentional metadata for project tools.",
+	}

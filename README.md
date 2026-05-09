@@ -42,7 +42,7 @@ func _ready() -> void:
 
 ## Included Modules
 
-GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties with computed/effect helpers, commands and queries, state machines with guards, command sequences, turn-flow helpers, action queues with resourceized tween configs, object pooling, scene switching with preload caching, transition params and history, storage helpers, save slot workflows, save graph composition, pipeline traces and diagnostics, settings and display adapters, build info snapshots, asset handles and groups, audio banks with BGM/ambient helpers, player-scoped input mapping with modifiers/triggers, conflict reports and formatter providers, debug draw command buffering, analytics events, capability components with inspection reports, interaction flows and interaction sender/receiver nodes, resourceized flow graphs with ports/connections/editor view models, optional ENet network transport with session/channel metadata, runtime diagnostics, notification queues, lightweight combat helpers, generic domain models, grid pathfinding and tile primitives, 3D spatial hashing, 3D gravity fields, 3D surface material lookup, and editor tools for typed GF/config accessor generation.
+GF Framework includes lifecycle-managed models, systems, controllers, utilities, typed events, bindable properties with computed/effect helpers, commands and queries, state machines with guards, command sequences, turn-flow helpers, action queues with resourceized tween configs and shake feedback actions, object pooling, scene switching with preload caching, transition params and history, storage helpers, save slot workflows, save graph composition, pipeline traces and diagnostics, settings and display adapters, build info snapshots and optional export-time metadata writing, asset handles and groups, audio banks with BGM/ambient helpers, playback handles and scene bank mounters, player-scoped input mapping with modifiers/triggers, conflict reports and formatter providers, debug draw command buffering, analytics events, capability components with inspection reports, interaction flows and interaction sender/receiver nodes, resourceized flow graphs with ports/connections/editor view models, optional ENet network transport with session/channel metadata, runtime diagnostics, notification queues, lightweight combat helpers with 2D/3D hit context bridge nodes, generic domain models including slot inventory resources, grid pathfinding and tile primitives, 3D spatial hashing, 3D gravity fields, 3D surface material lookup, and editor tools for typed GF/config accessor generation.
 
 ## Testing
 
@@ -164,26 +164,28 @@ Gf.send_command(command)
 - `GFRemoteCacheUtility`：通用远程文本/JSON 请求、本地 TTL 缓存与失败回退。
 - `GFSignalUtility`：Godot 原生 Signal 的 owner 绑定、安全断开、批量连接、filter/map/delay/debounce/throttle/take/scan/once 链式处理。
 - `GFJobQueueUtility` / `GFJob`：通用任务队列、进度、暂停、完成/失败/取消状态和诊断快照。
+- `GFJobWorker`：场景节点形式的任务队列批处理消费器。
 - `GFSceneUtility` / `GFSceneTransitionConfig`：异步场景切换、后台预加载激活、预加载 LRU 缓存、切换参数、场景历史、资源化切换配置、加载状态快照与瞬态模块清理。
 - `GFSurfaceUtility`：根据 3D 碰撞 face index 查询 Mesh surface 与材质，不绑定材质业务语义。
 - `GFStorageUtility` / `GFStorageCodec` / `GFSaveGraphUtility` / `GFSaveSlotWorkflow`：槽位存档、元数据、读档卡片 DTO、事务恢复、Resource 存取、完整性校验、版本迁移、可配置编码、通用节点存档图编排、默认节点序列化器、存档 pipeline trace 和结构诊断。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFSettingsUtility` / `GFDisplaySettingsUtility`：抽象设置注册、持久化、显示/语言/音频应用，以及设置界面控件绑定辅助。
 - `GFObjectPoolUtility`：节点对象池。
-- `GFAudioUtility`：BGM/SFX/环境音播放、BGM 淡入淡出与历史、资源化音频片段/集合、音频事件 ID、候选权重、pitch 随机、2D/3D 空间 SFX、音量总线、SFX 对象池与并发上限控制。
-- `GFInputMappingUtility` / `GFInputAction` / `GFInputContext` / `GFInputFormatter` / `GFInputConflictAnalyzer`：资源化输入动作、上下文切换、运行时重绑定、一维/二维/三维动作值、修饰器、触发器、文本/图标 provider、冲突分析与重绑定报告、全局与玩家级动作状态查询。
+- `GFAudioUtility` / `GFAudioEmitterHandle` / `GFAudioBankMounter`：BGM/SFX/环境音播放、BGM 淡入淡出与历史、资源化音频片段/集合、音频事件 ID、播放句柄、owner 绑定释放、场景级音频集合挂载、候选权重、pitch 随机、2D/3D 空间 SFX 与可选声源跟随、音量总线、SFX 对象池与并发上限控制。
+- `GFInputMappingUtility` / `GFInputAction` / `GFInputContext` / `GFInputFormatter` / `GFInputDeviceTextProvider` / `GFInputConflictAnalyzer`：资源化输入动作、上下文切换、运行时重绑定、一维/二维/三维动作值、修饰器、触发器、手柄文本、文本/图标 provider、冲突分析与重绑定报告、全局与玩家级动作状态查询。
 - `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、活跃玩家追踪、通用触屏虚拟摇杆与触屏按钮。
 - `GFAnalyticsUtility`：通用事件采集、稳定 client id、批量 flush、本地 dry-run、传输 hook 与可选 HTTP 上报。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFCommandSequence`：顺序执行 `GFSequenceStep`、命令对象或任意 callable 的通用流程编排器，支持失败策略、运行报告和可选回滚。
 - `GFFlowGraph` / `GFFlowNode` / `GFFlowPort` / `GFFlowRunner` / `GFFlowGraphEditorModel`：资源化通用流程图执行基础、端口描述、连接表、图结构校验和编辑器视图模型。
 - `GFActionQueueSystem` / `GFTweenActionConfig`：表现动作队列、配置化 Tween 步骤和可复用表现动作资源。
+- `GFShakePreset` / `GFShakeUtility` / `GFShakeAction`：通用反馈采样、命名 channel 播放和动作队列入口。
 - `GFActionQueueSystem` 命名队列：可为战斗、对白、教程等不同表现流创建独立队列，并支持绑定节点生命周期。
 - `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
 - `GFStateMachine` / `GFState`：纯代码分层状态机，支持父子状态路径、最近公共祖先切换、进入/退出守卫、事件上抛、黑板和调试快照。
 - `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState`：面向场景树的可选状态机扩展，支持配置资源、状态历史、栈式子状态、守卫、黑板、状态事件分发、快照与节点宿主访问。
 - `GFConsoleUtility` / `GFConsoleCommandDefinition` / `GFLogUtility`：运行时开发者控制台与集中式日志，支持资源化命令定义、命令注册、日志接入、标签过滤、输出行数上限和内存日志环形缓存。
-- `GFCombatSystem`：轻量战斗扩展。
+- `GFCombatSystem` / `GFHitBox2D` / `GFHurtBox2D`：轻量战斗扩展与通用命中上下文桥接。
 - `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载、启停、索引查询和诊断可复用能力。
 - `GFCapabilityContainer`：场景树能力容器，支持把子节点注册为父节点能力。
 - `GFNodeCapability`：可直接作为场景节点使用的能力基类，适合碰撞、输入、动画和子节点引用。
@@ -192,10 +194,10 @@ Gf.send_command(command)
 - `GFInteractions`：交互上下文与链式交互流程创建入口。
 - `GFTurnFlowSystem`：通用回合阶段与行动解析流程系统。
 - `GFNetworkUtility` / `GFNetworkBackend` / `GFENetNetworkBackend`：可插拔网络后端、可选 ENet 传输、通用消息载体、消息序列化、会话/通道描述、消息校验、限流基础和调试快照。
-- `GFBuildInfo` / `GFBuildInfoUtility`：构建信息快照和可选 Git 元数据写入辅助，用于诊断、日志、存档元数据或项目版本界面。
+- `GFBuildInfo` / `GFBuildInfoUtility` / `GFBuildInfoExportPlugin`：构建信息快照、可选 Git 元数据写入辅助和导出时元数据入口，用于诊断、日志、存档元数据或项目版本界面。
 - `GFDiagnosticsUtility`：运行时构建、架构、事件、性能、日志和可选网络状态快照，以及带等级和认证治理的可注册诊断命令。
 - `GFNotificationUtility`：通用通知队列、去重、时长推进和生命周期信号，不规定具体 UI 表现。
-- `GFInventoryModel` / `GFLevelProgressModel` / `GFAttributeSet` / `GFTraitSet` / `GFEquipmentSet`：库存、关卡进度、数值属性、特征和槽位的通用数据模型。
+- `GFInventoryModel` / `GFSlotInventoryModel` / `GFInventoryItemRegistry` / `GFLevelProgressModel` / `GFAttributeSet` / `GFTraitSet` / `GFEquipmentSet`：计数库存、槽位库存、关卡进度、数值属性、特征和槽位的通用数据模型。
 - `GFGravityField3D` / `GFGravityProbe3D`：通用 3D 加速度场和采样器，可用于局部重力、风场、磁场或自定义空间力场。
 - `GFThumbnailRenderer`：可复用的编辑器 3D/Mesh/MeshLibrary 缩略图渲染辅助节点。
 - `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `工具 > GF > 生成强类型访问器` 和 `生成项目常量访问器` 菜单生成 `GFAccess` / `GFProjectAccess`。

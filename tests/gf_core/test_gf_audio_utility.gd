@@ -42,9 +42,9 @@ class RecordingAudioUtility:
 	func _init(asset_util: GFAssetUtility) -> void:
 		super(asset_util)
 
-	func _play_sfx_stream(stream: AudioStream) -> void:
+	func _play_sfx_stream(stream: AudioStream) -> AudioStreamPlayer:
 		sfx_play_count += 1
-		super._play_sfx_stream(stream)
+		return super._play_sfx_stream(stream)
 
 
 func before_each() -> void:
@@ -142,6 +142,43 @@ func test_play_sfx_and_pool() -> void:
 	assert_eq(_pool.get_available_count(_audio._sfx_scene), 1, "SFX 播放器响应 finished 后应该回收到池中。")
 
 
+func test_sfx_handle_can_stop_and_release_player() -> void:
+	var clip := GFAudioClip.new()
+	clip.stream = AudioStreamGenerator.new()
+	clip.bus_name = "Master"
+
+	var handle := _audio.play_sfx_clip_handle(clip)
+
+	assert_not_null(handle, "SFX 句柄应被创建。")
+	assert_true(handle.is_valid(), "播放后句柄应绑定播放器。")
+	assert_eq(_audio._active_sfx_players.size(), 1, "播放后应有一个活跃 SFX 播放器。")
+
+	handle.stop()
+
+	assert_false(handle.is_valid(), "停止后句柄应释放播放器引用。")
+	assert_eq(_audio._active_sfx_players.size(), 0, "停止句柄应从活跃 SFX 列表移除播放器。")
+	assert_eq(_pool.get_available_count(_audio._sfx_scene), 1, "停止句柄应把播放器归还对象池。")
+
+
+func test_sfx_handle_can_bind_to_owner_exit() -> void:
+	var owner_node := Node.new()
+	add_child(owner_node)
+	var clip := GFAudioClip.new()
+	clip.stream = AudioStreamGenerator.new()
+	clip.bus_name = "Master"
+
+	var handle := _audio.play_sfx_clip_handle(clip)
+	handle.bind_to_owner(owner_node)
+
+	assert_true(handle.is_valid(), "绑定 owner 前应已经持有播放器。")
+	owner_node.queue_free()
+	await get_tree().process_frame
+
+	assert_false(handle.is_valid(), "owner 退出树时句柄应自动停止并释放播放器。")
+	assert_eq(_audio._active_sfx_players.size(), 0, "owner 自动停止后不应残留活跃 SFX。")
+	assert_eq(_pool.get_available_count(_audio._sfx_scene), 1, "owner 自动停止后应归还对象池。")
+
+
 func test_play_sfx_from_bank_applies_clip_settings() -> void:
 	var stream := AudioStreamGenerator.new()
 	var clip := GFAudioClip.new()
@@ -208,6 +245,23 @@ func test_registered_audio_bank_event_uses_clip_settings() -> void:
 	assert_almost_eq(player.pitch_scale, 1.0, 0.001, "事件式 SFX 应应用片段音高随机范围。")
 
 
+func test_audio_bank_mounter_restores_previous_bank() -> void:
+	var previous_bank := GFAudioBank.new()
+	var mounted_bank := GFAudioBank.new()
+	_audio.register_audio_bank(&"scene", previous_bank)
+
+	var mounter := GFAudioBankMounter.new()
+	mounter.bank_id = &"scene"
+	mounter.bank = mounted_bank
+	mounter.set_audio_utility(_audio)
+
+	assert_true(mounter.mount(), "挂载器应能注册音频集合。")
+	assert_same(_audio.get_audio_bank(&"scene"), mounted_bank, "挂载后应使用新音频集合。")
+	assert_true(mounter.unmount(), "卸载应成功。")
+	assert_same(_audio.get_audio_bank(&"scene"), previous_bank, "卸载后应恢复旧音频集合。")
+	mounter.free()
+
+
 func test_play_sfx_clip_2d_creates_spatial_player() -> void:
 	var source := Node2D.new()
 	add_child_autofree(source)
@@ -223,6 +277,23 @@ func test_play_sfx_clip_2d_creates_spatial_player() -> void:
 	assert_eq(player.bus, "Master", "2D 空间 SFX 应应用总线配置。")
 	if is_instance_valid(player):
 		player.queue_free()
+
+
+func test_play_sfx_clip_2d_can_follow_source() -> void:
+	var source := Node2D.new()
+	source.global_position = Vector2(10.0, 20.0)
+	add_child_autofree(source)
+	var clip := GFAudioClip.new()
+	clip.stream = AudioStreamGenerator.new()
+	clip.bus_name = "Master"
+
+	var player := _audio.play_sfx_clip_2d(clip, source, true)
+
+	assert_not_null(player, "跟随模式下仍应创建 2D 空间 SFX 播放器。")
+	assert_same(player.get_parent(), source, "跟随模式下播放器应挂到声源节点下。")
+	assert_eq(player.position, Vector2.ZERO, "跟随模式下播放器应使用本地零偏移。")
+	source.global_position = Vector2(32.0, 48.0)
+	assert_eq(player.global_position, source.global_position, "声源移动后播放器应跟随全局位置。")
 
 
 func test_play_ambient_clip_uses_channel_player() -> void:

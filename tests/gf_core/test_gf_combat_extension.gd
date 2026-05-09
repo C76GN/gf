@@ -32,6 +32,24 @@ class UnregisterOtherBuff extends GFBuff:
 			system.unregister_entity(target)
 
 
+class RecordingHurtBox2D extends GFHurtBox2D:
+	var received_context: GFCombatHitContext = null
+	var validate_count: int = 0
+
+	func _init() -> void:
+		validation_callback = Callable(self, "_validate_hit")
+
+	func _validate_hit(context: GFCombatHitContext, _report: Dictionary) -> Dictionary:
+		received_context = context
+		validate_count += 1
+		return {
+			"ok": true,
+			"metadata": {
+				"validated": true,
+			},
+		}
+
+
 # --- 测试方法 ---
 
 ## 测试 GFAttribute 的修饰器计算。
@@ -520,3 +538,54 @@ func test_combat_events_use_injected_scoped_architecture() -> void:
 	child_arch.dispose()
 	parent_arch.dispose()
 	Gf._architecture = null
+
+
+func test_hit_box_2d_sends_generic_hit_context() -> void:
+	var hit_box := GFHitBox2D.new()
+	var hurt_box := RecordingHurtBox2D.new()
+	add_child_autofree(hit_box)
+	add_child_autofree(hurt_box)
+	hit_box.hit_id = &"impact"
+	hit_box.payload = { "value": 3 }
+	hit_box.magnitude = 2.5
+	hit_box.tags = [&"melee"]
+	hurt_box.accepted_hit_ids = [&"impact"]
+
+	var report := hit_box.send_to(hurt_box)
+
+	assert_true(bool(report["ok"]), "有效 HurtBox 应接受命中。")
+	assert_same(hurt_box.received_context.source, hit_box, "默认 source 应为 HitBox 自身。")
+	assert_same(hurt_box.received_context.target, hurt_box, "上下文 target 应指向接收器。")
+	assert_eq(hurt_box.received_context.hit_id, &"impact", "hit_id 应写入上下文。")
+	assert_eq((hurt_box.received_context.payload as Dictionary)["value"], 3, "payload 应写入上下文。")
+	assert_almost_eq(hurt_box.received_context.magnitude, 2.5, 0.001, "通用强度应写入上下文。")
+	assert_eq(hurt_box.received_context.tags, [&"melee"], "标签应写入上下文。")
+	assert_true(bool((report["metadata"] as Dictionary)["validated"]), "接收器校验结果应合并 metadata。")
+
+
+func test_hurt_box_filters_hit_ids() -> void:
+	var hurt_box := GFHurtBox2D.new()
+	add_child_autofree(hurt_box)
+	hurt_box.accepted_hit_ids = [&"allowed"]
+
+	var rejected := hurt_box.receive_hit(GFCombatHitContext.new(null, null, null, &"blocked"))
+	var accepted := hurt_box.receive_hit(GFCombatHitContext.new(null, null, null, &"allowed"))
+
+	assert_false(bool(rejected["ok"]), "不在 accepted_hit_ids 内的命中应被拒绝。")
+	assert_eq(rejected["reason"], "unaccepted_id")
+	assert_true(bool(accepted["ok"]), "允许的命中 ID 应通过基础过滤。")
+
+
+func test_hit_box_3d_builds_position_context() -> void:
+	var hit_box := GFHitBox3D.new()
+	var hurt_box := GFHurtBox3D.new()
+	add_child_autofree(hit_box)
+	add_child_autofree(hurt_box)
+	hit_box.global_position = Vector3(1.0, 2.0, 3.0)
+	hit_box.hit_id = &"scan"
+
+	var context := hit_box.build_hit_context(hurt_box)
+	var report := hurt_box.receive_hit(context)
+
+	assert_true(bool(report["ok"]), "3D HurtBox 应接收通用命中。")
+	assert_eq(context.position_3d, Vector3(1.0, 2.0, 3.0), "3D 命中上下文应记录发送区域位置。")

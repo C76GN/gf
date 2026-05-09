@@ -1,0 +1,172 @@
+## GFInventoryItemRegistry: 通用库存物品定义注册表。
+##
+## 统一提供物品堆叠上限、堆叠数量上限和实例数据兼容性规则。
+## 未注册物品可按默认规则处理，便于项目渐进接入资源化定义。
+class_name GFInventoryItemRegistry
+extends Resource
+
+
+# --- 导出变量 ---
+
+## 物品定义表。Key 推荐为 StringName，Value 应为 GFInventoryItemDefinition。
+@export var definitions: Dictionary = {}
+
+## 未注册物品的默认单堆叠容量。
+@export var default_max_stack_amount: int:
+	get:
+		return _default_max_stack_amount
+	set(value):
+		_default_max_stack_amount = maxi(value, 1)
+
+## 未注册物品的默认堆叠数量上限。小于等于 0 表示不限制。
+@export var default_max_stack_count: int:
+	get:
+		return _default_max_stack_count
+	set(value):
+		_default_max_stack_count = maxi(value, 0)
+
+## 是否允许未注册物品进入库存。
+@export var allow_unregistered_items: bool = true
+
+
+# --- 私有变量 ---
+
+var _default_max_stack_amount: int = 99
+var _default_max_stack_count: int = 0
+
+
+# --- 公共方法 ---
+
+## 添加或替换物品定义。
+## @param definition: 物品定义。
+func set_definition(definition: GFInventoryItemDefinition) -> void:
+	if definition == null or definition.item_id == &"":
+		return
+	definitions[definition.item_id] = definition
+
+
+## 移除物品定义。
+## @param item_id: 物品标识。
+func remove_definition(item_id: StringName) -> void:
+	definitions.erase(item_id)
+
+
+## 清空所有物品定义。
+func clear() -> void:
+	definitions.clear()
+
+
+## 检查物品定义是否存在。
+## @param item_id: 物品标识。
+## @return 存在返回 true。
+func has_definition(item_id: StringName) -> bool:
+	return definitions.has(item_id) or definitions.has(String(item_id))
+
+
+## 获取物品定义。
+## @param item_id: 物品标识。
+## @return 物品定义；不存在时返回 null。
+func get_definition(item_id: StringName) -> GFInventoryItemDefinition:
+	var definition := definitions.get(item_id) as GFInventoryItemDefinition
+	if definition != null:
+		return definition
+	return definitions.get(String(item_id)) as GFInventoryItemDefinition
+
+
+## 检查物品是否可被库存接受。
+## @param item_id: 物品标识。
+## @return 可接受返回 true。
+func accepts_item(item_id: StringName) -> bool:
+	if item_id == &"":
+		return false
+	return allow_unregistered_items or has_definition(item_id)
+
+
+## 获取单堆叠容量。
+## @param item_id: 物品标识。
+## @return 单堆叠容量。
+func get_max_stack_amount(item_id: StringName) -> int:
+	var definition := get_definition(item_id)
+	if definition == null:
+		return default_max_stack_amount
+	return definition.max_stack_amount
+
+
+## 获取堆叠数量上限。
+## @param item_id: 物品标识。
+## @return 堆叠数量上限；小于等于 0 表示不限制。
+func get_max_stack_count(item_id: StringName) -> int:
+	var definition := get_definition(item_id)
+	if definition == null:
+		return default_max_stack_count
+	return definition.max_stack_count
+
+
+## 规范化物品实例数据。
+## @param item_id: 物品标识。
+## @param instance_data: 实例数据。
+## @return 规范化后的实例数据副本。
+func normalize_instance_data(item_id: StringName, instance_data: Dictionary = {}) -> Dictionary:
+	var definition := get_definition(item_id)
+	if definition == null:
+		return instance_data.duplicate(true)
+	return definition.normalize_instance_data(instance_data)
+
+
+## 判断两份实例数据是否可合并堆叠。
+## @param item_id: 物品标识。
+## @param left: 左侧实例数据。
+## @param right: 右侧实例数据。
+## @return 可合并返回 true。
+func are_instance_data_compatible(
+	item_id: StringName,
+	left: Dictionary = {},
+	right: Dictionary = {}
+) -> bool:
+	var definition := get_definition(item_id)
+	if definition == null:
+		return left == right
+	return definition.are_instance_data_compatible(left, right)
+
+
+## 转换为字典。
+## @return 可序列化字典。
+func to_dict() -> Dictionary:
+	var definition_data: Dictionary = {}
+	for item_id_variant: Variant in definitions.keys():
+		var definition := definitions[item_id_variant] as GFInventoryItemDefinition
+		if definition != null:
+			definition_data[String(item_id_variant)] = definition.to_dict()
+	return {
+		"definitions": definition_data,
+		"default_max_stack_amount": default_max_stack_amount,
+		"default_max_stack_count": default_max_stack_count,
+		"allow_unregistered_items": allow_unregistered_items,
+	}
+
+
+## 应用字典数据。
+## @param data: 字典数据。
+func apply_dict(data: Dictionary) -> void:
+	definitions.clear()
+	var raw_definitions := data.get("definitions", {}) as Dictionary
+	if raw_definitions != null:
+		for key: Variant in raw_definitions.keys():
+			var definition_data := raw_definitions[key] as Dictionary
+			if definition_data != null:
+				var definition := GFInventoryItemDefinition.from_dict(definition_data)
+				if definition.item_id == &"":
+					definition.item_id = StringName(String(key))
+				set_definition(definition)
+	default_max_stack_amount = int(data.get("default_max_stack_amount", default_max_stack_amount))
+	default_max_stack_count = int(data.get("default_max_stack_count", default_max_stack_count))
+	allow_unregistered_items = bool(data.get("allow_unregistered_items", allow_unregistered_items))
+
+
+## 从字典创建注册表。
+## @param data: 字典数据。
+## @return 物品定义注册表。
+static func from_dict(data: Dictionary) -> GFInventoryItemRegistry:
+	var registry := GFInventoryItemRegistry.new()
+	registry.apply_dict(data)
+	return registry

@@ -43,6 +43,7 @@ const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/editor/gf_access_g
 const CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_capability_inspector_plugin.gd"
 const NODE_STATE_MACHINE_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_node_state_machine_inspector_plugin.gd"
 const FLOW_GRAPH_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_flow_graph_inspector_plugin.gd"
+const BUILD_INFO_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_build_info_export_plugin.gd"
 const SAVE_GRAPH_UTILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_graph_utility.gd"
 const SAVE_SCOPE_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_scope.gd"
 const SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/utilities/gf_storage_codec.gd"
@@ -51,6 +52,10 @@ const SAVE_VIEWER_FORMAT_BINARY: int = 1
 const SAVE_VIEWER_LABEL_WIDTH: float = 72.0
 const SAVE_VIEWER_OUTPUT_MIN_HEIGHT: float = 40.0
 const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
+const BUILD_INFO_EXPORT_ENABLED_SETTING: String = "gf/build/export/write_git_metadata"
+const BUILD_INFO_EXPORT_RESTORE_SETTING: String = "gf/build/export/restore_previous_settings"
+const BUILD_INFO_EXPORT_SAVE_SETTING: String = "gf/build/export/save_project_settings"
+const BUILD_INFO_EXPORT_METADATA_SETTING: String = "gf/build/export/metadata"
 
 
 # --- 私有变量 ---
@@ -60,6 +65,7 @@ var _current_template_type: String = ""
 var _capability_inspector_plugin: EditorInspectorPlugin
 var _node_state_machine_inspector_plugin: EditorInspectorPlugin
 var _flow_graph_inspector_plugin: EditorInspectorPlugin
+var _build_info_export_plugin: EditorExportPlugin
 var _save_viewer_dock: Control
 var _save_viewer_bottom_button: Button
 var _save_viewer_path_edit: LineEdit
@@ -84,7 +90,9 @@ func _enter_tree() -> void:
 	_ensure_autoload()
 	_ensure_installers_setting()
 	_ensure_codegen_settings()
+	_ensure_build_info_export_settings()
 	_setup_inspector_tools()
+	_setup_build_info_export_plugin()
 	call_deferred("_setup_save_viewer_dock")
 	_setup_generator_tools()
 
@@ -94,6 +102,7 @@ func _exit_tree() -> void:
 	_remove_autoload()
 	_cleanup_diagnostic_dialog()
 	_cleanup_save_viewer_dock()
+	_cleanup_build_info_export_plugin()
 	_cleanup_inspector_tools()
 	_cleanup_generator_tools()
 
@@ -198,6 +207,53 @@ func _ensure_codegen_settings() -> void:
 		ProjectSettings.save()
 
 
+func _ensure_build_info_export_settings() -> void:
+	var should_save: bool = false
+
+	if not ProjectSettings.has_setting(BUILD_INFO_EXPORT_ENABLED_SETTING):
+		ProjectSettings.set_setting(BUILD_INFO_EXPORT_ENABLED_SETTING, false)
+		ProjectSettings.set_initial_value(BUILD_INFO_EXPORT_ENABLED_SETTING, false)
+		should_save = true
+
+	if not ProjectSettings.has_setting(BUILD_INFO_EXPORT_RESTORE_SETTING):
+		ProjectSettings.set_setting(BUILD_INFO_EXPORT_RESTORE_SETTING, true)
+		ProjectSettings.set_initial_value(BUILD_INFO_EXPORT_RESTORE_SETTING, true)
+		should_save = true
+
+	if not ProjectSettings.has_setting(BUILD_INFO_EXPORT_SAVE_SETTING):
+		ProjectSettings.set_setting(BUILD_INFO_EXPORT_SAVE_SETTING, false)
+		ProjectSettings.set_initial_value(BUILD_INFO_EXPORT_SAVE_SETTING, false)
+		should_save = true
+
+	if not ProjectSettings.has_setting(BUILD_INFO_EXPORT_METADATA_SETTING):
+		ProjectSettings.set_setting(BUILD_INFO_EXPORT_METADATA_SETTING, {})
+		ProjectSettings.set_initial_value(BUILD_INFO_EXPORT_METADATA_SETTING, {})
+		should_save = true
+
+	ProjectSettings.add_property_info({
+		"name": BUILD_INFO_EXPORT_ENABLED_SETTING,
+		"type": TYPE_BOOL,
+	})
+	ProjectSettings.set_as_basic(BUILD_INFO_EXPORT_ENABLED_SETTING, true)
+	ProjectSettings.add_property_info({
+		"name": BUILD_INFO_EXPORT_RESTORE_SETTING,
+		"type": TYPE_BOOL,
+	})
+	ProjectSettings.set_as_basic(BUILD_INFO_EXPORT_RESTORE_SETTING, true)
+	ProjectSettings.add_property_info({
+		"name": BUILD_INFO_EXPORT_SAVE_SETTING,
+		"type": TYPE_BOOL,
+	})
+	ProjectSettings.set_as_basic(BUILD_INFO_EXPORT_SAVE_SETTING, true)
+	ProjectSettings.add_property_info({
+		"name": BUILD_INFO_EXPORT_METADATA_SETTING,
+		"type": TYPE_DICTIONARY,
+	})
+
+	if should_save:
+		ProjectSettings.save()
+
+
 func _setup_generator_tools() -> void:
 	_gf_menu = PopupMenu.new()
 	_gf_menu.id_pressed.connect(_on_gf_menu_id_pressed)
@@ -237,6 +293,20 @@ func _setup_inspector_tools() -> void:
 		add_inspector_plugin(_flow_graph_inspector_plugin)
 
 
+func _setup_build_info_export_plugin() -> void:
+	var export_script := load(BUILD_INFO_EXPORT_PLUGIN_SCRIPT_PATH) as Script
+	if export_script == null or not export_script.can_instantiate():
+		push_error("[GF Framework] 构建信息导出插件脚本加载失败。")
+		return
+
+	_build_info_export_plugin = export_script.new() as EditorExportPlugin
+	if _build_info_export_plugin == null:
+		push_error("[GF Framework] 构建信息导出插件实例化失败。")
+		return
+
+	add_export_plugin(_build_info_export_plugin)
+
+
 func _setup_save_viewer_dock() -> void:
 	if not _plugin_active or is_instance_valid(_save_viewer_dock):
 		return
@@ -269,6 +339,12 @@ func _cleanup_inspector_tools() -> void:
 	if _flow_graph_inspector_plugin != null:
 		remove_inspector_plugin(_flow_graph_inspector_plugin)
 		_flow_graph_inspector_plugin = null
+
+
+func _cleanup_build_info_export_plugin() -> void:
+	if _build_info_export_plugin != null:
+		remove_export_plugin(_build_info_export_plugin)
+		_build_info_export_plugin = null
 
 
 func _cleanup_save_viewer_dock() -> void:

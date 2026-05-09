@@ -186,6 +186,7 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 			"node_count": 0,
 			"signal_count": 0,
 			"connection_count": 0,
+			"nodes": [],
 			"signals": [],
 			"connections": [],
 			"message": "root 为空。",
@@ -197,9 +198,11 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 	var nodes: Array[Node] = []
 	_collect_signal_graph_nodes(root, nodes, include_internal)
 
+	var node_entries: Array[Dictionary] = []
 	var signal_entries: Array[Dictionary] = []
 	var connection_entries: Array[Dictionary] = []
 	for node: Node in nodes:
+		node_entries.append(_make_runtime_node_entry(root, node))
 		for signal_info: Dictionary in node.get_signal_list():
 			var signal_name := StringName(signal_info.get("name", ""))
 			if signal_name == &"":
@@ -229,8 +232,56 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 		"node_count": nodes.size(),
 		"signal_count": signal_entries.size(),
 		"connection_count": connection_entries.size(),
+		"nodes": node_entries,
 		"signals": signal_entries,
 		"connections": connection_entries,
+	}
+
+
+## 为信号图报告构建按节点分组的索引。
+## @param graph: build_signal_graph() 返回的报告。
+## @return 节点索引，包含 incoming/outgoing/signals。
+static func index_signal_graph(graph: Dictionary) -> Dictionary:
+	var nodes_by_path: Dictionary = {}
+	var outgoing: Dictionary = {}
+	var incoming: Dictionary = {}
+	var signals_by_node: Dictionary = {}
+
+	for node_variant: Variant in graph.get("nodes", []):
+		var node_entry := node_variant as Dictionary
+		if node_entry == null:
+			continue
+		var node_path := String(node_entry.get("node_path", ""))
+		nodes_by_path[node_path] = node_entry.duplicate(true)
+		outgoing[node_path] = []
+		incoming[node_path] = []
+		signals_by_node[node_path] = []
+
+	for signal_variant: Variant in graph.get("signals", []):
+		var signal_entry := signal_variant as Dictionary
+		if signal_entry == null:
+			continue
+		var node_path := String(signal_entry.get("node_path", ""))
+		if not signals_by_node.has(node_path):
+			signals_by_node[node_path] = []
+		(signals_by_node[node_path] as Array).append(signal_entry.duplicate(true))
+
+	for connection_variant: Variant in graph.get("connections", []):
+		var connection := connection_variant as Dictionary
+		if connection == null:
+			continue
+		var source_path := String(connection.get("source_node_path", ""))
+		var target_path := String(connection.get("target_node_path", ""))
+		_append_signal_graph_index_entry(outgoing, source_path, connection)
+		_append_signal_graph_index_entry(incoming, target_path, connection)
+
+	return {
+		"node_count": nodes_by_path.size(),
+		"connection_count": int(graph.get("connection_count", 0)),
+		"nodes": nodes_by_path,
+		"outgoing": outgoing,
+		"incoming": incoming,
+		"signals": signals_by_node,
 	}
 
 
@@ -240,6 +291,7 @@ static func _collect_signal_graph_nodes(root: Node, result: Array[Node], include
 	result.append(root)
 	for child: Node in root.get_children(include_internal):
 		_collect_signal_graph_nodes(child, result, include_internal)
+
 
 static func _collect_scene_paths_recursive(
 	root_path: String,
@@ -304,6 +356,18 @@ static func _make_runtime_connection_entry(
 		"method_name": String(callback.get_method()) if callback.is_valid() else "",
 		"flags": int(connection_info.get("flags", 0)),
 		"is_persistent": (int(connection_info.get("flags", 0)) & CONNECT_PERSIST) != 0,
+	}
+
+
+static func _make_runtime_node_entry(root: Node, node: Node) -> Dictionary:
+	var script := node.get_script() as Script
+	return {
+		"node_path": _relative_node_path(root, node),
+		"name": node.name,
+		"type": node.get_class(),
+		"script_path": script.resource_path if script != null else "",
+		"child_count": node.get_child_count(),
+		"signal_count": node.get_signal_list().size(),
 	}
 
 
@@ -377,6 +441,12 @@ static func _get_method_info(target_node: Node, method_name: StringName) -> Dict
 		if StringName(method_info.get("name", "")) == method_name:
 			return method_info
 	return {}
+
+
+static func _append_signal_graph_index_entry(index: Dictionary, node_path: String, connection: Dictionary) -> void:
+	if not index.has(node_path):
+		index[node_path] = []
+	(index[node_path] as Array).append(connection.duplicate(true))
 
 
 static func _make_scene_issue(issue_type: IssueType, scene_path: String, message: String) -> Dictionary:
