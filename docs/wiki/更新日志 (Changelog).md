@@ -22,6 +22,30 @@
 
 ---
 
+## [2.4.1] - 2026-05-10
+
+**版本概述**：修复构建信息导出插件在 Godot 4.6 导出流程中的名称虚方法兼容问题，并收敛编辑器脚本模板 section 命名。
+
+### 🔄 机制更改 (Changed)
+- GF 编辑器脚本模板改用 `GF 生命周期方法` 和 `私有/辅助方法` section，并新增布局测试覆盖模板 section 命名，避免生成代码与规范脱节。
+
+### 🐛 Bug 修复 (Fixed)
+- `GFBuildInfoExportPlugin` 现在实现 `EditorExportPlugin._get_name()` 并返回稳定插件名，避免启用 GF 编辑器插件后导出项目时报 `Required virtual method EditorExportPlugin::_get_name must be overridden before calling.`。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。Godot 4.6 导出流程可直接使用 GF 内置构建信息导出插件，不再需要项目侧保留临时补丁。
+- 如需让新建 GF 模板脚本使用更新后的 section 名称，可重新通过 GF 编辑器菜单生成；已有业务脚本不需要强制迁移。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/plugin.gd`
+- `addons/gf/editor/gf_build_info_export_plugin.gd`
+- `tests/gf_core/test_gf_build_info.gd`
+- `tests/gf_core/test_gdscript_layout_validation.gd`
+- `addons/gf/plugin.cfg`
+- `ASSET_LIBRARY.md`
+
+---
+
 ## [2.4.0] - 2026-05-10
 
 **版本概述**：修复资源化输入一次性状态在真实 GF tick 顺序中过早清理的问题，加固 headless 场景切换加载路径，并补齐状态机命令/查询上下文代理。

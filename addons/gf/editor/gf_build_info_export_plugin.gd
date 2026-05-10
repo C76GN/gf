@@ -33,7 +33,11 @@ var _had_previous_setting: Dictionary = {}
 var _export_wrote_metadata: bool = false
 
 
-# --- 私有/辅助方法 ---
+# --- Godot 生命周期方法 ---
+
+func _get_name() -> String:
+	return "GFBuildInfoExportPlugin"
+
 
 func _export_begin(
 	_features: PackedStringArray,
@@ -67,6 +71,8 @@ func _export_end() -> void:
 	_had_previous_setting.clear()
 	_export_wrote_metadata = false
 
+
+# --- 私有/辅助方法 ---
 
 func _capture_previous_settings() -> void:
 	_previous_settings.clear()

@@ -46,8 +46,11 @@ const GODOT_CALLBACK_NAMES: Dictionary = {
 	"_can_handle": true,
 	"_draw": true,
 	"_enter_tree": true,
+	"_export_begin": true,
+	"_export_end": true,
 	"_exit_tree": true,
 	"_get": true,
+	"_get_name": true,
 	"_get_property_list": true,
 	"_gui_input": true,
 	"_init": true,
@@ -151,6 +154,21 @@ func test_top_level_sections_follow_documented_order() -> void:
 		issues.append_array(_collect_section_order_issues(path))
 
 	assert_eq(issues, [], "顶层 section 应遵循 CODING_STYLE.md 的布局顺序：\n%s" % _join_lines(issues))
+
+
+func test_editor_generation_templates_use_documented_sections() -> void:
+	var file := FileAccess.open("res://addons/gf/plugin.gd", FileAccess.READ)
+	assert_not_null(file, "应能读取 GF 编辑器插件源码。")
+	if file == null:
+		return
+
+	var source := file.get_as_text()
+	file.close()
+
+	assert_false(source.contains("# --- 私有辅助方法 ---"), "编辑器代码生成模板应使用规范 section 名称。")
+	assert_false(source.contains("var lifecycle_template := \"\"\"# --- Godot 生命周期方法 ---"), "GF 模块模板不应把 GF 生命周期误写成 Godot 生命周期。")
+	assert_true(source.contains("# --- 私有/辅助方法 ---"), "编辑器代码生成模板应包含私有/辅助方法 section。")
+	assert_true(source.contains("var lifecycle_template := \"\"\"# --- GF 生命周期方法 ---"), "编辑器代码生成模板应包含 GF 生命周期 section。")
 
 
 # --- 私有/辅助方法 ---

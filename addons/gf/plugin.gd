@@ -801,7 +801,7 @@ extends {BaseClass}
 
 """
 	
-	var lifecycle_template := """# --- Godot 生命周期方法 ---
+	var lifecycle_template := """# --- GF 生命周期方法 ---
 
 func init() -> void:
 	pass
@@ -839,7 +839,7 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 
-# --- 私有辅助方法 ---
+# --- 私有/辅助方法 ---
 
 
 # --- 信号处理函数 ---
@@ -859,7 +859,7 @@ func execute() -> Variant:
 	return null
 
 
-# --- 私有辅助方法 ---
+# --- 私有/辅助方法 ---
 
 """
 	elif (
@@ -907,7 +907,7 @@ func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
 	pass
 
 
-# --- 私有辅助方法 ---
+# --- 私有/辅助方法 ---
 
 
 # --- 信号处理函数 ---
@@ -948,7 +948,7 @@ func _resume(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
 
 
-# --- 私有辅助方法 ---
+# --- 私有/辅助方法 ---
 
 
 # --- 信号处理函数 ---
@@ -973,7 +973,7 @@ func _ready() -> void:
 # --- 公共方法 ---
 
 
-# --- 私有辅助方法 ---
+# --- 私有/辅助方法 ---
 
 
 # --- 信号处理函数 ---

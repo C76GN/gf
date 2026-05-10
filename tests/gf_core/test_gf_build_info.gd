@@ -53,3 +53,14 @@ func test_build_info_utility_returns_copy_and_debug_snapshot() -> void:
 	assert_eq(utility.get_build_info(false).project_name, "GF Test", "默认返回副本，不应允许调用方改内部状态。")
 	assert_true(bool(snapshot["available"]), "调试快照应报告构建信息可用。")
 	assert_true(String(snapshot["summary"]).contains("GF Test"), "摘要应包含项目名。")
+
+
+func test_build_info_export_plugin_reports_stable_name() -> void:
+	var export_script := load("res://addons/gf/editor/gf_build_info_export_plugin.gd") as Script
+	var has_get_name := false
+	for method: Dictionary in export_script.get_script_method_list():
+		if String(method.get("name", "")) == "_get_name":
+			has_get_name = true
+			break
+
+	assert_true(has_get_name, "EditorExportPlugin 必须提供 _get_name()，避免导出流程报错。")
