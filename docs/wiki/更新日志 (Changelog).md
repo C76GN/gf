@@ -18,7 +18,39 @@
 
 ## 维护策略
 
-本页面只保留最近三个版本线的更新记录，当前保留 `2.1.x`、`2.0.x` 与 `1.34.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个版本线的更新记录，当前保留 `2.2.x`、`2.1.x` 与 `2.0.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [2.2.0] - 2026-05-10
+
+**版本概述**：补齐两个通用运行时辅助能力，分别覆盖安全富文本格式化和状态快照级回滚，保持框架抽象边界，不引入项目业务流程。
+
+### 🚀 新增特性 (Added)
+- 新增 `GFRichTextFormatter`，提供 BBCode 安全转义、Markdown 常见子集转 BBCode、变量占位符替换和可配置 token 替换，适合把外部文本、本地化参数或项目生成图标片段安全写入 `RichTextLabel`。
+- 新增 `GFSnapshotHistoryUtility`，提供通用快照栈、按 ID/索引恢复、前后跳转、历史上限裁剪、调试快照和默认架构全局快照捕获/恢复；也支持通过自定义回调接入任意项目状态。
+
+### 🐛 Bug 修复 (Fixed)
+- 修复新增富文本测试中的局部参数名 shadow `Node.name` 警告，避免 Godot 以 `SHADOWED_VARIABLE_BASE_CLASS` 报告测试脚本。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增公开类 `GFRichTextFormatter`，包含 `to_bbcode()`、`markdown_to_bbcode()`、`replace_variables()`、`replace_tokens()`、`escape_bbcode()` 与 `strip_bbcode()`。
+- 新增公开类 `GFSnapshotHistoryUtility`，包含 `snapshot_recorded`、`snapshot_restored`、`history_changed` 信号，`max_history_size`、`current_index`、`snapshot_count` 属性，以及 `configure()`、`capture()`、`push_snapshot()`、`step_back()`、`step_forward()`、`restore_index()`、`restore_snapshot_id()`、`get_current_snapshot()`、`get_history()`、`clear()` 和 `get_debug_snapshot()`。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。需要安全拼接富文本或做状态快照级回滚时按需引入新增类。
+- `GFSnapshotHistoryUtility` 是状态快照历史，不替代逐命令撤销的 `GFCommandHistoryUtility`，也不替代持久化写盘的 `GFStorageUtility`。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/utilities/gf_rich_text_formatter.gd`
+- `addons/gf/utilities/gf_snapshot_history_utility.gd`
+- `tests/gf_core/test_gf_rich_text_formatter.gd`
+- `tests/gf_core/test_gf_snapshot_history_utility.gd`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `README.md`
+- `addons/gf/README.md`
+- `addons/gf/plugin.cfg`
+- `ASSET_LIBRARY.md`
 
 ---
 
@@ -248,55 +280,3 @@
 - `docs/wiki/09. 最佳实践 (Best Practices).md`
 - `docs/wiki/10. 战斗扩展 (Combat Extension).md`
 - `docs/wiki/12. 能力组件 (Capabilities).md`
-
----
-
-## [1.34.0] - 2026-05-09
-
-**版本概述**：新增一组通用运行时准备、诊断报告、输入图标、网络同步原语和 FlowGraph 编辑器元数据能力，保持 GF 1.x 兼容。
-
-### 🚀 新增特性 (Added)
-- 新增 `GFRenderWarmupManifest` 与 `GFRenderWarmupUtility`，支持按清单或节点树收集渲染资源，并按帧预算预热 Mesh、Material、Texture、Shader 等通用资源。
-- 新增 `GFSupportReportUtility`，支持聚合用户描述、构建信息、诊断快照、日志和项目自定义分区，并导出 JSON、写入文件或交给项目回调提交。
-- 新增 `GFInputIconAtlasProvider`，通过显式路径、纹理映射或路径模板把输入事件解析为项目自有图标资源。
-- 新增 `GFFixedTickClock`、`GFNetworkSnapshot` 与 `GFNetworkHistoryBuffer`，提供固定 tick、状态快照、浅层 delta 和有限历史缓冲原语。
-- 新增 `GFScriptTypeUtility` 与 `GFDecimalStringUtility`，将脚本继承判断和小数字符串规则收敛为可复用 Foundation API。
-
-### 🔄 机制更改 (Changed)
-- `GFFlowPort` 新增编辑器颜色、类型提示、类名提示和语义标签字段，并提供端口兼容性报告。
-- `GFFlowGraph` 新增可选 `validate_port_compatibility` 校验和连接兼容性查询；默认关闭，旧资源行为保持兼容。
-- 编辑器索引、访问器生成、能力系统、资源表过滤和插件诊断改为复用 `GFScriptTypeUtility`；数字格式化、大数和定点数解析改为复用 `GFDecimalStringUtility`。
-- FlowGraph 字典校验报告改为复用 `GFValidationUtility.finalize_report()`，异步 Signal 等待清理改为复用内部支持脚本，返回字段与等待语义保持兼容。
-- `GFRenderWarmupManifest` 与 `GFRenderWarmupUtility` 共用同一套预热条目规范化规则，避免清单描述与队列处理出现分叉。
-- `GFNetworkSnapshot` 差量删除列表保留原始 key 类型，避免非字符串状态键在浅层 delta 中丢失类型。
-
-### 🐛 Bug 修复 (Fixed)
-- 加固输入图标、渲染预热和支持报告中的 Variant 到文本转换，避免非字符串配置值触发 Godot `String` 构造错误。
-
-### 🔌 API 变动说明 (API Changes)
-- 新增 API 均为向后兼容；未移除、重命名或改变现有公开类、信号、导出变量与公共方法签名。
-- `GFRenderWarmupUtility` 与 `GFSupportReportUtility` 是可注册 Utility；网络同步原语为独立 `RefCounted`，不需要注册到架构。
-- `GFRenderWarmupManifest` 新增静态方法 `normalize_entry(entry)`；`GFScriptTypeUtility` 与 `GFDecimalStringUtility` 是 Foundation API，不需要注册到架构。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目无需迁移。需要更严格 FlowGraph 端口检查时，显式开启 `validate_port_compatibility`。
-- 输入图标、支持报告提交和网络同步策略仍由项目层配置；GF 只提供通用抽象和数据结构。
-- 项目层若已有同类脚本继承判断、小数字符串格式化或预热条目清洗辅助，可逐步替换为新的 Foundation / Manifest API。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/utilities/gf_render_warmup_manifest.gd`
-- `addons/gf/utilities/gf_render_warmup_utility.gd`
-- `addons/gf/utilities/gf_support_report_utility.gd`
-- `addons/gf/input/gf_input_icon_atlas_provider.gd`
-- `addons/gf/extensions/network/gf_fixed_tick_clock.gd`
-- `addons/gf/extensions/network/gf_network_snapshot.gd`
-- `addons/gf/extensions/network/gf_network_history_buffer.gd`
-- `addons/gf/extensions/flow/gf_flow_port.gd`
-- `addons/gf/extensions/flow/gf_flow_graph.gd`
-- `addons/gf/foundation/reflection/gf_script_type_utility.gd`
-- `addons/gf/foundation/formatting/gf_decimal_string_utility.gd`
-- `addons/gf/extensions/common/gf_async_wait_support.gd`
-- `tests/gf_core/**`
-- `docs/wiki/11. 基础层 (Foundation Layer).md`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
