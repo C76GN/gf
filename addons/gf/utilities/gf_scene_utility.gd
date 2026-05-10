@@ -101,6 +101,10 @@ enum SceneResourceState {
 # --- 常量 ---
 
 const GFSceneTransitionConfigBase = preload("res://addons/gf/utilities/gf_scene_transition_config.gd")
+const _SCENE_CHANGE_NONE: int = 0
+const _SCENE_CHANGE_LOADING: int = 1
+const _SCENE_CHANGE_TARGET: int = 2
+const _SCENE_CHANGE_RESTORE: int = 3
 
 
 # --- 公共变量 ---
@@ -174,6 +178,11 @@ var _preloaded_scenes: Dictionary = {}
 var _preloaded_scene_access_order: Dictionary = {}
 var _preloaded_scene_access_serial: int = 0
 var _background_scene_params: Dictionary = {}
+var _scene_change_serial: int = 0
+var _pending_scene_change_kind: int = _SCENE_CHANGE_NONE
+var _pending_scene_change_path: String = ""
+var _pending_scene_change_scene: PackedScene = null
+var _pending_scene_change_previous_pause_state: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -185,11 +194,14 @@ func init() -> void:
 ## 推进运行时逻辑。
 ## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func tick(_delta: float) -> void:
+	_process_pending_scene_change()
 	_poll_preload_requests()
 	_poll_active_scene_load()
+	_process_pending_scene_change()
 
 
 func dispose() -> void:
+	_cancel_pending_scene_change()
 	_reset_loading_state()
 	_preload_requests.clear()
 	_background_scene_params.clear()
@@ -828,13 +840,22 @@ func _show_loading_scene_if_needed() -> void:
 		push_warning("[GFSceneUtility] 当前场景缺少 scene_file_path，跳过 loading scene 以避免失败后无法恢复。")
 		return
 
-	var loading_error := _do_change_scene_sync(_loading_scene_path)
+	_queue_scene_change(_SCENE_CHANGE_LOADING, _loading_scene_path)
+
+
+func _apply_loading_scene_change(path: String) -> void:
+	if not _is_loading or _loading_scene_path != path:
+		return
+
+	var loading_error := _do_change_scene_sync(path)
 	if loading_error == OK:
 		_is_showing_loading_scene = true
-		loading_scene_shown.emit(_loading_scene_path)
+		loading_scene_shown.emit(path)
 		_call_loading_scene_optional_method(loading_screen_fade_in_method)
 	else:
-		push_error("[GFSceneUtility] 无法切换到 loading scene：%s (错误码：%d)" % [_loading_scene_path, loading_error])
+		push_error("[GFSceneUtility] 无法切换到 loading scene：%s (错误码：%d)" % [path, loading_error])
+
+	_complete_pending_scene_if_ready()
 
 
 func _emit_scene_load_progress(path: String, progress: float) -> void:
@@ -903,6 +924,8 @@ func _schedule_complete_loading(path: String, scene: PackedScene) -> void:
 func _complete_pending_scene_if_ready() -> bool:
 	if _pending_loaded_scene == null:
 		return false
+	if _pending_scene_change_kind != _SCENE_CHANGE_NONE:
+		return false
 	if not _is_transition_minimum_elapsed():
 		return false
 
@@ -922,6 +945,16 @@ func _is_transition_minimum_elapsed() -> bool:
 
 
 func _complete_loading(path: String, scene: PackedScene) -> void:
+	_queue_scene_change(_SCENE_CHANGE_TARGET, path, scene)
+
+
+func _apply_target_scene_change(path: String, scene: PackedScene) -> void:
+	if not _is_loading or _target_path != path:
+		return
+	if scene == null:
+		_fail_loading(path, "[GFSceneUtility] 切换到目标场景失败：PackedScene 为空。")
+		return
+
 	var previous_path := _previous_scene_path
 	_notify_loading_scene_exit_if_needed()
 	if _do_change_scene(scene):
@@ -982,6 +1015,7 @@ func _get_paused() -> bool:
 
 
 func _fail_loading(path: String, message: String) -> void:
+	_cancel_pending_scene_change()
 	if not message.is_empty():
 		push_error(message)
 
@@ -990,23 +1024,83 @@ func _fail_loading(path: String, message: String) -> void:
 	scene_switch_failed.emit(path, previous_path, message)
 	_call_loading_scene_error_method(message)
 	_notify_loading_scene_exit_if_needed()
-	_restore_previous_scene_if_needed()
-	_is_showing_loading_scene = false
+	if _restore_previous_scene_if_needed():
+		return
 	_set_paused(_previous_pause_state)
 	_reset_loading_state()
 
 
-func _restore_previous_scene_if_needed() -> void:
+func _restore_previous_scene_if_needed() -> bool:
 	if not _is_showing_loading_scene:
-		return
+		return false
 
 	if _previous_scene_path.is_empty():
 		push_warning("[GFSceneUtility] 无法恢复上一场景：缺少 scene_file_path。")
+		return false
+
+	_queue_scene_change(_SCENE_CHANGE_RESTORE, _previous_scene_path, null, _previous_pause_state)
+	return true
+
+
+func _apply_restore_previous_scene(path: String, previous_pause_state: bool) -> void:
+	var error := _do_change_scene_sync(path)
+	if error != OK:
+		push_error("[GFSceneUtility] 恢复上一场景失败：%s (错误码：%d)" % [path, error])
+	_is_showing_loading_scene = false
+	_set_paused(previous_pause_state)
+	_reset_loading_state()
+
+
+func _queue_scene_change(
+	kind: int,
+	path: String = "",
+	scene: PackedScene = null,
+	previous_pause_state: bool = false
+) -> void:
+	_scene_change_serial += 1
+	_pending_scene_change_kind = kind
+	_pending_scene_change_path = path
+	_pending_scene_change_scene = scene
+	_pending_scene_change_previous_pause_state = previous_pause_state
+	call_deferred("_process_pending_scene_change_deferred", _scene_change_serial)
+
+
+func _process_pending_scene_change_deferred(serial: int) -> void:
+	if serial != _scene_change_serial:
+		return
+	_process_pending_scene_change()
+
+
+func _process_pending_scene_change() -> void:
+	if _pending_scene_change_kind == _SCENE_CHANGE_NONE:
 		return
 
-	var error := _do_change_scene_sync(_previous_scene_path)
-	if error != OK:
-		push_error("[GFSceneUtility] 恢复上一场景失败：%s (错误码：%d)" % [_previous_scene_path, error])
+	var kind := _pending_scene_change_kind
+	var path := _pending_scene_change_path
+	var scene := _pending_scene_change_scene
+	var previous_pause_state := _pending_scene_change_previous_pause_state
+	_clear_pending_scene_change(true)
+
+	match kind:
+		_SCENE_CHANGE_LOADING:
+			_apply_loading_scene_change(path)
+		_SCENE_CHANGE_TARGET:
+			_apply_target_scene_change(path, scene)
+		_SCENE_CHANGE_RESTORE:
+			_apply_restore_previous_scene(path, previous_pause_state)
+
+
+func _cancel_pending_scene_change() -> void:
+	_clear_pending_scene_change(true)
+
+
+func _clear_pending_scene_change(update_serial: bool) -> void:
+	if update_serial and _pending_scene_change_kind != _SCENE_CHANGE_NONE:
+		_scene_change_serial += 1
+	_pending_scene_change_kind = _SCENE_CHANGE_NONE
+	_pending_scene_change_path = ""
+	_pending_scene_change_scene = null
+	_pending_scene_change_previous_pause_state = false
 
 
 func _validate_scene_resource_path(path: String, label: String) -> String:

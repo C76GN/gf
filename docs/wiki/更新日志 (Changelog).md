@@ -22,6 +22,23 @@
 
 ---
 
+## [2.1.1] - 2026-05-10
+
+**版本概述**：修复场景切换在 `_ready()` 或初始化完成后立即调用时可能触发的 Godot 场景树时序错误，并明确缓存命中切场的异步完成语义。
+
+### 🐛 Bug 修复 (Fixed)
+- `GFSceneUtility` 的 loading scene 切入、缓存命中目标切换和失败恢复现在统一延迟到安全帧执行，避免在 `_ready()` 或初始化完成后立刻调用 `load_scene_async()` 时触发 Godot 的 `Parent node is busy adding/removing children` 场景树时序错误。
+
+### 🔄 机制更改 (Changed)
+- 命中预加载缓存的 `load_scene_async()` 不再保证在同一调用栈内完成切场；请继续通过 `scene_load_completed` / `scene_switch_completed` 或下一帧后的状态读取确认切换完成。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/utilities/gf_scene_utility.gd`
+- `tests/gf_core/test_gf_scene_utility.gd`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+
+---
+
 ## [2.1.0] - 2026-05-10
 
 **版本概述**：在 2.0.0 基础上继续收敛高收益通用能力，补齐存储后端同步协调、节点状态 Resource 组合钩子、行为树节点集、动作队列易用层和若干纯算法/运行时辅助。

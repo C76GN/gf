@@ -206,9 +206,56 @@ func test_load_scene_async_uses_preloaded_scene() -> void:
 
 	_scene_util.load_scene_async(scene_path)
 
-	assert_eq(_scene_util.packed_scene_changes, 1, "命中预加载缓存时应直接切换 PackedScene。")
+	assert_eq(_scene_util.packed_scene_changes, 0, "命中预加载缓存时也不应在调用栈内同步切场。")
+	assert_true(_scene_util._is_loading, "安全帧切场前应保持 loading 状态。")
+	assert_signal_not_emitted(_scene_util, "scene_load_completed", "安全帧切场前不应提前发出完成信号。")
+
+	_scene_util.tick(0.0)
+
+	assert_eq(_scene_util.packed_scene_changes, 1, "安全帧后应切换 PackedScene。")
 	assert_false(_scene_util._is_loading, "缓存命中完成切场后应重置 loading 状态。")
 	assert_signal_emitted(_scene_util, "scene_load_completed", "缓存命中也应发出加载完成信号。")
+
+
+func test_loading_scene_change_is_deferred_until_safe_tick() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	var loading_scene_path := "res://addons/gut/gui/MinGui.tscn"
+	watch_signals(_scene_util)
+
+	_scene_util.load_scene_async(scene_path, loading_scene_path)
+
+	assert_eq(_scene_util.sync_scene_changes.size(), 0, "loading scene 不应在调用栈内同步切换。")
+	assert_signal_not_emitted(_scene_util, "loading_scene_shown", "安全帧切换前不应发出 loading scene 显示信号。")
+
+	_scene_util.tick(0.0)
+
+	assert_eq(_scene_util.sync_scene_changes, [loading_scene_path], "安全帧后应切到 loading scene。")
+	assert_signal_emitted(_scene_util, "loading_scene_shown", "loading scene 切入后应发出显示信号。")
+
+
+func test_failure_restore_after_loading_scene_is_deferred_until_safe_tick() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	var loading_scene_path := "res://addons/gut/gui/MinGui.tscn"
+
+	_scene_util._begin_loading_state(scene_path, loading_scene_path, true, {}, -1.0)
+	_scene_util._is_showing_loading_scene = true
+	_scene_util.current_scene_path = loading_scene_path
+	_scene_util.sync_scene_changes.append(loading_scene_path)
+
+	_scene_util._fail_loading(scene_path, "[test] failed")
+
+	assert_push_error("[test] failed")
+	assert_eq(_scene_util.sync_scene_changes, [loading_scene_path], "失败恢复不应在失败调用栈内同步切回旧场景。")
+	assert_true(_scene_util._is_loading, "等待恢复切场时应保持 loading 状态，避免新切场插队。")
+
+	_scene_util.tick(0.0)
+
+	assert_eq(
+		_scene_util.sync_scene_changes,
+		[loading_scene_path, "res://tests/current_scene.tscn"],
+		"安全帧后应恢复上一场景。"
+	)
+	assert_false(_scene_util._is_loading, "恢复上一场景后应重置 loading 状态。")
 
 
 func test_background_scene_load_can_activate_cached_scene_with_params() -> void:
@@ -220,6 +267,9 @@ func test_background_scene_load_can_activate_cached_scene_with_params() -> void:
 
 	assert_eq(preload_error, OK, "后台加载应复用已有预加载缓存。")
 	assert_eq(activate_error, OK, "已缓存后台场景应可激活。")
+
+	_scene_util.tick(0.0)
+
 	assert_eq(_scene_util.packed_scene_changes, 1, "激活后台场景应切换 PackedScene。")
 	assert_eq(_scene_util.get_current_scene_params()["spawn"], "door_b", "激活时应应用后台加载记录的参数。")
 	assert_true(_scene_util.get_background_scene_params(scene_path).is_empty(), "激活完成后应清理后台参数记录。")
@@ -232,6 +282,7 @@ func test_scene_load_completed_is_not_emitted_when_scene_change_fails() -> void:
 	watch_signals(_scene_util)
 
 	_scene_util.load_scene_async(scene_path)
+	_scene_util.tick(0.0)
 
 	assert_signal_not_emitted(_scene_util, "scene_load_completed", "切场失败时不应发出完成信号。")
 	assert_signal_emitted(_scene_util, "scene_load_failed", "切场失败应发出失败信号。")
@@ -307,6 +358,9 @@ func test_load_previous_scene_uses_history_params() -> void:
 	var error := _scene_util.load_previous_scene()
 
 	assert_eq(error, OK, "有历史场景时应能发起返回切换。")
+
+	_scene_util.tick(0.0)
+
 	assert_eq(_scene_util.packed_scene_changes, 1, "命中缓存的历史场景应完成切换。")
 	assert_eq(_scene_util.get_current_scene_params()["return_to"], "hub", "返回上一场景应使用历史参数。")
 
