@@ -18,7 +18,46 @@
 
 ## 维护策略
 
-本页面只保留最近三个版本线的更新记录，当前保留 `2.4.x`、`2.3.x` 与 `2.2.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个版本线的更新记录，当前保留 `2.5.x`、`2.4.x` 与 `2.3.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [2.5.0] - 2026-05-10
+
+**版本概述**：补齐纯代码状态机的状态级事件监听便捷代理，并明确状态切换后的控制流写法。
+
+### 🚀 新增特性 (Added)
+- `GFState` 新增 owner 绑定事件代理：`register_event()`、`register_assignable_event()`、`register_simple_event()`、对应注销方法以及 `unregister_owner_events()`，状态内部可直接使用所属状态机上下文注册事件监听。
+- `GFStateMachine` 新增 owner 绑定事件代理，用于支撑状态级监听并跟踪实际注册过的架构，便于局部架构和架构切换场景下正确清理。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFState.register_event(event_type: Script, callback: Callable, priority: int = 0) -> void`。
+- 新增 `GFState.unregister_event(event_type: Script, callback: Callable) -> void`。
+- 新增 `GFState.register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void`。
+- 新增 `GFState.unregister_assignable_event(base_event_type: Script, callback: Callable) -> void`。
+- 新增 `GFState.register_simple_event(event_id: StringName, callback: Callable) -> void`。
+- 新增 `GFState.unregister_simple_event(event_id: StringName, callback: Callable) -> void`。
+- 新增 `GFState.unregister_owner_events() -> void`。
+- 新增 `GFStateMachine.register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void`。
+- 新增 `GFStateMachine.unregister_event(event_type: Script, callback: Callable) -> void`。
+- 新增 `GFStateMachine.register_assignable_event_owned(owner: Object, base_event_type: Script, callback: Callable, priority: int = 0) -> void`。
+- 新增 `GFStateMachine.unregister_assignable_event(base_event_type: Script, callback: Callable) -> void`。
+- 新增 `GFStateMachine.register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -> void`。
+- 新增 `GFStateMachine.unregister_simple_event(event_id: StringName, callback: Callable) -> void`。
+- 新增 `GFStateMachine.unregister_owner_events(owner: Object) -> void`。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。已有 `Gf.listen_owned(self, ...)` / `Gf.unlisten_owner(self)` 仍可继续使用；新的 `GFState.register_event()` 写法只是在状态类内部更简洁。
+- `change_state()` 不会也不能替调用方自动 `return`。状态 `update()` 中存在多个切换条件时，应继续按优先级使用 `return` 或 `elif`，避免同一帧连续切换。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/extensions/state_machine/gf_state.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `tests/gf_core/test_gf_state_machine.gd`
+- `docs/wiki/04. 事件系统 (Event System).md`
+- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
+- `addons/gf/plugin.cfg`
+- `ASSET_LIBRARY.md`
 
 ---
 
@@ -113,33 +152,3 @@
 - `ASSET_LIBRARY.md`
 
 ---
-
-## [2.2.0] - 2026-05-10
-
-**版本概述**：补齐两个通用运行时辅助能力，分别覆盖安全富文本格式化和状态快照级回滚，保持框架抽象边界，不引入项目业务流程。
-
-### 🚀 新增特性 (Added)
-- 新增 `GFRichTextFormatter`，提供 BBCode 安全转义、Markdown 常见子集转 BBCode、变量占位符替换和可配置 token 替换，适合把外部文本、本地化参数或项目生成图标片段安全写入 `RichTextLabel`。
-- 新增 `GFSnapshotHistoryUtility`，提供通用快照栈、按 ID/索引恢复、前后跳转、历史上限裁剪、调试快照和默认架构全局快照捕获/恢复；也支持通过自定义回调接入任意项目状态。
-
-### 🐛 Bug 修复 (Fixed)
-- 修复新增富文本测试中的局部参数名 shadow `Node.name` 警告，避免 Godot 以 `SHADOWED_VARIABLE_BASE_CLASS` 报告测试脚本。
-
-### 🔌 API 变动说明 (API Changes)
-- 新增公开类 `GFRichTextFormatter`，包含 `to_bbcode()`、`markdown_to_bbcode()`、`replace_variables()`、`replace_tokens()`、`escape_bbcode()` 与 `strip_bbcode()`。
-- 新增公开类 `GFSnapshotHistoryUtility`，包含 `snapshot_recorded`、`snapshot_restored`、`history_changed` 信号，`max_history_size`、`current_index`、`snapshot_count` 属性，以及 `configure()`、`capture()`、`push_snapshot()`、`step_back()`、`step_forward()`、`restore_index()`、`restore_snapshot_id()`、`get_current_snapshot()`、`get_history()`、`clear()` 和 `get_debug_snapshot()`。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目无需迁移。需要安全拼接富文本或做状态快照级回滚时按需引入新增类。
-- `GFSnapshotHistoryUtility` 是状态快照历史，不替代逐命令撤销的 `GFCommandHistoryUtility`，也不替代持久化写盘的 `GFStorageUtility`。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/utilities/gf_rich_text_formatter.gd`
-- `addons/gf/utilities/gf_snapshot_history_utility.gd`
-- `tests/gf_core/test_gf_rich_text_formatter.gd`
-- `tests/gf_core/test_gf_snapshot_history_utility.gd`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `README.md`
-- `addons/gf/README.md`
-- `addons/gf/plugin.cfg`
-- `ASSET_LIBRARY.md`

@@ -126,6 +126,42 @@ class StateEventPayload:
 		value = p_value
 
 
+class DerivedStateEventPayload:
+	extends StateEventPayload
+
+	func _init(p_value: int = 0) -> void:
+		super._init(p_value)
+
+
+class EventListeningState:
+	extends TrackingState
+
+	var typed_values: Array[int] = []
+	var assignable_values: Array[int] = []
+	var simple_values: Array = []
+	var unregister_on_exit: bool = true
+
+	func enter(msg: Dictionary = {}) -> void:
+		super.enter(msg)
+		register_event(StateEventPayload, _on_typed_event)
+		register_assignable_event(StateEventPayload, _on_assignable_event)
+		register_simple_event(&"state_simple_event", _on_simple_event)
+
+	func exit() -> void:
+		super.exit()
+		if unregister_on_exit:
+			unregister_owner_events()
+
+	func _on_typed_event(payload: StateEventPayload) -> void:
+		typed_values.append(payload.value)
+
+	func _on_assignable_event(payload: StateEventPayload) -> void:
+		assignable_values.append(payload.value)
+
+	func _on_simple_event(payload: Variant) -> void:
+		simple_values.append(payload)
+
+
 class DummyCommand:
 	extends GFCommand
 
@@ -568,6 +604,50 @@ func test_state_can_send_events_through_state_machine_architecture() -> void:
 
 	assert_eq(simple_payloads, [42], "State.send_simple_event 应委托所属状态机发送轻量事件。")
 	assert_eq(typed_payloads, [7], "State.send_event 应委托所属状态机发送类型事件。")
+
+
+func test_state_can_register_events_through_state_machine_architecture() -> void:
+	var architecture := GFArchitecture.new()
+	await Gf.set_architecture(architecture)
+	var state := EventListeningState.new()
+	_fsm.add_state(&"Listen", state)
+	_fsm.add_state(&"Idle", TrackingState.new())
+	_fsm.start(&"Listen")
+
+	architecture.send_event(StateEventPayload.new(3))
+	architecture.send_event(DerivedStateEventPayload.new(5))
+	architecture.send_simple_event(&"state_simple_event", "tick")
+
+	assert_eq(state.typed_values, [3], "State.register_event 应监听精确类型事件。")
+	assert_eq(state.assignable_values, [3, 5], "State.register_assignable_event 应监听基类与派生类型事件。")
+	assert_eq(state.simple_values, ["tick"], "State.register_simple_event 应监听轻量事件。")
+
+	_fsm.change_state(&"Idle")
+	architecture.send_event(StateEventPayload.new(7))
+	architecture.send_event(DerivedStateEventPayload.new(9))
+	architecture.send_simple_event(&"state_simple_event", "late")
+
+	assert_eq(state.typed_values, [3], "状态退出后调用 unregister_owner_events 应移除类型事件监听。")
+	assert_eq(state.assignable_values, [3, 5], "状态退出后调用 unregister_owner_events 应移除可赋值事件监听。")
+	assert_eq(state.simple_values, ["tick"], "状态退出后调用 unregister_owner_events 应移除轻量事件监听。")
+
+
+func test_state_dispose_unregisters_owned_event_listeners() -> void:
+	var architecture := GFArchitecture.new()
+	await Gf.set_architecture(architecture)
+	var state := EventListeningState.new()
+	state.unregister_on_exit = false
+	_fsm.add_state(&"Listen", state)
+	_fsm.start(&"Listen")
+
+	architecture.send_event(StateEventPayload.new(3))
+	architecture.send_simple_event(&"state_simple_event", "tick")
+	_fsm.dispose()
+	architecture.send_event(StateEventPayload.new(7))
+	architecture.send_simple_event(&"state_simple_event", "late")
+
+	assert_eq(state.typed_values, [3], "State.dispose 应清理当前状态持有的类型事件监听。")
+	assert_eq(state.simple_values, ["tick"], "State.dispose 应清理当前状态持有的轻量事件监听。")
 
 
 func test_state_can_send_command_and_query_through_state_machine_architecture() -> void:

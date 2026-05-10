@@ -63,6 +63,7 @@ var _current_state: GFState = null
 ## 用于守卫框架依赖访问的上下文对象弱引用。
 ## 使用弱引用避免 RefCounted 环状引用。
 var _context_ref: WeakRef = null
+var _event_architecture_refs: Array[WeakRef] = []
 var _transition_serial: int = 0
 var _is_exiting_current_state: bool = false
 var _queued_exit_transition: Dictionary = {}
@@ -217,6 +218,7 @@ func dispose() -> void:
 	_states.clear()
 	_state_parents.clear()
 	blackboard.clear()
+	_event_architecture_refs.clear()
 	_context_ref = null
 
 
@@ -352,6 +354,77 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	var architecture := _get_available_architecture("Event")
 	if architecture != null:
 		architecture.send_simple_event(event_id, payload)
+
+
+## 注册带拥有者的类型事件监听器。
+## @param owner: 监听器拥有者。
+## @param event_type: 要监听的脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var architecture := _get_available_architecture("Event")
+	if architecture != null:
+		architecture.register_event_owned(owner, event_type, callback, priority)
+		_remember_event_architecture(architecture)
+
+
+## 注销类型事件监听器。
+## @param event_type: 要注销的脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_event(event_type: Script, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_event(event_type, callback)
+
+
+## 注册带拥有者的可赋值类型事件监听器。
+## @param owner: 监听器拥有者。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_assignable_event_owned(
+	owner: Object,
+	base_event_type: Script,
+	callback: Callable,
+	priority: int = 0
+) -> void:
+	var architecture := _get_available_architecture("Event")
+	if architecture != null:
+		architecture.register_assignable_event_owned(owner, base_event_type, callback, priority)
+		_remember_event_architecture(architecture)
+
+
+## 注销可赋值类型事件监听器。
+## @param base_event_type: 注册时使用的基类脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_assignable_event(base_event_type, callback)
+
+
+## 注册带拥有者的轻量级 StringName 事件监听器。
+## @param owner: 监听器拥有者。
+## @param event_id: StringName 事件标识符。
+## @param callback: 回调函数，签名为 func(payload: Variant)。
+func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -> void:
+	var architecture := _get_available_architecture("Event")
+	if architecture != null:
+		architecture.register_simple_event_owned(owner, event_id, callback)
+		_remember_event_architecture(architecture)
+
+
+## 注销轻量级 StringName 事件监听器。
+## @param event_id: StringName 事件标识符。
+## @param callback: 要移除的回调函数。
+func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_simple_event(event_id, callback)
+
+
+## 注销指定拥有者通过状态机事件代理注册过的全部监听器。
+## @param owner: 要清理监听器的拥有者。
+func unregister_owner_events(owner: Object) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_owner_events(owner)
 
 
 # --- 私有/辅助方法 ---
@@ -545,6 +618,30 @@ func _set_current_from_active_path() -> void:
 
 	current_state_name = _active_path[_active_path.size() - 1]
 	_current_state = _states.get(current_state_name) as GFState
+
+
+func _remember_event_architecture(architecture: GFArchitecture) -> void:
+	if architecture == null or not is_instance_valid(architecture):
+		return
+
+	for architecture_ref: WeakRef in _event_architecture_refs:
+		if architecture_ref.get_ref() == architecture:
+			return
+
+	_event_architecture_refs.append(weakref(architecture))
+
+
+func _get_tracked_event_architectures() -> Array[GFArchitecture]:
+	var result: Array[GFArchitecture] = []
+	var live_refs: Array[WeakRef] = []
+	for architecture_ref: WeakRef in _event_architecture_refs:
+		var architecture := architecture_ref.get_ref() as GFArchitecture
+		if architecture != null and is_instance_valid(architecture):
+			result.append(architecture)
+			live_refs.append(architecture_ref)
+
+	_event_architecture_refs = live_refs
+	return result
 
 
 func _get_context() -> Object:

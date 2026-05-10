@@ -27,6 +27,7 @@ func setup(machine: GFStateMachine, state_name: StringName = &"") -> void:
 
 ## 释放对状态机的引用，避免 RefCounted 环状引用。
 func dispose() -> void:
+	unregister_owner_events()
 	_machine_ref = null
 	_state_name = &""
 
@@ -143,6 +144,69 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	var machine := _get_machine()
 	if machine != null:
 		machine.send_simple_event(event_id, payload)
+
+
+## 注册类型事件监听器，默认以当前状态作为 owner。
+## @param event_type: 要监听的脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.register_event_owned(self, event_type, callback, priority)
+
+
+## 注销类型事件监听器。
+## @param event_type: 要注销的脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_event(event_type: Script, callback: Callable) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.unregister_event(event_type, callback)
+
+
+## 注册可赋值类型事件监听器，默认以当前状态作为 owner。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.register_assignable_event_owned(self, base_event_type, callback, priority)
+
+
+## 注销可赋值类型事件监听器。
+## @param base_event_type: 注册时使用的基类脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.unregister_assignable_event(base_event_type, callback)
+
+
+## 注册轻量级 StringName 事件监听器，默认以当前状态作为 owner。
+## @param event_id: StringName 事件标识符。
+## @param callback: 回调函数，签名为 func(payload: Variant)。
+func register_simple_event(event_id: StringName, callback: Callable) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.register_simple_event_owned(self, event_id, callback)
+
+
+## 注销轻量级 StringName 事件监听器。
+## @param event_id: StringName 事件标识符。
+## @param callback: 要移除的回调函数。
+func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.unregister_simple_event(event_id, callback)
+
+
+## 注销当前状态通过事件代理注册过的全部监听器。
+func unregister_owner_events() -> void:
+	var machine := _get_machine()
+	if machine != null:
+		machine.unregister_owner_events(self)
 
 
 ## 请求状态机切换到指定状态。
