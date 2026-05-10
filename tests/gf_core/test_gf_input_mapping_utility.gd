@@ -17,6 +17,9 @@ const GFInputMappingUtilityBase = preload("res://addons/gf/utilities/gf_input_ma
 const GFInputPulseTriggerBase = preload("res://addons/gf/input/gf_input_pulse_trigger.gd")
 const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
 const GFInputTapTriggerBase = preload("res://addons/gf/input/gf_input_tap_trigger.gd")
+const GFInputSequenceBranchBase = preload("res://addons/gf/input/gf_input_sequence_branch.gd")
+const GFInputSequenceStepBase = preload("res://addons/gf/input/gf_input_sequence_step.gd")
+const GFInputSequenceTriggerBase = preload("res://addons/gf/input/gf_input_sequence_trigger.gd")
 const GFInputScaleModifierBase = preload("res://addons/gf/input/gf_input_scale_modifier.gd")
 const GFInputTextProviderBase = preload("res://addons/gf/input/gf_input_text_provider.gd")
 
@@ -81,9 +84,12 @@ func test_bool_action_press_consume_and_release() -> void:
 	assert_true(_utility.consume_action(&"jump"), "刚触发动作应可被消费。")
 	assert_false(_utility.consume_action(&"jump"), "同一次触发不应被重复消费。")
 
+	_utility.tick(0.2)
 	_utility.handle_input_event(_make_key_event(KEY_SPACE, false))
 
 	assert_false(_utility.is_action_active(&"jump"), "释放按键后动作应结束。")
+	assert_true(_utility.was_action_just_completed(&"jump"), "释放帧应记录 just completed。")
+	assert_almost_eq(_utility.get_last_completed_duration(&"jump"), 0.2, 0.001, "应记录本次按住时间。")
 
 
 ## 验证 just started 状态会保留到当前帧结束。
@@ -340,6 +346,66 @@ func test_chord_trigger_requires_another_action_active() -> void:
 	_utility.handle_input_event(_make_key_event(KEY_SHIFT, true))
 	_utility.handle_input_event(_make_key_event(KEY_K, true))
 	assert_true(_utility.is_action_active(&"special"), "组合动作活跃后应触发。")
+
+
+## 验证序列触发器支持多分支抽象动作路径。
+func test_sequence_trigger_supports_branch_alternatives() -> void:
+	var sequence_trigger := GFInputSequenceTriggerBase.new()
+	var branch_a: GFInputSequenceBranchBase = GFInputSequenceBranchBase.from_action_ids([&"left", &"down"] as Array[StringName], 0.3) as GFInputSequenceBranchBase
+	var branch_b: GFInputSequenceBranchBase = GFInputSequenceBranchBase.from_action_ids([&"cancel"] as Array[StringName], 0.3) as GFInputSequenceBranchBase
+	sequence_trigger.branches = [branch_a, branch_b] as Array[GFInputSequenceBranchBase]
+	var special_mapping := _make_mapping(_make_action(&"special"), [
+		_make_key_binding(KEY_P),
+	])
+	special_mapping.triggers = [sequence_trigger]
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"left"), [
+			_make_key_binding(KEY_A),
+		]),
+		_make_mapping(_make_action(&"down"), [
+			_make_key_binding(KEY_S),
+		]),
+		_make_mapping(_make_action(&"cancel"), [
+			_make_key_binding(KEY_Q),
+		]),
+		special_mapping,
+	])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_Q, true))
+	_utility.handle_input_event(_make_key_event(KEY_P, true))
+
+	assert_true(_utility.is_action_active(&"special"), "任一序列分支完成后当前动作应可触发。")
+
+
+## 验证序列步骤支持按住后释放作为完成条件。
+func test_sequence_trigger_supports_hold_then_release_step() -> void:
+	var step: GFInputSequenceStepBase = GFInputSequenceStepBase.new()
+	step.action_id = &"charge"
+	step.min_hold_seconds = 0.1
+	step.trigger_on_release = true
+	var branch: GFInputSequenceBranchBase = GFInputSequenceBranchBase.new()
+	branch.steps = [step] as Array[GFInputSequenceStepBase]
+	var sequence_trigger := GFInputSequenceTriggerBase.new()
+	sequence_trigger.branches = [branch] as Array[GFInputSequenceBranchBase]
+	var release_mapping := _make_mapping(_make_action(&"release_attack"), [
+		_make_key_binding(KEY_F),
+	])
+	release_mapping.triggers = [sequence_trigger]
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"charge"), [
+			_make_key_binding(KEY_C),
+		]),
+		release_mapping,
+	])
+
+	_utility.enable_context(context)
+	_utility.handle_input_event(_make_key_event(KEY_C, true))
+	_utility.tick(0.12)
+	_utility.handle_input_event(_make_key_event(KEY_C, false))
+	_utility.handle_input_event(_make_key_event(KEY_F, true))
+
+	assert_true(_utility.is_action_active(&"release_attack"), "满足按住时间并释放后，应允许后续动作触发。")
 
 
 ## 验证触屏绑定可按需精确匹配触点 index。

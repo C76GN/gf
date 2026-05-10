@@ -1,4 +1,4 @@
-﻿extends "res://addons/gut/test.gd"
+extends "res://addons/gut/test.gd"
 
 
 # --- 辅助类 (模拟战斗实体) ---
@@ -588,3 +588,39 @@ func test_hit_box_3d_builds_position_context() -> void:
 
 	assert_true(bool(report["ok"]), "3D HurtBox 应接收通用命中。")
 	assert_eq(context.position_3d, Vector3(1.0, 2.0, 3.0), "3D 命中上下文应记录发送区域位置。")
+
+
+func test_hit_box_state_2d_toggles_child_hit_and_hurt_boxes() -> void:
+	var state := preload("res://addons/gf/extensions/combat/gf_hit_box_state_2d.gd").new()
+	var nested := Node2D.new()
+	var hit_box := GFHitBox2D.new()
+	var hurt_box := GFHurtBox2D.new()
+	state.add_child(nested)
+	nested.add_child(hit_box)
+	nested.add_child(hurt_box)
+	add_child_autofree(state)
+
+	state.deactivate()
+
+	assert_false(hit_box.enabled, "状态组关闭时应关闭 HitBox enabled。")
+	assert_false(hurt_box.enabled, "状态组关闭时应关闭 HurtBox enabled。")
+	assert_false(hit_box.monitoring, "状态组关闭时应关闭 Area monitoring。")
+	assert_false(hurt_box.monitorable, "状态组关闭时应关闭 Area monitorable。")
+
+	state.activate()
+
+	assert_true(hit_box.enabled, "状态组激活后应恢复 HitBox enabled。")
+	assert_true(hurt_box.enabled, "状态组激活后应恢复 HurtBox enabled。")
+
+
+func test_hit_box_state_3d_can_manage_visibility_optionally() -> void:
+	var state := preload("res://addons/gf/extensions/combat/gf_hit_box_state_3d.gd").new()
+	state.manage_visibility = true
+	var hit_box := GFHitBox3D.new()
+	state.add_child(hit_box)
+	add_child_autofree(state)
+
+	state.deactivate()
+
+	assert_false(hit_box.enabled, "3D 状态组关闭时应关闭 HitBox enabled。")
+	assert_false(hit_box.visible, "启用可见性管理时应同步 Node3D visible。")

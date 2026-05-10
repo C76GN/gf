@@ -68,6 +68,27 @@ func cancel() -> void:
 			action.cancel()
 
 
+func pause() -> void:
+	for action: GFVisualAction in actions:
+		if is_instance_valid(action):
+			action.pause()
+
+
+func resume() -> void:
+	for action: GFVisualAction in actions:
+		if is_instance_valid(action):
+			action.resume()
+
+
+func finish() -> void:
+	_execution_serial += 1
+	for action: GFVisualAction in actions:
+		if is_instance_valid(action):
+			action.finish()
+	_parallel_completed.emit()
+	_sequence_completed.emit()
+
+
 # --- 私有方法 ---
 
 func _run_parallel(current_serial: int) -> Variant:

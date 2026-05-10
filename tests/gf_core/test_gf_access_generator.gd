@@ -30,6 +30,11 @@ func test_build_source_generates_typed_accessors() -> void:
 			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.UTILITY,
 		},
 		{
+			"class_name": "GFUIUtility",
+			"path": "res://gf_ui_utility.gd",
+			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.UTILITY,
+		},
+		{
 			"class_name": "DealDamageCommand",
 			"path": "res://deal_damage_command.gd",
 			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.COMMAND,
@@ -44,6 +49,7 @@ func test_build_source_generates_typed_accessors() -> void:
 	assert_true(source.contains("static func get_player_model(architecture: GFArchitecture = null) -> PlayerModel:"), "应生成 Model 强类型访问器。")
 	assert_true(source.contains("return resolved_architecture.get_system(BattleSystem) as BattleSystem"), "应生成 System 查询。")
 	assert_true(source.contains("static func get_storage_utility(architecture: GFArchitecture = null) -> StorageUtility:"), "应生成 Utility 强类型访问器。")
+	assert_true(source.contains("static func get_gf_ui_utility(architecture: GFArchitecture = null) -> GFUIUtility:"), "GF 前缀加缩写类名应生成可读函数名。")
 	assert_true(source.contains("static func create_deal_damage_command(architecture: GFArchitecture = null) -> DealDamageCommand:"), "应生成 Command 创建入口。")
 	assert_true(source.contains("static func get_health_capability(receiver: Object, architecture: GFArchitecture = null) -> HealthCapability:"), "应生成能力查询入口。")
 	assert_true(source.contains("static func add_health_capability(receiver: Object, architecture: GFArchitecture = null) -> HealthCapability:"), "应生成能力添加入口。")
@@ -115,3 +121,32 @@ func test_build_project_source_generates_layer_input_and_setting_constants() -> 
 	assert_true(source.contains("const PHYSICS_2D_PLAYER_BIT: int = 4"), "应生成层 bit 常量。")
 	assert_true(source.contains("const JUMP: StringName = &\"jump\""), "应生成输入动作常量。")
 	assert_true(source.contains("const GF_PROJECT_INSTALLERS: String = \"gf/project/installers\""), "应生成设置键常量。")
+
+
+func test_collect_project_records_uses_project_input_settings_only() -> void:
+	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	ProjectSettings.set_setting("input/gf_test_jump", { "deadzone": 0.5, "events": [] })
+	ProjectSettings.set_setting("input/ui_gf_test_accept", { "deadzone": 0.5, "events": [] })
+	ProjectSettings.set_setting("input/spatial_editor/gf_test_forward", { "deadzone": 0.5, "events": [] })
+
+	var records: Dictionary = generator.collect_project_records()
+	var actions: Array = records.get("input_actions", []) as Array
+
+	ProjectSettings.clear("input/gf_test_jump")
+	ProjectSettings.clear("input/ui_gf_test_accept")
+	ProjectSettings.clear("input/spatial_editor/gf_test_forward")
+
+	assert_true(actions.has(&"gf_test_jump"), "项目自定义 input 设置应生成常量。")
+	assert_false(actions.has(&"ui_gf_test_accept"), "内置 UI 风格动作不应生成项目常量。")
+	assert_false(actions.has(&"spatial_editor/gf_test_forward"), "编辑器专用动作不应生成项目常量。")
+
+
+func test_collect_project_records_includes_known_gf_settings_without_plugin_registration() -> void:
+	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+
+	var records: Dictionary = generator.collect_project_records()
+	var settings: Array = records.get("settings", []) as Array
+
+	assert_true(settings.has("gf/codegen/access_output_path"), "生成器应稳定包含 GF codegen 设置。")
+	assert_true(settings.has("gf/project/installers"), "生成器应稳定包含 GF installer 设置。")
+	assert_true(settings.has("gf/build/export/write_git_metadata"), "生成器应稳定包含 GF build export 设置。")

@@ -78,6 +78,49 @@ func test_force_emit_broadcasts_current_value() -> void:
 	assert_signal_emitted_with_parameters(prop, "value_changed", [value, value])
 
 
+func test_mutate_helper_emits_after_in_place_change() -> void:
+	var prop := GFBindableProperty.new({ "hp": 10 })
+	watch_signals(prop)
+
+	assert_true(prop.mutate(func(value: Dictionary) -> void:
+		value.hp = 7
+	))
+
+	assert_eq(prop.value.hp, 7)
+	assert_signal_emitted(prop, "value_changed")
+
+
+func test_array_mutation_helpers_emit_changes() -> void:
+	var prop := GFBindableProperty.new([])
+	watch_signals(prop)
+
+	assert_true(prop.append_to_array("a"))
+	assert_true(prop.append_array(["b", "c"]))
+	assert_true(prop.erase_from_array("b"))
+	assert_eq(prop.value, ["a", "c"])
+	assert_signal_emit_count(prop, "value_changed", 3)
+
+
+func test_dictionary_mutation_helpers_emit_changes() -> void:
+	var prop := GFBindableProperty.new({})
+	watch_signals(prop)
+
+	assert_true(prop.set_dictionary_value("hp", 10))
+	assert_true(prop.erase_dictionary_key("hp"))
+	assert_eq(prop.value, {})
+	assert_signal_emit_count(prop, "value_changed", 2)
+
+
+func test_clear_collection_handles_array_and_dictionary() -> void:
+	var array_prop := GFBindableProperty.new([1])
+	var dict_prop := GFBindableProperty.new({ "a": 1 })
+
+	assert_true(array_prop.clear_collection())
+	assert_true(dict_prop.clear_collection())
+	assert_eq(array_prop.value, [])
+	assert_eq(dict_prop.value, {})
+
+
 # --- 测试：unbind_all ---
 
 ## 验证 unbind_all 后，修改值不再调用已断开的回调。

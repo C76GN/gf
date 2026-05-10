@@ -10,6 +10,7 @@ const GFENetNetworkBackendBase = preload("res://addons/gf/extensions/network/gf_
 const GFNetworkMessageBase = preload("res://addons/gf/extensions/network/gf_network_message.gd")
 const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/network/gf_network_message_validator.gd")
 const GFNetworkRateLimiterBase = preload("res://addons/gf/extensions/network/gf_network_rate_limiter.gd")
+const GFNetworkReconnectPolicyBase = preload("res://addons/gf/extensions/network/gf_network_reconnect_policy.gd")
 const GFNetworkSerializerBase = preload("res://addons/gf/extensions/network/gf_network_serializer.gd")
 const GFNetworkUtilityBase = preload("res://addons/gf/extensions/network/gf_network_utility.gd")
 const GFFixedTickClockBase = preload("res://addons/gf/extensions/network/gf_fixed_tick_clock.gd")
@@ -59,6 +60,20 @@ func test_network_serializer_round_trips_message() -> void:
 	assert_eq(decoded.sender_id, 3, "sender_id 应保留。")
 	assert_eq(decoded.channel_id, &"state_channel", "channel_id 应保留。")
 	assert_eq(decoded.payload.get("hp", 0), 10, "payload 应保留。")
+
+
+func test_reconnect_policy_uses_delay_sequence_and_attempt_limit() -> void:
+	var policy := GFNetworkReconnectPolicyBase.new()
+	policy.delays_msec = [10, 20]
+	policy.max_attempts = 3
+
+	assert_eq(policy.get_next_delay_msec(), 10)
+	assert_eq(policy.get_next_delay_msec(), 20)
+	assert_eq(policy.get_next_delay_msec(), 20, "超过序列长度后应复用最后一个延迟。")
+	assert_eq(policy.get_next_delay_msec(), -1, "达到最大尝试次数后应拒绝继续。")
+
+	policy.record_success()
+	assert_eq(policy.get_attempt_count(), 0, "连接成功后应重置尝试次数。")
 
 
 ## 验证 NetworkUtility 会通过后端发送并解码后端收到的消息。

@@ -80,6 +80,26 @@ func cancel() -> void:
 	_clear_active_tween()
 
 
+func pause() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.pause()
+
+
+func resume() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.play()
+
+
+func finish() -> void:
+	if is_instance_valid(_active_tween):
+		if config != null and config.loop_count == 0:
+			_active_tween.finished.emit()
+			_clear_active_tween()
+			return
+		_active_tween.custom_step(INF)
+	_clear_active_tween()
+
+
 func get_wait_guard_node() -> Node:
 	var tween_host := _get_tween_host()
 	return tween_host if is_instance_valid(tween_host) else null

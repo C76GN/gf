@@ -68,6 +68,7 @@ const GODOT_CALLBACK_NAMES: Dictionary = {
 	"_to_string": true,
 	"_unhandled_input": true,
 	"_unhandled_key_input": true,
+	"_update_property": true,
 	"_validate_property": true,
 }
 const SECTION_ORDER_RULES: Array[Dictionary] = [

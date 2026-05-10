@@ -44,6 +44,17 @@ const _LAYER_TYPES: Dictionary = {
 	"3d_navigation": 32,
 	"avoidance": 32,
 }
+const _KNOWN_GF_PROJECT_SETTINGS: Array[String] = [
+	"gf/build/export/metadata",
+	"gf/build/export/restore_previous_settings",
+	"gf/build/export/save_project_settings",
+	"gf/build/export/write_git_metadata",
+	"gf/codegen/access_output_path",
+	"gf/codegen/project_access_output_path",
+	"gf/project/fail_on_installer_error",
+	"gf/project/installer_timeout_seconds",
+	"gf/project/installers",
+]
 
 
 # --- 公共方法 ---
@@ -236,12 +247,19 @@ func _collect_layer_records() -> Array[Dictionary]:
 
 
 func _collect_input_actions() -> Array[StringName]:
-	var action_ids: Array[StringName] = []
-	for action_name: StringName in InputMap.get_actions():
-		var action_text := String(action_name)
-		if action_text.begins_with("ui_"):
+	var action_names: Dictionary = {}
+	for property: Dictionary in ProjectSettings.get_property_list():
+		var setting_name := String(property.get("name", ""))
+		if not setting_name.begins_with("input/"):
 			continue
-		action_ids.append(action_name)
+		var action_text := setting_name.trim_prefix("input/").strip_edges()
+		if not _should_include_project_input_action(action_text):
+			continue
+		action_names[action_text] = true
+
+	var action_ids: Array[StringName] = []
+	for action_text: String in action_names.keys():
+		action_ids.append(StringName(action_text))
 	action_ids.sort_custom(func(left: StringName, right: StringName) -> bool:
 		return String(left) < String(right)
 	)
@@ -249,13 +267,30 @@ func _collect_input_actions() -> Array[StringName]:
 
 
 func _collect_gf_project_settings() -> Array[String]:
-	var settings: Array[String] = []
+	var settings_by_name: Dictionary = {}
+	for setting_name: String in _KNOWN_GF_PROJECT_SETTINGS:
+		settings_by_name[setting_name] = true
+
 	for property: Dictionary in ProjectSettings.get_property_list():
 		var setting_name := String(property.get("name", ""))
 		if setting_name.begins_with("gf/"):
-			settings.append(setting_name)
+			settings_by_name[setting_name] = true
+
+	var settings: Array[String] = []
+	for setting_name: String in settings_by_name.keys():
+		settings.append(setting_name)
 	settings.sort()
 	return settings
+
+
+func _should_include_project_input_action(action_name: String) -> bool:
+	if action_name.is_empty():
+		return false
+	if action_name.begins_with("ui_"):
+		return false
+	if action_name.begins_with("spatial_editor/") or action_name.begins_with("editor/"):
+		return false
+	return true
 
 
 func _append_project_layer_constants(output: PackedStringArray, layer_records: Array) -> void:
@@ -393,7 +428,7 @@ func _append_record_function(output: PackedStringArray, record: Dictionary, used
 			output.append("")
 
 		TargetKind.CAPABILITY:
-			var base_name := _trim_suffix(class_name_value.to_snake_case(), "_capability")
+			var base_name := _trim_suffix(_to_accessor_base_name(class_name_value), "_capability")
 			output.append("## 获取 receiver 上的 %s 能力。" % class_name_value)
 			output.append("static func get_%s_capability(receiver: Object, architecture: GFArchitecture = null) -> %s:" % [base_name, class_name_value])
 			output.append("\tvar capability_utility := _get_capability_utility(architecture)")
@@ -436,7 +471,7 @@ func _append_record_function(output: PackedStringArray, record: Dictionary, used
 
 
 func _get_function_name(class_name_value: String, kind: int) -> String:
-	var base_name := class_name_value.to_snake_case()
+	var base_name := _to_accessor_base_name(class_name_value)
 	match kind:
 		TargetKind.MODEL:
 			return "get_%s_model" % _trim_suffix(base_name, "_model")
@@ -452,6 +487,12 @@ func _get_function_name(class_name_value: String, kind: int) -> String:
 			return "get_%s_capability" % _trim_suffix(base_name, "_capability")
 		_:
 			return base_name
+
+
+func _to_accessor_base_name(class_name_value: String) -> String:
+	if class_name_value.begins_with("GF") and class_name_value.length() > 2:
+		return "gf_%s" % class_name_value.substr(2).to_snake_case()
+	return class_name_value.to_snake_case()
 
 
 func _trim_suffix(value: String, suffix: String) -> String:

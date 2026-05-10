@@ -156,7 +156,8 @@ Gf.send_command(command)
 - `GFNumberFormatter`：统一的完整显示、紧凑缩写、科学计数法格式化工具。
 - `GFProgressionMath`：价格曲线、收益曲线、里程碑倍率、软上限与分段离线收益结算工具。
 - `GFGridMath`：网格索引、邻居、泛洪、BFS 与两折连线等纯算法工具。
-- `GFGridOccupancy` / `GFTileMapCache` / `GFTileRuleSet` / `GFSpatialHash3D`：通用格子占用、预约、瓦片数据快照/差分、邻域规则匹配与 3D 空间哈希结构，可用于棋盘、战棋、推箱子、解谜、自动铺砖和大量 3D 实体粗筛查询。
+- `GFGridOccupancy` / `GFPattern2D` / `GFTileMapCache` / `GFTileRuleSet` / `GFSpatialHash3D`：通用格子占用、二维格子模式、瓦片数据快照/差分、邻域规则匹配与 3D 空间哈希结构，可用于棋盘、战棋、推箱子、解谜、自动铺砖和大量 3D 实体粗筛查询。
+- `GFSteeringAgent` / `GFSteeringAcceleration` / `GFSteeringMath`：seek、flee、arrive、pursue、evade、face、分离、聚合、混合和路径跟随等纯 steering 计算原语。
 - `GFFormula` / `GFFormulaSet`：资源化公式与参数容器，适合把可替换计算策略从系统逻辑中抽离。
 - `GFTypeEventSystem`：强类型事件与轻量 `StringName` 事件。
 - `GFBindableProperty` / `GFReactiveEffect` / `GFComputedProperty`：响应式属性、组合副作用和只读派生属性，适合 Model 到 UI 的局部数据绑定。
@@ -167,23 +168,23 @@ Gf.send_command(command)
 - `GFJobWorker`：场景节点形式的任务队列批处理消费器。
 - `GFSceneUtility` / `GFSceneTransitionConfig`：异步场景切换、后台预加载激活、预加载 LRU 缓存、切换参数、场景历史、资源化切换配置、加载状态快照与瞬态模块清理。
 - `GFSurfaceUtility`：根据 3D 碰撞 face index 查询 Mesh surface 与材质，不绑定材质业务语义。
-- `GFStorageUtility` / `GFStorageCodec` / `GFSaveGraphUtility` / `GFSaveSlotWorkflow`：槽位存档、元数据、读档卡片 DTO、事务恢复、Resource 存取、完整性校验、版本迁移、可配置编码、通用节点存档图编排、默认节点序列化器、存档 pipeline trace 和结构诊断。
+- `GFStorageUtility` / `GFStorageCodec` / `GFStorageSyncUtility` / `GFSaveGraphUtility` / `GFSaveSlotWorkflow`：槽位存档、元数据、读档卡片 DTO、事务恢复、Resource 存取、完整性校验、版本迁移、可配置编码、双后端同步协调、通用节点存档图编排、默认节点序列化器、存档 pipeline trace 和结构诊断。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFSettingsUtility` / `GFDisplaySettingsUtility`：抽象设置注册、持久化、显示/语言/音频应用，以及设置界面控件绑定辅助。
 - `GFObjectPoolUtility`：节点对象池。
 - `GFAudioUtility` / `GFAudioEmitterHandle` / `GFAudioBankMounter`：BGM/SFX/环境音播放、BGM 淡入淡出与历史、资源化音频片段/集合、音频事件 ID、播放句柄、owner 绑定释放、场景级音频集合挂载、候选权重、pitch 随机、2D/3D 空间 SFX 与可选声源跟随、音量总线、SFX 对象池与并发上限控制。
 - `GFInputMappingUtility` / `GFInputAction` / `GFInputContext` / `GFInputFormatter` / `GFInputDeviceTextProvider` / `GFInputConflictAnalyzer`：资源化输入动作、上下文切换、运行时重绑定、一维/二维/三维动作值、修饰器、触发器、手柄文本、文本/图标 provider、冲突分析与重绑定报告、全局与玩家级动作状态查询。
-- `GFInputDeviceUtility` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、活跃玩家追踪、通用触屏虚拟摇杆与触屏按钮。
+- `GFInputDeviceUtility` / `GFInputDirectionHistory` / `GFTouchJoystick` / `GFTouchButton`：本地设备席位映射、最后按下方向优先仲裁、活跃玩家追踪、通用触屏虚拟摇杆与触屏按钮。
 - `GFAnalyticsUtility`：通用事件采集、稳定 client id、批量 flush、本地 dry-run、传输 hook 与可选 HTTP 上报。
 - `GFCommandHistoryUtility`：可撤销命令历史。
 - `GFCommandSequence`：顺序执行 `GFSequenceStep`、命令对象或任意 callable 的通用流程编排器，支持失败策略、运行报告和可选回滚。
 - `GFFlowGraph` / `GFFlowNode` / `GFFlowPort` / `GFFlowRunner` / `GFFlowGraphEditorModel`：资源化通用流程图执行基础、端口描述、连接表、图结构校验和编辑器视图模型。
-- `GFActionQueueSystem` / `GFTweenActionConfig`：表现动作队列、配置化 Tween 步骤和可复用表现动作资源。
+- `GFActionQueueSystem` / `GFAction` / `GFTweenActionConfig`：表现动作队列、常见动作工厂、配置化 Tween 步骤和可复用表现动作资源。
 - `GFShakePreset` / `GFShakeUtility` / `GFShakeAction`：通用反馈采样、命名 channel 播放和动作队列入口。
 - `GFActionQueueSystem` 命名队列：可为战斗、对白、教程等不同表现流创建独立队列，并支持绑定节点生命周期。
-- `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction`：常见队列表现动作。
+- `GFMoveTweenAction` / `GFFlashAction` / `GFAudioAction` / `GFWaitAction` / `GFRepeatAction`：常见队列表现动作。
 - `GFStateMachine` / `GFState`：纯代码分层状态机，支持父子状态路径、最近公共祖先切换、进入/退出守卫、事件上抛、黑板和调试快照。
-- `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState`：面向场景树的可选状态机扩展，支持配置资源、状态历史、栈式子状态、守卫、黑板、状态事件分发、快照与节点宿主访问。
+- `GFNodeStateMachine` / `GFNodeStateGroup` / `GFNodeState` / `GFNodeStateCondition` / `GFNodeStateBehavior`：面向场景树的可选状态机扩展，支持配置资源、状态历史、栈式子状态、守卫、Resource 条件/行为钩子、黑板、状态事件分发、快照与节点宿主访问。
 - `GFConsoleUtility` / `GFConsoleCommandDefinition` / `GFLogUtility`：运行时开发者控制台与集中式日志，支持资源化命令定义、命令注册、日志接入、标签过滤、输出行数上限和内存日志环形缓存。
 - `GFCombatSystem` / `GFHitBox2D` / `GFHurtBox2D`：轻量战斗扩展与通用命中上下文桥接。
 - `GFCapabilityUtility`：对象能力组件管理，可为任意 Object/Node 挂载、启停、索引查询和诊断可复用能力。
@@ -193,13 +194,14 @@ Gf.send_command(command)
 - `GFInteractionContext` / `GFInteractionSensor` / `GFInteractionReceiver`：轻量交互上下文与通用交互收发节点，便于在命令、事件、能力方法、RayCast/Area 检测或场景节点之间传递 sender、target 与 payload。
 - `GFInteractions`：交互上下文与链式交互流程创建入口。
 - `GFTurnFlowSystem`：通用回合阶段与行动解析流程系统。
-- `GFNetworkUtility` / `GFNetworkBackend` / `GFENetNetworkBackend`：可插拔网络后端、可选 ENet 传输、通用消息载体、消息序列化、会话/通道描述、消息校验、限流基础和调试快照。
+- `GFNetworkUtility` / `GFNetworkBackend` / `GFENetNetworkBackend` / `GFNetworkReconnectPolicy`：可插拔网络后端、可选 ENet 传输、通用消息载体、消息序列化、会话/通道描述、消息校验、限流基础、重连退避策略和调试快照。
 - `GFBuildInfo` / `GFBuildInfoUtility` / `GFBuildInfoExportPlugin`：构建信息快照、可选 Git 元数据写入辅助和导出时元数据入口，用于诊断、日志、存档元数据或项目版本界面。
 - `GFDiagnosticsUtility`：运行时构建、架构、事件、性能、日志和可选网络状态快照，以及带等级和认证治理的可注册诊断命令。
 - `GFNotificationUtility`：通用通知队列、去重、时长推进和生命周期信号，不规定具体 UI 表现。
+- `GFViewportUtility`：通用 SubViewport 分屏布局、相机挂载、后处理材质和调试快照。
 - `GFInventoryModel` / `GFSlotInventoryModel` / `GFInventoryItemRegistry` / `GFLevelProgressModel` / `GFAttributeSet` / `GFTraitSet` / `GFEquipmentSet`：计数库存、槽位库存、关卡进度、数值属性、特征和槽位的通用数据模型。
 - `GFGravityField3D` / `GFGravityProbe3D`：通用 3D 加速度场和采样器，可用于局部重力、风场、磁场或自定义空间力场。
-- `GFThumbnailRenderer`：可复用的编辑器 3D/Mesh/MeshLibrary 缩略图渲染辅助节点。
+- `GFThumbnailRenderer` / `GFPattern2D` Inspector：可复用的编辑器 3D/Mesh/MeshLibrary 缩略图渲染辅助节点，以及二维格子模式网格编辑器。
 - `GFAccessGenerator`：编辑器强类型访问器生成器，通过 `工具 > GF > 生成强类型访问器` 和 `生成项目常量访问器` 菜单生成 `GFAccess` / `GFProjectAccess`。
 
 ## 测试

@@ -229,6 +229,40 @@ func skip_current_action() -> void:
 	_try_start_processing()
 
 
+## 暂停当前动作。
+## @return 存在当前动作时返回 true。
+func pause_current_action() -> bool:
+	if not is_instance_valid(_current_action):
+		return false
+	_current_action.pause()
+	return true
+
+
+## 恢复当前动作。
+## @return 存在当前动作时返回 true。
+func resume_current_action() -> bool:
+	if not is_instance_valid(_current_action):
+		return false
+	_current_action.resume()
+	return true
+
+
+## 将当前动作标记为立即完成并继续消费后续动作。
+func finish_current_action() -> void:
+	_processing_serial += 1
+	if is_instance_valid(_current_action):
+		_current_action.finish()
+	_current_action = null
+	is_processing = false
+	_try_start_processing()
+
+
+## 获取当前正在执行或等待的动作。
+## @return 当前动作；没有动作时返回 null。
+func get_current_action() -> GFVisualAction:
+	return _current_action if is_instance_valid(_current_action) else null
+
+
 ## 获取动作队列诊断快照。
 ## @return 诊断快照字典。
 func get_debug_snapshot() -> Dictionary:

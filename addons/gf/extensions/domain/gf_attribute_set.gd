@@ -17,6 +17,8 @@ signal attribute_changed(attribute_id: StringName, current_value: float, previou
 
 # --- 常量 ---
 
+const GFDerivedAttributeRuleBase = preload("res://addons/gf/extensions/domain/gf_derived_attribute_rule.gd")
+
 const DEFAULT_MIN_VALUE: float = -1.0e20
 const DEFAULT_MAX_VALUE: float = 1.0e20
 
@@ -25,6 +27,14 @@ const DEFAULT_MAX_VALUE: float = 1.0e20
 
 ## 属性记录。结构为 attribute_id -> { base, current, min, max, metadata }。
 @export var attributes: Dictionary = {}
+
+## 派生属性规则列表。规则只计算属性值，不改变属性命名含义。
+@export var derived_rules: Array[GFDerivedAttributeRuleBase] = []
+
+
+# --- 私有变量 ---
+
+var _suspend_derived_recalculation: bool = false
 
 
 # --- 公共方法 ---
@@ -61,6 +71,7 @@ func define_attribute(
 		"metadata": metadata.duplicate(true),
 	}
 	attribute_defined.emit(attribute_id)
+	_recalculate_derived_dependents(attribute_id)
 
 
 ## 检查属性是否存在。
@@ -74,6 +85,7 @@ func has_attribute(attribute_id: StringName) -> bool:
 ## @param attribute_id: 属性标识。
 func remove_attribute(attribute_id: StringName) -> void:
 	attributes.erase(attribute_id)
+	_recalculate_derived_dependents(attribute_id)
 
 
 ## 清空所有属性。
@@ -95,6 +107,7 @@ func set_value(attribute_id: StringName, value: float) -> bool:
 	record["current"] = next_value
 	if not is_equal_approx(previous_value, next_value):
 		attribute_changed.emit(attribute_id, next_value, previous_value)
+		_recalculate_derived_dependents(attribute_id)
 	return true
 
 
@@ -120,6 +133,7 @@ func set_base_value(attribute_id: StringName, value: float, sync_current: bool =
 	record["base"] = next_base
 	if sync_current:
 		return set_value(attribute_id, next_base)
+	_recalculate_derived_dependents(attribute_id)
 	return true
 
 
@@ -197,6 +211,58 @@ func set_metadata(attribute_id: StringName, metadata: Dictionary) -> bool:
 	return true
 
 
+## 添加或替换派生属性规则。
+## @param rule: 派生属性规则。
+## @return 成功返回 true。
+func add_derived_rule(rule: GFDerivedAttributeRuleBase) -> bool:
+	if rule == null or rule.attribute_id == &"":
+		return false
+
+	remove_derived_rule(rule.attribute_id)
+	derived_rules.append(rule)
+	recalculate_derived(rule.attribute_id)
+	return true
+
+
+## 移除指定目标属性的派生规则。
+## @param attribute_id: 目标属性 ID。
+## @return 至少移除一个规则时返回 true。
+func remove_derived_rule(attribute_id: StringName) -> bool:
+	var removed := false
+	for index: int in range(derived_rules.size() - 1, -1, -1):
+		var rule := derived_rules[index]
+		if rule != null and rule.attribute_id == attribute_id:
+			derived_rules.remove_at(index)
+			removed = true
+	return removed
+
+
+## 获取指定目标属性的派生规则。
+## @param attribute_id: 目标属性 ID。
+## @return 派生规则；不存在时返回 null。
+func get_derived_rule(attribute_id: StringName) -> GFDerivedAttributeRuleBase:
+	for rule: GFDerivedAttributeRuleBase in derived_rules:
+		if rule != null and rule.attribute_id == attribute_id:
+			return rule
+	return null
+
+
+## 重新计算派生属性。
+## @param attribute_id: 目标属性 ID；为空时重算全部规则。
+func recalculate_derived(attribute_id: StringName = &"") -> void:
+	if _suspend_derived_recalculation:
+		return
+
+	if attribute_id != &"":
+		var rule := get_derived_rule(attribute_id)
+		if rule != null:
+			_apply_derived_rule(rule, {})
+		return
+
+	for rule: GFDerivedAttributeRuleBase in derived_rules:
+		_apply_derived_rule(rule, {})
+
+
 ## 导出快照。
 ## @return 可序列化字典。
 func get_snapshot() -> Dictionary:
@@ -212,6 +278,7 @@ func get_snapshot() -> Dictionary:
 ## 从快照恢复。
 ## @param snapshot: 由 get_snapshot() 或 to_dict() 返回的数据。
 func restore_snapshot(snapshot: Dictionary) -> void:
+	_suspend_derived_recalculation = true
 	attributes.clear()
 	for attribute_id_variant: Variant in snapshot.keys():
 		var record := snapshot[attribute_id_variant] as Dictionary
@@ -226,6 +293,8 @@ func restore_snapshot(snapshot: Dictionary) -> void:
 			float(record.get("max", DEFAULT_MAX_VALUE)),
 			metadata if metadata != null else {}
 		)
+	_suspend_derived_recalculation = false
+	recalculate_derived()
 
 
 ## 序列化为字典。
@@ -238,3 +307,50 @@ func to_dict() -> Dictionary:
 ## @param data: 属性数据。
 func from_dict(data: Dictionary) -> void:
 	restore_snapshot(data)
+
+
+# --- 私有/辅助方法 ---
+
+func _recalculate_derived_dependents(source_attribute_id: StringName, visited: Dictionary = {}) -> void:
+	if _suspend_derived_recalculation:
+		return
+
+	for rule: GFDerivedAttributeRuleBase in derived_rules:
+		if rule != null and rule.depends_on(source_attribute_id):
+			_apply_derived_rule(rule, visited)
+
+
+func _apply_derived_rule(rule: GFDerivedAttributeRuleBase, visited: Dictionary) -> bool:
+	if rule == null or rule.attribute_id == &"":
+		return false
+	if bool(visited.get(rule.attribute_id, false)):
+		push_warning("[GFAttributeSet] 检测到派生属性循环，已跳过：" + String(rule.attribute_id))
+		return false
+
+	visited[rule.attribute_id] = true
+	var next_value := rule.calculate(self)
+	var changed := _write_derived_value(rule, next_value)
+	if changed:
+		_recalculate_derived_dependents(rule.attribute_id, visited)
+	visited.erase(rule.attribute_id)
+	return changed
+
+
+func _write_derived_value(rule: GFDerivedAttributeRuleBase, value: float) -> bool:
+	if not attributes.has(rule.attribute_id):
+		define_attribute(rule.attribute_id, value, value, rule.min_value, rule.max_value)
+		return true
+
+	var record := attributes[rule.attribute_id] as Dictionary
+	if record == null:
+		return false
+
+	var previous_value := float(record.get("current", 0.0))
+	var next_value := clampf(value, float(record.get("min", DEFAULT_MIN_VALUE)), float(record.get("max", DEFAULT_MAX_VALUE)))
+	if rule.sync_base_value:
+		record["base"] = next_value
+	record["current"] = next_value
+	if not is_equal_approx(previous_value, next_value):
+		attribute_changed.emit(rule.attribute_id, next_value, previous_value)
+		return true
+	return false

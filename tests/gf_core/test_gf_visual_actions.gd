@@ -112,6 +112,79 @@ func test_configured_tween_action_waits_for_timed_steps() -> void:
 	assert_almost_eq(node.position.y, 4.0, 0.01, "配置化 Tween 完成后应写入 y。")
 
 
+func test_configured_tween_action_finish_handles_infinite_loop() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+
+	var config := GF_TWEEN_ACTION_CONFIG.new()
+	config.loop_count = 0
+	config.add_property_step(^"position", Vector2(16.0, 4.0), 0.1)
+	var action: GFVisualAction = config.create_action(node)
+	var result: Variant = action.execute()
+	var completed := { "value": false }
+	var wait_for_action := func() -> void:
+		await action.await_result_safely(result)
+		completed.value = true
+
+	wait_for_action.call()
+	await get_tree().process_frame
+	action.finish()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "无限循环 Tween 的 finish 不应卡住等待。")
+
+
+func test_gf_action_factories_create_common_actions() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	node.position = Vector2(3.0, 4.0)
+
+	var move_action := GFAction.move_by(node, Vector2(2.0, 5.0), 0.0)
+	assert_true(move_action is GFConfiguredTweenAction, "move_by 应创建配置化相对 Tween。")
+	assert_null(move_action.execute())
+	assert_eq(node.position, Vector2(5.0, 9.0), "零时长 move_by 应立即应用相对偏移。")
+
+	var call_state := { "count": 0 }
+	var call_action := GFAction.callback(func(amount: int) -> void:
+		call_state.count += amount
+	, [3])
+	call_action.execute()
+	assert_eq(call_state.count, 3, "callback 动作应执行回调并传递参数。")
+
+	var group := GFAction.sequence([call_action] as Array[GFVisualAction])
+	assert_false(group.is_parallel, "sequence 工厂应创建顺序动作组。")
+	assert_true(GFAction.parallel([call_action] as Array[GFVisualAction]).is_parallel, "parallel 工厂应创建并行动作组。")
+
+
+func test_wait_action_can_finish_early() -> void:
+	var action := GFAction.wait(1.0, self)
+	var result: Variant = action.execute()
+	var completed := { "value": false }
+	var wait_for_action := func() -> void:
+		await action.await_result_safely(result)
+		completed.value = true
+
+	wait_for_action.call()
+	await get_tree().process_frame
+	action.finish()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "finish 应提前完成等待动作。")
+
+
+func test_repeat_action_creates_fresh_action_each_iteration() -> void:
+	var order: Array[int] = []
+	var repeat := GFAction.repeat(func() -> GFVisualAction:
+		return GFAction.callback(func() -> void:
+			order.append(order.size())
+		)
+	, 3)
+	var result: Variant = repeat.execute()
+	await repeat.await_result_safely(result)
+
+	assert_eq(order, [0, 1, 2], "repeat 应按次数执行工厂创建的动作。")
+
+
 func test_tween_action_step_apply_instant_relative_vector2() -> void:
 	var node := Node2D.new()
 	add_child_autofree(node)

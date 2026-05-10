@@ -81,3 +81,187 @@ func test_sequence_running_state() -> void:
 	
 	# 第二次 tick 应该继续从处于 running 的节点开始（在本实现中直接重新 tick sequence 继续分配即可）
 	assert_eq(runner.tick(), GFBehaviorTree.Status.RUNNING)
+
+
+func test_parallel_require_all_waits_for_running_children() -> void:
+	var state := { "first": GFBehaviorTree.Status.RUNNING }
+	var running := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return int(state.first)
+	)
+	var success := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var parallel := GFBehaviorTree.Parallel.new(
+		[running, success] as Array[GFBehaviorTree.BTNode],
+		GFBehaviorTree.ParallelPolicy.REQUIRE_ALL
+	)
+
+	assert_eq(parallel.tick({}), GFBehaviorTree.Status.RUNNING)
+	state.first = GFBehaviorTree.Status.SUCCESS
+	assert_eq(parallel.tick({}), GFBehaviorTree.Status.SUCCESS)
+
+
+func test_parallel_require_all_does_not_retick_completed_children_while_running() -> void:
+	var state := {
+		"running_status": GFBehaviorTree.Status.RUNNING,
+		"success_ticks": 0,
+	}
+	var running := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return int(state.running_status)
+	)
+	var success := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.success_ticks += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var parallel := GFBehaviorTree.Parallel.new(
+		[running, success] as Array[GFBehaviorTree.BTNode],
+		GFBehaviorTree.ParallelPolicy.REQUIRE_ALL
+	)
+
+	assert_eq(parallel.tick(state), GFBehaviorTree.Status.RUNNING)
+	assert_eq(parallel.tick(state), GFBehaviorTree.Status.RUNNING)
+	state.running_status = GFBehaviorTree.Status.SUCCESS
+	assert_eq(parallel.tick(state), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(state.success_ticks, 1, "已成功的并行子节点不应在同一轮运行中重复 tick。")
+
+
+func test_parallel_require_one_succeeds_when_any_child_succeeds() -> void:
+	var fail := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.FAILURE
+	)
+	var success := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var parallel := GFBehaviorTree.Parallel.new(
+		[fail, success] as Array[GFBehaviorTree.BTNode],
+		GFBehaviorTree.ParallelPolicy.REQUIRE_ONE
+	)
+
+	assert_eq(parallel.tick({}), GFBehaviorTree.Status.SUCCESS)
+
+
+func test_parallel_require_one_does_not_retick_failed_children_while_running() -> void:
+	var state := {
+		"running_status": GFBehaviorTree.Status.RUNNING,
+		"failure_ticks": 0,
+	}
+	var fail := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.failure_ticks += 1
+		return GFBehaviorTree.Status.FAILURE
+	)
+	var running := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return int(state.running_status)
+	)
+	var parallel := GFBehaviorTree.Parallel.new(
+		[fail, running] as Array[GFBehaviorTree.BTNode],
+		GFBehaviorTree.ParallelPolicy.REQUIRE_ONE
+	)
+
+	assert_eq(parallel.tick(state), GFBehaviorTree.Status.RUNNING)
+	assert_eq(parallel.tick(state), GFBehaviorTree.Status.RUNNING)
+	state.running_status = GFBehaviorTree.Status.FAILURE
+	assert_eq(parallel.tick(state), GFBehaviorTree.Status.FAILURE)
+	assert_eq(state.failure_ticks, 1, "已失败的并行子节点不应在同一轮运行中重复 tick。")
+
+	state.running_status = GFBehaviorTree.Status.SUCCESS
+	assert_eq(parallel.tick(state), GFBehaviorTree.Status.SUCCESS, "终止失败后下一轮应重新评估子节点。")
+	assert_eq(state.failure_ticks, 2)
+
+
+func test_random_sequence_uses_sequence_semantics() -> void:
+	var state := { "count": 0 }
+	var first := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.count += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var second := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.count += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var random_sequence := GFBehaviorTree.RandomSequence.new(
+		[first, second] as Array[GFBehaviorTree.BTNode]
+	)
+
+	assert_eq(random_sequence.tick(state), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(state.count, 2)
+
+
+func test_random_selector_uses_selector_semantics() -> void:
+	var fail := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.FAILURE
+	)
+	var success := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var random_selector := GFBehaviorTree.RandomSelector.new(
+		[fail, success] as Array[GFBehaviorTree.BTNode]
+	)
+
+	assert_eq(random_selector.tick({}), GFBehaviorTree.Status.SUCCESS)
+
+
+func test_always_succeed_and_always_fail_preserve_running() -> void:
+	var running := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.RUNNING
+	)
+	var fail := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.FAILURE
+	)
+	var success := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.SUCCESS
+	)
+
+	assert_eq(GFBehaviorTree.AlwaysSucceed.new(fail).tick({}), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(GFBehaviorTree.AlwaysFail.new(success).tick({}), GFBehaviorTree.Status.FAILURE)
+	assert_eq(GFBehaviorTree.AlwaysSucceed.new(running).tick({}), GFBehaviorTree.Status.RUNNING)
+	assert_eq(GFBehaviorTree.AlwaysFail.new(running).tick({}), GFBehaviorTree.Status.RUNNING)
+
+
+func test_limit_blocks_after_max_ticks() -> void:
+	var state := { "count": 0 }
+	var child := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.count += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var limit := GFBehaviorTree.Limit.new(child, 2)
+
+	assert_eq(limit.tick(state), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(limit.tick(state), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(limit.tick(state), GFBehaviorTree.Status.FAILURE)
+	assert_eq(state.count, 2)
+
+
+func test_repeat_returns_success_after_count() -> void:
+	var state := { "count": 0 }
+	var child := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.count += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var repeat := GFBehaviorTree.Repeat.new(child, 3)
+
+	assert_eq(repeat.tick(state), GFBehaviorTree.Status.RUNNING)
+	assert_eq(repeat.tick(state), GFBehaviorTree.Status.RUNNING)
+	assert_eq(repeat.tick(state), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(state.count, 3)
+
+
+func test_until_success_and_until_fail() -> void:
+	var success_state := { "count": 0 }
+	var eventually_success := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.count += 1
+		return GFBehaviorTree.Status.SUCCESS if int(bb.count) >= 2 else GFBehaviorTree.Status.FAILURE
+	)
+	var until_success := GFBehaviorTree.UntilSuccess.new(eventually_success)
+
+	assert_eq(until_success.tick(success_state), GFBehaviorTree.Status.RUNNING)
+	assert_eq(until_success.tick(success_state), GFBehaviorTree.Status.SUCCESS)
+
+	var fail_state := { "count": 0 }
+	var eventually_fail := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.count += 1
+		return GFBehaviorTree.Status.FAILURE if int(bb.count) >= 2 else GFBehaviorTree.Status.SUCCESS
+	)
+	var until_fail := GFBehaviorTree.UntilFail.new(eventually_fail)
+
+	assert_eq(until_fail.tick(fail_state), GFBehaviorTree.Status.RUNNING)
+	assert_eq(until_fail.tick(fail_state), GFBehaviorTree.Status.SUCCESS)

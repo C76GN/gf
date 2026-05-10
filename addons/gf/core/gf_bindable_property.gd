@@ -62,6 +62,102 @@ func force_emit() -> void:
 	value_changed.emit(_value, _value)
 
 
+## 通过回调修改当前值并强制广播。
+## @param mutator: 修改当前值的回调。
+## @return 回调有效时返回 true。
+func mutate(mutator: Callable) -> bool:
+	if not mutator.is_valid():
+		return false
+	mutator.call(_value)
+	force_emit()
+	return true
+
+
+## 向当前 Array 追加一个元素。
+## @param item: 要追加的元素。
+## @return 成功返回 true。
+func append_to_array(item: Variant) -> bool:
+	if not (_value is Array):
+		return false
+	var array_value := _value as Array
+	array_value.append(item)
+	force_emit()
+	return true
+
+
+## 向当前 Array 追加多个元素。
+## @param items: 要追加的元素列表。
+## @return 成功返回 true。
+func append_array(items: Array) -> bool:
+	if not (_value is Array):
+		return false
+	var array_value := _value as Array
+	array_value.append_array(items)
+	force_emit()
+	return true
+
+
+## 从当前 Array 删除一个元素。
+## @param item: 要删除的元素。
+## @return 成功返回 true。
+func erase_from_array(item: Variant) -> bool:
+	if not (_value is Array):
+		return false
+	var array_value := _value as Array
+	if not array_value.has(item):
+		return false
+	array_value.erase(item)
+	force_emit()
+	return true
+
+
+## 设置当前 Dictionary 的一个键值。
+## @param key: 键。
+## @param new_value: 新值。
+## @return 成功返回 true。
+func set_dictionary_value(key: Variant, new_value: Variant) -> bool:
+	if not (_value is Dictionary):
+		return false
+	var dictionary_value := _value as Dictionary
+	dictionary_value[key] = new_value
+	force_emit()
+	return true
+
+
+## 从当前 Dictionary 删除一个键。
+## @param key: 键。
+## @return 成功返回 true。
+func erase_dictionary_key(key: Variant) -> bool:
+	if not (_value is Dictionary):
+		return false
+	var dictionary_value := _value as Dictionary
+	if not dictionary_value.has(key):
+		return false
+	dictionary_value.erase(key)
+	force_emit()
+	return true
+
+
+## 清空当前 Array 或 Dictionary。
+## @return 成功返回 true。
+func clear_collection() -> bool:
+	if _value is Array:
+		var array_value := _value as Array
+		if array_value.is_empty():
+			return false
+		array_value.clear()
+		force_emit()
+		return true
+	if _value is Dictionary:
+		var dictionary_value := _value as Dictionary
+		if dictionary_value.is_empty():
+			return false
+		dictionary_value.clear()
+		force_emit()
+		return true
+	return false
+
+
 ## 断开指定 Node 与 Callable 的绑定关系。
 ## @param node: 绑定生命周期的节点。
 ## @param callable: 要解绑的回调函数。

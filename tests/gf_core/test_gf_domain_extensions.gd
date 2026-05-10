@@ -2,6 +2,11 @@
 extends GutTest
 
 
+# --- 常量 ---
+
+const GFDerivedAttributeRuleBase = preload("res://addons/gf/extensions/domain/gf_derived_attribute_rule.gd")
+
+
 # --- 测试方法 ---
 
 ## 验证特征集合按优先级合并数值。
@@ -140,3 +145,39 @@ func test_attribute_set_clamps_serializes_and_applies_traits() -> void:
 
 	assert_eq(restored.get_value(&"stamina"), 12.0, "恢复后当前值应一致。")
 	assert_eq(restored.get_metadata(&"stamina").get("group"), "core", "恢复后元数据应一致。")
+
+
+## 验证属性集合可通过通用规则计算派生属性。
+func test_attribute_set_updates_derived_attribute_rules() -> void:
+	var attributes := GFAttributeSet.new()
+	attributes.define_attribute(&"strength", 5.0)
+	attributes.define_attribute(&"power", 0.0)
+	var rule := GFDerivedAttributeRuleBase.new()
+	rule.attribute_id = &"power"
+	rule.source_attribute_ids = [&"strength"]
+	rule.source_weights = {
+		&"strength": 2.0,
+	}
+	rule.flat_bonus = 1.0
+
+	assert_true(attributes.add_derived_rule(rule), "有效派生规则应可注册。")
+	assert_eq(attributes.get_value(&"power"), 11.0, "注册后应立即计算目标属性。")
+
+	attributes.set_value(&"strength", 7.0)
+
+	assert_eq(attributes.get_value(&"power"), 15.0, "来源属性变化后应自动重算派生属性。")
+
+
+## 验证派生属性规则可使用自定义回调。
+func test_derived_attribute_rule_can_use_callback() -> void:
+	var attributes := GFAttributeSet.new()
+	attributes.define_attribute(&"base", 3.0)
+	var rule := GFDerivedAttributeRuleBase.new()
+	rule.attribute_id = &"score"
+	rule.compute_callback = func(attribute_set: GFAttributeSet, _rule: GFDerivedAttributeRuleBase) -> float:
+		return attribute_set.get_value(&"base") * 4.0
+
+	attributes.add_derived_rule(rule)
+
+	assert_true(attributes.has_attribute(&"score"), "派生规则应能创建缺失的目标属性。")
+	assert_eq(attributes.get_value(&"score"), 12.0, "自定义回调结果应写入目标属性。")

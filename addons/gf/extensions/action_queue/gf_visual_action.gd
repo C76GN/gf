@@ -92,6 +92,21 @@ func cancel() -> void:
 	pass
 
 
+## 请求暂停动作。基础实现不做处理；可暂停动作应重写。
+func pause() -> void:
+	pass
+
+
+## 请求恢复动作。基础实现不做处理；可暂停动作应重写。
+func resume() -> void:
+	pass
+
+
+## 请求立即完成动作。基础实现委托 cancel()；需要区分取消和完成的动作应重写。
+func finish() -> void:
+	cancel()
+
+
 ## 返回用于保护 Signal 等待生命周期的节点。
 ## Tween 等非 Node 信号可通过该节点的 tree_exited 提前结束等待。
 func get_wait_guard_node() -> Node:

@@ -43,6 +43,7 @@ const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/editor/gf_access_g
 const CAPABILITY_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_capability_inspector_plugin.gd"
 const NODE_STATE_MACHINE_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_node_state_machine_inspector_plugin.gd"
 const FLOW_GRAPH_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_flow_graph_inspector_plugin.gd"
+const PATTERN_2D_INSPECTOR_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_pattern_2d_inspector_plugin.gd"
 const BUILD_INFO_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/editor/gf_build_info_export_plugin.gd"
 const SAVE_GRAPH_UTILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_graph_utility.gd"
 const SAVE_SCOPE_SCRIPT_PATH: String = "res://addons/gf/extensions/save/gf_save_scope.gd"
@@ -66,6 +67,7 @@ var _current_template_type: String = ""
 var _capability_inspector_plugin: EditorInspectorPlugin
 var _node_state_machine_inspector_plugin: EditorInspectorPlugin
 var _flow_graph_inspector_plugin: EditorInspectorPlugin
+var _pattern_2d_inspector_plugin: EditorInspectorPlugin
 var _build_info_export_plugin: EditorExportPlugin
 var _save_viewer_dock: Control
 var _save_viewer_bottom_button: Button
@@ -293,6 +295,13 @@ func _setup_inspector_tools() -> void:
 	if _flow_graph_inspector_plugin != null:
 		add_inspector_plugin(_flow_graph_inspector_plugin)
 
+	_pattern_2d_inspector_plugin = _load_inspector_plugin(
+		PATTERN_2D_INSPECTOR_PLUGIN_SCRIPT_PATH,
+		"Pattern2D Inspector"
+	)
+	if _pattern_2d_inspector_plugin != null:
+		add_inspector_plugin(_pattern_2d_inspector_plugin)
+
 
 func _setup_build_info_export_plugin() -> void:
 	var export_script := load(BUILD_INFO_EXPORT_PLUGIN_SCRIPT_PATH) as Script
@@ -340,6 +349,9 @@ func _cleanup_inspector_tools() -> void:
 	if _flow_graph_inspector_plugin != null:
 		remove_inspector_plugin(_flow_graph_inspector_plugin)
 		_flow_graph_inspector_plugin = null
+	if _pattern_2d_inspector_plugin != null:
+		remove_inspector_plugin(_pattern_2d_inspector_plugin)
+		_pattern_2d_inspector_plugin = null
 
 
 func _cleanup_build_info_export_plugin() -> void:

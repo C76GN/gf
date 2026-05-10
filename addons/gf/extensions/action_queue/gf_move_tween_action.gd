@@ -66,6 +66,22 @@ func cancel() -> void:
 	_clear_active_tween()
 
 
+func pause() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.pause()
+
+
+func resume() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.play()
+
+
+func finish() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.custom_step(INF)
+	_clear_active_tween()
+
+
 func get_wait_guard_node() -> Node:
 	return target if is_instance_valid(target) else null
 

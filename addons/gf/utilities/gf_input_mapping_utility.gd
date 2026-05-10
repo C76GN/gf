@@ -66,11 +66,17 @@ var _action_values: Dictionary = {}
 var _action_active: Dictionary = {}
 var _raw_action_active: Dictionary = {}
 var _just_started: Dictionary = {}
+var _just_completed: Dictionary = {}
+var _action_active_elapsed: Dictionary = {}
+var _last_completed_duration: Dictionary = {}
 var _player_action_values: Dictionary = {}
 var _player_action_active: Dictionary = {}
 var _player_raw_action_active: Dictionary = {}
 var _player_trigger_states: Dictionary = {}
 var _player_just_started: Dictionary = {}
+var _player_just_completed: Dictionary = {}
+var _player_action_active_elapsed: Dictionary = {}
+var _player_last_completed_duration: Dictionary = {}
 var _remap_config: GFInputRemapConfigBase
 var _timestamp: int = 0
 var _router: _GFInputRouter
@@ -99,9 +105,10 @@ func dispose() -> void:
 
 
 ## 推进运行时逻辑。
-## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
-func tick(_delta: float) -> void:
-	_refresh_triggered_action_states(_delta)
+## @param delta: 本帧时间增量（秒）。
+func tick(delta: float) -> void:
+	_advance_active_durations(delta)
+	_refresh_triggered_action_states(delta)
 
 
 # --- 公共方法 ---
@@ -252,6 +259,20 @@ func was_action_just_started(action_id: StringName) -> bool:
 	return bool(_just_started.get(action_id, false))
 
 
+## 检查动作是否在当前帧刚刚结束。
+## @param action_id: 动作标识。
+## @return 是否刚结束。
+func was_action_just_completed(action_id: StringName) -> bool:
+	return bool(_just_completed.get(action_id, false))
+
+
+## 获取动作最近一次结束前的持续活跃时间。
+## @param action_id: 动作标识。
+## @return 持续秒数。
+func get_last_completed_duration(action_id: StringName) -> float:
+	return float(_last_completed_duration.get(action_id, 0.0))
+
+
 ## 消费一次刚开始的动作。
 ## @param action_id: 动作标识。
 ## @return 成功消费返回 true。
@@ -308,6 +329,22 @@ func is_action_active_for_player(player_index: int, action_id: StringName) -> bo
 ## @return 是否刚开始。
 func was_action_just_started_for_player(player_index: int, action_id: StringName) -> bool:
 	return bool(_player_just_started.get(_make_player_action_key(player_index, action_id), false))
+
+
+## 检查指定玩家动作是否在当前帧刚刚结束。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return 是否刚结束。
+func was_action_just_completed_for_player(player_index: int, action_id: StringName) -> bool:
+	return bool(_player_just_completed.get(_make_player_action_key(player_index, action_id), false))
+
+
+## 获取指定玩家动作最近一次结束前的持续活跃时间。
+## @param player_index: 玩家索引。
+## @param action_id: 动作标识。
+## @return 持续秒数。
+func get_last_completed_duration_for_player(player_index: int, action_id: StringName) -> float:
+	return float(_player_last_completed_duration.get(_make_player_action_key(player_index, action_id), 0.0))
 
 
 ## 消费指定玩家的一次刚开始动作。
@@ -564,9 +601,14 @@ func _refresh_action_state(action_id: StringName, action: GFInputActionBase) -> 
 
 	if not previous_active and next_active:
 		_just_started[action_id] = true
+		_action_active_elapsed[action_id] = 0.0
 		_queue_clear_just_started_after_frame()
 		action_started.emit(action_id, next_value)
 	elif previous_active and not next_active:
+		_just_completed[action_id] = true
+		_last_completed_duration[action_id] = float(_action_active_elapsed.get(action_id, 0.0))
+		_action_active_elapsed.erase(action_id)
+		_queue_clear_just_started_after_frame()
 		action_completed.emit(action_id, next_value)
 
 
@@ -680,7 +722,9 @@ func _clear_just_started_after_frame(clear_serial: int) -> void:
 	if clear_serial != _just_started_clear_serial:
 		return
 	_just_started.clear()
+	_just_completed.clear()
 	_player_just_started.clear()
+	_player_just_completed.clear()
 	_clear_just_started_queued = false
 
 
@@ -710,10 +754,16 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 	_action_active.clear()
 	_raw_action_active.clear()
 	_just_started.clear()
+	_just_completed.clear()
+	_action_active_elapsed.clear()
+	_last_completed_duration.clear()
 	_player_action_values.clear()
 	_player_action_active.clear()
 	_player_raw_action_active.clear()
 	_player_just_started.clear()
+	_player_just_completed.clear()
+	_player_action_active_elapsed.clear()
+	_player_last_completed_duration.clear()
 	_clear_just_started_queued = false
 	_just_started_clear_serial += 1
 	_reset_all_trigger_states()
@@ -743,6 +793,9 @@ func _clear_player_runtime_state(player_index: int, emit_completed: bool = false
 			_player_raw_action_active.erase(key)
 			_player_trigger_states.erase(key)
 			_player_just_started.erase(key)
+			_player_just_completed.erase(key)
+			_player_action_active_elapsed.erase(key)
+			_player_last_completed_duration.erase(key)
 
 
 func _get_effective_event(
@@ -770,6 +823,22 @@ func _make_source_binding_key(binding_key: String, event: InputEvent) -> String:
 
 func _make_player_action_key(player_index: int, action_id: StringName) -> String:
 	return "%d/%s" % [player_index, String(action_id)]
+
+
+func _advance_active_durations(delta: float) -> void:
+	var safe_delta := maxf(delta, 0.0)
+	if safe_delta <= 0.0:
+		return
+
+	for action_id: StringName in _action_active.keys():
+		if bool(_action_active.get(action_id, false)):
+			_action_active_elapsed[action_id] = float(_action_active_elapsed.get(action_id, 0.0)) + safe_delta
+
+	for player_action_key: String in _player_action_active.keys():
+		if bool(_player_action_active.get(player_action_key, false)):
+			_player_action_active_elapsed[player_action_key] = (
+				float(_player_action_active_elapsed.get(player_action_key, 0.0)) + safe_delta
+			)
 
 
 func _should_ignore_event(event: InputEvent) -> bool:
@@ -805,9 +874,14 @@ func _refresh_player_action_state(
 
 	if not previous_active and next_active:
 		_player_just_started[key] = true
+		_player_action_active_elapsed[key] = 0.0
 		_queue_clear_just_started_after_frame()
 		player_action_started.emit(player_index, action_id, next_value)
 	elif previous_active and not next_active:
+		_player_just_completed[key] = true
+		_player_last_completed_duration[key] = float(_player_action_active_elapsed.get(key, 0.0))
+		_player_action_active_elapsed.erase(key)
+		_queue_clear_just_started_after_frame()
 		player_action_completed.emit(player_index, action_id, next_value)
 
 
@@ -871,9 +945,14 @@ func _set_action_active_from_triggers(
 	_action_active[action_id] = next_active
 	if not previous_active and next_active:
 		_just_started[action_id] = true
+		_action_active_elapsed[action_id] = 0.0
 		_queue_clear_just_started_after_frame()
 		action_started.emit(action_id, value)
 	elif previous_active and not next_active:
+		_just_completed[action_id] = true
+		_last_completed_duration[action_id] = float(_action_active_elapsed.get(action_id, 0.0))
+		_action_active_elapsed.erase(action_id)
+		_queue_clear_just_started_after_frame()
 		action_completed.emit(action_id, _default_value_for_type(action.value_type))
 
 
@@ -891,9 +970,14 @@ func _set_player_action_active_from_triggers(
 	_player_action_active[key] = next_active
 	if not previous_active and next_active:
 		_player_just_started[key] = true
+		_player_action_active_elapsed[key] = 0.0
 		_queue_clear_just_started_after_frame()
 		player_action_started.emit(player_index, action_id, value)
 	elif previous_active and not next_active:
+		_player_just_completed[key] = true
+		_player_last_completed_duration[key] = float(_player_action_active_elapsed.get(key, 0.0))
+		_player_action_active_elapsed.erase(key)
+		_queue_clear_just_started_after_frame()
 		player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
 
 

@@ -84,6 +84,25 @@ class ManualSignalAction:
 		completed.emit()
 
 
+## 可暂停、恢复、完成的测试动作。
+class ControllableSignalAction:
+	extends ManualSignalAction
+
+	var paused: bool = false
+	var resumed: bool = false
+	var finished: bool = false
+
+	func pause() -> void:
+		paused = true
+
+	func resume() -> void:
+		resumed = true
+
+	func finish() -> void:
+		finished = true
+		complete()
+
+
 ## 记录队列执行前注入到动作中的架构。
 class InjectedAction:
 	extends GFVisualAction
@@ -242,6 +261,29 @@ func test_clear_queue_propagates_cancel_to_group_children() -> void:
 	await get_tree().process_frame
 
 	assert_true(waiting_action.cancelled, "取消动作组时应向子动作传播 cancel。")
+
+
+func test_current_action_controls_delegate_to_running_action() -> void:
+	var order: Array = []
+	var waiting_action := ControllableSignalAction.new(order, "WAIT")
+	_system.enqueue(waiting_action)
+
+	await get_tree().process_frame
+	assert_eq(_system.get_current_action(), waiting_action, "等待 Signal 时应可查询当前动作。")
+
+	assert_true(_system.pause_current_action(), "存在当前动作时暂停应返回 true。")
+	assert_true(waiting_action.paused, "pause_current_action 应委托给当前动作。")
+
+	assert_true(_system.resume_current_action(), "存在当前动作时恢复应返回 true。")
+	assert_true(waiting_action.resumed, "resume_current_action 应委托给当前动作。")
+
+	_system.finish_current_action()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(waiting_action.finished, "finish_current_action 应委托给当前动作。")
+	assert_false(_system.is_processing, "完成当前动作后队列应恢复空闲。")
+	assert_null(_system.get_current_action(), "完成后不应保留当前动作。")
 
 
 # --- 测试：并行队列与组合 ---
