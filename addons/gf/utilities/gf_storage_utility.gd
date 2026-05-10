@@ -144,6 +144,60 @@ func load_resource(file_name: String, type_hint: String = "") -> Resource:
 	return ResourceLoader.load(path, type_hint)
 
 
+# --- 公共方法（文件管理） ---
+
+## 确保存储相对目录存在。
+## @param directory_name: 相对存储目录；为空时只确保根存储目录存在。
+## @return Godot 的 `Error` 结果码。
+func ensure_directory(directory_name: String = "") -> Error:
+	init()
+	var normalized_directory := _normalize_storage_directory_name(directory_name)
+	var path := _get_full_directory_path_from_normalized(normalized_directory)
+	if DirAccess.dir_exists_absolute(path):
+		return OK
+
+	var error := DirAccess.make_dir_recursive_absolute(path)
+	if error != OK:
+		push_error("[GFStorageUtility] 无法创建目录：%s，错误码：%s" % [path, error])
+	return error
+
+
+## 枚举指定存储目录下的文件。
+## @param directory_name: 相对存储目录；为空时枚举根存储目录。
+## @param extension_filter: 可选扩展名过滤，允许传入 `"json"` 或 `".json"`。
+## @param recursive: 是否递归枚举子目录。
+## @return 存储相对文件路径数组；若传入允许的绝对目录，则返回绝对文件路径。
+func list_files(
+	directory_name: String = "",
+	extension_filter: String = "",
+	recursive: bool = false
+) -> PackedStringArray:
+	init()
+	var result := PackedStringArray()
+	var normalized_directory := _normalize_storage_directory_name(directory_name)
+	var directory_path := _get_full_directory_path_from_normalized(normalized_directory)
+	var normalized_extension := _normalize_extension_filter(extension_filter)
+	_append_listed_files(directory_path, normalized_directory, normalized_extension, recursive, result)
+	result.sort()
+	return result
+
+
+## 删除一个存储文件。
+## @param file_name: 存储相对文件路径。
+## @return Godot 的 `Error` 结果码；文件不存在时返回 `ERR_FILE_NOT_FOUND`。
+func delete_file(file_name: String) -> Error:
+	if file_name.is_empty():
+		push_error("[GFStorageUtility] delete_file 失败：file_name 为空。")
+		return ERR_INVALID_PARAMETER
+
+	var path := _get_full_path(file_name)
+	if not FileAccess.file_exists(path):
+		return ERR_FILE_NOT_FOUND
+	return DirAccess.remove_absolute(path)
+
+
+# --- 公共方法（槽位存档） ---
+
 ## 保存一个槽位存档。
 ## @param slot_id: 槽位 ID。
 ## @param data: 核心存档数据。
@@ -763,6 +817,85 @@ func _get_full_path(file_name: String) -> String:
 		return "user://" + file_name
 
 	return _get_save_base_path() + "/" + file_name
+
+
+func _get_full_directory_path_from_normalized(directory_name: String) -> String:
+	if directory_name.is_empty():
+		return _get_save_base_path()
+	if directory_name.is_absolute_path():
+		return directory_name
+	if save_dir_name.is_empty():
+		return "user://" + directory_name
+	return _get_save_base_path().path_join(directory_name)
+
+
+func _normalize_storage_directory_name(directory_name: String) -> String:
+	if directory_name.is_empty() or directory_name == ".":
+		return ""
+	if directory_name.is_absolute_path():
+		if allow_absolute_paths:
+			return directory_name.replace("\\", "/").simplify_path()
+		push_error("[GFStorageUtility] 已禁用绝对路径：%s" % directory_name)
+		directory_name = directory_name.get_file()
+
+	var original_path := directory_name
+	var normalized := directory_name.replace("\\", "/").simplify_path()
+	if normalized == ".":
+		return ""
+	if _is_parent_directory_path(normalized):
+		push_error("[GFStorageUtility] 已拒绝跨目录路径（directory_name）：%s" % original_path)
+		normalized = original_path.get_file()
+	if normalized.is_empty() or normalized == "." or normalized == "..":
+		push_error("[GFStorageUtility] directory_name 为空。")
+		return "_invalid_storage_directory"
+	return normalized
+
+
+func _append_listed_files(
+	directory_path: String,
+	relative_prefix: String,
+	extension_filter: String,
+	recursive: bool,
+	result: PackedStringArray
+) -> void:
+	var dir := DirAccess.open(directory_path)
+	if dir == null:
+		return
+
+	dir.list_dir_begin()
+	var entry_name := dir.get_next()
+	while not entry_name.is_empty():
+		if entry_name.begins_with("."):
+			entry_name = dir.get_next()
+			continue
+
+		if dir.current_is_dir():
+			if recursive:
+				_append_listed_files(
+					directory_path.path_join(entry_name),
+					_get_storage_relative_file_path(relative_prefix, entry_name),
+					extension_filter,
+					recursive,
+					result
+				)
+		elif _file_matches_extension(entry_name, extension_filter):
+			result.append(_get_storage_relative_file_path(relative_prefix, entry_name))
+		entry_name = dir.get_next()
+	dir.list_dir_end()
+
+
+func _get_storage_relative_file_path(directory_name: String, file_name: String) -> String:
+	if directory_name.is_empty():
+		return file_name
+	return directory_name.path_join(file_name)
+
+
+func _normalize_extension_filter(extension_filter: String) -> String:
+	return extension_filter.strip_edges().trim_prefix(".").to_lower()
+
+
+func _file_matches_extension(file_name: String, extension_filter: String) -> bool:
+	return extension_filter.is_empty() or file_name.get_extension().to_lower() == extension_filter
 
 
 func _sanitize_storage_relative_path(path: String, label: String) -> String:

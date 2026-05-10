@@ -18,7 +18,33 @@
 
 ## 维护策略
 
-本页面只保留最近三个版本线的更新记录，当前保留 `2.2.x`、`2.1.x` 与 `2.0.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个版本线的更新记录，当前保留 `2.3.x`、`2.2.x` 与 `2.1.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+
+---
+
+## [2.3.0] - 2026-05-10
+
+**版本概述**：补齐 `GFStorageUtility` 在存储根目录内管理通用文件的公开入口，便于项目在不绕过框架路径安全策略的前提下维护缓存、缩略图、manifest 或自定义资源。
+
+### 🚀 新增特性 (Added)
+- `GFStorageUtility` 新增 `ensure_directory()`、`list_files()` 与 `delete_file()`，用于创建存储目录、按扩展名枚举文件和删除存储相对文件；默认继续拒绝绝对路径并阻止 `..` 跨目录。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFStorageUtility.ensure_directory(directory_name := "") -> Error`。
+- 新增 `GFStorageUtility.list_files(directory_name := "", extension_filter := "", recursive := false) -> PackedStringArray`。
+- 新增 `GFStorageUtility.delete_file(file_name: String) -> Error`。
+
+### 📘 升级指南 (Migration Guide)
+- 旧项目无需迁移。已有槽位读档 UI 继续使用 `list_slots()`；只有需要管理存储根目录下的普通文件时再使用新增文件管理 API。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `tests/gf_core/test_gf_storage_utility.gd`
+- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
+- `README.md`
+- `addons/gf/README.md`
+- `addons/gf/plugin.cfg`
+- `ASSET_LIBRARY.md`
 
 ---
 
@@ -163,120 +189,3 @@
 - `docs/wiki/11. 基础层 (Foundation Layer).md`
 - `README.md`
 - `addons/gf/README.md`
-
----
-
-## [2.0.0] - 2026-05-10
-
-**版本概述**：GF 2.0.0 破坏性清理版本，移除已经影响默认行为清晰度的 1.x 兼容层，并把安全、校验和命名一致性作为新的默认约束。
-
-### 🔄 机制更改 (Changed)
-- `GFFlowGraph.validate_port_compatibility` 默认改为 `true`，端口值类型或 Object 类名提示不兼容时，校验和新增连接都会默认拒绝。
-- `GFStorageUtility.allow_absolute_paths` 默认改为 `false`，传入绝对路径时默认收敛到当前存档目录下的同名文件。
-- `GFStorageUtility.require_integrity_checksum` 与 `GFStorageCodec.require_integrity_checksum` 默认改为 `true`，启用完整性校验后，缺失 `_meta.checksum` 的载荷会默认读取失败。
-- `GFStorageUtility` 与 `GFStorageCodec` 默认关闭旧版纯 JSON 回退；配置混淆、压缩或 Binary 后，解码失败不会再自动读取未混淆 JSON 原始 bytes。
-- `GFStorageUtility.normalize_json_numbers` 与 `GFStorageCodec.normalize_json_numbers` 默认改为 `false`，JSON 读取默认保留解析出的数字类型。
-- `gf/project/fail_on_installer_error` 默认改为 `true`，项目级 Installer 路径为空、脚本无法加载或未继承 `GFInstaller` 时会默认中断架构初始化。
-- `BindableProperty` 重命名为 `GFBindableProperty`，文件从 `addons/gf/core/bindable_property.gd` 改为 `addons/gf/core/gf_bindable_property.gd`。
-- `TypeEventSystem` 重命名为 `GFTypeEventSystem`，文件从 `addons/gf/core/type_event_system.gd` 改为 `addons/gf/core/gf_type_event_system.gd`。
-- `GFTypeEventSystem.max_dispatch_depth` 默认改为 `64`，递归事件派发链会默认启用嵌套深度保护。
-- `GFNetworkMessageValidator.max_packet_size` 默认改为 `64 KiB`，网络消息默认启用全局包体上限。
-- `GFNetworkUtility` 入站通道匹配不再读取业务 `payload.channel_id` 字段；通道应写入 `GFNetworkMessage.channel_id` 元信息，或使用与 `message_type` 同名的通道。
-- `GFNodeStateMachine.start_mode` 默认改为 `AFTER_HOST_READY`，初始状态默认等待宿主节点 `_ready()` 完成后再进入。
-- `GFCapability`、`GFNodeCapability`、`GFNode2DCapability`、`GFNode3DCapability` 与 `GFControlCapability` 的默认依赖移除策略改为 `REMOVE_AUTO_DEPENDENCIES`，主能力移除后会清理仅由它自动补齐且未被显式添加的依赖能力。
-- `GFSeedUtility.set_full_state()` 只接收 `get_full_state()` 产生的完整状态字典，不再把整数主 RNG 状态作为完整状态入口。
-- `GFBuff` 应用和移除修饰器时只使用 `GFModifier.attribute_id` 查找目标属性，不再把 `source_id` 当作目标属性回退。
-
-### 🐛 Bug 修复 (Fixed)
-- 修复 `GFStorageCodec` JSON checksum 在不同 Godot JSON 数字解析结果下可能把合法载荷误判为损坏的问题；checksum 输入会稳定规范化整数字面量，但不会改变 `decode()` 返回的数据类型。
-- 修复配置混淆密钥读取旧版纯 JSON 时，非法 base64 文本可能触发 Godot 引擎错误并污染测试结果的问题。
-
-### ⚠️ 废弃与移除 (Deprecated/Removed)
-- 移除 `GFModifier.source_tag` 旧字段别名。
-- 移除 `GFBuff` 对空 `attribute_id` 的 `source_id` 兼容回退。
-- 移除无 `GF` 前缀的公开类名 `BindableProperty` 与 `TypeEventSystem`。
-
-### 🔌 API 变动说明 (API Changes)
-- 旧代码中的 `BindableProperty` 需要改为 `GFBindableProperty`；旧文件路径 `res://addons/gf/core/bindable_property.gd` 需要改为 `res://addons/gf/core/gf_bindable_property.gd`。
-- 旧代码中的 `TypeEventSystem` 需要改为 `GFTypeEventSystem`；旧文件路径 `res://addons/gf/core/type_event_system.gd` 需要改为 `res://addons/gf/core/gf_type_event_system.gd`。
-- 旧代码中的 `modifier.source_tag = &"ATK"` 需要改为 `modifier.attribute_id = &"ATK"`；若该修饰器还需要按来源移除，应额外设置 `modifier.source_id`。
-- 旧资源若依赖不兼容 FlowGraph 端口连接，需要显式把 `validate_port_compatibility` 设为 `false` 作为过渡，或修正端口类型。
-- 可信编辑器工具若确实需要读写绝对路径，需要显式设置 `GFStorageUtility.allow_absolute_paths = true`。
-- 旧存档若已经启用完整性校验但历史文件没有 `_meta.checksum`，迁移脚本需要临时设置 `require_integrity_checksum = false`，读取后再按新设置写回。
-- 旧存档若依赖“配置混淆、压缩或 Binary 失败后仍按纯 JSON 读取”的回退，需要临时设置 `allow_legacy_plain_json_fallback = true`，读取后再按新 codec 设置写回。
-- 旧存档若依赖 JSON 读取时把 `1.0` 归一为 `1`，需要临时设置 `normalize_json_numbers = true`，迁移后按新默认保留 JSON 数字类型。
-- 旧项目若暂时需要跳过无效项目级 Installer，需要显式把 `Project Settings > gf/project/fail_on_installer_error` 设为 `false`。
-- 旧项目若刻意依赖无限递归事件链，需要显式设置 `GFTypeEventSystem.max_dispatch_depth = 0`，或通过 `Gf.configure_event_debugging(0, ...)` 关闭保护。
-- 旧项目若需要发送超过 `64 KiB` 的网络消息，需要显式调大 `GFNetworkMessageValidator.max_packet_size`，或设为 `0` 关闭全局包体上限。
-- 旧代码若把通道标识放在业务 `payload["channel_id"]` 中，需要改为设置 `GFNetworkMessage.channel_id`，或统一使用 `send_message_on_channel()`。
-- 旧项目若依赖 `GFNodeStateMachine` 在宿主 `_ready()` 前进入初始状态，需要显式设置 `start_mode = GFNodeStateMachine.StartMode.ON_READY`。
-- 旧能力若依赖“移除主能力后自动补齐的依赖能力继续保留”，需要重写 `get_dependency_removal_policy()` 并返回 `GFCapabilityUtility.DependencyRemovalPolicy.KEEP_DEPENDENCIES`。
-- 旧代码若调用 `set_full_state(rng_state_int)`，需要改为 `set_state(rng_state_int)`；完整回放状态应传入 `get_full_state()` 返回的字典。
-- 新增 `GFStorageUtility.allow_legacy_plain_json_fallback`、`GFStorageCodec.allow_legacy_plain_json_fallback`、`GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH` 和 `GFNetworkMessageValidator.DEFAULT_MAX_PACKET_SIZE`。
-
-### 📘 升级指南 (Migration Guide)
-- 全局搜索 `BindableProperty` 和 `TypeEventSystem`，分别替换为 `GFBindableProperty` 和 `GFTypeEventSystem`；同时更新任何手写 preload 路径。
-- 扫描项目中 `source_tag` 的使用，改成 `attribute_id`；不要再把 `source_id` 作为目标属性名。
-- 对已有 FlowGraph 资源运行 `validate_graph()`，修复 `incompatible_connection_ports` 报告；短期迁移可关闭单个资源的 `validate_port_compatibility`。
-- 审查所有传给 `GFStorageUtility` 的路径。运行时和用户输入路径应保持默认拒绝绝对路径；只有受信任的编辑器工具链才启用绝对路径。
-- 启用 `use_integrity_checksum` 的项目应检查旧存档是否都包含 `_meta.checksum`；缺失时先用 `require_integrity_checksum = false` 做一次迁移写回，再恢复默认严格读取。
-- 如果旧项目曾把未混淆 JSON 文件交给已配置混淆密钥、压缩或 Binary 的存档工具读取，迁移时先打开 `allow_legacy_plain_json_fallback`，读出后立即用当前 codec 重新保存。
-- 如果旧逻辑区分 `int` 和 `float`，检查 JSON 存档中 `1.0` 这类值；迁移阶段可打开 `normalize_json_numbers` 保持旧行为。
-- 检查 `Project Settings > gf/project/installers`。修复空路径、加载失败或未继承 `GFInstaller` 的脚本；只在迁移期临时关闭 `gf/project/fail_on_installer_error`。
-- 检查会在事件回调中再次派发事件的逻辑。正常业务链应不受 `64` 层限制影响；确实需要更深或无限制时，显式调整 `max_dispatch_depth`。
-- 检查网络同步、存档同步或调试快照消息大小。超过 `64 KiB` 的消息应拆分、压缩、走专用通道，或显式调整校验器上限。
-- 检查自定义网络后端或协议适配层。逻辑通道应通过消息元信息传递，不再塞进业务 payload 字段。
-- 检查场景中的 `GFNodeStateMachine`。依赖旧 `_ready()` 顺序的状态机显式设为 `ON_READY`；依赖宿主初始化完成的状态机可使用新的默认值。
-- 检查带 `get_required_capabilities()` 的能力。若依赖能力本身承载长期状态，应在项目中显式添加该依赖，或让主能力返回 `KEEP_DEPENDENCIES`。
-- 检查随机回放或存档代码。保存完整随机状态时使用 `get_full_state()`，只保存主 RNG 整数状态时使用 `get_state()` / `set_state()`。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/core/gf.gd`
-- `addons/gf/core/gf_architecture.gd`
-- `addons/gf/core/gf_bindable_property.gd`
-- `addons/gf/core/gf_computed_property.gd`
-- `addons/gf/core/gf_reactive_effect.gd`
-- `addons/gf/core/gf_read_only_bindable_property.gd`
-- `addons/gf/core/gf_type_event_system.gd`
-- `addons/gf/base/gf_model.gd`
-- `addons/gf/base/gf_system.gd`
-- `addons/gf/base/gf_utility.gd`
-- `addons/gf/plugin.gd`
-- `addons/gf/extensions/capability/gf_capability.gd`
-- `addons/gf/extensions/capability/gf_node_capability.gd`
-- `addons/gf/extensions/capability/gf_node_2d_capability.gd`
-- `addons/gf/extensions/capability/gf_node_3d_capability.gd`
-- `addons/gf/extensions/capability/gf_control_capability.gd`
-- `addons/gf/extensions/capability/gf_capability_utility.gd`
-- `addons/gf/extensions/flow/gf_flow_graph.gd`
-- `addons/gf/extensions/network/gf_network_message.gd`
-- `addons/gf/extensions/network/gf_network_utility.gd`
-- `addons/gf/extensions/network/gf_network_message_validator.gd`
-- `addons/gf/extensions/state_machine/gf_node_state_machine.gd`
-- `addons/gf/input/gf_input_binding.gd`
-- `addons/gf/utilities/gf_storage_codec.gd`
-- `addons/gf/utilities/gf_storage_utility.gd`
-- `addons/gf/utilities/gf_seed_utility.gd`
-- `addons/gf/extensions/combat/gf_modifier.gd`
-- `addons/gf/extensions/combat/gf_buff.gd`
-- `tests/gf_core/test_gf_singleton.gd`
-- `tests/gf_core/test_gf_bindable_property.gd`
-- `tests/gf_core/test_gf_type_event_system.gd`
-- `tests/gf_core/test_gf_node_state_machine.gd`
-- `tests/gf_core/test_gf_network_extension.gd`
-- `tests/gf_core/test_gf_storage_codec.gd`
-- `tests/gf_core/test_gf_flow_graph.gd`
-- `tests/gf_core/test_gf_storage_utility.gd`
-- `tests/gf_core/test_gf_combat_extension.gd`
-- `tests/gf_core/test_gf_capability_utility.gd`
-- `README.md`
-- `docs/wiki/01. 架构概览 (Architecture).md`
-- `docs/wiki/02. 生命周期与初始化 (Lifecycle).md`
-- `docs/wiki/03. 更新机制 (Update Loop).md`
-- `docs/wiki/04. 事件系统 (Event System).md`
-- `docs/wiki/05. 数据绑定 (Data Binding).md`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `docs/wiki/09. 最佳实践 (Best Practices).md`
-- `docs/wiki/10. 战斗扩展 (Combat Extension).md`
-- `docs/wiki/12. 能力组件 (Capabilities).md`

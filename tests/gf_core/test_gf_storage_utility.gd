@@ -21,6 +21,12 @@ func _cleanup_file_family(file_name: String) -> void:
 			DirAccess.remove_absolute(path)
 
 
+func _remove_directory_if_exists(directory_name: String) -> void:
+	var path := _storage._get_full_path(directory_name)
+	if DirAccess.dir_exists_absolute(path):
+		DirAccess.remove_absolute(path)
+
+
 func before_each() -> void:
 	_storage = GFStorageUtility.new()
 	_storage.save_dir_name = "test_saves"
@@ -53,13 +59,19 @@ func after_each() -> void:
 			"queued_async.json",
 			"escape.json",
 			"nested/test_nested.json",
+			"managed/a.json",
+			"managed/b.tres",
+			"managed/readme.txt",
+			"managed/nested/c.json",
 		]:
 			_cleanup_file_family(file_name)
 
 		_cleanup_file_family("test_resource.tres")
-		var nested_dir := _storage._get_full_path("nested")
-		if DirAccess.dir_exists_absolute(nested_dir):
-			DirAccess.remove_absolute(nested_dir)
+		_remove_directory_if_exists("managed/nested")
+		_remove_directory_if_exists("managed")
+		_remove_directory_if_exists("escape_dir")
+		_remove_directory_if_exists("_invalid_storage_directory")
+		_remove_directory_if_exists("nested")
 
 		_storage = null
 
@@ -236,6 +248,49 @@ func test_save_and_load_resource() -> void:
 	if loaded_res != null:
 		assert_eq(loaded_res.width, 128, "读取的 Resource 宽度应与保存值一致。")
 		assert_eq(loaded_res.height, 128, "读取的 Resource 高度应与保存值一致。")
+
+
+func test_file_management_ensure_list_and_delete_files() -> void:
+	assert_eq(_storage.ensure_directory("managed/nested"), OK, "应能显式创建嵌套存储目录。")
+	assert_eq(_storage.ensure_directory("."), OK, "点号目录应视为存储根目录。")
+	assert_eq(_storage.save_data("managed/a.json", { "value": 1 }), OK, "应能写入待枚举 JSON 文件。")
+	assert_eq(_storage.save_data("managed/nested/c.json", { "value": 3 }), OK, "应能写入嵌套 JSON 文件。")
+	assert_eq(_storage.save_data("managed/readme.txt", { "value": 2 }), OK, "应能写入不同扩展名文件。")
+	var res := Resource.new()
+	assert_eq(_storage.save_resource("managed/b.tres", res), OK, "应能写入 Resource 文件。")
+
+	assert_eq(
+		_storage.list_files("managed", ".json", false),
+		PackedStringArray(["managed/a.json"]),
+		"非递归枚举只应返回当前目录下匹配扩展名的文件。",
+	)
+	assert_eq(
+		_storage.list_files("managed", "json", true),
+		PackedStringArray(["managed/a.json", "managed/nested/c.json"]),
+		"递归枚举应返回排序后的存储相对路径。",
+	)
+	assert_eq(
+		_storage.list_files("managed", "tres", true),
+		PackedStringArray(["managed/b.tres"]),
+		"扩展名过滤应同时支持 Resource 文件。",
+	)
+
+	assert_eq(_storage.delete_file("managed/a.json"), OK, "应能删除存储相对文件。")
+	assert_false(FileAccess.file_exists(_storage._get_full_path("managed/a.json")), "删除后文件不应继续存在。")
+	assert_eq(_storage.delete_file("managed/a.json"), ERR_FILE_NOT_FOUND, "重复删除不存在文件应返回明确错误码。")
+
+
+func test_file_management_rebases_unsafe_directory_paths() -> void:
+	assert_eq(_storage.ensure_directory("../escape_dir"), OK, "跨目录路径应收敛到存储根目录下的同名目录。")
+
+	assert_true(DirAccess.dir_exists_absolute(_storage._get_full_path("escape_dir")), "收敛后的目录应创建在存储根目录内。")
+	assert_push_error("[GFStorageUtility] 已拒绝跨目录路径（directory_name）：../escape_dir")
+
+
+func test_file_management_rejects_empty_delete_file_path() -> void:
+	assert_eq(_storage.delete_file(""), ERR_INVALID_PARAMETER, "空文件名不应删除任何文件。")
+
+	assert_push_error("[GFStorageUtility] delete_file 失败：file_name 为空。")
 
 
 func test_save_slot_removes_orphaned_data_when_meta_write_fails() -> void:

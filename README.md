@@ -169,7 +169,7 @@ Gf.send_command(command)
 - `GFJobWorker`：场景节点形式的任务队列批处理消费器。
 - `GFSceneUtility` / `GFSceneTransitionConfig`：异步场景切换、后台预加载激活、预加载 LRU 缓存、切换参数、场景历史、资源化切换配置、加载状态快照与瞬态模块清理。
 - `GFSurfaceUtility`：根据 3D 碰撞 face index 查询 Mesh surface 与材质，不绑定材质业务语义。
-- `GFStorageUtility` / `GFStorageCodec` / `GFStorageSyncUtility` / `GFSnapshotHistoryUtility` / `GFSaveGraphUtility` / `GFSaveSlotWorkflow`：槽位存档、元数据、读档卡片 DTO、事务恢复、Resource 存取、完整性校验、版本迁移、可配置编码、双后端同步协调、通用快照历史、通用节点存档图编排、默认节点序列化器、存档 pipeline trace 和结构诊断。
+- `GFStorageUtility` / `GFStorageCodec` / `GFStorageSyncUtility` / `GFSnapshotHistoryUtility` / `GFSaveGraphUtility` / `GFSaveSlotWorkflow`：槽位存档、元数据、读档卡片 DTO、事务恢复、Resource 存取、通用文件管理、完整性校验、版本迁移、可配置编码、双后端同步协调、通用快照历史、通用节点存档图编排、默认节点序列化器、存档 pipeline trace 和结构诊断。
 - `GFLevelUtility`：关卡开始、重开、胜负信号与常见运行时残留清理。
 - `GFSettingsUtility` / `GFDisplaySettingsUtility`：抽象设置注册、持久化、显示/语言/音频应用，以及设置界面控件绑定辅助。
 - `GFObjectPoolUtility`：节点对象池。
