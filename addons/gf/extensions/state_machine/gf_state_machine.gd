@@ -317,6 +317,26 @@ func get_utility(utility_type: Script) -> Object:
 	return architecture.get_utility(utility_type)
 
 
+## 代理向框架发送命令。
+## @param command: 要发送的命令实例。
+## @return 命令执行结果；上下文或架构无效时返回 null。
+func send_command(command: Object) -> Variant:
+	var architecture := _get_available_architecture("Command")
+	if architecture == null:
+		return null
+	return architecture.send_command(command)
+
+
+## 代理向框架发送查询。
+## @param query: 要发送的查询实例。
+## @return 查询结果；上下文或架构无效时返回 null。
+func send_query(query: Object) -> Variant:
+	var architecture := _get_available_architecture("Query")
+	if architecture == null:
+		return null
+	return architecture.send_query(query)
+
+
 ## 代理发送类型事件。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:

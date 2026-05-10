@@ -126,6 +126,20 @@ class StateEventPayload:
 		value = p_value
 
 
+class DummyCommand:
+	extends GFCommand
+
+	func execute() -> Variant:
+		return get_utility(DummyUtility)
+
+
+class DummyQuery:
+	extends GFQuery
+
+	func execute() -> Variant:
+		return get_utility(DummyUtility)
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -486,6 +500,8 @@ func test_state_proxy_methods_without_machine_are_safe() -> void:
 	assert_null(state.get_model(DummyModel), "未绑定状态机的 State.get_model 应安全返回 null。")
 	assert_null(state.get_system(DummySystem), "未绑定状态机的 State.get_system 应安全返回 null。")
 	assert_null(state.get_utility(DummyUtility), "未绑定状态机的 State.get_utility 应安全返回 null。")
+	assert_null(state.send_command(DummyCommand.new()), "未绑定状态机的 State.send_command 应安全返回 null。")
+	assert_null(state.send_query(DummyQuery.new()), "未绑定状态机的 State.send_query 应安全返回 null。")
 
 
 # --- 测试：框架依赖访问 ---
@@ -552,6 +568,31 @@ func test_state_can_send_events_through_state_machine_architecture() -> void:
 
 	assert_eq(simple_payloads, [42], "State.send_simple_event 应委托所属状态机发送轻量事件。")
 	assert_eq(typed_payloads, [7], "State.send_event 应委托所属状态机发送类型事件。")
+
+
+func test_state_can_send_command_and_query_through_state_machine_architecture() -> void:
+	var parent_arch := GFArchitecture.new()
+	await Gf.set_architecture(parent_arch)
+	await parent_arch.register_utility_instance(DummyUtility.new())
+
+	var child_arch := GFArchitecture.new(parent_arch)
+	var context := ContextUtility.new()
+	var local_utility := DummyUtility.new()
+	await child_arch.register_utility_instance(context)
+	await child_arch.register_utility_instance(local_utility)
+
+	_fsm.dispose()
+	_fsm = GFStateMachine.new(context)
+	var state := TrackingState.new()
+	_fsm.add_state(&"Idle", state)
+	_fsm.start(&"Idle")
+
+	assert_eq(state.send_command(DummyCommand.new()), local_utility, "State.send_command 应使用状态机上下文所属架构。")
+	assert_eq(state.send_query(DummyQuery.new()), local_utility, "State.send_query 应使用状态机上下文所属架构。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+	Gf._architecture = null
 
 
 ## 验证 context 已释放时，状态机会拒绝继续访问框架依赖。

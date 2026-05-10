@@ -247,6 +247,11 @@ func load_scene_async(
 		_show_loading_scene_if_needed()
 		return
 
+	if _should_load_active_scene_synchronously():
+		_show_loading_scene_if_needed()
+		_load_active_scene_synchronously(_target_path)
+		return
+
 	var error := ResourceLoader.load_threaded_request(_target_path, "PackedScene")
 	if error != OK:
 		_fail_loading(path, "[GFSceneUtility] 无法发起场景异步加载：%s (错误码：%d)" % [_target_path, error])
@@ -700,6 +705,26 @@ func cleanup_transients() -> void:
 
 
 # --- 私有/辅助方法 ---
+
+func _should_load_active_scene_synchronously() -> bool:
+	return DisplayServer.get_name().to_lower() == "headless"
+
+
+func _load_active_scene_synchronously(path: String) -> void:
+	var scene := _load_packed_scene_synchronously(path)
+	if scene == null:
+		_fail_loading(path, "[GFSceneUtility] 同步加载场景失败：%s" % path)
+		return
+
+	_emit_scene_load_progress(path, 1.0)
+	if _active_load_cache_loaded_scene:
+		put_preloaded_scene(path, scene)
+	_schedule_complete_loading(path, scene)
+
+
+func _load_packed_scene_synchronously(path: String) -> PackedScene:
+	return ResourceLoader.load(path, "PackedScene") as PackedScene
+
 
 func _poll_active_scene_load() -> void:
 	if not _is_loading or _target_path.is_empty():

@@ -108,6 +108,26 @@ func get_utility(utility_type: Script) -> Object:
 	return machine.get_utility(utility_type)
 
 
+## 向框架发送命令（委托给所属状态机）。
+## @param command: 要发送的命令实例。
+## @return 命令执行结果；未绑定状态机时返回 null。
+func send_command(command: Object) -> Variant:
+	var machine := _get_machine()
+	if machine == null:
+		return null
+	return machine.send_command(command)
+
+
+## 向框架发送查询（委托给所属状态机）。
+## @param query: 要发送的查询实例。
+## @return 查询结果；未绑定状态机时返回 null。
+func send_query(query: Object) -> Variant:
+	var machine := _get_machine()
+	if machine == null:
+		return null
+	return machine.send_query(query)
+
+
 ## 发送类型事件（委托给所属状态机）。
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:

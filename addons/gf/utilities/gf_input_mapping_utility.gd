@@ -81,8 +81,7 @@ var _remap_config: GFInputRemapConfigBase
 var _timestamp: int = 0
 var _router: _GFInputRouter
 var _router_attach_serial: int = 0
-var _clear_just_started_queued: bool = false
-var _just_started_clear_serial: int = 0
+var _clear_transient_input_state_queued: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -107,6 +106,7 @@ func dispose() -> void:
 ## 推进运行时逻辑。
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
+	_clear_transient_input_state_if_queued()
 	_advance_active_durations(delta)
 	_refresh_triggered_action_states(delta)
 
@@ -462,6 +462,9 @@ func _ensure_router() -> void:
 
 
 func _attach_router_to_root(router_variant: Variant, attach_serial: int) -> void:
+	if not is_instance_valid(router_variant):
+		return
+
 	var router := router_variant as Node
 	if attach_serial != _router_attach_serial or router != _router:
 		if is_instance_valid(router):
@@ -600,15 +603,13 @@ func _refresh_action_state(action_id: StringName, action: GFInputActionBase) -> 
 		action_value_changed.emit(action_id, next_value)
 
 	if not previous_active and next_active:
-		_just_started[action_id] = true
+		_mark_action_just_started(action_id)
 		_action_active_elapsed[action_id] = 0.0
-		_queue_clear_just_started_after_frame()
 		action_started.emit(action_id, next_value)
 	elif previous_active and not next_active:
-		_just_completed[action_id] = true
+		_mark_action_just_completed(action_id)
 		_last_completed_duration[action_id] = float(_action_active_elapsed.get(action_id, 0.0))
 		_action_active_elapsed.erase(action_id)
-		_queue_clear_just_started_after_frame()
 		action_completed.emit(action_id, next_value)
 
 
@@ -701,31 +702,39 @@ func _values_equal(left: Variant, right: Variant) -> bool:
 	return left == right
 
 
-func _queue_clear_just_started_after_frame() -> void:
-	if _clear_just_started_queued:
+func _mark_action_just_started(action_id: StringName) -> void:
+	_just_started[action_id] = true
+	_queue_clear_transient_input_state()
+
+
+func _mark_action_just_completed(action_id: StringName) -> void:
+	_just_completed[action_id] = true
+	_queue_clear_transient_input_state()
+
+
+func _mark_player_action_just_started(player_index: int, action_id: StringName) -> void:
+	_player_just_started[_make_player_action_key(player_index, action_id)] = true
+	_queue_clear_transient_input_state()
+
+
+func _mark_player_action_just_completed(player_index: int, action_id: StringName) -> void:
+	_player_just_completed[_make_player_action_key(player_index, action_id)] = true
+	_queue_clear_transient_input_state()
+
+
+func _queue_clear_transient_input_state() -> void:
+	_clear_transient_input_state_queued = true
+
+
+func _clear_transient_input_state_if_queued() -> void:
+	if not _clear_transient_input_state_queued:
 		return
 
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
-		return
-
-	_clear_just_started_queued = true
-	_clear_just_started_after_frame(_just_started_clear_serial)
-
-
-func _clear_just_started_after_frame(clear_serial: int) -> void:
-	var tree := Engine.get_main_loop() as SceneTree
-	if tree == null:
-		return
-
-	await tree.process_frame
-	if clear_serial != _just_started_clear_serial:
-		return
 	_just_started.clear()
 	_just_completed.clear()
 	_player_just_started.clear()
 	_player_just_completed.clear()
-	_clear_just_started_queued = false
+	_clear_transient_input_state_queued = false
 
 
 func _clear_runtime_state(emit_completed: bool = false) -> void:
@@ -764,8 +773,7 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 	_player_just_completed.clear()
 	_player_action_active_elapsed.clear()
 	_player_last_completed_duration.clear()
-	_clear_just_started_queued = false
-	_just_started_clear_serial += 1
+	_clear_transient_input_state_queued = false
 	_reset_all_trigger_states()
 
 
@@ -873,15 +881,13 @@ func _refresh_player_action_state(
 		player_action_value_changed.emit(player_index, action_id, next_value)
 
 	if not previous_active and next_active:
-		_player_just_started[key] = true
+		_mark_player_action_just_started(player_index, action_id)
 		_player_action_active_elapsed[key] = 0.0
-		_queue_clear_just_started_after_frame()
 		player_action_started.emit(player_index, action_id, next_value)
 	elif previous_active and not next_active:
-		_player_just_completed[key] = true
+		_mark_player_action_just_completed(player_index, action_id)
 		_player_last_completed_duration[key] = float(_player_action_active_elapsed.get(key, 0.0))
 		_player_action_active_elapsed.erase(key)
-		_queue_clear_just_started_after_frame()
 		player_action_completed.emit(player_index, action_id, next_value)
 
 
@@ -944,15 +950,13 @@ func _set_action_active_from_triggers(
 	var next_active := _evaluate_action_triggers(action_id, raw_active, value, delta)
 	_action_active[action_id] = next_active
 	if not previous_active and next_active:
-		_just_started[action_id] = true
+		_mark_action_just_started(action_id)
 		_action_active_elapsed[action_id] = 0.0
-		_queue_clear_just_started_after_frame()
 		action_started.emit(action_id, value)
 	elif previous_active and not next_active:
-		_just_completed[action_id] = true
+		_mark_action_just_completed(action_id)
 		_last_completed_duration[action_id] = float(_action_active_elapsed.get(action_id, 0.0))
 		_action_active_elapsed.erase(action_id)
-		_queue_clear_just_started_after_frame()
 		action_completed.emit(action_id, _default_value_for_type(action.value_type))
 
 
@@ -969,15 +973,13 @@ func _set_player_action_active_from_triggers(
 	var next_active := _evaluate_player_action_triggers(player_index, action_id, raw_active, value, delta)
 	_player_action_active[key] = next_active
 	if not previous_active and next_active:
-		_player_just_started[key] = true
+		_mark_player_action_just_started(player_index, action_id)
 		_player_action_active_elapsed[key] = 0.0
-		_queue_clear_just_started_after_frame()
 		player_action_started.emit(player_index, action_id, value)
 	elif previous_active and not next_active:
-		_player_just_completed[key] = true
+		_mark_player_action_just_completed(player_index, action_id)
 		_player_last_completed_duration[key] = float(_player_action_active_elapsed.get(key, 0.0))
 		_player_action_active_elapsed.erase(key)
-		_queue_clear_just_started_after_frame()
 		player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
 
 

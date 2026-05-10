@@ -45,6 +45,16 @@ class CustomKeyIconProvider extends GFInputIconProvider:
 		return "[color=yellow]K[/color]"
 
 
+class InputConsumeSystem extends GFSystem:
+	var input_utility: Object = null
+	var action_id: StringName = &"jump"
+	var consumed_count: int = 0
+
+	func tick(_delta: float) -> void:
+		if input_utility != null and input_utility.consume_action(action_id):
+			consumed_count += 1
+
+
 # --- 私有变量 ---
 
 var _utility: GFInputMappingUtilityBase
@@ -63,6 +73,8 @@ func after_each() -> void:
 	if _utility != null:
 		_utility.dispose()
 		_utility = null
+	await get_tree().process_frame
+	await get_tree().create_timer(0.0).timeout
 	await get_tree().process_frame
 
 
@@ -92,8 +104,8 @@ func test_bool_action_press_consume_and_release() -> void:
 	assert_almost_eq(_utility.get_last_completed_duration(&"jump"), 0.2, 0.001, "应记录本次按住时间。")
 
 
-## 验证 just started 状态会保留到当前帧结束。
-func test_just_started_survives_utility_tick_until_next_frame() -> void:
+## 验证 just started 状态会保留到 Utility tick 清理窗口。
+func test_just_started_survives_process_frame_until_utility_tick() -> void:
 	var context := _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [
 			_make_key_binding(KEY_SPACE),
@@ -102,11 +114,69 @@ func test_just_started_survives_utility_tick_until_next_frame() -> void:
 
 	_utility.enable_context(context)
 	_utility.handle_input_event(_make_key_event(KEY_SPACE, true))
-	_utility.tick(0.0)
 
-	assert_true(_utility.was_action_just_started(&"jump"), "Utility tick 后当前帧仍应能读取 just started。")
+	assert_true(_utility.was_action_just_started(&"jump"), "按下后应记录 just started。")
 	await get_tree().process_frame
-	assert_false(_utility.was_action_just_started(&"jump"), "下一帧应自动清理 just started。")
+	assert_true(_utility.was_action_just_started(&"jump"), "process_frame 信号阶段不应过早清理 just started。")
+	_utility.tick(0.0)
+	assert_false(_utility.was_action_just_started(&"jump"), "Utility tick 清理窗口后应清理 just started。")
+
+
+## 验证架构中的 System tick 可以消费输入帧产生的一次性动作。
+func test_action_can_be_consumed_by_system_tick_after_process_frame_signal() -> void:
+	var arch := GFArchitecture.new()
+	var input := GFInputMappingUtilityBase.new()
+	var consumer := InputConsumeSystem.new()
+	consumer.input_utility = input
+	await arch.register_utility_instance(input)
+	await arch.register_system_instance(consumer)
+	await arch.init()
+	input.enable_context(_make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [
+			_make_key_binding(KEY_SPACE),
+		]),
+	]))
+
+	input.handle_input_event(_make_key_event(KEY_SPACE, true))
+	await get_tree().process_frame
+	arch.tick(0.0)
+
+	assert_eq(consumer.consumed_count, 1, "System tick 应能在 process_frame 信号之后消费刚触发的动作。")
+	arch.tick(0.0)
+	assert_eq(consumer.consumed_count, 1, "同一次触发在清理后不应被下一帧重复消费。")
+	arch.dispose()
+	await get_tree().process_frame
+
+
+## 验证 Utility tick 内由触发器生成的动作会保留到下一次 System tick。
+func test_trigger_generated_action_survives_until_next_system_tick() -> void:
+	var arch := GFArchitecture.new()
+	var input := GFInputMappingUtilityBase.new()
+	var consumer := InputConsumeSystem.new()
+	consumer.input_utility = input
+	consumer.action_id = &"charge"
+	await arch.register_utility_instance(input)
+	await arch.register_system_instance(consumer)
+	await arch.init()
+	var action := _make_action(&"charge")
+	var trigger := GFInputHoldTriggerBase.new()
+	trigger.hold_seconds = 0.1
+	var mapping := _make_mapping(action, [
+		_make_key_binding(KEY_C),
+	])
+	mapping.triggers = [trigger]
+	input.enable_context(_make_context(&"gameplay", [mapping]))
+
+	input.handle_input_event(_make_key_event(KEY_C, true))
+	arch.tick(0.05)
+	arch.tick(0.06)
+	arch.tick(0.0)
+
+	assert_eq(consumer.consumed_count, 1, "触发器在 Utility tick 中产生的 just started 应留给下一次 System tick 消费。")
+	arch.tick(0.0)
+	assert_eq(consumer.consumed_count, 1, "触发器产生的同一次动作不应重复消费。")
+	arch.dispose()
+	await get_tree().process_frame
 
 
 ## 验证上下文优先级可以阻断较低优先级的同输入动作。
@@ -553,6 +623,7 @@ func test_player_action_state_is_scoped_by_device_assignment() -> void:
 	arch.dispose()
 	_utility = null
 	await get_tree().process_frame
+	await get_tree().create_timer(0.0).timeout
 
 
 # --- 私有/辅助方法 ---

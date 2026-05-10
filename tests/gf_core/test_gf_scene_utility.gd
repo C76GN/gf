@@ -28,6 +28,9 @@ class TestSceneUtility extends GFSceneUtility:
 	var packed_scene_changes: int = 0
 	var packed_scene_change_error: bool = false
 	var loading_scene_node: Node = null
+	var force_sync_active_load: bool = false
+	var sync_active_load_scene: PackedScene = null
+	var sync_active_load_paths: PackedStringArray = PackedStringArray()
 
 	func _get_current_scene_path() -> String:
 		return current_scene_path
@@ -45,6 +48,13 @@ class TestSceneUtility extends GFSceneUtility:
 
 	func _get_loading_scene_node() -> Node:
 		return loading_scene_node
+
+	func _should_load_active_scene_synchronously() -> bool:
+		return force_sync_active_load
+
+	func _load_packed_scene_synchronously(path: String) -> PackedScene:
+		sync_active_load_paths.append(path)
+		return sync_active_load_scene
 
 
 class FakeLoadingScene extends Node:
@@ -231,6 +241,40 @@ func test_loading_scene_change_is_deferred_until_safe_tick() -> void:
 
 	assert_eq(_scene_util.sync_scene_changes, [loading_scene_path], "安全帧后应切到 loading scene。")
 	assert_signal_emitted(_scene_util, "loading_scene_shown", "loading scene 切入后应发出显示信号。")
+
+
+func test_headless_style_sync_active_load_uses_safe_scene_change_flow() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	_scene_util.force_sync_active_load = true
+	_scene_util.sync_active_load_scene = _make_empty_scene()
+	watch_signals(_scene_util)
+
+	_scene_util.load_scene_async(scene_path)
+
+	assert_eq(_scene_util.sync_active_load_paths, PackedStringArray([scene_path]), "同步降级应加载目标场景资源。")
+	assert_true(_scene_util._is_loading, "同步资源解析后仍应保持 loading 状态直到安全切场。")
+	assert_eq(_scene_util.packed_scene_changes, 0, "同步资源解析不应在调用栈内直接切场。")
+	assert_signal_not_emitted(_scene_util, "scene_load_completed", "安全切场前不应发出完成信号。")
+
+	_scene_util.tick(0.0)
+
+	assert_eq(_scene_util.packed_scene_changes, 1, "安全 tick 后应完成目标 PackedScene 切换。")
+	assert_false(_scene_util._is_loading, "同步降级完成切场后应重置 loading 状态。")
+	assert_signal_emitted(_scene_util, "scene_load_completed", "同步降级成功后应沿用原有完成信号。")
+
+
+func test_headless_style_sync_active_load_failure_resets_loading_state() -> void:
+	var scene_path := "res://addons/gut/gui/NormalGui.tscn"
+	_scene_util.force_sync_active_load = true
+	watch_signals(_scene_util)
+
+	_scene_util.load_scene_async(scene_path)
+
+	assert_eq(_scene_util.sync_active_load_paths, PackedStringArray([scene_path]), "同步降级应尝试加载目标场景。")
+	assert_false(_scene_util._is_loading, "同步加载失败后应重置 loading 状态。")
+	assert_eq(_scene_util.packed_scene_changes, 0, "同步加载失败不应切换目标场景。")
+	assert_signal_emitted(_scene_util, "scene_load_failed", "同步加载失败应沿用加载失败信号。")
+	assert_push_error("[GFSceneUtility] 同步加载场景失败：%s" % scene_path)
 
 
 func test_failure_restore_after_loading_scene_is_deferred_until_safe_tick() -> void:
