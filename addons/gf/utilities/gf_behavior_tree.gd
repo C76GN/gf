@@ -216,13 +216,17 @@ class Parallel extends BTNode:
 ##
 ## 与 Selector 语义一致，但每轮从随机顺序尝试子节点。
 class RandomSelector extends BTNode:
+	## 可选随机源；为空时优先使用 blackboard["rng"]，否则退回全局随机。
+	var rng: RandomNumberGenerator = null
+
 	var _children: Array[BTNode]
 	var _active_order: Array[BTNode] = []
 	var _current_child_idx: int = 0
 
-	func _init(children_nodes: Array[BTNode]) -> void:
+	func _init(children_nodes: Array[BTNode], random_source: RandomNumberGenerator = null) -> void:
 		name = "RandomSelector"
 		_children = children_nodes
+		rng = random_source
 
 
 	## 推进运行时逻辑。
@@ -230,7 +234,7 @@ class RandomSelector extends BTNode:
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
 		if _active_order.is_empty():
-			_active_order = _make_random_order()
+			_active_order = _make_random_order(blackboard)
 
 		while _current_child_idx < _active_order.size():
 			var child := _active_order[_current_child_idx]
@@ -258,24 +262,48 @@ class RandomSelector extends BTNode:
 				child.reset()
 
 
-	func _make_random_order() -> Array[BTNode]:
+	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
 		var result: Array[BTNode] = []
 		result.append_array(_children)
-		result.shuffle()
+		var active_rng := _resolve_rng(blackboard)
+		if active_rng == null:
+			result.shuffle()
+		else:
+			_shuffle_with_rng(result, active_rng)
 		return result
+
+
+	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
+		if rng != null:
+			return rng
+
+		var blackboard_rng: Variant = blackboard.get("rng", null)
+		return blackboard_rng if blackboard_rng is RandomNumberGenerator else null
+
+
+	func _shuffle_with_rng(nodes: Array[BTNode], random_source: RandomNumberGenerator) -> void:
+		for index: int in range(nodes.size() - 1, 0, -1):
+			var swap_index := random_source.randi_range(0, index)
+			var temp := nodes[index]
+			nodes[index] = nodes[swap_index]
+			nodes[swap_index] = temp
 
 
 ## 随机顺序节点。
 ##
 ## 与 Sequence 语义一致，但每轮从随机顺序尝试子节点。
 class RandomSequence extends BTNode:
+	## 可选随机源；为空时优先使用 blackboard["rng"]，否则退回全局随机。
+	var rng: RandomNumberGenerator = null
+
 	var _children: Array[BTNode]
 	var _active_order: Array[BTNode] = []
 	var _current_child_idx: int = 0
 
-	func _init(children_nodes: Array[BTNode]) -> void:
+	func _init(children_nodes: Array[BTNode], random_source: RandomNumberGenerator = null) -> void:
 		name = "RandomSequence"
 		_children = children_nodes
+		rng = random_source
 
 
 	## 推进运行时逻辑。
@@ -283,7 +311,7 @@ class RandomSequence extends BTNode:
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
 		if _active_order.is_empty():
-			_active_order = _make_random_order()
+			_active_order = _make_random_order(blackboard)
 
 		while _current_child_idx < _active_order.size():
 			var child := _active_order[_current_child_idx]
@@ -311,11 +339,31 @@ class RandomSequence extends BTNode:
 				child.reset()
 
 
-	func _make_random_order() -> Array[BTNode]:
+	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
 		var result: Array[BTNode] = []
 		result.append_array(_children)
-		result.shuffle()
+		var active_rng := _resolve_rng(blackboard)
+		if active_rng == null:
+			result.shuffle()
+		else:
+			_shuffle_with_rng(result, active_rng)
 		return result
+
+
+	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
+		if rng != null:
+			return rng
+
+		var blackboard_rng: Variant = blackboard.get("rng", null)
+		return blackboard_rng if blackboard_rng is RandomNumberGenerator else null
+
+
+	func _shuffle_with_rng(nodes: Array[BTNode], random_source: RandomNumberGenerator) -> void:
+		for index: int in range(nodes.size() - 1, 0, -1):
+			var swap_index := random_source.randi_range(0, index)
+			var temp := nodes[index]
+			nodes[index] = nodes[swap_index]
+			nodes[swap_index] = temp
 
 
 ## 动作节点 (叶子节点)。

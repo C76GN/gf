@@ -318,6 +318,89 @@ static func radius_neighbors(
 	return result
 
 
+## 计算基于未来最近距离的动态碰撞避让行为。
+## @param agent: 代理状态。
+## @param targets: 需要避让的目标代理列表。
+## @param max_prediction_seconds: 最大预测秒数；小于等于 0 时只处理当前重叠。
+## @param collision_radius: 碰撞半径；小于 0 时使用双方半径之和。
+## @param minimum_separation: 预测最近距离阈值；小于 0 时使用碰撞半径。
+## @return steering 加速度。
+static func avoid_collisions(
+	agent: GFSteeringAgent,
+	targets: Array[GFSteeringAgent],
+	max_prediction_seconds: float = 1.0,
+	collision_radius: float = -1.0,
+	minimum_separation: float = -1.0
+) -> GFSteeringAcceleration:
+	if agent == null:
+		return GFSteeringAcceleration.new()
+
+	var best_target: GFSteeringAgent = null
+	var best_time := INF
+	var best_current_distance := INF
+	var best_relative_velocity := Vector3.ZERO
+	var prediction_limit := maxf(max_prediction_seconds, 0.0)
+
+	for target: GFSteeringAgent in targets:
+		if target == null or target == agent:
+			continue
+
+		var relative_position := target.position - agent.position
+		var current_distance := relative_position.length()
+		var effective_collision_radius := _resolve_collision_radius(agent, target, collision_radius)
+		var effective_minimum_separation := _resolve_minimum_separation(
+			effective_collision_radius,
+			minimum_separation
+		)
+
+		if current_distance <= effective_collision_radius:
+			best_target = target
+			best_time = 0.0
+			best_current_distance = current_distance
+			best_relative_velocity = target.velocity - agent.velocity
+			break
+
+		var relative_velocity := target.velocity - agent.velocity
+		var relative_speed_squared := relative_velocity.length_squared()
+		if relative_speed_squared <= EPSILON:
+			continue
+
+		var time_to_closest := -relative_position.dot(relative_velocity) / relative_speed_squared
+		if time_to_closest <= 0.0:
+			continue
+		if prediction_limit > 0.0 and time_to_closest > prediction_limit:
+			continue
+		if prediction_limit <= 0.0:
+			continue
+
+		var closest_relative_position := relative_position + relative_velocity * time_to_closest
+		var closest_distance := closest_relative_position.length()
+		if closest_distance > effective_minimum_separation:
+			continue
+		if time_to_closest >= best_time:
+			continue
+
+		best_target = target
+		best_time = time_to_closest
+		best_current_distance = current_distance
+		best_relative_velocity = relative_velocity
+
+	if best_target == null:
+		return GFSteeringAcceleration.new()
+
+	var direction := _get_avoidance_direction(
+		agent,
+		best_target,
+		best_time,
+		best_current_distance,
+		collision_radius,
+		best_relative_velocity
+	)
+	if direction.length_squared() <= EPSILON:
+		return GFSteeringAcceleration.new()
+	return GFSteeringAcceleration.new(direction.normalized() * agent.linear_acceleration_max)
+
+
 ## 计算路径跟随的下一个目标点。
 ## @param agent: 代理状态。
 ## @param path: 路径点列表。
@@ -414,3 +497,55 @@ static func _advance_along_path(
 		current = path[index]
 
 	return current
+
+
+static func _resolve_collision_radius(
+	agent: GFSteeringAgent,
+	target: GFSteeringAgent,
+	collision_radius: float
+) -> float:
+	if collision_radius >= 0.0:
+		return collision_radius
+	return maxf(agent.radius, 0.0) + maxf(target.radius, 0.0)
+
+
+static func _resolve_minimum_separation(collision_radius: float, minimum_separation: float) -> float:
+	if minimum_separation < 0.0:
+		return collision_radius
+	return maxf(minimum_separation, collision_radius)
+
+
+static func _get_avoidance_direction(
+	agent: GFSteeringAgent,
+	target: GFSteeringAgent,
+	time_to_collision: float,
+	current_distance: float,
+	collision_radius: float,
+	relative_velocity: Vector3
+) -> Vector3:
+	var effective_collision_radius := _resolve_collision_radius(agent, target, collision_radius)
+	if time_to_collision <= EPSILON or current_distance <= effective_collision_radius:
+		var immediate_direction := agent.position - target.position
+		if immediate_direction.length_squared() > EPSILON:
+			return immediate_direction
+
+	var future_agent_position := agent.position + agent.velocity * time_to_collision
+	var future_target_position := target.position + target.velocity * time_to_collision
+	var future_direction := future_agent_position - future_target_position
+	if future_direction.length_squared() > EPSILON:
+		return future_direction
+	if relative_velocity.length_squared() > EPSILON:
+		return _get_perpendicular_direction(relative_velocity)
+	if agent.velocity.length_squared() > EPSILON:
+		return _get_perpendicular_direction(agent.velocity)
+	return Vector3.ZERO
+
+
+static func _get_perpendicular_direction(direction: Vector3) -> Vector3:
+	var perpendicular := direction.cross(Vector3.FORWARD)
+	if perpendicular.length_squared() > EPSILON:
+		return perpendicular
+	perpendicular = direction.cross(Vector3.UP)
+	if perpendicular.length_squared() > EPSILON:
+		return perpendicular
+	return direction.cross(Vector3.RIGHT)

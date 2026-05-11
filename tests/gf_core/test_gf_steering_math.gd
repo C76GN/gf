@@ -93,3 +93,31 @@ func test_radius_neighbors_and_path_follow_target() -> void:
 		3.0
 	)
 	assert_eq(target, Vector3(5.0, 0.0, 0.0))
+
+
+func test_avoid_collisions_predicts_future_overlap() -> void:
+	var agent := GFSteeringAgent.new(Vector3(-10.0, 0.0, 0.0), Vector3.RIGHT * 10.0)
+	agent.radius = 1.0
+	agent.linear_acceleration_max = 20.0
+	var target := GFSteeringAgent.new(Vector3(10.0, 0.0, 0.0), Vector3.LEFT * 10.0)
+	target.radius = 1.0
+
+	var avoidance := GFSteeringMath.avoid_collisions(
+		agent,
+		[target] as Array[GFSteeringAgent],
+		2.0,
+		-1.0,
+		3.0
+	)
+
+	assert_almost_eq(avoidance.linear.length(), 20.0, 0.001, "预测到未来碰撞时应使用最大加速度避让。")
+	assert_gt(absf(avoidance.linear.y), 0.0, "完全迎面相遇时应选择侧向避让方向。")
+
+
+func test_avoid_collisions_ignores_non_threatening_targets() -> void:
+	var agent := GFSteeringAgent.new(Vector3.ZERO, Vector3.RIGHT * 10.0)
+	var target := GFSteeringAgent.new(Vector3.RIGHT * 50.0, Vector3.RIGHT * 10.0)
+
+	var avoidance := GFSteeringMath.avoid_collisions(agent, [target] as Array[GFSteeringAgent], 1.0)
+
+	assert_true(avoidance.is_zero(), "相对速度不会缩短距离时不应产生避让。")

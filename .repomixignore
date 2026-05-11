@@ -2,6 +2,6 @@
 # Example:
 # *.log
 # tmp/
-
+*.uid
 .ttf
 addons/gut

@@ -14,7 +14,9 @@ const GFInputHoldTriggerBase = preload("res://addons/gf/input/gf_input_hold_trig
 const GFInputIconProviderBase = preload("res://addons/gf/input/gf_input_icon_provider.gd")
 const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
 const GFInputMappingUtilityBase = preload("res://addons/gf/utilities/gf_input_mapping_utility.gd")
+const GFInputPlaybackBase = preload("res://addons/gf/input/gf_input_playback.gd")
 const GFInputPulseTriggerBase = preload("res://addons/gf/input/gf_input_pulse_trigger.gd")
+const GFInputRecordingBase = preload("res://addons/gf/input/gf_input_recording.gd")
 const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
 const GFInputTapTriggerBase = preload("res://addons/gf/input/gf_input_tap_trigger.gd")
 const GFInputSequenceBranchBase = preload("res://addons/gf/input/gf_input_sequence_branch.gd")
@@ -22,6 +24,7 @@ const GFInputSequenceStepBase = preload("res://addons/gf/input/gf_input_sequence
 const GFInputSequenceTriggerBase = preload("res://addons/gf/input/gf_input_sequence_trigger.gd")
 const GFInputScaleModifierBase = preload("res://addons/gf/input/gf_input_scale_modifier.gd")
 const GFInputTextProviderBase = preload("res://addons/gf/input/gf_input_text_provider.gd")
+const GFVirtualInputSourceBase = preload("res://addons/gf/input/gf_virtual_input_source.gd")
 
 
 # --- 辅助类 ---
@@ -624,6 +627,99 @@ func test_player_action_state_is_scoped_by_device_assignment() -> void:
 	_utility = null
 	await get_tree().process_frame
 	await get_tree().create_timer(0.0).timeout
+
+
+func test_virtual_input_source_drives_global_and_player_action_state() -> void:
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [] as Array[GFInputBindingBase]),
+	])
+	_utility.enable_context(context)
+	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"replay", 0)
+
+	assert_true(source.press(&"jump"), "虚拟输入源应能按下已注册动作。")
+	assert_true(_utility.is_action_active(&"jump"), "虚拟按下应激活全局动作。")
+	assert_true(_utility.is_action_active_for_player(0, &"jump"), "带玩家索引的虚拟源应激活玩家动作。")
+	assert_true(_utility.was_action_just_started(&"jump"), "虚拟按下应产生 just started。")
+
+	assert_true(source.release(&"jump"), "虚拟输入源应能释放动作。")
+	assert_false(_utility.is_action_active(&"jump"), "虚拟释放后全局动作应结束。")
+	assert_true(_utility.was_action_just_completed(&"jump"), "虚拟释放应产生 just completed。")
+
+
+func test_virtual_input_source_supports_axis_values_and_clear() -> void:
+	var action := _make_action(&"move", GFInputActionBase.ValueType.AXIS_2D)
+	action.activation_threshold = 0.1
+	var context := _make_context(&"gameplay", [
+		_make_mapping(action, [] as Array[GFInputBindingBase]),
+	])
+	_utility.enable_context(context)
+	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"ai")
+
+	assert_true(source.set_axis_2d(&"move", Vector2(0.25, -0.5)), "虚拟源应能写入二维轴值。")
+	assert_eq(_utility.get_action_value(&"move"), Vector2(0.25, -0.5), "二维虚拟值应可按动作读取。")
+	assert_true(_utility.is_action_active(&"move"), "超过阈值的虚拟轴值应激活动作。")
+
+	source.clear_all()
+
+	assert_eq(_utility.get_action_value(&"move"), Vector2.ZERO, "清理虚拟源后动作值应回到默认值。")
+	assert_false(_utility.is_action_active(&"move"), "清理虚拟源后动作应结束。")
+
+
+func test_input_recording_playback_drives_virtual_source() -> void:
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [] as Array[GFInputBindingBase]),
+	])
+	_utility.enable_context(context)
+	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"recording")
+	var recording := GFInputRecordingBase.new()
+	recording.add_event(&"jump", true, 0.0)
+	recording.add_event(&"jump", false, 0.1)
+	var playback := GFInputPlaybackBase.new()
+
+	assert_true(playback.start(recording, source), "回放应能启动。")
+	assert_eq(playback.tick(0.0), 1, "0 秒事件应在首帧应用。")
+	assert_true(_utility.is_action_active(&"jump"), "回放按下事件应激活动作。")
+
+	playback.tick(0.1)
+
+	assert_false(_utility.is_action_active(&"jump"), "回放释放事件应结束动作。")
+	assert_false(playback.is_playing, "非循环回放到末尾后应停止。")
+
+
+func test_input_recording_json_roundtrip_preserves_values() -> void:
+	var recording := GFInputRecordingBase.new()
+	recording.recording_id = &"sample"
+	recording.add_event(&"move", Vector2(0.25, -0.5), 0.2, 1, &"demo", {
+		"tags": PackedStringArray(["tutorial"]),
+	})
+
+	var encoded: Variant = GFVariantUtility.variant_to_json_compatible(recording.to_dict(true))
+	var decoded := GFInputRecordingBase.from_dict(
+		GFVariantUtility.json_compatible_to_variant(JSON.parse_string(JSON.stringify(encoded))) as Dictionary
+	) as GFInputRecordingBase
+	var event: Dictionary = decoded.events[0]
+
+	assert_eq(decoded.recording_id, &"sample", "录制 ID 应保留。")
+	assert_eq(event["value"], Vector2(0.25, -0.5), "录制事件值应保留 Godot 类型。")
+	assert_eq((event["metadata"] as Dictionary)["tags"], PackedStringArray(["tutorial"]), "事件元数据应保留 PackedStringArray。")
+
+
+func test_input_playback_can_respect_recorded_player_index() -> void:
+	var context := _make_context(&"gameplay", [
+		_make_mapping(_make_action(&"jump"), [] as Array[GFInputBindingBase]),
+	])
+	_utility.enable_context(context)
+	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"recording")
+	var recording := GFInputRecordingBase.new()
+	recording.add_event(&"jump", true, 0.0, 1)
+	var playback := GFInputPlaybackBase.new()
+	playback.respect_recorded_player_index = true
+
+	playback.start(recording, source)
+	playback.tick(0.0)
+
+	assert_false(_utility.is_action_active_for_player(0, &"jump"), "未录制的玩家不应被激活。")
+	assert_true(_utility.is_action_active_for_player(1, &"jump"), "录制玩家索引应被用于虚拟源写入。")
 
 
 # --- 私有/辅助方法 ---

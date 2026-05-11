@@ -48,6 +48,7 @@ const GFInputMappingBase = preload("res://addons/gf/input/gf_input_mapping.gd")
 const GFInputModifierBase = preload("res://addons/gf/input/gf_input_modifier.gd")
 const GFInputRemapConfigBase = preload("res://addons/gf/input/gf_input_remap_config.gd")
 const GFInputTriggerBase = preload("res://addons/gf/input/gf_input_trigger.gd")
+const GFVirtualInputSourceBase = preload("res://addons/gf/input/gf_virtual_input_source.gd")
 
 
 # --- 私有变量 ---
@@ -215,6 +216,141 @@ func handle_input_event(event: InputEvent) -> void:
 			action_triggered.emit(action_id, value)
 		if player_index >= 0 and is_action_active_for_player(player_index, action_id):
 			player_action_triggered.emit(player_index, action_id, get_action_value_for_player(player_index, action_id))
+
+
+## 创建可编程虚拟输入源。
+## @param source_id: 虚拟输入源标识。
+## @param player_index: 玩家索引；小于 0 时只写入全局动作状态。
+## @return 虚拟输入源。
+func create_virtual_source(
+	source_id: StringName = &"virtual",
+	player_index: int = -1
+) -> GFVirtualInputSourceBase:
+	return GFVirtualInputSourceBase.new(self, source_id, player_index)
+
+
+## 写入虚拟动作值。
+## @param action_id: 动作标识。
+## @param value: 动作值。
+## @param source_id: 虚拟输入源标识。
+## @param player_index: 玩家索引；小于 0 时只写入全局动作状态。
+## @return 写入成功返回 true。
+func set_virtual_action_value(
+	action_id: StringName,
+	value: Variant,
+	source_id: StringName = &"virtual",
+	player_index: int = -1
+) -> bool:
+	var action := _actions.get(action_id) as GFInputActionBase
+	if action == null:
+		return false
+
+	var source_key := source_id if source_id != &"" else &"virtual"
+	var contribution := _coerce_virtual_value_to_vector(value, action.value_type)
+	var binding_key := _make_virtual_binding_key(source_key, action_id, player_index)
+	_binding_values[binding_key] = contribution
+	_binding_to_action[binding_key] = action_id
+	_refresh_action_state(action_id, action)
+
+	if player_index >= 0:
+		var player_binding_key := _make_player_binding_key(player_index, binding_key)
+		_player_binding_values[player_binding_key] = contribution
+		_player_binding_to_action[player_binding_key] = action_id
+		_refresh_player_action_state(player_index, action_id, action)
+
+	return true
+
+
+## 清除虚拟动作值。
+## @param action_id: 动作标识。
+## @param source_id: 虚拟输入源标识。
+## @param player_index: 玩家索引；小于 0 时只清除全局动作状态。
+## @return 清除成功返回 true。
+func clear_virtual_action(
+	action_id: StringName,
+	source_id: StringName = &"virtual",
+	player_index: int = -1
+) -> bool:
+	var action := _actions.get(action_id) as GFInputActionBase
+	if action == null:
+		return false
+
+	var source_key := source_id if source_id != &"" else &"virtual"
+	var binding_key := _make_virtual_binding_key(source_key, action_id, player_index)
+	var changed := _binding_values.has(binding_key)
+	_binding_values.erase(binding_key)
+	_binding_to_action.erase(binding_key)
+	_refresh_action_state(action_id, action)
+
+	if player_index >= 0:
+		var player_binding_key := _make_player_binding_key(player_index, binding_key)
+		changed = _player_binding_values.has(player_binding_key) or changed
+		_player_binding_values.erase(player_binding_key)
+		_player_binding_to_action.erase(player_binding_key)
+		_refresh_player_action_state(player_index, action_id, action)
+
+	return changed
+
+
+## 清除指定虚拟输入源的所有动作贡献。
+## @param source_id: 虚拟输入源标识。
+func clear_virtual_source(source_id: StringName = &"virtual") -> void:
+	var source_key := source_id if source_id != &"" else &"virtual"
+	var prefix := _make_virtual_source_prefix(source_key)
+	var affected_actions: Dictionary = {}
+	var affected_player_actions: Dictionary = {}
+
+	for key: String in _binding_to_action.keys():
+		if not key.begins_with(prefix):
+			continue
+		var action_id := _binding_to_action[key] as StringName
+		affected_actions[action_id] = true
+		_binding_values.erase(key)
+		_binding_to_action.erase(key)
+
+	for key: String in _player_binding_to_action.keys():
+		var source_part := _get_player_source_binding_key(key)
+		if not source_part.begins_with(prefix):
+			continue
+		var action_id := _player_binding_to_action[key] as StringName
+		var player_index := _get_player_index_from_binding_key(key)
+		affected_player_actions[_make_player_action_key(player_index, action_id)] = {
+			"player_index": player_index,
+			"action_id": action_id,
+		}
+		_player_binding_values.erase(key)
+		_player_binding_to_action.erase(key)
+
+	for action_id: StringName in affected_actions.keys():
+		var action := _actions.get(action_id) as GFInputActionBase
+		if action != null:
+			_refresh_action_state(action_id, action)
+
+	for entry: Dictionary in affected_player_actions.values():
+		var action_id := entry["action_id"] as StringName
+		var action := _actions.get(action_id) as GFInputActionBase
+		if action != null:
+			_refresh_player_action_state(int(entry["player_index"]), action_id, action)
+
+
+## 获取虚拟输入源状态快照。
+## @param source_id: 虚拟输入源标识。
+## @return 快照字典。
+func get_virtual_source_snapshot(source_id: StringName = &"virtual") -> Dictionary:
+	var source_key := source_id if source_id != &"" else &"virtual"
+	var prefix := _make_virtual_source_prefix(source_key)
+	var actions: Array[Dictionary] = []
+	for key: String in _binding_to_action.keys():
+		if key.begins_with(prefix):
+			actions.append({
+				"action_id": _binding_to_action[key],
+				"value": _binding_values.get(key, Vector3.ZERO),
+			})
+
+	return {
+		"source_id": source_key,
+		"actions": actions,
+	}
 
 
 ## 获取动作当前值。
@@ -825,12 +961,65 @@ func _make_player_binding_key(player_index: int, binding_key: String) -> String:
 	return "%d/%s" % [player_index, binding_key]
 
 
+func _make_virtual_source_prefix(source_id: StringName) -> String:
+	return "virtual:%s/" % String(source_id)
+
+
+func _make_virtual_binding_key(source_id: StringName, action_id: StringName, player_index: int = -1) -> String:
+	var scope := "player:%d" % player_index if player_index >= 0 else "global"
+	return "%s%s/%s" % [_make_virtual_source_prefix(source_id), scope, String(action_id)]
+
+
 func _make_source_binding_key(binding_key: String, event: InputEvent) -> String:
 	return "%s@%s" % [binding_key, _make_event_source_key(event)]
 
 
 func _make_player_action_key(player_index: int, action_id: StringName) -> String:
 	return "%d/%s" % [player_index, String(action_id)]
+
+
+func _get_player_source_binding_key(player_binding_key: String) -> String:
+	var parts := player_binding_key.split("/", false, 1)
+	return parts[1] if parts.size() == 2 else ""
+
+
+func _get_player_index_from_binding_key(player_binding_key: String) -> int:
+	var parts := player_binding_key.split("/", false, 1)
+	return int(parts[0]) if parts.size() == 2 else -1
+
+
+func _coerce_virtual_value_to_vector(value: Variant, value_type: GFInputActionBase.ValueType) -> Vector3:
+	if value == null:
+		return Vector3.ZERO
+
+	match value_type:
+		GFInputActionBase.ValueType.BOOL:
+			if value is bool:
+				return Vector3(1.0 if bool(value) else 0.0, 0.0, 0.0)
+			if value is Vector2:
+				return Vector3(1.0 if (value as Vector2).length() > 0.0 else 0.0, 0.0, 0.0)
+			if value is Vector3:
+				return Vector3(1.0 if (value as Vector3).length() > 0.0 else 0.0, 0.0, 0.0)
+			return Vector3(1.0 if absf(float(value)) > 0.0 else 0.0, 0.0, 0.0)
+		GFInputActionBase.ValueType.AXIS_1D:
+			if value is Vector2:
+				return Vector3((value as Vector2).x, 0.0, 0.0)
+			if value is Vector3:
+				return Vector3((value as Vector3).x, 0.0, 0.0)
+			return Vector3(clampf(float(value), -1.0, 1.0), 0.0, 0.0)
+		GFInputActionBase.ValueType.AXIS_2D:
+			if value is Vector2:
+				return Vector3((value as Vector2).x, (value as Vector2).y, 0.0)
+			if value is Vector3:
+				return Vector3((value as Vector3).x, (value as Vector3).y, 0.0)
+			return Vector3(clampf(float(value), -1.0, 1.0), 0.0, 0.0)
+		GFInputActionBase.ValueType.AXIS_3D:
+			if value is Vector3:
+				return value as Vector3
+			if value is Vector2:
+				return Vector3((value as Vector2).x, (value as Vector2).y, 0.0)
+			return Vector3(clampf(float(value), -1.0, 1.0), 0.0, 0.0)
+	return Vector3.ZERO
 
 
 func _advance_active_durations(delta: float) -> void:

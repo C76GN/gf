@@ -186,6 +186,39 @@ func test_random_sequence_uses_sequence_semantics() -> void:
 	assert_eq(state.count, 2)
 
 
+func test_random_sequence_can_use_seeded_rng_for_reproducible_order() -> void:
+	var first_order := _run_random_sequence_with_seed(1234)
+	var second_order := _run_random_sequence_with_seed(1234)
+
+	assert_eq(first_order, second_order, "相同随机种子应产生一致的随机顺序。")
+	assert_eq(_count_unique(first_order), 3)
+
+
+func test_random_selector_can_use_blackboard_rng() -> void:
+	var first_state := {
+		"rng": _make_rng(77),
+		"order": [],
+	}
+	var second_state := {
+		"rng": _make_rng(77),
+		"order": [],
+	}
+	var first_selector := GFBehaviorTree.RandomSelector.new([
+		_make_recording_action("A", GFBehaviorTree.Status.FAILURE),
+		_make_recording_action("B", GFBehaviorTree.Status.FAILURE),
+		_make_recording_action("C", GFBehaviorTree.Status.SUCCESS),
+	] as Array[GFBehaviorTree.BTNode])
+	var second_selector := GFBehaviorTree.RandomSelector.new([
+		_make_recording_action("A", GFBehaviorTree.Status.FAILURE),
+		_make_recording_action("B", GFBehaviorTree.Status.FAILURE),
+		_make_recording_action("C", GFBehaviorTree.Status.SUCCESS),
+	] as Array[GFBehaviorTree.BTNode])
+
+	assert_eq(first_selector.tick(first_state), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(second_selector.tick(second_state), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(first_state.order, second_state.order)
+
+
 func test_random_selector_uses_selector_semantics() -> void:
 	var fail := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
 		return GFBehaviorTree.Status.FAILURE
@@ -265,3 +298,38 @@ func test_until_success_and_until_fail() -> void:
 
 	assert_eq(until_fail.tick(fail_state), GFBehaviorTree.Status.RUNNING)
 	assert_eq(until_fail.tick(fail_state), GFBehaviorTree.Status.SUCCESS)
+
+
+func _run_random_sequence_with_seed(seed_value: int) -> Array:
+	var state := { "order": [] }
+	var random_sequence := GFBehaviorTree.RandomSequence.new([
+		_make_recording_action("A"),
+		_make_recording_action("B"),
+		_make_recording_action("C"),
+	] as Array[GFBehaviorTree.BTNode], _make_rng(seed_value))
+
+	assert_eq(random_sequence.tick(state), GFBehaviorTree.Status.SUCCESS)
+	return state.order
+
+
+func _make_recording_action(
+	label: String,
+	status: int = GFBehaviorTree.Status.SUCCESS
+) -> GFBehaviorTree.Action:
+	return GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.order.append(label)
+		return status
+	)
+
+
+func _make_rng(seed_value: int) -> RandomNumberGenerator:
+	var rng := RandomNumberGenerator.new()
+	rng.seed = seed_value
+	return rng
+
+
+func _count_unique(values: Array) -> int:
+	var lookup := {}
+	for value in values:
+		lookup[value] = true
+	return lookup.size()

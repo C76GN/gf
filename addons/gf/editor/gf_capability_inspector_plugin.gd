@@ -14,7 +14,11 @@ const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/
 const GF_NODE_2D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_2d_capability.gd")
 const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_node_3d_capability.gd")
 const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/gf_control_capability.gd")
+const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe.gd")
+const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/extensions/capability/gf_capability_recipe_entry.gd")
 const GF_EDITOR_TYPE_INDEX_BASE := preload("res://addons/gf/editor/gf_editor_type_index.gd")
+const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/foundation/validation/gf_validation_report.gd")
+const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 
 
 # --- Godot 回调方法 ---
@@ -45,6 +49,18 @@ func _parse_begin(object: Object) -> void:
 	add_button.tooltip_text = "添加 GF 节点能力"
 	header.add_child(add_button)
 	_populate_add_menu(add_button.get_popup(), target)
+
+	var recipe_button := MenuButton.new()
+	recipe_button.text = "Recipe"
+	recipe_button.tooltip_text = "应用 GFCapabilityRecipe 中的节点能力条目"
+	header.add_child(recipe_button)
+	_populate_recipe_menu(recipe_button.get_popup(), target)
+
+	var validate_button := Button.new()
+	validate_button.text = "校验"
+	validate_button.tooltip_text = "检查节点能力依赖"
+	validate_button.pressed.connect(_on_validate_capabilities_pressed.bind(target), CONNECT_DEFERRED)
+	header.add_child(validate_button)
 
 	var capabilities := _get_capability_nodes(target)
 	if capabilities.is_empty():
@@ -82,6 +98,25 @@ func _populate_add_menu(popup: PopupMenu, target: Node) -> void:
 		popup.set_item_metadata(i, candidate)
 
 	popup.id_pressed.connect(_on_add_menu_id_pressed.bind(popup, target), CONNECT_DEFERRED)
+
+
+func _populate_recipe_menu(popup: PopupMenu, target: Node) -> void:
+	popup.clear()
+	if popup.id_pressed.is_connected(_on_recipe_menu_id_pressed):
+		popup.id_pressed.disconnect(_on_recipe_menu_id_pressed)
+
+	var candidates := _collect_recipe_candidates()
+	if candidates.is_empty():
+		popup.add_item("未找到 GFCapabilityRecipe")
+		popup.set_item_disabled(0, true)
+		return
+
+	for i: int in range(candidates.size()):
+		var candidate := candidates[i] as Dictionary
+		popup.add_item(String(candidate["label"]), i)
+		popup.set_item_metadata(i, candidate)
+
+	popup.id_pressed.connect(_on_recipe_menu_id_pressed.bind(popup, target), CONNECT_DEFERRED)
 
 
 func _collect_node_capability_candidates() -> Array[Dictionary]:
@@ -122,6 +157,55 @@ func _collect_node_capability_candidates() -> Array[Dictionary]:
 	return candidates
 
 
+func _collect_recipe_candidates() -> Array[Dictionary]:
+	var candidates: Array[Dictionary] = []
+	if not Engine.is_editor_hint():
+		return candidates
+
+	var filesystem := EditorInterface.get_resource_filesystem()
+	if filesystem == null:
+		return candidates
+
+	var root_dir := filesystem.get_filesystem()
+	if root_dir == null:
+		return candidates
+
+	var used_paths: Dictionary = {}
+	_collect_recipe_candidates_recursive(root_dir, candidates, used_paths)
+	candidates.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return String(left["label"]) < String(right["label"])
+	)
+	return candidates
+
+
+func _collect_recipe_candidates_recursive(
+	directory: EditorFileSystemDirectory,
+	candidates: Array[Dictionary],
+	used_paths: Dictionary
+) -> void:
+	for i: int in range(directory.get_subdir_count()):
+		_collect_recipe_candidates_recursive(directory.get_subdir(i), candidates, used_paths)
+
+	for i: int in range(directory.get_file_count()):
+		var file_name := directory.get_file(i)
+		if not _is_recipe_resource_file(file_name):
+			continue
+
+		var path := _join_resource_path(directory.get_path(), file_name)
+		if used_paths.has(path):
+			continue
+		var recipe := load(path) as GF_CAPABILITY_RECIPE_BASE
+		if recipe == null:
+			continue
+
+		used_paths[path] = true
+		candidates.append({
+			"label": _get_recipe_display_label(recipe, path),
+			"path": path,
+			"recipe": recipe,
+		})
+
+
 func _get_node_capability_base_scripts() -> Array[Script]:
 	return [
 		GF_NODE_CAPABILITY_BASE,
@@ -129,6 +213,51 @@ func _get_node_capability_base_scripts() -> Array[Script]:
 		GF_NODE_3D_CAPABILITY_BASE,
 		GF_CONTROL_CAPABILITY_BASE,
 	] as Array[Script]
+
+
+func _is_recipe_resource_file(file_name: String) -> bool:
+	var extension := file_name.get_extension().to_lower()
+	return extension == "tres" or extension == "res"
+
+
+func _join_resource_path(dir_path: String, file_name: String) -> String:
+	if dir_path.ends_with("/"):
+		return dir_path + file_name
+	return "%s/%s" % [dir_path, file_name]
+
+
+func _get_recipe_display_label(recipe: GF_CAPABILITY_RECIPE_BASE, path: String) -> String:
+	var display_name := recipe.get_display_name() if recipe != null else ""
+	if display_name.is_empty():
+		display_name = path.get_file().get_basename().to_pascal_case()
+	return "%s (%s)" % [display_name, path]
+
+
+func _script_is_node_capability(script: Script) -> bool:
+	if script == null:
+		return false
+	for base_script: Script in _get_node_capability_base_scripts():
+		if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, base_script):
+			return true
+	return false
+
+
+func _get_packed_scene_root_script(scene: PackedScene) -> Script:
+	if scene == null:
+		return null
+
+	var state := scene.get_state()
+	if state == null:
+		return null
+
+	for node_index: int in range(state.get_node_count()):
+		if not state.get_node_path(node_index, true).is_empty():
+			continue
+
+		for property_index: int in range(state.get_node_property_count(node_index)):
+			if state.get_node_property_name(node_index, property_index) == &"script":
+				return state.get_node_property_value(node_index, property_index) as Script
+	return null
 
 
 func _create_capability_row(target: Node, capability: Node) -> Control:
@@ -361,6 +490,343 @@ func _add_capability_node(target: Node, candidate: Dictionary) -> void:
 	EditorInterface.inspect_object(node)
 
 
+func _apply_recipe_to_target(target: Node, recipe: GF_CAPABILITY_RECIPE_BASE) -> Dictionary:
+	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Capability recipe editor apply")
+	var added: Array[Dictionary] = []
+	var skipped: Array[Dictionary] = []
+	if not is_instance_valid(target):
+		report.add_error(&"invalid_target", "Target node is invalid.")
+		return _recipe_apply_report_to_dict(report, recipe, added, skipped)
+	if recipe == null:
+		report.add_error(&"invalid_recipe", "Capability recipe is null.")
+		return _recipe_apply_report_to_dict(report, recipe, added, skipped)
+
+	for index: int in range(recipe.entries.size()):
+		var entry := recipe.entries[index]
+		if entry == null:
+			report.add_warning(&"null_entry", "Recipe contains a null entry.", str(index))
+			continue
+		if not entry.is_valid_entry():
+			report.add_error(&"invalid_entry", "Recipe entry requires capability_type or scene.", str(index))
+			continue
+
+		var node := _create_capability_node_from_recipe_entry(entry, report, index)
+		if node == null:
+			skipped.append({
+				"index": index,
+				"kind": "not_node_capability",
+			})
+			continue
+
+		var capability_script := entry.capability_type
+		if capability_script == null:
+			capability_script = node.get_script() as Script
+		if capability_script != null and _target_has_capability_script(target, capability_script):
+			node.queue_free()
+			skipped.append({
+				"index": index,
+				"kind": "already_exists",
+				"type": _get_script_key(capability_script),
+			})
+			continue
+
+		var container := _get_or_create_capability_container(target, node)
+		node.name = _make_unique_child_name(container, _get_recipe_entry_node_name(entry, node, index))
+		container.add_child(node, true)
+		_set_owner_recursive(node, EditorInterface.get_edited_scene_root())
+		_set_editor_capability_active(node, entry.active)
+		added.append({
+			"index": index,
+			"type": _get_script_key(capability_script),
+			"name": node.name,
+			"active": entry.active,
+		})
+
+	var result := _recipe_apply_report_to_dict(report, recipe, added, skipped)
+	result["dependency_report"] = _build_editor_capability_report(target)
+	_select_editor_node(target)
+	EditorInterface.inspect_object(target)
+	return result
+
+
+func _create_capability_node_from_recipe_entry(
+	entry: GF_CAPABILITY_RECIPE_ENTRY_BASE,
+	report: Variant,
+	index: int
+) -> Node:
+	if entry == null:
+		return null
+	if entry.scene != null:
+		var scene_node := entry.scene.instantiate() as Node
+		if scene_node == null:
+			report.add_error(&"scene_root_not_node", "Recipe scene root must be a Node.", str(index))
+			return null
+		var scene_script := entry.capability_type
+		if scene_script == null:
+			scene_script = scene_node.get_script() as Script
+		if not _script_is_node_capability(scene_script):
+			report.add_warning(&"not_node_capability", "Recipe scene root is not a GF node capability.", str(index))
+			scene_node.queue_free()
+			return null
+		return scene_node
+
+	var script := entry.capability_type as Script
+	if not _script_is_node_capability(script):
+		report.add_warning(&"not_node_capability", "Recipe entry is not a GF node capability.", str(index))
+		return null
+	if not script.can_instantiate():
+		report.add_error(&"script_not_instantiable", "Recipe capability script cannot be instantiated.", str(index))
+		return null
+
+	var node := script.new() as Node
+	if node == null:
+		report.add_error(&"script_not_node", "Recipe capability script must instantiate a Node.", str(index))
+	return node
+
+
+func _recipe_apply_report_to_dict(
+	report: Variant,
+	recipe: GF_CAPABILITY_RECIPE_BASE,
+	added: Array[Dictionary],
+	skipped: Array[Dictionary]
+) -> Dictionary:
+	return report.to_dict(
+		{
+			"recipe_id": recipe.recipe_id if recipe != null else &"",
+			"added": added,
+			"skipped": skipped,
+			"added_count": added.size(),
+			"skipped_count": skipped.size(),
+		},
+		{
+			"include_subject": false,
+			"include_metadata": false,
+			"include_info_count": false,
+			"include_issue_count": false,
+			"next_actions": _get_editor_capability_next_actions(),
+			"no_action": "No action required.",
+			"fallback_action": "Review the first reported capability editor issue.",
+		}
+	)
+
+
+func _get_recipe_entry_node_name(entry: GF_CAPABILITY_RECIPE_ENTRY_BASE, node: Node, index: int) -> String:
+	if entry != null and entry.capability_type != null:
+		var global_name := entry.capability_type.get_global_name()
+		if global_name != &"":
+			return String(global_name)
+	if node != null and not String(node.name).is_empty():
+		return String(node.name)
+	return "Capability%d" % (index + 1)
+
+
+func _build_editor_capability_report(target: Node) -> Dictionary:
+	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Capability inspector")
+	if not is_instance_valid(target):
+		report.add_error(&"invalid_target", "Target node is invalid.")
+		return report.to_dict({}, { "include_subject": false })
+
+	var capabilities := _get_capability_nodes(target)
+	var capability_records: Array[Dictionary] = []
+	var seen_scripts: Dictionary = {}
+	for capability: Node in capabilities:
+		var script := capability.get_script() as Script
+		var script_key := _get_script_key(script)
+		if script == null:
+			report.add_warning(&"missing_capability_script", "Capability node has no script.", capability.get_path())
+			continue
+		if seen_scripts.has(script):
+			report.add_warning(&"duplicate_capability", "Target contains duplicate capability scripts.", script_key)
+		seen_scripts[script] = true
+
+		var required_types := _get_required_capability_types(capability, report, script_key)
+		var missing_dependencies: Array[Dictionary] = []
+		for required_type: Script in required_types:
+			if _capability_list_has_script(capabilities, required_type):
+				continue
+			var missing_entry := {
+				"capability": script_key,
+				"required": _get_script_key(required_type),
+			}
+			missing_dependencies.append(missing_entry)
+			report.add_error(
+				&"missing_required_capability",
+				"Capability is missing a required capability.",
+				script_key,
+				_get_script_key(required_type)
+			)
+
+		capability_records.append({
+			"type": script_key,
+			"name": capability.name,
+			"active": _read_editor_capability_active(capability),
+			"required": _script_array_to_keys(required_types),
+			"missing_dependencies": missing_dependencies,
+		})
+
+	return report.to_dict(
+		{
+			"target": target.get_path(),
+			"capability_count": capability_records.size(),
+			"capabilities": capability_records,
+		},
+		{
+			"include_subject": false,
+			"include_metadata": false,
+			"include_info_count": false,
+			"include_issue_count": false,
+			"next_actions": _get_editor_capability_next_actions(),
+			"no_action": "No action required.",
+			"fallback_action": "Review the first reported capability editor issue.",
+		}
+	)
+
+
+func _get_required_capability_types(
+	capability: Node,
+	report: Variant,
+	script_key: String
+) -> Array[Script]:
+	if capability == null or not capability.has_method("get_required_capabilities"):
+		return [] as Array[Script]
+
+	var raw_value: Variant = capability.call("get_required_capabilities")
+	if raw_value == null:
+		return [] as Array[Script]
+	if not raw_value is Array:
+		report.add_warning(
+			&"invalid_required_capabilities",
+			"get_required_capabilities() must return an Array of Script values.",
+			script_key
+		)
+		return [] as Array[Script]
+
+	var result: Array[Script] = []
+	for item: Variant in raw_value:
+		if item is Script and not result.has(item):
+			result.append(item as Script)
+		elif item != null:
+			report.add_warning(
+				&"invalid_required_capability_type",
+				"get_required_capabilities() contains a non-Script value.",
+				script_key
+			)
+	return result
+
+
+func _target_has_capability_script(target: Node, expected_script: Script) -> bool:
+	return _capability_list_has_script(_get_capability_nodes(target), expected_script)
+
+
+func _capability_list_has_script(capabilities: Array[Node], expected_script: Script) -> bool:
+	if expected_script == null:
+		return false
+
+	for capability: Node in capabilities:
+		var script := capability.get_script() as Script
+		if script == null:
+			continue
+		if script == expected_script:
+			return true
+		if _SCRIPT_TYPE_UTILITY.script_extends_or_equals(script, expected_script):
+			return true
+	return false
+
+
+func _script_array_to_keys(scripts: Array[Script]) -> PackedStringArray:
+	var result := PackedStringArray()
+	for script: Script in scripts:
+		result.append(_get_script_key(script))
+	result.sort()
+	return result
+
+
+func _get_script_key(script: Script) -> String:
+	if script == null:
+		return "<null>"
+
+	var global_name := script.get_global_name()
+	if global_name != &"":
+		return String(global_name)
+	if not script.resource_path.is_empty():
+		return script.resource_path
+	return str(script.get_instance_id())
+
+
+func _show_editor_report(title: String, report: Dictionary) -> void:
+	var dialog := AcceptDialog.new()
+	dialog.title = title
+	dialog.exclusive = false
+
+	var text_edit := TextEdit.new()
+	text_edit.editable = false
+	text_edit.custom_minimum_size = Vector2(720, 420)
+	text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	text_edit.text = _format_editor_report(report)
+	dialog.add_child(text_edit)
+	dialog.confirmed.connect(dialog.queue_free, CONNECT_DEFERRED)
+	dialog.close_requested.connect(dialog.queue_free, CONNECT_DEFERRED)
+
+	var base_control := EditorInterface.get_base_control()
+	if base_control != null:
+		base_control.add_child(dialog)
+		dialog.popup_centered(Vector2i(760, 460))
+
+
+func _format_editor_report(report: Dictionary) -> String:
+	var lines := PackedStringArray()
+	lines.append(String(report.get("summary", "Capability report")))
+	lines.append("ok: %s" % str(report.get("ok", false)))
+	lines.append("errors: %d, warnings: %d" % [
+		int(report.get("error_count", 0)),
+		int(report.get("warning_count", 0)),
+	])
+	if report.has("added_count"):
+		lines.append("added: %d, skipped: %d" % [
+			int(report.get("added_count", 0)),
+			int(report.get("skipped_count", 0)),
+		])
+	if report.has("capability_count"):
+		lines.append("capabilities: %d" % int(report.get("capability_count", 0)))
+
+	var issues := report.get("issues", []) as Array
+	if issues != null and not issues.is_empty():
+		lines.append("")
+		lines.append("Issues:")
+		for issue: Dictionary in issues:
+			var kind := String(issue.get("kind", "unknown"))
+			var severity := String(issue.get("severity", "error"))
+			var message := String(issue.get("message", ""))
+			var key := str(issue.get("key", ""))
+			var path := String(issue.get("path", ""))
+			lines.append("- [%s] %s: %s" % [severity, kind, message])
+			if not key.is_empty() or not path.is_empty():
+				lines.append("  key=%s path=%s" % [key, path])
+
+	lines.append("")
+	lines.append("Next action: %s" % String(report.get("next_action", "No action required.")))
+	return "\n".join(lines)
+
+
+func _get_editor_capability_next_actions() -> Dictionary:
+	return {
+		"invalid_target": "Select a valid Node before using the capability inspector.",
+		"invalid_recipe": "Assign a valid GFCapabilityRecipe resource.",
+		"invalid_entry": "Set capability_type or scene on every Recipe entry.",
+		"null_entry": "Remove the null Recipe entry or replace it with a valid entry.",
+		"not_node_capability": "Use a GFNodeCapability, GFNode2DCapability, GFNode3DCapability, or GFControlCapability entry.",
+		"script_not_instantiable": "Use an instantiable capability script or a PackedScene entry.",
+		"script_not_node": "Use node-based capabilities in the editor inspector.",
+		"scene_root_not_node": "Use a scene whose root is a Node.",
+		"missing_capability_script": "Attach a script to the capability node or remove it.",
+		"duplicate_capability": "Remove duplicate capability nodes unless they intentionally use different registered types.",
+		"missing_required_capability": "Add the required capability or adjust get_required_capabilities().",
+		"invalid_required_capabilities": "Return Array[Script] from get_required_capabilities().",
+		"invalid_required_capability_type": "Only Script values should be returned from get_required_capabilities().",
+	}
+
+
 func _remove_capability_node(target: Node, capability: Node) -> void:
 	if not is_instance_valid(capability):
 		return
@@ -448,6 +914,24 @@ func _on_add_menu_id_pressed(id: int, popup: PopupMenu, target: Node) -> void:
 	if candidate.is_empty():
 		return
 	_add_capability_node(target, candidate)
+
+
+func _on_recipe_menu_id_pressed(id: int, popup: PopupMenu, target: Node) -> void:
+	var index := popup.get_item_index(id)
+	if index < 0:
+		return
+
+	var candidate := popup.get_item_metadata(index) as Dictionary
+	if candidate.is_empty():
+		return
+
+	var recipe := candidate.get("recipe", null) as GF_CAPABILITY_RECIPE_BASE
+	var report := _apply_recipe_to_target(target, recipe)
+	_show_editor_report("GF Capability Recipe", report)
+
+
+func _on_validate_capabilities_pressed(target: Node) -> void:
+	_show_editor_report("GF Capability Validation", _build_editor_capability_report(target))
 
 
 func _on_capability_active_toggled(active: bool, capability: Node) -> void:

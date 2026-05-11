@@ -7,6 +7,7 @@ extends GutTest
 const GFNetworkBackendBase = preload("res://addons/gf/extensions/network/gf_network_backend.gd")
 const GFNetworkChannelBase = preload("res://addons/gf/extensions/network/gf_network_channel.gd")
 const GFENetNetworkBackendBase = preload("res://addons/gf/extensions/network/gf_enet_network_backend.gd")
+const GFWebSocketNetworkBackendBase = preload("res://addons/gf/extensions/network/gf_websocket_network_backend.gd")
 const GFNetworkMessageBase = preload("res://addons/gf/extensions/network/gf_network_message.gd")
 const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/network/gf_network_message_validator.gd")
 const GFNetworkRateLimiterBase = preload("res://addons/gf/extensions/network/gf_network_rate_limiter.gd")
@@ -60,6 +61,22 @@ func test_network_serializer_round_trips_message() -> void:
 	assert_eq(decoded.sender_id, 3, "sender_id 应保留。")
 	assert_eq(decoded.channel_id, &"state_channel", "channel_id 应保留。")
 	assert_eq(decoded.payload.get("hp", 0), 10, "payload 应保留。")
+
+
+func test_network_json_serializer_can_use_typed_variant_codec() -> void:
+	var serializer := GFNetworkSerializerBase.new()
+	serializer.format = GFNetworkSerializerBase.Format.JSON
+	serializer.use_typed_json_codec = true
+	var message := GFNetworkMessageBase.new(&"state", {
+		"position": Vector2(1.0, 2.0),
+		"tags": PackedStringArray(["a", "b"]),
+	})
+
+	var decoded := serializer.deserialize_message(serializer.serialize_message(message))
+
+	assert_not_null(decoded, "类型化 JSON 解码结果不应为空。")
+	assert_eq(decoded.payload.get("position"), Vector2(1.0, 2.0), "类型化 JSON 应保留 Vector2。")
+	assert_eq(decoded.payload.get("tags"), PackedStringArray(["a", "b"]), "类型化 JSON 应保留 PackedStringArray。")
 
 
 func test_reconnect_policy_uses_delay_sequence_and_attempt_limit() -> void:
@@ -214,6 +231,75 @@ func test_enet_endpoint_parser_supports_ipv6_forms() -> void:
 	assert_eq(int(bracketed.get("port")), 9000, "带括号 IPv6 应解析端口。")
 	assert_eq(option_port.get("address"), "2001:db8::1", "未带端口的 IPv6 应保持完整地址。")
 	assert_eq(int(option_port.get("port")), 9001, "IPv6 可通过 options.port 指定端口。")
+
+
+func test_websocket_backend_rejects_missing_port() -> void:
+	var backend := GFWebSocketNetworkBackendBase.new()
+
+	assert_eq(backend.host({}), ERR_INVALID_PARAMETER, "WebSocket 主机必须显式提供端口。")
+
+
+func test_websocket_backend_round_trips_bytes() -> void:
+	var server := GFWebSocketNetworkBackendBase.new()
+	var client := GFWebSocketNetworkBackendBase.new()
+	var port := 0
+	var host_error: Error = ERR_UNAVAILABLE
+	for offset: int in range(20):
+		port = 19300 + offset
+		host_error = server.host({
+			"port": port,
+			"bind_address": "127.0.0.1",
+		})
+		if host_error == OK:
+			break
+	assert_eq(host_error, OK, "测试应能启动本地 WebSocket 主机。")
+	if host_error != OK:
+		return
+
+	var server_peer_ids: Array[int] = []
+	var server_messages: Array[PackedByteArray] = []
+	server.peer_connected.connect(func(peer_id: int) -> void:
+		server_peer_ids.append(peer_id)
+	)
+	server.message_received.connect(func(_peer_id: int, packet_bytes: PackedByteArray) -> void:
+		server_messages.append(packet_bytes)
+	)
+
+	var connect_error := client.connect_to_endpoint("ws://127.0.0.1:%d" % port)
+	assert_eq(connect_error, OK, "客户端应能开始连接本地 WebSocket 主机。")
+
+	for _step: int in range(120):
+		server.poll(0.016)
+		client.poll(0.016)
+		if not server_peer_ids.is_empty():
+			break
+		await get_tree().process_frame
+
+	assert_gt(server_peer_ids.size(), 0, "服务器应收到 WebSocket peer 连接。")
+	if server_peer_ids.is_empty():
+		server.disconnect_backend()
+		client.disconnect_backend()
+		return
+
+	var bytes := PackedByteArray([1, 2, 3, 4])
+	var send_error := client.send_bytes(GFWebSocketNetworkBackendBase.SERVER_PEER_ID, bytes)
+	assert_eq(send_error, OK, "客户端应能发送二进制包。")
+
+	for _step: int in range(120):
+		server.poll(0.016)
+		client.poll(0.016)
+		if not server_messages.is_empty():
+			break
+		await get_tree().process_frame
+
+	assert_gt(server_messages.size(), 0, "服务器应收到客户端发送的原始 bytes。")
+	if server_messages.is_empty():
+		server.disconnect_backend()
+		client.disconnect_backend()
+		return
+	assert_eq(server_messages[0], bytes, "服务器应收到客户端发送的原始 bytes。")
+	server.disconnect_backend()
+	client.disconnect_backend()
 
 
 ## 验证消息校验器会拒绝不合规消息。

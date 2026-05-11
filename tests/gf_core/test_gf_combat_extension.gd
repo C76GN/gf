@@ -32,6 +32,13 @@ class UnregisterOtherBuff extends GFBuff:
 			system.unregister_entity(target)
 
 
+class TickRecordingBuff extends GFBuff:
+	var tick_deltas: Array[float] = []
+
+	func on_tick(p_delta: float) -> void:
+		tick_deltas.append(p_delta)
+
+
 class RecordingHurtBox2D extends GFHurtBox2D:
 	var received_context: GFCombatHitContext = null
 	var validate_count: int = 0
@@ -343,6 +350,60 @@ func test_duplicate_buff_refresh_updates_duration_and_stacks() -> void:
 	assert_eq(buff.stacks, 2, "重复 Buff 应在 max_stacks 允许时增加层数。")
 	assert_eq(buff.duration, -1.0, "重复 Buff 刷新应同步新的 duration。")
 	assert_eq(buff.time_left, -1.0, "重复 Buff 刷新应同步新的剩余时间。")
+
+
+func test_buff_refresh_can_ignore_duplicate_stack() -> void:
+	var buff := GFBuff.new()
+	buff.setup(&"Guard", 3.0, null)
+	buff.time_left = 1.5
+	buff.max_stacks = 3
+	buff.stack_mode = GFBuff.StackMode.IGNORE
+
+	buff.on_refresh(10.0)
+
+	assert_eq(buff.stacks, 1, "IGNORE 策略不应增加层数。")
+	assert_almost_eq(buff.time_left, 1.5, 0.001, "IGNORE 策略不应刷新剩余时间。")
+
+
+func test_buff_refresh_duration_can_extend_or_keep_longer() -> void:
+	var extend_buff := GFBuff.new()
+	extend_buff.setup(&"Extend", 3.0, null)
+	extend_buff.time_left = 1.0
+	extend_buff.duration_refresh_policy = GFBuff.DurationRefreshPolicy.EXTEND_BY_NEW_DURATION
+	extend_buff.on_refresh(2.0)
+
+	var keep_buff := GFBuff.new()
+	keep_buff.setup(&"KeepLonger", 5.0, null)
+	keep_buff.time_left = 4.0
+	keep_buff.duration_refresh_policy = GFBuff.DurationRefreshPolicy.KEEP_LONGER_REMAINING
+	keep_buff.on_refresh(2.0)
+
+	assert_almost_eq(extend_buff.time_left, 3.0, 0.001, "EXTEND 策略应追加新的持续时间。")
+	assert_almost_eq(keep_buff.time_left, 4.0, 0.001, "KEEP_LONGER 策略应保留更长剩余时间。")
+
+
+func test_buff_periodic_tick_uses_interval() -> void:
+	var buff := TickRecordingBuff.new()
+	buff.setup(&"Pulse", -1.0, null)
+	buff.tick_interval_seconds = 0.5
+
+	buff.update(0.2)
+	buff.update(0.3)
+	buff.update(1.1)
+
+	assert_eq(buff.tick_deltas.size(), 3, "周期 Tick 应按间隔触发，而不是每帧触发。")
+	assert_almost_eq(buff.tick_deltas[0], 0.5, 0.001, "Tick 回调应收到配置的周期长度。")
+
+
+func test_buff_can_remain_after_expire() -> void:
+	var buff := GFBuff.new()
+	buff.setup(&"PersistentShell", 0.1, null)
+	buff.remove_on_expire = false
+
+	var should_remove := buff.update(0.2)
+
+	assert_false(should_remove, "remove_on_expire 为 false 时过期不应要求移除。")
+	assert_almost_eq(buff.time_left, 0.0, 0.001, "保留过期 Buff 时剩余时间应夹到 0。")
 
 
 func test_remove_buff_removes_effects_and_reports_result() -> void:

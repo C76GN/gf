@@ -114,6 +114,60 @@ class InjectedAction:
 		injected_architecture = architecture
 
 
+## 按标签跳过或替换动作的测试拦截器。
+class RewriteInterceptor:
+	extends GFActionInterceptor
+
+	var order_list: Array
+
+	func _init(p_order_list: Array) -> void:
+		order_list = p_order_list
+
+	func before_execute(action: GFVisualAction, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+		if action is OrderAction:
+			var order_action := action as OrderAction
+			order_list.append("before:%s" % order_action.label)
+			if order_action.label == "SKIP":
+				return GFActionInterceptionResult.skip_action()
+			if order_action.label == "OLD":
+				return GFActionInterceptionResult.replace_with(OrderAction.new(order_list, "NEW"))
+		return GFActionInterceptionResult.continue_action()
+
+	func after_execute(action: GFVisualAction, _queue: GFActionQueueSystem, _execute_result: Variant) -> GFActionInterceptionResult:
+		if action is OrderAction:
+			order_list.append("after:%s" % (action as OrderAction).label)
+		return GFActionInterceptionResult.continue_action()
+
+
+## 记录执行顺序的测试拦截器。
+class PriorityInterceptor:
+	extends GFActionInterceptor
+
+	var order_list: Array
+	var label: String
+
+	func _init(p_order_list: Array, p_label: String, p_priority: int) -> void:
+		order_list = p_order_list
+		label = p_label
+		priority = p_priority
+
+	func before_execute(_action: GFVisualAction, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+		order_list.append(label)
+		return GFActionInterceptionResult.continue_action()
+
+
+## 执行指定动作后停止队列的测试拦截器。
+class StopAfterInterceptor:
+	extends GFActionInterceptor
+
+	func after_execute(action: GFVisualAction, _queue: GFActionQueueSystem, _execute_result: Variant) -> GFActionInterceptionResult:
+		if action is OrderAction and (action as OrderAction).label == "STOP":
+			return GFActionInterceptionResult.stop_queue()
+		if action is ManualSignalAction and (action as ManualSignalAction).label == "STOP":
+			return GFActionInterceptionResult.stop_queue()
+		return GFActionInterceptionResult.continue_action()
+
+
 # --- 私有变量 ---
 
 class ObjectSignalEmitter extends Object:
@@ -363,6 +417,48 @@ func test_action_queue_injects_scoped_architecture_into_actions() -> void:
 
 	child_arch.dispose()
 	parent_arch.dispose()
+
+
+func test_action_interceptor_can_skip_and_replace_actions() -> void:
+	var order: Array = []
+	_system.add_interceptor(RewriteInterceptor.new(order))
+
+	_system.enqueue(OrderAction.new(order, "SKIP"))
+	_system.enqueue(OrderAction.new(order, "OLD"))
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["before:SKIP", "before:OLD", "NEW", "after:NEW"], "拦截器应能跳过和替换动作。")
+
+
+func test_action_interceptors_run_by_priority() -> void:
+	var order: Array = []
+	_system.add_interceptor(PriorityInterceptor.new(order, "low", 0))
+	_system.add_interceptor(PriorityInterceptor.new(order, "high", 10))
+	_system.enqueue(OrderAction.new(order, "RUN"))
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["high", "low", "RUN"], "拦截器应按高优先级优先执行。")
+
+
+func test_action_interceptor_can_stop_remaining_queue() -> void:
+	var order: Array = []
+	var stop_action := ManualSignalAction.new(order, "STOP")
+	_system.add_interceptor(StopAfterInterceptor.new())
+
+	_system.enqueue(stop_action)
+	await get_tree().process_frame
+	_system.enqueue(OrderAction.new(order, "AFTER"))
+
+	stop_action.complete()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["STOP"], "after 拦截器停止队列后不应执行后续动作。")
+	assert_false(_system.is_processing, "停止后队列应回到空闲状态。")
 
 
 ## 验证 push_front_parallel 能置顶插队执行。

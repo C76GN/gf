@@ -25,6 +25,12 @@ signal project_installers_finished
 const GFBindingBase = preload("res://addons/gf/core/gf_binding.gd")
 const GFBinderBase = preload("res://addons/gf/core/gf_binder.gd")
 const GFBindingLifetimesBase = preload("res://addons/gf/core/gf_binding_lifetimes.gd")
+const HOOK_GET_REQUIRED_DEPENDENCIES: StringName = &"get_required_dependencies"
+const HOOK_GET_REQUIRED_MODELS: StringName = &"get_required_models"
+const HOOK_GET_REQUIRED_SYSTEMS: StringName = &"get_required_systems"
+const HOOK_GET_REQUIRED_UTILITIES: StringName = &"get_required_utilities"
+const HOOK_GET_REQUIRED_FACTORIES: StringName = &"get_required_factories"
+const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/foundation/validation/gf_validation_report.gd")
 const _SCRIPT_TYPE_UTILITY: Script = preload("res://addons/gf/foundation/reflection/gf_script_type_utility.gd")
 
 
@@ -988,7 +994,473 @@ func get_debug_lifecycle_state() -> Dictionary:
 	}
 
 
+## 获取架构中已注册模块的声明式依赖诊断报告。
+## 模块可选择实现 get_required_dependencies() 或 get_required_models/systems/utilities/factories()。
+## @param options: 可选参数，支持 include_parent_lookup 与 include_factories。
+## @return 统一诊断报告字典。
+func get_dependency_diagnostics(options: Dictionary = {}) -> Dictionary:
+	var include_parent_lookup := bool(options.get("include_parent_lookup", not strict_dependency_lookup))
+	var include_factories := bool(options.get("include_factories", true))
+	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Architecture dependencies")
+	var modules: Array[Dictionary] = []
+	var resolved_dependencies: Array[Dictionary] = []
+	var missing_dependencies: Array[Dictionary] = []
+
+	_collect_registry_dependency_diagnostics(
+		"model",
+		_models,
+		report,
+		include_parent_lookup,
+		include_factories,
+		modules,
+		resolved_dependencies,
+		missing_dependencies
+	)
+	_collect_registry_dependency_diagnostics(
+		"utility",
+		_utilities,
+		report,
+		include_parent_lookup,
+		include_factories,
+		modules,
+		resolved_dependencies,
+		missing_dependencies
+	)
+	_collect_registry_dependency_diagnostics(
+		"system",
+		_systems,
+		report,
+		include_parent_lookup,
+		include_factories,
+		modules,
+		resolved_dependencies,
+		missing_dependencies
+	)
+
+	return report.to_dict(
+		{
+			"module_count": modules.size(),
+			"modules": modules,
+			"resolved_dependencies": resolved_dependencies,
+			"missing_dependencies": missing_dependencies,
+			"include_parent_lookup": include_parent_lookup,
+			"include_factories": include_factories,
+		},
+		{
+			"include_subject": false,
+			"include_metadata": false,
+			"include_info_count": false,
+			"include_issue_count": false,
+			"next_actions": _get_dependency_diagnostics_next_actions(),
+			"fallback_action": "Review the first reported architecture dependency issue.",
+		}
+	)
+
+
 # --- 私有/内部方法 ---
+
+func _collect_registry_dependency_diagnostics(
+	module_kind: String,
+	registry: Dictionary,
+	report: Variant,
+	include_parent_lookup: bool,
+	include_factories: bool,
+	modules: Array[Dictionary],
+	resolved_dependencies: Array[Dictionary],
+	missing_dependencies: Array[Dictionary]
+) -> void:
+	for script_cls: Script in registry.keys():
+		var instance := registry[script_cls] as Object
+		var module_key := _get_script_debug_key(script_cls, instance)
+		var declared_dependencies := _collect_declared_dependencies(
+			instance,
+			report,
+			module_key,
+			include_factories
+		)
+		var module_record := {
+			"kind": module_kind,
+			"script": module_key,
+			"instance": _get_instance_debug_key(instance),
+			"dependencies": _dependency_map_to_keys(declared_dependencies),
+			"resolved_dependencies": [],
+			"missing_dependencies": [],
+		}
+		_collect_dependency_resolution_records(
+			module_kind,
+			module_key,
+			declared_dependencies,
+			report,
+			include_parent_lookup,
+			include_factories,
+			module_record,
+			resolved_dependencies,
+			missing_dependencies
+		)
+		modules.append(module_record)
+
+
+func _collect_declared_dependencies(
+	instance: Object,
+	report: Variant,
+	module_key: String,
+	include_factories: bool
+) -> Dictionary:
+	var dependencies := _make_dependency_map()
+	if instance == null:
+		return dependencies
+
+	if instance.has_method(HOOK_GET_REQUIRED_DEPENDENCIES):
+		var raw_dependencies: Variant = instance.call(HOOK_GET_REQUIRED_DEPENDENCIES)
+		_merge_dependency_dictionary(
+			dependencies,
+			raw_dependencies,
+			report,
+			module_key,
+			String(HOOK_GET_REQUIRED_DEPENDENCIES),
+			include_factories
+		)
+
+	_append_dependency_hook_array(
+		dependencies["models"] as Array[Script],
+		instance,
+		HOOK_GET_REQUIRED_MODELS,
+		report,
+		module_key
+	)
+	_append_dependency_hook_array(
+		dependencies["systems"] as Array[Script],
+		instance,
+		HOOK_GET_REQUIRED_SYSTEMS,
+		report,
+		module_key
+	)
+	_append_dependency_hook_array(
+		dependencies["utilities"] as Array[Script],
+		instance,
+		HOOK_GET_REQUIRED_UTILITIES,
+		report,
+		module_key
+	)
+	if include_factories:
+		_append_dependency_hook_array(
+			dependencies["factories"] as Array[Script],
+			instance,
+			HOOK_GET_REQUIRED_FACTORIES,
+			report,
+			module_key
+		)
+	return dependencies
+
+
+func _collect_dependency_resolution_records(
+	module_kind: String,
+	module_key: String,
+	declared_dependencies: Dictionary,
+	report: Variant,
+	include_parent_lookup: bool,
+	include_factories: bool,
+	module_record: Dictionary,
+	resolved_dependencies: Array[Dictionary],
+	missing_dependencies: Array[Dictionary]
+) -> void:
+	for dependency_kind: String in ["models", "systems", "utilities", "factories"]:
+		if dependency_kind == "factories" and not include_factories:
+			continue
+
+		var dependency_scripts := declared_dependencies[dependency_kind] as Array[Script]
+		for dependency_script: Script in dependency_scripts:
+			var dependency_record := _make_dependency_diagnostic_record(
+				module_kind,
+				module_key,
+				dependency_kind,
+				dependency_script,
+				include_parent_lookup,
+				include_factories
+			)
+			if bool(dependency_record.get("resolved", false)):
+				(module_record["resolved_dependencies"] as Array).append(dependency_record)
+				resolved_dependencies.append(dependency_record)
+				continue
+
+			(module_record["missing_dependencies"] as Array).append(dependency_record)
+			missing_dependencies.append(dependency_record)
+			report.add_error(
+				StringName("missing_%s_dependency" % _dependency_kind_to_singular(dependency_kind)),
+				"Architecture module declares a missing %s dependency." % _dependency_kind_to_singular(dependency_kind),
+				module_key,
+				_get_script_debug_key(dependency_script),
+				{
+					"module_kind": module_kind,
+					"dependency_kind": dependency_kind,
+				}
+			)
+
+
+func _make_dependency_diagnostic_record(
+	module_kind: String,
+	module_key: String,
+	dependency_kind: String,
+	dependency_script: Script,
+	include_parent_lookup: bool,
+	include_factories: bool
+) -> Dictionary:
+	var status := _resolve_dependency_diagnostic_status(
+		dependency_kind,
+		dependency_script,
+		include_parent_lookup,
+		include_factories
+	)
+	return {
+		"module_kind": module_kind,
+		"module": module_key,
+		"kind": dependency_kind,
+		"script": _get_script_debug_key(dependency_script),
+		"resolved": bool(status.get("resolved", false)),
+		"scope": String(status.get("scope", "missing")),
+		"architecture_depth": int(status.get("architecture_depth", -1)),
+	}
+
+
+func _resolve_dependency_diagnostic_status(
+	dependency_kind: String,
+	dependency_script: Script,
+	include_parent_lookup: bool,
+	include_factories: bool,
+	architecture_depth: int = 0
+) -> Dictionary:
+	if dependency_script == null:
+		return {
+			"resolved": false,
+			"scope": "invalid",
+			"architecture_depth": architecture_depth,
+		}
+
+	var local_resolved := false
+	match dependency_kind:
+		"models":
+			local_resolved = _get_local_registered_instance(
+				_models,
+				_model_aliases,
+				_model_assignable_cache,
+				dependency_script,
+				"Model"
+			) != null
+		"systems":
+			local_resolved = _get_local_registered_instance(
+				_systems,
+				_system_aliases,
+				_system_assignable_cache,
+				dependency_script,
+				"System"
+			) != null
+		"utilities":
+			local_resolved = _get_local_registered_instance(
+				_utilities,
+				_utility_aliases,
+				_utility_assignable_cache,
+				dependency_script,
+				"Utility"
+			) != null
+		"factories":
+			local_resolved = include_factories and _factories.has(dependency_script)
+
+	if local_resolved:
+		return {
+			"resolved": true,
+			"scope": _get_dependency_scope_name(architecture_depth),
+			"architecture_depth": architecture_depth,
+		}
+
+	if include_parent_lookup and not strict_dependency_lookup and _parent_architecture != null:
+		return _parent_architecture._resolve_dependency_diagnostic_status(
+			dependency_kind,
+			dependency_script,
+			include_parent_lookup,
+			include_factories,
+			architecture_depth + 1
+		)
+
+	return {
+		"resolved": false,
+		"scope": "missing",
+		"architecture_depth": architecture_depth,
+	}
+
+
+func _merge_dependency_dictionary(
+	dependencies: Dictionary,
+	raw_dependencies: Variant,
+	report: Variant,
+	module_key: String,
+	hook_name: String,
+	include_factories: bool
+) -> void:
+	if raw_dependencies == null:
+		return
+	if not raw_dependencies is Dictionary:
+		report.add_warning(
+			&"invalid_dependency_hook_return",
+			"%s() must return a Dictionary." % hook_name,
+			module_key,
+			"",
+			{ "hook": hook_name }
+		)
+		return
+
+	var source := raw_dependencies as Dictionary
+	for raw_key: Variant in source.keys():
+		var dependency_kind := _normalize_dependency_kind_key(String(raw_key))
+		if dependency_kind.is_empty():
+			report.add_warning(
+				&"invalid_dependency_kind",
+				"Dependency declaration contains an unknown dependency kind.",
+				module_key,
+				"",
+				{
+					"hook": hook_name,
+					"dependency_kind": String(raw_key),
+				}
+			)
+			continue
+		if dependency_kind == "factories" and not include_factories:
+			continue
+		_append_dependency_items(
+			dependencies[dependency_kind] as Array[Script],
+			source[raw_key],
+			report,
+			module_key,
+			hook_name
+		)
+
+
+func _append_dependency_hook_array(
+	target: Array[Script],
+	instance: Object,
+	hook_name: StringName,
+	report: Variant,
+	module_key: String
+) -> void:
+	if instance == null or not instance.has_method(hook_name):
+		return
+
+	var raw_value: Variant = instance.call(hook_name)
+	_append_dependency_items(target, raw_value, report, module_key, String(hook_name))
+
+
+func _append_dependency_items(
+	target: Array[Script],
+	raw_value: Variant,
+	report: Variant,
+	module_key: String,
+	hook_name: String
+) -> void:
+	if raw_value == null:
+		return
+	if not raw_value is Array:
+		report.add_warning(
+			&"invalid_dependency_hook_return",
+			"%s() must return an Array of Script values." % hook_name,
+			module_key,
+			"",
+			{ "hook": hook_name }
+		)
+		return
+
+	for dependency_variant: Variant in raw_value:
+		if dependency_variant is Script:
+			_append_unique_script(target, dependency_variant as Script)
+		elif dependency_variant != null:
+			report.add_warning(
+				&"invalid_dependency_type",
+				"Dependency declaration contains a non-Script value.",
+				module_key,
+				"",
+				{
+					"hook": hook_name,
+					"value": str(dependency_variant),
+				}
+			)
+
+
+func _make_dependency_map() -> Dictionary:
+	return {
+		"models": [] as Array[Script],
+		"systems": [] as Array[Script],
+		"utilities": [] as Array[Script],
+		"factories": [] as Array[Script],
+	}
+
+
+func _dependency_map_to_keys(dependencies: Dictionary) -> Dictionary:
+	return {
+		"models": _script_array_to_debug_keys(dependencies["models"] as Array[Script]),
+		"systems": _script_array_to_debug_keys(dependencies["systems"] as Array[Script]),
+		"utilities": _script_array_to_debug_keys(dependencies["utilities"] as Array[Script]),
+		"factories": _script_array_to_debug_keys(dependencies["factories"] as Array[Script]),
+	}
+
+
+func _script_array_to_debug_keys(scripts: Array[Script]) -> PackedStringArray:
+	var result := PackedStringArray()
+	for script: Script in scripts:
+		result.append(_get_script_debug_key(script))
+	result.sort()
+	return result
+
+
+func _append_unique_script(target: Array[Script], script: Script) -> void:
+	if script != null and not target.has(script):
+		target.append(script)
+
+
+func _normalize_dependency_kind_key(key: String) -> String:
+	match key.to_lower():
+		"model", "models":
+			return "models"
+		"system", "systems":
+			return "systems"
+		"utility", "utilities":
+			return "utilities"
+		"factory", "factories":
+			return "factories"
+		_:
+			return ""
+
+
+func _dependency_kind_to_singular(dependency_kind: String) -> String:
+	match dependency_kind:
+		"models":
+			return "model"
+		"systems":
+			return "system"
+		"utilities":
+			return "utility"
+		"factories":
+			return "factory"
+		_:
+			return "dependency"
+
+
+func _get_dependency_scope_name(architecture_depth: int) -> String:
+	if architecture_depth <= 0:
+		return "local"
+	if architecture_depth == 1:
+		return "parent"
+	return "ancestor"
+
+
+func _get_dependency_diagnostics_next_actions() -> Dictionary:
+	return {
+		"missing_model_dependency": "Register the required Model locally or in an allowed parent architecture.",
+		"missing_system_dependency": "Register the required System locally or in an allowed parent architecture.",
+		"missing_utility_dependency": "Register the required Utility locally or in an allowed parent architecture.",
+		"missing_factory_dependency": "Register the required factory before the dependent module requests it.",
+		"invalid_dependency_hook_return": "Return a Dictionary or Array shape that matches the dependency hook contract.",
+		"invalid_dependency_type": "Only Script values should be listed as declared dependencies.",
+		"invalid_dependency_kind": "Use models, systems, utilities, or factories as dependency declaration keys.",
+	}
+
 
 func _reset_project_installers() -> void:
 	var was_running := _project_installers_running

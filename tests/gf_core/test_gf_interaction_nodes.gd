@@ -5,6 +5,7 @@ extends GutTest
 # --- 常量 ---
 
 const GF_MESSAGE_DISPATCH_SUPPORT := preload("res://addons/gf/extensions/common/gf_message_dispatch_support.gd")
+const GFPointerInteraction3DBase := preload("res://addons/gf/extensions/interaction/gf_pointer_interaction_3d.gd")
 
 
 # --- 辅助类 ---
@@ -129,3 +130,62 @@ func test_sensor_collision_candidates_resolve_receiver_ancestors() -> void:
 	assert_same(host.received_receiver, receiver, "交互上下文 target 应使用解析后的接收器。")
 	assert_eq(host.received_payload, { "value": 3 }, "payload 覆盖值应透传给发送宿主。")
 	assert_eq(host.received_id, &"hit", "交互 ID 覆盖值应透传给发送宿主。")
+
+
+func test_pointer_interaction_3d_sends_click_context_to_receiver() -> void:
+	var root := Node3D.new()
+	var body := StaticBody3D.new()
+	var receiver := RecordingReceiver.new()
+	var pointer := GFPointerInteraction3DBase.new()
+	add_child_autofree(root)
+	root.add_child(body)
+	root.add_child(receiver)
+	body.add_child(pointer)
+	pointer.receiver_path = NodePath("../../RecordingReceiver")
+	receiver.name = "RecordingReceiver"
+	pointer.interaction_id = &"inspect"
+	pointer.payload = { "kind": "object" }
+	pointer.bind_collision_object(body)
+
+	var press := _make_mouse_button(MOUSE_BUTTON_LEFT, true)
+	var release := _make_mouse_button(MOUSE_BUTTON_LEFT, false)
+	pointer._on_collision_input_event(null, press, Vector3(1.0, 2.0, 3.0), Vector3.UP, 0)
+	pointer._on_collision_input_event(null, release, Vector3(1.0, 2.0, 3.0), Vector3.UP, 0)
+
+	assert_not_null(receiver.received_context, "点击应发送交互上下文。")
+	assert_same(receiver.received_context.target, receiver, "上下文 target 应为解析到的接收器。")
+	assert_eq((receiver.received_context.payload as Dictionary)["kind"], "object", "基础 payload 应保留。")
+	assert_eq((receiver.received_context.payload as Dictionary)["pointer_event"], &"clicked", "点击事件应写入 payload。")
+	assert_eq((receiver.received_context.payload as Dictionary)["pointer_position"], Vector3(1.0, 2.0, 3.0), "点击位置应写入 payload。")
+
+
+func test_pointer_interaction_3d_emits_hover_without_sending_by_default() -> void:
+	var root := Node3D.new()
+	var body := StaticBody3D.new()
+	var receiver := RecordingReceiver.new()
+	var pointer := GFPointerInteraction3DBase.new()
+	var entered: Array[GFInteractionContext] = []
+	add_child_autofree(root)
+	root.add_child(body)
+	root.add_child(receiver)
+	body.add_child(pointer)
+	pointer.receiver_path = NodePath("../../RecordingReceiver")
+	receiver.name = "RecordingReceiver"
+	pointer.pointer_entered.connect(func(context: GFInteractionContext) -> void:
+		entered.append(context)
+	)
+	pointer.bind_collision_object(body)
+
+	pointer._on_collision_mouse_entered()
+
+	assert_eq(entered.size(), 1, "hover 进入应发出本地信号。")
+	assert_null(receiver.received_context, "默认不应把 hover 自动发送给接收器。")
+
+
+# --- 私有/辅助方法 ---
+
+func _make_mouse_button(button_index: MouseButton, pressed: bool) -> InputEventMouseButton:
+	var event := InputEventMouseButton.new()
+	event.button_index = button_index
+	event.pressed = pressed
+	return event

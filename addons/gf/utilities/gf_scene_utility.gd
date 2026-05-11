@@ -101,6 +101,7 @@ enum SceneResourceState {
 # --- 常量 ---
 
 const GFSceneTransitionConfigBase = preload("res://addons/gf/utilities/gf_scene_transition_config.gd")
+const GFScenePreloadMapBase = preload("res://addons/gf/utilities/gf_scene_preload_map.gd")
 const _SCENE_CHANGE_NONE: int = 0
 const _SCENE_CHANGE_LOADING: int = 1
 const _SCENE_CHANGE_TARGET: int = 2
@@ -122,6 +123,17 @@ var max_preloaded_scene_resources: int:
 
 ## 通过 load_scene_async() 加载完成的目标场景是否写入预加载缓存。
 var cache_loaded_scenes: bool = true
+
+## 可选场景预加载图谱；配置后可按当前场景自动预热相邻场景。
+var scene_preload_map: GFScenePreloadMapBase = null
+
+## 成功切换场景后是否自动按 scene_preload_map 预加载相邻场景。
+var auto_preload_map_neighbors_on_switch: bool = true
+
+## 自动图谱预加载半径；小于 0 时使用 GFScenePreloadMap.default_radius。
+var scene_preload_map_radius: int = -1:
+	set(value):
+		scene_preload_map_radius = maxi(value, -1)
 
 ## loading scene 可选淡入方法名；目标节点存在该方法时会被调用。
 var loading_screen_fade_in_method: StringName = &"fade_in"
@@ -381,6 +393,84 @@ func preload_scenes(paths: PackedStringArray, fixed: bool = false) -> Dictionary
 	return result
 
 
+## 配置场景预加载图谱。
+## @param preload_map: 场景预加载图谱资源；传 null 可关闭图谱预加载。
+## @param radius: 自动预加载半径；小于 0 时使用图谱默认值。
+## @param auto_preload_on_switch: 成功切换场景后是否自动预加载相邻场景。
+func configure_scene_preload_map(
+	preload_map: GFScenePreloadMapBase,
+	radius: int = -1,
+	auto_preload_on_switch: bool = true
+) -> void:
+	scene_preload_map = preload_map
+	scene_preload_map_radius = radius
+	auto_preload_map_neighbors_on_switch = auto_preload_on_switch
+
+
+## 获取指定场景的图谱预加载计划。
+## @param path: 当前场景资源路径。
+## @param radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。
+## @param include_fixed: 是否包含固定预加载路径。
+## @return 预加载计划字典；未配置图谱时 ok 为 false。
+func get_scene_preload_map_plan(path: String, radius: int = -1, include_fixed: bool = true) -> Dictionary:
+	if scene_preload_map == null:
+		return _make_missing_scene_preload_map_result(path, radius, include_fixed)
+
+	var plan := scene_preload_map.get_preload_plan(path, _resolve_scene_preload_map_radius(radius), include_fixed)
+	plan["ok"] = true
+	return plan
+
+
+## 按图谱为指定场景发起预加载。
+## @param path: 当前场景资源路径。
+## @param radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。
+## @param include_fixed: 是否包含固定预加载路径。
+## @return 预加载结果字典。
+func preload_scene_map_for(path: String, radius: int = -1, include_fixed: bool = true) -> Dictionary:
+	if scene_preload_map == null:
+		return _make_missing_scene_preload_map_result(path, radius, include_fixed)
+
+	var plan := scene_preload_map.get_preload_plan(path, _resolve_scene_preload_map_radius(radius), include_fixed)
+	var fixed_requested := PackedStringArray()
+	var temporary_requested := PackedStringArray()
+	var results: Dictionary = {}
+	var errors: Array[Dictionary] = []
+	for fixed_path: String in plan.get("fixed_paths", PackedStringArray()):
+		var fixed_error := preload_scene(fixed_path, true)
+		results[fixed_path] = fixed_error
+		fixed_requested.append(fixed_path)
+		if fixed_error != OK:
+			errors.append(_make_scene_preload_map_error(fixed_path, fixed_error, true))
+
+	for temporary_path: String in plan.get("temporary_paths", PackedStringArray()):
+		var temporary_error := preload_scene(temporary_path, false)
+		results[temporary_path] = temporary_error
+		temporary_requested.append(temporary_path)
+		if temporary_error != OK:
+			errors.append(_make_scene_preload_map_error(temporary_path, temporary_error, false))
+
+	return {
+		"ok": errors.is_empty(),
+		"source_path": String(plan.get("source_path", path)),
+		"radius": int(plan.get("radius", 0)),
+		"include_fixed": include_fixed,
+		"requested_count": fixed_requested.size() + temporary_requested.size(),
+		"fixed_requested": fixed_requested,
+		"temporary_requested": temporary_requested,
+		"results": results,
+		"errors": errors,
+		"plan": plan,
+	}
+
+
+## 按图谱为当前场景发起预加载。
+## @param radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。
+## @param include_fixed: 是否包含固定预加载路径。
+## @return 预加载结果字典。
+func preload_current_scene_map(radius: int = -1, include_fixed: bool = true) -> Dictionary:
+	return preload_scene_map_for(_get_current_scene_path(), radius, include_fixed)
+
+
 ## 取消一个仍在进行中的预加载请求。
 ## @param path: 场景路径。
 func cancel_scene_preload(path: String) -> void:
@@ -556,6 +646,11 @@ func get_scene_cache_debug_snapshot() -> Dictionary:
 			"temporary_paths": _get_sorted_string_keys(_preloaded_scenes),
 			"paths": _get_all_preloaded_scene_paths(),
 		},
+		"scene_preload_map": {
+			"enabled": scene_preload_map != null,
+			"auto_preload_on_switch": auto_preload_map_neighbors_on_switch,
+			"radius": scene_preload_map_radius,
+		},
 		"preloading": {
 			"size": preloading_paths.size(),
 			"paths": preloading_paths,
@@ -705,6 +800,46 @@ func cleanup_transients() -> void:
 
 
 # --- 私有/辅助方法 ---
+
+func _resolve_scene_preload_map_radius(radius: int) -> int:
+	return scene_preload_map_radius if radius < 0 else radius
+
+
+func _preload_scene_map_after_switch(path: String) -> void:
+	if not auto_preload_map_neighbors_on_switch or scene_preload_map == null:
+		return
+
+	preload_scene_map_for(path, scene_preload_map_radius, true)
+
+
+func _make_missing_scene_preload_map_result(path: String, radius: int, include_fixed: bool) -> Dictionary:
+	return {
+		"ok": false,
+		"source_path": path,
+		"radius": _resolve_scene_preload_map_radius(radius),
+		"include_fixed": include_fixed,
+		"requested_count": 0,
+		"fixed_requested": PackedStringArray(),
+		"temporary_requested": PackedStringArray(),
+		"results": {},
+		"errors": [
+			{
+				"kind": "missing_preload_map",
+				"message": "scene_preload_map is not configured.",
+			},
+		],
+		"plan": {},
+	}
+
+
+func _make_scene_preload_map_error(path: String, error: Error, fixed: bool) -> Dictionary:
+	return {
+		"kind": "preload_failed",
+		"path": path,
+		"error": error,
+		"fixed": fixed,
+	}
+
 
 func _should_load_active_scene_synchronously() -> bool:
 	return DisplayServer.get_name().to_lower() == "headless"
@@ -989,6 +1124,7 @@ func _apply_target_scene_change(path: String, scene: PackedScene) -> void:
 		_background_scene_params.erase(path)
 		scene_load_completed.emit(path, scene)
 		scene_switch_completed.emit(path, previous_path)
+		_preload_scene_map_after_switch(path)
 		_set_paused(_previous_pause_state)
 		_reset_loading_state()
 	else:

@@ -292,6 +292,56 @@ func test_flow_graph_validate_reports_missing_next_node() -> void:
 	assert_true(_has_issue(report, "missing_next_node"), "校验报告应包含 missing_next_node。")
 
 
+## 验证流程图校验会提示不可达节点。
+func test_flow_graph_validate_warns_unreachable_nodes() -> void:
+	var order: Array[String] = []
+	var graph := GFFlowGraphBase.new()
+	graph.start_node_id = &"start"
+	graph.nodes = [
+		RecordingFlowNode.new(&"start", order, PackedStringArray(["middle"])),
+		RecordingFlowNode.new(&"middle", order),
+		RecordingFlowNode.new(&"orphan", order),
+	]
+
+	var report := graph.validate_graph()
+
+	assert_true(bool(report["ok"]), "不可达节点只应作为结构警告，不应阻止图通过基础校验。")
+	assert_false(bool(report["healthy"]), "存在警告时 healthy 应为 false。")
+	assert_true(_has_issue(report, "unreachable_node"), "校验报告应包含 unreachable_node。")
+
+
+## 验证流程图校验会提示循环结构。
+func test_flow_graph_validate_warns_cycles() -> void:
+	var order: Array[String] = []
+	var graph := GFFlowGraphBase.new()
+	graph.start_node_id = &"start"
+	graph.nodes = [
+		RecordingFlowNode.new(&"start", order, PackedStringArray(["middle"])),
+		RecordingFlowNode.new(&"middle", order, PackedStringArray(["start"])),
+	]
+
+	var report := graph.validate_graph()
+
+	assert_true(bool(report["ok"]), "循环只应作为结构警告，运行时仍由 loop guard 保护。")
+	assert_true(_has_issue(report, "cycle_detected"), "校验报告应包含 cycle_detected。")
+
+
+## 验证项目可显式开启终端节点提示。
+func test_flow_graph_validate_can_warn_terminal_nodes() -> void:
+	var order: Array[String] = []
+	var graph := GFFlowGraphBase.new()
+	graph.start_node_id = &"start"
+	graph.warn_terminal_nodes = true
+	graph.nodes = [
+		RecordingFlowNode.new(&"start", order),
+	]
+
+	var report := graph.validate_graph()
+
+	assert_true(bool(report["ok"]), "终端节点提示不应阻止基础校验通过。")
+	assert_true(_has_issue(report, "terminal_node"), "校验报告应包含 terminal_node。")
+
+
 ## 验证 Flow Signal 超时可以跟随 GFTimeUtility 的暂停与 time_scale。
 func test_flow_runner_signal_timeout_respects_time_utility() -> void:
 	var arch := GFArchitecture.new()

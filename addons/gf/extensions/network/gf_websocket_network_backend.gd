@@ -1,0 +1,321 @@
+## GFWebSocketNetworkBackend: 基于 Godot WebSocketPeer 的网络后端。
+##
+## 只实现 GFNetworkBackend 的 bytes 传输边界，适合浏览器、原生客户端或工具链
+## 之间复用同一套 GFNetworkMessage 序列化流程。
+class_name GFWebSocketNetworkBackend
+extends GFNetworkBackend
+
+
+# --- 枚举 ---
+
+## WebSocket 后端运行模式。
+enum Mode {
+	## 未连接。
+	DISCONNECTED,
+	## 作为服务器监听 TCP 并接受 WebSocket 握手。
+	SERVER,
+	## 作为客户端连接远端 WebSocket URL。
+	CLIENT,
+}
+
+
+# --- 常量 ---
+
+## 广播 peer 标识。
+const BROADCAST_PEER_ID: int = -1
+
+## 客户端视角下远端服务器的 peer 标识。
+const SERVER_PEER_ID: int = 1
+
+
+# --- 公共变量 ---
+
+## 每次 poll 最多接受的 TCP 连接数量。小于等于 0 表示不限制。
+var max_accepts_per_poll: int = 16
+
+## 每个 peer 每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。
+var max_packets_per_peer_per_poll: int = 64
+
+
+# --- 私有变量 ---
+
+var _mode: Mode = Mode.DISCONNECTED
+var _server: TCPServer = null
+var _client: WebSocketPeer = null
+var _endpoint: String = ""
+var _peers: Dictionary = {}
+var _open_peer_ids: Dictionary = {}
+var _server_peer_options: Dictionary = {}
+var _next_peer_id: int = SERVER_PEER_ID
+var _client_was_open: bool = false
+
+
+# --- 公共方法 ---
+
+## 启动 WebSocket 主机。
+## 支持 options: port, bind_address, supported_protocols。
+## @param options: 操作选项字典。
+func host(options: Dictionary = {}) -> Error:
+	var port := int(options.get("port", 0))
+	if port <= 0:
+		return ERR_INVALID_PARAMETER
+
+	_close_all(false)
+	_server = TCPServer.new()
+	var bind_address := String(options.get("bind_address", options.get("address", "*")))
+	var error := _server.listen(port, bind_address)
+	if error != OK:
+		_server = null
+		return error
+
+	_mode = Mode.SERVER
+	_endpoint = "%s:%d" % [bind_address, port]
+	_server_peer_options = options.duplicate(true)
+	_next_peer_id = SERVER_PEER_ID
+	connected.emit()
+	return OK
+
+
+## 连接 WebSocket 远端。
+## endpoint 应为 ws:// 或 wss:// URL。
+## @param endpoint: WebSocket URL。
+## @param options: 操作选项字典，支持 tls_options、supported_protocols。
+func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
+	if endpoint.strip_edges().is_empty():
+		return ERR_INVALID_PARAMETER
+
+	_close_all(false)
+	_client = WebSocketPeer.new()
+	_apply_peer_options(_client, options)
+	var tls_options: TLSOptions = options.get("tls_options", null) as TLSOptions
+	var error := _client.connect_to_url(endpoint, tls_options)
+	if error != OK:
+		_client = null
+		return error
+
+	_mode = Mode.CLIENT
+	_endpoint = endpoint
+	_client_was_open = false
+	return OK
+
+
+## 断开 WebSocket 连接。
+func disconnect_backend() -> void:
+	_close_all(true)
+
+
+## 发送 bytes。
+## @param peer_id: 目标 peer；服务器模式下 -1 表示广播，客户端模式下可传 1 或 -1。
+## @param bytes: 要发送的字节数据。
+## @param _options: 操作选项字典。
+func send_bytes(peer_id: int, bytes: PackedByteArray, _options: Dictionary = {}) -> Error:
+	if bytes.is_empty():
+		return ERR_INVALID_DATA
+	if _mode == Mode.CLIENT:
+		if _client == null or _client.get_ready_state() != WebSocketPeer.STATE_OPEN:
+			return ERR_UNAVAILABLE
+		if peer_id != BROADCAST_PEER_ID and peer_id != SERVER_PEER_ID:
+			return ERR_DOES_NOT_EXIST
+		return _client.send(bytes, WebSocketPeer.WRITE_MODE_BINARY)
+	if _mode == Mode.SERVER:
+		return _send_server_bytes(peer_id, bytes)
+	return ERR_UNCONFIGURED
+
+
+## 轮询 WebSocket 连接、握手和收包。
+## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
+func poll(_delta: float) -> void:
+	if _mode == Mode.SERVER:
+		_poll_server_accepts()
+		_poll_server_peers()
+	elif _mode == Mode.CLIENT:
+		_poll_client()
+
+
+## 获取后端调试快照。
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"backend": "GFWebSocketNetworkBackend",
+		"available": _mode != Mode.DISCONNECTED,
+		"mode": _mode,
+		"mode_name": _get_mode_name(_mode),
+		"endpoint": _endpoint,
+		"peer_count": _peers.size(),
+		"open_peer_count": _open_peer_ids.size(),
+		"client_state": _client.get_ready_state() if _client != null else WebSocketPeer.STATE_CLOSED,
+		"max_accepts_per_poll": max_accepts_per_poll,
+		"max_packets_per_peer_per_poll": max_packets_per_peer_per_poll,
+	}
+
+
+# --- 私有/辅助方法 ---
+
+func _poll_server_accepts() -> void:
+	if _server == null:
+		return
+
+	var accepted_count := 0
+	while _server.is_connection_available():
+		if max_accepts_per_poll > 0 and accepted_count >= max_accepts_per_poll:
+			break
+
+		var stream := _server.take_connection()
+		var peer := WebSocketPeer.new()
+		_apply_peer_options(peer, _server_peer_options)
+		var error := peer.accept_stream(stream)
+		if error == OK:
+			var peer_id := _next_peer_id
+			_next_peer_id += 1
+			_peers[peer_id] = peer
+			accepted_count += 1
+
+
+func _poll_server_peers() -> void:
+	for peer_id_variant: Variant in _peers.keys():
+		var peer_id := int(peer_id_variant)
+		var peer := _peers.get(peer_id) as WebSocketPeer
+		if peer == null:
+			continue
+
+		peer.poll()
+		var state := peer.get_ready_state()
+		if state == WebSocketPeer.STATE_OPEN:
+			_mark_peer_open(peer_id)
+			_emit_peer_packets(peer_id, peer)
+		elif state == WebSocketPeer.STATE_CLOSED:
+			_close_server_peer(peer_id, "closed")
+
+
+func _poll_client() -> void:
+	if _client == null:
+		return
+
+	_client.poll()
+	var state := _client.get_ready_state()
+	if state == WebSocketPeer.STATE_OPEN:
+		if not _client_was_open:
+			_client_was_open = true
+			connected.emit()
+			peer_connected.emit(SERVER_PEER_ID)
+		_emit_peer_packets(SERVER_PEER_ID, _client)
+	elif state == WebSocketPeer.STATE_CLOSED:
+		var was_open := _client_was_open
+		_client = null
+		_client_was_open = false
+		_mode = Mode.DISCONNECTED
+		_endpoint = ""
+		if was_open:
+			peer_disconnected.emit(SERVER_PEER_ID)
+		disconnected.emit("closed")
+
+
+func _emit_peer_packets(peer_id: int, peer: WebSocketPeer) -> void:
+	var processed_packets := 0
+	while (
+		peer.get_available_packet_count() > 0
+		and (max_packets_per_peer_per_poll <= 0 or processed_packets < max_packets_per_peer_per_poll)
+	):
+		message_received.emit(peer_id, peer.get_packet())
+		processed_packets += 1
+
+
+func _send_server_bytes(peer_id: int, bytes: PackedByteArray) -> Error:
+	if peer_id == BROADCAST_PEER_ID:
+		var first_error: Error = OK
+		for id_variant: Variant in _peers.keys():
+			var send_error := _send_to_server_peer(int(id_variant), bytes)
+			if first_error == OK and send_error != OK:
+				first_error = send_error
+		return first_error
+	return _send_to_server_peer(peer_id, bytes)
+
+
+func _send_to_server_peer(peer_id: int, bytes: PackedByteArray) -> Error:
+	var peer := _peers.get(peer_id) as WebSocketPeer
+	if peer == null:
+		return ERR_DOES_NOT_EXIST
+	if peer.get_ready_state() != WebSocketPeer.STATE_OPEN:
+		return ERR_UNAVAILABLE
+	return peer.send(bytes, WebSocketPeer.WRITE_MODE_BINARY)
+
+
+func _mark_peer_open(peer_id: int) -> void:
+	if _open_peer_ids.has(peer_id):
+		return
+
+	_open_peer_ids[peer_id] = true
+	peer_connected.emit(peer_id)
+
+
+func _close_server_peer(peer_id: int, _reason: String) -> void:
+	var peer := _peers.get(peer_id) as WebSocketPeer
+	if peer != null and peer.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+		peer.close()
+
+	_peers.erase(peer_id)
+	var was_open := _open_peer_ids.erase(peer_id)
+	if was_open:
+		peer_disconnected.emit(peer_id)
+
+
+func _close_all(emit_signal: bool) -> void:
+	if _client != null:
+		if _client.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+			_client.close()
+		if _client_was_open:
+			peer_disconnected.emit(SERVER_PEER_ID)
+		_client = null
+		_client_was_open = false
+
+	for peer_id_variant: Variant in _peers.keys():
+		var peer_id := int(peer_id_variant)
+		var peer := _peers.get(peer_id) as WebSocketPeer
+		if peer != null and peer.get_ready_state() != WebSocketPeer.STATE_CLOSED:
+			peer.close()
+		if _open_peer_ids.has(peer_id):
+			peer_disconnected.emit(peer_id)
+	_peers.clear()
+	_open_peer_ids.clear()
+
+	if _server != null:
+		_server.stop()
+	_server = null
+
+	var was_active := _mode != Mode.DISCONNECTED
+	_mode = Mode.DISCONNECTED
+	_endpoint = ""
+	_server_peer_options.clear()
+	if emit_signal and was_active:
+		disconnected.emit("closed")
+
+
+func _apply_peer_options(peer: WebSocketPeer, options: Dictionary) -> void:
+	if peer == null:
+		return
+	if options.has("supported_protocols"):
+		var protocols := PackedStringArray()
+		var raw_protocols: Variant = options["supported_protocols"]
+		if raw_protocols is PackedStringArray:
+			protocols = raw_protocols
+		elif raw_protocols is Array:
+			for protocol_variant: Variant in raw_protocols:
+				protocols.append(String(protocol_variant))
+		peer.set_supported_protocols(protocols)
+	if options.has("inbound_buffer_size"):
+		peer.set_inbound_buffer_size(int(options["inbound_buffer_size"]))
+	if options.has("outbound_buffer_size"):
+		peer.set_outbound_buffer_size(int(options["outbound_buffer_size"]))
+	if options.has("max_queued_packets"):
+		peer.set_max_queued_packets(int(options["max_queued_packets"]))
+	if options.has("no_delay"):
+		peer.set_no_delay(bool(options["no_delay"]))
+
+
+func _get_mode_name(mode: Mode) -> String:
+	match mode:
+		Mode.SERVER:
+			return "server"
+		Mode.CLIENT:
+			return "client"
+		_:
+			return "disconnected"

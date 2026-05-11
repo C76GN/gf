@@ -21,6 +21,12 @@ enum Format {
 ## 默认编码格式。
 var format: Format = Format.BINARY
 
+## JSON 格式下是否使用 GFVariantUtility 的类型化 Godot Variant 编码。
+var use_typed_json_codec: bool = false
+
+## 传给 GFVariantUtility JSON codec 的可选配置。
+var json_codec_options: Dictionary = {}
+
 
 # --- 公共方法 ---
 
@@ -52,7 +58,8 @@ func deserialize_message(bytes: PackedByteArray) -> GFNetworkMessage:
 func serialize_dictionary(data: Dictionary) -> PackedByteArray:
 	match format:
 		Format.JSON:
-			return JSON.stringify(data).to_utf8_buffer()
+			var json_value: Variant = GFVariantUtility.variant_to_json_compatible(data, json_codec_options) if use_typed_json_codec else data
+			return JSON.stringify(json_value).to_utf8_buffer()
 		_:
 			return var_to_bytes(data)
 
@@ -67,6 +74,8 @@ func deserialize_dictionary(bytes: PackedByteArray) -> Dictionary:
 	match format:
 		Format.JSON:
 			var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+			if use_typed_json_codec:
+				parsed = GFVariantUtility.json_compatible_to_variant(parsed, json_codec_options)
 			return parsed as Dictionary if parsed is Dictionary else {}
 		_:
 			var value: Variant = bytes_to_var(bytes)

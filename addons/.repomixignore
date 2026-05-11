@@ -2,3 +2,6 @@
 # Example:
 # *.log
 # tmp/
+
+*.uid
+gut

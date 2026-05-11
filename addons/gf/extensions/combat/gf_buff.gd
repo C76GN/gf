@@ -6,6 +6,31 @@ class_name GFBuff
 extends RefCounted
 
 
+# --- 枚举 ---
+
+## 重复添加同 ID Buff 时的层数策略。
+enum StackMode {
+	## 只刷新持续时间，不改变层数。
+	REFRESH_ONLY,
+	## 刷新持续时间，并在 max_stacks 允许时增加层数。
+	ADD_STACK,
+	## 忽略重复添加，不刷新持续时间或层数。
+	IGNORE,
+}
+
+## 重复添加同 ID Buff 时的持续时间刷新策略。
+enum DurationRefreshPolicy {
+	## 保持当前剩余时间。
+	KEEP_CURRENT,
+	## 使用新的持续时间重置剩余时间。
+	RESET_TO_NEW_DURATION,
+	## 将新的持续时间追加到当前剩余时间。
+	EXTEND_BY_NEW_DURATION,
+	## 保留当前剩余时间与新持续时间中较长者。
+	KEEP_LONGER_REMAINING,
+}
+
+
 # --- 公共变量 ---
 
 ## Buff 的唯一标识名（通常用于排斥逻辑）。
@@ -23,6 +48,18 @@ var stacks: int = 1
 ## 最大层数。
 var max_stacks: int = 1
 
+## 重复添加同 ID Buff 时的层数策略。
+var stack_mode: StackMode = StackMode.ADD_STACK
+
+## 重复添加同 ID Buff 时的持续时间刷新策略。
+var duration_refresh_policy: DurationRefreshPolicy = DurationRefreshPolicy.RESET_TO_NEW_DURATION
+
+## 周期 Tick 间隔。小于等于 0 时保持每帧调用 on_tick() 的旧行为。
+var tick_interval_seconds: float = 0.0
+
+## 持续时间耗尽时是否由 CombatSystem 移除。
+var remove_on_expire: bool = true
+
 ## Buff 携带的属性修饰器列表。应用时会自动挂载到宿主的 Attribute 上。
 var modifiers: Array[GFModifier] = []
 
@@ -31,6 +68,11 @@ var tags: Array[StringName] = []
 
 ## Buff 的拥有者（通常是一个持有 Combat 数据的 Object）。
 var owner: Object = null
+
+
+# --- 私有变量 ---
+
+var _tick_accumulator: float = 0.0
 
 
 # --- 公共方法 ---
@@ -44,6 +86,7 @@ func setup(p_id: StringName, p_duration: float, p_owner: Object) -> void:
 	duration = p_duration
 	time_left = duration
 	owner = p_owner
+	_tick_accumulator = 0.0
 
 
 ## 当 Buff 首次应用时触发。
@@ -59,9 +102,11 @@ func on_remove() -> void:
 ## 当 Buff 层数增加时触发（通常用于刷新持续时间）。
 ## @param p_new_duration: 刷新后的持续时间（秒）。
 func on_refresh(p_new_duration: float) -> void:
-	duration = p_new_duration
-	time_left = p_new_duration
-	if max_stacks > 1:
+	if stack_mode == StackMode.IGNORE:
+		return
+
+	_apply_refresh_duration(p_new_duration)
+	if stack_mode == StackMode.ADD_STACK and max_stacks > 1:
 		stacks = mini(stacks + 1, max_stacks)
 
 
@@ -75,16 +120,63 @@ func on_tick(_p_delta: float) -> void:
 ## @param p_delta: 帧间隔。
 ## @return 如果 Buff 已耗尽生命周期需要被移除，则返回 true。
 func update(p_delta: float) -> bool:
+	var step_delta := maxf(0.0, p_delta)
 	if duration != -1.0:
-		time_left -= p_delta
+		time_left -= step_delta
 		if time_left <= 0.0:
-			return true
-	
-	on_tick(p_delta)
+			if remove_on_expire:
+				return true
+			time_left = 0.0
+
+	_update_periodic_tick(step_delta)
 	return false
 
 
 # --- 私有/辅助方法 ---
+
+func _apply_refresh_duration(p_new_duration: float) -> void:
+	match duration_refresh_policy:
+		DurationRefreshPolicy.KEEP_CURRENT:
+			return
+		DurationRefreshPolicy.EXTEND_BY_NEW_DURATION:
+			_extend_duration(p_new_duration)
+		DurationRefreshPolicy.KEEP_LONGER_REMAINING:
+			_keep_longer_duration(p_new_duration)
+		_:
+			duration = p_new_duration
+			time_left = p_new_duration
+
+
+func _extend_duration(p_new_duration: float) -> void:
+	duration = p_new_duration
+	if time_left == -1.0 or p_new_duration == -1.0:
+		duration = -1.0
+		time_left = -1.0
+		return
+
+	time_left += maxf(0.0, p_new_duration)
+
+
+func _keep_longer_duration(p_new_duration: float) -> void:
+	if time_left == -1.0 or p_new_duration == -1.0:
+		duration = -1.0
+		time_left = -1.0
+		return
+
+	duration = maxf(duration, p_new_duration)
+	time_left = maxf(time_left, p_new_duration)
+
+
+func _update_periodic_tick(p_delta: float) -> void:
+	if tick_interval_seconds <= 0.0:
+		on_tick(p_delta)
+		return
+
+	_tick_accumulator += p_delta
+	while _tick_accumulator >= tick_interval_seconds:
+		_tick_accumulator -= tick_interval_seconds
+		on_tick(tick_interval_seconds)
+
 
 ## 应用 Buff 携带的所有效果。
 func _apply_effects() -> void:

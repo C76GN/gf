@@ -74,6 +74,23 @@ func get_tag_count(p_tag: StringName) -> int:
 	return _tags.get(p_tag, 0)
 
 
+## 获取当前持有的标签名。
+## @return 排序后的标签名。
+func get_tags() -> PackedStringArray:
+	var result := PackedStringArray()
+	for tag_variant: Variant in _tags.keys():
+		if int(_tags.get(tag_variant, 0)) > 0:
+			result.append(String(tag_variant))
+	result.sort()
+	return result
+
+
+## 获取标签层数快照。
+## @return 标签层数字典副本。
+func get_tag_snapshot() -> Dictionary:
+	return _tags.duplicate(true)
+
+
 ## 清空所有标签。
 func clear_all() -> void:
 	var keys := _tags.keys()

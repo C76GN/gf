@@ -8,6 +8,7 @@ extends Resource
 # --- 常量 ---
 
 const _GF_VALIDATION_UTILITY_SCRIPT: Script = preload("res://addons/gf/foundation/validation/gf_validation_utility.gd")
+const _GF_GRAPH_MATH_SCRIPT: Script = preload("res://addons/gf/foundation/math/gf_graph_math.gd")
 
 
 # --- 导出变量 ---
@@ -23,6 +24,15 @@ const _GF_VALIDATION_UTILITY_SCRIPT: Script = preload("res://addons/gf/foundatio
 
 ## 校验时是否把端口值类型和类名提示不兼容视为错误。
 @export var validate_port_compatibility: bool = true
+
+## 校验时是否提示从 start_node_id 无法到达的节点。
+@export var warn_unreachable_nodes: bool = true
+
+## 校验时是否提示图中的循环。
+@export var warn_cycles: bool = true
+
+## 校验时是否提示没有后继的终端节点。默认关闭，避免把正常结束节点视为问题。
+@export var warn_terminal_nodes: bool = false
 
 ## 编辑器分组数据。结构由编辑器工具解释，运行时不读取。
 @export var editor_groups: Array[Dictionary] = []
@@ -323,6 +333,11 @@ func describe_graph() -> Dictionary:
 		"connection_count": connections.size(),
 		"connections": _describe_connections(),
 		"validate_port_compatibility": validate_port_compatibility,
+		"diagnostics": {
+			"warn_unreachable_nodes": warn_unreachable_nodes,
+			"warn_cycles": warn_cycles,
+			"warn_terminal_nodes": warn_terminal_nodes,
+		},
 		"editor": {
 			"groups": editor_groups.duplicate(true),
 			"metadata": editor_metadata.duplicate(true),
@@ -374,6 +389,7 @@ func validate_graph() -> Dictionary:
 				_append_validation_issue(report, "error", "missing_next_node", String(node.node_id), "Next node does not exist: %s" % next_id)
 
 	_validate_connections(report, node_ids)
+	_validate_topology_diagnostics(report, node_ids)
 	return _GF_VALIDATION_UTILITY_SCRIPT.finalize_report(report, "Flow graph", {
 		"next_actions": _get_validation_next_actions(),
 		"fallback_action": "Review the first reported flow graph issue before using this graph.",
@@ -416,6 +432,9 @@ func _get_validation_next_actions() -> Dictionary:
 		"input_port_allows_single_connection": "Enable allow_multiple on the port or keep only one connection.",
 		"output_port_allows_single_connection": "Enable allow_multiple on the port or keep only one connection.",
 		"incompatible_connection_ports": "Update the connected port value types or disable strict compatibility validation for this graph.",
+		"unreachable_node": "Connect the node from start_node_id or remove it from this graph resource.",
+		"cycle_detected": "Review the reported cycle and make sure the runner loop guard is intentional for this graph.",
+		"terminal_node": "Connect a successor, disable warn_terminal_nodes, or keep the node as an intentional endpoint.",
 	}
 
 
@@ -475,6 +494,115 @@ func _validate_connections(report: Dictionary, node_ids: Dictionary) -> void:
 			var compatibility := output_port.get_compatibility_report(input_port)
 			if not bool(compatibility.get("ok", false)):
 				_append_validation_issue(report, "error", "incompatible_connection_ports", String(from_node_id), String(compatibility.get("message", "")))
+
+
+func _validate_topology_diagnostics(report: Dictionary, node_ids: Dictionary) -> void:
+	if node_ids.is_empty():
+		return
+	if warn_unreachable_nodes:
+		_validate_unreachable_nodes(report, node_ids)
+	if warn_cycles:
+		_validate_cycles(report, node_ids)
+	if warn_terminal_nodes:
+		_validate_terminal_nodes(report, node_ids)
+
+
+func _validate_unreachable_nodes(report: Dictionary, node_ids: Dictionary) -> void:
+	if start_node_id == &"" or not node_ids.has(start_node_id):
+		return
+
+	var reachable: Dictionary = _GF_GRAPH_MATH_SCRIPT.find_reachable(
+		start_node_id,
+		INF,
+		func(node_id: Variant) -> Array:
+			return _get_successor_node_ids(StringName(node_id), node_ids)
+	)
+	for node_id: StringName in _get_sorted_node_ids(node_ids):
+		if not reachable.has(node_id):
+			_append_validation_issue(report, "warning", "unreachable_node", String(node_id), "Node is not reachable from start_node_id: %s" % String(node_id))
+
+
+func _validate_cycles(report: Dictionary, node_ids: Dictionary) -> void:
+	var states: Dictionary = {}
+	var reported_cycles: Dictionary = {}
+	for node_id: StringName in _get_sorted_node_ids(node_ids):
+		if int(states.get(node_id, 0)) == 0:
+			_visit_node_for_cycles(node_id, node_ids, states, [], reported_cycles, report)
+
+
+func _visit_node_for_cycles(
+	node_id: StringName,
+	node_ids: Dictionary,
+	states: Dictionary,
+	stack: Array[StringName],
+	reported_cycles: Dictionary,
+	report: Dictionary
+) -> void:
+	states[node_id] = 1
+	stack.append(node_id)
+	for successor_id: StringName in _get_successor_node_ids(node_id, node_ids):
+		var successor_state := int(states.get(successor_id, 0))
+		if successor_state == 1:
+			var cycle_key := _make_cycle_key(successor_id, stack)
+			if not reported_cycles.has(cycle_key):
+				reported_cycles[cycle_key] = true
+				_append_validation_issue(report, "warning", "cycle_detected", cycle_key, "Flow graph contains a cycle: %s" % cycle_key)
+			continue
+		if successor_state == 0:
+			_visit_node_for_cycles(successor_id, node_ids, states, stack, reported_cycles, report)
+
+	stack.pop_back()
+	states[node_id] = 2
+
+
+func _validate_terminal_nodes(report: Dictionary, node_ids: Dictionary) -> void:
+	for node_id: StringName in _get_sorted_node_ids(node_ids):
+		if _get_successor_node_ids(node_id, node_ids).is_empty():
+			_append_validation_issue(report, "warning", "terminal_node", String(node_id), "Node has no outgoing successor: %s" % String(node_id))
+
+
+func _get_successor_node_ids(node_id: StringName, node_ids: Dictionary) -> Array[StringName]:
+	var result: Array[StringName] = []
+	var node := get_node(node_id)
+	if node != null:
+		for next_id_text: String in node.next_node_ids:
+			_append_successor_id(result, StringName(next_id_text), node_ids)
+
+	for connection: Dictionary in connections:
+		if StringName(connection.get("from_node_id", &"")) != node_id:
+			continue
+		_append_successor_id(result, StringName(connection.get("to_node_id", &"")), node_ids)
+	return result
+
+
+func _append_successor_id(result: Array[StringName], node_id: StringName, node_ids: Dictionary) -> void:
+	if node_id == &"" or not node_ids.has(node_id) or result.has(node_id):
+		return
+	result.append(node_id)
+
+
+func _get_sorted_node_ids(node_ids: Dictionary) -> Array[StringName]:
+	var values := PackedStringArray()
+	for node_id_variant: Variant in node_ids.keys():
+		values.append(String(node_id_variant))
+	values.sort()
+
+	var result: Array[StringName] = []
+	for node_id_text: String in values:
+		result.append(StringName(node_id_text))
+	return result
+
+
+func _make_cycle_key(first_repeated_node_id: StringName, stack: Array[StringName]) -> String:
+	var parts := PackedStringArray()
+	var include := false
+	for node_id: StringName in stack:
+		if node_id == first_repeated_node_id:
+			include = true
+		if include:
+			parts.append(String(node_id))
+	parts.append(String(first_repeated_node_id))
+	return " -> ".join(parts)
 
 
 func _validate_connection_port(

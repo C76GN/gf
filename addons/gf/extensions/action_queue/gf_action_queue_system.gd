@@ -36,6 +36,9 @@ var _named_queues: Dictionary = {}
 ## 当前队列绑定节点的弱引用。
 var _linked_node_ref: WeakRef = null
 
+## 动作执行拦截器。
+var _interceptors: Array[GFActionInterceptor] = []
+
 
 # --- Godot 生命周期方法 ---
 
@@ -46,15 +49,25 @@ func init() -> void:
 	_current_action = null
 	_named_queues.clear()
 	_linked_node_ref = null
+	_interceptors.clear()
 	is_processing = false
 
 
 func dispose() -> void:
 	clear_queue(true)
 	clear_all_named_queues(true)
+	_interceptors.clear()
 
 
 # --- 公共方法 ---
+
+## 注入当前队列所属架构，并同步给已注册拦截器。
+## @param architecture: 当前架构。
+func inject_dependencies(architecture: GFArchitecture) -> void:
+	super.inject_dependencies(architecture)
+	for interceptor: GFActionInterceptor in _interceptors:
+		_inject_interceptor_dependencies(interceptor)
+
 
 ## 将一个动作加入顺序队列。
 ## @param action: 要处理的表现动作。
@@ -165,6 +178,52 @@ func get_linked_queue(queue_name: StringName, linked_node: Node) -> GFActionQueu
 ## @param linked_node: 与队列生命周期绑定的节点。
 func bind_to_node(linked_node: Node) -> void:
 	_linked_node_ref = weakref(linked_node) if linked_node != null else null
+
+
+## 添加动作执行拦截器。
+## @param interceptor: 拦截器实例。
+## @return 添加成功返回 true。
+func add_interceptor(interceptor: GFActionInterceptor) -> bool:
+	if interceptor == null:
+		return false
+	if _interceptors.has(interceptor):
+		return false
+
+	_interceptors.append(interceptor)
+	_sort_interceptors()
+	_inject_interceptor_dependencies(interceptor)
+	return true
+
+
+## 移除动作执行拦截器。
+## @param interceptor: 拦截器实例。
+## @return 移除成功返回 true。
+func remove_interceptor(interceptor: GFActionInterceptor) -> bool:
+	if interceptor == null or not _interceptors.has(interceptor):
+		return false
+	_interceptors.erase(interceptor)
+	return true
+
+
+## 批量替换动作执行拦截器。
+## @param interceptors: 新拦截器列表。
+func set_interceptors(interceptors: Array[GFActionInterceptor]) -> void:
+	_interceptors.clear()
+	for interceptor: GFActionInterceptor in interceptors:
+		add_interceptor(interceptor)
+
+
+## 清空动作执行拦截器。
+func clear_interceptors() -> void:
+	_interceptors.clear()
+
+
+## 获取动作执行拦截器副本。
+## @return 拦截器列表副本。
+func get_interceptors() -> Array[GFActionInterceptor]:
+	var result: Array[GFActionInterceptor] = []
+	result.assign(_interceptors)
+	return result
 
 
 ## 将动作加入指定命名队列。
@@ -280,6 +339,7 @@ func get_debug_snapshot() -> Dictionary:
 		"named_queue_count": _named_queues.size(),
 		"named_queues": named_snapshots,
 		"linked_node_alive": _linked_node_ref != null and _linked_node_ref.get_ref() != null,
+		"interceptor_count": _interceptors.size(),
 	}
 
 
@@ -315,8 +375,20 @@ func _process_queue() -> void:
 		if not is_instance_valid(action):
 			continue
 
-		_current_action = action
 		_inject_action_dependencies(action)
+		var before_result := _apply_before_interceptors(action)
+		if before_result.is_stop_queue():
+			_stop_processing_from_interceptor(false)
+			return
+		if before_result.is_skip():
+			continue
+		if before_result.is_replace():
+			action = before_result.replacement_action
+			_inject_action_dependencies(action)
+		if not is_instance_valid(action):
+			continue
+
+		_current_action = action
 		if not action.can_execute():
 			_current_action = null
 			continue
@@ -326,6 +398,10 @@ func _process_queue() -> void:
 			await action.await_result_safely(result, _is_processing_serial_current.bind(current_serial))
 
 		if current_serial != _processing_serial:
+			return
+		var after_result := _apply_after_interceptors(action, result)
+		if after_result.is_stop_queue():
+			_stop_processing_from_interceptor(false)
 			return
 		if _current_action == action:
 			_current_action = null
@@ -368,6 +444,58 @@ func _inject_action_dependencies(action: GFVisualAction) -> void:
 		action.inject_dependencies(_get_architecture_or_null())
 
 
+func _inject_interceptor_dependencies(interceptor: GFActionInterceptor) -> void:
+	if interceptor != null and interceptor.has_method("inject_dependencies"):
+		interceptor.call("inject_dependencies", _get_architecture_or_null())
+
+
+func _sort_interceptors() -> void:
+	_interceptors.sort_custom(func(left: GFActionInterceptor, right: GFActionInterceptor) -> bool:
+		if left == null:
+			return false
+		if right == null:
+			return true
+		return left.priority > right.priority
+	)
+
+
+func _apply_before_interceptors(action: GFVisualAction) -> GFActionInterceptionResult:
+	var current_action := action
+	for interceptor: GFActionInterceptor in _get_enabled_interceptors():
+		var result := interceptor.before_execute(current_action, self)
+		result = _normalize_interception_result(result)
+		if result.is_replace():
+			current_action = result.replacement_action
+		if not result.is_continue():
+			return result
+	return GFActionInterceptionResult.replace_with(current_action) if current_action != action else GFActionInterceptionResult.continue_action()
+
+
+func _apply_after_interceptors(
+	action: GFVisualAction,
+	execute_result: Variant
+) -> GFActionInterceptionResult:
+	for interceptor: GFActionInterceptor in _get_enabled_interceptors():
+		var result := _normalize_interception_result(interceptor.after_execute(action, self, execute_result))
+		if result.is_stop_queue():
+			return result
+	return GFActionInterceptionResult.continue_action()
+
+
+func _get_enabled_interceptors() -> Array[GFActionInterceptor]:
+	var result: Array[GFActionInterceptor] = []
+	for interceptor: GFActionInterceptor in _interceptors:
+		if interceptor != null and interceptor.enabled:
+			result.append(interceptor)
+	return result
+
+
+func _normalize_interception_result(result: GFActionInterceptionResult) -> GFActionInterceptionResult:
+	if result == null:
+		return GFActionInterceptionResult.continue_action()
+	return result
+
+
 func _is_processing_serial_current(serial: int) -> bool:
 	return serial == _processing_serial
 
@@ -376,3 +504,17 @@ func _cancel_current_action() -> void:
 	if is_instance_valid(_current_action):
 		_current_action.cancel()
 	_current_action = null
+
+
+func _stop_processing_from_interceptor(cancel_current: bool) -> void:
+	var was_processing := is_processing
+	_processing_serial += 1
+	_queue.clear()
+	_queue_head_index = 0
+	if cancel_current:
+		_cancel_current_action()
+	else:
+		_current_action = null
+	is_processing = false
+	if was_processing:
+		queue_drained.emit()
