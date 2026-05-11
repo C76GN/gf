@@ -148,7 +148,7 @@ func pick_many(
 ## @return 新权重表实例。
 func duplicate_table(deep: bool = true) -> GFWeightedTable:
 	var table := GFWeightedTable.new()
-	table.default_value = _duplicate_variant(default_value, deep)
+	table.default_value = GFVariantUtility.duplicate_variant(default_value, deep, true)
 	table.deterministic_seed = deterministic_seed
 	for entry: GFWeightedEntry in entries:
 		table.entries.append(entry.duplicate_entry(deep) if entry != null and deep else entry)
@@ -232,11 +232,3 @@ func _resolve_rng(rng: RandomNumberGenerator) -> RandomNumberGenerator:
 	else:
 		fallback.randomize()
 	return fallback
-
-
-static func _duplicate_variant(target: Variant, deep: bool) -> Variant:
-	if typeof(target) == TYPE_ARRAY or typeof(target) == TYPE_DICTIONARY:
-		return target.duplicate(deep)
-	if target is Resource:
-		return target.duplicate(deep)
-	return target

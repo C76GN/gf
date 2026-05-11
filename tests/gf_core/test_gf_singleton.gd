@@ -26,8 +26,44 @@ class DummyModel extends GFModel:
 class DummySystem extends GFSystem:
 	pass
 
+class InheritedBaseTickSystem extends GFSystem:
+	var tick_order: Array = []
+
+	func tick(_delta: float) -> void:
+		tick_order.append("inherited")
+
+class InheritedConcreteTickSystem extends InheritedBaseTickSystem:
+	pass
+
 class DummyUtility extends GFUtility:
 	pass
+
+class RegistryModelBase extends GFModel:
+	pass
+
+class RegistryConcreteModel extends RegistryModelBase:
+	var disposed: bool = false
+
+	func dispose() -> void:
+		disposed = true
+
+class RegistrySystemBase extends GFSystem:
+	pass
+
+class RegistryConcreteSystem extends RegistrySystemBase:
+	var disposed: bool = false
+
+	func dispose() -> void:
+		disposed = true
+
+class RegistryUtilityBase extends GFUtility:
+	pass
+
+class RegistryConcreteUtility extends RegistryUtilityBase:
+	var disposed: bool = false
+
+	func dispose() -> void:
+		disposed = true
 
 class NotUtility extends RefCounted:
 	pass
@@ -389,6 +425,13 @@ func after_each() -> void:
 
 # --- 测试用例 ---
 
+## 验证 Gf autoload 即使在 Godot 原生暂停下也保持处理。
+func test_gf_process_mode_is_always() -> void:
+	Gf._ready()
+
+	assert_eq(Gf.process_mode, Node.PROCESS_MODE_ALWAYS, "Gf 应在 SceneTree.paused 时继续驱动框架 tick。")
+
+
 ## 验证 Gf.get_model 正确代理到架构
 func test_get_model_proxy() -> void:
 	var model = Gf.get_model(DummyModel)
@@ -568,6 +611,37 @@ func test_register_utility_alias_resolves_base_type() -> void:
 	await Gf.init()
 
 	assert_eq(Gf.get_utility(UtilityBase), concrete, "显式 alias 应让基类查询解析到指定实现。")
+
+
+## 验证共享注册表逻辑能通过 alias 注销三类模块。
+func test_module_registry_alias_unregister_removes_all_module_kinds() -> void:
+	var arch := GFArchitecture.new()
+	var model := RegistryConcreteModel.new()
+	var system := RegistryConcreteSystem.new()
+	var utility := RegistryConcreteUtility.new()
+
+	await arch.register_model_instance(model)
+	await arch.register_system_instance(system)
+	await arch.register_utility_instance(utility)
+	arch.register_model_alias(RegistryModelBase, RegistryConcreteModel)
+	arch.register_system_alias(RegistrySystemBase, RegistryConcreteSystem)
+	arch.register_utility_alias(RegistryUtilityBase, RegistryConcreteUtility)
+
+	assert_eq(arch.get_model(RegistryModelBase), model, "Model alias 应解析到目标实例。")
+	assert_eq(arch.get_system(RegistrySystemBase), system, "System alias 应解析到目标实例。")
+	assert_eq(arch.get_utility(RegistryUtilityBase), utility, "Utility alias 应解析到目标实例。")
+
+	arch.unregister_model(RegistryModelBase)
+	arch.unregister_system(RegistrySystemBase)
+	arch.unregister_utility(RegistryUtilityBase)
+
+	assert_true(model.disposed, "通过 alias 注销 Model 应释放目标实例。")
+	assert_true(system.disposed, "通过 alias 注销 System 应释放目标实例。")
+	assert_true(utility.disposed, "通过 alias 注销 Utility 应释放目标实例。")
+	assert_null(arch.get_model(RegistryConcreteModel), "Model 注销后不应继续存在。")
+	assert_null(arch.get_system(RegistryConcreteSystem), "System 注销后不应继续存在。")
+	assert_null(arch.get_utility(RegistryConcreteUtility), "Utility 注销后不应继续存在。")
+	arch.dispose()
 
 
 ## 验证隐式基类查询缓存会在注册表变化时失效，避免返回旧的唯一匹配。
@@ -1431,6 +1505,91 @@ func test_architecture_debug_lifecycle_state_reports_modules_and_factories() -> 
 	assert_true(bool(after_utility_entry.get("has_tick", false)), "诊断快照应报告 tick 能力。")
 	assert_eq(int(factory_entry.get("lifetime")), GFBindingLifetimes.Lifetime.SINGLETON, "诊断快照应报告工厂生命周期。")
 
+	arch.dispose()
+
+
+## 验证未重写 tick 模板的 System 不会进入热路径缓存。
+func test_system_without_tick_override_stays_out_of_tick_cache() -> void:
+	var arch := GFArchitecture.new()
+	await arch.register_system_instance(DummySystem.new())
+	await arch.init()
+
+	var state := arch.get_debug_lifecycle_state()
+	var tick_state := state.get("tick", {}) as Dictionary
+	var systems := state.get("systems", {}) as Dictionary
+	var system_entry := systems.values()[0] as Dictionary
+
+	assert_eq(int(tick_state.get("systems", -1)), 0, "未重写 tick() 的 System 不应进入 tick 缓存。")
+	assert_eq(int(tick_state.get("physics_systems", -1)), 0, "未重写 physics_tick() 的 System 不应进入物理 tick 缓存。")
+	assert_false(bool(system_entry.get("has_tick", true)), "诊断快照不应把基类空 tick 模板当成真实 tick 能力。")
+	assert_false(bool(system_entry.get("has_physics_tick", true)), "诊断快照不应把基类空 physics_tick 模板当成真实能力。")
+
+	arch.dispose()
+
+
+## 验证显式 tick 标记会刷新缓存，并可让模板 System 参与 tick 缓存。
+func test_explicit_tick_opt_in_refreshes_system_tick_cache() -> void:
+	var arch := GFArchitecture.new()
+	var system := DummySystem.new()
+	await arch.register_system_instance(system)
+	await arch.init()
+
+	system.tick_enabled = true
+	system.physics_tick_enabled = true
+	var enabled_state := arch.get_debug_lifecycle_state()
+	var enabled_tick := enabled_state.get("tick", {}) as Dictionary
+	var enabled_systems := enabled_state.get("systems", {}) as Dictionary
+	var enabled_entry := enabled_systems.values()[0] as Dictionary
+
+	assert_eq(int(enabled_tick.get("systems", -1)), 1, "显式 tick_enabled 应让 System 进入 tick 缓存。")
+	assert_eq(int(enabled_tick.get("physics_systems", -1)), 1, "显式 physics_tick_enabled 应让 System 进入物理 tick 缓存。")
+	assert_true(bool(enabled_entry.get("has_tick", false)), "诊断快照应报告显式 tick 能力。")
+	assert_true(bool(enabled_entry.get("tick_enabled", false)), "诊断快照应暴露显式 tick 标记。")
+
+	system.tick_enabled = false
+	system.physics_tick_enabled = false
+	var disabled_state := arch.get_debug_lifecycle_state()
+	var disabled_tick := disabled_state.get("tick", {}) as Dictionary
+
+	assert_eq(int(disabled_tick.get("systems", -1)), 0, "关闭显式 tick 标记后，未重写模板的 System 应退出 tick 缓存。")
+	assert_eq(int(disabled_tick.get("physics_systems", -1)), 0, "关闭显式 physics 标记后，未重写模板的 System 应退出物理 tick 缓存。")
+
+	arch.dispose()
+
+
+## 验证 Utility 显式 tick 标记不会让缺少 tick() 方法的实例进入缓存。
+func test_utility_tick_opt_in_requires_tick_method() -> void:
+	var arch := GFArchitecture.new()
+	var utility := DummyUtility.new()
+	await arch.register_utility_instance(utility)
+	await arch.init()
+
+	utility.tick_enabled = true
+	var state := arch.get_debug_lifecycle_state()
+	var tick_state := state.get("tick", {}) as Dictionary
+	var utilities := state.get("utilities", {}) as Dictionary
+	var utility_entry := utilities.values()[0] as Dictionary
+
+	assert_eq(int(tick_state.get("utilities", -1)), 0, "缺少 tick() 方法的 Utility 不应因 tick_enabled 进入缓存。")
+	assert_false(bool(utility_entry.get("has_tick", true)), "诊断快照不应把缺少 tick() 方法的 Utility 标记为可 tick。")
+	assert_true(bool(utility_entry.get("tick_enabled", false)), "诊断快照仍应暴露显式标记，方便定位配置问题。")
+
+	arch.tick(0.016)
+	arch.dispose()
+
+
+## 验证中间基类声明 tick 时，具体子类仍按旧契约自动参与 tick。
+func test_inherited_system_tick_override_is_auto_detected() -> void:
+	var arch := GFArchitecture.new()
+	var tick_order: Array = []
+	var system := InheritedConcreteTickSystem.new()
+	system.tick_order = tick_order
+	await arch.register_system_instance(system)
+	await arch.init()
+
+	arch.tick(0.016)
+
+	assert_eq(tick_order, ["inherited"], "继承自项目中间基类的 tick() 仍应被架构自动驱动。")
 	arch.dispose()
 
 

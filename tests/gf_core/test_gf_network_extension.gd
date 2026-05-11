@@ -93,6 +93,19 @@ func test_reconnect_policy_uses_delay_sequence_and_attempt_limit() -> void:
 	assert_eq(policy.get_attempt_count(), 0, "连接成功后应重置尝试次数。")
 
 
+func test_reconnect_policy_jitter_respects_seeded_rng_state() -> void:
+	var policy := GFNetworkReconnectPolicyBase.new()
+	var expected_rng := RandomNumberGenerator.new()
+	policy.delays_msec = [100]
+	policy.jitter_ratio = 0.5
+	policy._rng.seed = 12345
+	expected_rng.seed = 12345
+
+	var expected := maxi(int(roundf(100.0 + expected_rng.randf_range(-50.0, 50.0))), 0)
+
+	assert_eq(policy.get_next_delay_msec(), expected, "jitter 不应在每次计算时重新 randomize 覆盖已设定 RNG 状态。")
+
+
 ## 验证 NetworkUtility 会通过后端发送并解码后端收到的消息。
 func test_network_utility_bridges_backend_messages() -> void:
 	var utility := GFNetworkUtilityBase.new()

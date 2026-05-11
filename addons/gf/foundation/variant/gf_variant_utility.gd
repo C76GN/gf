@@ -16,20 +16,25 @@ const JSON_VALUE_KEY: String = "value"
 
 ## 深拷贝 Dictionary 或 Array；其他 Variant 原样返回。
 ## @param value: 待复制的值。
+## @param deep: 是否深拷贝集合或 Resource。
+## @param duplicate_resources: 是否复制 Resource；默认为 false 以保留旧行为。
 ## @return 复制后的值。
-static func duplicate_variant(value: Variant) -> Variant:
+static func duplicate_variant(value: Variant, deep: bool = true, duplicate_resources: bool = false) -> Variant:
 	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
+		return (value as Dictionary).duplicate(deep)
 	if value is Array:
-		return (value as Array).duplicate(true)
+		return (value as Array).duplicate(deep)
+	if duplicate_resources and value is Resource:
+		return (value as Resource).duplicate(deep)
 	return value
 
 
 ## 深拷贝集合值；语义同 duplicate_variant()，便于集合字段调用处表达意图。
 ## @param value: 待复制的值。
+## @param deep: 是否深拷贝集合。
 ## @return 复制后的值。
-static func duplicate_collection(value: Variant) -> Variant:
-	return duplicate_variant(value)
+static func duplicate_collection(value: Variant, deep: bool = true) -> Variant:
+	return duplicate_variant(value, deep)
 
 
 ## 将 defaults 中缺失的字段递归合并到 base。

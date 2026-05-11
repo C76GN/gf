@@ -45,38 +45,37 @@ func build_source(
 	provider_accessor: String = DEFAULT_PROVIDER_ACCESSOR
 ) -> String:
 	var records := _collect_schema_records(schemas)
-	var output := PackedStringArray()
-	output.append("## %s: 自动生成的静态导表访问器。" % access_class_name)
-	output.append("##")
-	output.append("## 该文件由 GFConfigAccessGenerator 生成，可以提交到版本库；请不要手动编辑。")
-	output.append("class_name %s" % access_class_name)
-	output.append("extends RefCounted")
-	output.append("")
-	output.append("")
-	output.append("# --- 常量 ---")
-	output.append("")
+	var builder := GFSourceBuilder.new()
+	builder.doc("%s: 自动生成的静态导表访问器。" % access_class_name)
+	builder.doc()
+	builder.doc("该文件由 GFConfigAccessGenerator 生成，可以提交到版本库；请不要手动编辑。")
+	builder.line("class_name %s" % access_class_name)
+	builder.line("extends RefCounted")
+	builder.blank(2)
+	builder.section("常量")
 	for record: Dictionary in records:
-		output.append("const %s: StringName = &\"%s\"" % [
+		builder.line("const %s: StringName = &\"%s\"" % [
 			String(record.get("constant_name", "")),
 			_escape_string(String(record.get("table_name", ""))),
 		])
 
-	output.append("")
-	output.append("")
-	output.append("# --- 公共方法 ---")
-	output.append("")
+	builder.blank(2)
+	builder.section("公共方法")
 	var used_methods: Dictionary = {}
 	for record: Dictionary in records:
-		_append_table_accessors(output, record, used_methods)
+		_append_table_accessors(builder, record, used_methods)
 
-	output.append("")
-	output.append("# --- 私有/辅助方法 ---")
-	output.append("")
-	output.append("static func _provider_or_null(provider: GFConfigProvider = null) -> GFConfigProvider:")
-	output.append("\tif provider != null:")
-	output.append("\t\treturn provider")
-	output.append("\treturn %s" % provider_accessor)
-	return "\n".join(output) + "\n"
+	builder.blank()
+	builder.section("私有/辅助方法")
+	builder.line("static func _provider_or_null(provider: GFConfigProvider = null) -> GFConfigProvider:")
+	builder.indent()
+	builder.line("if provider != null:")
+	builder.indent()
+	builder.line("return provider")
+	builder.dedent()
+	builder.line("return %s" % provider_accessor)
+	builder.dedent()
+	return builder.build()
 
 
 ## 保存生成源码到指定路径。
@@ -141,7 +140,7 @@ func _collect_schema_records(schemas: Array) -> Array[Dictionary]:
 	return records
 
 
-func _append_table_accessors(output: PackedStringArray, record: Dictionary, used_methods: Dictionary) -> void:
+func _append_table_accessors(builder: GFSourceBuilder, record: Dictionary, used_methods: Dictionary) -> void:
 	var method_prefix := String(record.get("method_prefix", ""))
 	var constant_name := String(record.get("constant_name", ""))
 	var record_method := "get_%s_record" % method_prefix
@@ -152,22 +151,28 @@ func _append_table_accessors(output: PackedStringArray, record: Dictionary, used
 
 	used_methods[record_method] = true
 	used_methods[table_method] = true
-	output.append("## 获取 `%s` 表中的单条记录。" % String(record.get("table_name", "")))
-	output.append("static func %s(id: Variant, provider: GFConfigProvider = null) -> Variant:" % record_method)
-	output.append("\tvar resolved_provider := _provider_or_null(provider)")
-	output.append("\tif resolved_provider == null:")
-	output.append("\t\treturn null")
-	output.append("\treturn resolved_provider.get_record(%s, id)" % constant_name)
-	output.append("")
-	output.append("")
-	output.append("## 获取 `%s` 整张表数据。" % String(record.get("table_name", "")))
-	output.append("static func %s(provider: GFConfigProvider = null) -> Variant:" % table_method)
-	output.append("\tvar resolved_provider := _provider_or_null(provider)")
-	output.append("\tif resolved_provider == null:")
-	output.append("\t\treturn null")
-	output.append("\treturn resolved_provider.get_table(%s)" % constant_name)
-	output.append("")
-	output.append("")
+	builder.doc("获取 `%s` 表中的单条记录。" % String(record.get("table_name", "")))
+	builder.line("static func %s(id: Variant, provider: GFConfigProvider = null) -> Variant:" % record_method)
+	builder.indent()
+	builder.line("var resolved_provider := _provider_or_null(provider)")
+	builder.line("if resolved_provider == null:")
+	builder.indent()
+	builder.line("return null")
+	builder.dedent()
+	builder.line("return resolved_provider.get_record(%s, id)" % constant_name)
+	builder.dedent()
+	builder.blank(2)
+	builder.doc("获取 `%s` 整张表数据。" % String(record.get("table_name", "")))
+	builder.line("static func %s(provider: GFConfigProvider = null) -> Variant:" % table_method)
+	builder.indent()
+	builder.line("var resolved_provider := _provider_or_null(provider)")
+	builder.line("if resolved_provider == null:")
+	builder.indent()
+	builder.line("return null")
+	builder.dedent()
+	builder.line("return resolved_provider.get_table(%s)" % constant_name)
+	builder.dedent()
+	builder.blank(2)
 
 
 func _sanitize_identifier(value: String) -> String:

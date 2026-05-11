@@ -25,6 +25,12 @@ var _attempt_count: int = 0
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
+# --- Godot 生命周期方法 ---
+
+func _init() -> void:
+	_rng.randomize()
+
+
 # --- 公共方法 ---
 
 ## 重置尝试计数。
@@ -72,7 +78,7 @@ func _get_delay_for_attempt(attempt_index: int) -> int:
 func _apply_jitter(delay_msec: int) -> int:
 	if delay_msec <= 0 or jitter_ratio <= 0.0:
 		return delay_msec
-	_rng.randomize()
+
 	var jitter_amount := delay_msec * jitter_ratio
 	var offset := _rng.randf_range(-jitter_amount, jitter_amount)
 	return maxi(int(roundf(float(delay_msec) + offset)), 0)

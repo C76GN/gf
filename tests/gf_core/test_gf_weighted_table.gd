@@ -59,6 +59,19 @@ func test_duplicate_table_can_deep_copy_entries() -> void:
 	assert_eq(copied.entries[0].metadata.tag, "sample")
 
 
+func test_duplicate_table_can_deep_copy_resource_values() -> void:
+	var table := GF_WEIGHTED_TABLE.new()
+	var default_resource := Resource.new()
+	var entry_resource := Resource.new()
+	table.default_value = default_resource
+	table.add_entry(entry_resource, 1.0)
+
+	var copied := table.duplicate_table(true)
+
+	assert_ne(copied.default_value, default_resource, "默认值 Resource 应被深拷贝。")
+	assert_ne(copied.entries[0].value, entry_resource, "条目值 Resource 应被深拷贝。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_sample_table() -> GFWeightedTable:

@@ -164,11 +164,18 @@ func test_editor_generation_templates_use_documented_sections() -> void:
 
 	var source := file.get_as_text()
 	file.close()
+	var actions_file := FileAccess.open("res://addons/gf/editor/gf_plugin_actions.gd", FileAccess.READ)
+	assert_not_null(actions_file, "应能读取 GF 插件菜单动作源码。")
+	if actions_file == null:
+		return
 
-	assert_false(source.contains("# --- 私有辅助方法 ---"), "编辑器代码生成模板应使用规范 section 名称。")
-	assert_false(source.contains("var lifecycle_template := \"\"\"# --- Godot 生命周期方法 ---"), "GF 模块模板不应把 GF 生命周期误写成 Godot 生命周期。")
+	var actions_source := actions_file.get_as_text()
+	actions_file.close()
+
+	assert_false(source.contains("# --- 私有辅助方法 ---") or actions_source.contains("# --- 私有辅助方法 ---"), "编辑器代码生成模板应使用规范 section 名称。")
+	assert_false(actions_source.contains("var lifecycle_template := \"\"\"# --- Godot 生命周期方法 ---"), "GF 模块模板不应把 GF 生命周期误写成 Godot 生命周期。")
 	assert_true(source.contains("# --- 私有/辅助方法 ---"), "编辑器代码生成模板应包含私有/辅助方法 section。")
-	assert_true(source.contains("var lifecycle_template := \"\"\"# --- GF 生命周期方法 ---"), "编辑器代码生成模板应包含 GF 生命周期 section。")
+	assert_true(actions_source.contains("var lifecycle_template := \"\"\"# --- GF 生命周期方法 ---"), "编辑器代码生成模板应包含 GF 生命周期 section。")
 
 
 # --- 私有/辅助方法 ---

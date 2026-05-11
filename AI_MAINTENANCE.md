@@ -6,7 +6,7 @@
 
 - 文件优先按 UTF-8 读取和输出。
 - GDScript 代码必须遵循 `CODING_STYLE.md`，包括文件结构、注释、类型提示、格式、编码和换行。
-- 除非维护者明确批准破坏性升级，否则 GF `1.x` 版本线保持向后兼容。
+- 除非维护者明确批准破坏性升级，否则 GF 当前稳定主版本线保持向后兼容。
 - 文档修改要小而聚焦。概念属于哪个页面，就优先补哪个页面，不要把同一段解释散落到多个地方。
 - 不要修改 vendored `addons/gut/**`，除非任务明确要求处理 GUT。
 - 不要提交临时分析、任务草稿、本地生成的临时上下文文件、调试报告或 AI 会话记录。
@@ -49,8 +49,8 @@
 
 移除公开 API 或改变默认行为时：
 
-- `1.x` 默认不做，除非维护者明确批准。
-- 一旦批准，应说明为什么破坏兼容，并按 `2.0.0` 处理。
+- 当前稳定主版本线默认不做，除非维护者明确批准。
+- 一旦批准，应说明为什么破坏兼容，并按 SemVer 的下一个主版本处理。
 
 ### 纯文档变更
 
@@ -94,7 +94,7 @@ Commit message 模板：
 ```text
 Release 1.23.3 lifecycle dependency hardening
 
-Add installer timeout protection, manual scoped context initialization, assignable lookup caching, factory lifetime validation, factory alias warnings, and GFAccess fallback injection consistency. Files changed: core lifecycle and binding scripts under addons/gf/core, accessor generation under addons/gf/editor, plugin project settings metadata, focused gf_core tests, lifecycle/accessor wiki docs, changelog, plugin.cfg, and ASSET_LIBRARY.md. Purpose: make lifecycle and dependency ownership failures surface earlier while keeping GF 1.x behavior compatible.
+Add installer timeout protection, manual scoped context initialization, assignable lookup caching, factory lifetime validation, factory alias warnings, and GFAccess fallback injection consistency. Files changed: core lifecycle and binding scripts under addons/gf/core, accessor generation under addons/gf/editor, plugin project settings metadata, focused gf_core tests, lifecycle/accessor wiki docs, changelog, plugin.cfg, and ASSET_LIBRARY.md. Purpose: make lifecycle and dependency ownership failures surface earlier while keeping GF current stable behavior compatible.
 ```
 
 源码变更后优先运行：

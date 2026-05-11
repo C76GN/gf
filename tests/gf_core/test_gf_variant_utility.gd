@@ -14,6 +14,13 @@ func test_duplicate_variant_deep_copies_collections() -> void:
 	assert_eq(((source["items"] as Array)[0] as Dictionary)["value"], 1, "深拷贝不应共享嵌套集合。")
 
 
+func test_duplicate_variant_can_optionally_duplicate_resources() -> void:
+	var resource := Resource.new()
+
+	assert_same(GFVariantUtility.duplicate_variant(resource), resource, "默认应保留 Resource 引用以兼容旧行为。")
+	assert_ne(GFVariantUtility.duplicate_variant(resource, true, true), resource, "显式要求时应复制 Resource。")
+
+
 func test_deep_merge_defaults_keeps_existing_values() -> void:
 	var base := {
 		"audio": {

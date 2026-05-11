@@ -629,6 +629,28 @@ func test_player_action_state_is_scoped_by_device_assignment() -> void:
 	await get_tree().create_timer(0.0).timeout
 
 
+func test_player_action_state_keeps_multiple_sources_for_same_player_binding() -> void:
+	var action := _make_action(&"jump")
+	var binding := _make_joy_button_binding(JOY_BUTTON_A)
+	var entry := {
+		"action": action,
+		"action_id": &"jump",
+		"bindings": [{
+			"binding": binding,
+			"key": "gameplay/jump/0",
+		}],
+	}
+
+	_utility._apply_entry_event(entry, _make_joy_button_event(0, JOY_BUTTON_A, true), 0)
+	_utility._apply_entry_event(entry, _make_joy_button_event(1, JOY_BUTTON_A, true), 0)
+	_utility._apply_entry_event(entry, _make_joy_button_event(0, JOY_BUTTON_A, false), 0)
+
+	assert_true(_utility.is_action_active_for_player(0, &"jump"), "同一玩家另一个来源仍按住时，玩家动作应保持活跃。")
+
+	_utility._apply_entry_event(entry, _make_joy_button_event(1, JOY_BUTTON_A, false), 0)
+	assert_false(_utility.is_action_active_for_player(0, &"jump"), "所有来源释放后玩家动作才应结束。")
+
+
 func test_virtual_input_source_drives_global_and_player_action_state() -> void:
 	var context := _make_context(&"gameplay", [
 		_make_mapping(_make_action(&"jump"), [] as Array[GFInputBindingBase]),

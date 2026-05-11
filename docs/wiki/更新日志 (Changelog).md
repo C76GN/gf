@@ -18,9 +18,67 @@
 
 ## 维护策略
 
-本页面只保留最近三个版本线的更新记录，当前保留 `2.6.x`、`2.5.x` 与 `2.4.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
+本页面只保留最近三个版本线的更新记录，当前保留 `3.0.x`、`2.6.x` 与 `2.5.x`。更早版本的完整历史请通过 Git 历史或 GitHub Releases 查询，避免 Wiki 页面随着每次发布持续膨胀。
 
 ---
+
+## [3.0.0] - 2026-05-11
+
+**版本概述**：修复事件 pending、存档迁移、输入来源聚合和暂停驱动等边界问题，收敛事件监听轨道、架构注册表、存档路径/事务处理、tick 参与判定与权重表复制辅助逻辑，并按最佳实践调整纯代码状态机启动初始状态的默认通知行为。
+
+### 🚀 新增特性 (Added)
+- 新增编辑器侧 `GFSourceBuilder`，用于生成脚本时统一处理源码行、缩进、空行、section 与文档注释格式。
+- 新增 Foundation 级 `GFResultUtility`，提供通用结果字典 key 常量与 `make()` / `make_success()` / `make_failure()` 轻量工厂。
+
+### 🔄 机制更改 (Changed)
+- `Gf` AutoLoad 会将自身 `process_mode` 设置为 `PROCESS_MODE_ALWAYS`，避免项目使用 Godot 原生暂停时框架 tick 完全停摆。
+- `GFTypeEventSystem` 将 exact、assignable 与 simple 三组监听器的 pending add/remove/owner-remove 规则收敛为共享内部轨道，减少重复实现并统一派发中变更的边界语义；公开 API 不变。
+- `GFArchitecture` 将 Model、System、Utility 三组模块注册表收敛为共享内部结构，统一注册、别名、继承匹配缓存、注销与生命周期阶段推进的实现；公开 API 与默认行为不变。
+- `GFArchitecture` 的 tick 缓存现在基于显式 `tick_enabled` / `physics_tick_enabled` 或脚本真实声明的 `tick()` / `physics_tick()` 构建；未重写基类空模板的 `GFSystem` 不再每帧空转，`GFUtility` 仍必须实现对应方法才会被驱动，旧项目重写方法后自动参与 tick 的行为保持兼容。
+- `GFAccessGenerator` 与 `GFConfigAccessGenerator` 复用 `GFSourceBuilder` 生成脚本源码，减少直接 `PackedStringArray.append()` 拼接造成的格式维护成本；生成访问器的公开行为保持兼容。
+- 编辑器 `plugin.gd` 拆分为 ProjectSettings、AutoLoad、工具菜单、菜单动作、Inspector/导出插件装配等内部辅助脚本，主插件脚本保留生命周期编排与 Save Viewer Dock；插件入口、菜单项和默认行为保持兼容。
+- `GFStorageUtility` 将路径策略、文件操作和事务提交/恢复收敛为内部 `StoragePathPolicy`、`StorageFileOps` 与 `StorageTransactionManager`，保持存档文件格式、事务文件格式和公开 API 不变。
+- `GFStorageCodec`、`GFStorageBackend` 与 `GFStorageUtility` 的 `ok` / `data` / `metadata` / `integrity_valid` / `error` 返回字典改为复用 `GFResultUtility` 构造；返回字段和默认语义保持兼容。
+- `GFStateMachine.start()` 默认会在初始状态进入成功后发出 `state_changed(&"", initial_state_name)`，让启动与后续状态切换共享同一通知路径；少数需要静默启动的场景可传入第三个参数 `false`。
+- `GFNetworkReconnectPolicy` 的 jitter 随机源改为实例初始化时播种，不再在每次计算延迟时重新 `randomize()`，便于测试和项目层复现退避序列。
+- `GFWeightedEntry` / `GFWeightedTable` 复用 `GFVariantUtility.duplicate_variant(..., duplicate_resources = true)` 复制集合与资源值，减少重复 helper。
+
+### 🐛 Bug 修复 (Fixed)
+- 修复 `GFTypeEventSystem` 在派发中跨事件类型/简单事件 ID 注册后立即注销时，pending add 仍会在 flush 后落地的问题。
+- 修复事件回调签名只校验最少参数、不拦截额外未绑定必填参数的问题；对象方法回调现在会拒绝派发时无法满足的签名。
+- 修复 `GFStorageUtility` 注册了迁移步骤但缺少完整迁移链时，旧存档仍被标记为当前 `save_version` 的问题。
+- 修复 `GFStorageUtility.save_data()` / `load_data()` / `load_data_result()` / `save_data_async()` / `load_data_async()` 空 `file_name` 会落入内部兜底文件名的问题。
+- 修复 `GFInputMappingUtility` 玩家级动作状态未把真实输入来源纳入 binding key，导致同一玩家多来源输入可能互相覆盖的问题。
+
+### 🔌 API 变动说明 (API Changes)
+- 新增 `GFSourceBuilder` 公开编辑器辅助类；现有访问器生成器入口和生成脚本调用方式不变。
+- 新增 `GFResultUtility` 公开基础辅助类，用于统一常见结果字典字段名和构造方式；现有存储 API 返回字典字段不变。
+- `GFStateMachine.start(initial_state_name, msg = {}, emit_changed = true)` 新增可选 `emit_changed` 参数；默认初始进入会发出 `state_changed(&"", initial_state_name)`，传 `false` 可静默启动。
+- `GFSystem` 与 `GFUtility` 新增可选公开属性 `tick_enabled` / `physics_tick_enabled`，用于显式声明模块参与 `tick()` / `physics_tick()` 缓存；旧项目继续通过重写同名方法自动参与，无需迁移。
+- `GFVariantUtility.duplicate_variant(value, deep = true, duplicate_resources = false)` 新增可选参数；默认仍只复制 `Dictionary` / `Array`，显式传入 `duplicate_resources = true` 时才复制 `Resource`。
+- `GFVariantUtility.duplicate_collection(value, deep = true)` 新增可选 `deep` 参数，旧的一参调用保持兼容。
+- 纯数据存取 API 传入空 `file_name` 时会明确返回失败：同步保存返回 `ERR_INVALID_PARAMETER`，同步读取写入失败的 `last_load_result`，异步接口返回 `ERR_INVALID_PARAMETER` 并发出对应失败完成信号。
+
+### 📘 升级指南 (Migration Guide)
+- 如果项目曾误传空字符串给 `save_data()` / `load_data()` 并依赖 `_invalid_storage_file` 兜底文件，需要改为在项目层传入明确文件名。
+- 使用 `register_migration()` 时请保证旧版本到当前 `save_version` 的迁移链完整；如果只想用默认值补齐字段，不注册迁移步骤即可继续走默认迁移路径。
+- 如果事件回调方法声明了额外必填参数，请改成默认参数或使用 `Callable(...).bind(...)` 绑定额外参数。
+- 如果项目有意依赖纯代码状态机启动时不发 `state_changed`，请改为 `start(initial_state_name, msg, false)`；推荐新代码保留默认通知行为。
+
+### 📁 核心受影响文件 (Affected Files)
+- `addons/gf/core/gf.gd`
+- `addons/gf/core/gf_architecture.gd`
+- `addons/gf/core/gf_type_event_system.gd`
+- `addons/gf/extensions/state_machine/gf_state_machine.gd`
+- `addons/gf/utilities/gf_storage_utility.gd`
+- `addons/gf/utilities/gf_input_mapping_utility.gd`
+- `addons/gf/extensions/network/gf_network_reconnect_policy.gd`
+- `addons/gf/foundation/validation/gf_result_utility.gd`
+- `addons/gf/foundation/variant/gf_variant_utility.gd`
+- `addons/gf/foundation/math/gf_weighted_entry.gd`
+- `addons/gf/foundation/math/gf_weighted_table.gd`
+- `addons/gf/plugin.cfg`
+- `ASSET_LIBRARY.md`
 
 ## [2.6.0] - 2026-05-11
 
@@ -219,71 +277,3 @@
 - `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
 - `addons/gf/plugin.cfg`
 - `ASSET_LIBRARY.md`
-
----
-
-## [2.4.1] - 2026-05-10
-
-**版本概述**：修复构建信息导出插件在 Godot 4.6 导出流程中的名称虚方法兼容问题，并收敛编辑器脚本模板 section 命名。
-
-### 🔄 机制更改 (Changed)
-- GF 编辑器脚本模板改用 `GF 生命周期方法` 和 `私有/辅助方法` section，并新增布局测试覆盖模板 section 命名，避免生成代码与规范脱节。
-
-### 🐛 Bug 修复 (Fixed)
-- `GFBuildInfoExportPlugin` 现在实现 `EditorExportPlugin._get_name()` 并返回稳定插件名，避免启用 GF 编辑器插件后导出项目时报 `Required virtual method EditorExportPlugin::_get_name must be overridden before calling.`。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目无需迁移。Godot 4.6 导出流程可直接使用 GF 内置构建信息导出插件，不再需要项目侧保留临时补丁。
-- 如需让新建 GF 模板脚本使用更新后的 section 名称，可重新通过 GF 编辑器菜单生成；已有业务脚本不需要强制迁移。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/plugin.gd`
-- `addons/gf/editor/gf_build_info_export_plugin.gd`
-- `tests/gf_core/test_gf_build_info.gd`
-- `tests/gf_core/test_gdscript_layout_validation.gd`
-- `addons/gf/plugin.cfg`
-- `ASSET_LIBRARY.md`
-
----
-
-## [2.4.0] - 2026-05-10
-
-**版本概述**：修复资源化输入一次性状态在真实 GF tick 顺序中过早清理的问题，加固 headless 场景切换加载路径，并补齐状态机命令/查询上下文代理。
-
-### 🚀 新增特性 (Added)
-- `GFState` / `GFStateMachine` 新增 `send_command()` 与 `send_query()` 代理，状态内部可通过所属状态机上下文发送命令和查询，避免在局部架构下误用全局 `Gf`。
-
-### 🔄 机制更改 (Changed)
-- `GFInputMappingUtility` 的 just-started / just-completed 清理改为按 System 观察窗口收敛，避免 `SceneTree.process_frame` 信号早于业务 System tick 时清掉可消费动作；由 Utility tick 内触发器生成的动作会保留到下一次 System tick。
-- `GFSceneUtility.load_scene_async()` 在 headless 环境中对活动场景使用同步资源解析降级，但仍复用 loading 状态、缓存写入、完成信号、最短 loading 时长和安全切场队列。
-
-### 🔌 API 变动说明 (API Changes)
-- 新增 `GFState.send_command(command: Object) -> Variant`。
-- 新增 `GFState.send_query(query: Object) -> Variant`。
-- 新增 `GFStateMachine.send_command(command: Object) -> Variant`。
-- 新增 `GFStateMachine.send_query(query: Object) -> Variant`。
-
-### 🐛 Bug 修复 (Fixed)
-- 修复项目通过 `GFInputMappingUtility.consume_action()` 在 System tick 中轮询输入时，键盘等输入事件可能因为一次性状态过早清理而读不到的问题。
-- 修复 headless 启动链路中 threaded scene loader 对活动场景加载失败时无法复用标准 `GFSceneUtility` 路由的问题。
-
-### 📘 升级指南 (Migration Guide)
-- 旧项目无需迁移。已有 `GFState` 状态脚本继续可用；如果状态脚本运行在局部 `GFNodeContext` 下，应优先改用状态自身的 `send_command()` / `send_query()`，避免误用全局 `Gf`。
-- 如果项目在 `System.tick()` 中轮询 `GFInputMappingUtility.consume_action()`，升级后无需业务层绕过 GF 输入映射；一次性动作会保留到 System 可观察窗口。
-- Headless 命令行启动链路可继续使用标准 `GFSceneUtility.load_scene_async()` 路由，不需要在业务 SceneRouter 中单独特判同步加载。
-
-### 📁 核心受影响文件 (Affected Files)
-- `addons/gf/utilities/gf_input_mapping_utility.gd`
-- `addons/gf/utilities/gf_scene_utility.gd`
-- `addons/gf/extensions/state_machine/gf_state.gd`
-- `addons/gf/extensions/state_machine/gf_state_machine.gd`
-- `tests/gf_core/test_gf_input_mapping_utility.gd`
-- `tests/gf_core/test_gf_scene_utility.gd`
-- `tests/gf_core/test_gf_state_machine.gd`
-- `docs/wiki/06. 命令与查询 (Commands & Queries).md`
-- `docs/wiki/07. 高级扩展 (Advanced Extensions).md`
-- `docs/wiki/08. 实用工具箱 (Utility Toolkit).md`
-- `addons/gf/plugin.cfg`
-- `ASSET_LIBRARY.md`
-
----

@@ -212,6 +212,26 @@ func test_start_passes_msg() -> void:
 	assert_eq(state.last_msg.get("key"), 42, "enter 应收到传入的 msg。")
 
 
+func test_start_emits_initial_state_changed_signal_by_default() -> void:
+	var state := TrackingState.new()
+	_fsm.add_state(&"Idle", state)
+
+	watch_signals(_fsm)
+	_fsm.start(&"Idle")
+
+	assert_signal_emitted_with_parameters(_fsm, "state_changed", [&"", &"Idle"])
+
+
+func test_start_can_suppress_initial_state_changed_signal() -> void:
+	var state := TrackingState.new()
+	_fsm.add_state(&"Idle", state)
+
+	watch_signals(_fsm)
+	_fsm.start(&"Idle", {}, false)
+
+	assert_signal_not_emitted(_fsm, "state_changed", "显式传 false 时 start() 可静默进入初始状态。")
+
+
 func test_start_again_exits_previous_state() -> void:
 	var idle := TrackingState.new()
 	var run := TrackingState.new()

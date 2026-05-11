@@ -51,11 +51,13 @@ func after_each() -> void:
 			"test_json_number_preserve.json",
 			"test_legacy_version.json",
 			"test_registered_migration.json",
+			"test_missing_migration_chain.json",
 			"test_async.json",
 			"test_wait_async.json",
 			"recover_from_backup.json",
 			"recover_from_temp.json",
 			"recover_from_stale_temp.json",
+			"duplicate_transaction.json",
 			"queued_async.json",
 			"escape.json",
 			"nested/test_nested.json",
@@ -63,6 +65,7 @@ func after_each() -> void:
 			"managed/b.tres",
 			"managed/readme.txt",
 			"managed/nested/c.json",
+			"_invalid_storage_file",
 		]:
 			_cleanup_file_family(file_name)
 
@@ -148,6 +151,34 @@ func test_legacy_methods() -> void:
 	_storage.save_data("test_legacy.json", {"old": "data"})
 	var d := _storage.load_data("test_legacy.json")
 	assert_eq(d.get("old"), "data", "旧版纯数据 API 仍应正常读写。")
+
+
+func test_pure_data_api_rejects_empty_file_name() -> void:
+	_storage.encrypt_key = 0
+
+	assert_eq(_storage.save_data("", { "value": 1 }), ERR_INVALID_PARAMETER, "空文件名不应被保存。")
+	assert_true(_storage.load_data("").is_empty(), "空文件名读取应返回空字典。")
+	assert_false(bool(_storage.load_data_result("").get("ok")), "空文件名结果读取应标记失败。")
+	assert_false(FileAccess.file_exists(_storage._get_full_path("_invalid_storage_file")), "空文件名不应写入兜底文件。")
+	assert_false(bool(_storage.last_load_result.get("ok")), "空文件名读取结果应标记失败。")
+	assert_push_error("[GFStorageUtility] save_data 失败：file_name 为空。")
+	assert_push_error("[GFStorageUtility] load_data 失败：file_name 为空。")
+	assert_push_error("[GFStorageUtility] load_data 失败：file_name 为空。")
+
+
+func test_async_pure_data_api_rejects_empty_file_name_with_failure_signals() -> void:
+	watch_signals(_storage)
+
+	var save_error := _storage.save_data_async("", { "value": 1 })
+	var load_error := _storage.load_data_async("")
+
+	assert_eq(save_error, ERR_INVALID_PARAMETER, "空文件名异步保存应立即失败。")
+	assert_eq(load_error, ERR_INVALID_PARAMETER, "空文件名异步读取应立即失败。")
+	assert_signal_emitted_with_parameters(_storage, "save_completed", ["", ERR_INVALID_PARAMETER])
+	assert_signal_emitted(_storage, "load_completed", "空文件名异步读取应发出失败完成信号。")
+	assert_false(bool(_storage.last_load_result.get("ok")), "空文件名异步读取结果应标记失败。")
+	assert_push_error("[GFStorageUtility] save_data_async 失败：file_name 为空。")
+	assert_push_error("[GFStorageUtility] load_data_async 失败：file_name 为空。")
 
 
 func test_async_save_and_load_data_emit_completion_signals() -> void:
@@ -400,6 +431,18 @@ func test_load_data_discards_stale_temp_when_primary_file_already_exists() -> vo
 	assert_false(FileAccess.file_exists(temp_path), "恢复完成后应清理悬挂临时文件。")
 
 
+func test_transaction_commit_deduplicates_file_names() -> void:
+	_storage.encrypt_key = 0
+	var file_name := "duplicate_transaction.json"
+	assert_eq(_storage._write_json(_storage._get_temp_filename(file_name), {"hp": 42}), OK, "应能构造待提交临时文件。")
+
+	var error := _storage._commit_transaction([file_name, file_name])
+
+	assert_eq(error, OK, "事务提交应忽略重复文件名。")
+	assert_eq(int(_storage.load_data(file_name).get("hp")), 42, "去重后的事务提交应产生正式文件。")
+	assert_false(FileAccess.file_exists(_storage._get_full_path(_storage._get_transaction_filename(file_name))), "提交完成后不应残留事务标记。")
+
+
 func test_integrity_checksum_rejects_tampered_data() -> void:
 	_storage.encrypt_key = 0
 	_storage.include_storage_metadata = true
@@ -609,6 +652,36 @@ func test_registered_migrations_run_as_version_chain() -> void:
 	assert_eq(loaded.get("step_two"), true, "第二段迁移应执行。")
 	assert_eq(int((loaded.get("_meta") as Dictionary).get("version")), 3, "迁移后版本应更新为当前版本。")
 	assert_eq(migrations.size(), 2, "迁移注册表应可查询。")
+
+
+func test_missing_registered_migration_chain_fails_without_marking_target_version() -> void:
+	_storage.encrypt_key = 0
+	_storage.save_version = 3
+	assert_true(_storage.register_migration(2, 3, func(data: Dictionary, _from_version: int, _to_version: int) -> Dictionary:
+		data["step_two"] = true
+		return data
+	), "应能注册不完整迁移链中的后半段。")
+	var file_name := "test_missing_migration_chain.json"
+	var codec := GFStorageCodec.new()
+	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
+	file.store_buffer(codec.encode({
+		"_meta": {
+			"version": 1,
+		},
+		"value": 10,
+	}, { "obfuscation_key": 0 }))
+	file.close()
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+
+	assert_true(loaded.is_empty(), "缺失迁移链时不应返回伪迁移数据。")
+	assert_false(bool(_storage.last_load_result.get("ok")), "缺失迁移链应标记读取失败。")
+	assert_eq(String(_storage.last_load_result.get("error")), "Missing migration chain: 1 -> 3", "失败原因应指出缺失链路。")
+	assert_signal_emitted(_storage, "data_integrity_failed", "缺失迁移链应发出数据失败信号。")
+	assert_signal_not_emitted(_storage, "data_migrated", "缺失迁移链不应发出迁移成功信号。")
+	assert_push_warning("[GFStorageUtility] 未找到完整迁移链：1 -> 3。")
+	assert_push_error("[GFStorageUtility] 迁移失败：Missing migration chain: 1 -> 3")
 
 
 func test_storage_backend_default_contract_and_conflict_report_roundtrip() -> void:

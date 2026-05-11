@@ -706,12 +706,13 @@ func _apply_entry_event(entry: Dictionary, event: InputEvent, player_index: int)
 		if binding == null or not binding.matches_event(event):
 			continue
 
-		var key := _make_source_binding_key(String(binding_info["key"]), event)
+		var binding_key := String(binding_info["key"])
+		var key := _make_source_binding_key(binding_key, event)
 		var contribution := binding.get_contribution(event, action.value_type, _get_player_deadzone(player_index))
 		_binding_values[key] = contribution
 		_binding_to_action[key] = action_id
 		if player_index >= 0:
-			var player_binding_key := _make_player_binding_key(player_index, String(binding_info["key"]))
+			var player_binding_key := _make_player_binding_key(player_index, key)
 			_player_binding_values[player_binding_key] = contribution
 			_player_binding_to_action[player_binding_key] = action_id
 		matched = true

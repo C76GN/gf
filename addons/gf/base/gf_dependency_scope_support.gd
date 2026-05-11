@@ -45,3 +45,10 @@ static func _get_architecture_or_null(scope: Dictionary, owner_label: String) ->
 			push_error("[%s] 注入的架构已失效，无法回退到全局架构。" % owner_label)
 			return null
 	return GFAutoload.get_architecture_or_null()
+
+
+static func _get_bound_architecture_or_null(scope: Dictionary) -> GFArchitecture:
+	var architecture_ref := scope.get("architecture_ref") as WeakRef
+	if architecture_ref == null:
+		return null
+	return architecture_ref.get_ref() as GFArchitecture

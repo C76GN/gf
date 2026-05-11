@@ -117,9 +117,8 @@ func _get_capabilities() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _make_result(ok: bool, data: Dictionary, metadata: Dictionary, error: String) -> Dictionary:
-	return {
-		"ok": ok,
-		"data": data.duplicate(true),
-		"metadata": metadata.duplicate(true),
-		"error": error,
-	}
+	return GFResultUtility.make(ok, {
+		GFResultUtility.KEY_DATA: data.duplicate(true),
+		GFResultUtility.KEY_METADATA: metadata.duplicate(true),
+		GFResultUtility.KEY_ERROR: error,
+	})

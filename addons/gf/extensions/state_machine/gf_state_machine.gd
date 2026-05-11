@@ -141,13 +141,14 @@ func set_state_parent(state_name: StringName, parent_state_name: StringName = &"
 ## 启动状态机并进入初始状态。
 ## @param initial_state_name: 首个要进入的状态名。
 ## @param msg: 传递给初始状态 enter() 的可选参数字典。
-func start(initial_state_name: StringName, msg: Dictionary = {}) -> void:
+## @param emit_changed: 是否发出 state_changed 信号；默认为 true，from_state 为空字符串。
+func start(initial_state_name: StringName, msg: Dictionary = {}, emit_changed: bool = true) -> void:
 	if not _states.has(initial_state_name):
 		push_warning("[GFStateMachine] 启动失败，未找到状态：%s" % initial_state_name)
 		return
 
 	_queued_exit_transition.clear()
-	_transition_to_state(initial_state_name, msg, false)
+	_transition_to_state(initial_state_name, msg, emit_changed)
 
 
 ## 切换到指定状态。分层状态会按最近公共祖先执行退出/进入链。

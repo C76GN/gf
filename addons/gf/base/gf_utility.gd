@@ -37,6 +37,24 @@ var tick_priority: int = 0
 ## 默认 0 表示同优先级下按注册顺序执行。
 var physics_tick_priority: int = 0
 
+## 是否显式加入每帧 tick 缓存。
+## 实现 tick() 的旧项目无需设置；仅在需要强制声明运行时 tick 能力时启用。
+var tick_enabled: bool = false:
+	set(value):
+		if tick_enabled == value:
+			return
+		tick_enabled = value
+		_request_tick_cache_refresh()
+
+## 是否显式加入物理帧 tick 缓存。
+## 实现 physics_tick() 的旧项目无需设置；仅在需要强制声明运行时 physics_tick 能力时启用。
+var physics_tick_enabled: bool = false:
+	set(value):
+		if physics_tick_enabled == value:
+			return
+		physics_tick_enabled = value
+		_request_tick_cache_refresh()
+
 
 # --- 私有变量 ---
 
@@ -199,3 +217,9 @@ func _release_dependency_scope() -> void:
 
 func _get_architecture_or_null() -> GFArchitecture:
 	return _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_null(_dependency_scope, "GFUtility") as GFArchitecture
+
+
+func _request_tick_cache_refresh() -> void:
+	var architecture := _DEPENDENCY_SCOPE_SUPPORT._get_bound_architecture_or_null(_dependency_scope) as GFArchitecture
+	if architecture != null:
+		architecture._refresh_tick_caches()

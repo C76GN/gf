@@ -42,7 +42,7 @@ func is_selectable() -> bool:
 ## @return 新条目实例。
 func duplicate_entry(deep: bool = true) -> GFWeightedEntry:
 	var entry := GFWeightedEntry.new()
-	entry.value = _duplicate_variant(value, deep)
+	entry.value = GFVariantUtility.duplicate_variant(value, deep, true)
 	entry.weight = weight
 	entry.metadata = metadata.duplicate(deep)
 	return entry
@@ -68,13 +68,3 @@ static func from_dict(data: Dictionary) -> GFWeightedEntry:
 	var raw_metadata: Variant = data.get("metadata", {})
 	entry.metadata = raw_metadata.duplicate(true) if typeof(raw_metadata) == TYPE_DICTIONARY else {}
 	return entry
-
-
-# --- 私有/辅助方法 ---
-
-static func _duplicate_variant(target: Variant, deep: bool) -> Variant:
-	if typeof(target) == TYPE_ARRAY or typeof(target) == TYPE_DICTIONARY:
-		return target.duplicate(deep)
-	if target is Resource:
-		return target.duplicate(deep)
-	return target

@@ -398,18 +398,21 @@ func _try_legacy_plain_json(bytes: PackedByteArray, should_normalize_json_number
 		var data := parsed as Dictionary
 		if should_normalize_json_numbers:
 			data = _normalize_numbers(data) as Dictionary
-		return { "ok": true, "data": data }
-	return { "ok": false, "data": {} }
+		return GFResultUtility.make_success({
+			GFResultUtility.KEY_DATA: data,
+		})
+	return GFResultUtility.make_failure("", {
+		GFResultUtility.KEY_DATA: {},
+	})
 
 
 func _make_result(ok: bool, data: Dictionary, error: String, integrity_valid: bool) -> Dictionary:
-	return {
-		"ok": ok,
-		"data": data,
-		"metadata": get_metadata(data),
-		"integrity_valid": integrity_valid,
-		"error": error,
-	}
+	return GFResultUtility.make(ok, {
+		GFResultUtility.KEY_DATA: data,
+		GFResultUtility.KEY_METADATA: get_metadata(data),
+		GFResultUtility.KEY_INTEGRITY_VALID: integrity_valid,
+		GFResultUtility.KEY_ERROR: error,
+	})
 
 
 func _get_format(options: Dictionary) -> Format:

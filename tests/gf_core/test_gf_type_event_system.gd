@@ -39,6 +39,19 @@ class SimpleReceiver:
 		payload = p_payload
 
 
+class ArgumentReceiver:
+	var count: int = 0
+
+	func on_type_extra_required(_event: TestEventA, _extra: Variant) -> void:
+		count += 1
+
+	func on_type_extra_default(_event: TestEventA, _extra: Variant = null) -> void:
+		count += 1
+
+	func on_simple_extra_required(_payload: Variant, _extra: Variant) -> void:
+		count += 1
+
+
 # --- 测试：类型事件 ---
 
 ## 验证无效 Callable 不会通过 assert 造成不一致行为，而是输出错误并跳过注册。
@@ -47,6 +60,39 @@ func test_register_invalid_callable_reports_error_without_listener() -> void:
 	_system.send(TestEventA.new())
 
 	assert_push_error("[GFTypeEventSystem] 注册的类型事件回调无效。")
+
+
+## 验证事件回调不能要求比派发参数更多的未绑定必填参数。
+func test_register_rejects_callback_requiring_extra_unbound_args() -> void:
+	var receiver := ArgumentReceiver.new()
+
+	_system.register(TestEventA, Callable(receiver, "on_type_extra_required"))
+	_system.send(TestEventA.new())
+
+	assert_eq(receiver.count, 0, "必填参数过多的回调不应被注册。")
+	assert_push_error("[GFTypeEventSystem] 注册的类型事件回调 on_type_extra_required 不能要求超过 1 个未绑定参数，当前必填 2 个。")
+
+
+## 验证默认参数或绑定参数可以满足额外参数需求。
+func test_register_accepts_default_or_bound_extra_args() -> void:
+	var receiver := ArgumentReceiver.new()
+
+	_system.register(TestEventA, Callable(receiver, "on_type_extra_default"))
+	_system.register(TestEventA, Callable(receiver, "on_type_extra_required").bind("bound"))
+	_system.send(TestEventA.new())
+
+	assert_eq(receiver.count, 2, "默认参数和 bind 参数都应允许回调正常注册。")
+
+
+## 验证简单事件也会拒绝必填参数过多的回调。
+func test_register_simple_rejects_callback_requiring_extra_unbound_args() -> void:
+	var receiver := ArgumentReceiver.new()
+
+	_system.register_simple(&"simple_extra_required", Callable(receiver, "on_simple_extra_required"))
+	_system.send_simple(&"simple_extra_required", "payload")
+
+	assert_eq(receiver.count, 0, "必填参数过多的简单事件回调不应被注册。")
+	assert_push_error("[GFTypeEventSystem] 注册的简单事件回调 on_simple_extra_required 不能要求超过 1 个未绑定参数，当前必填 2 个。")
 
 
 ## 验证注册后，send 能正确调用回调。
@@ -521,6 +567,27 @@ func test_send_simple_register_then_unregister_during_dispatch_does_not_leave_li
 	assert_eq(state.count, 2, "同一轮派发中先注册再注销的简单事件回调不应残留到下一次派发。")
 
 
+## 验证派发中跨简单事件 ID 先注册再注销的回调不会在 flush 后残留。
+func test_send_simple_register_then_unregister_different_id_during_dispatch_does_not_leave_listener() -> void:
+	var state := {"count": 0, "late_cb": Callable()}
+	var outer_id: StringName = &"register_then_unregister_simple_outer"
+	var inner_id: StringName = &"register_then_unregister_simple_inner"
+
+	state.late_cb = func(_p: Variant) -> void:
+		state.count += 10
+
+	var cb_outer: Callable = func(_p: Variant) -> void:
+		state.count += 1
+		_system.register_simple(inner_id, state.late_cb)
+		_system.unregister_simple(inner_id, state.late_cb)
+
+	_system.register_simple(outer_id, cb_outer)
+	_system.send_simple(outer_id)
+	_system.send_simple(inner_id)
+
+	assert_eq(state.count, 1, "跨简单事件 ID pending add 被注销后不应在下一次派发中触发。")
+
+
 # --- 测试：拥有者绑定 ---
 
 ## 验证注销 owner 会同时移除类型事件和简单事件监听。
@@ -561,6 +628,45 @@ func test_unregister_owner_during_dispatch_skips_later_owned_callbacks() -> void
 	_system.send(TestEventA.new())
 
 	assert_eq(state.order, ["first"], "派发中注销 owner 后，同 owner 后续回调和下一轮回调都不应执行。")
+
+
+## 验证类型派发中注销 owner 会同时阻止后续可赋值监听。
+func test_unregister_owner_during_type_dispatch_skips_later_assignable_callback() -> void:
+	var listener_owner := RefCounted.new()
+	var state := {"order": []}
+
+	_system.register(TestEventChild, func(_e: TestEventChild) -> void:
+		state.order.append("exact")
+		_system.unregister_owner(listener_owner)
+	, 10, listener_owner)
+	_system.register_assignable(TestEventA, func(_e: TestEventA) -> void:
+		state.order.append("assignable")
+	, 0, listener_owner)
+
+	_system.send(TestEventChild.new())
+	_system.send(TestEventChild.new())
+
+	assert_eq(state.order, ["exact"], "类型派发中注销 owner 后，可赋值轨道的同 owner 后续监听也不应执行。")
+
+
+## 验证简单事件派发中注销 owner 会阻止同 owner 后续监听。
+func test_unregister_owner_during_simple_dispatch_skips_later_owned_callbacks() -> void:
+	var listener_owner := RefCounted.new()
+	var state := {"order": []}
+	var event_id: StringName = &"owned_simple_dispatch"
+
+	_system.register_simple(event_id, func(_p: Variant) -> void:
+		state.order.append("first")
+		_system.unregister_owner(listener_owner)
+	, listener_owner)
+	_system.register_simple(event_id, func(_p: Variant) -> void:
+		state.order.append("second")
+	, listener_owner)
+
+	_system.send_simple(event_id)
+	_system.send_simple(event_id)
+
+	assert_eq(state.order, ["first"], "简单事件派发中注销 owner 后，同 owner 后续回调和下一轮回调都不应执行。")
 
 
 ## 验证派发中注销 owner 后重新注册的新回调会在下一轮生效。
@@ -759,6 +865,44 @@ func test_register_then_unregister_during_dispatch_does_not_leave_listener() -> 
 	_system.send(TestEventA.new())
 
 	assert_eq(state.count, 2, "同一轮派发中先注册再注销的类型事件回调不应残留到下一次派发。")
+
+
+## 验证派发中跨事件类型先注册再注销的回调不会在 flush 后残留。
+func test_register_then_unregister_different_type_during_dispatch_does_not_leave_listener() -> void:
+	var state := {"count": 0, "late_cb": Callable()}
+
+	state.late_cb = func(_e: TestEventB) -> void:
+		state.count += 10
+
+	var cb_outer: Callable = func(_e: TestEventA) -> void:
+		state.count += 1
+		_system.register(TestEventB, state.late_cb)
+		_system.unregister(TestEventB, state.late_cb)
+
+	_system.register(TestEventA, cb_outer)
+	_system.send(TestEventA.new())
+	_system.send(TestEventB.new())
+
+	assert_eq(state.count, 1, "跨事件类型 pending add 被注销后不应在下一次派发中触发。")
+
+
+## 验证派发中跨可赋值类型先注册再注销的回调不会在 flush 后残留。
+func test_register_then_unregister_different_assignable_type_during_dispatch_does_not_leave_listener() -> void:
+	var state := {"count": 0, "late_cb": Callable()}
+
+	state.late_cb = func(_e: TestEventB) -> void:
+		state.count += 10
+
+	var cb_outer: Callable = func(_e: TestEventA) -> void:
+		state.count += 1
+		_system.register_assignable(TestEventB, state.late_cb)
+		_system.unregister_assignable(TestEventB, state.late_cb)
+
+	_system.register(TestEventA, cb_outer)
+	_system.send(TestEventA.new())
+	_system.send(TestEventB.new())
+
+	assert_eq(state.count, 1, "跨可赋值类型 pending add 被注销后不应在下一次派发中触发。")
 
 
 func _sum_listener_counts(value: Variant) -> int:
