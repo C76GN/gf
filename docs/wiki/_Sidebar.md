@@ -20,8 +20,9 @@
 - [[08. 实用工具箱 (Utility Toolkit)]]
 - [[10. 战斗扩展 (Combat Extension)]]
 - [[12. 能力组件 (Capabilities)]]
+- [[13. 包结构与生态 (Packages)]]
 
-### 实践与参考
+### 实践与维护
 
 - [[09. 最佳实践 (Best Practices)]]
 - [[更新日志 (Changelog)]]

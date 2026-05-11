@@ -1,0 +1,11 @@
+{
+  "id": "gf.official.interaction",
+  "display_name": "GF Interaction",
+  "version": "3.0.0",
+  "kind": "official",
+  "description": "Generic interaction contexts, flows, sender/receiver nodes, sensors, and 3D pointer bridges.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "enabled_by_default": true,
+  "tags": ["interaction", "nodes", "3d"]
+}

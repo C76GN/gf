@@ -43,7 +43,7 @@
 新增或修改公开 API 后，检查：
 
 - 变更文件中的 API 注释，尤其是公共函数的 `## @param`。
-- `tests/gf_core/test_api_docs_validation.gd` 的隐含要求：注释参数必须和函数签名双向一致。
+- `tests/gf_core/maintenance/test_api_docs_validation.gd` 的隐含要求：注释参数必须和函数签名双向一致。
 - 对应 Wiki 页面。
 - `docs/wiki/更新日志 (Changelog).md` 的 `API Changes` 与 `Migration Guide`。
 
@@ -94,7 +94,7 @@ Commit message 模板：
 ```text
 Release 1.23.3 lifecycle dependency hardening
 
-Add installer timeout protection, manual scoped context initialization, assignable lookup caching, factory lifetime validation, factory alias warnings, and GFAccess fallback injection consistency. Files changed: core lifecycle and binding scripts under addons/gf/core, accessor generation under addons/gf/editor, plugin project settings metadata, focused gf_core tests, lifecycle/accessor wiki docs, changelog, plugin.cfg, and ASSET_LIBRARY.md. Purpose: make lifecycle and dependency ownership failures surface earlier while keeping GF current stable behavior compatible.
+Add installer timeout protection, manual scoped context initialization, assignable lookup caching, factory lifetime validation, factory alias warnings, and GFAccess fallback injection consistency. Files changed: core lifecycle and binding scripts under addons/gf/kernel/core, accessor generation under addons/gf/kernel/editor, plugin project settings metadata, focused gf_core tests, lifecycle/accessor wiki docs, changelog, plugin.cfg, and ASSET_LIBRARY.md. Purpose: make lifecycle and dependency ownership failures surface earlier while keeping GF current stable behavior compatible.
 ```
 
 源码变更后优先运行：

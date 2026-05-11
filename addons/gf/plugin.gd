@@ -7,12 +7,13 @@ extends EditorPlugin
 
 # --- 常量 ---
 
-const GFPluginAutoload = preload("res://addons/gf/editor/gf_plugin_autoload.gd")
-const GFPluginProjectSettings = preload("res://addons/gf/editor/gf_plugin_project_settings.gd")
-const GFPluginInspectorTools = preload("res://addons/gf/editor/gf_plugin_inspector_tools.gd")
-const GFPluginActions = preload("res://addons/gf/editor/gf_plugin_actions.gd")
-const GFPluginMenu = preload("res://addons/gf/editor/gf_plugin_menu.gd")
-const SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/utilities/gf_storage_codec.gd"
+const GFPluginAutoload = preload("res://addons/gf/kernel/editor/gf_plugin_autoload.gd")
+const GFPluginProjectSettings = preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
+const GFPluginInspectorTools = preload("res://addons/gf/kernel/editor/gf_plugin_inspector_tools.gd")
+const GFPluginActions = preload("res://addons/gf/kernel/editor/gf_plugin_actions.gd")
+const GFPluginMenu = preload("res://addons/gf/kernel/editor/gf_plugin_menu.gd")
+const PACKAGE_MANAGER_DOCK_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/package/gf_package_manager_dock.gd"
+const SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/standard/utilities/storage/gf_storage_codec.gd"
 const SAVE_VIEWER_FORMAT_JSON: int = 0
 const SAVE_VIEWER_FORMAT_BINARY: int = 1
 const SAVE_VIEWER_LABEL_WIDTH: float = 72.0
@@ -26,6 +27,8 @@ var _actions: RefCounted
 var _menu: RefCounted
 var _save_viewer_dock: Control
 var _save_viewer_bottom_button: Button
+var _package_manager_dock: Control
+var _package_manager_bottom_button: Button
 var _save_viewer_path_edit: LineEdit
 var _save_viewer_format_option: OptionButton
 var _save_viewer_obfuscation_key_spin: SpinBox
@@ -55,12 +58,14 @@ func _enter_tree() -> void:
 	_menu.setup(self, Callable(_actions, "handle_menu_id"))
 
 	call_deferred("_setup_save_viewer_dock")
+	call_deferred("_setup_package_manager_dock")
 
 
 func _exit_tree() -> void:
 	_plugin_active = false
 	GFPluginAutoload.remove(self)
 	_cleanup_save_viewer_dock()
+	_cleanup_package_manager_dock()
 
 	if _menu != null:
 		_menu.cleanup(self)
@@ -98,6 +103,31 @@ func _cleanup_save_viewer_dock() -> void:
 	_save_viewer_status_label = null
 	_save_viewer_output = null
 	_save_viewer_file_dialog = null
+
+
+func _setup_package_manager_dock() -> void:
+	if not _plugin_active or is_instance_valid(_package_manager_dock):
+		return
+
+	var dock_script := load(PACKAGE_MANAGER_DOCK_SCRIPT_PATH) as Script
+	if dock_script == null or not dock_script.can_instantiate():
+		push_error("[GF Framework] 包管理器面板加载失败。")
+		return
+
+	_package_manager_dock = dock_script.new() as Control
+	if _package_manager_dock == null:
+		push_error("[GF Framework] 包管理器面板实例化失败。")
+		return
+
+	_package_manager_bottom_button = add_control_to_bottom_panel(_package_manager_dock, "GF Packages")
+
+
+func _cleanup_package_manager_dock() -> void:
+	if is_instance_valid(_package_manager_dock):
+		remove_control_from_bottom_panel(_package_manager_dock)
+		_package_manager_dock.queue_free()
+	_package_manager_dock = null
+	_package_manager_bottom_button = null
 
 
 func _create_save_viewer_dock() -> Control:

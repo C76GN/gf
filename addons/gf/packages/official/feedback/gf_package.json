@@ -1,0 +1,11 @@
+{
+  "id": "gf.official.feedback",
+  "display_name": "GF Feedback",
+  "version": "3.0.0",
+  "kind": "official",
+  "description": "Reusable feedback sampling, shake receivers, presets, and action queue integration.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "enabled_by_default": true,
+  "tags": ["feedback", "camera", "presentation"]
+}

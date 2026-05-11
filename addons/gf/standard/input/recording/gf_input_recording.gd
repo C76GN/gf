@@ -1,0 +1,167 @@
+## GFInputRecording: 抽象动作输入录制数据。
+##
+## 记录 action_id、时间、值、玩家索引和元数据，可交给 GFInputPlayback 通过
+## GFVirtualInputSource 回放。它不读取具体设备，也不绑定任何玩法语义。
+class_name GFInputRecording
+extends RefCounted
+
+
+# --- 公共变量 ---
+
+## 录制标识。
+var recording_id: StringName = &""
+
+## 录制总时长，单位秒。
+var duration_seconds: float = 0.0
+
+## 事件列表。每项包含 time_seconds、action_id、value、player_index、source_id 和 metadata。
+var events: Array[Dictionary] = []
+
+## 项目自定义元数据。框架不解释该字段。
+var metadata: Dictionary = {}
+
+
+# --- 公共方法 ---
+
+## 添加一个动作值事件。
+## @param action_id: 动作标识。
+## @param value: 动作值。
+## @param time_seconds: 事件时间，单位秒。
+## @param player_index: 玩家索引；小于 0 表示不指定。
+## @param source_id: 可选来源标识。
+## @param event_metadata: 事件元数据。
+## @return 新增事件字典。
+func add_event(
+	action_id: StringName,
+	value: Variant,
+	time_seconds: float,
+	player_index: int = -1,
+	source_id: StringName = &"",
+	event_metadata: Dictionary = {}
+) -> Dictionary:
+	var event := {
+		"time_seconds": maxf(time_seconds, 0.0),
+		"action_id": action_id,
+		"value": GFVariantData.duplicate_variant(value),
+		"player_index": player_index,
+		"source_id": source_id,
+		"metadata": event_metadata.duplicate(true),
+	}
+	events.append(event)
+	duration_seconds = maxf(duration_seconds, float(event["time_seconds"]))
+	sort_events()
+	return event
+
+
+## 清空录制。
+func clear() -> void:
+	events.clear()
+	duration_seconds = 0.0
+
+
+## 检查录制是否为空。
+## @return 为空时返回 true。
+func is_empty() -> bool:
+	return events.is_empty()
+
+
+## 获取事件数量。
+## @return 事件数量。
+func get_event_count() -> int:
+	return events.size()
+
+
+## 按事件时间排序。
+func sort_events() -> void:
+	events.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
+		return float(left.get("time_seconds", 0.0)) < float(right.get("time_seconds", 0.0))
+	)
+
+
+## 获取事件副本。
+## @return 事件副本数组。
+func get_events() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for event: Dictionary in events:
+		result.append(GFVariantData.duplicate_variant(event) as Dictionary)
+	return result
+
+
+## 复制录制。
+## @return 新录制。
+func duplicate_recording() -> RefCounted:
+	var duplicated: RefCounted = (get_script() as Script).new() as RefCounted
+	duplicated.apply_dict(to_dict())
+	return duplicated
+
+
+## 转为字典。
+## @param json_compatible: 为 true 时会把事件值与元数据转换为 JSON 兼容值。
+## @return 录制字典。
+func to_dict(json_compatible: bool = false) -> Dictionary:
+	var serialized_events: Array[Dictionary] = []
+	for event: Dictionary in events:
+		serialized_events.append(_event_to_dict(event, json_compatible))
+
+	return {
+		"recording_id": String(recording_id),
+		"duration_seconds": duration_seconds,
+		"events": serialized_events,
+		"metadata": GFVariantJsonCodec.variant_to_json_compatible(metadata) if json_compatible else metadata.duplicate(true),
+	}
+
+
+## 从字典恢复录制。
+## @param data: 录制字典。
+## @param json_compatible: 为 true 时会先恢复类型化 JSON 值。
+func apply_dict(data: Dictionary, json_compatible: bool = false) -> void:
+	recording_id = StringName(String(data.get("recording_id", "")))
+	duration_seconds = maxf(float(data.get("duration_seconds", 0.0)), 0.0)
+	events.clear()
+	for event_value: Variant in data.get("events", []):
+		if event_value is Dictionary:
+			events.append(_event_from_dict(event_value as Dictionary, json_compatible))
+
+	var metadata_value: Variant = data.get("metadata", {})
+	metadata_value = GFVariantJsonCodec.json_compatible_to_variant(metadata_value) if json_compatible else GFVariantData.duplicate_variant(metadata_value)
+	metadata = metadata_value as Dictionary if metadata_value is Dictionary else {}
+	sort_events()
+
+
+## 从字典创建录制。
+## @param data: 录制字典。
+## @param json_compatible: 为 true 时会先恢复类型化 JSON 值。
+## @return 录制。
+static func from_dict(data: Dictionary, json_compatible: bool = false) -> RefCounted:
+	var script := load("res://addons/gf/standard/input/recording/gf_input_recording.gd") as Script
+	var recording: RefCounted = script.new() as RefCounted
+	recording.apply_dict(data, json_compatible)
+	return recording
+
+
+# --- 私有/辅助方法 ---
+
+func _event_to_dict(event: Dictionary, json_compatible: bool) -> Dictionary:
+	return {
+		"time_seconds": float(event.get("time_seconds", 0.0)),
+		"action_id": String(event.get("action_id", "")),
+		"value": GFVariantJsonCodec.variant_to_json_compatible(event.get("value")) if json_compatible else GFVariantData.duplicate_variant(event.get("value")),
+		"player_index": int(event.get("player_index", -1)),
+		"source_id": String(event.get("source_id", "")),
+		"metadata": GFVariantJsonCodec.variant_to_json_compatible(event.get("metadata", {})) if json_compatible else GFVariantData.duplicate_variant(event.get("metadata", {})),
+	}
+
+
+func _event_from_dict(event: Dictionary, json_compatible: bool) -> Dictionary:
+	var value: Variant = event.get("value", null)
+	value = GFVariantJsonCodec.json_compatible_to_variant(value) if json_compatible else GFVariantData.duplicate_variant(value)
+	var event_metadata: Variant = event.get("metadata", {})
+	event_metadata = GFVariantJsonCodec.json_compatible_to_variant(event_metadata) if json_compatible else GFVariantData.duplicate_variant(event_metadata)
+	return {
+		"time_seconds": maxf(float(event.get("time_seconds", 0.0)), 0.0),
+		"action_id": StringName(String(event.get("action_id", ""))),
+		"value": value,
+		"player_index": int(event.get("player_index", -1)),
+		"source_id": StringName(String(event.get("source_id", ""))),
+		"metadata": event_metadata if event_metadata is Dictionary else {},
+	}

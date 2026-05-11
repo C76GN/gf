@@ -1,0 +1,11 @@
+{
+  "id": "gf.official.save",
+  "display_name": "GF Save",
+  "version": "3.0.0",
+  "kind": "official",
+  "description": "Save graph composition, node serializers, save pipelines, scopes, sources, and slot workflows.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "enabled_by_default": true,
+  "tags": ["save", "serialization", "workflow"]
+}

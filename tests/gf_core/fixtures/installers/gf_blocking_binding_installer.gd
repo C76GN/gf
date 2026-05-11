@@ -1,5 +1,5 @@
 ## 阻塞式声明绑定 Installer，用于验证并发 Gf.init() 会等待同一轮 Installer 完成。
-extends "res://addons/gf/core/gf_installer.gd"
+extends "res://addons/gf/kernel/core/gf_installer.gd"
 
 
 # --- 常量 ---

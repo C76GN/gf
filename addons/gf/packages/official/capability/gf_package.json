@@ -1,0 +1,11 @@
+{
+  "id": "gf.official.capability",
+  "display_name": "GF Capability",
+  "version": "3.0.0",
+  "kind": "official",
+  "description": "Reusable object and node capability composition with recipes and editor inspection support.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "enabled_by_default": true,
+  "tags": ["composition", "nodes", "editor"]
+}

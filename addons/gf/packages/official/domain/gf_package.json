@@ -1,0 +1,11 @@
+{
+  "id": "gf.official.domain",
+  "display_name": "GF Domain Models",
+  "version": "3.0.0",
+  "kind": "official",
+  "description": "Generic gameplay domain models such as inventory, equipment, level progress, quests, attributes, and traits.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "enabled_by_default": true,
+  "tags": ["domain", "models", "gameplay"]
+}
