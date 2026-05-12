@@ -15,6 +15,7 @@ const DETAILS_MIN_HEIGHT: float = 160.0
 const CHECK_COLUMN_WIDTH: float = 40.0
 const KIND_COLUMN_WIDTH: float = 72.0
 const VERSION_COLUMN_WIDTH: float = 72.0
+const PACKAGE_VERSION_COLUMN_WIDTH: float = 72.0
 const STATUS_COLUMN_WIDTH: float = 72.0
 const FILTER_ALL: int = 0
 const FILTER_OFFICIAL: int = 1
@@ -180,7 +181,8 @@ func _create_header_row() -> Control:
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
 	row.add_child(_create_header_label("来源", KIND_COLUMN_WIDTH))
-	row.add_child(_create_header_label("版本", VERSION_COLUMN_WIDTH))
+	row.add_child(_create_header_label("发行版", VERSION_COLUMN_WIDTH))
+	row.add_child(_create_header_label("包版本", PACKAGE_VERSION_COLUMN_WIDTH))
 	row.add_child(_create_header_label("状态", STATUS_COLUMN_WIDTH))
 	return row
 
@@ -285,6 +287,11 @@ func _add_package_row(manifest: GFPackageManifest, enabled: bool) -> void:
 	version_label.custom_minimum_size = Vector2(VERSION_COLUMN_WIDTH, 0.0)
 	row.add_child(version_label)
 
+	var package_version_label := Label.new()
+	package_version_label.text = manifest.package_version if not manifest.package_version.is_empty() else "-"
+	package_version_label.custom_minimum_size = Vector2(PACKAGE_VERSION_COLUMN_WIDTH, 0.0)
+	row.add_child(package_version_label)
+
 	var status_label := Label.new()
 	status_label.text = "有效" if manifest.is_valid() else "无效"
 	status_label.tooltip_text = _join_strings(manifest.get_validation_errors())
@@ -329,7 +336,8 @@ func _show_manifest_details(manifest: GFPackageManifest) -> void:
 	var lines := PackedStringArray()
 	lines.append("名称：%s" % manifest.display_name)
 	lines.append("ID：%s" % manifest.id)
-	lines.append("版本：%s" % manifest.version)
+	lines.append("发行版本：%s" % manifest.version)
+	lines.append("包版本：%s" % (manifest.package_version if not manifest.package_version.is_empty() else "-"))
 	lines.append("来源：%s" % _format_kind(manifest.kind))
 	lines.append("默认启用：%s" % ("是" if manifest.enabled_by_default else "否"))
 	lines.append("当前启用：%s" % ("是" if bool(_selection_by_id.get(manifest.id, false)) else "否"))

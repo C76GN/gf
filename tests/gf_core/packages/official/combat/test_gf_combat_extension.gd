@@ -646,6 +646,110 @@ func test_combat_events_use_injected_scoped_architecture() -> void:
 	Gf._architecture = null
 
 
+func test_hit_collision_shape_config_2d_generates_reusable_shapes() -> void:
+	var hit_box := GFHitBox2D.new()
+	var hurt_box := GFHurtBox2D.new()
+	add_child_autofree(hit_box)
+	add_child_autofree(hurt_box)
+
+	var circle := CircleShape2D.new()
+	circle.radius = 12.0
+	var config := GFHitCollisionShapeConfig2D.new()
+	config.shape = circle
+	config.position = Vector2(3.0, 4.0)
+	config.rotation_degrees = 30.0
+	config.scale = Vector2(2.0, 1.5)
+	config.disabled = true
+
+	var auto_hit_box := GFHitBox2D.new()
+	auto_hit_box.collision_shape_config = config
+	add_child_autofree(auto_hit_box)
+
+	var generated := hit_box.apply_collision_shape_config(config)
+	var hurt_generated := hurt_box.apply_collision_shape_config(config)
+	var instantiated := config.instantiate_collision_shape()
+
+	assert_not_null(generated, "HitBox 应根据配置生成 CollisionShape2D。")
+	assert_not_null(hurt_generated, "HurtBox 应根据配置生成 CollisionShape2D。")
+	assert_not_null(instantiated, "配置应能独立创建 CollisionShape2D。")
+	assert_same(generated.shape, circle, "生成的碰撞形状应使用配置中的 Shape2D。")
+	assert_eq(generated.position, Vector2(3.0, 4.0), "生成的碰撞形状应应用位置。")
+	assert_almost_eq(generated.rotation_degrees, 30.0, 0.001, "生成的碰撞形状应应用旋转。")
+	assert_eq(generated.scale, Vector2(2.0, 1.5), "生成的碰撞形状应应用缩放。")
+	assert_true(generated.disabled, "生成的碰撞形状应应用 disabled。")
+	assert_same(hit_box.get_generated_collision_shape(), generated, "HitBox 应能返回框架管理的 CollisionShape2D。")
+	assert_same(hurt_generated.shape, circle, "HurtBox 应复用同一套配置生成形状。")
+	assert_same(auto_hit_box.get_generated_collision_shape().shape, circle, "配置属性应在节点进入场景树时自动生成形状。")
+
+	var rectangle := RectangleShape2D.new()
+	var replacement := GFHitCollisionShapeConfig2D.new()
+	replacement.shape = rectangle
+	replacement.position = Vector2(-2.0, 1.0)
+	var reused := hit_box.apply_collision_shape_config(replacement)
+
+	assert_same(reused, generated, "重复应用配置应复用框架管理的 CollisionShape2D。")
+	assert_same(reused.shape, rectangle, "复用节点时应更新 Shape2D。")
+	assert_eq(reused.position, Vector2(-2.0, 1.0), "复用节点时应更新位置。")
+
+	auto_hit_box.collision_shape_config = null
+	assert_null(auto_hit_box.get_generated_collision_shape(), "配置属性置空时应清理框架管理的形状节点。")
+	hit_box.clear_generated_collision_shape()
+	assert_null(hit_box.get_generated_collision_shape(), "clear_generated_collision_shape 应移除框架管理的形状节点。")
+	instantiated.free()
+
+
+func test_hit_collision_shape_config_3d_generates_reusable_shapes() -> void:
+	var hit_box := GFHitBox3D.new()
+	var hurt_box := GFHurtBox3D.new()
+	add_child_autofree(hit_box)
+	add_child_autofree(hurt_box)
+
+	var sphere := SphereShape3D.new()
+	sphere.radius = 2.0
+	var config := GFHitCollisionShapeConfig3D.new()
+	config.shape = sphere
+	config.position = Vector3(1.0, 2.0, 3.0)
+	config.rotation_degrees = Vector3(10.0, 20.0, 30.0)
+	config.scale = Vector3(2.0, 2.0, 2.0)
+	config.disabled = true
+
+	var auto_hit_box := GFHitBox3D.new()
+	auto_hit_box.collision_shape_config = config
+	add_child_autofree(auto_hit_box)
+
+	var generated := hit_box.apply_collision_shape_config(config)
+	var hurt_generated := hurt_box.apply_collision_shape_config(config)
+	var instantiated := config.instantiate_collision_shape()
+
+	assert_not_null(generated, "HitBox3D 应根据配置生成 CollisionShape3D。")
+	assert_not_null(hurt_generated, "HurtBox3D 应根据配置生成 CollisionShape3D。")
+	assert_not_null(instantiated, "配置应能独立创建 CollisionShape3D。")
+	assert_same(generated.shape, sphere, "生成的碰撞形状应使用配置中的 Shape3D。")
+	assert_eq(generated.position, Vector3(1.0, 2.0, 3.0), "生成的碰撞形状应应用位置。")
+	assert_true(generated.rotation_degrees.is_equal_approx(Vector3(10.0, 20.0, 30.0)), "生成的碰撞形状应应用旋转。")
+	assert_eq(generated.scale, Vector3(2.0, 2.0, 2.0), "生成的碰撞形状应应用缩放。")
+	assert_true(generated.disabled, "生成的碰撞形状应应用 disabled。")
+	assert_same(hit_box.get_generated_collision_shape(), generated, "HitBox3D 应能返回框架管理的 CollisionShape3D。")
+	assert_same(hurt_generated.shape, sphere, "HurtBox3D 应复用同一套配置生成形状。")
+	assert_same(auto_hit_box.get_generated_collision_shape().shape, sphere, "配置属性应在节点进入场景树时自动生成 3D 形状。")
+
+	var box := BoxShape3D.new()
+	var replacement := GFHitCollisionShapeConfig3D.new()
+	replacement.shape = box
+	replacement.position = Vector3(-1.0, -2.0, -3.0)
+	var reused := hit_box.apply_collision_shape_config(replacement)
+
+	assert_same(reused, generated, "重复应用配置应复用框架管理的 CollisionShape3D。")
+	assert_same(reused.shape, box, "复用节点时应更新 Shape3D。")
+	assert_eq(reused.position, Vector3(-1.0, -2.0, -3.0), "复用节点时应更新位置。")
+
+	auto_hit_box.collision_shape_config = null
+	assert_null(auto_hit_box.get_generated_collision_shape(), "配置属性置空时应清理框架管理的 3D 形状节点。")
+	hit_box.clear_generated_collision_shape()
+	assert_null(hit_box.get_generated_collision_shape(), "clear_generated_collision_shape 应移除框架管理的 3D 形状节点。")
+	instantiated.free()
+
+
 func test_hit_box_2d_sends_generic_hit_context() -> void:
 	var hit_box := GFHitBox2D.new()
 	var hurt_box := RecordingHurtBox2D.new()

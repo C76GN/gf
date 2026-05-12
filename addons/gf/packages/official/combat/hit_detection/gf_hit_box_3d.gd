@@ -34,6 +34,7 @@ signal enabled_changed(enabled: bool)
 # --- 常量 ---
 
 const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")
+const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionShape3D"
 
 
 # --- 导出变量 ---
@@ -64,8 +65,56 @@ const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/comm
 ## 可选发送者路径；为空时使用当前节点。
 @export_node_path("Node") var sender_path: NodePath = NodePath("")
 
+## 可选碰撞形状配置。设置后可自动生成或更新 CollisionShape3D 子节点。
+@export var collision_shape_config: GFHitCollisionShapeConfig3D = null:
+	get:
+		return _collision_shape_config
+	set(value):
+		_collision_shape_config = value
+		if is_inside_tree() and auto_apply_collision_shape_config:
+			_apply_collision_shape_config(_collision_shape_config)
+
+## 是否在进入场景树或配置变化时自动应用碰撞形状配置。
+@export var auto_apply_collision_shape_config: bool = true
+
+
+# --- 私有变量 ---
+
+var _collision_shape_config: GFHitCollisionShapeConfig3D = null
+
+
+# --- Godot 生命周期方法 ---
+
+func _ready() -> void:
+	if auto_apply_collision_shape_config:
+		apply_collision_shape_config()
+
 
 # --- 公共方法 ---
+
+## 应用碰撞形状配置，创建或更新框架管理的 CollisionShape3D 子节点。
+## @param config: 可选配置；为空时使用 collision_shape_config。
+## @return 创建或更新的 CollisionShape3D；配置无效时返回 null。
+func apply_collision_shape_config(config: GFHitCollisionShapeConfig3D = null) -> CollisionShape3D:
+	if config != null:
+		_collision_shape_config = config
+	return _apply_collision_shape_config(_collision_shape_config)
+
+
+## 获取框架管理的 CollisionShape3D 子节点。
+## @return 存在则返回 CollisionShape3D，否则返回 null。
+func get_generated_collision_shape() -> CollisionShape3D:
+	return get_node_or_null(String(_GENERATED_COLLISION_SHAPE_NODE_NAME)) as CollisionShape3D
+
+
+## 移除框架管理的 CollisionShape3D 子节点。
+func clear_generated_collision_shape() -> void:
+	var collision_shape := get_generated_collision_shape()
+	if collision_shape == null:
+		return
+	remove_child(collision_shape)
+	collision_shape.queue_free()
+
 
 ## 构建命中上下文。
 ## @param target: 命中目标。
@@ -170,3 +219,26 @@ func _resolve_sender() -> Object:
 		if sender != null:
 			return sender
 	return self
+
+
+func _apply_collision_shape_config(config: GFHitCollisionShapeConfig3D) -> CollisionShape3D:
+	if config == null or config.shape == null:
+		clear_generated_collision_shape()
+		return null
+
+	var collision_shape := _get_or_create_collision_shape()
+	if not config.apply_to(collision_shape):
+		clear_generated_collision_shape()
+		return null
+	return collision_shape
+
+
+func _get_or_create_collision_shape() -> CollisionShape3D:
+	var collision_shape := get_generated_collision_shape()
+	if collision_shape != null:
+		return collision_shape
+
+	collision_shape = CollisionShape3D.new()
+	collision_shape.name = String(_GENERATED_COLLISION_SHAPE_NODE_NAME)
+	add_child(collision_shape)
+	return collision_shape

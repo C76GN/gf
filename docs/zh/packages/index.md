@@ -56,7 +56,8 @@ addons/gf/packages/official/example/
 {
   "id": "gf.official.combat",
   "display_name": "GF Combat",
-  "version": "3.0.0",
+  "version": "3.1.0",
+  "package_version": "1.1.0",
   "kind": "official",
   "description": "Abstract combat attributes, modifiers, buffs, skills, gauges, and hit detection bridges.",
   "dependencies": ["gf.kernel", "gf.standard"],
@@ -72,6 +73,10 @@ addons/gf/packages/official/example/
   "tags": ["combat", "attributes", "hit-detection"]
 }
 ```
+
+`version` 表示 manifest 的发行版本。官方包的 `version` 必须始终等于当前 GF 发行版本，例如 GF 3.1.0 发布时所有 `addons/gf/packages/official/*/gf_package.json` 都应写入 `"version": "3.1.0"`；社区包没有随 GF 发行的约束，可以用自己的发行版本。
+
+`package_version` 表示包自身版本。官方包必须显式填写该字段，并按包内公开行为独立递增：兼容 bug 修复递增 patch，向后兼容的新公开 API、配置或功能递增 minor，破坏兼容才递增 major。没有发生包内行为变化的官方包，在 GF 发行版本递增时只同步 `version`，不递增 `package_version`。社区包可以省略 `package_version`，省略时工具会回退使用 `version`。
 
 `enabled_by_default`、`installer_paths`、`editor_action_paths`、`editor_dock_paths`、`editor_inspector_paths`、`export_plugin_paths` 与 `access_generator_extension_paths` 可省略。省略时，`official` 与 `standard` 包默认启用，`community` 包默认不启用；没有安装器或编辑器扩展的包可以把对应数组留空。manifest 声明的扩展脚本路径必须位于包根目录内，避免包通过 manifest 越界绑定其他包或项目脚本。
 
@@ -107,7 +112,7 @@ addons/gf/packages/official/example/
 
 ## 编辑器包管理器
 
-启用 GF 编辑器插件后，底部面板会出现 `GF Packages`。它用于查看所有官方包和社区包的 manifest 信息、启用/禁用包、查看版本、依赖、标签、Installer 路径、编辑器扩展路径和校验状态。
+启用 GF 编辑器插件后，底部面板会出现 `GF Packages`。它用于查看所有官方包和社区包的 manifest 信息、启用/禁用包、查看发行版本与包版本、依赖、标签、Installer 路径、编辑器扩展路径和校验状态。
 
 面板中的“有效/无效”表示 manifest 是否通过基础校验；“保存设置”会把当前勾选状态和包相关开关写入 ProjectSettings。分类下拉框和搜索框只影响当前列表显示，不会自动修改启用状态。
 

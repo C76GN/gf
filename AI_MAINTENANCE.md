@@ -100,8 +100,9 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/packages
 - 功能开发、修复或文档补充过程中，如果需要记录发布说明，先写入 `docs/zh/changelog.md` 的 `[未发布]` 小节；如果没有 `[未发布]` 小节，就在最新正式版本上方创建。
 - 在用户确认本轮修改没有问题之前，不要把 `[未发布]` 改成具体版本号，也不要更新 `addons/gf/plugin.cfg` 或 `ASSET_LIBRARY.md` 的版本号。
 - 用户确认进入发布或提交阶段后，根据实际变更确定 SemVer 版本号：兼容 bug 修复或小型加固用 patch；向后兼容的新公开 API、设置或功能通常用 minor；破坏兼容只允许在用户明确批准后按 major 处理。
-- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
-- 发布前检查 `docs/zh/changelog.md` 的保留策略，删除已经超出保留范围的过时版本日志；不要让旧日志长期堆积在正式文档中。
+- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md`、所有官方包 `gf_package.json` 的 `version` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
+- 官方包 manifest 的 `version` 表示 GF 官方发行版本，发布时所有 `addons/gf/packages/official/*/gf_package.json` 必须同步为当前 GF 版本。官方包 manifest 的 `package_version` 表示单个包自身版本，只有该包的公开 API、配置、行为或兼容性契约发生变化时才按 SemVer 递增；本轮未改变的官方包只同步 `version`，不递增 `package_version`。
+- 正式 `docs/zh/changelog.md` 只保留当前最新发布版本。发布新版本时必须删除上一个正式版本条目，旧版本历史以 Git 历史和 GitHub Releases 为准，不要让旧日志长期堆积在正式文档中。
 - 除非用户明确要求 AI 直接提交，否则只准备 commit message 和待提交文件清单，让用户手动提交。若用户明确要求 AI 提交，提交前必须再次运行相关测试和文档/API 校验。
 - 提交后不要自动创建 Git tag；只有用户明确要求打 tag 时，才创建对应版本 tag。
 

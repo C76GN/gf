@@ -28,8 +28,14 @@ var id: String = ""
 ## 面向用户显示的包名。
 var display_name: String = ""
 
-## 包版本号。
+## 包发行版本号。官方包必须与当前 GF 发行版本一致；社区包可使用自己的发行版本。
 var version: String = ""
+
+## 包自身版本号。官方包按包内公开行为变化独立递增；旧 manifest 缺省时回退到 version。
+var package_version: String = "":
+	set(value):
+		package_version = value
+		_has_package_version = true
 
 ## 包类型，应为 `standard`、`official` 或 `community`。
 var kind: String = KIND_COMMUNITY
@@ -71,6 +77,11 @@ var enabled_by_default: bool = false
 var source_path: String = ""
 
 
+# --- 私有变量 ---
+
+var _has_package_version: bool = false
+
+
 # --- 公共方法 ---
 
 ## 从字典创建包 manifest。
@@ -87,6 +98,8 @@ static func from_dictionary(
 	manifest.id = String(data.get("id", ""))
 	manifest.display_name = String(data.get("display_name", data.get("name", "")))
 	manifest.version = String(data.get("version", ""))
+	manifest.package_version = String(data.get("package_version", manifest.version))
+	manifest._has_package_version = data.has("package_version")
 	manifest.kind = String(data.get("kind", KIND_COMMUNITY))
 	manifest.root_path = package_root_path
 	manifest.description = String(data.get("description", data.get("summary", "")))
@@ -133,6 +146,7 @@ func to_dictionary() -> Dictionary:
 		"id": id,
 		"display_name": display_name,
 		"version": version,
+		"package_version": package_version,
 		"kind": kind,
 		"root_path": root_path,
 		"description": description,
@@ -165,6 +179,8 @@ func get_validation_errors() -> Array[String]:
 		errors.append("display_name is required")
 	if version.strip_edges().is_empty():
 		errors.append("version is required")
+	if kind == KIND_OFFICIAL and (not _has_package_version or package_version.strip_edges().is_empty()):
+		errors.append("package_version is required for official packages")
 	if not [KIND_STANDARD, KIND_OFFICIAL, KIND_COMMUNITY].has(kind):
 		errors.append("kind must be standard, official, or community")
 	if root_path.strip_edges().is_empty():

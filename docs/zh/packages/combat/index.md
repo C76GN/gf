@@ -136,6 +136,21 @@ func _on_hit_box_area_entered(area: Area2D) -> void:
 
 `GFHitBox2D` / `GFHitBox3D` 和 `GFHurtBox2D` / `GFHurtBox3D` 的 `enabled` 变化时会发出 `enabled_changed(enabled)`。它只报告框架命中收发开关，项目可以用它同步调试可见性、调试面板或外部状态；如果需要统一管理一组区域的 `enabled`、`monitoring` / `monitorable` 和 `visible`，优先使用下面的状态组。
 
+如果不同攻击想复用同一个 HitBox / HurtBox 节点，只切换碰撞形状，可以使用 `GFHitCollisionShapeConfig2D` 或 `GFHitCollisionShapeConfig3D`。配置只描述 Godot 原生 `Shape2D` / `Shape3D`、偏移、旋转、缩放和 disabled 状态，不表达伤害、阵营或特效规则；这些仍由 `hit_id`、`payload`、状态机或项目逻辑决定：
+
+```gdscript
+var slash_shape := GFHitCollisionShapeConfig2D.new()
+slash_shape.shape = RectangleShape2D.new()
+slash_shape.position = Vector2(24.0, 0.0)
+slash_shape.scale = Vector2(1.5, 0.5)
+
+hit_box.apply_collision_shape_config(slash_shape)
+hit_box.hit_id = &"slash"
+hit_box.payload = { "damage": 12 }
+```
+
+`collision_shape_config` 会在节点进入场景树时自动应用；运行时也可以调用 `apply_collision_shape_config()` 切换配置。它们只会创建或更新一个框架管理的 `CollisionShape2D` / `CollisionShape3D` 子节点，不会修改项目手写的其他碰撞节点。配置置空、配置缺少 `shape` 或调用 `clear_generated_collision_shape()` 时，会清理这类自动生成节点。
+
 HitBox 的 `broadcast_overlaps()` 会从当前重叠的 Area/Body 中向上查找具备 `receive_hit()` 的节点，并去重发送。HurtBox 支持 `accepted_hit_ids`、`rejected_hit_ids` 和 `validation_callback`，适合项目层接入护盾、无敌帧、阵营过滤或编辑器调试；这些规则都在回调里表达，不写进框架默认逻辑。
 
 需要随状态统一开关一组命中区域时，可以把 `GFHitBoxState2D` 或 `GFHitBoxState3D` 放在区域节点上层。它会递归管理子树内的 `GFHitBox*`、`GFHurtBox*` 和 `Area*`，可选择同步 `enabled`、`monitoring` / `monitorable` 和可见性：

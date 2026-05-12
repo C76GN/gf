@@ -26,6 +26,7 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 		"id": "author.terrain",
 		"display_name": "Terrain Tools",
 		"version": "1.0.0",
+		"package_version": "1.2.3",
 		"kind": "community",
 		"description": "Example package.",
 		"dependencies": ["gf.kernel", &"gf.standard"],
@@ -40,6 +41,8 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 
 	assert_true(manifest.is_valid(), "完整 manifest 应通过基础校验。")
 	assert_eq(manifest.id, "author.terrain", "应读取稳定包 ID。")
+	assert_eq(manifest.version, "1.0.0", "应读取包发行版本。")
+	assert_eq(manifest.package_version, "1.2.3", "应读取包自身版本。")
 	assert_eq(manifest.dependencies, ["gf.kernel", "gf.standard"], "依赖列表应归一化为字符串数组。")
 	assert_eq(manifest.installer_paths.size(), 1, "installer_paths 应支持 PackedStringArray。")
 	assert_eq(manifest.editor_action_paths.size(), 1, "editor_action_paths 应读取为字符串数组。")
@@ -55,6 +58,7 @@ func test_official_manifest_defaults_to_enabled() -> void:
 		"id": "gf.official.example",
 		"display_name": "GF Example",
 		"version": "3.0.0",
+		"package_version": "1.0.0",
 		"kind": "official",
 	}, "res://addons/gf/packages/official/example", "res://addons/gf/packages/official/example/gf_package.json")
 
@@ -69,6 +73,31 @@ func test_manifest_validation_reports_required_fields() -> void:
 	assert_true(errors.has("display_name is required"), "缺少 display_name 应报告错误。")
 	assert_true(errors.has("version is required"), "缺少 version 应报告错误。")
 	assert_true(errors.has("root_path is required"), "缺少 root_path 应报告错误。")
+
+	var missing_package_version_manifest := GF_PACKAGE_MANIFEST_BASE.from_dictionary({
+		"id": "gf.official.example",
+		"display_name": "GF Example",
+		"version": "3.1.0",
+		"kind": "official",
+	}, "res://addons/gf/packages/official/example", "")
+	var missing_package_version_errors := missing_package_version_manifest.get_validation_errors()
+	var official_manifest := GF_PACKAGE_MANIFEST_BASE.from_dictionary({
+		"id": "gf.official.example",
+		"display_name": "GF Example",
+		"version": "3.1.0",
+		"kind": "official",
+		"package_version": "",
+	}, "res://addons/gf/packages/official/example", "")
+	var official_errors := official_manifest.get_validation_errors()
+
+	assert_true(
+		missing_package_version_errors.has("package_version is required for official packages"),
+		"官方包缺少 package_version 应报告错误。"
+	)
+	assert_true(
+		official_errors.has("package_version is required for official packages"),
+		"官方包应显式声明 package_version。"
+	)
 
 
 func test_manifest_validation_keeps_extension_paths_inside_root() -> void:
@@ -105,6 +134,32 @@ func test_catalog_loads_official_manifests() -> void:
 	assert_true(ids.has("gf.official.combat"), "官方包目录应能发现 combat manifest。")
 	assert_true(ids.has("gf.official.network"), "官方包目录应能发现 network manifest。")
 	assert_true(ids.has("gf.official.save"), "官方包目录应能发现 save manifest。")
+
+
+func test_official_manifest_versions_follow_release_policy() -> void:
+	var framework_version := _read_framework_version()
+	var issues := PackedStringArray()
+	for manifest: GFPackageManifest in GF_PACKAGE_CATALOG_BASE.load_official_manifests():
+		var manifest_data := _read_json_dictionary(manifest.source_path)
+		if manifest.version != framework_version:
+			issues.append("%s version %s != framework %s" % [
+				manifest.id,
+				manifest.version,
+				framework_version,
+			])
+		if not manifest_data.has("package_version"):
+			issues.append("%s does not declare package_version" % manifest.id)
+		if not _is_semver(manifest.package_version):
+			issues.append("%s package_version is not semver: %s" % [
+				manifest.id,
+				manifest.package_version,
+			])
+
+	assert_eq(
+		Array(issues),
+		[],
+		"官方包 manifest.version 必须跟随 GF 发行版本，package_version 必须记录包自身 SemVer。"
+	)
 
 
 func test_package_settings_resolves_manifest_dependencies() -> void:
@@ -600,3 +655,27 @@ func _restore_project_setting(setting_name: String, restore: Dictionary) -> void
 		ProjectSettings.set_setting(setting_name, restore.get("value"))
 	else:
 		ProjectSettings.clear(setting_name)
+
+
+func _read_framework_version() -> String:
+	var config := ConfigFile.new()
+	var error := config.load("res://addons/gf/plugin.cfg")
+	if error != OK:
+		return ""
+	return String(config.get_value("plugin", "version", ""))
+
+
+func _read_json_dictionary(path: String) -> Dictionary:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	if parsed is Dictionary:
+		return parsed
+	return {}
+
+
+func _is_semver(version: String) -> bool:
+	var regex := RegEx.new()
+	regex.compile("^\\d+\\.\\d+\\.\\d+$")
+	return regex.search(version) != null

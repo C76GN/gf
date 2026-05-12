@@ -1,7 +1,8 @@
 {
   "id": "gf.official.feedback",
   "display_name": "GF Feedback",
-  "version": "3.0.0",
+  "version": "3.1.0",
+  "package_version": "1.0.0",
   "kind": "official",
   "description": "Reusable feedback sampling, shake receivers, presets, and action queue integration.",
   "dependencies": ["gf.kernel", "gf.standard"],

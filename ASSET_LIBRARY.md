@@ -25,9 +25,9 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for packa
 - Repository URL: `https://github.com/C76GN/gf`
 - Issues URL: `https://github.com/C76GN/gf/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `3.0.0`
-- Download Commit/URL: `3.0.0`
-- Icon URL: `https://raw.githubusercontent.com/C76GN/gf/3.0.0/addons/gf/icon.png`
+- Asset Version: `3.1.0`
+- Download Commit/URL: `3.1.0`
+- Icon URL: `https://raw.githubusercontent.com/C76GN/gf/3.1.0/addons/gf/icon.png`
 
 ## Short Description
 
