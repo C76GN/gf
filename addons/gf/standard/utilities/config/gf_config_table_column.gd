@@ -299,13 +299,6 @@ func _try_coerce_color(value: Variant) -> Dictionary:
 	return _make_coerce_result(false, Color.WHITE, "值无法转换为 Color。")
 
 
-func _coerce_bool(value: Variant) -> bool:
-	if typeof(value) == TYPE_STRING:
-		var text := str(value).strip_edges().to_lower()
-		return text == "true" or text == "1" or text == "yes" or text == "on"
-	return bool(value)
-
-
 func _coerce_vector2(value: Variant) -> Vector2:
 	if value is Vector2:
 		return value as Vector2

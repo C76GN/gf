@@ -14,7 +14,7 @@ enum Mode {
 	DISCONNECTED,
 	## 作为服务器监听 TCP 并接受 WebSocket 握手。
 	SERVER,
-	## 作为客户端连接远端 WebSocket URL。
+	## 作为客户端连接远端 WebSocket 地址。
 	CLIENT,
 }
 
@@ -78,7 +78,7 @@ func host(options: Dictionary = {}) -> Error:
 
 ## 连接 WebSocket 远端。
 ## endpoint 应为 ws:// 或 wss:// URL。
-## @param endpoint: WebSocket URL。
+## @param endpoint: WebSocket 地址。
 ## @param options: 操作选项字典，支持 tls_options、supported_protocols。
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 	if endpoint.strip_edges().is_empty():

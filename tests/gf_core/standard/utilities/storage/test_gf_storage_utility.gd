@@ -684,6 +684,32 @@ func test_missing_registered_migration_chain_fails_without_marking_target_versio
 	assert_push_error("[GFStorageUtility] 迁移失败：Missing migration chain: 1 -> 3")
 
 
+func test_strict_schema_migrations_rejects_version_bump_without_registered_steps() -> void:
+	_storage.encrypt_key = 0
+	_storage.save_version = 2
+	_storage.strict_schema_migrations = true
+	var file_name := "test_strict_migration_chain.json"
+	var codec := GFStorageCodec.new()
+	var file := FileAccess.open(_storage._get_full_path(file_name), FileAccess.WRITE)
+	file.store_buffer(codec.encode({
+		"_meta": {
+			"version": 1,
+		},
+		"value": 10,
+	}, { "obfuscation_key": 0 }))
+	file.close()
+	watch_signals(_storage)
+
+	var loaded := _storage.load_data(file_name)
+
+	assert_true(loaded.is_empty(), "严格迁移模式下缺少迁移链时不应静默升级版本。")
+	assert_false(bool(_storage.last_load_result.get("ok")), "严格迁移失败应标记读取失败。")
+	assert_eq(String(_storage.last_load_result.get("error")), "Missing migration chain: 1 -> 2", "失败原因应指出缺失链路。")
+	assert_signal_emitted(_storage, "data_integrity_failed", "严格迁移失败应发出数据失败信号。")
+	assert_signal_not_emitted(_storage, "data_migrated", "严格迁移失败不应发出迁移成功信号。")
+	assert_push_error("[GFStorageUtility] 迁移失败：Missing migration chain: 1 -> 2")
+
+
 func test_storage_backend_default_contract_and_conflict_report_roundtrip() -> void:
 	var backend := GFStorageBackend.new()
 	var report := GFStorageConflictReport.from_dict({

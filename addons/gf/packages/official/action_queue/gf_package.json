@@ -5,7 +5,9 @@
   "kind": "official",
   "description": "Presentation action queue primitives, interceptors, tween configs, and reusable visual actions.",
   "dependencies": ["gf.kernel", "gf.standard"],
-  "installer_paths": [],
+  "installer_paths": [
+    "res://addons/gf/packages/official/action_queue/package.gd"
+  ],
   "enabled_by_default": true,
   "tags": ["presentation", "queue", "tween"]
 }

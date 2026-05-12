@@ -7,6 +7,7 @@ extends GutTest
 var _pool: GFObjectPoolUtility
 var _parent: Node
 var _scene: PackedScene
+var _test_architecture: GFArchitecture = null
 
 
 # --- 辅助类型 ---
@@ -20,6 +21,16 @@ class HookedNode extends Node:
 
 	func on_gf_pool_release() -> void:
 		release_count += 1
+
+
+class PooledEventController extends GFController:
+	var payloads: Array = []
+
+	func _ready() -> void:
+		register_simple_event(&"pooled_controller_event", _on_pooled_controller_event)
+
+	func _on_pooled_controller_event(payload: Variant) -> void:
+		payloads.append(payload)
 
 
 # --- Godot 生命周期方法 ---
@@ -37,6 +48,11 @@ func before_each() -> void:
 func after_each() -> void:
 	_pool.dispose()
 	_pool = null
+	if _test_architecture != null:
+		if Gf.has_architecture() and Gf.get_architecture() == _test_architecture:
+			Gf._architecture = null
+		_test_architecture.dispose()
+		_test_architecture = null
 	if is_instance_valid(_parent):
 		_parent.queue_free()
 	_parent = null
@@ -83,6 +99,21 @@ func _make_hooked_scene() -> PackedScene:
 	scene.pack(node)
 	node.free()
 	return scene
+
+
+## 创建一个会在 _ready 注册轻量事件的 GFController PackedScene。
+func _make_pooled_controller_scene() -> PackedScene:
+	var node := PooledEventController.new()
+	var scene := PackedScene.new()
+	scene.pack(node)
+	node.free()
+	return scene
+
+
+func _setup_test_architecture() -> GFArchitecture:
+	_test_architecture = GFArchitecture.new()
+	Gf._architecture = _test_architecture
+	return _test_architecture
 
 
 # --- 测试：acquire ---
@@ -170,6 +201,42 @@ func test_acquire_release_calls_node_hooks() -> void:
 	var reused := _pool.acquire(hooked_scene, _parent) as HookedNode
 	assert_eq(reused, node, "hook 测试应复用同一节点。")
 	assert_eq(reused.acquire_count, 2, "复用 acquire 应再次调用 on_gf_pool_acquire。")
+
+
+func test_pooled_controller_events_pause_on_release_and_resume_on_acquire() -> void:
+	var architecture := _setup_test_architecture()
+	var controller_scene := _make_pooled_controller_scene()
+	var controller := _pool.acquire(controller_scene, _parent) as PooledEventController
+
+	architecture.send_simple_event(&"pooled_controller_event", "active")
+	assert_eq(controller.payloads, ["active"], "Controller 激活时应接收事件。")
+
+	_pool.release(controller, controller_scene)
+	architecture.send_simple_event(&"pooled_controller_event", "pooled")
+	assert_eq(controller.payloads, ["active"], "Controller 回收到对象池后不应继续接收事件。")
+
+	var reused := _pool.acquire(controller_scene, _parent) as PooledEventController
+	architecture.send_simple_event(&"pooled_controller_event", "reused")
+
+	assert_eq(reused, controller, "Controller 应被对象池复用。")
+	assert_eq(controller.payloads, ["active", "reused"], "Controller 复用后应恢复事件监听。")
+
+
+func test_prewarmed_controller_events_stay_paused_until_acquire() -> void:
+	var architecture := _setup_test_architecture()
+	var controller_scene := _make_pooled_controller_scene()
+
+	_pool.prewarm(controller_scene, _parent, 1)
+	var controller := (_pool._available_pools[controller_scene] as Array)[0] as PooledEventController
+	architecture.send_simple_event(&"pooled_controller_event", "prewarmed")
+
+	assert_eq(controller.payloads, [], "预热但未取出的 Controller 不应接收事件。")
+
+	var acquired := _pool.acquire(controller_scene, _parent) as PooledEventController
+	architecture.send_simple_event(&"pooled_controller_event", "active")
+
+	assert_eq(acquired, controller, "预热节点应在 acquire 时被复用。")
+	assert_eq(controller.payloads, ["active"], "Controller acquire 后应恢复事件监听。")
 
 
 ## 验证对有效池的连续 acquire/release 循环不产生额外实例。

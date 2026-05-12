@@ -19,13 +19,12 @@ const MENU_GENERATE_NODE_STATE: int = 9
 const MENU_GENERATE_NODE_STATE_MACHINE: int = 10
 const MENU_GENERATE_ACCESSORS: int = 11
 const MENU_GENERATE_PROJECT_ACCESSORS: int = 12
-const MENU_VALIDATE_SAVE_GRAPH: int = 13
+const PACKAGE_MENU_ID_START: int = 1000
 const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/gf_access_generator.gd"
-const SAVE_GRAPH_UTILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/save/graph/gf_save_graph_utility.gd"
-const SAVE_SCOPE_SCRIPT_PATH: String = "res://addons/gf/packages/official/save/core/gf_save_scope.gd"
+const CAPABILITY_PACKAGE_ID: String = "gf.official.capability"
 const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
 const GFPluginProjectSettings = preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 
 
 # --- 私有变量 ---
@@ -34,6 +33,10 @@ var _file_dialog: FileDialog
 var _current_template_type: String = ""
 var _diagnostic_dialog: AcceptDialog
 var _diagnostic_output: TextEdit
+var _package_action_instances: Array[RefCounted] = []
+var _package_action_handlers: Dictionary = {}
+var _package_menu_entries: Array[Dictionary] = []
+var _next_package_menu_id: int = PACKAGE_MENU_ID_START
 
 
 # --- 公共方法 ---
@@ -48,14 +51,22 @@ func setup() -> void:
 
 	var base_control := EditorInterface.get_base_control()
 	base_control.add_child(_file_dialog)
+	_load_package_editor_actions()
 
 
 ## 清理菜单动作持有的对话框。
 func cleanup() -> void:
+	_cleanup_package_editor_actions()
 	_cleanup_diagnostic_dialog()
 	if is_instance_valid(_file_dialog):
 		_file_dialog.queue_free()
 	_file_dialog = null
+
+
+## 获取启用包注册的菜单项。
+## @return 菜单项字典列表，每项包含 `id`、`label`、`section`。
+func get_package_menu_entries() -> Array[Dictionary]:
+	return _package_menu_entries.duplicate(true)
 
 
 ## 执行 GF 工具菜单对应动作。
@@ -71,14 +82,24 @@ func handle_menu_id(id: int) -> void:
 		MENU_GENERATE_COMMAND:
 			_show_dialog("Command")
 		MENU_GENERATE_CAPABILITY:
+			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
+				return
 			_show_dialog("Capability")
 		MENU_GENERATE_NODE_CAPABILITY:
+			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
+				return
 			_show_dialog("NodeCapability")
 		MENU_GENERATE_NODE_2D_CAPABILITY:
+			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
+				return
 			_show_dialog("Node2DCapability")
 		MENU_GENERATE_NODE_3D_CAPABILITY:
+			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
+				return
 			_show_dialog("Node3DCapability")
 		MENU_GENERATE_CONTROL_CAPABILITY:
+			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
+				return
 			_show_dialog("ControlCapability")
 		MENU_GENERATE_NODE_STATE:
 			_show_dialog("NodeState")
@@ -88,11 +109,22 @@ func handle_menu_id(id: int) -> void:
 			_generate_accessors()
 		MENU_GENERATE_PROJECT_ACCESSORS:
 			_generate_project_accessors()
-		MENU_VALIDATE_SAVE_GRAPH:
-			_validate_current_scene_save_graph()
+		_:
+			_handle_package_menu_id(id)
 
 
 # --- 私有/辅助方法 ---
+
+func _require_package_enabled(package_id: String, display_name: String) -> bool:
+	if GFPackageSettingsBase.is_package_enabled(package_id):
+		return true
+
+	_show_diagnostic_dialog(
+		"GF Package Disabled",
+		"%s 包当前未启用。请先在 GF Packages 面板启用该包，再使用对应编辑器工具。" % display_name
+	)
+	return false
+
 
 func _show_dialog(type: String) -> void:
 	_current_template_type = type
@@ -112,6 +144,11 @@ func _on_file_selected(path: String) -> void:
 	template = template.replace("{ClassName}", class_name_str)
 	template = template.replace("{FileName}", file_name + ".gd")
 	template = template.replace("{BaseClass}", _get_base_class(_current_template_type))
+
+	var dir_error := DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(path.get_base_dir()))
+	if dir_error != OK:
+		push_error("[GF Framework] 文件目录创建失败: %s" % error_string(dir_error))
+		return
 
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	if file:
@@ -161,57 +198,6 @@ func _generate_project_accessors() -> void:
 		push_error("[GF Framework] 项目常量访问器生成失败: %s" % error_string(error))
 
 
-func _validate_current_scene_save_graph() -> void:
-	var scene_root := EditorInterface.get_edited_scene_root()
-	if scene_root == null:
-		_show_diagnostic_dialog("GF SaveGraph Health", "当前没有正在编辑的场景。")
-		return
-
-	var scope_script := load(SAVE_SCOPE_SCRIPT_PATH) as Script
-	var utility_script := load(SAVE_GRAPH_UTILITY_SCRIPT_PATH) as Script
-	if scope_script == null or utility_script == null or not utility_script.can_instantiate():
-		_show_diagnostic_dialog("GF SaveGraph Health", "GF SaveGraph 诊断脚本不可用。")
-		return
-
-	var scopes: Array[Node] = []
-	_collect_save_scopes(scene_root, scope_script, scopes)
-	if scopes.is_empty():
-		_show_diagnostic_dialog("GF SaveGraph Health", "当前场景未找到 GFSaveScope。")
-		return
-
-	var utility: Variant = utility_script.new()
-	var lines := PackedStringArray()
-	lines.append("Scene: %s" % scene_root.scene_file_path)
-	lines.append("Scope count: %d" % scopes.size())
-	lines.append("")
-	for scope: Node in scopes:
-		var report: Dictionary = utility.inspect_scope(scope)
-		lines.append("[%s] %s" % [String(scope.get_path()), String(report.get("summary", ""))])
-		lines.append("Next: %s" % String(report.get("next_action", "")))
-		for issue_variant: Variant in report.get("issues", []):
-			var issue := issue_variant as Dictionary
-			if issue == null:
-				continue
-			lines.append("- %s %s %s: %s" % [
-				String(issue.get("severity", "")),
-				String(issue.get("kind", "")),
-				String(issue.get("path", "")),
-				String(issue.get("message", "")),
-			])
-		lines.append("")
-
-	_show_diagnostic_dialog("GF SaveGraph Health", "\n".join(lines))
-
-
-func _collect_save_scopes(node: Node, scope_script: Script, result: Array[Node]) -> void:
-	var node_script := node.get_script() as Script
-	if node_script == scope_script or _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(node_script, scope_script):
-		result.append(node)
-
-	for child: Node in node.get_children():
-		_collect_save_scopes(child, scope_script, result)
-
-
 func _show_diagnostic_dialog(title: String, text: String) -> void:
 	if not is_instance_valid(_diagnostic_dialog):
 		_diagnostic_dialog = AcceptDialog.new()
@@ -234,6 +220,92 @@ func _show_diagnostic_dialog(title: String, text: String) -> void:
 		int(DIAGNOSTIC_DIALOG_MIN_SIZE.x),
 		int(DIAGNOSTIC_DIALOG_MIN_SIZE.y)
 	))
+
+
+func _load_package_editor_actions() -> void:
+	_cleanup_package_editor_actions()
+	for script_path: String in GFPackageSettingsBase.get_enabled_editor_action_paths(true):
+		var action := _create_package_editor_action(script_path)
+		if action == null:
+			continue
+		_package_action_instances.append(action)
+		if action.has_method("setup"):
+			action.setup()
+		_register_package_action_entries(action, script_path)
+
+
+func _create_package_editor_action(script_path: String) -> RefCounted:
+	var script := load(script_path) as Script
+	if script == null or not script.can_instantiate():
+		push_error("[GF Framework] 包编辑器动作加载失败: %s" % script_path)
+		return null
+
+	var instance := script.new() as RefCounted
+	if instance == null:
+		push_error("[GF Framework] 包编辑器动作实例化失败: %s" % script_path)
+		return null
+	return instance
+
+
+func _register_package_action_entries(action: RefCounted, script_path: String) -> void:
+	if not action.has_method("get_menu_entries"):
+		return
+
+	var entries_variant: Variant = action.get_menu_entries()
+	if not (entries_variant is Array):
+		push_error("[GF Framework] 包编辑器动作菜单声明无效: %s" % script_path)
+		return
+
+	for entry_variant: Variant in entries_variant:
+		var entry := entry_variant as Dictionary
+		if entry == null:
+			continue
+
+		var action_id := StringName(entry.get("id", &""))
+		var label := String(entry.get("label", "")).strip_edges()
+		if action_id == &"" or label.is_empty():
+			continue
+
+		var menu_id := _next_package_menu_id
+		_next_package_menu_id += 1
+		var section := String(entry.get("section", "扩展诊断")).strip_edges()
+		if section.is_empty():
+			section = "扩展诊断"
+
+		_package_action_handlers[menu_id] = {
+			"instance": action,
+			"action_id": action_id,
+		}
+		_package_menu_entries.append({
+			"id": menu_id,
+			"label": label,
+			"section": section,
+		})
+
+
+func _handle_package_menu_id(id: int) -> void:
+	if not _package_action_handlers.has(id):
+		return
+
+	var handler := _package_action_handlers[id] as Dictionary
+	if handler == null:
+		return
+
+	var action := handler.get("instance") as RefCounted
+	if action == null or not action.has_method("handle_menu_action"):
+		return
+
+	action.handle_menu_action(StringName(handler.get("action_id", &"")))
+
+
+func _cleanup_package_editor_actions() -> void:
+	for action: RefCounted in _package_action_instances:
+		if action != null and action.has_method("cleanup"):
+			action.cleanup()
+	_package_action_instances.clear()
+	_package_action_handlers.clear()
+	_package_menu_entries.clear()
+	_next_package_menu_id = PACKAGE_MENU_ID_START
 
 
 func _cleanup_diagnostic_dialog() -> void:

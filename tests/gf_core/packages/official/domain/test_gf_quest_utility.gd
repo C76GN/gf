@@ -48,6 +48,7 @@ func test_quest_progress() -> void:
 	_quest.emit_quest_event(&"enemy_died", 2)
 	assert_eq(q_data.current_count, 3)
 	assert_true(_quest.is_quest_completed(&"kill_slimes"))
+	assert_eq(int(_quest.get_debug_snapshot().get("event_count", -1)), 0, "最后一个任务完成后应注销对应事件监听。")
 
 
 func test_quest_integration_with_simple_event() -> void:
@@ -88,6 +89,25 @@ func test_negative_payload_amount_can_be_enabled() -> void:
 
 	var q_data: Object = _quest._quests[&"decay_progress"]
 	assert_eq(q_data.current_count, 1, "显式开启后应允许负数 payload 调整进度。")
+
+
+func test_negative_progress_percentage_is_clamped_to_documented_range() -> void:
+	_quest.allow_negative_progress = true
+	_quest.start_quest(&"decay_progress", &"progress_event", 3)
+
+	Gf.send_simple_event(&"progress_event", -1)
+
+	var q_data: Object = _quest._quests[&"decay_progress"]
+	assert_eq(q_data.current_count, -1, "原始任务计数仍应允许负数。")
+	assert_eq(_quest.get_quest_progress(&"decay_progress"), 0.0, "公开进度百分比应保持在 0..1。")
+
+
+func test_cancel_last_quest_unregisters_event_listener() -> void:
+	_quest.start_quest(&"cleanup_listener", &"enemy_died", 3)
+
+	assert_true(_quest.cancel_quest(&"cleanup_listener"), "取消 active 任务应成功。")
+
+	assert_eq(int(_quest.get_debug_snapshot().get("event_count", -1)), 0, "最后一个任务取消后应注销对应事件监听。")
 
 
 func test_start_quest_rejects_empty_ids() -> void:

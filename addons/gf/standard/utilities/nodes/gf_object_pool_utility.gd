@@ -37,6 +37,12 @@ const HOOK_ON_RELEASE: StringName = &"on_gf_pool_release"
 ## 节点可选实现：从对象池取出并恢复激活后调用，用于重置本次使用状态。
 const HOOK_ON_ACQUIRE: StringName = &"on_gf_pool_acquire"
 
+## 框架内部对象池归还钩子。用于让 GFController 等基础类型同步生命周期。
+const _HOOK_INTERNAL_ON_RELEASE: StringName = &"_gf_on_object_pool_release"
+
+## 框架内部对象池取出钩子。用于让 GFController 等基础类型同步生命周期。
+const _HOOK_INTERNAL_ON_ACQUIRE: StringName = &"_gf_on_object_pool_acquire"
+
 
 # --- 公共变量 ---
 
@@ -383,6 +389,7 @@ func _prewarm_node(scene: PackedScene, parent: Node) -> void:
 	if is_instance_valid(parent):
 		parent.add_child(node)
 
+	_call_node_tree_internal_hook(node, _HOOK_INTERNAL_ON_RELEASE)
 	_all_nodes[scene].push_back(node)
 	_available_pools[scene].push_back(node)
 
@@ -462,8 +469,19 @@ func _call_node_tree_hook(node: Node, hook_name: StringName) -> void:
 
 
 func _call_node_hook(node: Node, hook_name: StringName) -> void:
+	if hook_name == HOOK_ON_ACQUIRE and node.has_method(_HOOK_INTERNAL_ON_ACQUIRE):
+		node.call(_HOOK_INTERNAL_ON_ACQUIRE)
 	if node.has_method(hook_name):
 		node.call(hook_name)
+	if hook_name == HOOK_ON_RELEASE and node.has_method(_HOOK_INTERNAL_ON_RELEASE):
+		node.call(_HOOK_INTERNAL_ON_RELEASE)
+
+
+func _call_node_tree_internal_hook(node: Node, hook_name: StringName) -> void:
+	if node.has_method(hook_name):
+		node.call(hook_name)
+	for child: Node in node.get_children():
+		_call_node_tree_internal_hook(child, hook_name)
 
 
 func _resolve_owner_scene(node: Node, fallback_scene: PackedScene) -> PackedScene:

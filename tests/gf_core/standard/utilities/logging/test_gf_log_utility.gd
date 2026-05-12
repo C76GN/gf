@@ -205,6 +205,15 @@ func test_trace_id_and_global_context_are_merged_into_entries() -> void:
 	assert_eq(context["tags"], ["alpha", "beta"], "PackedStringArray 应清洗为普通数组。")
 
 
+func test_sanitize_log_value_marks_circular_references() -> void:
+	var context := {}
+	context["self"] = context
+
+	var sanitized := GFLogUtility.sanitize_log_value(context) as Dictionary
+
+	assert_eq(sanitized["self"], "<circular_reference>", "日志上下文循环引用应被稳定标记。")
+
+
 func test_previous_crash_marker_is_reported_on_init() -> void:
 	_log_util.dispose()
 	_log_util = null

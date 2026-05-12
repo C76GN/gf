@@ -243,7 +243,7 @@ func get_failed_requests() -> Array[GFRequestEnvelopeBase]:
 
 
 ## 保存队列到 storage_path。
-## @return Godot Error。
+## @return Godot 错误码。
 func save_queue() -> Error:
 	if storage_path.is_empty():
 		return ERR_INVALID_PARAMETER
@@ -266,7 +266,7 @@ func save_queue() -> Error:
 
 
 ## 从 storage_path 读取队列。
-## @return Godot Error。
+## @return Godot 错误码。
 func load_queue() -> Error:
 	_queue.clear()
 	_failed_requests.clear()

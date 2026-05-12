@@ -165,7 +165,7 @@ func export_report_json(report: Dictionary, indent: String = "\t") -> String:
 ## 保存报告到文件。
 ## @param report: 报告字典。
 ## @param path: 目标路径。
-## @return Godot Error。
+## @return Godot 错误码。
 func save_report(report: Dictionary, path: String) -> Error:
 	if path.is_empty():
 		report_saved.emit(path, ERR_INVALID_PARAMETER)
@@ -197,7 +197,7 @@ func save_report(report: Dictionary, path: String) -> Error:
 ## @param path: 目标路径。
 ## @param description: 用户描述或问题摘要。
 ## @param options: 构建选项。
-## @return Godot Error。
+## @return Godot 错误码。
 func build_and_save_report(path: String, description: String = "", options: Dictionary = {}) -> Error:
 	return save_report(build_report(description, options), path)
 

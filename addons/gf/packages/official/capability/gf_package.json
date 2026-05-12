@@ -5,7 +5,15 @@
   "kind": "official",
   "description": "Reusable object and node capability composition with recipes and editor inspection support.",
   "dependencies": ["gf.kernel", "gf.standard"],
-  "installer_paths": [],
+  "installer_paths": [
+    "res://addons/gf/packages/official/capability/package.gd"
+  ],
+  "editor_inspector_paths": [
+    "res://addons/gf/packages/official/capability/editor/gf_capability_inspector_plugin.gd"
+  ],
+  "access_generator_extension_paths": [
+    "res://addons/gf/packages/official/capability/editor/gf_capability_access_generator_extension.gd"
+  ],
   "enabled_by_default": true,
   "tags": ["composition", "nodes", "editor"]
 }

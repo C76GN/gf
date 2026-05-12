@@ -82,3 +82,25 @@ func test_json_compatible_codec_can_preserve_dictionary_keys() -> void:
 
 	assert_eq(decoded[Vector2i(1, 2)], "cell", "启用字典键编码时应保留非字符串键。")
 	assert_eq(decoded[&"tag"], "value", "StringName 字典键应恢复。")
+
+
+func test_json_compatible_codec_marks_circular_references() -> void:
+	var source := {}
+	source["self"] = source
+
+	var encoded := GFVariantJsonCodec.variant_to_json_compatible(source) as Dictionary
+	var circular_marker := encoded["self"] as Dictionary
+	var json_text := JSON.stringify(encoded)
+
+	assert_eq(circular_marker[GFVariantJsonCodec.JSON_TYPE_KEY], "CircularReference", "循环引用应被标记而不是递归展开。")
+	assert_false(json_text.is_empty(), "包含循环引用的结构仍应可被 JSON.stringify 编码。")
+
+
+func test_json_compatible_codec_marks_circular_array_references() -> void:
+	var source := []
+	source.append(source)
+
+	var encoded := GFVariantJsonCodec.variant_to_json_compatible(source) as Array
+	var circular_marker := encoded[0] as Dictionary
+
+	assert_eq(circular_marker[GFVariantJsonCodec.JSON_TYPE_KEY], "CircularReference", "数组自引用应被标记。")

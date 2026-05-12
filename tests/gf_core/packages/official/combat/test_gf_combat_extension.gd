@@ -636,6 +636,35 @@ func test_hurt_box_filters_hit_ids() -> void:
 	assert_true(bool(accepted["ok"]), "允许的命中 ID 应通过基础过滤。")
 
 
+func test_hit_and_hurt_boxes_emit_enabled_changed() -> void:
+	var hit_box_2d := GFHitBox2D.new()
+	var hurt_box_2d := GFHurtBox2D.new()
+	var hit_box_3d := GFHitBox3D.new()
+	var hurt_box_3d := GFHurtBox3D.new()
+	add_child_autofree(hit_box_2d)
+	add_child_autofree(hurt_box_2d)
+	add_child_autofree(hit_box_3d)
+	add_child_autofree(hurt_box_3d)
+	watch_signals(hit_box_2d)
+	watch_signals(hurt_box_2d)
+	watch_signals(hit_box_3d)
+	watch_signals(hurt_box_3d)
+
+	hit_box_2d.enabled = false
+	hurt_box_2d.enabled = false
+	hit_box_3d.enabled = false
+	hurt_box_3d.enabled = false
+	hit_box_2d.enabled = false
+	hurt_box_2d.enabled = false
+
+	assert_signal_emitted_with_parameters(hit_box_2d, "enabled_changed", [false])
+	assert_signal_emitted_with_parameters(hurt_box_2d, "enabled_changed", [false])
+	assert_signal_emitted_with_parameters(hit_box_3d, "enabled_changed", [false])
+	assert_signal_emitted_with_parameters(hurt_box_3d, "enabled_changed", [false])
+	assert_signal_emit_count(hit_box_2d, "enabled_changed", 1)
+	assert_signal_emit_count(hurt_box_2d, "enabled_changed", 1)
+
+
 func test_combat_gauge_applies_generic_action_with_modifier() -> void:
 	var gauge := GFCombatGauge.new()
 	add_child_autofree(gauge)

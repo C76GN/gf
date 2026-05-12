@@ -45,7 +45,7 @@ const GFNodeSerializerRegistryBase = preload("res://addons/gf/packages/official/
 # --- 公共方法 ---
 
 ## 获取 Source 稳定标识。
-## @return Source key。
+## @return 来源键。
 func get_source_key() -> StringName:
 	if source_key != &"":
 		return source_key
@@ -119,7 +119,11 @@ func apply_save_data(
 		return make_result(false, "Target node is null.")
 
 	var dictionary := data as Dictionary
-	var serializer_payloads: Array = dictionary.get("serializers", []) as Array
+	var serializer_payloads_variant: Variant = dictionary.get("serializers", [])
+	if not (serializer_payloads_variant is Array):
+		return make_result(false, "Serializer payloads must be an Array.")
+
+	var serializer_payloads := serializer_payloads_variant as Array
 	if serializer_payloads.is_empty():
 		return make_result(true)
 
@@ -208,7 +212,11 @@ func _apply_local_serializers(target: Node, serializer_payloads: Array, context:
 			errors.append("Serializer does not support target: %s" % String(serializer_id))
 			continue
 
-		var data: Dictionary = payload.get("data", {}) as Dictionary
+		if not (payload.get("data", {}) is Dictionary):
+			errors.append("Serializer data must be a Dictionary: %s" % String(serializer_id))
+			continue
+
+		var data := payload.get("data", {}) as Dictionary
 		var result := serializer.apply(target, data, context)
 		if bool(result.get("ok", false)):
 			applied += 1

@@ -95,34 +95,52 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 	_gf_set_dependency_scope(architecture)
 
 
+## 检查所属架构生命周期是否仍可安全继续异步写回。
+## async_init() 或其他 await 之后写入状态前建议检查该值。
+## @return 所属架构仍处于活动生命周期时返回 true。
+func is_lifecycle_active() -> bool:
+	var architecture := _get_architecture_or_null()
+	return architecture != null and architecture.is_lifecycle_active()
+
+
+## 检查当前模块是否已经完成 ready 阶段。
+## @return 当前模块完成 ready 阶段时返回 true。
+func is_ready_in_architecture() -> bool:
+	var architecture := _get_architecture_or_null()
+	return architecture != null and architecture.is_module_ready(self)
+
+
 ## 通过类型获取 Model 实例。
 ## @param model_type: 模型的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 模型实例。
-func get_model(model_type: Script) -> Object:
+func get_model(model_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_model(model_type)
+	return architecture.get_model(model_type, require_ready)
 
 
 ## 通过类型获取 System 实例。
 ## @param system_type: 系统的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 系统实例。
-func get_system(system_type: Script) -> Object:
+func get_system(system_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_system(system_type)
+	return architecture.get_system(system_type, require_ready)
 
 
 ## 通过类型获取 Utility 实例。
 ## @param utility_type: 工具的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 工具实例。
-func get_utility(utility_type: Script) -> Object:
+func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(utility_type)
+	return architecture.get_utility(utility_type, require_ready)
 
 
 ## 注册类型事件监听器。Utility 注销时框架会自动清理由该方法注册的监听。

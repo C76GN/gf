@@ -19,90 +19,7 @@ const JSON_VALUE_KEY: String = "value"
 ## @param options: 可选项；encode_dictionary_keys 为 true 时会保留非字符串字典键。
 ## @return JSON 兼容值；Godot 专有类型会带类型标记。
 static func variant_to_json_compatible(value: Variant, options: Dictionary = {}) -> Variant:
-	match typeof(value):
-		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
-			return value
-		TYPE_STRING_NAME:
-			return _make_json_typed_value("StringName", String(value))
-		TYPE_NODE_PATH:
-			return _make_json_typed_value("NodePath", String(value))
-		TYPE_VECTOR2:
-			var vector_2: Vector2 = value as Vector2
-			return _make_json_typed_value("Vector2", [vector_2.x, vector_2.y])
-		TYPE_VECTOR2I:
-			var vector_2i: Vector2i = value as Vector2i
-			return _make_json_typed_value("Vector2i", [vector_2i.x, vector_2i.y])
-		TYPE_VECTOR3:
-			var vector_3: Vector3 = value as Vector3
-			return _make_json_typed_value("Vector3", [vector_3.x, vector_3.y, vector_3.z])
-		TYPE_VECTOR3I:
-			var vector_3i: Vector3i = value as Vector3i
-			return _make_json_typed_value("Vector3i", [vector_3i.x, vector_3i.y, vector_3i.z])
-		TYPE_VECTOR4:
-			var vector_4: Vector4 = value as Vector4
-			return _make_json_typed_value("Vector4", [vector_4.x, vector_4.y, vector_4.z, vector_4.w])
-		TYPE_VECTOR4I:
-			var vector_4i: Vector4i = value as Vector4i
-			return _make_json_typed_value("Vector4i", [vector_4i.x, vector_4i.y, vector_4i.z, vector_4i.w])
-		TYPE_RECT2:
-			var rect_2: Rect2 = value as Rect2
-			return _make_json_typed_value("Rect2", [rect_2.position.x, rect_2.position.y, rect_2.size.x, rect_2.size.y])
-		TYPE_RECT2I:
-			var rect_2i: Rect2i = value as Rect2i
-			return _make_json_typed_value("Rect2i", [rect_2i.position.x, rect_2i.position.y, rect_2i.size.x, rect_2i.size.y])
-		TYPE_COLOR:
-			var color: Color = value as Color
-			return _make_json_typed_value("Color", [color.r, color.g, color.b, color.a])
-		TYPE_PLANE:
-			var plane: Plane = value as Plane
-			return _make_json_typed_value("Plane", [plane.normal.x, plane.normal.y, plane.normal.z, plane.d])
-		TYPE_QUATERNION:
-			var quaternion: Quaternion = value as Quaternion
-			return _make_json_typed_value("Quaternion", [quaternion.x, quaternion.y, quaternion.z, quaternion.w])
-		TYPE_AABB:
-			var aabb: AABB = value as AABB
-			return _make_json_typed_value("AABB", [aabb.position.x, aabb.position.y, aabb.position.z, aabb.size.x, aabb.size.y, aabb.size.z])
-		TYPE_BASIS:
-			return _make_json_typed_value("Basis", _basis_to_array(value as Basis))
-		TYPE_TRANSFORM2D:
-			return _make_json_typed_value("Transform2D", _transform_2d_to_array(value as Transform2D))
-		TYPE_TRANSFORM3D:
-			var transform_3d: Transform3D = value as Transform3D
-			return _make_json_typed_value("Transform3D", {
-				"basis": _basis_to_array(transform_3d.basis),
-				"origin": [transform_3d.origin.x, transform_3d.origin.y, transform_3d.origin.z],
-			})
-		TYPE_ARRAY:
-			var result_array: Array = []
-			for item: Variant in value as Array:
-				result_array.append(variant_to_json_compatible(item, options))
-			return result_array
-		TYPE_DICTIONARY:
-			return _dictionary_to_json_compatible(value as Dictionary, options)
-		TYPE_PACKED_BYTE_ARRAY:
-			return _make_json_typed_value("PackedByteArray", _packed_byte_array_to_array(value as PackedByteArray))
-		TYPE_PACKED_INT32_ARRAY:
-			return _make_json_typed_value("PackedInt32Array", _packed_int32_array_to_array(value as PackedInt32Array))
-		TYPE_PACKED_INT64_ARRAY:
-			return _make_json_typed_value("PackedInt64Array", _packed_int64_array_to_array(value as PackedInt64Array))
-		TYPE_PACKED_FLOAT32_ARRAY:
-			return _make_json_typed_value("PackedFloat32Array", _packed_float32_array_to_array(value as PackedFloat32Array))
-		TYPE_PACKED_FLOAT64_ARRAY:
-			return _make_json_typed_value("PackedFloat64Array", _packed_float64_array_to_array(value as PackedFloat64Array))
-		TYPE_PACKED_STRING_ARRAY:
-			return _make_json_typed_value("PackedStringArray", _packed_string_array_to_array(value as PackedStringArray))
-		TYPE_PACKED_VECTOR2_ARRAY:
-			return _make_json_typed_value("PackedVector2Array", _packed_vector2_array_to_array(value as PackedVector2Array))
-		TYPE_PACKED_VECTOR3_ARRAY:
-			return _make_json_typed_value("PackedVector3Array", _packed_vector3_array_to_array(value as PackedVector3Array))
-		TYPE_PACKED_COLOR_ARRAY:
-			return _make_json_typed_value("PackedColorArray", _packed_color_array_to_array(value as PackedColorArray))
-		TYPE_PACKED_VECTOR4_ARRAY:
-			return _make_json_typed_value("PackedVector4Array", _packed_vector4_array_to_array(value as PackedVector4Array))
-		_:
-			if String(options.get("unsupported", "null")) == "string":
-				return str(value)
-	return null
+	return _variant_to_json_compatible(value, options, [])
 
 
 ## 从 variant_to_json_compatible() 生成的值恢复 Godot Variant。
@@ -194,6 +111,102 @@ static func array_to_color(value: Variant, fallback: Color = Color.WHITE) -> Col
 
 # --- 私有/辅助方法 ---
 
+static func _variant_to_json_compatible(value: Variant, options: Dictionary, visited: Array) -> Variant:
+	match typeof(value):
+		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
+			return value
+		TYPE_STRING_NAME:
+			return _make_json_typed_value("StringName", String(value))
+		TYPE_NODE_PATH:
+			return _make_json_typed_value("NodePath", String(value))
+		TYPE_VECTOR2:
+			var vector_2: Vector2 = value as Vector2
+			return _make_json_typed_value("Vector2", [vector_2.x, vector_2.y])
+		TYPE_VECTOR2I:
+			var vector_2i: Vector2i = value as Vector2i
+			return _make_json_typed_value("Vector2i", [vector_2i.x, vector_2i.y])
+		TYPE_VECTOR3:
+			var vector_3: Vector3 = value as Vector3
+			return _make_json_typed_value("Vector3", [vector_3.x, vector_3.y, vector_3.z])
+		TYPE_VECTOR3I:
+			var vector_3i: Vector3i = value as Vector3i
+			return _make_json_typed_value("Vector3i", [vector_3i.x, vector_3i.y, vector_3i.z])
+		TYPE_VECTOR4:
+			var vector_4: Vector4 = value as Vector4
+			return _make_json_typed_value("Vector4", [vector_4.x, vector_4.y, vector_4.z, vector_4.w])
+		TYPE_VECTOR4I:
+			var vector_4i: Vector4i = value as Vector4i
+			return _make_json_typed_value("Vector4i", [vector_4i.x, vector_4i.y, vector_4i.z, vector_4i.w])
+		TYPE_RECT2:
+			var rect_2: Rect2 = value as Rect2
+			return _make_json_typed_value("Rect2", [rect_2.position.x, rect_2.position.y, rect_2.size.x, rect_2.size.y])
+		TYPE_RECT2I:
+			var rect_2i: Rect2i = value as Rect2i
+			return _make_json_typed_value("Rect2i", [rect_2i.position.x, rect_2i.position.y, rect_2i.size.x, rect_2i.size.y])
+		TYPE_COLOR:
+			var color: Color = value as Color
+			return _make_json_typed_value("Color", [color.r, color.g, color.b, color.a])
+		TYPE_PLANE:
+			var plane: Plane = value as Plane
+			return _make_json_typed_value("Plane", [plane.normal.x, plane.normal.y, plane.normal.z, plane.d])
+		TYPE_QUATERNION:
+			var quaternion: Quaternion = value as Quaternion
+			return _make_json_typed_value("Quaternion", [quaternion.x, quaternion.y, quaternion.z, quaternion.w])
+		TYPE_AABB:
+			var aabb: AABB = value as AABB
+			return _make_json_typed_value("AABB", [aabb.position.x, aabb.position.y, aabb.position.z, aabb.size.x, aabb.size.y, aabb.size.z])
+		TYPE_BASIS:
+			return _make_json_typed_value("Basis", _basis_to_array(value as Basis))
+		TYPE_TRANSFORM2D:
+			return _make_json_typed_value("Transform2D", _transform_2d_to_array(value as Transform2D))
+		TYPE_TRANSFORM3D:
+			var transform_3d: Transform3D = value as Transform3D
+			return _make_json_typed_value("Transform3D", {
+				"basis": _basis_to_array(transform_3d.basis),
+				"origin": [transform_3d.origin.x, transform_3d.origin.y, transform_3d.origin.z],
+			})
+		TYPE_ARRAY:
+			if _visited_contains_reference(visited, value):
+				return _make_circular_reference_value(options)
+			visited.append(value)
+			var result_array: Array = []
+			for item: Variant in value as Array:
+				result_array.append(_variant_to_json_compatible(item, options, visited))
+			visited.pop_back()
+			return result_array
+		TYPE_DICTIONARY:
+			if _visited_contains_reference(visited, value):
+				return _make_circular_reference_value(options)
+			visited.append(value)
+			var result_dictionary := _dictionary_to_json_compatible(value as Dictionary, options, visited)
+			visited.pop_back()
+			return result_dictionary
+		TYPE_PACKED_BYTE_ARRAY:
+			return _make_json_typed_value("PackedByteArray", _packed_byte_array_to_array(value as PackedByteArray))
+		TYPE_PACKED_INT32_ARRAY:
+			return _make_json_typed_value("PackedInt32Array", _packed_int32_array_to_array(value as PackedInt32Array))
+		TYPE_PACKED_INT64_ARRAY:
+			return _make_json_typed_value("PackedInt64Array", _packed_int64_array_to_array(value as PackedInt64Array))
+		TYPE_PACKED_FLOAT32_ARRAY:
+			return _make_json_typed_value("PackedFloat32Array", _packed_float32_array_to_array(value as PackedFloat32Array))
+		TYPE_PACKED_FLOAT64_ARRAY:
+			return _make_json_typed_value("PackedFloat64Array", _packed_float64_array_to_array(value as PackedFloat64Array))
+		TYPE_PACKED_STRING_ARRAY:
+			return _make_json_typed_value("PackedStringArray", _packed_string_array_to_array(value as PackedStringArray))
+		TYPE_PACKED_VECTOR2_ARRAY:
+			return _make_json_typed_value("PackedVector2Array", _packed_vector2_array_to_array(value as PackedVector2Array))
+		TYPE_PACKED_VECTOR3_ARRAY:
+			return _make_json_typed_value("PackedVector3Array", _packed_vector3_array_to_array(value as PackedVector3Array))
+		TYPE_PACKED_COLOR_ARRAY:
+			return _make_json_typed_value("PackedColorArray", _packed_color_array_to_array(value as PackedColorArray))
+		TYPE_PACKED_VECTOR4_ARRAY:
+			return _make_json_typed_value("PackedVector4Array", _packed_vector4_array_to_array(value as PackedVector4Array))
+		_:
+			if String(options.get("unsupported", "null")) == "string":
+				return str(value)
+	return null
+
+
 static func _make_json_typed_value(type_name: String, typed_value: Variant) -> Dictionary:
 	return {
 		JSON_TYPE_KEY: type_name,
@@ -205,20 +218,34 @@ static func _is_json_typed_value(value: Dictionary) -> bool:
 	return value.has(JSON_TYPE_KEY) and value.has(JSON_VALUE_KEY)
 
 
-static func _dictionary_to_json_compatible(value: Dictionary, options: Dictionary) -> Variant:
+static func _dictionary_to_json_compatible(value: Dictionary, options: Dictionary, visited: Array) -> Variant:
 	if bool(options.get("encode_dictionary_keys", false)):
 		var entries: Array[Dictionary] = []
 		for key: Variant in value.keys():
 			entries.append({
-				"key": variant_to_json_compatible(key, options),
-				"value": variant_to_json_compatible(value[key], options),
+				"key": _variant_to_json_compatible(key, options, visited),
+				"value": _variant_to_json_compatible(value[key], options, visited),
 			})
 		return _make_json_typed_value("Dictionary", entries)
 
 	var result: Dictionary = {}
 	for key: Variant in value.keys():
-		result[_json_key_to_string(key)] = variant_to_json_compatible(value[key], options)
+		result[_json_key_to_string(key)] = _variant_to_json_compatible(value[key], options, visited)
 	return result
+
+
+static func _make_circular_reference_value(options: Dictionary) -> Variant:
+	return _make_json_typed_value(
+		"CircularReference",
+		options.get("circular_reference", "<circular_reference>")
+	)
+
+
+static func _visited_contains_reference(visited: Array, value: Variant) -> bool:
+	for item: Variant in visited:
+		if is_same(item, value):
+			return true
+	return false
 
 
 static func _json_typed_value_to_variant(value: Dictionary, options: Dictionary) -> Variant:

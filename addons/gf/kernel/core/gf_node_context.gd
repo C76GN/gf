@@ -197,56 +197,62 @@ func wait_until_ready() -> GFArchitecture:
 
 ## 通过当前上下文架构获取 Model。
 ## @param model_type: 模型脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 模型实例。
-func get_model(model_type: Script) -> Object:
+func get_model(model_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
 		return null
-	return _architecture.get_model(model_type)
+	return _architecture.get_model(model_type, require_ready)
 
 
 ## 通过当前上下文架构获取 System。
 ## @param system_type: 系统脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 系统实例。
-func get_system(system_type: Script) -> Object:
+func get_system(system_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
 		return null
-	return _architecture.get_system(system_type)
+	return _architecture.get_system(system_type, require_ready)
 
 
 ## 通过当前上下文架构获取 Utility。
 ## @param utility_type: 工具脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 工具实例。
-func get_utility(utility_type: Script) -> Object:
+func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
 		return null
-	return _architecture.get_utility(utility_type)
+	return _architecture.get_utility(utility_type, require_ready)
 
 
 ## 仅从当前上下文架构获取 Model，不回退父级架构。
 ## @param model_type: 模型脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前上下文架构中的模型实例。
-func get_local_model(model_type: Script) -> Object:
+func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
 		return null
-	return _architecture.get_local_model(model_type)
+	return _architecture.get_local_model(model_type, require_ready)
 
 
 ## 仅从当前上下文架构获取 System，不回退父级架构。
 ## @param system_type: 系统脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前上下文架构中的系统实例。
-func get_local_system(system_type: Script) -> Object:
+func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
 		return null
-	return _architecture.get_local_system(system_type)
+	return _architecture.get_local_system(system_type, require_ready)
 
 
 ## 仅从当前上下文架构获取 Utility，不回退父级架构。
 ## @param utility_type: 工具脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前上下文架构中的工具实例。
-func get_local_utility(utility_type: Script) -> Object:
+func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
 		return null
-	return _architecture.get_local_utility(utility_type)
+	return _architecture.get_local_utility(utility_type, require_ready)
 
 
 ## 向任意对象注入当前上下文架构依赖。

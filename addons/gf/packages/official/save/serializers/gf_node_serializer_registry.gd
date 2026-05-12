@@ -120,7 +120,11 @@ func apply_node(node: Node, serializer_payloads: Array, context: Dictionary = {}
 			errors.append("Serializer does not support node: %s" % String(serializer_id))
 			continue
 
-		var data: Dictionary = payload.get("data", {}) as Dictionary
+		if not (payload.get("data", {}) is Dictionary):
+			errors.append("Serializer data must be a Dictionary: %s" % String(serializer_id))
+			continue
+
+		var data := payload.get("data", {}) as Dictionary
 		var result := serializer.apply(node, data, context)
 		if bool(result.get("ok", false)):
 			applied += 1

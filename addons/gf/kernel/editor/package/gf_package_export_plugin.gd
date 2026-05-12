@@ -69,7 +69,12 @@ func _warn_disabled_package_references() -> void:
 	if bool(report.get("ok", true)):
 		return
 
-	push_warning("[GFPackageExportPlugin] 检测到禁用包仍被项目文件引用，导出排除后可能缺文件：\n%s" % _format_reference_report(report))
+	var formatted_report := _format_reference_report(report)
+	if GFPackageSettingsBase.should_fail_export_on_disabled_package_references():
+		push_error("[GFPackageExportPlugin] 检测到禁用包仍被项目文件引用，当前导出策略要求报告为错误：\n%s" % formatted_report)
+		return
+
+	push_warning("[GFPackageExportPlugin] 检测到禁用包仍被项目文件引用，导出排除后可能缺文件：\n%s" % formatted_report)
 
 
 func _format_reference_report(report: Dictionary) -> String:

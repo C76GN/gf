@@ -8,7 +8,7 @@ const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_
 const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
 const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GFNodeStateMachineConfigBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_config.gd")
-const GFNodeStateMachineInspectorPluginBase = preload("res://addons/gf/kernel/editor/gf_node_state_machine_inspector_plugin.gd")
+const GFNodeStateMachineInspectorPluginBase = preload("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd")
 
 
 # --- 辅助子类 ---

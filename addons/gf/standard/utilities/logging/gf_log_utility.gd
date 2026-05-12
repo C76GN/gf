@@ -426,7 +426,7 @@ func clear_memory_entries() -> void:
 ## @param value: 要清洗的值。
 ## @return 清洗后的值。
 static func sanitize_log_value(value: Variant) -> Variant:
-	return _sanitize_log_value(value)
+	return _sanitize_log_value(value, 0, [])
 
 
 # --- 私有方法 ---
@@ -625,10 +625,10 @@ func _merge_log_context(context: Dictionary) -> Dictionary:
 		merged[key] = context[key]
 	if not merged.has("trace_id"):
 		merged["trace_id"] = get_trace_id()
-	return _sanitize_log_value(merged) as Dictionary
+	return _sanitize_log_value(merged, 0, []) as Dictionary
 
 
-static func _sanitize_log_value(value: Variant, depth: int = 0) -> Variant:
+static func _sanitize_log_value(value: Variant, depth: int = 0, visited: Array = []) -> Variant:
 	if depth >= _MAX_SANITIZE_DEPTH:
 		return "<max_depth>"
 
@@ -640,15 +640,23 @@ static func _sanitize_log_value(value: Variant, depth: int = 0) -> Variant:
 		TYPE_STRING_NAME, TYPE_NODE_PATH:
 			return _truncate_log_string(String(value))
 		TYPE_DICTIONARY:
+			if _visited_contains_reference(visited, value):
+				return "<circular_reference>"
+			visited.append(value)
 			var result: Dictionary = {}
 			var source := value as Dictionary
 			for key: Variant in source.keys():
-				result[String(key)] = _sanitize_log_value(source[key], depth + 1)
+				result[String(key)] = _sanitize_log_value(source[key], depth + 1, visited)
+			visited.pop_back()
 			return result
 		TYPE_ARRAY:
+			if _visited_contains_reference(visited, value):
+				return "<circular_reference>"
+			visited.append(value)
 			var result: Array = []
 			for item: Variant in (value as Array):
-				result.append(_sanitize_log_value(item, depth + 1))
+				result.append(_sanitize_log_value(item, depth + 1, visited))
+			visited.pop_back()
 			return result
 		TYPE_PACKED_BYTE_ARRAY:
 			return {
@@ -663,7 +671,7 @@ static func _sanitize_log_value(value: Variant, depth: int = 0) -> Variant:
 		TYPE_PACKED_STRING_ARRAY:
 			var strings: Array = []
 			for item: String in (value as PackedStringArray):
-				strings.append(_sanitize_log_value(item, depth + 1))
+				strings.append(_sanitize_log_value(item, depth + 1, visited))
 			return strings
 		TYPE_OBJECT:
 			var object := value as Object
@@ -680,6 +688,13 @@ static func _sanitize_log_value(value: Variant, depth: int = 0) -> Variant:
 			return payload
 		_:
 			return _truncate_log_string(str(value))
+
+
+static func _visited_contains_reference(visited: Array, value: Variant) -> bool:
+	for item: Variant in visited:
+		if is_same(item, value):
+			return true
+	return false
 
 
 static func _truncate_log_string(value: String) -> String:

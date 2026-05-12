@@ -1,6 +1,6 @@
 ## GFPackageManifest: GF 包元数据描述。
 ##
-## 用于描述官方包或社区包的稳定 ID、版本、依赖和可选安装入口。
+## 用于描述官方包或社区包的稳定 ID、版本、依赖、安装入口和编辑器扩展。
 class_name GFPackageManifest
 extends RefCounted
 
@@ -46,6 +46,21 @@ var dependencies: Array[String] = []
 ## 可选 GFInstaller 路径列表。需要自动装配运行时模块时使用。
 var installer_paths: Array[String] = []
 
+## 可选编辑器菜单动作脚本路径列表。
+var editor_action_paths: Array[String] = []
+
+## 可选编辑器底部面板脚本路径列表。
+var editor_dock_paths: Array[String] = []
+
+## 可选 EditorInspectorPlugin 路径列表。需要为包内类型提供 Inspector 增强时使用。
+var editor_inspector_paths: Array[String] = []
+
+## 可选 EditorExportPlugin 路径列表。
+var export_plugin_paths: Array[String] = []
+
+## 可选 GFAccessGenerator 扩展脚本路径列表。
+var access_generator_extension_paths: Array[String] = []
+
 ## 便于工具筛选的标签。
 var tags: Array[String] = []
 
@@ -77,6 +92,11 @@ static func from_dictionary(
 	manifest.description = String(data.get("description", data.get("summary", "")))
 	manifest.dependencies = _to_string_array(data.get("dependencies", []))
 	manifest.installer_paths = _to_string_array(data.get("installer_paths", []))
+	manifest.editor_action_paths = _to_string_array(data.get("editor_action_paths", []))
+	manifest.editor_dock_paths = _to_string_array(data.get("editor_dock_paths", []))
+	manifest.editor_inspector_paths = _to_string_array(data.get("editor_inspector_paths", []))
+	manifest.export_plugin_paths = _to_string_array(data.get("export_plugin_paths", []))
+	manifest.access_generator_extension_paths = _to_string_array(data.get("access_generator_extension_paths", []))
 	manifest.tags = _to_string_array(data.get("tags", []))
 	manifest.enabled_by_default = bool(data.get(
 		"enabled_by_default",
@@ -118,6 +138,11 @@ func to_dictionary() -> Dictionary:
 		"description": description,
 		"dependencies": dependencies.duplicate(),
 		"installer_paths": installer_paths.duplicate(),
+		"editor_action_paths": editor_action_paths.duplicate(),
+		"editor_dock_paths": editor_dock_paths.duplicate(),
+		"editor_inspector_paths": editor_inspector_paths.duplicate(),
+		"export_plugin_paths": export_plugin_paths.duplicate(),
+		"access_generator_extension_paths": access_generator_extension_paths.duplicate(),
 		"tags": tags.duplicate(),
 		"enabled_by_default": enabled_by_default,
 		"source_path": source_path,
@@ -144,10 +169,40 @@ func get_validation_errors() -> Array[String]:
 		errors.append("kind must be standard, official, or community")
 	if root_path.strip_edges().is_empty():
 		errors.append("root_path is required")
+	_append_resource_path_errors(errors, "installer_paths", installer_paths)
+	_append_resource_path_errors(errors, "editor_action_paths", editor_action_paths)
+	_append_resource_path_errors(errors, "editor_dock_paths", editor_dock_paths)
+	_append_resource_path_errors(errors, "editor_inspector_paths", editor_inspector_paths)
+	_append_resource_path_errors(errors, "export_plugin_paths", export_plugin_paths)
+	_append_resource_path_errors(errors, "access_generator_extension_paths", access_generator_extension_paths)
 	return errors
 
 
 # --- 私有/辅助方法 ---
+
+func _append_resource_path_errors(
+	errors: Array[String],
+	property_name: String,
+	paths: Array[String]
+) -> void:
+	for path: String in paths:
+		var normalized_path := path.strip_edges()
+		if normalized_path.is_empty():
+			errors.append("%s contains empty path" % property_name)
+			continue
+		if not normalized_path.begins_with("res://"):
+			errors.append("%s path must be res://: %s" % [property_name, normalized_path])
+			continue
+		if not _path_is_under_root(normalized_path):
+			errors.append("%s path must stay under root_path: %s" % [property_name, normalized_path])
+
+
+func _path_is_under_root(path: String) -> bool:
+	var normalized_root := root_path.strip_edges().trim_suffix("/")
+	if normalized_root.is_empty():
+		return true
+	return path == normalized_root or path.begins_with(normalized_root + "/")
+
 
 static func _to_string_array(value: Variant) -> Array[String]:
 	var result: Array[String] = []

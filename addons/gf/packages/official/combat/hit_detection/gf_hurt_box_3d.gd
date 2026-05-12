@@ -22,6 +22,10 @@ signal hit_received(context: GFCombatHitContext, report: Dictionary)
 ## @param report: 结果报告。
 signal hit_rejected(context: GFCombatHitContext, report: Dictionary)
 
+## 启用状态变化时发出。
+## @param enabled: 当前是否允许接收命中。
+signal enabled_changed(enabled: bool)
+
 
 # --- 常量 ---
 
@@ -31,7 +35,12 @@ const _MESSAGE_RECEIVER_SUPPORT: Script = preload("res://addons/gf/standard/comm
 # --- 导出变量 ---
 
 ## 是否允许接收命中。
-@export var enabled: bool = true
+@export var enabled: bool = true:
+	set(value):
+		if enabled == value:
+			return
+		enabled = value
+		enabled_changed.emit(enabled)
 
 ## 非空时，只接受这些命中 ID。
 @export var accepted_hit_ids: Array[StringName] = []

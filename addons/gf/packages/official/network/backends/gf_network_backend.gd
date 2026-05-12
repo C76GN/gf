@@ -27,7 +27,7 @@ signal message_received(peer_id: int, bytes: PackedByteArray)
 
 ## 启动主机。
 ## @param _options: 后端自定义选项。
-## @return Godot Error。
+## @return Godot 错误码。
 func host(_options: Dictionary = {}) -> Error:
 	return ERR_UNAVAILABLE
 
@@ -35,7 +35,7 @@ func host(_options: Dictionary = {}) -> Error:
 ## 连接远端。
 ## @param _endpoint: 远端地址。
 ## @param _options: 后端自定义选项。
-## @return Godot Error。
+## @return Godot 错误码。
 func connect_to_endpoint(_endpoint: String, _options: Dictionary = {}) -> Error:
 	return ERR_UNAVAILABLE
 
@@ -49,7 +49,7 @@ func disconnect_backend() -> void:
 ## @param _peer_id: 目标 peer；后端可约定 -1 表示广播。
 ## @param _bytes: 消息 bytes。
 ## @param _options: 后端自定义发送选项。
-## @return Godot Error。
+## @return Godot 错误码。
 func send_bytes(_peer_id: int, _bytes: PackedByteArray, _options: Dictionary = {}) -> Error:
 	return ERR_UNAVAILABLE
 

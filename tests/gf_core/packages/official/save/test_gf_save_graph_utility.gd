@@ -325,6 +325,73 @@ func test_apply_scope_rejects_empty_payload() -> void:
 	assert_true((result["errors"] as Array).has("Save payload is empty."), "空载荷应返回明确错误。")
 
 
+func test_apply_scope_rejects_invalid_sources_payload() -> void:
+	var payload := {
+		"format": GFSaveGraphUtilityBase.FORMAT_ID,
+		"format_version": GFSaveGraphUtilityBase.FORMAT_VERSION,
+		"scope": {},
+		"sources": [],
+		"scopes": {},
+	}
+
+	var result := _utility.apply_scope(_scope, payload)
+
+	assert_false(bool(result["ok"]), "sources 非 Dictionary 时不应继续应用。")
+	assert_true((result["errors"] as Array).has("Invalid save payload: sources must be a Dictionary."), "结构错误应写入 apply result。")
+
+
+func test_apply_scope_rejects_invalid_child_payload() -> void:
+	var child_scope := GFSaveScopeBase.new()
+	child_scope.name = "ChildScope"
+	child_scope.scope_key = &"child"
+	_scope.add_child(child_scope)
+	var payload := {
+		"format": GFSaveGraphUtilityBase.FORMAT_ID,
+		"format_version": GFSaveGraphUtilityBase.FORMAT_VERSION,
+		"scope": {},
+		"sources": {},
+		"scopes": {
+			"child": [],
+		},
+	}
+
+	var result := _utility.apply_scope(_scope, payload)
+
+	assert_false(bool(result["ok"]), "子 Scope 载荷非 Dictionary 时不应被当作成功。")
+	assert_true((result["errors"] as Array).has("Invalid child scope payload: child"), "坏子载荷应写入明确错误。")
+
+
+func test_apply_scope_rejects_invalid_serializer_data() -> void:
+	var target := Node2D.new()
+	target.name = "Target"
+	_scope.add_child(target)
+	_scope.add_child(_make_source(&"target_state", NodePath("../Target")))
+	var payload := {
+		"format": GFSaveGraphUtilityBase.FORMAT_ID,
+		"format_version": GFSaveGraphUtilityBase.FORMAT_VERSION,
+		"scope": {},
+		"sources": {
+			"target_state": {
+				"descriptor": {},
+				"data": {
+					"serializers": [{
+						"id": &"gf.transform_2d",
+						"data": [],
+					}],
+				},
+			},
+		},
+		"scopes": {},
+	}
+
+	var result := _utility.apply_scope(_scope, payload)
+	var errors := result["errors"] as Array
+
+	assert_false(bool(result["ok"]), "Serializer data 非 Dictionary 时应返回失败。")
+	assert_eq(errors.size(), 1, "错误应汇总到 source 级结果。")
+	assert_true(String(errors[0]).contains("Serializer data must be a Dictionary: gf.transform_2d"), "Serializer 错误应指出具体片段。")
+
+
 ## 验证载荷校验会报告当前 Scope 中不存在的 Source。
 func test_validate_payload_for_scope_reports_missing_source() -> void:
 	var payload := {

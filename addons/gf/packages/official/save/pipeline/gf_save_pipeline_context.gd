@@ -16,7 +16,7 @@ const GFSavePipelineEventBase = preload("res://addons/gf/packages/official/save/
 ## 当前操作类型，如 gather 或 apply。
 var operation: StringName = &""
 
-## 根 Scope key。
+## 根作用域键。
 var root_scope_key: StringName = &""
 
 ## 流程共享数据。项目层可写入自己的临时状态。
@@ -52,7 +52,7 @@ func _init(
 
 ## 开始一次流程操作。
 ## @param p_operation: 操作类型。
-## @param p_root_scope_key: 根 Scope key。
+## @param p_root_scope_key: 根作用域键。
 ## @param p_shared: 初始共享数据。
 ## @return 当前上下文。
 func begin_operation(

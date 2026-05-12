@@ -186,14 +186,14 @@ func get_queue_size() -> int:
 	return _queue.size()
 
 
-## 获取当前 session ID。
-## @return session ID。
+## 获取当前会话标识。
+## @return 会话标识。
 func get_session_id() -> String:
 	return _session_id
 
 
-## 获取当前 client ID。
-## @return client ID。
+## 获取当前客户端标识。
+## @return 客户端标识。
 func get_client_id() -> String:
 	return _client_id
 

@@ -5,7 +5,9 @@
   "kind": "official",
   "description": "Turn phases, turn actions, contexts, and turn flow system primitives.",
   "dependencies": ["gf.kernel", "gf.standard"],
-  "installer_paths": [],
+  "installer_paths": [
+    "res://addons/gf/packages/official/turn_based/package.gd"
+  ],
   "enabled_by_default": true,
   "tags": ["turn-based", "flow"]
 }

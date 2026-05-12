@@ -332,6 +332,11 @@ func _show_manifest_details(manifest: GFPackageManifest) -> void:
 	lines.append("")
 	lines.append("依赖：%s" % _format_dependencies(manifest.dependencies))
 	lines.append("Installer：%s" % _format_string_array(manifest.installer_paths))
+	lines.append("菜单动作：%s" % _format_string_array(manifest.editor_action_paths))
+	lines.append("底部面板：%s" % _format_string_array(manifest.editor_dock_paths))
+	lines.append("Inspector：%s" % _format_string_array(manifest.editor_inspector_paths))
+	lines.append("导出插件：%s" % _format_string_array(manifest.export_plugin_paths))
+	lines.append("访问器扩展：%s" % _format_string_array(manifest.access_generator_extension_paths))
 	lines.append("标签：%s" % _format_string_array(manifest.tags))
 	_append_usage_warning_lines(lines, manifest)
 
@@ -496,6 +501,16 @@ func _set_status(message: String) -> void:
 		_status_label.text = message
 
 
+func _scan_disabled_package_references() -> void:
+	_refresh_usage_report()
+	if not _selected_manifest_id.is_empty():
+		for manifest: GFPackageManifest in _manifests:
+			if manifest.id == _selected_manifest_id:
+				_show_manifest_details(manifest)
+				break
+	_set_selection_status()
+
+
 # --- 信号处理函数 ---
 
 func _on_filter_selected(_index: int) -> void:
@@ -517,13 +532,3 @@ func _on_package_toggled(enabled: bool, package_id: String) -> void:
 				_show_manifest_details(manifest)
 				break
 	_set_status("选择已更新，点击“保存设置”后生效。")
-
-
-func _scan_disabled_package_references() -> void:
-	_refresh_usage_report()
-	if not _selected_manifest_id.is_empty():
-		for manifest: GFPackageManifest in _manifests:
-			if manifest.id == _selected_manifest_id:
-				_show_manifest_details(manifest)
-				break
-	_set_selection_status()

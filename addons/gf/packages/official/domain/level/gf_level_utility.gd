@@ -2,7 +2,7 @@
 ##
 ## 负责统一关卡数据读取、开始、重开、胜利和失败信号派发。
 ## 默认通过 GFConfigProvider 读取静态关卡表，并可在重开关卡时清理
-## GFCommandHistoryUtility 与 GFActionQueueSystem 的运行时残留。
+## 命令历史与可选动作队列的运行时残留。
 class_name GFLevelUtility
 extends GFUtility
 
@@ -26,6 +26,13 @@ signal level_won(level_id: Variant)
 ## 当关卡失败时发出。
 ## @param level_id: 关卡 ID。
 signal level_lost(level_id: Variant)
+
+
+# --- 常量 ---
+
+const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const ACTION_QUEUE_PACKAGE_ID: String = "gf.official.action_queue"
+const ACTION_QUEUE_SYSTEM_PATH: String = "core/gf_action_queue_system.gd"
 
 
 # --- 公共变量 ---
@@ -218,10 +225,10 @@ func clear_level_runtime() -> void:
 	if history != null:
 		history.clear()
 
-	var action_queue := _get_system(GFActionQueueSystem) as GFActionQueueSystem
+	var action_queue := _get_enabled_package_system(ACTION_QUEUE_PACKAGE_ID, ACTION_QUEUE_SYSTEM_PATH)
 	if action_queue != null:
-		action_queue.clear_queue(true)
-		action_queue.clear_all_named_queues(true)
+		action_queue.call("clear_queue", true)
+		action_queue.call("clear_all_named_queues", true)
 
 
 ## 清除当前关卡记录。
@@ -314,3 +321,10 @@ func _get_system(system_type: Script) -> Object:
 		return null
 
 	return arch.get_system(system_type)
+
+
+func _get_enabled_package_system(package_id: String, relative_script_path: String) -> Object:
+	var script := GFPackageSettingsBase.load_enabled_package_script(package_id, relative_script_path)
+	if script == null:
+		return null
+	return _get_system(script)

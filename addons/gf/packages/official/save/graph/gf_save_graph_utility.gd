@@ -295,12 +295,35 @@ func apply_scope(
 
 	payload = _run_before_apply_steps(scope, payload, context)
 	pipeline_context.record_event(&"apply_scope_started", scope)
-	scope.before_load(payload, context)
 	var applied := 0
 	var errors: Array[String] = []
 	var missing: Array[String] = []
+	var source_payloads := _get_payload_dictionary_field(
+		payload,
+		"sources",
+		errors,
+		pipeline_context,
+		"invalid_sources_payload"
+	)
+	var child_payloads := _get_payload_dictionary_field(
+		payload,
+		"scopes",
+		errors,
+		pipeline_context,
+		"invalid_scopes_payload"
+	)
+	if not errors.is_empty():
+		return _finish_apply_scope(
+			scope,
+			payload,
+			_make_apply_result(false, applied, errors, missing),
+			context,
+			pipeline_context,
+			owns_pipeline_context
+		)
+
+	scope.before_load(payload, context)
 	var source_index := _index_sources_by_key(scope)
-	var source_payloads: Dictionary = payload.get("sources", {}) as Dictionary
 	var source_keys := source_payloads.keys()
 	source_keys.sort_custom(func(left: Variant, right: Variant) -> bool:
 		return _source_payload_phase(source_payloads[left]) < _source_payload_phase(source_payloads[right])
@@ -308,6 +331,12 @@ func apply_scope(
 
 	for source_key_variant: Variant in source_keys:
 		var source_key := String(source_key_variant)
+		if not (source_payloads[source_key_variant] is Dictionary):
+			var invalid_source_error := "Invalid source payload: %s" % source_key
+			errors.append(invalid_source_error)
+			pipeline_context.add_error(invalid_source_error, { "source_key": source_key })
+			continue
+
 		var source_payload := source_payloads[source_key_variant] as Dictionary
 		var source := source_index.get(source_key) as GFSaveSourceBase
 		if source == null:
@@ -340,12 +369,15 @@ func apply_scope(
 				"source_key": source_key,
 			})
 		else:
-			var source_error := "%s: %s" % [source_key, String(result.get("error", "Apply failed"))]
-			errors.append(source_error)
-			pipeline_context.add_error(source_error, { "source_key": source_key })
+			var source_errors := result.get("errors", []) as Array
+			if source_errors.is_empty():
+				source_errors = [String(result.get("error", "Apply failed"))]
+			for source_error_variant: Variant in source_errors:
+				var source_error := "%s: %s" % [source_key, String(source_error_variant)]
+				errors.append(source_error)
+				pipeline_context.add_error(source_error, { "source_key": source_key })
 
 	var child_scope_index := _index_child_scopes(scope)
-	var child_payloads: Dictionary = payload.get("scopes", {}) as Dictionary
 	for child_key_variant: Variant in child_payloads.keys():
 		var child_key := String(child_key_variant)
 		var child_scope := child_scope_index.get(child_key) as GFSaveScopeBase
@@ -361,6 +393,12 @@ func apply_scope(
 				}, &"warning")
 			continue
 
+		if not (child_payloads[child_key_variant] is Dictionary):
+			var invalid_child_error := "Invalid child scope payload: %s" % child_key
+			errors.append(invalid_child_error)
+			pipeline_context.add_error(invalid_child_error, { "scope_key": child_key })
+			continue
+
 		var child_result := apply_scope(child_scope, child_payloads[child_key_variant] as Dictionary, context, strict)
 		applied += int(child_result.get("applied", 0))
 		var child_errors := child_result.get("errors", []) as Array
@@ -371,22 +409,14 @@ func apply_scope(
 			missing.append("%s/%s" % [child_key, missing_key])
 
 	scope.after_load(payload, context)
-	var final_result := _run_after_apply_steps(
+	return _finish_apply_scope(
 		scope,
 		payload,
 		_make_apply_result(errors.is_empty(), applied, errors, missing),
-		context
+		context,
+		pipeline_context,
+		owns_pipeline_context
 	)
-	pipeline_context.record_event(&"apply_scope_finished", scope, null, "", {
-		"applied": int(final_result.get("applied", 0)),
-		"error_count": (final_result.get("errors", []) as Array).size(),
-		"missing_count": (final_result.get("missing", []) as Array).size(),
-	})
-	if owns_pipeline_context:
-		pipeline_context.finish()
-		if bool(context.get("include_pipeline_trace", false)):
-			final_result["pipeline_trace"] = pipeline_context.to_dict(true)
-	return final_result
 
 
 ## 采集并保存 Scope。
@@ -394,7 +424,7 @@ func apply_scope(
 ## @param scope: 根 Scope。
 ## @param metadata: 附加元信息。
 ## @param context: 调用上下文字典。
-## @return Godot Error。
+## @return Godot 错误码。
 func save_scope(
 	file_name: String,
 	scope: GFSaveScopeBase,
@@ -697,6 +727,44 @@ func _make_apply_result(ok: bool, applied: int, errors: Array[String], missing: 
 		"errors": errors,
 		"missing": missing,
 	}
+
+
+func _get_payload_dictionary_field(
+	payload: Dictionary,
+	field_name: String,
+	errors: Array[String],
+	pipeline_context: GFSavePipelineContextBase,
+	issue_kind: String
+) -> Dictionary:
+	var value: Variant = payload.get(field_name, {})
+	if value is Dictionary:
+		return value as Dictionary
+
+	var error := "Invalid save payload: %s must be a Dictionary." % field_name
+	errors.append(error)
+	pipeline_context.add_error(error, { "kind": issue_kind })
+	return {}
+
+
+func _finish_apply_scope(
+	scope: GFSaveScopeBase,
+	payload: Dictionary,
+	result: Dictionary,
+	context: Dictionary,
+	pipeline_context: GFSavePipelineContextBase,
+	owns_pipeline_context: bool
+) -> Dictionary:
+	var final_result := _run_after_apply_steps(scope, payload, result, context)
+	pipeline_context.record_event(&"apply_scope_finished", scope, null, "", {
+		"applied": int(final_result.get("applied", 0)),
+		"error_count": (final_result.get("errors", []) as Array).size(),
+		"missing_count": (final_result.get("missing", []) as Array).size(),
+	})
+	if owns_pipeline_context:
+		pipeline_context.finish()
+		if bool(context.get("include_pipeline_trace", false)):
+			final_result["pipeline_trace"] = pipeline_context.to_dict(true)
+	return final_result
 
 
 func _ensure_pipeline_context(

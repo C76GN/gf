@@ -7,7 +7,9 @@ extends RefCounted
 
 # --- 常量 ---
 
-const _CAPABILITY_UTILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/capability/core/gf_capability_utility.gd"
+const _CAPABILITY_PACKAGE_ID: String = "gf.official.capability"
+const _CAPABILITY_UTILITY_SCRIPT_RELATIVE_PATH: String = "core/gf_capability_utility.gd"
+const _PACKAGE_SETTINGS: Script = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 
 
 # --- 公共变量 ---
@@ -131,9 +133,10 @@ func _get_capability_utility() -> Object:
 
 
 func _load_capability_utility_script() -> Script:
-	if not ResourceLoader.exists(_CAPABILITY_UTILITY_SCRIPT_PATH):
-		return null
-	return load(_CAPABILITY_UTILITY_SCRIPT_PATH) as Script
+	return _PACKAGE_SETTINGS.load_enabled_package_script(
+		_CAPABILITY_PACKAGE_ID,
+		_CAPABILITY_UTILITY_SCRIPT_RELATIVE_PATH
+	)
 
 
 func _get_architecture_or_null() -> GFArchitecture:

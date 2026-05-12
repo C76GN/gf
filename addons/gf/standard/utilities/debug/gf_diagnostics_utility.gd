@@ -33,6 +33,15 @@ enum CommandTier {
 }
 
 
+# --- 常量 ---
+
+const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const ACTION_QUEUE_PACKAGE_ID: String = "gf.official.action_queue"
+const ACTION_QUEUE_SYSTEM_PATH: String = "core/gf_action_queue_system.gd"
+const NETWORK_PACKAGE_ID: String = "gf.official.network"
+const NETWORK_UTILITY_PATH: String = "runtime/gf_network_utility.gd"
+
+
 # --- 公共变量 ---
 
 ## 是否采集 Godot Performance 监视器。
@@ -399,9 +408,10 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 		bool(options.get("include_recent_logs", true))
 	)
 
-	var network_utility := get_utility(GFNetworkUtility) as GFNetworkUtility
-	if network_utility != null:
-		snapshot["network"] = network_utility.get_debug_snapshot()
+	var network_utility := _get_enabled_package_utility(NETWORK_PACKAGE_ID, NETWORK_UTILITY_PATH)
+	var network_snapshot := _get_instance_debug_snapshot(network_utility)
+	if not network_snapshot.is_empty():
+		snapshot["network"] = network_snapshot
 	snapshot["tools"] = _collect_tool_debug_snapshots()
 
 	if bool(options.get("include_monitors", true)):
@@ -694,7 +704,10 @@ func _monitor_tool_download_snapshot() -> Dictionary:
 
 
 func _monitor_tool_action_queue_snapshot() -> Dictionary:
-	return _get_instance_debug_snapshot(get_system(GFActionQueueSystem))
+	return _get_instance_debug_snapshot(_get_enabled_package_system(
+		ACTION_QUEUE_PACKAGE_ID,
+		ACTION_QUEUE_SYSTEM_PATH
+	))
 
 
 func _collect_tool_debug_snapshots() -> Dictionary:
@@ -705,8 +718,25 @@ func _collect_tool_debug_snapshots() -> Dictionary:
 	_add_tool_debug_snapshot(result, &"remote_cache", get_utility(GFRemoteCacheUtility))
 	_add_tool_debug_snapshot(result, &"download", get_utility(GFDownloadUtility))
 	_add_tool_debug_snapshot(result, &"object_pool", get_utility(GFObjectPoolUtility))
-	_add_tool_debug_snapshot(result, &"action_queue", get_system(GFActionQueueSystem))
+	_add_tool_debug_snapshot(result, &"action_queue", _get_enabled_package_system(
+		ACTION_QUEUE_PACKAGE_ID,
+		ACTION_QUEUE_SYSTEM_PATH
+	))
 	return result
+
+
+func _get_enabled_package_system(package_id: String, relative_script_path: String) -> Object:
+	var script := GFPackageSettingsBase.load_enabled_package_script(package_id, relative_script_path)
+	if script == null:
+		return null
+	return get_system(script)
+
+
+func _get_enabled_package_utility(package_id: String, relative_script_path: String) -> Object:
+	var script := GFPackageSettingsBase.load_enabled_package_script(package_id, relative_script_path)
+	if script == null:
+		return null
+	return get_utility(script)
 
 
 func _add_tool_debug_snapshot(result: Dictionary, key: StringName, instance: Object) -> void:

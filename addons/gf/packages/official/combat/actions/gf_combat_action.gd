@@ -100,7 +100,7 @@ func with_tags(value: Array[StringName]) -> GFCombatAction:
 
 
 ## 设置 payload 并返回自身。
-## @param value: payload。
+## @param value: 载荷。
 ## @return 当前动作。
 func with_payload(value: Variant) -> GFCombatAction:
 	payload = GFVariantData.duplicate_variant(value)

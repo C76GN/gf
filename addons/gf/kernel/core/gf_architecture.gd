@@ -108,6 +108,13 @@ func is_lifecycle_active() -> bool:
 	return (_is_initializing or _inited) and not _initialization_failed
 
 
+## 检查指定模块实例是否已经完成 ready 阶段。
+## @param instance: 由当前架构注册的模块实例。
+## @return 模块完成 ready 阶段时返回 true。
+func is_module_ready(instance: Object) -> bool:
+	return _is_module_ready_for_lookup(instance)
+
+
 ## 将当前架构标记为初始化失败，并唤醒等待初始化或 Installer 的调用方。
 ## @param reason: 初始化失败原因。
 func fail_initialization(reason: String) -> void:
@@ -146,6 +153,10 @@ func is_project_installers_running() -> bool:
 func begin_project_installers() -> bool:
 	if _project_installers_applied or _project_installers_running:
 		return false
+
+	if _initialization_failed and not _inited and not _is_initializing:
+		_initialization_failed = false
+		last_initialization_error = ""
 
 	_project_installers_running = true
 	return true
@@ -524,6 +535,8 @@ func register_factory(
 	factory: Callable,
 	lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT
 ) -> void:
+	if not _can_mutate_registration_state("register_factory"):
+		return
 	if script_cls == null:
 		push_error("[GFArchitecture] register_factory 失败：脚本类型为空。")
 		return
@@ -542,6 +555,8 @@ func register_factory(
 ## @param script_cls: 要创建的脚本类型。
 ## @param instance: 要暴露的实例。
 func register_factory_instance(script_cls: Script, instance: Object) -> void:
+	if not _can_mutate_registration_state("register_factory_instance"):
+		return
 	if script_cls == null:
 		push_error("[GFArchitecture] register_factory_instance 失败：脚本类型为空。")
 		return
@@ -563,6 +578,8 @@ func replace_factory(
 	factory: Callable,
 	lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT
 ) -> void:
+	if not _can_mutate_registration_state("replace_factory"):
+		return
 	if script_cls == null:
 		push_error("[GFArchitecture] replace_factory 失败：脚本类型为空。")
 		return
@@ -578,6 +595,8 @@ func replace_factory(
 ## @param script_cls: 要创建的脚本类型。
 ## @param instance: 要暴露的实例。
 func replace_factory_instance(script_cls: Script, instance: Object) -> void:
+	if not _can_mutate_registration_state("replace_factory_instance"):
+		return
 	if script_cls == null:
 		push_error("[GFArchitecture] replace_factory_instance 失败：脚本类型为空。")
 		return
@@ -730,13 +749,14 @@ func unregister_utility(script_cls: Script) -> void:
 
 ## 通过脚本类获取 System 实例。
 ## @param script_cls: 脚本类。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 系统实例，如果未找到则返回 null。
-func get_system(script_cls: Script) -> Object:
+func get_system(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_system_registry, script_cls)
 	if instance != null:
-		return instance
+		return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_system_registry, script_cls):
-		return _parent_architecture.get_system(script_cls)
+		return _parent_architecture.get_system(script_cls, require_ready)
 	if strict_dependency_lookup:
 		_report_strict_lookup_miss(script_cls, "System")
 	return null
@@ -744,13 +764,14 @@ func get_system(script_cls: Script) -> Object:
 
 ## 通过脚本类获取 Model 实例。
 ## @param script_cls: 脚本类。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 模型实例，如果未找到则返回 null。
-func get_model(script_cls: Script) -> Object:
+func get_model(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_model_registry, script_cls)
 	if instance != null:
-		return instance
+		return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_model_registry, script_cls):
-		return _parent_architecture.get_model(script_cls)
+		return _parent_architecture.get_model(script_cls, require_ready)
 	if strict_dependency_lookup:
 		_report_strict_lookup_miss(script_cls, "Model")
 	return null
@@ -758,13 +779,14 @@ func get_model(script_cls: Script) -> Object:
 
 ## 通过脚本类获取 Utility 实例。
 ## @param script_cls: 脚本类。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 工具实例，如果未找到则返回 null。
-func get_utility(script_cls: Script) -> Object:
+func get_utility(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_utility_registry, script_cls)
 	if instance != null:
-		return instance
+		return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 	if _parent_architecture != null and not strict_dependency_lookup and not _has_assignable_instance(_utility_registry, script_cls):
-		return _parent_architecture.get_utility(script_cls)
+		return _parent_architecture.get_utility(script_cls, require_ready)
 	if strict_dependency_lookup:
 		_report_strict_lookup_miss(script_cls, "Utility")
 	return null
@@ -772,23 +794,29 @@ func get_utility(script_cls: Script) -> Object:
 
 ## 仅从当前架构获取 System，不回退父级架构。
 ## @param script_cls: 脚本类。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前架构中的系统实例，如果未找到则返回 null。
-func get_local_system(script_cls: Script) -> Object:
-	return _get_local_registered_instance(_system_registry, script_cls)
+func get_local_system(script_cls: Script, require_ready: bool = false) -> Object:
+	var instance := _get_local_registered_instance(_system_registry, script_cls)
+	return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 
 
 ## 仅从当前架构获取 Model，不回退父级架构。
 ## @param script_cls: 脚本类。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前架构中的模型实例，如果未找到则返回 null。
-func get_local_model(script_cls: Script) -> Object:
-	return _get_local_registered_instance(_model_registry, script_cls)
+func get_local_model(script_cls: Script, require_ready: bool = false) -> Object:
+	var instance := _get_local_registered_instance(_model_registry, script_cls)
+	return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 
 
 ## 仅从当前架构获取 Utility，不回退父级架构。
 ## @param script_cls: 脚本类。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前架构中的工具实例，如果未找到则返回 null。
-func get_local_utility(script_cls: Script) -> Object:
-	return _get_local_registered_instance(_utility_registry, script_cls)
+func get_local_utility(script_cls: Script, require_ready: bool = false) -> Object:
+	var instance := _get_local_registered_instance(_utility_registry, script_cls)
+	return instance if not require_ready or _is_module_ready_for_lookup(instance) else null
 
 
 ## 通过已注册工厂创建短生命周期对象。
@@ -1770,6 +1798,8 @@ func _track_registered_module(instance: Object) -> void:
 
 
 func _register_module(module_registry: ModuleRegistry, script_cls: Script, instance: Object) -> bool:
+	if not _can_mutate_registration_state("register_%s" % module_registry._label_key()):
+		return false
 	if not _validate_registration(script_cls, instance, module_registry.label):
 		return false
 	if module_registry._has_direct(script_cls):
@@ -1785,6 +1815,13 @@ func _register_module(module_registry: ModuleRegistry, script_cls: Script, insta
 	module_registry.instances[script_cls] = instance
 	module_registry._clear_assignable_cache()
 	_track_registered_module(instance)
+	return true
+
+
+func _can_mutate_registration_state(context: String) -> bool:
+	if _initialization_failed:
+		push_error("[GFArchitecture] %s 失败：架构初始化已失败，已拒绝迟到写入。" % context)
+		return false
 	return true
 
 
@@ -1939,6 +1976,15 @@ func _is_module_ready_for_tick(instance: Object) -> bool:
 	return int(_module_lifecycle_stages.get(instance, 0)) >= 3
 
 
+func _is_module_ready_for_lookup(instance: Object) -> bool:
+	return (
+		instance != null
+		and _inited
+		and not _initialization_failed
+		and int(_module_lifecycle_stages.get(instance, 0)) >= 3
+	)
+
+
 func _module_participates_in_tick(instance: Object, method_name: StringName, explicit_property: StringName) -> bool:
 	if instance == null:
 		return false
@@ -1992,6 +2038,8 @@ func _count_script_methods(script: Script, method_name: StringName) -> int:
 
 
 func _register_module_alias(module_registry: ModuleRegistry, alias_cls: Script, target_cls: Script) -> void:
+	if not _can_mutate_registration_state("register_%s_alias" % module_registry._label_key()):
+		return
 	if alias_cls == null or target_cls == null:
 		push_error("[GFArchitecture] register_%s_alias 失败：alias 或 target 为空。" % module_registry._label_key())
 		return
@@ -2063,7 +2111,7 @@ func _find_assignable_registered_key(module_registry: ModuleRegistry, script_cls
 	if matches.size() == 1:
 		return matches[0]
 	if matches.size() > 1:
-		push_warning("[GFArchitecture] get_%s(%s) 匹配到多个实例，请使用显式 alias 注册以消除歧义。" % [
+		push_warning("[GFArchitecture] get_%s(%s) 匹配到多个本地实例，本次查询不会回退父架构；请使用显式 alias 注册以消除歧义。" % [
 			module_registry._label_key(),
 			script_cls.resource_path,
 		])
@@ -2077,12 +2125,6 @@ func _has_assignable_instance(module_registry: ModuleRegistry, script_cls: Scrip
 		if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(registered_script, script_cls):
 			return true
 	return false
-
-
-func _clear_assignable_lookup_caches() -> void:
-	_system_registry._clear_assignable_cache()
-	_model_registry._clear_assignable_cache()
-	_utility_registry._clear_assignable_cache()
 
 
 # --- 内部类 ---

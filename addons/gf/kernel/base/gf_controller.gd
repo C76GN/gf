@@ -9,6 +9,9 @@ extends Node
 # --- 常量 ---
 
 const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const _EVENT_BINDING_KIND_TYPE: StringName = &"type"
+const _EVENT_BINDING_KIND_ASSIGNABLE: StringName = &"assignable"
+const _EVENT_BINDING_KIND_SIMPLE: StringName = &"simple"
 
 
 # --- 导出变量 ---
@@ -30,16 +33,18 @@ var host: Node:
 # --- 私有变量 ---
 
 var _event_architectures: Array[GFArchitecture] = []
+var _event_bindings: Array[Dictionary] = []
+var _events_paused_by_pool: bool = false
 
 
 # --- Godot 生命周期方法 ---
 
 func _exit_tree() -> void:
+	if _events_paused_by_pool:
+		return
 	_remember_event_architecture(_get_architecture_or_null())
-	for architecture: GFArchitecture in _event_architectures:
-		if architecture != null and is_instance_valid(architecture):
-			architecture.unregister_owner_events(self)
-	_event_architectures.clear()
+	_unregister_all_tracked_owner_events()
+	_event_bindings.clear()
 
 
 # --- 获取方法 ---
@@ -106,62 +111,68 @@ func get_host_as(host_type: Variant) -> Node:
 
 ## 通过类型获取 Model 实例。
 ## @param model_type: 模型的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 模型实例。
-func get_model(model_type: Script) -> Object:
+func get_model(model_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_model(model_type)
+	return architecture.get_model(model_type, require_ready)
 
 
 ## 通过类型获取 System 实例。
 ## @param system_type: 系统的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 系统实例。
-func get_system(system_type: Script) -> Object:
+func get_system(system_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_system(system_type)
+	return architecture.get_system(system_type, require_ready)
 
 
 ## 通过类型获取 Utility 实例。
 ## @param utility_type: 工具的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 工具实例。
-func get_utility(utility_type: Script) -> Object:
+func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_utility(utility_type)
+	return architecture.get_utility(utility_type, require_ready)
 
 
 ## 仅从当前 Controller 所属架构获取 Model，不回退父级架构。
 ## @param model_type: 模型的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前架构中的模型实例。
-func get_local_model(model_type: Script) -> Object:
+func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_local_model(model_type)
+	return architecture.get_local_model(model_type, require_ready)
 
 
 ## 仅从当前 Controller 所属架构获取 System，不回退父级架构。
 ## @param system_type: 系统的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前架构中的系统实例。
-func get_local_system(system_type: Script) -> Object:
+func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_local_system(system_type)
+	return architecture.get_local_system(system_type, require_ready)
 
 
 ## 仅从当前 Controller 所属架构获取 Utility，不回退父级架构。
 ## @param utility_type: 工具的脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
 ## @return 当前架构中的工具实例。
-func get_local_utility(utility_type: Script) -> Object:
+func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
-	return architecture.get_local_utility(utility_type)
+	return architecture.get_local_utility(utility_type, require_ready)
 
 
 # --- 命令与查询 ---
@@ -193,6 +204,9 @@ func send_query(query: Object) -> Variant:
 ## @param callback: 回调函数。
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
+	_remember_event_binding(_EVENT_BINDING_KIND_TYPE, event_type, callback, priority)
+	if _events_paused_by_pool:
+		return
 	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_event_owned(self, event_type, callback, priority)
@@ -203,6 +217,7 @@ func register_event(event_type: Script, callback: Callable, priority: int = 0) -
 ## @param event_type: 要注销的脚本类型。
 ## @param callback: 要移除的回调函数。
 func unregister_event(event_type: Script, callback: Callable) -> void:
+	_forget_event_binding(_EVENT_BINDING_KIND_TYPE, event_type, callback)
 	if not _unregister_event_from_tracked_architectures(event_type, callback):
 		var architecture := _get_architecture_or_null()
 		if architecture != null:
@@ -214,6 +229,9 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 ## @param callback: 回调函数。
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void:
+	_remember_event_binding(_EVENT_BINDING_KIND_ASSIGNABLE, base_event_type, callback, priority)
+	if _events_paused_by_pool:
+		return
 	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_assignable_event_owned(self, base_event_type, callback, priority)
@@ -224,6 +242,7 @@ func register_assignable_event(base_event_type: Script, callback: Callable, prio
 ## @param base_event_type: 注册时使用的基类脚本类型。
 ## @param callback: 要移除的回调函数。
 func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
+	_forget_event_binding(_EVENT_BINDING_KIND_ASSIGNABLE, base_event_type, callback)
 	if not _unregister_assignable_event_from_tracked_architectures(base_event_type, callback):
 		var architecture := _get_architecture_or_null()
 		if architecture != null:
@@ -242,6 +261,9 @@ func send_event(event_instance: Object) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, callback: Callable) -> void:
+	_remember_event_binding(_EVENT_BINDING_KIND_SIMPLE, event_id, callback, 0)
+	if _events_paused_by_pool:
+		return
 	var architecture := _get_architecture_or_null()
 	if architecture != null:
 		architecture.register_simple_event_owned(self, event_id, callback)
@@ -252,6 +274,7 @@ func register_simple_event(event_id: StringName, callback: Callable) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param callback: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
+	_forget_event_binding(_EVENT_BINDING_KIND_SIMPLE, event_id, callback)
 	if not _unregister_simple_event_from_tracked_architectures(event_id, callback):
 		var architecture := _get_architecture_or_null()
 		if architecture != null:
@@ -269,6 +292,27 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 
 # --- 私有/辅助方法 ---
 
+func _gf_on_object_pool_release() -> void:
+	if _events_paused_by_pool:
+		return
+	_remember_event_architecture(_get_architecture_or_null())
+	_unregister_all_tracked_owner_events()
+	_events_paused_by_pool = true
+
+
+func _gf_on_object_pool_acquire() -> void:
+	if not _events_paused_by_pool:
+		return
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return
+
+	for binding: Dictionary in _event_bindings:
+		_register_event_binding(architecture, binding)
+	_remember_event_architecture(architecture)
+	_events_paused_by_pool = false
+
+
 func _get_architecture_or_null() -> GFArchitecture:
 	var context := _find_nearest_context()
 	if context != null:
@@ -284,6 +328,58 @@ func _remember_event_architecture(architecture: GFArchitecture) -> void:
 		return
 	if not _event_architectures.has(architecture):
 		_event_architectures.append(architecture)
+
+
+func _remember_event_binding(kind: StringName, event_key: Variant, callback: Callable, priority: int) -> void:
+	for binding: Dictionary in _event_bindings:
+		if (
+			binding.get("kind", &"") == kind
+			and binding.get("event_key") == event_key
+			and binding.get("callback") == callback
+		):
+			return
+
+	_event_bindings.append({
+		"kind": kind,
+		"event_key": event_key,
+		"callback": callback,
+		"priority": priority,
+	})
+
+
+func _forget_event_binding(kind: StringName, event_key: Variant, callback: Callable) -> void:
+	for i: int in range(_event_bindings.size() - 1, -1, -1):
+		var binding := _event_bindings[i]
+		if (
+			binding.get("kind", &"") == kind
+			and binding.get("event_key") == event_key
+			and binding.get("callback") == callback
+		):
+			_event_bindings.remove_at(i)
+
+
+func _register_event_binding(architecture: GFArchitecture, binding: Dictionary) -> void:
+	if architecture == null or not is_instance_valid(architecture):
+		return
+
+	var kind: StringName = binding.get("kind", &"")
+	var event_key: Variant = binding.get("event_key")
+	var callback: Callable = binding.get("callback", Callable())
+	var priority: int = int(binding.get("priority", 0))
+
+	if kind == _EVENT_BINDING_KIND_TYPE:
+		architecture.register_event_owned(self, event_key as Script, callback, priority)
+	elif kind == _EVENT_BINDING_KIND_ASSIGNABLE:
+		architecture.register_assignable_event_owned(self, event_key as Script, callback, priority)
+	elif kind == _EVENT_BINDING_KIND_SIMPLE:
+		architecture.register_simple_event_owned(self, event_key as StringName, callback)
+
+
+func _unregister_all_tracked_owner_events() -> void:
+	for architecture: GFArchitecture in _event_architectures:
+		if architecture != null and is_instance_valid(architecture):
+			architecture.unregister_owner_events(self)
+	_event_architectures.clear()
 
 
 func _unregister_event_from_tracked_architectures(event_type: Script, callback: Callable) -> bool:

@@ -19,12 +19,13 @@ var _menu: PopupMenu
 ## 创建并注册 GF 工具菜单。
 ## @param plugin: 当前 EditorPlugin 实例。
 ## @param handler: 处理菜单 ID 的回调。
-func setup(plugin: EditorPlugin, handler: Callable) -> void:
+## @param package_entries: 启用包注册的菜单项。
+func setup(plugin: EditorPlugin, handler: Callable, package_entries: Array[Dictionary] = []) -> void:
 	if plugin == null:
 		return
 	_menu = PopupMenu.new()
 	_menu.id_pressed.connect(handler)
-	_populate_menu()
+	_populate_menu(package_entries)
 	plugin.add_tool_submenu_item("GF", _menu)
 
 
@@ -40,7 +41,7 @@ func cleanup(plugin: EditorPlugin) -> void:
 
 # --- 私有/辅助方法 ---
 
-func _populate_menu() -> void:
+func _populate_menu(package_entries: Array[Dictionary]) -> void:
 	_menu.add_separator("核心模块")
 	_menu.add_item("生成 System", GFPluginActions.MENU_GENERATE_SYSTEM)
 	_menu.add_item("生成 Model", GFPluginActions.MENU_GENERATE_MODEL)
@@ -60,5 +61,22 @@ func _populate_menu() -> void:
 	_menu.add_item("生成强类型访问器", GFPluginActions.MENU_GENERATE_ACCESSORS)
 	_menu.add_item("生成项目常量访问器", GFPluginActions.MENU_GENERATE_PROJECT_ACCESSORS)
 
-	_menu.add_separator("诊断")
-	_menu.add_item("校验当前场景 SaveGraph", GFPluginActions.MENU_VALIDATE_SAVE_GRAPH)
+	_add_package_entries(package_entries)
+
+
+func _add_package_entries(package_entries: Array[Dictionary]) -> void:
+	var current_section := ""
+	for entry: Dictionary in package_entries:
+		var label := String(entry.get("label", "")).strip_edges()
+		var id := int(entry.get("id", -1))
+		if label.is_empty() or id < 0:
+			continue
+
+		var section := String(entry.get("section", "")).strip_edges()
+		if section.is_empty():
+			section = "扩展工具"
+		if section != current_section:
+			_menu.add_separator(section)
+			current_section = section
+
+		_menu.add_item(label, id)

@@ -65,9 +65,9 @@ var _event_handlers: Dictionary = {}
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	_unregister_all_event_handlers()
 	_quests.clear()
 	_event_to_quests.clear()
-	_event_handlers.clear()
 
 
 func dispose() -> void:
@@ -226,7 +226,7 @@ func get_quest_progress(quest_id: StringName) -> float:
 		if q.target_count <= 0:
 			return 1.0
 
-		return float(q.current_count) / float(q.target_count)
+		return clampf(float(q.current_count) / float(q.target_count), 0.0, 1.0)
 
 	return 0.0
 
@@ -315,6 +315,17 @@ func _register_event_handler(event_id: StringName) -> void:
 		arch.register_simple_event(event_id, event_handler)
 
 
+func _unregister_event_handler(event_id: StringName) -> void:
+	if not _event_handlers.has(event_id):
+		return
+
+	var arch := _get_arch()
+	if arch != null and arch.has_method("unregister_simple_event"):
+		var event_handler := _event_handlers[event_id] as Callable
+		arch.unregister_simple_event(event_id, event_handler)
+	_event_handlers.erase(event_id)
+
+
 func _unregister_all_event_handlers() -> void:
 	var arch := _get_arch()
 	if arch != null and arch.has_method("unregister_simple_event"):
@@ -378,6 +389,9 @@ func _detach_quest_from_event(data: QuestData) -> void:
 		return
 	var list: Array = _event_to_quests[data.event_id]
 	list.erase(data.quest_id)
+	if list.is_empty():
+		_event_to_quests.erase(data.event_id)
+		_unregister_event_handler(data.event_id)
 
 
 func _try_complete_quest(data: QuestData) -> bool:

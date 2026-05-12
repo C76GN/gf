@@ -2,6 +2,9 @@
 extends GutTest
 
 
+const GF_PACKAGE_SETTINGS_BASE := preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+
+
 class RecordingCommand extends RefCounted:
 	var interaction_context: Variant = null
 
@@ -54,6 +57,16 @@ func test_interaction_context_group_receivers_without_capability_utility() -> vo
 	assert_eq(ctx.get_group_receivers().size(), 0, "未注入架构时无法解析能力工具，应返回空列表。")
 
 
+func test_interaction_context_skips_capability_when_package_disabled() -> void:
+	var restore := _set_enabled_packages(["gf.official.interaction"])
+	var ctx := GFInteractionContext.new()
+	var capability_utility_script: Script = ctx._load_capability_utility_script()
+
+	_restore_enabled_packages(restore)
+
+	assert_null(capability_utility_script, "Capability 包禁用时，Interaction 辅助不应加载能力工具。")
+
+
 func test_interaction_flow_chaining_updates_context() -> void:
 	var ctx := GFInteractionContext.new()
 	var flow := GFInteractionFlow.new(ctx)
@@ -92,3 +105,23 @@ func test_interaction_flow_send_event_null_is_no_op() -> void:
 	var flow := GFInteractionFlow.new()
 	flow.send_event(null)
 	assert_true(flow.context != null, "send_event(null) 应静默返回且 Flow 仍持有默认上下文。")
+
+
+# --- 私有/辅助方法 ---
+
+func _set_enabled_packages(package_ids: Array[String]) -> Dictionary:
+	var setting_name: String = GF_PACKAGE_SETTINGS_BASE.ENABLED_PACKAGES_SETTING
+	var restore := {
+		"had_setting": ProjectSettings.has_setting(setting_name),
+		"value": ProjectSettings.get_setting(setting_name, []),
+	}
+	ProjectSettings.set_setting(setting_name, package_ids)
+	return restore
+
+
+func _restore_enabled_packages(restore: Dictionary) -> void:
+	var setting_name: String = GF_PACKAGE_SETTINGS_BASE.ENABLED_PACKAGES_SETTING
+	if bool(restore.get("had_setting", false)):
+		ProjectSettings.set_setting(setting_name, restore.get("value", []))
+	else:
+		ProjectSettings.clear(setting_name)

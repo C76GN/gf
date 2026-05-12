@@ -5,7 +5,9 @@
   "kind": "official",
   "description": "Reusable feedback sampling, shake receivers, presets, and action queue integration.",
   "dependencies": ["gf.kernel", "gf.standard"],
-  "installer_paths": [],
+  "installer_paths": [
+    "res://addons/gf/packages/official/feedback/package.gd"
+  ],
   "enabled_by_default": true,
   "tags": ["feedback", "camera", "presentation"]
 }

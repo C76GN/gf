@@ -5,7 +5,12 @@
   "kind": "official",
   "description": "Save graph composition, node serializers, save pipelines, scopes, sources, and slot workflows.",
   "dependencies": ["gf.kernel", "gf.standard"],
-  "installer_paths": [],
+  "installer_paths": [
+    "res://addons/gf/packages/official/save/package.gd"
+  ],
+  "editor_action_paths": [
+    "res://addons/gf/packages/official/save/editor/gf_save_editor_actions.gd"
+  ],
   "enabled_by_default": true,
   "tags": ["save", "serialization", "workflow"]
 }

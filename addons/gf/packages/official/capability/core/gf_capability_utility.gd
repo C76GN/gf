@@ -50,6 +50,15 @@ const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/packages/offic
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
 
 
+# --- 公共变量 ---
+
+## tick() 自动清理失效 receiver 时每次最多检查的数量，避免大型索引在单帧产生尖峰。
+## 主动调用 prune_invalid_receivers() 仍会执行全量清理。
+var prune_invalid_receivers_per_tick: int = 128:
+	set(value):
+		prune_invalid_receivers_per_tick = maxi(value, 1)
+
+
 # --- 私有变量 ---
 
 var _creation_stack: Array[String] = []
@@ -59,12 +68,14 @@ var _receiver_groups: Dictionary = {}
 var _receiver_group_names: Dictionary = {}
 var _scene_container_sync_receivers: Dictionary = {}
 var _elapsed_since_prune: float = 0.0
+var _prune_receiver_cursor: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
 	_elapsed_since_prune = 0.0
+	_prune_receiver_cursor = 0
 
 
 func dispose() -> void:
@@ -75,6 +86,7 @@ func dispose() -> void:
 	_receiver_group_names.clear()
 	_scene_container_sync_receivers.clear()
 	_elapsed_since_prune = 0.0
+	_prune_receiver_cursor = 0
 
 
 ## 推进运行时逻辑。
@@ -88,7 +100,7 @@ func tick(delta: float) -> void:
 		return
 
 	_elapsed_since_prune = 0.0
-	prune_invalid_receivers()
+	_prune_invalid_receivers_step(prune_invalid_receivers_per_tick)
 
 
 # --- 公共方法 ---
@@ -1307,6 +1319,28 @@ func _prune_invalid_receivers() -> void:
 	var receiver_ids := _receiver_refs.keys()
 	for receiver_id: int in receiver_ids:
 		_get_receiver_from_id(receiver_id)
+	_prune_receiver_cursor = 0
+
+
+func _prune_invalid_receivers_step(max_count: int) -> void:
+	var receiver_ids := _receiver_refs.keys()
+	if receiver_ids.is_empty():
+		_prune_receiver_cursor = 0
+		return
+
+	if _prune_receiver_cursor >= receiver_ids.size():
+		_prune_receiver_cursor = 0
+
+	var checked_count := 0
+	while checked_count < max_count:
+		if _prune_receiver_cursor >= receiver_ids.size():
+			_prune_receiver_cursor = 0
+			break
+
+		var receiver_id := int(receiver_ids[_prune_receiver_cursor])
+		_get_receiver_from_id(receiver_id)
+		_prune_receiver_cursor += 1
+		checked_count += 1
 
 
 func _remove_receiver_index(receiver_id: int) -> void:

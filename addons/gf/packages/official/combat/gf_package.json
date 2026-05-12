@@ -5,7 +5,9 @@
   "kind": "official",
   "description": "Abstract combat attributes, modifiers, buffs, skills, gauges, and hit detection bridges.",
   "dependencies": ["gf.kernel", "gf.standard"],
-  "installer_paths": [],
+  "installer_paths": [
+    "res://addons/gf/packages/official/combat/package.gd"
+  ],
   "enabled_by_default": true,
   "tags": ["combat", "attributes", "hit-detection"]
 }

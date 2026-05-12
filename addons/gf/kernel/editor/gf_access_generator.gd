@@ -29,13 +29,8 @@ const _BASE_SYSTEM_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_syst
 const _BASE_UTILITY_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_utility.gd")
 const _BASE_COMMAND_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_command.gd")
 const _BASE_QUERY_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_query.gd")
-const _BASE_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/capability/core/gf_capability.gd"
-const _BASE_NODE_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/capability/nodes/gf_node_capability.gd"
-const _BASE_NODE_2D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/capability/nodes/gf_node_2d_capability.gd"
-const _BASE_NODE_3D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/capability/nodes/gf_node_3d_capability.gd"
-const _BASE_CONTROL_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/capability/nodes/gf_control_capability.gd"
-const _CAPABILITY_UTILITY_SCRIPT_PATH: String = "res://addons/gf/packages/official/capability/core/gf_capability_utility.gd"
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _PACKAGE_SETTINGS: Script = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 const _LAYER_TYPES: Dictionary = {
 	"2d_render": 20,
 	"2d_physics": 32,
@@ -55,6 +50,7 @@ const _KNOWN_GF_PROJECT_SETTINGS: Array[String] = [
 	"gf/packages/auto_install_enabled_installers",
 	"gf/packages/enabled",
 	"gf/packages/export_exclude_disabled",
+	"gf/packages/export_fail_on_disabled_references",
 	"gf/project/fail_on_installer_error",
 	"gf/project/installer_timeout_seconds",
 	"gf/project/installers",
@@ -104,6 +100,7 @@ func collect_records() -> Array[Dictionary]:
 			"kind": kind,
 		})
 
+	_append_access_generator_extension_records(records)
 	_sort_records(records)
 	return records
 
@@ -121,14 +118,17 @@ func collect_project_records() -> Dictionary:
 ## @param records: 生成访问器时使用的类型记录列表。
 func build_source(records: Array) -> String:
 	var builder := GFSourceBuilder.new()
+	var has_capability_records := _records_include_kind(records, TargetKind.CAPABILITY)
 	builder.doc("GFAccess: 自动生成的强类型 GF 访问器。")
 	builder.doc()
 	builder.doc("该文件由 GFAccessGenerator 生成，可以提交到版本库；请不要手动编辑。")
 	builder.line("class_name GFAccess")
 	builder.line("extends RefCounted")
-	builder.blank(2)
-	builder.section("常量")
-	builder.line("const _CAPABILITY_UTILITY_SCRIPT_PATH: String = \"%s\"" % _CAPABILITY_UTILITY_SCRIPT_PATH)
+	if has_capability_records:
+		var capability_utility_script_path := _get_capability_utility_script_path(records)
+		builder.blank(2)
+		builder.section("常量")
+		builder.line("const _CAPABILITY_UTILITY_SCRIPT_PATH: String = \"%s\"" % capability_utility_script_path)
 	builder.blank(2)
 	builder.section("公共方法")
 	builder.doc("获取传入架构或当前全局架构。")
@@ -145,6 +145,8 @@ func build_source(records: Array) -> String:
 	var used_names: Dictionary = {}
 	for record in records:
 		_append_record_function(builder, record, used_names)
+
+	_append_access_generator_extensions(builder, records)
 
 	builder.blank()
 	builder.section("私有/辅助方法")
@@ -168,25 +170,26 @@ func build_source(records: Array) -> String:
 	builder.dedent()
 	builder.line("return instance")
 	builder.dedent()
-	builder.blank(2)
-	builder.line("static func _get_capability_utility(architecture: GFArchitecture = null) -> Object:")
-	builder.indent()
-	builder.line("var resolved_architecture := architecture_or_null(architecture)")
-	builder.line("if resolved_architecture == null:")
-	builder.indent()
-	builder.line("return null")
-	builder.dedent()
-	builder.line("if not ResourceLoader.exists(_CAPABILITY_UTILITY_SCRIPT_PATH):")
-	builder.indent()
-	builder.line("return null")
-	builder.dedent()
-	builder.line("var capability_utility_script := load(_CAPABILITY_UTILITY_SCRIPT_PATH) as Script")
-	builder.line("if capability_utility_script == null:")
-	builder.indent()
-	builder.line("return null")
-	builder.dedent()
-	builder.line("return resolved_architecture.get_utility(capability_utility_script)")
-	builder.dedent()
+	if has_capability_records:
+		builder.blank(2)
+		builder.line("static func _get_capability_utility(architecture: GFArchitecture = null) -> Object:")
+		builder.indent()
+		builder.line("var resolved_architecture := architecture_or_null(architecture)")
+		builder.line("if resolved_architecture == null:")
+		builder.indent()
+		builder.line("return null")
+		builder.dedent()
+		builder.line("if not ResourceLoader.exists(_CAPABILITY_UTILITY_SCRIPT_PATH):")
+		builder.indent()
+		builder.line("return null")
+		builder.dedent()
+		builder.line("var capability_utility_script := load(_CAPABILITY_UTILITY_SCRIPT_PATH) as Script")
+		builder.line("if capability_utility_script == null:")
+		builder.indent()
+		builder.line("return null")
+		builder.dedent()
+		builder.line("return resolved_architecture.get_utility(capability_utility_script)")
+		builder.dedent()
 	builder.blank(2)
 	builder.line("static func _inject_if_needed(instance: Object, architecture: GFArchitecture) -> void:")
 	builder.indent()
@@ -394,11 +397,6 @@ func _resolve_kind(script: Script) -> int:
 	if script == _BASE_COMMAND_SCRIPT or script == _BASE_QUERY_SCRIPT:
 		return -1
 
-	var base_capability_script := _load_script_or_null(_BASE_CAPABILITY_SCRIPT_PATH)
-	var base_node_capability_script := _load_script_or_null(_BASE_NODE_CAPABILITY_SCRIPT_PATH)
-	if script == base_capability_script or script == base_node_capability_script:
-		return -1
-
 	if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(script, _BASE_MODEL_SCRIPT):
 		return TargetKind.MODEL
 	if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(script, _BASE_SYSTEM_SCRIPT):
@@ -409,38 +407,115 @@ func _resolve_kind(script: Script) -> int:
 		return TargetKind.COMMAND
 	if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(script, _BASE_QUERY_SCRIPT):
 		return TargetKind.QUERY
-	if _script_extends_any(script, _get_capability_base_scripts()):
-		return TargetKind.CAPABILITY
 
 	return -1
 
 
-func _get_capability_base_scripts() -> Array[Script]:
-	var result: Array[Script] = []
-	for path: String in [
-		_BASE_CAPABILITY_SCRIPT_PATH,
-		_BASE_NODE_CAPABILITY_SCRIPT_PATH,
-		_BASE_NODE_2D_CAPABILITY_SCRIPT_PATH,
-		_BASE_NODE_3D_CAPABILITY_SCRIPT_PATH,
-		_BASE_CONTROL_CAPABILITY_SCRIPT_PATH,
-	]:
-		var script := _load_script_or_null(path)
-		if script != null:
-			result.append(script)
-	return result
-
-
-func _script_extends_any(script: Script, base_scripts: Array[Script]) -> bool:
-	for base_script: Script in base_scripts:
-		if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(script, base_script):
+func _records_include_kind(records: Array, kind: int) -> bool:
+	for record_variant: Variant in records:
+		var record := record_variant as Dictionary
+		if record != null and int(record.get("kind", -1)) == kind:
 			return true
 	return false
 
 
-func _load_script_or_null(path: String) -> Script:
-	if path.is_empty() or not ResourceLoader.exists(path):
+func _get_capability_utility_script_path(records: Array) -> String:
+	for record_variant: Variant in records:
+		var record := record_variant as Dictionary
+		if record == null or int(record.get("kind", -1)) != TargetKind.CAPABILITY:
+			continue
+		var utility_path := String(record.get("utility_path", ""))
+		if not utility_path.is_empty():
+			return utility_path
+	return ""
+
+
+func _append_access_generator_extension_records(records: Array[Dictionary]) -> void:
+	for extension_path: String in _PACKAGE_SETTINGS.get_enabled_access_generator_extension_paths(true):
+		var extension := _load_access_generator_extension(extension_path)
+		if extension == null:
+			continue
+		_append_access_generator_extension_records_from_instance(records, extension, extension_path)
+
+
+func _append_access_generator_extension_records_from_instance(
+	records: Array[Dictionary],
+	extension: Object,
+	extension_path: String = ""
+) -> void:
+	if extension == null:
+		return
+	if not extension.has_method("append_access_records"):
+		return
+	extension.call("append_access_records", records)
+
+
+func _append_access_generator_extensions(builder: GFSourceBuilder, records: Array) -> void:
+	for extension_path: String in _PACKAGE_SETTINGS.get_enabled_access_generator_extension_paths(true):
+		_append_access_generator_extension_path(builder, records, extension_path)
+
+
+func _append_access_generator_extension_path(
+	builder: GFSourceBuilder,
+	records: Array,
+	extension_path: String
+) -> void:
+	var normalized_path := extension_path.strip_edges()
+	if normalized_path.is_empty():
+		return
+
+	var extension := _load_access_generator_extension(normalized_path)
+	if extension == null:
+		return
+
+	_append_access_generator_extension(builder, records, extension, normalized_path)
+
+
+func _append_access_generator_extension(
+	builder: GFSourceBuilder,
+	records: Array,
+	extension: Object,
+	extension_path: String = ""
+) -> void:
+	if extension == null:
+		return
+
+	if extension.has_method("append_access_source"):
+		extension.call("append_access_source", builder, records)
+		return
+
+	if extension.has_method("get_access_source_sections"):
+		var sections: Variant = extension.call("get_access_source_sections", records)
+		if not (sections is Array or sections is PackedStringArray):
+			push_error("[GFAccessGenerator] 访问器扩展返回值必须是数组：%s" % extension_path)
+			return
+		for section_variant: Variant in sections:
+			_append_source_section(builder, String(section_variant))
+		return
+
+	push_warning("[GFAccessGenerator] 访问器扩展缺少 append_access_source()：%s" % extension_path)
+
+
+func _load_access_generator_extension(extension_path: String) -> Object:
+	var normalized_path := extension_path.strip_edges()
+	if normalized_path.is_empty():
 		return null
-	return load(path) as Script
+
+	var extension_script := load(normalized_path) as Script
+	if extension_script == null or not extension_script.can_instantiate():
+		push_error("[GFAccessGenerator] 访问器扩展脚本加载失败：%s" % normalized_path)
+		return null
+
+	var extension := extension_script.new() as Object
+	if extension == null:
+		push_error("[GFAccessGenerator] 访问器扩展实例创建失败：%s" % normalized_path)
+		return null
+	return extension
+
+
+func _append_source_section(builder: GFSourceBuilder, source: String) -> void:
+	for line_text: String in source.replace("\r\n", "\n").replace("\r", "\n").split("\n"):
+		builder.line(line_text)
 
 
 func _append_record_function(builder: GFSourceBuilder, record: Dictionary, used_names: Dictionary) -> void:

@@ -14,6 +14,8 @@ const INVALID_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/
 const BLOCKING_INSTALLER_STARTED_SETTING: String = "gf/test/blocking_installer_started"
 const BLOCKING_INSTALLER_RELEASE_SETTING: String = "gf/test/release_blocking_installer"
 const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const GFSaveGraphUtilityBase = preload("res://addons/gf/packages/official/save/graph/gf_save_graph_utility.gd")
 const InstallerModelFixture = preload("res://tests/gf_core/fixtures/installers/installer_model_fixture.gd")
 const AsyncInstallerUtilityFixture = preload("res://tests/gf_core/fixtures/installers/async_installer_utility_fixture.gd")
 
@@ -247,6 +249,23 @@ class SlowInitUtility extends GFUtility:
 
 	func ready() -> void:
 		ready_called = true
+
+
+class LateRegisteringSlowUtility extends GFUtility:
+	signal async_continue
+
+	var utility_to_register: GFUtility
+	var async_started: bool = false
+
+	func _init(target_utility: GFUtility) -> void:
+		utility_to_register = target_utility
+
+	func async_init() -> void:
+		async_started = true
+		await async_continue
+		var arch := _get_architecture_or_null()
+		if arch != null:
+			await arch.register_utility_instance(utility_to_register)
 
 
 class SlowTickUtility extends SlowInitUtility:
@@ -857,6 +876,32 @@ func test_project_installer_awaits_async_install_bindings_before_init() -> void:
 	assert_true(installed_utility.ready_called, "异步 install_bindings 注册的 Utility 应参与本轮生命周期。")
 
 
+## 验证启用包的 Installer 会在 Gf.init() 初始化前自动注册包级服务。
+func test_enabled_package_installer_registers_services_before_init() -> void:
+	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
+	var previous_packages: Variant = ProjectSettings.get_setting(GFPackageSettingsBase.ENABLED_PACKAGES_SETTING, [])
+	var previous_auto_install: Variant = ProjectSettings.get_setting(
+		GFPackageSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING,
+		true
+	)
+	ProjectSettings.set_setting(INSTALLERS_SETTING, [])
+	ProjectSettings.set_setting(GFPackageSettingsBase.ENABLED_PACKAGES_SETTING, ["gf.official.save"])
+	ProjectSettings.set_setting(GFPackageSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, true)
+
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	await Gf.init()
+	var save_graph_utility := Gf.get_utility(GFSaveGraphUtilityBase)
+
+	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
+	ProjectSettings.set_setting(GFPackageSettingsBase.ENABLED_PACKAGES_SETTING, previous_packages)
+	ProjectSettings.set_setting(GFPackageSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, previous_auto_install)
+
+	assert_not_null(save_graph_utility, "启用包 installer 应在三阶段初始化前注册包级服务。")
+
+
 ## 验证 Installer 配置错误默认会中断架构初始化并记录失败原因。
 func test_project_installer_error_fails_initialization_by_default() -> void:
 	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
@@ -981,6 +1026,7 @@ func test_project_installer_timeout_fails_initialization() -> void:
 	assert_true(architecture.has_initialization_failed(), "Installer 超时后架构应标记初始化失败。")
 	assert_eq(architecture.last_initialization_error, expected_error)
 	assert_push_error(expected_error)
+	assert_push_error("[GFArchitecture] register_utility 失败：架构初始化已失败，已拒绝迟到写入。")
 
 
 ## 验证 Scoped NodeContext 会创建局部架构、回退父架构并在退出树时释放局部模块。
@@ -1671,6 +1717,33 @@ func test_module_async_init_timeout_fails_initialization() -> void:
 	assert_true(arch.last_initialization_error.contains("async_init 超时"), "失败原因应包含超时诊断。")
 	assert_signal_emitted(arch, "initialization_failed", "async_init 超时时应发出 initialization_failed。")
 	assert_push_error_count(1, "async_init 超时时应输出一条错误。")
+
+	arch.dispose()
+
+
+## 验证 async_init 超时后的迟到恢复不能继续写入注册表。
+func test_late_async_init_resume_cannot_register_after_timeout() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var arch := GFArchitecture.new()
+	arch.module_async_init_timeout_seconds = 0.001
+	var late_target := TickUtility.new()
+	var slow_utility := LateRegisteringSlowUtility.new(late_target)
+	await arch.register_utility_instance(slow_utility)
+
+	await arch.init()
+	assert_true(slow_utility.async_started, "测试模块应已进入 async_init。")
+	assert_true(arch.has_initialization_failed(), "超时后架构应处于失败状态。")
+	assert_push_error_count(1, "async_init 超时时应先输出一条错误。")
+
+	slow_utility.async_continue.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_null(arch.get_local_utility(late_target.get_script() as Script), "迟到恢复的 async_init 不应再注册新 Utility。")
+	assert_push_error("[GFArchitecture] register_utility 失败：架构初始化已失败，已拒绝迟到写入。")
 
 	arch.dispose()
 

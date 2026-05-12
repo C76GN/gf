@@ -121,7 +121,7 @@ func clear_channels() -> void:
 
 ## 启动主机。
 ## @param options: 后端选项。
-## @return Godot Error。
+## @return Godot 错误码。
 func host(options: Dictionary = {}) -> Error:
 	if backend == null:
 		return ERR_UNCONFIGURED
@@ -137,7 +137,7 @@ func host(options: Dictionary = {}) -> Error:
 ## 连接远端。
 ## @param endpoint: 远端地址。
 ## @param options: 后端选项。
-## @return Godot Error。
+## @return Godot 错误码。
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 	if backend == null:
 		return ERR_UNCONFIGURED
@@ -162,7 +162,7 @@ func disconnect_network() -> void:
 ## @param peer_id: 目标 peer；后端可约定 -1 表示广播。
 ## @param message: 消息载体。
 ## @param options: 后端发送选项。
-## @return Godot Error。
+## @return Godot 错误码。
 func send_message(peer_id: int, message: GFNetworkMessage, options: Dictionary = {}) -> Error:
 	return _send_message_internal(peer_id, message, options, null)
 
@@ -172,7 +172,7 @@ func send_message(peer_id: int, message: GFNetworkMessage, options: Dictionary =
 ## @param message: 消息载体。
 ## @param channel_id: 通道标识。
 ## @param options: 后端发送选项覆盖。
-## @return Godot Error。
+## @return Godot 错误码。
 func send_message_on_channel(
 	peer_id: int,
 	message: GFNetworkMessage,

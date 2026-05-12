@@ -22,6 +22,10 @@ Gf="*uid://dftf1eh06apl0"
 
 enabled=PackedStringArray("res://addons/gf/plugin.cfg", "res://addons/gut/plugin.cfg")
 
+[gf]
+
+packages/enabled=Array[String](["gf.official.action_queue", "gf.official.behavior_tree", "gf.official.capability", "gf.official.combat", "gf.official.domain", "gf.official.feedback", "gf.official.flow", "gf.official.interaction", "gf.official.network", "gf.official.physics", "gf.official.save", "gf.official.turn_based"])
+
 [physics]
 
 3d/physics_engine="Jolt Physics"

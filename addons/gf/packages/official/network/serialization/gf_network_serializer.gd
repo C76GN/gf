@@ -32,7 +32,7 @@ var json_codec_options: Dictionary = {}
 
 ## 编码消息。
 ## @param message: 消息载体。
-## @return bytes。
+## @return 字节数组。
 func serialize_message(message: GFNetworkMessage) -> PackedByteArray:
 	if message == null:
 		return PackedByteArray()
@@ -54,7 +54,7 @@ func deserialize_message(bytes: PackedByteArray) -> GFNetworkMessage:
 
 ## 编码字典。
 ## @param data: 字典。
-## @return bytes。
+## @return 字节数组。
 func serialize_dictionary(data: Dictionary) -> PackedByteArray:
 	match format:
 		Format.JSON:

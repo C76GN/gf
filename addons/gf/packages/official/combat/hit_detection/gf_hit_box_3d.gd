@@ -26,6 +26,10 @@ signal hit_accepted(context: GFCombatHitContext, receiver: Object, report: Dicti
 ## @param report: 结果报告。
 signal hit_rejected(context: GFCombatHitContext, receiver: Object, report: Dictionary)
 
+## 启用状态变化时发出。
+## @param enabled: 当前是否允许发送命中。
+signal enabled_changed(enabled: bool)
+
 
 # --- 常量 ---
 
@@ -35,7 +39,12 @@ const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/comm
 # --- 导出变量 ---
 
 ## 是否允许发送命中。
-@export var enabled: bool = true
+@export var enabled: bool = true:
+	set(value):
+		if enabled == value:
+			return
+		enabled = value
+		enabled_changed.emit(enabled)
 
 ## 默认命中 ID。
 @export var hit_id: StringName = &""

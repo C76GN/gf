@@ -89,6 +89,9 @@ var save_version: int = 1:
 	set(value):
 		save_version = maxi(value, 1)
 
+## 为 true 时，读取旧版本存档必须存在完整迁移链，不能仅更新 `_meta.version`。
+var strict_schema_migrations: bool = false
+
 ## 读取旧版本数据时需要补齐的新字段默认值。
 var default_values_for_new_keys: Dictionary = {}
 
@@ -1112,7 +1115,8 @@ func _apply_schema_migrations(file_name: String, data: Dictionary) -> Dictionary
 			GFVariantData.deep_merge_defaults(data, default_values_for_new_keys)
 		return data
 
-	if not _migration_steps.is_empty() and _resolve_migration_chain(from_version, to_version).is_empty():
+	var migration_chain := _resolve_migration_chain(from_version, to_version)
+	if (strict_schema_migrations or not _migration_steps.is_empty()) and migration_chain.is_empty():
 		return _fail_schema_migration(file_name, from_version, to_version)
 
 	var migrated := migrate_data(data, from_version, to_version)

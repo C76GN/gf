@@ -281,54 +281,60 @@ func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
 
 ## 获取 System 实例。
 ## @param script_cls: 要注册、查询或创建的脚本类型。
-func get_system(script_cls: Script) -> Object:
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+func get_system(script_cls: Script, require_ready: bool = false) -> Object:
 	var arch := _get_architecture_or_null("get_system")
 	if arch == null:
 		return null
-	return arch.get_system(script_cls)
+	return arch.get_system(script_cls, require_ready)
 
 ## 获取 Model 实例。
 ## @param script_cls: 要注册、查询或创建的脚本类型。
-func get_model(script_cls: Script) -> Object:
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+func get_model(script_cls: Script, require_ready: bool = false) -> Object:
 	var arch := _get_architecture_or_null("get_model")
 	if arch == null:
 		return null
-	return arch.get_model(script_cls)
+	return arch.get_model(script_cls, require_ready)
 
 ## 获取 Utility 实例。
 ## @param script_cls: 要注册、查询或创建的脚本类型。
-func get_utility(script_cls: Script) -> Object:
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+func get_utility(script_cls: Script, require_ready: bool = false) -> Object:
 	var arch := _get_architecture_or_null("get_utility")
 	if arch == null:
 		return null
-	return arch.get_utility(script_cls)
+	return arch.get_utility(script_cls, require_ready)
 
 
 ## 仅从当前全局架构获取 System，不回退父级架构。
 ## @param script_cls: 要注册、查询或创建的脚本类型。
-func get_local_system(script_cls: Script) -> Object:
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+func get_local_system(script_cls: Script, require_ready: bool = false) -> Object:
 	var arch := _get_architecture_or_null("get_local_system")
 	if arch == null:
 		return null
-	return arch.get_local_system(script_cls)
+	return arch.get_local_system(script_cls, require_ready)
 
 
 ## 仅从当前全局架构获取 Model，不回退父级架构。
 ## @param script_cls: 要注册、查询或创建的脚本类型。
-func get_local_model(script_cls: Script) -> Object:
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+func get_local_model(script_cls: Script, require_ready: bool = false) -> Object:
 	var arch := _get_architecture_or_null("get_local_model")
 	if arch == null:
 		return null
-	return arch.get_local_model(script_cls)
+	return arch.get_local_model(script_cls, require_ready)
 
 
 ## 仅从当前全局架构获取 Utility，不回退父级架构。
 ## @param script_cls: 要注册、查询或创建的脚本类型。
-func get_local_utility(script_cls: Script) -> Object:
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+func get_local_utility(script_cls: Script, require_ready: bool = false) -> Object:
 	var arch := _get_architecture_or_null("get_local_utility")
 	if arch == null:
 		return null
-	return arch.get_local_utility(script_cls)
+	return arch.get_local_utility(script_cls, require_ready)
 
 ## 便捷发送全局命令。
 ## @param command: 要执行的命令实例。

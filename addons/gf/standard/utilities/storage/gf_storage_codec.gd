@@ -163,7 +163,7 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 ## 序列化字典。JSON 格式会递归排序字典键。
 ## @param data: 要序列化的数据。
 ## @param p_format: 目标格式。
-## @return bytes。
+## @return 字节数组。
 func serialize_dictionary(data: Dictionary, p_format: Format = Format.JSON) -> PackedByteArray:
 	return _serialize_dictionary(data, p_format)
 

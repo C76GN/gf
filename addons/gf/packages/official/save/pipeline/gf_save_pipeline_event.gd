@@ -14,10 +14,10 @@ var stage: StringName = &""
 ## 事件严重级别，建议使用 info/warning/error。
 var severity: StringName = &"info"
 
-## 事件关联的 Scope key。
+## 事件关联的作用域键。
 var scope_key: StringName = &""
 
-## 事件关联的 Source key。
+## 事件关联的来源键。
 var source_key: StringName = &""
 
 ## 事件关联节点路径。

@@ -53,14 +53,14 @@ enum Phase {
 # --- 公共方法 ---
 
 ## 获取 Scope 稳定标识。
-## @return Scope key。
+## @return 作用域键。
 func get_scope_key() -> StringName:
 	if scope_key != &"":
 		return scope_key
 	return StringName(name)
 
 
-## 获取 Source key 前缀。
+## 获取来源键前缀。
 ## @return 前缀字符串。
 func get_key_prefix() -> String:
 	return String(key_namespace)
