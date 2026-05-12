@@ -26,8 +26,8 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for packa
 - Issues URL: `https://github.com/C76GN/gf/issues`
 - Minimum Godot Version: `4.6`
 - Asset Version: `3.0.0`
-- Download Commit/URL: `TODO_AFTER_RELEASE_COMMIT`
-- Icon URL: `https://raw.githubusercontent.com/C76GN/gf/TODO_AFTER_RELEASE_COMMIT/addons/gf/icon.png`
+- Download Commit/URL: `3.0.0`
+- Icon URL: `https://raw.githubusercontent.com/C76GN/gf/3.0.0/addons/gf/icon.png`
 
 ## Short Description
 
@@ -61,6 +61,6 @@ When the asset version changes, update these locations together:
 
 1. `addons/gf/plugin.cfg`
 2. `ASSET_LIBRARY.md`
-3. `docs/wiki/更新日志 (Changelog).md`
+3. `docs/zh/changelog.md`
 4. The Godot Asset Library `Download Commit/URL` after the release commit is pushed.
 5. The Godot Asset Library `Icon URL` so it uses the same release commit.

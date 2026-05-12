@@ -7,7 +7,6 @@ extends RefCounted
 # --- 常量 ---
 
 const PACKAGE_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/package/gf_package_export_plugin.gd"
-const GFStandardEditorExtensionsBase = preload("res://addons/gf/standard/editor/gf_standard_editor_extensions.gd")
 const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 
 
@@ -17,15 +16,20 @@ var _inspector_plugins: Array[EditorInspectorPlugin] = []
 var _standard_export_plugins: Array[EditorExportPlugin] = []
 var _package_export_plugin: EditorExportPlugin
 var _package_export_plugins: Array[EditorExportPlugin] = []
+var _standard_inspector_records: Array[Dictionary] = []
+var _standard_export_records: Array[Dictionary] = []
 
 
 # --- 公共方法 ---
 
 ## 安装 GF Inspector 与导出插件。
 ## @param plugin: 当前 EditorPlugin 实例。
-func setup(plugin: EditorPlugin) -> void:
+## @param standard_records: 组合入口传入的标准库 Inspector 与导出插件记录。
+func setup(plugin: EditorPlugin, standard_records: Dictionary = {}) -> void:
 	if plugin == null:
 		return
+	_standard_inspector_records = _to_record_array(standard_records.get("inspector_plugin_records", []))
+	_standard_export_records = _to_record_array(standard_records.get("export_plugin_records", []))
 	_setup_inspector_tools(plugin)
 	_setup_standard_export_plugins(plugin)
 	_setup_package_export_plugin(plugin)
@@ -46,14 +50,14 @@ func cleanup(plugin: EditorPlugin) -> void:
 # --- 私有/辅助方法 ---
 
 func _setup_inspector_tools(plugin: EditorPlugin) -> void:
-	for record: Dictionary in GFStandardEditorExtensionsBase.get_inspector_plugin_records():
+	for record: Dictionary in _standard_inspector_records:
 		_add_inspector_plugin(plugin, String(record["path"]), String(record["label"]))
 	for record: Dictionary in _collect_enabled_package_inspector_records():
 		_add_inspector_plugin(plugin, String(record["path"]), String(record["label"]))
 
 
 func _setup_standard_export_plugins(plugin: EditorPlugin) -> void:
-	for record: Dictionary in GFStandardEditorExtensionsBase.get_export_plugin_records():
+	for record: Dictionary in _standard_export_records:
 		var export_plugin := _load_export_plugin(String(record["path"]), String(record["label"]))
 		if export_plugin == null:
 			continue
@@ -144,6 +148,16 @@ func _get_package_inspector_label(manifest: GFPackageManifest, inspector_path: S
 		package_name = manifest.id
 	var script_name := inspector_path.get_file().get_basename().to_pascal_case()
 	return "%s %s" % [package_name, script_name]
+
+
+func _to_record_array(value: Variant) -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	if not value is Array:
+		return records
+	for record_variant: Variant in value:
+		if record_variant is Dictionary:
+			records.append((record_variant as Dictionary).duplicate(true))
+	return records
 
 
 func _cleanup_inspector_tools(plugin: EditorPlugin) -> void:

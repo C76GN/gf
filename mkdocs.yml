@@ -1,0 +1,94 @@
+site_name: GF Framework
+site_description: Godot 4 lightweight game architecture framework.
+site_url: !ENV [READTHEDOCS_CANONICAL_URL, "https://gf-framework.readthedocs.io/"]
+repo_url: https://github.com/C76GN/gf-framework
+repo_name: C76GN/gf-framework
+docs_dir: docs/zh
+site_dir: site
+
+theme:
+  name: material
+  language: zh
+  features:
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+
+nav:
+  - 首页: index.md
+  - FAQ: faq.md
+  - 入门:
+      - 总览与快速开始: overview/index.md
+  - Kernel:
+      - 架构容器: kernel/index.md
+      - 生命周期、装配与依赖: kernel/lifecycle/index.md
+      - 消息、事件、命令与查询:
+          - 概览: kernel/messaging/index.md
+          - 事件系统: kernel/messaging/events.md
+          - 命令、查询与规则: kernel/messaging/commands-queries-rules.md
+          - 命令历史与撤销重做: kernel/messaging/command-history.md
+      - 场景桥接、Controller 与数据绑定: kernel/scene-controller/index.md
+  - Standard:
+      - 标准库总览: standard/index.md
+      - Foundation 基础能力:
+          - 概览: standard/foundation/index.md
+          - 数值、成长与权重: standard/foundation/scalars.md
+          - 网格、路径与空间索引: standard/foundation/grid-spatial.md
+          - 标签、公式、序列化与结果报告: standard/foundation/data-validation.md
+      - Utilities:
+          - 总览: standard/utilities/index.md
+          - 资源、存储与 IO:
+              - 概览: standard/utilities/io/index.md
+              - 资源加载、下载、任务队列与预热: standard/utilities/io/assets-jobs-warmup.md
+              - 本地存储、编码、同步与快照: standard/utilities/io/storage-snapshot.md
+              - 导表、分析、远程缓存与请求 Outbox: standard/utilities/io/config-remote-outbox.md
+          - 运行时服务与调试:
+              - 概览: standard/utilities/runtime/index.md
+              - 时间、信号与对象池: standard/utilities/runtime/time-signal-pool.md
+              - 设置、UI、场景与表面查询: standard/utilities/runtime/settings-ui-scene.md
+              - 音频管理: standard/utilities/runtime/audio.md
+              - 调试、日志、诊断与控制台: standard/utilities/runtime/debug-observability.md
+      - 输入、流程与玩法支撑:
+          - 概览: standard/input-flow/index.md
+          - 纯代码状态机与节点状态机: standard/input-flow/state-machines.md
+          - 撤销历史与指令序列: standard/input-flow/command-sequence.md
+          - 输入映射与手感辅助: standard/input-flow/input-assist.md
+          - 逻辑空间查询与相关包: standard/input-flow/spatial-query.md
+  - Packages:
+      - 官方包总览与包规范: packages/index.md
+      - Capability: packages/capability/index.md
+      - Interaction 与 Feedback: packages/interaction-feedback/index.md
+      - Combat: packages/combat/index.md
+      - ActionQueue: packages/action-queue/index.md
+      - Network 与 TurnBased: packages/network-turnbased/index.md
+      - Flow、Domain 与 Physics: packages/flow-domain-physics/index.md
+      - Save 场景存档图: packages/save-graph/index.md
+      - Level、BehaviorTree 与 Quest: packages/level-behaviortree-quest/index.md
+  - Editor:
+      - 编辑器工具、访问器与项目常量: editor/index.md
+  - Maintenance:
+      - 最佳实践、维护与测试: maintenance/index.md
+      - 更新日志: changelog.md

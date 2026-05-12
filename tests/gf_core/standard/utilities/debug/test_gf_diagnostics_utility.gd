@@ -141,6 +141,33 @@ func test_diagnostics_monitor_registry_collects_custom_monitor() -> void:
 	assert_true("Value" in exported_text, "文本导出应包含监控标签。")
 
 
+func test_diagnostics_collects_external_snapshot_providers() -> void:
+	var diagnostics := GFDiagnosticsUtility.new()
+	diagnostics.init()
+
+	assert_true(diagnostics.register_snapshot_section_provider(&"runtime", func() -> Dictionary:
+		return { "enemy_count": 3 }
+	), "外部快照分区 provider 应注册成功。")
+	assert_true(diagnostics.register_tool_snapshot_provider(&"runtime_tool", func() -> Dictionary:
+		return { "pending": 2 }
+	), "外部工具快照 provider 应注册成功。")
+	diagnostics.register_monitor(&"runtime.pending", func() -> int:
+		return 2
+	)
+	assert_true(diagnostics.add_monitor_to_preset(&"tools", &"runtime.pending"), "外部监控项应可加入内置 tools 预设。")
+
+	var snapshot := diagnostics.collect_snapshot({
+		"include_recent_logs": false,
+	})
+	var runtime := snapshot["runtime"] as Dictionary
+	var tools := snapshot["tools"] as Dictionary
+	var tool_monitors := diagnostics.collect_monitor_preset(&"tools")["monitors"] as Dictionary
+
+	assert_eq(int(runtime.get("enemy_count", 0)), 3, "外部快照分区应进入 collect_snapshot 顶层字段。")
+	assert_eq(int((tools[&"runtime_tool"] as Dictionary).get("pending", 0)), 2, "外部工具快照应进入 tools 字段。")
+	assert_true(tool_monitors.has(&"runtime.pending"), "追加到 tools 预设的外部监控项应可采样。")
+
+
 ## 验证内置工具监控预设可采样。
 func test_diagnostics_builtin_tools_monitor_preset() -> void:
 	var arch := GFArchitecture.new()

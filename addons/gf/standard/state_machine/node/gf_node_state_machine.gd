@@ -8,16 +8,16 @@ extends Node
 # --- 信号 ---
 
 ## 状态组加入后发出。
-signal state_group_added(group: Node)
+signal state_group_added(group: GFNodeStateGroup)
 
 ## 状态组移除后发出。
-signal state_group_removed(group: Node)
+signal state_group_removed(group: GFNodeStateGroup)
 
 ## 任意状态组切换状态后发出。
-signal state_changed(group: Node, old_state: Node, new_state: Node)
+signal state_changed(group: GFNodeStateGroup, old_state: GFNodeState, new_state: GFNodeState)
 
 ## 任意状态组中的状态处理状态事件后发出。
-signal state_event_handled(group: Node, event_id: StringName, handler_state: Node, payload: Variant)
+signal state_event_handled(group: GFNodeStateGroup, event_id: StringName, handler_state: GFNodeState, payload: Variant)
 
 
 # --- 枚举 ---
@@ -37,6 +37,9 @@ enum StartMode {
 
 const INTERNAL_GROUP_NAME: StringName = &"_internal"
 const META_INTERNAL_GROUP: StringName = &"_gf_node_state_machine_internal_group"
+const GFAutoloadBase = preload("res://addons/gf/kernel/core/gf_autoload.gd")
+const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
 const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
 const GFNodeStateMachineConfigBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_config.gd")
 
@@ -65,9 +68,10 @@ const GFNodeStateMachineConfigBase = preload("res://addons/gf/standard/state_mac
 # --- 私有变量 ---
 
 var _groups: Dictionary = {}
-var _internal_group: Node = null
+var _internal_group: GFNodeStateGroup = null
 var _group_state_changed_callables: Dictionary = {}
 var _group_state_event_handled_callables: Dictionary = {}
+var _event_architectures: Array[GFArchitecture] = []
 var _is_ready: bool = false
 var _reload_queued: bool = false
 var _is_reloading: bool = false
@@ -177,7 +181,7 @@ func start(args: Dictionary = {}) -> void:
 	if _groups.is_empty():
 		reload_from_children()
 
-	for group: Node in _groups.values():
+	for group: GFNodeStateGroup in _groups.values():
 		_start_group_node(group, args)
 
 
@@ -198,7 +202,7 @@ func start_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary 
 
 ## 添加状态组。
 ## @param group: 所属状态组。
-func add_state_group(group: Node) -> void:
+func add_state_group(group: GFNodeStateGroup) -> void:
 	if not _is_node_state_group(group):
 		return
 
@@ -220,7 +224,7 @@ func add_state_group(group: Node) -> void:
 
 ## 移除状态组。
 ## @param group: 所属状态组。
-func remove_state_group(group: Node) -> bool:
+func remove_state_group(group: GFNodeStateGroup) -> bool:
 	if not _is_node_state_group(group):
 		return false
 
@@ -237,16 +241,26 @@ func remove_state_group(group: Node) -> bool:
 
 ## 获取状态组。
 ## @param group_name: 能力组或状态组名称。
-func get_state_group(group_name: StringName) -> Node:
-	return _groups.get(group_name) as Node
+func get_state_group(group_name: StringName) -> GFNodeStateGroup:
+	return _groups.get(group_name) as GFNodeStateGroup
 
 
 ## 获取内部状态组当前状态。
-func get_current_state() -> Node:
+func get_current_state() -> GFNodeState:
 	var group := get_state_group(INTERNAL_GROUP_NAME)
 	if group == null:
 		return null
-	return group.call("get_current_state") as Node
+	return group.get_current_state()
+
+
+## 获取指定状态组当前状态。
+## @param group_name: 能力组或状态组名称。
+## @return 当前状态；未找到状态组或未启动时返回 null。
+func get_current_group_state(group_name: StringName = INTERNAL_GROUP_NAME) -> GFNodeState:
+	var group := get_state_group(group_name)
+	if group == null:
+		return null
+	return group.get_current_state()
 
 
 ## 获取指定状态组当前状态名。
@@ -316,12 +330,12 @@ func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionar
 func dispatch_state_event(event_id: StringName, payload: Variant = null, group_name: StringName = &"") -> bool:
 	if group_name != &"":
 		var group := get_state_group(group_name)
-		if group == null or not group.has_method("dispatch_state_event"):
+		if group == null:
 			return false
-		return bool(group.call("dispatch_state_event", event_id, payload))
+		return group.dispatch_state_event(event_id, payload)
 
-	for group: Node in _groups.values():
-		if group.has_method("dispatch_state_event") and bool(group.call("dispatch_state_event", event_id, payload)):
+	for group: GFNodeStateGroup in _groups.values():
+		if group.dispatch_state_event(event_id, payload):
 			return true
 	return false
 
@@ -331,19 +345,194 @@ func dispatch_state_event(event_id: StringName, payload: Variant = null, group_n
 func get_state_snapshot() -> Dictionary:
 	var groups: Dictionary = {}
 	for group_key: Variant in _groups.keys():
-		var group := _groups[group_key] as Node
+		var group := _groups[group_key] as GFNodeStateGroup
 		if group == null:
 			continue
-		if group.has_method("get_state_snapshot"):
-			groups[group_key] = group.call("get_state_snapshot")
-		else:
-			groups[group_key] = {
-				"current_state": group.call("get_current_state_name") if group.has_method("get_current_state_name") else &"",
-			}
+		groups[group_key] = group.get_state_snapshot()
 	return {
 		"groups": groups,
 		"internal_group": INTERNAL_GROUP_NAME,
 	}
+
+
+## 获取当前状态机可用的架构实例。
+## @return 架构实例；状态机未挂入可解析上下文时返回 null。
+func get_architecture_or_null() -> GFArchitecture:
+	return _get_architecture_or_null()
+
+
+## 通过当前状态机上下文获取 Model。
+## @param model_type: 模型脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 模型实例。
+func get_model(model_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_model(model_type, require_ready)
+
+
+## 通过当前状态机上下文获取 System。
+## @param system_type: 系统脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 系统实例。
+func get_system(system_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_system(system_type, require_ready)
+
+
+## 通过当前状态机上下文获取 Utility。
+## @param utility_type: 工具脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 工具实例。
+func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(utility_type, require_ready)
+
+
+## 仅从当前状态机所属架构获取 Model，不回退父级架构。
+## @param model_type: 模型脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 当前架构中的模型实例。
+func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_model(model_type, require_ready)
+
+
+## 仅从当前状态机所属架构获取 System，不回退父级架构。
+## @param system_type: 系统脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 当前架构中的系统实例。
+func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_system(system_type, require_ready)
+
+
+## 仅从当前状态机所属架构获取 Utility，不回退父级架构。
+## @param utility_type: 工具脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 当前架构中的工具实例。
+func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_utility(utility_type, require_ready)
+
+
+## 向当前状态机上下文发送命令。
+## @param command: 要发送的命令实例。
+## @return 命令执行结果；无可用架构时返回 null。
+func send_command(command: Object) -> Variant:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.send_command(command)
+
+
+## 向当前状态机上下文发送查询。
+## @param query: 要发送的查询实例。
+## @return 查询结果；无可用架构时返回 null。
+func send_query(query: Object) -> Variant:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.send_query(query)
+
+
+## 发送类型事件。
+## @param event_instance: 要分发的事件实例。
+func send_event(event_instance: Object) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.send_event(event_instance)
+
+
+## 发送轻量级 StringName 事件。
+## @param event_id: StringName 事件标识符。
+## @param payload: 可选的事件附加数据。
+func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.send_simple_event(event_id, payload)
+
+
+## 注册带拥有者的类型事件监听器。
+## @param owner: 监听器拥有者。
+## @param event_type: 要监听的脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_event_owned(owner, event_type, callback, priority)
+		_remember_event_architecture(architecture)
+
+
+## 注销类型事件监听器。
+## @param event_type: 要注销的脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_event(event_type: Script, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_event(event_type, callback)
+
+
+## 注册带拥有者的可赋值类型事件监听器。
+## @param owner: 监听器拥有者。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_assignable_event_owned(
+	owner: Object,
+	base_event_type: Script,
+	callback: Callable,
+	priority: int = 0
+) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_assignable_event_owned(owner, base_event_type, callback, priority)
+		_remember_event_architecture(architecture)
+
+
+## 注销可赋值类型事件监听器。
+## @param base_event_type: 注册时使用的基类脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_assignable_event(base_event_type, callback)
+
+
+## 注册带拥有者的轻量级 StringName 事件监听器。
+## @param owner: 监听器拥有者。
+## @param event_id: StringName 事件标识符。
+## @param callback: 回调函数，签名为 func(payload: Variant)。
+func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_simple_event_owned(owner, event_id, callback)
+		_remember_event_architecture(architecture)
+
+
+## 注销轻量级 StringName 事件监听器。
+## @param event_id: StringName 事件标识符。
+## @param callback: 要移除的回调函数。
+func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_simple_event(event_id, callback)
+
+
+## 注销指定拥有者通过状态机事件代理注册过的全部监听器。
+## @param owner: 要清理监听器的拥有者。
+func unregister_owner_events(owner: Object) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_owner_events(owner)
 
 
 ## 从子节点重新加载状态和状态组。
@@ -353,7 +542,7 @@ func reload_from_children() -> void:
 	_preserve_reload_state_active = should_preserve_state
 	_is_reloading = true
 	clear_state_groups()
-	_internal_group = GFNodeStateGroupBase.new()
+	_internal_group = GFNodeStateGroupBase.new() as GFNodeStateGroup
 	_internal_group.name = String(INTERNAL_GROUP_NAME)
 	_internal_group.set_meta(META_INTERNAL_GROUP, true)
 	_internal_group.set("group_name", INTERNAL_GROUP_NAME)
@@ -368,9 +557,9 @@ func reload_from_children() -> void:
 		if child == _internal_group or child.get_meta(META_INTERNAL_GROUP, false):
 			continue
 		if _is_node_state_group(child):
-			add_state_group(child)
+			add_state_group(child as GFNodeStateGroup)
 		elif _is_node_state(child):
-			_internal_group.call("add_state", child)
+			_internal_group.add_state(child as GFNodeState)
 
 	if not (_internal_group.call("get_states") as Array).is_empty():
 		add_state_group(_internal_group)
@@ -387,17 +576,17 @@ func reload_from_children() -> void:
 ## @param free_groups: 清理状态组时是否释放节点。
 func clear_state_groups(free_groups: bool = false) -> void:
 	var old_internal_group := _internal_group
-	var groups: Array[Node] = []
-	for group: Node in _groups.values():
+	var groups: Array[GFNodeStateGroup] = []
+	for group: GFNodeStateGroup in _groups.values():
 		groups.append(group)
-	for group: Node in groups:
+	for group: GFNodeStateGroup in groups:
 		var key := group.call("get_group_name") as StringName
 		var changed_callable: Callable = _group_state_changed_callables.get(key, Callable())
 		_disconnect_state_group_signals(group, changed_callable)
 	_groups.clear()
 	_group_state_changed_callables.clear()
 	_group_state_event_handled_callables.clear()
-	for group: Node in groups:
+	for group: GFNodeStateGroup in groups:
 		state_group_removed.emit(group)
 		if group == _internal_group:
 			_free_internal_group(group)
@@ -410,47 +599,52 @@ func clear_state_groups(free_groups: bool = false) -> void:
 
 # --- 私有/辅助方法 ---
 
+func _get_architecture_or_null() -> GFArchitecture:
+	var context := _find_nearest_context()
+	if context != null:
+		var context_architecture := context.get_architecture()
+		if context_architecture != null:
+			return context_architecture
+
+	return GFAutoloadBase.get_architecture_or_null()
+
+
+func _find_nearest_context() -> GFNodeContextBase:
+	var current_node: Node = self
+	while current_node != null:
+		if current_node is GFNodeContextBase:
+			return current_node as GFNodeContextBase
+		current_node = current_node.get_parent()
+	return null
+
+
+func _remember_event_architecture(architecture: GFArchitecture) -> void:
+	if architecture == null or not is_instance_valid(architecture):
+		return
+	if not _event_architectures.has(architecture):
+		_event_architectures.append(architecture)
+
+
+func _get_tracked_event_architectures() -> Array[GFArchitecture]:
+	var result: Array[GFArchitecture] = []
+	var live_architectures: Array[GFArchitecture] = []
+	for architecture: GFArchitecture in _event_architectures:
+		if architecture != null and is_instance_valid(architecture):
+			result.append(architecture)
+			live_architectures.append(architecture)
+	_event_architectures = live_architectures
+	return result
+
+
 func _is_node_state(node: Node) -> bool:
-	if node == null:
-		return false
-	if not node.has_method("get_state_name"):
-		return false
-	if not node.has_method("setup"):
-		return false
-	if not node.has_method("initialize"):
-		return false
-	if not node.has_method("enter"):
-		return false
-	if not node.has_method("exit"):
-		return false
-	return node.get("requested_transition") is Signal
+	return node is GFNodeStateBase
 
 
 func _is_node_state_group(node: Node) -> bool:
-	if node == null:
-		return false
-	if node is GFNodeStateGroupBase:
-		return true
-	if not node.has_method("get_group_name"):
-		return false
-	if not node.has_method("transition_to"):
-		return false
-	if not node.has_method("initialize"):
-		return false
-	if not node.has_method("get_current_state"):
-		return false
-	if not node.has_method("get_states"):
-		return false
-	if not node.has_method("add_state"):
-		return false
-	if not node.has_method("clear_states"):
-		return false
-	if not node.get("current_state_changed") is Signal:
-		return false
-	return node.get("requested_transition") is Signal
+	return node is GFNodeStateGroupBase
 
 
-func _connect_state_group_signals(group: Node, changed_callable: Callable) -> void:
+func _connect_state_group_signals(group: GFNodeStateGroup, changed_callable: Callable) -> void:
 	var changed_signal: Signal = group.get("current_state_changed")
 	var transition_signal: Signal = group.get("requested_transition")
 	if changed_callable.is_valid() and not changed_signal.is_connected(changed_callable):
@@ -466,7 +660,7 @@ func _connect_state_group_signals(group: Node, changed_callable: Callable) -> vo
 			handled_signal.connect(handled_callable)
 
 
-func _disconnect_state_group_signals(group: Node, changed_callable: Callable) -> void:
+func _disconnect_state_group_signals(group: GFNodeStateGroup, changed_callable: Callable) -> void:
 	var changed_signal: Signal = group.get("current_state_changed")
 	var transition_signal: Signal = group.get("requested_transition")
 	if changed_callable.is_valid() and changed_signal.is_connected(changed_callable):
@@ -482,7 +676,7 @@ func _disconnect_state_group_signals(group: Node, changed_callable: Callable) ->
 		_group_state_event_handled_callables.erase(key)
 
 
-func _start_group_node(group: Node, args: Dictionary) -> void:
+func _start_group_node(group: GFNodeStateGroup, args: Dictionary) -> void:
 	if group.has_method("start"):
 		group.call("start", args)
 		return
@@ -530,18 +724,18 @@ func _start_after_host_ready() -> void:
 
 
 func _on_group_current_state_changed(
-	old_state: Node,
-	new_state: Node,
-	group: Node
+	old_state: GFNodeState,
+	new_state: GFNodeState,
+	group: GFNodeStateGroup
 ) -> void:
 	state_changed.emit(group, old_state, new_state)
 
 
 func _on_group_state_event_handled(
 	event_id: StringName,
-	handler_state: Node,
+	handler_state: GFNodeState,
 	payload: Variant,
-	group: Node
+	group: GFNodeStateGroup
 ) -> void:
 	state_event_handled.emit(group, event_id, handler_state, payload)
 
@@ -554,7 +748,7 @@ func _queue_reload_from_children() -> void:
 	call_deferred("_reload_from_children_deferred")
 
 
-func _free_internal_group(group: Node) -> void:
+func _free_internal_group(group: GFNodeStateGroup) -> void:
 	if group == null or not is_instance_valid(group):
 		return
 	group.call("clear_states", false)
@@ -568,7 +762,7 @@ func _is_group_in_state(group_name: StringName, state_name: StringName) -> bool:
 	var group := get_state_group(group_name)
 	if group == null or not group.has_method("is_in_state"):
 		return false
-	return bool(group.call("is_in_state", state_name))
+	return group.is_in_state(state_name)
 
 
 func _get_effective_initial_state() -> StringName:
@@ -608,7 +802,7 @@ func _on_child_entered_tree(_child: Node) -> void:
 func _capture_state_snapshot() -> Dictionary:
 	var result: Dictionary = {}
 	for group_key: Variant in _groups.keys():
-		var group := _groups[group_key] as Node
+		var group := _groups[group_key] as GFNodeStateGroup
 		if group == null or not group.has_method("get_current_state_name"):
 			continue
 		var current_state_name := group.call("get_current_state_name") as StringName
@@ -622,7 +816,7 @@ func _capture_state_snapshot() -> Dictionary:
 
 func _restore_state_snapshot(snapshot: Dictionary) -> void:
 	for group_key: Variant in _groups.keys():
-		var group := _groups[group_key] as Node
+		var group := _groups[group_key] as GFNodeStateGroup
 		if group == null:
 			continue
 

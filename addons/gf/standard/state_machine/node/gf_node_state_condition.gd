@@ -26,7 +26,7 @@ extends Resource
 ## @param args: 状态切换参数。
 ## @return 条件通过时返回 true。
 func evaluate(
-	state: Node,
+	state: GFNodeState,
 	phase: StringName,
 	peer_state: StringName = &"",
 	args: Dictionary = {}
@@ -39,7 +39,7 @@ func evaluate(
 
 ## 条件评估扩展点。
 func _evaluate(
-	_state: Node,
+	_state: GFNodeState,
 	_phase: StringName,
 	_peer_state: StringName = &"",
 	_args: Dictionary = {}

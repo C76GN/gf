@@ -1,0 +1,169 @@
+# 导表、分析、远程缓存与请求 Outbox
+
+本页拆出配置表读取、分析事件、远程文本/JSON 缓存和离线请求 Outbox。
+## 静态导表数据适配器 (`GFConfigProvider`)
+
+**应用场景：** 当项目使用 JSON、CSV、Luban 或自定义导表流水线时，可以继承 `GFConfigProvider` 提供统一读取入口，并把具体加载和查询逻辑留在项目侧实现。
+
+**如何使用：**
+```gdscript
+class_name JSONConfigProvider
+extends GFConfigProvider
+
+var _configs: Dictionary = {}
+
+func async_init() -> void:
+	# 异步加载你的表...
+	pass
+
+func get_record(table_name: StringName, id: Variant) -> Variant:
+	if _configs.has(table_name) and _configs[table_name].has(id):
+		return _configs[table_name][id]
+	return null
+
+func get_table(table_name: StringName) -> Variant:
+	return _configs.get(table_name)
+```
+
+`GFConfigProvider` 是抽象适配器，本身不存数据；默认实现会报错并返回 `null`。返回类型保持 `Variant` 是为了兼容不同导表方案：可以返回 `Dictionary`、`Resource`、自定义记录对象，或整张表容器。框架内调用方会按自己的需求解释返回值，例如 `GFLevelUtility` 会接受字典记录，或带 `to_dict()` 方法的记录对象。
+
+建议子类在 `async_init()` 或 `init()` 阶段完成加载，并在 `get_record()` 中返回只读数据或副本，避免业务代码直接改坏导表缓存。表名建议使用稳定 `StringName`，记录 ID 可保持项目导表原始类型。`register_schema()` 会保存 schema 副本，`get_schema()` 也返回副本，调用方修改返回值不会污染 Provider 内部校验规则。
+
+导表结构可以用 `GFConfigTableColumn` 和 `GFConfigTableSchema` 独立声明，再注册到 Provider 上做导入期或运行时校验。它们只描述字段类型、必填、空值、默认值和额外字段策略，不规定表名含义、ID 规则或项目业务枚举：
+
+```gdscript
+var id_column := GFConfigTableColumn.new()
+id_column.field_name = &"id"
+id_column.value_type = GFConfigTableColumn.ValueType.INT
+id_column.required = true
+id_column.allow_null = false
+
+var name_column := GFConfigTableColumn.new()
+name_column.field_name = &"name"
+name_column.value_type = GFConfigTableColumn.ValueType.STRING
+name_column.required = true
+
+var schema := GFConfigTableSchema.new()
+schema.table_name = &"items"
+schema.columns = [id_column, name_column]
+schema.allow_extra_fields = false
+schema.coerce_values = true
+schema.fail_on_coerce_error = true
+schema.require_unique_id = true
+
+register_schema(schema)
+var report := validate_table(&"items", get_table(&"items"))
+```
+
+`coerce_values` 是“导入期宽松转换 + 校验报告”，不是无条件吞错。`GFConfigTableColumn.try_coerce_value()` 会返回转换状态；`GFConfigTableSchema.fail_on_coerce_error` 默认开启，非法 int/float、无法解析的 Vector/Color/Array/Dictionary 等转换会记录 `coerce_failed`。如果项目确实需要旧式宽松导入，可以显式关闭 `fail_on_coerce_error`，但 CI 和正式导表建议保持开启。Array 表需要检测重复 ID 时，开启 `require_unique_id`。
+
+`GFConfigTableImporter` 提供轻量 JSON/CSV 文本解析和 `validate_json_table()` / `validate_csv_table()` 入口，适合编辑器导入按钮、CI 检查或项目自定义导表流水线在写入缓存前做统一报告。CSV 解析会去掉 UTF-8 BOM，默认拒绝重复表头；它仍是轻量解析器，只取 `delimiter` 的第一个字符，空表头会跳过，复杂 Excel/多 sheet/编码探测仍建议交给项目导表流水线。校验报告固定包含 `ok`、`row_count`、`error_count`、`warning_count` 和 `issues`，项目工具可以直接把 `issues` 渲染成表格或控制台输出。
+
+如果项目希望减少散落的表名字符串，可以用 `GFConfigAccessGenerator` 根据 schema 生成静态访问器。生成结果只是对 provider 的 `get_record()` / `get_table()` 的薄封装，不改变 Provider 协议，也不把具体表结构写死到框架里：
+
+```gdscript
+var generator := GFConfigAccessGenerator.new()
+generator.generate(
+	[items_schema, levels_schema],
+	"res://gf/generated/gf_config_access.gd",
+	true,
+	"GFConfigAccess",
+	"Gf.get_utility(GFConfigProvider) as GFConfigProvider"
+)
+
+# 生成后项目代码可以通过 IDE 补全调用：
+var item := GFConfigAccess.get_items_record(1001)
+var levels := GFConfigAccess.get_levels_table()
+```
+
+生成器位于 kernel/editor，因此不会默认硬引用标准库的 `GFConfigProvider`；如果希望生成的访问器能在不显式传 provider 时工作，需要像上面这样传入项目自己的 `provider_accessor`。也可以在调用点显式传入 provider：`GFConfigAccess.get_items_record(1001, provider)`。访问器适合稳定表名、团队协作和重构检查；原始 `GFConfigProvider` 仍适合动态表名、热更新表包或项目自定义导表运行时。
+
+开发期如果需要做 Resource 批量检查或表格式编辑，可以复用 `GFResourceTableEditor` 和 `GFEditorValueField`。前者负责扫描 `.tres` / `.res`、从 Resource export 推导列、提交单元格值并广播变更；默认只修改内存中的 Resource，不接管完整 UndoRedo 工作流；如果资源已有 `resource_path` 且项目希望提交后立即写盘，可以开启 `auto_save_committed_resources` 并监听 `resource_save_failed`。后者负责按 Godot 属性类型创建基础输入控件；Array/Dictionary JSON 输入解析失败时会发出 `value_parse_failed` 并保留旧值，不会把错误输入静默提交成空容器。它们是编辑器通用控件，不保存业务表结构，也不替项目决定资源分类、校验规则或提交工作流。
+
+
+## 通用分析事件 (`GFAnalyticsUtility`)
+
+**应用场景：** 当你需要在项目内统一记录调试指标、玩家流程节点或运行时事件，并希望先在本地 dry-run，之后再按需接入 HTTP 端点时，可以使用该工具。
+
+`GFAnalyticsUtility` 默认不会在 endpoint 为空时访问网络，`flush()` 会以 dry-run 成功完成，便于测试和本地开发保持同一套调用路径。它会为设备生成并持久化匿名 client id，同时每次运行生成新的 session id。
+
+```gdscript
+var analytics := Gf.get_utility(GFAnalyticsUtility) as GFAnalyticsUtility
+analytics.config.auto_capture_context = true
+analytics.config.batch_size = 20
+
+analytics.identify("client-id")
+analytics.track(&"screen_opened", {
+	"screen": "inventory",
+})
+
+# endpoint_url 为空时为本地 dry-run；配置后会按 JSON 批量 POST
+analytics.config.endpoint_url = "https://example.com/events"
+analytics.flush()
+```
+
+如果项目需要接入自定义 SDK 或不同服务端协议，可以使用传输 hook，而不是修改工具内部：
+
+```gdscript
+analytics.payload_builder = func(batch: Array) -> Dictionary:
+	return {
+		"events": batch,
+		"schema": "v1",
+	}
+
+analytics.transport_callback = func(payload: Dictionary) -> Dictionary:
+	# 项目层自行发送 payload，也可以只写入本地调试管线。
+	return { "success": true, "accepted": (payload["events"] as Array).size() }
+```
+
+配置项放在 `GFAnalyticsConfig` 中，包括 `endpoint_url`、`headers`、`batch_size`、`max_queue_size`、`flush_interval_seconds`、`app_version`、`persist_client_id`、`client_id_storage_path` 和 `flush_on_shutdown`。自定义 `headers` 会过滤空 header 名和包含 CR/LF 的键值，避免把外部字符串直接拼成非法 HTTP 头。`transport_callback` 是同步 hook，必须直接返回结果字典；如需异步 SDK，应在项目层做缓冲，再把 GF 队列视为本地入口。项目层仍然负责决定事件命名、字段规范和隐私策略。
+
+flush 失败时，本批事件会按原顺序放回队列前端，并发出 `flush_failed` / `flush_completed`；失败回灌后仍会重新执行 `max_queue_size` 限制，避免离线或接口故障时无限占用内存。正常 `track()` 超过上限时会丢弃最早事件；失败批次回灌超过上限时会优先保留刚失败的批次。关闭时的 `flush_on_shutdown` 是尽力触发，不会等待 HTTP 请求完成；关键埋点应由项目层在重要流程点主动 `flush()` 并监听结果。`capture_context()` 只采集平台、Godot 版本、屏幕尺寸、语言和时区等通用信息，涉及账号、设备指纹或隐私字段的内容必须由项目层显式添加。
+
+
+## 远程文本与 JSON 缓存 (`GFRemoteCacheUtility`)
+
+**应用场景：** 当项目需要拉取公告、轻量配置、远程索引或工具数据时，可以使用该工具统一处理 HTTP 请求、本地 TTL 缓存和失败回退。它只处理通用文本/JSON，不绑定具体业务结构。
+
+```gdscript
+var remote_cache := Gf.get_utility(GFRemoteCacheUtility) as GFRemoteCacheUtility
+remote_cache.default_ttl_seconds = 3600
+
+remote_cache.fetch_json("https://example.com/config.json", func(result: Dictionary) -> void:
+	if not bool(result["success"]):
+		push_warning(result["error"])
+		return
+
+	var data := result["data"] as Dictionary
+	print(data)
+)
+```
+
+`fetch_text()` 与 `fetch_json()` 的回调都接收统一结果字典：`success`、`url`、`content`、`data`、`from_cache`、`stale`、`response_code` 和 `error`。当强制刷新失败但本地仍有旧缓存时，结果会以 `success = true`、`from_cache = true`、`stale = true` 返回，项目层可以自行决定是否展示旧内容或提示网络状态。
+
+缓存文件位于 `user://<cache_dir_name>/`，文件名由 URL、请求格式和 headers 组合出的缓存 key 的 MD5 派生，超过 `max_cache_entries` 后按修改时间删除最旧条目。项目可以用 `has_valid_cache()` / `get_cached_text()` 只读文本缓存，用 `remove_cache()` 清理单个缓存 key，用 `clear_cache()` 清空整个缓存目录；需要语言、账号态或 AB 分组等自定义维度时，可以提供 `cache_key_builder`。JSON 请求会先解析成功再写入缓存，避免远程服务短暂返回坏 JSON 后污染 TTL 缓存；强制刷新失败或新 JSON 解析失败但本地有可用旧缓存时，仍可返回 `stale = true` 的旧内容。
+
+该工具串行处理内部请求队列，适合轻量公告和配置拉取，不适合作为大文件下载器或实时 API 客户端。相同缓存 key 的并发请求会合并到同一个 HTTP 请求；`max_pending_requests` 限制等待队列长度，`cancel(url, headers, format)` 可取消匹配请求，`cancel_all()` 可清空等待和当前请求。`get_debug_snapshot()` 会报告缓存目录、TTL、队列上限、队列数量和当前 active URL，便于和 `GFDiagnosticsUtility` 一起定位远程配置刷新问题。缓存写入仍使用同步 `FileAccess`，项目不应把它用于大文件下载或每帧高频刷新。
+
+
+## 通用请求 Outbox (`GFRequestEnvelope` / `GFRequestOutboxUtility`)
+
+当项目需要把失败请求先落到本地、稍后再由自己的网络层或平台 SDK 重放时，可以注册 `GFRequestOutboxUtility`。它只负责请求描述、持久化、重试次数、重试延迟和失败列表，不内置任何账号、排行榜、云存档、鉴权或业务协议。
+
+```gdscript
+var outbox := Gf.get_utility(GFRequestOutboxUtility) as GFRequestOutboxUtility
+outbox.transport_callback = func(envelope: GFRequestEnvelope) -> Dictionary:
+	# 项目层自行发送 envelope，可以走 HTTP、平台 SDK 或本地工具桥。
+	return { "ok": true }
+
+outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.com/api/events", {
+	"event": "checkpoint",
+	"position": Vector2(12.0, 4.0),
+})
+
+outbox.replay()
+```
+
+`GFRequestEnvelope` 保存 `method`、`url`、`body`、`headers`、`idempotency_key`、`attempt_count`、`max_attempts`、`last_error` 和 `metadata`。队列写入 `storage_path` 时会使用 `GFVariantJsonCodec` 的类型化 JSON codec，因此 `Vector2`、`Color`、PackedArray 等常见 Godot 值可以作为普通载荷保存。`transport_callback` 返回 `{ "ok": true }` 或 `{ "success": true }` 时请求会从等待队列移除；失败时按 `retry_delays_msec` 安排下一次尝试，耗尽次数后可进入失败列表。
+
+这个工具适合做“通用离线 outbox”边界，例如分析事件、自定义远程配置写入、轻量状态提交或编辑器工具请求。它不替项目决定哪些请求可重放、是否幂等、如何签名、如何脱敏、如何处理冲突；这些策略应放在项目自己的 `transport_callback`、`replay_filter` 或更高层同步系统中。

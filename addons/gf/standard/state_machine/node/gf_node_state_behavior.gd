@@ -22,7 +22,7 @@ extends Resource
 
 ## 初始化行为。
 ## @param state: 行为所属状态。
-func initialize(state: Node) -> void:
+func initialize(state: GFNodeState) -> void:
 	if enabled:
 		_initialize(state)
 
@@ -31,7 +31,7 @@ func initialize(state: Node) -> void:
 ## @param state: 行为所属状态。
 ## @param previous_state: 来源状态名。
 ## @param args: 状态切换参数。
-func enter(state: Node, previous_state: StringName = &"", args: Dictionary = {}) -> void:
+func enter(state: GFNodeState, previous_state: StringName = &"", args: Dictionary = {}) -> void:
 	if enabled:
 		_enter(state, previous_state, args)
 
@@ -40,7 +40,7 @@ func enter(state: Node, previous_state: StringName = &"", args: Dictionary = {})
 ## @param state: 行为所属状态。
 ## @param next_state: 目标状态名。
 ## @param args: 状态切换参数。
-func exit(state: Node, next_state: StringName = &"", args: Dictionary = {}) -> void:
+func exit(state: GFNodeState, next_state: StringName = &"", args: Dictionary = {}) -> void:
 	if enabled:
 		_exit(state, next_state, args)
 
@@ -49,7 +49,7 @@ func exit(state: Node, next_state: StringName = &"", args: Dictionary = {}) -> v
 ## @param state: 行为所属状态。
 ## @param next_state: 目标状态名。
 ## @param args: 状态切换参数。
-func pause(state: Node, next_state: StringName = &"", args: Dictionary = {}) -> void:
+func pause(state: GFNodeState, next_state: StringName = &"", args: Dictionary = {}) -> void:
 	if enabled:
 		_pause(state, next_state, args)
 
@@ -58,7 +58,7 @@ func pause(state: Node, next_state: StringName = &"", args: Dictionary = {}) -> 
 ## @param state: 行为所属状态。
 ## @param previous_state: 来源状态名。
 ## @param args: 状态切换参数。
-func resume(state: Node, previous_state: StringName = &"", args: Dictionary = {}) -> void:
+func resume(state: GFNodeState, previous_state: StringName = &"", args: Dictionary = {}) -> void:
 	if enabled:
 		_resume(state, previous_state, args)
 
@@ -68,7 +68,7 @@ func resume(state: Node, previous_state: StringName = &"", args: Dictionary = {}
 ## @param event_id: 状态事件标识。
 ## @param payload: 状态事件载荷。
 ## @return 已处理返回 true。
-func handle_state_event(state: Node, event_id: StringName, payload: Variant = null) -> bool:
+func handle_state_event(state: GFNodeState, event_id: StringName, payload: Variant = null) -> bool:
 	if not enabled:
 		return false
 	return _handle_state_event(state, event_id, payload)
@@ -77,30 +77,30 @@ func handle_state_event(state: Node, event_id: StringName, payload: Variant = nu
 # --- 虚方法（由子类重写） ---
 
 ## 行为初始化扩展点。
-func _initialize(_state: Node) -> void:
+func _initialize(_state: GFNodeState) -> void:
 	pass
 
 
 ## 状态进入行为扩展点。
-func _enter(_state: Node, _previous_state: StringName = &"", _args: Dictionary = {}) -> void:
+func _enter(_state: GFNodeState, _previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
 
 
 ## 状态退出行为扩展点。
-func _exit(_state: Node, _next_state: StringName = &"", _args: Dictionary = {}) -> void:
+func _exit(_state: GFNodeState, _next_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
 
 
 ## 状态暂停行为扩展点。
-func _pause(_state: Node, _next_state: StringName = &"", _args: Dictionary = {}) -> void:
+func _pause(_state: GFNodeState, _next_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
 
 
 ## 状态恢复行为扩展点。
-func _resume(_state: Node, _previous_state: StringName = &"", _args: Dictionary = {}) -> void:
+func _resume(_state: GFNodeState, _previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 	pass
 
 
 ## 状态事件行为扩展点。
-func _handle_state_event(_state: Node, _event_id: StringName, _payload: Variant = null) -> bool:
+func _handle_state_event(_state: GFNodeState, _event_id: StringName, _payload: Variant = null) -> bool:
 	return false

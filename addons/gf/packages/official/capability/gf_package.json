@@ -11,6 +11,9 @@
   "editor_inspector_paths": [
     "res://addons/gf/packages/official/capability/editor/gf_capability_inspector_plugin.gd"
   ],
+  "editor_action_paths": [
+    "res://addons/gf/packages/official/capability/editor/gf_capability_editor_actions.gd"
+  ],
   "access_generator_extension_paths": [
     "res://addons/gf/packages/official/capability/editor/gf_capability_access_generator_extension.gd"
   ],

@@ -25,13 +25,13 @@ signal project_installers_finished
 const GFBindingBase = preload("res://addons/gf/kernel/core/gf_binding.gd")
 const GFBinderBase = preload("res://addons/gf/kernel/core/gf_binder.gd")
 const GFBindingLifetimesBase = preload("res://addons/gf/kernel/core/gf_binding_lifetimes.gd")
+const GFTimeProviderBase = preload("res://addons/gf/kernel/base/gf_time_provider.gd")
 const HOOK_GET_REQUIRED_DEPENDENCIES: StringName = &"get_required_dependencies"
 const HOOK_GET_REQUIRED_MODELS: StringName = &"get_required_models"
 const HOOK_GET_REQUIRED_SYSTEMS: StringName = &"get_required_systems"
 const HOOK_GET_REQUIRED_UTILITIES: StringName = &"get_required_utilities"
 const HOOK_GET_REQUIRED_FACTORIES: StringName = &"get_required_factories"
-const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 公共变量 ---
@@ -65,7 +65,7 @@ var _utilities: Dictionary = _utility_registry.instances
 var _factories: Dictionary = {}
 var _module_lifecycle_stages: Dictionary = {}
 var _event_system: GFTypeEventSystem
-var _time_utility: GFTimeUtility
+var _time_provider: Object
 var _inited: bool = false
 var _is_initializing: bool = false
 var _lifecycle_serial: int = 0
@@ -212,9 +212,7 @@ func init() -> void:
 	if not _is_lifecycle_current(current_serial) or _initialization_failed:
 		return
 
-	_time_utility = get_local_utility(GFTimeUtility) as GFTimeUtility
-	if _time_utility == null and not strict_dependency_lookup and _parent_architecture != null:
-		_time_utility = _parent_architecture.get_utility(GFTimeUtility) as GFTimeUtility
+	_refresh_cached_utility_refs()
 	_inited = true
 	_is_initializing = false
 	initialization_finished.emit()
@@ -240,7 +238,7 @@ func dispose() -> void:
 	_factories.clear()
 	_module_lifecycle_stages.clear()
 	_event_system.clear()
-	_time_utility = null
+	_time_provider = null
 	_inited = false
 	_initialization_failed = false
 	last_initialization_error = ""
@@ -252,7 +250,7 @@ func dispose() -> void:
 
 ## 驱动所有参与 tick 的 System 与 Utility 的每帧更新。
 ## 在架构初始化完成后方可生效。
-## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 tick 的模块。
+## 若已注册 GFTimeProvider，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## 设置了 ignore_time_scale 的模块在未暂停时将跳过 time_scale。
 ## @param delta: 距上一帧的时间（秒）。
@@ -273,18 +271,20 @@ func tick(delta: float) -> void:
 
 ## 驱动所有参与 physics_tick 的 System 与 Utility 的每物理帧更新。
 ## 在架构初始化完成后方可生效。
-## 若已注册 GFTimeUtility，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 physics_tick 的模块。
+## 若已注册 GFTimeProvider，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 physics_tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## 设置了 ignore_time_scale 的模块在未暂停时将跳过 time_scale。
 ## @param delta: 距上一物理帧的时间（秒）。
 func physics_tick(delta: float) -> void:
 	if not _inited:
 		return
-	if _time_utility != null and _time_utility.should_substep_physics(delta):
-		var scaled_steps := _time_utility.get_physics_scaled_delta_steps(delta)
+	if _time_provider != null and bool(_time_provider.call("should_substep_physics", delta)):
+		var scaled_steps: Array = _time_provider.call("get_physics_scaled_delta_steps", delta) as Array
+		if scaled_steps.is_empty():
+			return
 		var raw_step := delta / float(scaled_steps.size())
-		for scaled_step: float in scaled_steps:
-			_drive_physics_tick_step(raw_step, scaled_step)
+		for scaled_step_variant: Variant in scaled_steps:
+			_drive_physics_tick_step(raw_step, float(scaled_step_variant))
 		return
 
 	var scaled_delta: float = _get_scaled_delta(delta)
@@ -875,7 +875,7 @@ func restore_all_models_state(data: Dictionary) -> void:
 				model.from_dict(data[class_name_key])
 
 
-## 获取整个框架的全局快照，包含所有 Model 状态以及（如果已注册）命令历史记录。
+## 获取整个框架的全局快照，包含所有 Model 状态以及可选命令历史记录。
 ## @return 包含全局快照数据的字典。可直接用于 JSON 序列化。
 func get_global_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
@@ -884,14 +884,14 @@ func get_global_snapshot() -> Dictionary:
 	snapshot["models"] = get_all_models_state()
 	
 	# 打包命令操作历史（如果有）
-	var history_util := get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+	var history_util := _get_command_history_store()
 	if history_util != null:
-		snapshot["command_history"] = history_util.serialize_full_history()
+		snapshot["command_history"] = history_util.call("serialize_full_history")
 		
 	return snapshot
 
 
-## 从全局快照中恢复整个框架的状态，包含 Model 状态以及（如果已注册）命令历史记录。
+## 从全局快照中恢复整个框架的状态，包含 Model 状态以及可选命令历史记录。
 ## 注意：恢复命令历史需要外部传入 CommandBuilder 进行控制反转，因为它涉及到具体的业务命令类实例化。
 ## @param data: 由 get_global_snapshot() 导出的全局快照字典数据。
 ## @param command_builder: 【可选】如果需要恢复历史记录，必须传入用于反序列化具体 Command 实例的 Callable。
@@ -904,14 +904,14 @@ func restore_global_snapshot(data: Dictionary, command_builder: Callable = Calla
 			push_warning("[GFArchitecture] restore_global_snapshot：models 必须是 Dictionary，已跳过 Model 恢复。")
 		
 	if data.has("command_history"):
-		var history_util := get_utility(GFCommandHistoryUtility) as GFCommandHistoryUtility
+		var history_util := _get_command_history_store()
 		if history_util != null:
 			if command_builder.is_valid():
 				var history_data: Variant = data["command_history"]
-				if typeof(history_data) == TYPE_DICTIONARY:
-					history_util.deserialize_full_history(history_data, command_builder)
-				elif typeof(history_data) == TYPE_ARRAY:
-					history_util.deserialize_history(history_data, command_builder)
+				if typeof(history_data) == TYPE_DICTIONARY and history_util.has_method("deserialize_full_history"):
+					history_util.call("deserialize_full_history", history_data, command_builder)
+				elif typeof(history_data) == TYPE_ARRAY and history_util.has_method("deserialize_history"):
+					history_util.call("deserialize_history", history_data, command_builder)
 			else:
 				push_warning("[GFArchitecture] restore_global_snapshot：快照包含命令历史数据，但未提供有效的 command_builder，跳过历史恢复。")
 
@@ -947,7 +947,7 @@ func get_debug_lifecycle_state() -> Dictionary:
 func get_dependency_diagnostics(options: Dictionary = {}) -> Dictionary:
 	var include_parent_lookup := bool(options.get("include_parent_lookup", not strict_dependency_lookup))
 	var include_factories := bool(options.get("include_factories", true))
-	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Architecture dependencies")
+	var report := DependencyDiagnosticsReport.new("Architecture dependencies")
 	var modules: Array[Dictionary] = []
 	var resolved_dependencies: Array[Dictionary] = []
 	var missing_dependencies: Array[Dictionary] = []
@@ -1398,13 +1398,13 @@ func _reset_project_installers() -> void:
 		project_installers_finished.emit()
 
 
-## 获取经过时间工具缩放后的 delta。若未注册 GFTimeUtility，则返回原始 delta。
+## 获取经过时间工具缩放后的 delta。若未注册 GFTimeProvider，则返回原始 delta。
 ## @param delta: 引擎原始帧间隔时间。
 ## @return 缩放后的 delta。
 func _get_scaled_delta(delta: float) -> float:
-	if _time_utility == null:
+	if _time_provider == null:
 		return delta
-	return _time_utility.get_scaled_delta(delta)
+	return float(_time_provider.call("get_scaled_delta", delta))
 
 
 func _drive_physics_tick_step(raw_delta: float, scaled_delta: float) -> void:
@@ -1422,15 +1422,15 @@ func _drive_physics_tick_step(raw_delta: float, scaled_delta: float) -> void:
 ## 根据模块的 ignore_pause 设置获取本次 tick 应使用的 delta。
 ## @param instance: 被驱动的模块实例。
 ## @param raw_delta: 引擎原始 delta。
-## @param scaled_delta: 已经由 GFTimeUtility 处理后的 delta。
+## @param scaled_delta: 已经由 GFTimeProvider 处理后的 delta。
 ## @return 模块本次应接收的 delta。
 func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float) -> float:
-	if _time_utility == null:
+	if _time_provider == null:
 		return raw_delta
 
 	var ignores_pause: bool = "ignore_pause" in instance and instance.get("ignore_pause") == true
 	var ignores_time_scale: bool = "ignore_time_scale" in instance and instance.get("ignore_time_scale") == true
-	if _time_utility.is_paused:
+	if bool(_time_provider.call("is_time_paused")):
 		return raw_delta if ignores_pause else 0.0
 
 	if ignores_time_scale:
@@ -1925,9 +1925,42 @@ func _instance_matches_registration_label(instance: Object, label: String) -> bo
 
 
 func _refresh_cached_utility_refs() -> void:
-	_time_utility = get_local_utility(GFTimeUtility) as GFTimeUtility
-	if _time_utility == null and not strict_dependency_lookup and _parent_architecture != null:
-		_time_utility = _parent_architecture.get_utility(GFTimeUtility) as GFTimeUtility
+	_time_provider = _get_local_registered_instance(_utility_registry, GFTimeProviderBase)
+	if _time_provider == null and not strict_dependency_lookup and _parent_architecture != null:
+		_time_provider = _parent_architecture._get_time_provider()
+
+
+func _get_time_provider() -> Object:
+	if _time_provider == null:
+		_refresh_cached_utility_refs()
+	return _time_provider
+
+
+func _get_command_history_store() -> Object:
+	var history_store := _find_local_utility_with_methods(PackedStringArray([
+		"serialize_full_history",
+	]))
+	if history_store != null:
+		return history_store
+	if _parent_architecture != null and not strict_dependency_lookup:
+		return _parent_architecture._get_command_history_store()
+	return null
+
+
+func _find_local_utility_with_methods(method_names: PackedStringArray) -> Object:
+	for utility: Object in _utilities.values():
+		if _object_has_methods(utility, method_names):
+			return utility
+	return null
+
+
+func _object_has_methods(instance: Object, method_names: PackedStringArray) -> bool:
+	if instance == null:
+		return false
+	for method_name: String in method_names:
+		if not instance.has_method(method_name):
+			return false
+	return true
 
 
 func _refresh_tick_caches() -> void:
@@ -2128,6 +2161,152 @@ func _has_assignable_instance(module_registry: ModuleRegistry, script_cls: Scrip
 
 
 # --- 内部类 ---
+
+class DependencyDiagnosticsReport:
+	extends RefCounted
+
+	var subject: String = ""
+	var issues: Array[Dictionary] = []
+
+	func _init(p_subject: String = "") -> void:
+		subject = p_subject
+
+	## 添加一个 warning 级别的依赖诊断条目。
+	## @param kind: 诊断类型。
+	## @param message: 面向维护者的诊断说明。
+	## @param key: 可选的关联键，例如脚本类、别名或设置名。
+	## @param path: 可选的关联资源路径。
+	## @param metadata: 可选的附加诊断数据。
+	## @return 新增的诊断条目。
+	func add_warning(
+		kind: StringName,
+		message: String,
+		key: Variant = null,
+		path: String = "",
+		metadata: Dictionary = {}
+	) -> Dictionary:
+		return _add_issue("warning", kind, message, key, path, metadata)
+
+	## 添加一个 error 级别的依赖诊断条目。
+	## @param kind: 诊断类型。
+	## @param message: 面向维护者的诊断说明。
+	## @param key: 可选的关联键，例如脚本类、别名或设置名。
+	## @param path: 可选的关联资源路径。
+	## @param metadata: 可选的附加诊断数据。
+	## @return 新增的诊断条目。
+	func add_error(
+		kind: StringName,
+		message: String,
+		key: Variant = null,
+		path: String = "",
+		metadata: Dictionary = {}
+	) -> Dictionary:
+		return _add_issue("error", kind, message, key, path, metadata)
+
+	## 汇总诊断条目并转换为可序列化字典。
+	## @param additional_fields: 合并到结果中的额外字段。
+	## @param options: 可选输出控制项，例如 include_info_count、include_issue_count、next_action。
+	## @return 诊断报告字典。
+	func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
+		var result := additional_fields.duplicate(true)
+		var error_count := 0
+		var warning_count := 0
+		var info_count := 0
+		var issue_counts_by_kind: Dictionary = {}
+		for issue: Dictionary in issues:
+			var severity := String(issue.get("severity", "error"))
+			match severity:
+				"error":
+					error_count += 1
+				"warning":
+					warning_count += 1
+				"info":
+					info_count += 1
+
+			var kind_key := String(issue.get("kind", "unknown"))
+			issue_counts_by_kind[kind_key] = int(issue_counts_by_kind.get(kind_key, 0)) + 1
+
+		var include_info_count := _get_option_bool(options, "include_info_count", true)
+		var include_issue_count := _get_option_bool(options, "include_issue_count", true)
+		result["ok"] = error_count == 0
+		result["healthy"] = error_count == 0 and warning_count == 0
+		result["error_count"] = error_count
+		result["warning_count"] = warning_count
+		if include_info_count:
+			result["info_count"] = info_count
+		if include_issue_count:
+			result["issue_count"] = issues.size()
+		result["issue_counts_by_kind"] = issue_counts_by_kind
+		result["summary"] = _make_summary(error_count, warning_count)
+		result["next_action"] = _get_next_action(options)
+		result["issues"] = issues.duplicate(true)
+		return result
+
+	func _add_issue(
+		severity: String,
+		kind: StringName,
+		message: String,
+		key: Variant,
+		path: String,
+		metadata: Dictionary
+	) -> Dictionary:
+		var issue := {
+			"severity": severity,
+			"kind": String(kind),
+			"message": message,
+		}
+		if key != null:
+			issue["key"] = key
+		if not path.is_empty():
+			issue["path"] = path
+		if not metadata.is_empty():
+			issue["metadata"] = metadata.duplicate(true)
+		issues.append(issue)
+		return issue
+
+	func _make_summary(error_count: int, warning_count: int) -> String:
+		var label := subject
+		if label.is_empty():
+			label = "Validation report"
+		if error_count > 0:
+			return "%s has %d error(s) and %d warning(s)." % [label, error_count, warning_count]
+		if warning_count > 0:
+			return "%s has %d warning(s)." % [label, warning_count]
+		return "%s is healthy." % label
+
+	func _get_next_action(options: Dictionary) -> String:
+		var next_actions := options.get("next_actions", {}) as Dictionary
+		if next_actions == null:
+			next_actions = {}
+		var fallback_action := String(options.get("fallback_action", "Review the first reported issue."))
+		var no_action := String(options.get("no_action", "No action required."))
+		var issue := _get_first_issue_by_priority()
+		if issue.is_empty():
+			return no_action
+		var kind_key := String(issue.get("kind", "unknown"))
+		if next_actions.has(kind_key):
+			return String(next_actions[kind_key])
+		var kind_name := StringName(kind_key)
+		if next_actions.has(kind_name):
+			return String(next_actions[kind_name])
+		return fallback_action
+
+	func _get_first_issue_by_priority() -> Dictionary:
+		for issue: Dictionary in issues:
+			if String(issue.get("severity", "")) == "error":
+				return issue
+		for issue: Dictionary in issues:
+			if String(issue.get("severity", "")) == "warning":
+				return issue
+		if not issues.is_empty():
+			return issues[0]
+		return {}
+
+	static func _get_option_bool(options: Dictionary, field_name: String, default_value: bool) -> bool:
+		if not options.has(field_name):
+			return default_value
+		return bool(options[field_name])
+
 
 class ModuleRegistry:
 	var label: String = ""

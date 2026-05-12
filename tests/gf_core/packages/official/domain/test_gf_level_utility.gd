@@ -68,6 +68,10 @@ func before_each() -> void:
 	await _arch.register_utility_instance(_history)
 	await _arch.register_system_instance(_actions)
 	await _arch.register_utility_instance(_level)
+	_level.register_runtime_cleanup(&"action_queue", func() -> void:
+		_actions.clear_queue(true)
+		_actions.clear_all_named_queues(true)
+	)
 	await Gf.set_architecture(_arch)
 
 
@@ -140,6 +144,19 @@ func test_restart_level_clears_runtime_and_emits_signal() -> void:
 	assert_eq(_history.undo_count, 0, "重开关卡应清理命令历史。")
 	assert_signal_emitted(_level, "level_restarted", "重开关卡时应发出 level_restarted。")
 	assert_signal_not_emitted(_level, "level_started", "重开关卡不应重复发出 level_started。")
+
+
+func test_register_runtime_cleanup_tracks_callbacks() -> void:
+	var state := { "called": false }
+	assert_true(_level.register_runtime_cleanup(&"test", func() -> void:
+		state["called"] = true
+	), "有效清理回调应注册成功。")
+
+	_level.clear_level_runtime()
+
+	assert_true(state["called"], "清理运行时时应调用外部注册的清理回调。")
+	assert_true(_level.has_runtime_cleanup(&"test"), "注册后应可查询清理项。")
+	assert_true(_level.get_runtime_cleanup_ids().has("test"), "清理项列表应包含注册 ID。")
 
 
 func test_restart_level_stops_current_action_queue_wait() -> void:

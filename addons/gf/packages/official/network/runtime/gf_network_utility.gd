@@ -55,6 +55,10 @@ var _channels: Dictionary = {}
 
 # --- Godot 生命周期方法 ---
 
+func ready() -> void:
+	_register_diagnostics_contribution()
+
+
 ## 推进运行时逻辑。
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
@@ -63,6 +67,7 @@ func tick(delta: float) -> void:
 
 
 func dispose() -> void:
+	_unregister_diagnostics_contribution()
 	set_backend(null)
 	clear_channels()
 	if session != null:
@@ -331,3 +336,19 @@ func _copy_message_for_channel(message: GFNetworkMessage, channel_id: StringName
 		message.sender_id,
 		channel_id
 	)
+
+
+func _register_diagnostics_contribution() -> void:
+	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	if diagnostics == null:
+		return
+
+	diagnostics.register_snapshot_section_provider(&"network", Callable(self, "get_debug_snapshot"))
+
+
+func _unregister_diagnostics_contribution() -> void:
+	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	if diagnostics == null:
+		return
+
+	diagnostics.unregister_snapshot_section_provider(&"network")

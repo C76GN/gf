@@ -5,13 +5,6 @@ class_name GFInteractionContext
 extends RefCounted
 
 
-# --- 常量 ---
-
-const _CAPABILITY_PACKAGE_ID: String = "gf.official.capability"
-const _CAPABILITY_UTILITY_SCRIPT_RELATIVE_PATH: String = "core/gf_capability_utility.gd"
-const _PACKAGE_SETTINGS: Script = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
-
-
 # --- 公共变量 ---
 
 ## 交互发起者。
@@ -25,6 +18,9 @@ var payload: Variant = null
 
 ## 交互所属的可选分组。
 var group_name: StringName = &""
+
+## 可选能力提供者。需要 get_capability() 和 get_receivers_in_group() 等方法时由项目或能力包显式注入。
+var capability_provider: Object = null
 
 
 # --- 私有变量 ---
@@ -82,6 +78,13 @@ func with_group(value: StringName) -> GFInteractionContext:
 	return self
 
 
+## 设置能力提供者并返回自身。
+## @param provider: 提供能力查询方法的对象。
+func with_capability_provider(provider: Object) -> GFInteractionContext:
+	capability_provider = provider
+	return self
+
+
 ## 获取 sender 上的指定能力。
 ## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func get_sender_capability(capability_type: Script) -> Object:
@@ -122,21 +125,7 @@ func get_group_receivers(capability_type: Script = null) -> Array[Object]:
 # --- 私有/辅助方法 ---
 
 func _get_capability_utility() -> Object:
-	var architecture := _get_architecture_or_null()
-	if architecture == null:
-		return null
-
-	var capability_utility_script := _load_capability_utility_script()
-	if capability_utility_script == null:
-		return null
-	return architecture.get_utility(capability_utility_script)
-
-
-func _load_capability_utility_script() -> Script:
-	return _PACKAGE_SETTINGS.load_enabled_package_script(
-		_CAPABILITY_PACKAGE_ID,
-		_CAPABILITY_UTILITY_SCRIPT_RELATIVE_PATH
-	)
+	return capability_provider if is_instance_valid(capability_provider) else null
 
 
 func _get_architecture_or_null() -> GFArchitecture:

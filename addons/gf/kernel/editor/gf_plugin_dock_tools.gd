@@ -7,23 +7,25 @@ extends RefCounted
 # --- 常量 ---
 
 const PACKAGE_MANAGER_DOCK_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/package/gf_package_manager_dock.gd"
-const GFStandardEditorExtensionsBase = preload("res://addons/gf/standard/editor/gf_standard_editor_extensions.gd")
 const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 
 
 # --- 私有变量 ---
 
 var _dock_records: Array[Dictionary] = []
+var _standard_dock_records: Array[Dictionary] = []
 
 
 # --- 公共方法 ---
 
 ## 安装 GF 底部面板。
 ## @param plugin: 当前 EditorPlugin 实例。
-func setup(plugin: EditorPlugin) -> void:
+## @param standard_dock_records: 组合入口传入的标准库 Dock 记录。
+func setup(plugin: EditorPlugin, standard_dock_records: Array[Dictionary] = []) -> void:
 	if plugin == null:
 		return
 
+	set_standard_dock_records(standard_dock_records)
 	for record: Dictionary in _collect_core_dock_records():
 		_add_bottom_dock(plugin, String(record["path"]), String(record["label"]))
 	for record: Dictionary in _collect_enabled_package_dock_records():
@@ -44,16 +46,29 @@ func cleanup(plugin: EditorPlugin) -> void:
 	_dock_records.clear()
 
 
+## 设置由组合入口收集到的标准库 Dock 记录。
+## @param standard_dock_records: 标准库 Dock 记录。
+func set_standard_dock_records(standard_dock_records: Array[Dictionary]) -> void:
+	_standard_dock_records = _copy_records(standard_dock_records)
+
+
 # --- 私有/辅助方法 ---
 
 func _collect_core_dock_records() -> Array[Dictionary]:
-	var records := GFStandardEditorExtensionsBase.get_dock_records()
+	var records := _copy_records(_standard_dock_records)
 	records.append(
 		{
 			"path": PACKAGE_MANAGER_DOCK_SCRIPT_PATH,
 			"label": "GF Packages",
 		}
 	)
+	return records
+
+
+func _copy_records(source: Array[Dictionary]) -> Array[Dictionary]:
+	var records: Array[Dictionary] = []
+	for record: Dictionary in source:
+		records.append(record.duplicate(true))
 	return records
 
 

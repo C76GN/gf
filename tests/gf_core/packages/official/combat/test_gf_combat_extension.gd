@@ -333,6 +333,52 @@ func test_add_buff_assigns_owner_when_missing() -> void:
 	assert_eq(entity.get_attribute(&"ATK").current_value.get_value(), 15.0, "自动回填 owner 后，Buff 效果应能正常生效。")
 
 
+func test_get_buff_has_buff_and_get_buffs_are_safe_queries() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+
+	var power_buff := GFBuff.new()
+	power_buff.setup(&"PowerUp", 3.0, entity)
+	var shield_buff := GFBuff.new()
+	shield_buff.setup(&"Shield", 5.0, entity)
+	system.add_buff(entity, power_buff)
+	system.add_buff(entity, shield_buff)
+
+	var found_buff := system.get_buff(entity, &"PowerUp")
+	var buffs := system.get_buffs(entity)
+	buffs.clear()
+	found_buff.time_left = 8.0
+
+	assert_same(found_buff, power_buff, "get_buff 应返回系统中正在生效的 Buff 实例。")
+	assert_true(system.has_buff(entity, &"PowerUp"), "has_buff 应报告已存在的 Buff。")
+	assert_false(system.has_buff(entity, &"Missing"), "has_buff 未命中时应返回 false。")
+	assert_eq(system.get_buffs(entity).size(), 2, "get_buffs 返回的数组副本不应暴露内部列表。")
+	assert_eq(power_buff.time_left, 8.0, "get_buff 返回的 Buff 应是可修改的运行中实例。")
+	assert_eq(system.get_buff(entity, &"Missing"), null, "get_buff 未命中时应返回 null。")
+
+
+func test_refresh_buff_modifiers_recalculates_changed_modifier_values() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	entity.add_attr(&"ATK", 10.0)
+	system.register_entity(entity)
+
+	var modifier := GFModifier.create_base_add(5.0, &"ATK", &"PowerUp")
+	var buff := GFBuff.new()
+	buff.modifiers.append(modifier)
+	buff.setup(&"PowerUp", -1.0, entity)
+	system.add_buff(entity, buff)
+
+	modifier.value = 8.0
+	var refreshed := system.refresh_buff_modifiers(entity, &"PowerUp")
+	var missing := system.refresh_buff_modifiers(entity, &"Missing")
+
+	assert_true(refreshed, "修改已挂载 Modifier 数值后应可通过 refresh_buff_modifiers 刷新属性。")
+	assert_false(missing, "刷新不存在的 Buff 应返回 false。")
+	assert_almost_eq(entity.get_attribute(&"ATK").current_value.get_value(), 18.0, 0.001, "刷新后属性应使用新的 Modifier 数值。")
+
+
 func test_duplicate_buff_refresh_updates_duration_and_stacks() -> void:
 	var system := GFCombatSystem.new()
 	var entity := MockEntity.new()

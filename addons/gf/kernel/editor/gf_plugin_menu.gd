@@ -4,11 +4,6 @@
 extends RefCounted
 
 
-# --- 常量 ---
-
-const GFPluginActions = preload("res://addons/gf/kernel/editor/gf_plugin_actions.gd")
-
-
 # --- 私有变量 ---
 
 var _menu: PopupMenu
@@ -19,13 +14,13 @@ var _menu: PopupMenu
 ## 创建并注册 GF 工具菜单。
 ## @param plugin: 当前 EditorPlugin 实例。
 ## @param handler: 处理菜单 ID 的回调。
-## @param package_entries: 启用包注册的菜单项。
-func setup(plugin: EditorPlugin, handler: Callable, package_entries: Array[Dictionary] = []) -> void:
+## @param menu_entries: 菜单项记录列表。
+func setup(plugin: EditorPlugin, handler: Callable, menu_entries: Array = []) -> void:
 	if plugin == null:
 		return
 	_menu = PopupMenu.new()
 	_menu.id_pressed.connect(handler)
-	_populate_menu(package_entries)
+	_populate_menu(menu_entries)
 	plugin.add_tool_submenu_item("GF", _menu)
 
 
@@ -41,32 +36,12 @@ func cleanup(plugin: EditorPlugin) -> void:
 
 # --- 私有/辅助方法 ---
 
-func _populate_menu(package_entries: Array[Dictionary]) -> void:
-	_menu.add_separator("核心模块")
-	_menu.add_item("生成 System", GFPluginActions.MENU_GENERATE_SYSTEM)
-	_menu.add_item("生成 Model", GFPluginActions.MENU_GENERATE_MODEL)
-	_menu.add_item("生成 Utility", GFPluginActions.MENU_GENERATE_UTILITY)
-	_menu.add_item("生成 Command", GFPluginActions.MENU_GENERATE_COMMAND)
-
-	_menu.add_separator("扩展模板")
-	_menu.add_item("生成 Capability", GFPluginActions.MENU_GENERATE_CAPABILITY)
-	_menu.add_item("生成 NodeCapability", GFPluginActions.MENU_GENERATE_NODE_CAPABILITY)
-	_menu.add_item("生成 Node2DCapability", GFPluginActions.MENU_GENERATE_NODE_2D_CAPABILITY)
-	_menu.add_item("生成 Node3DCapability", GFPluginActions.MENU_GENERATE_NODE_3D_CAPABILITY)
-	_menu.add_item("生成 ControlCapability", GFPluginActions.MENU_GENERATE_CONTROL_CAPABILITY)
-	_menu.add_item("生成 NodeState", GFPluginActions.MENU_GENERATE_NODE_STATE)
-	_menu.add_item("生成 NodeStateMachine", GFPluginActions.MENU_GENERATE_NODE_STATE_MACHINE)
-
-	_menu.add_separator("代码生成")
-	_menu.add_item("生成强类型访问器", GFPluginActions.MENU_GENERATE_ACCESSORS)
-	_menu.add_item("生成项目常量访问器", GFPluginActions.MENU_GENERATE_PROJECT_ACCESSORS)
-
-	_add_package_entries(package_entries)
-
-
-func _add_package_entries(package_entries: Array[Dictionary]) -> void:
+func _populate_menu(menu_entries: Array) -> void:
 	var current_section := ""
-	for entry: Dictionary in package_entries:
+	for entry_variant: Variant in menu_entries:
+		if not (entry_variant is Dictionary):
+			continue
+		var entry := entry_variant as Dictionary
 		var label := String(entry.get("label", "")).strip_edges()
 		var id := int(entry.get("id", -1))
 		if label.is_empty() or id < 0:
@@ -74,7 +49,7 @@ func _add_package_entries(package_entries: Array[Dictionary]) -> void:
 
 		var section := String(entry.get("section", "")).strip_edges()
 		if section.is_empty():
-			section = "扩展工具"
+			section = "工具"
 		if section != current_section:
 			_menu.add_separator(section)
 			current_section = section

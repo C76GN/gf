@@ -399,6 +399,27 @@ func test_network_debug_snapshots_are_available() -> void:
 	assert_eq(int(enet_snapshot["max_packets_per_poll"]), 64, "ENet 快照应包含每帧收包预算。")
 
 
+## 验证 Network 包会从包侧向 Diagnostics 贡献网络快照。
+func test_network_utility_contributes_diagnostics_snapshot() -> void:
+	var arch := GFArchitecture.new()
+	var diagnostics := GFDiagnosticsUtility.new()
+	var utility := GFNetworkUtilityBase.new()
+	utility.set_backend(FakeBackend.new())
+	await arch.register_utility_instance(diagnostics)
+	await arch.register_utility_instance(utility)
+	await arch.init()
+
+	var snapshot := diagnostics.collect_snapshot({
+		"include_recent_logs": false,
+	})
+	var network := snapshot["network"] as Dictionary
+
+	assert_true(network.has("backend_configured"), "Network 包应通过通用注册入口贡献 network 快照。")
+	assert_true(bool(network["backend_configured"]), "贡献的 network 快照应来自当前 NetworkUtility。")
+
+	arch.dispose()
+
+
 ## 验证固定 tick 时钟按预算推进并保留插值 alpha。
 func test_fixed_tick_clock_advances_with_budget() -> void:
 	var clock := GFFixedTickClockBase.new(10.0)

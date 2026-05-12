@@ -114,6 +114,57 @@ func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 	_update_active_status(p_entity)
 
 
+## 获取实体上的指定 Buff。
+## @param p_entity: 实体对象。
+## @param p_buff_id: Buff 标识。
+## @return 找到时返回正在系统中生效的 Buff 实例，否则返回 null。
+func get_buff(p_entity: Object, p_buff_id: StringName) -> GFBuff:
+	if not _entities.has(p_entity):
+		return null
+
+	var data: Dictionary = _entities[p_entity]
+	var buffs: Array = data["buffs"]
+	for buff: GFBuff in buffs:
+		if buff != null and buff.id == p_buff_id:
+			return buff
+	return null
+
+
+## 检查实体上是否存在指定 Buff。
+## @param p_entity: 实体对象。
+## @param p_buff_id: Buff 标识。
+## @return 存在返回 true。
+func has_buff(p_entity: Object, p_buff_id: StringName) -> bool:
+	return get_buff(p_entity, p_buff_id) != null
+
+
+## 获取实体当前持有的 Buff 列表副本。
+## @param p_entity: 实体对象。
+## @return Buff 实例数组副本；数组本身可安全修改，但元素仍是运行中的 Buff 引用。
+func get_buffs(p_entity: Object) -> Array[GFBuff]:
+	var result: Array[GFBuff] = []
+	if not _entities.has(p_entity):
+		return result
+
+	var data: Dictionary = _entities[p_entity]
+	var buffs: Array = data["buffs"]
+	for buff: GFBuff in buffs:
+		if buff != null:
+			result.append(buff)
+	return result
+
+
+## 强制刷新指定 Buff 已挂载修饰器影响到的属性。
+## @param p_entity: 实体对象。
+## @param p_buff_id: Buff 标识。
+## @return 至少刷新了一个属性时返回 true。
+func refresh_buff_modifiers(p_entity: Object, p_buff_id: StringName) -> bool:
+	var buff := get_buff(p_entity, p_buff_id)
+	if buff == null:
+		return false
+	return _refresh_buff_modifier_attributes(buff)
+
+
 ## 移除实体上的指定 Buff。
 ## @param p_entity: 实体对象。
 ## @param p_buff_id: Buff 标识。
@@ -279,6 +330,29 @@ func _remove_buff_at(p_entity: Object, buffs: Array, index: int, remove_effects:
 		buff.on_remove()
 	_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, removed_id))
 
+
+func _refresh_buff_modifier_attributes(buff: GFBuff) -> bool:
+	if buff == null or buff.owner == null or not is_instance_valid(buff.owner):
+		return false
+	if not buff.owner.has_method("get_attribute"):
+		return false
+
+	var refreshed_attribute_ids: Dictionary = {}
+	var refreshed := false
+	for modifier: GFModifier in buff.modifiers:
+		if modifier == null or modifier.attribute_id == &"":
+			continue
+		if refreshed_attribute_ids.has(modifier.attribute_id):
+			continue
+
+		var attr := buff.owner.get_attribute(modifier.attribute_id) as GFModifiedAttribute
+		if attr == null:
+			continue
+
+		attr.force_recalculate()
+		refreshed_attribute_ids[modifier.attribute_id] = true
+	refreshed = true
+	return refreshed
 
 
 func _process_entity(p_entity: Object, p_delta: float) -> void:

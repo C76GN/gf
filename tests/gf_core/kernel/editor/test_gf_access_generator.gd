@@ -180,6 +180,17 @@ func test_access_generator_extension_can_append_records() -> void:
 	assert_eq(String((records[0] as Dictionary).get("class_name", "")), "GeneratedModel", "追加记录应保留 class_name。")
 
 
+func test_record_only_access_generator_extension_does_not_warn_for_missing_source_hook() -> void:
+	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
+	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
+	var extension := RecordAccessExtension.new()
+
+	generator._append_access_generator_extension(builder, [], extension, "test://records")
+
+	assert_eq(builder.build(), "", "只贡献记录的访问器扩展不需要追加源码。")
+	assert_push_warning_count(0, "只贡献记录的访问器扩展不应误报缺少源码钩子。")
+
+
 func test_build_project_source_generates_layer_input_and_setting_constants() -> void:
 	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
 	var source: String = generator.build_project_source({

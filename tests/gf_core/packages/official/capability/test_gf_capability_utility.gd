@@ -15,7 +15,6 @@ const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/packages/offic
 const GF_INTERACTION_CONTEXT_BASE := preload("res://addons/gf/packages/official/interaction/runtime/gf_interaction_context.gd")
 const GF_INTERACTIONS_BASE := preload("res://addons/gf/packages/official/interaction/runtime/gf_interactions.gd")
 const GF_PROPERTY_BAG_CAPABILITY_BASE := preload("res://addons/gf/packages/official/capability/core/gf_property_bag_capability.gd")
-const GF_PACKAGE_SETTINGS_BASE := preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 
 
 # --- 辅助类 ---
@@ -666,7 +665,6 @@ func test_tick_prune_invalid_receivers_uses_budget() -> void:
 
 
 func test_interaction_context_queries_capabilities_and_group() -> void:
-	var restore := _set_enabled_packages(["gf.official.capability", "gf.official.interaction"])
 	var sender := RefCounted.new()
 	var target := RefCounted.new()
 	var target_capability := _utility.add_capability(target, HealthCapability) as HealthCapability
@@ -674,10 +672,9 @@ func test_interaction_context_queries_capabilities_and_group() -> void:
 
 	var context := GF_INTERACTION_CONTEXT_BASE.new(sender, target, { "amount": 10 }, &"targets")
 	context.inject_dependencies(_arch)
+	context.with_capability_provider(_utility)
 	var queried_capability := context.get_target_capability(HealthCapability)
 	var group_receivers := context.get_group_receivers(HealthCapability)
-
-	_restore_enabled_packages(restore)
 
 	assert_eq(queried_capability, target_capability, "交互上下文应能查询目标能力。")
 	assert_eq(group_receivers, [target], "交互上下文应能查询当前分组中的能力对象。")
@@ -807,21 +804,3 @@ func _has_issue(report: Dictionary, kind: String) -> bool:
 		if issue != null and String(issue.get("kind", "")) == kind:
 			return true
 	return false
-
-
-func _set_enabled_packages(package_ids: Array[String]) -> Dictionary:
-	var setting_name: String = GF_PACKAGE_SETTINGS_BASE.ENABLED_PACKAGES_SETTING
-	var restore := {
-		"had_setting": ProjectSettings.has_setting(setting_name),
-		"value": ProjectSettings.get_setting(setting_name, []),
-	}
-	ProjectSettings.set_setting(setting_name, package_ids)
-	return restore
-
-
-func _restore_enabled_packages(restore: Dictionary) -> void:
-	var setting_name: String = GF_PACKAGE_SETTINGS_BASE.ENABLED_PACKAGES_SETTING
-	if bool(restore.get("had_setting", false)):
-		ProjectSettings.set_setting(setting_name, restore.get("value", []))
-	else:
-		ProjectSettings.clear(setting_name)

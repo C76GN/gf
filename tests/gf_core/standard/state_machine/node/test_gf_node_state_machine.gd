@@ -9,6 +9,7 @@ const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/nod
 const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GFNodeStateMachineConfigBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_config.gd")
 const GFNodeStateMachineInspectorPluginBase = preload("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd")
+const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 
 
 # --- 辅助子类 ---
@@ -107,6 +108,88 @@ class EventHandlingNodeState:
 			return true
 		events.append("miss:%s:%s" % [get_state_name(), event_id])
 		return false
+
+
+class DummyModel:
+	extends GFModel
+
+
+class DummySystem:
+	extends GFSystem
+
+
+class DummyUtility:
+	extends GFUtility
+
+
+class StateEventPayload:
+	extends RefCounted
+
+	var value: int = 0
+
+	func _init(p_value: int = 0) -> void:
+		value = p_value
+
+
+class DerivedStateEventPayload:
+	extends StateEventPayload
+
+	func _init(p_value: int = 0) -> void:
+		super._init(p_value)
+
+
+class DummyCommand:
+	extends GFCommand
+
+	func execute() -> Variant:
+		return get_utility(DummyUtility)
+
+
+class DummyQuery:
+	extends GFQuery
+
+	func execute() -> Variant:
+		return get_utility(DummyUtility)
+
+
+class TestNodeContext:
+	extends GFNodeContextBase
+
+	var model := DummyModel.new()
+	var system := DummySystem.new()
+	var utility := DummyUtility.new()
+
+	func install(architecture_instance: GFArchitecture) -> void:
+		architecture_instance.register_model_instance(model)
+		architecture_instance.register_system_instance(system)
+		architecture_instance.register_utility_instance(utility)
+
+
+class EventListeningNodeState:
+	extends TrackingNodeState
+
+	var typed_values: Array[int] = []
+	var assignable_values: Array[int] = []
+	var simple_values: Array = []
+
+	func _enter(previous_state: StringName = &"", args: Dictionary = {}) -> void:
+		super._enter(previous_state, args)
+		register_event(StateEventPayload, _on_typed_event)
+		register_assignable_event(StateEventPayload, _on_assignable_event)
+		register_simple_event(&"node_state_simple_event", _on_simple_event)
+
+	func _exit(next_state: StringName = &"", args: Dictionary = {}) -> void:
+		super._exit(next_state, args)
+		unregister_owner_events()
+
+	func _on_typed_event(payload: StateEventPayload) -> void:
+		typed_values.append(payload.value)
+
+	func _on_assignable_event(payload: StateEventPayload) -> void:
+		assignable_values.append(payload.value)
+
+	func _on_simple_event(payload: Variant) -> void:
+		simple_values.append(payload)
 
 
 # --- 测试 ---
@@ -284,6 +367,7 @@ func test_transition_to_changes_internal_state() -> void:
 	machine.add_child(idle)
 	machine.add_child(run)
 	await get_tree().process_frame
+	watch_signals(machine)
 
 	machine.transition_to(&"Run", { "speed": 5 })
 
@@ -292,6 +376,88 @@ func test_transition_to_changes_internal_state() -> void:
 	assert_eq(run.enter_count, 1, "切换状态应进入新状态。")
 	assert_eq(run.last_previous, &"Idle", "新状态应收到来源状态名。")
 	assert_eq(run.last_args.get("speed"), 5, "切换参数应传给新状态。")
+	assert_signal_emitted_with_parameters(
+		machine,
+		"state_changed",
+		[machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME), idle, run]
+	)
+	var current_state: GFNodeState = machine.get_current_state()
+	assert_eq(current_state, run, "节点状态机当前状态 getter 应返回 GFNodeState。")
+
+
+func test_node_state_proxy_methods_without_architecture_are_safe() -> void:
+	var state := TrackingNodeState.new()
+	autofree(state)
+
+	state.send_event(StateEventPayload.new())
+	state.send_simple_event(&"node_state_simple_event")
+
+	assert_null(state.get_model(DummyModel), "未挂入架构上下文的 NodeState.get_model 应安全返回 null。")
+	assert_null(state.get_system(DummySystem), "未挂入架构上下文的 NodeState.get_system 应安全返回 null。")
+	assert_null(state.get_utility(DummyUtility), "未挂入架构上下文的 NodeState.get_utility 应安全返回 null。")
+	assert_null(state.send_command(DummyCommand.new()), "未挂入架构上下文的 NodeState.send_command 应安全返回 null。")
+	assert_null(state.send_query(DummyQuery.new()), "未挂入架构上下文的 NodeState.send_query 应安全返回 null。")
+
+
+func test_node_state_uses_nearest_context_for_dependencies_commands_and_queries() -> void:
+	var context := TestNodeContext.new()
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := TrackingNodeState.new()
+	idle.name = "Idle"
+	machine.initial_state = &"Idle"
+	context.add_child(machine)
+	machine.add_child(idle)
+	add_child_autofree(context)
+
+	await context.wait_until_ready()
+	await get_tree().process_frame
+
+	assert_eq(idle.get_model(DummyModel), context.model, "NodeState.get_model 应解析最近 GFNodeContext。")
+	assert_eq(idle.get_system(DummySystem), context.system, "NodeState.get_system 应解析最近 GFNodeContext。")
+	assert_eq(idle.get_utility(DummyUtility), context.utility, "NodeState.get_utility 应解析最近 GFNodeContext。")
+	assert_eq(idle.send_command(DummyCommand.new()), context.utility, "NodeState.send_command 应使用状态机上下文架构。")
+	assert_eq(idle.send_query(DummyQuery.new()), context.utility, "NodeState.send_query 应使用状态机上下文架构。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
+func test_node_state_can_register_events_through_context_architecture() -> void:
+	var context := TestNodeContext.new()
+	var machine: Node = GFNodeStateMachineBase.new()
+	var listen := EventListeningNodeState.new()
+	var idle := TrackingNodeState.new()
+	listen.name = "Listen"
+	idle.name = "Idle"
+	machine.initial_state = &"Listen"
+	context.add_child(machine)
+	machine.add_child(listen)
+	machine.add_child(idle)
+	add_child_autofree(context)
+
+	await context.wait_until_ready()
+	await get_tree().process_frame
+	var architecture := context.get_architecture()
+
+	architecture.send_event(StateEventPayload.new(3))
+	architecture.send_event(DerivedStateEventPayload.new(5))
+	architecture.send_simple_event(&"node_state_simple_event", "tick")
+
+	assert_eq(listen.typed_values, [3], "NodeState.register_event 应监听精确类型事件。")
+	assert_eq(listen.assignable_values, [3, 5], "NodeState.register_assignable_event 应监听基类与派生类型事件。")
+	assert_eq(listen.simple_values, ["tick"], "NodeState.register_simple_event 应监听轻量事件。")
+
+	machine.transition_to(&"Idle")
+	architecture.send_event(StateEventPayload.new(7))
+	architecture.send_event(DerivedStateEventPayload.new(9))
+	architecture.send_simple_event(&"node_state_simple_event", "late")
+
+	assert_eq(listen.typed_values, [3], "状态退出后 unregister_owner_events 应移除类型事件监听。")
+	assert_eq(listen.assignable_values, [3, 5], "状态退出后 unregister_owner_events 应移除可赋值事件监听。")
+	assert_eq(listen.simple_values, ["tick"], "状态退出后 unregister_owner_events 应移除轻量事件监听。")
+
+	context.queue_free()
+	await get_tree().process_frame
 
 
 func test_state_can_request_cross_group_transition() -> void:
@@ -527,7 +693,7 @@ func test_node_state_machine_snapshot_reports_groups() -> void:
 
 func test_clear_state_groups_disconnects_external_group_signals() -> void:
 	var machine: Node = GFNodeStateMachineBase.new()
-	var group: Node = GFNodeStateGroupBase.new()
+	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
 	group.name = "Body"
 	group.group_name = &"Body"
 	add_child_autofree(machine)

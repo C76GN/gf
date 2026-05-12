@@ -8,22 +8,27 @@ extends Node
 # --- 信号 ---
 
 ## 状态加入组后发出。
-signal state_added(state: Node)
+signal state_added(state: GFNodeState)
 
 ## 状态从组中移除后发出。
-signal state_removed(state: Node)
+signal state_removed(state: GFNodeState)
 
 ## 当前状态切换后发出。
-signal current_state_changed(old_state: Node, new_state: Node)
+signal current_state_changed(old_state: GFNodeState, new_state: GFNodeState)
 
 ## 状态切换被守卫阻止后发出。
-signal transition_blocked(from_state: Node, to_state_name: StringName, args: Dictionary, reason: String)
+signal transition_blocked(from_state: GFNodeState, to_state_name: StringName, args: Dictionary, reason: String)
 
 ## 子状态请求跨组切换时发出。
 signal requested_transition(group_name: StringName, state_name: StringName, args: Dictionary)
 
 ## 当前状态或暂停栈状态处理状态事件后发出。
-signal state_event_handled(event_id: StringName, handler_state: Node, payload: Variant)
+signal state_event_handled(event_id: StringName, handler_state: GFNodeState, payload: Variant)
+
+
+# --- 常量 ---
+
+const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
 
 
 # --- 导出变量 ---
@@ -56,8 +61,8 @@ signal state_event_handled(event_id: StringName, handler_state: Node, payload: V
 # --- 私有变量 ---
 
 var _states: Dictionary = {}
-var _current_state: Node = null
-var _state_stack: Array[Node] = []
+var _current_state: GFNodeState = null
+var _state_stack: Array[GFNodeState] = []
 var _history: Array[StringName] = []
 var _machine_ref: WeakRef = null
 var _is_ready: bool = false
@@ -130,7 +135,7 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 
 	_transition_serial += 1
 	var current_serial := _transition_serial
-	var next_state := _states[next_state_name] as Node
+	var next_state := _states[next_state_name] as GFNodeState
 	var previous_state := _current_state
 	var previous_name: StringName = &""
 	if previous_state != null:
@@ -150,7 +155,7 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 				_current_state = null
 				_warn_missing_state(next_state_name)
 				return
-			next_state = _states[next_state_name] as Node
+			next_state = _states[next_state_name] as GFNodeState
 			if not _can_enter_state(next_state, previous_name, args):
 				_current_state = null
 				_emit_transition_blocked(previous_state, next_state_name, args, "enter_guard")
@@ -186,7 +191,7 @@ func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
 		push_warning("[GFNodeStateGroup] push_state 失败：状态栈已达到上限。")
 		return
 
-	var next_state := _states[next_state_name] as Node
+	var next_state := _states[next_state_name] as GFNodeState
 	if next_state == _current_state:
 		push_warning("[GFNodeStateGroup] push_state 失败：不能将当前状态再次压栈。")
 		return
@@ -258,7 +263,7 @@ func pop_state(args: Dictionary = {}) -> bool:
 
 ## 添加状态节点。
 ## @param state: 状态节点。
-func add_state(state: Node) -> void:
+func add_state(state: GFNodeState) -> void:
 	if not _is_node_state(state):
 		return
 
@@ -278,7 +283,7 @@ func add_state(state: Node) -> void:
 
 ## 移除状态节点。
 ## @param state: 状态节点。
-func remove_state(state: Node) -> bool:
+func remove_state(state: GFNodeState) -> bool:
 	if not _is_node_state(state):
 		return false
 
@@ -299,12 +304,12 @@ func remove_state(state: Node) -> bool:
 
 ## 获取状态。
 ## @param query_state_name: 目标名称。
-func get_state(query_state_name: StringName) -> Node:
-	return _states.get(query_state_name) as Node
+func get_state(query_state_name: StringName) -> GFNodeState:
+	return _states.get(query_state_name) as GFNodeState
 
 
 ## 获取当前状态。
-func get_current_state() -> Node:
+func get_current_state() -> GFNodeState:
 	return _current_state
 
 
@@ -340,7 +345,7 @@ func get_blackboard() -> Dictionary:
 ## @return 有状态处理该事件时返回 true。
 func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
 	var candidates := _get_event_dispatch_candidates()
-	for state: Node in candidates:
+	for state: GFNodeState in candidates:
 		if state.has_method("handle_state_event") and bool(state.call("handle_state_event", event_id, payload)):
 			state_event_handled.emit(event_id, state, payload)
 			return true
@@ -353,7 +358,7 @@ func is_in_state(query_state_name: StringName) -> bool:
 	if get_current_state_name() == query_state_name:
 		return true
 
-	for state: Node in _state_stack:
+	for state: GFNodeState in _state_stack:
 		if state.call("get_state_name") == query_state_name:
 			return true
 
@@ -380,9 +385,9 @@ func start(args: Dictionary = {}) -> void:
 
 
 ## 获取所有状态。
-func get_states() -> Array[Node]:
-	var result: Array[Node] = []
-	for state: Node in _states.values():
+func get_states() -> Array[GFNodeState]:
+	var result: Array[GFNodeState] = []
+	for state: GFNodeState in _states.values():
 		result.append(state)
 	return result
 
@@ -411,7 +416,7 @@ func clear_states(free_states: bool = false) -> void:
 	_history.clear()
 	_is_exiting_current_state = false
 	_queued_exit_transition.clear()
-	for state: Node in states:
+	for state: GFNodeState in states:
 		var transition_signal: Signal = state.get("requested_transition")
 		if transition_signal.is_connected(_on_state_requested_transition):
 			transition_signal.disconnect(_on_state_requested_transition)
@@ -425,7 +430,7 @@ func reload_states_from_children() -> void:
 	clear_states()
 	for child: Node in get_children():
 		if _is_node_state(child):
-			add_state(child)
+			add_state(child as GFNodeState)
 
 
 # --- 私有/辅助方法 ---
@@ -436,12 +441,12 @@ func _get_machine() -> Object:
 	return _machine_ref.get_ref()
 
 
-func _get_event_dispatch_candidates() -> Array[Node]:
-	var result: Array[Node] = []
+func _get_event_dispatch_candidates() -> Array[GFNodeState]:
+	var result: Array[GFNodeState] = []
 	if _current_state != null:
 		result.append(_current_state)
 	for index in range(_state_stack.size() - 1, -1, -1):
-		var state := _state_stack[index] as Node
+		var state := _state_stack[index] as GFNodeState
 		if state != null and is_instance_valid(state):
 			result.append(state)
 	return result
@@ -449,7 +454,7 @@ func _get_event_dispatch_candidates() -> Array[Node]:
 
 func _get_stack_state_names() -> Array[StringName]:
 	var result: Array[StringName] = []
-	for state: Node in _state_stack:
+	for state: GFNodeState in _state_stack:
 		if state != null and state.has_method("get_state_name"):
 			result.append(state.call("get_state_name") as StringName)
 	return result
@@ -463,7 +468,7 @@ func _get_registered_state_names() -> Array[StringName]:
 
 
 func _setup_existing_states() -> void:
-	for state: Node in _states.values():
+	for state: GFNodeState in _states.values():
 		state.call("setup", _get_machine(), self)
 
 
@@ -474,7 +479,7 @@ func _exit_active_states_for_clear() -> void:
 	if current_state != null and current_state.has_method("exit"):
 		current_state.call("exit", &"", {})
 	for state_variant: Variant in stacked_states:
-		var state := state_variant as Node
+		var state := state_variant as GFNodeState
 		if state != null and state != current_state and state.has_method("exit"):
 			state.call("exit", &"", {})
 	_is_exiting_current_state = false
@@ -482,19 +487,7 @@ func _exit_active_states_for_clear() -> void:
 
 
 func _is_node_state(node: Node) -> bool:
-	if node == null:
-		return false
-	if not node.has_method("get_state_name"):
-		return false
-	if not node.has_method("setup"):
-		return false
-	if not node.has_method("initialize"):
-		return false
-	if not node.has_method("enter"):
-		return false
-	if not node.has_method("exit"):
-		return false
-	return node.get("requested_transition") is Signal
+	return node is GFNodeStateBase
 
 
 func _warn_missing_state(state_name: StringName) -> void:
@@ -502,8 +495,8 @@ func _warn_missing_state(state_name: StringName) -> void:
 
 
 func _can_transition(
-	previous_state: Node,
-	next_state: Node,
+	previous_state: GFNodeState,
+	next_state: GFNodeState,
 	next_state_name: StringName,
 	previous_state_name: StringName,
 	args: Dictionary
@@ -517,19 +510,19 @@ func _can_transition(
 	return true
 
 
-func _can_exit_state(state: Node, next_state_name: StringName, args: Dictionary) -> bool:
+func _can_exit_state(state: GFNodeState, next_state_name: StringName, args: Dictionary) -> bool:
 	if state == null or not state.has_method("can_exit"):
 		return true
 	return bool(state.call("can_exit", next_state_name, args))
 
 
-func _can_enter_state(state: Node, previous_state_name: StringName, args: Dictionary) -> bool:
+func _can_enter_state(state: GFNodeState, previous_state_name: StringName, args: Dictionary) -> bool:
 	if state == null or not state.has_method("can_enter"):
 		return true
 	return bool(state.call("can_enter", previous_state_name, args))
 
 
-func _emit_transition_blocked(from_state: Node, to_state_name: StringName, args: Dictionary, reason: String) -> void:
+func _emit_transition_blocked(from_state: GFNodeState, to_state_name: StringName, args: Dictionary, reason: String) -> void:
 	transition_blocked.emit(from_state, to_state_name, args.duplicate(true), reason)
 
 
@@ -551,7 +544,7 @@ func _clear_stack(next_state_name: StringName, args: Dictionary) -> void:
 			state.call("exit", next_state_name, args)
 
 
-func _remove_from_stack(state: Node) -> void:
+func _remove_from_stack(state: GFNodeState) -> void:
 	var index := _state_stack.find(state)
 	while index != -1:
 		_state_stack.remove_at(index)

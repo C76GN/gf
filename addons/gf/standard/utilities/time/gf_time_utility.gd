@@ -11,7 +11,7 @@
 ##   4. 使用 set_group_paused() 实现 UI 层/逻辑层分组暂停。
 ##   5. System 可设置 ignore_pause = true 来忽略暂停（如暂停菜单动画）。
 class_name GFTimeUtility
-extends GFUtility
+extends "res://addons/gf/kernel/base/gf_time_provider.gd"
 
 
 # --- 公共变量 ---
@@ -99,6 +99,12 @@ func should_substep_physics(delta: float) -> bool:
 	if is_paused or physics_substep_max_delta <= 0.0:
 		return false
 	return absf(delta * time_scale) > physics_substep_max_delta
+
+
+## 检查当前工具是否处于全局暂停状态。
+## @return 暂停时返回 true。
+func is_time_paused() -> bool:
+	return is_paused
 
 
 ## 设置指定组的暂停状态。

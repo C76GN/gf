@@ -13,6 +13,8 @@ signal requested_transition(group_name: StringName, state_name: StringName, args
 
 # --- 常量 ---
 
+const GFAutoloadBase = preload("res://addons/gf/kernel/core/gf_autoload.gd")
+const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 const _PHASE_ENTER: StringName = &"enter"
 const _PHASE_EXIT: StringName = &"exit"
 
@@ -47,6 +49,7 @@ var host: Node:
 
 var _machine_ref: WeakRef = null
 var _group_ref: WeakRef = null
+var _event_architectures: Array[GFArchitecture] = []
 var _original_process_mode: int = Node.PROCESS_MODE_INHERIT
 
 
@@ -55,6 +58,10 @@ var _original_process_mode: int = Node.PROCESS_MODE_INHERIT
 func _ready() -> void:
 	_original_process_mode = process_mode
 	_set_state_enabled(false)
+
+
+func _exit_tree() -> void:
+	unregister_owner_events()
 
 
 # --- 公共方法 ---
@@ -200,6 +207,177 @@ func handle_state_event(event_id: StringName, payload: Variant = null) -> bool:
 	return _run_behaviors_handle_state_event(event_id, payload)
 
 
+## 获取当前状态可用的架构实例。
+## @return 架构实例；状态未挂入可解析上下文时返回 null。
+func get_architecture_or_null() -> GFArchitecture:
+	return _get_architecture_or_null()
+
+
+## 通过当前状态上下文获取 Model。
+## @param model_type: 模型脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 模型实例。
+func get_model(model_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_model(model_type, require_ready)
+
+
+## 通过当前状态上下文获取 System。
+## @param system_type: 系统脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 系统实例。
+func get_system(system_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_system(system_type, require_ready)
+
+
+## 通过当前状态上下文获取 Utility。
+## @param utility_type: 工具脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 工具实例。
+func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(utility_type, require_ready)
+
+
+## 仅从当前状态所属架构获取 Model，不回退父级架构。
+## @param model_type: 模型脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 当前架构中的模型实例。
+func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_model(model_type, require_ready)
+
+
+## 仅从当前状态所属架构获取 System，不回退父级架构。
+## @param system_type: 系统脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 当前架构中的系统实例。
+func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_system(system_type, require_ready)
+
+
+## 仅从当前状态所属架构获取 Utility，不回退父级架构。
+## @param utility_type: 工具脚本类型。
+## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## @return 当前架构中的工具实例。
+func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_local_utility(utility_type, require_ready)
+
+
+## 向当前状态上下文发送命令。
+## @param command: 要发送的命令实例。
+## @return 命令执行结果；无可用架构时返回 null。
+func send_command(command: Object) -> Variant:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.send_command(command)
+
+
+## 向当前状态上下文发送查询。
+## @param query: 要发送的查询实例。
+## @return 查询结果；无可用架构时返回 null。
+func send_query(query: Object) -> Variant:
+	var architecture := _get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.send_query(query)
+
+
+## 发送类型事件。
+## @param event_instance: 要分发的事件实例。
+func send_event(event_instance: Object) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.send_event(event_instance)
+
+
+## 发送轻量级 StringName 事件。
+## @param event_id: StringName 事件标识符。
+## @param payload: 可选的事件附加数据。
+func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.send_simple_event(event_id, payload)
+
+
+## 注册类型事件监听器，默认以当前状态作为 owner。
+## @param event_type: 要监听的脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_event(event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_event_owned(self, event_type, callback, priority)
+		_remember_event_architecture(architecture)
+
+
+## 注销类型事件监听器。
+## @param event_type: 要注销的脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_event(event_type: Script, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_event(event_type, callback)
+
+
+## 注册可赋值类型事件监听器，默认以当前状态作为 owner。
+## @param base_event_type: 要监听的基类脚本类型。
+## @param callback: 回调函数。
+## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_assignable_event_owned(self, base_event_type, callback, priority)
+		_remember_event_architecture(architecture)
+
+
+## 注销可赋值类型事件监听器。
+## @param base_event_type: 注册时使用的基类脚本类型。
+## @param callback: 要移除的回调函数。
+func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_assignable_event(base_event_type, callback)
+
+
+## 注册轻量级 StringName 事件监听器，默认以当前状态作为 owner。
+## @param event_id: StringName 事件标识符。
+## @param callback: 回调函数，签名为 func(payload: Variant)。
+func register_simple_event(event_id: StringName, callback: Callable) -> void:
+	var architecture := _get_architecture_or_null()
+	if architecture != null:
+		architecture.register_simple_event_owned(self, event_id, callback)
+		_remember_event_architecture(architecture)
+
+
+## 注销轻量级 StringName 事件监听器。
+## @param event_id: StringName 事件标识符。
+## @param callback: 要移除的回调函数。
+func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_simple_event(event_id, callback)
+
+
+## 注销当前状态通过事件代理注册过的全部监听器。
+func unregister_owner_events() -> void:
+	for architecture: GFArchitecture in _get_tracked_event_architectures():
+		architecture.unregister_owner_events(self)
+
+
 # --- 虚方法（由子类重写） ---
 
 ## 状态初始化扩展点。
@@ -298,3 +476,46 @@ func _set_state_enabled(enabled: bool) -> void:
 		process_mode = _original_process_mode
 	else:
 		process_mode = Node.PROCESS_MODE_DISABLED
+
+
+func _get_architecture_or_null() -> GFArchitecture:
+	var machine := get_machine()
+	if machine != null and machine.has_method("get_architecture_or_null"):
+		var machine_architecture := machine.call("get_architecture_or_null") as GFArchitecture
+		if machine_architecture != null:
+			return machine_architecture
+
+	var context := _find_nearest_context()
+	if context != null:
+		var context_architecture := context.get_architecture()
+		if context_architecture != null:
+			return context_architecture
+
+	return GFAutoloadBase.get_architecture_or_null()
+
+
+func _find_nearest_context() -> GFNodeContextBase:
+	var current_node: Node = self
+	while current_node != null:
+		if current_node is GFNodeContextBase:
+			return current_node as GFNodeContextBase
+		current_node = current_node.get_parent()
+	return null
+
+
+func _remember_event_architecture(architecture: GFArchitecture) -> void:
+	if architecture == null or not is_instance_valid(architecture):
+		return
+	if not _event_architectures.has(architecture):
+		_event_architectures.append(architecture)
+
+
+func _get_tracked_event_architectures() -> Array[GFArchitecture]:
+	var result: Array[GFArchitecture] = []
+	var live_architectures: Array[GFArchitecture] = []
+	for architecture: GFArchitecture in _event_architectures:
+		if architecture != null and is_instance_valid(architecture):
+			result.append(architecture)
+			live_architectures.append(architecture)
+	_event_architectures = live_architectures
+	return result

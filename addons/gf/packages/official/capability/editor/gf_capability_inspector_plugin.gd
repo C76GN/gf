@@ -19,7 +19,7 @@ const GF_CAPABILITY_RECIPE_SCRIPT_PATH: String = "res://addons/gf/packages/offic
 const GF_PACKAGE_SETTINGS_BASE := preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 const GF_EDITOR_TYPE_INDEX_BASE := preload("res://addons/gf/kernel/editor/gf_editor_type_index.gd")
 const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- Godot 回调方法 ---

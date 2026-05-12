@@ -75,7 +75,9 @@ func clear() -> GFSourceBuilder:
 	return self
 
 
-## 生成最终源码字符串，并保证末尾包含换行。
+## 生成最终源码字符串；非空源码末尾会包含换行。
 ## @return 完整源码文本。
 func build() -> String:
+	if _lines.is_empty():
+		return ""
 	return "\n".join(_lines) + "\n"

@@ -53,6 +53,13 @@ func in_group(group_name: StringName) -> GFInteractionFlow:
 	return self
 
 
+## 设置交互上下文使用的能力提供者。
+## @param provider: 提供能力查询方法的对象。
+func with_capability_provider(provider: Object) -> GFInteractionFlow:
+	context.with_capability_provider(provider)
+	return self
+
+
 ## 获取 sender 上的指定能力。
 ## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func sender_as(capability_type: Script) -> Object:

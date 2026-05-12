@@ -10,19 +10,16 @@ const MENU_GENERATE_SYSTEM: int = 0
 const MENU_GENERATE_MODEL: int = 1
 const MENU_GENERATE_UTILITY: int = 2
 const MENU_GENERATE_COMMAND: int = 3
-const MENU_GENERATE_CAPABILITY: int = 4
-const MENU_GENERATE_NODE_CAPABILITY: int = 5
-const MENU_GENERATE_NODE_2D_CAPABILITY: int = 6
-const MENU_GENERATE_NODE_3D_CAPABILITY: int = 7
-const MENU_GENERATE_CONTROL_CAPABILITY: int = 8
-const MENU_GENERATE_NODE_STATE: int = 9
-const MENU_GENERATE_NODE_STATE_MACHINE: int = 10
 const MENU_GENERATE_ACCESSORS: int = 11
 const MENU_GENERATE_PROJECT_ACCESSORS: int = 12
+const TEMPLATE_MENU_ID_START: int = 100
 const PACKAGE_MENU_ID_START: int = 1000
 const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/gf_access_generator.gd"
-const CAPABILITY_PACKAGE_ID: String = "gf.official.capability"
 const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
+const SECTION_CORE_TEMPLATES: String = "核心模块"
+const SECTION_EXTENSION_TEMPLATES: String = "扩展模板"
+const SECTION_CODE_GENERATION: String = "代码生成"
+const SECTION_EXTENSION_TOOLS: String = "扩展工具"
 const GFPluginProjectSettings = preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
 const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 
@@ -33,16 +30,19 @@ var _file_dialog: FileDialog
 var _current_template_type: String = ""
 var _diagnostic_dialog: AcceptDialog
 var _diagnostic_output: TextEdit
-var _package_action_instances: Array[RefCounted] = []
-var _package_action_handlers: Dictionary = {}
-var _package_menu_entries: Array[Dictionary] = []
+var _package_action_records: Array[Dictionary] = []
+var _menu_action_handlers: Dictionary = {}
+var _menu_entries: Array[Dictionary] = []
+var _template_records: Dictionary = {}
+var _next_template_menu_id: int = TEMPLATE_MENU_ID_START
 var _next_package_menu_id: int = PACKAGE_MENU_ID_START
 
 
 # --- 公共方法 ---
 
 ## 初始化菜单动作需要的文件对话框。
-func setup() -> void:
+## @param template_records: 根插件或上层组合入口注入的模板记录。
+func setup(template_records: Array = []) -> void:
 	_file_dialog = FileDialog.new()
 	_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	_file_dialog.access = FileDialog.ACCESS_RESOURCES
@@ -51,82 +51,180 @@ func setup() -> void:
 
 	var base_control := EditorInterface.get_base_control()
 	base_control.add_child(_file_dialog)
-	_load_package_editor_actions()
+	_setup_menu_actions(template_records)
 
 
 ## 清理菜单动作持有的对话框。
 func cleanup() -> void:
 	_cleanup_package_editor_actions()
 	_cleanup_diagnostic_dialog()
+	_reset_menu_actions()
 	if is_instance_valid(_file_dialog):
 		_file_dialog.queue_free()
 	_file_dialog = null
 
 
-## 获取启用包注册的菜单项。
+## 获取 GF 工具菜单项。
 ## @return 菜单项字典列表，每项包含 `id`、`label`、`section`。
-func get_package_menu_entries() -> Array[Dictionary]:
-	return _package_menu_entries.duplicate(true)
+func get_menu_entries() -> Array[Dictionary]:
+	return _menu_entries.duplicate(true)
 
 
 ## 执行 GF 工具菜单对应动作。
 ## @param id: 菜单项 ID。
 func handle_menu_id(id: int) -> void:
-	match id:
-		MENU_GENERATE_SYSTEM:
-			_show_dialog("System")
-		MENU_GENERATE_MODEL:
-			_show_dialog("Model")
-		MENU_GENERATE_UTILITY:
-			_show_dialog("Utility")
-		MENU_GENERATE_COMMAND:
-			_show_dialog("Command")
-		MENU_GENERATE_CAPABILITY:
-			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
-				return
-			_show_dialog("Capability")
-		MENU_GENERATE_NODE_CAPABILITY:
-			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
-				return
-			_show_dialog("NodeCapability")
-		MENU_GENERATE_NODE_2D_CAPABILITY:
-			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
-				return
-			_show_dialog("Node2DCapability")
-		MENU_GENERATE_NODE_3D_CAPABILITY:
-			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
-				return
-			_show_dialog("Node3DCapability")
-		MENU_GENERATE_CONTROL_CAPABILITY:
-			if not _require_package_enabled(CAPABILITY_PACKAGE_ID, "GF Capability"):
-				return
-			_show_dialog("ControlCapability")
-		MENU_GENERATE_NODE_STATE:
-			_show_dialog("NodeState")
-		MENU_GENERATE_NODE_STATE_MACHINE:
-			_show_dialog("NodeStateMachine")
-		MENU_GENERATE_ACCESSORS:
+	var handler := _menu_action_handlers.get(id, {}) as Dictionary
+	if handler.is_empty():
+		return
+
+	match StringName(handler.get("kind", &"")):
+		&"template":
+			_show_dialog(String(handler.get("template_type", "")))
+		&"generate_accessors":
 			_generate_accessors()
-		MENU_GENERATE_PROJECT_ACCESSORS:
+		&"generate_project_accessors":
 			_generate_project_accessors()
-		_:
-			_handle_package_menu_id(id)
+		&"package_action":
+			_handle_package_action(handler)
 
 
 # --- 私有/辅助方法 ---
 
-func _require_package_enabled(package_id: String, display_name: String) -> bool:
-	if GFPackageSettingsBase.is_package_enabled(package_id):
-		return true
-
-	_show_diagnostic_dialog(
-		"GF Package Disabled",
-		"%s 包当前未启用。请先在 GF Packages 面板启用该包，再使用对应编辑器工具。" % display_name
+func _setup_menu_actions(template_records: Array = []) -> void:
+	_cleanup_package_editor_actions()
+	_reset_menu_actions()
+	_register_template_records(_get_core_template_records())
+	_register_template_records(template_records)
+	_load_package_editor_actions()
+	_register_fixed_menu_action(
+		MENU_GENERATE_ACCESSORS,
+		"生成强类型访问器",
+		SECTION_CODE_GENERATION,
+		&"generate_accessors"
 	)
-	return false
+	_register_fixed_menu_action(
+		MENU_GENERATE_PROJECT_ACCESSORS,
+		"生成项目常量访问器",
+		SECTION_CODE_GENERATION,
+		&"generate_project_accessors"
+	)
+	_register_loaded_package_action_entries()
+
+
+func _reset_menu_actions() -> void:
+	_menu_action_handlers.clear()
+	_menu_entries.clear()
+	_template_records.clear()
+	_next_template_menu_id = TEMPLATE_MENU_ID_START
+	_next_package_menu_id = PACKAGE_MENU_ID_START
+
+
+func _get_core_template_records() -> Array[Dictionary]:
+	return [
+		{
+			"menu_id": MENU_GENERATE_SYSTEM,
+			"type": "System",
+			"label": "生成 System",
+			"section": SECTION_CORE_TEMPLATES,
+			"base_class": "GFSystem",
+		},
+		{
+			"menu_id": MENU_GENERATE_MODEL,
+			"type": "Model",
+			"label": "生成 Model",
+			"section": SECTION_CORE_TEMPLATES,
+			"base_class": "GFModel",
+		},
+		{
+			"menu_id": MENU_GENERATE_UTILITY,
+			"type": "Utility",
+			"label": "生成 Utility",
+			"section": SECTION_CORE_TEMPLATES,
+			"base_class": "GFUtility",
+		},
+		{
+			"menu_id": MENU_GENERATE_COMMAND,
+			"type": "Command",
+			"label": "生成 Command",
+			"section": SECTION_CORE_TEMPLATES,
+			"base_class": "GFCommand",
+		},
+	]
+
+
+func _register_template_records(records: Array) -> void:
+	for record_variant: Variant in records:
+		if record_variant is Dictionary:
+			_register_template_record(record_variant as Dictionary)
+
+
+func _register_template_record(source_record: Dictionary) -> void:
+	var template_type := String(source_record.get("type", "")).strip_edges()
+	if template_type.is_empty():
+		return
+
+	var record := source_record.duplicate(true)
+	record["type"] = template_type
+	if not record.has("base_class"):
+		record["base_class"] = "GF" + template_type
+
+	var menu_id := int(record.get("menu_id", -1))
+	if menu_id < 0:
+		menu_id = _allocate_template_menu_id()
+	if _menu_action_handlers.has(menu_id):
+		push_error("[GF Framework] 模板菜单 ID 重复，已跳过: %s" % menu_id)
+		return
+
+	var label := String(record.get("label", "生成 " + template_type)).strip_edges()
+	if label.is_empty():
+		label = "生成 " + template_type
+	var section := String(record.get("section", SECTION_EXTENSION_TEMPLATES)).strip_edges()
+	if section.is_empty():
+		section = SECTION_EXTENSION_TEMPLATES
+
+	_template_records[template_type] = record
+	_menu_action_handlers[menu_id] = {
+		"kind": &"template",
+		"template_type": template_type,
+	}
+	_append_menu_entry(menu_id, label, section)
+
+
+func _allocate_template_menu_id() -> int:
+	var menu_id := _next_template_menu_id
+	while _menu_action_handlers.has(menu_id):
+		menu_id += 1
+	_next_template_menu_id = menu_id + 1
+	return menu_id
+
+
+func _register_fixed_menu_action(
+	menu_id: int,
+	label: String,
+	section: String,
+	handler_kind: StringName
+) -> void:
+	if _menu_action_handlers.has(menu_id):
+		push_error("[GF Framework] 固定菜单 ID 重复，已跳过: %s" % menu_id)
+		return
+
+	_menu_action_handlers[menu_id] = {
+		"kind": handler_kind,
+	}
+	_append_menu_entry(menu_id, label, section)
+
+
+func _append_menu_entry(menu_id: int, label: String, section: String) -> void:
+	_menu_entries.append({
+		"id": menu_id,
+		"label": label,
+		"section": section,
+	})
 
 
 func _show_dialog(type: String) -> void:
+	if type.is_empty():
+		return
 	_current_template_type = type
 	_file_dialog.title = "生成 GF " + type
 	_file_dialog.current_file = "new_" + type.to_lower() + ".gd"
@@ -228,10 +326,13 @@ func _load_package_editor_actions() -> void:
 		var action := _create_package_editor_action(script_path)
 		if action == null:
 			continue
-		_package_action_instances.append(action)
+		_package_action_records.append({
+			"instance": action,
+			"script_path": script_path,
+		})
 		if action.has_method("setup"):
 			action.setup()
-		_register_package_action_entries(action, script_path)
+		_register_package_template_records(action, script_path)
 
 
 func _create_package_editor_action(script_path: String) -> RefCounted:
@@ -247,6 +348,31 @@ func _create_package_editor_action(script_path: String) -> RefCounted:
 	return instance
 
 
+func _register_package_template_records(action: RefCounted, script_path: String) -> void:
+	if not action.has_method("get_template_records"):
+		return
+
+	var records_variant: Variant = action.get_template_records()
+	if not (records_variant is Array):
+		push_error("[GF Framework] 包脚本模板声明无效: %s" % script_path)
+		return
+
+	var records: Array[Dictionary] = []
+	for record_variant: Variant in records_variant:
+		if record_variant is Dictionary:
+			records.append(record_variant as Dictionary)
+	_register_template_records(records)
+
+
+func _register_loaded_package_action_entries() -> void:
+	for action_record: Dictionary in _package_action_records:
+		var action := action_record.get("instance") as RefCounted
+		var script_path := String(action_record.get("script_path", ""))
+		if action == null:
+			continue
+		_register_package_action_entries(action, script_path)
+
+
 func _register_package_action_entries(action: RefCounted, script_path: String) -> void:
 	if not action.has_method("get_menu_entries"):
 		return
@@ -257,10 +383,9 @@ func _register_package_action_entries(action: RefCounted, script_path: String) -
 		return
 
 	for entry_variant: Variant in entries_variant:
-		var entry := entry_variant as Dictionary
-		if entry == null:
+		if not (entry_variant is Dictionary):
 			continue
-
+		var entry := entry_variant as Dictionary
 		var action_id := StringName(entry.get("id", &""))
 		var label := String(entry.get("label", "")).strip_edges()
 		if action_id == &"" or label.is_empty():
@@ -268,29 +393,19 @@ func _register_package_action_entries(action: RefCounted, script_path: String) -
 
 		var menu_id := _next_package_menu_id
 		_next_package_menu_id += 1
-		var section := String(entry.get("section", "扩展诊断")).strip_edges()
+		var section := String(entry.get("section", SECTION_EXTENSION_TOOLS)).strip_edges()
 		if section.is_empty():
-			section = "扩展诊断"
+			section = SECTION_EXTENSION_TOOLS
 
-		_package_action_handlers[menu_id] = {
+		_menu_action_handlers[menu_id] = {
+			"kind": &"package_action",
 			"instance": action,
 			"action_id": action_id,
 		}
-		_package_menu_entries.append({
-			"id": menu_id,
-			"label": label,
-			"section": section,
-		})
+		_append_menu_entry(menu_id, label, section)
 
 
-func _handle_package_menu_id(id: int) -> void:
-	if not _package_action_handlers.has(id):
-		return
-
-	var handler := _package_action_handlers[id] as Dictionary
-	if handler == null:
-		return
-
+func _handle_package_action(handler: Dictionary) -> void:
 	var action := handler.get("instance") as RefCounted
 	if action == null or not action.has_method("handle_menu_action"):
 		return
@@ -299,13 +414,11 @@ func _handle_package_menu_id(id: int) -> void:
 
 
 func _cleanup_package_editor_actions() -> void:
-	for action: RefCounted in _package_action_instances:
+	for action_record: Dictionary in _package_action_records:
+		var action := action_record.get("instance") as RefCounted
 		if action != null and action.has_method("cleanup"):
 			action.cleanup()
-	_package_action_instances.clear()
-	_package_action_handlers.clear()
-	_package_menu_entries.clear()
-	_next_package_menu_id = PACKAGE_MENU_ID_START
+	_package_action_records.clear()
 
 
 func _cleanup_diagnostic_dialog() -> void:
@@ -316,6 +429,10 @@ func _cleanup_diagnostic_dialog() -> void:
 
 
 func _get_template(type: String) -> String:
+	var record := _template_records.get(type, {}) as Dictionary
+	if not record.is_empty() and record.has("template"):
+		return String(record.get("template", ""))
+
 	var base_template := """## {ClassName}: TODO。
 class_name {ClassName}
 extends {BaseClass}
@@ -396,123 +513,6 @@ func execute() -> Variant:
 # --- 私有/辅助方法 ---
 
 """
-	elif (
-		type == "Capability"
-		or type == "NodeCapability"
-		or type == "Node2DCapability"
-		or type == "Node3DCapability"
-		or type == "ControlCapability"
-	):
-		return base_template + """# --- 公共变量 ---
-
-
-# --- 私有变量 ---
-
-
-# --- @onready 变量 (节点引用) ---
-
-
-# --- 公共方法 ---
-
-func get_required_capabilities() -> Array[Script]:
-	return [] as Array[Script]
-
-
-func get_dependency_removal_policy() -> int:
-	return super.get_dependency_removal_policy()
-
-
-## 处理能力添加通知。
-## @param target: 交互目标对象。
-func on_gf_capability_added(target: Object) -> void:
-	super.on_gf_capability_added(target)
-
-
-## 处理能力移除通知。
-## @param target: 交互目标对象。
-func on_gf_capability_removed(target: Object) -> void:
-	super.on_gf_capability_removed(target)
-
-
-## 处理能力激活状态变化通知。
-## @param _target: 能力目标对象，默认回调不直接使用。
-## @param _active: 能力激活状态，默认回调不直接使用。
-func on_gf_capability_active_changed(_target: Object, _active: bool) -> void:
-	pass
-
-
-# --- 私有/辅助方法 ---
-
-
-# --- 信号处理函数 ---
-
-"""
-	elif type == "NodeState":
-		return base_template + """# --- 公共变量 ---
-
-
-# --- 私有变量 ---
-
-
-# --- @onready 变量 (节点引用) ---
-
-
-# --- 公共方法 ---
-
-
-# --- 虚方法（由子类重写） ---
-
-func _initialize() -> void:
-	pass
-
-
-func _enter(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
-	pass
-
-
-func _exit(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
-	pass
-
-
-func _pause(_next_state: StringName = &"", _args: Dictionary = {}) -> void:
-	pass
-
-
-func _resume(_previous_state: StringName = &"", _args: Dictionary = {}) -> void:
-	pass
-
-
-# --- 私有/辅助方法 ---
-
-
-# --- 信号处理函数 ---
-
-"""
-	elif type == "NodeStateMachine":
-		return base_template + """# --- 公共变量 ---
-
-
-# --- 私有变量 ---
-
-
-# --- @onready 变量 (节点引用) ---
-
-
-# --- Godot 生命周期方法 ---
-
-func _ready() -> void:
-	super._ready()
-
-
-# --- 公共方法 ---
-
-
-# --- 私有/辅助方法 ---
-
-
-# --- 信号处理函数 ---
-
-"""
 	elif type == "System":
 		return base_template + methods_template + lifecycle_template + tick_template
 	else:
@@ -520,16 +520,9 @@ func _ready() -> void:
 
 
 func _get_base_class(type: String) -> String:
-	match type:
-		"Node2DCapability":
-			return "GFNode2DCapability"
-		"Node3DCapability":
-			return "GFNode3DCapability"
-		"ControlCapability":
-			return "GFControlCapability"
-		"NodeState":
-			return "GFNodeState"
-		"NodeStateMachine":
-			return "GFNodeStateMachine"
-		_:
-			return "GF" + type
+	var record := _template_records.get(type, {}) as Dictionary
+	if not record.is_empty():
+		var base_class := String(record.get("base_class", "")).strip_edges()
+		if not base_class.is_empty():
+			return base_class
+	return "GF" + type

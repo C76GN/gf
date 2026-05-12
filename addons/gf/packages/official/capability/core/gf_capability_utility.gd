@@ -47,7 +47,7 @@ const HOOK_ON_ACTIVE_CHANGED: StringName = &"on_gf_capability_active_changed"
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/packages/official/capability/nodes/gf_capability_container.gd")
 const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/packages/official/capability/recipes/gf_capability_recipe.gd")
 const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/packages/official/capability/recipes/gf_capability_recipe_entry.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 公共变量 ---

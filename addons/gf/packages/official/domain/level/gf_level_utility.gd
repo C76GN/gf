@@ -2,7 +2,7 @@
 ##
 ## 负责统一关卡数据读取、开始、重开、胜利和失败信号派发。
 ## 默认通过 GFConfigProvider 读取静态关卡表，并可在重开关卡时清理
-## 命令历史与可选动作队列的运行时残留。
+## 命令历史与外部显式注册的运行时残留。
 class_name GFLevelUtility
 extends GFUtility
 
@@ -28,13 +28,6 @@ signal level_won(level_id: Variant)
 signal level_lost(level_id: Variant)
 
 
-# --- 常量 ---
-
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
-const ACTION_QUEUE_PACKAGE_ID: String = "gf.official.action_queue"
-const ACTION_QUEUE_SYSTEM_PATH: String = "core/gf_action_queue_system.gd"
-
-
 # --- 公共变量 ---
 
 ## 默认关卡配置表名。
@@ -56,6 +49,7 @@ var fail_on_missing_level_data: bool = false
 # --- 私有变量 ---
 
 var _current_level_override: Dictionary = {}
+var _runtime_cleanup_callbacks: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -70,6 +64,7 @@ func dispose() -> void:
 	current_level_id = null
 	current_level_data.clear()
 	_current_level_override.clear()
+	_runtime_cleanup_callbacks.clear()
 	catalog = null
 
 
@@ -225,10 +220,44 @@ func clear_level_runtime() -> void:
 	if history != null:
 		history.clear()
 
-	var action_queue := _get_enabled_package_system(ACTION_QUEUE_PACKAGE_ID, ACTION_QUEUE_SYSTEM_PATH)
-	if action_queue != null:
-		action_queue.call("clear_queue", true)
-		action_queue.call("clear_all_named_queues", true)
+	for cleanup_id: StringName in _runtime_cleanup_callbacks.keys():
+		var callback := _runtime_cleanup_callbacks[cleanup_id] as Callable
+		if callback.is_valid():
+			callback.call()
+
+
+## 注册关卡运行时清理回调。
+## @param cleanup_id: 清理项唯一标识。
+## @param callback: 无参数清理回调。
+## @return 注册成功返回 true。
+func register_runtime_cleanup(cleanup_id: StringName, callback: Callable) -> bool:
+	if cleanup_id == &"" or not callback.is_valid():
+		return false
+	_runtime_cleanup_callbacks[cleanup_id] = callback
+	return true
+
+
+## 注销关卡运行时清理回调。
+## @param cleanup_id: 清理项唯一标识。
+func unregister_runtime_cleanup(cleanup_id: StringName) -> void:
+	_runtime_cleanup_callbacks.erase(cleanup_id)
+
+
+## 检查关卡运行时清理回调是否存在。
+## @param cleanup_id: 清理项唯一标识。
+## @return 存在返回 true。
+func has_runtime_cleanup(cleanup_id: StringName) -> bool:
+	return _runtime_cleanup_callbacks.has(cleanup_id)
+
+
+## 获取已注册清理项标识。
+## @return 排序后的清理项标识。
+func get_runtime_cleanup_ids() -> PackedStringArray:
+	var result := PackedStringArray()
+	for cleanup_id: StringName in _runtime_cleanup_callbacks.keys():
+		result.append(String(cleanup_id))
+	result.sort()
+	return result
 
 
 ## 清除当前关卡记录。
@@ -313,18 +342,3 @@ func _get_utility(utility_type: Script) -> Object:
 		return null
 
 	return arch.get_utility(utility_type)
-
-
-func _get_system(system_type: Script) -> Object:
-	var arch := _get_architecture_or_null()
-	if arch == null:
-		return null
-
-	return arch.get_system(system_type)
-
-
-func _get_enabled_package_system(package_id: String, relative_script_path: String) -> Object:
-	var script := GFPackageSettingsBase.load_enabled_package_script(package_id, relative_script_path)
-	if script == null:
-		return null
-	return _get_system(script)

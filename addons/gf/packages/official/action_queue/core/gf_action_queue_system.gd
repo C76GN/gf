@@ -59,7 +59,12 @@ func init() -> void:
 	is_processing = false
 
 
+func ready() -> void:
+	_register_diagnostics_contribution()
+
+
 func dispose() -> void:
+	_unregister_diagnostics_contribution()
 	clear_queue(true)
 	clear_all_named_queues(true)
 	_interceptors.clear()
@@ -514,6 +519,29 @@ func _cancel_current_action() -> void:
 	if is_instance_valid(_current_action):
 		_ACTION_PROTOCOL.cancel(_current_action)
 	_current_action = null
+
+
+func _register_diagnostics_contribution() -> void:
+	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	if diagnostics == null:
+		return
+
+	diagnostics.register_tool_snapshot_provider(&"action_queue", Callable(self, "get_debug_snapshot"))
+	diagnostics.register_monitor(&"tools.action_queue", Callable(self, "get_debug_snapshot"), {
+		"label": "Action Queue",
+		"group": "Tools",
+		"min_interval_seconds": 0.25,
+	})
+	diagnostics.add_monitor_to_preset(&"tools", &"tools.action_queue")
+
+
+func _unregister_diagnostics_contribution() -> void:
+	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
+	if diagnostics == null:
+		return
+
+	diagnostics.unregister_tool_snapshot_provider(&"action_queue")
+	diagnostics.unregister_monitor(&"tools.action_queue")
 
 
 func _stop_processing_from_interceptor(cancel_current: bool) -> void:

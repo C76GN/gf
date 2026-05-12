@@ -8,6 +8,12 @@ const GF_SOURCE_BUILDER_BASE := preload("res://addons/gf/kernel/editor/gf_source
 
 # --- 测试用例 ---
 
+func test_empty_builder_builds_empty_source() -> void:
+	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
+
+	assert_eq(builder.build(), "", "空 SourceBuilder 不应生成孤立换行。")
+
+
 func test_builder_formats_docs_sections_and_indentation() -> void:
 	var builder: Variant = GF_SOURCE_BUILDER_BASE.new()
 

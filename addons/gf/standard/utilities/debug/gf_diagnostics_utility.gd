@@ -1,7 +1,7 @@
 ## GFDiagnosticsUtility: 运行时诊断聚合工具。
 ##
-## 提供架构生命周期、事件系统、性能、日志和可选网络状态的统一快照。
-## 诊断命令通过 Callable 注册，框架只负责调度和包装结果，不解释项目业务数据。
+## 提供架构生命周期、事件系统、性能、日志和外部贡献诊断的统一快照。
+## 诊断命令、监控项和快照分区通过 Callable 注册，框架只负责调度和包装结果，不解释项目业务数据。
 class_name GFDiagnosticsUtility
 extends GFUtility
 
@@ -33,15 +33,6 @@ enum CommandTier {
 }
 
 
-# --- 常量 ---
-
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
-const ACTION_QUEUE_PACKAGE_ID: String = "gf.official.action_queue"
-const ACTION_QUEUE_SYSTEM_PATH: String = "core/gf_action_queue_system.gd"
-const NETWORK_PACKAGE_ID: String = "gf.official.network"
-const NETWORK_UTILITY_PATH: String = "runtime/gf_network_utility.gd"
-
-
 # --- 公共变量 ---
 
 ## 是否采集 Godot Performance 监视器。
@@ -68,6 +59,8 @@ var allow_danger_commands: bool = false
 var _commands: Dictionary = {}
 var _monitors: Dictionary = {}
 var _monitor_presets: Dictionary = {}
+var _snapshot_section_providers: Dictionary = {}
+var _tool_snapshot_providers: Dictionary = {}
 var _monitor_order_counter: int = 0
 var _console_utility: GFConsoleUtility = null
 var _console_command_registered: bool = false
@@ -96,6 +89,8 @@ func dispose() -> void:
 	_commands.clear()
 	_monitors.clear()
 	_monitor_presets.clear()
+	_snapshot_section_providers.clear()
+	_tool_snapshot_providers.clear()
 	_monitor_order_counter = 0
 
 
@@ -239,6 +234,24 @@ func register_monitor_preset(
 	return true
 
 
+## 将一个监控项追加到已有预设；预设不存在时会创建。
+## @param preset_id: 预设唯一标识。
+## @param monitor_id: 监控项唯一标识。
+## @return 追加成功返回 true。
+func add_monitor_to_preset(preset_id: StringName, monitor_id: StringName) -> bool:
+	if preset_id == &"" or monitor_id == &"":
+		return false
+	if not _monitor_presets.has(preset_id):
+		return register_monitor_preset(preset_id, PackedStringArray([String(monitor_id)]))
+
+	var preset := _monitor_presets[preset_id] as Dictionary
+	var ids := preset.get("monitor_ids", PackedStringArray()) as PackedStringArray
+	if not ids.has(String(monitor_id)):
+		ids.append(String(monitor_id))
+		preset["monitor_ids"] = ids
+	return true
+
+
 ## 注销诊断监控预设。
 ## @param preset_id: 预设唯一标识。
 func unregister_monitor_preset(preset_id: StringName) -> void:
@@ -260,6 +273,54 @@ func get_monitor_preset_ids() -> PackedStringArray:
 		result.append(String(preset_id))
 	result.sort()
 	return result
+
+
+## 注册快照分区 provider。用于包或项目把自己的诊断数据贡献到 collect_snapshot() 顶层字段。
+## @param section_id: 快照顶层字段名。
+## @param provider: 无参数采样回调，建议返回 Dictionary。
+## @return 注册成功返回 true。
+func register_snapshot_section_provider(section_id: StringName, provider: Callable) -> bool:
+	if section_id == &"" or not provider.is_valid():
+		return false
+	_snapshot_section_providers[section_id] = provider
+	return true
+
+
+## 注销快照分区 provider。
+## @param section_id: 快照顶层字段名。
+func unregister_snapshot_section_provider(section_id: StringName) -> void:
+	_snapshot_section_providers.erase(section_id)
+
+
+## 检查快照分区 provider 是否存在。
+## @param section_id: 快照顶层字段名。
+## @return 存在返回 true。
+func has_snapshot_section_provider(section_id: StringName) -> bool:
+	return _snapshot_section_providers.has(section_id)
+
+
+## 注册工具快照 provider。用于包或项目把 get_debug_snapshot() 风格数据贡献到 tools 字段。
+## @param tool_id: tools 内部字段名。
+## @param provider: 无参数采样回调，建议返回 Dictionary。
+## @return 注册成功返回 true。
+func register_tool_snapshot_provider(tool_id: StringName, provider: Callable) -> bool:
+	if tool_id == &"" or not provider.is_valid():
+		return false
+	_tool_snapshot_providers[tool_id] = provider
+	return true
+
+
+## 注销工具快照 provider。
+## @param tool_id: tools 内部字段名。
+func unregister_tool_snapshot_provider(tool_id: StringName) -> void:
+	_tool_snapshot_providers.erase(tool_id)
+
+
+## 检查工具快照 provider 是否存在。
+## @param tool_id: tools 内部字段名。
+## @return 存在返回 true。
+func has_tool_snapshot_provider(tool_id: StringName) -> bool:
+	return _tool_snapshot_providers.has(tool_id)
 
 
 ## 采集诊断监控快照。
@@ -408,11 +469,8 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 		bool(options.get("include_recent_logs", true))
 	)
 
-	var network_utility := _get_enabled_package_utility(NETWORK_PACKAGE_ID, NETWORK_UTILITY_PATH)
-	var network_snapshot := _get_instance_debug_snapshot(network_utility)
-	if not network_snapshot.is_empty():
-		snapshot["network"] = network_snapshot
 	snapshot["tools"] = _collect_tool_debug_snapshots()
+	_collect_registered_snapshot_sections(snapshot)
 
 	if bool(options.get("include_monitors", true)):
 		var preset_id := StringName(options.get("monitor_preset", &""))
@@ -580,11 +638,6 @@ func _register_builtin_monitors() -> void:
 		"group": "Tools",
 		"min_interval_seconds": 0.25,
 	})
-	register_monitor(&"tools.action_queue", Callable(self, "_monitor_tool_action_queue_snapshot"), {
-		"label": "Action Queue",
-		"group": "Tools",
-		"min_interval_seconds": 0.25,
-	})
 
 	register_monitor_preset(&"minimal", PackedStringArray([
 		"performance.fps",
@@ -608,7 +661,6 @@ func _register_builtin_monitors() -> void:
 		"tools.asset",
 		"tools.timer",
 		"tools.download",
-		"tools.action_queue",
 	]), { "label": "Tools" })
 	register_monitor_preset(&"overlay", PackedStringArray([
 		"performance.fps",
@@ -703,13 +755,6 @@ func _monitor_tool_download_snapshot() -> Dictionary:
 	return _get_instance_debug_snapshot(get_utility(GFDownloadUtility))
 
 
-func _monitor_tool_action_queue_snapshot() -> Dictionary:
-	return _get_instance_debug_snapshot(_get_enabled_package_system(
-		ACTION_QUEUE_PACKAGE_ID,
-		ACTION_QUEUE_SYSTEM_PATH
-	))
-
-
 func _collect_tool_debug_snapshots() -> Dictionary:
 	var result: Dictionary = {}
 	_add_tool_debug_snapshot(result, &"build_info", get_utility(GFBuildInfoUtility))
@@ -718,25 +763,8 @@ func _collect_tool_debug_snapshots() -> Dictionary:
 	_add_tool_debug_snapshot(result, &"remote_cache", get_utility(GFRemoteCacheUtility))
 	_add_tool_debug_snapshot(result, &"download", get_utility(GFDownloadUtility))
 	_add_tool_debug_snapshot(result, &"object_pool", get_utility(GFObjectPoolUtility))
-	_add_tool_debug_snapshot(result, &"action_queue", _get_enabled_package_system(
-		ACTION_QUEUE_PACKAGE_ID,
-		ACTION_QUEUE_SYSTEM_PATH
-	))
+	_add_registered_tool_debug_snapshots(result)
 	return result
-
-
-func _get_enabled_package_system(package_id: String, relative_script_path: String) -> Object:
-	var script := GFPackageSettingsBase.load_enabled_package_script(package_id, relative_script_path)
-	if script == null:
-		return null
-	return get_system(script)
-
-
-func _get_enabled_package_utility(package_id: String, relative_script_path: String) -> Object:
-	var script := GFPackageSettingsBase.load_enabled_package_script(package_id, relative_script_path)
-	if script == null:
-		return null
-	return get_utility(script)
 
 
 func _add_tool_debug_snapshot(result: Dictionary, key: StringName, instance: Object) -> void:
@@ -745,10 +773,33 @@ func _add_tool_debug_snapshot(result: Dictionary, key: StringName, instance: Obj
 		result[key] = snapshot
 
 
+func _add_registered_tool_debug_snapshots(result: Dictionary) -> void:
+	for tool_id: StringName in _tool_snapshot_providers.keys():
+		var provider := _tool_snapshot_providers[tool_id] as Callable
+		var snapshot := _call_dictionary_provider(provider)
+		if not snapshot.is_empty():
+			result[tool_id] = snapshot
+
+
+func _collect_registered_snapshot_sections(snapshot: Dictionary) -> void:
+	for section_id: StringName in _snapshot_section_providers.keys():
+		var provider := _snapshot_section_providers[section_id] as Callable
+		var section := _call_dictionary_provider(provider)
+		if not section.is_empty():
+			snapshot[section_id] = section
+
+
 func _get_instance_debug_snapshot(instance: Object) -> Dictionary:
 	if instance == null or not instance.has_method("get_debug_snapshot"):
 		return {}
 	var value: Variant = instance.call("get_debug_snapshot")
+	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
+
+
+func _call_dictionary_provider(provider: Callable) -> Dictionary:
+	if not provider.is_valid():
+		return {}
+	var value: Variant = provider.call()
 	return (value as Dictionary).duplicate(true) if value is Dictionary else {}
 
 

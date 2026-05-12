@@ -565,16 +565,16 @@ func _collect_official_class_roots() -> Dictionary:
 	_collect_gd_files(OFFICIAL_PACKAGE_ROOT, files)
 
 	var result: Dictionary = {}
+	var regex := RegEx.new()
+	regex.compile("^\\s*class_name\\s+([A-Za-z_]\\w*)")
 	for path: String in files:
 		var package_root := _get_official_package_root(path)
 		for line: String in _read_text(path).split("\n"):
-			var trimmed := line.strip_edges()
-			if not trimmed.begins_with("class_name "):
+			var match_result := regex.search(line)
+			if match_result == null:
 				continue
 
-			var parts := trimmed.split(" ", false)
-			if parts.size() >= 2:
-				result[String(parts[1])] = package_root
+			result[match_result.get_string(1)] = package_root
 	return result
 
 

@@ -1,10 +1,6 @@
 ## 测试 GFInteractionContext 链式构造与 GFInteractionFlow 的命令派发。
 extends GutTest
 
-
-const GF_PACKAGE_SETTINGS_BASE := preload("res://addons/gf/kernel/package/gf_package_settings.gd")
-
-
 class RecordingCommand extends RefCounted:
 	var interaction_context: Variant = null
 
@@ -26,6 +22,20 @@ class SpyArchitecture extends GFArchitecture:
 	func send_command(command: Object) -> Variant:
 		sent_command = command
 		return "arch"
+
+
+class CapabilityProviderStub:
+	var capability: Object = null
+	var receivers: Array[Object] = []
+
+	func get_capability(_receiver: Object, _capability_type: Script) -> Object:
+		return capability
+
+	func get_receivers_in_group(_group_name: StringName) -> Array[Object]:
+		return receivers
+
+	func get_receivers_in_group_with(_group_name: StringName, _capability_type: Script) -> Array[Object]:
+		return receivers
 
 
 func test_interaction_context_chain_sets_fields() -> void:
@@ -57,14 +67,18 @@ func test_interaction_context_group_receivers_without_capability_utility() -> vo
 	assert_eq(ctx.get_group_receivers().size(), 0, "未注入架构时无法解析能力工具，应返回空列表。")
 
 
-func test_interaction_context_skips_capability_when_package_disabled() -> void:
-	var restore := _set_enabled_packages(["gf.official.interaction"])
+func test_interaction_context_uses_explicit_capability_provider() -> void:
+	var capability := RefCounted.new()
+	var receiver := RefCounted.new()
+	var provider := CapabilityProviderStub.new()
+	provider.capability = capability
+	provider.receivers = [receiver]
+
 	var ctx := GFInteractionContext.new()
-	var capability_utility_script: Script = ctx._load_capability_utility_script()
+	ctx.with_target(receiver).with_group(&"team").with_capability_provider(provider)
 
-	_restore_enabled_packages(restore)
-
-	assert_null(capability_utility_script, "Capability 包禁用时，Interaction 辅助不应加载能力工具。")
+	assert_same(ctx.get_target_capability(null), capability, "交互上下文应通过显式 provider 查询能力。")
+	assert_eq(ctx.get_group_receivers(), [receiver], "交互上下文应通过显式 provider 查询分组 receiver。")
 
 
 func test_interaction_flow_chaining_updates_context() -> void:
@@ -76,6 +90,15 @@ func test_interaction_flow_chaining_updates_context() -> void:
 	assert_same(flow.context.target, sender)
 	assert_eq(flow.context.payload, "x")
 	assert_eq(flow.context.group_name, &"combat")
+
+
+func test_interaction_flow_sets_capability_provider() -> void:
+	var provider := CapabilityProviderStub.new()
+	var flow := GFInteractionFlow.new()
+
+	flow.with_capability_provider(provider)
+
+	assert_same(flow.context.capability_provider, provider)
 
 
 func test_interaction_flow_execute_null_returns_null() -> void:
@@ -105,23 +128,3 @@ func test_interaction_flow_send_event_null_is_no_op() -> void:
 	var flow := GFInteractionFlow.new()
 	flow.send_event(null)
 	assert_true(flow.context != null, "send_event(null) 应静默返回且 Flow 仍持有默认上下文。")
-
-
-# --- 私有/辅助方法 ---
-
-func _set_enabled_packages(package_ids: Array[String]) -> Dictionary:
-	var setting_name: String = GF_PACKAGE_SETTINGS_BASE.ENABLED_PACKAGES_SETTING
-	var restore := {
-		"had_setting": ProjectSettings.has_setting(setting_name),
-		"value": ProjectSettings.get_setting(setting_name, []),
-	}
-	ProjectSettings.set_setting(setting_name, package_ids)
-	return restore
-
-
-func _restore_enabled_packages(restore: Dictionary) -> void:
-	var setting_name: String = GF_PACKAGE_SETTINGS_BASE.ENABLED_PACKAGES_SETTING
-	if bool(restore.get("had_setting", false)):
-		ProjectSettings.set_setting(setting_name, restore.get("value", []))
-	else:
-		ProjectSettings.clear(setting_name)

@@ -45,11 +45,11 @@ def main() -> int:
 	parser.add_argument("--source", default="addons/gf", help="GDScript source root.")
 	parser.add_argument("--output", default="ai_analysis/generated_api", help="Output directory.")
 	parser.add_argument("--check", action="store_true", help="Fail if existing generated files are stale.")
-	parser.add_argument("--wiki", default="docs/wiki", help="Wiki root used by --check-wiki-coverage.")
+	parser.add_argument("--wiki", default="docs/zh", help="Documentation root used by --check-wiki-coverage.")
 	parser.add_argument(
 		"--check-wiki-coverage",
 		action="store_true",
-		help="Fail if public class_name entries are not mentioned in non-changelog Wiki pages.",
+		help="Fail if public class_name entries are not mentioned in non-changelog documentation pages.",
 	)
 	args = parser.parse_args()
 
@@ -412,11 +412,11 @@ def check_outputs(output_dir: Path, desired: dict[str, str]) -> int:
 
 def check_wiki_coverage(api_files: list[ApiFile], wiki_root: Path) -> int:
 	if not wiki_root.exists():
-		print(f"wiki root not found: {wiki_root}", file=sys.stderr)
+		print(f"documentation root not found: {wiki_root}", file=sys.stderr)
 		return 2
 
 	doc_text_parts: list[str] = []
-	for path in sorted(wiki_root.glob("*.md")):
+	for path in sorted(wiki_root.rglob("*.md")):
 		if is_changelog_page(path):
 			continue
 		doc_text_parts.append(path.read_text(encoding="utf-8"))
@@ -432,12 +432,12 @@ def check_wiki_coverage(api_files: list[ApiFile], wiki_root: Path) -> int:
 			missing.append(api_file)
 
 	if missing:
-		print("Wiki coverage is missing public class entries:")
+		print("Documentation coverage is missing public class entries:")
 		for api_file in missing:
 			print(f"- {api_file.module} | {api_file.class_name} | {api_file.path}")
 		return 1
 
-	print(f"Wiki coverage is complete: {checked_count} public classes mentioned outside changelog.")
+	print(f"Documentation coverage is complete: {checked_count} public classes mentioned outside changelog.")
 	return 0
 
 

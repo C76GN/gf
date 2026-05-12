@@ -38,7 +38,11 @@ func test_all_packages_disabled_plugin_helpers_discover_no_package_extensions() 
 	var restore := _set_enabled_packages([])
 	var actions: Variant = GF_PLUGIN_ACTIONS.new()
 	actions._load_package_editor_actions()
-	var action_entries: Array = actions.get_package_menu_entries()
+	actions._register_loaded_package_action_entries()
+	var action_entries := _filter_package_menu_entries(
+		actions.get_menu_entries(),
+		int(actions.PACKAGE_MENU_ID_START)
+	)
 	actions._cleanup_package_editor_actions()
 
 	var dock_tools: Variant = GF_PLUGIN_DOCK_TOOLS.new()
@@ -104,6 +108,17 @@ func _collect_gd_files(root_path: String, result: Array[String]) -> void:
 			result.append(path)
 		entry = dir.get_next()
 	dir.list_dir_end()
+
+
+func _filter_package_menu_entries(entries: Array, package_menu_id_start: int) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry_variant: Variant in entries:
+		var entry := entry_variant as Dictionary
+		if entry == null:
+			continue
+		if int(entry.get("id", -1)) >= package_menu_id_start:
+			result.append(entry.duplicate(true))
+	return result
 
 
 func _join_lines(lines: Array[String]) -> String:

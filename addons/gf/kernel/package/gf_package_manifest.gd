@@ -22,7 +22,7 @@ const KIND_COMMUNITY: String = "community"
 
 # --- 公共变量 ---
 
-## 稳定包 ID，推荐格式为 `gf.official.combat` 或 `author.package_name`。
+## 稳定包 ID，推荐格式为反向域名或作者命名空间，例如 `author.package_name`。
 var id: String = ""
 
 ## 面向用户显示的包名。

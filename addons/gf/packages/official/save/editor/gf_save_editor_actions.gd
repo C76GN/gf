@@ -10,7 +10,7 @@ const MENU_ACTION_VALIDATE_SAVE_GRAPH: StringName = &"validate_save_graph"
 const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
 const GF_SAVE_GRAPH_UTILITY_BASE := preload("res://addons/gf/packages/official/save/graph/gf_save_graph_utility.gd")
 const GF_SAVE_SCOPE_BASE := preload("res://addons/gf/packages/official/save/core/gf_save_scope.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 私有变量 ---

@@ -13,6 +13,7 @@ const GFPluginInspectorTools = preload("res://addons/gf/kernel/editor/gf_plugin_
 const GFPluginActions = preload("res://addons/gf/kernel/editor/gf_plugin_actions.gd")
 const GFPluginMenu = preload("res://addons/gf/kernel/editor/gf_plugin_menu.gd")
 const GFPluginDockTools = preload("res://addons/gf/kernel/editor/gf_plugin_dock_tools.gd")
+const GFStandardEditorExtensions = preload("res://addons/gf/standard/editor/gf_standard_editor_extensions.gd")
 
 
 # --- 私有变量 ---
@@ -22,6 +23,7 @@ var _actions: RefCounted
 var _menu: RefCounted
 var _dock_tools: RefCounted
 var _plugin_active: bool = false
+var _standard_editor_extension_records: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -30,15 +32,16 @@ func _enter_tree() -> void:
 	_plugin_active = true
 	GFPluginAutoload.ensure(self)
 	GFPluginProjectSettings.ensure_all()
+	_standard_editor_extension_records = _collect_standard_editor_extension_records()
 
 	_inspector_tools = GFPluginInspectorTools.new()
-	_inspector_tools.setup(self)
+	_inspector_tools.setup(self, _standard_editor_extension_records)
 
 	_actions = GFPluginActions.new()
-	_actions.setup()
+	_actions.setup(_standard_editor_extension_records.get("template_records", []))
 
 	_menu = GFPluginMenu.new()
-	_menu.setup(self, Callable(_actions, "handle_menu_id"), _actions.get_package_menu_entries())
+	_menu.setup(self, Callable(_actions, "handle_menu_id"), _actions.get_menu_entries())
 
 	_dock_tools = GFPluginDockTools.new()
 	call_deferred("_setup_dock_tools")
@@ -68,4 +71,13 @@ func _setup_dock_tools() -> void:
 	if not _plugin_active or _dock_tools == null:
 		return
 
-	_dock_tools.setup(self)
+	_dock_tools.setup(self, _standard_editor_extension_records.get("dock_records", []) as Array[Dictionary])
+
+
+func _collect_standard_editor_extension_records() -> Dictionary:
+	return {
+		"inspector_plugin_records": GFStandardEditorExtensions.get_inspector_plugin_records(),
+		"export_plugin_records": GFStandardEditorExtensions.get_export_plugin_records(),
+		"dock_records": GFStandardEditorExtensions.get_dock_records(),
+		"template_records": GFStandardEditorExtensions.get_template_records(),
+	}

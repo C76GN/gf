@@ -9,9 +9,7 @@ const DEFAULT_SCAN_ROOTS: Array[String] = ["res://"]
 const DEFAULT_IGNORED_ROOTS: Array[String] = [
 	"res://.godot",
 	"res://.git",
-	"res://addons/gf/kernel",
-	"res://addons/gf/standard",
-	"res://addons/gf/packages/official",
+	"res://addons/gf",
 	"res://addons/gut",
 	"res://ai_analysis",
 	"res://docs",

@@ -17,11 +17,11 @@ const _DEPENDENCY_SCOPE_SUPPORT: Script = preload("res://addons/gf/kernel/base/g
 
 # --- 公共变量 ---
 
-## 是否忽略全局暂停。为 true 时，即使 GFTimeUtility.is_paused 为 true，
+## 是否忽略全局暂停。为 true 时，即使当前 GFTimeProvider 处于暂停状态，
 ## 该 Utility 的 tick / physics_tick 仍会接收到原始（未缩放）的 delta 值。
 var ignore_pause: bool = false
 
-## 是否忽略 GFTimeUtility.time_scale。为 true 且未全局暂停时，
+## 是否忽略当前 GFTimeProvider 的时间缩放。为 true 且未全局暂停时，
 ## 该 Utility 的 tick / physics_tick 会接收到原始 delta。
 var ignore_time_scale: bool = false
 

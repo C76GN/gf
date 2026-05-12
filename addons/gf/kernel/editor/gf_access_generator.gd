@@ -29,7 +29,7 @@ const _BASE_SYSTEM_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_syst
 const _BASE_UTILITY_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_utility.gd")
 const _BASE_COMMAND_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_command.gd")
 const _BASE_QUERY_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_query.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 const _PACKAGE_SETTINGS: Script = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
 const _LAYER_TYPES: Dictionary = {
 	"2d_render": 20,
@@ -493,7 +493,10 @@ func _append_access_generator_extension(
 			_append_source_section(builder, String(section_variant))
 		return
 
-	push_warning("[GFAccessGenerator] 访问器扩展缺少 append_access_source()：%s" % extension_path)
+	if extension.has_method("append_access_records"):
+		return
+
+	push_warning("[GFAccessGenerator] 访问器扩展缺少源码或记录扩展方法：%s" % extension_path)
 
 
 func _load_access_generator_extension(extension_path: String) -> Object:

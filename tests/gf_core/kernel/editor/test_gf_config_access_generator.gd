@@ -9,22 +9,20 @@ const GF_CONFIG_ACCESS_GENERATOR_BASE := preload("res://addons/gf/kernel/editor/
 # --- 测试用例 ---
 
 func test_build_source_generates_config_accessors() -> void:
-	var schema := GFConfigTableSchema.new()
-	schema.table_name = &"item_data"
+	var schema := ConfigSchemaStub.new(&"item_data")
 	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
 
 	var source: String = generator.build_source([schema])
 
 	assert_true(source.contains("class_name GFConfigAccess"), "应生成默认访问器类。")
 	assert_true(source.contains("const ITEM_DATA: StringName = &\"item_data\""), "应生成表名常量。")
-	assert_true(source.contains("static func get_item_data_record(id: Variant, provider: GFConfigProvider = null) -> Variant:"), "应生成记录读取方法。")
-	assert_true(source.contains("return resolved_provider.get_record(ITEM_DATA, id)"), "记录读取方法应委托给 GFConfigProvider。")
-	assert_true(source.contains("static func get_item_data_table(provider: GFConfigProvider = null) -> Variant:"), "应生成整表读取方法。")
+	assert_true(source.contains("static func get_item_data_record(id: Variant, provider: Variant = null) -> Variant:"), "应生成记录读取方法。")
+	assert_true(source.contains("return resolved_provider.get_record(ITEM_DATA, id)"), "记录读取方法应委托给 provider。")
+	assert_true(source.contains("static func get_item_data_table(provider: Variant = null) -> Variant:"), "应生成整表读取方法。")
 
 
 func test_build_source_sanitizes_invalid_table_names() -> void:
-	var schema := GFConfigTableSchema.new()
-	schema.table_name = &"123 item-data"
+	var schema := ConfigSchemaStub.new(&"123 item-data")
 	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
 
 	var source: String = generator.build_source([schema], "MyConfigAccess", "null")
@@ -33,3 +31,23 @@ func test_build_source_sanitizes_invalid_table_names() -> void:
 	assert_true(source.contains("const TABLE_123_ITEM_DATA: StringName = &\"123 item-data\""), "非法标识符字符应转为有效常量名。")
 	assert_true(source.contains("static func get_table_123_item_data_record"), "数字开头表名应生成安全方法前缀。")
 	assert_true(source.contains("\treturn null"), "应允许自定义 provider_accessor。")
+
+
+func test_build_source_accepts_dictionary_schemas() -> void:
+	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+
+	var source: String = generator.build_source([{ "table_name": "enemy_data" }])
+
+	assert_true(source.contains("const ENEMY_DATA: StringName = &\"enemy_data\""), "字典 schema 应可提供表名。")
+
+
+# --- 内部类 ---
+
+class ConfigSchemaStub:
+	var table_name: StringName = &""
+
+	func _init(p_table_name: StringName) -> void:
+		table_name = p_table_name
+
+	func get_table_key() -> StringName:
+		return table_name

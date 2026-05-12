@@ -2,7 +2,7 @@
 
 ## GFConfigAccessGenerator: 生成静态导表访问器脚本。
 ##
-## 生成结果只封装 `GFConfigProvider.get_record()` / `get_table()` 调用，
+## 生成结果只封装 provider 的 `get_record()` / `get_table()` 调用，
 ## 不规定项目表结构语义，适合需要 IDE 补全和集中表名常量的项目使用。
 class_name GFConfigAccessGenerator
 extends RefCounted
@@ -12,17 +12,17 @@ extends RefCounted
 
 const DEFAULT_OUTPUT_PATH: String = "res://gf/generated/gf_config_access.gd"
 const DEFAULT_CLASS_NAME: String = "GFConfigAccess"
-const DEFAULT_PROVIDER_ACCESSOR: String = "Gf.get_utility(GFConfigProvider) as GFConfigProvider"
+const DEFAULT_PROVIDER_ACCESSOR: String = "null"
 
 
 # --- 公共方法 ---
 
 ## 根据 schema 列表生成访问器并写入文件。
-## @param schemas: `GFConfigTableSchema` 列表。
+## @param schemas: 带有 `get_table_key()` 方法或 `table_name` 属性的 schema 列表。
 ## @param output_path: 生成文件输出路径。
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
 ## @param access_class_name: 生成脚本的 class_name。
-## @param provider_accessor: 无显式 provider 参数时用于获取 Provider 的表达式。
+## @param provider_accessor: 无显式 provider 参数时用于获取 provider 的表达式。
 ## @return 写入结果错误码。
 func generate(
 	schemas: Array,
@@ -35,9 +35,9 @@ func generate(
 
 
 ## 根据 schema 列表生成访问器源码。
-## @param schemas: `GFConfigTableSchema` 列表。
+## @param schemas: 带有 `get_table_key()` 方法或 `table_name` 属性的 schema 列表。
 ## @param access_class_name: 生成脚本的 class_name。
-## @param provider_accessor: 无显式 provider 参数时用于获取 Provider 的表达式。
+## @param provider_accessor: 无显式 provider 参数时用于获取 provider 的表达式。
 ## @return GDScript 源码。
 func build_source(
 	schemas: Array,
@@ -67,7 +67,7 @@ func build_source(
 
 	builder.blank()
 	builder.section("私有/辅助方法")
-	builder.line("static func _provider_or_null(provider: GFConfigProvider = null) -> GFConfigProvider:")
+	builder.line("static func _provider_or_null(provider: Variant = null) -> Variant:")
 	builder.indent()
 	builder.line("if provider != null:")
 	builder.indent()
@@ -115,11 +115,7 @@ func save_source(output_path: String, source: String, overwrite_existing: bool =
 func _collect_schema_records(schemas: Array) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	for schema_variant: Variant in schemas:
-		var schema := schema_variant as GFConfigTableSchema
-		if schema == null:
-			continue
-
-		var table_name := String(schema.get_table_key())
+		var table_name := _get_schema_table_name(schema_variant)
 		if table_name.is_empty():
 			continue
 
@@ -152,7 +148,7 @@ func _append_table_accessors(builder: GFSourceBuilder, record: Dictionary, used_
 	used_methods[record_method] = true
 	used_methods[table_method] = true
 	builder.doc("获取 `%s` 表中的单条记录。" % String(record.get("table_name", "")))
-	builder.line("static func %s(id: Variant, provider: GFConfigProvider = null) -> Variant:" % record_method)
+	builder.line("static func %s(id: Variant, provider: Variant = null) -> Variant:" % record_method)
 	builder.indent()
 	builder.line("var resolved_provider := _provider_or_null(provider)")
 	builder.line("if resolved_provider == null:")
@@ -163,7 +159,7 @@ func _append_table_accessors(builder: GFSourceBuilder, record: Dictionary, used_
 	builder.dedent()
 	builder.blank(2)
 	builder.doc("获取 `%s` 整张表数据。" % String(record.get("table_name", "")))
-	builder.line("static func %s(provider: GFConfigProvider = null) -> Variant:" % table_method)
+	builder.line("static func %s(provider: Variant = null) -> Variant:" % table_method)
 	builder.indent()
 	builder.line("var resolved_provider := _provider_or_null(provider)")
 	builder.line("if resolved_provider == null:")
@@ -194,6 +190,31 @@ func _sanitize_identifier(value: String) -> String:
 	if result.substr(0, 1).is_valid_int():
 		result = "table_" + result
 	return result
+
+
+func _get_schema_table_name(schema: Variant) -> String:
+	if schema == null:
+		return ""
+	if schema is Dictionary:
+		var dictionary := schema as Dictionary
+		if dictionary.has("table_name"):
+			return String(dictionary.get("table_name"))
+		if dictionary.has("table_key"):
+			return String(dictionary.get("table_key"))
+		return ""
+	if schema is Object:
+		var object := schema as Object
+		if object.has_method("get_table_key"):
+			return String(object.call("get_table_key"))
+		return String(_get_object_property_or_default(object, &"table_name", ""))
+	return ""
+
+
+func _get_object_property_or_default(object: Object, property_name: StringName, default_value: Variant) -> Variant:
+	for property: Dictionary in object.get_property_list():
+		if StringName(property.get("name", "")) == property_name:
+			return object.get(property_name)
+	return default_value
 
 
 func _to_constant_name(identifier: String) -> String:

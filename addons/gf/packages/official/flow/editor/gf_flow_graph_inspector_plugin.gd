@@ -9,7 +9,7 @@ extends EditorInspectorPlugin
 const FLOW_PACKAGE_ID: String = "gf.official.flow"
 const GF_FLOW_GRAPH_SCRIPT_PATH: String = "res://addons/gf/packages/official/flow/resources/gf_flow_graph.gd"
 const GF_PACKAGE_SETTINGS_BASE := preload("res://addons/gf/kernel/package/gf_package_settings.gd")
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- Godot 回调方法 ---

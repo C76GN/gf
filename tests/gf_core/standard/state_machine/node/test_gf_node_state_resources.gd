@@ -28,7 +28,7 @@ class ToggleCondition:
 	var phases: Array[StringName] = []
 	var peers: Array[StringName] = []
 
-	func _evaluate(_state: Node, phase: StringName, peer_state: StringName = &"", _args: Dictionary = {}) -> bool:
+	func _evaluate(_state: GFNodeState, phase: StringName, peer_state: StringName = &"", _args: Dictionary = {}) -> bool:
 		phases.append(phase)
 		peers.append(peer_state)
 		return allowed
@@ -40,22 +40,22 @@ class RecordingBehavior:
 	var calls: Array[String] = []
 	var handled_event_id: StringName = &""
 
-	func _initialize(state: Node) -> void:
+	func _initialize(state: GFNodeState) -> void:
 		calls.append("initialize:%s" % state.get_state_name())
 
-	func _enter(state: Node, previous_state: StringName = &"", _args: Dictionary = {}) -> void:
+	func _enter(state: GFNodeState, previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 		calls.append("enter:%s:%s" % [state.get_state_name(), previous_state])
 
-	func _exit(state: Node, next_state: StringName = &"", _args: Dictionary = {}) -> void:
+	func _exit(state: GFNodeState, next_state: StringName = &"", _args: Dictionary = {}) -> void:
 		calls.append("exit:%s:%s" % [state.get_state_name(), next_state])
 
-	func _pause(state: Node, next_state: StringName = &"", _args: Dictionary = {}) -> void:
+	func _pause(state: GFNodeState, next_state: StringName = &"", _args: Dictionary = {}) -> void:
 		calls.append("pause:%s:%s" % [state.get_state_name(), next_state])
 
-	func _resume(state: Node, previous_state: StringName = &"", _args: Dictionary = {}) -> void:
+	func _resume(state: GFNodeState, previous_state: StringName = &"", _args: Dictionary = {}) -> void:
 		calls.append("resume:%s:%s" % [state.get_state_name(), previous_state])
 
-	func _handle_state_event(state: Node, event_id: StringName, _payload: Variant = null) -> bool:
+	func _handle_state_event(state: GFNodeState, event_id: StringName, _payload: Variant = null) -> bool:
 		calls.append("event:%s:%s" % [state.get_state_name(), event_id])
 		return event_id == handled_event_id
 

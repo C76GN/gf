@@ -9,7 +9,7 @@ class_name GFTypeEventSystem
 
 ## 默认最大事件嵌套派发深度。
 const DEFAULT_MAX_DISPATCH_DEPTH: int = 64
-const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/standard/foundation/reflection/gf_script_type_inspector.gd")
+const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- 公共变量 ---

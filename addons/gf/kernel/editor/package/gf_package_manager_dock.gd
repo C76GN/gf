@@ -28,6 +28,7 @@ var _details_output: RichTextLabel
 var _status_label: Label
 var _auto_install_check: CheckBox
 var _export_exclude_check: CheckBox
+var _export_fail_check: CheckBox
 var _filter_option: OptionButton
 var _search_field: LineEdit
 var _package_checks: Dictionary = {}
@@ -108,6 +109,11 @@ func _build_ui() -> void:
 	_export_exclude_check.text = "导出时排除禁用包"
 	_export_exclude_check.tooltip_text = "项目导出阶段跳过禁用包根目录下的文件"
 	option_row.add_child(_export_exclude_check)
+
+	_export_fail_check = CheckBox.new()
+	_export_fail_check.text = "引用禁用包时阻止导出"
+	_export_fail_check.tooltip_text = "导出审计发现项目仍引用禁用包时，以错误形式报告，适合发布前检查"
+	option_row.add_child(_export_fail_check)
 
 	var filter_row := HBoxContainer.new()
 	filter_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -203,6 +209,7 @@ func _refresh_packages() -> void:
 
 	_auto_install_check.button_pressed = GFPackageSettingsBase.should_auto_install_enabled_installers()
 	_export_exclude_check.button_pressed = GFPackageSettingsBase.should_export_exclude_disabled_packages()
+	_export_fail_check.button_pressed = GFPackageSettingsBase.should_fail_export_on_disabled_package_references()
 	_refresh_usage_report()
 
 	_refresh_visible_package_rows()
@@ -289,6 +296,7 @@ func _apply_selection() -> void:
 	GFPackageSettingsBase.set_enabled_package_ids(_get_selected_enabled_ids(), true)
 	GFPackageSettingsBase.set_auto_install_enabled_installers(_auto_install_check.button_pressed)
 	GFPackageSettingsBase.set_export_exclude_disabled_packages(_export_exclude_check.button_pressed)
+	GFPackageSettingsBase.set_fail_export_on_disabled_package_references(_export_fail_check.button_pressed)
 	ProjectSettings.save()
 	_refresh_usage_report()
 	_refresh_packages()
