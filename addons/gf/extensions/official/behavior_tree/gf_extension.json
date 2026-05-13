@@ -1,7 +1,7 @@
 {
   "id": "gf.official.behavior_tree",
   "display_name": "GF Behavior Tree",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "extension_version": "1.1.0",
   "kind": "official",
   "description": "Pure-code behavior tree primitives for AI decision flow.",

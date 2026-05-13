@@ -58,6 +58,31 @@ debug.watch_value(&"scene_path", scene_path_provider, {
 需要显示多行结构化内容时，可以用 `register_panel()` 或 `push_panel_text()` 注册 Overlay 面板。面板 provider 可以返回字符串、数组或字典，Overlay 会把它们格式化为只读文本；`include_recent_logs` 开启时还会附加最近日志面板。面板同样不做脱敏，适合开发期聚合 `GFDiagnosticsUtility` 快照、项目局部状态或自定义工具输出。
 
 
+## 运行时调参注册表 (`GFRuntimeInspectorUtility`)
+
+`GFRuntimeInspectorUtility` 提供显式 schema 驱动的运行时检查和调参入口。项目必须主动注册目标对象和 `GFRuntimeTunableProperty`，框架只负责读取、归一化、写入门禁、快照和可选 Overlay 面板，不会自动扫描所有节点、Model 或项目字段。
+
+```gdscript
+var inspector := Gf.get_utility(GFRuntimeInspectorUtility) as GFRuntimeInspectorUtility
+
+var move_speed := GFRuntimeTunableProperty.new(
+	&"move_speed",
+	^"move_speed",
+	GFRuntimeTunableProperty.ValueKind.FLOAT
+).with_range(0.0, 1200.0, 10.0)
+
+inspector.register_target(&"player", player_stats, [move_speed], {
+	"label": "Player Stats",
+	"group": "Combat",
+})
+
+inspector.set_property_value(&"player", &"move_speed", 480.0)
+print(inspector.get_target_snapshot())
+```
+
+`GFRuntimeTunableProperty` 可声明 bool、int、float、String、StringName、Vector2、Vector3、Color 或任意值，也可以设置范围、可选值、只读、显示分组和自定义 getter/setter/validator。`GFRuntimeInspectorUtility.allow_writes` 可整体关闭写入，`debug_build_writes_only` 默认让非 debug 构建不能通过该工具写值。需要把调参快照放进调试覆盖层时，调用 `attach_to_debug_overlay()`；面向玩家的入口、远程运维工具或线上调试入口仍应由项目层做权限、白名单和脱敏。
+
+
 ## 信号图与运行时信号探针 (`GFSceneSignalAudit` / `GFSignalRuntimeProbe`)
 
 编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把当前节点树的信号、连接和节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 会把当前编辑场景渲染为 `GF` 工作区页面，默认查看持久连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。

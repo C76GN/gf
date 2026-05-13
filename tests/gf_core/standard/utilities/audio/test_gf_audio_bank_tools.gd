@@ -9,6 +9,16 @@ const GFAudioBankToolsBase = preload("res://addons/gf/standard/utilities/audio/g
 const GFAudioClipBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_clip.gd")
 
 
+# --- 私有/辅助方法 ---
+
+func _write_empty_user_file(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	assert_not_null(file, "测试应能创建 user:// 临时文件。")
+	if file != null:
+		file.store_string("")
+		file.close()
+
+
 # --- 测试 ---
 
 func test_create_bank_from_paths_uses_relative_clip_ids() -> void:
@@ -43,6 +53,25 @@ func test_add_paths_to_bank_skips_existing_ids_without_overwrite() -> void:
 	assert_eq(counts.get("audio_clip_id_exists", 0), 1, "重复 ID 且未开启覆盖时应跳过。")
 	assert_eq(bank.get_clip(&"click").path, "res://audio/existing.ogg", "原有片段不应被覆盖。")
 	assert_eq(report.metadata.get("skipped_count", 0), 1, "报告应记录跳过数量。")
+
+
+func test_sync_bank_from_scan_imports_audio_paths() -> void:
+	var root_path := "user://gf_audio_bank_tools_scan"
+	DirAccess.make_dir_recursive_absolute(root_path)
+	_write_empty_user_file(root_path.path_join("click.ogg"))
+	_write_empty_user_file(root_path.path_join("ignore.txt"))
+	var bank := GFAudioBankBase.new()
+
+	var report := GFAudioBankToolsBase.sync_bank_from_scan(bank, root_path, {
+		"id_mode": "relative_path",
+		"base_path": root_path,
+		"bus_name": "SFX",
+	})
+
+	assert_eq(report.metadata.get("scanned_count", 0), 1, "扫描同步只应收集支持的音频扩展名。")
+	assert_eq(report.metadata.get("added_count", 0), 1, "扫描同步应导入新音频片段。")
+	assert_true(bank.has_clip(&"click"), "扫描同步应按相对路径生成片段 ID。")
+	assert_eq(bank.get_clip(&"click").bus_name, "SFX", "扫描同步应传递导入选项。")
 
 
 func test_validate_bank_playback_reports_bus_and_extension_issues() -> void:

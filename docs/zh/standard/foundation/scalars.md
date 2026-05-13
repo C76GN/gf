@@ -73,7 +73,7 @@ var valid := GFDecimalStringFormatter.is_valid_decimal_parts("12", "34", true)
 - 分段式离线收益结算
 
 它刻意只解决“怎么算”，不解决“由谁驱动建筑、生产线、仓库和资源流转状态机”。  
-所以它非常适合与 `GFConfigProvider`、JSON、CSV、Luban 等导表结果配合使用，但不直接承担具体玩法系统职责。
+所以它非常适合与 `GFConfigProvider`、JSON、CSV 或外部导表产物配合使用，但不直接承担具体玩法系统职责。
 
 ```gdscript
 var cost_curve := {

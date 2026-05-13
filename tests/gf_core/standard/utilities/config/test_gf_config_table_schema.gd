@@ -231,6 +231,124 @@ func test_reference_resolver_reports_missing_target_record() -> void:
 	assert_true(_has_issue_code(report["issues"] as Array, "missing_reference"), "错误报告应包含缺失引用。")
 
 
+func test_column_validation_rules_report_common_data_errors() -> void:
+	var schema := GFConfigTableSchema.new()
+	schema.table_name = &"items"
+	schema.columns = [
+		_make_column(&"id", GFConfigTableColumn.ValueType.INT),
+		_make_column(&"code", GFConfigTableColumn.ValueType.STRING),
+		_make_column(&"kind", GFConfigTableColumn.ValueType.STRING),
+		_make_column(&"tags", GFConfigTableColumn.ValueType.ARRAY),
+		_make_column(&"icon_path", GFConfigTableColumn.ValueType.STRING),
+		_make_column(&"name_key", GFConfigTableColumn.ValueType.STRING),
+		_make_column(&"power", GFConfigTableColumn.ValueType.FLOAT),
+	]
+
+	var not_default := GFConfigNotDefaultValidationRule.new()
+	schema.get_column(&"id").validation_rules.append(not_default)
+	var regex := GFConfigRegexValidationRule.new()
+	regex.pattern = "^[a-z0-9_]+$"
+	regex.require_full_match = true
+	schema.get_column(&"code").validation_rules.append(regex)
+	var kind_set := GFConfigSetValidationRule.new()
+	kind_set.allowed_values = ["weapon", "armor"]
+	schema.get_column(&"kind").validation_rules.append(kind_set)
+	var size := GFConfigSizeValidationRule.new()
+	size.has_maximum_size = true
+	size.maximum_size = 2
+	schema.get_column(&"tags").validation_rules.append(size)
+	var resource_path := GFConfigResourcePathValidationRule.new()
+	resource_path.allowed_extensions = PackedStringArray(["gd"])
+	schema.get_column(&"icon_path").validation_rules.append(resource_path)
+	var text_key := GFConfigLocalizationKeyValidationRule.new()
+	text_key.known_keys = PackedStringArray(["item.name.valid"])
+	text_key.use_translation_server = false
+	schema.get_column(&"name_key").validation_rules.append(text_key)
+	var range := GFConfigRangeValidationRule.new()
+	range.has_maximum = true
+	range.maximum = 10.0
+	schema.get_column(&"power").validation_rules.append(range)
+
+	var report := schema.validate_record({
+		"id": 0,
+		"code": "Bad Code",
+		"kind": "consumable",
+		"tags": ["a", "b", "c"],
+		"icon_path": "res://missing_icon.png",
+		"name_key": "item.name.missing",
+		"power": 99.0,
+	}, 0)
+	var issues := report["issues"] as Array
+
+	assert_false(bool(report["ok"]), "内置字段规则命中时校验应失败。")
+	assert_true(_has_issue_code(issues, "default_value_not_allowed"), "应报告默认值。")
+	assert_true(_has_issue_code(issues, "regex_mismatch"), "应报告正则不匹配。")
+	assert_true(_has_issue_code(issues, "set_value_not_allowed"), "应报告集合外取值。")
+	assert_true(_has_issue_code(issues, "size_out_of_range"), "应报告数量越界。")
+	assert_true(_has_issue_code(issues, "resource_path_extension_not_allowed"), "应报告资源扩展名不匹配。")
+	assert_true(_has_issue_code(issues, "localization_key_missing"), "应报告文本 key 缺失。")
+	assert_true(_has_issue_code(issues, "range_above_maximum"), "应报告范围越界。")
+
+
+func test_resource_and_localization_rules_accept_valid_values() -> void:
+	var schema := GFConfigTableSchema.new()
+	schema.table_name = &"assets"
+	schema.columns = [
+		_make_column(&"path", GFConfigTableColumn.ValueType.STRING),
+		_make_column(&"title_key", GFConfigTableColumn.ValueType.STRING),
+	]
+	var resource_path := GFConfigResourcePathValidationRule.new()
+	resource_path.allowed_extensions = PackedStringArray(["gd"])
+	schema.get_column(&"path").validation_rules.append(resource_path)
+	var text_key := GFConfigLocalizationKeyValidationRule.new()
+	text_key.known_keys = PackedStringArray(["ui.title"])
+	text_key.use_translation_server = false
+	schema.get_column(&"title_key").validation_rules.append(text_key)
+
+	var report := schema.validate_record({
+		"path": "res://addons/gf/standard/utilities/config/gf_config_provider.gd",
+		"title_key": "ui.title",
+	})
+
+	assert_true(bool(report["ok"]), "存在的 Godot 资源路径和显式文本 key 应通过校验。")
+
+
+func test_record_and_table_validation_rules_can_be_customized() -> void:
+	var schema := _make_item_schema()
+	var record_rule := RequireNamePowerPairRule.new()
+	schema.record_validation_rules.append(record_rule)
+	var table_size := GFConfigSizeValidationRule.new()
+	table_size.has_maximum_size = true
+	table_size.maximum_size = 1
+	schema.table_validation_rules.append(table_size)
+
+	var report := schema.validate_table([
+		{ "id": 1, "name": "Potion", "power": 1.0 },
+		{ "id": 2, "name": "Ether" },
+	])
+
+	assert_false(bool(report["ok"]), "记录级和表级规则应参与 schema 校验。")
+	assert_true(_has_issue_code(report["issues"] as Array, "name_power_pair_missing"), "应报告自定义记录规则。")
+	assert_true(_has_issue_code(report["issues"] as Array, "table_size_out_of_range"), "应报告表级数量规则。")
+
+
+func test_csv_validation_report_keeps_source_line_and_column() -> void:
+	var schema := _make_item_schema()
+	schema.coerce_values = true
+
+	var report := GFConfigTableImporter.validate_csv_table(
+		"id,name,power\nbad,Potion,1.0\n",
+		schema,
+		{ "source": "res://configs/items.csv" }
+	)
+	var first_issue := (report["issues"] as Array)[0] as Dictionary
+
+	assert_false(bool(report["ok"]), "CSV 类型转换失败应报告错误。")
+	assert_eq(first_issue.get("source"), "res://configs/items.csv", "错误应保留来源文件。")
+	assert_eq(first_issue.get("line"), 2, "错误应保留 CSV 行号。")
+	assert_eq(first_issue.get("column"), 1, "错误应保留 CSV 列号。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_item_schema() -> GFConfigTableSchema:
@@ -257,8 +375,30 @@ func _make_item_schema() -> GFConfigTableSchema:
 	return schema
 
 
+func _make_column(field_name: StringName, value_type: int) -> GFConfigTableColumn:
+	var column := GFConfigTableColumn.new()
+	column.field_name = field_name
+	column.value_type = value_type
+	column.required = true
+	column.allow_null = false
+	return column
+
+
 func _has_issue_code(issues: Array, code: String) -> bool:
 	for issue: Dictionary in issues:
 		if str(issue.get("code", "")) == code:
 			return true
 	return false
+
+
+# --- 内部类 ---
+
+class RequireNamePowerPairRule:
+	extends GFConfigValidationRule
+
+	func _get_default_rule_id() -> StringName:
+		return &"name_power_pair"
+
+	func _validate_record(record: Dictionary, context: Dictionary, report: Dictionary) -> void:
+		if record.has(&"name") and not record.has(&"power"):
+			_add_issue(report, context, "name_power_pair_missing", "包含 name 时必须同时包含 power。")

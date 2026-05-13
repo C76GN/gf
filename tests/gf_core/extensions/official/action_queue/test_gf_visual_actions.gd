@@ -138,11 +138,24 @@ func test_gf_action_factories_create_common_actions() -> void:
 	var node := Node2D.new()
 	add_child_autofree(node)
 	node.position = Vector2(3.0, 4.0)
+	node.modulate = Color(1.0, 1.0, 1.0, 0.5)
 
 	var move_action := GFAction.move_by(node, Vector2(2.0, 5.0), 0.0)
 	assert_true(move_action is GFConfiguredTweenAction, "move_by 应创建配置化相对 Tween。")
 	assert_null(move_action.execute())
 	assert_eq(node.position, Vector2(5.0, 9.0), "零时长 move_by 应立即应用相对偏移。")
+
+	var fade_action := GFAction.fade_by(node, 0.25, 0.0)
+	fade_action.execute()
+	assert_almost_eq(node.modulate.a, 0.75, 0.001, "fade_by 应创建相对透明度 Tween。")
+
+	var hide_action := GFAction.hide(node)
+	hide_action.execute()
+	assert_false(node.visible, "hide 工厂应创建可见性动作。")
+
+	var show_action := GFAction.show(node)
+	show_action.execute()
+	assert_true(node.visible, "show 工厂应创建可见性动作。")
 
 	var call_state := { "count": 0 }
 	var call_action := GFAction.callback(func(amount: int) -> void:
@@ -154,6 +167,16 @@ func test_gf_action_factories_create_common_actions() -> void:
 	var group := GFAction.sequence([call_action] as Array[GFVisualAction])
 	assert_false(group.is_parallel, "sequence 工厂应创建顺序动作组。")
 	assert_true(GFAction.parallel([call_action] as Array[GFVisualAction]).is_parallel, "parallel 工厂应创建并行动作组。")
+
+
+func test_gf_action_remove_node_queues_target_for_free() -> void:
+	var node := Node.new()
+	add_child(node)
+
+	var action := GFAction.remove_node(node)
+	action.execute()
+
+	assert_true(node.is_queued_for_deletion(), "remove_node 应把目标节点加入释放队列。")
 
 
 func test_wait_action_can_finish_early() -> void:

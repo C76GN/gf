@@ -1,6 +1,6 @@
 ## GFConfigProvider: 通用的静态导表数据适配器基类。
 ##
-## 为了让框架无缝衔接不同项目的导表工具（JSON, CSV, Luban 等），提供统一的读取接口。
+## 为了让框架无缝衔接不同项目的导表工具（JSON、CSV 或自定义流水线），提供统一的读取接口。
 ## 具体项目应该继承此基类，并实现其数据加载和查询逻辑。
 class_name GFConfigProvider
 extends GFUtility
@@ -77,19 +77,26 @@ func get_schema_ids() -> PackedStringArray:
 ## @param table_name: 表名。
 ## @param record: 记录字典。
 ## @param row_key: 可选行标识。
+## @param options: 可选校验上下文。
 ## @return 校验报告字典。
-func validate_record(table_name: StringName, record: Dictionary, row_key: Variant = null) -> Dictionary:
+func validate_record(
+	table_name: StringName,
+	record: Dictionary,
+	row_key: Variant = null,
+	options: Dictionary = {}
+) -> Dictionary:
 	var schema := get_schema(table_name)
 	if schema == null:
 		return _make_missing_schema_report(table_name)
-	return schema.validate_record(record, row_key)
+	return schema.validate_record(record, row_key, options)
 
 
 ## 使用已注册 schema 校验整张表。
 ## @param table_name: 表名。
 ## @param table_data: 可选表数据；为 null 时调用 get_table()。
+## @param options: 可选校验上下文。
 ## @return 校验报告字典。
-func validate_table(table_name: StringName, table_data: Variant = null) -> Dictionary:
+func validate_table(table_name: StringName, table_data: Variant = null, options: Dictionary = {}) -> Dictionary:
 	var schema := get_schema(table_name)
 	if schema == null:
 		return _make_missing_schema_report(table_name)
@@ -97,7 +104,7 @@ func validate_table(table_name: StringName, table_data: Variant = null) -> Dicti
 	var data: Variant = table_data
 	if data == null:
 		data = get_table(table_name)
-	return schema.validate_table(data)
+	return schema.validate_table(data, options)
 
 
 ## 使用已注册 schema 转换单条记录。

@@ -4,7 +4,7 @@
 
 ## 静态导表数据适配器 (`GFConfigProvider`)
 
-**应用场景：** 当项目使用 JSON、CSV、Luban 或自定义导表流水线时，可以继承 `GFConfigProvider` 提供统一读取入口，并把具体加载和查询逻辑留在项目侧实现。
+**应用场景：** 当项目使用 JSON、CSV 或自定义导表流水线时，可以继承 `GFConfigProvider` 提供统一读取入口，并把具体加载和查询逻辑留在项目侧实现。
 
 **如何使用：**
 ```gdscript
@@ -58,7 +58,35 @@ var report := validate_table(&"items", get_table(&"items"))
 
 `coerce_values` 是“导入期宽松转换 + 校验报告”，不是无条件吞错。`GFConfigTableColumn.try_coerce_value()` 会返回转换状态；`GFConfigTableSchema.fail_on_coerce_error` 默认开启，非法 int/float、无法解析的 Vector/Color/Array/Dictionary 等转换会记录 `coerce_failed`。如果项目确实需要旧式宽松导入，可以显式关闭 `fail_on_coerce_error`，但 CI 和正式导表建议保持开启。Array 表需要检测重复 ID 时，开启 `require_unique_id`。
 
-`GFConfigTableImporter` 提供轻量 JSON/CSV 文本解析、`validate_json_table()` / `validate_csv_table()` 和 `export_csv_table()` 入口，适合编辑器导入按钮、CI 检查或项目自定义导表流水线在写入缓存前做统一报告。CSV 解析会去掉 UTF-8 BOM，默认拒绝重复表头；导出会按 schema 列顺序或显式 `columns` 输出，并对包含分隔符、换行或引号的单元格做 CSV 转义。它仍是轻量解析器，只取 `delimiter` 的第一个字符，空表头会跳过，复杂 Excel/多 sheet/编码探测仍建议交给项目导表流水线。校验报告固定包含 `ok`、`row_count`、`error_count`、`warning_count` 和 `issues`，项目工具可以直接把 `issues` 渲染成表格或控制台输出。
+需要更细的导入校验时，可以给字段、记录或整表挂载 `GFConfigValidationRule`。标准库提供的内置规则包括 `GFConfigRangeValidationRule`、`GFConfigRegexValidationRule`、`GFConfigSetValidationRule`、`GFConfigSizeValidationRule`、`GFConfigNotDefaultValidationRule`、`GFConfigResourcePathValidationRule` 和 `GFConfigLocalizationKeyValidationRule`。它们只表达通用约束：数值范围、字符串格式、白名单、数量、非默认值、Godot 资源路径和文本 key 是否存在；具体枚举、资源分类和语言表来源仍由项目声明：
+
+```gdscript
+var icon_column := GFConfigTableColumn.new()
+icon_column.field_name = &"icon_path"
+icon_column.value_type = GFConfigTableColumn.ValueType.STRING
+
+var path_rule := GFConfigResourcePathValidationRule.new()
+path_rule.allowed_extensions = PackedStringArray(["png", "webp"])
+icon_column.validation_rules.append(path_rule)
+
+var power_column := GFConfigTableColumn.new()
+power_column.field_name = &"power"
+power_column.value_type = GFConfigTableColumn.ValueType.FLOAT
+
+var power_rule := GFConfigRangeValidationRule.new()
+power_rule.has_minimum = true
+power_rule.minimum = 0.0
+power_column.validation_rules.append(power_rule)
+
+var table_size := GFConfigSizeValidationRule.new()
+table_size.has_maximum_size = true
+table_size.maximum_size = 500
+schema.table_validation_rules.append(table_size)
+```
+
+字段规则在类型校验通过后执行；记录规则放在 `GFConfigTableSchema.record_validation_rules`，表规则放在 `table_validation_rules`。校验上下文会写入 `table_name`、`row_key`、`field`、`rule_id`，并在导入器提供来源信息时附带 `source`、`line`、`column`，方便编辑器工具或 CI 精确定位错误。自定义规则继承 `GFConfigValidationRule`，只需要重写 `_validate_value()`、`_validate_record()` 或 `_validate_table()`，并通过 `_add_issue()` 写入稳定错误码。
+
+`GFConfigTableImporter` 提供轻量 JSON/CSV 文本解析、`validate_json_table()` / `validate_csv_table()` 和 `export_csv_table()` 入口，适合编辑器导入按钮、CI 检查或项目自定义导表流水线在写入缓存前做统一报告。CSV 解析会去掉 UTF-8 BOM，默认拒绝重复表头；导出会按 schema 列顺序或显式 `columns` 输出，并对包含分隔符、换行或引号的单元格做 CSV 转义。传入 `{ "source": "res://..." }` 后，CSV 校验报告会尽量附带行列位置；JSON 解析失败会附带解析行号。它仍是轻量解析器，只取 `delimiter` 的第一个字符，空表头会跳过，复杂 Excel、多 sheet 或编码探测仍建议交给项目导表流水线。校验报告固定包含 `ok`、`row_count`、`error_count`、`warning_count` 和 `issues`，项目工具可以直接把 `issues` 渲染成表格或控制台输出。
 
 需要表达唯一键或跨表关系时，可以在 `GFConfigTableSchema.indexes` 中加入 `GFConfigTableIndexDefinition`，在 `references` 中加入 `GFConfigTableReference`。唯一索引会参与单表校验；跨表引用由 `GFConfigReferenceResolver.validate_tables()` 在多表上下文中检查，`resolve_record_references()` 可把一条记录的引用解析为目标记录副本。GF 只理解字段、复合键和报告结构，不解释外键背后的业务含义：
 
@@ -81,6 +109,29 @@ var report := GFConfigReferenceResolver.validate_tables({
 }, [item_schema, owner_schema])
 ```
 
+如果项目需要对基础表应用补丁表，可以使用 `GFConfigTableMergePolicy` 和 `GFConfigTableMergeTools`。默认策略按 `id` 生成记录键，支持插入、更新、删除标记和嵌套 Dictionary 字段合并；项目可以改用复合 key、Dictionary 外层 key、整条替换或禁用插入/删除。它只处理通用表结构，不决定补丁来自热更、编辑器覆盖、模组还是构建步骤：
+
+```gdscript
+var policy := GFConfigTableMergePolicy.new()
+policy.key_fields = PackedStringArray(["id"])
+policy.update_mode = GFConfigTableMergePolicy.UpdateMode.MERGE_FIELDS
+
+var merged := GFConfigTableMergeTools.merge_tables(base_rows, patch_rows, policy)
+if merged["ok"]:
+	rows = merged["data"]
+```
+
+多目标构建可以用 `GFConfigBuildProfile` 按 metadata 中的 groups/tags 过滤 schema 和记录。GF 不内置任何分端含义，`include_groups`、`exclude_groups`、`include_tags` 和 `exclude_tags` 的命名都由项目自己决定；记录级 metadata 默认读取 `_metadata` 字段，字段、索引和引用则读取各自的 `metadata`：
+
+```gdscript
+var profile := GFConfigBuildProfile.new()
+profile.include_groups = PackedStringArray(["runtime"])
+profile.exclude_tags = PackedStringArray(["internal_only"])
+
+var runtime_schema := profile.filter_schema(schema)
+var runtime_rows := profile.filter_records(rows)
+```
+
 已有样本数据但暂时没有 schema 时，可以用 `GFConfigTableSchema.infer_from_records()` 从 `Array[Dictionary]` 或 `Dictionary` 表推导字段和值类型，再由项目层人工校正必填、默认值、枚举或业务约束：
 
 ```gdscript
@@ -93,7 +144,7 @@ if exported["success"]:
 	print(exported["text"])
 ```
 
-如果项目希望减少散落的表名字符串，可以用 `GFConfigAccessGenerator` 根据 schema 生成静态访问器。生成结果只是对 provider 的 `get_record()` / `get_table()` 的薄封装，不改变 Provider 协议，也不把具体表结构写死到框架里：
+如果项目希望减少散落的表名字符串，可以用 `GFConfigAccessGenerator` 根据 schema 生成静态访问器。生成结果只是对 provider 的 `get_record()` / `get_table()` 的轻量访问封装，不改变 Provider 协议，也不把具体表结构写入框架：
 
 ```gdscript
 var generator := GFConfigAccessGenerator.new()
@@ -110,7 +161,7 @@ var item := GFConfigAccess.get_items_record(1001)
 var levels := GFConfigAccess.get_levels_table()
 ```
 
-生成器位于 kernel/editor，因此不会默认硬引用标准库的 `GFConfigProvider`；如果希望生成的访问器能在不显式传 provider 时工作，需要像上面这样传入项目自己的 `provider_accessor`。也可以在调用点显式传入 provider：`GFConfigAccess.get_items_record(1001, provider)`。访问器适合稳定表名、团队协作和重构检查；原始 `GFConfigProvider` 仍适合动态表名、热更新表包或项目自定义导表运行时。
+生成器位于 kernel/editor，因此不会默认硬引用标准库的 `GFConfigProvider`；如果希望生成的访问器能在不显式传 provider 时工作，需要像上面这样传入项目自己的 `provider_accessor`。也可以在调用点显式传入 provider：`GFConfigAccess.get_items_record(1001, provider)`。访问器适合稳定表名、团队协作和重构检查；原始 `GFConfigProvider` 仍适合动态表名、热更新表包或项目自定义导表运行时。生成器只输出 GDScript，可用 `method_name_style`、`constant_prefix`、`record_method_pattern`、`table_method_pattern` 和 `include_schema_comments` 微调命名与注释，不生成其他语言代码。
 
 开发期如果需要做 Resource 批量检查或表格式编辑，可以复用 `GFResourceTableEditor` 和 `GFEditorValueField`。前者负责扫描 `.tres` / `.res`、从 Resource export 推导列、提交单元格值并广播变更；默认只修改内存中的 Resource，不接管完整 UndoRedo 工作流；如果资源已有 `resource_path` 且项目希望提交后立即写盘，可以开启 `auto_save_committed_resources` 并监听 `resource_save_failed`。后者负责按 Godot 属性类型创建基础输入控件；Array/Dictionary JSON 输入解析失败时会发出 `value_parse_failed` 并保留旧值，不会把错误输入静默提交成空容器。它们是编辑器通用控件，不保存业务表结构，也不替项目决定资源分类、校验规则或提交工作流。
 

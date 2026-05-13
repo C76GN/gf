@@ -73,6 +73,25 @@ static func tween(
 	return config.create_action(target, options.get("host_node", null) as Node) as GFConfiguredTweenAction
 
 
+## 创建通用相对属性 Tween 动作。
+## @param target: 目标对象。
+## @param property_name: 属性路径。
+## @param offset: 相对偏移值。
+## @param duration: 持续时间。
+## @param options: 可选 Tween 配置。
+## @return 配置化 Tween 动作。
+static func tween_by(
+	target: Object,
+	property_name: NodePath,
+	offset: Variant,
+	duration: float = 0.2,
+	options: Dictionary = {}
+) -> GFConfiguredTweenAction:
+	var merged_options := options.duplicate(true)
+	merged_options["as_relative"] = true
+	return tween(target, property_name, offset, duration, merged_options)
+
+
 ## 创建移动到目标位置的 Tween 动作。
 ## @param target: 目标节点。
 ## @param target_position: 目标位置。
@@ -102,9 +121,7 @@ static func move_by(
 	property_name: NodePath = ^"position",
 	options: Dictionary = {}
 ) -> GFConfiguredTweenAction:
-	var merged_options := options.duplicate(true)
-	merged_options["as_relative"] = true
-	return tween(target, property_name, offset, duration, merged_options)
+	return tween_by(target, property_name, offset, duration, options)
 
 
 ## 创建缩放到目标值的 Tween 动作。
@@ -138,9 +155,7 @@ static func scale_by(
 	property_name: NodePath = ^"scale",
 	options: Dictionary = {}
 ) -> GFConfiguredTweenAction:
-	var merged_options := options.duplicate(true)
-	merged_options["as_relative"] = true
-	return tween(target, property_name, scale_delta, duration, merged_options)
+	return tween_by(target, property_name, scale_delta, duration, options)
 
 
 ## 创建旋转到目标值的 Tween 动作。
@@ -174,9 +189,7 @@ static func rotate_by(
 	property_name: NodePath = ^"rotation",
 	options: Dictionary = {}
 ) -> GFConfiguredTweenAction:
-	var merged_options := options.duplicate(true)
-	merged_options["as_relative"] = true
-	return tween(target, property_name, rotation_delta, duration, merged_options)
+	return tween_by(target, property_name, rotation_delta, duration, options)
 
 
 ## 创建透明度 Tween 动作。
@@ -194,6 +207,21 @@ static func fade_to(
 	return tween(target, ^"modulate:a", alpha, duration, options)
 
 
+## 创建相对透明度 Tween 动作。
+## @param target: 目标对象，通常为 CanvasItem。
+## @param alpha_delta: 相对 alpha 偏移。
+## @param duration: 持续时间。
+## @param options: 可选 Tween 配置。
+## @return 配置化 Tween 动作。
+static func fade_by(
+	target: Object,
+	alpha_delta: float,
+	duration: float = 0.2,
+	options: Dictionary = {}
+) -> GFConfiguredTweenAction:
+	return tween_by(target, ^"modulate:a", alpha_delta, duration, options)
+
+
 ## 创建整体颜色 Tween 动作。
 ## @param target: 目标对象，通常为 CanvasItem。
 ## @param color: 目标颜色。
@@ -207,6 +235,53 @@ static func colorize(
 	options: Dictionary = {}
 ) -> GFConfiguredTweenAction:
 	return tween(target, ^"modulate", color, duration, options)
+
+
+## 创建设置任意属性的瞬时动作。
+## @param target: 目标对象。
+## @param property_name: 属性路径。
+## @param value: 要写入的值。
+## @return 回调动作。
+static func set_property(target: Object, property_name: NodePath, value: Variant) -> GFCallableAction:
+	return GFCallableAction.new(func() -> void:
+		if is_instance_valid(target):
+			target.set_indexed(property_name, value)
+	)
+
+
+## 创建设置 visible 属性的瞬时动作。
+## @param target: 目标对象。
+## @param visible: 可见性。
+## @param property_name: 可见性属性路径。
+## @return 回调动作。
+static func set_visible(target: Object, visible: bool, property_name: NodePath = ^"visible") -> GFCallableAction:
+	return set_property(target, property_name, visible)
+
+
+## 创建显示目标的瞬时动作。
+## @param target: 目标对象。
+## @param property_name: 可见性属性路径。
+## @return 回调动作。
+static func show(target: Object, property_name: NodePath = ^"visible") -> GFCallableAction:
+	return set_visible(target, true, property_name)
+
+
+## 创建隐藏目标的瞬时动作。
+## @param target: 目标对象。
+## @param property_name: 可见性属性路径。
+## @return 回调动作。
+static func hide(target: Object, property_name: NodePath = ^"visible") -> GFCallableAction:
+	return set_visible(target, false, property_name)
+
+
+## 创建释放节点的瞬时动作。
+## @param target: 要释放的节点。
+## @return 回调动作。
+static func remove_node(target: Node) -> GFCallableAction:
+	return GFCallableAction.new(func() -> void:
+		if is_instance_valid(target):
+			target.queue_free()
+	)
 
 
 # --- 私有/辅助方法 ---

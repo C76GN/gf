@@ -1,7 +1,7 @@
 ## GFProgressionMath: 挂机与模拟经营项目的纯进度曲线数学工具。
 ##
 ## 负责价格曲线、收益曲线、里程碑倍率、软上限与分段式离线收益结算。
-## 它不依赖 GFArchitecture，可直接与 JSON/CSV/Luban 等导出的配置字典配合使用。
+## 它不依赖 GFArchitecture，可直接与 JSON、CSV 或外部工具导出的配置字典配合使用。
 class_name GFProgressionMath
 extends RefCounted
 

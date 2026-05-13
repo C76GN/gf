@@ -41,10 +41,29 @@ func test_build_source_accepts_dictionary_schemas() -> void:
 	assert_true(source.contains("const ENEMY_DATA: StringName = &\"enemy_data\""), "字典 schema 应可提供表名。")
 
 
+func test_build_source_supports_gdscript_generation_options() -> void:
+	var schema := ConfigSchemaStub.new(&"item_data")
+	schema.metadata = { "comment": "道具配置表。" }
+	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+
+	var source: String = generator.build_source([schema], "MyConfigAccess", "null", {
+		"method_name_style": "camel",
+		"constant_prefix": "cfg",
+		"record_method_pattern": "fetch_{table}",
+		"table_method_pattern": "all_{table}",
+	})
+
+	assert_true(source.contains("const CFG_ITEM_DATA: StringName = &\"item_data\""), "常量前缀应按选项生成。")
+	assert_true(source.contains("## 道具配置表。"), "schema metadata 注释应写入生成源码。")
+	assert_true(source.contains("static func fetch_itemData(id: Variant, provider: Variant = null) -> Variant:"), "记录方法应按 GDScript 命名选项生成。")
+	assert_true(source.contains("static func all_itemData(provider: Variant = null) -> Variant:"), "整表方法应按自定义模板生成。")
+
+
 # --- 内部类 ---
 
 class ConfigSchemaStub:
 	var table_name: StringName = &""
+	var metadata: Dictionary = {}
 
 	func _init(p_table_name: StringName) -> void:
 		table_name = p_table_name

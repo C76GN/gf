@@ -51,6 +51,9 @@ enum ValueType {
 ## 字段缺省值。`GFConfigTableSchema.coerce_record()` 会在缺字段时使用。
 @export var default_value: Variant = null
 
+## 字段级校验规则。只作用于当前字段值，不绑定具体业务枚举。
+@export var validation_rules: Array[GFConfigValidationRule] = []
+
 ## 可选元数据，供编辑器、导入器或项目层扩展使用。
 @export var metadata: Dictionary = {}
 
@@ -149,6 +152,8 @@ func duplicate_column() -> GFConfigTableColumn:
 	column.required = required
 	column.allow_null = allow_null
 	column.default_value = GFVariantData.duplicate_collection(default_value)
+	for rule: GFConfigValidationRule in validation_rules:
+		column.validation_rules.append(rule.duplicate_rule() if rule != null else null)
 	column.metadata = metadata.duplicate(true)
 	return column
 
@@ -162,11 +167,20 @@ func describe() -> Dictionary:
 		"required": required,
 		"allow_null": allow_null,
 		"default_value": GFVariantData.duplicate_collection(default_value),
+		"validation_rules": _describe_validation_rules(),
 		"metadata": metadata.duplicate(true),
 	}
 
 
 # --- 私有/辅助方法 ---
+
+func _describe_validation_rules() -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for rule: GFConfigValidationRule in validation_rules:
+		if rule != null:
+			result.append(rule.describe())
+	return result
+
 
 func _make_coerce_result(ok: bool, coerced_value: Variant, message: String = "") -> Dictionary:
 	return {

@@ -46,7 +46,7 @@ attrs.remove_modifiers_by_source(&"Sword")
 
 ### 4. 技能系统 (Skill)
 `GFSkill` 提供技能的基础框架。
-- **CD 管理**：内置冷却计时逻辑。
+- **冷却管理**：内置冷却计时逻辑。
 - **条件检查**：支持 `require_tags` (必须包含) 和 `ignore_tags` (禁止包含) 逻辑检查。
 - **自动化索敌**：支持集成 `GFSkillTargetingRule` 实现管线化自动索敌。
 
@@ -82,6 +82,25 @@ attrs.remove_modifiers_by_source(&"Sword")
 `GFProjectile2D` / `GFProjectile3D` 是可选的发射体桥接节点，分别继承 `GFHitBox2D` / `GFHitBox3D`。它们复用同一套 `GFCombatHitContext` 与 `receive_hit(context)` 协议，只额外负责三件事：按移动策略推进位置、按生命周期策略结束、碰到可接收对象时发送命中。它们不内置伤害字段、阵营判断、穿透规则、目标筛选或特效生成。
 
 `GFProjectileMotion` 是移动策略协议基类，`GFLinearProjectileMotion` 提供 2D/3D 通用直线移动，`GFHomingProjectileMotion` 可从发射上下文或相对节点路径读取目标对象/目标位置，并按通用速度朝目标推进。`GFProjectileLifetimePolicy` 默认支持按最大秒数、最大距离和成功命中次数结束；需要对象池时，把 `queue_free_on_finish` 设为 `false`，在 `projectile_finished` 信号中归还节点即可。
+
+需要把“创建发射体”也抽象出来时，可以使用 `GFProjectileEmitter2D` / `GFProjectileEmitter3D`。发射器只负责解析场景、计算生成变换、实例化节点并调用 `launch(context)`；它仍然不规定弹药、冷却、阵营、伤害、分裂或特效。发射场景可以直接挂在 `projectile_scene`，也可以通过 `GFProjectileCatalog` 与 `GFProjectileCatalogEntry` 用稳定 ID 管理。生成点由资源化模式提供：`GFProjectileSpawnPattern2D` / `GFProjectileSpawnPattern3D` 是基类，内置 `GFProjectileBurstPattern2D`、`GFProjectileLineSpawnPattern2D`、`GFProjectileConePattern3D` 和 `GFProjectileLineSpawnPattern3D`，覆盖常见扇形、线段、多炮口和水平锥形分布。
+
+```gdscript
+var emitter := GFProjectileEmitter2D.new()
+emitter.projectile_scene = preload("res://combat/arrow_projectile.tscn")
+
+var pattern := GFProjectileBurstPattern2D.new()
+pattern.projectile_count = 5
+pattern.spread_degrees = 45.0
+emitter.spawn_pattern = pattern
+
+var projectiles := emitter.emit_projectiles({
+	"owner": actor,
+	"skill_id": &"multi_shot",
+})
+```
+
+如果项目使用 `GFObjectPoolUtility`，发射器可通过 `use_object_pool` 从池中获取节点，并在 `projectile_finished` 后自动归还；池化发射体场景应把 `auto_launch_on_ready` 设为 `false`，让发射器统一传入本次上下文后再启动。弹药、冷却时间、命中后的派生发射、穿透次数和目标过滤仍建议放在项目技能、能力、状态机或自定义策略资源中表达。
 
 ```gdscript
 var projectile := GFProjectile2D.new()

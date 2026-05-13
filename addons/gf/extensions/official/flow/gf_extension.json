@@ -1,7 +1,7 @@
 {
   "id": "gf.official.flow",
   "display_name": "GF Flow",
-  "version": "3.3.0",
+  "version": "3.4.0",
   "extension_version": "1.1.0",
   "kind": "official",
   "description": "Resourceized flow graph primitives with ports, runners, diagnostics, and editor view models.",

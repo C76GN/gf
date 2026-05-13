@@ -6,6 +6,10 @@ extends GutTest
 
 const GFLinearProjectileMotionBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_linear_projectile_motion.gd")
 const GFHomingProjectileMotionBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_homing_projectile_motion.gd")
+const GFProjectileBurstPattern2DBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_projectile_burst_pattern_2d.gd")
+const GFProjectileCatalogBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_projectile_catalog.gd")
+const GFProjectileEmitter2DBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_projectile_emitter_2d.gd")
+const GFProjectileLineSpawnPattern2DBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_projectile_line_spawn_pattern_2d.gd")
 const GFProjectile2DBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_projectile_2d.gd")
 const GFProjectile3DBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_projectile_3d.gd")
 const GFProjectileLifetimePolicyBase = preload("res://addons/gf/extensions/official/combat/projectiles/gf_projectile_lifetime_policy.gd")
@@ -21,6 +25,18 @@ class HitReceiver2D:
 	func receive_hit(context: GFCombatHitContext) -> Dictionary:
 		received_context = context
 		return { "ok": true }
+
+
+# --- 私有/辅助方法 ---
+
+func _make_projectile_2d_scene() -> PackedScene:
+	var projectile := GFProjectile2DBase.new() as GFProjectile2D
+	projectile.auto_launch_on_ready = false
+	projectile.queue_free_on_finish = false
+	var scene := PackedScene.new()
+	scene.pack(projectile)
+	projectile.free()
+	return scene
 
 
 # --- 测试 ---
@@ -100,6 +116,76 @@ func test_projectile_impact_sends_combat_hit_context() -> void:
 
 	projectile.free()
 	receiver.free()
+
+
+func test_projectile_emitter_2d_spawns_contextual_burst() -> void:
+	var parent := Node2D.new()
+	add_child_autofree(parent)
+	var emitter := GFProjectileEmitter2DBase.new() as GFProjectileEmitter2D
+	parent.add_child(emitter)
+	emitter.projectile_scene = _make_projectile_2d_scene()
+	emitter.default_context = { "team": "player" }
+	var pattern := GFProjectileBurstPattern2DBase.new() as GFProjectileBurstPattern2D
+	pattern.projectile_count = 3
+	pattern.spread_degrees = 60.0
+	pattern.radius = 10.0
+	emitter.spawn_pattern = pattern
+
+	var projectiles := emitter.emit_projectiles({ "skill_id": "fan" })
+
+	assert_eq(projectiles.size(), 3, "发射器应按 burst pattern 生成多个发射体。")
+	for index: int in range(projectiles.size()):
+		var projectile := projectiles[index] as GFProjectile2D
+		assert_not_null(projectile, "生成节点应为 2D 发射体。")
+		assert_true(projectile.is_projectile_active(), "生成后应调用 launch(context)。")
+		var context := projectile.get_projectile_context()
+		assert_eq(context.get("team"), "player", "默认上下文应合并到发射上下文。")
+		assert_eq(context.get("skill_id"), "fan", "调用方上下文应合并到发射上下文。")
+		assert_eq(int(context.get("spawn_index")), index, "上下文应记录发射序号。")
+		assert_eq(int(context.get("spawn_count")), 3, "上下文应记录本次发射数量。")
+
+
+func test_projectile_emitter_2d_resolves_catalog_scene() -> void:
+	var parent := Node2D.new()
+	add_child_autofree(parent)
+	var emitter := GFProjectileEmitter2DBase.new() as GFProjectileEmitter2D
+	parent.add_child(emitter)
+	var catalog := GFProjectileCatalogBase.new() as GFProjectileCatalog
+	catalog.set_scene(&"arrow", _make_projectile_2d_scene())
+	emitter.projectile_catalog = catalog
+	emitter.default_projectile_id = &"arrow"
+
+	var projectile := emitter.emit_projectile()
+
+	assert_not_null(projectile, "发射器应能从目录 ID 解析场景。")
+	assert_true(projectile is GFProjectile2D, "目录场景应被实例化为发射体。")
+
+
+func test_projectile_line_spawn_pattern_2d_distributes_points() -> void:
+	var emitter := Node2D.new()
+	add_child_autofree(emitter)
+	var pattern := GFProjectileLineSpawnPattern2DBase.new() as GFProjectileLineSpawnPattern2D
+	pattern.local_start = Vector2(-10.0, 0.0)
+	pattern.local_end = Vector2(10.0, 0.0)
+	pattern.point_count = 3
+
+	var transforms := pattern.get_spawn_transforms(emitter)
+
+	assert_eq(transforms.size(), 3, "线段模式应按数量生成点。")
+	assert_eq(transforms[0].origin, Vector2(-10.0, 0.0), "第一个点应位于线段起点。")
+	assert_eq(transforms[1].origin, Vector2.ZERO, "中间点应位于线段中心。")
+	assert_eq(transforms[2].origin, Vector2(10.0, 0.0), "最后一个点应位于线段终点。")
+
+
+func test_projectile_emitter_reports_missing_scene() -> void:
+	var emitter := GFProjectileEmitter2DBase.new() as GFProjectileEmitter2D
+	add_child_autofree(emitter)
+	watch_signals(emitter)
+
+	var projectiles := emitter.emit_projectiles()
+
+	assert_true(projectiles.is_empty(), "缺少场景时不应生成发射体。")
+	assert_signal_emitted(emitter, "projectile_emit_failed", "缺少场景时应发出失败信号。")
 
 
 func test_homing_motion_moves_toward_context_target_position() -> void:

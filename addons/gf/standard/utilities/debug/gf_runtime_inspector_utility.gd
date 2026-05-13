@@ -1,0 +1,342 @@
+## GFRuntimeInspectorUtility: 显式 schema 驱动的运行时调参注册表。
+##
+## 项目主动注册可调对象和属性后，工具提供快照、读取和受控写入能力。
+## 它不自动暴露业务对象，也不内置具体 UI 或玩法语义。
+class_name GFRuntimeInspectorUtility
+extends GFUtility
+
+
+# --- 信号 ---
+
+## 目标注册后发出。
+## @param target_id: 目标 ID。
+signal target_registered(target_id: StringName)
+
+## 目标注销后发出。
+## @param target_id: 目标 ID。
+signal target_unregistered(target_id: StringName)
+
+## 属性成功写入后发出。
+## @param target_id: 目标 ID。
+## @param property_id: 属性 ID。
+## @param old_value: 写入前的值。
+## @param new_value: 写入后的值。
+signal property_changed(target_id: StringName, property_id: StringName, old_value: Variant, new_value: Variant)
+
+
+# --- 公共变量 ---
+
+## 是否允许通过本工具写入值。
+var allow_writes: bool = true
+
+## 为 true 时，非 debug 构建禁止写入。
+var debug_build_writes_only: bool = true
+
+
+# --- 私有变量 ---
+
+var _targets: Dictionary = {}
+var _target_order_counter: int = 0
+var _attached_overlay_panel_id: StringName = &""
+
+
+# --- GF 生命周期方法 ---
+
+func dispose() -> void:
+	detach_from_debug_overlay()
+	clear_targets()
+
+
+# --- 公共方法 ---
+
+## 注册一个运行时可检查目标。
+## @param target_id: 目标 ID。
+## @param target: 目标对象。
+## @param properties: 可调属性列表。
+## @param options: 可选显示参数，支持 label、group、visible。
+## @return 注册成功返回 true。
+func register_target(
+	target_id: StringName,
+	target: Object,
+	properties: Array[GFRuntimeTunableProperty] = [],
+	options: Dictionary = {}
+) -> bool:
+	if target_id == &"" or not is_instance_valid(target):
+		return false
+
+	var entry: Dictionary = {
+		"target_ref": weakref(target),
+		"label": String(options.get("label", String(target_id))),
+		"group": String(options.get("group", "Runtime")),
+		"visible": bool(options.get("visible", true)),
+		"order": _target_order_counter,
+		"properties": [],
+		"properties_by_id": {},
+	}
+	if _targets.has(target_id):
+		var old_entry := _targets[target_id] as Dictionary
+		entry["order"] = int(old_entry.get("order", _target_order_counter))
+	else:
+		_target_order_counter += 1
+
+	_targets[target_id] = entry
+	for property: GFRuntimeTunableProperty in properties:
+		register_property(target_id, property)
+	target_registered.emit(target_id)
+	return true
+
+
+## 注销运行时目标。
+## @param target_id: 目标 ID。
+## @return 找到并移除时返回 true。
+func unregister_target(target_id: StringName) -> bool:
+	if not _targets.has(target_id):
+		return false
+	_targets.erase(target_id)
+	target_unregistered.emit(target_id)
+	return true
+
+
+## 检查目标是否存在且仍有效。
+## @param target_id: 目标 ID。
+## @return 目标存在且对象有效时返回 true。
+func has_target(target_id: StringName) -> bool:
+	return _resolve_target(target_id) != null
+
+
+## 为目标注册或替换一个可调属性。
+## @param target_id: 目标 ID。
+## @param property: 可调属性声明。
+## @return 注册成功返回 true。
+func register_property(target_id: StringName, property: GFRuntimeTunableProperty) -> bool:
+	if property == null or property.property_id == &"":
+		return false
+	var entry := _get_entry(target_id)
+	if entry.is_empty():
+		return false
+
+	var properties := entry["properties"] as Array
+	var properties_by_id := entry["properties_by_id"] as Dictionary
+	if properties_by_id.has(property.property_id):
+		var existing: Variant = properties_by_id[property.property_id]
+		var index: int = properties.find(existing)
+		if index >= 0:
+			properties[index] = property
+	else:
+		properties.append(property)
+	properties_by_id[property.property_id] = property
+	return true
+
+
+## 移除目标上的可调属性。
+## @param target_id: 目标 ID。
+## @param property_id: 属性 ID。
+## @return 找到并移除时返回 true。
+func remove_property(target_id: StringName, property_id: StringName) -> bool:
+	var entry := _get_entry(target_id)
+	if entry.is_empty():
+		return false
+	var properties_by_id := entry["properties_by_id"] as Dictionary
+	if not properties_by_id.has(property_id):
+		return false
+
+	var property: Variant = properties_by_id[property_id]
+	(entry["properties"] as Array).erase(property)
+	properties_by_id.erase(property_id)
+	return true
+
+
+## 获取目标 ID 列表。
+## @param include_hidden: 为 true 时包含隐藏目标。
+## @return 排序后的目标 ID。
+func get_target_ids(include_hidden: bool = false) -> PackedStringArray:
+	var entries := _get_sorted_entries(include_hidden)
+	var result := PackedStringArray()
+	for entry: Dictionary in entries:
+		result.append(String(entry.get("id", &"")))
+	return result
+
+
+## 读取目标属性当前值。
+## @param target_id: 目标 ID。
+## @param property_id: 属性 ID。
+## @return 当前值；找不到时返回 null。
+func get_property_value(target_id: StringName, property_id: StringName) -> Variant:
+	var target := _resolve_target(target_id)
+	var property := _resolve_property(target_id, property_id)
+	if target == null or property == null:
+		return null
+	return property.read_value(target)
+
+
+## 写入目标属性。
+## @param target_id: 目标 ID。
+## @param property_id: 属性 ID。
+## @param value: 请求写入的值。
+## @return 写入成功返回 true。
+func set_property_value(target_id: StringName, property_id: StringName, value: Variant) -> bool:
+	if not _writes_are_allowed():
+		return false
+	var target := _resolve_target(target_id)
+	var property := _resolve_property(target_id, property_id)
+	if target == null or property == null:
+		return false
+
+	var old_value: Variant = property.read_value(target)
+	if not property.write_value(target, value):
+		return false
+	var new_value: Variant = property.read_value(target)
+	property_changed.emit(target_id, property_id, old_value, new_value)
+	return true
+
+
+## 读取运行时 Inspector 快照。
+## @param include_hidden: 为 true 时包含隐藏目标和属性。
+## @return 目标快照数组。
+func get_target_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for entry: Dictionary in _get_sorted_entries(include_hidden):
+		result.append(_build_target_snapshot(entry, include_hidden))
+	return result
+
+
+## 清空所有目标。
+func clear_targets() -> void:
+	_targets.clear()
+	_target_order_counter = 0
+
+
+## 将 Inspector 快照作为文本面板注册到 GFDebugOverlayUtility。
+## @param panel_id: Overlay 面板 ID。
+## @return 注册成功返回 true。
+func attach_to_debug_overlay(panel_id: StringName = &"gf.runtime_inspector") -> bool:
+	var overlay := get_utility(GFDebugOverlayUtility) as GFDebugOverlayUtility
+	if overlay == null:
+		return false
+	_attached_overlay_panel_id = panel_id
+	return overlay.register_panel(panel_id, Callable(self, "_build_overlay_panel_text"), {
+		"label": "Runtime Inspector",
+		"group": "Diagnostics",
+	})
+
+
+## 从 GFDebugOverlayUtility 移除 Inspector 面板。
+## @param panel_id: Overlay 面板 ID；为空时使用当前附加的面板 ID。
+func detach_from_debug_overlay(panel_id: StringName = &"") -> void:
+	var effective_id := panel_id if panel_id != &"" else _attached_overlay_panel_id
+	if effective_id == &"":
+		return
+	var overlay := get_utility(GFDebugOverlayUtility) as GFDebugOverlayUtility
+	if overlay != null:
+		overlay.remove_panel(effective_id)
+	if effective_id == _attached_overlay_panel_id:
+		_attached_overlay_panel_id = &""
+
+
+## 获取诊断快照。
+## @return 当前注册状态。
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"target_count": _targets.size(),
+		"target_ids": get_target_ids(true),
+		"writes_allowed": _writes_are_allowed(),
+	}
+
+
+# --- 私有/辅助方法 ---
+
+func _get_entry(target_id: StringName) -> Dictionary:
+	if not _targets.has(target_id):
+		return {}
+	return _targets[target_id] as Dictionary
+
+
+func _resolve_target(target_id: StringName) -> Object:
+	var entry := _get_entry(target_id)
+	if entry.is_empty():
+		return null
+	var target_ref := entry.get("target_ref") as WeakRef
+	if target_ref == null:
+		return null
+	var target := target_ref.get_ref()
+	return target if is_instance_valid(target) else null
+
+
+func _resolve_property(target_id: StringName, property_id: StringName) -> GFRuntimeTunableProperty:
+	var entry := _get_entry(target_id)
+	if entry.is_empty():
+		return null
+	var properties_by_id := entry.get("properties_by_id", {}) as Dictionary
+	if properties_by_id == null:
+		return null
+	return properties_by_id.get(property_id, null) as GFRuntimeTunableProperty
+
+
+func _get_sorted_entries(include_hidden: bool) -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	for target_id: StringName in _targets:
+		var entry := (_targets[target_id] as Dictionary).duplicate()
+		entry["id"] = target_id
+		if not include_hidden and not bool(entry.get("visible", true)):
+			continue
+		entries.append(entry)
+	entries.sort_custom(_sort_entries)
+	return entries
+
+
+func _sort_entries(left: Dictionary, right: Dictionary) -> bool:
+	var left_order := int(left.get("order", 0))
+	var right_order := int(right.get("order", 0))
+	if left_order != right_order:
+		return left_order < right_order
+	return String(left.get("id", &"")) < String(right.get("id", &""))
+
+
+func _build_target_snapshot(entry: Dictionary, include_hidden: bool) -> Dictionary:
+	var target_id: StringName = entry.get("id", &"")
+	var target := _resolve_target(target_id)
+	var properties: Array[Dictionary] = []
+	var source_properties := entry.get("properties", []) as Array
+	for property: GFRuntimeTunableProperty in source_properties:
+		if property == null:
+			continue
+		if not include_hidden and not property.visible:
+			continue
+		var schema := property.to_schema()
+		schema["value"] = property.read_value(target) if target != null else null
+		properties.append(schema)
+
+	return {
+		"id": target_id,
+		"label": String(entry.get("label", String(target_id))),
+		"group": String(entry.get("group", "Runtime")),
+		"visible": bool(entry.get("visible", true)),
+		"valid": target != null,
+		"properties": properties,
+	}
+
+
+func _writes_are_allowed() -> bool:
+	if not allow_writes:
+		return false
+	if debug_build_writes_only and not OS.is_debug_build():
+		return false
+	return true
+
+
+func _build_overlay_panel_text() -> String:
+	var lines := PackedStringArray()
+	for target: Dictionary in get_target_snapshot(false):
+		lines.append("[%s] %s" % [
+			String(target.get("group", "Runtime")),
+			String(target.get("label", String(target.get("id", "")))),
+		])
+		var properties := target.get("properties", []) as Array
+		for property: Dictionary in properties:
+			lines.append("  %s: %s" % [
+				String(property.get("label", String(property.get("property_id", "")))),
+				str(property.get("value", null)),
+			])
+	if lines.is_empty():
+		return "No runtime inspector targets."
+	return "\n".join(lines)

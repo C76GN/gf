@@ -9,8 +9,9 @@ extends RefCounted
 
 ## 解析 JSON 表文本。
 ## @param text: JSON 文本。
-## @return 结果字典，包含 success、data 与 error。
-static func parse_json_table(text: String) -> Dictionary:
+## @param options: 可选参数，支持 source。
+## @return 结果字典，包含 success、data、error、error_line 与 source。
+static func parse_json_table(text: String, options: Dictionary = {}) -> Dictionary:
 	var json := JSON.new()
 	var error := json.parse(text)
 	if error != OK:
@@ -18,19 +19,23 @@ static func parse_json_table(text: String) -> Dictionary:
 			"success": false,
 			"data": null,
 			"error": "JSON parse failed: %s" % json.get_error_message(),
+			"error_line": json.get_error_line(),
+			"source": String(options.get("source", "")),
 		}
 
 	return {
 		"success": true,
 		"data": json.data,
 		"error": "",
+		"error_line": 0,
+		"source": String(options.get("source", "")),
 	}
 
 
 ## 解析 CSV 表文本。
 ## @param text: CSV 文本。
-## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers。
-## @return 结果字典，包含 success、data 与 error。
+## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers、source。
+## @return 结果字典，包含 success、data、row_locations 与 error。
 static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionary:
 	var delimiter := str(options.get("delimiter", ","))
 	if delimiter.is_empty():
@@ -38,12 +43,15 @@ static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionar
 	var trim_cells := bool(options.get("trim_cells", true))
 	var skip_empty_lines := bool(options.get("skip_empty_lines", true))
 	var reject_duplicate_headers := bool(options.get("reject_duplicate_headers", true))
+	var source := String(options.get("source", ""))
 	var rows := _parse_csv_rows(_normalize_csv_text(text), delimiter.substr(0, 1), trim_cells)
 	if rows.is_empty():
 		return {
 			"success": true,
 			"data": [],
+			"row_locations": [],
 			"error": "",
+			"source": source,
 	}
 
 	var header := rows[0] as PackedStringArray
@@ -52,48 +60,59 @@ static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionar
 		return {
 			"success": false,
 			"data": null,
+			"row_locations": [],
 			"error": header_error,
+			"source": source,
 		}
 
 	var records: Array[Dictionary] = []
+	var row_locations: Array[Dictionary] = []
 	for row_index: int in range(1, rows.size()):
 		var row := rows[row_index] as PackedStringArray
 		if skip_empty_lines and _csv_row_is_empty(row):
 			continue
 
 		var record: Dictionary = {}
+		var row_location := _make_csv_row_location(source, row_index + 1, header)
 		for column_index: int in range(header.size()):
 			var key := StringName(header[column_index])
 			if key == &"":
 				continue
 			record[key] = row[column_index] if column_index < row.size() else ""
 		records.append(record)
+		row_locations.append(row_location)
 
 	return {
 		"success": true,
 		"data": records,
+		"row_locations": row_locations,
 		"error": "",
+		"source": source,
 	}
 
 
 ## 解析并校验 JSON 表文本。
 ## @param text: JSON 文本。
 ## @param schema: 表结构声明。
+## @param options: 可选参数，支持 source。
 ## @return 校验报告；解析失败时返回失败报告。
-static func validate_json_table(text: String, schema: GFConfigTableSchema) -> Dictionary:
+static func validate_json_table(text: String, schema: GFConfigTableSchema, options: Dictionary = {}) -> Dictionary:
 	if schema == null:
 		return _make_error_report(&"", "missing_schema", "schema 为空。")
 
-	var parsed := parse_json_table(text)
+	var parsed := parse_json_table(text, options)
 	if not bool(parsed.get("success", false)):
-		return _make_error_report(schema.get_table_key(), "parse_failed", str(parsed.get("error", "")))
-	return schema.validate_table(parsed.get("data"))
+		return _make_error_report(schema.get_table_key(), "parse_failed", str(parsed.get("error", "")), {
+			"source": parsed.get("source", ""),
+			"line": parsed.get("error_line", 0),
+		})
+	return schema.validate_table(parsed.get("data"), _make_validation_options(options, parsed))
 
 
 ## 解析并校验 CSV 表文本。
 ## @param text: CSV 文本。
 ## @param schema: 表结构声明。
-## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers。
+## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers、source。
 ## @return 校验报告；解析失败时返回失败报告。
 static func validate_csv_table(text: String, schema: GFConfigTableSchema, options: Dictionary = {}) -> Dictionary:
 	if schema == null:
@@ -101,8 +120,10 @@ static func validate_csv_table(text: String, schema: GFConfigTableSchema, option
 
 	var parsed := parse_csv_table(text, options)
 	if not bool(parsed.get("success", false)):
-		return _make_error_report(schema.get_table_key(), "parse_failed", str(parsed.get("error", "")))
-	return schema.validate_table(parsed.get("data"))
+		return _make_error_report(schema.get_table_key(), "parse_failed", str(parsed.get("error", "")), {
+			"source": parsed.get("source", ""),
+		})
+	return schema.validate_table(parsed.get("data"), _make_validation_options(options, parsed))
 
 
 ## 导出 CSV 表文本。
@@ -214,22 +235,66 @@ static func _csv_row_is_empty(row: PackedStringArray) -> bool:
 	return true
 
 
-static func _make_error_report(table_name: StringName, code: String, message: String) -> Dictionary:
+static func _make_csv_row_location(source: String, line_number: int, header: PackedStringArray) -> Dictionary:
+	var fields: Dictionary = {}
+	for column_index: int in range(header.size()):
+		var key := StringName(header[column_index])
+		if key == &"":
+			continue
+		var field_location := {
+			"line": line_number,
+			"column": column_index + 1,
+			"column_index": column_index,
+		}
+		if not source.is_empty():
+			field_location["source"] = source
+		fields[key] = field_location
+		fields[String(key)] = field_location
+
+	var row_location := {
+		"line": line_number,
+		"row_index": line_number - 2,
+		"fields": fields,
+	}
+	if not source.is_empty():
+		row_location["source"] = source
+	return row_location
+
+
+static func _make_error_report(
+	table_name: StringName,
+	code: String,
+	message: String,
+	context: Dictionary = {}
+) -> Dictionary:
+	var issue := {
+		"severity": "error",
+		"code": code,
+		"table_name": table_name,
+		"row_key": null,
+		"field": &"",
+		"message": message,
+	}
+	for field_name: String in ["source", "line", "column"]:
+		if context.has(field_name):
+			issue[field_name] = context[field_name]
 	return {
 		"ok": false,
 		"table_name": table_name,
 		"row_count": 0,
 		"error_count": 1,
 		"warning_count": 0,
-		"issues": [{
-			"severity": "error",
-			"code": code,
-			"table_name": table_name,
-			"row_key": null,
-			"field": &"",
-			"message": message,
-		}],
+		"issues": [issue],
 	}
+
+
+static func _make_validation_options(options: Dictionary, parsed: Dictionary) -> Dictionary:
+	var result := options.duplicate(true)
+	if parsed.has("source") and not String(parsed.get("source", "")).is_empty():
+		result["source"] = parsed.get("source")
+	if parsed.has("row_locations"):
+		result["row_locations"] = parsed.get("row_locations")
+	return result
 
 
 static func _normalize_table_rows(table_data: Variant) -> Variant:

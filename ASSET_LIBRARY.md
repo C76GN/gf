@@ -1,6 +1,6 @@
 # Godot Asset Library Submission Notes
 
-This file is maintainer-facing metadata for Godot Asset Library submissions. Godot does not read this file at runtime; keep it updated so future version bumps and AI-assisted release work can update the submission form consistently.
+This file is maintainer-facing metadata for Godot Asset Library submissions. Godot does not read this file at runtime; keep it updated so future version bumps and release work can update the submission form consistently.
 
 This repository is prepared for Godot Asset Library submission with a focused installable payload:
 
@@ -25,9 +25,9 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for exten
 - Repository URL: `https://github.com/C76GN/gf-framework`
 - Issues URL: `https://github.com/C76GN/gf-framework/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `3.3.0`
-- Download Commit/URL: `3.3.0`
-- Icon URL: `https://raw.githubusercontent.com/C76GN/gf-framework/3.3.0/addons/gf/icon.png`
+- Asset Version: `3.4.0`
+- Download Commit/URL: `3.4.0`
+- Icon URL: `https://raw.githubusercontent.com/C76GN/gf-framework/3.4.0/addons/gf/icon.png`
 
 ## Short Description
 

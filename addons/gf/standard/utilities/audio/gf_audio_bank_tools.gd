@@ -66,6 +66,15 @@ static func create_bank_from_paths(paths: PackedStringArray, options: Dictionary
 	return bank
 
 
+## 扫描目录并创建新的音频集合。
+## @param root_path: 扫描起点，通常是 res://audio。
+## @param options: 可选项，同时传给 scan_audio_paths() 与 create_bank_from_paths()。
+## @return 新建的音频集合。
+static func create_bank_from_scan(root_path: String = "res://", options: Dictionary = {}) -> GFAudioBank:
+	var paths := scan_audio_paths(root_path, options)
+	return create_bank_from_paths(paths, options)
+
+
 ## 将路径列表加入音频集合。
 ## @param bank: 要写入的音频集合。
 ## @param paths: 音频资源路径列表。
@@ -112,6 +121,23 @@ static func add_paths_to_bank(
 
 	report.metadata["added_count"] = added_count
 	report.metadata["skipped_count"] = skipped_count
+	return report
+
+
+## 扫描目录并同步到已有音频集合。
+## @param bank: 要写入的音频集合。
+## @param root_path: 扫描起点，通常是 res://audio。
+## @param options: 可选项，同时传给 scan_audio_paths() 与 add_paths_to_bank()。
+## @return 导入报告。
+static func sync_bank_from_scan(
+	bank: GFAudioBank,
+	root_path: String = "res://",
+	options: Dictionary = {}
+) -> GFValidationReport:
+	var paths := scan_audio_paths(root_path, options)
+	var report := add_paths_to_bank(bank, paths, options)
+	report.metadata["root_path"] = root_path
+	report.metadata["scanned_count"] = paths.size()
 	return report
 
 
