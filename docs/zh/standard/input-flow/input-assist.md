@@ -1,6 +1,7 @@
 # 输入映射与手感辅助
 
-本页拆出输入动作、玩家设备、输入缓冲、连击窗口和操作辅助相关工具。
+这一组输入工具负责抽象动作、玩家设备、输入缓冲、连击窗口和操作辅助等通用输入流程。
+
 ## 输入映射与手感辅助 (`GFInputMappingUtility` / `GFInputAssistUtility`)
 
 `GFInputMappingUtility` 是推荐的输入主入口，负责把真实或虚拟输入转换成抽象动作状态。`GFInputAssistUtility` 是可选的手感辅助层，只负责动作意图缓冲和通用宽容窗口，不读取 `InputEvent`，也不处理重绑定或设备归属。
@@ -55,6 +56,22 @@ if input_assist.is_grace_window_active(&"grounded"):
 ```
 
 本地多人项目可以传入 `player_index` 让动作缓冲和宽容窗口按玩家隔离；全局输入辅助则继续使用默认的 `-1`。
+
+如果项目需要把鼠标或触摸事件整理成“按下、移动、拖拽、空闲”的通用状态，而不是立刻绑定到按钮、棋盘或摄像机业务，可以注册或直接持有 `GFPointerActivityUtility`。它不会读取全局 `Input`，也不会消费事件；项目在 `_input(event)` 中显式转发即可：
+
+```gdscript
+var pointer := Gf.get_utility(GFPointerActivityUtility) as GFPointerActivityUtility
+pointer.drag_threshold_pixels = 8.0
+pointer.idle_threshold_seconds = 0.5
+
+func _input(event: InputEvent) -> void:
+	pointer.handle_input_event(event)
+
+func _process(delta: float) -> void:
+	pointer.tick(delta)
+```
+
+`GFPointerActivityUtility` 发出 `pointer_pressed`、`pointer_moved`、`pointer_drag_started`、`pointer_dragged`、`pointer_drag_ended`、`pointer_released` 和空闲相关信号，只描述输入活动本身。是否把拖拽解释成地图平移、物品拖放、框选、UI 滚动或编辑器画刷，应继续留在项目层或具体工具层。
 
 自动化测试、回放、AI 控制或项目自己的输入桥接可以使用 `GFVirtualInputSource` 写入抽象动作值，而不是伪造具体按键。虚拟源仍要求动作已经通过上下文注册，并会复用 `GFInputMappingUtility` 的动作值、触发器、全局/玩家级状态和一次性 started/completed 语义：
 
@@ -200,4 +217,3 @@ devices.stop_vibration_for_player(player_index)
 ```
 
 `GFInputBinding` 的触屏事件默认表示“任意触摸”，适合简单确认或由 `GFTouchButton` / `GFTouchJoystick` 承担区域判断的场景；需要区分多指触点时可启用 `match_touch_index`，让 `InputEventScreenTouch.index` 参与匹配。`GFTouchJoystick` 是一个可直接放进场景树的 `Node2D`。它会发出 `direction_changed(direction)`，也可以把方向映射到项目自己的 InputMap 动作名。相对模式适合移动端虚拟摇杆，`emit_joypad_motion` 可把触屏输入桥接为虚拟手柄轴事件。`GFTouchButton` 则提供通用触屏按钮，并同样支持 InputMap 动作或虚拟手柄按钮事件。
-

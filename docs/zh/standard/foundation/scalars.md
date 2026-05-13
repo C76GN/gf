@@ -1,6 +1,6 @@
 # Foundation 数值、成长与权重
 
-本页拆出 Standard Foundation 中的数值表达、格式化、成长曲线和权重表能力。它们都是纯数据或纯算法基础件，不参与 `GFArchitecture` 生命周期。
+这些 Foundation 能力提供数值表达、格式化、成长曲线和权重表等纯数据或纯算法基础件，不参与 `GFArchitecture` 生命周期。
 
 ## `GFBigNumber`
 
@@ -127,4 +127,3 @@ var batch := table.pick_many(3, rng, false)
 ```
 
 资源化条目适合编辑器配置或导表后转换；字典序列化方法只保留通用字段，项目层可以自由决定 `value` 与 `metadata` 的结构。复杂业务校验仍应放在项目自己的配置管线中，而不是塞进权重表。
-

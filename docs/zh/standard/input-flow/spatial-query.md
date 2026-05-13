@@ -1,6 +1,7 @@
 # 逻辑空间查询与相关包
 
-本页拆出标准库逻辑四叉树，以及和流程、任务、行为树相关的官方包跳转。
+标准库提供纯逻辑四叉树用于轻量空间查询；流程、任务和行为树能力位于对应官方包页面。
+
 ## 逻辑四叉树 (`GFQuadTreeUtility`)
 
 抛开需要碰撞体积的 Godot `Area2D` 体系；对于上千同屏单位仅仅用于查询范围索敌、视野扫描或邻居列表时，可以使用这个纯代码二维空间索引加速。它只保存 `entity_id -> Rect2` 的映射，调用方仍要自己维护实体表、坐标更新和最终业务过滤。
@@ -28,4 +29,4 @@ quad_tree.remove(1001)
 
 ## 相关官方包
 
-`GFLevelUtility`、`GFQuestUtility` 和 `GFBehaviorTree` 已归入官方包页面，主说明见 [Level、BehaviorTree 与 Quest](../../packages/level-behaviortree-quest/index.md)。本页只保留标准库的流程控制和输入支撑，避免同一能力在多个页面重复维护。
+`GFLevelUtility`、`GFQuestUtility` 和 `GFBehaviorTree` 的完整说明见 [Level、BehaviorTree 与 Quest](../../packages/level-behaviortree-quest/index.md)。标准库页面只交叉引用这些包能力，避免同一概念在多个页面重复维护。

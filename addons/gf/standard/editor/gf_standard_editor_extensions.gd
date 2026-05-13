@@ -16,6 +16,10 @@ static func get_inspector_plugin_records() -> Array[Dictionary]:
 			"path": "res://addons/gf/standard/foundation/math/editor/gf_pattern_2d_inspector_plugin.gd",
 			"label": "Pattern2D Inspector",
 		},
+		{
+			"path": "res://addons/gf/standard/utilities/audio/editor/gf_audio_bank_inspector_plugin.gd",
+			"label": "AudioBank Inspector",
+		},
 	]
 
 

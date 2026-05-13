@@ -30,6 +30,7 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 		"kind": "community",
 		"description": "Example package.",
 		"dependencies": ["gf.kernel", &"gf.standard"],
+		"optional_dependencies": ["author.debug_overlay"],
 		"installer_paths": PackedStringArray(["res://addons/gf/packages/community/terrain/package.gd"]),
 		"editor_action_paths": ["res://addons/gf/packages/community/terrain/editor/terrain_actions.gd"],
 		"editor_dock_paths": ["res://addons/gf/packages/community/terrain/editor/terrain_dock.gd"],
@@ -44,6 +45,7 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 	assert_eq(manifest.version, "1.0.0", "应读取包发行版本。")
 	assert_eq(manifest.package_version, "1.2.3", "应读取包自身版本。")
 	assert_eq(manifest.dependencies, ["gf.kernel", "gf.standard"], "依赖列表应归一化为字符串数组。")
+	assert_eq(manifest.optional_dependencies, ["author.debug_overlay"], "可选协作依赖应归一化为字符串数组。")
 	assert_eq(manifest.installer_paths.size(), 1, "installer_paths 应支持 PackedStringArray。")
 	assert_eq(manifest.editor_action_paths.size(), 1, "editor_action_paths 应读取为字符串数组。")
 	assert_eq(manifest.editor_dock_paths.size(), 1, "editor_dock_paths 应读取为字符串数组。")
@@ -236,6 +238,24 @@ func test_manifest_graph_report_includes_missing_dependencies_and_duplicates() -
 	assert_eq(String((missing_dependencies[0] as Dictionary).get("dependency_id", "")), "author.missing", "缺失依赖 ID 应可用于编辑器提示。")
 
 
+func test_manifest_graph_report_treats_missing_optional_dependencies_as_warnings() -> void:
+	var manifest := GF_PACKAGE_MANIFEST_BASE.from_dictionary({
+		"id": "author.feature",
+		"display_name": "Feature",
+		"version": "1.0.0",
+		"kind": "community",
+		"optional_dependencies": ["author.overlay"],
+	}, "res://addons/gf/packages/community/feature", "")
+
+	var report := GF_PACKAGE_SETTINGS_BASE.get_manifest_graph_report([manifest])
+	var optional_warnings := report.get("optional_dependency_warnings", []) as Array
+
+	assert_true(bool(report.get("ok")), "缺失可选依赖不应让包图失败。")
+	assert_eq(int(report.get("warning_count", 0)), 1, "缺失可选依赖应进入提示计数。")
+	assert_eq(optional_warnings.size(), 1, "缺失可选依赖应保留可展示记录。")
+	assert_eq(String((optional_warnings[0] as Dictionary).get("dependency_id", "")), "author.overlay", "可选依赖提示应包含依赖 ID。")
+
+
 func test_default_enabled_package_ids_include_official_packages() -> void:
 	var ids := GF_PACKAGE_SETTINGS_BASE.get_default_enabled_package_ids()
 	var expected_ids: Array[String] = []
@@ -371,14 +391,15 @@ func test_package_settings_exposes_export_fail_on_disabled_reference_policy() ->
 	_restore_project_setting(GF_PACKAGE_SETTINGS_BASE.EXPORT_FAIL_ON_DISABLED_REFERENCES_SETTING, restore)
 
 
-func test_official_manifests_do_not_depend_on_other_official_packages() -> void:
-	var issues := PackedStringArray()
-	for manifest: GFPackageManifest in GF_PACKAGE_CATALOG_BASE.load_official_manifests():
-		for dependency_id: String in manifest.dependencies:
-			if dependency_id.begins_with("gf.official."):
-				issues.append("%s depends on %s" % [manifest.id, dependency_id])
+func test_official_manifest_dependency_graph_is_valid() -> void:
+	var report := GF_PACKAGE_SETTINGS_BASE.get_manifest_graph_report(
+		GF_PACKAGE_CATALOG_BASE.load_official_manifests()
+	)
 
-	assert_eq(Array(issues), [], "官方包之间不应建立强依赖；需要联动时应通过协议或动态探测。")
+	assert_true(
+		bool(report.get("ok")),
+		"官方包可以声明硬依赖，但依赖图必须无缺失、无重复、无环：%s" % report
+	)
 
 
 func test_kernel_and_standard_do_not_hard_preload_official_packages() -> void:
@@ -439,10 +460,11 @@ func test_kernel_and_standard_do_not_hard_reference_official_package_class_names
 	)
 
 
-func test_official_packages_do_not_hard_reference_other_official_packages() -> void:
+func test_official_packages_only_hard_reference_declared_official_dependencies() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(OFFICIAL_PACKAGE_ROOT, files)
 	var official_class_roots := _collect_official_class_roots()
+	var manifest_by_root := _collect_official_manifest_by_root()
 
 	var issues := PackedStringArray()
 	for path: String in files:
@@ -450,16 +472,19 @@ func test_official_packages_do_not_hard_reference_other_official_packages() -> v
 		var source := _read_text(path)
 		var referenced_roots := _extract_official_package_roots(source)
 		for referenced_root: String in referenced_roots:
-			if referenced_root != package_root:
+			if not _official_root_can_reference(package_root, referenced_root, manifest_by_root):
 				issues.append("%s references %s" % [path, referenced_root])
 
 		for class_name_variant: Variant in official_class_roots.keys():
 			var class_name_text := String(class_name_variant)
 			var class_root := String(official_class_roots[class_name_text])
-			if class_root != package_root and _source_contains_identifier(source, class_name_text):
+			if (
+				not _official_root_can_reference(package_root, class_root, manifest_by_root)
+				and _source_contains_identifier(source, class_name_text)
+			):
 				issues.append("%s references class %s" % [path, class_name_text])
 
-	assert_eq(Array(issues), [], "官方包之间不应硬引用彼此目录；联动应通过包设置、协议或动态探测完成。")
+	assert_eq(Array(issues), [], "官方包只能硬引用自身或 manifest.dependencies 中声明的官方包。")
 
 
 func test_package_export_plugin_matches_disabled_roots() -> void:
@@ -631,6 +656,30 @@ func _collect_official_class_roots() -> Dictionary:
 
 			result[match_result.get_string(1)] = package_root
 	return result
+
+
+func _collect_official_manifest_by_root() -> Dictionary:
+	var result: Dictionary = {}
+	for manifest: GFPackageManifest in GF_PACKAGE_CATALOG_BASE.load_official_manifests():
+		result[manifest.root_path] = manifest
+	return result
+
+
+func _official_root_can_reference(
+	package_root: String,
+	referenced_root: String,
+	manifest_by_root: Dictionary
+) -> bool:
+	if referenced_root.is_empty() or referenced_root == package_root:
+		return true
+	if not manifest_by_root.has(package_root) or not manifest_by_root.has(referenced_root):
+		return false
+
+	var manifest := manifest_by_root[package_root] as GFPackageManifest
+	var referenced_manifest := manifest_by_root[referenced_root] as GFPackageManifest
+	if manifest == null or referenced_manifest == null:
+		return false
+	return manifest.dependencies.has(referenced_manifest.id)
 
 
 func _source_contains_identifier(source: String, identifier: String) -> bool:

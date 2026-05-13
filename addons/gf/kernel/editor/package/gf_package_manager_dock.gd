@@ -347,6 +347,7 @@ func _show_manifest_details(manifest: GFPackageManifest) -> void:
 	lines.append(manifest.description)
 	lines.append("")
 	lines.append("依赖：%s" % _format_dependencies(manifest.dependencies))
+	lines.append("可选协作：%s" % _format_dependencies(manifest.optional_dependencies))
 	lines.append("Installer：%s" % _format_string_array(manifest.installer_paths))
 	lines.append("菜单动作：%s" % _format_string_array(manifest.editor_action_paths))
 	lines.append("底部面板：%s" % _format_string_array(manifest.editor_dock_paths))

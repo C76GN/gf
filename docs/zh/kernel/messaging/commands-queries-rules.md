@@ -1,6 +1,7 @@
 # 命令、查询与规则
 
-本页拆出 `GFCommand`、`GFQuery`、`GFRule`、命令/查询工厂和跨模块读写动作的表达方式。
+`GFCommand`、`GFQuery` 和 `GFRule` 为跨模块读写动作、查询和可配置规则提供稳定表达方式。
+
 ## 命令与查询
 
 如果把所有读写流程都直接堆到同一个 `GFSystem` 中，核心系统会很快变得难以拆分和测试。例如 `BattleSystem` 同时负责开始战斗、技能结算、伤害衰减和撤退流程时，职责边界就会变得模糊。
@@ -89,7 +90,7 @@ func update_attack_power_ui() -> void:
 
 ## GFRule: 资源化规则对象
 
-`GFRule` 是继承自 `Resource` 的规则抽象基类，用于把“可配置策略”从 `System` 中拆出来。它适合技能筛选、结算策略、AI 条件、关卡评分、掉落规则这类需要在编辑器中配置、在运行时由系统执行的逻辑片段。
+`GFRule` 是继承自 `Resource` 的规则抽象基类，用于把“可配置策略”从 `System` 中抽离成独立资源。它适合技能筛选、结算策略、AI 条件、关卡评分、掉落规则这类需要在编辑器中配置、在运行时由系统执行的逻辑片段。
 
 ```gdscript
 class_name DamageReductionRule
@@ -137,4 +138,3 @@ var final_atk := Gf.send_query(query) as float
 工厂默认生命周期是 `GFBindingLifetimes.Lifetime.TRANSIENT`，每次解析都会调用 provider，通常用于创建新的 Command / Query，适合携带本次执行参数的对象。框架不会强制校验 provider 返回的一定是新对象；如果需要复用昂贵的无状态执行器，可以用 `register_factory(..., GFBindingLifetimes.Lifetime.SINGLETON)` 或 `register_factory_instance()`，但不要把带有本次执行参数的命令注册成 singleton。
 
 当局部架构回退到父级 transient 工厂时，新对象会注入发起解析的局部架构；singleton 工厂则始终注入拥有该绑定的架构。这使全局工厂定义可以服务局部场景，同时保留单例对象的稳定归属。
-

@@ -18,6 +18,18 @@ signal cell_value_committed(resource: Resource, property: StringName, old_value:
 ## 自动保存资源失败时发出。
 signal resource_save_failed(resource: Resource, path: String, error: Error)
 
+## 资源列表顺序变化后发出。
+signal resources_reordered(resources: Array)
+
+## 插入资源后发出。
+signal resource_inserted(resource: Resource, index: int)
+
+## 移除资源后发出。
+signal resource_removed(resource: Resource, index: int)
+
+## 搜索过滤条件变化后发出。
+signal resource_filter_changed(query: String, visible_count: int)
+
 
 # --- 常量 ---
 
@@ -29,11 +41,21 @@ const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_s
 ## 提交单元格后是否自动保存已绑定路径的 Resource。
 var auto_save_committed_resources: bool = false
 
+## 当前搜索过滤文本。为空时显示全部资源。
+var search_text: String = ""
+
+## 当前排序属性；为空时不记录排序属性。
+var sort_property: StringName = &""
+
+## 当前排序方向。
+var sort_ascending: bool = true
+
 
 # --- 私有变量 ---
 
 var _resources: Array[Resource] = []
 var _columns: Array[Dictionary] = []
+var _visible_row_indices: PackedInt32Array = PackedInt32Array()
 var _tree: Tree = null
 
 
@@ -128,6 +150,124 @@ func get_columns() -> Array[Dictionary]:
 	return _columns.duplicate(true)
 
 
+## 设置搜索过滤文本。
+## @param query: 搜索文本，会匹配资源标签、路径和当前列值。
+func set_search_text(query: String) -> void:
+	if search_text == query:
+		return
+	search_text = query
+	refresh()
+	resource_filter_changed.emit(search_text, _visible_row_indices.size())
+
+
+## 获取当前可见资源行的原始索引。
+## @return 可见行索引列表。
+func get_visible_row_indices() -> PackedInt32Array:
+	return PackedInt32Array(_visible_row_indices)
+
+
+## 获取当前可见资源数量。
+## @return 可见资源数量。
+func get_visible_resource_count() -> int:
+	return _visible_row_indices.size()
+
+
+## 查找资源在当前列表中的索引。
+## @param resource: 目标资源。
+## @return 资源索引；不存在时返回 -1。
+func find_resource_index(resource: Resource) -> int:
+	return _resources.find(resource)
+
+
+## 按属性或资源标签排序。
+## @param property: 属性名；为空时按资源标签排序。
+## @param ascending: 是否升序。
+func sort_by_property(property: StringName = &"", ascending: bool = true) -> void:
+	sort_property = property
+	sort_ascending = ascending
+	_resources.sort_custom(func(left: Resource, right: Resource) -> bool:
+		var compare_result := _compare_resources_for_sort(left, right, property)
+		if compare_result == 0:
+			return false
+		return compare_result < 0 if ascending else compare_result > 0
+	)
+	refresh()
+	resources_reordered.emit(get_resources())
+
+
+## 移动资源位置。
+## @param from_index: 原始索引。
+## @param to_index: 目标索引。
+## @return 移动成功返回 true。
+func move_resource(from_index: int, to_index: int) -> bool:
+	if from_index < 0 or from_index >= _resources.size():
+		return false
+	if _resources.is_empty():
+		return false
+	var target_index := clampi(to_index, 0, _resources.size() - 1)
+	if from_index == target_index:
+		return true
+
+	var resource := _resources[from_index]
+	_resources.remove_at(from_index)
+	_resources.insert(target_index, resource)
+	refresh()
+	resources_reordered.emit(get_resources())
+	return true
+
+
+## 插入资源。
+## @param resource: 要插入的资源。
+## @param index: 插入索引；越界或负数时追加到末尾。
+## @return 插入成功返回 true。
+func insert_resource(resource: Resource, index: int = -1) -> bool:
+	if resource == null:
+		return false
+	var target_index := index
+	if target_index < 0 or target_index > _resources.size():
+		target_index = _resources.size()
+	_resources.insert(target_index, resource)
+	if _columns.is_empty():
+		_columns = build_export_columns(resource)
+	refresh()
+	resource_inserted.emit(resource, target_index)
+	return true
+
+
+## 移除资源。
+## @param row_index: 资源行索引。
+## @return 被移除的资源；无效索引返回 null。
+func remove_resource(row_index: int) -> Resource:
+	if row_index < 0 or row_index >= _resources.size():
+		return null
+	var resource := _resources[row_index]
+	_resources.remove_at(row_index)
+	refresh()
+	resource_removed.emit(resource, row_index)
+	return resource
+
+
+## 复制资源并插入到列表。
+## @param row_index: 资源行索引。
+## @param deep: 是否深拷贝子资源。
+## @param insert_after: 为 true 时插入到当前资源之后，否则插入到当前位置。
+## @return 复制出的资源；无效索引返回 null。
+func duplicate_resource(row_index: int, deep: bool = false, insert_after: bool = true) -> Resource:
+	if row_index < 0 or row_index >= _resources.size():
+		return null
+	var source := _resources[row_index]
+	if source == null:
+		return null
+	var duplicate := source.duplicate(deep) as Resource
+	if duplicate == null:
+		return null
+	var target_index := row_index + 1 if insert_after else row_index
+	_resources.insert(target_index, duplicate)
+	refresh()
+	resource_inserted.emit(duplicate, target_index)
+	return duplicate
+
+
 ## 提交单元格值。
 ## @param row_index: 资源行索引。
 ## @param property: 属性名。
@@ -149,9 +289,21 @@ func commit_cell_value(row_index: int, property: StringName, new_value: Variant)
 	return true
 
 
+## 提交当前可见行的单元格值。
+## @param visible_row_index: 过滤后的可见行索引。
+## @param property: 属性名。
+## @param new_value: 新值。
+## @return 提交成功返回 true。
+func commit_visible_cell_value(visible_row_index: int, property: StringName, new_value: Variant) -> bool:
+	if visible_row_index < 0 or visible_row_index >= _visible_row_indices.size():
+		return false
+	return commit_cell_value(_visible_row_indices[visible_row_index], property, new_value)
+
+
 ## 刷新表格显示。
 func refresh() -> void:
 	_ensure_tree()
+	_rebuild_visible_row_indices()
 	_tree.clear()
 	_tree.columns = _columns.size() + 1
 	_tree.set_column_title(0, "Resource")
@@ -160,7 +312,7 @@ func refresh() -> void:
 		_tree.set_column_title(column_index + 1, str(column.get("name", "")))
 
 	var root := _tree.create_item()
-	for row_index: int in range(_resources.size()):
+	for row_index: int in _visible_row_indices:
 		var resource := _resources[row_index]
 		if resource == null:
 			continue
@@ -187,6 +339,16 @@ func _ensure_tree() -> void:
 	_tree.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tree.item_selected.connect(_on_tree_item_selected)
 	add_child(_tree)
+
+
+func _rebuild_visible_row_indices() -> void:
+	_visible_row_indices = PackedInt32Array()
+	for row_index: int in range(_resources.size()):
+		var resource := _resources[row_index]
+		if resource == null:
+			continue
+		if _resource_matches_search(resource, row_index, search_text):
+			_visible_row_indices.append(row_index)
 
 
 static func _scan_resource_paths_recursive(
@@ -229,6 +391,78 @@ func _resource_has_property(resource: Resource, property: StringName) -> bool:
 		if StringName(property_info.get("name", "")) == property:
 			return true
 	return false
+
+
+func _resource_matches_search(resource: Resource, row_index: int, query: String) -> bool:
+	var normalized_query := query.strip_edges().to_lower()
+	if normalized_query.is_empty():
+		return true
+
+	var label := _resource_label(resource, row_index).to_lower()
+	if label.contains(normalized_query):
+		return true
+	if resource.get_class().to_lower().contains(normalized_query):
+		return true
+
+	var script := resource.get_script() as Script
+	if script != null and script.resource_path.to_lower().contains(normalized_query):
+		return true
+
+	for column: Dictionary in _columns:
+		var property := StringName(column.get("name", ""))
+		if property == &"" or not _resource_has_property(resource, property):
+			continue
+		if _format_cell_value(resource.get(property)).to_lower().contains(normalized_query):
+			return true
+	return false
+
+
+func _compare_resources_for_sort(left: Resource, right: Resource, property: StringName) -> int:
+	if left == right:
+		return 0
+	if left == null:
+		return 1
+	if right == null:
+		return -1
+
+	if property == &"":
+		return _compare_variant_values(_resource_label(left, _resources.find(left)), _resource_label(right, _resources.find(right)))
+
+	var left_value: Variant = left.get(property) if _resource_has_property(left, property) else null
+	var right_value: Variant = right.get(property) if _resource_has_property(right, property) else null
+	return _compare_variant_values(left_value, right_value)
+
+
+func _compare_variant_values(left: Variant, right: Variant) -> int:
+	if left == right:
+		return 0
+	if left == null:
+		return 1
+	if right == null:
+		return -1
+
+	var left_type := typeof(left)
+	var right_type := typeof(right)
+	if _is_numeric_type(left_type) and _is_numeric_type(right_type):
+		return _compare_float_values(float(left), float(right))
+	if left_type == TYPE_BOOL and right_type == TYPE_BOOL:
+		return _compare_float_values(1.0 if bool(left) else 0.0, 1.0 if bool(right) else 0.0)
+
+	var left_text := str(left)
+	var right_text := str(right)
+	return left_text.naturalnocasecmp_to(right_text)
+
+
+func _compare_float_values(left: float, right: float) -> int:
+	if left < right:
+		return -1
+	if left > right:
+		return 1
+	return 0
+
+
+func _is_numeric_type(type_id: int) -> bool:
+	return type_id == TYPE_INT or type_id == TYPE_FLOAT
 
 
 func _save_resource_if_requested(resource: Resource) -> void:

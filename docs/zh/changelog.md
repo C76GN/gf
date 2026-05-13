@@ -22,6 +22,72 @@
 
 ---
 
+## [未发布]
+
+**版本概述**：未发布变更收敛为框架自身的通用能力：可观测性与编辑器资源表增强、输入活动与格子元数据工具、可插拔音频后端、状态机结构校验、音频集合导入/校验辅助，以及 Combat 包中不绑定业务规则的发射体组合节点。
+
+### 🚀 新增特性
+
+- 新增 `GFNodeStateMachineValidator`，用于校验节点状态机的空组、重复状态名、初始状态和条件/行为资源挂接，并返回 `GFValidationReport`。
+- `GFNodeStateMachine` Inspector 增加结构验证入口，方便在编辑器中快速检查状态机配置。
+- `GFDiagnosticsUtility` 新增只读场景树快照与 `diagnostics.scene` 命令，可按深度、节点数量、分组、脚本路径等选项采集结构摘要。
+- `GFResourceTableEditor` 新增搜索过滤、可见行索引、排序、插入、复制、移动、移除和可见行提交接口。
+- 新增 `GFPointerActivityUtility`，用于把显式转发的鼠标/触摸事件整理为按下、移动、拖拽和空闲状态。
+- 新增 `GFTileMetadataLayer`，在通用格子字典上提供元数据绘制、字段擦除、按值查询、schema 和 `GFTileMapCache` 转换能力。
+- 新增 `GFAudioBackend` 可插拔音频后端协议，`GFAudioUtility` 可按后端声明接管部分 BGM、SFX、环境音、空间音效和总线音量请求。
+- 新增 `GFAudioBankTools`，支持扫描音频路径、按路径生成 `GFAudioBank`、向现有 bank 导入片段，并检查音频扩展名和 bus 配置。
+- 新增 `GFAudioBank` Inspector 验证入口，复用 `GFAudioBankTools.validate_bank_playback()` 进行播放前检查。
+- Combat 包新增 `GFProjectile2D`、`GFProjectile3D`、`GFProjectileMotion`、`GFLinearProjectileMotion`、`GFHomingProjectileMotion` 和 `GFProjectileLifetimePolicy`，以 Resource 策略组合移动和生命周期，命中仍通过 `GFCombatHitContext` 发送。
+- `GFPackageManifest` 新增 `optional_dependencies`，用于声明不会自动启用、也不允许硬引用的可选协作包。
+
+### 🔄 机制更改
+
+- `GFAudioUtility` 保留默认 Godot 播放路径，只有当前后端明确声明可处理并成功返回时才接管请求；不支持的路径继续回退到原实现。
+- `GFDiagnosticsUtility.collect_snapshot()` 可通过 `include_scene_tree` 显式包含场景树摘要，默认仍不采集场景树以避免额外开销。
+- `GFProjectileLifetimePolicy` 可按成功命中次数结束发射体；`GFProjectile2D` / `GFProjectile3D` 会在上下文中记录命中尝试次数和成功命中次数。
+- 官方包边界从“绝对不能互相硬引用”调整为“只能硬引用 manifest `dependencies` 中声明的官方依赖”；未声明依赖的跨包引用仍由维护测试阻止，可选协作应使用 `optional_dependencies`、扩展点、项目装配或 bridge 包。
+- `GFPackageSettings.get_manifest_graph_report()` 会把缺失可选依赖作为 warning 记录，不让包图失败，也不会把可选依赖加入启用闭包。
+- Feedback 与 Interaction 包通过 manifest 声明可选协作关系，并分别将 `package_version` 递增为 `1.1.0`；Combat 包因新增追踪发射体与命中次数生命周期，将 `package_version` 递增为 `1.2.0`。
+
+### 🔌 API 变动说明
+
+- 新增公开类：`GFNodeStateMachineValidator`、`GFAudioBackend`、`GFAudioBankTools`、`GFPointerActivityUtility`、`GFTileMetadataLayer`、`GFProjectile2D`、`GFProjectile3D`、`GFProjectileMotion`、`GFLinearProjectileMotion`、`GFHomingProjectileMotion`、`GFProjectileLifetimePolicy`。
+- 新增 `GFAudioUtility.set_audio_backend()`、`get_audio_backend()`、`clear_audio_backend()` 和 `get_debug_snapshot()`。
+- 新增 `GFPackageManifest.optional_dependencies`；`to_dictionary()` 会输出该字段。
+- `GFPackageSettings.get_manifest_graph_report()` 新增 `warning_count` 与 `optional_dependency_warnings`，`get_package_selection_report()` 同步暴露可选依赖提示。
+- 新增 `GFDiagnosticsUtility.collect_scene_tree_snapshot()`，并扩展 `collect_snapshot()` 的 `include_scene_tree` / `scene_tree_options` 选项。
+- 新增 `GFResourceTableEditor` 的资源列表操作和过滤相关公开接口；既有 `commit_cell_value()` 行索引语义保持为原始资源索引。
+- 发射体节点默认不解释 payload 内容；项目可继续把 `GFCombatHitContext.payload` 解释为伤害、治疗、交互或任意自定义命中语义。
+- `GFProjectileLifetimePolicy.max_impacts` 可用于对象池、穿透或多目标命中这类通用生命周期控制；它只统计成功发送的命中，不定义穿透筛选或伤害规则。
+
+### 📁 核心受影响文件
+
+- `addons/gf/kernel/editor/gf_resource_table_editor.gd`
+- `addons/gf/kernel/package/gf_package_manifest.gd`
+- `addons/gf/kernel/package/gf_package_settings.gd`
+- `addons/gf/kernel/editor/package/gf_package_manager_dock.gd`
+- `addons/gf/standard/foundation/math/gf_tile_metadata_layer.gd`
+- `addons/gf/standard/input/runtime/gf_pointer_activity_utility.gd`
+- `addons/gf/standard/state_machine/node/**`
+- `addons/gf/standard/utilities/audio/**`
+- `addons/gf/standard/utilities/debug/gf_diagnostics_utility.gd`
+- `addons/gf/packages/official/combat/projectiles/**`
+- `tests/gf_core/kernel/editor/test_gf_resource_table_editor.gd`
+- `tests/gf_core/kernel/package/test_gf_package_manifest.gd`
+- `tests/gf_core/maintenance/test_layer_boundary_validation.gd`
+- `tests/gf_core/standard/foundation/math/test_gf_tile_metadata_layer.gd`
+- `tests/gf_core/standard/input/runtime/test_gf_pointer_activity_utility.gd`
+- `tests/gf_core/standard/state_machine/node/test_gf_node_state_machine_validator.gd`
+- `tests/gf_core/standard/utilities/audio/test_gf_audio_utility.gd`
+- `tests/gf_core/standard/utilities/audio/test_gf_audio_bank_tools.gd`
+- `tests/gf_core/standard/utilities/debug/test_gf_diagnostics_utility.gd`
+- `tests/gf_core/packages/official/combat/test_gf_projectiles.gd`
+- `docs/zh/standard/input-flow/state-machines.md`
+- `docs/zh/standard/utilities/runtime/audio.md`
+- `docs/zh/packages/combat/index.md`
+
+---
+
 ## [3.1.0] - 2026-05-12
 
 **版本概述**：本版本为 Combat 命中区域补充可复用碰撞形状配置能力，使项目可以在复用同一组 HitBox / HurtBox 节点时按攻击配置切换 Godot 原生碰撞形状，同时明确官方包的 GF 发行版本与包自身版本之间的边界。

@@ -62,7 +62,36 @@
 
 `GFHitScan2D` / `GFHitScan3D` 是同一套命中协议的射线桥接节点。它们继承 Godot 的 `RayCast2D` / `RayCast3D`，扫描到对象后构建 `GFCombatHitContext` 并调用目标的 `receive_hit(context)`；没有碰撞、目标为空或目标不支持接收时会返回统一失败报告。框架仍然不定义穿透、射程衰减、命中特效、伤害或阵营规则，这些都应在项目自己的接收器、状态机或技能系统里表达。
 
-### 8. 通用动作与数值槽
+### 8. 发射体节点与移动策略
+
+`GFProjectile2D` / `GFProjectile3D` 是可选的发射体桥接节点，分别继承 `GFHitBox2D` / `GFHitBox3D`。它们复用同一套 `GFCombatHitContext` 与 `receive_hit(context)` 协议，只额外负责三件事：按移动策略推进位置、按生命周期策略结束、碰到可接收对象时发送命中。它们不内置伤害字段、阵营判断、穿透规则、目标筛选或特效生成。
+
+`GFProjectileMotion` 是移动策略协议基类，`GFLinearProjectileMotion` 提供 2D/3D 通用直线移动，`GFHomingProjectileMotion` 可从发射上下文或相对节点路径读取目标对象/目标位置，并按通用速度朝目标推进。`GFProjectileLifetimePolicy` 默认支持按最大秒数、最大距离和成功命中次数结束；需要对象池时，把 `queue_free_on_finish` 设为 `false`，在 `projectile_finished` 信号中归还节点即可。
+
+```gdscript
+var projectile := GFProjectile2D.new()
+projectile.hit_id = &"arrow"
+projectile.payload = { "amount": 12 }
+projectile.queue_free_on_finish = false
+
+var motion := GFLinearProjectileMotion.new()
+motion.speed = 480.0
+motion.direction_2d = Vector2.RIGHT
+motion.use_local_direction = true
+projectile.motion = motion
+
+var lifetime := GFProjectileLifetimePolicy.new()
+lifetime.max_seconds = 2.0
+lifetime.max_distance = 900.0
+lifetime.max_impacts = 1
+projectile.lifetime_policy = lifetime
+
+projectile.launch({ "owner_id": "player" })
+```
+
+`motion` 与 `lifetime_policy` 在发射时会收到本次发射的上下文字典。自定义策略应把跨帧数据写入这个字典，而不是写入共享 Resource 字段，避免多个发射体复用同一资源时互相污染状态。追踪移动会读取 `target`、`target_position`、`target_position_2d` 或 `target_position_3d`，并写入 `velocity_2d` / `velocity_3d`、`target_distance_2d` / `target_distance_3d` 和 `target_reached` 等通用调试字段。复杂弹道、分裂、穿透、命中后生成子弹等规则，推荐在项目自己的策略资源、状态机或对象池编排里表达。
+
+### 9. 通用动作与数值槽
 
 当项目需要把“某个效果改变一个数值”抽象成可配置数据时，可以使用 `GFCombatAction`、`GFCombatActionModifier`、`GFCombatActionResult` 和 `GFCombatGauge`。
 

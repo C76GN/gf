@@ -1,6 +1,7 @@
 # 命令历史与撤销重做
 
-本页拆出 `GFCommandHistoryUtility` 的执行历史、撤销、重做、序列化、恢复和异步操作约束。
+`GFCommandHistoryUtility` 用于管理命令执行历史、撤销、重做、序列化、恢复和异步操作约束。
+
 ## 配合撤销栈实现 Undo/Redo
 
 当你使用了 `GFCommand` 这种严谨模式编码操作指令时，可以接入 GF Framework 提供的 **基于 `GFUndoableCommand` 的撤销重做栈扩展体系**。

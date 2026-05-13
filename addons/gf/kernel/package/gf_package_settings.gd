@@ -370,7 +370,7 @@ static func resolve_package_dependencies(
 
 ## 获取 manifest 依赖图诊断。
 ## @param manifests: 可选 manifest 列表；为空时扫描所有官方与社区包。
-## @return 包含重复 ID、缺失依赖和循环依赖的诊断字典。
+## @return 包含重复 ID、缺失依赖、可选依赖提示和循环依赖的诊断字典。
 static func get_manifest_graph_report(manifests: Array[GFPackageManifest] = []) -> Dictionary:
 	var source_manifests := manifests
 	if source_manifests.is_empty():
@@ -381,6 +381,7 @@ static func get_manifest_graph_report(manifests: Array[GFPackageManifest] = []) 
 	var duplicate_ids := PackedStringArray()
 	var invalid_manifests: Array[Dictionary] = []
 	var missing_dependencies: Array[Dictionary] = []
+	var optional_dependency_warnings: Array[Dictionary] = []
 	var dependency_cycles: Array[PackedStringArray] = []
 
 	for manifest: GFPackageManifest in source_manifests:
@@ -416,6 +417,14 @@ static func get_manifest_graph_report(manifests: Array[GFPackageManifest] = []) 
 					"package_id": manifest.id,
 					"dependency_id": dependency_id,
 				})
+		for optional_dependency_id: String in manifest.optional_dependencies:
+			if _is_builtin_package_id(optional_dependency_id):
+				continue
+			if not manifest_by_id.has(optional_dependency_id):
+				optional_dependency_warnings.append({
+					"package_id": manifest.id,
+					"dependency_id": optional_dependency_id,
+				})
 
 	var resolved: Dictionary = {}
 	var visiting: Dictionary = {}
@@ -440,9 +449,11 @@ static func get_manifest_graph_report(manifests: Array[GFPackageManifest] = []) 
 		"ok": issue_count == 0,
 		"package_count": manifest_by_id.size(),
 		"issue_count": issue_count,
+		"warning_count": optional_dependency_warnings.size(),
 		"duplicate_ids": duplicate_ids,
 		"invalid_manifests": invalid_manifests,
 		"missing_dependencies": missing_dependencies,
+		"optional_dependency_warnings": optional_dependency_warnings,
 		"dependency_cycles": dependency_cycles,
 	}
 
@@ -462,6 +473,7 @@ static func get_package_selection_report() -> Dictionary:
 		"resolved_ids": resolved_ids,
 		"unknown_enabled_ids": unknown_enabled_ids,
 		"missing_dependencies": graph_report.get("missing_dependencies", []),
+		"optional_dependency_warnings": graph_report.get("optional_dependency_warnings", []),
 		"dependency_cycles": graph_report.get("dependency_cycles", []),
 		"duplicate_ids": graph_report.get("duplicate_ids", PackedStringArray()),
 		"invalid_manifests": graph_report.get("invalid_manifests", []),

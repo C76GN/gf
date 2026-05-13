@@ -1,6 +1,6 @@
 # Foundation 标签、公式、序列化与结果报告
 
-本页拆出 Standard Foundation 中的数据描述、规则表达、Variant 处理、校验报告和结果字典能力。
+这些 Foundation 能力用于标签查询、公式规则、Variant 处理、校验报告和结果字典等通用数据流程。
 
 ## `GFTagSet` / `GFTagQuery` / `GFTagSourceAdapter`
 

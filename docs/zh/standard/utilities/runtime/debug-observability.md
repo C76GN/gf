@@ -1,6 +1,7 @@
 # 调试、日志、诊断与控制台
 
-本页拆出标准库中用于开发期观测、日志、构建信息、支持报告、通知和控制台的能力。
+这些工具为开发期观测、运行时日志、构建信息、支持报告、通知队列和控制台提供统一入口。
+
 ## 调试绘制命令缓冲 (`GFDebugDrawUtility`)
 
 `GFDebugDrawUtility` 用于在开发期收集 2D/3D 调试绘制命令，例如路径、范围、碰撞盒、文本标注。它只维护命令、频道和生命周期，不规定具体 Overlay 或渲染节点：
@@ -192,6 +193,23 @@ var snapshot := diagnostics.collect_snapshot({
 })
 var performance := diagnostics.execute_command(&"diagnostics.performance")
 var tools := diagnostics.execute_command(&"diagnostics.tools")
+```
+
+需要在运行时查看当前场景结构时，可显式采集只读场景树快照。它只记录节点名、类型、路径、可选脚本路径和子节点摘要，不读取任意属性、不调用业务方法，也不修改节点：
+
+```gdscript
+var scene := diagnostics.execute_command(&"diagnostics.scene", {
+	"max_depth": 3,
+	"max_nodes": 128,
+	"include_groups": true,
+})
+
+var snapshot_with_scene := diagnostics.collect_snapshot({
+	"include_scene_tree": true,
+	"scene_tree_options": {
+		"max_depth": 2,
+	},
+})
 ```
 
 诊断快照的 `tools` 字段会聚合已注册模块公开的 `get_debug_snapshot()`，标准库内置读取 `GFBuildInfoUtility`、`GFAssetUtility`、`GFTimerUtility`、`GFRemoteCacheUtility`、`GFDownloadUtility` 和 `GFObjectPoolUtility`。官方包或项目模块如果也想进入诊断快照，应主动调用 `register_tool_snapshot_provider()`、`register_snapshot_section_provider()`、`register_monitor()` 或 `register_command()` 贡献数据；例如 ActionQueue 包贡献 `tools.action_queue` 监控和 `tools.action_queue` 快照，Network 包贡献 `network` 快照分区。`GFDiagnosticsUtility` 不硬编码任何官方包 ID、路径或类型，因此包禁用或删除时不会影响标准库加载。这些快照只表达版本、队列、缓存、pending 数量和运行状态，不解释项目业务含义。编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把运行中节点树的信号、连接、节点索引整理为结构化数据，供项目自己的 GraphEdit、Tree 或诊断面板消费。快照默认可包含构建信息、最近日志、外部贡献分区、URL 派生的缓存状态、工具路径和项目自定义 monitor 输出；如果要暴露给远程调试、玩家可访问控制台或线上 GM 工具，应在项目层做脱敏、白名单过滤和权限控制。

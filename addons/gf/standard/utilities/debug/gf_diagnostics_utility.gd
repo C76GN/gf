@@ -53,6 +53,12 @@ var auth_token: String = ""
 ## 是否允许执行 DANGER 等级命令。即使 max_command_tier 足够，也需要显式开启。
 var allow_danger_commands: bool = false
 
+## 场景树快照默认递归深度。
+var default_scene_tree_max_depth: int = 4
+
+## 场景树快照默认最多采集节点数。
+var default_scene_tree_max_nodes: int = 128
+
 
 # --- 私有变量 ---
 
@@ -75,6 +81,7 @@ func init() -> void:
 	register_command(&"diagnostics.logs", Callable(self, "_command_collect_logs"), "读取最近日志缓存。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.monitors", Callable(self, "_command_collect_monitors"), "采集已注册诊断监控项。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.tools", Callable(self, "_command_collect_tools"), "采集已注册 GF 工具快照。", CommandTier.OBSERVE)
+	register_command(&"diagnostics.scene", Callable(self, "_command_collect_scene"), "采集只读场景树快照。", CommandTier.OBSERVE)
 
 
 func ready() -> void:
@@ -437,7 +444,7 @@ func execute_command(command_name: StringName, args: Dictionary = {}) -> Diction
 
 
 ## 采集运行时诊断快照。
-## @param options: 可选参数，支持 recent_log_count、include_recent_logs。
+## @param options: 可选参数，支持 recent_log_count、include_recent_logs、include_scene_tree、scene_tree_options。
 ## @return 快照字典。
 func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	var snapshot := {
@@ -468,6 +475,10 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 		int(options.get("recent_log_count", default_recent_log_count)),
 		bool(options.get("include_recent_logs", true))
 	)
+
+	if bool(options.get("include_scene_tree", false)):
+		var scene_options := options.get("scene_tree_options", {}) as Dictionary
+		snapshot["scene_tree"] = collect_scene_tree_snapshot(null, scene_options if scene_options != null else {})
 
 	snapshot["tools"] = _collect_tool_debug_snapshots()
 	_collect_registered_snapshot_sections(snapshot)
@@ -526,6 +537,46 @@ func collect_log_snapshot(recent_log_count: int = 20, include_recent_logs: bool 
 	}
 
 
+## 采集只读场景树快照。
+## @param root: 可选根节点；为空时优先使用当前场景，再回退到 Viewport root。
+## @param options: 可选参数，支持 max_depth、max_nodes、include_groups、include_owner_path、include_script_path、include_internal。
+## @return 场景树快照字典。
+func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) -> Dictionary:
+	var target_root := root if root != null else _resolve_scene_tree_root(options)
+	var max_depth := maxi(int(options.get("max_depth", default_scene_tree_max_depth)), 0)
+	var max_nodes := maxi(int(options.get("max_nodes", default_scene_tree_max_nodes)), 1)
+	var normalized_options := {
+		"max_depth": max_depth,
+		"max_nodes": max_nodes,
+		"include_groups": bool(options.get("include_groups", false)),
+		"include_owner_path": bool(options.get("include_owner_path", true)),
+		"include_script_path": bool(options.get("include_script_path", true)),
+		"include_internal": bool(options.get("include_internal", false)),
+	}
+
+	if target_root == null:
+		return {
+			"available": false,
+			"node_count": 0,
+			"truncated": false,
+			"root_path": "",
+			"root": {},
+		}
+
+	var counters := {
+		"count": 0,
+		"truncated": false,
+	}
+	var root_snapshot := _collect_scene_tree_node(target_root, 0, normalized_options, counters)
+	return {
+		"available": true,
+		"node_count": int(counters.get("count", 0)),
+		"truncated": bool(counters.get("truncated", false)),
+		"root_path": _get_node_path_or_empty(target_root),
+		"root": root_snapshot,
+	}
+
+
 # --- 私有/辅助方法 ---
 
 func _bind_console_command() -> void:
@@ -578,6 +629,90 @@ func _command_collect_monitors(args: Dictionary) -> Dictionary:
 
 func _command_collect_tools(_args: Dictionary) -> Dictionary:
 	return _collect_tool_debug_snapshots()
+
+
+func _command_collect_scene(args: Dictionary) -> Dictionary:
+	return collect_scene_tree_snapshot(null, args)
+
+
+func _collect_scene_tree_node(node: Node, depth: int, options: Dictionary, counters: Dictionary) -> Dictionary:
+	counters["count"] = int(counters.get("count", 0)) + 1
+	var include_internal := bool(options.get("include_internal", false))
+	var child_count := node.get_child_count(include_internal)
+	var info := {
+		"name": node.name,
+		"type": node.get_class(),
+		"path": _get_node_path_or_empty(node),
+		"depth": depth,
+		"child_count": child_count,
+		"children": [],
+	}
+
+	if bool(options.get("include_owner_path", true)):
+		info["owner_path"] = _get_node_path_or_empty(node.owner)
+	if bool(options.get("include_script_path", true)):
+		info["script_path"] = _get_node_script_path(node)
+	if bool(options.get("include_groups", false)):
+		info["groups"] = _get_node_group_names(node)
+
+	if depth >= int(options.get("max_depth", default_scene_tree_max_depth)):
+		if child_count > 0:
+			info["depth_limit_reached"] = true
+			counters["truncated"] = true
+		return info
+
+	var children: Array[Dictionary] = []
+	for child_index: int in range(child_count):
+		if int(counters.get("count", 0)) >= int(options.get("max_nodes", default_scene_tree_max_nodes)):
+			info["children_truncated"] = true
+			counters["truncated"] = true
+			break
+
+		var child := node.get_child(child_index, include_internal)
+		children.append(_collect_scene_tree_node(child, depth + 1, options, counters))
+	info["children"] = children
+	return info
+
+
+func _resolve_scene_tree_root(options: Dictionary) -> Node:
+	var root_path := NodePath(String(options.get("root_path", "")))
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+
+	if not root_path.is_empty():
+		var explicit_root := tree.root.get_node_or_null(root_path)
+		if explicit_root != null:
+			return explicit_root
+		if tree.current_scene != null:
+			explicit_root = tree.current_scene.get_node_or_null(root_path)
+			if explicit_root != null:
+				return explicit_root
+
+	return tree.current_scene if tree.current_scene != null else tree.root
+
+
+func _get_node_path_or_empty(node: Node) -> String:
+	if node == null:
+		return ""
+	if node.is_inside_tree():
+		return str(node.get_path())
+	return String(node.name)
+
+
+func _get_node_script_path(node: Node) -> String:
+	var script := node.get_script() as Script
+	if script == null:
+		return ""
+	return script.resource_path
+
+
+func _get_node_group_names(node: Node) -> PackedStringArray:
+	var groups := PackedStringArray()
+	for group: StringName in node.get_groups():
+		groups.append(String(group))
+	groups.sort()
+	return groups
 
 
 func _register_builtin_monitors() -> void:

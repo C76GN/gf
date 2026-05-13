@@ -1,6 +1,7 @@
 # 纯代码状态机与节点状态机
 
-本页拆出标准库中的纯代码有限状态机和场景树节点状态机。
+标准库提供纯代码有限状态机和场景树节点状态机两种状态组织方式，分别服务逻辑流程和节点生命周期。
+
 ## 分层纯代码有限状态机 (`GFStateMachine`)
 
 Godot 的 `AnimationTree` 更多负责混合状态的视觉控制，如果你需要对游戏底层流程、实体决策或系统阶段做出严谨管理，纯代码基于对象的 `GFStateMachine` 是更合适的核心状态机。
@@ -220,6 +221,14 @@ func _enter(state: GFNodeState, _previous_state: StringName = &"", _args: Dictio
 
 节点状态也支持状态事件分发。`GFNodeStateMachine.dispatch_state_event(event_id, payload, group_name)` 可以指定某个状态组，也可以在 `group_name` 为空时按已注册状态组顺序广播；单个 `GFNodeStateGroup` 会先交给当前状态，再交给暂停栈中的状态。状态脚本重写 `_handle_state_event()` 并返回 `true` 即表示事件已处理。`get_state_snapshot()` 可返回各状态组当前状态、栈、历史、注册状态和黑板副本，适合调试面板或诊断命令消费。
 
-编辑器菜单提供 `工具 > GF > 生成 NodeState` 与 `工具 > GF > 生成 NodeStateMachine` 模板，适合快速建立节点状态脚本。选中 `GFNodeStateMachine` 时，Inspector 会从直接子状态中提供初始状态选择，减少手填状态名带来的拼写错误；该列表读取状态节点导出的 `state_name`，为空时退回节点名，不要求状态脚本声明 `@tool`。
+编辑器菜单提供 `工具 > GF > 生成 NodeState` 与 `工具 > GF > 生成 NodeStateMachine` 模板，适合快速建立节点状态脚本。选中 `GFNodeStateMachine` 时，Inspector 会从直接子状态中提供初始状态选择，减少手填状态名带来的拼写错误；该列表读取状态节点导出的 `state_name`，为空时退回节点名，不要求状态脚本声明 `@tool`。Inspector 也提供结构验证入口，底层使用 `GFNodeStateMachineValidator` 返回 `GFValidationReport`，会检查空状态机、重复状态组、同组重复状态名、缺失或无效初始状态，以及 `enter_conditions`、`exit_conditions`、`behaviors` 中空槽位或缺少约定方法的资源：
+
+```gdscript
+var report := GFNodeStateMachineValidator.validate_machine($StateMachine)
+if not report.is_ok():
+	print(report.make_summary("Player StateMachine"))
+```
+
+该校验器只检查框架结构是否自洽，不要求项目把状态转移表写进资源，也不会推断“巡逻”“攻击”“死亡”等业务状态是否可达。项目可以在编辑器工具、CI 或自定义诊断命令中复用它；需要更严格规则时，可读取报告中的 `issues` 后叠加项目自己的检查。
 
 ---

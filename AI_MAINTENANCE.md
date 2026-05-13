@@ -25,11 +25,12 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/packages
 - 如果 `kernel` 运行时必须直接识别某个能力，应把最小契约、协议或基础工具放入 `kernel`，再让 `standard` 或包提供具体实现。例如内核识别 `GFTimeProvider`，标准库的 `GFTimeUtility` 只是实现。
 - 可选官方包不能被 `kernel` 或 `standard` 硬 preload、硬编码 `res://addons/gf/packages/official/**` 脚本路径、硬编码 `gf.official.*` 包 ID，或直接引用包内 `class_name`。
 - `standard` 不能主动认识、探测或弱联动任何官方包。需要让标准库能力呈现包信息时，必须由 package 侧依赖 `standard` 的通用注册入口主动贡献，例如向 `GFDiagnosticsUtility` 注册快照、监控项或命令。
-- 官方包之间也不能通过其他官方包的路径、包 ID 或动态脚本探测形成隐藏弱联动；需要协作时使用上层通用协议、显式注册点或项目装配。
+- 官方包之间默认独立；需要硬依赖时必须在 `gf_package.json` 的 `dependencies` 中显式声明，依赖图必须无环，源码只能引用已声明依赖的公开 API。未声明依赖时，不能通过其他官方包的路径、包 ID、`class_name` 或动态脚本探测形成隐藏弱联动。
+- 可选协作只能通过 `optional_dependencies` 元数据、上层通用协议、显式注册点、项目装配或独立 bridge 包表达；`optional_dependencies` 不会自动启用包，也不允许硬引用对方源码。
 - `kernel/editor` 可以承载通用菜单、文件对话框和模板生成器，但不能硬编码 `standard` 或可选包的具体模板类型、基类或包 ID；标准库模板由 `gf_standard_editor_extensions.gd` 注入，可选包模板由包自己的 `editor_action_paths` 注入。
 - 根插件 `addons/gf/plugin.gd` 是组合入口，可以收集标准库编辑器增强并传给 `kernel/editor` 辅助脚本；这个例外不允许扩散到 `addons/gf/kernel/**`。
 - 移动层级边界时，同步更新源码路径、测试、正式文档、`docs/zh/changelog.md` 和 API 摘要；不要留下兼容路径副本造成重复 `class_name` 或 UID 冲突。
-- 修改层级依赖后，必须运行 `tests/gf_core/maintenance/test_layer_boundary_validation.gd`，确保 `kernel` 不引用 `standard` / 官方包具体类型、`kernel` 不硬编码官方包 ID、`standard` 不引用官方包路径、包 ID 或包内类名，官方包之间也没有其他包路径或包 ID 弱联动。
+- 修改层级依赖后，必须运行 `tests/gf_core/maintenance/test_layer_boundary_validation.gd`，确保 `kernel` 不引用 `standard` / 官方包具体类型、`kernel` 不硬编码官方包 ID、`standard` 不引用官方包路径、包 ID 或包内类名，官方包之间的硬引用都能追溯到 manifest 的显式硬依赖。
 - 重命名、移动或移除公开脚本后，必须运行 `tests/gf_core/maintenance/test_gdscript_parse_validation.gd`，确认旧路径和旧公开类名没有残留、公开 `class_name` 没有重复、`.gd.uid` 没有孤儿文件或 UID 冲突。
 
 ## 按变更类型检查文件

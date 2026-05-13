@@ -1,6 +1,7 @@
 # 事件系统
 
-本页拆出 GF 的 Simple Event、Type Event、监听器所有权、派发时序和事件使用边界。
+GF 事件系统提供 Simple Event 与 Type Event 两条通信轨道，并围绕监听器所有权、派发时序和使用边界建立约束。
+
 ## 事件系统
 
 大型项目里，UI、计分板、敌人、任务和战斗模块如果直接互相引用，重构和测试都会变得困难。
@@ -149,4 +150,3 @@ Gf.configure_event_debugging(8, true, 32)
 Gf.send_simple_event(&"ui_opened", { "panel": "inventory" })
 print(Gf.get_event_dispatch_trace())
 ```
-

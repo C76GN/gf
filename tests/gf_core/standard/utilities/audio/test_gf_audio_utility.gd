@@ -47,6 +47,45 @@ class RecordingAudioUtility:
 		return super._play_sfx_stream(stream)
 
 
+class MockAudioBackend:
+	extends GFAudioBackend
+
+	var setup_called: bool = false
+	var disposed: bool = false
+	var played_sfx_paths: PackedStringArray = PackedStringArray()
+	var external_volume: float = -1.0
+
+	func setup(host: Object) -> void:
+		super.setup(host)
+		setup_called = get_host() == host
+
+	func dispose() -> void:
+		disposed = true
+		super.dispose()
+
+	func can_handle_path(path: String, channel: StringName, _context: Dictionary = {}) -> bool:
+		return channel == &"sfx" and path.begins_with("event://")
+
+	func play_sfx_path(path: String, options: Dictionary = {}) -> GFAudioEmitterHandle:
+		played_sfx_paths.append(path)
+		return GFAudioEmitterHandle.new(null, Callable(), &"backend", options)
+
+	func set_bus_volume(bus_name: String, volume_linear: float) -> bool:
+		if bus_name != "External":
+			return false
+		external_volume = volume_linear
+		return true
+
+	func get_bus_volume(bus_name: String) -> float:
+		return external_volume if bus_name == "External" else -1.0
+
+	func get_debug_snapshot() -> Dictionary:
+		return {
+			"played_sfx_count": played_sfx_paths.size(),
+			"disposed": disposed,
+		}
+
+
 func before_each() -> void:
 	var arch := GFArchitecture.new()
 	Gf._architecture = arch # 提早设置引用以便可以使用 Gf 全局代理
@@ -278,6 +317,25 @@ func test_audio_bank_mounter_restores_previous_bank() -> void:
 	assert_true(mounter.unmount(), "卸载应成功。")
 	assert_same(_audio.get_audio_bank(&"scene"), previous_bank, "卸载后应恢复旧音频集合。")
 	mounter.free()
+
+
+func test_audio_backend_can_handle_selected_requests() -> void:
+	var backend := MockAudioBackend.new()
+	_audio.set_audio_backend(backend)
+
+	var handle := _audio.play_sfx_handle("event://ui/click")
+	_audio.set_bus_volume("External", 0.25)
+	var snapshot := _audio.get_debug_snapshot()
+	var backend_snapshot := snapshot["backend_snapshot"] as Dictionary
+
+	assert_true(backend.setup_called, "设置后端时应调用 setup。")
+	assert_not_null(handle, "后端处理 SFX 时应返回句柄。")
+	assert_eq(backend.played_sfx_paths, PackedStringArray(["event://ui/click"]), "声明可处理的路径应交给后端。")
+	assert_almost_eq(_audio.get_bus_volume("External"), 0.25, 0.001, "后端可接管自定义总线音量。")
+	assert_eq(int(backend_snapshot["played_sfx_count"]), 1, "音频工具调试快照应包含后端快照。")
+
+	_audio.clear_audio_backend()
+	assert_true(backend.disposed, "清理后端时应调用 dispose。")
 
 
 func test_play_sfx_clip_2d_creates_spatial_player() -> void:

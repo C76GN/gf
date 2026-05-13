@@ -8,11 +8,13 @@ GF Framework 采用三层稳定结构：
 - `addons/gf/standard`：标准库，放足够通用、稳定、默认随框架理解的基础能力，例如 `foundation`、输入体系、通用运行时工具、状态机、命令、序列和消息支撑。
 - `addons/gf/packages`：包生态入口，放官方包和社区包。
 
-`foundation` 归入 `standard/foundation`。它保持纯算法、纯数据和纯适配职责，不参与 `GFArchitecture` 生命周期注册。
+`foundation` 位于 `standard/foundation`，保持纯算法、纯数据和纯适配职责，不参与 `GFArchitecture` 生命周期注册。
 
 依赖方向必须保持单向：`kernel` 不直接依赖 `standard` 或任何可选包；`standard` 可以依赖 `kernel`；官方包和社区包可以依赖 `kernel`，也可以按需依赖稳定的 `standard` 能力。凡是 `kernel` 必须直接识别的概念，都应收敛为 `kernel` 中的契约或基础设施，再由 `standard` 或包提供具体实现。
 
 这条边界不仅是目录约定，也是加载约定：`kernel` 和 `standard` 都不能硬 preload 官方包脚本、写死 `res://addons/gf/packages/official/**` 资源路径、硬编码 `gf.official.*` 包 ID，或直接使用官方包里的具体 `class_name`。`standard` 不保留任何官方包弱联动白名单；如果某个包希望出现在诊断、Overlay、工具快照或其他标准库通道里，应由包侧依赖 `standard` 的通用注册入口主动贡献能力，而不是让 `standard` 主动探测包。
+
+官方包之间默认独立，但不是永远禁止协作。需要硬引用另一个官方包时，必须把对方写入 `dependencies`，并确保依赖图无环；未声明依赖的官方包不能互相引用路径、包 ID 或 `class_name`。可选增强使用 `optional_dependencies`、扩展点、服务注册、项目装配或独立 bridge 包表达，不能因为“有它更好用”就在核心脚本里硬 preload 对方。
 
 ## 包根目录
 
@@ -61,6 +63,7 @@ addons/gf/packages/official/example/
   "kind": "official",
   "description": "Abstract combat attributes, modifiers, buffs, skills, gauges, and hit detection bridges.",
   "dependencies": ["gf.kernel", "gf.standard"],
+  "optional_dependencies": [],
   "installer_paths": [
     "res://addons/gf/packages/official/combat/package.gd"
   ],
@@ -78,15 +81,17 @@ addons/gf/packages/official/example/
 
 `package_version` 表示包自身版本。官方包必须显式填写该字段，并按包内公开行为独立递增：兼容 bug 修复递增 patch，向后兼容的新公开 API、配置或功能递增 minor，破坏兼容才递增 major。没有发生包内行为变化的官方包，在 GF 发行版本递增时只同步 `version`，不递增 `package_version`。社区包可以省略 `package_version`，省略时工具会回退使用 `version`。
 
+`dependencies` 是硬依赖：启用当前包时，`GFPackageSettings` 会自动补齐这些依赖；官方包源码只有在声明硬依赖后，才允许硬引用对方公开 API。`optional_dependencies` 是软协作提示：它不会自动启用包，不参与依赖闭包，也不允许硬引用对方源码；它只用于包管理器、诊断和文档说明“如果项目同时启用这些包，可以通过扩展点或 bridge 获得增强”。如果两个可选包的组合需要自己的代码，优先做第三个 bridge 包，让 bridge 包通过 `dependencies` 同时依赖两边。
+
 `enabled_by_default`、`installer_paths`、`editor_action_paths`、`editor_dock_paths`、`editor_inspector_paths`、`export_plugin_paths` 与 `access_generator_extension_paths` 可省略。省略时，`official` 与 `standard` 包默认启用，`community` 包默认不启用；没有安装器或编辑器扩展的包可以把对应数组留空。manifest 声明的扩展脚本路径必须位于包根目录内，避免包通过 manifest 越界绑定其他包或项目脚本。
 
 `access_generator_extension_paths` 会被 `GFAccessGenerator` 消费。扩展脚本建议继承 `RefCounted`，并实现 `append_access_source(builder, records)` 直接使用 `GFSourceBuilder` 追加源码；如果只需要返回静态片段，也可以实现 `get_access_source_sections(records)` 并返回字符串数组。扩展只会从当前启用包中读取，因此禁用包不会继续影响新生成的访问器。
 
 `GFPackageManifest` 负责读取和校验 manifest，`GFPackageCatalog` 负责扫描 `packages/official` 与 `packages/community` 下的一层包目录，`GFPackageSettings` 负责读取项目启用状态、查询包是否存在或启用、补齐依赖闭包、收集启用包的 Installer 路径和编辑器扩展路径，并提供按包 ID 解析包内资源或加载启用包脚本的统一入口。这个设计在 Godot 中保持为轻量文件约定，不引入依赖安装器。
 
-`GFPackageSettings` 会缓存一次 manifest 扫描结果，避免编辑器 Inspector、包面板和扩展查询在同一会话里反复读盘；包目录发生变化时可调用 `clear_manifest_cache()` 刷新。依赖补齐会检测循环依赖并停止递归，`get_manifest_graph_report()` 可一次性报告重复包 ID、缺失依赖、无效 manifest 与依赖环。`gf.kernel` 和 `gf.standard` 是允许声明的内置依赖 ID，它们不是可启停包目录。
+`GFPackageSettings` 会缓存一次 manifest 扫描结果，避免编辑器 Inspector、包面板和扩展查询在同一会话里反复读盘；包目录发生变化时可调用 `clear_manifest_cache()` 刷新。依赖补齐会检测循环依赖并停止递归，`get_manifest_graph_report()` 可一次性报告重复包 ID、缺失硬依赖、缺失可选依赖提示、无效 manifest 与依赖环。`gf.kernel` 和 `gf.standard` 是允许声明的内置依赖 ID，它们不是可启停包目录。
 
-官方包默认只声明 `gf.kernel` 与 `gf.standard`。官方包之间如果需要联动，应通过动作协议、运行时接口或用户显式注册来完成；不要让一个可选包硬绑定另一个可选包，也不要把这种联动上推到 `standard`。
+官方包默认只声明 `gf.kernel` 与 `gf.standard`。只有当一个包没有另一个包就无法提供自身核心能力时，才声明官方包硬依赖；只是“同时启用时体验更好”的关系，应保持为软协作、项目装配或 bridge 包。这样既允许 `dialogue -> flow` 这类真实依赖，也避免把所有官方包粘成一个不可拆的大包。
 
 ## 安装与装配
 

@@ -141,11 +141,16 @@ func test_standard_does_not_reference_official_package_ids() -> void:
 	)
 
 
-func test_official_packages_do_not_reference_other_official_packages() -> void:
+func test_official_packages_only_reference_declared_official_dependencies() -> void:
 	var package_names := _collect_immediate_directory_names(OFFICIAL_PACKAGES_ROOT)
+	var manifest_by_package_name := _collect_official_manifest_by_package_name(package_names)
 	var issues: Array[String] = []
 	for package_name: String in package_names:
 		var package_root := OFFICIAL_PACKAGES_ROOT.path_join(package_name)
+		var allowed_package_names := _get_declared_official_dependency_names(
+			package_name,
+			manifest_by_package_name
+		)
 		var files: Array[String] = []
 		_collect_gd_files(package_root, files)
 		for path: String in files:
@@ -155,15 +160,15 @@ func test_official_packages_do_not_reference_other_official_packages() -> void:
 					continue
 				var other_package_path := "addons/gf/packages/official/%s" % other_package_name
 				var other_package_id := "gf.official.%s" % other_package_name
-				if source.contains(other_package_path):
+				if source.contains(other_package_path) and not allowed_package_names.has(other_package_name):
 					issues.append("%s references %s" % [path, other_package_path])
-				if source.contains(other_package_id):
+				if source.contains(other_package_id) and not allowed_package_names.has(other_package_name):
 					issues.append("%s references %s" % [path, other_package_id])
 
 	assert_eq(
 		issues,
 		[],
-		"官方包之间不能通过包路径或包 ID 隐式弱联动；需要协作时使用上层通用协议、显式注册或项目装配。"
+		"官方包之间只能硬引用 manifest.dependencies 中声明的官方依赖；可选协作应使用协议、显式注册或 bridge 包。"
 	)
 
 
@@ -204,6 +209,41 @@ func _collect_immediate_directory_names(root_path: String) -> Array[String]:
 	return result
 
 
+func _collect_official_manifest_by_package_name(package_names: Array[String]) -> Dictionary:
+	var result: Dictionary = {}
+	for package_name: String in package_names:
+		var manifest_path := OFFICIAL_PACKAGES_ROOT.path_join(package_name).path_join("gf_package.json")
+		var manifest_data := _read_json_dictionary(manifest_path)
+		if manifest_data.is_empty():
+			continue
+		result[package_name] = manifest_data
+	return result
+
+
+func _get_declared_official_dependency_names(
+	package_name: String,
+	manifest_by_package_name: Dictionary
+) -> Array[String]:
+	var result: Array[String] = []
+	var manifest_data := manifest_by_package_name.get(package_name, {}) as Dictionary
+	if manifest_data == null:
+		return result
+
+	var dependencies := manifest_data.get("dependencies", []) as Array
+	if dependencies == null:
+		return result
+
+	for dependency_variant: Variant in dependencies:
+		var dependency_id := String(dependency_variant)
+		for other_package_name: String in manifest_by_package_name.keys():
+			var other_data := manifest_by_package_name[other_package_name] as Dictionary
+			if other_data == null:
+				continue
+			if String(other_data.get("id", "")) == dependency_id:
+				result.append(other_package_name)
+	return result
+
+
 func _read_text(path: String) -> String:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
@@ -211,6 +251,17 @@ func _read_text(path: String) -> String:
 	var text := file.get_as_text()
 	file.close()
 	return text
+
+
+func _read_json_dictionary(path: String) -> Dictionary:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var parsed: Variant = JSON.parse_string(file.get_as_text())
+	file.close()
+	if parsed is Dictionary:
+		return parsed
+	return {}
 
 
 func _collect_class_names(root_path: String) -> Array[String]:

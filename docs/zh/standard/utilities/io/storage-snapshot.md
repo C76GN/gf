@@ -118,4 +118,4 @@ snapshots.step_back()
 
 插件启用后也会提供 `GF Save Viewer` Dock。它由标准库中的 `GFStorageViewerDock` 承载，用于按 codec 选项查看本地存档内容、校验状态并复制 JSON，方便调试而不绑定任何项目业务结构。
 
-如果需要采集和恢复场景树节点状态，使用官方 Save 包的 `GFSaveGraphUtility` / `GFSaveScope`。本页只说明标准库的本地读写、编码、同步和快照能力；SaveGraph 的节点序列化器、槽位工作流和 pipeline trace 见 [Save 场景存档图](../../../packages/save-graph/index.md)。
+如果需要采集和恢复场景树节点状态，使用官方 Save 包的 `GFSaveGraphUtility` / `GFSaveScope`。标准库文档聚焦本地读写、编码、同步和快照能力；SaveGraph 的节点序列化器、槽位工作流和 pipeline trace 见 [Save 场景存档图](../../../packages/save-graph/index.md)。

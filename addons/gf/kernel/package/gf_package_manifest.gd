@@ -49,6 +49,9 @@ var description: String = ""
 ## 依赖的包 ID 列表。
 var dependencies: Array[String] = []
 
+## 可选协作包 ID 列表。仅用于提示和工具展示，不会自动启用，也不允许硬引用。
+var optional_dependencies: Array[String] = []
+
 ## 可选 GFInstaller 路径列表。需要自动装配运行时模块时使用。
 var installer_paths: Array[String] = []
 
@@ -104,6 +107,7 @@ static func from_dictionary(
 	manifest.root_path = package_root_path
 	manifest.description = String(data.get("description", data.get("summary", "")))
 	manifest.dependencies = _to_string_array(data.get("dependencies", []))
+	manifest.optional_dependencies = _to_string_array(data.get("optional_dependencies", []))
 	manifest.installer_paths = _to_string_array(data.get("installer_paths", []))
 	manifest.editor_action_paths = _to_string_array(data.get("editor_action_paths", []))
 	manifest.editor_dock_paths = _to_string_array(data.get("editor_dock_paths", []))
@@ -151,6 +155,7 @@ func to_dictionary() -> Dictionary:
 		"root_path": root_path,
 		"description": description,
 		"dependencies": dependencies.duplicate(),
+		"optional_dependencies": optional_dependencies.duplicate(),
 		"installer_paths": installer_paths.duplicate(),
 		"editor_action_paths": editor_action_paths.duplicate(),
 		"editor_dock_paths": editor_dock_paths.duplicate(),

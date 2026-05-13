@@ -61,7 +61,7 @@ static_body.add_child(pointer)
 
 ## 与 Action Queue 的关系
 
-反馈包只负责采样和应用反馈偏移；表现队列的主说明归 [ActionQueue 表现动作队列](../action-queue/index.md)。如果需要把反馈纳入队列，可使用 `GFShakeAction`，但 ActionQueue 的命名队列、拦截器、Tween 配置和常见动作工厂不在本页重复展开。
+反馈包只负责采样和应用反馈偏移；表现队列的完整说明见 [ActionQueue 表现动作队列](../action-queue/index.md)。如果需要把反馈纳入队列，可使用 `GFShakeAction`，但 ActionQueue 的命名队列、拦截器、Tween 配置和常见动作工厂由 ActionQueue 页面统一维护。
 
 
 ## 通用反馈采样 (`GFShakePreset` / `GFShakeUtility`)

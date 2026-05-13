@@ -42,6 +42,61 @@ func test_commit_cell_value_updates_resource_and_emits_signal() -> void:
 	assert_signal_emitted(editor, "cell_value_committed", "提交后应发出变更信号。")
 
 
+func test_resource_table_search_filters_visible_rows_and_commits_visible_cell() -> void:
+	var first := TableResource.new()
+	first.label = "Alpha"
+	first.amount = 1
+	var second := TableResource.new()
+	second.label = "Beta"
+	second.amount = 2
+	var editor := GFResourceTableEditor.new()
+	add_child_autofree(editor)
+
+	editor.load_resources([first, second], [{
+		"name": &"label",
+		"type": TYPE_STRING,
+	}, {
+		"name": &"amount",
+		"type": TYPE_INT,
+	}])
+	editor.set_search_text("bet")
+	var visible_rows := editor.get_visible_row_indices()
+
+	assert_eq(visible_rows, PackedInt32Array([1]), "搜索应只显示匹配的原始资源行。")
+	assert_true(editor.commit_visible_cell_value(0, &"amount", 5), "可见行提交应映射到原始资源。")
+	assert_eq(second.amount, 5, "可见行提交应更新匹配资源。")
+
+
+func test_resource_table_supports_sort_duplicate_move_and_remove() -> void:
+	var first := TableResource.new()
+	first.label = "First"
+	first.amount = 2
+	var second := TableResource.new()
+	second.label = "Second"
+	second.amount = 1
+	var editor := GFResourceTableEditor.new()
+	add_child_autofree(editor)
+	watch_signals(editor)
+	editor.load_resources([first, second], [{
+		"name": &"amount",
+		"type": TYPE_INT,
+	}])
+
+	editor.sort_by_property(&"amount")
+	var sorted := editor.get_resources()
+	var duplicated_resource := editor.duplicate_resource(0)
+	assert_true(editor.move_resource(2, 1), "资源应可移动到指定位置。")
+	var removed := editor.remove_resource(0)
+
+	assert_same(sorted[0], second, "排序应按属性升序排列。")
+	assert_not_null(duplicated_resource, "复制资源应返回新 Resource。")
+	assert_eq((duplicated_resource as TableResource).amount, second.amount, "复制资源应保留字段值。")
+	assert_same(removed, second, "移除应返回被移除的资源。")
+	assert_signal_emitted(editor, "resources_reordered", "排序或移动后应发出重排信号。")
+	assert_signal_emitted(editor, "resource_inserted", "复制资源后应发出插入信号。")
+	assert_signal_emitted(editor, "resource_removed", "移除资源后应发出移除信号。")
+
+
 func test_editor_value_field_keeps_value_when_json_is_invalid() -> void:
 	var field := GFEditorValueField.new()
 	add_child_autofree(field)

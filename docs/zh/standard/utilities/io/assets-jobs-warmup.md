@@ -1,6 +1,7 @@
 # 资源加载、下载、任务队列与预热
 
-本页拆出标准库中和资源生命周期、下载队列、任务队列、渲染预热相关的 Utility。
+这些 Utility 覆盖资源生命周期、下载队列、任务队列和渲染预热等 IO 与后台工作流程。
+
 ## 异步按需加载缓存池 (`GFAssetUtility`)
 
 **应用场景：** 当项目需要按需加载特效、图标、UI 面板或关卡资源，并希望统一处理缓存、并发请求、取消和调试快照时，可以使用 `GFAssetUtility`。
@@ -142,4 +143,3 @@ warmup.warmup_manifest_now(manifest)
 外部工具如果需要先清洗或检查条目字典，可以调用 `GFRenderWarmupManifest.normalize_entry(entry)`，得到包含 `resource_path`、`resource`、`kind`、`type_hint` 和独立 `metadata` 副本的规范化结构；预热队列内部也使用同一套规则。
 
 `keep_resources_cached` 默认会保留已加载资源引用，避免刚预热完就被释放；需要释放时调用 `release_cached_resources()`。`instantiate_packed_scenes` 默认关闭，因为实例化场景可能触发项目脚本副作用；只有当项目明确需要扫描 PackedScene 内部渲染资源时才开启。预热工具不保证消除所有驱动层 shader 编译成本，它提供的是一个稳定、可诊断、可分批的资源准备边界。
-

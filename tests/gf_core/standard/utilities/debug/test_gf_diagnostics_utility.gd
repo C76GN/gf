@@ -11,6 +11,36 @@ func test_diagnostics_command_executes() -> void:
 
 	assert_true(bool(result["ok"]), "内置性能诊断命令应执行成功。")
 	assert_true((result["value"] as Dictionary).has("fps"), "性能快照应包含 fps。")
+	assert_true(diagnostics.has_command(&"diagnostics.scene"), "Diagnostics 应注册只读场景树快照命令。")
+
+
+## 验证场景树快照只采集结构摘要并遵守深度限制。
+func test_diagnostics_collects_read_only_scene_tree_snapshot() -> void:
+	var root := Node.new()
+	root.name = "Root"
+	var child := Node.new()
+	child.name = "Child"
+	var grandchild := Node.new()
+	grandchild.name = "Grandchild"
+	root.add_child(child)
+	child.add_child(grandchild)
+	add_child_autofree(root)
+
+	var diagnostics := GFDiagnosticsUtility.new()
+	var snapshot := diagnostics.collect_scene_tree_snapshot(root, {
+		"max_depth": 1,
+		"max_nodes": 8,
+		"include_groups": true,
+	})
+	var root_data := snapshot["root"] as Dictionary
+	var children := root_data["children"] as Array
+	var child_data := children[0] as Dictionary
+
+	assert_true(bool(snapshot["available"]), "传入根节点时场景树快照应可用。")
+	assert_eq(String(root_data["name"]), "Root", "快照应记录节点名称。")
+	assert_eq(String(child_data["name"]), "Child", "快照应记录直接子节点。")
+	assert_true(bool(child_data.get("depth_limit_reached", false)), "超过深度的子树应只标记截断，不继续展开。")
+	assert_true(bool(snapshot["truncated"]), "达到深度限制时顶层快照应标记截断。")
 
 
 ## 验证诊断命令等级默认只允许观察类命令。

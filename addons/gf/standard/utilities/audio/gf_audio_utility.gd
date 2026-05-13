@@ -61,6 +61,7 @@ var _ambient_players: Dictionary = {}
 var _ambient_request_serials: Dictionary = {}
 var _audio_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _audio_banks: Dictionary = {}
+var _audio_backend: GFAudioBackend = null
 
 
 # --- Godot 生命周期方法 ---
@@ -101,6 +102,7 @@ func dispose() -> void:
 	_bgm_request_serial += 1
 	_bgm_fade_serial += 1
 	_sfx_lifecycle_serial += 1
+	_clear_audio_backend(true)
 	_release_all_sfx_players()
 	_free_all_ambient_players()
 	if is_instance_valid(_bgm_player):
@@ -123,6 +125,13 @@ func play_bgm(path: String, crossfade_seconds: float = -1.0) -> void:
 	var request_serial := _bgm_request_serial
 	if path.is_empty():
 		stop_bgm(crossfade_seconds)
+		return
+
+	if _try_backend_play_bgm_path(path, {
+		"crossfade_seconds": _resolve_bgm_crossfade_seconds(crossfade_seconds),
+		"history_key": path,
+	}):
+		_record_bgm_history(path)
 		return
 		
 	var asset_util := _get_asset_util()
@@ -148,6 +157,17 @@ func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -> void:
 	var volume_db := clip.volume_db
 	var pitch_scale := clip.resolve_pitch(_audio_rng)
 	var history_key := _get_clip_history_key(clip)
+	var backend_options := {
+		"crossfade_seconds": _resolve_bgm_crossfade_seconds(crossfade_seconds),
+		"bus_name": bus_name,
+		"volume_db": volume_db,
+		"pitch_scale": pitch_scale,
+		"history_key": history_key,
+	}
+
+	if _try_backend_play_bgm_clip(clip, backend_options):
+		_record_bgm_history(history_key)
+		return
 
 	if clip.stream != null:
 		_apply_bgm_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale, crossfade_seconds, history_key)
@@ -197,6 +217,8 @@ func play_bgm_event(
 ## 停止当前 BGM。
 ## @param fade_seconds: 淡出秒数。
 func stop_bgm(fade_seconds: float = 0.0) -> void:
+	if _audio_backend != null:
+		_audio_backend.stop_bgm(maxf(fade_seconds, 0.0))
 	_bgm_fade_serial += 1
 	_current_bgm_key = ""
 	if is_instance_valid(_bgm_player):
@@ -253,6 +275,29 @@ func get_audio_bank(bank_id: StringName) -> GFAudioBank:
 	return _audio_banks.get(bank_id) as GFAudioBank
 
 
+## 设置可插拔音频后端。传入 null 时恢复默认 Godot 播放路径。
+## @param backend: 音频后端。
+func set_audio_backend(backend: GFAudioBackend) -> void:
+	if _audio_backend == backend:
+		return
+	_clear_audio_backend(true)
+	_audio_backend = backend
+	if _audio_backend != null:
+		_audio_backend.setup(self)
+
+
+## 获取当前音频后端。
+## @return 音频后端；未设置时返回 null。
+func get_audio_backend() -> GFAudioBackend:
+	return _audio_backend
+
+
+## 清除当前音频后端。
+## @param dispose_backend: 是否调用后端 dispose()。
+func clear_audio_backend(dispose_backend: bool = true) -> void:
+	_clear_audio_backend(dispose_backend)
+
+
 ## 播放环境音。
 ## @param path: 音频资源路径。
 ## @param channel: 环境音通道。
@@ -260,6 +305,14 @@ func get_audio_bank(bank_id: StringName) -> GFAudioBank:
 func play_ambient(path: String, channel: StringName = &"default", fade_seconds: float = 0.0) -> void:
 	if path.is_empty():
 		stop_ambient(channel, fade_seconds)
+		return
+
+	if _try_backend_play_ambient_path(path, channel, {
+		"fade_seconds": maxf(fade_seconds, 0.0),
+		"bus_name": BGM_BUS_NAME,
+		"volume_db": 0.0,
+		"pitch_scale": 1.0,
+	}):
 		return
 
 	var request_serial := _next_ambient_request_serial(channel)
@@ -289,6 +342,15 @@ func play_ambient_clip(
 	var bus_name := clip.resolve_bus(BGM_BUS_NAME)
 	var volume_db := clip.volume_db
 	var pitch_scale := clip.resolve_pitch(_audio_rng)
+	var backend_options := {
+		"fade_seconds": maxf(fade_seconds, 0.0),
+		"bus_name": bus_name,
+		"volume_db": volume_db,
+		"pitch_scale": pitch_scale,
+	}
+
+	if _try_backend_play_ambient_clip(clip, channel, backend_options):
+		return
 
 	if clip.stream != null:
 		_apply_ambient_request(request_serial, channel, clip.stream, bus_name, volume_db, pitch_scale, fade_seconds)
@@ -339,6 +401,8 @@ func play_ambient_event(
 ## @param channel: 环境音通道。
 ## @param fade_seconds: 淡出秒数。
 func stop_ambient(channel: StringName = &"default", fade_seconds: float = 0.0) -> void:
+	if _audio_backend != null:
+		_audio_backend.stop_ambient(channel, maxf(fade_seconds, 0.0))
 	_next_ambient_request_serial(channel)
 	var player := _ambient_players.get(channel) as AudioStreamPlayer
 	if player != null:
@@ -348,6 +412,8 @@ func stop_ambient(channel: StringName = &"default", fade_seconds: float = 0.0) -
 ## 停止所有环境音通道。
 ## @param fade_seconds: 淡出秒数。
 func stop_all_ambient(fade_seconds: float = 0.0) -> void:
+	if _audio_backend != null:
+		_audio_backend.stop_all_ambient(maxf(fade_seconds, 0.0))
 	var channels := _ambient_players.keys()
 	for channel_variant: Variant in channels:
 		stop_ambient(StringName(channel_variant), fade_seconds)
@@ -357,6 +423,8 @@ func stop_all_ambient(fade_seconds: float = 0.0) -> void:
 ## @param channel: 环境音通道。
 ## @return 正在播放时返回 true。
 func is_ambient_playing(channel: StringName = &"default") -> bool:
+	if _audio_backend != null and _audio_backend.is_ambient_playing(channel):
+		return true
 	var player := _ambient_players.get(channel) as AudioStreamPlayer
 	return is_instance_valid(player) and player.playing
 
@@ -373,6 +441,14 @@ func play_sfx(path: String) -> void:
 func play_sfx_handle(path: String) -> GFAudioEmitterHandle:
 	if path.is_empty():
 		return null
+
+	var backend_handle := _try_backend_play_sfx_path(path, {
+		"bus_name": SFX_BUS_NAME,
+		"volume_db": 0.0,
+		"pitch_scale": 1.0,
+	})
+	if backend_handle != null:
+		return backend_handle
 
 	var handle := GFAudioEmitterHandle.new(null, Callable(self, "_release_sfx_player"))
 	var request_serial := _sfx_lifecycle_serial
@@ -405,6 +481,13 @@ func play_sfx_clip_handle(clip: GFAudioClip) -> GFAudioEmitterHandle:
 	var bus_name := clip.resolve_bus(SFX_BUS_NAME)
 	var volume_db := clip.volume_db
 	var pitch_scale := clip.resolve_pitch(_audio_rng)
+	var backend_handle := _try_backend_play_sfx_clip(clip, {
+		"bus_name": bus_name,
+		"volume_db": volume_db,
+		"pitch_scale": pitch_scale,
+	})
+	if backend_handle != null:
+		return backend_handle
 
 	if clip.stream != null:
 		_apply_sfx_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale, handle)
@@ -544,6 +627,12 @@ func play_sfx_clip_2d_handle(
 	source: Node2D,
 	follow_source: bool = false
 ) -> GFAudioEmitterHandle:
+	var backend_handle := _try_backend_play_spatial_sfx_clip(clip, source, follow_source, {
+		"space": "2d",
+	})
+	if backend_handle != null:
+		return backend_handle
+
 	var player := _play_spatial_sfx_clip(clip, source, follow_source)
 	if player == null:
 		return null
@@ -576,6 +665,12 @@ func play_sfx_clip_3d_handle(
 	source: Node3D,
 	follow_source: bool = false
 ) -> GFAudioEmitterHandle:
+	var backend_handle := _try_backend_play_spatial_sfx_clip(clip, source, follow_source, {
+		"space": "3d",
+	})
+	if backend_handle != null:
+		return backend_handle
+
 	var player := _play_spatial_sfx_clip(clip, source, follow_source)
 	if player == null:
 		return null
@@ -599,6 +694,9 @@ func get_ambient_handle(channel: StringName = &"default") -> GFAudioEmitterHandl
 ## @param bus_name: 总线名称，如 "Master", "BGM", "SFX"
 ## @param volume_linear: 线性音量 (0.0 到 1.0)
 func set_bus_volume(bus_name: String, volume_linear: float) -> void:
+	if _audio_backend != null and _audio_backend.set_bus_volume(bus_name, volume_linear):
+		return
+
 	var bus_idx := AudioServer.get_bus_index(bus_name)
 	if bus_idx >= 0:
 		if volume_linear <= 0.0:
@@ -616,6 +714,11 @@ func set_bus_volume(bus_name: String, volume_linear: float) -> void:
 ## @param bus_name: 总线名称
 ## @return 线性音量 (0.0 到 1.0)
 func get_bus_volume(bus_name: String) -> float:
+	if _audio_backend != null:
+		var backend_volume := _audio_backend.get_bus_volume(bus_name)
+		if backend_volume >= 0.0:
+			return backend_volume
+
 	var bus_idx := AudioServer.get_bus_index(bus_name)
 	if bus_idx >= 0:
 		if AudioServer.is_bus_mute(bus_idx):
@@ -624,7 +727,113 @@ func get_bus_volume(bus_name: String) -> float:
 	return 0.0
 
 
+## 获取音频工具调试快照。
+## @return 调试快照。
+func get_debug_snapshot() -> Dictionary:
+	_prune_inactive_sfx_players()
+	var ambient_channels := PackedStringArray()
+	for channel_variant: Variant in _ambient_players.keys():
+		var channel := String(channel_variant)
+		if is_ambient_playing(StringName(channel)):
+			ambient_channels.append(channel)
+	ambient_channels.sort()
+
+	var backend_snapshot := {}
+	var backend_name := ""
+	if _audio_backend != null:
+		var backend_script := _audio_backend.get_script() as Script
+		backend_name = backend_script.resource_path if backend_script != null else _audio_backend.get_class()
+		backend_snapshot = _audio_backend.get_debug_snapshot()
+
+	return {
+		"backend": backend_name,
+		"backend_snapshot": backend_snapshot,
+		"current_bgm_key": _current_bgm_key,
+		"bgm_history": get_bgm_history(),
+		"active_sfx_count": _active_sfx_players.size(),
+		"max_sfx_players": max_sfx_players,
+		"ambient_channels": ambient_channels,
+		"audio_bank_count": _audio_banks.size(),
+	}
+
+
 # --- 私有辅助方法 ---
+
+func _clear_audio_backend(dispose_backend: bool) -> void:
+	if _audio_backend == null:
+		return
+	if dispose_backend:
+		_audio_backend.dispose()
+	_audio_backend = null
+
+
+func _try_backend_play_bgm_path(path: String, options: Dictionary) -> bool:
+	if _audio_backend == null:
+		return false
+	if not _audio_backend.can_handle_path(path, &"bgm", options):
+		return false
+	return _audio_backend.play_bgm_path(path, options)
+
+
+func _try_backend_play_bgm_clip(clip: GFAudioClip, options: Dictionary) -> bool:
+	if _audio_backend == null:
+		return false
+	if not _audio_backend.can_handle_clip(clip, &"bgm", options):
+		return false
+	return _audio_backend.play_bgm_clip(clip, options)
+
+
+func _try_backend_play_ambient_path(path: String, channel: StringName, options: Dictionary) -> bool:
+	if _audio_backend == null:
+		return false
+	var context := options.duplicate(true)
+	context["ambient_channel"] = channel
+	if not _audio_backend.can_handle_path(path, &"ambient", context):
+		return false
+	return _audio_backend.play_ambient_path(path, channel, options)
+
+
+func _try_backend_play_ambient_clip(clip: GFAudioClip, channel: StringName, options: Dictionary) -> bool:
+	if _audio_backend == null:
+		return false
+	var context := options.duplicate(true)
+	context["ambient_channel"] = channel
+	if not _audio_backend.can_handle_clip(clip, &"ambient", context):
+		return false
+	return _audio_backend.play_ambient_clip(clip, channel, options)
+
+
+func _try_backend_play_sfx_path(path: String, options: Dictionary) -> GFAudioEmitterHandle:
+	if _audio_backend == null:
+		return null
+	if not _audio_backend.can_handle_path(path, &"sfx", options):
+		return null
+	return _audio_backend.play_sfx_path(path, options)
+
+
+func _try_backend_play_sfx_clip(clip: GFAudioClip, options: Dictionary) -> GFAudioEmitterHandle:
+	if _audio_backend == null:
+		return null
+	if not _audio_backend.can_handle_clip(clip, &"sfx", options):
+		return null
+	return _audio_backend.play_sfx_clip(clip, options)
+
+
+func _try_backend_play_spatial_sfx_clip(
+	clip: GFAudioClip,
+	source: Node,
+	follow_source: bool,
+	options: Dictionary
+) -> GFAudioEmitterHandle:
+	if _audio_backend == null:
+		return null
+	var context := options.duplicate(true)
+	context["follow_source"] = follow_source
+	context["source"] = source
+	if not _audio_backend.can_handle_clip(clip, &"spatial_sfx", context):
+		return null
+	return _audio_backend.play_spatial_sfx_clip(clip, source, follow_source, options)
+
 
 func _get_registered_clip(event_id: StringName, bank_id: StringName = &"") -> GFAudioClip:
 	if event_id == &"":

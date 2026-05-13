@@ -1,6 +1,7 @@
 # 时间、信号与对象池
 
-本页拆出运行时基础服务中最常被系统层复用的时间、信号和对象池能力。
+这一组运行时基础服务面向系统层常见的延迟计时、信号桥接和对象复用需求。
+
 ## 纯逻辑延迟定时器 (`GFTimerUtility`)
 
 **应用场景：** Godot 的 `get_tree().create_timer(1.0).timeout` 与场景树绑定。如果等待期间切换场景，临时节点或控制器容易留下失效回调。需要受 `GFTimeUtility` 控制、可按 owner 自动清理的逻辑计时时，使用 `GFTimerUtility`。
@@ -109,4 +110,3 @@ func on_gf_pool_acquire() -> void:
 ```
 
 归还时节点会被移动到内部 `GFObjectPoolRoot`，并恢复/关闭 `process_mode`、`CanvasItem.visible` 和常见 `disabled` 属性；`manage_descendant_active_state` 控制是否递归处理子节点。`release()` 会校验节点是否确实来自对应池，避免把外部节点或其他 `PackedScene` 的实例混入。继承 `GFController` 的池化节点会在归还或预热时自动暂停由基类 `register_event()` / `register_simple_event()` 记录的事件监听，并在再次 `acquire()` 后恢复；这避免 `_ready()` 只执行一次的控制器复用后丢监听，也避免休眠节点继续接收事件。默认 `prune_invalid_on_each_operation = true` 会在高频接口前清理已释放节点引用，换取更稳的计数；极端热路径可在项目层确认生命周期后关闭，并在低频点主动调用 `prune_invalid_nodes()`。`get_available_count()`、`get_active_count()`、`get_debug_snapshot()` 可用于调试池容量。
-

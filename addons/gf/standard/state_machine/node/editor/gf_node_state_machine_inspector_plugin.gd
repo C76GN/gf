@@ -8,6 +8,7 @@ extends EditorInspectorPlugin
 
 const GF_NODE_STATE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
 const GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
+const GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
 
 
 # --- Godot 回调方法 ---
@@ -46,6 +47,20 @@ func _parse_begin(object: Object) -> void:
 	row.add_child(option)
 	_populate_initial_state_options(option, target)
 	option.item_selected.connect(_on_initial_state_selected.bind(option, target), CONNECT_DEFERRED)
+
+	var separator := HSeparator.new()
+	root.add_child(separator)
+
+	var validate_button := Button.new()
+	validate_button.text = "验证状态机结构"
+	validate_button.tooltip_text = "检查状态名、初始状态和条件/行为资源挂接。"
+	root.add_child(validate_button)
+
+	var report_label := Label.new()
+	report_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	report_label.modulate = Color(0.8, 0.8, 0.8)
+	root.add_child(report_label)
+	validate_button.pressed.connect(_on_validate_pressed.bind(report_label, target), CONNECT_DEFERRED)
 
 
 # --- 私有/辅助方法 ---
@@ -121,6 +136,37 @@ func _set_initial_state(target: Node, state_name: StringName) -> void:
 	undo_redo.commit_action()
 
 
+func _update_validation_report(label: Label, target: Node) -> void:
+	if label == null or not is_instance_valid(target):
+		return
+
+	var report := GF_NODE_STATE_MACHINE_VALIDATOR.validate_machine(target as GFNodeStateMachine)
+	label.text = report.make_summary("GFNodeStateMachine")
+	label.tooltip_text = _format_report_tooltip(report)
+	if report.get_error_count() > 0:
+		label.modulate = Color(1.0, 0.45, 0.35)
+	elif report.get_warning_count() > 0:
+		label.modulate = Color(1.0, 0.78, 0.35)
+	else:
+		label.modulate = Color(0.45, 0.9, 0.55)
+
+
+func _format_report_tooltip(report: RefCounted) -> String:
+	var lines := PackedStringArray()
+	var issues := report.get("issues") as Array
+	for issue: RefCounted in issues:
+		if issue == null:
+			continue
+		var issue_dict := issue.call("to_dict") as Dictionary
+		var kind := String(issue_dict.get("kind", "unknown"))
+		var message := String(issue_dict.get("message", ""))
+		lines.append("%s: %s" % [kind, message])
+		if lines.size() >= 8:
+			lines.append("...")
+			break
+	return "\n".join(lines)
+
+
 # --- 信号处理函数 ---
 
 func _on_initial_state_selected(index: int, option: OptionButton, target: Node) -> void:
@@ -129,3 +175,7 @@ func _on_initial_state_selected(index: int, option: OptionButton, target: Node) 
 
 	var state_name := option.get_item_metadata(index) as StringName
 	_set_initial_state(target, state_name)
+
+
+func _on_validate_pressed(label: Label, target: Node) -> void:
+	_update_validation_report(label, target)
