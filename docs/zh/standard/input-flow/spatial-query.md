@@ -1,6 +1,6 @@
-# 逻辑空间查询与相关包
+# 逻辑空间查询与相关扩展
 
-标准库提供纯逻辑四叉树用于轻量空间查询；流程、任务和行为树能力位于对应官方包页面。
+标准库提供纯逻辑四叉树用于轻量空间查询；流程、任务和行为树能力位于对应官方扩展页面。
 
 ## 逻辑四叉树 (`GFQuadTreeUtility`)
 
@@ -27,6 +27,6 @@ quad_tree.remove(1001)
 ---
 
 
-## 相关官方包
+## 相关官方扩展
 
-`GFLevelUtility`、`GFQuestUtility` 和 `GFBehaviorTree` 的完整说明见 [Level、BehaviorTree 与 Quest](../../packages/level-behaviortree-quest/index.md)。标准库页面只交叉引用这些包能力，避免同一概念在多个页面重复维护。
+`GFLevelUtility`、`GFQuestUtility` 和 `GFBehaviorTree` 的完整说明见 [Level、BehaviorTree 与 Quest](../../extensions/level-behaviortree-quest/index.md)。标准库页面只交叉引用这些扩展能力，避免同一概念在多个页面重复维护。

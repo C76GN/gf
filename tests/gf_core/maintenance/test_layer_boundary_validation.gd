@@ -7,7 +7,7 @@ extends GutTest
 const KERNEL_ROOT: String = "res://addons/gf/kernel"
 const KERNEL_EDITOR_ROOT: String = "res://addons/gf/kernel/editor"
 const STANDARD_ROOT: String = "res://addons/gf/standard"
-const OFFICIAL_PACKAGES_ROOT: String = "res://addons/gf/packages/official"
+const OFFICIAL_EXTENSIONS_ROOT: String = "res://addons/gf/extensions/official"
 const KERNEL_FORBIDDEN_TEXTS: Array[String] = [
 	"res://addons/gf/standard",
 	"addons/gf/standard",
@@ -27,10 +27,33 @@ const KERNEL_FORBIDDEN_TEXTS: Array[String] = [
 	"GFNodeState",
 	"GFNodeStateMachine",
 ]
-const STANDARD_FORBIDDEN_PACKAGE_PATHS: Array[String] = [
-	"res://addons/gf/packages/official",
-	"addons/gf/packages/official",
+const STANDARD_FORBIDDEN_EXTENSION_PATHS: Array[String] = [
+	"res://addons/gf/extensions/official",
+	"addons/gf/extensions/official",
 ]
+const OFFICIAL_EXTENSION_ALLOWED_DEPENDENCIES: Array[String] = [
+	"gf.kernel",
+	"gf.standard",
+]
+const OFFICIAL_EXTENSION_FORBIDDEN_SOFT_REFERENCES: Dictionary = {
+	"interaction": [
+		"capability_provider",
+		"with_capability_provider",
+		"get_capability(",
+		"get_receivers_in_group",
+		"sender_as",
+		"target_as",
+		"GFCapability",
+	],
+	"feedback": [
+		"GFShakeAction",
+		"GFActionQueueSystem",
+		"GFVisualAction",
+		"ActionQueue",
+		"action_queue",
+		"should_wait_for_result",
+	],
+}
 
 
 # --- 测试用例 ---
@@ -53,22 +76,22 @@ func test_kernel_does_not_depend_on_standard_layer() -> void:
 	)
 
 
-func test_kernel_does_not_reference_standard_or_official_package_classes() -> void:
+func test_kernel_does_not_reference_standard_or_official_extension_classes() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(KERNEL_ROOT, files)
 	var forbidden_class_names := _collect_class_names(STANDARD_ROOT)
-	forbidden_class_names.append_array(_collect_class_names(OFFICIAL_PACKAGES_ROOT))
+	forbidden_class_names.append_array(_collect_class_names(OFFICIAL_EXTENSIONS_ROOT))
 
 	var issues := _collect_forbidden_class_reference_issues(files, forbidden_class_names)
 
 	assert_eq(
 		issues,
 		[],
-		"`addons/gf/kernel` 不能直接引用 standard 或官方包的具体 class_name；需要共享的最小契约必须上移到 kernel。"
+		"`addons/gf/kernel` 不能直接引用 standard 或官方扩展的具体 class_name；需要共享的最小契约必须上移到 kernel。"
 	)
 
 
-func test_kernel_editor_does_not_hardcode_official_package_ids() -> void:
+func test_kernel_editor_does_not_hardcode_official_extension_ids() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(KERNEL_EDITOR_ROOT, files)
 
@@ -81,11 +104,11 @@ func test_kernel_editor_does_not_hardcode_official_package_ids() -> void:
 	assert_eq(
 		issues,
 		[],
-		"`addons/gf/kernel/editor` 不能硬编码可选官方包 ID；包级编辑器能力应由 manifest 注入。"
+		"`addons/gf/kernel/editor` 不能硬编码可选官方扩展 ID；扩展级编辑器能力应由 manifest 注入。"
 	)
 
 
-func test_kernel_does_not_hardcode_official_package_ids() -> void:
+func test_kernel_does_not_hardcode_official_extension_ids() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(KERNEL_ROOT, files)
 
@@ -98,33 +121,33 @@ func test_kernel_does_not_hardcode_official_package_ids() -> void:
 	assert_eq(
 		issues,
 		[],
-		"`addons/gf/kernel` 不能硬编码可选官方包 ID；包能力必须由 package 侧通过 manifest 或通用扩展点贡献。"
+		"`addons/gf/kernel` 不能硬编码可选官方扩展 ID；扩展能力必须由扩展侧通过 manifest 或通用扩展点贡献。"
 	)
 
 
-func test_standard_does_not_hard_depend_on_official_package_paths_or_classes() -> void:
+func test_standard_does_not_hard_depend_on_official_extension_paths_or_classes() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(STANDARD_ROOT, files)
-	var package_class_names := _collect_class_names(OFFICIAL_PACKAGES_ROOT)
+	var extension_class_names := _collect_class_names(OFFICIAL_EXTENSIONS_ROOT)
 
 	var issues: Array[String] = []
 	for path: String in files:
 		var source := _read_text(path)
-		for forbidden_path: String in STANDARD_FORBIDDEN_PACKAGE_PATHS:
+		for forbidden_path: String in STANDARD_FORBIDDEN_EXTENSION_PATHS:
 			if source.contains(forbidden_path):
 				issues.append("%s contains %s" % [path, forbidden_path])
-		for package_class_name: String in package_class_names:
-			if _contains_identifier(source, package_class_name):
-				issues.append("%s references official package class %s" % [path, package_class_name])
+		for extension_class_name: String in extension_class_names:
+			if _contains_identifier(source, extension_class_name):
+				issues.append("%s references official extension class %s" % [path, extension_class_name])
 
 	assert_eq(
 		issues,
 		[],
-		"`addons/gf/standard` 不能硬 preload、硬路径引用或直接类型引用可选官方包；需要联动时由包侧向 standard 的通用注册入口贡献能力。"
+		"`addons/gf/standard` 不能硬 preload、硬路径引用或直接类型引用可选官方扩展；需要联动时由扩展侧向 standard 的通用注册入口贡献能力。"
 	)
 
 
-func test_standard_does_not_reference_official_package_ids() -> void:
+func test_standard_does_not_reference_official_extension_ids() -> void:
 	var files: Array[String] = []
 	_collect_gd_files(STANDARD_ROOT, files)
 
@@ -137,38 +160,90 @@ func test_standard_does_not_reference_official_package_ids() -> void:
 	assert_eq(
 		issues,
 		[],
-		"`standard` 不能按包 ID 主动探测官方包；可选包联动必须由 package 侧注册贡献。"
+		"`standard` 不能按扩展 ID 主动探测官方扩展；可选扩展联动必须由扩展侧注册贡献。"
 	)
 
 
-func test_official_packages_only_reference_declared_official_dependencies() -> void:
-	var package_names := _collect_immediate_directory_names(OFFICIAL_PACKAGES_ROOT)
-	var manifest_by_package_name := _collect_official_manifest_by_package_name(package_names)
+func test_official_extension_manifests_are_atomic() -> void:
+	var extension_names := _collect_immediate_directory_names(OFFICIAL_EXTENSIONS_ROOT)
+	var manifest_by_extension_name := _collect_official_manifest_by_extension_name(extension_names)
 	var issues: Array[String] = []
-	for package_name: String in package_names:
-		var package_root := OFFICIAL_PACKAGES_ROOT.path_join(package_name)
-		var allowed_package_names := _get_declared_official_dependency_names(
-			package_name,
-			manifest_by_package_name
-		)
-		var files: Array[String] = []
-		_collect_gd_files(package_root, files)
-		for path: String in files:
-			var source := _read_text(path)
-			for other_package_name: String in package_names:
-				if other_package_name == package_name:
-					continue
-				var other_package_path := "addons/gf/packages/official/%s" % other_package_name
-				var other_package_id := "gf.official.%s" % other_package_name
-				if source.contains(other_package_path) and not allowed_package_names.has(other_package_name):
-					issues.append("%s references %s" % [path, other_package_path])
-				if source.contains(other_package_id) and not allowed_package_names.has(other_package_name):
-					issues.append("%s references %s" % [path, other_package_id])
+	for extension_name: String in extension_names:
+		var manifest_data := manifest_by_extension_name.get(extension_name, {}) as Dictionary
+		if manifest_data == null:
+			issues.append("%s missing manifest" % extension_name)
+			continue
+
+		var dependencies := manifest_data.get("dependencies", []) as Array
+		if dependencies == null:
+			dependencies = []
+		for dependency_variant: Variant in dependencies:
+			var dependency_id := String(dependency_variant)
+			if not OFFICIAL_EXTENSION_ALLOWED_DEPENDENCIES.has(dependency_id):
+				issues.append("%s declares dependency %s" % [extension_name, dependency_id])
+
+		var optional_dependencies := manifest_data.get("optional_dependencies", []) as Array
+		if optional_dependencies != null and not optional_dependencies.is_empty():
+			issues.append("%s declares optional_dependencies" % extension_name)
 
 	assert_eq(
 		issues,
 		[],
-		"官方包之间只能硬引用 manifest.dependencies 中声明的官方依赖；可选协作应使用协议、显式注册或 bridge 包。"
+		"官方扩展必须保持原子化：只能依赖 gf.kernel 与 gf.standard，不能声明官方扩展硬依赖或软协作；组合属于项目或社区扩展。"
+	)
+
+
+func test_official_extensions_do_not_reference_other_official_extensions() -> void:
+	var extension_names := _collect_immediate_directory_names(OFFICIAL_EXTENSIONS_ROOT)
+	var class_root_by_name := _collect_official_class_root_by_name()
+	var issues: Array[String] = []
+	for extension_name: String in extension_names:
+		var extension_root := OFFICIAL_EXTENSIONS_ROOT.path_join(extension_name)
+		var files: Array[String] = []
+		_collect_gd_files(extension_root, files)
+		for path: String in files:
+			var source := _read_text(path)
+			for other_extension_name: String in extension_names:
+				if other_extension_name == extension_name:
+					continue
+				var other_extension_path := "addons/gf/extensions/official/%s" % other_extension_name
+				var other_extension_id := "gf.official.%s" % other_extension_name
+				if source.contains(other_extension_path):
+					issues.append("%s references %s" % [path, other_extension_path])
+				if source.contains(other_extension_id):
+					issues.append("%s references %s" % [path, other_extension_id])
+			for class_name_variant: Variant in class_root_by_name.keys():
+				var class_name_text := String(class_name_variant)
+				var class_root := String(class_root_by_name[class_name_text])
+				if class_root != extension_root and _contains_identifier(source, class_name_text):
+					issues.append("%s references official extension class %s" % [path, class_name_text])
+
+	assert_eq(
+		issues,
+		[],
+		"官方扩展之间不能通过路径或扩展 ID 互相引用；跨官方扩展组合应留给项目或社区扩展。"
+	)
+
+
+func test_known_official_soft_collaboration_protocols_do_not_return() -> void:
+	var issues: Array[String] = []
+	for extension_name_variant: Variant in OFFICIAL_EXTENSION_FORBIDDEN_SOFT_REFERENCES.keys():
+		var extension_name := String(extension_name_variant)
+		var extension_root := OFFICIAL_EXTENSIONS_ROOT.path_join(extension_name)
+		var files: Array[String] = []
+		_collect_gd_files(extension_root, files)
+		var forbidden_texts := OFFICIAL_EXTENSION_FORBIDDEN_SOFT_REFERENCES[extension_name] as Array
+		for path: String in files:
+			var source := _read_text(path)
+			for forbidden_text_variant: Variant in forbidden_texts:
+				var forbidden_text := String(forbidden_text_variant)
+				if source.contains(forbidden_text):
+					issues.append("%s contains soft collaboration marker %s" % [path, forbidden_text])
+
+	assert_eq(
+		issues,
+		[],
+		"已移除的官方扩展软协作协议不能回到 official 层；组合应放在项目、社区扩展或外部插件。"
 	)
 
 
@@ -209,38 +284,14 @@ func _collect_immediate_directory_names(root_path: String) -> Array[String]:
 	return result
 
 
-func _collect_official_manifest_by_package_name(package_names: Array[String]) -> Dictionary:
+func _collect_official_manifest_by_extension_name(extension_names: Array[String]) -> Dictionary:
 	var result: Dictionary = {}
-	for package_name: String in package_names:
-		var manifest_path := OFFICIAL_PACKAGES_ROOT.path_join(package_name).path_join("gf_package.json")
+	for extension_name: String in extension_names:
+		var manifest_path := OFFICIAL_EXTENSIONS_ROOT.path_join(extension_name).path_join("gf_extension.json")
 		var manifest_data := _read_json_dictionary(manifest_path)
 		if manifest_data.is_empty():
 			continue
-		result[package_name] = manifest_data
-	return result
-
-
-func _get_declared_official_dependency_names(
-	package_name: String,
-	manifest_by_package_name: Dictionary
-) -> Array[String]:
-	var result: Array[String] = []
-	var manifest_data := manifest_by_package_name.get(package_name, {}) as Dictionary
-	if manifest_data == null:
-		return result
-
-	var dependencies := manifest_data.get("dependencies", []) as Array
-	if dependencies == null:
-		return result
-
-	for dependency_variant: Variant in dependencies:
-		var dependency_id := String(dependency_variant)
-		for other_package_name: String in manifest_by_package_name.keys():
-			var other_data := manifest_by_package_name[other_package_name] as Dictionary
-			if other_data == null:
-				continue
-			if String(other_data.get("id", "")) == dependency_id:
-				result.append(other_package_name)
+		result[extension_name] = manifest_data
 	return result
 
 
@@ -279,6 +330,32 @@ func _collect_class_names(root_path: String) -> Array[String]:
 				result.append(discovered_class_name)
 	result.sort()
 	return result
+
+
+func _collect_official_class_root_by_name() -> Dictionary:
+	var files: Array[String] = []
+	_collect_gd_files(OFFICIAL_EXTENSIONS_ROOT, files)
+
+	var result: Dictionary = {}
+	var regex := RegEx.new()
+	regex.compile("(?m)^\\s*class_name\\s+([A-Za-z_]\\w*)")
+	for path: String in files:
+		var extension_root := _get_official_extension_root(path)
+		var source := _read_text(path)
+		for match_result: RegExMatch in regex.search_all(source):
+			result[match_result.get_string(1)] = extension_root
+	return result
+
+
+func _get_official_extension_root(path: String) -> String:
+	var marker := OFFICIAL_EXTENSIONS_ROOT + "/"
+	if not path.begins_with(marker):
+		return ""
+
+	var slash_index := path.find("/", marker.length())
+	if slash_index == -1:
+		return ""
+	return path.substr(0, slash_index)
 
 
 func _collect_forbidden_class_reference_issues(

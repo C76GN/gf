@@ -1,6 +1,6 @@
 # 最佳实践、维护与测试
 
-本页收拢 GF 项目的落地建议、分层边界、包使用规则和维护检查流程。
+本页收拢 GF 项目的落地建议、分层边界、扩展使用规则和维护检查流程。
 
 ## 使用类型断言
 
@@ -57,7 +57,7 @@ func heal(amount: int) -> void:
 
 ## ready() 中保持防御
 
-GF 会按生命周期阶段推进模块，但大型项目中模块可能由包 Installer、项目 Installer、局部 `GFNodeContext` 和运行时动态注册共同装配。`ready()` 中读取其他模块时，应允许依赖暂时不存在或尚未完成 ready。
+GF 会按生命周期阶段推进模块，但大型项目中模块可能由扩展 Installer、项目 Installer、局部 `GFNodeContext` 和运行时动态注册共同装配。`ready()` 中读取其他模块时，应允许依赖暂时不存在或尚未完成 ready。
 
 需要强依赖时，使用依赖诊断或在 Installer 中明确装配顺序；需要弱依赖时，使用 `get_utility(..., require_ready = true)` 这类查询，并在缺失时跳过本轮逻辑。
 
@@ -65,22 +65,23 @@ GF 会按生命周期阶段推进模块，但大型项目中模块可能由包 I
 
 新增能力时，先判断它属于哪一层：
 
-- `kernel`：GF 启动、架构容器、基础契约、事件、绑定、包基础设施、核心编辑器装配。
+- `kernel`：GF 启动、架构容器、基础契约、事件、绑定、扩展基础设施、核心编辑器装配。
 - `standard/foundation`：纯值对象、纯算法、纯格式化、纯转换、纯校验。
 - `standard/utilities`：默认稳定、足够通用、需要生命周期或运行时状态的服务。
 - `standard/input`、`standard/state_machine`、`standard/sequence`：稳定标准能力。
-- `packages/official`：通用但可选的官方能力。
-- `packages/community`：项目本地、社区或更偏业务的包。
+- `extensions/official`：通用但可选的官方原子能力。
+- `extensions/community`：项目本地、社区、官方扩展组合或更偏业务的扩展。
 - 项目代码：具体玩法、关卡、SDK 适配、资源路径、业务表结构。
 
-如果一个能力不需要框架生命周期，优先保持为纯对象或 Resource；如果它开始管理缓存、异步、事件、全局状态或跨模块服务，再考虑成为 Utility 或包 Installer 注册项。
+如果一个能力不需要框架生命周期，优先保持为纯对象或 Resource；如果它开始管理缓存、异步、事件、全局状态或跨模块服务，再考虑成为 Utility 或扩展 Installer 注册项。
 
 新增跨层能力时还要遵守加载边界：
 
-- `kernel` 不能直接引用 `standard` 或官方包的具体类名；需要内核识别的能力先抽成 kernel 契约。
-- `kernel/editor` 不能硬编码可选包 ID、包模板或包内 Inspector；这些能力由包 manifest 注入。
-- `standard` 不能硬 preload 官方包、写死官方包脚本路径、硬编码官方包 ID、动态探测官方包或直接类型引用官方包类。
-- 可选包需要出现在诊断、Overlay、工具快照或其他标准库通道时，必须由包侧向标准库提供的通用注册入口主动贡献。
+- `kernel` 不能直接引用 `standard` 或官方扩展的具体类名；需要内核识别的能力先抽成 kernel 契约。
+- `kernel/editor` 不能硬编码可选扩展 ID、扩展模板或扩展内 Inspector；这些能力由扩展 manifest 注入。
+- `standard` 不能硬 preload 官方扩展、写死官方扩展脚本路径、硬编码官方扩展 ID、动态探测官方扩展或直接类型引用官方扩展类。
+- 官方扩展必须保持原子化，只能依赖 `gf.kernel` 与 `gf.standard`，不能声明其他官方扩展硬依赖或 `optional_dependencies`，也不能通过路径、扩展 ID、`class_name` 或动态加载引用其他官方扩展。
+- 可选扩展需要出现在诊断、Overlay、工具快照或其他标准库通道时，必须由扩展侧向标准库提供的通用注册入口主动贡献。
 
 ## Godot 物理以引擎为准
 
@@ -118,20 +119,20 @@ func _physics_process(_delta: float) -> void:
 
 不推荐把 `owner` 当作运行时宿主引用。`owner` 表示编辑器场景所有权，不等同于父节点，也不一定是逻辑控制目标。
 
-## 包使用规则
+## 扩展使用规则
 
-官方包默认随 GF 启用，但仍保持可选边界。项目不用某个官方包时，可以在 `GF Packages` 面板禁用它；如果导出时启用了排除禁用包，包目录不会进入导出产物。
+官方扩展默认随 GF 启用，但仍保持可选边界。项目不用某个官方扩展时，可以在 `GF Extensions` 面板禁用它；如果导出时启用了排除禁用扩展，扩展目录不会进入导出产物。
 
-禁用或删除包前，应确认项目没有直接引用该包：
+禁用或删除扩展前，应确认项目没有直接引用该扩展：
 
 - 脚本中的 `preload()` / `load()` 路径。
 - 场景、资源或导入文件中的脚本路径。
-- 生成访问器中的包类型或包路径。
-- 直接使用包内 `class_name` 的类型声明。
+- 生成访问器中的扩展类型或扩展路径。
+- 直接使用扩展内 `class_name` 的类型声明。
 
-`GF Packages` 面板提供“扫描引用”，导出开始时也会检查禁用包引用。发布前可启用“引用禁用包时阻止导出”，把这类问题提升为导出错误。
+`GF Extensions` 面板提供“扫描引用”，导出开始时也会检查禁用扩展引用。发布前可启用“引用禁用扩展时阻止导出”，把这类问题提升为导出错误。
 
-分层边界必须按硬规则维护：`kernel` 不认识 `standard` 或任何 package；`standard` 只认识 `kernel`，不能通过包 ID、包路径、动态脚本探测或包内类名弱联动官方包；`packages` 可以依赖 `kernel` 和稳定的 `standard`，但官方包之间也不能通过其他官方包路径或包 ID 暗中探测。需要跨包协作时，应使用上层通用协议、显式注册点或项目装配。如果包功能需要显示在标准库诊断、Overlay 或工具快照里，应由包侧向标准库的通用注册入口贡献能力，而不是在标准库中写包探测逻辑。
+分层边界必须按硬规则维护：`kernel` 不认识 `standard` 或任何 extension；`standard` 只认识 `kernel`，不能通过扩展 ID、扩展路径、动态脚本探测或扩展内类名弱联动官方扩展；官方扩展只能依赖 `kernel` 和稳定的 `standard`，彼此保持互不认识。需要跨官方扩展协作时，应放到项目 Installer、社区扩展或外部插件中。如果扩展能力需要显示在标准库诊断、Overlay 或工具快照里，应由扩展侧向标准库的通用注册入口贡献能力，而不是在标准库中写扩展探测逻辑。
 
 ## 测试建议
 
@@ -143,13 +144,13 @@ godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_
 
 测试目录按框架层级组织：
 
-- `tests/gf_core/maintenance`：API 注释、GDScript 布局、脚本解析、包边界等静态维护检查。
-- `tests/gf_core/kernel`：内核、生命周期、事件、编辑器基础设施和包基础设施。
+- `tests/gf_core/maintenance`：API 注释、GDScript 布局、脚本解析、扩展边界等静态维护检查。
+- `tests/gf_core/kernel`：内核、生命周期、事件、编辑器基础设施和扩展基础设施。
 - `tests/gf_core/standard`：标准库。
-- `tests/gf_core/packages/official`：官方包。
+- `tests/gf_core/extensions/official`：官方扩展。
 - `tests/gf_core/fixtures`：测试夹具。
 
-迁移目录或重命名公开类后，维护测试还会检查旧源码路径、旧公开类名、重复 `class_name` 和 `.gd.uid` 冲突。不要为了兼容旧路径保留副本脚本；3.0.0 的路径迁移应通过 changelog 和迁移指南说明，而不是在源码里留下双入口。
+移动目录、重命名公开类或移除公开脚本后，维护测试还会检查已移除公开类名、重复 `class_name` 和 `.gd.uid` 冲突。不要保留副本脚本；公开入口应只有一处真实定义。
 
 公开 API、文档或生成器变化后，还应检查正式文档覆盖：
 
@@ -165,11 +166,11 @@ python tools\generate_ai_api.py --source addons\gf --output ai_analysis\generate
 - 内核、生命周期、依赖、事件、命令、查询：更新 `01` 到 `03`。
 - 场景树、Controller、数据绑定、更新循环：更新 `04`。
 - Foundation 与 Standard Utilities：更新 `05` 到 `08`。
-- 包规范和官方包：更新 `09` 到 `12`。
+- 扩展规范和官方扩展：更新 `09` 到 `12`。
 - 编辑器工具和代码生成：更新 `13`。
 - 维护流程、测试和最佳实践：更新本页。
 
-行为变化、公开 API 变化、路径迁移、移除和升级说明应写入 `更新日志 (Changelog).md`。
+行为变化、公开 API 变化、路径调整、移除和升级说明应写入 `更新日志 (Changelog).md`。
 
 根 README 使用双语入口：`README.md` 是 GitHub 默认英文页，`README.zh.md` 是中文页。两者应保持同一章节顺序和信息粒度；安装步骤、核心概念、分层说明、测试命令和文档入口变化时必须同步更新。`addons/gf/README.md` 只作为插件目录内的简短分发说明，链接根 README 与 Read the Docs，不承载完整正文。
 
@@ -188,7 +189,7 @@ GF 文档使用 MkDocs 构建，并由 Read the Docs 托管。源码结构如下
 
 站内链接使用标准 Markdown 相对链接，例如 `[本地存储、编码、同步与快照](../standard/utilities/io/storage-snapshot.md)`。指向源码、命令、类名、设置键和文件路径时继续使用反引号。
 
-`docs/zh` 的文件目录应和网站导航保持一致：顶层是 `overview/`、`kernel/`、`standard/`、`packages/`、`editor/`、`maintenance/` 等语义目录，顶层 Markdown 只保留 `index.md`、`faq.md` 和 `changelog.md`。各组的 `index.md` 只作为导读，例如 `../standard/utilities/io/index.md` 负责说明资源、存储与 IO 的页面入口；具体能力放到所属语义目录下的子页，例如 `../standard/utilities/io/storage-snapshot.md`。新增专题时优先追加同组子页，不要把无关能力重新堆回一个长页面。
+`docs/zh` 的文件目录应和网站导航保持一致：顶层是 `overview/`、`kernel/`、`standard/`、`extensions/`、`editor/`、`maintenance/` 等语义目录，顶层 Markdown 只保留 `index.md`、`faq.md` 和 `changelog.md`。各组的 `index.md` 只作为导读，例如 `../standard/utilities/io/index.md` 负责说明资源、存储与 IO 的页面入口；具体能力放到所属语义目录下的子页，例如 `../standard/utilities/io/storage-snapshot.md`。新增专题时优先追加同组子页，不要把无关能力重新堆回一个长页面。
 
 `tests/gf_core/maintenance/test_docs_structure_validation.gd` 会检查 `docs/zh` 页面是否进入 `mkdocs.yml` 导航、导航路径是否真实存在、顶层目录是否为允许的语义目录、旧编号目录是否没有回流，并确认旧 GitHub Wiki 目录只保留入口文件。这类结构问题应先修测试失败，再补正文内容。
 

@@ -3,9 +3,9 @@
 GUT tests mirror the framework source layers:
 
 - `maintenance`: static checks for API comments, source layout, and generated-code conventions.
-- `kernel`: core architecture, base contracts, editor helpers, and package infrastructure.
+- `kernel`: core architecture, base contracts, editor helpers, and extension infrastructure.
 - `standard`: foundation, input, utilities, sequence, command, and state-machine tests.
-- `packages/official`: tests for optional official packages, grouped by package ID.
+- `extensions/official`: tests for optional official extensions, grouped by extension ID.
 - `fixtures`: shared scenes, installers, and small scripts used by multiple tests.
 
 Run all tests with:

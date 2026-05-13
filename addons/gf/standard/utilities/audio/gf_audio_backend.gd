@@ -1,6 +1,6 @@
 ## GFAudioBackend: GFAudioUtility 的可插拔音频后端协议。
 ##
-## 默认实现不处理任何请求。项目或扩展包可继承它，把部分音频事件转交给
+## 默认实现不处理任何请求。项目或扩展可继承它，把部分音频事件转交给
 ## 外部中间件、平台接口或自定义混音系统；未声明可处理的请求会回退到 Godot 默认播放器。
 class_name GFAudioBackend
 extends RefCounted

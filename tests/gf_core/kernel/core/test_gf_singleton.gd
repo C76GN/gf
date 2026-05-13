@@ -14,8 +14,8 @@ const INVALID_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/
 const BLOCKING_INSTALLER_STARTED_SETTING: String = "gf/test/blocking_installer_started"
 const BLOCKING_INSTALLER_RELEASE_SETTING: String = "gf/test/release_blocking_installer"
 const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
-const GFSaveGraphUtilityBase = preload("res://addons/gf/packages/official/save/graph/gf_save_graph_utility.gd")
+const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
+const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/official/save/graph/gf_save_graph_utility.gd")
 const InstallerModelFixture = preload("res://tests/gf_core/fixtures/installers/installer_model_fixture.gd")
 const AsyncInstallerUtilityFixture = preload("res://tests/gf_core/fixtures/installers/async_installer_utility_fixture.gd")
 
@@ -692,7 +692,7 @@ func test_duplicate_register_warns_and_replace_utility() -> void:
 	await Gf.register_utility(old_utility)
 	await Gf.register_utility(duplicate_utility)
 
-	assert_push_warning("[GFArchitecture] register_utility：类型已注册，已忽略重复注册。若需要替换，请使用 replace_utility()。")
+	assert_push_warning("[GFArchitecture] register_utility：类型已注册，已忽略重复注册。启用扩展的 Installer 会先于项目 Installer 自动装配其模块；项目通常只注册自身模块。若需要替换，请使用 replace_utility()。")
 	assert_eq(Gf.get_utility(DisposableUtility), old_utility, "重复注册不应替换原实例。")
 
 	await Gf.replace_utility(duplicate_utility)
@@ -876,17 +876,17 @@ func test_project_installer_awaits_async_install_bindings_before_init() -> void:
 	assert_true(installed_utility.ready_called, "异步 install_bindings 注册的 Utility 应参与本轮生命周期。")
 
 
-## 验证启用包的 Installer 会在 Gf.init() 初始化前自动注册包级服务。
-func test_enabled_package_installer_registers_services_before_init() -> void:
+## 验证启用扩展的 Installer 会在 Gf.init() 初始化前自动注册扩展级服务。
+func test_enabled_extension_installer_registers_services_before_init() -> void:
 	var previous_installers: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
-	var previous_packages: Variant = ProjectSettings.get_setting(GFPackageSettingsBase.ENABLED_PACKAGES_SETTING, [])
+	var previous_extensions: Variant = ProjectSettings.get_setting(GFExtensionSettingsBase.ENABLED_EXTENSIONS_SETTING, [])
 	var previous_auto_install: Variant = ProjectSettings.get_setting(
-		GFPackageSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING,
+		GFExtensionSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING,
 		true
 	)
 	ProjectSettings.set_setting(INSTALLERS_SETTING, [])
-	ProjectSettings.set_setting(GFPackageSettingsBase.ENABLED_PACKAGES_SETTING, ["gf.official.save"])
-	ProjectSettings.set_setting(GFPackageSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, true)
+	ProjectSettings.set_setting(GFExtensionSettingsBase.ENABLED_EXTENSIONS_SETTING, ["gf.official.save"])
+	ProjectSettings.set_setting(GFExtensionSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, true)
 
 	if Gf.has_architecture():
 		Gf.get_architecture().dispose()
@@ -896,10 +896,10 @@ func test_enabled_package_installer_registers_services_before_init() -> void:
 	var save_graph_utility := Gf.get_utility(GFSaveGraphUtilityBase)
 
 	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
-	ProjectSettings.set_setting(GFPackageSettingsBase.ENABLED_PACKAGES_SETTING, previous_packages)
-	ProjectSettings.set_setting(GFPackageSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, previous_auto_install)
+	ProjectSettings.set_setting(GFExtensionSettingsBase.ENABLED_EXTENSIONS_SETTING, previous_extensions)
+	ProjectSettings.set_setting(GFExtensionSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, previous_auto_install)
 
-	assert_not_null(save_graph_utility, "启用包 installer 应在三阶段初始化前注册包级服务。")
+	assert_not_null(save_graph_utility, "启用扩展 installer 应在三阶段初始化前注册扩展级服务。")
 
 
 ## 验证 Installer 配置错误默认会中断架构初始化并记录失败原因。

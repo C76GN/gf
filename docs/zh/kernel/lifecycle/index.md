@@ -61,7 +61,9 @@ func install_bindings(binder: Variant) -> void:
 
 然后在 `Project Settings > gf/project/installers` 中加入安装器脚本路径。之后 `await Gf.init()` 会按数组顺序逐个执行 Installer：每个 Installer 先执行 `install(architecture)`，再执行 `install_bindings(binder)`，所有 Installer 完成后才进入 `init()`、`async_init()`、`ready()` 三阶段。`install()` 和 `install_bindings()` 都可以在内部使用 `await`。
 
-从 `3.0.0` 起，启用的 GF 包也可以通过 manifest 的 `installer_paths` 提供 Installer。当 `gf/packages/auto_install_enabled_installers` 为 `true` 时，`Gf` 会先执行启用包的 Installer，再执行 `gf/project/installers` 中的项目 Installer。这样包负责装配自己的抽象模块，项目负责装配业务模块或覆盖绑定。官方包安装器只注册包级生命周期服务，例如 Save 包的 `GFSaveGraphUtility`、Combat 包的 `GFCombatSystem` 和 `GFSkillTargetingUtility`；纯数据对象、Resource、命令和场景节点仍由项目或局部上下文按需要创建。
+从 `3.0.0` 起，启用的 GF 扩展也可以通过 manifest 的 `installer_paths` 提供 Installer。当 `gf/extensions/auto_install_enabled_installers` 为 `true` 时，`Gf` 会先执行启用扩展的 Installer，再执行 `gf/project/installers` 中的项目 Installer。这样扩展负责装配自己的抽象模块，项目负责装配业务模块或覆盖绑定。官方扩展安装器只注册扩展级生命周期服务，例如 Save 扩展的 `GFSaveGraphUtility`、Combat 扩展的 `GFCombatSystem` 和 `GFSkillTargetingUtility`；纯数据对象、Resource、命令和场景节点仍由项目或局部上下文按需要创建。
+
+项目 Installer 不需要重复注册已启用扩展自动装配的服务。重复注册会被忽略并输出 warning；如果项目确实要替换某个扩展默认服务，应使用 `replace_utility()` 或 `replace_system()`，而不是再次调用 `register_*()`。
 
 从 `2.0.0` 起，Installer 路径为空、脚本无法加载或未继承 `GFInstaller` 时会输出错误并中断初始化；此时架构会进入 `has_initialization_failed()` 状态，并记录 `last_initialization_error`。修正配置后再次调用 `await Gf.init()` 会在新一轮 Installer 开始时清除旧失败状态，并复用同一个架构继续重试初始化。迁移旧项目或原型阶段如果确实需要沿用“跳过错误 Installer”的行为，可把 `Project Settings > gf/project/fail_on_installer_error` 显式设为 `false`，但建议只作为短期过渡。
 

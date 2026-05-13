@@ -30,7 +30,7 @@ const _BASE_UTILITY_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_uti
 const _BASE_COMMAND_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_command.gd")
 const _BASE_QUERY_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_query.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
-const _PACKAGE_SETTINGS: Script = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const _EXTENSION_SETTINGS: Script = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 const _LAYER_TYPES: Dictionary = {
 	"2d_render": 20,
 	"2d_physics": 32,
@@ -47,10 +47,10 @@ const _KNOWN_GF_PROJECT_SETTINGS: Array[String] = [
 	"gf/build/export/write_git_metadata",
 	"gf/codegen/access_output_path",
 	"gf/codegen/project_access_output_path",
-	"gf/packages/auto_install_enabled_installers",
-	"gf/packages/enabled",
-	"gf/packages/export_exclude_disabled",
-	"gf/packages/export_fail_on_disabled_references",
+	"gf/extensions/auto_install_enabled_installers",
+	"gf/extensions/enabled",
+	"gf/extensions/export_exclude_disabled",
+	"gf/extensions/export_fail_on_disabled_references",
 	"gf/project/fail_on_installer_error",
 	"gf/project/installer_timeout_seconds",
 	"gf/project/installers",
@@ -431,7 +431,7 @@ func _get_capability_utility_script_path(records: Array) -> String:
 
 
 func _append_access_generator_extension_records(records: Array[Dictionary]) -> void:
-	for extension_path: String in _PACKAGE_SETTINGS.get_enabled_access_generator_extension_paths(true):
+	for extension_path: String in _EXTENSION_SETTINGS.get_enabled_access_generator_extension_paths(true):
 		var extension := _load_access_generator_extension(extension_path)
 		if extension == null:
 			continue
@@ -451,7 +451,7 @@ func _append_access_generator_extension_records_from_instance(
 
 
 func _append_access_generator_extensions(builder: GFSourceBuilder, records: Array) -> void:
-	for extension_path: String in _PACKAGE_SETTINGS.get_enabled_access_generator_extension_paths(true):
+	for extension_path: String in _EXTENSION_SETTINGS.get_enabled_access_generator_extension_paths(true):
 		_append_access_generator_extension_path(builder, records, extension_path)
 
 

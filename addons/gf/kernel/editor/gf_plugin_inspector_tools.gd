@@ -6,16 +6,16 @@ extends RefCounted
 
 # --- 常量 ---
 
-const PACKAGE_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/package/gf_package_export_plugin.gd"
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const EXTENSION_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/extension/gf_extension_export_plugin.gd"
+const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
 # --- 私有变量 ---
 
 var _inspector_plugins: Array[EditorInspectorPlugin] = []
 var _standard_export_plugins: Array[EditorExportPlugin] = []
-var _package_export_plugin: EditorExportPlugin
-var _package_export_plugins: Array[EditorExportPlugin] = []
+var _extension_export_plugin: EditorExportPlugin
+var _extension_export_plugins: Array[EditorExportPlugin] = []
 var _standard_inspector_records: Array[Dictionary] = []
 var _standard_export_records: Array[Dictionary] = []
 
@@ -32,8 +32,8 @@ func setup(plugin: EditorPlugin, standard_records: Dictionary = {}) -> void:
 	_standard_export_records = _to_record_array(standard_records.get("export_plugin_records", []))
 	_setup_inspector_tools(plugin)
 	_setup_standard_export_plugins(plugin)
-	_setup_package_export_plugin(plugin)
-	_setup_enabled_package_export_plugins(plugin)
+	_setup_extension_export_plugin(plugin)
+	_setup_enabled_extension_export_plugins(plugin)
 
 
 ## 移除 GF Inspector 与导出插件。
@@ -41,8 +41,8 @@ func setup(plugin: EditorPlugin, standard_records: Dictionary = {}) -> void:
 func cleanup(plugin: EditorPlugin) -> void:
 	if plugin == null:
 		return
-	_cleanup_enabled_package_export_plugins(plugin)
-	_cleanup_package_export_plugin(plugin)
+	_cleanup_enabled_extension_export_plugins(plugin)
+	_cleanup_extension_export_plugin(plugin)
 	_cleanup_standard_export_plugins(plugin)
 	_cleanup_inspector_tools(plugin)
 
@@ -52,7 +52,7 @@ func cleanup(plugin: EditorPlugin) -> void:
 func _setup_inspector_tools(plugin: EditorPlugin) -> void:
 	for record: Dictionary in _standard_inspector_records:
 		_add_inspector_plugin(plugin, String(record["path"]), String(record["label"]))
-	for record: Dictionary in _collect_enabled_package_inspector_records():
+	for record: Dictionary in _collect_enabled_extension_inspector_records():
 		_add_inspector_plugin(plugin, String(record["path"]), String(record["label"]))
 
 
@@ -65,27 +65,27 @@ func _setup_standard_export_plugins(plugin: EditorPlugin) -> void:
 		_standard_export_plugins.append(export_plugin)
 
 
-func _setup_package_export_plugin(plugin: EditorPlugin) -> void:
-	var export_script := load(PACKAGE_EXPORT_PLUGIN_SCRIPT_PATH) as Script
+func _setup_extension_export_plugin(plugin: EditorPlugin) -> void:
+	var export_script := load(EXTENSION_EXPORT_PLUGIN_SCRIPT_PATH) as Script
 	if export_script == null or not export_script.can_instantiate():
-		push_error("[GF Framework] 包导出过滤插件脚本加载失败。")
+		push_error("[GF Framework] 扩展导出过滤插件脚本加载失败。")
 		return
 
-	_package_export_plugin = export_script.new() as EditorExportPlugin
-	if _package_export_plugin == null:
-		push_error("[GF Framework] 包导出过滤插件实例化失败。")
+	_extension_export_plugin = export_script.new() as EditorExportPlugin
+	if _extension_export_plugin == null:
+		push_error("[GF Framework] 扩展导出过滤插件实例化失败。")
 		return
 
-	plugin.add_export_plugin(_package_export_plugin)
+	plugin.add_export_plugin(_extension_export_plugin)
 
 
-func _setup_enabled_package_export_plugins(plugin: EditorPlugin) -> void:
-	for export_plugin_path: String in GFPackageSettingsBase.get_enabled_export_plugin_paths(true):
+func _setup_enabled_extension_export_plugins(plugin: EditorPlugin) -> void:
+	for export_plugin_path: String in GFExtensionSettingsBase.get_enabled_export_plugin_paths(true):
 		var export_plugin := _load_export_plugin(export_plugin_path, export_plugin_path)
 		if export_plugin == null:
 			continue
 		plugin.add_export_plugin(export_plugin)
-		_package_export_plugins.append(export_plugin)
+		_extension_export_plugins.append(export_plugin)
 
 
 func _load_inspector_plugin(script_path: String, label: String) -> EditorInspectorPlugin:
@@ -125,10 +125,10 @@ func _add_inspector_plugin(plugin: EditorPlugin, script_path: String, label: Str
 	_inspector_plugins.append(inspector_plugin)
 
 
-func _collect_enabled_package_inspector_records() -> Array[Dictionary]:
+func _collect_enabled_extension_inspector_records() -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	var used_paths: Dictionary = {}
-	for manifest: GFPackageManifest in GFPackageSettingsBase.get_enabled_manifests(true):
+	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_enabled_manifests(true):
 		for inspector_path: String in manifest.editor_inspector_paths:
 			var normalized_path := inspector_path.strip_edges()
 			if normalized_path.is_empty() or used_paths.has(normalized_path):
@@ -137,17 +137,17 @@ func _collect_enabled_package_inspector_records() -> Array[Dictionary]:
 			used_paths[normalized_path] = true
 			records.append({
 				"path": normalized_path,
-				"label": _get_package_inspector_label(manifest, normalized_path),
+				"label": _get_extension_inspector_label(manifest, normalized_path),
 			})
 	return records
 
 
-func _get_package_inspector_label(manifest: GFPackageManifest, inspector_path: String) -> String:
-	var package_name := manifest.display_name
-	if package_name.is_empty():
-		package_name = manifest.id
+func _get_extension_inspector_label(manifest: GFExtensionManifest, inspector_path: String) -> String:
+	var extension_name := manifest.display_name
+	if extension_name.is_empty():
+		extension_name = manifest.id
 	var script_name := inspector_path.get_file().get_basename().to_pascal_case()
-	return "%s %s" % [package_name, script_name]
+	return "%s %s" % [extension_name, script_name]
 
 
 func _to_record_array(value: Variant) -> Array[Dictionary]:
@@ -174,14 +174,14 @@ func _cleanup_standard_export_plugins(plugin: EditorPlugin) -> void:
 	_standard_export_plugins.clear()
 
 
-func _cleanup_package_export_plugin(plugin: EditorPlugin) -> void:
-	if _package_export_plugin != null:
-		plugin.remove_export_plugin(_package_export_plugin)
-		_package_export_plugin = null
+func _cleanup_extension_export_plugin(plugin: EditorPlugin) -> void:
+	if _extension_export_plugin != null:
+		plugin.remove_export_plugin(_extension_export_plugin)
+		_extension_export_plugin = null
 
 
-func _cleanup_enabled_package_export_plugins(plugin: EditorPlugin) -> void:
-	for export_plugin: EditorExportPlugin in _package_export_plugins:
+func _cleanup_enabled_extension_export_plugins(plugin: EditorPlugin) -> void:
+	for export_plugin: EditorExportPlugin in _extension_export_plugins:
 		if export_plugin != null:
 			plugin.remove_export_plugin(export_plugin)
-	_package_export_plugins.clear()
+	_extension_export_plugins.clear()

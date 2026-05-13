@@ -282,7 +282,7 @@ func get_monitor_preset_ids() -> PackedStringArray:
 	return result
 
 
-## 注册快照分区 provider。用于包或项目把自己的诊断数据贡献到 collect_snapshot() 顶层字段。
+## 注册快照分区 provider。用于扩展或项目把自己的诊断数据贡献到 collect_snapshot() 顶层字段。
 ## @param section_id: 快照顶层字段名。
 ## @param provider: 无参数采样回调，建议返回 Dictionary。
 ## @return 注册成功返回 true。
@@ -306,7 +306,7 @@ func has_snapshot_section_provider(section_id: StringName) -> bool:
 	return _snapshot_section_providers.has(section_id)
 
 
-## 注册工具快照 provider。用于包或项目把 get_debug_snapshot() 风格数据贡献到 tools 字段。
+## 注册工具快照 provider。用于扩展或项目把 get_debug_snapshot() 风格数据贡献到 tools 字段。
 ## @param tool_id: tools 内部字段名。
 ## @param provider: 无参数采样回调，建议返回 Dictionary。
 ## @return 注册成功返回 true。

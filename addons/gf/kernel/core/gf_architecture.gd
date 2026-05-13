@@ -1805,7 +1805,7 @@ func _register_module(module_registry: ModuleRegistry, script_cls: Script, insta
 	if module_registry._has_direct(script_cls):
 		var method_name := "register_%s" % module_registry._label_key()
 		var replacement_name := "replace_%s" % module_registry._label_key()
-		push_warning("[GFArchitecture] %s：类型已注册，已忽略重复注册。若需要替换，请使用 %s()。" % [
+		push_warning("[GFArchitecture] %s：类型已注册，已忽略重复注册。启用扩展的 Installer 会先于项目 Installer 自动装配其模块；项目通常只注册自身模块。若需要替换，请使用 %s()。" % [
 			method_name,
 			replacement_name,
 		])

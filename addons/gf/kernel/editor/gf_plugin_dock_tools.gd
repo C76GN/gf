@@ -6,8 +6,8 @@ extends RefCounted
 
 # --- 常量 ---
 
-const PACKAGE_MANAGER_DOCK_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/package/gf_package_manager_dock.gd"
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const EXTENSION_MANAGER_DOCK_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd"
+const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
 # --- 私有变量 ---
@@ -28,7 +28,7 @@ func setup(plugin: EditorPlugin, standard_dock_records: Array[Dictionary] = []) 
 	set_standard_dock_records(standard_dock_records)
 	for record: Dictionary in _collect_core_dock_records():
 		_add_bottom_dock(plugin, String(record["path"]), String(record["label"]))
-	for record: Dictionary in _collect_enabled_package_dock_records():
+	for record: Dictionary in _collect_enabled_extension_dock_records():
 		_add_bottom_dock(plugin, String(record["path"]), String(record["label"]))
 
 
@@ -58,8 +58,8 @@ func _collect_core_dock_records() -> Array[Dictionary]:
 	var records := _copy_records(_standard_dock_records)
 	records.append(
 		{
-			"path": PACKAGE_MANAGER_DOCK_SCRIPT_PATH,
-			"label": "GF Packages",
+			"path": EXTENSION_MANAGER_DOCK_SCRIPT_PATH,
+			"label": "GF Extensions",
 		}
 	)
 	return records
@@ -72,10 +72,10 @@ func _copy_records(source: Array[Dictionary]) -> Array[Dictionary]:
 	return records
 
 
-func _collect_enabled_package_dock_records() -> Array[Dictionary]:
+func _collect_enabled_extension_dock_records() -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	var used_paths: Dictionary = {}
-	for manifest: GFPackageManifest in GFPackageSettingsBase.get_enabled_manifests(true):
+	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_enabled_manifests(true):
 		for dock_path: String in manifest.editor_dock_paths:
 			var normalized_path := dock_path.strip_edges()
 			if normalized_path.is_empty() or used_paths.has(normalized_path):
@@ -84,7 +84,7 @@ func _collect_enabled_package_dock_records() -> Array[Dictionary]:
 			used_paths[normalized_path] = true
 			records.append({
 				"path": normalized_path,
-				"label": _get_package_dock_label(manifest, normalized_path),
+				"label": _get_extension_dock_label(manifest, normalized_path),
 			})
 	return records
 
@@ -111,9 +111,9 @@ func _add_bottom_dock(plugin: EditorPlugin, script_path: String, fallback_label:
 	})
 
 
-func _get_package_dock_label(manifest: GFPackageManifest, dock_path: String) -> String:
-	var package_name := manifest.display_name
-	if package_name.is_empty():
-		package_name = manifest.id
+func _get_extension_dock_label(manifest: GFExtensionManifest, dock_path: String) -> String:
+	var extension_name := manifest.display_name
+	if extension_name.is_empty():
+		extension_name = manifest.id
 	var script_name := dock_path.get_file().get_basename().to_pascal_case()
-	return "%s %s" % [package_name, script_name]
+	return "%s %s" % [extension_name, script_name]

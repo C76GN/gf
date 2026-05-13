@@ -59,7 +59,7 @@ const FRAMEWORK_PLUGIN_CONFIG_PATH: String = "res://addons/gf/plugin.cfg"
 ## 当前运行平台名称。
 @export var platform_name: String = ""
 
-## 当前运行包是否为 debug build。
+## 当前运行扩展是否为 debug build。
 @export var is_debug_build: bool = false
 
 ## 项目自定义构建元数据。框架不解释该字段。

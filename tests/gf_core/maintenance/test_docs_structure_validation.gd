@@ -17,7 +17,7 @@ const DOCS_TOP_LEVEL_DIRECTORIES := [
 	"overview",
 	"kernel",
 	"standard",
-	"packages",
+	"extensions",
 	"editor",
 	"maintenance",
 ]
@@ -132,8 +132,8 @@ func test_readme_language_switches_and_doc_links_are_present() -> void:
 		READTHEDOCS_URL,
 		"addons/gf/kernel",
 		"addons/gf/standard",
-		"addons/gf/packages/official",
-		"GF Packages",
+		"addons/gf/extensions/official",
+		"GF Extensions",
 		"tests/gf_core/maintenance",
 	]
 	for fragment: String in required_fragments:

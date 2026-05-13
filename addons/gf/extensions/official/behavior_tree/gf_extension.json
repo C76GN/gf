@@ -1,0 +1,12 @@
+{
+  "id": "gf.official.behavior_tree",
+  "display_name": "GF Behavior Tree",
+  "version": "3.2.0",
+  "extension_version": "1.0.0",
+  "kind": "official",
+  "description": "Pure-code behavior tree primitives for AI decision flow.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "enabled_by_default": true,
+  "tags": ["ai", "flow"]
+}

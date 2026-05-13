@@ -1,0 +1,15 @@
+{
+  "id": "gf.official.flow",
+  "display_name": "GF Flow",
+  "version": "3.2.0",
+  "extension_version": "1.0.0",
+  "kind": "official",
+  "description": "Resourceized flow graph primitives with ports, runners, diagnostics, and editor view models.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "editor_inspector_paths": [
+    "res://addons/gf/extensions/official/flow/editor/gf_flow_graph_inspector_plugin.gd"
+  ],
+  "enabled_by_default": true,
+  "tags": ["flow", "graph", "editor"]
+}

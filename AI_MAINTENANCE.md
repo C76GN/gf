@@ -17,21 +17,22 @@
 GF 源码依赖方向必须保持稳定单向：
 
 ```text
-addons/gf/kernel <- addons/gf/standard <- addons/gf/packages
+addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 ```
 
 - `addons/gf/kernel/**` 不能 `preload()`、`load()`、直接写入路径或直接引用 `addons/gf/standard/**` 的具体类名。
-- `standard` 可以依赖 `kernel`；包可以依赖 `kernel`，也可以按需依赖稳定的 `standard`。
-- 如果 `kernel` 运行时必须直接识别某个能力，应把最小契约、协议或基础工具放入 `kernel`，再让 `standard` 或包提供具体实现。例如内核识别 `GFTimeProvider`，标准库的 `GFTimeUtility` 只是实现。
-- 可选官方包不能被 `kernel` 或 `standard` 硬 preload、硬编码 `res://addons/gf/packages/official/**` 脚本路径、硬编码 `gf.official.*` 包 ID，或直接引用包内 `class_name`。
-- `standard` 不能主动认识、探测或弱联动任何官方包。需要让标准库能力呈现包信息时，必须由 package 侧依赖 `standard` 的通用注册入口主动贡献，例如向 `GFDiagnosticsUtility` 注册快照、监控项或命令。
-- 官方包之间默认独立；需要硬依赖时必须在 `gf_package.json` 的 `dependencies` 中显式声明，依赖图必须无环，源码只能引用已声明依赖的公开 API。未声明依赖时，不能通过其他官方包的路径、包 ID、`class_name` 或动态脚本探测形成隐藏弱联动。
-- 可选协作只能通过 `optional_dependencies` 元数据、上层通用协议、显式注册点、项目装配或独立 bridge 包表达；`optional_dependencies` 不会自动启用包，也不允许硬引用对方源码。
-- `kernel/editor` 可以承载通用菜单、文件对话框和模板生成器，但不能硬编码 `standard` 或可选包的具体模板类型、基类或包 ID；标准库模板由 `gf_standard_editor_extensions.gd` 注入，可选包模板由包自己的 `editor_action_paths` 注入。
+- `standard` 可以依赖 `kernel`；扩展可以依赖 `kernel`，也可以按需依赖稳定的 `standard`。
+- 如果 `kernel` 运行时必须直接识别某个能力，应把最小契约、协议或基础工具放入 `kernel`，再让 `standard` 或扩展提供具体实现。例如内核识别 `GFTimeProvider`，标准库的 `GFTimeUtility` 只是实现。
+- 可选官方扩展不能被 `kernel` 或 `standard` 硬 preload、硬编码 `res://addons/gf/extensions/official/**` 脚本路径、硬编码 `gf.official.*` 扩展 ID，或直接引用扩展内 `class_name`。
+- `standard` 不能主动认识、探测或弱联动任何官方扩展。需要让标准库能力呈现扩展信息时，必须由扩展侧依赖 `standard` 的通用注册入口主动贡献，例如向 `GFDiagnosticsUtility` 注册快照、监控项或命令。
+- 官方扩展必须保持原子化。官方扩展 manifest 的 `dependencies` 只能声明 `gf.kernel` 与 `gf.standard`，不能声明其他官方扩展硬依赖；官方扩展也不能声明 `optional_dependencies`。
+- 官方扩展之间不能通过其他官方扩展的路径、扩展 ID、`class_name`、动态脚本加载、动态扩展探测或隐藏协议形成软协作。跨官方扩展组合属于项目 Installer、社区扩展或外部插件，不能写回官方扩展。
+- `optional_dependencies` 只面向社区扩展、项目扩展或外部插件，用于表达不会自动启用、也不允许硬引用源码的可选关系；官方扩展不使用这个字段。
+- `kernel/editor` 可以承载通用菜单、文件对话框和模板生成器，但不能硬编码 `standard` 或可选扩展的具体模板类型、基类或扩展 ID；标准库模板由 `gf_standard_editor_extensions.gd` 注入，可选扩展模板由扩展自己的 `editor_action_paths` 注入。
 - 根插件 `addons/gf/plugin.gd` 是组合入口，可以收集标准库编辑器增强并传给 `kernel/editor` 辅助脚本；这个例外不允许扩散到 `addons/gf/kernel/**`。
-- 移动层级边界时，同步更新源码路径、测试、正式文档、`docs/zh/changelog.md` 和 API 摘要；不要留下兼容路径副本造成重复 `class_name` 或 UID 冲突。
-- 修改层级依赖后，必须运行 `tests/gf_core/maintenance/test_layer_boundary_validation.gd`，确保 `kernel` 不引用 `standard` / 官方包具体类型、`kernel` 不硬编码官方包 ID、`standard` 不引用官方包路径、包 ID 或包内类名，官方包之间的硬引用都能追溯到 manifest 的显式硬依赖。
-- 重命名、移动或移除公开脚本后，必须运行 `tests/gf_core/maintenance/test_gdscript_parse_validation.gd`，确认旧路径和旧公开类名没有残留、公开 `class_name` 没有重复、`.gd.uid` 没有孤儿文件或 UID 冲突。
+- 移动层级边界时，同步更新源码路径、测试、正式文档、`docs/zh/changelog.md` 和 API 摘要；不要留下重复路径副本造成重复 `class_name` 或 UID 冲突。
+- 修改层级依赖后，必须运行 `tests/gf_core/maintenance/test_layer_boundary_validation.gd`，确保 `kernel` 不引用 `standard` / 官方扩展具体类型、`kernel` 不硬编码官方扩展 ID、`standard` 不引用官方扩展路径、扩展 ID 或扩展内类名，并确保官方扩展保持原子化、只依赖 `gf.kernel` 与 `gf.standard`。
+- 重命名、移动或移除公开脚本后，必须运行 `tests/gf_core/maintenance/test_gdscript_parse_validation.gd`，确认已移除公开类名没有残留、公开 `class_name` 没有重复、`.gd.uid` 没有孤儿文件或 UID 冲突。
 
 ## 按变更类型检查文件
 
@@ -80,7 +81,7 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/packages
 
 - `docs/zh/index.md` 与 `mkdocs.yml`：新增、删除、重命名页面或调整阅读顺序时更新。
 - `README.md` 与 `README.zh.md`：根目录概览、文档索引或项目定位过期时同步更新，保持同一章节顺序和信息粒度。
-- `addons/gf/README.md`：安装包内说明需要与根目录概览保持一致时更新。
+- `addons/gf/README.md`：安装扩展内说明需要与根目录概览保持一致时更新。
 - `docs/wiki/**`：只保留 GitHub Wiki 入口、侧栏和页脚；正式正文只能维护在 Read the Docs 源文件 `docs/zh/**` 中。
 - 新增、删除或重命名 `docs/zh/**/*.md` 时，运行 `tests/gf_core/maintenance/test_docs_structure_validation.gd` 和 `python -m mkdocs build --strict`，确认页面已进入导航且链接有效。
 - 修改 `docs/wiki/**` 时，同样运行 `tests/gf_core/maintenance/test_docs_structure_validation.gd`，确认旧 Wiki 没有重新变成正文副本。
@@ -101,8 +102,8 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/packages
 - 功能开发、修复或文档补充过程中，如果需要记录发布说明，先写入 `docs/zh/changelog.md` 的 `[未发布]` 小节；如果没有 `[未发布]` 小节，就在最新正式版本上方创建。
 - 在用户确认本轮修改没有问题之前，不要把 `[未发布]` 改成具体版本号，也不要更新 `addons/gf/plugin.cfg` 或 `ASSET_LIBRARY.md` 的版本号。
 - 用户确认进入发布或提交阶段后，根据实际变更确定 SemVer 版本号：兼容 bug 修复或小型加固用 patch；向后兼容的新公开 API、设置或功能通常用 minor；破坏兼容只允许在用户明确批准后按 major 处理。
-- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md`、所有官方包 `gf_package.json` 的 `version` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
-- 官方包 manifest 的 `version` 表示 GF 官方发行版本，发布时所有 `addons/gf/packages/official/*/gf_package.json` 必须同步为当前 GF 版本。官方包 manifest 的 `package_version` 表示单个包自身版本，只有该包的公开 API、配置、行为或兼容性契约发生变化时才按 SemVer 递增；本轮未改变的官方包只同步 `version`，不递增 `package_version`。
+- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md`、所有官方扩展 `gf_extension.json` 的 `version` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
+- 官方扩展 manifest 的 `version` 表示 GF 官方发行版本，发布时所有 `addons/gf/extensions/official/*/gf_extension.json` 必须同步为当前 GF 版本。官方扩展 manifest 的 `extension_version` 表示单个扩展自身版本，只有该扩展的公开 API、配置、行为或兼容性契约发生变化时才按 SemVer 递增；本轮未改变的官方扩展只同步 `version`，不递增 `extension_version`。
 - 正式 `docs/zh/changelog.md` 只保留当前最新发布版本。发布新版本时必须删除上一个正式版本条目，旧版本历史以 Git 历史和 GitHub Releases 为准，不要让旧日志长期堆积在正式文档中。
 - 除非用户明确要求 AI 直接提交，否则只准备 commit message 和待提交文件清单，让用户手动提交。若用户明确要求 AI 提交，提交前必须再次运行相关测试和文档/API 校验。
 - 提交后不要自动创建 Git tag；只有用户明确要求打 tag 时，才创建对应版本 tag。
@@ -163,7 +164,7 @@ godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gtest=res://tests/gf
 
 MkDocs 页面拆分约定：
 
-- `docs/zh` 的文件目录必须和 Read the Docs 导航保持一致，顶层只保留 `index.md`、`faq.md`、`changelog.md` 以及 `overview/`、`kernel/`、`standard/`、`packages/`、`editor/`、`maintenance/` 等语义目录。
+- `docs/zh` 的文件目录必须和 Read the Docs 导航保持一致，顶层只保留 `index.md`、`faq.md`、`changelog.md` 以及 `overview/`、`kernel/`、`standard/`、`extensions/`、`editor/`、`maintenance/` 等语义目录。
 - 每个语义目录的 `index.md` 作为本组导读，只放定位、入口和边界，不再承载大量具体 API 说明。
 - 具体能力放入所属层级下的语义子目录或子页，例如 `standard/utilities/io/storage-snapshot.md`；新增专题时优先追加同组子页，不要把无关能力重新塞回一个长页面。
 - 中英文本地化时，`docs/zh` 与未来 `docs/en` 应保持相同目录 slug、子页 slug 和导航层级；翻译标题可以不同，但页面职责和内容边界必须一致。

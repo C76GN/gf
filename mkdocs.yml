@@ -76,17 +76,17 @@ nav:
           - 纯代码状态机与节点状态机: standard/input-flow/state-machines.md
           - 撤销历史与指令序列: standard/input-flow/command-sequence.md
           - 输入映射与手感辅助: standard/input-flow/input-assist.md
-          - 逻辑空间查询与相关包: standard/input-flow/spatial-query.md
-  - Packages:
-      - 官方包总览与包规范: packages/index.md
-      - Capability: packages/capability/index.md
-      - Interaction 与 Feedback: packages/interaction-feedback/index.md
-      - Combat: packages/combat/index.md
-      - ActionQueue: packages/action-queue/index.md
-      - Network 与 TurnBased: packages/network-turnbased/index.md
-      - Flow、Domain 与 Physics: packages/flow-domain-physics/index.md
-      - Save 场景存档图: packages/save-graph/index.md
-      - Level、BehaviorTree 与 Quest: packages/level-behaviortree-quest/index.md
+          - 逻辑空间查询与相关扩展: standard/input-flow/spatial-query.md
+  - Extensions:
+      - 官方扩展总览与扩展规范: extensions/index.md
+      - Capability: extensions/capability/index.md
+      - Interaction 与 Feedback: extensions/interaction-feedback/index.md
+      - Combat: extensions/combat/index.md
+      - ActionQueue: extensions/action-queue/index.md
+      - Network 与 TurnBased: extensions/network-turnbased/index.md
+      - Flow、Domain 与 Physics: extensions/flow-domain-physics/index.md
+      - Save 场景存档图: extensions/save-graph/index.md
+      - Level、BehaviorTree 与 Quest: extensions/level-behaviortree-quest/index.md
   - Editor:
       - 编辑器工具、访问器与项目常量: editor/index.md
   - Maintenance:

@@ -16,7 +16,7 @@ const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_er
 const INSTALLER_TIMEOUT_SETTING: String = "gf/project/installer_timeout_seconds"
 const GFInstallerBase = preload("res://addons/gf/kernel/core/gf_installer.gd")
 const GFBindingLifetimesBase = preload("res://addons/gf/kernel/core/gf_binding_lifetimes.gd")
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
 # --- 公共变量 ---
@@ -662,7 +662,7 @@ func _wait_for_project_installer_step(
 func _get_project_installer_paths() -> Array[String]:
 	_last_project_installer_error = ""
 	var raw_paths: Variant = ProjectSettings.get_setting(INSTALLERS_SETTING, [])
-	var installer_paths := GFPackageSettingsBase.get_enabled_installer_paths()
+	var installer_paths := GFExtensionSettingsBase.get_enabled_installer_paths()
 
 	if raw_paths is PackedStringArray:
 		for path: String in raw_paths:

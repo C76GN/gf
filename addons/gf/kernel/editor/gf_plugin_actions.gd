@@ -13,7 +13,7 @@ const MENU_GENERATE_COMMAND: int = 3
 const MENU_GENERATE_ACCESSORS: int = 11
 const MENU_GENERATE_PROJECT_ACCESSORS: int = 12
 const TEMPLATE_MENU_ID_START: int = 100
-const PACKAGE_MENU_ID_START: int = 1000
+const EXTENSION_MENU_ID_START: int = 1000
 const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/gf_access_generator.gd"
 const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
 const SECTION_CORE_TEMPLATES: String = "核心模块"
@@ -21,7 +21,7 @@ const SECTION_EXTENSION_TEMPLATES: String = "扩展模板"
 const SECTION_CODE_GENERATION: String = "代码生成"
 const SECTION_EXTENSION_TOOLS: String = "扩展工具"
 const GFPluginProjectSettings = preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
 # --- 私有变量 ---
@@ -30,12 +30,12 @@ var _file_dialog: FileDialog
 var _current_template_type: String = ""
 var _diagnostic_dialog: AcceptDialog
 var _diagnostic_output: TextEdit
-var _package_action_records: Array[Dictionary] = []
+var _extension_action_records: Array[Dictionary] = []
 var _menu_action_handlers: Dictionary = {}
 var _menu_entries: Array[Dictionary] = []
 var _template_records: Dictionary = {}
 var _next_template_menu_id: int = TEMPLATE_MENU_ID_START
-var _next_package_menu_id: int = PACKAGE_MENU_ID_START
+var _next_extension_menu_id: int = EXTENSION_MENU_ID_START
 
 
 # --- 公共方法 ---
@@ -56,7 +56,7 @@ func setup(template_records: Array = []) -> void:
 
 ## 清理菜单动作持有的对话框。
 func cleanup() -> void:
-	_cleanup_package_editor_actions()
+	_cleanup_extension_editor_actions()
 	_cleanup_diagnostic_dialog()
 	_reset_menu_actions()
 	if is_instance_valid(_file_dialog):
@@ -84,18 +84,18 @@ func handle_menu_id(id: int) -> void:
 			_generate_accessors()
 		&"generate_project_accessors":
 			_generate_project_accessors()
-		&"package_action":
-			_handle_package_action(handler)
+		&"extension_action":
+			_handle_extension_action(handler)
 
 
 # --- 私有/辅助方法 ---
 
 func _setup_menu_actions(template_records: Array = []) -> void:
-	_cleanup_package_editor_actions()
+	_cleanup_extension_editor_actions()
 	_reset_menu_actions()
 	_register_template_records(_get_core_template_records())
 	_register_template_records(template_records)
-	_load_package_editor_actions()
+	_load_extension_editor_actions()
 	_register_fixed_menu_action(
 		MENU_GENERATE_ACCESSORS,
 		"生成强类型访问器",
@@ -108,7 +108,7 @@ func _setup_menu_actions(template_records: Array = []) -> void:
 		SECTION_CODE_GENERATION,
 		&"generate_project_accessors"
 	)
-	_register_loaded_package_action_entries()
+	_register_loaded_extension_action_entries()
 
 
 func _reset_menu_actions() -> void:
@@ -116,7 +116,7 @@ func _reset_menu_actions() -> void:
 	_menu_entries.clear()
 	_template_records.clear()
 	_next_template_menu_id = TEMPLATE_MENU_ID_START
-	_next_package_menu_id = PACKAGE_MENU_ID_START
+	_next_extension_menu_id = EXTENSION_MENU_ID_START
 
 
 func _get_core_template_records() -> Array[Dictionary]:
@@ -320,41 +320,41 @@ func _show_diagnostic_dialog(title: String, text: String) -> void:
 	))
 
 
-func _load_package_editor_actions() -> void:
-	_cleanup_package_editor_actions()
-	for script_path: String in GFPackageSettingsBase.get_enabled_editor_action_paths(true):
-		var action := _create_package_editor_action(script_path)
+func _load_extension_editor_actions() -> void:
+	_cleanup_extension_editor_actions()
+	for script_path: String in GFExtensionSettingsBase.get_enabled_editor_action_paths(true):
+		var action := _create_extension_editor_action(script_path)
 		if action == null:
 			continue
-		_package_action_records.append({
+		_extension_action_records.append({
 			"instance": action,
 			"script_path": script_path,
 		})
 		if action.has_method("setup"):
 			action.setup()
-		_register_package_template_records(action, script_path)
+		_register_extension_template_records(action, script_path)
 
 
-func _create_package_editor_action(script_path: String) -> RefCounted:
+func _create_extension_editor_action(script_path: String) -> RefCounted:
 	var script := load(script_path) as Script
 	if script == null or not script.can_instantiate():
-		push_error("[GF Framework] 包编辑器动作加载失败: %s" % script_path)
+		push_error("[GF Framework] 扩展编辑器动作加载失败: %s" % script_path)
 		return null
 
 	var instance := script.new() as RefCounted
 	if instance == null:
-		push_error("[GF Framework] 包编辑器动作实例化失败: %s" % script_path)
+		push_error("[GF Framework] 扩展编辑器动作实例化失败: %s" % script_path)
 		return null
 	return instance
 
 
-func _register_package_template_records(action: RefCounted, script_path: String) -> void:
+func _register_extension_template_records(action: RefCounted, script_path: String) -> void:
 	if not action.has_method("get_template_records"):
 		return
 
 	var records_variant: Variant = action.get_template_records()
 	if not (records_variant is Array):
-		push_error("[GF Framework] 包脚本模板声明无效: %s" % script_path)
+		push_error("[GF Framework] 扩展脚本模板声明无效: %s" % script_path)
 		return
 
 	var records: Array[Dictionary] = []
@@ -364,22 +364,22 @@ func _register_package_template_records(action: RefCounted, script_path: String)
 	_register_template_records(records)
 
 
-func _register_loaded_package_action_entries() -> void:
-	for action_record: Dictionary in _package_action_records:
+func _register_loaded_extension_action_entries() -> void:
+	for action_record: Dictionary in _extension_action_records:
 		var action := action_record.get("instance") as RefCounted
 		var script_path := String(action_record.get("script_path", ""))
 		if action == null:
 			continue
-		_register_package_action_entries(action, script_path)
+		_register_extension_action_entries(action, script_path)
 
 
-func _register_package_action_entries(action: RefCounted, script_path: String) -> void:
+func _register_extension_action_entries(action: RefCounted, script_path: String) -> void:
 	if not action.has_method("get_menu_entries"):
 		return
 
 	var entries_variant: Variant = action.get_menu_entries()
 	if not (entries_variant is Array):
-		push_error("[GF Framework] 包编辑器动作菜单声明无效: %s" % script_path)
+		push_error("[GF Framework] 扩展编辑器动作菜单声明无效: %s" % script_path)
 		return
 
 	for entry_variant: Variant in entries_variant:
@@ -391,21 +391,21 @@ func _register_package_action_entries(action: RefCounted, script_path: String) -
 		if action_id == &"" or label.is_empty():
 			continue
 
-		var menu_id := _next_package_menu_id
-		_next_package_menu_id += 1
+		var menu_id := _next_extension_menu_id
+		_next_extension_menu_id += 1
 		var section := String(entry.get("section", SECTION_EXTENSION_TOOLS)).strip_edges()
 		if section.is_empty():
 			section = SECTION_EXTENSION_TOOLS
 
 		_menu_action_handlers[menu_id] = {
-			"kind": &"package_action",
+			"kind": &"extension_action",
 			"instance": action,
 			"action_id": action_id,
 		}
 		_append_menu_entry(menu_id, label, section)
 
 
-func _handle_package_action(handler: Dictionary) -> void:
+func _handle_extension_action(handler: Dictionary) -> void:
 	var action := handler.get("instance") as RefCounted
 	if action == null or not action.has_method("handle_menu_action"):
 		return
@@ -413,12 +413,12 @@ func _handle_package_action(handler: Dictionary) -> void:
 	action.handle_menu_action(StringName(handler.get("action_id", &"")))
 
 
-func _cleanup_package_editor_actions() -> void:
-	for action_record: Dictionary in _package_action_records:
+func _cleanup_extension_editor_actions() -> void:
+	for action_record: Dictionary in _extension_action_records:
 		var action := action_record.get("instance") as RefCounted
 		if action != null and action.has_method("cleanup"):
 			action.cleanup()
-	_package_action_records.clear()
+	_extension_action_records.clear()
 
 
 func _cleanup_diagnostic_dialog() -> void:

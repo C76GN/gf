@@ -5,12 +5,12 @@ extends GutTest
 
 const GF_ACCESS_GENERATOR_BASE := preload("res://addons/gf/kernel/editor/gf_access_generator.gd")
 const GF_SOURCE_BUILDER_BASE := preload("res://addons/gf/kernel/editor/gf_source_builder.gd")
-const GF_CAPABILITY_ACCESS_GENERATOR_EXTENSION_BASE := preload("res://addons/gf/packages/official/capability/editor/gf_capability_access_generator_extension.gd")
-const GF_CAPABILITY_BASE := preload("res://addons/gf/packages/official/capability/core/gf_capability.gd")
-const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/packages/official/capability/nodes/gf_node_capability.gd")
-const GF_NODE_2D_CAPABILITY_BASE := preload("res://addons/gf/packages/official/capability/nodes/gf_node_2d_capability.gd")
-const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/packages/official/capability/nodes/gf_node_3d_capability.gd")
-const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/packages/official/capability/nodes/gf_control_capability.gd")
+const GF_CAPABILITY_ACCESS_GENERATOR_EXTENSION_BASE := preload("res://addons/gf/extensions/official/capability/editor/gf_capability_access_generator_extension.gd")
+const GF_CAPABILITY_BASE := preload("res://addons/gf/extensions/official/capability/core/gf_capability.gd")
+const GF_NODE_CAPABILITY_BASE := preload("res://addons/gf/extensions/official/capability/nodes/gf_node_capability.gd")
+const GF_NODE_2D_CAPABILITY_BASE := preload("res://addons/gf/extensions/official/capability/nodes/gf_node_2d_capability.gd")
+const GF_NODE_3D_CAPABILITY_BASE := preload("res://addons/gf/extensions/official/capability/nodes/gf_node_3d_capability.gd")
+const GF_CONTROL_CAPABILITY_BASE := preload("res://addons/gf/extensions/official/capability/nodes/gf_control_capability.gd")
 
 
 # --- 测试用例 ---
@@ -47,7 +47,7 @@ func test_build_source_generates_typed_accessors() -> void:
 			"class_name": "HealthCapability",
 			"path": "res://health_capability.gd",
 			"kind": GF_ACCESS_GENERATOR_BASE.TargetKind.CAPABILITY,
-			"utility_path": "res://addons/gf/packages/official/capability/core/gf_capability_utility.gd",
+			"utility_path": "res://addons/gf/extensions/official/capability/core/gf_capability_utility.gd",
 		},
 	])
 
@@ -59,7 +59,7 @@ func test_build_source_generates_typed_accessors() -> void:
 	assert_true(source.contains("static func get_health_capability(receiver: Object, architecture: GFArchitecture = null) -> HealthCapability:"), "应生成能力查询入口。")
 	assert_true(source.contains("static func add_health_capability(receiver: Object, architecture: GFArchitecture = null) -> HealthCapability:"), "应生成能力添加入口。")
 	assert_true(source.contains("static func if_has_health_capability(receiver: Object, callback: Callable, architecture: GFArchitecture = null) -> Variant:"), "应生成能力条件回调入口。")
-	assert_true(source.contains("_CAPABILITY_UTILITY_SCRIPT_PATH"), "包含能力记录时才应生成能力包运行时入口。")
+	assert_true(source.contains("_CAPABILITY_UTILITY_SCRIPT_PATH"), "包含能力记录时才应生成能力扩展运行时入口。")
 	assert_true(source.contains("instance.call(\"_gf_set_dependency_scope\", architecture)"), "fallback new() 的对象应先绑定内部依赖作用域。")
 
 
@@ -73,8 +73,8 @@ func test_build_source_omits_capability_helper_without_capability_records() -> v
 		},
 	])
 
-	assert_false(source.contains("_CAPABILITY_UTILITY_SCRIPT_PATH"), "没有能力记录时不应生成能力包路径常量。")
-	assert_false(source.contains("res://addons/gf/packages/official/capability"), "没有能力记录时生成脚本不应直接引用能力包路径。")
+	assert_false(source.contains("_CAPABILITY_UTILITY_SCRIPT_PATH"), "没有能力记录时不应生成能力扩展路径常量。")
+	assert_false(source.contains("res://addons/gf/extensions/official/capability"), "没有能力记录时生成脚本不应直接引用能力扩展路径。")
 
 
 func test_build_source_skips_duplicate_function_names() -> void:
@@ -157,16 +157,16 @@ func test_capability_access_extension_accepts_spatial_node_capability_bases() ->
 
 	assert_false(extension._is_capability_script(GF_CAPABILITY_BASE), "GFCapability 基类不应生成访问器。")
 	assert_false(extension._is_capability_script(GF_NODE_CAPABILITY_BASE), "GFNodeCapability 基类不应生成访问器。")
-	assert_true(extension._is_capability_script(GF_NODE_2D_CAPABILITY_BASE), "GFNode2DCapability 应由能力包扩展识别。")
-	assert_true(extension._is_capability_script(GF_NODE_3D_CAPABILITY_BASE), "GFNode3DCapability 应由能力包扩展识别。")
-	assert_true(extension._is_capability_script(GF_CONTROL_CAPABILITY_BASE), "GFControlCapability 应由能力包扩展识别。")
+	assert_true(extension._is_capability_script(GF_NODE_2D_CAPABILITY_BASE), "GFNode2DCapability 应由能力扩展识别。")
+	assert_true(extension._is_capability_script(GF_NODE_3D_CAPABILITY_BASE), "GFNode3DCapability 应由能力扩展识别。")
+	assert_true(extension._is_capability_script(GF_CONTROL_CAPABILITY_BASE), "GFControlCapability 应由能力扩展识别。")
 
 
 func test_kernel_access_generator_no_longer_resolves_capability_kind() -> void:
 	var generator: Variant = GF_ACCESS_GENERATOR_BASE.new()
 	var kind: int = generator._resolve_kind(GF_NODE_2D_CAPABILITY_BASE)
 
-	assert_eq(kind, -1, "Capability 记录应由能力包访问器扩展贡献，而不是 kernel 直接识别。")
+	assert_eq(kind, -1, "Capability 记录应由能力扩展的访问器扩展贡献，而不是 kernel 直接识别。")
 
 
 func test_access_generator_extension_can_append_records() -> void:

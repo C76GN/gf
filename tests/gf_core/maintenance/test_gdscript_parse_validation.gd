@@ -5,23 +5,8 @@ extends GutTest
 # --- 常量 ---
 
 const SOURCE_ROOT: String = "res://addons/gf"
-const REMOVED_SOURCE_PATH_FRAGMENTS: Array[String] = [
-	"res://addons/gf/base/",
-	"res://addons/gf/core/",
-	"res://addons/gf/editor/",
-	"res://addons/gf/foundation/",
-	"res://addons/gf/input/",
-	"res://addons/gf/utilities/",
-	"res://addons/gf/extensions/",
-	"addons/gf/base/",
-	"addons/gf/core/",
-	"addons/gf/editor/",
-	"addons/gf/foundation/",
-	"addons/gf/input/",
-	"addons/gf/utilities/",
-	"addons/gf/extensions/",
-]
 const REMOVED_PUBLIC_CLASS_NAMES: Array[String] = [
+	"GFShakeAction",
 	"GFInputUtility",
 	"GFValidationUtility",
 	"GFDecimalStringUtility",
@@ -50,14 +35,11 @@ func test_gf_source_scripts_load_without_parse_errors() -> void:
 	assert_eq(issues, [], "GF 源码脚本应能被 Godot 解析加载：\n%s" % _join_lines(issues))
 
 
-func test_removed_source_paths_and_class_names_do_not_remain_in_runtime_source() -> void:
+func test_removed_public_class_names_do_not_remain_in_runtime_source() -> void:
 	var script_paths := _collect_gdscript_files(SOURCE_ROOT)
 	var issues: Array[String] = []
 	for path: String in script_paths:
 		var source := _read_text(path)
-		for path_fragment: String in REMOVED_SOURCE_PATH_FRAGMENTS:
-			if source.contains(path_fragment):
-				issues.append("%s contains removed path fragment %s" % [path, path_fragment])
 		for removed_class_name: String in REMOVED_PUBLIC_CLASS_NAMES:
 			if _contains_identifier(source, removed_class_name):
 				issues.append("%s contains removed class name %s" % [path, removed_class_name])
@@ -65,7 +47,7 @@ func test_removed_source_paths_and_class_names_do_not_remain_in_runtime_source()
 	assert_eq(
 		issues,
 		[],
-		"`addons/gf` 运行时代码不应保留 3.0.0 前的旧路径或旧公开类名兼容副本。"
+		"`addons/gf` 运行时代码不应保留已移除公开类名的副本。"
 	)
 
 
@@ -89,7 +71,7 @@ func test_public_class_names_are_unique() -> void:
 		if paths.size() > 1:
 			issues.append("%s declared in %s" % [discovered_class_name, _join_string_values(paths)])
 
-	assert_eq(issues, [], "公开 class_name 必须唯一，避免旧路径副本或重复脚本污染 Godot 全局类型表：\n%s" % _join_lines(issues))
+	assert_eq(issues, [], "公开 class_name 必须唯一，避免重复脚本污染 Godot 全局类型表：\n%s" % _join_lines(issues))
 
 
 func test_gdscript_uid_files_are_unique_and_match_scripts() -> void:

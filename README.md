@@ -17,7 +17,7 @@ The legacy GitHub Wiki keeps only entry links. Read the Docs is the single offic
 
 - Godot 4.x.
 - GUT, only when running the repository test suite.
-- Python packages from [`docs/requirements.txt`](docs/requirements.txt), only when building the documentation locally.
+- Python dependencies from [`docs/requirements.txt`](docs/requirements.txt), only when building the documentation locally.
 
 ## Installation
 
@@ -31,9 +31,9 @@ When enabled, the plugin registers the `Gf` AutoLoad automatically:
 Gf -> res://addons/gf/kernel/core/gf.gd
 ```
 
-The plugin also opens a `GF Packages` bottom panel. Use it to inspect package manifests, enable or disable GF packages, auto-run enabled package installers, exclude disabled package folders from exported builds, and make disabled-package references fail export checks when needed.
+The plugin also opens a `GF Extensions` bottom panel. Use it to inspect extension manifests, enable or disable GF extensions, auto-run enabled extension installers, exclude disabled extension folders from exported builds, and make disabled-extension references fail export checks when needed.
 
-Official packages do not hard depend on each other. Unused packages can be disabled, excluded from export, or removed after project scripts, scenes, resources, and preloads no longer reference them.
+Official extensions are atomic: they depend only on the GF kernel/standard surface and do not declare, probe, or load other official extensions. Project code, community extensions, or external plugins own cross-extension composition. Unused extensions can be disabled, excluded from export, or removed after project scripts, scenes, resources, and preloads no longer reference them.
 
 ## Quick Start
 
@@ -76,22 +76,22 @@ Add the installer path to `Project Settings > gf/project/installers`, then call 
 - `GFUtility`: lifecycle-managed runtime services such as storage, resource loading, settings, time, audio, UI stacks, logging, diagnostics, input, jobs, object pools, and scene workflows.
 - `standard/foundation`: pure algorithms, values, formatting, validation, formulas, tags, blackboards, graphs, grids, pathfinding, spatial helpers, and data conversion. It does not participate in `GFArchitecture` lifecycle registration.
 
-## Layers And Packages
+## Layers And Extensions
 
 GF source is organized around stable ownership boundaries:
 
-- `addons/gf/kernel`: runtime kernel, base contracts, architecture container, binding, events, commands, queries, factories, AutoLoad entry, package infrastructure, and core editor integration.
+- `addons/gf/kernel`: runtime kernel, base contracts, architecture container, binding, events, commands, queries, factories, AutoLoad entry, extension infrastructure, and core editor integration.
 - `addons/gf/standard`: stable standard library, including foundation, input, utilities, state machines, command history, sequence helpers, and common support primitives.
-- `addons/gf/packages/official`: optional official packages shipped with GF, such as capability, interaction, feedback, action queue, combat, save, flow, network, turn-based flow, behavior tree, physics helpers, and domain models.
-- `addons/gf/packages/community`: convention folder for local or third-party packages that follow the GF package manifest and directory standard.
+- `addons/gf/extensions/official`: optional atomic official extensions shipped with GF, such as capability, interaction, feedback, action queue, combat, save, flow, network, turn-based flow, behavior tree, physics helpers, and domain models.
+- `addons/gf/extensions/community`: convention folder for local or third-party extensions that follow the GF extension manifest and directory standard, including project-specific composition extensions.
 
-The kernel does not hard reference the standard library or optional packages. The standard library depends only on the kernel and must not probe official packages through package IDs, paths, dynamic loading, or package class names. Packages that need to appear in standard diagnostics or tools contribute through generic registration APIs, or the project wires them explicitly.
+The kernel does not hard reference the standard library or optional extensions. The standard library depends only on the kernel and must not probe official extensions through extension IDs, paths, dynamic loading, or extension class names. Official extensions are kept independent of each other; extensions that need to appear in standard diagnostics or tools contribute through generic registration APIs, and cross-extension orchestration stays in project or community code.
 
 ## Editor Tools
 
-GF includes editor support for package management, typed GF/config accessor generation, project constants, script templates, inspectors, docks, export helpers, SaveGraph diagnostics, Pattern2D editing, and Node3D/Mesh/MeshLibrary thumbnail rendering.
+GF includes editor support for extension management, typed GF/config accessor generation, project constants, script templates, inspectors, docks, export helpers, SaveGraph diagnostics, Pattern2D editing, and Node3D/Mesh/MeshLibrary thumbnail rendering.
 
-Package-specific editor tools are declared by `gf_package.json` manifests and loaded only when the package is enabled.
+Extension-specific editor tools are declared by `gf_extension.json` manifests and loaded only when the extension is enabled.
 
 ## Testing
 
@@ -101,7 +101,7 @@ The test suite uses GUT:
 godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_core -ginclude_subdirs -gexit
 ```
 
-Maintenance checks live under [`tests/gf_core/maintenance`](tests/gf_core/maintenance). They cover API comments, layer boundaries, removed paths/classes, generated docs consistency, Read the Docs structure, and legacy Wiki entry policy.
+Maintenance checks live under [`tests/gf_core/maintenance`](tests/gf_core/maintenance). They cover API comments, layer boundaries, removed public classes, generated docs consistency, Read the Docs structure, and legacy Wiki entry policy.
 
 ## Documentation Build
 

@@ -10,7 +10,7 @@ Standard Foundation 放置纯算法、纯数据结构、轻量格式化和通用
 
 ## 为什么要单独分层
 
-这些类型常被多个模块同时使用，但它们不应该依赖运行时容器、场景树或可选包。把它们放在 `standard/foundation` 可以避免 `kernel` 膨胀，也能避免各个 Utility 重复实现基础能力。
+这些类型常被多个模块同时使用，但它们不应该依赖运行时容器、场景树或可选扩展。把它们放在 `standard/foundation` 可以避免 `kernel` 膨胀，也能避免各个 Utility 重复实现基础能力。
 
 ## 当前目录结构
 
@@ -27,11 +27,11 @@ addons/gf/standard/foundation/
 
 - 没有生命周期，不需要注册到 `GFArchitecture`。
 - 不持有场景节点、文件句柄、网络请求或异步状态。
-- 可以被 `standard`、官方包、社区包和项目代码安全复用。
+- 可以被 `standard`、官方扩展、社区扩展和项目代码安全复用。
 - 表达的是稳定通用概念，而不是某个项目的业务规则。
 
 ## 使用约定
 
 - 需要 `tick()`、缓存、异步加载、ProjectSettings 或全局状态时，优先放到 `standard/utilities`。
-- 需要包启用状态、Installer 或包内场景资源时，放到对应 `packages/official` 或社区包。
+- 需要扩展启用状态、Installer 或扩展内场景资源时，放到对应 `extensions/official` 或社区扩展。
 - 新增基础件时，应同步补充对应子页和 `docs/zh/changelog.md`。

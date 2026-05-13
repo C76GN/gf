@@ -14,9 +14,9 @@ The plugin folder contains its own `README.md` and `LICENSE.md`. Root-level docs
 - Description:
 
 ```text
-GF Framework is a lightweight architecture framework for Godot 4. It helps organize games into models, systems, controllers, utilities, foundation helpers, and optional packages with managed lifecycles, typed events, bindable properties, commands and queries, installers, package manifests, package enablement/export filtering, capability components, action queues with resourceized tween configs, state machines with guards and blackboards, resourceized flow graphs with port metadata, connections, and validation, pluggable network backend foundations with optional ENet transport plus session/channel metadata, versioned storage/codecs with migration hooks and file management, snapshot history, save slot workflows, save graph composition with pipeline hooks, traces, and diagnostics, settings/audio/scene/remote-cache utilities, asset handles and groups, scene transition configs, player-scoped input mapping with modifiers, triggers, 3D values, formatter providers, rich text formatting, and conflict reports, debug draw command buffering, analytics transport hooks, governed runtime diagnostics, notification queues, grid/hex pathfinding helpers, 3D spatial helpers, generic domain data models, and lightweight combat helpers.
+GF Framework is a lightweight architecture framework for Godot 4. It helps organize games into models, systems, controllers, utilities, foundation helpers, and optional extensions with managed lifecycles, typed events, bindable properties, commands and queries, installers, extension manifests, extension enablement/export filtering, capability components, action queues with resourceized tween configs, state machines with guards and blackboards, resourceized flow graphs with port metadata, connections, and validation, pluggable network backend foundations with optional ENet transport plus session/channel metadata, versioned storage/codecs with migration hooks and file management, snapshot history, save slot workflows, save graph composition with pipeline hooks, traces, and diagnostics, settings/audio/scene/remote-cache utilities, asset handles and groups, scene transition configs, player-scoped input mapping with modifiers, triggers, 3D values, formatter providers, rich text formatting, and conflict reports, debug draw command buffering, analytics transport hooks, governed runtime diagnostics, notification queues, grid/hex pathfinding helpers, 3D spatial helpers, generic domain data models, and lightweight combat helpers.
 
-Enable the plugin to register the Gf AutoLoad and use the editor tools for package management, GF module templates, typed accessors, and project constants.
+Enable the plugin to register the Gf AutoLoad and use the editor tools for extension management, GF module templates, typed accessors, and project constants.
 ```
 
 - Category: `Tools`
@@ -25,9 +25,9 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for packa
 - Repository URL: `https://github.com/C76GN/gf`
 - Issues URL: `https://github.com/C76GN/gf/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `3.1.0`
-- Download Commit/URL: `3.1.0`
-- Icon URL: `https://raw.githubusercontent.com/C76GN/gf/3.1.0/addons/gf/icon.png`
+- Asset Version: `3.2.0`
+- Download Commit/URL: `3.2.0`
+- Icon URL: `https://raw.githubusercontent.com/C76GN/gf/3.2.0/addons/gf/icon.png`
 
 ## Short Description
 

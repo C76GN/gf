@@ -1,0 +1,23 @@
+{
+  "id": "gf.official.capability",
+  "display_name": "GF Capability",
+  "version": "3.2.0",
+  "extension_version": "1.0.0",
+  "kind": "official",
+  "description": "Reusable object and node capability composition with recipes and editor inspection support.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [
+    "res://addons/gf/extensions/official/capability/extension.gd"
+  ],
+  "editor_inspector_paths": [
+    "res://addons/gf/extensions/official/capability/editor/gf_capability_inspector_plugin.gd"
+  ],
+  "editor_action_paths": [
+    "res://addons/gf/extensions/official/capability/editor/gf_capability_editor_actions.gd"
+  ],
+  "access_generator_extension_paths": [
+    "res://addons/gf/extensions/official/capability/editor/gf_capability_access_generator_extension.gd"
+  ],
+  "enabled_by_default": true,
+  "tags": ["composition", "nodes", "editor"]
+}

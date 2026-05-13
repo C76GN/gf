@@ -10,7 +10,7 @@
 - `GFModel`：保存项目状态。
 - `GFSystem`：处理规则、事件、命令和逐帧逻辑。
 - `GFUtility`：提供存档、资源、时间、日志等运行时服务。
-- `GFInstaller`：集中装配项目或包的模块。
+- `GFInstaller`：集中装配项目或扩展的模块。
 
 ## 安装
 
@@ -22,7 +22,7 @@
 Gf -> res://addons/gf/kernel/core/gf.gd
 ```
 
-插件也会打开 `GF Packages` 底部面板，用于查看包信息、启用或禁用包、控制包 Installer 是否自动装配，以及控制导出时是否排除禁用包。包机制的完整说明见 [官方包总览与包规范](../packages/index.md)。
+插件也会打开 `GF Extensions` 底部面板，用于查看扩展信息、启用或禁用扩展、控制扩展 Installer 是否自动装配，以及控制导出时是否排除禁用扩展。扩展机制的完整说明见 [官方扩展总览与扩展规范](../extensions/index.md)。
 
 ## 最小启动
 
@@ -65,7 +65,7 @@ func install(architecture: GFArchitecture) -> void:
 	architecture.register_system_instance(BattleSystem.new())
 ```
 
-然后把安装器路径加入 `Project Settings > gf/project/installers`。调用 `await Gf.init()` 时，GF 会先运行启用包的 Installer，再运行项目 Installer，最后进入模块生命周期。
+然后把安装器路径加入 `Project Settings > gf/project/installers`。调用 `await Gf.init()` 时，GF 会先运行启用扩展的 Installer，再运行项目 Installer，最后进入模块生命周期。
 
 Installer 只负责注册模块，不应该直接启动关卡、打开 UI 或执行玩法流程。启动流程更适合放在引导场景或专门的 `GFSystem` 中。
 
@@ -75,11 +75,11 @@ Installer 只负责注册模块，不应该直接启动关卡、打开 UI 或执
 - 想理解 Installer、三阶段初始化和局部架构：读 [生命周期、装配与依赖](../kernel/lifecycle/index.md)。
 - 想写事件、命令和查询：读 [消息、事件、命令与查询](../kernel/messaging/index.md)。
 - 想把场景节点、UI 和输入接入 GF：读 [场景桥接、Controller 与数据绑定](../kernel/scene-controller/index.md)。
-- 想查标准库或官方包能力：回到 [Home](../index.md) 按主题查阅。
+- 想查标准库或官方扩展能力：回到 [Home](../index.md) 按主题查阅。
 
 ## 上手原则
 
-- 纯算法和纯数据优先放在 `standard/foundation` 或包内 `foundation`。
+- 纯算法和纯数据优先放在 `standard/foundation` 或扩展内 `foundation`。
 - 需要生命周期、缓存、异步、事件或跨模块复用的能力放入 `GFUtility`。
 - 具体玩法规则放在项目的 `Model` / `System` / `Controller` 中。
-- 可复用但不是所有项目都需要的通用能力，优先作为包维护。
+- 可复用但不是所有项目都需要的通用能力，优先作为扩展维护。

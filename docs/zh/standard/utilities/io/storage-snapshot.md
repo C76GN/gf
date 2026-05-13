@@ -1,6 +1,6 @@
 # 本地存储、编码、同步与快照
 
-本页聚焦标准库的本地读写、编码、同步和快照历史。场景树存档图属于官方 Save 包。
+本页聚焦标准库的本地读写、编码、同步和快照历史。场景树存档图属于官方 Save 扩展。
 ## 本地存档管理器 (`GFStorageUtility`)
 
 `GFStorageUtility` 是基于 Godot `user://` 的本地持久化工具。它负责把字典、槽位元数据和 `Resource` 文件写入项目可写目录，并在读取时执行 codec 解码、完整性校验、事务恢复和版本迁移；它不负责云同步、业务 schema 设计、玩家账号隔离或安全加密。
@@ -118,4 +118,4 @@ snapshots.step_back()
 
 插件启用后也会提供 `GF Save Viewer` Dock。它由标准库中的 `GFStorageViewerDock` 承载，用于按 codec 选项查看本地存档内容、校验状态并复制 JSON，方便调试而不绑定任何项目业务结构。
 
-如果需要采集和恢复场景树节点状态，使用官方 Save 包的 `GFSaveGraphUtility` / `GFSaveScope`。标准库文档聚焦本地读写、编码、同步和快照能力；SaveGraph 的节点序列化器、槽位工作流和 pipeline trace 见 [Save 场景存档图](../../../packages/save-graph/index.md)。
+如果需要采集和恢复场景树节点状态，使用官方 Save 扩展的 `GFSaveGraphUtility` / `GFSaveScope`。标准库文档聚焦本地读写、编码、同步和快照能力；SaveGraph 的节点序列化器、槽位工作流和 pipeline trace 见 [Save 场景存档图](../../../extensions/save-graph/index.md)。

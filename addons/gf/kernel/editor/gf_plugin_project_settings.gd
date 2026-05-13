@@ -20,7 +20,7 @@ const BUILD_INFO_EXPORT_ENABLED_SETTING: String = "gf/build/export/write_git_met
 const BUILD_INFO_EXPORT_RESTORE_SETTING: String = "gf/build/export/restore_previous_settings"
 const BUILD_INFO_EXPORT_SAVE_SETTING: String = "gf/build/export/save_project_settings"
 const BUILD_INFO_EXPORT_METADATA_SETTING: String = "gf/build/export/metadata"
-const GFPackageSettingsBase = preload("res://addons/gf/kernel/package/gf_package_settings.gd")
+const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
 # --- 公共方法 ---
@@ -45,11 +45,11 @@ static func ensure_all() -> void:
 		should_save = true
 	if _ensure_default(BUILD_INFO_EXPORT_METADATA_SETTING, {}):
 		should_save = true
-	if GFPackageSettingsBase.ensure_defaults():
+	if GFExtensionSettingsBase.ensure_defaults():
 		should_save = true
 
 	_register_property_info()
-	GFPackageSettingsBase.register_property_info()
+	GFExtensionSettingsBase.register_property_info()
 	if should_save:
 		ProjectSettings.save()
 
