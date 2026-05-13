@@ -10,6 +10,7 @@ const GF_PLUGIN_DOCK_TOOLS := preload("res://addons/gf/kernel/editor/gf_plugin_d
 const GF_PLUGIN_INSPECTOR_TOOLS := preload("res://addons/gf/kernel/editor/gf_plugin_inspector_tools.gd")
 const GF_PLUGIN_MENU := preload("res://addons/gf/kernel/editor/gf_plugin_menu.gd")
 const GF_PLUGIN_PROJECT_SETTINGS := preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
+const GF_EDITOR_WORKSPACE_DOCK := preload("res://addons/gf/kernel/editor/gf_editor_workspace_dock.gd")
 const GF_EXTENSION_MANAGER_DOCK := preload("res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd")
 const GF_EXTENSION_SETTINGS_BASE := preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 const GF_STANDARD_EDITOR_EXTENSIONS := preload("res://addons/gf/standard/editor/gf_standard_editor_extensions.gd")
@@ -140,6 +141,61 @@ func test_plugin_dock_tools_keeps_core_docks_available_without_extensions() -> v
 		"扩展管理器应作为 kernel Dock 保持可用。"
 	)
 	assert_true(extension_records.is_empty(), "全禁用时不应注册任何扩展级 Dock。")
+
+
+func test_editor_workspace_dock_groups_gf_panels() -> void:
+	var dock: Variant = GF_EDITOR_WORKSPACE_DOCK.new()
+	var records: Array[Dictionary] = [
+		{
+			"path": "res://addons/gf/standard/utilities/storage/editor/gf_storage_viewer_dock.gd",
+			"label": "GF Save Viewer",
+		},
+		{
+			"path": "res://addons/gf/standard/utilities/debug/editor/gf_signal_graph_dock.gd",
+			"label": "GF Signal Graph",
+		},
+		{
+			"path": "res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd",
+			"label": "GF Extensions",
+		},
+	]
+	dock.setup(records)
+
+	assert_eq(dock.name, "GF", "统一工作区应只占用一个 GF 底部入口。")
+	assert_true(dock.clip_contents, "统一工作区应裁剪超出内容，避免覆盖 Godot 底部栏。")
+	assert_eq(dock.custom_minimum_size, Vector2(0.0, 112.0), "统一工作区最小高度只应保留顶部入口区。")
+	assert_eq(dock.get_page_count(), 3, "工作区应把多个 GF 面板收束为内部页面。")
+	assert_eq(dock.get_page_titles(), PackedStringArray(["GF Save Viewer", "GF Signal Graph", "GF Extensions"]), "页面标题应保留原面板语义。")
+	assert_eq(dock.get_page_button_titles(), PackedStringArray(["GF Save Viewer", "GF Signal Graph", "GF Extensions"]), "响应式页面入口应随页面记录自动生成。")
+	assert_true(dock.get_about_text().contains("https://github.com/C76GN/gf-framework"), "关于弹窗应提供项目地址。")
+	assert_true(dock.get_about_text().contains("https://gf-framework.readthedocs.io/"), "关于弹窗应提供正式文档地址。")
+	assert_true(dock.get_about_text().contains("cl7o6dgyn@gmail.com"), "关于弹窗应提供联系邮箱。")
+	for index: int in range(dock.get_page_count()):
+		var page := dock._tabs.get_child(index) as Control
+		var content := page.get_child(0) as Control
+		assert_true(page.clip_contents, "每个页面容器都应裁剪内容，避免覆盖底部栏。")
+		assert_eq(page.custom_minimum_size, Vector2.ZERO, "页面容器不应把内部工具最小高度传给底部面板。")
+		assert_true(content.clip_contents, "被装入工作区的工具页面应裁剪自身溢出内容。")
+		assert_eq(content.anchor_right, 1.0, "工具页面应横向铺满页面容器。")
+		assert_eq(content.anchor_bottom, 1.0, "工具页面应纵向跟随页面容器。")
+
+	dock._ensure_about_dialog()
+	var about_scroll := dock._about_dialog.get_node("AboutContent/AboutLayout/AboutScroll") as ScrollContainer
+	var about_text := dock._about_dialog.get_node("AboutContent/AboutLayout/AboutScroll/AboutText") as RichTextLabel
+	var about_confirm := dock._about_dialog.get_node("AboutContent/AboutLayout/AboutConfirmCenter/AboutConfirmButton") as Button
+	assert_eq(dock._about_dialog.min_size, Vector2i(620, 360), "关于弹窗应保持固定可控尺寸。")
+	assert_eq(about_scroll.custom_minimum_size.y, 236.0, "关于正文区域应限制高度，避免长链接撑高弹窗。")
+	assert_not_null(about_text, "关于弹窗应使用可点击链接文本。")
+	assert_false(about_text.fit_content, "关于正文不应使用 fit_content，避免参与过长最小高度计算。")
+	assert_true(about_text.text.contains("[url=https://github.com/C76GN/gf-framework]"), "项目地址应作为正文链接呈现。")
+	assert_true(about_text.text.contains("[url=https://gf-framework.readthedocs.io/]"), "文档地址应作为正文链接呈现。")
+	assert_true(about_text.text.contains("WeChat：C76_GN"), "关于弹窗应展示微信联系方式。")
+	assert_true(about_text.text.contains("QQ：403150493"), "关于弹窗应展示 QQ 联系方式。")
+	assert_false(dock._about_dialog.get_ok_button().visible, "默认底部确认按钮应隐藏，避免按钮停在右下角。")
+	assert_eq(about_confirm.text, "确定", "自定义确认按钮应使用中文确定。")
+	assert_true(about_confirm.get_parent() is CenterContainer, "自定义确认按钮应放在居中容器中。")
+
+	dock.free()
 
 
 func test_extension_manager_dock_exposes_strict_reference_export_policy() -> void:

@@ -20,12 +20,20 @@ var include_diagnostics_monitors: bool = true
 ## Overlay 默认读取的诊断监控预设。
 var diagnostics_monitor_preset: StringName = &"overlay"
 
+## 是否在 Overlay 中附加最近日志面板。
+var include_recent_logs: bool = true
+
+## 最近日志面板读取的日志数量。
+var recent_log_count: int = 12
+
 
 # --- 私有变量 ---
 
 var _overlay_gui: _GFDebugGUI
 var _watches: Dictionary = {}
 var _watch_order_counter: int = 0
+var _panels: Dictionary = {}
+var _panel_order_counter: int = 0
 
 
 # --- Godot 生命周期方法 ---
@@ -37,6 +45,7 @@ func init() -> void:
 	_overlay_gui.refresh_interval_seconds = refresh_interval_seconds
 	_overlay_gui.architecture_provider = Callable(self, "_get_architecture_or_null")
 	_overlay_gui.watch_snapshot_provider = Callable(self, "get_watch_snapshot")
+	_overlay_gui.panel_snapshot_provider = Callable(self, "get_panel_snapshot")
 	
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
@@ -50,9 +59,11 @@ func dispose() -> void:
 		_overlay_gui.set_process_input(false)
 		_overlay_gui.architecture_provider = Callable()
 		_overlay_gui.watch_snapshot_provider = Callable()
+		_overlay_gui.panel_snapshot_provider = Callable()
 		_overlay_gui.queue_free()
 	_overlay_gui = null
 	clear_watches()
+	clear_panels()
 
 
 # --- 公共方法 ---
@@ -157,6 +168,76 @@ func get_watch_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	return snapshot
 
 
+## 注册一个由回调生成内容的 Overlay 面板。
+## @param panel_id: 面板唯一标识。
+## @param provider: 无参数回调；返回 String、Dictionary、Array 或其他可转字符串值。
+## @param options: 可选显示参数，支持 label、group、visible。
+## @return 注册成功返回 true。
+func register_panel(panel_id: StringName, provider: Callable, options: Dictionary = {}) -> bool:
+	if panel_id == &"" or not provider.is_valid():
+		return false
+
+	_upsert_panel_entry(panel_id, &"provider", provider, options)
+	return true
+
+
+## 推送一个静态 Overlay 面板文本。
+## @param panel_id: 面板唯一标识。
+## @param content: 面板内容。
+## @param options: 可选显示参数，支持 label、group、visible。
+## @return 注册成功返回 true。
+func push_panel_text(panel_id: StringName, content: String, options: Dictionary = {}) -> bool:
+	if panel_id == &"":
+		return false
+
+	_upsert_panel_entry(panel_id, &"text", content, options)
+	return true
+
+
+## 移除一个 Overlay 面板。
+## @param panel_id: 面板唯一标识。
+func remove_panel(panel_id: StringName) -> void:
+	_panels.erase(panel_id)
+
+
+## 清空 Overlay 面板注册表。
+func clear_panels() -> void:
+	_panels.clear()
+	_panel_order_counter = 0
+
+
+## 检查 Overlay 面板是否已注册。
+## @param panel_id: 面板唯一标识。
+## @return 已注册时返回 true。
+func has_panel(panel_id: StringName) -> bool:
+	return _panels.has(panel_id)
+
+
+## 读取当前 Overlay 面板快照。
+## @param include_hidden: 为 true 时同时返回 visible=false 的面板。
+## @return 面板快照数组。
+func get_panel_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
+	var entries: Array[Dictionary] = []
+	for panel_id: StringName in _panels:
+		var source_entry: Dictionary = _panels[panel_id]
+		if not include_hidden and not bool(source_entry.get("visible", true)):
+			continue
+
+		var entry := source_entry.duplicate()
+		entry["id"] = panel_id
+		entries.append(entry)
+
+	entries.sort_custom(_sort_panel_entries)
+
+	var snapshot: Array[Dictionary] = []
+	for entry: Dictionary in entries:
+		snapshot.append(_evaluate_panel_entry(entry))
+
+	if include_recent_logs:
+		_append_recent_log_panel(snapshot, include_hidden)
+	return snapshot
+
+
 # --- 私有/辅助方法 ---
 
 func _upsert_watch_entry(id: StringName, mode: StringName, payload: Variant, options: Dictionary) -> void:
@@ -232,6 +313,111 @@ func _sort_watch_entries(left: Dictionary, right: Dictionary) -> bool:
 	return String(left.get("id", &"")) < String(right.get("id", &""))
 
 
+func _upsert_panel_entry(panel_id: StringName, mode: StringName, payload: Variant, options: Dictionary) -> void:
+	var entry: Dictionary = {}
+	if _panels.has(panel_id):
+		entry = (_panels[panel_id] as Dictionary).duplicate()
+	else:
+		entry = {
+			"label": String(panel_id),
+			"group": "Runtime",
+			"visible": true,
+			"order": _panel_order_counter,
+		}
+		_panel_order_counter += 1
+
+	entry["mode"] = mode
+	if mode == &"provider":
+		entry["provider"] = payload
+		entry.erase("content")
+	else:
+		entry["content"] = String(payload)
+		entry.erase("provider")
+
+	_apply_panel_options(entry, panel_id, options)
+	_panels[panel_id] = entry
+
+
+func _apply_panel_options(entry: Dictionary, panel_id: StringName, options: Dictionary) -> void:
+	if not entry.has("label") or String(entry["label"]).is_empty():
+		entry["label"] = String(panel_id)
+	if not entry.has("group") or String(entry["group"]).is_empty():
+		entry["group"] = "Runtime"
+	if not entry.has("visible"):
+		entry["visible"] = true
+
+	if options.has("label"):
+		var label := str(options["label"])
+		if not label.is_empty():
+			entry["label"] = label
+	if options.has("group"):
+		var group := str(options["group"])
+		if not group.is_empty():
+			entry["group"] = group
+	if options.has("visible") and options["visible"] is bool:
+		entry["visible"] = options["visible"]
+
+
+func _evaluate_panel_entry(entry: Dictionary) -> Dictionary:
+	var value: Variant = entry.get("content", "")
+	var valid := true
+	if StringName(entry.get("mode", &"text")) == &"provider":
+		var provider: Callable = entry.get("provider", Callable())
+		if provider.is_valid():
+			value = provider.call()
+		else:
+			value = "<invalid panel provider>"
+			valid = false
+
+	return {
+		"id": entry.get("id", &""),
+		"label": String(entry.get("label", String(entry.get("id", &"")))),
+		"group": String(entry.get("group", "Runtime")),
+		"content": _format_panel_content(value),
+		"valid": valid,
+	}
+
+
+func _sort_panel_entries(left: Dictionary, right: Dictionary) -> bool:
+	var left_order: int = left.get("order", 0)
+	var right_order: int = right.get("order", 0)
+	if left_order != right_order:
+		return left_order < right_order
+	return String(left.get("id", &"")) < String(right.get("id", &""))
+
+
+func _format_panel_content(value: Variant) -> String:
+	if value is Dictionary or value is Array:
+		return JSON.stringify(value, "\t")
+	return str(value)
+
+
+func _append_recent_log_panel(snapshot: Array[Dictionary], include_hidden: bool) -> void:
+	var log_utility := get_utility(GFLogUtility) as GFLogUtility
+	if log_utility == null:
+		return
+	if not include_hidden and recent_log_count <= 0:
+		return
+
+	var lines := PackedStringArray()
+	for entry: Dictionary in log_utility.get_recent_entries(recent_log_count):
+		lines.append("[%s][%s] %s" % [
+			String(entry.get("level_name", "")),
+			String(entry.get("tag", "")),
+			String(entry.get("message", "")),
+		])
+	if lines.is_empty():
+		return
+
+	snapshot.append({
+		"id": &"gf.logs",
+		"label": "Recent Logs",
+		"group": "Diagnostics",
+		"content": "\n".join(lines),
+		"valid": true,
+	})
+
+
 func _append_diagnostics_watch_snapshot(snapshot: Array[Dictionary], include_hidden: bool) -> void:
 	var diagnostics := get_utility(GFDiagnosticsUtility) as GFDiagnosticsUtility
 	if diagnostics == null:
@@ -272,6 +458,7 @@ class _GFDebugGUI extends CanvasLayer:
 	var refresh_interval_seconds: float = 0.25
 	var architecture_provider: Callable
 	var watch_snapshot_provider: Callable
+	var panel_snapshot_provider: Callable
 	var _refresh_elapsed: float = 0.25
 	
 	func _init() -> void:
@@ -339,22 +526,19 @@ class _GFDebugGUI extends CanvasLayer:
 
 	func _build_debug_text() -> String:
 		var watch_text := _build_watch_text()
+		var panel_text := _build_panel_text()
 		var arch: Object = null
 		if architecture_provider.is_valid():
 			arch = architecture_provider.call()
 		if arch == null:
-			if watch_text.is_empty():
+			if watch_text.is_empty() and panel_text.is_empty():
 				return "Wait: Architecture is null."
-			return watch_text
+			return _join_non_empty(PackedStringArray([watch_text, panel_text]))
 
 		var model_text := _build_model_text(arch)
-		if watch_text.is_empty() and model_text.is_empty():
+		if watch_text.is_empty() and model_text.is_empty() and panel_text.is_empty():
 			return "No GFModels registered."
-		if watch_text.is_empty():
-			return model_text
-		if model_text.is_empty():
-			return watch_text
-		return "%s\n%s" % [watch_text, model_text]
+		return _join_non_empty(PackedStringArray([watch_text, model_text, panel_text]))
 
 
 	func _build_watch_text() -> String:
@@ -409,6 +593,38 @@ class _GFDebugGUI extends CanvasLayer:
 		return text
 
 
+	func _build_panel_text() -> String:
+		if not panel_snapshot_provider.is_valid():
+			return ""
+
+		var snapshot_result: Variant = panel_snapshot_provider.call()
+		if not (snapshot_result is Array):
+			return ""
+
+		var snapshot: Array = snapshot_result
+		if snapshot.is_empty():
+			return ""
+
+		var text := ""
+		for panel_variant: Variant in snapshot:
+			var panel := panel_variant as Dictionary
+			if panel == null:
+				continue
+			if not text.is_empty():
+				text += "\n"
+			var label := String(panel.get("label", String(panel.get("id", "panel"))))
+			var group := String(panel.get("group", "Runtime"))
+			var content := String(panel.get("content", ""))
+			if not bool(panel.get("valid", true)):
+				content = "<invalid>"
+			text += "[color=yellow]=== Panel: %s / %s ===[/color]\n%s\n" % [
+				_escape_bbcode(group),
+				_escape_bbcode(label),
+				_escape_bbcode(content),
+			]
+		return text
+
+
 	func _build_model_text(arch: Object) -> String:
 		var models := arch.get("_models") as Dictionary
 		if models == null or models.is_empty():
@@ -446,6 +662,14 @@ class _GFDebugGUI extends CanvasLayer:
 			text += "\n"
 
 		return text
+
+
+	func _join_non_empty(parts: PackedStringArray) -> String:
+		var non_empty := PackedStringArray()
+		for part: String in parts:
+			if not part.is_empty():
+				non_empty.append(part)
+		return "\n".join(non_empty)
 
 
 	func _escape_bbcode(text: String) -> String:

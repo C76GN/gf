@@ -22,12 +22,12 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for exten
 - Category: `Tools`
 - License: `Apache-2.0`
 - Repository host: `GitHub`
-- Repository URL: `https://github.com/C76GN/gf`
-- Issues URL: `https://github.com/C76GN/gf/issues`
+- Repository URL: `https://github.com/C76GN/gf-framework`
+- Issues URL: `https://github.com/C76GN/gf-framework/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `3.2.0`
-- Download Commit/URL: `3.2.0`
-- Icon URL: `https://raw.githubusercontent.com/C76GN/gf/3.2.0/addons/gf/icon.png`
+- Asset Version: `3.3.0`
+- Download Commit/URL: `3.3.0`
+- Icon URL: `https://raw.githubusercontent.com/C76GN/gf-framework/3.3.0/addons/gf/icon.png`
 
 ## Short Description
 

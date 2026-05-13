@@ -2,6 +2,13 @@
 extends GutTest
 
 
+# --- 常量 ---
+
+const GFShakeTrackBase = preload("res://addons/gf/extensions/official/feedback/resources/gf_shake_track.gd")
+
+
+# --- 测试方法 ---
+
 ## 验证反馈工具可播放、采样并在持续时间结束后清理。
 func test_shake_utility_samples_and_finishes() -> void:
 	var utility := GFShakeUtility.new()
@@ -50,3 +57,36 @@ func test_shake_receiver_2d_applies_sample_to_target() -> void:
 	receiver.apply_current_sample()
 
 	assert_gt(target.position.x, 0.5, "接收器应把采样位移叠加到目标节点。")
+
+
+## 验证反馈预设可以按多轨道合成采样。
+func test_shake_preset_combines_tracks() -> void:
+	var preset := GFShakePreset.new()
+	preset.duration_seconds = 1.0
+	var position_track := GFShakeTrackBase.new()
+	position_track.waveform = GFShakeTrackBase.Waveform.CURVE
+	position_track.position_axis = Vector3.RIGHT
+	position_track.amplitude = 2.0
+	position_track.wave_curve = Curve.new()
+	position_track.wave_curve.add_point(Vector2(0.0, 1.0))
+	position_track.wave_curve.add_point(Vector2(1.0, 1.0))
+	position_track.envelope_curve = Curve.new()
+	position_track.envelope_curve.add_point(Vector2(0.0, 1.0))
+	position_track.envelope_curve.add_point(Vector2(1.0, 1.0))
+	var rotation_track := GFShakeTrackBase.new()
+	rotation_track.waveform = GFShakeTrackBase.Waveform.CURVE
+	rotation_track.position_axis = Vector3.ZERO
+	rotation_track.rotation_axis_degrees = Vector3(0.0, 0.0, 1.0)
+	rotation_track.amplitude = 3.0
+	rotation_track.wave_curve = Curve.new()
+	rotation_track.wave_curve.add_point(Vector2(0.0, 1.0))
+	rotation_track.wave_curve.add_point(Vector2(1.0, 1.0))
+	rotation_track.envelope_curve = Curve.new()
+	rotation_track.envelope_curve.add_point(Vector2(0.0, 1.0))
+	rotation_track.envelope_curve.add_point(Vector2(1.0, 1.0))
+	preset.tracks = [position_track, rotation_track]
+
+	var sample := preset.sample_at_progress(0.5, 0.5)
+
+	assert_eq((sample["position"] as Vector3).x, 2.0, "位置轨道应贡献位移。")
+	assert_eq((sample["rotation_degrees"] as Vector3).z, 3.0, "旋转轨道应贡献旋转。")

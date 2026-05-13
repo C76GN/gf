@@ -54,6 +54,46 @@ func test_render_warmup_queue_respects_entry_budget() -> void:
 	assert_eq(utility.get_queue_size(), 0, "全部处理后队列应为空。")
 
 
+## 验证离屏临时渲染节点模式会创建并释放临时节点。
+func test_render_warmup_temporary_render_nodes_can_be_released() -> void:
+	var manifest := GFRenderWarmupManifestBase.new()
+	manifest.add_resource(StandardMaterial3D.new(), &"material")
+	var utility := GFRenderWarmupUtilityBase.new()
+
+	var summary := utility.warmup_manifest_now(manifest, {
+		"touch_mode": GFRenderWarmupUtilityBase.TouchMode.TEMPORARY_RENDER_NODES,
+		"temporary_parent": self,
+	})
+
+	assert_true(bool(summary["ok"]), "临时渲染节点预热应完成。")
+	assert_gt(int(summary["processed_count"]), 0, "应处理至少一个条目。")
+	assert_gt(int(utility.get_debug_snapshot()["temporary_render_node_count"]), 0, "应保留临时节点到下一次释放。")
+
+	utility.release_temporary_render_nodes()
+
+	assert_eq(int(utility.get_debug_snapshot()["temporary_render_node_count"]), 0, "释放后临时节点数量应归零。")
+
+	await get_tree().process_frame
+
+
+## 验证 Utility 可以从场景资源中收集渲染资源。
+func test_render_warmup_builds_manifest_from_packed_scene() -> void:
+	var root := Node3D.new()
+	var mesh_instance := _make_mesh_instance()
+	root.add_child(mesh_instance)
+	mesh_instance.owner = root
+	var scene := PackedScene.new()
+	assert_eq(scene.pack(root), OK, "测试场景应能打包。")
+	var utility := GFRenderWarmupUtilityBase.new()
+
+	var manifest := utility.build_manifest_from_scene(scene, { "manifest_id": &"scene" })
+
+	assert_eq(manifest.manifest_id, &"scene", "场景清单应保留 manifest_id。")
+	assert_gt(manifest.get_entry_count(), 1, "场景内 MeshInstance3D 应贡献资源。")
+
+	root.free()
+
+
 ## 验证预热条目规范化会生成隔离的元数据副本。
 func test_render_warmup_manifest_normalizes_entries() -> void:
 	var source_metadata := { "label": "preview" }

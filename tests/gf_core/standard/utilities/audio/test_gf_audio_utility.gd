@@ -53,7 +53,14 @@ class MockAudioBackend:
 	var setup_called: bool = false
 	var disposed: bool = false
 	var played_sfx_paths: PackedStringArray = PackedStringArray()
+	var posted_events: PackedStringArray = PackedStringArray()
+	var parameter_values: Dictionary = {}
 	var external_volume: float = -1.0
+
+	func _init() -> void:
+		capabilities.supports_sfx = true
+		capabilities.supports_events = true
+		capabilities.supports_parameters = true
 
 	func setup(host: Object) -> void:
 		super.setup(host)
@@ -69,6 +76,17 @@ class MockAudioBackend:
 	func play_sfx_path(path: String, options: Dictionary = {}) -> GFAudioEmitterHandle:
 		played_sfx_paths.append(path)
 		return GFAudioEmitterHandle.new(null, Callable(), &"backend", options)
+
+	func can_handle_event(event: GFAudioEvent, _options: Dictionary = {}) -> bool:
+		return event.event_id != &""
+
+	func post_event(event: GFAudioEvent, options: Dictionary = {}) -> GFAudioEmitterHandle:
+		posted_events.append(String(event.event_id))
+		return GFAudioEmitterHandle.new(null, Callable(), &"event", options)
+
+	func set_parameter(parameter: GFAudioParameter) -> bool:
+		parameter_values[parameter.parameter_id] = parameter.value
+		return true
 
 	func set_bus_volume(bus_name: String, volume_linear: float) -> bool:
 		if bus_name != "External":
@@ -336,6 +354,38 @@ func test_audio_backend_can_handle_selected_requests() -> void:
 
 	_audio.clear_audio_backend()
 	assert_true(backend.disposed, "清理后端时应调用 dispose。")
+
+
+func test_audio_backend_capabilities_events_and_parameters() -> void:
+	var backend := MockAudioBackend.new()
+	_audio.set_audio_backend(backend)
+	var event := GFAudioEvent.new()
+	event.event_id = &"ui_confirm"
+	event.channel = &"sfx"
+	var parameter := GFAudioParameter.new()
+	parameter.parameter_id = &"intensity"
+	parameter.value = 0.75
+
+	var handle := _audio.post_audio_event(event)
+	var handled_parameter := _audio.set_audio_parameter(parameter)
+	var snapshot := _audio.get_debug_snapshot()
+	var capabilities := snapshot["backend_capabilities"] as Dictionary
+
+	assert_not_null(handle, "后端处理资源化事件时应返回句柄。")
+	assert_eq(backend.posted_events, PackedStringArray(["ui_confirm"]), "资源化事件应转交后端。")
+	assert_true(handled_parameter, "声明支持参数的后端应可处理参数写入。")
+	assert_almost_eq(float(backend.parameter_values[&"intensity"]), 0.75, 0.001, "参数值应传给后端。")
+	assert_true(bool(capabilities["events"]), "调试快照应包含后端事件能力。")
+	assert_true(bool(capabilities["parameters"]), "调试快照应包含后端参数能力。")
+
+
+func test_audio_catalog_provider_lists_entries() -> void:
+	var catalog := GFAudioCatalogProvider.new()
+	catalog.set_entry(&"events", &"ui_confirm", { "group": "ui" })
+	catalog.set_entry(&"parameters", &"intensity", { "min": 0.0, "max": 1.0 })
+
+	assert_eq(catalog.get_ids(&"events"), PackedStringArray(["ui_confirm"]), "目录应列出事件 ID。")
+	assert_eq(catalog.describe_entry(&"parameters", &"intensity")["max"], 1.0, "目录应返回条目元数据。")
 
 
 func test_play_sfx_clip_2d_creates_spatial_player() -> void:

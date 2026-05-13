@@ -105,6 +105,49 @@ static func validate_csv_table(text: String, schema: GFConfigTableSchema, option
 	return schema.validate_table(parsed.get("data"))
 
 
+## 导出 CSV 表文本。
+## @param table_data: Array[Dictionary] 或 Dictionary 形式的表数据。
+## @param schema: 可选 schema；提供时默认按 schema.columns 排列列。
+## @param options: 可选参数，支持 delimiter、columns、include_header、coerce_values。
+## @return 结果字典，包含 success、text 与 error。
+static func export_csv_table(
+	table_data: Variant,
+	schema: GFConfigTableSchema = null,
+	options: Dictionary = {}
+) -> Dictionary:
+	var rows_variant: Variant = _normalize_table_rows(table_data)
+	if rows_variant == null:
+		return {
+			"success": false,
+			"text": "",
+			"error": "table_data must be Array[Dictionary] or Dictionary.",
+		}
+	var rows := rows_variant as Array[Dictionary]
+
+	var delimiter := str(options.get("delimiter", ","))
+	if delimiter.is_empty():
+		delimiter = ","
+	delimiter = delimiter.substr(0, 1)
+	var columns := _resolve_export_columns(rows, schema, options)
+	var lines := PackedStringArray()
+	if bool(options.get("include_header", true)):
+		lines.append(_join_csv_row(columns, delimiter))
+
+	var coerce_values := bool(options.get("coerce_values", schema != null and schema.coerce_values))
+	for row: Dictionary in rows:
+		var record := schema.coerce_record(row) if coerce_values and schema != null else row
+		var cells := PackedStringArray()
+		for column_name: String in columns:
+			cells.append(_format_csv_cell(record.get(StringName(column_name), ""), delimiter))
+		lines.append(delimiter.join(cells))
+
+	return {
+		"success": true,
+		"text": "\n".join(lines),
+		"error": "",
+	}
+
+
 # --- 私有/辅助方法 ---
 
 static func _parse_csv_rows(text: String, delimiter: String, trim_cells: bool) -> Array[PackedStringArray]:
@@ -187,3 +230,71 @@ static func _make_error_report(table_name: StringName, code: String, message: St
 			"message": message,
 		}],
 	}
+
+
+static func _normalize_table_rows(table_data: Variant) -> Variant:
+	var rows: Array[Dictionary] = []
+	if table_data is Array:
+		for row_variant: Variant in table_data:
+			if not (row_variant is Dictionary):
+				return null
+			rows.append((row_variant as Dictionary).duplicate(true))
+		return rows
+	if table_data is Dictionary:
+		var table := table_data as Dictionary
+		var keys := table.keys()
+		keys.sort()
+		for key: Variant in keys:
+			var row_variant: Variant = table[key]
+			if not (row_variant is Dictionary):
+				return null
+			rows.append((row_variant as Dictionary).duplicate(true))
+		return rows
+	return null
+
+
+static func _resolve_export_columns(
+	rows: Array[Dictionary],
+	schema: GFConfigTableSchema,
+	options: Dictionary
+) -> PackedStringArray:
+	if options.has("columns"):
+		return _to_packed_string_array(options["columns"])
+	if schema != null:
+		var schema_columns := schema.get_column_names()
+		if not schema_columns.is_empty():
+			return schema_columns
+
+	var seen: Dictionary = {}
+	for row: Dictionary in rows:
+		for key: Variant in row.keys():
+			seen[String(key)] = true
+	var result := PackedStringArray()
+	for key_text: String in seen.keys():
+		result.append(key_text)
+	result.sort()
+	return result
+
+
+static func _to_packed_string_array(value: Variant) -> PackedStringArray:
+	var result := PackedStringArray()
+	if value is PackedStringArray:
+		return (value as PackedStringArray).duplicate()
+	if value is Array:
+		for item: Variant in value:
+			result.append(String(item))
+	return result
+
+
+static func _join_csv_row(cells: PackedStringArray, delimiter: String) -> String:
+	var escaped := PackedStringArray()
+	for cell: String in cells:
+		escaped.append(_format_csv_cell(cell, delimiter))
+	return delimiter.join(escaped)
+
+
+static func _format_csv_cell(value: Variant, delimiter: String) -> String:
+	var text := str(value)
+	var needs_quotes := text.contains(delimiter) or text.contains("\n") or text.contains("\r") or text.contains("\"")
+	text = text.replace("\"", "\"\"")
+	return "\"%s\"" % text if needs_quotes else text

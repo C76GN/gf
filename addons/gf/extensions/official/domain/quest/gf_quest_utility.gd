@@ -16,6 +16,11 @@ signal quest_started(quest_id: StringName)
 ## @param quest_id: 任务 ID。
 signal quest_available(quest_id: StringName)
 
+## 当任务接取条件拒绝时发出。
+## @param quest_id: 任务 ID。
+## @param reason: 拒绝原因。
+signal quest_acceptance_blocked(quest_id: StringName, reason: String)
+
 ## 当任务进度变化时发出。
 ## @param quest_id: 任务 ID。
 ## @param current: 当前进度。
@@ -35,6 +40,10 @@ signal quest_completion_blocked(quest_id: StringName, reason: String)
 ## @param quest_id: 任务 ID。
 signal quest_cancelled(quest_id: StringName)
 
+## 当任务失败时发出。
+## @param quest_id: 任务 ID。
+signal quest_failed(quest_id: StringName)
+
 
 # --- 常量 ---
 
@@ -42,6 +51,7 @@ const STATUS_AVAILABLE: StringName = &"available"
 const STATUS_ACTIVE: StringName = &"active"
 const STATUS_COMPLETED: StringName = &"completed"
 const STATUS_CANCELLED: StringName = &"cancelled"
+const STATUS_FAILED: StringName = &"failed"
 
 
 # --- 公共变量 ---
@@ -134,12 +144,16 @@ func define_quest(
 ## @return 接取成功返回 true。
 func accept_quest(quest_id: StringName) -> bool:
 	var data := _quests.get(quest_id) as QuestData
-	if data == null or data.status == STATUS_COMPLETED or data.status == STATUS_CANCELLED:
+	if data == null or data.status == STATUS_COMPLETED or data.status == STATUS_CANCELLED or data.status == STATUS_FAILED:
 		return false
 	if data.status == STATUS_ACTIVE:
 		return true
 	if data.event_id == &"":
 		push_error("[GFQuestUtility] accept_quest 失败：target_event 为空。")
+		return false
+	var acceptance_result := _check_conditions(data.acceptance_conditions, data)
+	if not bool(acceptance_result.get("ok", true)):
+		quest_acceptance_blocked.emit(quest_id, String(acceptance_result.get("reason", "blocked")))
 		return false
 
 	data.status = STATUS_ACTIVE
@@ -167,12 +181,49 @@ func complete_quest(quest_id: StringName) -> bool:
 ## @return 取消成功返回 true。
 func cancel_quest(quest_id: StringName) -> bool:
 	var data := _quests.get(quest_id) as QuestData
-	if data == null or data.status == STATUS_COMPLETED or data.status == STATUS_CANCELLED:
+	if data == null or data.status == STATUS_COMPLETED or data.status == STATUS_CANCELLED or data.status == STATUS_FAILED:
 		return false
 	_detach_quest_from_event(data)
 	data.status = STATUS_CANCELLED
 	quest_cancelled.emit(quest_id)
 	return true
+
+
+## 标记任务失败。
+## @param quest_id: 任务 ID。
+## @param reason: 可选失败原因，会写入任务 metadata 的 last_failure_reason。
+## @return 标记成功返回 true。
+func fail_quest(quest_id: StringName, reason: String = "") -> bool:
+	var data := _quests.get(quest_id) as QuestData
+	if data == null or data.status == STATUS_COMPLETED or data.status == STATUS_CANCELLED or data.status == STATUS_FAILED:
+		return false
+
+	_detach_quest_from_event(data)
+	data.status = STATUS_FAILED
+	if not reason.is_empty():
+		data.metadata["last_failure_reason"] = reason
+	quest_failed.emit(quest_id)
+	return true
+
+
+## 添加接取条件。条件返回 false 或包含 ok=false 的 Dictionary 时阻止接取。
+## @param quest_id: 任务 ID。
+## @param condition: 条件回调。
+func add_acceptance_condition(quest_id: StringName, condition: Callable) -> void:
+	if not condition.is_valid():
+		return
+	var data := _quests.get(quest_id) as QuestData
+	if data == null:
+		return
+	data.acceptance_conditions.append(condition)
+
+
+## 清空任务接取条件。
+## @param quest_id: 任务 ID。
+func clear_acceptance_conditions(quest_id: StringName) -> void:
+	var data := _quests.get(quest_id) as QuestData
+	if data != null:
+		data.acceptance_conditions.clear()
 
 
 ## 添加完成阻塞器。阻塞器返回 false 或包含 ok=false 的 Dictionary 时阻止完成。
@@ -193,6 +244,54 @@ func clear_completion_blockers(quest_id: StringName) -> void:
 	var data := _quests.get(quest_id) as QuestData
 	if data != null:
 		data.completion_blockers.clear()
+
+
+## 设置任务父级关系。
+## @param quest_id: 子任务 ID。
+## @param parent_quest_id: 父任务 ID。
+## @return 设置成功返回 true。
+func set_quest_parent(quest_id: StringName, parent_quest_id: StringName) -> bool:
+	if quest_id == &"" or parent_quest_id == &"" or quest_id == parent_quest_id:
+		return false
+	var data := _quests.get(quest_id) as QuestData
+	var parent := _quests.get(parent_quest_id) as QuestData
+	if data == null or parent == null:
+		return false
+	if _is_descendant_quest(quest_id, parent_quest_id):
+		return false
+
+	_detach_quest_parent(data)
+	data.parent_id = parent_quest_id
+	if not parent.child_ids.has(String(quest_id)):
+		parent.child_ids.append(String(quest_id))
+	parent.child_ids.sort()
+	return true
+
+
+## 清除任务父级关系。
+## @param quest_id: 任务 ID。
+func clear_quest_parent(quest_id: StringName) -> void:
+	var data := _quests.get(quest_id) as QuestData
+	if data != null:
+		_detach_quest_parent(data)
+
+
+## 获取任务的直接子任务 ID。
+## @param quest_id: 任务 ID。
+## @return 子任务 ID 列表。
+func get_child_quests(quest_id: StringName) -> PackedStringArray:
+	var data := _quests.get(quest_id) as QuestData
+	return data.child_ids.duplicate() if data != null else PackedStringArray()
+
+
+## 获取任务树报告。
+## @param root_quest_id: 根任务 ID。
+## @return 树形报告；任务不存在时返回空字典。
+func get_quest_tree_report(root_quest_id: StringName) -> Dictionary:
+	var root_data := _quests.get(root_quest_id) as QuestData
+	if root_data == null:
+		return {}
+	return _build_quest_tree_report(root_data)
 
 
 ## 手动触发一次任务事件。
@@ -395,27 +494,84 @@ func _detach_quest_from_event(data: QuestData) -> void:
 
 
 func _try_complete_quest(data: QuestData) -> bool:
-	if data == null or data.is_completed or data.status == STATUS_CANCELLED:
+	if data == null or data.is_completed or data.status == STATUS_CANCELLED or data.status == STATUS_FAILED:
 		return false
 
-	for blocker: Callable in data.completion_blockers:
-		if not blocker.is_valid():
-			continue
-		var result: Variant = blocker.call(data.quest_id, data.to_dict())
-		if result is Dictionary:
-			if not bool((result as Dictionary).get("ok", false)):
-				var reason := String((result as Dictionary).get("reason", "blocked"))
-				quest_completion_blocked.emit(data.quest_id, reason)
-				return false
-		elif result == false:
-			quest_completion_blocked.emit(data.quest_id, "blocked")
-			return false
+	var blocker_result := _check_conditions(data.completion_blockers, data)
+	if not bool(blocker_result.get("ok", true)):
+		quest_completion_blocked.emit(data.quest_id, String(blocker_result.get("reason", "blocked")))
+		return false
 
 	_detach_quest_from_event(data)
 	data.is_completed = true
 	data.status = STATUS_COMPLETED
 	quest_completed.emit(data.quest_id)
 	return true
+
+
+func _check_conditions(conditions: Array[Callable], data: QuestData) -> Dictionary:
+	for condition: Callable in conditions:
+		if not condition.is_valid():
+			continue
+		var result: Variant = condition.call(data.quest_id, data.to_dict())
+		if result is Dictionary:
+			if not bool((result as Dictionary).get("ok", false)):
+				return {
+					"ok": false,
+					"reason": String((result as Dictionary).get("reason", "blocked")),
+				}
+		elif result == false:
+			return {
+				"ok": false,
+				"reason": "blocked",
+			}
+	return {
+		"ok": true,
+		"reason": "",
+	}
+
+
+func _detach_quest_parent(data: QuestData) -> void:
+	if data == null or data.parent_id == &"":
+		return
+	var parent := _quests.get(data.parent_id) as QuestData
+	if parent != null:
+		var index := parent.child_ids.find(String(data.quest_id))
+		if index >= 0:
+			parent.child_ids.remove_at(index)
+	data.parent_id = &""
+
+
+func _is_descendant_quest(root_quest_id: StringName, expected_descendant_id: StringName) -> bool:
+	var root := _quests.get(root_quest_id) as QuestData
+	if root == null:
+		return false
+	for child_id_text: String in root.child_ids:
+		var child_id := StringName(child_id_text)
+		if child_id == expected_descendant_id or _is_descendant_quest(child_id, expected_descendant_id):
+			return true
+	return false
+
+
+func _build_quest_tree_report(data: QuestData) -> Dictionary:
+	var children: Array[Dictionary] = []
+	var total_count := 1
+	var completed_count := 1 if data.status == STATUS_COMPLETED else 0
+	for child_id_text: String in data.child_ids:
+		var child := _quests.get(StringName(child_id_text)) as QuestData
+		if child == null:
+			continue
+		var child_report := _build_quest_tree_report(child)
+		children.append(child_report)
+		total_count += int(child_report.get("total_count", 0))
+		completed_count += int(child_report.get("completed_count", 0))
+
+	var report := data.to_dict()
+	report["children"] = children
+	report["total_count"] = total_count
+	report["completed_count"] = completed_count
+	report["aggregate_progress"] = float(completed_count) / float(total_count) if total_count > 0 else 0.0
+	return report
 
 
 # --- 内部类 ---
@@ -427,7 +583,10 @@ class QuestData extends RefCounted:
 	var current_count: int = 0
 	var is_completed: bool = false
 	var status: StringName = &"available"
+	var parent_id: StringName = &""
+	var child_ids: PackedStringArray = PackedStringArray()
 	var metadata: Dictionary = {}
+	var acceptance_conditions: Array[Callable] = []
 	var completion_blockers: Array[Callable] = []
 
 	func to_dict() -> Dictionary:
@@ -438,6 +597,9 @@ class QuestData extends RefCounted:
 			"current_count": current_count,
 			"is_completed": is_completed,
 			"status": String(status),
+			"parent_id": String(parent_id),
+			"child_ids": child_ids.duplicate(),
 			"metadata": metadata.duplicate(true),
+			"acceptance_condition_count": acceptance_conditions.size(),
 			"completion_blocker_count": completion_blockers.size(),
 		}

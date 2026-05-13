@@ -81,6 +81,20 @@ audio.play_sfx("event://ui/confirm")
 
 `GFAudioBackend` 是协议层，不内置任何第三方 SDK、事件命名或业务混音快照。后端可选择只处理部分 BGM、SFX、环境音、空间音效或总线音量，其余请求保持默认行为；`GFAudioUtility.get_debug_snapshot()` 会把后端的 `get_debug_snapshot()` 放进 `backend_snapshot`，便于诊断面板统一展示。
 
+后端可以通过 `GFAudioBackendCapability` 声明支持 BGM、SFX、环境音、空间音效、资源化事件、参数、状态、开关、监听器或异步加载等能力；快照中的 `backend_capabilities` 可供调试面板或项目工具展示。需要把音频请求资源化时，可使用 `GFAudioEvent`、`GFAudioParameter`、`GFAudioState` 和 `GFAudioSwitch`，再通过 `post_audio_event()`、`set_audio_parameter()`、`set_audio_state()` 或 `set_audio_switch()` 交给当前后端；默认 Godot 播放路径只处理通用 BGM/SFX/环境音，不解释外部后端的项目含义。编辑器选择器或构建工具需要列出外部音频 ID 时，可实现或填充 `GFAudioCatalogProvider`：
+
+```gdscript
+var event := GFAudioEvent.new()
+event.event_id = &"ui_confirm"
+event.channel = &"sfx"
+audio.post_audio_event(event)
+
+var parameter := GFAudioParameter.new()
+parameter.parameter_id = &"intensity"
+parameter.value = 0.75
+audio.set_audio_parameter(parameter)
+```
+
 默认总线名为 `BGM` / `SFX`，找不到时会回退到 `Master` 并按总线名只警告一次。`set_bus_volume(bus, 0.0)` 会把总线静音并让 `get_bus_volume()` 返回 `0.0`；再次设置大于 `0.0` 的值会解除静音。`play_bgm("", crossfade_seconds)` 可按同一淡出参数停止当前 BGM。`GFAudioClip` 可描述 stream/path、bus、音量、基础 pitch、候选权重和本次播放 pitch 随机范围；`GFAudioBank` 的同一 ID 可保存单个片段或多个候选，并支持用 `fallback_separator` 做分层事件 ID 回退。需要编辑器校验、构建前检查或调试 fallback 时，可用 `resolve_clip()` 获取请求 ID、最终命中 ID、是否使用 fallback、尝试过的 ID 和命中的 clip，用 `validate_bank()` 检查空 ID、无效候选、缺失音频源和可选资源路径存在性。
 
 `GFAudioBankTools` 提供纯配置层的扫描、导入和播放前校验辅助，可用于编辑器按钮、构建脚本或项目自己的音频表生成流程。它不会创建全局音频单例，也不会改变 `GFAudioUtility` 的播放路径：

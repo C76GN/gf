@@ -6,6 +6,21 @@ class_name GFAudioBank
 extends Resource
 
 
+# --- 枚举 ---
+
+## 音频集合加载状态。
+enum LifecycleState {
+	## 尚未加载。
+	UNLOADED,
+	## 正在加载。
+	LOADING,
+	## 已加载。
+	LOADED,
+	## 加载失败。
+	FAILED,
+}
+
+
 # --- 导出变量 ---
 
 ## 音频片段表。Key 推荐使用 StringName，Value 可为 GFAudioClip 或 GFAudioClip 数组。
@@ -13,6 +28,12 @@ extends Resource
 
 ## 分层事件 ID 的回退分隔符。例如 `ui+confirm+primary` 可回退到 `ui+confirm` 再到 `ui`。
 @export var fallback_separator: String = "+"
+
+## 加载状态。框架只记录状态，不假设具体加载后端。
+@export var lifecycle_state: LifecycleState = LifecycleState.UNLOADED
+
+## 最近一次加载或卸载结果原因。
+@export var lifecycle_reason: StringName = &""
 
 
 # --- 公共方法 ---
@@ -151,6 +172,24 @@ func get_clip_ids() -> PackedStringArray:
 		result.append(str(key))
 	result.sort()
 	return result
+
+
+## 设置音频集合加载状态。
+## @param state: 新状态。
+## @param reason: 可选原因。
+func set_lifecycle_state(state: LifecycleState, reason: StringName = &"") -> void:
+	lifecycle_state = state
+	lifecycle_reason = reason
+
+
+## 获取加载状态快照。
+## @return 状态快照字典。
+func get_lifecycle_snapshot() -> Dictionary:
+	return {
+		"state": lifecycle_state,
+		"reason": lifecycle_reason,
+		"clip_count": clips.size(),
+	}
 
 
 ## 校验音频集合。

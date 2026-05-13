@@ -155,6 +155,27 @@ var reachable := GFGraphMath.find_reachable(
 `get_step_cost()` 返回负数时表示该边不可通行；启发函数为空时 A* 会退化为 Dijkstra。GF 不缓存图，也不维护节点生命周期，避免把项目的业务拓扑绑定进框架。
 
 
+## `GFGraphLayoutUtility`
+
+`GFGraphLayoutUtility` 根据节点标识和连接关系生成编辑器坐标，适合状态机、流程图、任务图、依赖图或项目自定义 GraphEdit 面板做初始排布。它只返回 `node_id -> Vector2` 的建议位置，不创建 UI，不保存资源，也不解释节点含义。
+
+```gdscript
+var positions := GFGraphLayoutUtility.make_layered_layout(
+	PackedStringArray(["start", "check", "end"]),
+	[
+		{ "from_node_id": "start", "to_node_id": "check" },
+		{ "from_node_id": "check", "to_node_id": "end" },
+	],
+	{
+		"x_spacing": 280.0,
+		"y_spacing": 160.0,
+	}
+)
+```
+
+分层布局默认读取 `from_node_id` / `to_node_id`，可通过 `from_key` / `to_key` 适配项目自己的连接字段；简单网格排布可用 `make_grid_layout()`。Flow 扩展的 `GFFlowGraphEditorModel.auto_layout()` 会复用该工具把布局写回节点的 `editor_position`，但标准库本身不硬引用任何官方扩展。
+
+
 ## `GFGrid3DMath`
 
 `GFGrid3DMath` 是 3D 整数格子的纯算法工具，提供 6/26 邻域、A*、可达范围和台阶式表面邻居。它不绑定 `GridMap`、`TileMapLayer`、物理查询或角色控制器；哪些格子可站立、上下台阶限制、移动代价都由调用方回调决定。
@@ -284,6 +305,19 @@ for cell in metadata.get_cells_with_value(&"blocked", true):
 ```
 
 `schema` 只是给项目或编辑器 UI 使用的元数据字典，GF 不内置字段类型校验、TileSet 写回或业务规则。需要和基础缓存交换数据时，可用 `to_tile_map_cache()` / `from_tile_map_cache()`。
+
+`GFRegionMap2D` 提供更粗粒度的区域分块映射：调用方按格坐标写入任意值，结构会根据 `region_size` 归入区域，并记录被修改过的脏区域。它适合大地图局部保存、编辑器批量处理、运行时地图缓存或导出预处理；GF 只维护 `region -> cell -> value` 和 dirty 标记，不解释地形、区块加载或存档策略：
+
+```gdscript
+var regions := GFRegionMap2D.new()
+regions.region_size = Vector2i(32, 32)
+regions.set_cell(Vector2i(40, 2), { "cost": 3 })
+
+for region_key in regions.get_dirty_region_keys():
+	var snapshot := regions.get_region_snapshot(region_key)
+	# 项目层自行决定如何保存或刷新该区域。
+	pass
+```
 
 
 ## `GFTileRuleSet`

@@ -7,6 +7,7 @@ extends RefCounted
 # --- 常量 ---
 
 const EXTENSION_MANAGER_DOCK_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd"
+const GFEditorWorkspaceDockBase = preload("res://addons/gf/kernel/editor/gf_editor_workspace_dock.gd")
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
@@ -26,10 +27,9 @@ func setup(plugin: EditorPlugin, standard_dock_records: Array[Dictionary] = []) 
 		return
 
 	set_standard_dock_records(standard_dock_records)
-	for record: Dictionary in _collect_core_dock_records():
-		_add_bottom_dock(plugin, String(record["path"]), String(record["label"]))
-	for record: Dictionary in _collect_enabled_extension_dock_records():
-		_add_bottom_dock(plugin, String(record["path"]), String(record["label"]))
+	var records := _collect_core_dock_records()
+	records.append_array(_collect_enabled_extension_dock_records())
+	_add_workspace_dock(plugin, records)
 
 
 ## 移除 GF 底部面板。
@@ -108,6 +108,17 @@ func _add_bottom_dock(plugin: EditorPlugin, script_path: String, fallback_label:
 		"dock": dock,
 		"button": button,
 		"path": script_path,
+	})
+
+
+func _add_workspace_dock(plugin: EditorPlugin, records: Array[Dictionary]) -> void:
+	var dock := GFEditorWorkspaceDockBase.new()
+	dock.setup(records)
+	var button := plugin.add_control_to_bottom_panel(dock, dock.name)
+	_dock_records.append({
+		"dock": dock,
+		"button": button,
+		"path": "res://addons/gf/kernel/editor/gf_editor_workspace_dock.gd",
 	})
 
 

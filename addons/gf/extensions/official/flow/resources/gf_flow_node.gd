@@ -46,6 +46,12 @@ const GFFlowPortBase = preload("res://addons/gf/extensions/official/flow/resourc
 @export var editor_collapsed: bool = false
 
 
+# --- 公共变量 ---
+
+## 节点运行态数据。默认不导出，项目可通过序列化接口自行存档或迁移。
+var runtime_state: Dictionary = {}
+
+
 # --- 公共方法 ---
 
 ## 执行节点。
@@ -134,6 +140,40 @@ func describe_node() -> Dictionary:
 		"editor": describe_editor(),
 		"metadata": metadata.duplicate(true),
 	}
+
+
+## 写入节点运行态值。
+## @param key: 键。
+## @param value: 值。
+func set_runtime_value(key: StringName, value: Variant) -> void:
+	if key == &"":
+		return
+	runtime_state[key] = value
+
+
+## 读取节点运行态值。
+## @param key: 键。
+## @param default_value: 默认值。
+## @return 运行态值或默认值。
+func get_runtime_value(key: StringName, default_value: Variant = null) -> Variant:
+	return runtime_state.get(key, default_value)
+
+
+## 清空节点运行态数据。
+func clear_runtime_state() -> void:
+	runtime_state.clear()
+
+
+## 序列化节点运行态数据。
+## @return 运行态数据副本。
+func serialize_runtime_state() -> Dictionary:
+	return runtime_state.duplicate(true)
+
+
+## 反序列化节点运行态数据。
+## @param data: 运行态数据。
+func deserialize_runtime_state(data: Dictionary) -> void:
+	runtime_state = data.duplicate(true)
 
 
 # --- 私有/辅助方法 ---

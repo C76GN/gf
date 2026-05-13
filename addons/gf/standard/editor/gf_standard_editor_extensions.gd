@@ -38,6 +38,10 @@ static func get_dock_records() -> Array[Dictionary]:
 			"path": "res://addons/gf/standard/utilities/storage/editor/gf_storage_viewer_dock.gd",
 			"label": "GF Save Viewer",
 		},
+		{
+			"path": "res://addons/gf/standard/utilities/debug/editor/gf_signal_graph_dock.gd",
+			"label": "GF Signal Graph",
+		},
 	]
 
 

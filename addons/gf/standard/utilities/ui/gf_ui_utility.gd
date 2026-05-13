@@ -319,6 +319,32 @@ func replace_layer_instance_with_options(
 	push_panel_instance_with_options(panel_instance, layer, options, config_callback)
 
 
+## 打开一个 GF 默认 modal 面板。
+## @param config: modal 配置；为空时使用默认配置。
+## @param layer: 目标层级。
+## @param context: 调用上下文，会透传到 GFModalResult。
+## @param result_callback: 可选结果回调，签名建议为 func(result: GFModalResult)。
+## @return 打开的 modal 面板。
+func open_modal(
+	config: GFModalConfig,
+	layer: Layer = Layer.POPUP,
+	context: Dictionary = {},
+	result_callback: Callable = Callable()
+) -> GFModalPanel:
+	var modal_config := config.duplicate_config() if config != null else GFModalConfig.new()
+	var panel := GFModalPanel.new()
+	panel.configure(modal_config, context)
+	panel.resolved.connect(_on_modal_resolved.bind(panel, layer, result_callback), CONNECT_ONE_SHOT)
+	push_panel_instance_with_options(panel, layer, {
+		"mode": PanelMode.MODAL,
+		"dismiss_on_cancel": modal_config.dismiss_on_cancel,
+		"focus_on_open": modal_config.auto_focus,
+		"restore_focus_on_close": modal_config.restore_focus_on_close,
+		"metadata": modal_config.metadata,
+	})
+	return panel
+
+
 ## 弹出指定层级的顶部面板。
 ## @param layer: 目标层级。
 ## @param do_free: 是否在弹出后释放面板。
@@ -664,6 +690,10 @@ func _request_dismiss_layer(layer: Layer, reason: String) -> bool:
 	if not bool(options.get("dismiss_on_cancel", false)):
 		return false
 
+	if top_panel.has_method("resolve_cancel"):
+		top_panel.call("resolve_cancel")
+		return true
+
 	pop_panel(layer)
 	return true
 
@@ -764,6 +794,17 @@ func _get_asset_util() -> GFAssetUtility:
 			return util as GFAssetUtility
 
 	return null
+
+
+func _on_modal_resolved(result: GFModalResult, panel: Node, layer: Layer, result_callback: Callable) -> void:
+	if is_panel_open(panel, layer):
+		if get_top_panel(layer) == panel:
+			pop_panel(layer)
+		elif is_instance_valid(panel):
+			panel.queue_free()
+
+	if result_callback.is_valid():
+		result_callback.call(result)
 
 
 func _on_panel_tree_exited(panel: Node, layer: Layer) -> void:

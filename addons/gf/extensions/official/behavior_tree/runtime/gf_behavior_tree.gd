@@ -10,12 +10,16 @@ class_name GFBehaviorTree
 
 ## 行为树节点的执行状态。
 enum Status {
+	## 节点尚未被 tick。
+	FRESH = -1,
 	## 节点本次执行成功。
 	SUCCESS = 0,
 	## 节点本次执行失败。
 	FAILURE = 1,
 	## 节点仍在运行，需要后续 tick 继续推进。
 	RUNNING = 2,
+	## 节点被外部中止。
+	ABORTED = 3,
 }
 
 ## Parallel 节点的完成策略。
@@ -27,23 +31,157 @@ enum ParallelPolicy {
 }
 
 
+# --- 公共方法 ---
+
+## 将状态枚举转换为稳定文本。
+## @param status: 行为树状态。
+## @return 状态文本。
+static func status_to_string(status: int) -> StringName:
+	match status:
+		Status.FRESH:
+			return &"fresh"
+		Status.SUCCESS:
+			return &"success"
+		Status.FAILURE:
+			return &"failure"
+		Status.RUNNING:
+			return &"running"
+		Status.ABORTED:
+			return &"aborted"
+		_:
+			return &"unknown"
+
+
+## 获取节点调试快照。
+## @param node: 行为树节点。
+## @return 调试快照字典。
+static func build_debug_snapshot(node: Variant) -> Dictionary:
+	return node.get_debug_snapshot() if node != null else {}
+
+
 # --- 内部类 ---
 
 ## 行为树所有节点的基类。
 class BTNode extends RefCounted:
 	## 节点名称，用于调试。
 	var name: String = "BTNode"
+	## 可选稳定节点标识。
+	var node_id: StringName = &""
+	## 最近一次 tick 状态。
+	var last_status: int = Status.FRESH
+	## 最近一次状态原因。
+	var last_reason: StringName = &""
+	## 累计 tick 次数。
+	var tick_count: int = 0
+	## 最近一次 tick 耗时，单位微秒。
+	var last_tick_usec: int = 0
+	## 调用方附加元数据。
+	var metadata: Dictionary = {}
 
 	## 执行该节点的逻辑。子类应重写此方法。
 	## @param _blackboard: 运行时共享的数据字典。
 	## @return 返回 Status 枚举。
 	func tick(_blackboard: Dictionary) -> int:
-		return Status.SUCCESS
+		return _record_tick(Status.SUCCESS)
 
 
 	## 重置节点内部运行状态。
 	func reset() -> void:
-		pass
+		last_status = Status.FRESH
+		last_reason = &""
+		last_tick_usec = 0
+
+
+	## 记录节点状态。
+	## @param status: 新状态。
+	## @param reason: 可选状态原因。
+	## @param elapsed_usec: 可选耗时。
+	## @return 原状态值，便于子类直接 return。
+	func record_status(status: int, reason: StringName = &"", elapsed_usec: int = 0) -> int:
+		last_status = status
+		last_reason = reason
+		last_tick_usec = maxi(elapsed_usec, 0)
+		tick_count += 1
+		return status
+
+
+	## 获取调试快照。
+	## @return 调试快照字典。
+	func get_debug_snapshot() -> Dictionary:
+		var children: Array[Dictionary] = []
+		for child: BTNode in _get_debug_children():
+			if child != null:
+				children.append(child.get_debug_snapshot())
+		return {
+			"node_id": node_id,
+			"name": name,
+			"status": last_status,
+			"status_text": GFBehaviorTree.status_to_string(last_status),
+			"reason": last_reason,
+			"tick_count": tick_count,
+			"last_tick_usec": last_tick_usec,
+			"child_count": children.size(),
+			"children": children,
+			"metadata": metadata.duplicate(true),
+		}
+
+
+	func _record_tick(status: int, reason: StringName = &"", started_usec: int = 0) -> int:
+		var elapsed := Time.get_ticks_usec() - started_usec if started_usec > 0 else 0
+		return record_status(status, reason, elapsed)
+
+
+	func _get_debug_children() -> Array[BTNode]:
+		return []
+
+
+## 行为树黑板作用域。
+##
+## 支持父级回退和局部覆盖，可在项目层按需转换为 Dictionary 传给既有节点。
+class BlackboardScope extends RefCounted:
+	## 当前作用域值。
+	var values: Dictionary = {}
+	## 可选父级作用域。
+	var parent: BlackboardScope = null
+
+	func _init(initial_values: Dictionary = {}, parent_scope: BlackboardScope = null) -> void:
+		values = initial_values.duplicate(true)
+		parent = parent_scope
+
+
+	## 设置作用域值。
+	## @param key: 值标识。
+	## @param value: 值。
+	func set_value(key: StringName, value: Variant) -> void:
+		values[key] = value
+
+
+	## 获取作用域值。
+	## @param key: 值标识。
+	## @param default_value: 缺失时返回的默认值。
+	## @return 作用域值。
+	func get_value(key: StringName, default_value: Variant = null) -> Variant:
+		if values.has(key):
+			return values[key]
+		if parent != null:
+			return parent.get_value(key, default_value)
+		return default_value
+
+
+	## 检查作用域值是否存在。
+	## @param key: 值标识。
+	## @return 存在返回 true。
+	func has_value(key: StringName) -> bool:
+		return values.has(key) or (parent != null and parent.has_value(key))
+
+
+	## 转换为合并后的字典。
+	## @return 黑板字典。
+	func to_dictionary() -> Dictionary:
+		var result := parent.to_dictionary() if parent != null else {}
+		for key: Variant in values.keys():
+			result[key] = values[key]
+		return result
 
 
 ## 顺序节点 (AND 逻辑)。
@@ -85,6 +223,11 @@ class Sequence extends BTNode:
 		for child: BTNode in _children:
 			if child != null:
 				child.reset()
+		super.reset()
+
+
+	func _get_debug_children() -> Array[BTNode]:
+		return _children
 
 
 ## 选择节点 (OR 逻辑)。
@@ -126,6 +269,11 @@ class Selector extends BTNode:
 		for child: BTNode in _children:
 			if child != null:
 				child.reset()
+		super.reset()
+
+
+	func _get_debug_children() -> Array[BTNode]:
+		return _children
 
 
 ## 并行节点。
@@ -202,6 +350,7 @@ class Parallel extends BTNode:
 		for child: BTNode in _children:
 			if child != null:
 				child.reset()
+		super.reset()
 
 
 	func _ensure_child_statuses() -> void:
@@ -210,6 +359,10 @@ class Parallel extends BTNode:
 		_child_statuses.clear()
 		for _index: int in range(_children.size()):
 			_child_statuses.append(Status.RUNNING)
+
+
+	func _get_debug_children() -> Array[BTNode]:
+		return _children
 
 
 ## 随机选择节点。
@@ -260,6 +413,7 @@ class RandomSelector extends BTNode:
 		for child: BTNode in _children:
 			if child != null:
 				child.reset()
+		super.reset()
 
 
 	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
@@ -287,6 +441,10 @@ class RandomSelector extends BTNode:
 			var temp := nodes[index]
 			nodes[index] = nodes[swap_index]
 			nodes[swap_index] = temp
+
+
+	func _get_debug_children() -> Array[BTNode]:
+		return _children
 
 
 ## 随机顺序节点。
@@ -337,6 +495,7 @@ class RandomSequence extends BTNode:
 		for child: BTNode in _children:
 			if child != null:
 				child.reset()
+		super.reset()
 
 
 	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
@@ -366,6 +525,10 @@ class RandomSequence extends BTNode:
 			nodes[swap_index] = temp
 
 
+	func _get_debug_children() -> Array[BTNode]:
+		return _children
+
+
 ## 动作节点 (叶子节点)。
 ##
 ## 包装一个回调函数执行具体指令。回调需返回 Status 类型。
@@ -381,9 +544,10 @@ class Action extends BTNode:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _action_func.is_valid():
-			return _action_func.call(blackboard) as int
-		return Status.FAILURE
+			return _record_tick(_action_func.call(blackboard) as int, &"", started)
+		return _record_tick(Status.FAILURE, &"invalid_action", started)
 
 
 ## 条件检查节点 (叶子节点)。
@@ -401,9 +565,10 @@ class Condition extends BTNode:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _condition_func.is_valid() and _condition_func.call(blackboard) == true:
-			return Status.SUCCESS
-		return Status.FAILURE
+			return _record_tick(Status.SUCCESS, &"", started)
+		return _record_tick(Status.FAILURE, &"condition_false", started)
 
 
 ## 单子节点装饰器基类。
@@ -426,6 +591,14 @@ class Decorator extends BTNode:
 	func reset() -> void:
 		if _child != null:
 			_child.reset()
+		super.reset()
+
+
+	func _get_debug_children() -> Array[BTNode]:
+		var result: Array[BTNode] = []
+		if _child != null:
+			result.append(_child)
+		return result
 
 
 ## 反转装饰节点。
@@ -495,6 +668,119 @@ class AlwaysFail extends Decorator:
 			return Status.RUNNING
 		_child.reset()
 		return Status.FAILURE
+
+
+## 概率装饰节点。
+##
+## 每轮按 probability 判定是否允许子节点执行，未命中时返回 FAILURE。
+class Probability extends Decorator:
+	## 执行概率，范围 0.0 到 1.0。
+	var probability: float = 1.0
+	## 可选随机源；为空时优先使用 blackboard["rng"]。
+	var rng: RandomNumberGenerator = null
+
+	func _init(child_node: BTNode, chance: float = 1.0, random_source: RandomNumberGenerator = null) -> void:
+		super(child_node)
+		name = "Probability"
+		probability = clampf(chance, 0.0, 1.0)
+		rng = random_source
+
+
+	## 推进运行时逻辑。
+	## @param blackboard: 行为树本次 tick 使用的黑板数据。
+	## @return 返回 Status 枚举。
+	func tick(blackboard: Dictionary) -> int:
+		if _child == null:
+			return Status.FAILURE
+		var active_rng := _resolve_rng(blackboard)
+		var roll := active_rng.randf() if active_rng != null else randf()
+		if roll > probability:
+			return Status.FAILURE
+		return _child.tick(blackboard)
+
+
+	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
+		if rng != null:
+			return rng
+		var blackboard_rng: Variant = blackboard.get("rng", null)
+		return blackboard_rng if blackboard_rng is RandomNumberGenerator else null
+
+
+## 冷却装饰节点。
+##
+## 子节点结束后进入冷却期，冷却未结束时返回 FAILURE。
+class Cooldown extends Decorator:
+	## 冷却秒数。
+	var cooldown_seconds: float = 0.0
+	var _last_finish_msec: int = -1
+
+	func _init(child_node: BTNode, seconds: float = 0.0) -> void:
+		super(child_node)
+		name = "Cooldown"
+		cooldown_seconds = maxf(seconds, 0.0)
+
+
+	## 推进运行时逻辑。
+	## @param blackboard: 行为树本次 tick 使用的黑板数据。
+	## @return 返回 Status 枚举。
+	func tick(blackboard: Dictionary) -> int:
+		if _child == null:
+			return Status.FAILURE
+		var now := _resolve_time_msec(blackboard)
+		if _last_finish_msec >= 0 and now - _last_finish_msec < roundi(cooldown_seconds * 1000.0):
+			return Status.FAILURE
+		var status := _child.tick(blackboard)
+		if status != Status.RUNNING:
+			_last_finish_msec = now
+		return status
+
+
+	## 重置冷却状态。
+	func reset() -> void:
+		_last_finish_msec = -1
+		super.reset()
+
+
+	func _resolve_time_msec(blackboard: Dictionary) -> int:
+		return int(blackboard.get("time_msec", Time.get_ticks_msec()))
+
+
+## 时间限制装饰节点。
+##
+## 子节点 RUNNING 持续超过限制时返回 FAILURE 并重置子节点。
+class TimeLimit extends Decorator:
+	## 最大运行秒数。
+	var limit_seconds: float = 1.0
+	var _started_msec: int = -1
+
+	func _init(child_node: BTNode, seconds: float = 1.0) -> void:
+		super(child_node)
+		name = "TimeLimit"
+		limit_seconds = maxf(seconds, 0.0)
+
+
+	## 推进运行时逻辑。
+	## @param blackboard: 行为树本次 tick 使用的黑板数据。
+	## @return 返回 Status 枚举。
+	func tick(blackboard: Dictionary) -> int:
+		if _child == null:
+			return Status.FAILURE
+		var now := int(blackboard.get("time_msec", Time.get_ticks_msec()))
+		if _started_msec < 0:
+			_started_msec = now
+		if now - _started_msec > roundi(limit_seconds * 1000.0):
+			reset()
+			return Status.FAILURE
+		var status := _child.tick(blackboard)
+		if status != Status.RUNNING:
+			reset()
+		return status
+
+
+	## 重置计时状态。
+	func reset() -> void:
+		_started_msec = -1
+		super.reset()
 
 
 ## 次数限制装饰节点。
@@ -631,10 +917,30 @@ class Runner extends RefCounted:
 	func tick() -> int:
 		if _root_node == null:
 			return Status.FAILURE
-		return _root_node.tick(blackboard)
+		var started := Time.get_ticks_usec()
+		var status := _root_node.tick(blackboard)
+		_root_node.record_status(status, &"", Time.get_ticks_usec() - started)
+		return status
 
 
 	## 重置整棵行为树的运行状态。
 	func reset() -> void:
 		if _root_node != null:
 			_root_node.reset()
+
+
+	## 获取运行器调试快照。
+	## @return 调试快照字典。
+	func get_debug_snapshot() -> Dictionary:
+		return {
+			"root": _root_node.get_debug_snapshot() if _root_node != null else {},
+			"blackboard_keys": _get_blackboard_keys(),
+		}
+
+
+	func _get_blackboard_keys() -> PackedStringArray:
+		var result := PackedStringArray()
+		for key: Variant in blackboard.keys():
+			result.append(String(key))
+		result.sort()
+		return result

@@ -20,6 +20,7 @@ var has_next_node_override: bool = false
 # --- 私有变量 ---
 
 var _architecture_ref: WeakRef = null
+var _condition_handlers: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -81,3 +82,80 @@ func has_next_nodes_override() -> bool:
 func clear_next_nodes() -> void:
 	next_node_ids.clear()
 	has_next_node_override = false
+
+
+## 注册条件查询处理器。
+## @param condition_id: 条件标识。
+## @param handler: 查询回调，建议签名为 func(condition_id: StringName, payload: Variant, context: GFFlowContext) -> Variant。
+## @return 注册成功返回 true。
+func register_condition_handler(condition_id: StringName, handler: Callable) -> bool:
+	if condition_id == &"" or not handler.is_valid():
+		return false
+	_condition_handlers[condition_id] = handler
+	return true
+
+
+## 注销条件查询处理器。
+## @param condition_id: 条件标识。
+func unregister_condition_handler(condition_id: StringName) -> void:
+	_condition_handlers.erase(condition_id)
+
+
+## 检查条件查询处理器是否存在。
+## @param condition_id: 条件标识。
+## @return 存在返回 true。
+func has_condition_handler(condition_id: StringName) -> bool:
+	return _condition_handlers.has(condition_id)
+
+
+## 清空所有条件查询处理器。
+func clear_condition_handlers() -> void:
+	_condition_handlers.clear()
+
+
+## 查询条件值。
+## @param condition_id: 条件标识。
+## @param payload: 调用方传入的载荷。
+## @param default_value: 缺失处理器或处理器未返回值时使用的默认值。
+## @return 统一条件查询结果。
+func query_condition(
+	condition_id: StringName,
+	payload: Variant = null,
+	default_value: Variant = false
+) -> Dictionary:
+	if condition_id == &"":
+		return _make_condition_result(false, condition_id, default_value, "condition_id_is_empty")
+	if not _condition_handlers.has(condition_id):
+		return _make_condition_result(false, condition_id, default_value, "missing_condition_handler")
+
+	var handler: Callable = _condition_handlers.get(condition_id, Callable())
+	if not handler.is_valid():
+		return _make_condition_result(false, condition_id, default_value, "invalid_condition_handler")
+
+	var raw_result: Variant = handler.call(condition_id, payload, self)
+	return _normalize_condition_result(condition_id, raw_result, default_value)
+
+
+# --- 私有/辅助方法 ---
+
+func _normalize_condition_result(condition_id: StringName, raw_result: Variant, default_value: Variant) -> Dictionary:
+	if raw_result is Dictionary:
+		var data := raw_result as Dictionary
+		return {
+			"ok": bool(data.get("ok", true)),
+			"condition_id": condition_id,
+			"value": data.get("value", default_value),
+			"reason": String(data.get("reason", data.get("error", ""))),
+			"metadata": (data.get("metadata", {}) as Dictionary).duplicate(true) if data.get("metadata", {}) is Dictionary else {},
+		}
+	return _make_condition_result(true, condition_id, raw_result, "")
+
+
+func _make_condition_result(ok: bool, condition_id: StringName, value: Variant, reason: String) -> Dictionary:
+	return {
+		"ok": ok,
+		"condition_id": condition_id,
+		"value": value,
+		"reason": reason,
+		"metadata": {},
+	}

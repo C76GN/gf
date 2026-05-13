@@ -6,6 +6,12 @@ class_name GFAudioBackend
 extends RefCounted
 
 
+# --- 公共变量 ---
+
+## 后端能力声明。
+var capabilities: GFAudioBackendCapability = GFAudioBackendCapability.new()
+
+
 # --- 私有变量 ---
 
 var _host_ref: WeakRef = null
@@ -28,6 +34,19 @@ func dispose() -> void:
 ## @return 宿主对象；不存在时返回 null。
 func get_host() -> Object:
 	return _host_ref.get_ref() if _host_ref != null else null
+
+
+## 获取后端能力声明副本。
+## @return 后端能力声明。
+func get_capabilities() -> GFAudioBackendCapability:
+	return capabilities.duplicate_capability() if capabilities != null else GFAudioBackendCapability.new()
+
+
+## 检查后端是否声明了指定能力。
+## @param capability_id: 能力标识。
+## @return 支持返回 true。
+func has_capability(capability_id: StringName) -> bool:
+	return capabilities != null and capabilities.has_capability(capability_id)
 
 
 ## 判断后端是否可处理指定资源路径。
@@ -140,6 +159,43 @@ func play_spatial_sfx_clip(
 	_options: Dictionary = {}
 ) -> GFAudioEmitterHandle:
 	return null
+
+
+## 判断后端是否可处理资源化音频事件。
+## @param _event: 音频事件。
+## @param _options: 请求选项。
+## @return 可处理时返回 true。
+func can_handle_event(_event: GFAudioEvent, _options: Dictionary = {}) -> bool:
+	return false
+
+
+## 发布资源化音频事件。
+## @param _event: 音频事件。
+## @param _options: 请求选项。
+## @return 控制句柄；未处理返回 null。
+func post_event(_event: GFAudioEvent, _options: Dictionary = {}) -> GFAudioEmitterHandle:
+	return null
+
+
+## 设置音频参数。
+## @param _parameter: 参数请求。
+## @return 已处理返回 true。
+func set_parameter(_parameter: GFAudioParameter) -> bool:
+	return false
+
+
+## 设置音频状态。
+## @param _state: 状态请求。
+## @return 已处理返回 true。
+func set_state(_state: GFAudioState) -> bool:
+	return false
+
+
+## 设置音频开关。
+## @param _switch: 开关请求。
+## @return 已处理返回 true。
+func set_switch(_switch: GFAudioSwitch) -> bool:
+	return false
 
 
 ## 设置总线音量。

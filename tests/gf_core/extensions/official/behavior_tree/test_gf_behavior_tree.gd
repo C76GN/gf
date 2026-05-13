@@ -300,6 +300,55 @@ func test_until_success_and_until_fail() -> void:
 	assert_eq(until_fail.tick(fail_state), GFBehaviorTree.Status.SUCCESS)
 
 
+func test_runner_debug_snapshot_records_status_and_blackboard_keys() -> void:
+	var action := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	action.node_id = &"root_action"
+	var runner := GFBehaviorTree.Runner.new(action)
+	runner.blackboard["target"] = "value"
+
+	assert_eq(runner.tick(), GFBehaviorTree.Status.SUCCESS)
+	var snapshot := runner.get_debug_snapshot()
+	var root := snapshot["root"] as Dictionary
+
+	assert_eq(root["node_id"], &"root_action", "调试快照应包含节点标识。")
+	assert_eq(root["status_text"], &"success", "调试快照应记录最近状态。")
+	assert_eq(snapshot["blackboard_keys"], PackedStringArray(["target"]), "运行器快照应列出黑板键。")
+
+
+func test_blackboard_scope_overlays_parent_values() -> void:
+	var parent := GFBehaviorTree.BlackboardScope.new({ &"speed": 3, &"mode": "base" })
+	var child := GFBehaviorTree.BlackboardScope.new({ &"speed": 5 }, parent)
+	var data := child.to_dictionary()
+
+	assert_eq(child.get_value(&"speed"), 5, "子作用域应覆盖父级值。")
+	assert_eq(child.get_value(&"mode"), "base", "缺失值应回退到父作用域。")
+	assert_eq(data[&"speed"], 5, "合并字典应保留覆盖后的值。")
+
+
+func test_probability_cooldown_and_time_limit_decorators() -> void:
+	var rng := _make_rng(1)
+	var action_count := { "value": 0 }
+	var action := GFBehaviorTree.Action.new(func(bb: Dictionary) -> int:
+		bb.value += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var probability := GFBehaviorTree.Probability.new(action, 1.0, rng)
+	var cooldown := GFBehaviorTree.Cooldown.new(probability, 1.0)
+
+	assert_eq(cooldown.tick({ "value": action_count.value, "time_msec": 1000 }), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(cooldown.tick({ "value": action_count.value, "time_msec": 1200 }), GFBehaviorTree.Status.FAILURE)
+
+	var running := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.RUNNING
+	)
+	var limited := GFBehaviorTree.TimeLimit.new(running, 0.5)
+
+	assert_eq(limited.tick({ "time_msec": 1000 }), GFBehaviorTree.Status.RUNNING)
+	assert_eq(limited.tick({ "time_msec": 1601 }), GFBehaviorTree.Status.FAILURE)
+
+
 func _run_random_sequence_with_seed(seed_value: int) -> Array:
 	var state := { "order": [] }
 	var random_sequence := GFBehaviorTree.RandomSequence.new([

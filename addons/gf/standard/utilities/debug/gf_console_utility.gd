@@ -112,6 +112,12 @@ func init() -> void:
 
 	register_command("help", _cmd_help, "显示所有可用指令。")
 	register_command("clear", _cmd_clear, "清空控制台输出。")
+	register_command("scene.tree", _cmd_scene_tree, "输出只读场景树摘要。", {
+		"tier": CommandTier.OBSERVE,
+	})
+	register_command("scene.node", _cmd_scene_node, "查看节点的只读摘要。", {
+		"tier": CommandTier.OBSERVE,
+	})
 
 	_console_gui = _GFConsoleGUI.new()
 	_console_gui.name = "GFConsoleOverlay"
@@ -379,6 +385,126 @@ func _cmd_help(_args: PackedStringArray) -> void:
 func _cmd_clear(_args: PackedStringArray) -> void:
 	if is_instance_valid(_console_gui):
 		_console_gui.clear_output()
+
+
+func _cmd_scene_tree(args: PackedStringArray) -> void:
+	if not is_instance_valid(_console_gui):
+		return
+
+	var max_depth := 3
+	var max_nodes := 80
+	var root_path := ""
+	if args.size() >= 1 and args[0].is_valid_int():
+		max_depth = maxi(args[0].to_int(), 0)
+	if args.size() >= 2 and args[1].is_valid_int():
+		max_nodes = maxi(args[1].to_int(), 1)
+	if args.size() >= 3:
+		root_path = args[2]
+
+	var root := _resolve_console_node(root_path)
+	if root == null:
+		_console_gui.append_text("[color=red]没有找到场景树根节点。[/color]")
+		return
+
+	var lines := PackedStringArray()
+	var counter := { "count": 0, "truncated": false }
+	_append_scene_tree_lines(root, 0, max_depth, max_nodes, counter, lines)
+	if bool(counter["truncated"]):
+		lines.append("... truncated")
+	_console_gui.append_lines(_escape_plain_lines(lines))
+
+
+func _cmd_scene_node(args: PackedStringArray) -> void:
+	if not is_instance_valid(_console_gui):
+		return
+
+	var path := args[0] if args.size() > 0 else ""
+	var node := _resolve_console_node(path)
+	if node == null:
+		_console_gui.append_text("[color=red]没有找到节点：%s[/color]" % _escape_bbcode_text(path))
+		return
+
+	var lines := PackedStringArray()
+	lines.append("path: %s" % _get_console_node_path(node))
+	lines.append("type: %s" % node.get_class())
+	lines.append("children: %d" % node.get_child_count())
+	var script := node.get_script() as Script
+	if script != null:
+		lines.append("script: %s" % script.resource_path)
+	var groups := PackedStringArray()
+	for group: StringName in node.get_groups():
+		groups.append(String(group))
+	groups.sort()
+	if not groups.is_empty():
+		lines.append("groups: %s" % ", ".join(groups))
+	lines.append("signals: %d" % node.get_signal_list().size())
+	lines.append("methods: %d" % node.get_method_list().size())
+	_console_gui.append_lines(_escape_plain_lines(lines))
+
+
+func _resolve_console_node(path: String) -> Node:
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return null
+
+	if path.is_empty() or path == ".":
+		return tree.current_scene if tree.current_scene != null else tree.root
+
+	var node_path := NodePath(path)
+	if path.begins_with("/"):
+		return tree.root.get_node_or_null(node_path)
+	if tree.current_scene != null:
+		var scene_node := tree.current_scene.get_node_or_null(node_path)
+		if scene_node != null:
+			return scene_node
+	return tree.root.get_node_or_null(node_path)
+
+
+func _append_scene_tree_lines(
+	node: Node,
+	depth: int,
+	max_depth: int,
+	max_nodes: int,
+	counter: Dictionary,
+	lines: PackedStringArray
+) -> void:
+	if int(counter["count"]) >= max_nodes:
+		counter["truncated"] = true
+		return
+
+	counter["count"] = int(counter["count"]) + 1
+	lines.append("%s%s [%s]" % [
+		_make_tree_indent(depth),
+		node.name,
+		node.get_class(),
+	])
+	if depth >= max_depth:
+		if node.get_child_count() > 0:
+			counter["truncated"] = true
+		return
+
+	for child: Node in node.get_children():
+		_append_scene_tree_lines(child, depth + 1, max_depth, max_nodes, counter, lines)
+		if bool(counter["truncated"]):
+			return
+
+
+func _escape_plain_lines(lines: PackedStringArray) -> PackedStringArray:
+	var escaped := PackedStringArray()
+	for line: String in lines:
+		escaped.append(_escape_bbcode_text(line))
+	return escaped
+
+
+func _make_tree_indent(depth: int) -> String:
+	var indent := ""
+	for _index: int in range(depth):
+		indent += "  "
+	return indent
+
+
+func _get_console_node_path(node: Node) -> String:
+	return str(node.get_path()) if node.is_inside_tree() else String(node.name)
 
 
 func _on_command_submitted(raw_input: String) -> void:

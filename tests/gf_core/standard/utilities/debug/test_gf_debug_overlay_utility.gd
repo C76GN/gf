@@ -44,6 +44,7 @@ func test_dispose_detaches_overlay_callbacks_before_queue_free() -> void:
 	assert_false(gui.is_processing_input(), "dispose 应停止 overlay 的 input process。")
 	assert_false(gui.architecture_provider.is_valid(), "dispose 应清空架构回调。")
 	assert_false(gui.watch_snapshot_provider.is_valid(), "dispose 应清空 watch 回调。")
+	assert_false(gui.panel_snapshot_provider.is_valid(), "dispose 应清空 panel 回调。")
 
 
 func test_process_model() -> void:
@@ -126,6 +127,48 @@ func test_invalid_watch_registration_is_rejected() -> void:
 	assert_false(_debug.push_watch_value(&"", 1), "空 id 的 push watch 应被拒绝。")
 	assert_false(_debug.watch_value(&"invalid", Callable()), "无效 provider 应被拒绝。")
 	assert_false(_debug.has_watch(&"invalid"), "被拒绝的 watch 不应进入注册表。")
+
+
+func test_panel_provider_is_rendered() -> void:
+	var provider := func() -> Dictionary:
+		return {
+			"ready": true,
+		}
+	assert_true(_debug.register_panel(&"state", provider, {
+		"label": "State",
+		"group": "Runtime",
+	}), "有效 panel provider 应可注册。")
+
+	var snapshot := _debug.get_panel_snapshot()
+	assert_eq(snapshot.size(), 1, "应返回一个 panel 快照。")
+	assert_true(String(snapshot[0]["content"]).contains("ready"), "Dictionary panel 内容应格式化为文本。")
+
+	var gui := _debug._overlay_gui
+	gui.visible = true
+	gui._process(0.1)
+
+	var label_text := gui._label.text
+	assert_true("Panel: Runtime / State" in label_text, "Overlay 应输出 panel 标题。")
+	assert_true("ready" in label_text, "Overlay 应输出 panel 内容。")
+
+
+func test_panel_visibility_and_removal() -> void:
+	assert_true(_debug.push_panel_text(&"hidden_panel", "secret", {
+		"visible": false,
+	}), "隐藏 panel 仍应注册。")
+
+	assert_true(_debug.has_panel(&"hidden_panel"), "隐藏 panel 应存在于注册表。")
+	assert_eq(_debug.get_panel_snapshot().size(), 0, "默认不应返回隐藏 panel。")
+	assert_eq(_debug.get_panel_snapshot(true).size(), 1, "include_hidden 时应返回隐藏 panel。")
+
+	_debug.remove_panel(&"hidden_panel")
+	assert_false(_debug.has_panel(&"hidden_panel"), "remove_panel 应移除 panel。")
+
+
+func test_invalid_panel_registration_is_rejected() -> void:
+	assert_false(_debug.push_panel_text(&"", "empty"), "空 id 的 panel 应被拒绝。")
+	assert_false(_debug.register_panel(&"invalid_panel", Callable()), "无效 panel provider 应被拒绝。")
+	assert_false(_debug.has_panel(&"invalid_panel"), "被拒绝的 panel 不应进入注册表。")
 
 
 func after_each() -> void:

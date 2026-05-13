@@ -126,7 +126,7 @@ docs/zh/
 - `GFInstaller`：项目或扩展的集中装配入口。
 - `GFNodeContext`：场景树中的局部架构上下文。
 - `GFAccessGenerator`：强类型访问器生成器。
-- `GF Extensions`：编辑器底部扩展管理面板。
+- `GF` Workspace：编辑器底部统一入口，内部包含扩展管理、存档查看和信号图等页面。
 
 ## 使用提示
 

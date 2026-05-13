@@ -17,4 +17,4 @@ For official extensions, manifest `version` must match the current GF release ve
 
 Extension roots should only contain metadata, optional installer entry points, and extension docs. Runtime code belongs in stable slots such as `runtime`, `resources`, `nodes`, `editor`, `foundation`, or extension-specific domains.
 
-The GF editor plugin includes a `GF Extensions` bottom panel. It writes `gf/extensions/enabled`, can auto-run enabled extension installers before project installers, can exclude disabled extensions during export when `gf/extensions/export_exclude_disabled` is enabled, and can report disabled-extension references as export errors with `gf/extensions/export_fail_on_disabled_references`.
+The GF editor plugin includes a `GF` bottom workspace with a `GF Extensions` page. It writes `gf/extensions/enabled`, can auto-run enabled extension installers before project installers, can exclude disabled extensions during export when `gf/extensions/export_exclude_disabled` is enabled, and can report disabled-extension references as export errors with `gf/extensions/export_fail_on_disabled_references`.

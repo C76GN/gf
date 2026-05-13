@@ -36,6 +36,8 @@ var default_slot_count: int = 0
 # --- 私有变量 ---
 
 var _slots: Array = []
+var _item_slot_index: Dictionary = {}
+var _index_dirty: bool = true
 
 
 # --- Godot 生命周期方法 ---
@@ -51,6 +53,7 @@ func init() -> void:
 ## @param item_registry: 物品注册表。
 func set_registry(item_registry: GFInventoryItemRegistry) -> void:
 	registry = item_registry
+	_mark_index_dirty()
 
 
 ## 设置槽位数量。
@@ -65,6 +68,7 @@ func set_slot_count(count: int, preserve_existing: bool = true) -> void:
 		else:
 			next_slots.append(null)
 	_slots = next_slots
+	_mark_index_dirty()
 	inventory_changed.emit()
 
 
@@ -132,6 +136,7 @@ func clear_slot(slot_index: int) -> bool:
 func clear() -> void:
 	for index: int in range(_slots.size()):
 		_slots[index] = null
+	_mark_index_dirty()
 	inventory_changed.emit()
 
 
@@ -398,6 +403,113 @@ func get_occupied_slot_indices() -> PackedInt32Array:
 	return result
 
 
+## 获取指定物品所在槽位索引。
+## @param item_id: 物品标识。
+## @param instance_data: 实例数据。为空时返回全部同 ID 槽位。
+## @return 槽位索引列表。
+func get_slots_for_item(item_id: StringName, instance_data: Dictionary = {}) -> PackedInt32Array:
+	_rebuild_index_if_needed()
+	var result := PackedInt32Array()
+	var raw_indices := _item_slot_index.get(item_id, PackedInt32Array()) as PackedInt32Array
+	if raw_indices == null:
+		return result
+	var filter_by_instance := not instance_data.is_empty()
+	var normalized_data := _normalize_instance_data(item_id, instance_data)
+	for slot_index: int in raw_indices:
+		var stack := _get_stack_ref(slot_index)
+		if stack == null:
+			continue
+		if filter_by_instance and not stack.can_merge(item_id, normalized_data, registry):
+			continue
+		result.append(slot_index)
+	return result
+
+
+## 立即重建物品到槽位的索引。
+func rebuild_index() -> void:
+	_item_slot_index.clear()
+	for index: int in range(_slots.size()):
+		var stack := _get_stack_ref(index)
+		if stack == null or stack.is_empty():
+			continue
+		if not _item_slot_index.has(stack.item_id):
+			_item_slot_index[stack.item_id] = PackedInt32Array()
+		var indices := _item_slot_index[stack.item_id] as PackedInt32Array
+		indices.append(index)
+		_item_slot_index[stack.item_id] = indices
+	_index_dirty = false
+
+
+## 获取索引调试快照。
+## @return 索引快照字典。
+func get_index_debug_snapshot() -> Dictionary:
+	_rebuild_index_if_needed()
+	var item_counts: Dictionary = {}
+	for item_id: StringName in _item_slot_index.keys():
+		item_counts[String(item_id)] = (_item_slot_index[item_id] as PackedInt32Array).size()
+	return {
+		"dirty": _index_dirty,
+		"item_count": _item_slot_index.size(),
+		"items": item_counts,
+	}
+
+
+## 校验当前库存内容是否满足注册表约束。
+## @return 校验报告字典。
+func validate_inventory() -> Dictionary:
+	var report := _make_validation_report()
+	var stack_counts: Dictionary = {}
+	for index: int in range(_slots.size()):
+		var stack := _get_stack_ref(index)
+		if stack == null:
+			continue
+		if stack.is_empty():
+			_add_validation_issue(report, "warning", "empty_stack", index, stack.item_id, "槽位中存在空堆叠。")
+			continue
+		if not _accepts_item(stack.item_id):
+			_add_validation_issue(report, "error", "unregistered_item", index, stack.item_id, "物品未被注册表接受。")
+		var stack_limit := _get_max_stack_amount(stack.item_id)
+		if stack.amount > stack_limit:
+			_add_validation_issue(report, "error", "stack_amount_exceeds_limit", index, stack.item_id, "堆叠数量超过单堆叠上限。")
+		stack_counts[stack.item_id] = int(stack_counts.get(stack.item_id, 0)) + 1
+
+	for item_id: StringName in stack_counts.keys():
+		var max_stack_count := _get_max_stack_count(item_id)
+		if max_stack_count > 0 and int(stack_counts[item_id]) > max_stack_count:
+			_add_validation_issue(report, "error", "stack_count_exceeds_limit", -1, item_id, "物品堆叠数量超过注册表上限。")
+	_finalize_validation_report(report)
+	return report
+
+
+## 应用注册表约束并返回报告。
+## @param repair: 为 true 时会移除不合法堆叠并裁剪超过上限的数量。
+## @return 校验报告字典。
+func apply_registry_constraints(repair: bool = false) -> Dictionary:
+	var report := validate_inventory()
+	if not repair:
+		return report
+
+	var stack_counts: Dictionary = {}
+	for index: int in range(_slots.size()):
+		var stack := _get_stack_ref(index)
+		if stack == null:
+			continue
+		if stack.is_empty() or not _accepts_item(stack.item_id):
+			_slots[index] = null
+			_emit_slot_changed(index)
+			continue
+		var stack_limit := _get_max_stack_amount(stack.item_id)
+		if stack.amount > stack_limit:
+			stack.amount = stack_limit
+			_emit_slot_changed(index)
+		stack_counts[stack.item_id] = int(stack_counts.get(stack.item_id, 0)) + 1
+		var max_stack_count := _get_max_stack_count(stack.item_id)
+		if max_stack_count > 0 and int(stack_counts[stack.item_id]) > max_stack_count:
+			_slots[index] = null
+			_emit_slot_changed(index)
+	return report
+
+
 ## 获取库存调试快照。
 ## @return 调试快照字典。
 func get_debug_snapshot() -> Dictionary:
@@ -407,6 +519,7 @@ func get_debug_snapshot() -> Dictionary:
 		"empty_slot_count": get_empty_slot_indices().size(),
 		"allow_growth": allow_growth,
 		"items": _get_item_totals(),
+		"index": get_index_debug_snapshot(),
 	}
 
 
@@ -443,6 +556,7 @@ func from_dict(data: Dictionary) -> void:
 		else:
 			var stack := GFInventoryStack.from_dict(stack_data)
 			_slots.append(stack if not stack.is_empty() else null)
+	_mark_index_dirty()
 	inventory_changed.emit()
 
 
@@ -555,6 +669,7 @@ func _get_empty_slot_count() -> int:
 
 
 func _emit_slot_changed(slot_index: int) -> void:
+	_mark_index_dirty()
 	slot_changed.emit(slot_index)
 	inventory_changed.emit()
 
@@ -568,3 +683,48 @@ func _get_item_totals() -> Dictionary:
 		var key := String(stack.item_id)
 		totals[key] = int(totals.get(key, 0)) + stack.amount
 	return totals
+
+
+func _mark_index_dirty() -> void:
+	_index_dirty = true
+
+
+func _rebuild_index_if_needed() -> void:
+	if _index_dirty:
+		rebuild_index()
+
+
+func _make_validation_report() -> Dictionary:
+	return {
+		"ok": true,
+		"error_count": 0,
+		"warning_count": 0,
+		"issues": [],
+	}
+
+
+func _add_validation_issue(
+	report: Dictionary,
+	severity: String,
+	code: String,
+	slot_index: int,
+	item_id: StringName,
+	message: String
+) -> void:
+	var issues := report["issues"] as Array
+	issues.append({
+		"severity": severity,
+		"code": code,
+		"slot_index": slot_index,
+		"item_id": item_id,
+		"message": message,
+	})
+	if severity == "warning":
+		report["warning_count"] = int(report["warning_count"]) + 1
+	else:
+		report["error_count"] = int(report["error_count"]) + 1
+		report["ok"] = false
+
+
+func _finalize_validation_report(report: Dictionary) -> void:
+	report["ok"] = int(report.get("error_count", 0)) == 0

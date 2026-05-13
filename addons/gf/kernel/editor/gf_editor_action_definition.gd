@@ -1,0 +1,83 @@
+@tool
+
+## GFEditorActionDefinition: 编辑器动作声明。
+##
+## 把菜单、按钮、快捷键或面板入口与命令工厂解耦。动作只负责描述入口和创建命令，
+## 具体执行、撤销和业务含义由调用方或命令实现决定。
+class_name GFEditorActionDefinition
+extends RefCounted
+
+
+# --- 常量 ---
+
+const GFEditorCommandBase = preload("res://addons/gf/kernel/editor/gf_editor_command.gd")
+
+
+# --- 公共变量 ---
+
+## 动作稳定标识。
+var action_id: StringName = &""
+
+## 动作显示名称。
+var label: String = ""
+
+## 动作提示文本。
+var tooltip: String = ""
+
+## 快捷键说明文本，由具体 UI 决定是否展示。
+var shortcut_text: String = ""
+
+## 命令工厂。推荐签名为 `func(context: Dictionary) -> GFEditorCommand`。
+var command_factory: Callable = Callable()
+
+## 动作元数据。
+var metadata: Dictionary = {}
+
+
+# --- 公共方法 ---
+
+## 根据上下文创建命令。
+## @param context: 调用方传入的编辑器上下文。
+## @return 命令对象，工厂无效或返回类型不匹配时为 null。
+func create_command(context: Dictionary = {}) -> GFEditorCommandBase:
+	if not command_factory.is_valid():
+		return null
+
+	var command_variant: Variant = command_factory.call(context)
+	return command_variant as GFEditorCommandBase
+
+
+## 执行动作并可选接入 UndoRedo。
+## @param context: 调用方传入的编辑器上下文。
+## @param undo_manager: EditorUndoRedoManager 或兼容对象；为空时直接执行命令。
+## @return Godot 错误码。
+func invoke(context: Dictionary = {}, undo_manager: Object = null) -> Error:
+	var command := create_command(context)
+	if command == null:
+		return ERR_CANT_CREATE
+
+	if undo_manager != null:
+		return command.add_to_undo_manager(undo_manager)
+	return command.execute()
+
+
+## 动作是否具备可调用命令工厂。
+## @param context: 调用方传入的编辑器上下文。
+func is_available(context: Dictionary = {}) -> bool:
+	if not command_factory.is_valid():
+		return false
+	var command := create_command(context)
+	return command != null and command.can_execute()
+
+
+## 获取动作快照。
+## @return 调试信息字典。
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"action_id": String(action_id),
+		"label": label,
+		"tooltip": tooltip,
+		"shortcut_text": shortcut_text,
+		"has_command_factory": command_factory.is_valid(),
+		"metadata": metadata.duplicate(true),
+	}

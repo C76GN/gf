@@ -105,7 +105,7 @@ addons/gf/extensions/official/example/
 - `gf/extensions/export_exclude_disabled`：导出时是否跳过禁用扩展目录。
 - `gf/extensions/export_fail_on_disabled_references`：导出审计发现项目仍引用禁用扩展时，是否把结果报告为错误；默认开启，避免导出产物缺失仍被引用的扩展文件。
 
-新项目会把官方扩展的默认启用列表写入 `gf/extensions/enabled`。如果希望项目只启用其中一部分，可以通过 `GF Extensions` 面板或 `GFExtensionSettings.set_enabled_extension_ids()` 保存显式选择。
+新项目会把官方扩展的默认启用列表写入 `gf/extensions/enabled`。如果希望项目只启用其中一部分，可以通过 `GF` 工作区的 `GF Extensions` 页面或 `GFExtensionSettings.set_enabled_extension_ids()` 保存显式选择。
 
 `Gf` 会先收集启用扩展的 `installer_paths`，再追加 `gf/project/installers` 中的项目级 Installer。这样官方扩展或社区扩展可以提供自己的装配入口，而项目仍然可以在后面继续注册业务模块或覆盖绑定。
 
@@ -120,13 +120,13 @@ addons/gf/extensions/official/example/
 
 ## 编辑器扩展管理器
 
-启用 GF 编辑器插件后，底部面板会出现 `GF Extensions`。它用于查看所有官方扩展和社区扩展的 manifest 信息、启用/禁用扩展、查看发行版本与扩展版本、依赖、标签、Installer 路径、编辑器扩展路径和校验状态。
+启用 GF 编辑器插件后，底部会出现统一的 `GF` 工作区，其中 `GF Extensions` 页面用于查看所有官方扩展和社区扩展的 manifest 信息、启用/禁用扩展、查看发行版本与扩展版本、依赖、标签、Installer 路径、编辑器扩展路径和校验状态。
 
 面板中的“有效/无效”表示 manifest 是否通过基础校验；“保存设置”会把当前勾选状态和扩展相关开关写入 ProjectSettings。分类下拉框和搜索框只影响当前列表显示，不会自动修改启用状态。
 
 扩展管理器保存的是 GF 自己的扩展启用状态，不是 Godot 原生插件开关。Godot 仍会在编辑器中看到项目里存在的脚本和 `class_name`；真正影响运行时的是启用扩展的 Installer 是否自动执行，真正影响导出内容的是导出插件是否跳过禁用扩展目录。
 
-GF 自带的扩展相关编辑器增强会读取同一套启用状态。扩展可以用 `editor_action_paths` 声明 GF 工具菜单动作和脚本模板记录，用 `editor_dock_paths` 声明底部面板，用 `editor_inspector_paths` 声明 `EditorInspectorPlugin`，用 `export_plugin_paths` 声明导出插件入口，用 `access_generator_extension_paths` 声明访问器生成扩展。核心插件只负责按 manifest 装载启用扩展的贡献，不在 `kernel` 中硬编码可选官方扩展脚本、扩展 ID 或扩展内模板类型。菜单动作脚本可以实现 `get_menu_entries()` / `handle_menu_action(action_id)` 贡献普通工具，也可以实现 `get_template_records()` 贡献脚本模板。访问器扩展可以实现 `append_access_records(records)` 贡献类型记录，也可以实现 `append_access_source(builder, records)` 或 `get_access_source_sections(records)` 追加生成源码。Capability Inspector、Capability 模板、Flow Graph Inspector、SaveGraph 诊断菜单和强类型访问器生成器只在对应扩展启用且脚本存在时启用相关能力；禁用扩展后，访问器生成器也不会再把该扩展的工具路径写入新生成脚本。这样可以降低“扩展已禁用但生成物仍引用扩展路径”的导出风险。
+GF 自带的扩展相关编辑器增强会读取同一套启用状态。扩展可以用 `editor_action_paths` 声明 GF 工具菜单动作和脚本模板记录，用 `editor_dock_paths` 声明 `GF` 工作区页面，用 `editor_inspector_paths` 声明 `EditorInspectorPlugin`，用 `export_plugin_paths` 声明导出插件入口，用 `access_generator_extension_paths` 声明访问器生成扩展。核心插件只负责按 manifest 装载启用扩展的贡献，不在 `kernel` 中硬编码可选官方扩展脚本、扩展 ID 或扩展内模板类型。菜单动作脚本可以实现 `get_menu_entries()` / `handle_menu_action(action_id)` 贡献普通工具，也可以实现 `get_template_records()` 贡献脚本模板。访问器扩展可以实现 `append_access_records(records)` 贡献类型记录，也可以实现 `append_access_source(builder, records)` 或 `get_access_source_sections(records)` 追加生成源码。Capability Inspector、Capability 模板、Flow Graph Inspector、SaveGraph 诊断菜单和强类型访问器生成器只在对应扩展启用且脚本存在时启用相关能力；禁用扩展后，访问器生成器也不会再把该扩展的工具路径写入新生成脚本。这样可以降低“扩展已禁用但生成物仍引用扩展路径”的导出风险。
 
 标准库自带的编辑器增强不走扩展 manifest，而是集中声明在 `addons/gf/standard/editor/gf_standard_editor_extensions.gd`。根插件 `addons/gf/plugin.gd` 作为组合入口读取这份声明，再把记录传给 `kernel/editor` 辅助脚本装载；BuildInfo 导出插件、节点状态机 Inspector、Pattern2D Inspector、Save Viewer 和标准库脚本模板的实际声明继续由 `standard` 拥有，`kernel` 本身不硬编码标准库脚本路径或标准库类型名。
 

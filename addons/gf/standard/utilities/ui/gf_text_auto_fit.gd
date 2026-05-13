@@ -1,0 +1,166 @@
+@tool
+
+## GFTextAutoFit: 文本控件自动字体适配节点。
+##
+## 挂在文本控件旁边或子节点中，在控件尺寸、场景就绪或语言变化时调用 GFTextFitter。
+## 它只负责字体尺寸计算和主题覆盖，不接管文本来源、布局策略或项目本地化规则。
+class_name GFTextAutoFit
+extends Node
+
+
+# --- 导出变量 ---
+
+## 目标 Control 路径。为空时使用父节点。
+@export_node_path("Control") var target_path: NodePath
+
+## 最小字体尺寸。
+@export var min_font_size: int = GFTextFitter.DEFAULT_MIN_FONT_SIZE:
+	set(value):
+		min_font_size = maxi(value, 1)
+		request_refresh()
+
+## 最大字体尺寸。小于等于 0 时使用控件当前主题字体尺寸。
+@export var max_font_size: int = GFTextFitter.DEFAULT_MAX_FONT_SIZE:
+	set(value):
+		max_font_size = maxi(value, 0)
+		request_refresh()
+
+## 是否约束宽度。
+@export var fit_width: bool = true:
+	set(value):
+		fit_width = value
+		request_refresh()
+
+## 是否约束高度。
+@export var fit_height: bool = true:
+	set(value):
+		fit_height = value
+		request_refresh()
+
+## 是否在进入树并解析目标后立即适配。
+@export var fit_on_ready: bool = true
+
+## 是否监听目标控件 resized 信号。
+@export var refresh_on_resize: bool = true
+
+## 是否在收到翻译变更通知时刷新。
+@export var refresh_on_translation_changed: bool = true
+
+## 是否把刷新合并到 deferred 调用，避免同帧多次尺寸变化造成重复计算。
+@export var deferred_refresh: bool = true
+
+## 可选额外配置，会合并到 GFTextFitter.fit_control() 的 options。
+@export var options: Dictionary = {}
+
+
+# --- 私有变量 ---
+
+var _target: Control = null
+var _refresh_queued: bool = false
+
+
+# --- Godot 生命周期方法 ---
+
+func _enter_tree() -> void:
+	_bind_target()
+
+
+func _ready() -> void:
+	_bind_target()
+	if fit_on_ready:
+		request_refresh()
+
+
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_TRANSLATION_CHANGED and refresh_on_translation_changed:
+		request_refresh()
+
+
+func _exit_tree() -> void:
+	_disconnect_target()
+
+
+# --- 公共方法 ---
+
+## 重新解析并绑定目标控件。
+func rebind_target() -> void:
+	_disconnect_target()
+	_bind_target()
+	request_refresh()
+
+
+## 请求刷新文本适配。
+func request_refresh() -> void:
+	if not is_inside_tree():
+		return
+	if deferred_refresh:
+		if _refresh_queued:
+			return
+		_refresh_queued = true
+		call_deferred("_flush_refresh")
+		return
+
+	refresh()
+
+
+## 立即执行一次文本适配。
+## @return 计算出的字体尺寸；目标无效时返回 0。
+func refresh() -> int:
+	_refresh_queued = false
+	if _target == null or not is_instance_valid(_target):
+		_bind_target()
+	if _target == null:
+		return 0
+
+	var fit_options := options.duplicate(true)
+	fit_options["min_font_size"] = min_font_size
+	if max_font_size > 0:
+		fit_options["max_font_size"] = max_font_size
+	fit_options["fit_width"] = fit_width
+	fit_options["fit_height"] = fit_height
+	fit_options["apply"] = true
+	return GFTextFitter.fit_control(_target, fit_options)
+
+
+## 获取当前目标控件。
+## @return 已绑定的 Control；未绑定时返回 null。
+func get_target() -> Control:
+	if _target == null or not is_instance_valid(_target):
+		_bind_target()
+	return _target
+
+
+# --- 私有/辅助方法 ---
+
+func _bind_target() -> void:
+	var resolved := _resolve_target()
+	if resolved == _target:
+		return
+
+	_disconnect_target()
+	_target = resolved
+	if _target != null and refresh_on_resize and not _target.resized.is_connected(_on_target_resized):
+		_target.resized.connect(_on_target_resized)
+
+
+func _disconnect_target() -> void:
+	if _target != null and is_instance_valid(_target):
+		if _target.resized.is_connected(_on_target_resized):
+			_target.resized.disconnect(_on_target_resized)
+	_target = null
+
+
+func _resolve_target() -> Control:
+	if not target_path.is_empty():
+		return get_node_or_null(target_path) as Control
+	return get_parent() as Control
+
+
+func _flush_refresh() -> void:
+	refresh()
+
+
+# --- 信号处理函数 ---
+
+func _on_target_resized() -> void:
+	request_refresh()

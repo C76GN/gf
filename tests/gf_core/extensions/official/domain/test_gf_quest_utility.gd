@@ -171,6 +171,54 @@ func test_quest_lifecycle_blocker_and_debug_snapshot() -> void:
 	assert_eq(metadata["chapter"], 1, "任务报告应保留 metadata。")
 
 
+func test_acceptance_condition_can_block_accepting_quest() -> void:
+	watch_signals(_quest)
+	_quest.define_quest(&"locked", &"gate_event", 1)
+	_quest.add_acceptance_condition(&"locked", func(_quest_id: StringName, _report: Dictionary) -> Dictionary:
+		return {
+			"ok": false,
+			"reason": "missing_key",
+		}
+	)
+
+	assert_false(_quest.accept_quest(&"locked"), "接取条件拒绝时不应进入 active。")
+	assert_eq(_quest.get_quest_status(&"locked"), GFQuestUtility.STATUS_AVAILABLE, "被拒绝后任务应保持 available。")
+	assert_signal_emitted(_quest, "quest_acceptance_blocked", "接取条件拒绝时应发出信号。")
+
+	_quest.clear_acceptance_conditions(&"locked")
+	assert_true(_quest.accept_quest(&"locked"), "清空条件后应可接取。")
+
+
+func test_fail_quest_detaches_listener_and_records_reason() -> void:
+	watch_signals(_quest)
+	_quest.start_quest(&"timed", &"timer_done", 2)
+
+	assert_true(_quest.fail_quest(&"timed", "timeout"), "active 任务应可标记失败。")
+	assert_eq(_quest.get_quest_status(&"timed"), GFQuestUtility.STATUS_FAILED, "失败后状态应更新。")
+	assert_eq(int(_quest.get_debug_snapshot().get("event_count", -1)), 0, "失败后应注销事件监听。")
+	assert_eq((_quest.get_quest_report(&"timed")["metadata"] as Dictionary)["last_failure_reason"], "timeout", "失败原因应写入 metadata。")
+	assert_signal_emitted(_quest, "quest_failed", "失败时应发出 quest_failed 信号。")
+
+
+func test_quest_parent_child_tree_report_aggregates_progress() -> void:
+	_quest.define_quest(&"root", &"root_event", 1)
+	_quest.define_quest(&"child_a", &"child_a_event", 1)
+	_quest.define_quest(&"child_b", &"child_b_event", 1)
+
+	assert_true(_quest.set_quest_parent(&"child_a", &"root"), "应能设置父子关系。")
+	assert_true(_quest.set_quest_parent(&"child_b", &"root"), "应能设置第二个子任务。")
+	assert_eq(_quest.get_child_quests(&"root"), PackedStringArray(["child_a", "child_b"]), "子任务 ID 应稳定排序。")
+	assert_false(_quest.set_quest_parent(&"root", &"child_a"), "不应允许形成循环父子关系。")
+
+	_quest.accept_quest(&"child_a")
+	_quest.complete_quest(&"child_a")
+	var report := _quest.get_quest_tree_report(&"root")
+
+	assert_eq(report["total_count"], 3, "树报告应统计根和所有子任务。")
+	assert_eq(report["completed_count"], 1, "树报告应统计已完成任务数量。")
+	assert_almost_eq(float(report["aggregate_progress"]), 1.0 / 3.0, 0.001, "树报告应提供聚合进度。")
+
+
 func test_dispose_unregisters_simple_event_listener() -> void:
 	_quest.start_quest(&"cleanup_listener", &"enemy_died", 1)
 

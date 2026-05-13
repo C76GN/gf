@@ -6,6 +6,7 @@ extends GutTest
 
 const GFFlowContextBase = preload("res://addons/gf/extensions/official/flow/runtime/gf_flow_context.gd")
 const GFFlowGraphBase = preload("res://addons/gf/extensions/official/flow/resources/gf_flow_graph.gd")
+const GFFlowGraphEditorModelBase = preload("res://addons/gf/extensions/official/flow/editor/gf_flow_graph_editor_model.gd")
 const GFFlowNodeBase = preload("res://addons/gf/extensions/official/flow/resources/gf_flow_node.gd")
 const GFFlowPortBase = preload("res://addons/gf/extensions/official/flow/resources/gf_flow_port.gd")
 const GFFlowRunnerBase = preload("res://addons/gf/extensions/official/flow/runtime/gf_flow_runner.gd")
@@ -262,7 +263,7 @@ func test_flow_graph_editor_model_builds_graph_edit_ready_data() -> void:
 	end.input_ports = [_make_port(&"enter", GFFlowPort.Direction.INPUT)]
 	graph.nodes = [start, end]
 	graph.add_connection(&"start", &"done", &"end", &"enter")
-	var editor_model := GFFlowGraphEditorModel.new()
+	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
 
 	var view_model := editor_model.build_view_model(graph)
 	var nodes := view_model["nodes"] as Array
@@ -273,6 +274,121 @@ func test_flow_graph_editor_model_builds_graph_edit_ready_data() -> void:
 	assert_eq(((nodes[0] as Dictionary)["output_port_indices"] as Dictionary)[&"done"], 0, "输出端口应有稳定索引。")
 	assert_eq(connections[0]["from_port_index"], 0, "连接应包含 GraphEdit 可用的输出端口索引。")
 	assert_eq(connections[0]["to_port_index"], 0, "连接应包含 GraphEdit 可用的输入端口索引。")
+
+
+## 验证 FlowGraph 编辑器模型可应用通用自动布局。
+func test_flow_graph_editor_model_applies_auto_layout() -> void:
+	var graph := GFFlowGraphBase.new()
+	var start := GFFlowNodeBase.new()
+	start.node_id = &"start"
+	var end := GFFlowNodeBase.new()
+	end.node_id = &"end"
+	graph.nodes = [start, end]
+	graph.add_connection(&"start", &"", &"end", &"")
+	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
+
+	var report := editor_model.auto_layout(graph, { "x_spacing": 120.0 })
+
+	assert_true(bool(report["ok"]), "自动布局应返回成功报告。")
+	assert_eq(start.editor_position, Vector2.ZERO, "起点应在第一层。")
+	assert_eq(end.editor_position, Vector2(120.0, 0.0), "目标节点应进入下一层。")
+	assert_eq(int(report["changed_count"]), 2, "两个节点都应被写入布局。")
+
+
+## 验证流程上下文可注册通用条件查询处理器。
+func test_flow_context_queries_condition_handlers() -> void:
+	var context := GFFlowContextBase.new()
+	assert_true(context.register_condition_handler(&"ready", func(condition_id: StringName, payload: Variant, flow_context: GFFlowContext) -> Dictionary:
+		return {
+			"ok": true,
+			"value": String(payload) == "go" and flow_context == context,
+			"metadata": { "condition_id": condition_id },
+		}
+	), "有效条件处理器应注册成功。")
+
+	var result := context.query_condition(&"ready", "go")
+	var missing := context.query_condition(&"missing")
+
+	assert_true(bool(result["ok"]), "有效条件查询应成功。")
+	assert_true(bool(result["value"]), "条件处理器应返回归一化 value。")
+	assert_eq((result["metadata"] as Dictionary).get("condition_id"), &"ready", "条件查询应保留元数据。")
+	assert_false(bool(missing["ok"]), "缺失处理器应返回失败结果。")
+	assert_eq(missing["reason"], "missing_condition_handler", "缺失处理器应有稳定 reason。")
+
+
+## 验证流程图可保存、恢复和清空节点运行态。
+func test_flow_graph_serializes_runtime_state() -> void:
+	var graph := GFFlowGraphBase.new()
+	var node := GFFlowNodeBase.new()
+	node.node_id = &"node"
+	node.set_runtime_value(&"cursor", 3)
+	graph.nodes = [node]
+
+	var snapshot := graph.serialize_runtime_state()
+	graph.clear_runtime_state()
+	assert_eq(node.get_runtime_value(&"cursor", 0), 0, "清空运行态后应回到默认值。")
+
+	graph.deserialize_runtime_state(snapshot)
+	assert_eq(node.get_runtime_value(&"cursor", 0), 3, "反序列化应恢复节点运行态。")
+
+	var runtime_graph := graph.instantiate_graph()
+	var runtime_node := runtime_graph.get_node(&"node")
+	assert_eq(runtime_node.get_runtime_value(&"cursor", 0), 0, "实例化运行副本默认应清理运行态。")
+
+
+## 验证流程图可用轻量 Schema 校验编辑器元数据。
+func test_flow_graph_validates_metadata_schema() -> void:
+	var graph := GFFlowGraphBase.new()
+	graph.editor_metadata = {
+		"label": "Intro",
+	}
+	graph.metadata_schema = {
+		"label": {
+			"type": TYPE_STRING,
+			"required": true,
+		},
+		"mode": {
+			"type": TYPE_STRING,
+			"required": true,
+		},
+	}
+
+	var report := graph.validate_graph_metadata()
+
+	assert_false(bool(report["ok"]), "缺失必填元数据时应校验失败。")
+	assert_true(_has_issue(report, "metadata_missing_required"), "元数据校验应报告缺失必填字段。")
+
+
+## 验证编辑器模型可构建选择包并粘贴为新节点。
+func test_flow_graph_editor_model_builds_and_pastes_selection_package() -> void:
+	var graph := GFFlowGraphBase.new()
+	var start := GFFlowNodeBase.new()
+	start.node_id = &"start"
+	start.next_node_ids = PackedStringArray(["end"])
+	start.editor_position = Vector2(4.0, 8.0)
+	var end := GFFlowNodeBase.new()
+	end.node_id = &"end"
+	graph.nodes = [start, end]
+	graph.add_connection(&"start", &"", &"end", &"")
+	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
+
+	var selection := editor_model.build_selection_package(graph, PackedStringArray(["start", "end"]))
+	var paste_report := editor_model.paste_selection_package(graph, selection, Vector2(10.0, 0.0))
+	var pasted_start := graph.get_node(&"start_2")
+	var pasted_end := graph.get_node(&"end_2")
+
+	assert_true(bool(selection["ok"]), "选择包应构建成功。")
+	assert_eq(int(selection["connection_count"]), 1, "选择包应包含内部连接。")
+	assert_true(bool(paste_report["ok"]), "选择包应能粘贴。")
+	assert_not_null(pasted_start, "粘贴应生成唯一节点 ID。")
+	assert_not_null(pasted_end, "粘贴应生成目标节点。")
+	assert_eq(pasted_start.editor_position, Vector2(14.0, 8.0), "粘贴应应用位置偏移。")
+	assert_true(pasted_start.next_node_ids.has("end_2"), "粘贴应重映射内部后继节点。")
+	assert_true(graph.has_connection(&"start_2", &"", &"end_2", &""), "粘贴应重映射内部连接。")
+
+	var remove_report := editor_model.remove_nodes(graph, PackedStringArray(["start_2", "end_2"]))
+	assert_eq(int(remove_report["removed_node_count"]), 2, "批量删除应移除粘贴节点。")
+	assert_false(graph.has_connection(&"start_2", &"", &"end_2", &""), "批量删除应移除相关连接。")
 
 
 ## 验证流程图校验会报告缺失后继节点。

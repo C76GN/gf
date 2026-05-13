@@ -31,7 +31,7 @@ When enabled, the plugin registers the `Gf` AutoLoad automatically:
 Gf -> res://addons/gf/kernel/core/gf.gd
 ```
 
-The plugin also opens a `GF Extensions` bottom panel. Use it to inspect extension manifests, enable or disable GF extensions, auto-run enabled extension installers, exclude disabled extension folders from exported builds, and make disabled-extension references fail export checks when needed.
+The plugin also opens a `GF` bottom workspace. Use its `GF Extensions` page to inspect extension manifests, enable or disable GF extensions, auto-run enabled extension installers, exclude disabled extension folders from exported builds, and make disabled-extension references fail export checks when needed.
 
 Official extensions are atomic: they depend only on the GF kernel/standard surface and do not declare, probe, or load other official extensions. Project code, community extensions, or external plugins own cross-extension composition. Unused extensions can be disabled, excluded from export, or removed after project scripts, scenes, resources, and preloads no longer reference them.
 

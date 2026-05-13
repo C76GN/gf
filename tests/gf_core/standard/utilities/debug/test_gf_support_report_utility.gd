@@ -68,3 +68,62 @@ func test_support_report_exports_and_submits_with_transport_callback() -> void:
 	assert_true(bool(result["ok"]), "有效 transport 应提交成功。")
 	assert_eq(result["value"], "accepted", "提交结果应保留回调返回值。")
 	assert_eq(submitted_ids.size(), 1, "transport 应收到报告副本。")
+
+
+## 验证支持报告可规范化文本附件。
+func test_support_report_collects_text_attachments() -> void:
+	var utility := GFSupportReportUtilityBase.new()
+
+	var report := utility.build_report("Attachment", {
+		"include_diagnostics": false,
+		"include_scene": false,
+		"attachments": {
+			"log": {
+				"text": "hello",
+				"filename": "log.txt",
+				"mime_type": "text/plain",
+			},
+		},
+	})
+	var attachments := report["attachments"] as Dictionary
+	var log_attachment := attachments[&"log"] as Dictionary
+
+	assert_true(bool(log_attachment["ok"]), "文本附件应规范化成功。")
+	assert_eq(log_attachment["encoding"], "text", "文本附件应保留 text 编码。")
+	assert_eq(log_attachment["data"], "hello", "文本附件应保留内容。")
+
+
+## 验证支持报告会按大小限制拒绝附件。
+func test_support_report_rejects_oversized_attachments() -> void:
+	var utility := GFSupportReportUtilityBase.new()
+
+	var attachments := utility.collect_attachments({
+		"large": "abcdef",
+	}, {
+		"max_attachment_bytes": 3,
+	})
+	var large_attachment := attachments[&"large"] as Dictionary
+
+	assert_false(bool(large_attachment["ok"]), "超出大小限制的附件应被拒绝。")
+	assert_eq(large_attachment["reason"], "attachment_too_large", "拒绝原因应稳定。")
+
+
+## 验证支持报告提交会归一化 transport 结果。
+func test_support_report_normalizes_transport_result() -> void:
+	var utility := GFSupportReportUtilityBase.new()
+	var report := utility.build_report("Submit", {
+		"include_diagnostics": false,
+		"include_scene": false,
+	})
+
+	var result := utility.submit_report(report, func(_next_report: Dictionary, _options: Dictionary) -> Dictionary:
+		return {
+			"ok": false,
+			"error": "rejected",
+			"metadata": { "status": 400 },
+		}
+	)
+
+	assert_false(bool(result["ok"]), "transport 返回失败时应保留失败状态。")
+	assert_eq(result["error"], "rejected", "transport 错误说明应保留。")
+	assert_eq((result["metadata"] as Dictionary).get("status"), 400, "transport 元数据应保留。")

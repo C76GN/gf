@@ -75,6 +75,17 @@ shake.play_shake(&"camera", preset, 1.0, { "source": "impact" })
 var sample := shake.sample_channel(&"camera")
 ```
 
+简单反馈可直接使用 `GFShakePreset` 上的单波形字段；需要把多段位移、旋转、缩放或不同波形组合在一起时，可添加 `GFShakeTrack`。轨道支持独立进度区间、包络曲线、波形曲线和混合模式，仍然只输出通用偏移采样，不绑定相机、角色、UI 或某个事件系统。
+
+```gdscript
+var track := GFShakeTrack.new()
+track.start_progress = 0.0
+track.end_progress = 0.35
+track.position_axis = Vector3(4.0, 0.0, 0.0)
+track.rotation_axis_degrees = Vector3.ZERO
+preset.add_track(track)
+```
+
 `GFShakeReceiver2D` 和 `GFShakeReceiver3D` 是可选场景桥接节点：它们记录目标节点的基础变换，并把某个 channel 的采样叠加到目标上。项目也可以完全不用接收器，直接读取 `sample_channel()` 后应用到自己的相机系统、UI 动画或 shader 参数。
 
 ---

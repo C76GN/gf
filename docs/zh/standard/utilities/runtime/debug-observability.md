@@ -55,6 +55,30 @@ debug.watch_value(&"scene_path", scene_path_provider, {
 
 `watch_value()` 适合廉价、无副作用的当前状态读取；`push_watch_value()` 适合由项目循环或回调主动更新的值。注册了 `GFDiagnosticsUtility` 时，Overlay 默认也会显示 `overlay` 诊断监控预设，可用 `set_diagnostics_monitor_preset()` 切换预设，或把 `include_diagnostics_monitors` 设为 `false` 只显示手动 watch。Watch 只是一层调试显示通道，不保存历史、不做采样统计，也不规定业务字段；需要长期记录请接入 `GFLogUtility` / `GFDiagnosticsUtility` 或项目自己的分析系统。
 
+需要显示多行结构化内容时，可以用 `register_panel()` 或 `push_panel_text()` 注册 Overlay 面板。面板 provider 可以返回字符串、数组或字典，Overlay 会把它们格式化为只读文本；`include_recent_logs` 开启时还会附加最近日志面板。面板同样不做脱敏，适合开发期聚合 `GFDiagnosticsUtility` 快照、项目局部状态或自定义工具输出。
+
+
+## 信号图与运行时信号探针 (`GFSceneSignalAudit` / `GFSignalRuntimeProbe`)
+
+编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把当前节点树的信号、连接和节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 会把当前编辑场景渲染为 `GF` 工作区页面，默认查看持久连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。
+
+如果要确认“信号有没有真的发射”，可以显式创建 `GFSignalRuntimeProbe` 监听一个节点或节点树。它会记录最近事件、发射时间、来源节点、信号名、参数和当前连接摘要；它只在项目主动 watch 后工作，不会默认全局接管所有信号：
+
+```gdscript
+var probe := GFSignalRuntimeProbe.new()
+probe.max_events = 200
+probe.signal_emitted.connect(func(event: Dictionary) -> void:
+	print(event["source_node_path"], event["signal_name"], event["arguments"])
+)
+
+probe.watch_tree(get_tree().current_scene, {
+	"recursive": true,
+	"include_signals": PackedStringArray(["pressed", "timeout"]),
+})
+```
+
+`GFSignalGraphDock` 的“运行事件”页也是基于这个探针，只有打开“实时追踪”后才会连接当前场景信号。不要在生产构建默认开启全场景探针；面对远程调试、玩家可见工具或包含敏感参数的信号时，应由项目层限制范围、脱敏和权限。
+
 
 ## 全局随机数种子管理器 (`GFSeedUtility`)
 
@@ -163,6 +187,17 @@ log_util.add_sink(jsonl_sink)
 
 `GFJsonLineLogSink` 会把 `StringName`、`NodePath` 和非 JSON 原生值转换成稳定字符串，避免上下文里混入 Godot 对象后破坏 JSONL 文件。默认派生路径使用 `gf_log_*.jsonl`，并由 `max_jsonl_files` 单独控制保留数量；显式设置 `file_path` 时，文件命名和清理策略由项目层负责。
 
+需要把日志交给远端服务、平台 SDK、编辑器桥接或测试采集器时，可以使用 `GFBatchedLogSink`。它只负责清洗、排队、按 `batch_size` 分批和触发 `sender_callback` / `batch_ready`，不内置任何 HTTP 端点、鉴权或服务端字段：
+
+```gdscript
+var batch_sink := GFBatchedLogSink.new()
+batch_sink.batch_size = 20
+batch_sink.sender_callback = func(payload: Dictionary) -> Dictionary:
+	# 项目层自行发送 payload["logs"]。
+	return { "ok": true }
+log_util.add_sink(batch_sink)
+```
+
 低于 `min_level` 或被 `set_tag_muted()` 静音的日志不会打印、写入文件、进入内存缓存、写入 sink 或发出日志信号。`*_lazy()` 系列只有在日志实际会输出时才调用 `message_builder` 和可选 `context_builder`，适合构造成本高的调试文本与上下文。
 
 文件默认按 `flush_interval_msec` 批量 flush，`flush_immediately = true` 或 `flush_interval_msec <= 0` 时每条日志立即 flush；`ERROR` / `FATAL` 会强制尽快写盘。内存缓存由 `max_memory_entries` 控制，超出后按环形缓冲覆盖最旧条目，并可通过 `get_dropped_memory_entry_count()` 观察丢弃数量。当前日志文件路径可通过 `get_log_file_path()` 读取，便于测试、诊断界面或导出工具定位文件。
@@ -212,7 +247,7 @@ var snapshot_with_scene := diagnostics.collect_snapshot({
 })
 ```
 
-诊断快照的 `tools` 字段会聚合已注册模块公开的 `get_debug_snapshot()`，标准库内置读取 `GFBuildInfoUtility`、`GFAssetUtility`、`GFTimerUtility`、`GFRemoteCacheUtility`、`GFDownloadUtility` 和 `GFObjectPoolUtility`。官方扩展或项目模块如果也想进入诊断快照，应主动调用 `register_tool_snapshot_provider()`、`register_snapshot_section_provider()`、`register_monitor()` 或 `register_command()` 贡献数据；例如 ActionQueue 扩展贡献 `tools.action_queue` 监控和 `tools.action_queue` 快照，Network 扩展贡献 `network` 快照分区。`GFDiagnosticsUtility` 不硬编码任何官方扩展 ID、路径或类型，因此扩展禁用或删除时不会影响标准库加载。这些快照只表达版本、队列、缓存、pending 数量和运行状态，不解释项目业务含义。编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把运行中节点树的信号、连接、节点索引整理为结构化数据，供项目自己的 GraphEdit、Tree 或诊断面板消费。快照默认可包含构建信息、最近日志、外部贡献分区、URL 派生的缓存状态、工具路径和项目自定义 monitor 输出；如果要暴露给远程调试、玩家可访问控制台或线上 GM 工具，应在项目层做脱敏、白名单过滤和权限控制。
+诊断快照的 `tools` 字段会聚合已注册模块公开的 `get_debug_snapshot()`，标准库内置读取 `GFBuildInfoUtility`、`GFAssetUtility`、`GFTimerUtility`、`GFRemoteCacheUtility`、`GFDownloadUtility` 和 `GFObjectPoolUtility`。官方扩展或项目模块如果也想进入诊断快照，应主动调用 `register_tool_snapshot_provider()`、`register_snapshot_section_provider()`、`register_monitor()` 或 `register_command()` 贡献数据；例如 ActionQueue 扩展贡献 `tools.action_queue` 监控和 `tools.action_queue` 快照，Network 扩展贡献 `network` 快照分区。`GFDiagnosticsUtility` 不硬编码任何官方扩展 ID、路径或类型，因此扩展禁用或删除时不会影响标准库加载。这些快照只表达版本、队列、缓存、pending 数量和运行状态，不解释项目业务含义。编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把运行中节点树的信号、连接、节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 则把当前编辑场景渲染为 `GF` 工作区页面，默认查看持久场景连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。快照默认可包含构建信息、最近日志、外部贡献分区、URL 派生的缓存状态、工具路径和项目自定义 monitor 输出；如果要暴露给远程调试、玩家可访问控制台或线上 GM 工具，应在项目层做脱敏、白名单过滤和权限控制。
 
 诊断监控项适合给 Overlay、编辑器面板或远程调试工具提供稳定采样入口。内置预设包括 `minimal`、`performance`、`architecture`、`tools` 与 `overlay`；项目也可以注册自己的轻量 provider，并按预设导出 JSON、文本或 CSV：
 
@@ -265,11 +300,21 @@ var report := reports.build_report("设置界面打开后无法返回", {
 	},
 	"tags": ["ui", "runtime"],
 	"include_diagnostics": true,
+	"attachments": {
+		"local_log": {
+			"text": recent_log_text,
+			"filename": "recent_log.txt",
+			"mime_type": "text/plain",
+		},
+	},
+	"max_attachment_bytes": 512 * 1024,
 })
 reports.save_report(report, "user://support/report_latest.json")
 ```
 
-如果需要上传或进入项目自己的客服/反馈管线，使用 `submit_report(report, transport, options)`。`transport` 会收到报告字典副本和提交选项；它可以写文件、排队、发 HTTP 请求或交给平台 SDK，但这些实现都留在项目层。面对玩家可见入口时，应在项目层过滤敏感字段、限制附件大小，并决定是否允许 `include_screenshot`。
+附件可通过 `attachments` 传入文本、字节或带 `text` / `bytes` / `path` 字段的字典，`collect_attachments()` 与 `add_attachment_to_report()` 会统一写出 `ok`、`filename`、`mime_type`、`size_bytes`、`encoding`、`data` 和 `metadata`。`include_screenshot` 可把当前 Viewport 截图作为普通附件加入报告，`screenshot_path` 可额外把截图写到本地路径；默认 `default_max_attachment_bytes` 会限制单个附件大小，避免支持报告在玩家入口无限膨胀。
+
+如果需要上传或进入项目自己的客服/反馈管线，使用 `submit_report(report, transport, options)`。`transport` 会收到报告字典副本和提交选项；它可以写文件、排队、发 HTTP 请求或交给平台 SDK，但这些实现都留在项目层。提交返回值会归一化为 `ok`、`value`、`error`、`metadata` 和 `submitted_at_unix`，便于 UI 或日志统一处理。面对玩家可见入口时，应在项目层过滤敏感字段、限制附件大小，并决定是否允许 `include_screenshot`。
 
 ### 通用通知队列 (`GFNotificationUtility`)
 
@@ -293,7 +338,7 @@ notifications.push_notification("配置已保存", "设置", GFNotificationUtili
 
 **应用场景：** 当你需要在运行中的游戏里快速执行调试指令、查看实时日志输出，而不想来回切换编辑器或依赖外部终端时。
 
-按下 **F1**（可配置）即可呼出半透明控制台，默认保持全屏覆盖；也可以启用窗口模式，让控制台以可拖拽、可缩放面板呈现。控制台内置 `help`（列出所有指令）和 `clear`（清空输出）。支持自定义指令注册，同时自动接收 `GFLogUtility` 的日志信号并着色显示（Error/Fatal 红色、Warn 黄色、Debug 青色）。
+按下 **F1**（可配置）即可呼出半透明控制台，默认保持全屏覆盖；也可以启用窗口模式，让控制台以可拖拽、可缩放面板呈现。控制台内置 `help`（列出所有指令）、`clear`（清空输出）、`scene.tree`（只读场景树摘要）和 `scene.node`（只读节点摘要）。支持自定义指令注册，同时自动接收 `GFLogUtility` 的日志信号并着色显示（Error/Fatal 红色、Warn 黄色、Debug 青色）。
 
 控制台默认 `debug_only = true`，发布构建不会创建 GUI；如果项目确实需要在非 debug 构建中使用，必须显式关闭该选项，并自行确认命令白名单、输入入口和玩家可见性。控制台内部会批量刷新输出，并通过 `max_output_lines` 限制保留行数、通过 `max_history_size` 限制历史命令数量，避免高频日志或长时间运行造成无限增长。日志 tag、message、命令回显和帮助文本会在写入 RichTextLabel 前转义 BBCode，避免日志内容污染控制台 UI。界面内置日志标签过滤输入框，支持 `Tab` 补全命令、上下方向键切换输入历史；未知命令也可通过 `suggest_similar_commands()` 给出相似候选，便于调试控制台在输入错误时提示可用命令。
 
@@ -319,6 +364,8 @@ console.unregister_command("tp")
 
 # 也可以在代码中直接执行指令
 console.execute_command("help")
+console.execute_command("scene.tree 3 80")
+console.execute_command("scene.node Player")
 
 # 可选：更换呼出快捷键（默认 F1）
 console.toggle_key = KEY_F2

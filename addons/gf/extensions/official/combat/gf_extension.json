@@ -1,7 +1,7 @@
 {
   "id": "gf.official.combat",
   "display_name": "GF Combat",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "extension_version": "1.3.0",
   "kind": "official",
   "description": "Abstract combat attributes, modifiers, buffs, skills, gauges, and hit detection bridges.",

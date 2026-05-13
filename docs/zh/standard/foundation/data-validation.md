@@ -1,6 +1,6 @@
-# Foundation 标签、公式、序列化与结果报告
+# Foundation 标签、公式、集合、序列化与结果报告
 
-这些 Foundation 能力用于标签查询、公式规则、Variant 处理、校验报告和结果字典等通用数据流程。
+这些 Foundation 能力用于标签查询、公式规则、值索引、变更批次、Variant 处理、校验报告和结果字典等通用数据流程。
 
 ## `GFTagSet` / `GFTagQuery` / `GFTagSourceAdapter`
 
@@ -46,6 +46,80 @@ print(report["ok"]) # true
 ```
 
 `GFBlackboardSchema` 默认允许额外字段，便于渐进接入；需要严格资源或导入校验时可关闭 `allow_extra_keys`。类型转换只做通用 Variant 转换，不做业务范围、权限、冷却、目标合法性或状态机规则判断。
+
+
+## `GFBudgetLedger`
+
+`GFBudgetLedger` 是通用资源预算账本，用于记录一组抽象资源的容量、可用量、消费结果和释放。它不规定资源含义：可以用于体力、行动点、并发额度、构建预算、编辑器批处理配额或任何项目自定义资源。
+
+```gdscript
+var ledger := GFBudgetLedger.new()
+ledger.set_capacity(&"energy", 10.0)
+
+var result := ledger.consume(&"energy", 3.0, {
+	"source": "dash",
+})
+if result["ok"]:
+	print(ledger.get_available(&"energy")) # 7.0
+
+ledger.release(&"energy", 1.0)
+ledger.reset(&"energy")
+```
+
+`consume()` 返回统一结果字典，包含 `ok`、`budget_id`、`amount`、`reason`、`available`、`capacity` 和调用方传入的 `metadata`。预算不足、负数请求和缺失预算都会被拒绝并发出 `budget_rejected`；成功消费会发出 `budget_consumed` 与 `budget_changed`。GF 只维护账本，不决定何时恢复、如何显示、是否允许透支或哪个玩法系统拥有预算。
+
+
+## `GFValueIndex` / `GFMutationBatch`
+
+`GFValueIndex` 是轻量多字段索引：调用方把任意 `item_id`、值和字段字典写进去，再按字段值查询匹配条目。字段值可以是单值、`Array` 或 `PackedStringArray`；索引只维护查找结构，不解释字段语义，也不持有全局注册表。
+
+```gdscript
+var index := GFValueIndex.new()
+index.set_item(&"entry_a", { "score": 1 }, {
+	"tag": ["fast", "visible"],
+	"tier": 1,
+})
+
+var fast_ids := index.query(&"tag", "fast")
+var tier_ids := index.query_many({
+	"tag": "fast",
+	"tier": 1,
+})
+```
+
+`GFMutationBatch` 把一组 `Callable` 作为可提交、可回滚的批次执行。它适合编辑器工具、导入流程、资源批处理或项目自己的事务边界；框架只管理顺序、结果归一化和反向回滚，不知道操作修改的是资源、存档、场景还是内存模型。
+
+```gdscript
+var batch := GFMutationBatch.new()
+batch.add_operation(
+	func() -> Dictionary:
+		model["value"] = 10
+		return { "ok": true },
+	func() -> void:
+		model["value"] = 0
+)
+
+var result := batch.commit()
+if not result["ok"]:
+	batch.rollback_committed()
+```
+
+`GFMutationBatch` 默认在失败时停止并保留失败操作，便于调用方修正后重试；如果项目希望失败后继续处理后续操作，可关闭 `stop_on_error`。回滚只调用已提交操作的 rollback，不假设操作具备天然可逆性，因此可逆边界应由调用方显式提供。
+
+
+## `GFTimedTextEntry` / `GFTimedTextTrack` / `GFTimedTextImporter`
+
+时间段文本轨道用于保存“某段时间显示某段文本”的通用数据。它可以服务字幕、对白、教程提示、歌词、时间轴注释或项目自己的媒体标记，但不绑定任何 UI 控件或具体格式。
+
+```gdscript
+var parsed := GFTimedTextImporter.parse_srt(srt_text, &"caption")
+var track := parsed["track"] as GFTimedTextTrack
+
+var current_text := track.get_text_at_time(12.5)
+var nearby_entries := track.get_entries_in_range(10.0, 15.0)
+```
+
+`GFTimedTextEntry` 只保存 `start_time`、`end_time`、`text` 和元数据；`GFTimedTextTrack` 负责排序、按时间查询、范围查询、总时长和字典转换；`GFTimedTextImporter` 只提供 SRT、WebVTT 和 LRC 的轻量解析入口。复杂字幕样式、富文本清洗、语音同步、动画注入和本地化选择仍应放在项目层或专门扩展里。
 
 
 ## `GFFormula` / `GFFormulaParameter` / `GFFormulaSet`

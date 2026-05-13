@@ -42,9 +42,13 @@ graph.add_connection(&"check_door", &"", &"locked", &"")
 
 `validate_graph()` 还会输出通用拓扑诊断：`warn_unreachable_nodes` 默认提示从 `start_node_id` 无法到达的节点，`warn_cycles` 默认提示循环结构，`warn_terminal_nodes` 可显式开启以提示无后继节点。这些诊断只作为 warning，不假设循环或终端节点一定错误；项目可以在编辑器、导入流程或 CI 中按自己的资源规范决定是否把某类 warning 提升为错误。
 
-节点可以填写 `display_name`、`category`、`editor_position`、`editor_size` 和 `editor_collapsed`，这些字段只服务编辑器、搜索和可视化工具，不影响运行时执行。`get_editor_catalog()` 会按分类输出节点、端口和编辑器元数据，`build_editor_report()` 会组合目录、校验摘要和 `next_action`，适合项目自己的 GraphEdit 面板或导出工具消费。`GFFlowGraphEditorModel` 进一步把节点、端口索引、连接端口索引、分组和校验结果整理成更接近 GraphEdit 的视图模型，便于项目实现自己的可视化编辑器、导出器或调试面板，而不要求使用 GF 内置 UI。启用 GF 插件后，选中 `GFFlowGraph` 资源时 Inspector 会提供起始节点选择和校验摘要。
+节点可以填写 `display_name`、`category`、`editor_position`、`editor_size` 和 `editor_collapsed`，这些字段只服务编辑器、搜索和可视化工具，不影响运行时执行。`get_editor_catalog()` 会按分类输出节点、端口和编辑器元数据，`build_editor_report()` 会组合目录、校验摘要和 `next_action`，适合项目自己的 GraphEdit 面板或导出工具消费。`GFFlowGraphEditorModel` 进一步把节点、端口索引、连接端口索引、分组和校验结果整理成更接近 GraphEdit 的视图模型，并提供 `auto_layout()` 复用 `GFGraphLayoutUtility` 写入初始节点位置。项目工具还可以用 `build_selection_package()`、`paste_selection_package()` 和 `remove_nodes()` 实现复制、粘贴、删除或批量改图，而不要求使用 GF 内置 UI。启用 GF 插件后，选中 `GFFlowGraph` 资源时 Inspector 会提供起始节点选择和校验摘要。
 
 运行器优先使用节点或上下文提供的后继列表；当节点没有默认后继、上下文也没有显式覆盖时，才会回退到 `connections`。如果节点需要明确停止，可调用 `context.set_next_nodes(PackedStringArray())`。节点 `wait_for_result` 且 `execute()` 返回 Signal 时，`GFFlowRunner` 会安全等待发射源或节点离树，并使用 `with_signal_timeout(seconds, respect_time_scale)` 控制等待上限；默认超时同样跟随 `GFTimeUtility` 的暂停与 `time_scale`。如果自定义节点在 `execute()` 内部自行 await 且永不返回，运行器无法替它取消这段内部逻辑，项目层应把等待对象作为 Signal 返回。
+
+`GFFlowContext` 可注册条件查询处理器：`register_condition_handler(condition_id, handler)` 接收一个通用 `Callable`，`query_condition()` 会把返回值归一化为 `ok`、`value`、`reason` 和 `metadata`。这适合把“某个条件如何判断”留在项目层，同时让节点、导入器或编辑器工具使用同一套查询结果结构。`GFFlowNode.runtime_state` 提供不导出的节点运行态字典，`GFFlowGraph.serialize_runtime_state()` / `deserialize_runtime_state()` 可保存和恢复图内节点状态；需要从资源创建运行副本时，优先使用 `instantiate_graph()`，默认会清空运行态，避免编辑器资源被运行时临时数据污染。
+
+`GFFlowGraph.metadata_schema` 是轻量元数据约束，支持 `required`、`type`、`class_name`、`allow_null` 和 `allowed_values` 这类通用规则。`validate_graph_metadata()` 只校验 `editor_metadata` 的结构，不解释字段业务含义；项目可以把它接到导入、保存前检查或自定义编辑器提示中。
 
 ---
 
@@ -85,7 +89,7 @@ func _physics_process(delta: float) -> void:
 
 - `GFInventoryModel`：按 `item_id` 管理数量和元数据，支持 `to_dict()` / `from_dict()`。
 - `GFInventoryItemDefinition` / `GFInventoryItemRegistry`：资源化描述物品堆叠容量、最大堆叠数量、分类标签和实例数据兼容规则。
-- `GFInventoryStack` / `GFSlotInventoryModel`：管理固定或可增长槽位中的堆叠，支持 partial add/remove、移动、合并、交换、容量查询和序列化。
+- `GFInventoryStack` / `GFSlotInventoryModel`：管理固定或可增长槽位中的堆叠，支持 partial add/remove、移动、合并、交换、容量查询、索引查询、注册表约束校验和序列化。
 - `GFInventoryOperationResult`：统一描述添加、移除、移动等操作的请求数量、接受数量、剩余数量和原因。
 - `GFAttributeSet`：按 `attribute_id` 管理基础值、当前值、上下限和元数据，支持快照恢复、派生属性规则，并可选择接入 `GFTraitSet` 计算修饰后数值。
 - `GFDerivedAttributeRule`：描述一个目标属性如何由其他属性按权重或回调派生，适合把“最大值、评分、容量、派生速度”等通用依赖关系留在数据层。
@@ -141,5 +145,6 @@ var result := slots.add_item(&"item_a", 35, { "variant": "basic" })
 print(result.accepted_amount, result.remaining_amount)
 ```
 
-这些模型适合放在项目自己的 `Model` 或资源配置中，具体物品含义、标签体系和结算规则仍由项目层定义。
+`GFSlotInventoryModel.get_slots_for_item()` 会维护物品到槽位的惰性索引，适合 UI 局部刷新或规则查询；`validate_inventory()` 和 `apply_registry_constraints()` 可检查或修复注册表约束，例如未注册物品、单堆叠超量或堆叠数量超限。默认实例数据比较仍由 `stack_key_fields` 控制；需要更特殊的合并规则时，可给 `GFInventoryItemDefinition.compatibility_checker` 传入项目层回调，但 GF 不保存该回调到字典数据中。
 
+这些模型适合放在项目自己的 `Model` 或资源配置中，具体物品含义、标签体系和结算规则仍由项目层定义。

@@ -6,6 +6,11 @@ class_name GFFlowGraphEditorModel
 extends RefCounted
 
 
+# --- 常量 ---
+
+const GFGraphLayoutUtilityBase = preload("res://addons/gf/standard/foundation/math/gf_graph_layout_utility.gd")
+
+
 # --- 公共变量 ---
 
 ## 节点未显式设置尺寸时使用的默认编辑器尺寸。
@@ -86,6 +91,167 @@ func apply_node_positions(graph: GFFlowGraph, positions: Dictionary) -> int:
 		if position is Vector2 and graph.set_node_editor_position(StringName(key), position):
 			changed_count += 1
 	return changed_count
+
+
+## 自动生成并应用节点布局。
+## @param graph: 流程图资源。
+## @param options: 布局选项，透传给 GFGraphLayoutUtility.make_layered_layout()。
+## @return 布局报告，包含 positions 与 changed_count。
+func auto_layout(graph: GFFlowGraph, options: Dictionary = {}) -> Dictionary:
+	if graph == null:
+		return {
+			"ok": false,
+			"positions": {},
+			"changed_count": 0,
+			"error": "graph_is_null",
+		}
+
+	var node_ids := PackedStringArray()
+	for node: GFFlowNode in graph.nodes:
+		if node != null and node.node_id != &"":
+			node_ids.append(String(node.node_id))
+
+	var positions := GFGraphLayoutUtilityBase.make_layered_layout(node_ids, graph.connections, options)
+	var changed_count := apply_node_positions(graph, positions)
+	return {
+		"ok": true,
+		"positions": positions,
+		"changed_count": changed_count,
+	}
+
+
+## 构建节点选择包，用于编辑器复制、剪切或跨工具传递。
+## @param graph: 流程图资源。
+## @param node_ids: 选中的节点标识列表。
+## @return 选择包字典。
+func build_selection_package(graph: GFFlowGraph, node_ids: PackedStringArray) -> Dictionary:
+	if graph == null:
+		return _make_edit_report(false, "graph_is_null")
+
+	var selected_lookup := _make_selected_lookup(node_ids)
+	var selected_nodes: Array[GFFlowNode] = []
+	for node_id_text: String in node_ids:
+		var node := graph.get_node(StringName(node_id_text))
+		if node != null:
+			selected_nodes.append(node.duplicate(true) as GFFlowNode)
+
+	var selected_connections: Array[Dictionary] = []
+	for connection: Dictionary in graph.connections:
+		if _connection_is_internal(connection, selected_lookup):
+			selected_connections.append(connection.duplicate(true))
+
+	return {
+		"ok": true,
+		"node_count": selected_nodes.size(),
+		"connection_count": selected_connections.size(),
+		"nodes": selected_nodes,
+		"connections": selected_connections,
+		"node_ids": node_ids.duplicate(),
+	}
+
+
+## 将选择包粘贴到流程图。
+## @param graph: 流程图资源。
+## @param selection_package: build_selection_package() 返回的选择包。
+## @param offset: 粘贴时叠加到节点编辑器位置的偏移。
+## @param options: 可选参数，支持 keep_original_ids。
+## @return 粘贴报告。
+func paste_selection_package(
+	graph: GFFlowGraph,
+	selection_package: Dictionary,
+	offset: Vector2 = Vector2.ZERO,
+	options: Dictionary = {}
+) -> Dictionary:
+	if graph == null:
+		return _make_edit_report(false, "graph_is_null")
+
+	var source_nodes := selection_package.get("nodes", []) as Array
+	if source_nodes == null:
+		return _make_edit_report(false, "invalid_selection_package")
+
+	var id_map: Dictionary = {}
+	var reserved_ids: Dictionary = {}
+	var added_node_ids := PackedStringArray()
+	for mapping_variant: Variant in source_nodes:
+		var mapping_node := mapping_variant as GFFlowNode
+		if mapping_node == null:
+			continue
+		var mapping_source_id := mapping_node.node_id
+		var mapping_next_id := _make_unique_node_id(graph, mapping_source_id, reserved_ids, bool(options.get("keep_original_ids", false)))
+		id_map[mapping_source_id] = mapping_next_id
+		reserved_ids[mapping_next_id] = true
+
+	for copy_variant: Variant in source_nodes:
+		var copy_source_node := copy_variant as GFFlowNode
+		if copy_source_node == null:
+			continue
+
+		var next_node := copy_source_node.duplicate(true) as GFFlowNode
+		if next_node == null:
+			continue
+
+		var copy_source_id := next_node.node_id
+		var copy_next_id := StringName(id_map.get(copy_source_id, copy_source_id))
+		next_node.node_id = copy_next_id
+		next_node.editor_position += offset
+		next_node.next_node_ids = _remap_node_ids(next_node.next_node_ids, id_map)
+		graph.set_node(next_node)
+		added_node_ids.append(String(copy_next_id))
+
+	var source_connections := selection_package.get("connections", []) as Array
+	var added_connection_count := 0
+	var failed_connection_count := 0
+	if source_connections != null:
+		for connection_variant: Variant in source_connections:
+			var connection := connection_variant as Dictionary
+			if connection == null:
+				continue
+
+			var next_connection := _remap_connection(connection, id_map)
+			var added := graph.add_connection(
+				StringName(next_connection.get("from_node_id", &"")),
+				StringName(next_connection.get("from_port_id", &"")),
+				StringName(next_connection.get("to_node_id", &"")),
+				StringName(next_connection.get("to_port_id", &"")),
+				(next_connection.get("metadata", {}) as Dictionary).duplicate(true) if next_connection.get("metadata", {}) is Dictionary else {}
+			)
+			if added:
+				added_connection_count += 1
+			else:
+				failed_connection_count += 1
+
+	return {
+		"ok": true,
+		"added_node_ids": added_node_ids,
+		"added_node_count": added_node_ids.size(),
+		"added_connection_count": added_connection_count,
+		"failed_connection_count": failed_connection_count,
+		"id_map": id_map,
+	}
+
+
+## 从流程图移除一组节点及其相关连接。
+## @param graph: 流程图资源。
+## @param node_ids: 节点标识列表。
+## @return 移除报告。
+func remove_nodes(graph: GFFlowGraph, node_ids: PackedStringArray) -> Dictionary:
+	if graph == null:
+		return _make_edit_report(false, "graph_is_null")
+
+	var removed_node_ids := PackedStringArray()
+	for node_id_text: String in node_ids:
+		var node_id := StringName(node_id_text)
+		if not graph.has_node(node_id):
+			continue
+		graph.remove_node(node_id)
+		removed_node_ids.append(String(node_id))
+
+	return {
+		"ok": true,
+		"removed_node_ids": removed_node_ids,
+		"removed_node_count": removed_node_ids.size(),
+		"connection_count": graph.connections.size(),
+	}
 
 
 # --- 私有/辅助方法 ---
@@ -190,3 +356,64 @@ func _get_port_index(node_entry: Dictionary, index_key: String, port_id: StringN
 	if indices == null:
 		return -1
 	return int(indices.get(port_id, -1))
+
+
+func _make_selected_lookup(node_ids: PackedStringArray) -> Dictionary:
+	var result: Dictionary = {}
+	for node_id_text: String in node_ids:
+		result[StringName(node_id_text)] = true
+	return result
+
+
+func _connection_is_internal(connection: Dictionary, selected_lookup: Dictionary) -> bool:
+	return (
+		selected_lookup.has(StringName(connection.get("from_node_id", &"")))
+		and selected_lookup.has(StringName(connection.get("to_node_id", &"")))
+	)
+
+
+func _make_unique_node_id(
+	graph: GFFlowGraph,
+	preferred_id: StringName,
+	reserved_ids: Dictionary,
+	keep_original_id: bool
+) -> StringName:
+	var base := String(preferred_id)
+	if base.is_empty():
+		base = "node"
+	if keep_original_id and not graph.has_node(preferred_id) and not reserved_ids.has(preferred_id):
+		return preferred_id
+	if not graph.has_node(preferred_id) and not reserved_ids.has(preferred_id):
+		return preferred_id
+
+	var index := 2
+	while true:
+		var candidate := StringName("%s_%d" % [base, index])
+		if not graph.has_node(candidate) and not reserved_ids.has(candidate):
+			return candidate
+		index += 1
+	return StringName(base)
+
+
+func _remap_node_ids(node_ids: PackedStringArray, id_map: Dictionary) -> PackedStringArray:
+	var result := PackedStringArray()
+	for node_id_text: String in node_ids:
+		var node_id := StringName(node_id_text)
+		result.append(String(id_map.get(node_id, node_id)))
+	return result
+
+
+func _remap_connection(connection: Dictionary, id_map: Dictionary) -> Dictionary:
+	var result := connection.duplicate(true)
+	var from_node_id := StringName(connection.get("from_node_id", &""))
+	var to_node_id := StringName(connection.get("to_node_id", &""))
+	result["from_node_id"] = id_map.get(from_node_id, from_node_id)
+	result["to_node_id"] = id_map.get(to_node_id, to_node_id)
+	return result
+
+
+func _make_edit_report(ok: bool, error: String) -> Dictionary:
+	return {
+		"ok": ok,
+		"error": error,
+	}

@@ -98,6 +98,25 @@ if ui_util.request_dismiss_top(-1, "cancel"):
 
 `modal` / `PanelMode.MODAL` 只表达“项目层应该把它视为独占交互面板”，并提供取消关闭、打开抢焦点、关闭恢复焦点和 `keep_focus_inside_top_modal()` 这些通用辅助；它不创建遮罩、不播放动画、不拦截输入树，也不决定返回值或页面路由。项目可以监听 `panel_dismiss_requested` 决定音效、路由记录或额外确认。
 
+需要一个通用“确认/选择”协议时，可以使用 `GFModalConfig`、`GFModalAction`、`GFModalResult` 和默认 `GFModalPanel`。它们只描述标题、正文、动作、结果状态、payload 和上下文，不解释奖励、购买、删除存档等业务含义；`GFUIUtility.open_modal()` 会把默认面板压入 UI 栈，并在 `resolved` 后关闭面板：
+
+```gdscript
+var action := GFModalAction.new()
+action.action_id = &"confirm"
+action.label = "Confirm"
+action.result_status = GFModalResult.STATUS_CONFIRMED
+
+var config := GFModalConfig.new()
+config.title = "Confirm"
+config.message = "Continue?"
+config.actions = [action]
+
+ui_util.open_modal(config, GFUIUtility.Layer.POPUP, { "source": "settings" }, func(result: GFModalResult) -> void:
+	if result.status == GFModalResult.STATUS_CONFIRMED:
+		print(result.context)
+)
+```
+
 `pop_panel(layer, false)` 会把面板从 UI 根节点移除但不释放，适合项目层自己复用实例；如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。
 
 `panel_opened`、`panel_closed` 和 `navigation_changed` 适合把 UI 栈变化同步给焦点系统、音效、诊断面板或项目自己的路由层。`get_panel_stack()`、`get_stack_count()`、`is_panel_open()` 和 `get_debug_snapshot()` 只返回当前栈状态，不保存业务历史；如果项目只需要 route id 到面板场景的通用映射，可以在其上注册 `GFUIRouterUtility` 和 `GFUIRoute`：
@@ -144,9 +163,14 @@ GFTextFitter.fit_label(%TitleLabel, {
 GFTextFitter.fit_rich_text_label(%CostText, {
 	"fit_height": true,
 })
+
+GFTextFitter.fit_control(%ApplyButton, {
+	"min_font_size": 10,
+	"max_font_size": 28,
+})
 ```
 
-`fit_label()` / `fit_rich_text_label()` 只处理通用文本尺寸适配；换行策略、截断、省略号、本地化长词拆分和具体 UI 视觉仍应由项目自己的控件或主题决定。
+`fit_control()` 会按常见 Godot 控件推导文本、主题字体名和内容边距，支持 `Button`、`LineEdit`、`TextEdit`、`Label` 和 `RichTextLabel`；无法识别的自定义控件可以通过 `options.text`、`font_name`、`font_size_name` 和 `content_insets` 显式提供信息。需要随控件 resize 或语言变化自动刷新时，把 `GFTextAutoFit` 挂到目标控件下，或用 `target_path` 指向目标 Control。`GFTextFitter` / `GFTextAutoFit` 只处理通用文本尺寸适配；换行策略、截断、省略号、本地化长词拆分和具体 UI 视觉仍应由项目自己的控件或主题决定。
 
 如果项目需要把玩家输入、配置文本、调试日志或本地化片段安全写入 `RichTextLabel`，可以使用 `GFRichTextFormatter`。它是纯静态辅助类，不注册架构、不加载资源，也不规定文本来源或图标集：
 

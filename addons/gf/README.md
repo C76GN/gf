@@ -8,7 +8,7 @@ This directory is the distributable Godot addon for GF Framework. Copy `addons/g
 Gf -> res://addons/gf/kernel/core/gf.gd
 ```
 
-The plugin also provides the `GF Extensions` bottom panel for inspecting extension manifests, enabling or disabling extensions, auto-running enabled extension installers, excluding disabled extensions during export, and reporting disabled-extension references when strict export checks are enabled.
+The plugin also provides the `GF` bottom workspace. Its `GF Extensions` page is used for inspecting extension manifests, enabling or disabling extensions, auto-running enabled extension installers, excluding disabled extensions during export, and reporting disabled-extension references when strict export checks are enabled.
 
 ## Layout
 
@@ -21,7 +21,7 @@ Official extensions are atomic: they depend only on the GF kernel/standard surfa
 
 ## 中文说明
 
-本目录是 GF Framework 的 Godot 插件分发目录。将 `addons/gf` 复制到 Godot 4 项目后，在 `Project > Project Settings > Plugins` 启用 `GF Framework`，插件会自动注册 `Gf` AutoLoad，并提供 `GF Extensions` 底部面板用于查看、启用、禁用和导出管理 GF 扩展。
+本目录是 GF Framework 的 Godot 插件分发目录。将 `addons/gf` 复制到 Godot 4 项目后，在 `Project > Project Settings > Plugins` 启用 `GF Framework`，插件会自动注册 `Gf` AutoLoad，并提供 `GF` 底部工作区；其中的 `GF Extensions` 页面用于查看、启用、禁用和导出管理 GF 扩展。
 
 完整项目说明请看仓库根目录的 [`README.md`](../../README.md) 和 [`README.zh.md`](../../README.zh.md)，正式文档请看 [Read the Docs](https://gf-framework.readthedocs.io/)。
 

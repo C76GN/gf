@@ -118,6 +118,119 @@ func test_json_importer_reports_parse_failure_as_validation_report() -> void:
 	assert_eq(((report["issues"] as Array)[0] as Dictionary)["code"], "parse_failed", "失败报告应标记解析错误。")
 
 
+func test_csv_exporter_uses_schema_column_order_and_quotes_cells() -> void:
+	var schema := _make_item_schema()
+	var exported := GFConfigTableImporter.export_csv_table([
+		{ "id": 1, "name": "A,B", "power": 2.0 },
+	], schema)
+
+	assert_true(bool(exported["success"]), "CSV 导出应成功。")
+	assert_true(String(exported["text"]).begins_with("id,name,power"), "schema 列顺序应作为默认导出顺序。")
+	assert_true(String(exported["text"]).contains("\"A,B\""), "包含分隔符的单元格应加引号。")
+
+
+func test_schema_infer_from_records_creates_columns() -> void:
+	var schema := GFConfigTableSchema.infer_from_records(&"items", [
+		{ "id": 1, "name": "Potion", "power": 2.0 },
+		{ "id": 2, "name": "Ether", "power": 3 },
+	], {
+		"required_if_present_in_all_rows": true,
+	})
+
+	assert_eq(schema.table_name, &"items", "推导 schema 应保留表名。")
+	assert_eq(schema.get_column_names(), PackedStringArray(["id", "name", "power"]), "推导 schema 应包含记录字段。")
+	assert_eq(schema.get_column(&"id").value_type, GFConfigTableColumn.ValueType.INT, "int 字段应被推导为 INT。")
+	assert_eq(schema.get_column(&"power").value_type, GFConfigTableColumn.ValueType.FLOAT, "int/float 混合数字应被推导为 FLOAT。")
+	assert_true(schema.get_column(&"name").required, "所有行都出现的字段可按选项标记为 required。")
+
+
+func test_schema_unique_composite_index_reports_duplicates() -> void:
+	var schema := _make_item_schema()
+	var index := GFConfigTableIndexDefinition.new()
+	index.index_id = &"name_power"
+	index.field_names = PackedStringArray(["name", "power"])
+	index.unique = true
+	schema.indexes.append(index)
+
+	var report := schema.validate_table([
+		{ "id": 1, "name": "Potion", "power": 2.0 },
+		{ "id": 2, "name": "Potion", "power": 2.0 },
+	])
+
+	assert_false(bool(report["ok"]), "唯一复合索引重复时表校验应失败。")
+	assert_true(_has_issue_code(report["issues"] as Array, "duplicate_index_key"), "错误报告应包含重复索引键。")
+
+
+func test_reference_resolver_validates_and_resolves_cross_table_records() -> void:
+	var item_schema := _make_item_schema()
+	var owner_schema := GFConfigTableSchema.new()
+	owner_schema.table_name = &"owners"
+	owner_schema.id_field = &"id"
+	var id_column := GFConfigTableColumn.new()
+	id_column.field_name = &"id"
+	id_column.value_type = GFConfigTableColumn.ValueType.INT
+	id_column.required = true
+	var item_id_column := GFConfigTableColumn.new()
+	item_id_column.field_name = &"item_id"
+	item_id_column.value_type = GFConfigTableColumn.ValueType.INT
+	item_id_column.required = true
+	owner_schema.columns = [id_column, item_id_column]
+
+	var reference := GFConfigTableReference.new()
+	reference.reference_id = &"owner_item"
+	reference.source_fields = PackedStringArray(["item_id"])
+	reference.target_table_name = &"items"
+	reference.target_fields = PackedStringArray(["id"])
+	owner_schema.references.append(reference)
+
+	var tables := {
+		&"items": [
+			{ "id": 1, "name": "Potion", "power": 2.0 },
+		],
+		&"owners": [
+			{ "id": 10, "item_id": 1 },
+		],
+	}
+	var report := GFConfigReferenceResolver.validate_tables(tables, [item_schema, owner_schema])
+	var resolved := GFConfigReferenceResolver.resolve_record_references(
+		{ "id": 10, "item_id": 1 },
+		owner_schema,
+		tables,
+		{ &"items": item_schema }
+	)
+
+	assert_true(bool(report["ok"]), "合法跨表引用应通过校验。")
+	assert_eq((resolved[&"owner_item"] as Dictionary)["name"], "Potion", "引用解析应返回目标记录副本。")
+
+
+func test_reference_resolver_reports_missing_target_record() -> void:
+	var item_schema := _make_item_schema()
+	var owner_schema := GFConfigTableSchema.new()
+	owner_schema.table_name = &"owners"
+	var item_id_column := GFConfigTableColumn.new()
+	item_id_column.field_name = &"item_id"
+	item_id_column.value_type = GFConfigTableColumn.ValueType.INT
+	item_id_column.required = true
+	owner_schema.columns = [item_id_column]
+	var reference := GFConfigTableReference.new()
+	reference.source_fields = PackedStringArray(["item_id"])
+	reference.target_table_name = &"items"
+	reference.target_fields = PackedStringArray(["id"])
+	owner_schema.references.append(reference)
+
+	var report := GFConfigReferenceResolver.validate_tables({
+		&"items": [
+			{ "id": 1, "name": "Potion", "power": 2.0 },
+		],
+		&"owners": [
+			{ "item_id": 99 },
+		],
+	}, [item_schema, owner_schema])
+
+	assert_false(bool(report["ok"]), "缺失引用目标时应报告失败。")
+	assert_true(_has_issue_code(report["issues"] as Array, "missing_reference"), "错误报告应包含缺失引用。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_item_schema() -> GFConfigTableSchema:

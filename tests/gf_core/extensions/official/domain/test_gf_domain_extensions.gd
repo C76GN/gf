@@ -101,6 +101,34 @@ func test_slot_inventory_split_respects_stack_count_limit() -> void:
 	assert_true(inventory.is_slot_empty(1), "失败后目标槽位应保持为空。")
 
 
+## 验证槽位库存索引与约束报告。
+func test_slot_inventory_index_and_constraint_report() -> void:
+	var definition := GFInventoryItemDefinition.new()
+	definition.item_id = &"item_a"
+	definition.max_stack_amount = 5
+	definition.max_stack_count = 1
+	definition.compatibility_checker = func(left: Dictionary, right: Dictionary, _definition: GFInventoryItemDefinition) -> bool:
+		return left.get("variant", "base") == right.get("variant", "base")
+
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(definition)
+
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.set_slot_count(3)
+	inventory.set_stack(0, GFInventoryStack.new(&"item_a", 5, { "variant": "base" }))
+	inventory.set_stack(1, GFInventoryStack.new(&"item_a", 2, { "variant": "rare" }))
+	inventory.set_stack(2, GFInventoryStack.new(&"item_a", 8, { "variant": "base" }))
+
+	var base_slots := inventory.get_slots_for_item(&"item_a", { "variant": "base" })
+	var report := inventory.validate_inventory()
+
+	assert_eq(base_slots, PackedInt32Array([0, 2]), "索引查询应支持实例数据兼容筛选。")
+	assert_false(bool(report["ok"]), "违反注册表约束时应返回失败报告。")
+	assert_true(_has_domain_issue_code(report["issues"] as Array, "stack_amount_exceeds_limit"), "报告应包含单堆叠超限。")
+	assert_true(_has_domain_issue_code(report["issues"] as Array, "stack_count_exceeds_limit"), "报告应包含堆叠数量超限。")
+
+
 ## 验证槽位集合按标签规则挂载物品。
 func test_equipment_set_checks_slot_tags() -> void:
 	var slot := GFEquipmentSlot.new()
@@ -181,3 +209,12 @@ func test_derived_attribute_rule_can_use_callback() -> void:
 
 	assert_true(attributes.has_attribute(&"score"), "派生规则应能创建缺失的目标属性。")
 	assert_eq(attributes.get_value(&"score"), 12.0, "自定义回调结果应写入目标属性。")
+
+
+# --- 私有/辅助方法 ---
+
+func _has_domain_issue_code(issues: Array, code: String) -> bool:
+	for issue: Dictionary in issues:
+		if str(issue.get("code", "")) == code:
+			return true
+	return false

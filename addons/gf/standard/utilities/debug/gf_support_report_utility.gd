@@ -29,6 +29,12 @@ var include_scene_by_default: bool = true
 ## 默认最近日志数量。
 var default_recent_log_count: int = 50
 
+## 默认单个附件最大字节数。小于等于 0 表示不限制。
+var default_max_attachment_bytes: int = 2 * 1024 * 1024
+
+## 默认是否包含当前 Viewport 截图。
+var include_screenshot_by_default: bool = false
+
 
 # --- 私有变量 ---
 
@@ -94,10 +100,11 @@ func get_section_catalog() -> Dictionary:
 
 ## 构建支持报告。
 ## @param description: 用户描述或问题摘要。
-## @param options: 可选参数，支持 metadata、tags、include_diagnostics、diagnostics_options、include_scene、include_sections、section_options、include_screenshot、viewport。
+## @param options: 可选参数，支持 metadata、tags、include_diagnostics、diagnostics_options、include_scene、include_sections、section_options、attachments、max_attachment_bytes、include_screenshot、viewport、screenshot_path。
 ## @return 报告字典。
 func build_report(description: String = "", options: Dictionary = {}) -> Dictionary:
 	var report_id: String = _variant_to_string(options.get("report_id", null), _make_report_id())
+	var attachments := collect_attachments(options.get("attachments", {}), options)
 	var report := {
 		"report_id": report_id,
 		"timestamp_unix": Time.get_unix_time_from_system(),
@@ -118,12 +125,16 @@ func build_report(description: String = "", options: Dictionary = {}) -> Diction
 		report["diagnostics"] = _collect_diagnostics_snapshot(options)
 	if bool(options.get("include_sections", true)):
 		report["sections"] = collect_sections(_get_dictionary_option(options, "section_options"))
-	if bool(options.get("include_screenshot", false)):
-		var screenshot := _capture_viewport_png_base64(options.get("viewport", null) as Viewport)
+	if bool(options.get("include_screenshot", include_screenshot_by_default)):
+		var screenshot := _capture_viewport_png_buffer(options.get("viewport", null) as Viewport)
 		if not screenshot.is_empty():
-			report["attachments"] = {
-				"screenshot_png_base64": screenshot,
-			}
+			_append_attachment(attachments, &"screenshot", screenshot, {
+				"filename": "screenshot.png",
+				"mime_type": "image/png",
+				"max_attachment_bytes": int(options.get("max_attachment_bytes", default_max_attachment_bytes)),
+				"save_path": _variant_to_string(options.get("screenshot_path", "")),
+			})
+	report["attachments"] = attachments
 
 	_reports_built_count += 1
 	report_built.emit(report)
@@ -152,6 +163,45 @@ func collect_sections(options: Dictionary = {}) -> Dictionary:
 			section["error"] = "Section provider is invalid."
 		result[section_id] = section
 	return result
+
+
+## 采集并规范化报告附件。
+## @param attachments: 附件集合。Dictionary 使用键作为附件标识；Array 中的 Dictionary 可提供 id 或 attachment_id。
+## @param options: 可选参数，支持 max_attachment_bytes。
+## @return 附件字典。
+func collect_attachments(attachments: Variant, options: Dictionary = {}) -> Dictionary:
+	var result: Dictionary = {}
+	if attachments is Dictionary:
+		var attachment_map := attachments as Dictionary
+		for attachment_id_variant: Variant in attachment_map.keys():
+			_append_attachment(result, StringName(attachment_id_variant), attachment_map[attachment_id_variant], options)
+	elif attachments is Array:
+		var attachment_array := attachments as Array
+		for index: int in range(attachment_array.size()):
+			var entry := attachment_array[index] as Dictionary
+			if entry == null:
+				continue
+			var attachment_id := StringName(entry.get("attachment_id", entry.get("id", "attachment_%d" % index)))
+			_append_attachment(result, attachment_id, entry, options)
+	return result
+
+
+## 向已有报告追加附件。
+## @param report: 报告字典。
+## @param attachment_id: 附件标识。
+## @param content: 附件内容，可为 PackedByteArray、String 或带 bytes/text/path 字段的 Dictionary。
+## @param options: 可选参数，支持 filename、mime_type、metadata、max_attachment_bytes、save_path。
+## @return 规范化附件结果。
+func add_attachment_to_report(
+	report: Dictionary,
+	attachment_id: StringName,
+	content: Variant,
+	options: Dictionary = {}
+) -> Dictionary:
+	if not report.has("attachments") or not (report["attachments"] is Dictionary):
+		report["attachments"] = {}
+	var attachments := report["attachments"] as Dictionary
+	return _append_attachment(attachments, attachment_id, content, options)
 
 
 ## 将报告导出为 JSON 文本。
@@ -212,15 +262,18 @@ func submit_report(report: Dictionary, transport: Callable, options: Dictionary 
 		"ok": false,
 		"value": null,
 		"error": "",
+		"metadata": {},
 	}
 	if not transport.is_valid():
 		result["error"] = "Transport callback is invalid."
 		report_submitted.emit(result)
 		return result
 
-	result["value"] = transport.call(report.duplicate(true), options.duplicate(true))
-	result["ok"] = true
-	_reports_submitted_count += 1
+	var raw_result: Variant = transport.call(report.duplicate(true), options.duplicate(true))
+	result = _normalize_submit_result(raw_result)
+	result["submitted_at_unix"] = Time.get_unix_time_from_system()
+	if bool(result.get("ok", false)):
+		_reports_submitted_count += 1
 	report_submitted.emit(result)
 	return result
 
@@ -236,6 +289,8 @@ func get_debug_snapshot() -> Dictionary:
 		"include_diagnostics_by_default": include_diagnostics_by_default,
 		"include_scene_by_default": include_scene_by_default,
 		"default_recent_log_count": default_recent_log_count,
+		"default_max_attachment_bytes": default_max_attachment_bytes,
+		"include_screenshot_by_default": include_screenshot_by_default,
 	}
 
 
@@ -295,19 +350,190 @@ func _collect_diagnostics_snapshot(options: Dictionary) -> Dictionary:
 	}
 
 
-func _capture_viewport_png_base64(viewport: Viewport) -> String:
+func _capture_viewport_png_buffer(viewport: Viewport) -> PackedByteArray:
 	var target_viewport := viewport
 	if target_viewport == null:
 		var tree := Engine.get_main_loop() as SceneTree
 		if tree != null:
 			target_viewport = tree.root
 	if target_viewport == null:
-		return ""
+		return PackedByteArray()
 
 	var image := target_viewport.get_texture().get_image()
 	if image == null:
-		return ""
-	return Marshalls.raw_to_base64(image.save_png_to_buffer())
+		return PackedByteArray()
+	return image.save_png_to_buffer()
+
+
+func _append_attachment(
+	attachments: Dictionary,
+	attachment_id: StringName,
+	content: Variant,
+	options: Dictionary
+) -> Dictionary:
+	if attachment_id == &"":
+		return {
+			"ok": false,
+			"reason": "attachment_id_is_empty",
+		}
+
+	var entry := _make_attachment_entry(attachment_id, content, options)
+	attachments[attachment_id] = entry
+	return entry
+
+
+func _make_attachment_entry(attachment_id: StringName, content: Variant, options: Dictionary) -> Dictionary:
+	var attachment_options := options.duplicate(true)
+	var payload: Variant = content
+	if content is Dictionary:
+		var content_dictionary := content as Dictionary
+		attachment_options.merge(content_dictionary, true)
+		if content_dictionary.has("bytes"):
+			payload = content_dictionary["bytes"]
+		elif content_dictionary.has("text"):
+			payload = content_dictionary["text"]
+		elif content_dictionary.has("path"):
+			payload = _read_attachment_path(_variant_to_string(content_dictionary.get("path", "")))
+
+	var filename := _variant_to_string(attachment_options.get("filename", String(attachment_id)))
+	var mime_type := _variant_to_string(attachment_options.get("mime_type", "application/octet-stream"))
+	var metadata := (attachment_options.get("metadata", {}) as Dictionary).duplicate(true) if attachment_options.get("metadata", {}) is Dictionary else {}
+	if payload is PackedByteArray:
+		return _make_binary_attachment_entry(payload as PackedByteArray, filename, mime_type, metadata, attachment_options)
+	if payload is String:
+		var text := payload as String
+		return _make_text_attachment_entry(text, filename, mime_type, metadata, attachment_options)
+
+	return {
+		"ok": false,
+		"filename": filename,
+		"mime_type": mime_type,
+		"size_bytes": 0,
+		"reason": "unsupported_attachment_content",
+		"metadata": metadata,
+	}
+
+
+func _make_binary_attachment_entry(
+	bytes: PackedByteArray,
+	filename: String,
+	mime_type: String,
+	metadata: Dictionary,
+	options: Dictionary
+) -> Dictionary:
+	var max_bytes := int(options.get("max_attachment_bytes", default_max_attachment_bytes))
+	if max_bytes > 0 and bytes.size() > max_bytes:
+		return _make_rejected_attachment_entry(filename, mime_type, bytes.size(), max_bytes, metadata)
+
+	var entry := {
+		"ok": true,
+		"filename": filename,
+		"mime_type": mime_type,
+		"size_bytes": bytes.size(),
+		"encoding": "base64",
+		"data": Marshalls.raw_to_base64(bytes),
+		"metadata": metadata,
+	}
+	_save_attachment_if_requested(entry, bytes, options)
+	return entry
+
+
+func _make_text_attachment_entry(
+	text: String,
+	filename: String,
+	mime_type: String,
+	metadata: Dictionary,
+	options: Dictionary
+) -> Dictionary:
+	var bytes := text.to_utf8_buffer()
+	var max_bytes := int(options.get("max_attachment_bytes", default_max_attachment_bytes))
+	if max_bytes > 0 and bytes.size() > max_bytes:
+		return _make_rejected_attachment_entry(filename, mime_type, bytes.size(), max_bytes, metadata)
+
+	return {
+		"ok": true,
+		"filename": filename,
+		"mime_type": mime_type,
+		"size_bytes": bytes.size(),
+		"encoding": "text",
+		"data": text,
+		"metadata": metadata,
+	}
+
+
+func _make_rejected_attachment_entry(
+	filename: String,
+	mime_type: String,
+	size_bytes: int,
+	max_bytes: int,
+	metadata: Dictionary
+) -> Dictionary:
+	return {
+		"ok": false,
+		"filename": filename,
+		"mime_type": mime_type,
+		"size_bytes": size_bytes,
+		"max_bytes": max_bytes,
+		"reason": "attachment_too_large",
+		"metadata": metadata,
+	}
+
+
+func _save_attachment_if_requested(entry: Dictionary, bytes: PackedByteArray, options: Dictionary) -> void:
+	var save_path := _variant_to_string(options.get("save_path", ""))
+	if save_path.is_empty():
+		return
+
+	var base_dir := save_path.get_base_dir()
+	if not base_dir.is_empty() and base_dir != "user://":
+		var dir_error := DirAccess.make_dir_recursive_absolute(base_dir)
+		if dir_error != OK:
+			entry["save_error"] = dir_error
+			return
+
+	var file := FileAccess.open(save_path, FileAccess.WRITE)
+	if file == null:
+		entry["save_error"] = FileAccess.get_open_error()
+		return
+
+	file.store_buffer(bytes)
+	var error := file.get_error()
+	file.close()
+	if error == OK:
+		entry["saved_path"] = save_path
+	else:
+		entry["save_error"] = error
+
+
+func _read_attachment_path(path: String) -> PackedByteArray:
+	if path.is_empty() or not FileAccess.file_exists(path):
+		return PackedByteArray()
+
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return PackedByteArray()
+
+	var bytes := file.get_buffer(file.get_length())
+	file.close()
+	return bytes
+
+
+func _normalize_submit_result(raw_result: Variant) -> Dictionary:
+	if raw_result is Dictionary:
+		var data := raw_result as Dictionary
+		if data.has("ok"):
+			return {
+				"ok": bool(data.get("ok", false)),
+				"value": data.get("value", data.get("data", null)),
+				"error": _variant_to_string(data.get("error", "")),
+				"metadata": (data.get("metadata", {}) as Dictionary).duplicate(true) if data.get("metadata", {}) is Dictionary else {},
+			}
+	return {
+		"ok": true,
+		"value": raw_result,
+		"error": "",
+		"metadata": {},
+	}
 
 
 func _get_dictionary_option(options: Dictionary, key: String) -> Dictionary:

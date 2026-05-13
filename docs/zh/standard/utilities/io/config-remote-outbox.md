@@ -58,7 +58,40 @@ var report := validate_table(&"items", get_table(&"items"))
 
 `coerce_values` 是“导入期宽松转换 + 校验报告”，不是无条件吞错。`GFConfigTableColumn.try_coerce_value()` 会返回转换状态；`GFConfigTableSchema.fail_on_coerce_error` 默认开启，非法 int/float、无法解析的 Vector/Color/Array/Dictionary 等转换会记录 `coerce_failed`。如果项目确实需要旧式宽松导入，可以显式关闭 `fail_on_coerce_error`，但 CI 和正式导表建议保持开启。Array 表需要检测重复 ID 时，开启 `require_unique_id`。
 
-`GFConfigTableImporter` 提供轻量 JSON/CSV 文本解析和 `validate_json_table()` / `validate_csv_table()` 入口，适合编辑器导入按钮、CI 检查或项目自定义导表流水线在写入缓存前做统一报告。CSV 解析会去掉 UTF-8 BOM，默认拒绝重复表头；它仍是轻量解析器，只取 `delimiter` 的第一个字符，空表头会跳过，复杂 Excel/多 sheet/编码探测仍建议交给项目导表流水线。校验报告固定包含 `ok`、`row_count`、`error_count`、`warning_count` 和 `issues`，项目工具可以直接把 `issues` 渲染成表格或控制台输出。
+`GFConfigTableImporter` 提供轻量 JSON/CSV 文本解析、`validate_json_table()` / `validate_csv_table()` 和 `export_csv_table()` 入口，适合编辑器导入按钮、CI 检查或项目自定义导表流水线在写入缓存前做统一报告。CSV 解析会去掉 UTF-8 BOM，默认拒绝重复表头；导出会按 schema 列顺序或显式 `columns` 输出，并对包含分隔符、换行或引号的单元格做 CSV 转义。它仍是轻量解析器，只取 `delimiter` 的第一个字符，空表头会跳过，复杂 Excel/多 sheet/编码探测仍建议交给项目导表流水线。校验报告固定包含 `ok`、`row_count`、`error_count`、`warning_count` 和 `issues`，项目工具可以直接把 `issues` 渲染成表格或控制台输出。
+
+需要表达唯一键或跨表关系时，可以在 `GFConfigTableSchema.indexes` 中加入 `GFConfigTableIndexDefinition`，在 `references` 中加入 `GFConfigTableReference`。唯一索引会参与单表校验；跨表引用由 `GFConfigReferenceResolver.validate_tables()` 在多表上下文中检查，`resolve_record_references()` 可把一条记录的引用解析为目标记录副本。GF 只理解字段、复合键和报告结构，不解释外键背后的业务含义：
+
+```gdscript
+var unique_index := GFConfigTableIndexDefinition.new()
+unique_index.index_id = &"item_variant"
+unique_index.field_names = PackedStringArray(["item_id", "variant"])
+unique_index.unique = true
+item_schema.indexes.append(unique_index)
+
+var reference := GFConfigTableReference.new()
+reference.source_fields = PackedStringArray(["item_id"])
+reference.target_table_name = &"items"
+reference.target_fields = PackedStringArray(["id"])
+owner_schema.references.append(reference)
+
+var report := GFConfigReferenceResolver.validate_tables({
+	&"items": item_rows,
+	&"owners": owner_rows,
+}, [item_schema, owner_schema])
+```
+
+已有样本数据但暂时没有 schema 时，可以用 `GFConfigTableSchema.infer_from_records()` 从 `Array[Dictionary]` 或 `Dictionary` 表推导字段和值类型，再由项目层人工校正必填、默认值、枚举或业务约束：
+
+```gdscript
+var inferred_schema := GFConfigTableSchema.infer_from_records(&"items", rows, {
+	"required_if_present_in_all_rows": true,
+})
+
+var exported := GFConfigTableImporter.export_csv_table(rows, inferred_schema)
+if exported["success"]:
+	print(exported["text"])
+```
 
 如果项目希望减少散落的表名字符串，可以用 `GFConfigAccessGenerator` 根据 schema 生成静态访问器。生成结果只是对 provider 的 `get_record()` / `get_table()` 的薄封装，不改变 Provider 协议，也不把具体表结构写死到框架里：
 
@@ -145,6 +178,29 @@ remote_cache.fetch_json("https://example.com/config.json", func(result: Dictiona
 缓存文件位于 `user://<cache_dir_name>/`，文件名由 URL、请求格式和 headers 组合出的缓存 key 的 MD5 派生，超过 `max_cache_entries` 后按修改时间删除最旧条目。项目可以用 `has_valid_cache()` / `get_cached_text()` 只读文本缓存，用 `remove_cache()` 清理单个缓存 key，用 `clear_cache()` 清空整个缓存目录；需要语言、账号态或 AB 分组等自定义维度时，可以提供 `cache_key_builder`。JSON 请求会先解析成功再写入缓存，避免远程服务短暂返回坏 JSON 后污染 TTL 缓存；强制刷新失败或新 JSON 解析失败但本地有可用旧缓存时，仍可返回 `stale = true` 的旧内容。
 
 该工具串行处理内部请求队列，适合轻量公告和配置拉取，不适合作为大文件下载器或实时 API 客户端。相同缓存 key 的并发请求会合并到同一个 HTTP 请求；`max_pending_requests` 限制等待队列长度，`cancel(url, headers, format)` 可取消匹配请求，`cancel_all()` 可清空等待和当前请求。`get_debug_snapshot()` 会报告缓存目录、TTL、队列上限、队列数量和当前 active URL，便于和 `GFDiagnosticsUtility` 一起定位远程配置刷新问题。缓存写入仍使用同步 `FileAccess`，项目不应把它用于大文件下载或每帧高频刷新。
+
+
+## 通用 HTTP 请求构建 (`GFHttpRequestBuilder` / `GFHttpResponse` / `GFAsyncBatch`)
+
+当项目需要轻量构建 HTTP 请求，但不希望把具体 API、鉴权、账号或服务端字段写进框架时，可以用 `GFHttpRequestBuilder` 整理 URL、query、headers、body、timeout 和响应解析策略。它既能输出普通请求字典，供项目自己的传输层使用，也能用 Godot `HTTPRequest` 直接执行：
+
+```gdscript
+var builder := GFHttpRequestBuilder.new()
+builder.set_url("https://example.com/config")
+builder.add_query_parameter("locale", "zh-CN")
+builder.set_header("Accept", "application/json")
+builder.set_parse_mode(GFHttpRequestBuilder.ParseMode.JSON)
+
+var response := builder.execute(get_tree().root)
+response.completed.connect(func(result: GFHttpResponse) -> void:
+	if not result.is_successful():
+		push_warning(result.error)
+		return
+	print(result.data)
+)
+```
+
+`GFHttpResponse` 统一表达 pending、completed、failed 和 cancelled 状态，并保留状态码、headers、文本、原始 bytes、解析数据、错误和 metadata。`GFAsyncBatch` 可等待一组响应或手动标记的异步条目完成，适合编辑器工具、配置刷新、轻量诊断命令或项目自己的 SDK 包装层聚合结果。GF 不内置任何远端服务、重试策略、签名、分页或业务 DTO；这些策略应放在项目层或可选扩展中。
 
 
 ## 通用请求 Outbox (`GFRequestEnvelope` / `GFRequestOutboxUtility`)

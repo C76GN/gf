@@ -62,3 +62,50 @@ func test_fit_rich_text_label_uses_plain_text_measurement() -> void:
 
 	assert_eq(font_size, 26, "空间足够时 RichTextLabel 应使用最大字体。")
 	assert_eq(label.get_theme_font_size(&"normal_font_size"), 26, "应写入 RichTextLabel 的默认字体尺寸覆盖。")
+
+
+## 验证通用 Control 适配支持 Button。
+func test_fit_control_supports_button_text_and_insets() -> void:
+	var button := Button.new()
+	button.text = "Apply"
+	button.size = Vector2(240.0, 80.0)
+	add_child_autofree(button)
+
+	var font_size: int = GFTextFitterBase.fit_control(button, {
+		"min_font_size": 8,
+		"max_font_size": 30,
+	})
+
+	assert_eq(font_size, 30, "Button 空间足够时应使用最大字体。")
+	assert_eq(button.get_theme_font_size(&"font_size"), 30, "Button 应写入默认字体尺寸覆盖。")
+
+
+## 验证通用 Control 适配支持 LineEdit placeholder。
+func test_measure_control_text_uses_line_edit_placeholder() -> void:
+	var line_edit := LineEdit.new()
+	line_edit.placeholder_text = "Search"
+	line_edit.size = Vector2(120.0, 32.0)
+	add_child_autofree(line_edit)
+
+	var measured_size := GFTextFitterBase.measure_control_text(line_edit, 16)
+
+	assert_gt(measured_size.x, 0.0, "LineEdit 为空时应能测量 placeholder 文本。")
+
+
+## 验证自动适配节点会绑定父控件并应用字体大小。
+func test_text_auto_fit_refreshes_parent_control() -> void:
+	var button := Button.new()
+	button.text = "Auto"
+	button.size = Vector2(120.0, 40.0)
+	var auto_fit := GFTextAutoFit.new()
+	auto_fit.min_font_size = 8
+	auto_fit.max_font_size = 22
+	auto_fit.deferred_refresh = false
+	button.add_child(auto_fit)
+	add_child_autofree(button)
+
+	var font_size := auto_fit.refresh()
+
+	assert_eq(auto_fit.get_target(), button, "target_path 为空时应绑定父 Control。")
+	assert_eq(font_size, 22, "自动适配应返回计算出的字体大小。")
+	assert_eq(button.get_theme_font_size(&"font_size"), 22, "自动适配应写入控件主题覆盖。")

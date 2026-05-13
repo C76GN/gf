@@ -6,7 +6,7 @@ Standard Foundation 放置纯算法、纯数据结构、轻量格式化和通用
 
 - [Foundation 数值、成长与权重](scalars.md)：大数、定点数、格式化、成长曲线和权重表。
 - [Foundation 网格、路径与空间索引](grid-spatial.md)：网格、Hex、图、Pattern2D、TileMap、转向、空间哈希。
-- [Foundation 标签、公式、序列化与结果报告](data-validation.md)：标签、黑板、公式、Variant、校验报告和结果字典。
+- [Foundation 标签、公式、预算、集合、序列化与结果报告](data-validation.md)：标签、黑板、预算账本、值索引、变更批次、公式、Variant、校验报告和结果字典。
 
 ## 为什么要单独分层
 
@@ -19,7 +19,10 @@ addons/gf/standard/foundation/
   math/          # 数值、网格、图、公式、空间索引
   tags/          # 标签集合、标签查询、标签源适配
   blackboard/    # 黑板 Schema 与条目描述
+  budget/        # 通用资源预算账本
+  collections/   # 值索引与变更批次
   data/          # Variant 复制、JSON 编码、结果字典
+  timeline/      # 时间段文本轨道与轻量解析
   validation/    # 统一校验问题与报告
 ```
 

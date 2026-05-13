@@ -309,6 +309,50 @@ func test_json_line_log_sink_derives_path_and_cleans_old_default_files() -> void
 	assert_true(count <= 2, "默认 JSONL 文件数量应按 max_jsonl_files 清理。")
 
 
+func test_batched_log_sink_flushes_to_callback_and_signal() -> void:
+	var sink := GFBatchedLogSink.new()
+	sink.batch_size = 2
+	sink.flush_interval_msec = 0
+	var payloads: Array[Dictionary] = []
+	var emitted_batches: Array = []
+	sink.sender_callback = func(payload: Dictionary) -> Dictionary:
+		payloads.append(payload.duplicate(true))
+		return { "ok": true }
+	sink.batch_ready.connect(func(batch: Array[Dictionary]) -> void:
+		emitted_batches.append(batch)
+	)
+
+	_log_util.add_sink(sink)
+	_log_util.info("Batch", "one")
+	_log_util.info("Batch", "two")
+
+	assert_eq(payloads.size(), 1, "达到 batch_size 时应调用发送回调。")
+	assert_eq((payloads[0]["logs"] as Array).size(), 2, "发送载荷应包含一个完整批次。")
+	assert_eq(emitted_batches.size(), 1, "flush 时应发出 batch_ready 信号。")
+	assert_eq(sink.get_pending_count(), 0, "完整批次发送后队列应清空。")
+
+	_log_util.remove_sink(sink)
+
+
+func test_batched_log_sink_caps_queue_and_reports_snapshot() -> void:
+	var sink := GFBatchedLogSink.new()
+	sink.batch_size = 10
+	sink.max_queue_size = 1
+	sink.flush_interval_msec = 0
+
+	_log_util.add_sink(sink)
+	_log_util.info("Batch", "one")
+	_log_util.info("Batch", "two")
+
+	var snapshot := sink.get_debug_snapshot()
+	assert_eq(sink.get_pending_count(), 1, "队列应按 max_queue_size 裁剪。")
+	assert_eq(sink.get_dropped_count(), 1, "被裁剪的日志应计入 dropped_count。")
+	assert_eq(snapshot["pending_count"], 1, "调试快照应包含 pending_count。")
+	assert_eq(snapshot["dropped_count"], 1, "调试快照应包含 dropped_count。")
+
+	_log_util.remove_sink(sink)
+
+
 func test_min_level_filters_lower_level_logs() -> void:
 	watch_signals(_log_util)
 	_log_util.min_level = GFLogUtility.LogLevel.WARN

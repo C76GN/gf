@@ -22,7 +22,7 @@
 Gf -> res://addons/gf/kernel/core/gf.gd
 ```
 
-插件也会打开 `GF Extensions` 底部面板，用于查看扩展信息、启用或禁用扩展、控制扩展 Installer 是否自动装配，以及控制导出时是否排除禁用扩展。扩展机制的完整说明见 [官方扩展总览与扩展规范](../extensions/index.md)。
+插件也会打开统一的 `GF` 底部工作区，其中 `GF Extensions` 页面用于查看扩展信息、启用或禁用扩展、控制扩展 Installer 是否自动装配，以及控制导出时是否排除禁用扩展。扩展机制的完整说明见 [官方扩展总览与扩展规范](../extensions/index.md)。
 
 ## 最小启动
 

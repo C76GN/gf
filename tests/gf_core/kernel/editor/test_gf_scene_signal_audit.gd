@@ -122,3 +122,23 @@ func test_signal_graph_index_groups_runtime_connections() -> void:
 	assert_true((index["nodes"] as Dictionary).has("Emitter"), "索引应包含节点条目。")
 	assert_eq((outgoing["Emitter"] as Array).size(), 1, "索引应按源节点归类输出连接。")
 	assert_eq((incoming["Receiver"] as Array).size(), 1, "索引应按目标节点归类输入连接。")
+
+
+func test_build_signal_graph_can_filter_external_targets() -> void:
+	var root := Node.new()
+	var emitter := GraphEmitter.new()
+	var receiver := GraphReceiver.new()
+	root.name = "Root"
+	emitter.name = "Emitter"
+	receiver.name = "ExternalReceiver"
+	add_child_autofree(root)
+	add_child_autofree(receiver)
+	root.add_child(emitter)
+	emitter.ping.connect(receiver.receive)
+
+	var graph: Dictionary = GF_SCENE_SIGNAL_AUDIT.build_signal_graph(root, {
+		"include_external_targets": false,
+	})
+
+	assert_true(bool(graph["ok"]), "信号图应成功构建。")
+	assert_eq(graph["connection_count"], 0, "关闭外部目标时不应记录根节点外的连接。")

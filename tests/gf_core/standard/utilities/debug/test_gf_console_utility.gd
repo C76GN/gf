@@ -44,6 +44,16 @@ func test_builtin_clear_registered() -> void:
 	assert_true(_console._commands.has("clear"), "init 后应注册内置 clear 指令。")
 
 
+func test_builtin_scene_commands_registered_as_observe() -> void:
+	assert_true(_console._commands.has("scene.tree"), "init 后应注册只读场景树指令。")
+	assert_true(_console._commands.has("scene.node"), "init 后应注册只读节点查看指令。")
+	assert_eq(
+		_console._get_command_tier(_console._commands["scene.tree"]),
+		GFConsoleUtility.CommandTier.OBSERVE,
+		"scene.tree 应是观察级命令。"
+	)
+
+
 func test_unregister_command() -> void:
 	var cb := func(_args: PackedStringArray) -> void:
 		pass
@@ -197,6 +207,48 @@ func test_console_output_batches_until_flush() -> void:
 
 	assert_eq(_console._console_gui._output_lines.size(), 1, "flush 后应写入待输出行。")
 	assert_eq(_console._console_gui._output_lines[0], "batched", "flush 后应保留待输出内容。")
+
+
+func test_scene_tree_command_outputs_readonly_summary() -> void:
+	var previous_scene := get_tree().current_scene
+	var root := Node.new()
+	root.name = "ConsoleSceneRoot"
+	var child := Node.new()
+	child.name = "Child"
+	root.add_child(child)
+	get_tree().root.add_child(root)
+	get_tree().current_scene = root
+
+	assert_true(_console.execute_command("scene.tree 1 10"), "scene.tree 指令应可执行。")
+	_console._console_gui.flush_output()
+	var output := "\n".join(_console._console_gui._output_lines)
+
+	assert_true(output.contains("ConsoleSceneRoot"), "场景树输出应包含当前场景根节点。")
+	assert_true(output.contains("Child"), "场景树输出应包含子节点。")
+
+	get_tree().current_scene = previous_scene
+	root.queue_free()
+
+
+func test_scene_node_command_outputs_node_summary() -> void:
+	var previous_scene := get_tree().current_scene
+	var root := Node.new()
+	root.name = "ConsoleNodeRoot"
+	var child := Node.new()
+	child.name = "Target"
+	root.add_child(child)
+	get_tree().root.add_child(root)
+	get_tree().current_scene = root
+
+	assert_true(_console.execute_command("scene.node Target"), "scene.node 指令应可执行。")
+	_console._console_gui.flush_output()
+	var output := "\n".join(_console._console_gui._output_lines)
+
+	assert_true(output.contains("Target"), "节点摘要应包含目标节点路径或名称。")
+	assert_true(output.contains("type:"), "节点摘要应包含类型字段。")
+
+	get_tree().current_scene = previous_scene
+	root.queue_free()
 
 
 func test_console_escapes_log_bbcode_and_handles_negative_level() -> void:

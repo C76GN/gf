@@ -1,7 +1,7 @@
 {
   "id": "gf.official.action_queue",
   "display_name": "GF Action Queue",
-  "version": "3.2.0",
+  "version": "3.3.0",
   "extension_version": "1.0.0",
   "kind": "official",
   "description": "Presentation action queue primitives, interceptors, tween configs, and reusable visual actions.",

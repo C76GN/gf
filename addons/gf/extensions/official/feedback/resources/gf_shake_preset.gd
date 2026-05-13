@@ -20,6 +20,11 @@ enum Waveform {
 }
 
 
+# --- 常量 ---
+
+const GFShakeTrackBase = preload("res://addons/gf/extensions/official/feedback/resources/gf_shake_track.gd")
+
+
 # --- 导出变量 ---
 
 ## 持续时间，单位秒。
@@ -51,6 +56,9 @@ enum Waveform {
 
 ## 确定性采样种子。
 @export var seed: int = 1
+
+## 可组合反馈轨道。为空时使用兼容的单波形字段。
+@export var tracks: Array[GFShakeTrackBase] = []
 
 
 # --- 公共方法 ---
@@ -85,6 +93,9 @@ func sample_at_progress(
 	phase_offset: float = 0.0
 ) -> Dictionary:
 	var normalized_progress := clampf(progress, 0.0, 1.0)
+	if has_tracks():
+		return _sample_tracks(normalized_progress, elapsed_seconds, strength, phase_offset)
+
 	var intensity := amplitude * maxf(strength, 0.0) * _sample_envelope(normalized_progress)
 	var wave_value := _sample_wave_vector(elapsed_seconds, normalized_progress, phase_offset) * intensity
 	return {
@@ -106,6 +117,30 @@ func sample_at_progress(
 		"intensity": intensity,
 		"progress": normalized_progress,
 	}
+
+
+## 添加反馈轨道。
+## @param track: 反馈轨道。
+## @return 添加成功返回 true。
+func add_track(track: GFShakeTrackBase) -> bool:
+	if track == null:
+		return false
+	tracks.append(track)
+	return true
+
+
+## 清空反馈轨道。
+func clear_tracks() -> void:
+	tracks.clear()
+
+
+## 检查是否存在有效轨道。
+## @return 存在有效轨道返回 true。
+func has_tracks() -> bool:
+	for track: GFShakeTrackBase in tracks:
+		if track != null and track.enabled:
+			return true
+	return false
 
 
 ## 创建空采样结果。
@@ -144,6 +179,23 @@ func _sample_envelope(progress: float) -> float:
 	if decay_curve != null:
 		return maxf(decay_curve.sample_baked(progress), 0.0)
 	return 1.0 - progress
+
+
+func _sample_tracks(
+	progress: float,
+	elapsed_seconds: float,
+	strength: float,
+	phase_offset: float
+) -> Dictionary:
+	var result := zero_sample()
+	result["progress"] = progress
+	for track: GFShakeTrackBase in tracks:
+		if track == null or not track.enabled:
+			continue
+		var track_sample := track.sample(progress, elapsed_seconds, strength, phase_offset)
+		result = GFShakeTrackBase.blend_sample(result, track_sample, track.blend_mode)
+	result["progress"] = progress
+	return result
 
 
 func _sample_wave_vector(elapsed_seconds: float, progress: float, phase_offset: float) -> Vector3:

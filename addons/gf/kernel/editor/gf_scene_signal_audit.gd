@@ -176,7 +176,7 @@ static func collect_scene_paths(root_path: String = "res://", options: Dictionar
 
 ## 构建运行中节点树的信号连接图快照。
 ## @param root: 需要扫描的根节点。
-## @param options: 选项，支持 `include_internal`、`persistent_only` 与 `include_empty_signals`。
+## @param options: 选项，支持 `include_internal`、`persistent_only`、`include_empty_signals` 与 `include_external_targets`。
 ## @return 信号连接图报告。
 static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictionary:
 	if root == null:
@@ -195,6 +195,7 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 	var include_internal := bool(options.get("include_internal", false))
 	var persistent_only := bool(options.get("persistent_only", false))
 	var include_empty_signals := bool(options.get("include_empty_signals", false))
+	var include_external_targets := bool(options.get("include_external_targets", true))
 	var nodes: Array[Node] = []
 	_collect_signal_graph_nodes(root, nodes, include_internal)
 
@@ -212,6 +213,8 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 			var connections: Array = []
 			for connection_info: Dictionary in raw_connections:
 				if persistent_only and (int(connection_info.get("flags", 0)) & CONNECT_PERSIST) == 0:
+					continue
+				if not include_external_targets and _is_external_connection(root, connection_info):
 					continue
 				connections.append(connection_info)
 
@@ -357,6 +360,19 @@ static func _make_runtime_connection_entry(
 		"flags": int(connection_info.get("flags", 0)),
 		"is_persistent": (int(connection_info.get("flags", 0)) & CONNECT_PERSIST) != 0,
 	}
+
+
+static func _is_external_connection(root: Node, connection_info: Dictionary) -> bool:
+	var callback := connection_info.get("callable") as Callable
+	if not callback.is_valid():
+		return false
+
+	var target_object := callback.get_object()
+	if not (target_object is Node):
+		return true
+
+	var target_node := target_object as Node
+	return target_node != root and not root.is_ancestor_of(target_node)
 
 
 static func _make_runtime_node_entry(root: Node, node: Node) -> Dictionary:

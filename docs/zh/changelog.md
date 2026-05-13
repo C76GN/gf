@@ -22,95 +22,93 @@
 
 ---
 
-## [3.2.0] - 2026-05-13
+## [3.3.0] - 2026-05-13
 
-**版本概述**：未发布变更收敛为框架自身的通用能力，并将扩展体系定型为官方原子层加项目/社区组合层：官方扩展保持原子化，项目、社区或外部扩展负责组合。
+**版本概述**：把若干开发期与运行时体验优化收敛为 GF 自身的通用抽象入口，重点增强 UI modal、文本自适应、调试观察、编辑器命令工具协议、HTTP 请求构建、日志分批、配置表导入导出、图布局、流程图运行态、反馈轨道、渲染预热和任务层级能力。
 
 ### 🚀 新增特性
 
-- 新增 `GFNodeStateMachineValidator`，用于校验节点状态机的空组、重复状态名、初始状态和条件/行为资源挂接，并返回 `GFValidationReport`。
-- `GFNodeStateMachine` Inspector 增加结构验证入口，方便在编辑器中快速检查状态机配置。
-- `GFDiagnosticsUtility` 新增只读场景树快照与 `diagnostics.scene` 命令，可按深度、节点数量、分组、脚本路径等选项采集结构摘要。
-- `GFResourceTableEditor` 新增搜索过滤、可见行索引、排序、插入、复制、移动、移除和可见行提交接口。
-- 新增 `GFPointerActivityUtility`，用于把显式转发的鼠标/触摸事件整理为按下、移动、拖拽和空闲状态。
-- 新增 `GFTileMetadataLayer`，在通用格子字典上提供元数据绘制、字段擦除、按值查询、schema 和 `GFTileMapCache` 转换能力。
-- 新增 `GFAudioBackend` 可插拔音频后端协议，`GFAudioUtility` 可按后端声明接管部分 BGM、SFX、环境音、空间音效和总线音量请求。
-- 新增 `GFAudioBankTools`，支持扫描音频路径、按路径生成 `GFAudioBank`、向现有 bank 导入片段，并检查音频扩展名和 bus 配置。
-- 新增 `GFAudioBank` Inspector 验证入口，复用 `GFAudioBankTools.validate_bank_playback()` 进行播放前检查。
-- Combat 扩展新增 `GFProjectile2D`、`GFProjectile3D`、`GFProjectileMotion`、`GFLinearProjectileMotion`、`GFHomingProjectileMotion` 和 `GFProjectileLifetimePolicy`，以 Resource 策略组合移动和生命周期，命中仍通过 `GFCombatHitContext` 发送。
-- Combat 扩展新增 `GFModifiedAttributeSet`，用于集中管理一组运行时 `GFModifiedAttribute`。
-- `GFHitCollisionShapeConfig2D` / `GFHitCollisionShapeConfig3D` 新增 `debug_color`，HitBox / HurtBox 新增 `collision_shape_configs` 与 `apply_collision_shape_configs()` 以支持多个自动生成碰撞形状。
-- `GFExtensionManifest` 保留 `optional_dependencies` 作为社区、项目或外部扩展的弱提示；官方扩展不得使用它表达内部协作。
+- 新增 `GFTextAutoFit`，并扩展 `GFTextFitter.fit_control()` / `measure_control_text()`，支持常见文本控件、内容边距、按钮图标和 LineEdit placeholder。
+- 新增 `GFModalConfig`、`GFModalAction`、`GFModalResult` 和默认 `GFModalPanel`，`GFUIUtility.open_modal()` 可用统一协议打开 modal 并回收结果。
+- 新增 `GFSignalGraphDock` 标准库信号图页面，复用 `GFSceneSignalAudit` 查看当前编辑场景信号连接。
+- 新增 `GFSignalRuntimeProbe`，可显式监听节点或节点树的运行时信号发射，并记录最近事件。
+- `GFSignalGraphDock` 新增筛选、运行事件页和显式实时追踪开关。
+- 新增 `GFEditorCommand`、`GFEditorActionDefinition`、`GFEditorTool` 和 `GFEditorToolContext`，为编辑器工具提供命令、动作和持续交互协议。
+- 新增 `GFHttpRequestBuilder`、`GFHttpResponse` 和 `GFAsyncBatch`，提供通用 HTTP 请求构建、响应状态对象和异步结果聚合。
+- 新增 `GFBudgetLedger`，用于抽象资源预算、消费、释放和快照。
+- 新增 `GFValueIndex` 与 `GFMutationBatch`，提供 Foundation 级值索引和可提交/可回滚变更批次。
+- 新增 `GFGraphLayoutUtility`，提供分层与网格图布局建议；`GFFlowGraphEditorModel` 新增 `auto_layout()`。
+- `GFFlowGraph` 新增运行态序列化、元数据 Schema 校验和运行副本创建；`GFFlowContext` 新增通用条件查询处理器。
+- `GFFlowGraphEditorModel` 新增选择包、粘贴和批量删除入口。
+- `GFShakePreset` 新增可组合 `GFShakeTrack` 轨道。
+- `GFRenderWarmupUtility` 新增场景资源扫描、时间预算和离屏临时渲染节点触碰模式。
+- `GFSupportReportUtility` 新增附件规范化、截图附件和提交结果归一化。
+- `GFDebugOverlayUtility` 新增通用 panel 注册表，并可附加最近日志面板。
+- `GFConsoleUtility` 新增只读 `scene.tree` 与 `scene.node` 内置命令。
+- 新增 `GFBatchedLogSink`，用于把结构化日志清洗、缓冲并分批交给项目自定义传输。
+- `GFConfigTableImporter` 新增 `export_csv_table()`，`GFConfigTableSchema` 新增 `infer_from_records()`。
+- 新增 `GFConfigTableIndexDefinition`、`GFConfigTableReference` 和 `GFConfigReferenceResolver`，支持导表复合唯一索引、跨表引用校验和引用解析。
+- 新增 `GFEditorToolOption`、`GFEditorToolOptionSchema` 和 `GFEditorPickOperation`，为编辑器工具提供声明式选项、值规范化和分阶段拾取协议。
+- 新增 `GFEditorWorkspaceDock` 底部统一入口，把 GF Save Viewer、GF Extensions、GF Signal Graph 和扩展贡献的 Dock 收束为一个 `GF` 工作区。
+- `GFBehaviorTree` 新增 FRESH / ABORTED 状态文本、黑板作用域、运行器调试快照，以及 `Probability`、`Cooldown`、`TimeLimit` 通用装饰节点。
+- `GFSlotInventoryModel` 新增惰性物品槽位索引、索引快照、库存约束校验和注册表约束应用入口；`GFInventoryItemDefinition` 新增运行时兼容性回调。
+- 新增 `GFAudioBackendCapability`、`GFAudioEvent`、`GFAudioParameter`、`GFAudioState`、`GFAudioSwitch` 和 `GFAudioCatalogProvider`，并扩展音频后端资源化事件、参数、状态和开关协议。
+- 新增 `GFTimedTextEntry`、`GFTimedTextTrack` 和 `GFTimedTextImporter`，提供通用时间段文本轨道与 SRT/WebVTT/LRC 轻量解析。
+- 新增 `GFRegionMap2D`，提供二维区域分块数据映射和脏区域追踪。
+- `GFQuestUtility` 新增接取条件、失败状态、父子任务关系和树形聚合报告。
 
 ### 🔄 机制更改
 
-- `GFAudioUtility` 保留默认 Godot 播放路径，只有当前后端明确声明可处理并成功返回时才接管请求；不支持的路径继续回退到原实现。
-- `GFDiagnosticsUtility.collect_snapshot()` 可通过 `include_scene_tree` 显式包含场景树摘要，默认仍不采集场景树以避免额外开销。
-- `GFProjectileLifetimePolicy` 可按成功命中次数结束发射体；`GFProjectile2D` / `GFProjectile3D` 会在上下文中记录命中尝试次数和成功命中次数。
-- `extensions` 基础设施统一承载可选能力：目录、manifest 文件、核心类、ProjectSettings 键和维护测试路径均使用扩展命名。
-- 官方扩展边界固定为原子化：manifest 只能依赖 `gf.kernel` 和 `gf.standard`，不得声明可选依赖，也不得在源码中引用、探测或 preload 其他官方扩展。
-- 跨官方扩展组合只能发生在项目、社区扩展或外部扩展层；框架本体不内置 bridge 扩展矩阵，避免组合数量失控。
-- 禁用扩展引用审计默认改为严格模式，导出发现项目仍引用禁用扩展时默认报错。
-- `GFExtensionSettings.get_manifest_graph_report()` 会把缺失可选依赖作为 warning 记录，不让扩展图失败，也不会把可选依赖加入启用闭包。
-- 本版本所有官方扩展的 `version` 同步为 `3.2.0`；Combat 扩展因新增发射体、多碰撞形状配置和运行时属性集合，将 `extension_version` 递增为 `1.3.0`，其余未发生扩展内公开行为变化的官方扩展保持原有 `extension_version`。
-
-### ⚠️ 废弃与移除
-
-- 公开 API 只保留当前扩展命名。
-- 移除官方扩展之间的软协作入口：`GFShakeAction`、Interaction Capability provider 和相关查询辅助。
+- 新增能力保持 additive API，不改变现有任务、UI 栈、日志、配置表和控制台的默认行为。
+- `GFSignalGraphDock` 默认查看持久连接并过滤根节点外目标，避免编辑器内部运行时连接污染场景图；运行时追踪默认关闭，只有显式开启后才连接当前场景信号。
+- modal、日志分批、Overlay panel、配置表推导、任务树、流程状态、反馈轨道、支持报告附件和渲染预热都只保留通用协议，不内置具体业务、远端服务或项目适配。
+- 编辑器命令、HTTP 请求、预算账本、值索引、变更批次和图布局都保持 additive API，不写入具体服务端、玩法或外部工具适配。
+- 配置引用、编辑器拾取、行为树调试、库存索引、音频事件、时间段文本和区域分块能力都只保留通用协议，不内置第三方工具、玩法规则、地图渲染或媒体业务。
+- 编辑器底部入口默认统一注册为一个 `GF` 工作区，标准库和扩展贡献的编辑器页作为内部页面呈现；工作区页面入口会按宽度自动平铺，根面板只保留顶部入口区的折叠最小高度，页面承载层不设置固定最小高度并裁剪溢出内容，同时提供框架介绍、项目地址、正式文档地址和维护者联系方式弹窗，减少底部栏标签拥挤。
+- 本版本所有官方扩展的 `version` 同步为 `3.3.0`；Behavior Tree、Domain、Feedback 和 Flow 扩展因新增公开行为，将 `extension_version` 递增为 `1.1.0`，其余未发生扩展内公开行为变化的官方扩展保持原有 `extension_version`。
 
 ### 🔌 API 变动说明
 
-- 新增公开类：`GFNodeStateMachineValidator`、`GFAudioBackend`、`GFAudioBankTools`、`GFPointerActivityUtility`、`GFTileMetadataLayer`、`GFProjectile2D`、`GFProjectile3D`、`GFProjectileMotion`、`GFLinearProjectileMotion`、`GFHomingProjectileMotion`、`GFProjectileLifetimePolicy`。
-- 新增公开类：`GFModifiedAttributeSet`。
-- `GFHitCollisionShapeConfig2D` / `GFHitCollisionShapeConfig3D` 新增 `debug_color`；`GFHitBox2D`、`GFHurtBox2D`、`GFHitBox3D`、`GFHurtBox3D` 新增 `collision_shape_configs`、`apply_collision_shape_configs()`、`get_generated_collision_shapes()` 和 `clear_generated_collision_shapes()`。
-- 新增 `GFAudioUtility.set_audio_backend()`、`get_audio_backend()`、`clear_audio_backend()` 和 `get_debug_snapshot()`。
-- 新增 `GFExtensionManifest.optional_dependencies`；`to_dictionary()` 会输出该字段。
-- `GFExtensionSettings.get_manifest_graph_report()` 新增 `warning_count` 与 `optional_dependency_warnings`，`get_extension_selection_report()` 同步暴露可选依赖提示。
-- 扩展体系公开类固定为 `GFExtensionManifest`、`GFExtensionCatalog`、`GFExtensionSettings` 和 `GFExtensionUsageAudit`。
-- 扩展 manifest 文件固定为 `gf_extension.json`，扩展自身版本字段固定为 `extension_version`，源码入口固定为 `addons/gf/extensions`。
-- 扩展 ProjectSettings 固定使用 `gf/extensions/*`；相关方法也统一使用 extension 命名。
-- `gf/extensions/export_fail_on_disabled_references` 默认值改为 `true`。
-- 移除官方扩展中的软协作适配：Feedback 不再提供 `GFShakeAction`，Interaction 不再提供 Capability provider、`GFInteractionContext.inject_dependencies()`、`sender_as()`、`target_as()`、`get_*_capability()` 或 `get_group_receivers()`；这些组合应移到项目、社区扩展或外部扩展。
-- 新增 `GFDiagnosticsUtility.collect_scene_tree_snapshot()`，并扩展 `collect_snapshot()` 的 `include_scene_tree` / `scene_tree_options` 选项。
-- 新增 `GFResourceTableEditor` 的资源列表操作和过滤相关公开接口；既有 `commit_cell_value()` 行索引语义保持为原始资源索引。
-- 发射体节点默认不解释 payload 内容；项目可继续把 `GFCombatHitContext.payload` 解释为伤害、治疗、交互或任意自定义命中语义。
-- `GFProjectileLifetimePolicy.max_impacts` 可用于对象池、穿透或多目标命中这类通用生命周期控制；它只统计成功发送的命中，不定义穿透筛选或伤害规则。
-
-### 📘 升级指南
-
-- 项目集成应统一使用 `addons/gf/extensions/**`、`gf_extension.json`、`extension_version`、`GFExtension*` 和 `gf/extensions/*`。
-- 移除对官方扩展之间隐式协作的依赖；需要组合多个官方扩展时，在项目代码、社区扩展或外部扩展中显式装配。
-- 如果项目使用过 `GFShakeAction` 或 Interaction 到 Capability 的查询辅助，应在项目层创建自己的动作/查询适配器，或放入社区/外部组合扩展。
-- 重新生成访问器，并清理禁用扩展的 preload、脚本、场景和资源引用；默认严格导出审计会拦截这些残留引用。
+- 新增公开类：`GFTextAutoFit`、`GFModalConfig`、`GFModalAction`、`GFModalResult`、`GFModalPanel`、`GFSignalGraphDock`、`GFSignalRuntimeProbe`、`GFBatchedLogSink`。
+- 新增公开类：`GFEditorCommand`、`GFEditorActionDefinition`、`GFEditorTool`、`GFEditorToolContext`、`GFHttpRequestBuilder`、`GFHttpResponse`、`GFAsyncBatch`、`GFBudgetLedger`、`GFValueIndex`、`GFMutationBatch`、`GFGraphLayoutUtility`。
+- 新增公开类：`GFShakeTrack`。
+- `GFSceneSignalAudit.build_signal_graph()` 新增 `include_external_targets` 选项。
+- `GFFlowContext` 新增 `register_condition_handler()`、`unregister_condition_handler()`、`has_condition_handler()`、`clear_condition_handlers()` 和 `query_condition()`。
+- `GFFlowNode` 新增 `runtime_state`、`set_runtime_value()`、`get_runtime_value()`、`clear_runtime_state()`、`serialize_runtime_state()` 和 `deserialize_runtime_state()`。
+- `GFFlowGraph` 新增 `metadata_schema`、`instantiate_graph()`、`serialize_runtime_state()`、`deserialize_runtime_state()`、`clear_runtime_state()`、`validate_metadata()` 和 `validate_graph_metadata()`。
+- `GFFlowGraphEditorModel` 新增 `auto_layout()`、`build_selection_package()`、`paste_selection_package()` 和 `remove_nodes()`。
+- `GFShakePreset` 新增 `tracks`、`add_track()`、`clear_tracks()` 和 `has_tracks()`。
+- `GFRenderWarmupUtility` 新增 `TouchMode`、`default_max_seconds`、`default_touch_mode`、`build_manifest_from_scene()`、`build_manifest_from_scene_path()` 和 `release_temporary_render_nodes()`。
+- `GFSupportReportUtility` 新增 `default_max_attachment_bytes`、`include_screenshot_by_default`、`collect_attachments()` 和 `add_attachment_to_report()`。
+- `GFUIUtility` 新增 `open_modal()`。
+- `GFDebugOverlayUtility` 新增 `register_panel()`、`push_panel_text()`、`remove_panel()`、`clear_panels()`、`has_panel()` 和 `get_panel_snapshot()`。
+- `GFConfigTableImporter` 新增 `export_csv_table()`；`GFConfigTableSchema` 新增 `infer_from_records()`。
+- 新增公开类：`GFConfigTableIndexDefinition`、`GFConfigTableReference`、`GFConfigReferenceResolver`、`GFEditorToolOption`、`GFEditorToolOptionSchema`、`GFEditorPickOperation`。
+- 新增公开类：`GFAudioBackendCapability`、`GFAudioEvent`、`GFAudioParameter`、`GFAudioState`、`GFAudioSwitch`、`GFAudioCatalogProvider`、`GFTimedTextEntry`、`GFTimedTextTrack`、`GFTimedTextImporter`、`GFRegionMap2D`。
+- `GFConfigTableSchema` 新增 `indexes`、`references`、`get_index()`、`has_index()`、`get_reference()` 和 `has_reference()`。
+- `GFEditorTool` 新增 `option_schema`、`set_option_schema()`、`set_tool_option()`、`get_tool_option()`、`get_tool_options()`、`clear_tool_options()`、`begin_pick_operation()`、`pick()`、`apply_pick_operation()`、`cancel_pick_operation()` 和 `get_pick_operation()`。
+- `GFBehaviorTree` 新增 `Status.FRESH`、`Status.ABORTED`、`status_to_string()`、`build_debug_snapshot()`、`BlackboardScope`、`Probability`、`Cooldown`、`TimeLimit` 和 `Runner.get_debug_snapshot()`。
+- `GFSlotInventoryModel` 新增 `get_slots_for_item()`、`rebuild_index()`、`get_index_debug_snapshot()`、`validate_inventory()` 和 `apply_registry_constraints()`；`GFInventoryItemDefinition` 新增 `compatibility_checker`。
+- `GFAudioBackend` 新增 `capabilities`、`get_capabilities()`、`has_capability()`、`can_handle_event()`、`post_event()`、`set_parameter()`、`set_state()` 和 `set_switch()`；`GFAudioUtility` 新增 `post_audio_event()`、`set_audio_parameter()`、`set_audio_state()` 和 `set_audio_switch()`；`GFAudioBank` 新增加载状态字段和状态快照。
+- `GFQuestUtility` 新增 `STATUS_FAILED`、`quest_acceptance_blocked`、`quest_failed`、`fail_quest()`、`add_acceptance_condition()`、`clear_acceptance_conditions()`、`set_quest_parent()`、`clear_quest_parent()`、`get_child_quests()` 和 `get_quest_tree_report()`。
 
 ### 📁 核心受影响文件
 
-- `addons/gf/kernel/editor/gf_resource_table_editor.gd`
-- `addons/gf/kernel/core/gf_architecture.gd`
-- `addons/gf/kernel/extension/gf_extension_manifest.gd`
-- `addons/gf/kernel/extension/gf_extension_settings.gd`
-- `addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd`
-- `addons/gf/standard/foundation/math/gf_tile_metadata_layer.gd`
-- `addons/gf/standard/input/runtime/gf_pointer_activity_utility.gd`
-- `addons/gf/standard/state_machine/node/**`
+- `addons/gf/standard/utilities/ui/**`
+- `addons/gf/standard/utilities/debug/**`
+- `addons/gf/kernel/editor/**`
+- `addons/gf/standard/foundation/**`
+- `addons/gf/standard/utilities/io/**`
+- `addons/gf/standard/utilities/display/gf_render_warmup_utility.gd`
+- `addons/gf/extensions/official/flow/**`
+- `addons/gf/extensions/official/feedback/resources/**`
+- `addons/gf/standard/utilities/logging/**`
+- `addons/gf/standard/utilities/config/**`
 - `addons/gf/standard/utilities/audio/**`
-- `addons/gf/standard/utilities/debug/gf_diagnostics_utility.gd`
-- `addons/gf/extensions/official/combat/attributes/**`
-- `addons/gf/extensions/official/combat/hit_detection/**`
-- `addons/gf/extensions/official/combat/projectiles/**`
-- `tests/gf_core/kernel/editor/test_gf_resource_table_editor.gd`
-- `tests/gf_core/kernel/core/test_gf_singleton.gd`
-- `tests/gf_core/kernel/extension/test_gf_extension_manifest.gd`
-- `tests/gf_core/maintenance/test_layer_boundary_validation.gd`
-- `tests/gf_core/standard/foundation/math/test_gf_tile_metadata_layer.gd`
-- `tests/gf_core/standard/input/runtime/test_gf_pointer_activity_utility.gd`
-- `tests/gf_core/standard/state_machine/node/test_gf_node_state_machine_validator.gd`
-- `tests/gf_core/standard/utilities/audio/test_gf_audio_utility.gd`
-- `tests/gf_core/standard/utilities/audio/test_gf_audio_bank_tools.gd`
-- `tests/gf_core/standard/utilities/debug/test_gf_diagnostics_utility.gd`
-- `tests/gf_core/extensions/official/combat/test_gf_combat_extension.gd`
-- `tests/gf_core/extensions/official/combat/test_gf_projectiles.gd`
-- `docs/zh/standard/input-flow/state-machines.md`
-- `docs/zh/standard/utilities/runtime/audio.md`
-- `docs/zh/extensions/combat/index.md`
+- `addons/gf/standard/foundation/timeline/**`
+- `addons/gf/standard/foundation/math/gf_region_map_2d.gd`
+- `addons/gf/extensions/official/behavior_tree/runtime/gf_behavior_tree.gd`
+- `addons/gf/extensions/official/domain/inventory/**`
+- `addons/gf/extensions/official/domain/quest/gf_quest_utility.gd`
+- `tests/gf_core/standard/utilities/**`
+- `tests/gf_core/extensions/official/domain/test_gf_quest_utility.gd`

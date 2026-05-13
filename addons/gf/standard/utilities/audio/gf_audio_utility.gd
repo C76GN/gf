@@ -298,6 +298,51 @@ func clear_audio_backend(dispose_backend: bool = true) -> void:
 	_clear_audio_backend(dispose_backend)
 
 
+## 发布资源化音频事件。
+## @param event: 音频事件资源。
+## @param options: 请求选项。
+## @return 控制句柄；不需要或无法返回句柄时返回 null。
+func post_audio_event(event: GFAudioEvent, options: Dictionary = {}) -> GFAudioEmitterHandle:
+	if event == null or not event.has_request():
+		return null
+	var request_options := event.to_request_options(options)
+	if _audio_backend != null and _audio_backend.can_handle_event(event, request_options):
+		return _audio_backend.post_event(event, request_options)
+
+	match event.channel:
+		&"bgm":
+			_post_bgm_event(event, request_options)
+			return null
+		&"ambient":
+			_post_ambient_event(event, request_options)
+			return null
+		&"spatial_sfx":
+			return null
+		_:
+			return _post_sfx_event(event)
+
+
+## 写入音频参数。
+## @param parameter: 参数请求。
+## @return 后端已处理返回 true。
+func set_audio_parameter(parameter: GFAudioParameter) -> bool:
+	return _audio_backend != null and _audio_backend.set_parameter(parameter)
+
+
+## 写入音频状态。
+## @param state: 状态请求。
+## @return 后端已处理返回 true。
+func set_audio_state(state: GFAudioState) -> bool:
+	return _audio_backend != null and _audio_backend.set_state(state)
+
+
+## 写入音频开关。
+## @param audio_switch: 开关请求。
+## @return 后端已处理返回 true。
+func set_audio_switch(audio_switch: GFAudioSwitch) -> bool:
+	return _audio_backend != null and _audio_backend.set_switch(audio_switch)
+
+
 ## 播放环境音。
 ## @param path: 音频资源路径。
 ## @param channel: 环境音通道。
@@ -739,15 +784,18 @@ func get_debug_snapshot() -> Dictionary:
 	ambient_channels.sort()
 
 	var backend_snapshot := {}
+	var backend_capabilities := {}
 	var backend_name := ""
 	if _audio_backend != null:
 		var backend_script := _audio_backend.get_script() as Script
 		backend_name = backend_script.resource_path if backend_script != null else _audio_backend.get_class()
 		backend_snapshot = _audio_backend.get_debug_snapshot()
+		backend_capabilities = _audio_backend.get_capabilities().to_dictionary()
 
 	return {
 		"backend": backend_name,
 		"backend_snapshot": backend_snapshot,
+		"backend_capabilities": backend_capabilities,
 		"current_bgm_key": _current_bgm_key,
 		"bgm_history": get_bgm_history(),
 		"active_sfx_count": _active_sfx_players.size(),
@@ -833,6 +881,36 @@ func _try_backend_play_spatial_sfx_clip(
 	if not _audio_backend.can_handle_clip(clip, &"spatial_sfx", context):
 		return null
 	return _audio_backend.play_spatial_sfx_clip(clip, source, follow_source, options)
+
+
+func _post_bgm_event(event: GFAudioEvent, options: Dictionary) -> void:
+	var fade_seconds := float(options.get("fade_seconds", 0.0))
+	if event.clip != null:
+		play_bgm_clip(event.clip, fade_seconds)
+	elif event.event_id != &"":
+		play_bgm_event(event.event_id, event.bank_id, fade_seconds)
+	elif not event.path.is_empty():
+		play_bgm(event.path, fade_seconds)
+
+
+func _post_ambient_event(event: GFAudioEvent, options: Dictionary) -> void:
+	var fade_seconds := float(options.get("fade_seconds", 0.0))
+	if event.clip != null:
+		play_ambient_clip(event.clip, event.ambient_channel, fade_seconds)
+	elif event.event_id != &"":
+		play_ambient_event(event.event_id, event.ambient_channel, event.bank_id, fade_seconds)
+	elif not event.path.is_empty():
+		play_ambient(event.path, event.ambient_channel, fade_seconds)
+
+
+func _post_sfx_event(event: GFAudioEvent) -> GFAudioEmitterHandle:
+	if event.clip != null:
+		return play_sfx_clip_handle(event.clip)
+	if event.event_id != &"":
+		return play_sfx_event_handle(event.event_id, event.bank_id)
+	if not event.path.is_empty():
+		return play_sfx_handle(event.path)
+	return null
 
 
 func _get_registered_clip(event_id: StringName, bank_id: StringName = &"") -> GFAudioClip:

@@ -28,11 +28,65 @@ extends Resource
 ## 校验 Array 表时是否要求 id_field 唯一。
 @export var require_unique_id: bool = false
 
+## 可选复合索引声明。唯一索引会参与表级校验。
+@export var indexes: Array[GFConfigTableIndexDefinition] = []
+
+## 可选跨表引用声明。引用目标由 `GFConfigReferenceResolver` 在多表上下文中校验。
+@export var references: Array[GFConfigTableReference] = []
+
 ## 可选元数据，供导入器、编辑器或项目层扩展使用。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
+
+## 从记录样本推导通用 schema。
+## @param inferred_table_name: 推导出的表名。
+## @param table_data: Array[Dictionary] 或 Dictionary 形式的表数据。
+## @param options: 可选参数，支持 id_field、required_if_present_in_all_rows、allow_extra_fields、coerce_values。
+## @return 推导出的 schema；数据无效时返回空 schema。
+static func infer_from_records(
+	inferred_table_name: StringName,
+	table_data: Variant,
+	options: Dictionary = {}
+) -> GFConfigTableSchema:
+	var schema := GFConfigTableSchema.new()
+	schema.table_name = inferred_table_name
+	schema.id_field = StringName(options.get("id_field", &"id"))
+	schema.allow_extra_fields = bool(options.get("allow_extra_fields", true))
+	schema.coerce_values = bool(options.get("coerce_values", false))
+
+	var rows := _normalize_inference_rows(table_data)
+	if rows.is_empty():
+		return schema
+
+	var field_presence: Dictionary = {}
+	var field_values: Dictionary = {}
+	for row: Dictionary in rows:
+		for key: Variant in row.keys():
+			var field_name := StringName(key)
+			field_presence[field_name] = int(field_presence.get(field_name, 0)) + 1
+			if not field_values.has(field_name):
+				field_values[field_name] = []
+			(field_values[field_name] as Array).append(row[key])
+
+	var field_names := PackedStringArray()
+	for field_name: StringName in field_values.keys():
+		field_names.append(String(field_name))
+	field_names.sort()
+
+	var require_if_present_all := bool(options.get("required_if_present_in_all_rows", false))
+	for field_text: String in field_names:
+		var field_name := StringName(field_text)
+		var column := GFConfigTableColumn.new()
+		column.field_name = field_name
+		column.value_type = _infer_column_value_type(field_values[field_name] as Array)
+		column.required = require_if_present_all and int(field_presence.get(field_name, 0)) == rows.size()
+		column.allow_null = _values_allow_null(field_values[field_name] as Array)
+		schema.columns.append(column)
+
+	return schema
+
 
 ## 获取稳定表键。
 ## @return 表名。
@@ -55,6 +109,40 @@ func get_column(field_name: StringName) -> GFConfigTableColumn:
 ## @return 存在返回 true。
 func has_column(field_name: StringName) -> bool:
 	return get_column(field_name) != null
+
+
+## 获取索引声明。
+## @param index_id: 索引标识。
+## @return 找到时返回索引声明，否则返回 null。
+func get_index(index_id: StringName) -> GFConfigTableIndexDefinition:
+	for index: GFConfigTableIndexDefinition in indexes:
+		if index != null and index.get_index_id() == index_id:
+			return index
+	return null
+
+
+## 检查索引声明是否存在。
+## @param index_id: 索引标识。
+## @return 存在返回 true。
+func has_index(index_id: StringName) -> bool:
+	return get_index(index_id) != null
+
+
+## 获取引用声明。
+## @param reference_id: 引用标识。
+## @return 找到时返回引用声明，否则返回 null。
+func get_reference(reference_id: StringName) -> GFConfigTableReference:
+	for reference: GFConfigTableReference in references:
+		if reference != null and reference.get_reference_id() == reference_id:
+			return reference
+	return null
+
+
+## 检查引用声明是否存在。
+## @param reference_id: 引用标识。
+## @return 存在返回 true。
+func has_reference(reference_id: StringName) -> bool:
+	return get_reference(reference_id) != null
 
 
 ## 获取当前 schema 的字段名列表。
@@ -165,6 +253,10 @@ func duplicate_schema() -> GFConfigTableSchema:
 	schema.coerce_values = coerce_values
 	schema.fail_on_coerce_error = fail_on_coerce_error
 	schema.require_unique_id = require_unique_id
+	for index: GFConfigTableIndexDefinition in indexes:
+		schema.indexes.append(index.duplicate_index() if index != null else null)
+	for reference: GFConfigTableReference in references:
+		schema.references.append(reference.duplicate_reference() if reference != null else null)
 	schema.metadata = metadata.duplicate(true)
 	for column: GFConfigTableColumn in columns:
 		schema.columns.append(column.duplicate_column() if column != null else null)
@@ -178,6 +270,14 @@ func describe() -> Dictionary:
 	for column: GFConfigTableColumn in columns:
 		if column != null:
 			column_descriptions.append(column.describe())
+	var index_descriptions: Array[Dictionary] = []
+	for index: GFConfigTableIndexDefinition in indexes:
+		if index != null:
+			index_descriptions.append(index.describe())
+	var reference_descriptions: Array[Dictionary] = []
+	for reference: GFConfigTableReference in references:
+		if reference != null:
+			reference_descriptions.append(reference.describe())
 	return {
 		"table_name": table_name,
 		"id_field": id_field,
@@ -186,6 +286,8 @@ func describe() -> Dictionary:
 		"coerce_values": coerce_values,
 		"fail_on_coerce_error": fail_on_coerce_error,
 		"require_unique_id": require_unique_id,
+		"indexes": index_descriptions,
+		"references": reference_descriptions,
 		"metadata": metadata.duplicate(true),
 	}
 
@@ -195,6 +297,7 @@ func describe() -> Dictionary:
 func _validate_array_table(rows: Array, report: Dictionary) -> void:
 	report["row_count"] = rows.size()
 	var seen_ids: Dictionary = {}
+	var valid_rows: Array[Dictionary] = []
 	for index: int in range(rows.size()):
 		var row: Variant = rows[index]
 		if not (row is Dictionary):
@@ -203,12 +306,18 @@ func _validate_array_table(rows: Array, report: Dictionary) -> void:
 
 		var record := row as Dictionary
 		var row_key: Variant = record.get(id_field, index) if id_field != &"" else index
+		valid_rows.append({
+			"row_key": row_key,
+			"record": record,
+		})
 		_merge_report(report, validate_record(record, row_key))
 		_validate_unique_id(record, row_key, seen_ids, report)
+	_validate_index_constraints(valid_rows, report)
 
 
 func _validate_dictionary_table(table: Dictionary, report: Dictionary) -> void:
 	report["row_count"] = table.size()
+	var valid_rows: Array[Dictionary] = []
 	for key: Variant in table.keys():
 		var row: Variant = table[key]
 		if not (row is Dictionary):
@@ -217,7 +326,12 @@ func _validate_dictionary_table(table: Dictionary, report: Dictionary) -> void:
 
 		var record := row as Dictionary
 		var row_key: Variant = record.get(id_field, key) if id_field != &"" else key
+		valid_rows.append({
+			"row_key": row_key,
+			"record": record,
+		})
 		_merge_report(report, validate_record(record, row_key))
+	_validate_index_constraints(valid_rows, report)
 
 
 func _make_report(row_count: int) -> Dictionary:
@@ -286,6 +400,39 @@ func _validate_unique_id(
 	seen_ids[id_key] = row_key
 
 
+func _validate_index_constraints(rows: Array[Dictionary], report: Dictionary) -> void:
+	for index: GFConfigTableIndexDefinition in indexes:
+		if index == null:
+			_add_issue(report, "error", "null_index", null, &"", "索引声明为空。")
+			continue
+		if not index.is_valid_definition():
+			_add_issue(report, "error", "invalid_index", null, &"", "索引声明无效。")
+			continue
+		for field_name: String in index.field_names:
+			if not has_column(StringName(field_name)):
+				_add_issue(report, "error", "index_unknown_field", null, StringName(field_name), "索引字段未声明：%s。" % field_name)
+		if not index.unique:
+			continue
+
+		var seen_keys: Dictionary = {}
+		for row_entry: Dictionary in rows:
+			var record := row_entry["record"] as Dictionary
+			var key := index.make_key(record)
+			if key.is_empty():
+				continue
+			if seen_keys.has(key):
+				_add_issue(
+					report,
+					"error",
+					"duplicate_index_key",
+					row_entry.get("row_key"),
+					&"",
+					"唯一索引重复：%s。" % String(index.get_index_id())
+				)
+				continue
+			seen_keys[key] = row_entry.get("row_key")
+
+
 func _make_variant_key(value: Variant) -> String:
 	return "%d:%s" % [typeof(value), str(value)]
 
@@ -329,3 +476,69 @@ func _merge_report(target: Dictionary, source: Dictionary) -> void:
 
 func _finalize_report(report: Dictionary) -> void:
 	report["ok"] = int(report.get("error_count", 0)) == 0
+
+
+static func _normalize_inference_rows(table_data: Variant) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	if table_data is Array:
+		for row_variant: Variant in table_data:
+			if row_variant is Dictionary:
+				rows.append((row_variant as Dictionary).duplicate(true))
+	elif table_data is Dictionary:
+		var table := table_data as Dictionary
+		for key: Variant in table.keys():
+			var row_variant: Variant = table[key]
+			if row_variant is Dictionary:
+				rows.append((row_variant as Dictionary).duplicate(true))
+	return rows
+
+
+static func _infer_column_value_type(values: Array) -> int:
+	var inferred_type := GFConfigTableColumn.ValueType.ANY
+	for value: Variant in values:
+		if value == null:
+			continue
+
+		var value_type := _value_to_column_type(value)
+		if inferred_type == GFConfigTableColumn.ValueType.ANY:
+			inferred_type = value_type
+		elif inferred_type == GFConfigTableColumn.ValueType.INT and value_type == GFConfigTableColumn.ValueType.FLOAT:
+			inferred_type = GFConfigTableColumn.ValueType.FLOAT
+		elif inferred_type == GFConfigTableColumn.ValueType.FLOAT and value_type == GFConfigTableColumn.ValueType.INT:
+			continue
+		elif inferred_type != value_type:
+			return GFConfigTableColumn.ValueType.ANY
+	return inferred_type
+
+
+static func _value_to_column_type(value: Variant) -> int:
+	match typeof(value):
+		TYPE_BOOL:
+			return GFConfigTableColumn.ValueType.BOOL
+		TYPE_INT:
+			return GFConfigTableColumn.ValueType.INT
+		TYPE_FLOAT:
+			return GFConfigTableColumn.ValueType.FLOAT
+		TYPE_STRING:
+			return GFConfigTableColumn.ValueType.STRING
+		TYPE_STRING_NAME:
+			return GFConfigTableColumn.ValueType.STRING_NAME
+		TYPE_DICTIONARY:
+			return GFConfigTableColumn.ValueType.DICTIONARY
+		TYPE_ARRAY:
+			return GFConfigTableColumn.ValueType.ARRAY
+		_:
+			if value is Vector2:
+				return GFConfigTableColumn.ValueType.VECTOR2
+			if value is Vector2i:
+				return GFConfigTableColumn.ValueType.VECTOR2I
+			if value is Color:
+				return GFConfigTableColumn.ValueType.COLOR
+	return GFConfigTableColumn.ValueType.ANY
+
+
+static func _values_allow_null(values: Array) -> bool:
+	for value: Variant in values:
+		if value == null:
+			return true
+	return false

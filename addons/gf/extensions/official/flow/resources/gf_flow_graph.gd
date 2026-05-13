@@ -40,6 +40,9 @@ const _GF_GRAPH_MATH_SCRIPT: Script = preload("res://addons/gf/standard/foundati
 ## 编辑器或项目工具的附加元数据。
 @export var editor_metadata: Dictionary = {}
 
+## 编辑器或项目工具元数据的轻量 Schema。框架只校验结构，不解释业务含义。
+@export var metadata_schema: Dictionary = {}
+
 
 # --- 公共方法 ---
 
@@ -341,8 +344,84 @@ func describe_graph() -> Dictionary:
 		"editor": {
 			"groups": editor_groups.duplicate(true),
 			"metadata": editor_metadata.duplicate(true),
+			"metadata_schema": metadata_schema.duplicate(true),
 		},
 	}
+
+
+## 创建可运行的流程图副本。
+## @param options: 可选参数，支持 clear_runtime_state。
+## @return 流程图副本；复制失败时返回 null。
+func instantiate_graph(options: Dictionary = {}) -> GFFlowGraph:
+	var graph := duplicate(true) as GFFlowGraph
+	if graph != null and bool(options.get("clear_runtime_state", true)):
+		graph.clear_runtime_state()
+	return graph
+
+
+## 序列化图内节点运行态。
+## @return 运行态快照。
+func serialize_runtime_state() -> Dictionary:
+	var node_states: Dictionary = {}
+	for node: GFFlowNode in nodes:
+		if node == null or node.node_id == &"":
+			continue
+		var state := node.serialize_runtime_state()
+		if not state.is_empty():
+			node_states[node.node_id] = state
+	return {
+		"nodes": node_states,
+	}
+
+
+## 反序列化图内节点运行态。
+## @param data: 运行态快照。
+func deserialize_runtime_state(data: Dictionary) -> void:
+	var node_states := data.get("nodes", {}) as Dictionary
+	if node_states == null:
+		return
+
+	for node_id_variant: Variant in node_states.keys():
+		var node := get_node(StringName(node_id_variant))
+		var state := node_states[node_id_variant] as Dictionary
+		if node != null and state != null:
+			node.deserialize_runtime_state(state)
+
+
+## 清空图内所有节点运行态。
+func clear_runtime_state() -> void:
+	for node: GFFlowNode in nodes:
+		if node != null:
+			node.clear_runtime_state()
+
+
+## 校验元数据是否符合轻量 Schema。
+## @param target_metadata: 待校验元数据。
+## @param schema: 可选 Schema；为空时使用 metadata_schema。
+## @return 校验报告。
+func validate_metadata(target_metadata: Dictionary, schema: Dictionary = {}) -> Dictionary:
+	var active_schema := schema if not schema.is_empty() else metadata_schema
+	var report := {
+		"ok": true,
+		"healthy": true,
+		"error_count": 0,
+		"warning_count": 0,
+		"issue_counts_by_kind": {},
+		"summary": "",
+		"next_action": "",
+		"issues": [],
+	}
+	_validate_metadata_against_schema(report, target_metadata, active_schema, "metadata")
+	return _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.finalize_report(report, "Flow metadata", {
+		"next_actions": _get_metadata_validation_next_actions(),
+		"fallback_action": "Review the reported metadata issue before saving or running this graph.",
+	})
+
+
+## 校验当前图编辑器元数据。
+## @return 校验报告。
+func validate_graph_metadata() -> Dictionary:
+	return validate_metadata(editor_metadata, metadata_schema)
 
 
 ## 校验流程图结构。
@@ -390,6 +469,8 @@ func validate_graph() -> Dictionary:
 
 	_validate_connections(report, node_ids)
 	_validate_topology_diagnostics(report, node_ids)
+	if not metadata_schema.is_empty():
+		_validate_metadata_against_schema(report, editor_metadata, metadata_schema, "editor_metadata")
 	return _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.finalize_report(report, "Flow graph", {
 		"next_actions": _get_validation_next_actions(),
 		"fallback_action": "Review the first reported flow graph issue before using this graph.",
@@ -410,6 +491,8 @@ func build_editor_report() -> Dictionary:
 		"editor": {
 			"groups": editor_groups.duplicate(true),
 			"metadata": editor_metadata.duplicate(true),
+			"metadata_schema": metadata_schema.duplicate(true),
+			"metadata_validation": validate_graph_metadata(),
 		},
 	}
 
@@ -435,6 +518,23 @@ func _get_validation_next_actions() -> Dictionary:
 		"unreachable_node": "Connect the node from start_node_id or remove it from this graph resource.",
 		"cycle_detected": "Review the reported cycle and make sure the runner loop guard is intentional for this graph.",
 		"terminal_node": "Connect a successor, disable warn_terminal_nodes, or keep the node as an intentional endpoint.",
+		"metadata_missing_required": "Add the required metadata key or relax the metadata schema.",
+		"metadata_null_not_allowed": "Provide a non-null metadata value or allow null in the schema.",
+		"metadata_type_mismatch": "Update the metadata value type or the schema type hint.",
+		"metadata_class_mismatch": "Update the metadata object class or the schema class_name hint.",
+		"metadata_value_not_allowed": "Use one of the schema allowed_values or remove the restriction.",
+		"metadata_invalid_rule": "Replace the metadata schema entry with a Dictionary rule.",
+	}
+
+
+func _get_metadata_validation_next_actions() -> Dictionary:
+	return {
+		"metadata_missing_required": "Add the required metadata key or relax the metadata schema.",
+		"metadata_null_not_allowed": "Provide a non-null metadata value or allow null in the schema.",
+		"metadata_type_mismatch": "Update the metadata value type or the schema type hint.",
+		"metadata_class_mismatch": "Update the metadata object class or the schema class_name hint.",
+		"metadata_value_not_allowed": "Use one of the schema allowed_values or remove the restriction.",
+		"metadata_invalid_rule": "Replace the metadata schema entry with a Dictionary rule.",
 	}
 
 
@@ -559,6 +659,57 @@ func _validate_terminal_nodes(report: Dictionary, node_ids: Dictionary) -> void:
 	for node_id: StringName in _get_sorted_node_ids(node_ids):
 		if _get_successor_node_ids(node_id, node_ids).is_empty():
 			_append_validation_issue(report, "warning", "terminal_node", String(node_id), "Node has no outgoing successor: %s" % String(node_id))
+
+
+func _validate_metadata_against_schema(
+	report: Dictionary,
+	target_metadata: Dictionary,
+	schema: Dictionary,
+	label: String
+) -> void:
+	for key_variant: Variant in schema.keys():
+		var key := StringName(key_variant)
+		var rule := schema[key_variant] as Dictionary
+		if rule == null:
+			_append_validation_issue(report, "warning", "metadata_invalid_rule", String(key), "%s schema rule must be a Dictionary: %s" % [label, String(key)])
+			continue
+
+		var has_key := _metadata_has_key(target_metadata, key)
+		var required := bool(rule.get("required", false))
+		if required and not has_key:
+			_append_validation_issue(report, "error", "metadata_missing_required", String(key), "%s is missing required metadata: %s" % [label, String(key)])
+			continue
+		if not has_key:
+			continue
+
+		var value: Variant = _metadata_get_value(target_metadata, key)
+		if value == null:
+			if not bool(rule.get("allow_null", true)):
+				_append_validation_issue(report, "error", "metadata_null_not_allowed", String(key), "%s metadata does not allow null: %s" % [label, String(key)])
+			continue
+
+		if rule.has("type"):
+			var expected_type := int(rule.get("type", TYPE_NIL))
+			if expected_type != TYPE_NIL and typeof(value) != expected_type:
+				_append_validation_issue(report, "error", "metadata_type_mismatch", String(key), "%s metadata type does not match schema: %s" % [label, String(key)])
+
+		var expected_class := String(rule.get("class_name", ""))
+		if not expected_class.is_empty() and not (value is Object and (value as Object).is_class(expected_class)):
+			_append_validation_issue(report, "error", "metadata_class_mismatch", String(key), "%s metadata class does not match schema: %s" % [label, String(key)])
+
+		var allowed_values := rule.get("allowed_values", []) as Array
+		if allowed_values != null and not allowed_values.is_empty() and not allowed_values.has(value):
+			_append_validation_issue(report, "error", "metadata_value_not_allowed", String(key), "%s metadata value is not allowed: %s" % [label, String(key)])
+
+
+func _metadata_has_key(target_metadata: Dictionary, key: StringName) -> bool:
+	return target_metadata.has(key) or target_metadata.has(String(key))
+
+
+func _metadata_get_value(target_metadata: Dictionary, key: StringName) -> Variant:
+	if target_metadata.has(key):
+		return target_metadata[key]
+	return target_metadata.get(String(key), null)
 
 
 func _get_successor_node_ids(node_id: StringName, node_ids: Dictionary) -> Array[StringName]:

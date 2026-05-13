@@ -140,6 +140,10 @@ var manifest := warmup.build_manifest_from_tree(get_tree().current_scene, {
 warmup.warmup_manifest_now(manifest)
 ```
 
+如果资源来自场景文件，也可以用 `build_manifest_from_scene()` 或 `build_manifest_from_scene_path()` 创建清单；这只扫描实例化后的通用渲染资源，并在扫描完成后释放临时场景。预热执行支持 `max_seconds` 时间预算，队列和立即预热都会在预算耗尽时返回 `stopped_by_budget`，方便项目把预热拆到多个帧或多个加载阶段。
+
+默认 `touch_mode` 只加载资源并触碰 RID。需要让材质或 Mesh 参与一次离屏渲染时，可传 `GFRenderWarmupUtility.TouchMode.TEMPORARY_RENDER_NODES`，并按需指定 `temporary_parent` 与 `temporary_viewport_size`；预热工具会创建 `SubViewport` 临时节点，下一次 `tick()` 或显式 `release_temporary_render_nodes()` 会清理它们。这个模式仍然只处理通用渲染准备，不实例化业务对象，也不承诺完全消除驱动层 shader 编译。
+
 外部工具如果需要先清洗或检查条目字典，可以调用 `GFRenderWarmupManifest.normalize_entry(entry)`，得到包含 `resource_path`、`resource`、`kind`、`type_hint` 和独立 `metadata` 副本的规范化结构；预热队列内部也使用同一套规则。
 
 `keep_resources_cached` 默认会保留已加载资源引用，避免刚预热完就被释放；需要释放时调用 `release_cached_resources()`。`instantiate_packed_scenes` 默认关闭，因为实例化场景可能触发项目脚本副作用；只有当项目明确需要扫描 PackedScene 内部渲染资源时才开启。预热工具不保证消除所有驱动层 shader 编译成本，它提供的是一个稳定、可诊断、可分批的资源准备边界。

@@ -47,6 +47,12 @@ extends Resource
 @export var metadata: Dictionary = {}
 
 
+# --- 公共变量 ---
+
+## 可选堆叠兼容性回调。签名为 Callable(left: Dictionary, right: Dictionary, definition: GFInventoryItemDefinition) -> bool。
+var compatibility_checker: Callable = Callable()
+
+
 # --- 私有变量 ---
 
 var _max_stack_amount: int = 99
@@ -107,6 +113,8 @@ func normalize_instance_data(instance_data: Dictionary = {}) -> Dictionary:
 func are_instance_data_compatible(left: Dictionary = {}, right: Dictionary = {}) -> bool:
 	var left_data := _with_defaults(left)
 	var right_data := _with_defaults(right)
+	if compatibility_checker.is_valid():
+		return bool(compatibility_checker.call(left_data.duplicate(true), right_data.duplicate(true), self))
 	if stack_key_fields.is_empty():
 		return left_data == right_data
 

@@ -141,6 +141,52 @@ func test_modal_can_refuse_cancel_dismiss() -> void:
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "拒绝取消后面板应仍在栈顶。")
 
 
+func test_open_modal_returns_result_and_closes_panel() -> void:
+	var confirm := GFModalAction.new()
+	confirm.action_id = &"confirm"
+	confirm.label = "Confirm"
+	confirm.result_status = GFModalResult.STATUS_CONFIRMED
+	confirm.payload = { "value": 3 }
+
+	var config := GFModalConfig.new()
+	config.title = "Title"
+	config.message = "Message"
+	config.actions = [confirm]
+
+	var received := { "result": null }
+	var panel := _ui_utility.open_modal(config, GFUIUtility.Layer.POPUP, {
+		"source": "test",
+	}, func(callback_result: GFModalResult) -> void:
+		received["result"] = callback_result
+	)
+
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "open_modal 应把默认面板压入 UI 栈。")
+	assert_true(panel.resolve_action(&"confirm"), "按动作解析应成功。")
+
+	var received_result := received["result"] as GFModalResult
+	assert_not_null(received_result, "结果回调应收到 GFModalResult。")
+	assert_eq(received_result.status, GFModalResult.STATUS_CONFIRMED, "结果状态应来自动作配置。")
+	assert_eq(received_result.action_id, &"confirm", "结果应记录动作 ID。")
+	assert_eq((received_result.payload as Dictionary)["value"], 3, "结果应保留动作载荷。")
+	assert_eq((received_result.context as Dictionary)["source"], "test", "结果应保留打开时上下文。")
+	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "modal 解析后应从栈中关闭。")
+
+
+func test_request_dismiss_top_resolves_modal_cancel() -> void:
+	var config := GFModalConfig.new()
+	config.dismiss_on_cancel = true
+	var received := { "status": &"" }
+	_ui_utility.open_modal(config, GFUIUtility.Layer.POPUP, {}, func(result: GFModalResult) -> void:
+		received["status"] = result.status
+	)
+
+	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
+
+	assert_true(handled, "可取消 modal 应响应 request_dismiss_top。")
+	assert_eq(received["status"], GFModalResult.STATUS_CANCELLED, "取消请求应产生 cancelled 结果。")
+	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "取消后 modal 应关闭。")
+
+
 func test_keep_focus_inside_top_modal() -> void:
 	var outside := Button.new()
 	var panel := Control.new()
