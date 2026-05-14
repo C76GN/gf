@@ -571,6 +571,21 @@ func test_input_conflict_analyzer_reports_remap_conflicts() -> void:
 	assert_eq(conflicts[0]["event_text"], "Space", "冲突文本应使用有效事件。")
 
 
+func test_input_remap_config_uses_structured_event_records() -> void:
+	var remap_config := GFInputRemapConfigBase.new()
+	remap_config.set_binding(&"gameplay", &"jump", 0, _make_key_event(KEY_SPACE, true))
+
+	var data := remap_config.to_dict()
+	var record := (((data["remapped_events"] as Dictionary)["gameplay"] as Dictionary)["jump"] as Dictionary)["0"] as Dictionary
+	var restored := GFInputRemapConfigBase.from_dict(data)
+	var restored_event := restored.get_bound_event_or_null(&"gameplay", &"jump", 0) as InputEventKey
+
+	assert_false(record.has("event"), "新重映射记录不应再使用 str_to_var 文本。")
+	assert_eq(record.get("event_class"), "InputEventKey", "重映射记录应保存白名单事件类型。")
+	assert_not_null(restored_event, "结构化记录应能恢复输入事件。")
+	assert_eq(restored_event.keycode, KEY_SPACE, "恢复后的按键事件应保留 keycode。")
+
+
 ## 验证输入冲突分析器可构建完整重绑定报告。
 func test_input_conflict_analyzer_builds_rebind_report() -> void:
 	var context := _make_context(&"gameplay", [
@@ -685,6 +700,26 @@ func test_virtual_input_source_supports_axis_values_and_clear() -> void:
 
 	assert_eq(_utility.get_action_value(&"move"), Vector2.ZERO, "清理虚拟源后动作值应回到默认值。")
 	assert_false(_utility.is_action_active(&"move"), "清理虚拟源后动作应结束。")
+
+
+func test_clear_player_input_state_removes_player_global_contributions() -> void:
+	var action := _make_action(&"move", GFInputActionBase.ValueType.AXIS_2D)
+	action.activation_threshold = 0.1
+	var context := _make_context(&"gameplay", [
+		_make_mapping(action, [] as Array[GFInputBindingBase]),
+	])
+	_utility.enable_context(context)
+	var source: GFVirtualInputSourceBase = _utility.create_virtual_source(&"player", 1)
+
+	assert_true(source.set_axis_2d(&"move", Vector2.RIGHT), "玩家虚拟源应能写入动作。")
+	assert_true(_utility.is_action_active(&"move"), "玩家贡献也会聚合到全局动作。")
+	assert_true(_utility.is_action_active_for_player(1, &"move"), "玩家级动作应被激活。")
+
+	_utility.clear_player_input_state(1)
+
+	assert_eq(_utility.get_action_value(&"move"), Vector2.ZERO, "清理玩家状态应同步移除其全局贡献。")
+	assert_false(_utility.is_action_active(&"move"), "玩家贡献被清理后全局动作应结束。")
+	assert_false(_utility.is_action_active_for_player(1, &"move"), "玩家级动作应结束。")
 
 
 func test_input_recording_playback_drives_virtual_source() -> void:

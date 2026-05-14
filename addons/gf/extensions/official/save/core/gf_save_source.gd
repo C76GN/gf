@@ -112,13 +112,18 @@ func apply_save_data(
 	serializer_registry: GFNodeSerializerRegistryBase = null
 ) -> Dictionary:
 	if not (data is Dictionary):
-		return make_result(true)
+		return make_result(false, "Source data must be a Dictionary.")
 
 	var target := get_target_node()
 	if target == null:
 		return make_result(false, "Target node is null.")
 
 	var dictionary := data as Dictionary
+	if dictionary.is_empty():
+		return make_result(true)
+	if not dictionary.has("serializers"):
+		return make_result(false, "Serializer payloads are missing.")
+
 	var serializer_payloads_variant: Variant = dictionary.get("serializers", [])
 	if not (serializer_payloads_variant is Array):
 		return make_result(false, "Serializer payloads must be an Array.")

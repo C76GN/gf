@@ -28,6 +28,19 @@ func test_insert_and_query() -> void:
 	assert_true(result.has(1), "查询应找到已插入的实体。")
 
 
+func test_insert_before_init_lazily_rebuilds_root() -> void:
+	var tree := GFQuadTreeUtility.new()
+	tree.setup(Rect2(0, 0, 100, 100), -1, 0)
+	tree._root = null
+
+	tree.insert(1, Rect2(10, 10, 5, 5))
+	var result := tree.query_rect(Rect2(0, 0, 20, 20))
+
+	assert_true(result.has(1), "未显式 init 时插入应惰性创建根节点。")
+	assert_eq(tree.max_depth, 0, "无效 depth 应被归一化。")
+	assert_eq(tree.max_entities_per_node, 1, "无效 capacity 应被归一化。")
+
+
 ## 验证不在查询范围内的实体不被返回。
 func test_query_miss() -> void:
 	_tree.insert(1, Rect2(100, 100, 50, 50))
@@ -90,6 +103,12 @@ func test_query_radius_miss() -> void:
 	_tree.insert(1, Rect2(100, 100, 10, 10))
 	var result: Array[int] = _tree.query_radius(Vector2(500, 500), 10.0)
 	assert_false(result.has(1), "圆形查询不应找到范围外的实体。")
+
+
+func test_query_radius_rejects_negative_radius() -> void:
+	_tree.insert(1, Rect2(100, 100, 10, 10))
+	var result: Array[int] = _tree.query_radius(Vector2(105, 105), -1.0)
+	assert_true(result.is_empty(), "负半径查询应返回空结果。")
 
 
 # --- 测试：边界条件 ---

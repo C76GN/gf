@@ -265,50 +265,14 @@ func _should_wait_for_step(step: Variant, result: Variant) -> bool:
 
 
 func _await_signal_safely(result_signal: Signal) -> void:
-	if result_signal.is_null():
-		return
-
-	var target_obj: Object = result_signal.get_object()
-	if not is_instance_valid(target_obj):
-		return
-
-	var completed := [false]
-	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
-		completed[0] = true
-
-	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
-
-	var tree_exit_signal := Signal()
-	if target_obj is Node:
-		var node := target_obj as Node
-		if not node.is_inside_tree() and result_signal != node.tree_exited:
-			_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
-			return
-		if result_signal != node.tree_exited:
-			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
-			tree_exit_signal = node.tree_exited
-
-	var timeout_msec := signal_timeout_seconds * 1000.0
-	var elapsed_timeout_msec := 0.0
-	var last_timeout_msec := Time.get_ticks_msec()
-
-	while not completed[0] and not _cancel_requested:
-		var current_timeout_msec := Time.get_ticks_msec()
-		if timeout_msec > 0.0:
-			elapsed_timeout_msec += _get_timeout_elapsed_msec(last_timeout_msec, current_timeout_msec)
-			if elapsed_timeout_msec >= timeout_msec:
-				push_warning("[GFCommandSequence] 等待 Signal 超时，序列将继续执行后续步骤。")
-				break
-		last_timeout_msec = current_timeout_msec
-
-		if not is_instance_valid(target_obj):
-			break
-		if target_obj is Node and not (target_obj as Node).is_inside_tree():
-			break
-		await Engine.get_main_loop().process_frame
-
-	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
-	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(tree_exit_signal, on_resume)
+	await _GF_ASYNC_WAIT_SUPPORT.await_signal_safely(
+		result_signal,
+		_should_continue_waiting,
+		_get_time_utility(),
+		signal_timeout_seconds,
+		signal_timeout_respects_time_scale,
+		"[GFCommandSequence] 等待 Signal 超时，序列将继续执行后续步骤。"
+	)
 
 
 func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
@@ -325,6 +289,10 @@ func _get_time_utility() -> GFTimeUtility:
 	if architecture == null:
 		return null
 	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+
+
+func _should_continue_waiting() -> bool:
+	return not _cancel_requested
 
 
 func _get_architecture_or_null() -> GFArchitecture:

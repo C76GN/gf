@@ -50,7 +50,7 @@ var _entity_rects: Dictionary = {}
 ## 第一阶段初始化：创建空根节点。
 func init() -> void:
 	_entity_rects.clear()
-	_root = QTNode.new(bounds, 0, max_depth, max_entities_per_node)
+	_rebuild_root()
 
 
 # --- 公共方法 ---
@@ -60,9 +60,9 @@ func init() -> void:
 ## @param depth: 最大递归深度。
 ## @param entities_per_node: 每节点最大实体数。
 func setup(world_bounds: Rect2, depth: int = DEFAULT_MAX_DEPTH, entities_per_node: int = DEFAULT_MAX_ENTITIES) -> void:
-	bounds = world_bounds
-	max_depth = depth
-	max_entities_per_node = entities_per_node
+	bounds = _normalize_rect(world_bounds)
+	max_depth = maxi(depth, 0)
+	max_entities_per_node = maxi(entities_per_node, 1)
 	clear()
 
 
@@ -70,8 +70,10 @@ func setup(world_bounds: Rect2, depth: int = DEFAULT_MAX_DEPTH, entities_per_nod
 ## @param entity_id: 实体唯一标识。
 ## @param rect: 实体的轴对齐包围矩形。
 func insert(entity_id: int, rect: Rect2) -> void:
-	_entity_rects[entity_id] = rect
-	_root.insert(entity_id, rect)
+	_ensure_root()
+	var normalized_rect := _normalize_rect(rect)
+	_entity_rects[entity_id] = normalized_rect
+	_root.insert(entity_id, normalized_rect)
 
 
 ## 从四叉树中移除实体。
@@ -79,6 +81,7 @@ func insert(entity_id: int, rect: Rect2) -> void:
 func remove(entity_id: int) -> void:
 	if not _entity_rects.has(entity_id):
 		return
+	_ensure_root()
 	var rect: Rect2 = _entity_rects[entity_id]
 	_root.remove(entity_id, rect)
 	_entity_rects.erase(entity_id)
@@ -96,8 +99,10 @@ func update(entity_id: int, new_rect: Rect2) -> void:
 ## @param area: 查询矩形。
 ## @return 匹配的实体 ID 数组。
 func query_rect(area: Rect2) -> Array[int]:
+	_ensure_root()
 	var result: Array[int] = []
-	_root.query_rect(area, result)
+	var visited: Dictionary = {}
+	_root.query_rect(_normalize_rect(area), result, visited)
 	return result
 
 
@@ -106,6 +111,9 @@ func query_rect(area: Rect2) -> Array[int]:
 ## @param radius: 查询半径。
 ## @return 匹配的实体 ID 数组。
 func query_radius(center: Vector2, radius: float) -> Array[int]:
+	if radius < 0.0:
+		return []
+
 	var query_bounds := Rect2(center - Vector2(radius, radius), Vector2(radius * 2.0, radius * 2.0))
 	var candidates: Array[int] = query_rect(query_bounds)
 	var result: Array[int] = []
@@ -127,7 +135,7 @@ func query_radius(center: Vector2, radius: float) -> Array[int]:
 ## 清空四叉树中的所有实体并重建根节点。
 func clear() -> void:
 	_entity_rects.clear()
-	_root = QTNode.new(bounds, 0, max_depth, max_entities_per_node)
+	_rebuild_root()
 
 
 ## 获取当前存储的实体总数。
@@ -141,6 +149,32 @@ func get_entity_count() -> int:
 ## @return 是否存在。
 func has_entity(entity_id: int) -> bool:
 	return _entity_rects.has(entity_id)
+
+
+# --- 私有/辅助方法 ---
+
+func _ensure_root() -> void:
+	if _root == null:
+		_rebuild_root()
+
+
+func _rebuild_root() -> void:
+	max_depth = maxi(max_depth, 0)
+	max_entities_per_node = maxi(max_entities_per_node, 1)
+	bounds = _normalize_rect(bounds)
+	_root = QTNode.new(bounds, 0, max_depth, max_entities_per_node)
+
+
+func _normalize_rect(rect: Rect2) -> Rect2:
+	var position := rect.position
+	var size := rect.size
+	if size.x < 0.0:
+		position.x += size.x
+		size.x = -size.x
+	if size.y < 0.0:
+		position.y += size.y
+		size.y = -size.y
+	return Rect2(position, size)
 
 
 # --- 内部类 ---
@@ -208,20 +242,24 @@ class QTNode:
 ## 查询矩形范围内的空间索引记录。
 ## @param query: 查询矩形。
 ## @param result: 用于接收查询结果的数组。
-	func query_rect(query: Rect2, result: Array[int]) -> void:
+## @param visited: 查询过程中的去重索引。
+	func query_rect(query: Rect2, result: Array[int], visited: Dictionary) -> void:
 		if not node_bounds.intersects(query):
 			return
 
 		if is_split:
 			for child: QTNode in children:
-				child.query_rect(query, result)
+				child.query_rect(query, result, visited)
 			return
 
 		for entity_id: int in entities:
-			if entity_rects.has(entity_id):
-				var rect: Rect2 = entity_rects[entity_id]
-				if rect.intersects(query) and not result.has(entity_id):
-					result.append(entity_id)
+			if visited.has(entity_id) or not entity_rects.has(entity_id):
+				continue
+
+			var rect: Rect2 = entity_rects[entity_id]
+			if rect.intersects(query):
+				visited[entity_id] = true
+				result.append(entity_id)
 
 
 	# --- 私有/辅助方法 ---

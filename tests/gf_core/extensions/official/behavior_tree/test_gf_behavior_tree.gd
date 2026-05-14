@@ -349,6 +349,59 @@ func test_probability_cooldown_and_time_limit_decorators() -> void:
 	assert_eq(limited.tick({ "time_msec": 1601 }), GFBehaviorTree.Status.FAILURE)
 
 
+func test_cooldown_survives_parent_runtime_reset() -> void:
+	var action_count := { "value": 0 }
+	var action := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		action_count.value += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var cooldown := GFBehaviorTree.Cooldown.new(action, 1.0)
+	var sequence := GFBehaviorTree.Sequence.new([cooldown] as Array[GFBehaviorTree.BTNode])
+
+	assert_eq(sequence.tick({ "time_msec": 1000 }), GFBehaviorTree.Status.SUCCESS)
+	assert_eq(sequence.tick({ "time_msec": 1200 }), GFBehaviorTree.Status.FAILURE)
+	assert_eq(action_count.value, 1, "父节点完成后的 reset 不应清空 Cooldown。")
+
+	cooldown.clear_cooldown()
+
+	assert_eq(sequence.tick({ "time_msec": 1200 }), GFBehaviorTree.Status.SUCCESS, "显式清空冷却后应允许下一轮执行。")
+
+
+func test_probability_keeps_decision_while_child_is_running() -> void:
+	var action_count := { "value": 0 }
+	var action := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		action_count.value += 1
+		return GFBehaviorTree.Status.RUNNING if action_count.value == 1 else GFBehaviorTree.Status.SUCCESS
+	)
+	var probability := GFBehaviorTree.Probability.new(action, 1.0)
+
+	assert_eq(probability.tick({}), GFBehaviorTree.Status.RUNNING)
+	probability.probability = 0.0
+
+	assert_eq(probability.tick({}), GFBehaviorTree.Status.SUCCESS, "RUNNING 子节点应沿用本轮已命中的概率判定。")
+	assert_eq(probability.tick({}), GFBehaviorTree.Status.FAILURE, "终态后下一轮应重新抽取概率。")
+
+
+func test_debug_snapshot_counts_each_tick_once_and_preserves_terminal_status() -> void:
+	var action := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var runner := GFBehaviorTree.Runner.new(action)
+
+	assert_eq(runner.tick(), GFBehaviorTree.Status.SUCCESS)
+	var snapshot := runner.get_debug_snapshot()
+	var root := snapshot["root"] as Dictionary
+
+	assert_eq(root["tick_count"], 1, "Runner 不应对根节点重复记录 tick。")
+	assert_eq(root["status_text"], &"success", "终态 reset 不应清空最近调试状态。")
+
+	runner.clear_debug_state()
+	root = (runner.get_debug_snapshot()["root"] as Dictionary)
+
+	assert_eq(root["tick_count"], 0, "显式清空调试状态应重置 tick 计数。")
+	assert_eq(root["status_text"], &"fresh", "显式清空调试状态应恢复 FRESH。")
+
+
 func _run_random_sequence_with_seed(seed_value: int) -> Array:
 	var state := { "order": [] }
 	var random_sequence := GFBehaviorTree.RandomSequence.new([

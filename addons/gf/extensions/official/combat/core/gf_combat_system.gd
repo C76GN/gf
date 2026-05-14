@@ -80,7 +80,7 @@ func add_buff(p_entity: Object, p_buff: GFBuff) -> void:
 	# 检查重叠逻辑 (简单的 ID 排斥/刷新)
 	for existing: GFBuff in buffs:
 		if existing.id == p_buff.id:
-			existing.on_refresh(p_buff.duration)
+			existing.refresh_from(p_buff)
 			_send_combat_event(GFCombatPayloads.GFBuffRefreshedPayload.new(p_entity, existing))
 			return
 			
@@ -351,7 +351,7 @@ func _refresh_buff_modifier_attributes(buff: GFBuff) -> bool:
 
 		attr.force_recalculate()
 		refreshed_attribute_ids[modifier.attribute_id] = true
-	refreshed = true
+		refreshed = true
 	return refreshed
 
 

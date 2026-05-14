@@ -216,6 +216,14 @@ func _prune_to_capacity() -> void:
 	if capacity <= 0:
 		return
 
-	while _tick_order.size() > capacity:
-		var oldest_tick := _tick_order.pop_front()
-		_snapshots.erase(oldest_tick)
+	var remove_count := _tick_order.size() - capacity
+	if remove_count <= 0:
+		return
+
+	for index: int in range(remove_count):
+		_snapshots.erase(_tick_order[index])
+
+	var kept_order: Array[int] = []
+	for index: int in range(remove_count, _tick_order.size()):
+		kept_order.append(_tick_order[index])
+	_tick_order = kept_order

@@ -670,6 +670,16 @@ func test_property_bag_capability_stores_typed_values() -> void:
 	assert_false(bag.has_property_value(&"title"), "移除后属性不应继续存在。")
 
 
+func test_property_bag_typed_getters_return_default_on_type_mismatch() -> void:
+	var receiver := RefCounted.new()
+	var bag: Object = _utility.add_capability(receiver, GF_PROPERTY_BAG_CAPABILITY_BASE)
+	bag.set_property_value(&"count", "3")
+	bag.set_property_value(&"enabled", 1)
+
+	assert_eq(bag.get_int(&"count", 7), 7, "int getter 遇到字符串时应返回默认值。")
+	assert_false(bag.get_bool(&"enabled", false), "bool getter 遇到数字时应返回默认值。")
+
+
 func test_inspect_receiver_reports_dependencies_and_groups() -> void:
 	var receiver := RefCounted.new()
 	_utility.add_receiver_to_group(receiver, &"targets")

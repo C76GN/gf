@@ -211,6 +211,36 @@ func test_derived_attribute_rule_can_use_callback() -> void:
 	assert_eq(attributes.get_value(&"score"), 12.0, "自定义回调结果应写入目标属性。")
 
 
+func test_attribute_set_recalculates_derived_rules_when_base_changes_with_synced_current() -> void:
+	var attributes := GFAttributeSet.new()
+	attributes.define_attribute(&"strength", 5.0, 10.0)
+	var rule := GFDerivedAttributeRuleBase.new()
+	rule.attribute_id = &"score"
+	rule.source_attribute_ids = [&"strength"]
+	rule.compute_callback = func(attribute_set: GFAttributeSet, _rule: GFDerivedAttributeRuleBase) -> float:
+		return attribute_set.get_base_value(&"strength")
+	attributes.add_derived_rule(rule)
+
+	attributes.set_base_value(&"strength", 10.0, true)
+
+	assert_eq(attributes.get_value(&"score"), 10.0, "base 改变但 current 未变化时也应重算派生属性。")
+
+
+func test_attribute_set_recalculates_derived_rules_when_limits_clamp_base() -> void:
+	var attributes := GFAttributeSet.new()
+	attributes.define_attribute(&"strength", 20.0, 5.0, 0.0, 30.0)
+	var rule := GFDerivedAttributeRuleBase.new()
+	rule.attribute_id = &"score"
+	rule.source_attribute_ids = [&"strength"]
+	rule.compute_callback = func(attribute_set: GFAttributeSet, _rule: GFDerivedAttributeRuleBase) -> float:
+		return attribute_set.get_base_value(&"strength")
+	attributes.add_derived_rule(rule)
+
+	attributes.set_limits(&"strength", 0.0, 10.0)
+
+	assert_eq(attributes.get_value(&"score"), 10.0, "limits 改变并夹取 base 时应重算派生属性。")
+
+
 # --- 私有/辅助方法 ---
 
 func _has_domain_issue_code(issues: Array, code: String) -> bool:

@@ -32,27 +32,34 @@ func bind_field(key: StringName, control: Control, default_value: Variant = null
 		push_error("[GFFormBinder] bind_field 失败：控件无效。")
 		return
 
+	unbind_field(key)
+	var value_changed_connections := GFControlValueAdapter.connect_value_changed_with_handles(control, func() -> void:
+		_on_field_changed(key)
+	)
+	var tree_exited_callback := func() -> void:
+		unbind_field(key)
+	control.tree_exited.connect(tree_exited_callback, CONNECT_ONE_SHOT)
 	_fields[key] = {
 		"control_ref": weakref(control),
 		"default_value": default_value,
+		"value_changed_connections": value_changed_connections,
+		"tree_exited_callable": tree_exited_callback,
 	}
-	GFControlValueAdapter.connect_value_changed(control, func() -> void:
-		_on_field_changed(key)
-	)
-	control.tree_exited.connect(func() -> void:
-		unbind_field(key)
-	, CONNECT_ONE_SHOT)
 
 
 ## 解绑字段。
 ## @param key: 字段键。
 func unbind_field(key: StringName) -> void:
+	if _fields.has(key):
+		_disconnect_field_info(_get_field_info(key))
 	_fields.erase(key)
 
 
 ## 清空所有字段绑定。
 func clear() -> void:
-	_fields.clear()
+	var keys := _fields.keys()
+	for key_variant: Variant in keys:
+		unbind_field(StringName(key_variant))
 
 
 ## 获取绑定字段列表。
@@ -125,7 +132,7 @@ func _get_control(key: StringName) -> Control:
 	var control_ref := control_ref_variant as WeakRef if control_ref_variant is WeakRef else null
 	var control := control_ref.get_ref() as Control if control_ref != null else null
 	if not is_instance_valid(control):
-		_fields.erase(key)
+		unbind_field(key)
 		return null
 	return control
 
@@ -141,3 +148,23 @@ func _get_field_info(key: StringName) -> Dictionary:
 	if info_variant is Dictionary:
 		return info_variant as Dictionary
 	return {}
+
+
+func _disconnect_field_info(info: Dictionary) -> void:
+	if info.is_empty():
+		return
+
+	var connections := info.get("value_changed_connections", []) as Array
+	if connections != null:
+		GFControlValueAdapter.disconnect_value_changed_handles(connections)
+
+	var control_ref_variant: Variant = info.get("control_ref")
+	var control_ref := control_ref_variant as WeakRef if control_ref_variant is WeakRef else null
+	var control := control_ref.get_ref() as Control if control_ref != null else null
+	var tree_exited_callable := info.get("tree_exited_callable") as Callable
+	if (
+		is_instance_valid(control)
+		and tree_exited_callable.is_valid()
+		and control.tree_exited.is_connected(tree_exited_callable)
+	):
+		control.tree_exited.disconnect(tree_exited_callable)

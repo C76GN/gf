@@ -195,7 +195,7 @@ var restored := GFVariantJsonCodec.json_compatible_to_variant(
 `GFVariantData.duplicate_variant()` 默认只深拷贝 `Dictionary` 和 `Array`，其他值保持原样返回；如果值中包含 `Object` 或 `Resource`，仍是引用语义。需要复制资源值时，可显式传入 `duplicate_variant(value, true, true)`，框架内部的权重表复制会使用这个模式保留资源化候选项的深拷贝语义。JSON codec 遇到不支持的对象默认写成 `null`，需要持久化对象时，应在项目层先转换成资源路径、ID 或纯数据字典。
 
 
-## `GFValidationIssue` / `GFValidationReport` / `GFValidationReportDictionary`
+## `GFSourceSpan` / `GFValidationIssue` / `GFValidationReport` / `GFValidationReportDictionary`
 
 通用校验基础件用于统一表达“某个数据、资源或节点结构有什么问题”。它们不绑定配置表、存档、能力、网络或编辑器工具的具体语义，只提供问题条目、报告聚合、统计、摘要和字典兼容辅助。
 
@@ -214,6 +214,30 @@ print(data["ok"]) # false
 print(data["summary"]) # Item table has 1 error(s) and 1 warning(s).
 ```
 
+需要把问题定位到源码、配置表、导入文本或资源片段时，可以使用 `GFSourceSpan`。行列约定为 1-based，`0` 表示未知；`source` 字典字段会作为 `source_path` 的兼容别名读取，方便旧字典报告逐步迁移：
+
+```gdscript
+var span := GFSourceSpan.make("res://data/items.csv", 8, 4, 3)
+var report := GFValidationReport.new("Item table")
+report.add_source_error(&"invalid_value", "Value is invalid.", span)
+
+var issue_data := report.to_dict()["issues"][0]
+print(issue_data["source_path"]) # res://data/items.csv
+print(issue_data["line"]) # 8
+print(issue_data["source_span"]["column"]) # 4
+```
+
+`GFValidationDiagnosticAdapter` 把 `GFValidationIssue`、`GFValidationReport` 或兼容字典转换为纯诊断字典，不创建 Dock、Inspector 或具体控件。编辑器面板、导入器、CI 输出和项目自定义工具都可以消费同一份数据，再自行决定如何展示：
+
+```gdscript
+var diagnostics := GFValidationDiagnosticAdapter.report_to_diagnostics(report, {
+	"include_positionless": false,
+})
+var line_records := GFValidationDiagnosticAdapter.make_line_records(diagnostics)
+```
+
+诊断记录会包含 `severity`、`kind`、`message`、`source_path`、`line`、`column`、0-based 的 `line_index` / `column_index`、`display_text`、`tooltip` 和 `source_span`。这些字段只表达通用定位信息，不规定点击行为、修复命令、表格 schema 或业务校验规则。
+
 已有模块如果仍返回字典报告，可以先使用 `GFValidationReportDictionary.append_issue()` 和 `GFValidationReportDictionary.finalize_report()` 统一统计字段，而不必立刻迁移成对象式报告：
 
 ```gdscript
@@ -222,9 +246,14 @@ var legacy_report := {
 	"issues": [],
 }
 
-GFValidationReportDictionary.append_issue(legacy_report, "warning", &"missing_optional", "Optional field is missing.", {
-	"row_key": 1,
-})
+GFValidationReportDictionary.append_source_issue(
+	legacy_report,
+	"warning",
+	&"missing_optional",
+	"Optional field is missing.",
+	{ "source": "res://data/items.csv", "line": 10 },
+	{ "row_key": 1 }
+)
 GFValidationReportDictionary.finalize_report(legacy_report, "Config table")
 ```
 

@@ -8,7 +8,7 @@ extends RefCounted
 
 # --- 常量 ---
 
-const _GF_VALIDATION_ISSUE_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
+const _GF_VALIDATION_ISSUE_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
 
 
 # --- 公共变量 ---
@@ -112,6 +112,87 @@ func add_error(
 	issue_metadata: Dictionary = {}
 ) -> RefCounted:
 	return _add_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.ERROR, kind, message, key, path, issue_metadata)
+
+
+## 添加带源码定位的问题。
+## @param severity: 严重级别，可传入 Severity、int 或字符串。
+## @param kind: 问题类别。
+## @param message: 问题说明。
+## @param source_span: GFSourceSpan 或兼容字典。
+## @param key: 可选定位键。
+## @param path: 可选路径。
+## @param issue_metadata: 可选元数据。
+## @return 新问题。
+func add_source_issue(
+	severity: Variant,
+	kind: StringName,
+	message: String,
+	source_span: Variant,
+	key: Variant = null,
+	path: String = "",
+	issue_metadata: Dictionary = {}
+) -> RefCounted:
+	var issue := _add_issue(severity, kind, message, key, path, issue_metadata)
+	if issue != null:
+		issue.call("set_source_span", source_span)
+	return issue
+
+
+## 添加带源码定位的信息问题。
+## @param kind: 问题类别。
+## @param message: 问题说明。
+## @param source_span: GFSourceSpan 或兼容字典。
+## @param key: 可选定位键。
+## @param path: 可选路径。
+## @param issue_metadata: 可选元数据。
+## @return 新问题。
+func add_source_info(
+	kind: StringName,
+	message: String,
+	source_span: Variant,
+	key: Variant = null,
+	path: String = "",
+	issue_metadata: Dictionary = {}
+) -> RefCounted:
+	return add_source_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.INFO, kind, message, source_span, key, path, issue_metadata)
+
+
+## 添加带源码定位的警告问题。
+## @param kind: 问题类别。
+## @param message: 问题说明。
+## @param source_span: GFSourceSpan 或兼容字典。
+## @param key: 可选定位键。
+## @param path: 可选路径。
+## @param issue_metadata: 可选元数据。
+## @return 新问题。
+func add_source_warning(
+	kind: StringName,
+	message: String,
+	source_span: Variant,
+	key: Variant = null,
+	path: String = "",
+	issue_metadata: Dictionary = {}
+) -> RefCounted:
+	return add_source_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.WARNING, kind, message, source_span, key, path, issue_metadata)
+
+
+## 添加带源码定位的错误问题。
+## @param kind: 问题类别。
+## @param message: 问题说明。
+## @param source_span: GFSourceSpan 或兼容字典。
+## @param key: 可选定位键。
+## @param path: 可选路径。
+## @param issue_metadata: 可选元数据。
+## @return 新问题。
+func add_source_error(
+	kind: StringName,
+	message: String,
+	source_span: Variant,
+	key: Variant = null,
+	path: String = "",
+	issue_metadata: Dictionary = {}
+) -> RefCounted:
+	return add_source_issue(_GF_VALIDATION_ISSUE_SCRIPT.Severity.ERROR, kind, message, source_span, key, path, issue_metadata)
 
 
 ## 合并另一个报告或报告字典。
@@ -340,7 +421,7 @@ static func from_dict(data: Dictionary) -> RefCounted:
 # --- 私有/辅助方法 ---
 
 func _add_issue(
-	p_severity: int,
+	p_severity: Variant,
 	p_kind: StringName,
 	p_message: String,
 	p_key: Variant,

@@ -211,8 +211,22 @@ static func _matches_type(node: Node, type_filter: Variant) -> bool:
 	if type_filter == null:
 		return true
 	if typeof(type_filter) == TYPE_STRING or typeof(type_filter) == TYPE_STRING_NAME:
-		return node.is_class(String(type_filter))
+		return _matches_type_name(node, String(type_filter))
 	return is_instance_of(node, type_filter)
+
+
+static func _matches_type_name(node: Node, type_name: String) -> bool:
+	if type_name.is_empty():
+		return true
+	if node.is_class(type_name):
+		return true
+
+	var script := node.get_script() as Script
+	while script != null:
+		if String(script.get_global_name()) == type_name or script.resource_path == type_name:
+			return true
+		script = script.get_base_script()
+	return false
 
 
 static func _resolve_child_owner(parent: Node, explicit_owner: Node) -> Node:

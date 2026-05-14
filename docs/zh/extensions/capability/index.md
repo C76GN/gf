@@ -207,7 +207,7 @@ bag.set_property_value(&"rarity", "elite")
 bag.set_property_value(&"score", 100)
 ```
 
-长期核心状态仍应放在 `GFModel` 或配置资源中，避免把属性包变成隐藏数据模型。
+`get_int()`、`get_float()`、`get_bool()`、`get_string()`、`get_vector2()` 和 `get_color()` 只在值符合对应类型时返回属性值；缺失或类型不匹配会返回调用方传入的默认值。长期核心状态仍应放在 `GFModel` 或配置资源中，避免把属性包变成隐藏数据模型。
 
 
 ## Hook
@@ -265,4 +265,3 @@ var command := GFAccess.create_deal_damage_command(architecture)
 Command / Query 创建时会优先使用当前架构中注册的工厂；如果没有工厂且脚本可实例化，则回退到 `new()` 并注入当前架构。回退路径适合无构造依赖的简单对象；如果某个 Command / Query 必须走项目自定义工厂，应在调用前用 `architecture.has_factory(Type)` 或项目层包装函数显式检查。
 
 能力访问器会生成 `get_*_capability()`、`add_*_capability()`、`has_*_capability()`、`remove_*_capability()` 与 `if_has_*_capability()`，内部依赖已注册的 `GFCapabilityUtility`。
-

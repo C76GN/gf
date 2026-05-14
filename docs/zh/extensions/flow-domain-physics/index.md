@@ -42,9 +42,9 @@ graph.add_connection(&"check_door", &"", &"locked", &"")
 
 `validate_graph()` 还会输出通用拓扑诊断：`warn_unreachable_nodes` 默认提示从 `start_node_id` 无法到达的节点，`warn_cycles` 默认提示循环结构，`warn_terminal_nodes` 可显式开启以提示无后继节点。这些诊断只作为 warning，不假设循环或终端节点一定错误；项目可以在编辑器、导入流程或 CI 中按自己的资源规范决定是否把某类 warning 提升为错误。
 
-节点可以填写 `display_name`、`category`、`editor_position`、`editor_size` 和 `editor_collapsed`，这些字段只服务编辑器、搜索和可视化工具，不影响运行时执行。`get_editor_catalog()` 会按分类输出节点、端口和编辑器元数据，`build_editor_report()` 会组合目录、校验摘要和 `next_action`，适合项目自己的 GraphEdit 面板或导出工具消费。`GFFlowGraphEditorModel` 进一步把节点、端口索引、连接端口索引、分组和校验结果整理成更接近 GraphEdit 的视图模型，并提供 `auto_layout()` 复用 `GFGraphLayoutUtility` 写入初始节点位置。项目工具还可以用 `build_selection_package()`、`paste_selection_package()` 和 `remove_nodes()` 实现复制、粘贴、删除或批量改图，而不要求使用 GF 内置 UI。启用 GF 插件后，选中 `GFFlowGraph` 资源时 Inspector 会提供起始节点选择和校验摘要。
+节点可以填写 `display_name`、`category`、`editor_position`、`editor_size` 和 `editor_collapsed`，这些字段只服务编辑器、搜索和可视化工具，不影响运行时执行。`get_editor_catalog()` 会按分类输出节点、端口和编辑器元数据，`build_editor_report()` 会组合目录、校验摘要和 `next_action`，适合项目自己的 GraphEdit 面板或导出工具消费。`GFFlowGraphEditorModel` 进一步把节点、端口索引、连接端口索引、分组和校验结果整理成更接近 GraphEdit 的视图模型，并提供 `auto_layout()` 复用 `GFGraphLayoutUtility` 写入初始节点位置。项目工具还可以用 `build_selection_package()`、`paste_selection_package()` 和 `remove_nodes()` 实现复制、粘贴、删除或批量改图，而不要求使用 GF 内置 UI。启用 GF 插件后，选中 `GFFlowGraph` 资源时 Inspector 会提供起始节点选择和校验摘要；GF 工作区中的 `GFFlowGraphDock` 可以加载流程图资源、查看节点/连接/问题清单，并显式触发通用自动布局。这个面板只操作通用编辑器元数据，不提供业务节点库，也不替项目决定流程含义。
 
-运行器优先使用节点或上下文提供的后继列表；当节点没有默认后继、上下文也没有显式覆盖时，才会回退到 `connections`。如果节点需要明确停止，可调用 `context.set_next_nodes(PackedStringArray())`。节点 `wait_for_result` 且 `execute()` 返回 Signal 时，`GFFlowRunner` 会安全等待发射源或节点离树，并使用 `with_signal_timeout(seconds, respect_time_scale)` 控制等待上限；默认超时同样跟随 `GFTimeUtility` 的暂停与 `time_scale`。如果自定义节点在 `execute()` 内部自行 await 且永不返回，运行器无法替它取消这段内部逻辑，项目层应把等待对象作为 Signal 返回。
+运行器优先使用节点或上下文提供的后继列表；当节点没有默认后继、上下文也没有显式覆盖时，才会回退到 `connections`。如果节点需要明确停止，可调用 `context.set_next_nodes(PackedStringArray())`。节点 `wait_for_result` 且 `execute()` 返回 Signal 时，`GFFlowRunner` 会安全等待发射源或节点离树，并使用 `with_signal_timeout(seconds, respect_time_scale)` 控制等待上限；默认超时同样跟随 `GFTimeUtility` 的暂停与 `time_scale`。等待期间调用 `cancel()` 后，运行器会停止在当前等待点，不再发送当前节点完成事件或推进后继节点。如果自定义节点在 `execute()` 内部自行 await 且永不返回，运行器无法替它取消这段内部逻辑，项目层应把等待对象作为 Signal 返回。
 
 `GFFlowContext` 可注册条件查询处理器：`register_condition_handler(condition_id, handler)` 接收一个通用 `Callable`，`query_condition()` 会把返回值归一化为 `ok`、`value`、`reason` 和 `metadata`。这适合把“某个条件如何判断”留在项目层，同时让节点、导入器或编辑器工具使用同一套查询结果结构。`GFFlowNode.runtime_state` 提供不导出的节点运行态字典，`GFFlowGraph.serialize_runtime_state()` / `deserialize_runtime_state()` 可保存和恢复图内节点状态；需要从资源创建运行副本时，优先使用 `instantiate_graph()`，默认会清空运行态，避免编辑器资源被运行时临时数据污染。
 
@@ -124,7 +124,7 @@ equipment.set_slot(weapon_slot)
 equipment.equip(&"weapon", &"iron_sword", [&"weapon"])
 ```
 
-`GFDerivedAttributeRule` 默认使用 `source_attribute_ids` 和 `source_weights` 做线性组合，再加上 `flat_bonus` 并按规则上下限钳制；需要更复杂的项目公式时，可以设置 `compute_callback`。`GFAttributeSet` 会在来源属性当前值或基础值变化后重算依赖它的规则，并用循环保护避免派生属性互相递归。规则只描述数值依赖，不规定属性名称含义；存档快照仍只保存属性记录，派生规则应作为配置或资源由项目层加载。
+`GFDerivedAttributeRule` 默认使用 `source_attribute_ids` 和 `source_weights` 做线性组合，再加上 `flat_bonus` 并按规则上下限钳制；需要更复杂的项目公式时，可以设置 `compute_callback`。`GFAttributeSet` 会在来源属性当前值、基础值或上下限变化后重算依赖它的规则，并用循环保护避免派生属性互相递归。规则只描述数值依赖，不规定属性名称含义；存档快照仍只保存属性记录，派生规则应作为配置或资源由项目层加载。
 
 需要背包、格子 UI、带实例数据的物品或部分加入/移除时，不要把复杂度塞进轻量 `GFInventoryModel`，而是新增一个 `GFSlotInventoryModel`：
 

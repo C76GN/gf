@@ -19,6 +19,11 @@ enum Severity {
 }
 
 
+# --- 常量 ---
+
+const _GF_SOURCE_SPAN_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
+
+
 # --- 公共变量 ---
 
 ## 严重级别。
@@ -36,6 +41,27 @@ var key: Variant = null
 ## 可选路径，例如资源路径、节点路径或数据路径。
 var path: String = ""
 
+## 可选源文件或资源路径。`source` 字典字段会作为兼容别名读取。
+var source_path: String = ""
+
+## 可选源码起始行号，1-based；0 表示未知。
+var line: int = 0
+
+## 可选源码起始列号，1-based；0 表示未知。
+var column: int = 0
+
+## 可选源码范围长度；0 表示未知。
+var length: int = 0
+
+## 可选源码结束行号，1-based；0 表示未知。
+var end_line: int = 0
+
+## 可选源码结束列号，1-based；0 表示未知。
+var end_column: int = 0
+
+## 可选源码预览。
+var preview: String = ""
+
 ## 可选主题，用于标记问题所属对象或报告域。
 var subject: String = ""
 
@@ -47,6 +73,11 @@ var metadata: Dictionary = {}
 
 ## 额外上下文字段。用于无损保留已有报告中的自定义字段。
 var extra_fields: Dictionary = {}
+
+
+# --- 私有变量 ---
+
+var _source_span_metadata: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -97,11 +128,14 @@ func configure(
 ## 从字典应用字段。
 ## @param data: 输入字典。
 func apply_dict(data: Dictionary) -> void:
+	if data.get("source_span") is Dictionary:
+		_apply_source_span(data.get("source_span") as Dictionary, true)
 	severity = normalize_severity(data.get("severity", severity))
 	kind = _read_string_name(data, "kind", _read_string_name(data, "code", _read_string_name(data, "type", kind)))
 	code = _read_string_name(data, "code", code)
 	key = GFVariantData.duplicate_variant(data.get("key", key))
 	path = String(data.get("path", path))
+	_apply_source_span(data)
 	subject = String(data.get("subject", subject))
 	message = String(data.get("message", message))
 
@@ -131,6 +165,7 @@ func to_dict(include_empty_fields: bool = false) -> Dictionary:
 		result["key"] = GFVariantData.duplicate_variant(key)
 	if include_empty_fields or not path.is_empty():
 		result["path"] = path
+	_add_source_span_fields(result, include_empty_fields)
 	if include_empty_fields or not subject.is_empty():
 		result["subject"] = subject
 
@@ -150,6 +185,38 @@ func duplicate_issue() -> RefCounted:
 	var issue := get_script().new() as RefCounted
 	issue.call("apply_dict", to_dict(true))
 	return issue
+
+
+## 设置源码定位范围。
+## @param source_span: GFSourceSpan 或兼容字典。
+## @return 当前问题条目。
+func set_source_span(source_span: Variant) -> RefCounted:
+	if source_span is _GF_SOURCE_SPAN_SCRIPT:
+		_apply_source_span((source_span as RefCounted).call("to_dict", true) as Dictionary, true)
+	elif source_span is Dictionary:
+		_apply_source_span(source_span as Dictionary, true)
+	return self
+
+
+## 获取源码定位范围副本。
+## @return GFSourceSpan。
+func get_source_span() -> RefCounted:
+	var span := _GF_SOURCE_SPAN_SCRIPT.new() as RefCounted
+	span.call("configure", source_path, line, column, length, end_line, end_column, preview, _source_span_metadata)
+	return span
+
+
+## 检查问题是否有源码行号。
+## @return 有行号时返回 true。
+func has_source_position() -> bool:
+	return line > 0
+
+
+## 获取人类可读定位文本。
+## @return 例如 `res://table.csv:4:2`。
+func get_location_text() -> String:
+	var span := get_source_span()
+	return String(span.call("get_location_text"))
 
 
 ## 获取统计用问题类别。
@@ -234,6 +301,44 @@ static func _read_string_name(data: Dictionary, field_name: String, default_valu
 	return StringName(String(value))
 
 
+func _apply_source_span(data: Dictionary, include_metadata: bool = false) -> void:
+	source_path = _read_source_path(data, source_path)
+	line = _read_non_negative_int(data, "line", line)
+	column = _read_non_negative_int(data, "column", column)
+	length = _read_non_negative_int(data, "length", length)
+	end_line = _read_non_negative_int(data, "end_line", end_line)
+	end_column = _read_non_negative_int(data, "end_column", end_column)
+	preview = String(data.get("preview", preview))
+	if include_metadata:
+		var metadata_value: Variant = data.get("metadata", {})
+		_source_span_metadata = (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
+
+
+func _add_source_span_fields(result: Dictionary, include_empty_fields: bool) -> void:
+	var span := get_source_span()
+	var span_dict: Dictionary = span.call("to_dict", include_empty_fields, true)
+	for field_key: Variant in span_dict.keys():
+		if field_key == "metadata":
+			continue
+		result[field_key] = GFVariantData.duplicate_variant(span_dict[field_key])
+	if not span_dict.is_empty():
+		result["source_span"] = span.call("to_dict", include_empty_fields, false)
+
+
+static func _read_source_path(data: Dictionary, default_value: String = "") -> String:
+	if data.has("source_path"):
+		return String(data.get("source_path", ""))
+	if data.has("source"):
+		return String(data.get("source", ""))
+	return default_value
+
+
+static func _read_non_negative_int(data: Dictionary, field_name: String, default_value: int) -> int:
+	if not data.has(field_name):
+		return default_value
+	return maxi(int(data.get(field_name, default_value)), 0)
+
+
 static func _is_reserved_field(field_name: String) -> bool:
 	return (
 		field_name == "severity"
@@ -241,6 +346,15 @@ static func _is_reserved_field(field_name: String) -> bool:
 		or field_name == "code"
 		or field_name == "key"
 		or field_name == "path"
+		or field_name == "source"
+		or field_name == "source_path"
+		or field_name == "line"
+		or field_name == "column"
+		or field_name == "length"
+		or field_name == "end_line"
+		or field_name == "end_column"
+		or field_name == "preview"
+		or field_name == "source_span"
 		or field_name == "subject"
 		or field_name == "message"
 		or field_name == "metadata"

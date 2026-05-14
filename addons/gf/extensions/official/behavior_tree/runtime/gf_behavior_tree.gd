@@ -87,9 +87,20 @@ class BTNode extends RefCounted:
 
 	## 重置节点内部运行状态。
 	func reset() -> void:
+		pass
+
+
+	## 清空节点调试状态。
+	## @param recursive: 是否同时清空子节点调试状态。
+	func clear_debug_state(recursive: bool = true) -> void:
 		last_status = Status.FRESH
 		last_reason = &""
+		tick_count = 0
 		last_tick_usec = 0
+		if recursive:
+			for child: BTNode in _get_debug_children():
+				if child != null:
+					child.clear_debug_state(true)
 
 
 	## 记录节点状态。
@@ -200,6 +211,7 @@ class Sequence extends BTNode:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		while _current_child_idx < _children.size():
 			var child := _children[_current_child_idx]
 			if child == null:
@@ -210,11 +222,11 @@ class Sequence extends BTNode:
 			if status != Status.SUCCESS:
 				if status == Status.FAILURE:
 					reset()
-				return status
+				return _record_tick(status, &"", started)
 			_current_child_idx += 1
 
 		reset()
-		return Status.SUCCESS
+		return _record_tick(Status.SUCCESS, &"", started)
 
 
 	## 重置当前子节点索引与所有子节点状态。
@@ -246,6 +258,7 @@ class Selector extends BTNode:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		while _current_child_idx < _children.size():
 			var child := _children[_current_child_idx]
 			if child == null:
@@ -256,11 +269,11 @@ class Selector extends BTNode:
 			if status != Status.FAILURE:
 				if status == Status.SUCCESS:
 					reset()
-				return status
+				return _record_tick(status, &"", started)
 			_current_child_idx += 1
 
 		reset()
-		return Status.FAILURE
+		return _record_tick(Status.FAILURE, &"", started)
 
 
 	## 重置当前子节点索引与所有子节点状态。
@@ -297,8 +310,10 @@ class Parallel extends BTNode:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _children.is_empty():
-			return Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
+			var empty_status := Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
+			return _record_tick(empty_status, &"empty_parallel", started)
 
 		_ensure_child_statuses()
 		var active_count := 0
@@ -323,25 +338,26 @@ class Parallel extends BTNode:
 
 		if active_count <= 0:
 			reset()
-			return Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
+			var inactive_status := Status.SUCCESS if policy == ParallelPolicy.REQUIRE_ALL else Status.FAILURE
+			return _record_tick(inactive_status, &"empty_parallel", started)
 
 		if policy == ParallelPolicy.REQUIRE_ONE:
 			if has_success:
 				reset()
-				return Status.SUCCESS
+				return _record_tick(Status.SUCCESS, &"", started)
 			if has_running:
-				return Status.RUNNING
+				return _record_tick(Status.RUNNING, &"", started)
 			reset()
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"", started)
 
 		if has_failure:
 			reset()
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"", started)
 		if has_running:
-			return Status.RUNNING
+			return _record_tick(Status.RUNNING, &"", started)
 
 		reset()
-		return Status.SUCCESS
+		return _record_tick(Status.SUCCESS, &"", started)
 
 
 	## 重置所有子节点状态。
@@ -386,6 +402,7 @@ class RandomSelector extends BTNode:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _active_order.is_empty():
 			_active_order = _make_random_order(blackboard)
 
@@ -399,11 +416,11 @@ class RandomSelector extends BTNode:
 			if status != Status.FAILURE:
 				if status == Status.SUCCESS:
 					reset()
-				return status
+				return _record_tick(status, &"", started)
 			_current_child_idx += 1
 
 		reset()
-		return Status.FAILURE
+		return _record_tick(Status.FAILURE, &"", started)
 
 
 	## 重置当前随机轮次与子节点状态。
@@ -468,6 +485,7 @@ class RandomSequence extends BTNode:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _active_order.is_empty():
 			_active_order = _make_random_order(blackboard)
 
@@ -481,11 +499,11 @@ class RandomSequence extends BTNode:
 			if status != Status.SUCCESS:
 				if status == Status.FAILURE:
 					reset()
-				return status
+				return _record_tick(status, &"", started)
 			_current_child_idx += 1
 
 		reset()
-		return Status.SUCCESS
+		return _record_tick(Status.SUCCESS, &"", started)
 
 
 	## 重置当前随机轮次与子节点状态。
@@ -614,16 +632,17 @@ class Inverter extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
 		if status == Status.SUCCESS:
 			_child.reset()
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"", started)
 		if status == Status.FAILURE:
 			_child.reset()
-			return Status.SUCCESS
-		return status
+			return _record_tick(Status.SUCCESS, &"", started)
+		return _record_tick(status, &"", started)
 
 
 ## 总是成功装饰节点。
@@ -639,13 +658,14 @@ class AlwaysSucceed extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.SUCCESS
+			return _record_tick(Status.SUCCESS, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
 		if status == Status.RUNNING:
-			return Status.RUNNING
+			return _record_tick(Status.RUNNING, &"", started)
 		_child.reset()
-		return Status.SUCCESS
+		return _record_tick(Status.SUCCESS, &"", started)
 
 
 ## 总是失败装饰节点。
@@ -661,13 +681,14 @@ class AlwaysFail extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
 		if status == Status.RUNNING:
-			return Status.RUNNING
+			return _record_tick(Status.RUNNING, &"", started)
 		_child.reset()
-		return Status.FAILURE
+		return _record_tick(Status.FAILURE, &"", started)
 
 
 ## 概率装饰节点。
@@ -678,6 +699,8 @@ class Probability extends Decorator:
 	var probability: float = 1.0
 	## 可选随机源；为空时优先使用 blackboard["rng"]。
 	var rng: RandomNumberGenerator = null
+	var _decision_made: bool = false
+	var _allowed_this_run: bool = false
 
 	func _init(child_node: BTNode, chance: float = 1.0, random_source: RandomNumberGenerator = null) -> void:
 		super(child_node)
@@ -690,13 +713,29 @@ class Probability extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
-		var active_rng := _resolve_rng(blackboard)
-		var roll := active_rng.randf() if active_rng != null else randf()
-		if roll > probability:
-			return Status.FAILURE
-		return _child.tick(blackboard)
+			return _record_tick(Status.FAILURE, &"missing_child", started)
+		if not _decision_made:
+			var active_rng := _resolve_rng(blackboard)
+			var roll := active_rng.randf() if active_rng != null else randf()
+			_allowed_this_run = roll <= probability
+			_decision_made = true
+		if not _allowed_this_run:
+			reset()
+			return _record_tick(Status.FAILURE, &"probability_miss", started)
+
+		var status := _child.tick(blackboard)
+		if status != Status.RUNNING:
+			reset()
+		return _record_tick(status, &"", started)
+
+
+	## 重置当前概率轮次与子节点状态。
+	func reset() -> void:
+		_decision_made = false
+		_allowed_this_run = false
+		super.reset()
 
 
 	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
@@ -724,21 +763,26 @@ class Cooldown extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var now := _resolve_time_msec(blackboard)
 		if _last_finish_msec >= 0 and now - _last_finish_msec < roundi(cooldown_seconds * 1000.0):
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"cooldown_active", started)
 		var status := _child.tick(blackboard)
 		if status != Status.RUNNING:
 			_last_finish_msec = now
-		return status
+		return _record_tick(status, &"", started)
 
 
-	## 重置冷却状态。
+	## 重置运行状态，保留已经开始的冷却。
 	func reset() -> void:
-		_last_finish_msec = -1
 		super.reset()
+
+
+	## 清空冷却状态。
+	func clear_cooldown() -> void:
+		_last_finish_msec = -1
 
 
 	func _resolve_time_msec(blackboard: Dictionary) -> int:
@@ -763,18 +807,19 @@ class TimeLimit extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var now := int(blackboard.get("time_msec", Time.get_ticks_msec()))
 		if _started_msec < 0:
 			_started_msec = now
 		if now - _started_msec > roundi(limit_seconds * 1000.0):
 			reset()
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"time_limit_exceeded", started)
 		var status := _child.tick(blackboard)
 		if status != Status.RUNNING:
 			reset()
-		return status
+		return _record_tick(status, &"", started)
 
 
 	## 重置计时状态。
@@ -800,13 +845,14 @@ class Limit extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null or max_ticks <= 0:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"limit_blocked", started)
 		if _tick_count >= max_ticks:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"limit_exceeded", started)
 
 		_tick_count += 1
-		return _child.tick(blackboard)
+		return _record_tick(_child.tick(blackboard), &"", started)
 
 
 	## 重置调用计数与子节点状态。
@@ -832,22 +878,23 @@ class Repeat extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"missing_child", started)
 
 		var status: int = _child.tick(blackboard)
 		if status == Status.RUNNING:
-			return Status.RUNNING
+			return _record_tick(Status.RUNNING, &"", started)
 		if status == Status.FAILURE:
 			reset()
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"", started)
 
 		_success_count += 1
 		_child.reset()
 		if repeat_count > 0 and _success_count >= repeat_count:
 			reset()
-			return Status.SUCCESS
-		return Status.RUNNING
+			return _record_tick(Status.SUCCESS, &"", started)
+		return _record_tick(Status.RUNNING, &"", started)
 
 
 	## 重置重复计数与子节点状态。
@@ -869,13 +916,14 @@ class UntilSuccess extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
 		if status == Status.SUCCESS:
 			reset()
-			return Status.SUCCESS
-		return Status.RUNNING
+			return _record_tick(Status.SUCCESS, &"", started)
+		return _record_tick(Status.RUNNING, &"", started)
 
 
 ## 直到失败装饰节点。
@@ -891,13 +939,14 @@ class UntilFail extends Decorator:
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
 	## @return 返回 Status 枚举。
 	func tick(blackboard: Dictionary) -> int:
+		var started := Time.get_ticks_usec()
 		if _child == null:
-			return Status.FAILURE
+			return _record_tick(Status.FAILURE, &"missing_child", started)
 		var status: int = _child.tick(blackboard)
 		if status == Status.FAILURE:
 			reset()
-			return Status.SUCCESS
-		return Status.RUNNING
+			return _record_tick(Status.SUCCESS, &"", started)
+		return _record_tick(Status.RUNNING, &"", started)
 
 
 ## 行为树的执行入口容器。
@@ -917,16 +966,19 @@ class Runner extends RefCounted:
 	func tick() -> int:
 		if _root_node == null:
 			return Status.FAILURE
-		var started := Time.get_ticks_usec()
-		var status := _root_node.tick(blackboard)
-		_root_node.record_status(status, &"", Time.get_ticks_usec() - started)
-		return status
+		return _root_node.tick(blackboard)
 
 
 	## 重置整棵行为树的运行状态。
 	func reset() -> void:
 		if _root_node != null:
 			_root_node.reset()
+
+
+	## 清空整棵行为树的调试状态。
+	func clear_debug_state() -> void:
+		if _root_node != null:
+			_root_node.clear_debug_state(true)
 
 
 	## 获取运行器调试快照。

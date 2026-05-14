@@ -35,6 +35,10 @@ static func get_export_plugin_records() -> Array[Dictionary]:
 static func get_dock_records() -> Array[Dictionary]:
 	return [
 		{
+			"path": "res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd",
+			"label": "GF State Tools",
+		},
+		{
 			"path": "res://addons/gf/standard/utilities/storage/editor/gf_storage_viewer_dock.gd",
 			"label": "GF Save Viewer",
 		},

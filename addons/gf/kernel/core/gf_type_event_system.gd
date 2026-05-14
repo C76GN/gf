@@ -428,7 +428,7 @@ func _add_simple_listener_entry(
 
 func _get_type_dispatch_entries(event_type: Script) -> Array[Dictionary]:
 	if _type_dispatch_cache.has(event_type):
-		return _duplicate_dispatch_entries(_type_dispatch_cache[event_type] as Array)
+		return _type_dispatch_cache[event_type] as Array
 
 	var result: Array[Dictionary] = []
 	if _event_listeners.has(event_type):
@@ -457,7 +457,7 @@ func _get_type_dispatch_entries(event_type: Script) -> Array[Dictionary]:
 		return int(left.get("order", 0)) < int(right.get("order", 0))
 	)
 	_type_dispatch_cache[event_type] = result
-	return _duplicate_dispatch_entries(result)
+	return result
 
 
 func _dispatch_type_listener_entries(event_instance: Object, listeners: Array[Dictionary]) -> void:
@@ -519,8 +519,14 @@ func _trim_dispatch_trace() -> void:
 		_dispatch_trace.clear()
 		return
 
-	while _dispatch_trace.size() > max_trace_entries:
-		_dispatch_trace.pop_front()
+	var remove_count := _dispatch_trace.size() - max_trace_entries
+	if remove_count <= 0:
+		return
+
+	var kept_trace: Array[Dictionary] = []
+	for index: int in range(remove_count, _dispatch_trace.size()):
+		kept_trace.append(_dispatch_trace[index])
+	_dispatch_trace = kept_trace
 
 
 func _script_extends_or_equals(script_cls: Script, base_script: Script) -> bool:
@@ -781,13 +787,6 @@ func _validate_callable_min_args(on_event: Callable, min_args: int, callback_lab
 				return false
 			break
 	return true
-
-
-func _duplicate_dispatch_entries(entries: Array) -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	for entry: Dictionary in entries:
-		result.append(entry.duplicate())
-	return result
 
 
 func _invalidate_type_dispatch_cache_for_event(event_type: Script, assignable: bool) -> void:

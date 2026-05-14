@@ -2,6 +2,15 @@
 extends GutTest
 
 
+func test_node_serializer_supports_gdscript_class_name_string() -> void:
+	var serializer := GFNodeSerializer.new()
+	serializer.supported_class_name = "GFNodeStateMachine"
+	var node := GFNodeStateMachine.new()
+	add_child_autofree(node)
+
+	assert_true(serializer.supports_node(node), "supported_class_name 应支持 GDScript class_name。")
+
+
 func test_range_serializer_supports_and_gather_apply() -> void:
 	var ser := GFNodeRangeSerializer.new()
 	var slider := HSlider.new()

@@ -61,6 +61,34 @@ func test_form_binder_emits_field_changed_from_control_signal() -> void:
 	assert_signal_emitted_with_parameters(binder, "field_changed", [&"name", "Changed"])
 
 
+func test_form_binder_rebind_disconnects_previous_signal_handlers() -> void:
+	var binder := GFFormBinder.new()
+	var name_edit := LineEdit.new()
+	_track_control(name_edit)
+	binder.bind_field(&"name", name_edit)
+	binder.bind_field(&"name", name_edit)
+	watch_signals(binder)
+
+	name_edit.text = "Changed"
+	name_edit.text_changed.emit("Changed")
+
+	assert_signal_emit_count(binder, "field_changed", 1)
+
+
+func test_form_binder_unbind_disconnects_signal_handlers() -> void:
+	var binder := GFFormBinder.new()
+	var name_edit := LineEdit.new()
+	_track_control(name_edit)
+	binder.bind_field(&"name", name_edit)
+	binder.unbind_field(&"name")
+	watch_signals(binder)
+
+	name_edit.text = "Changed"
+	name_edit.text_changed.emit("Changed")
+
+	assert_signal_emit_count(binder, "field_changed", 0)
+
+
 # --- 私有/辅助方法 ---
 
 func _track_control(control: Control) -> void:

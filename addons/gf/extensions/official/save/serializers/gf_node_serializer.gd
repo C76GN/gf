@@ -38,7 +38,7 @@ func supports_node(node: Node) -> bool:
 		return false
 	if supported_class_name.is_empty():
 		return true
-	return node.is_class(supported_class_name)
+	return _matches_supported_class_name(node, supported_class_name)
 
 
 ## 采集节点数据。
@@ -121,6 +121,20 @@ func _has_property(object: Object, property_name: String) -> bool:
 	for property: Dictionary in object.get_property_list():
 		if String(property.get("name", "")) == property_name:
 			return true
+	return false
+
+
+func _matches_supported_class_name(node: Node, type_name: String) -> bool:
+	if type_name.is_empty():
+		return true
+	if node.is_class(type_name):
+		return true
+
+	var script := node.get_script() as Script
+	while script != null:
+		if String(script.get_global_name()) == type_name or script.resource_path == type_name:
+			return true
+		script = script.get_base_script()
 	return false
 
 

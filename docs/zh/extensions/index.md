@@ -88,6 +88,8 @@ addons/gf/extensions/official/example/
 
 `access_generator_extension_paths` 会被 `GFAccessGenerator` 消费。扩展脚本建议继承 `RefCounted`，并实现 `append_access_source(builder, records)` 直接使用 `GFSourceBuilder` 追加源码；如果只需要返回静态片段，也可以实现 `get_access_source_sections(records)` 并返回字符串数组。扩展只会从当前启用扩展中读取，因此禁用扩展不会继续影响新生成的访问器。
 
+`export_plugin_paths` 只用于声明 Godot 导出阶段需要参与的通用处理入口，例如按启用状态排除扩展目录、补充导出前审计或写入平台无关的导出提示。涉及平台 SDK、第三方服务或项目私有后端时，不应把真实业务流程写进官方扩展；更合适的方式是在扩展内提供抽象 facade、可替换 backend 或空实现 fallback，由项目 Installer 或社区扩展装配具体实现。这样导出插件可以保证缺失后端时行为可预测，`kernel` 与 `standard` 也无需认识任何可选平台能力。
+
 `GFExtensionManifest` 负责读取和校验 manifest，`GFExtensionCatalog` 负责扫描 `extensions/official` 与 `extensions/community` 下的一层扩展目录，`GFExtensionSettings` 负责读取项目启用状态、查询扩展是否存在或启用、补齐依赖闭包、收集启用扩展的 Installer 路径和编辑器扩展路径，并提供按扩展 ID 解析扩展内资源或加载启用扩展脚本的统一入口。这个设计在 Godot 中保持为轻量文件约定，不引入依赖安装器。
 
 `GFExtensionSettings` 会缓存一次 manifest 扫描结果，避免编辑器 Inspector、扩展面板和扩展查询在同一会话里反复读盘；扩展目录发生变化时可调用 `clear_manifest_cache()` 刷新。依赖补齐会检测循环依赖并停止递归，`get_manifest_graph_report()` 可一次性报告重复扩展 ID、缺失硬依赖、社区/项目扩展缺失可选依赖提示、无效 manifest 与依赖环。`gf.kernel` 和 `gf.standard` 是允许声明的内置依赖 ID，它们不是可启停扩展目录。

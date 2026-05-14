@@ -5,6 +5,34 @@ class_name GFInputRemapConfig
 extends Resource
 
 
+# --- 常量 ---
+
+const _EVENT_CLASS_FIELD: String = "event_class"
+const _EVENT_PROPERTIES_FIELD: String = "properties"
+const _LEGACY_EVENT_FIELD: String = "event"
+
+const _ALLOWED_INPUT_EVENT_CLASSES: Dictionary = {
+	"InputEventAction": true,
+	"InputEventJoypadButton": true,
+	"InputEventJoypadMotion": true,
+	"InputEventKey": true,
+	"InputEventMIDI": true,
+	"InputEventMagnifyGesture": true,
+	"InputEventMouseButton": true,
+	"InputEventMouseMotion": true,
+	"InputEventPanGesture": true,
+	"InputEventScreenDrag": true,
+	"InputEventScreenTouch": true,
+}
+
+const _SKIPPED_EVENT_PROPERTIES: Dictionary = {
+	"resource_local_to_scene": true,
+	"resource_name": true,
+	"resource_path": true,
+	"script": true,
+}
+
+
 # --- 导出变量 ---
 
 ## 重绑定输入。结构为 context_id -> action_id -> binding_index -> InputEvent 或 null。
@@ -197,15 +225,94 @@ func _ensure_action_map(context_id: StringName, action_id: StringName) -> Dictio
 func _event_to_record(input_event: InputEvent) -> Dictionary:
 	if input_event == null:
 		return {"unbound": true}
+
+	var event_class := input_event.get_class()
+	if not _ALLOWED_INPUT_EVENT_CLASSES.has(event_class):
+		return {"unbound": true}
+
 	return {
 		"unbound": false,
-		"event": var_to_str(input_event),
+		_EVENT_CLASS_FIELD: event_class,
+		_EVENT_PROPERTIES_FIELD: _event_properties_to_record(input_event),
 	}
 
 
 func _event_from_record(record: Dictionary) -> InputEvent:
-	var event_text := String(record.get("event", ""))
+	var event_class := String(record.get(_EVENT_CLASS_FIELD, ""))
+	if not event_class.is_empty():
+		return _event_from_structured_record(event_class, record)
+
+	var event_text := String(record.get(_LEGACY_EVENT_FIELD, ""))
 	if event_text.is_empty():
 		return null
 	var value: Variant = str_to_var(event_text)
 	return value as InputEvent
+
+
+func _event_from_structured_record(event_class: String, record: Dictionary) -> InputEvent:
+	if not _ALLOWED_INPUT_EVENT_CLASSES.has(event_class):
+		return null
+	if not ClassDB.can_instantiate(event_class):
+		return null
+
+	var input_event := ClassDB.instantiate(event_class) as InputEvent
+	if input_event == null:
+		return null
+
+	var writable_properties := _get_event_writable_properties(input_event)
+	var properties := record.get(_EVENT_PROPERTIES_FIELD, {}) as Dictionary
+	if properties == null:
+		return input_event
+
+	for property_key: Variant in properties.keys():
+		var property_name := String(property_key)
+		if not writable_properties.has(property_name):
+			continue
+		input_event.set(property_name, GFVariantJsonCodec.json_compatible_to_variant(properties[property_key]))
+	return input_event
+
+
+func _event_properties_to_record(input_event: InputEvent) -> Dictionary:
+	var result: Dictionary = {}
+	for property: Dictionary in input_event.get_property_list():
+		var property_name := String(property.get("name", ""))
+		if property_name.is_empty() or _SKIPPED_EVENT_PROPERTIES.has(property_name):
+			continue
+		if not _is_stored_event_property(property):
+			continue
+
+		var value: Variant = input_event.get(property_name)
+		if _can_store_event_property(value):
+			result[property_name] = GFVariantJsonCodec.variant_to_json_compatible(value)
+	return result
+
+
+func _get_event_writable_properties(input_event: InputEvent) -> Dictionary:
+	var result: Dictionary = {}
+	for property: Dictionary in input_event.get_property_list():
+		var property_name := String(property.get("name", ""))
+		if property_name.is_empty() or _SKIPPED_EVENT_PROPERTIES.has(property_name):
+			continue
+		if _is_stored_event_property(property):
+			result[property_name] = true
+	return result
+
+
+func _is_stored_event_property(property: Dictionary) -> bool:
+	var usage := int(property.get("usage", 0))
+	return (usage & PROPERTY_USAGE_STORAGE) != 0
+
+
+func _can_store_event_property(value: Variant) -> bool:
+	var value_type := typeof(value)
+	return (
+		value_type == TYPE_NIL
+		or value_type == TYPE_BOOL
+		or value_type == TYPE_INT
+		or value_type == TYPE_FLOAT
+		or value_type == TYPE_STRING
+		or value_type == TYPE_STRING_NAME
+		or value_type == TYPE_NODE_PATH
+		or value_type == TYPE_VECTOR2
+		or value_type == TYPE_VECTOR2I
+	)

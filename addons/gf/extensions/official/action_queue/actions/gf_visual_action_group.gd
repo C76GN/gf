@@ -95,8 +95,10 @@ func finish() -> void:
 	for action: Object in actions:
 		if is_instance_valid(action):
 			_ACTION_PROTOCOL.finish(action)
-	_parallel_completed.emit()
-	_sequence_completed.emit()
+	if is_parallel:
+		_parallel_completed.emit()
+	else:
+		_sequence_completed.emit()
 
 
 # --- 私有方法 ---
@@ -115,7 +117,11 @@ func _do_parallel_async(current_serial: int) -> void:
 	if current_serial != _execution_serial:
 		return
 
-	var pending_state := { "count": 0 }
+	var pending_state := {
+		"count": 0,
+		"launching": true,
+		"emitted": false,
+	}
 	for action: Object in actions:
 		if not _ACTION_PROTOCOL.is_action_valid(action):
 			continue
@@ -129,8 +135,8 @@ func _do_parallel_async(current_serial: int) -> void:
 			pending_state["count"] = int(pending_state["count"]) + 1
 			_wait_parallel_action(action, result, pending_state, current_serial)
 
-	if int(pending_state["count"]) <= 0 and current_serial == _execution_serial:
-		_parallel_completed.emit()
+	pending_state["launching"] = false
+	_try_emit_parallel_completed(pending_state, current_serial)
 
 
 func _do_sequence_async(current_serial: int) -> void:
@@ -180,12 +186,25 @@ func _wait_parallel_action(
 		return
 
 	pending_state["count"] = int(pending_state["count"]) - 1
-	if int(pending_state["count"]) <= 0:
-		_parallel_completed.emit()
+	_try_emit_parallel_completed(pending_state, current_serial)
 
 
 func _inject_action_dependencies(action: Object) -> void:
 	_ACTION_PROTOCOL.inject_dependencies(action, _get_architecture_or_null())
+
+
+func _try_emit_parallel_completed(pending_state: Dictionary, current_serial: int) -> void:
+	if current_serial != _execution_serial:
+		return
+	if bool(pending_state.get("launching", false)):
+		return
+	if bool(pending_state.get("emitted", false)):
+		return
+	if int(pending_state.get("count", 0)) > 0:
+		return
+
+	pending_state["emitted"] = true
+	_parallel_completed.emit()
 
 
 func _is_execution_serial_current(serial: int) -> bool:

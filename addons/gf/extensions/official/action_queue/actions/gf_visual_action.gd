@@ -139,72 +139,18 @@ func await_result_safely(result: Variant, should_continue: Callable = Callable()
 	if not should_wait_for_result(result):
 		return
 
-	await _await_signal_safely(result as Signal, should_continue)
+	await _GF_ASYNC_WAIT_SUPPORT.await_signal_safely(
+		result as Signal,
+		should_continue,
+		_get_time_utility(),
+		signal_timeout_seconds,
+		signal_timeout_respects_time_scale,
+		"[GFVisualAction] 等待 Signal 超时，队列将继续执行后续动作。",
+		get_wait_guard_node()
+	)
 
 
 # --- 私有/辅助方法 ---
-
-func _await_signal_safely(result_signal: Signal, should_continue: Callable = Callable()) -> void:
-	if result_signal.is_null():
-		return
-
-	var target_obj: Object = result_signal.get_object()
-	if not is_instance_valid(target_obj):
-		return
-
-	var completed := [false]
-	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
-		completed[0] = true
-
-	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
-
-	var tree_exit_signal := Signal()
-	var guard_exit_signal := Signal()
-	if target_obj is Node:
-		var node := target_obj as Node
-		if not node.is_inside_tree() and result_signal != node.tree_exited:
-			_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
-			return
-		if result_signal != node.tree_exited:
-			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
-			tree_exit_signal = node.tree_exited
-
-	var guard_node := get_wait_guard_node()
-	if is_instance_valid(guard_node) and result_signal != guard_node.tree_exited and tree_exit_signal != guard_node.tree_exited:
-		if not guard_node.is_inside_tree():
-			_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
-			_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(tree_exit_signal, on_resume)
-			return
-		guard_node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
-		guard_exit_signal = guard_node.tree_exited
-
-	var timeout_msec := signal_timeout_seconds * 1000.0
-	var elapsed_timeout_msec := 0.0
-	var last_timeout_msec := Time.get_ticks_msec()
-
-	while not completed[0]:
-		var current_timeout_msec := Time.get_ticks_msec()
-		if timeout_msec > 0.0:
-			elapsed_timeout_msec += _get_timeout_elapsed_msec(last_timeout_msec, current_timeout_msec)
-			if elapsed_timeout_msec >= timeout_msec:
-				push_warning("[GFVisualAction] 等待 Signal 超时，队列将继续执行后续动作。")
-				break
-		last_timeout_msec = current_timeout_msec
-
-		if should_continue.is_valid() and not bool(should_continue.call()):
-			break
-		if not is_instance_valid(target_obj):
-			break
-		if target_obj is Node and not (target_obj as Node).is_inside_tree():
-			break
-		if guard_node != null and (not is_instance_valid(guard_node) or not guard_node.is_inside_tree()):
-			break
-		await Engine.get_main_loop().process_frame
-
-	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(result_signal, on_resume)
-	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(tree_exit_signal, on_resume)
-	_GF_ASYNC_WAIT_SUPPORT.disconnect_signal_if_connected(guard_exit_signal, on_resume)
-
 
 func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
 	return _GF_ASYNC_WAIT_SUPPORT.get_timeout_elapsed_msec(

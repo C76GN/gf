@@ -89,7 +89,7 @@ func test_plugin_inspector_tools_discovers_enabled_extension_inspectors() -> voi
 
 
 func test_plugin_actions_discovers_enabled_extension_menu_entries() -> void:
-	var restore := _set_enabled_extensions(["gf.official.save"])
+	var restore := _set_enabled_extensions(["gf.official.save", "gf.official.network"])
 	var actions: Variant = GF_PLUGIN_ACTIONS.new()
 	actions._setup_menu_actions([])
 	var entries: Array = actions.get_menu_entries()
@@ -101,6 +101,7 @@ func test_plugin_actions_discovers_enabled_extension_menu_entries() -> void:
 		labels.append(String(entry.get("label", "")))
 
 	assert_true(labels.has("校验当前场景 SaveGraph"), "SaveGraph 诊断应由 Save 扩展 manifest 注册。")
+	assert_true(labels.has("生成 Network Contract 访问器"), "Network Contract 生成器应由 Network 扩展 manifest 注册。")
 
 
 func test_plugin_actions_discovers_enabled_extension_templates() -> void:
@@ -137,10 +138,30 @@ func test_plugin_dock_tools_keeps_core_docks_available_without_extensions() -> v
 		"Save Viewer 应作为 standard Dock 保持可用。"
 	)
 	assert_true(
+		core_paths.has("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd"),
+		"节点状态机工具应作为 standard Dock 保持可用。"
+	)
+	assert_true(
 		core_paths.has("res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd"),
 		"扩展管理器应作为 kernel Dock 保持可用。"
 	)
 	assert_true(extension_records.is_empty(), "全禁用时不应注册任何扩展级 Dock。")
+
+
+func test_plugin_dock_tools_discovers_enabled_extension_docks() -> void:
+	var restore := _set_enabled_extensions(["gf.official.flow"])
+	var tools: Variant = GF_PLUGIN_DOCK_TOOLS.new()
+	var extension_records: Array = tools._collect_enabled_extension_dock_records()
+	_restore_enabled_extensions(restore)
+
+	var paths: Array[String] = []
+	for record: Dictionary in extension_records:
+		paths.append(String(record.get("path", "")))
+
+	assert_true(
+		paths.has("res://addons/gf/extensions/official/flow/editor/gf_flow_graph_dock.gd"),
+		"Flow 工具面板应由 Flow 扩展 manifest 注册。"
+	)
 
 
 func test_editor_workspace_dock_groups_gf_panels() -> void:

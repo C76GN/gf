@@ -8,8 +8,9 @@ extends RefCounted
 
 # --- 常量 ---
 
-const _GF_VALIDATION_ISSUE_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
-const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+const _GF_VALIDATION_ISSUE_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
+const _GF_VALIDATION_REPORT_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+const _GF_SOURCE_SPAN_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
 
 
 # --- 公共方法 ---
@@ -63,6 +64,31 @@ static func append_issue(
 
 	_get_issue_array(report).append(issue)
 	return issue
+
+
+## 向字典报告追加带源码定位的问题。
+## @param report: 目标报告字典。
+## @param severity: 严重级别，可传入 Severity、int 或字符串。
+## @param kind: 问题类别。
+## @param message: 问题说明。
+## @param source_span: GFSourceSpan 或兼容字典。
+## @param fields: 附加字段，例如 key、path、row_key、metadata。
+## @return 追加的问题字典。
+static func append_source_issue(
+	report: Dictionary,
+	severity: Variant,
+	kind: StringName,
+	message: String,
+	source_span: Variant,
+	fields: Dictionary = {}
+) -> Dictionary:
+	var merged_fields := fields.duplicate(true)
+	var span_dict := _source_span_to_dict(source_span)
+	for field_key: Variant in span_dict.keys():
+		merged_fields[field_key] = GFVariantData.duplicate_variant(span_dict[field_key])
+	if not span_dict.is_empty():
+		merged_fields["source_span"] = span_dict.duplicate(true)
+	return append_issue(report, severity, kind, message, merged_fields)
 
 
 ## 重新计算字典报告的统计字段。
@@ -204,8 +230,20 @@ static func _get_issue_array(report: Dictionary) -> Array:
 	return report["issues"] as Array
 
 
+static func _source_span_to_dict(source_span: Variant) -> Dictionary:
+	if source_span is _GF_SOURCE_SPAN_SCRIPT:
+		var span_dict: Variant = (source_span as RefCounted).call("to_dict", false, true)
+		return span_dict as Dictionary if span_dict is Dictionary else {}
+	if source_span is Dictionary:
+		var span := _GF_SOURCE_SPAN_SCRIPT.new() as RefCounted
+		span.call("apply_dict", source_span as Dictionary)
+		var span_dict: Variant = span.call("to_dict", false, true)
+		return span_dict as Dictionary if span_dict is Dictionary else {}
+	return {}
+
+
 static func _get_effective_severity(issue: Dictionary, options: Dictionary) -> String:
-	var severity_name := _GF_VALIDATION_ISSUE_SCRIPT.severity_to_string(issue.get("severity", "error"))
+	var severity_name: String = _GF_VALIDATION_ISSUE_SCRIPT.severity_to_string(issue.get("severity", "error"))
 	if severity_name == "warning":
 		if _get_option_bool(options, "warnings_as_errors", false):
 			return "error"

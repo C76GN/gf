@@ -57,6 +57,9 @@ var duration_refresh_policy: DurationRefreshPolicy = DurationRefreshPolicy.RESET
 ## 周期 Tick 间隔。小于等于 0 时保持每帧调用 on_tick() 的旧行为。
 var tick_interval_seconds: float = 0.0
 
+## 单次 update 允许补偿触发的最大周期 Tick 次数。小于等于 0 时不限制。
+var max_periodic_ticks_per_update: int = 8
+
 ## 持续时间耗尽时是否由 CombatSystem 移除。
 var remove_on_expire: bool = true
 
@@ -108,6 +111,14 @@ func on_refresh(p_new_duration: float) -> void:
 	_apply_refresh_duration(p_new_duration)
 	if stack_mode == StackMode.ADD_STACK and max_stacks > 1:
 		stacks = mini(stacks + 1, max_stacks)
+
+
+## 使用同 ID 的新 Buff 刷新当前运行中实例。
+## @param source_buff: 本次尝试添加的新 Buff。
+func refresh_from(source_buff: GFBuff) -> void:
+	if source_buff == null:
+		return
+	on_refresh(source_buff.duration)
 
 
 ## 周期性触发逻辑。
@@ -173,9 +184,14 @@ func _update_periodic_tick(p_delta: float) -> void:
 		return
 
 	_tick_accumulator += p_delta
-	while _tick_accumulator >= tick_interval_seconds:
+	var tick_budget := max_periodic_ticks_per_update
+	var tick_count := 0
+	while _tick_accumulator >= tick_interval_seconds and (tick_budget <= 0 or tick_count < tick_budget):
 		_tick_accumulator -= tick_interval_seconds
 		on_tick(tick_interval_seconds)
+		tick_count += 1
+	if tick_budget > 0 and tick_count >= tick_budget and _tick_accumulator >= tick_interval_seconds:
+		_tick_accumulator = minf(_tick_accumulator, tick_interval_seconds)
 
 
 ## 应用 Buff 携带的所有效果。

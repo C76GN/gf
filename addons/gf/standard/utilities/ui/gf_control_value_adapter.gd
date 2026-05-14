@@ -83,57 +83,102 @@ static func set_value(control: Control, value: Variant) -> bool:
 ## @param callback: 值变化后调用的回调，不接收参数。
 ## @return 成功连接时返回 true。
 static func connect_value_changed(control: Control, callback: Callable) -> bool:
+	return not connect_value_changed_with_handles(control, callback).is_empty()
+
+
+## 连接控件值变化信号并返回可断开的连接句柄。
+## @param control: 控件节点。
+## @param callback: 值变化后调用的回调，不接收参数。
+## @return 连接句柄数组，可传给 disconnect_value_changed_handles()。
+static func connect_value_changed_with_handles(control: Control, callback: Callable) -> Array[Dictionary]:
+	var connections: Array[Dictionary] = []
 	if control == null or not callback.is_valid():
-		return false
+		return connections
 
 	if control is LineEdit:
-		(control as LineEdit).text_changed.connect(func(_text: String) -> void:
+		var line_edit_callback := func(_text: String) -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"text_changed", line_edit_callback, connections)
+		return connections
 	if control is TextEdit:
-		(control as TextEdit).text_changed.connect(func() -> void:
+		var text_edit_callback := func() -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"text_changed", text_edit_callback, connections)
+		return connections
 	if control is OptionButton:
-		(control as OptionButton).item_selected.connect(func(_index: int) -> void:
+		var option_callback := func(_index: int) -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"item_selected", option_callback, connections)
+		return connections
 	if control is ColorPickerButton:
-		(control as ColorPickerButton).color_changed.connect(func(_color: Color) -> void:
+		var color_callback := func(_color: Color) -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"color_changed", color_callback, connections)
+		return connections
 	if control is BaseButton:
-		(control as BaseButton).toggled.connect(func(_pressed: bool) -> void:
+		var button_callback := func(_pressed: bool) -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"toggled", button_callback, connections)
+		return connections
 	if control is Range:
-		(control as Range).value_changed.connect(func(_value: float) -> void:
+		var range_callback := func(_value: float) -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"value_changed", range_callback, connections)
+		return connections
 	if control is ItemList:
-		(control as ItemList).item_selected.connect(func(_index: int) -> void:
+		var item_selected_callback := func(_index: int) -> void:
 			callback.call()
-		)
-		(control as ItemList).multi_selected.connect(func(_index: int, _selected: bool) -> void:
+		_connect_control_signal(control, &"item_selected", item_selected_callback, connections)
+		var multi_selected_callback := func(_index: int, _selected: bool) -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"multi_selected", multi_selected_callback, connections)
+		return connections
 	if control.has_signal("value_changed"):
-		control.connect("value_changed", func(_value: Variant = null) -> void:
+		var value_callback := func(_value: Variant = null) -> void:
 			callback.call()
-		)
-		return true
+		_connect_control_signal(control, &"value_changed", value_callback, connections)
+		return connections
 
-	return false
+	return connections
+
+
+## 断开 connect_value_changed_with_handles() 返回的连接句柄。
+## @param connections: 连接句柄数组。
+static func disconnect_value_changed_handles(connections: Array) -> void:
+	for connection_variant: Variant in connections:
+		var connection := connection_variant as Dictionary
+		if connection == null:
+			continue
+		var control_ref_variant: Variant = connection.get("control_ref")
+		var control_ref := control_ref_variant as WeakRef if control_ref_variant is WeakRef else null
+		var control := control_ref.get_ref() as Control if control_ref != null else null
+		if not is_instance_valid(control):
+			continue
+		var signal_name := StringName(connection.get("signal_name", &""))
+		var callable := connection.get("callable") as Callable
+		if signal_name != &"" and callable.is_valid() and control.is_connected(signal_name, callable):
+			control.disconnect(signal_name, callable)
 
 
 # --- 私有/辅助方法 ---
+
+static func _connect_control_signal(
+	control: Control,
+	signal_name: StringName,
+	callable: Callable,
+	connections: Array[Dictionary]
+) -> void:
+	if control == null or signal_name == &"" or not callable.is_valid():
+		return
+	if not control.has_signal(signal_name):
+		return
+	control.connect(signal_name, callable)
+	connections.append({
+		"control_ref": weakref(control),
+		"signal_name": signal_name,
+		"callable": callable,
+	})
+
 
 static func _set_item_list_selection(item_list: ItemList, value: Variant) -> void:
 	item_list.deselect_all()

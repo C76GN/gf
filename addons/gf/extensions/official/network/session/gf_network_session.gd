@@ -65,10 +65,9 @@ func start_host(options: Dictionary = {}) -> void:
 	local_peer_id = int(options.get("local_peer_id", 1))
 	metadata = _get_metadata_copy(options)
 	is_active = true
-	is_connected = true
+	is_connected = false
 	started_at_unix = Time.get_unix_time_from_system()
 	session_started.emit(mode, endpoint)
-	session_connected.emit(local_peer_id)
 
 
 ## 标记客户端会话已开始。

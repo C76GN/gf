@@ -189,6 +189,24 @@ class NonNodeDeadlockSignalAction:
 		return emitter.get_completed_signal()
 
 
+class InvalidCompletedSignalAction:
+	extends GFVisualAction
+
+	var order_list: Array
+	var label: String
+
+	func _init(p_order_list: Array, p_label: String) -> void:
+		order_list = p_order_list
+		label = p_label
+
+	func execute() -> Variant:
+		order_list.append(label)
+		var emitter := ObjectSignalEmitter.new()
+		var result := emitter.get_completed_signal()
+		emitter.free()
+		return result
+
+
 var _system: GFActionQueueSystem
 
 
@@ -371,6 +389,55 @@ func test_enqueue_sequence_group_with_immediate_actions_drains() -> void:
 
 	assert_eq(order, ["S1", "S2"], "顺序动作组应按顺序执行所有瞬时动作。")
 	assert_false(_system.is_processing, "顺序动作组执行完成后，队列应正常排空。")
+
+
+func test_parallel_group_completion_waits_for_launch_loop() -> void:
+	var order: Array = []
+	var group := GFVisualActionGroup.new([
+		InvalidCompletedSignalAction.new(order, "WAIT_INVALID"),
+		OrderAction.new(order, "SECOND"),
+	], true)
+	var completion := group.execute() as Signal
+	completion.connect(func() -> void:
+		order.append("DONE")
+	)
+
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["WAIT_INVALID", "SECOND", "DONE"], "并行动作组应在启动循环结束后再报告完成。")
+
+
+func test_repeat_action_yields_during_unbounded_immediate_repeats() -> void:
+	var order: Array = []
+	var factory := func() -> Object:
+		return OrderAction.new(order, "R")
+	var repeat := GFRepeatAction.new(factory, 0)
+	repeat.max_immediate_iterations_per_frame = 2
+	repeat.execute()
+
+	await get_tree().process_frame
+	assert_eq(order.size(), 2, "无限瞬时重复应按单帧预算让出主循环。")
+
+	await get_tree().process_frame
+	assert_eq(order.size(), 4, "让出主循环后应继续下一批重复。")
+
+	repeat.cancel()
+	await get_tree().process_frame
+
+
+func test_wait_action_cancel_suppresses_completion_signal() -> void:
+	var wait_action := GFWaitAction.new(0.01)
+	var completed: Array[bool] = []
+	var completion := wait_action.execute() as Signal
+	completion.connect(func() -> void:
+		completed.append(true)
+	)
+
+	wait_action.cancel()
+	await get_tree().create_timer(0.05).timeout
+
+	assert_true(completed.is_empty(), "取消等待动作后，旧 SceneTreeTimer 不应再触发动作完成信号。")
 
 
 ## 验证显式 fire-and-forget 动作即使返回 Signal，也不会阻塞后续队列。

@@ -52,6 +52,11 @@ signal projectile_emit_failed(reason: StringName, details: Dictionary)
 @export var release_pooled_projectile_on_finish: bool = true
 
 
+# --- 私有变量 ---
+
+var _next_emission_token: int = 1
+
+
 # --- 公共方法 ---
 
 ## 发射单个发射体。
@@ -178,10 +183,17 @@ func _create_projectile_node(scene: PackedScene, parent: Node) -> Node:
 
 func _prepare_projectile_runtime(projectile: Node, scene: PackedScene) -> void:
 	_disable_auto_launch_if_supported(projectile)
+	var emission_token := _next_emission_token
+	_next_emission_token += 1
+	projectile.set_meta(&"gf_emission_token", emission_token)
 	if use_object_pool and "queue_free_on_finish" in projectile:
 		projectile.set("queue_free_on_finish", false)
 	if use_object_pool and release_pooled_projectile_on_finish and projectile.has_signal("projectile_finished"):
-		projectile.connect("projectile_finished", _on_pooled_projectile_finished.bind(projectile, scene), CONNECT_ONE_SHOT)
+		projectile.connect(
+			"projectile_finished",
+			_on_pooled_projectile_finished.bind(projectile, scene, emission_token),
+			CONNECT_ONE_SHOT
+		)
 
 
 func _disable_auto_launch_if_supported(projectile: Node) -> void:
@@ -235,8 +247,13 @@ func _on_pooled_projectile_finished(
 	_projectile_arg: Node,
 	_reason: StringName,
 	projectile: Node,
-	scene: PackedScene
+	scene: PackedScene,
+	emission_token: int
 ) -> void:
+	if not is_instance_valid(projectile):
+		return
+	if int(projectile.get_meta(&"gf_emission_token", -1)) != emission_token:
+		return
 	var pool := _get_object_pool()
 	if pool != null:
 		pool.release(projectile, scene)

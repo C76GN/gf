@@ -10,6 +10,7 @@ const GFSavePipelineStepBase = preload("res://addons/gf/extensions/official/save
 const GFSaveScopeBase = preload("res://addons/gf/extensions/official/save/core/gf_save_scope.gd")
 const GFSaveSourceBase = preload("res://addons/gf/extensions/official/save/core/gf_save_source.gd")
 const GFSaveSlotWorkflowBase = preload("res://addons/gf/extensions/official/save/slots/gf_save_slot_workflow.gd")
+const GFNodePropertySerializerBase = preload("res://addons/gf/extensions/official/save/serializers/gf_node_property_serializer.gd")
 
 
 # --- 辅助类 ---
@@ -390,6 +391,45 @@ func test_apply_scope_rejects_invalid_serializer_data() -> void:
 	assert_false(bool(result["ok"]), "Serializer data 非 Dictionary 时应返回失败。")
 	assert_eq(errors.size(), 1, "错误应汇总到 source 级结果。")
 	assert_true(String(errors[0]).contains("Serializer data must be a Dictionary: gf.transform_2d"), "Serializer 错误应指出具体片段。")
+
+
+func test_apply_scope_rejects_non_dictionary_source_data() -> void:
+	var target := Node2D.new()
+	target.name = "Target"
+	_scope.add_child(target)
+	_scope.add_child(_make_source(&"target_state", NodePath("../Target")))
+	var payload := {
+		"format": GFSaveGraphUtilityBase.FORMAT_ID,
+		"format_version": GFSaveGraphUtilityBase.FORMAT_VERSION,
+		"scope": {},
+		"sources": {
+			"target_state": {
+				"descriptor": {},
+				"data": [],
+			},
+		},
+		"scopes": {},
+	}
+
+	var result := _utility.apply_scope(_scope, payload)
+	var errors := result["errors"] as Array
+
+	assert_false(bool(result["ok"]), "Source data 非 Dictionary 时不应被视为成功。")
+	assert_true(String(errors[0]).contains("Source data must be a Dictionary."), "Source 错误应指出数据结构问题。")
+
+
+func test_property_serializer_rejects_type_mismatch_before_setting() -> void:
+	var node := Node2D.new()
+	var serializer := GFNodePropertySerializerBase.new()
+	serializer.properties = PackedStringArray(["position"])
+
+	var result := serializer.apply(node, { "position": "bad-position" })
+
+	assert_false(bool(result["ok"]), "属性类型不匹配时不应写入节点。")
+	assert_eq(node.position, Vector2.ZERO, "失败应用不应改变原属性值。")
+	assert_true(String(result["error"]).contains("Property type mismatch: position"), "错误应指出具体属性。")
+
+	node.free()
 
 
 ## 验证载荷校验会报告当前 Scope 中不存在的 Source。

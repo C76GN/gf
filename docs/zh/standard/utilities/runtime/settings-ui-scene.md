@@ -48,6 +48,8 @@ binder.field_changed.connect(func(key: StringName, value: Variant) -> void:
 )
 ```
 
+`GFFormBinder.bind_field()` 会在重复绑定同一字段前清理旧连接，`unbind_field()` / `clear()` 也会断开由 `GFControlValueAdapter` 创建的值变化监听；需要自己管理连接生命周期时，可使用 `connect_value_changed_with_handles()` 和 `disconnect_value_changed_handles()`。
+
 这组工具只提供设置定义、读写、持久化和应用边界；具体设置项命名、分组、显示文案和业务含义仍由项目层决定。
 
 
@@ -200,7 +202,7 @@ var camera := GFNodeTreeOps.find_first_child_of_type(root, Camera3D, true) as Ca
 var all_controls := GFNodeTreeOps.collect_node_tree(root, Control)
 ```
 
-这个工具只处理通用 Node 结构，不判断节点是否“应该”属于某种业务容器。需要注册能力、同步存档、创建 UI 栈或切换场景时，仍应使用对应的 `GFCapabilityUtility`、`GFSaveGraphUtility`、`GFUIUtility` 或 `GFSceneUtility`。
+类型过滤可以传脚本类型、原生类或类名字符串；字符串形式会同时检查原生 `is_class()`、GDScript `class_name` 和脚本资源路径。这个工具只处理通用 Node 结构，不判断节点是否“应该”属于某种业务容器。需要注册能力、同步存档、创建 UI 栈或切换场景时，仍应使用对应的 `GFCapabilityUtility`、`GFSaveGraphUtility`、`GFUIUtility` 或 `GFSceneUtility`。
 
 
 ## 场景与流程切换管理器 (`GFSceneUtility`)

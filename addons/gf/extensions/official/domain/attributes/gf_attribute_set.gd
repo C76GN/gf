@@ -129,11 +129,16 @@ func set_base_value(attribute_id: StringName, value: float, sync_current: bool =
 		return false
 
 	var record := attributes[attribute_id] as Dictionary
+	var previous_base := float(record.get("base", 0.0))
+	var previous_current := float(record.get("current", 0.0))
 	var next_base := clampf(value, float(record.get("min", DEFAULT_MIN_VALUE)), float(record.get("max", DEFAULT_MAX_VALUE)))
 	record["base"] = next_base
 	if sync_current:
-		return set_value(attribute_id, next_base)
-	_recalculate_derived_dependents(attribute_id)
+		record["current"] = next_base
+		if not is_equal_approx(previous_current, next_base):
+			attribute_changed.emit(attribute_id, next_base, previous_current)
+	if not is_equal_approx(previous_base, next_base) or (sync_current and not is_equal_approx(previous_current, next_base)):
+		_recalculate_derived_dependents(attribute_id)
 	return true
 
 
@@ -147,10 +152,28 @@ func set_limits(attribute_id: StringName, min_value: float, max_value: float) ->
 		return false
 
 	var record := attributes[attribute_id] as Dictionary
-	record["min"] = minf(min_value, max_value)
-	record["max"] = maxf(min_value, max_value)
-	record["base"] = clampf(float(record.get("base", 0.0)), float(record["min"]), float(record["max"]))
-	return set_value(attribute_id, float(record.get("current", 0.0)))
+	var previous_min := float(record.get("min", DEFAULT_MIN_VALUE))
+	var previous_max := float(record.get("max", DEFAULT_MAX_VALUE))
+	var previous_base := float(record.get("base", 0.0))
+	var previous_current := float(record.get("current", 0.0))
+	var next_min := minf(min_value, max_value)
+	var next_max := maxf(min_value, max_value)
+	var next_base := clampf(previous_base, next_min, next_max)
+	var next_current := clampf(previous_current, next_min, next_max)
+	record["min"] = next_min
+	record["max"] = next_max
+	record["base"] = next_base
+	record["current"] = next_current
+	if not is_equal_approx(previous_current, next_current):
+		attribute_changed.emit(attribute_id, next_current, previous_current)
+	if (
+		not is_equal_approx(previous_min, next_min)
+		or not is_equal_approx(previous_max, next_max)
+		or not is_equal_approx(previous_base, next_base)
+		or not is_equal_approx(previous_current, next_current)
+	):
+		_recalculate_derived_dependents(attribute_id)
+	return true
 
 
 ## 获取当前值。

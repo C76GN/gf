@@ -188,6 +188,23 @@ func test_projectile_emitter_reports_missing_scene() -> void:
 	assert_signal_emitted(emitter, "projectile_emit_failed", "缺少场景时应发出失败信号。")
 
 
+func test_projectile_emitter_assigns_new_emission_token_per_prepare() -> void:
+	var emitter := GFProjectileEmitter2DBase.new() as GFProjectileEmitter2D
+	var projectile := GFProjectile2DBase.new()
+	var scene := PackedScene.new()
+
+	emitter._prepare_projectile_runtime(projectile, scene)
+	var first_token := int(projectile.get_meta(&"gf_emission_token", -1))
+	emitter._prepare_projectile_runtime(projectile, scene)
+	var second_token := int(projectile.get_meta(&"gf_emission_token", -1))
+
+	assert_gt(first_token, 0, "发射器应写入本次发射 token。")
+	assert_gt(second_token, first_token, "复用同一 projectile 时 token 应递增，避免旧回调释放新一轮发射。")
+
+	projectile.free()
+	emitter.free()
+
+
 func test_homing_motion_moves_toward_context_target_position() -> void:
 	var projectile := GFProjectile2DBase.new()
 	projectile.auto_launch_on_ready = false

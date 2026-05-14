@@ -76,6 +76,19 @@ func test_find_and_collect_nodes_by_type() -> void:
 	assert_eq(collected, [custom], "收集节点树时应按类型过滤。")
 
 
+func test_find_nodes_by_gdscript_class_name_string() -> void:
+	var root := Node.new()
+	add_child_autofree(root)
+	var machine := GFNodeStateMachine.new()
+	root.add_child(machine)
+
+	assert_eq(
+		GFNodeTreeOps.find_first_child_of_type(root, "GFNodeStateMachine", true),
+		machine,
+		"字符串类型过滤应支持 GDScript class_name。"
+	)
+
+
 func test_free_children_queues_direct_children() -> void:
 	var parent := Node.new()
 	add_child_autofree(parent)

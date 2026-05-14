@@ -40,7 +40,7 @@ func set_property_value(key: StringName, value: Variant) -> void:
 
 ## 获取属性值。
 ## @param key: 属性键。
-## @param default_value: 缺失或类型不匹配时返回的默认值。
+## @param default_value: 缺失时返回的默认值。
 func get_property_value(key: StringName, default_value: Variant = null) -> Variant:
 	return values.get(key, default_value)
 
@@ -74,28 +74,40 @@ func clear_properties() -> void:
 ## @param key: 属性键。
 ## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_int(key: StringName, default_value: int = 0) -> int:
-	return int(values.get(key, default_value))
+	var value: Variant = values.get(key, default_value)
+	if typeof(value) == TYPE_INT:
+		return int(value)
+	return default_value
 
 
 ## 获取 float 属性。
 ## @param key: 属性键。
 ## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_float(key: StringName, default_value: float = 0.0) -> float:
-	return float(values.get(key, default_value))
+	var value: Variant = values.get(key, default_value)
+	if typeof(value) == TYPE_FLOAT or typeof(value) == TYPE_INT:
+		return float(value)
+	return default_value
 
 
 ## 获取 bool 属性。
 ## @param key: 属性键。
 ## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_bool(key: StringName, default_value: bool = false) -> bool:
-	return bool(values.get(key, default_value))
+	var value: Variant = values.get(key, default_value)
+	if value is bool:
+		return bool(value)
+	return default_value
 
 
 ## 获取 String 属性。
 ## @param key: 属性键。
 ## @param default_value: 缺失或类型不匹配时返回的默认值。
 func get_string(key: StringName, default_value: String = "") -> String:
-	return String(values.get(key, default_value))
+	var value: Variant = values.get(key, default_value)
+	if value is String:
+		return String(value)
+	return default_value
 
 
 ## 获取 Vector2 属性。

@@ -264,10 +264,10 @@ func test_column_validation_rules_report_common_data_errors() -> void:
 	text_key.known_keys = PackedStringArray(["item.name.valid"])
 	text_key.use_translation_server = false
 	schema.get_column(&"name_key").validation_rules.append(text_key)
-	var range := GFConfigRangeValidationRule.new()
-	range.has_maximum = true
-	range.maximum = 10.0
-	schema.get_column(&"power").validation_rules.append(range)
+	var range_rule := GFConfigRangeValidationRule.new()
+	range_rule.has_maximum = true
+	range_rule.maximum = 10.0
+	schema.get_column(&"power").validation_rules.append(range_rule)
 
 	var report := schema.validate_record({
 		"id": 0,
@@ -378,7 +378,7 @@ func _make_item_schema() -> GFConfigTableSchema:
 func _make_column(field_name: StringName, value_type: int) -> GFConfigTableColumn:
 	var column := GFConfigTableColumn.new()
 	column.field_name = field_name
-	column.value_type = value_type
+	column.value_type = value_type as GFConfigTableColumn.ValueType
 	column.required = true
 	column.allow_null = false
 	return column

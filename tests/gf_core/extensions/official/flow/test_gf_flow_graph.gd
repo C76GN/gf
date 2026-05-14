@@ -6,6 +6,7 @@ extends GutTest
 
 const GFFlowContextBase = preload("res://addons/gf/extensions/official/flow/runtime/gf_flow_context.gd")
 const GFFlowGraphBase = preload("res://addons/gf/extensions/official/flow/resources/gf_flow_graph.gd")
+const GFFlowGraphDockBase = preload("res://addons/gf/extensions/official/flow/editor/gf_flow_graph_dock.gd")
 const GFFlowGraphEditorModelBase = preload("res://addons/gf/extensions/official/flow/editor/gf_flow_graph_editor_model.gd")
 const GFFlowNodeBase = preload("res://addons/gf/extensions/official/flow/resources/gf_flow_node.gd")
 const GFFlowPortBase = preload("res://addons/gf/extensions/official/flow/resources/gf_flow_port.gd")
@@ -43,6 +44,25 @@ class StopFlowNode extends GFFlowNode:
 	func execute(context: GFFlowContext) -> Variant:
 		context.set_next_nodes(PackedStringArray())
 		return null
+
+
+class ManualWaitFlowNode extends GFFlowNode:
+	signal completed
+
+	var order: Array[String] = []
+
+	func _init(p_node_id: StringName, p_order: Array[String], p_next: PackedStringArray = PackedStringArray()) -> void:
+		node_id = p_node_id
+		order = p_order
+		next_node_ids = p_next
+		wait_for_result = true
+
+	func execute(_context: GFFlowContext) -> Variant:
+		order.append(String(node_id))
+		return completed
+
+	func complete() -> void:
+		completed.emit()
 
 
 # --- 测试方法 ---
@@ -136,6 +156,30 @@ func test_flow_context_empty_override_stops_connection_fallback() -> void:
 	runner.run(graph, GFFlowContextBase.new())
 
 	assert_eq(order, [], "显式空后继应表示停止，而不是回退到图连接。")
+
+
+func test_flow_runner_cancel_during_signal_wait_stops_after_await() -> void:
+	var order: Array[String] = []
+	var graph := GFFlowGraphBase.new()
+	var waiting_node := ManualWaitFlowNode.new(&"wait", order, PackedStringArray(["after"]))
+	graph.start_node_id = &"wait"
+	graph.nodes = [
+		waiting_node,
+		RecordingFlowNode.new(&"after", order),
+	]
+	var runner := GFFlowRunnerBase.new()
+	watch_signals(runner)
+	runner.run(graph, GFFlowContextBase.new())
+
+	await get_tree().process_frame
+	runner.cancel()
+	waiting_node.complete()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(order, ["wait"], "取消后不应继续推进后继节点。")
+	assert_signal_not_emitted(runner, "node_completed", "取消等待后不应再报告当前节点完成。")
+	assert_signal_emitted(runner, "flow_cancelled", "取消等待后应发出流程取消信号。")
 
 
 ## 验证流程图会校验连接端点与端口。
@@ -293,6 +337,22 @@ func test_flow_graph_editor_model_applies_auto_layout() -> void:
 	assert_eq(start.editor_position, Vector2.ZERO, "起点应在第一层。")
 	assert_eq(end.editor_position, Vector2(120.0, 0.0), "目标节点应进入下一层。")
 	assert_eq(int(report["changed_count"]), 2, "两个节点都应被写入布局。")
+
+
+## 验证 Flow 工具面板复用编辑器模型展示结构报告。
+func test_flow_graph_dock_builds_view_model_for_loaded_graph() -> void:
+	var graph := GFFlowGraphBase.new()
+	var start := GFFlowNodeBase.new()
+	start.node_id = &"start"
+	graph.nodes = [start]
+	var dock: GFFlowGraphDock = GFFlowGraphDockBase.new()
+
+	dock.set_graph(graph)
+	var view_model := dock.get_last_view_model()
+
+	assert_eq(int(view_model.get("node_count", 0)), 1, "Flow 工具面板应构建节点视图模型。")
+	assert_true((view_model.get("nodes", []) as Array).size() == 1, "Flow 工具面板应保留节点条目。")
+	dock.free()
 
 
 ## 验证流程上下文可注册通用条件查询处理器。

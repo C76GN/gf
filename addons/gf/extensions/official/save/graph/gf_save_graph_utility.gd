@@ -462,6 +462,9 @@ func load_scope(
 	var payload := storage.load_data(file_name)
 	if payload.is_empty():
 		return _make_apply_result(false, 0, ["Save payload is empty."], [])
+	var validation_report := validate_payload_for_scope(scope, payload, strict)
+	if not bool(validation_report.get("ok", false)):
+		return _make_apply_result(false, 0, _get_validation_error_messages(validation_report), validation_report.get("missing", []) as Array)
 	return apply_scope(scope, payload, context, strict)
 
 
@@ -491,6 +494,20 @@ func _get_diagnostic_next_actions() -> Dictionary:
 		"missing_source": "Restore the missing GFSaveSource, ignore it intentionally, or provide a project migration path.",
 		"missing_scope": "Restore the missing GFSaveScope, ignore it intentionally, or provide a project migration path.",
 	}
+
+
+func _get_validation_error_messages(report: Dictionary) -> Array[String]:
+	var result: Array[String] = []
+	for issue_variant: Variant in report.get("issues", []):
+		var issue := issue_variant as Dictionary
+		if issue == null or String(issue.get("severity", "")) != "error":
+			continue
+		var kind := String(issue.get("kind", "validation_error"))
+		var message := String(issue.get("message", "Invalid save payload."))
+		result.append("%s: %s" % [kind, message])
+	if result.is_empty():
+		result.append(String(report.get("summary", "Invalid save payload.")))
+	return result
 
 
 func _get_sources_for_scope(scope: GFSaveScopeBase) -> Array[GFSaveSourceBase]:

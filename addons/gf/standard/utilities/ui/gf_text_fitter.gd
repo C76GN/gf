@@ -312,13 +312,43 @@ static func _measure_lines(font: Font, text: String, font_size: int, wrap_width:
 		var line_size := font.get_string_size(line, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size)
 		var line_height := maxf(line_size.y, float(font_size))
 		if wrap_width > 0.0 and line_size.x > wrap_width:
-			var wrapped_lines := ceili(line_size.x / wrap_width)
-			max_width = maxf(max_width, wrap_width)
-			total_height += line_height * float(wrapped_lines)
+			var wrapped_size := _measure_wrapped_line(font, line, font_size, wrap_width, line_height)
+			max_width = maxf(max_width, wrapped_size.x)
+			total_height += wrapped_size.y
 		else:
 			max_width = maxf(max_width, line_size.x)
 			total_height += line_height
 	return Vector2(max_width, total_height)
+
+
+static func _measure_wrapped_line(
+	font: Font,
+	line: String,
+	font_size: int,
+	wrap_width: float,
+	line_height: float
+) -> Vector2:
+	if line.is_empty():
+		return Vector2(0.0, line_height)
+
+	var max_width := 0.0
+	var line_count := 1
+	var current_text := ""
+	for index: int in range(line.length()):
+		var next_text := current_text + line.substr(index, 1)
+		var next_width := font.get_string_size(next_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+		if not current_text.is_empty() and next_width > wrap_width:
+			var current_width := font.get_string_size(current_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+			max_width = maxf(max_width, minf(current_width, wrap_width))
+			line_count += 1
+			current_text = line.substr(index, 1)
+		else:
+			current_text = next_text
+
+	if not current_text.is_empty():
+		var current_width := font.get_string_size(current_text, HORIZONTAL_ALIGNMENT_LEFT, -1.0, font_size).x
+		max_width = maxf(max_width, minf(current_width, wrap_width))
+	return Vector2(max_width, line_height * float(line_count))
 
 
 static func _strip_bbcode(text: String) -> String:

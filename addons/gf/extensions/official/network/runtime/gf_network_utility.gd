@@ -68,7 +68,7 @@ func tick(delta: float) -> void:
 
 func dispose() -> void:
 	_unregister_diagnostics_contribution()
-	set_backend(null)
+	_replace_backend(null, "disposed")
 	clear_channels()
 	if session != null:
 		session.close("disposed")
@@ -79,13 +79,8 @@ func dispose() -> void:
 ## 设置网络后端。
 ## @param next_backend: 新后端。
 func set_backend(next_backend: GFNetworkBackend) -> void:
-	if backend == next_backend:
-		return
-	if backend != null:
-		_disconnect_backend_signals(backend)
-	backend = next_backend
-	if backend != null:
-		_connect_backend_signals(backend)
+	var close_reason := "backend_replaced" if next_backend != null else "backend_cleared"
+	_replace_backend(next_backend, close_reason)
 
 
 ## 注册网络通道。
@@ -136,6 +131,8 @@ func host(options: Dictionary = {}) -> Error:
 	var error := backend.host(options)
 	if error != OK and session != null:
 		session.close("host_failed")
+	elif session != null and not session.is_connected:
+		session.mark_connected()
 	return error
 
 
@@ -258,9 +255,25 @@ func _disconnect_backend_signals(target_backend: GFNetworkBackend) -> void:
 		target_backend.message_received.disconnect(_on_backend_message_received)
 
 
+func _replace_backend(next_backend: GFNetworkBackend, close_reason: String) -> void:
+	if backend == next_backend:
+		return
+
+	var previous_backend := backend
+	if previous_backend != null:
+		_disconnect_backend_signals(previous_backend)
+		previous_backend.disconnect_backend()
+		if session != null:
+			session.close(close_reason)
+
+	backend = next_backend
+	if backend != null:
+		_connect_backend_signals(backend)
+
+
 func _on_backend_connected() -> void:
 	if session != null:
-		if not (session.mode == GFNetworkSessionBase.Mode.HOST and session.is_connected):
+		if not session.is_connected:
 			session.mark_connected()
 	connected.emit()
 

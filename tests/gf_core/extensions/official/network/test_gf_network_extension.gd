@@ -15,6 +15,10 @@ const GFNetworkReconnectPolicyBase = preload("res://addons/gf/extensions/officia
 const GFNetworkSerializerBase = preload("res://addons/gf/extensions/official/network/serialization/gf_network_serializer.gd")
 const GFNetworkFieldSerializerBase = preload("res://addons/gf/extensions/official/network/serialization/gf_network_field_serializer.gd")
 const GFNetworkSnapshotSchemaBase = preload("res://addons/gf/extensions/official/network/snapshot/gf_network_snapshot_schema.gd")
+const GFNetworkContractBase = preload("res://addons/gf/extensions/official/network/contracts/gf_network_contract.gd")
+const GFNetworkContractFieldBase = preload("res://addons/gf/extensions/official/network/contracts/gf_network_contract_field.gd")
+const GFNetworkContractGeneratorBase = preload("res://addons/gf/extensions/official/network/editor/gf_network_contract_generator.gd")
+const GFNetworkContractMessageBase = preload("res://addons/gf/extensions/official/network/contracts/gf_network_contract_message.gd")
 const GFNetworkUtilityBase = preload("res://addons/gf/extensions/official/network/runtime/gf_network_utility.gd")
 const GFFixedTickClockBase = preload("res://addons/gf/extensions/official/network/simulation/gf_fixed_tick_clock.gd")
 const GFNetworkHistoryBufferBase = preload("res://addons/gf/extensions/official/network/snapshot/gf_network_history_buffer.gd")
@@ -27,6 +31,7 @@ class FakeBackend extends GFNetworkBackend:
 	var sent_peer_id: int = 0
 	var sent_bytes: PackedByteArray = PackedByteArray()
 	var sent_options: Dictionary = {}
+	var disconnected_by_utility: bool = false
 
 	func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) -> Error:
 		sent_peer_id = peer_id
@@ -40,11 +45,20 @@ class FakeBackend extends GFNetworkBackend:
 	func connect_to_endpoint(_endpoint: String, _options: Dictionary = {}) -> Error:
 		return OK
 
+	func disconnect_backend() -> void:
+		disconnected_by_utility = true
+		disconnected.emit("closed")
+
 
 class EagerConnectedBackend extends FakeBackend:
 	func host(_options: Dictionary = {}) -> Error:
 		connected.emit()
 		return OK
+
+
+class FailingHostBackend extends FakeBackend:
+	func host(_options: Dictionary = {}) -> Error:
+		return ERR_CANT_CREATE
 
 
 # --- 测试方法 ---
@@ -63,6 +77,96 @@ func test_network_serializer_round_trips_message() -> void:
 	assert_eq(decoded.sender_id, 3, "sender_id 应保留。")
 	assert_eq(decoded.channel_id, &"state_channel", "channel_id 应保留。")
 	assert_eq(decoded.payload.get("hp", 0), 10, "payload 应保留。")
+
+
+func test_network_contract_builds_and_validates_typed_message() -> void:
+	var slot_field := GFNetworkContractFieldBase.new()
+	slot_field.field_name = &"slot"
+	slot_field.value_type = GFNetworkContractField.ValueType.INT
+	var ready_field := GFNetworkContractFieldBase.new()
+	ready_field.field_name = &"ready"
+	ready_field.value_type = GFNetworkContractField.ValueType.BOOL
+	ready_field.required = false
+	ready_field.default_value = false
+	var message_contract := GFNetworkContractMessageBase.new()
+	message_contract.message_type = &"player_ready"
+	message_contract.channel_id = &"lobby"
+	message_contract.fields = [slot_field, ready_field]
+	var contract := GFNetworkContractBase.new()
+	contract.contract_id = &"lobby"
+	contract.messages = [message_contract]
+
+	var message := contract.make_message(&"player_ready", { &"slot": 2 })
+	var valid_report := contract.validate_message(message)
+	var missing_report := message_contract.validate_payload({})
+	var wrong_type_report := message_contract.validate_payload({ &"slot": "2" })
+
+	assert_not_null(message, "契约应能构造 GFNetworkMessage。")
+	assert_eq(message.message_type, &"player_ready", "消息类型应来自契约。")
+	assert_eq(message.channel_id, &"lobby", "默认通道应写入消息元信息。")
+	assert_eq(message.payload.get(&"slot"), 2, "payload 应写入字段值。")
+	assert_false(bool(message.payload.get(&"ready", true)), "可选字段应使用默认值。")
+	assert_true(bool(valid_report["ok"]), "有效消息应通过契约校验。")
+	assert_false(bool(missing_report["ok"]), "缺失必填字段应校验失败。")
+	assert_false(bool(wrong_type_report["ok"]), "字段类型错误应校验失败。")
+
+
+func test_network_contract_generator_builds_typed_helpers() -> void:
+	var slot_field := GFNetworkContractFieldBase.new()
+	slot_field.field_name = &"slot"
+	slot_field.value_type = GFNetworkContractField.ValueType.INT
+	var ready_field := GFNetworkContractFieldBase.new()
+	ready_field.field_name = &"ready"
+	ready_field.value_type = GFNetworkContractField.ValueType.BOOL
+	ready_field.required = false
+	ready_field.default_value = false
+	var message_contract := GFNetworkContractMessageBase.new()
+	message_contract.message_type = &"player_ready"
+	message_contract.channel_id = &"lobby"
+	message_contract.fields = [slot_field, ready_field]
+	var contract := GFNetworkContractBase.new()
+	contract.contract_id = &"lobby"
+	contract.messages = [message_contract]
+	var generator: Variant = GFNetworkContractGeneratorBase.new()
+
+	var source: String = generator.build_source(contract, { "class_name": "LobbyNetworkMessages" })
+
+	assert_true(source.contains("class_name LobbyNetworkMessages"), "应生成指定 class_name。")
+	assert_true(source.contains("const MESSAGE_PLAYER_READY: StringName = &\"player_ready\""), "应生成消息常量。")
+	assert_true(source.contains("const CHANNEL_PLAYER_READY: StringName = &\"lobby\""), "应生成默认通道常量。")
+	assert_true(source.contains("static func make_player_ready(slot: int, ready: bool = false, options: Dictionary = {}) -> GFNetworkMessage:"), "应生成强类型构造函数。")
+	assert_true(source.contains("static func send_player_ready(network: GFNetworkUtility, peer_id: int, slot: int, ready: bool = false, options: Dictionary = {}) -> Error:"), "应生成强类型发送函数。")
+	assert_true(source.contains("static func get_player_ready_slot(message: GFNetworkMessage, default_value: int = 0) -> int:"), "应生成字段读取函数。")
+
+	var runtime_script := GDScript.new()
+	runtime_script.source_code = source.replace("class_name LobbyNetworkMessages\n", "")
+	assert_eq(runtime_script.reload(), OK, "生成源码去掉全局类注册行后应能被 GDScript 编译。")
+
+
+func test_network_contract_generator_omits_optional_null_fields() -> void:
+	var slot_field := GFNetworkContractFieldBase.new()
+	slot_field.field_name = &"slot"
+	slot_field.value_type = GFNetworkContractField.ValueType.INT
+	var note_field := GFNetworkContractFieldBase.new()
+	note_field.field_name = &"note"
+	note_field.value_type = GFNetworkContractField.ValueType.STRING
+	note_field.required = false
+	var message_contract := GFNetworkContractMessageBase.new()
+	message_contract.message_type = &"player_note"
+	message_contract.fields = [slot_field, note_field]
+	var contract := GFNetworkContractBase.new()
+	contract.contract_id = &"lobby"
+	contract.messages = [message_contract]
+	var generator: Variant = GFNetworkContractGeneratorBase.new()
+
+	var source: String = generator.build_source(contract, { "class_name": "LobbyNetworkMessages" })
+
+	assert_true(source.contains("static func make_player_note(slot: int, note: Variant = null, options: Dictionary = {}) -> GFNetworkMessage:"), "无默认值的可选字段应保留 null 作为未提供语义。")
+	assert_true(source.contains("if note != null or bool(options.get(\"include_null_optional_fields\", false)):"), "payload 构建应默认省略 null 可选字段。")
+
+	var runtime_script := GDScript.new()
+	runtime_script.source_code = source.replace("class_name LobbyNetworkMessages\n", "")
+	assert_eq(runtime_script.reload(), OK, "可选 null 语义生成源码应能编译。")
 
 
 func test_network_json_serializer_can_use_typed_variant_codec() -> void:
@@ -384,6 +488,36 @@ func test_network_utility_host_session_is_ready_before_eager_backend_connected()
 	assert_eq(error, OK, "主机会话启动应成功。")
 	assert_eq(connected_peer_ids, [9], "后端立即 connected 不应造成 session_connected 重复或使用默认 peer。")
 	assert_eq(utility.session.local_peer_id, 9, "会话应保留配置的本地 peer。")
+
+
+func test_network_utility_host_failure_does_not_emit_session_connected() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	utility.set_backend(FailingHostBackend.new())
+	var connected_peer_ids: Array[int] = []
+	utility.session.session_connected.connect(func(local_peer_id: int) -> void:
+		connected_peer_ids.append(local_peer_id)
+	)
+
+	var error := utility.host({ "port": 9000, "local_peer_id": 9 })
+
+	assert_eq(error, ERR_CANT_CREATE, "后端 host 失败时应返回错误。")
+	assert_true(connected_peer_ids.is_empty(), "host 失败不应短暂发出 session_connected。")
+	assert_false(utility.session.is_active, "host 失败后会话应关闭。")
+	assert_false(utility.session.is_connected, "host 失败后不应保留 connected 状态。")
+
+
+func test_network_utility_replacing_backend_closes_previous_backend() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	var first_backend := FakeBackend.new()
+	var second_backend := FakeBackend.new()
+	utility.set_backend(first_backend)
+	utility.host({ "port": 9000 })
+
+	utility.set_backend(second_backend)
+
+	assert_true(first_backend.disconnected_by_utility, "替换后端时应关闭旧后端资源。")
+	assert_false(utility.session.is_active, "替换后端应清理旧会话状态。")
+	assert_eq(utility.backend, second_backend, "NetworkUtility 应切换到新后端。")
 
 
 ## 验证网络工具与可选 ENet 后端提供调试快照。

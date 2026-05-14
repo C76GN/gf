@@ -5,6 +5,12 @@ class_name GFWaitAction
 extends GFVisualAction
 
 
+# --- 信号 ---
+
+## 等待完成时发出。取消后的旧计时器不会触发该信号。
+signal wait_completed
+
+
 # --- 公共变量 ---
 
 ## 等待秒数。
@@ -26,6 +32,7 @@ var ignore_time_scale: bool = false
 # --- 私有变量 ---
 
 var _timer: SceneTreeTimer = null
+var _execution_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
@@ -45,21 +52,36 @@ func execute() -> Variant:
 	if tree == null:
 		return null
 
+	_execution_serial += 1
 	_timer = tree.create_timer(seconds, process_always, process_in_physics, ignore_time_scale)
-	return _timer.timeout
+	_complete_after_timer_async(_timer, _execution_serial)
+	return wait_completed
 
 
 func cancel() -> void:
+	_execution_serial += 1
 	_timer = null
 
 
 func finish() -> void:
-	if is_instance_valid(_timer):
-		_timer.timeout.emit()
+	_execution_serial += 1
+	wait_completed.emit()
 	_timer = null
 
 
 # --- 私有/辅助方法 ---
+
+func _complete_after_timer_async(timer: SceneTreeTimer, serial: int) -> void:
+	if not is_instance_valid(timer):
+		return
+
+	await timer.timeout
+	if serial != _execution_serial:
+		return
+
+	_timer = null
+	wait_completed.emit()
+
 
 func _get_scene_tree() -> SceneTree:
 	if is_instance_valid(host_node) and host_node.is_inside_tree():

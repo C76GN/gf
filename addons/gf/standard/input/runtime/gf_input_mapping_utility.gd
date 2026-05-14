@@ -57,6 +57,7 @@ var _active_contexts: Dictionary = {}
 var _effective_entries: Array[Dictionary] = []
 var _binding_values: Dictionary = {}
 var _binding_to_action: Dictionary = {}
+var _binding_player_indices: Dictionary = {}
 var _player_binding_values: Dictionary = {}
 var _player_binding_to_action: Dictionary = {}
 var _actions: Dictionary = {}
@@ -250,6 +251,10 @@ func set_virtual_action_value(
 	var binding_key := _make_virtual_binding_key(source_key, action_id, player_index)
 	_binding_values[binding_key] = contribution
 	_binding_to_action[binding_key] = action_id
+	if player_index >= 0:
+		_binding_player_indices[binding_key] = player_index
+	else:
+		_binding_player_indices.erase(binding_key)
 	_refresh_action_state(action_id, action)
 
 	if player_index >= 0:
@@ -280,6 +285,7 @@ func clear_virtual_action(
 	var changed := _binding_values.has(binding_key)
 	_binding_values.erase(binding_key)
 	_binding_to_action.erase(binding_key)
+	_binding_player_indices.erase(binding_key)
 	_refresh_action_state(action_id, action)
 
 	if player_index >= 0:
@@ -307,6 +313,7 @@ func clear_virtual_source(source_id: StringName = &"virtual") -> void:
 		affected_actions[action_id] = true
 		_binding_values.erase(key)
 		_binding_to_action.erase(key)
+		_binding_player_indices.erase(key)
 
 	for key: String in _player_binding_to_action.keys():
 		var source_part := _get_player_source_binding_key(key)
@@ -712,9 +719,12 @@ func _apply_entry_event(entry: Dictionary, event: InputEvent, player_index: int)
 		_binding_values[key] = contribution
 		_binding_to_action[key] = action_id
 		if player_index >= 0:
+			_binding_player_indices[key] = player_index
 			var player_binding_key := _make_player_binding_key(player_index, key)
 			_player_binding_values[player_binding_key] = contribution
 			_player_binding_to_action[player_binding_key] = action_id
+		else:
+			_binding_player_indices.erase(key)
 		matched = true
 
 	if matched:
@@ -894,6 +904,7 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 
 	_binding_values.clear()
 	_binding_to_action.clear()
+	_binding_player_indices.clear()
 	_player_binding_values.clear()
 	_player_binding_to_action.clear()
 	_action_values.clear()
@@ -916,6 +927,7 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 
 func _clear_player_runtime_state(player_index: int, emit_completed: bool = false) -> void:
 	var prefix := "%d/" % player_index
+	var affected_actions: Dictionary = {}
 	if emit_completed:
 		for player_action_key: String in _player_action_active.keys():
 			if not player_action_key.begins_with(prefix):
@@ -926,6 +938,16 @@ func _clear_player_runtime_state(player_index: int, emit_completed: bool = false
 			var action := _actions.get(action_id) as GFInputActionBase
 			if action != null:
 				player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
+
+	for key: String in _binding_player_indices.keys():
+		if int(_binding_player_indices.get(key, -1)) != player_index:
+			continue
+		var action_id := StringName(_binding_to_action.get(key, &""))
+		if action_id != &"":
+			affected_actions[action_id] = true
+		_binding_values.erase(key)
+		_binding_to_action.erase(key)
+		_binding_player_indices.erase(key)
 
 	for key: String in _player_binding_values.keys():
 		if key.begins_with(prefix):
@@ -941,6 +963,11 @@ func _clear_player_runtime_state(player_index: int, emit_completed: bool = false
 			_player_just_completed.erase(key)
 			_player_action_active_elapsed.erase(key)
 			_player_last_completed_duration.erase(key)
+
+	for action_id: StringName in affected_actions.keys():
+		var action := _actions.get(action_id) as GFInputActionBase
+		if action != null:
+			_refresh_action_state(action_id, action)
 
 
 func _get_effective_event(

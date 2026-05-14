@@ -56,10 +56,14 @@ static func build_distance_map(
 	if not get_neighbors.is_valid():
 		return distances
 
-	var frontier: Array = [start]
+	var frontier: Array[Dictionary] = []
+	_heap_push_node(frontier, start, 0.0)
 	while not frontier.is_empty():
-		var current: Variant = _take_lowest_score_node(frontier, distances)
+		var current_entry := _heap_pop_node(frontier)
+		var current: Variant = current_entry.get("node")
 		var current_cost := float(distances.get(current, INF))
+		if float(current_entry.get("priority", INF)) > current_cost:
+			continue
 		if current_cost > max_cost:
 			continue
 
@@ -73,8 +77,7 @@ static func build_distance_map(
 				continue
 
 			distances[next_node] = next_cost
-			if not frontier.has(next_node):
-				frontier.append(next_node)
+			_heap_push_node(frontier, next_node, next_cost)
 
 	return distances
 
@@ -108,16 +111,20 @@ static func _find_path(
 	if start == goal:
 		return [start]
 
-	var open_set: Array = [start]
-	var open_lookup: Dictionary = { start: true }
+	var open_heap: Array[Dictionary] = []
 	var closed: Dictionary = {}
 	var came_from: Dictionary = {}
 	var g_score: Dictionary = { start: 0.0 }
 	var f_score: Dictionary = { start: _get_heuristic(start, goal, heuristic) }
+	_heap_push_node(open_heap, start, float(f_score[start]))
 
-	while not open_set.is_empty():
-		var current: Variant = _take_lowest_score_node(open_set, f_score)
-		open_lookup.erase(current)
+	while not open_heap.is_empty():
+		var current_entry := _heap_pop_node(open_heap)
+		var current: Variant = current_entry.get("node")
+		if closed.has(current):
+			continue
+		if float(current_entry.get("priority", INF)) > float(f_score.get(current, INF)):
+			continue
 		if current == goal:
 			return _reconstruct_path(start, goal, came_from)
 
@@ -137,9 +144,7 @@ static func _find_path(
 			came_from[next_node] = current
 			g_score[next_node] = tentative_score
 			f_score[next_node] = tentative_score + _get_heuristic(next_node, goal, heuristic)
-			if not open_lookup.has(next_node):
-				open_set.append(next_node)
-				open_lookup[next_node] = true
+			_heap_push_node(open_heap, next_node, float(f_score[next_node]))
 
 	return []
 
@@ -170,6 +175,57 @@ static func _take_lowest_score_node(nodes: Array, scores: Dictionary) -> Variant
 	var node: Variant = nodes[best_index]
 	nodes.remove_at(best_index)
 	return node
+
+
+static func _heap_push_node(heap: Array[Dictionary], node: Variant, priority: float) -> void:
+	heap.append({
+		"node": node,
+		"priority": priority,
+	})
+	var index := heap.size() - 1
+	while index > 0:
+		var parent_index := int((index - 1) / 2)
+		if float(heap[parent_index].get("priority", INF)) <= priority:
+			break
+		var parent_entry := heap[parent_index]
+		heap[parent_index] = heap[index]
+		heap[index] = parent_entry
+		index = parent_index
+
+
+static func _heap_pop_node(heap: Array[Dictionary]) -> Dictionary:
+	if heap.is_empty():
+		return {}
+
+	var result := heap[0]
+	var last_entry := heap.pop_back() as Dictionary
+	if heap.is_empty():
+		return result
+
+	heap[0] = last_entry
+	var index := 0
+	while true:
+		var left_index := index * 2 + 1
+		var right_index := left_index + 1
+		var best_index := index
+		if (
+			left_index < heap.size()
+			and float(heap[left_index].get("priority", INF)) < float(heap[best_index].get("priority", INF))
+		):
+			best_index = left_index
+		if (
+			right_index < heap.size()
+			and float(heap[right_index].get("priority", INF)) < float(heap[best_index].get("priority", INF))
+		):
+			best_index = right_index
+		if best_index == index:
+			break
+
+		var best_entry := heap[best_index]
+		heap[best_index] = heap[index]
+		heap[index] = best_entry
+		index = best_index
+	return result
 
 
 static func _get_neighbors(node: Variant, get_neighbors: Callable) -> Array:

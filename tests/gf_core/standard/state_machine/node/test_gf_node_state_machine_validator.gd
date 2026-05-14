@@ -5,6 +5,7 @@ extends GutTest
 # --- 常量 ---
 
 const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
+const GFNodeStateMachineDockBase = preload("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd")
 const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
 const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GFNodeStateMachineValidatorBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
@@ -65,3 +66,26 @@ func test_validator_reports_invalid_initial_state_and_resource_slots() -> void:
 	assert_eq(counts.get("inert_state_behavior", 0), 1, "无生命周期钩子的行为资源应产生警告。")
 
 	group.free()
+
+
+func test_state_machine_dock_scans_scene_root_and_reports_selected_machine() -> void:
+	var root := Node.new()
+	root.name = "Root"
+	var machine := GFNodeStateMachineBase.new()
+	machine.name = "StateMachine"
+	machine.initial_state = &"idle"
+	var idle := GFNodeStateBase.new()
+	idle.name = "Idle"
+	idle.state_name = &"idle"
+	machine.add_child(idle)
+	root.add_child(machine)
+	var dock: GFNodeStateMachineDock = GFNodeStateMachineDockBase.new()
+
+	dock.set_state_machine_source(root)
+	var report := dock.get_last_report()
+
+	assert_eq(dock.get_machine_count(), 1, "状态机工具面板应能扫描场景根节点。")
+	assert_true(bool(report.get("ok", false)), "有效状态机应在工具面板报告为通过。")
+
+	dock.free()
+	root.free()

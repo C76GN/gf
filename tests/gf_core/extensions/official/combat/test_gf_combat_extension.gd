@@ -39,6 +39,14 @@ class TickRecordingBuff extends GFBuff:
 		tick_deltas.append(p_delta)
 
 
+class RefreshTrackingBuff extends GFBuff:
+	var refreshed_from: GFBuff = null
+
+	func refresh_from(source_buff: GFBuff) -> void:
+		refreshed_from = source_buff
+		super.refresh_from(source_buff)
+
+
 class RecordingHurtBox2D extends GFHurtBox2D:
 	var received_context: GFCombatHitContext = null
 	var validate_count: int = 0
@@ -424,6 +432,17 @@ func test_refresh_buff_modifiers_recalculates_changed_modifier_values() -> void:
 	assert_almost_eq(entity.get_attribute(&"ATK").current_value.get_value(), 18.0, 0.001, "刷新后属性应使用新的 Modifier 数值。")
 
 
+func test_refresh_buff_modifiers_reports_false_without_refreshed_attributes() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+	var buff := GFBuff.new()
+	buff.setup(&"EmptyBuff", -1.0, entity)
+	system.add_buff(entity, buff)
+
+	assert_false(system.refresh_buff_modifiers(entity, &"EmptyBuff"), "没有任何属性被刷新时应返回 false。")
+
+
 func test_duplicate_buff_refresh_updates_duration_and_stacks() -> void:
 	var system := GFCombatSystem.new()
 	var entity := MockEntity.new()
@@ -441,6 +460,22 @@ func test_duplicate_buff_refresh_updates_duration_and_stacks() -> void:
 	assert_eq(buff.stacks, 2, "重复 Buff 应在 max_stacks 允许时增加层数。")
 	assert_eq(buff.duration, -1.0, "重复 Buff 刷新应同步新的 duration。")
 	assert_eq(buff.time_left, -1.0, "重复 Buff 刷新应同步新的剩余时间。")
+
+
+func test_duplicate_buff_refresh_uses_refresh_from_hook() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+	var buff := RefreshTrackingBuff.new()
+	buff.setup(&"Refreshable", 1.0, entity)
+	system.add_buff(entity, buff)
+	var refreshed_buff := GFBuff.new()
+	refreshed_buff.setup(&"Refreshable", 2.0, entity)
+
+	system.add_buff(entity, refreshed_buff)
+
+	assert_eq(buff.refreshed_from, refreshed_buff, "重复 Buff 应通过 refresh_from() 暴露项目可覆写刷新入口。")
+	assert_eq(buff.duration, 2.0, "默认 refresh_from() 应保持旧的 duration 刷新语义。")
 
 
 func test_buff_refresh_can_ignore_duplicate_stack() -> void:
@@ -484,6 +519,17 @@ func test_buff_periodic_tick_uses_interval() -> void:
 
 	assert_eq(buff.tick_deltas.size(), 3, "周期 Tick 应按间隔触发，而不是每帧触发。")
 	assert_almost_eq(buff.tick_deltas[0], 0.5, 0.001, "Tick 回调应收到配置的周期长度。")
+
+
+func test_buff_periodic_tick_limits_catchup_budget() -> void:
+	var buff := TickRecordingBuff.new()
+	buff.setup(&"Pulse", -1.0, null)
+	buff.tick_interval_seconds = 0.01
+	buff.max_periodic_ticks_per_update = 4
+
+	buff.update(1.0)
+
+	assert_eq(buff.tick_deltas.size(), 4, "单次 update 不应无限补偿周期 Tick。")
 
 
 func test_buff_can_remain_after_expire() -> void:

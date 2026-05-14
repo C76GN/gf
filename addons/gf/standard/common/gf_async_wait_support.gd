@@ -6,6 +6,98 @@ extends RefCounted
 
 # --- 公共方法 ---
 
+## 安全等待 Signal，并在发射源失效、保护节点离树、取消回调返回 false 或超时时结束等待。
+## @param result_signal: 要等待的 Signal。
+## @param should_continue: 可选继续等待检查；返回 false 时停止等待。
+## @param time_utility: 可选时间工具。
+## @param timeout_seconds: 超时时间；小于等于 0 时不启用。
+## @param respect_time_scale: 是否跟随暂停和 time_scale。
+## @param timeout_warning: 超时时输出的 warning；为空时不输出。
+## @param guard_node: 可选生命周期保护节点。
+## @return Signal 正常发出或 tree_exited 保护触发时返回 true。
+static func await_signal_safely(
+	result_signal: Signal,
+	should_continue: Callable = Callable(),
+	time_utility: GFTimeUtility = null,
+	timeout_seconds: float = 30.0,
+	respect_time_scale: bool = true,
+	timeout_warning: String = "",
+	guard_node: Node = null
+) -> bool:
+	if result_signal.is_null():
+		return false
+
+	var target_obj: Object = result_signal.get_object()
+	if not is_instance_valid(target_obj):
+		return false
+
+	var completed := [false]
+	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
+		completed[0] = true
+
+	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
+
+	var tree_exit_signal := Signal()
+	var guard_exit_signal := Signal()
+	if target_obj is Node:
+		var node := target_obj as Node
+		if not node.is_inside_tree() and result_signal != node.tree_exited:
+			disconnect_signal_if_connected(result_signal, on_resume)
+			return false
+		if result_signal != node.tree_exited:
+			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+			tree_exit_signal = node.tree_exited
+
+	if is_instance_valid(guard_node) and result_signal != guard_node.tree_exited and tree_exit_signal != guard_node.tree_exited:
+		if not guard_node.is_inside_tree():
+			disconnect_signal_if_connected(result_signal, on_resume)
+			disconnect_signal_if_connected(tree_exit_signal, on_resume)
+			return false
+		guard_node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+		guard_exit_signal = guard_node.tree_exited
+
+	var timeout_msec := maxf(timeout_seconds, 0.0) * 1000.0
+	var elapsed_timeout_msec := 0.0
+	var last_timeout_msec := Time.get_ticks_msec()
+	var timed_out := false
+	var tree := Engine.get_main_loop() as SceneTree
+
+	while not completed[0]:
+		if tree == null:
+			break
+
+		var current_timeout_msec := Time.get_ticks_msec()
+		if timeout_msec > 0.0:
+			elapsed_timeout_msec += get_timeout_elapsed_msec(
+				last_timeout_msec,
+				current_timeout_msec,
+				time_utility,
+				respect_time_scale
+			)
+			if elapsed_timeout_msec >= timeout_msec:
+				timed_out = true
+				break
+		last_timeout_msec = current_timeout_msec
+
+		if should_continue.is_valid() and not bool(should_continue.call()):
+			break
+		if not is_instance_valid(target_obj):
+			break
+		if target_obj is Node and not (target_obj as Node).is_inside_tree():
+			break
+		if guard_node != null and (not is_instance_valid(guard_node) or not guard_node.is_inside_tree()):
+			break
+		await tree.process_frame
+
+	disconnect_signal_if_connected(result_signal, on_resume)
+	disconnect_signal_if_connected(tree_exit_signal, on_resume)
+	disconnect_signal_if_connected(guard_exit_signal, on_resume)
+
+	if timed_out and not timeout_warning.is_empty():
+		push_warning(timeout_warning)
+	return bool(completed[0])
+
+
 ## 计算超时累计增量。
 ## @param previous_msec: 上一次采样时间。
 ## @param current_msec: 当前采样时间。

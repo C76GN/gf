@@ -24,6 +24,8 @@ var message := GFNetworkMessage.new(&"player_ready", { "slot": 1 })
 network.send_message(-1, message)
 ```
 
+`GFNetworkSession` 只记录后端连接意图和状态快照。`host()` 会在后端真正返回成功或报告 connected 后再标记 `is_connected`；如果后端启动失败，会关闭本次会话而不会短暂发出 connected 状态。替换或清空 backend 时，`GFNetworkUtility` 会关闭旧后端并清理旧会话，避免把底层连接资源留给已失效的 backend。
+
 `GFNetworkSerializer` 默认使用 Godot Variant 二进制格式；切到 `Format.JSON` 时会保持旧的普通 JSON 行为。如果 JSON 通道需要保留 `Vector2`、`Color`、`NodePath`、PackedArray 等 Godot 类型，可显式启用类型化 JSON codec：
 
 ```gdscript
@@ -103,6 +105,40 @@ var decoded := schema.decode_snapshot(encoded)
 Schema 只改变状态字段的表示形式，不决定哪些字段应该同步、发给谁、是否可靠、如何预测或如何解决冲突。需要权限过滤、差量压缩、实体可见性或安全校验时，应继续放在项目协议层。
 
 `GFNetworkSnapshot.make_message()` 可以把快照打包成 `GFNetworkMessage`，方便复用已有 serializer/channel/backend。浅层 delta 只比较字典第一层字段；嵌套对象、实体集合、压缩、校验、冲突解决和安全过滤应由项目层或更上层同步系统决定。
+
+当项目希望减少手写 `message_type` 和 payload 字段名时，可以用 `GFNetworkContract` 描述一组消息契约。单条消息由 `GFNetworkContractMessage` 声明 `message_type`、默认 `channel_id` 和字段列表；字段由 `GFNetworkContractField` 声明名称、值类型、必填性、默认值和可选类名提示。契约只约束消息结构，不定义房间、鉴权、服务器权威或玩法语义：
+
+```gdscript
+var slot := GFNetworkContractField.new()
+slot.field_name = &"slot"
+slot.value_type = GFNetworkContractField.ValueType.INT
+
+var ready := GFNetworkContractMessage.new()
+ready.message_type = &"player_ready"
+ready.channel_id = &"lobby"
+ready.fields = [slot]
+
+var contract := GFNetworkContract.new()
+contract.contract_id = &"lobby"
+contract.messages = [ready]
+
+var message := contract.make_message(&"player_ready", { &"slot": 1 })
+var report := contract.validate_message(message)
+```
+
+`GFNetworkContractGenerator` 可把契约资源生成 GDScript 辅助类，提供强类型构造、发送、匹配和字段读取函数。生成器不会扫描或推断项目业务协议；需要生成哪些契约由项目显式配置。启用 Network 扩展后，GF 工具菜单会提供“生成 Network Contract 访问器”，读取 `gf/network/contract_paths` 和 `gf/network/contract_output_dir`：
+
+```gdscript
+var generator := GFNetworkContractGenerator.new()
+generator.generate(contract, "res://gf/generated/network/lobby_network_messages.gd", true, {
+	"class_name": "LobbyNetworkMessages",
+})
+
+var typed_message := LobbyNetworkMessages.make_player_ready(1)
+LobbyNetworkMessages.send_player_ready(network, -1, 1)
+```
+
+生成脚本只是项目侧便捷层；底层仍然发送普通 `GFNetworkMessage`，也仍然遵守项目注册的 `GFNetworkChannel`、serializer、validator 和 backend。没有默认值的可选字段会把 `null` 视为“未提供”，默认不写入 payload；如果确实需要显式发送 null，可在 options 中传入 `{ "include_null_optional_fields": true }`。
 
 需要断线重连时，可以让项目后端使用 `GFNetworkReconnectPolicy` 统一退避间隔和尝试次数。它只返回下一次等待多少毫秒，不负责打开 socket、鉴权、频道恢复或 presence 语义：
 

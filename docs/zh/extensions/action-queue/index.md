@@ -139,7 +139,7 @@ q_sys.enqueue(GFAction.sequence([
 
 `GFAction` 也提供 `tween_by()`、`move_by()`、`scale_to()`、`scale_by()`、`rotate_to()`、`rotate_by()`、`fade_by()`、`colorize()`、`set_property()`、`show()`、`hide()` 和 `remove_node()` 等便捷工厂。这些工厂仅将常见属性写入、Tween 或节点释放转换为 `GFVisualAction`；调度方式、业务对象含义和流程语义仍由调用方决定。
 
-`GFCallableAction` 用于把普通 `Callable` 插入队列；`GFWaitAction` 表达通用时间等待；`GFRepeatAction` 会通过工厂每轮创建新动作，避免重复复用带 Tween、Timer 或节点引用的旧动作实例。运行时如果需要控制当前表现，可调用 `pause_current_action()`、`resume_current_action()`、`finish_current_action()` 或 `skip_current_action()`；自定义动作可以重写 `pause()`、`resume()`、`finish()` 和 `cancel()` 响应这些控制。队列控制只表达表现时序，不应承担回合结算、伤害结果或剧情状态修改。
+`GFCallableAction` 用于把普通 `Callable` 插入队列；`GFWaitAction` 表达通用时间等待，取消后不会再由旧计时器触发动作完成；`GFRepeatAction` 会通过工厂每轮创建新动作，避免重复复用带 Tween、Timer 或节点引用的旧动作实例。无限重复的瞬时动作会按 `max_immediate_iterations_per_frame` 分批让出主循环，避免把表现队列锁在同一帧。运行时如果需要控制当前表现，可调用 `pause_current_action()`、`resume_current_action()`、`finish_current_action()` 或 `skip_current_action()`；自定义动作可以重写 `pause()`、`resume()`、`finish()` 和 `cancel()` 响应这些控制。队列控制只表达表现时序，不应承担回合结算、伤害结果或剧情状态修改。
 
 如果表现动画需要被多个界面、实体或流程复用，可以把属性 Tween 抽成资源配置，再生成动作交给队列：
 

@@ -38,9 +38,9 @@ attrs.remove_modifiers_by_source(&"Sword")
 `GFBuff` 是状态效果的基类，负责管理生命周期和效果应用。
 - **生命周期**：支持 `duration` (持续时间) 和 `on_tick(delta)` (周期驱动逻辑)。
 - **效果携带**：Buff 可以携带多个 `GFModifier` 和 `Tags`，在应用时自动挂载至宿主。
-- **刷新语义**：同 ID Buff 默认刷新已有实例的持续时间并按 `max_stacks` 增加层数，不替换新 Buff 的 tags、modifiers 或 max_stacks；需要替换强度时应自定义 Buff 或扩展战斗系统。
+- **刷新语义**：同 ID Buff 默认通过已有实例的 `refresh_from(new_buff)` 刷新持续时间并按 `max_stacks` 增加层数，不自动替换新 Buff 的 tags、modifiers 或 max_stacks；需要替换强度、合并配置或触发项目事件时，继承 Buff 并覆写 `refresh_from()`。
 - **可配置策略**：`stack_mode` 可选择只刷新、叠层或忽略重复添加；`duration_refresh_policy` 可选择保持、重置、追加或保留更长剩余时间。
-- **周期 Tick**：`tick_interval_seconds <= 0` 时保持每帧调用 `on_tick(delta)`；大于 0 时按固定间隔触发，适合低频结算。
+- **周期 Tick**：`tick_interval_seconds <= 0` 时保持每帧调用 `on_tick(delta)`；大于 0 时按固定间隔触发，适合低频结算。`max_periodic_ticks_per_update` 会限制单次卡顿后的补偿 tick 数，避免大量 Buff 在一帧内无上限追赶。
 - **Tick 边界**：`on_tick(delta)` 只在 Buff 存活帧调用，过期帧不会额外补一次 tick。
 - **过期保留**：`remove_on_expire = false` 时，持续时间耗尽后不会要求 `GFCombatSystem` 移除该 Buff，项目可自行决定何时清理或复用。
 
@@ -100,7 +100,7 @@ var projectiles := emitter.emit_projectiles({
 })
 ```
 
-如果项目使用 `GFObjectPoolUtility`，发射器可通过 `use_object_pool` 从池中获取节点，并在 `projectile_finished` 后自动归还；池化发射体场景应把 `auto_launch_on_ready` 设为 `false`，让发射器统一传入本次上下文后再启动。弹药、冷却时间、命中后的派生发射、穿透次数和目标过滤仍建议放在项目技能、能力、状态机或自定义策略资源中表达。
+如果项目使用 `GFObjectPoolUtility`，发射器可通过 `use_object_pool` 从池中获取节点，并在 `projectile_finished` 后自动归还；池化发射体场景应把 `auto_launch_on_ready` 设为 `false`，让发射器统一传入本次上下文后再启动。发射器会给每次准备运行态写入新的 emission token，旧的完成信号回调不会释放已经复用到下一轮的发射体。弹药、冷却时间、命中后的派生发射、穿透次数和目标过滤仍建议放在项目技能、能力、状态机或自定义策略资源中表达。
 
 ```gdscript
 var projectile := GFProjectile2D.new()

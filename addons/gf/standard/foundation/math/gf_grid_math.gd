@@ -202,16 +202,20 @@ static func find_path_a_star(
 	if not bool(is_walkable.call(goal)):
 		return []
 
-	var open_set: Array[Vector2i] = [start]
-	var open_lookup: Dictionary = { start: true }
+	var open_heap: Array[Dictionary] = []
 	var closed: Dictionary = {}
 	var came_from: Dictionary = {}
 	var g_score: Dictionary = { start: 0.0 }
 	var f_score: Dictionary = { start: _heuristic_distance(start, goal, heuristic, allow_diagonal) }
+	_heap_push_cell(open_heap, start, float(f_score[start]))
 
-	while not open_set.is_empty():
-		var current := _take_lowest_score_cell(open_set, f_score)
-		open_lookup.erase(current)
+	while not open_heap.is_empty():
+		var current_entry := _heap_pop_cell(open_heap)
+		var current: Vector2i = current_entry["cell"]
+		if closed.has(current):
+			continue
+		if float(current_entry.get("priority", INF)) > float(f_score.get(current, INF)):
+			continue
 		if current == goal:
 			return _reconstruct_path(start, goal, came_from)
 
@@ -231,9 +235,7 @@ static func find_path_a_star(
 			came_from[next_cell] = current
 			g_score[next_cell] = tentative_score
 			f_score[next_cell] = tentative_score + _heuristic_distance(next_cell, goal, heuristic, allow_diagonal)
-			if not open_lookup.has(next_cell):
-				open_set.append(next_cell)
-				open_lookup[next_cell] = true
+			_heap_push_cell(open_heap, next_cell, float(f_score[next_cell]))
 
 	return []
 
@@ -262,7 +264,7 @@ static func build_flow_field(
 			"goals": valid_goals,
 		}
 
-	var frontier: Array[Vector2i] = []
+	var frontier: Array[Dictionary] = []
 	for goal: Vector2i in goals:
 		if not is_in_bounds(goal, grid_size) or not bool(is_walkable.call(goal)) or costs.has(goal):
 			continue
@@ -270,10 +272,14 @@ static func build_flow_field(
 		costs[goal] = 0.0
 		directions[goal] = Vector2i.ZERO
 		valid_goals.append(goal)
-		frontier.append(goal)
+		_heap_push_cell(frontier, goal, 0.0)
 
 	while not frontier.is_empty():
-		var current := _take_lowest_score_cell(frontier, costs)
+		var current_entry := _heap_pop_cell(frontier)
+		var current: Vector2i = current_entry["cell"]
+		if float(current_entry.get("priority", INF)) > float(costs.get(current, INF)):
+			continue
+
 		for next_cell: Vector2i in get_neighbors(current, grid_size, allow_diagonal):
 			if not bool(is_walkable.call(next_cell)):
 				continue
@@ -288,8 +294,7 @@ static func build_flow_field(
 
 			costs[next_cell] = next_cost
 			directions[next_cell] = current - next_cell
-			if not frontier.has(next_cell):
-				frontier.append(next_cell)
+			_heap_push_cell(frontier, next_cell, next_cost)
 
 	return {
 		"costs": costs,
@@ -402,6 +407,57 @@ static func _take_lowest_score_cell(cells: Array[Vector2i], scores: Dictionary) 
 	var cell := cells[best_index]
 	cells.remove_at(best_index)
 	return cell
+
+
+static func _heap_push_cell(heap: Array[Dictionary], cell: Vector2i, priority: float) -> void:
+	heap.append({
+		"cell": cell,
+		"priority": priority,
+	})
+	var index := heap.size() - 1
+	while index > 0:
+		var parent_index := int((index - 1) / 2)
+		if float(heap[parent_index].get("priority", INF)) <= priority:
+			break
+		var parent_entry := heap[parent_index]
+		heap[parent_index] = heap[index]
+		heap[index] = parent_entry
+		index = parent_index
+
+
+static func _heap_pop_cell(heap: Array[Dictionary]) -> Dictionary:
+	if heap.is_empty():
+		return {}
+
+	var result := heap[0]
+	var last_entry := heap.pop_back() as Dictionary
+	if heap.is_empty():
+		return result
+
+	heap[0] = last_entry
+	var index := 0
+	while true:
+		var left_index := index * 2 + 1
+		var right_index := left_index + 1
+		var best_index := index
+		if (
+			left_index < heap.size()
+			and float(heap[left_index].get("priority", INF)) < float(heap[best_index].get("priority", INF))
+		):
+			best_index = left_index
+		if (
+			right_index < heap.size()
+			and float(heap[right_index].get("priority", INF)) < float(heap[best_index].get("priority", INF))
+		):
+			best_index = right_index
+		if best_index == index:
+			break
+
+		var best_entry := heap[best_index]
+		heap[best_index] = heap[index]
+		heap[index] = best_entry
+		index = best_index
+	return result
 
 
 static func _heuristic_distance(
