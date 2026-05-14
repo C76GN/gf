@@ -4,12 +4,19 @@
 extends RefCounted
 
 
+# --- 信号 ---
+
+## 请求打开 GF 编辑器工作区。
+signal workspace_requested
+
+
 # --- 常量 ---
 
 const MENU_GENERATE_SYSTEM: int = 0
 const MENU_GENERATE_MODEL: int = 1
 const MENU_GENERATE_UTILITY: int = 2
 const MENU_GENERATE_COMMAND: int = 3
+const MENU_OPEN_WORKSPACE: int = 10
 const MENU_GENERATE_ACCESSORS: int = 11
 const MENU_GENERATE_PROJECT_ACCESSORS: int = 12
 const TEMPLATE_MENU_ID_START: int = 100
@@ -84,6 +91,8 @@ func handle_menu_id(id: int) -> void:
 			_generate_accessors()
 		&"generate_project_accessors":
 			_generate_project_accessors()
+		&"open_workspace":
+			workspace_requested.emit()
 		&"extension_action":
 			_handle_extension_action(handler)
 
@@ -96,6 +105,12 @@ func _setup_menu_actions(template_records: Array = []) -> void:
 	_register_template_records(_get_core_template_records())
 	_register_template_records(template_records)
 	_load_extension_editor_actions()
+	_register_fixed_menu_action(
+		MENU_OPEN_WORKSPACE,
+		"打开 GF 工作区",
+		"工作区",
+		&"open_workspace"
+	)
 	_register_fixed_menu_action(
 		MENU_GENERATE_ACCESSORS,
 		"生成强类型访问器",
@@ -322,7 +337,7 @@ func _show_diagnostic_dialog(title: String, text: String) -> void:
 
 func _load_extension_editor_actions() -> void:
 	_cleanup_extension_editor_actions()
-	for script_path: String in GFExtensionSettingsBase.get_enabled_editor_action_paths(true):
+	for script_path: String in GFExtensionSettingsBase.get_enabled_editor_action_paths():
 		var action := _create_extension_editor_action(script_path)
 		if action == null:
 			continue

@@ -23,15 +23,14 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 - `addons/gf/kernel/**` 不能 `preload()`、`load()`、直接写入路径或直接引用 `addons/gf/standard/**` 的具体类名。
 - `standard` 可以依赖 `kernel`；扩展可以依赖 `kernel`，也可以按需依赖稳定的 `standard`。
 - 如果 `kernel` 运行时必须直接识别某个能力，应把最小契约、协议或基础工具放入 `kernel`，再让 `standard` 或扩展提供具体实现。例如内核识别 `GFTimeProvider`，标准库的 `GFTimeUtility` 只是实现。
-- 可选官方扩展不能被 `kernel` 或 `standard` 硬 preload、硬编码 `res://addons/gf/extensions/official/**` 脚本路径、硬编码 `gf.official.*` 扩展 ID，或直接引用扩展内 `class_name`。
-- `standard` 不能主动认识、探测或弱联动任何官方扩展。需要让标准库能力呈现扩展信息时，必须由扩展侧依赖 `standard` 的通用注册入口主动贡献，例如向 `GFDiagnosticsUtility` 注册快照、监控项或命令。
-- 官方扩展必须保持原子化。官方扩展 manifest 的 `dependencies` 只能声明 `gf.kernel` 与 `gf.standard`，不能声明其他官方扩展硬依赖；官方扩展也不能声明 `optional_dependencies`。
-- 官方扩展之间不能通过其他官方扩展的路径、扩展 ID、`class_name`、动态脚本加载、动态扩展探测或隐藏协议形成软协作。跨官方扩展组合属于项目 Installer、社区扩展或外部插件，不能写回官方扩展。
-- `optional_dependencies` 只面向社区扩展、项目扩展或外部插件，用于表达不会自动启用、也不允许硬引用源码的可选关系；官方扩展不使用这个字段。
+- 可选 GF 内置扩展不能被 `kernel` 或 `standard` 硬 preload、硬编码 `res://addons/gf/extensions/**` 脚本路径、硬编码 `gf.*` 扩展 ID，或直接引用扩展内 `class_name`。
+- `standard` 不能主动认识、探测或弱联动任何 GF 内置扩展。需要让标准库能力呈现扩展信息时，必须由扩展侧依赖 `standard` 的通用注册入口主动贡献，例如向 `GFDiagnosticsUtility` 注册快照、监控项或命令。
+- GF 内置扩展必须保持原子化。内置扩展 manifest 的 `dependencies` 只能声明 `gf.kernel` 与 `gf.standard`，不能声明其他内置扩展硬依赖或软协作字段。
+- GF 内置扩展之间不能通过其他内置扩展的路径、扩展 ID、`class_name`、动态脚本加载、动态扩展探测或隐藏协议形成软协作。跨扩展组合属于项目 Installer 或 `addons/gf` 外的独立插件，不能写回 GF 内置扩展。
 - `kernel/editor` 可以承载通用菜单、文件对话框和模板生成器，但不能硬编码 `standard` 或可选扩展的具体模板类型、基类或扩展 ID；标准库模板由 `gf_standard_editor_extensions.gd` 注入，可选扩展模板由扩展自己的 `editor_action_paths` 注入。
 - 根插件 `addons/gf/plugin.gd` 是组合入口，可以收集标准库编辑器增强并传给 `kernel/editor` 辅助脚本；这个例外不允许扩散到 `addons/gf/kernel/**`。
 - 移动层级边界时，同步更新源码路径、测试、正式文档、`docs/zh/changelog.md` 和 API 摘要；不要留下重复路径副本造成重复 `class_name` 或 UID 冲突。
-- 修改层级依赖后，必须运行 `tests/gf_core/maintenance/test_layer_boundary_validation.gd`，确保 `kernel` 不引用 `standard` / 官方扩展具体类型、`kernel` 不硬编码官方扩展 ID、`standard` 不引用官方扩展路径、扩展 ID 或扩展内类名，并确保官方扩展保持原子化、只依赖 `gf.kernel` 与 `gf.standard`。
+- 修改层级依赖后，必须运行 `tests/gf_core/maintenance/test_layer_boundary_validation.gd`，确保 `kernel` 不引用 `standard` / GF 内置扩展具体类型、`kernel` 不硬编码内置扩展 ID、`standard` 不引用扩展路径、扩展 ID 或扩展内类名，并确保 GF 内置扩展保持原子化、只依赖 `gf.kernel` 与 `gf.standard`。
 - 重命名、移动或移除公开脚本后，必须运行 `tests/gf_core/maintenance/test_gdscript_parse_validation.gd`，确认已移除公开类名没有残留、公开 `class_name` 没有重复、`.gd.uid` 没有孤儿文件或 UID 冲突。
 
 ## 按变更类型检查文件
@@ -102,9 +101,10 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 - 功能开发、修复或文档补充过程中，如果需要记录发布说明，先写入 `docs/zh/changelog.md` 的 `[未发布]` 小节；如果没有 `[未发布]` 小节，就在最新正式版本上方创建。
 - 在用户确认本轮修改没有问题之前，不要把 `[未发布]` 改成具体版本号，也不要更新 `addons/gf/plugin.cfg` 或 `ASSET_LIBRARY.md` 的版本号。
 - 用户确认进入发布或提交阶段后，根据实际变更确定 SemVer 版本号：兼容 bug 修复或小型加固用 patch；向后兼容的新公开 API、设置或功能通常用 minor；破坏兼容只允许在用户明确批准后按 major 处理。
-- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md`、所有官方扩展 `gf_extension.json` 的 `version` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
-- 官方扩展 manifest 的 `version` 表示 GF 官方发行版本，发布时所有 `addons/gf/extensions/official/*/gf_extension.json` 必须同步为当前 GF 版本。官方扩展 manifest 的 `extension_version` 表示单个扩展自身版本，只有该扩展的公开 API、配置、行为或兼容性契约发生变化时才按 SemVer 递增；本轮未改变的官方扩展只同步 `version`，不递增 `extension_version`。
+- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md`、所有 GF 内置扩展 `gf_extension.json` 的 `version` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
+- GF 内置扩展 manifest 的 `version` 表示 GF 发行版本，发布时所有 `addons/gf/extensions/*/gf_extension.json` 必须同步为当前 GF 版本。内置扩展 manifest 的 `extension_version` 表示单个扩展自身版本，只有该扩展的公开 API、配置、行为或兼容性契约发生变化时才按 SemVer 递增；本轮未改变的内置扩展只同步 `version`，不递增 `extension_version`。
 - 正式 `docs/zh/changelog.md` 只保留当前最新发布版本。发布新版本时必须删除上一个正式版本条目，旧版本历史以 Git 历史和 GitHub Releases 为准，不要让旧日志长期堆积在正式文档中。
+- GF 版本 tag 统一使用不带 `v` 的 SemVer 格式，例如 `3.5.0`。推送这类 tag 后，`.github/workflows/release.yml` 会校验 `plugin.cfg`、内置扩展 manifest、`ASSET_LIBRARY.md` 与 changelog 版本一致，构建文档，并用对应 changelog 段落创建 GitHub Release。
 - 除非用户明确要求 AI 直接提交，否则只准备 commit message 和待提交文件清单，让用户手动提交。若用户明确要求 AI 提交，提交前必须再次运行相关测试和文档/API 校验。
 - 提交后不要自动创建 Git tag；只有用户明确要求打 tag 时，才创建对应版本 tag。
 

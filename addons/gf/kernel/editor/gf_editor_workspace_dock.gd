@@ -1,24 +1,27 @@
 @tool
 
-## GFEditorWorkspaceDock: GF 编辑器底部统一入口。
+## GFEditorWorkspaceDock: GF 编辑器统一工作区。
 ##
-## 把核心、标准库和启用扩展贡献的底部面板收束到一个响应式工作区中，
-## 避免多个 GF 面板挤占 Godot 底部栏。
+## 把核心、标准库和启用扩展贡献的编辑器页面收束到一个响应式工作区中。
 extends Control
 
 
 # --- 常量 ---
 
-const ABOUT_DIALOG_SIZE := Vector2i(620, 360)
+const ABOUT_DIALOG_SIZE := Vector2i(560, 320)
 const CONTACT_EMAIL: String = "cl7o6dgyn@gmail.com"
 const CONTACT_QQ: String = "403150493"
 const CONTACT_WECHAT: String = "C76_GN"
 const DOCUMENTATION_URL: String = "https://gf-framework.readthedocs.io/"
 const EMPTY_MESSAGE: String = "没有可用的 GF 编辑器面板。"
-const ABOUT_TEXT_MAX_HEIGHT: float = 236.0
-const PAGE_BUTTON_MIN_WIDTH: float = 136.0
+const ABOUT_TEXT_MAX_HEIGHT: float = 150.0
+const ISSUE_URL: String = "https://github.com/C76GN/gf-framework/issues"
+const LATEST_RELEASE_API_URL: String = "https://api.github.com/repos/C76GN/gf-framework/releases/latest"
+const PAGE_BUTTON_MIN_WIDTH: float = 84.0
 const PROJECT_URL: String = "https://github.com/C76GN/gf-framework"
-const WORKSPACE_COLLAPSED_MIN_HEIGHT: float = 112.0
+const RELEASES_URL: String = "https://github.com/C76GN/gf-framework/releases"
+const VERSION_STATUS_MIN_HEIGHT: float = 24.0
+const WORKSPACE_COLLAPSED_MIN_HEIGHT: float = 72.0
 const WORKSPACE_TITLE: String = "GF Workspace"
 
 
@@ -26,10 +29,13 @@ const WORKSPACE_TITLE: String = "GF Workspace"
 
 var _about_button: Button = null
 var _about_dialog: AcceptDialog = null
+var _latest_version_request: HTTPRequest = null
 var _page_buttons: Array[Button] = []
 var _page_selector: HFlowContainer = null
 var _tabs: TabContainer = null
 var _status_label: Label = null
+var _version_check_button: Button = null
+var _version_status_label: Label = null
 var _dock_records: Array[Dictionary] = []
 
 
@@ -104,7 +110,12 @@ func select_page(title: String) -> bool:
 func show_about_dialog() -> void:
 	_ensure_about_dialog()
 	if is_inside_tree():
+		_about_dialog.mode = Window.MODE_WINDOWED
+		_about_dialog.min_size = ABOUT_DIALOG_SIZE
+		_about_dialog.max_size = ABOUT_DIALOG_SIZE
+		_about_dialog.reset_size()
 		_about_dialog.popup_centered(ABOUT_DIALOG_SIZE)
+		_about_dialog.size = ABOUT_DIALOG_SIZE
 
 
 # --- 私有/辅助方法 ---
@@ -130,32 +141,27 @@ func _build_ui() -> void:
 	layout.add_theme_constant_override("separation", 6)
 	margin.add_child(layout)
 
-	var header := HFlowContainer.new()
+	var header := HBoxContainer.new()
 	header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_theme_constant_override("h_separation", 8)
-	header.add_theme_constant_override("v_separation", 4)
+	header.add_theme_constant_override("separation", 8)
 	layout.add_child(header)
-
-	var title := Label.new()
-	title.text = WORKSPACE_TITLE
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-
-	_status_label = Label.new()
-	_status_label.modulate = Color(0.72, 0.72, 0.72)
-	header.add_child(_status_label)
-
-	_about_button = Button.new()
-	_about_button.text = "关于"
-	_about_button.tooltip_text = "查看 GF Framework 介绍、项目地址和文档地址。"
-	_about_button.pressed.connect(_on_about_button_pressed)
-	header.add_child(_about_button)
 
 	_page_selector = HFlowContainer.new()
 	_page_selector.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_page_selector.add_theme_constant_override("h_separation", 6)
 	_page_selector.add_theme_constant_override("v_separation", 4)
-	layout.add_child(_page_selector)
+	header.add_child(_page_selector)
+
+	_status_label = Label.new()
+	_status_label.modulate = Color(0.72, 0.72, 0.72)
+	_status_label.visible = false
+	header.add_child(_status_label)
+
+	_about_button = Button.new()
+	_about_button.text = "关于"
+	_about_button.tooltip_text = "查看 GF Framework 介绍、项目链接、文档地址和版本信息。"
+	_about_button.pressed.connect(_on_about_button_pressed)
+	header.add_child(_about_button)
 
 	_tabs = TabContainer.new()
 	_tabs.clip_contents = true
@@ -205,8 +211,10 @@ func _instantiate_page(record: Dictionary) -> Control:
 		return null
 
 	var label := _resolve_page_label(dock, String(record.get("label", "")))
+	var short_label := _resolve_short_page_label(record, label)
 	var page := Control.new()
 	page.name = label
+	page.set_meta("short_label", short_label)
 	page.clip_contents = true
 	page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	page.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -242,6 +250,26 @@ func _resolve_page_label(dock: Control, fallback_label: String) -> String:
 	return "Panel"
 
 
+func _resolve_short_page_label(record: Dictionary, label: String) -> String:
+	var explicit_label := String(record.get("short_label", "")).strip_edges()
+	if not explicit_label.is_empty():
+		return explicit_label
+
+	var result := label.strip_edges()
+	if result.begins_with("GF "):
+		result = result.substr(3)
+	match result:
+		"State Tools":
+			return "State"
+		"Save Viewer":
+			return "Save"
+		"Signal Graph":
+			return "Signals"
+		"Flow Tools":
+			return "Flow"
+	return result
+
+
 func _copy_records(source: Array[Dictionary]) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	for record: Dictionary in source:
@@ -266,7 +294,7 @@ func _rebuild_page_buttons() -> void:
 	for index: int in range(_tabs.get_child_count()):
 		var page := _tabs.get_child(index)
 		var button := Button.new()
-		button.text = page.name
+		button.text = String(page.get_meta("short_label", page.name))
 		button.toggle_mode = true
 		button.focus_mode = Control.FOCUS_NONE
 		button.tooltip_text = "切换到 %s" % page.name
@@ -302,6 +330,9 @@ func _ensure_about_dialog() -> void:
 	_about_dialog = AcceptDialog.new()
 	_about_dialog.title = "关于 GF Framework"
 	_about_dialog.min_size = ABOUT_DIALOG_SIZE
+	_about_dialog.max_size = ABOUT_DIALOG_SIZE
+	_about_dialog.unresizable = true
+	_about_dialog.wrap_controls = false
 	add_child(_about_dialog)
 	_about_dialog.add_child(_make_about_content())
 	_about_dialog.get_ok_button().visible = false
@@ -310,12 +341,15 @@ func _ensure_about_dialog() -> void:
 func _make_about_text() -> String:
 	return "\n".join([
 		"GF Framework",
+		"版本：%s" % _get_framework_version(),
 		"",
 		"面向 Godot 4 的轻量级游戏架构框架。",
 		"它把数据、逻辑、表现、运行时服务和纯算法基础件拆开管理，帮助项目保持可预测的生命周期、清晰的依赖边界和可测试的玩法代码。",
 		"",
 		"项目地址：%s" % PROJECT_URL,
 		"文档地址：%s" % DOCUMENTATION_URL,
+		"Issues：%s" % ISSUE_URL,
+		"Releases：%s" % RELEASES_URL,
 		"",
 		"联系方式：",
 		"E-mail：%s" % CONTACT_EMAIL,
@@ -335,10 +369,10 @@ func _make_about_content() -> Control:
 
 	var layout := VBoxContainer.new()
 	layout.name = "AboutLayout"
-	layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.alignment = BoxContainer.ALIGNMENT_BEGIN
 	layout.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	layout.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	layout.add_theme_constant_override("separation", 12)
+	layout.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	layout.add_theme_constant_override("separation", 8)
 	margin.add_child(layout)
 
 	var scroll := ScrollContainer.new()
@@ -360,6 +394,44 @@ func _make_about_content() -> Control:
 	text.meta_clicked.connect(_on_about_link_clicked)
 	scroll.add_child(text)
 
+	var action_row := HBoxContainer.new()
+	action_row.name = "AboutActionRow"
+	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_row.add_theme_constant_override("separation", 8)
+	layout.add_child(action_row)
+
+	var issues_button := Button.new()
+	issues_button.name = "AboutIssuesButton"
+	issues_button.text = "Issues"
+	issues_button.tooltip_text = "打开 GF Framework Issues 页面。"
+	issues_button.pressed.connect(_on_about_link_button_pressed.bind(ISSUE_URL))
+	action_row.add_child(issues_button)
+
+	var releases_button := Button.new()
+	releases_button.name = "AboutReleasesButton"
+	releases_button.text = "Releases"
+	releases_button.tooltip_text = "打开 GF Framework Releases 页面。"
+	releases_button.pressed.connect(_on_about_link_button_pressed.bind(RELEASES_URL))
+	action_row.add_child(releases_button)
+
+	_version_check_button = Button.new()
+	_version_check_button.name = "AboutVersionCheckButton"
+	_version_check_button.text = "检测最新版本"
+	_version_check_button.tooltip_text = "从 GitHub Releases 检测当前 GF Framework 是否为最新发布版本。"
+	_version_check_button.pressed.connect(_on_version_check_pressed)
+	action_row.add_child(_version_check_button)
+
+	_version_status_label = Label.new()
+	_version_status_label.name = "AboutVersionStatus"
+	_version_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_version_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_version_status_label.custom_minimum_size = Vector2(0.0, VERSION_STATUS_MIN_HEIGHT)
+	_version_status_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_version_status_label.modulate = Color(0.72, 0.72, 0.72)
+	_version_status_label.text = "当前版本：%s。可手动检测最新发布版本。" % _get_framework_version()
+	layout.add_child(_version_status_label)
+
 	var confirm_center := CenterContainer.new()
 	confirm_center.name = "AboutConfirmCenter"
 	confirm_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -376,19 +448,139 @@ func _make_about_content() -> Control:
 
 func _make_about_bbcode() -> String:
 	return "\n".join([
-		"[center][b]GF Framework[/b]",
-		"",
+		"[center][b]GF Framework[/b] · 版本：%s" % _get_framework_version(),
 		"面向 Godot 4 的轻量级游戏架构框架。",
-		"拆开管理数据、逻辑、表现、运行时服务和纯算法基础件。",
-		"",
-		"项目地址：[url=%s]%s[/url]" % [PROJECT_URL, PROJECT_URL],
-		"文档地址：[url=%s]%s[/url]" % [DOCUMENTATION_URL, DOCUMENTATION_URL],
-		"",
-		"[b]联系方式[/b]",
+		"[url=%s]GitHub[/url] · [url=%s]文档[/url] · [url=%s]Issues[/url] · [url=%s]Releases[/url]" % [
+			PROJECT_URL,
+			DOCUMENTATION_URL,
+			ISSUE_URL,
+			RELEASES_URL,
+		],
 		"E-mail：[url=mailto:%s]%s[/url]" % [CONTACT_EMAIL, CONTACT_EMAIL],
-		"WeChat：%s" % CONTACT_WECHAT,
-		"QQ：%s[/center]" % CONTACT_QQ,
+		"WeChat：%s · QQ：%s[/center]" % [CONTACT_WECHAT, CONTACT_QQ],
 	])
+
+
+func _get_framework_version() -> String:
+	var config := ConfigFile.new()
+	var error := config.load("res://addons/gf/plugin.cfg")
+	if error != OK:
+		return "unknown"
+	return String(config.get_value("plugin", "version", "unknown")).strip_edges()
+
+
+func _set_version_status(message: String, color: Color = Color(0.72, 0.72, 0.72)) -> void:
+	if not is_instance_valid(_version_status_label):
+		return
+	_version_status_label.text = message
+	_version_status_label.modulate = color
+
+
+func _request_latest_version() -> void:
+	_ensure_latest_version_request()
+	if not is_instance_valid(_latest_version_request):
+		_set_version_status("无法创建版本检测请求。", Color(0.9, 0.56, 0.56))
+		return
+
+	var status := _latest_version_request.get_http_client_status()
+	if status != HTTPClient.STATUS_DISCONNECTED:
+		_set_version_status("正在检测最新版本，请稍候。")
+		return
+
+	_set_version_status("正在检测最新版本...")
+	if is_instance_valid(_version_check_button):
+		_version_check_button.disabled = true
+
+	var headers := PackedStringArray([
+		"Accept: application/vnd.github+json",
+		"User-Agent: GF-Framework-Godot-Editor",
+	])
+	var error := _latest_version_request.request(
+		LATEST_RELEASE_API_URL,
+		headers,
+		HTTPClient.METHOD_GET
+	)
+	if error != OK:
+		if is_instance_valid(_version_check_button):
+			_version_check_button.disabled = false
+		_set_version_status("无法发起版本检测：%s。" % error_string(error), Color(0.9, 0.56, 0.56))
+
+
+func _ensure_latest_version_request() -> void:
+	if is_instance_valid(_latest_version_request):
+		return
+
+	_latest_version_request = HTTPRequest.new()
+	_latest_version_request.name = "LatestVersionRequest"
+	_latest_version_request.timeout = 10.0
+	_latest_version_request.use_threads = true
+	_latest_version_request.request_completed.connect(_on_latest_version_request_completed)
+	add_child(_latest_version_request)
+
+
+func _make_latest_version_status(latest_version: String, current_version: String) -> Dictionary:
+	var latest := _normalize_version_tag(latest_version)
+	var current := _normalize_version_tag(current_version)
+	if latest.is_empty():
+		return {
+			"message": "未能读取最新发布版本。",
+			"color": Color(0.9, 0.56, 0.56),
+		}
+	if current.is_empty() or current == "unknown":
+		return {
+			"message": "最新发布版本：%s。当前版本未知。" % latest,
+			"color": Color(0.86, 0.74, 0.45),
+		}
+
+	var compare := _compare_version_strings(latest, current)
+	if compare > 0:
+		return {
+			"message": "发现新版本：%s。当前版本：%s。" % [latest, current],
+			"color": Color(0.86, 0.74, 0.45),
+		}
+	if compare < 0:
+		return {
+			"message": "当前版本 %s 高于最新发布 %s。" % [current, latest],
+			"color": Color(0.86, 0.74, 0.45),
+		}
+	return {
+		"message": "当前已是最新版本：%s。" % current,
+		"color": Color(0.56, 0.82, 0.56),
+	}
+
+
+func _compare_version_strings(left: String, right: String) -> int:
+	var left_parts := _parse_version_numbers(left)
+	var right_parts := _parse_version_numbers(right)
+	for index: int in range(3):
+		if left_parts[index] > right_parts[index]:
+			return 1
+		if left_parts[index] < right_parts[index]:
+			return -1
+	return 0
+
+
+func _normalize_version_tag(value: String) -> String:
+	var text := value.strip_edges()
+	if text.begins_with("refs/tags/"):
+		text = text.trim_prefix("refs/tags/")
+	if text.length() > 1 and text.substr(0, 1).to_lower() == "v" and text.substr(1, 1).is_valid_int():
+		text = text.substr(1)
+	if text.find("+") >= 0:
+		text = text.split("+", false, 1)[0]
+	if text.find("-") >= 0:
+		text = text.split("-", false, 1)[0]
+	return text.strip_edges()
+
+
+func _parse_version_numbers(value: String) -> PackedInt32Array:
+	var result := PackedInt32Array([0, 0, 0])
+	var parts := _normalize_version_tag(value).split(".")
+	for index: int in range(mini(parts.size(), 3)):
+		var part := String(parts[index]).strip_edges()
+		if part.is_valid_int():
+			result[index] = int(part)
+	return result
 
 
 # --- 信号处理函数 ---
@@ -415,6 +607,43 @@ func _on_about_link_clicked(meta: Variant) -> void:
 	var link := str(meta)
 	if not link.is_empty():
 		OS.shell_open(link)
+
+
+func _on_about_link_button_pressed(url: String) -> void:
+	if not url.is_empty():
+		OS.shell_open(url)
+
+
+func _on_version_check_pressed() -> void:
+	_request_latest_version()
+
+
+func _on_latest_version_request_completed(
+	result: int,
+	response_code: int,
+	_headers: PackedStringArray,
+	body: PackedByteArray
+) -> void:
+	if is_instance_valid(_version_check_button):
+		_version_check_button.disabled = false
+
+	if result != HTTPRequest.RESULT_SUCCESS:
+		_set_version_status("无法检测最新版本：网络请求失败。", Color(0.9, 0.56, 0.56))
+		return
+	if response_code < 200 or response_code >= 300:
+		_set_version_status("无法检测最新版本：HTTP %d。" % response_code, Color(0.9, 0.56, 0.56))
+		return
+
+	var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
+	if not (parsed is Dictionary):
+		_set_version_status("无法检测最新版本：返回内容不是 JSON 对象。", Color(0.9, 0.56, 0.56))
+		return
+
+	var data := parsed as Dictionary
+	var latest_version := String(data.get("tag_name", data.get("name", "")))
+	var status := _make_latest_version_status(latest_version, _get_framework_version())
+	var status_color: Color = status.get("color", Color(0.72, 0.72, 0.72))
+	_set_version_status(String(status.get("message", "")), status_color)
 
 
 func _on_about_confirm_pressed() -> void:

@@ -15,7 +15,7 @@ const BLOCKING_INSTALLER_STARTED_SETTING: String = "gf/test/blocking_installer_s
 const BLOCKING_INSTALLER_RELEASE_SETTING: String = "gf/test/release_blocking_installer"
 const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
-const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/official/save/graph/gf_save_graph_utility.gd")
+const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
 const InstallerModelFixture = preload("res://tests/gf_core/fixtures/installers/installer_model_fixture.gd")
 const AsyncInstallerUtilityFixture = preload("res://tests/gf_core/fixtures/installers/async_installer_utility_fixture.gd")
 
@@ -885,7 +885,7 @@ func test_enabled_extension_installer_registers_services_before_init() -> void:
 		true
 	)
 	ProjectSettings.set_setting(INSTALLERS_SETTING, [])
-	ProjectSettings.set_setting(GFExtensionSettingsBase.ENABLED_EXTENSIONS_SETTING, ["gf.official.save"])
+	ProjectSettings.set_setting(GFExtensionSettingsBase.ENABLED_EXTENSIONS_SETTING, ["gf.save"])
 	ProjectSettings.set_setting(GFExtensionSettingsBase.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, true)
 
 	if Gf.has_architecture():
@@ -893,7 +893,7 @@ func test_enabled_extension_installer_registers_services_before_init() -> void:
 	Gf._architecture = null
 
 	await Gf.init()
-	var save_graph_utility := Gf.get_utility(GFSaveGraphUtilityBase)
+	var save_graph_utility: Object = Gf.get_utility(GFSaveGraphUtilityBase)
 
 	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
 	ProjectSettings.set_setting(GFExtensionSettingsBase.ENABLED_EXTENSIONS_SETTING, previous_extensions)
@@ -915,7 +915,7 @@ func test_project_installer_error_fails_initialization_by_default() -> void:
 	Gf._architecture = null
 
 	await Gf.init()
-	var architecture := Gf.get_architecture()
+	var architecture: GFArchitecture = Gf.get_architecture()
 
 	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
 	_restore_project_setting(FAIL_ON_INSTALLER_ERROR_SETTING, had_fail_on_error, previous_fail_on_error)
@@ -944,7 +944,7 @@ func test_project_installer_error_can_be_skipped_when_disabled() -> void:
 	Gf._architecture = null
 
 	await Gf.init()
-	var architecture := Gf.get_architecture()
+	var architecture: GFArchitecture = Gf.get_architecture()
 
 	ProjectSettings.set_setting(INSTALLERS_SETTING, previous_installers)
 	_restore_project_setting(FAIL_ON_INSTALLER_ERROR_SETTING, had_fail_on_error, previous_fail_on_error)
@@ -1011,7 +1011,7 @@ func test_project_installer_timeout_fails_initialization() -> void:
 	Gf._architecture = null
 
 	await Gf.init()
-	var architecture := Gf.get_architecture()
+	var architecture: GFArchitecture = Gf.get_architecture()
 
 	ProjectSettings.set_setting(BLOCKING_INSTALLER_RELEASE_SETTING, true)
 	await get_tree().process_frame
@@ -1511,7 +1511,7 @@ func test_facade_event_debugging_proxies_architecture() -> void:
 	)
 
 	Gf.send_simple_event(&"facade_trace_event")
-	var trace := Gf.get_event_dispatch_trace()
+	var trace: Array[Dictionary] = Gf.get_event_dispatch_trace()
 
 	assert_eq(trace.size(), 1, "Gf 门面应能读取事件追踪。")
 	assert_eq(String((trace[0] as Dictionary).get("event")), "facade_trace_event", "门面追踪应来自当前架构。")

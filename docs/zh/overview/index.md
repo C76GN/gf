@@ -22,7 +22,7 @@
 Gf -> res://addons/gf/kernel/core/gf.gd
 ```
 
-插件也会打开统一的 `GF` 底部工作区，其中 `GF Extensions` 页面用于查看扩展信息、启用或禁用扩展、控制扩展 Installer 是否自动装配，以及控制导出时是否排除禁用扩展。扩展机制的完整说明见 [官方扩展总览与扩展规范](../extensions/index.md)。
+插件也会默认打开独立的 `GF Workspace`，其中 `GF Extensions` 页面用于查看扩展信息、启用或禁用扩展、控制扩展 Installer 是否自动装配，以及控制导出时是否排除禁用扩展。扩展机制的完整说明见 [GF 内置扩展总览与扩展规范](../extensions/index.md)。
 
 ## 最小启动
 
@@ -75,7 +75,7 @@ Installer 只负责注册模块，不应该直接启动关卡、打开 UI 或执
 - 想理解 Installer、三阶段初始化和局部架构：读 [生命周期、装配与依赖](../kernel/lifecycle/index.md)。
 - 想写事件、命令和查询：读 [消息、事件、命令与查询](../kernel/messaging/index.md)。
 - 想把场景节点、UI 和输入接入 GF：读 [场景桥接、Controller 与数据绑定](../kernel/scene-controller/index.md)。
-- 想查标准库或官方扩展能力：回到 [Home](../index.md) 按主题查阅。
+- 想查标准库或 GF 内置扩展能力：回到 [Home](../index.md) 按主题查阅。
 
 ## 上手原则
 

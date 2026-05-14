@@ -63,6 +63,45 @@ func test_surface_utility_cache_can_be_cleared() -> void:
 	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 0, "clear_cache 后缓存应为空。")
 
 
+func test_surface_utility_can_prewarm_manual_cache() -> void:
+	var utility := GFSurfaceUtilityBase.new()
+	var mesh_instance := _make_two_surface_mesh_instance()
+	add_child_autofree(mesh_instance)
+	utility.cache_mode = GFSurfaceUtility.CacheMode.MANUAL
+
+	assert_true(utility.cache_mesh_surface(mesh_instance), "手动缓存模式应允许显式预热 Mesh surface。")
+	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 1, "预热后应记录缓存 Mesh。")
+
+	assert_true(utility.erase_cached_mesh(mesh_instance), "应能移除指定 Mesh 缓存。")
+	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 0, "移除后缓存应为空。")
+
+
+func test_surface_utility_auto_cache_respects_capacity() -> void:
+	var utility := GFSurfaceUtilityBase.new()
+	utility.set_auto_cache_size(1)
+	var first_mesh_instance := _make_two_surface_mesh_instance()
+	var second_mesh_instance := _make_two_surface_mesh_instance()
+	add_child_autofree(first_mesh_instance)
+	add_child_autofree(second_mesh_instance)
+
+	utility.get_surface_index(first_mesh_instance, 0)
+	utility.get_surface_index(second_mesh_instance, 0)
+
+	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 1, "自动缓存应按容量裁剪旧 Mesh。")
+
+
+func test_surface_utility_disabled_cache_does_not_store() -> void:
+	var utility := GFSurfaceUtilityBase.new()
+	var mesh_instance := _make_two_surface_mesh_instance()
+	add_child_autofree(mesh_instance)
+	utility.cache_mode = GFSurfaceUtility.CacheMode.DISABLED
+
+	utility.get_surface_index(mesh_instance, 0)
+
+	assert_eq(utility.get_debug_snapshot()["cached_meshes"], 0, "禁用缓存时查询不应写入缓存。")
+	assert_false(utility.cache_mesh_surface(mesh_instance), "禁用缓存时显式预热应返回 false。")
+
+
 func _make_two_surface_mesh_instance(use_indices: bool = true) -> MeshInstance3D:
 	var mesh := ArrayMesh.new()
 	_add_triangle_surface(mesh, Vector3.ZERO, _make_material(Color.RED), use_indices)

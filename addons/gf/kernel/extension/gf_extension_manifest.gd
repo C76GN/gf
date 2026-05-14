@@ -1,6 +1,6 @@
 ## GFExtensionManifest: GF 扩展元数据描述。
 ##
-## 用于描述官方扩展或社区扩展的稳定 ID、版本、依赖、安装入口和编辑器扩展。
+## 用于描述 GF 扩展的稳定 ID、版本、依赖、安装入口和编辑器扩展。
 class_name GFExtensionManifest
 extends RefCounted
 
@@ -10,20 +10,11 @@ extends RefCounted
 ## GF 扩展 manifest 文件名。
 const FILE_NAME: String = "gf_extension.json"
 
-## 官方扩展允许声明的基础依赖。
-const OFFICIAL_ALLOWED_DEPENDENCIES: Array[String] = [
-	"gf.kernel",
-	"gf.standard",
-]
-
 ## 扩展类型：GF 标准库内置能力。
 const KIND_STANDARD: String = "standard"
 
-## 扩展类型：随 GF 发布的官方扩展。
-const KIND_OFFICIAL: String = "official"
-
-## 扩展类型：社区扩展或项目本地扩展。
-const KIND_COMMUNITY: String = "community"
+## 扩展类型：GF 可选扩展。
+const KIND_EXTENSION: String = "extension"
 
 
 # --- 公共变量 ---
@@ -34,17 +25,17 @@ var id: String = ""
 ## 面向用户显示的扩展名。
 var display_name: String = ""
 
-## 扩展发行版本号。官方扩展必须与当前 GF 发行版本一致；社区扩展可使用自己的发行版本。
+## 扩展发行版本号。GF 内置扩展必须与当前 GF 发行版本一致。
 var version: String = ""
 
-## 扩展自身版本号。官方扩展按扩展内公开行为变化独立递增；社区扩展未声明时回退到 version。
+## 扩展自身版本号。GF 内置扩展按扩展内公开行为变化独立递增；未声明时回退到 version。
 var extension_version: String = "":
 	set(value):
 		extension_version = value
 		_has_extension_version = true
 
-## 扩展类型，应为 `standard`、`official` 或 `community`。
-var kind: String = KIND_COMMUNITY
+## 扩展类型，应为 `standard` 或 `extension`。
+var kind: String = KIND_EXTENSION
 
 ## 扩展根目录。
 var root_path: String = ""
@@ -55,16 +46,13 @@ var description: String = ""
 ## 依赖的扩展 ID 列表。
 var dependencies: Array[String] = []
 
-## 可选协作扩展 ID 列表。仅用于提示和工具展示，不会自动启用，也不允许硬引用。
-var optional_dependencies: Array[String] = []
-
 ## 可选 GFInstaller 路径列表。需要自动装配运行时模块时使用。
 var installer_paths: Array[String] = []
 
 ## 可选编辑器菜单动作脚本路径列表。
 var editor_action_paths: Array[String] = []
 
-## 可选编辑器底部面板脚本路径列表。
+## 可选编辑器工作区页面脚本路径列表。
 var editor_dock_paths: Array[String] = []
 
 ## 可选 EditorInspectorPlugin 路径列表。需要为扩展内类型提供 Inspector 增强时使用。
@@ -109,11 +97,12 @@ static func from_dictionary(
 	manifest.version = String(data.get("version", ""))
 	manifest.extension_version = String(data.get("extension_version", manifest.version))
 	manifest._has_extension_version = data.has("extension_version")
-	manifest.kind = String(data.get("kind", KIND_COMMUNITY))
+	manifest.kind = String(data.get("kind", KIND_EXTENSION)).strip_edges()
+	if manifest.kind.is_empty():
+		manifest.kind = KIND_EXTENSION
 	manifest.root_path = extension_root_path
 	manifest.description = String(data.get("description", data.get("summary", "")))
 	manifest.dependencies = _to_string_array(data.get("dependencies", []))
-	manifest.optional_dependencies = _to_string_array(data.get("optional_dependencies", []))
 	manifest.installer_paths = _to_string_array(data.get("installer_paths", []))
 	manifest.editor_action_paths = _to_string_array(data.get("editor_action_paths", []))
 	manifest.editor_dock_paths = _to_string_array(data.get("editor_dock_paths", []))
@@ -123,7 +112,7 @@ static func from_dictionary(
 	manifest.tags = _to_string_array(data.get("tags", []))
 	manifest.enabled_by_default = bool(data.get(
 		"enabled_by_default",
-		manifest.kind == KIND_STANDARD or manifest.kind == KIND_OFFICIAL
+		manifest.kind == KIND_STANDARD or manifest.kind == KIND_EXTENSION
 	))
 	manifest.source_path = manifest_source_path
 	return manifest
@@ -161,7 +150,6 @@ func to_dictionary() -> Dictionary:
 		"root_path": root_path,
 		"description": description,
 		"dependencies": dependencies.duplicate(),
-		"optional_dependencies": optional_dependencies.duplicate(),
 		"installer_paths": installer_paths.duplicate(),
 		"editor_action_paths": editor_action_paths.duplicate(),
 		"editor_dock_paths": editor_dock_paths.duplicate(),
@@ -190,16 +178,8 @@ func get_validation_errors() -> Array[String]:
 		errors.append("display_name is required")
 	if version.strip_edges().is_empty():
 		errors.append("version is required")
-	if kind == KIND_OFFICIAL:
-		if not _has_extension_version or extension_version.strip_edges().is_empty():
-			errors.append("extension_version is required for official extensions")
-		for dependency_id: String in dependencies:
-			if not OFFICIAL_ALLOWED_DEPENDENCIES.has(dependency_id):
-				errors.append("official extension dependencies must be gf.kernel or gf.standard: %s" % dependency_id)
-		if not optional_dependencies.is_empty():
-			errors.append("optional_dependencies are not allowed for official extensions")
-	if not [KIND_STANDARD, KIND_OFFICIAL, KIND_COMMUNITY].has(kind):
-		errors.append("kind must be standard, official, or community")
+	if not [KIND_STANDARD, KIND_EXTENSION].has(kind):
+		errors.append("kind must be standard or extension")
 	if root_path.strip_edges().is_empty():
 		errors.append("root_path is required")
 	_append_resource_path_errors(errors, "installer_paths", installer_paths)

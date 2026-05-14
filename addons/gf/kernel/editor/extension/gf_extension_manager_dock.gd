@@ -1,6 +1,6 @@
 @tool
 
-## GF 扩展管理器底部面板。
+## GF 扩展管理器工作区页面。
 ##
 ## 展示 `gf_extension.json` 元数据，并把扩展启用状态保存到 ProjectSettings。
 extends VBoxContainer
@@ -10,6 +10,7 @@ extends VBoxContainer
 
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 const GFExtensionUsageAuditBase = preload("res://addons/gf/kernel/extension/gf_extension_usage_audit.gd")
+const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 const EXTENSION_ROW_MIN_HEIGHT: float = 32.0
 const DETAILS_MIN_HEIGHT: float = 160.0
 const CHECK_COLUMN_WIDTH: float = 40.0
@@ -17,9 +18,6 @@ const KIND_COLUMN_WIDTH: float = 72.0
 const VERSION_COLUMN_WIDTH: float = 72.0
 const EXTENSION_VERSION_COLUMN_WIDTH: float = 72.0
 const STATUS_COLUMN_WIDTH: float = 72.0
-const FILTER_ALL: int = 0
-const FILTER_OFFICIAL: int = 1
-const FILTER_COMMUNITY: int = 2
 
 
 # --- 私有变量 ---
@@ -30,7 +28,6 @@ var _status_label: Label
 var _auto_install_check: CheckBox
 var _export_exclude_check: CheckBox
 var _export_fail_check: CheckBox
-var _filter_option: OptionButton
 var _search_field: LineEdit
 var _extension_checks: Dictionary = {}
 var _selection_by_id: Dictionary = {}
@@ -43,8 +40,7 @@ var _usage_report: Dictionary = {}
 
 func _init() -> void:
 	name = "GF Extensions"
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	GFEditorWorkspaceUI.apply_page_root(self)
 	_build_ui()
 	call_deferred("_refresh_extensions")
 
@@ -52,53 +48,17 @@ func _init() -> void:
 # --- 私有/辅助方法 ---
 
 func _build_ui() -> void:
-	var toolbar := HBoxContainer.new()
-	toolbar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var toolbar := GFEditorWorkspaceUI.make_toolbar()
 	add_child(toolbar)
 
-	var title := Label.new()
-	title.text = "GF Extensions"
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	toolbar.add_child(title)
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("重新加载", "重新读取所有 gf_extension.json。", _refresh_extensions))
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("扫描引用", "检查当前禁用扩展是否仍被项目文件直接引用。", _scan_disabled_extension_references))
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("恢复默认", "恢复 GF 默认启用扩展。", _restore_default_selection))
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("启用全部", "勾选当前发现的所有扩展。", _set_all_enabled.bind(true)))
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("禁用全部", "取消勾选当前发现的所有扩展。", _set_all_enabled.bind(false)))
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("保存设置", "写入 ProjectSettings 并保存 project.godot。", _apply_selection))
 
-	var reload_button := Button.new()
-	reload_button.text = "重新加载"
-	reload_button.tooltip_text = "重新读取所有 gf_extension.json"
-	reload_button.pressed.connect(_refresh_extensions)
-	toolbar.add_child(reload_button)
-
-	var scan_button := Button.new()
-	scan_button.text = "扫描引用"
-	scan_button.tooltip_text = "检查当前禁用扩展是否仍被项目文件直接引用"
-	scan_button.pressed.connect(_scan_disabled_extension_references)
-	toolbar.add_child(scan_button)
-
-	var defaults_button := Button.new()
-	defaults_button.text = "恢复默认"
-	defaults_button.tooltip_text = "恢复 GF 默认启用扩展"
-	defaults_button.pressed.connect(_restore_default_selection)
-	toolbar.add_child(defaults_button)
-
-	var enable_button := Button.new()
-	enable_button.text = "启用全部"
-	enable_button.tooltip_text = "勾选当前发现的所有扩展"
-	enable_button.pressed.connect(_set_all_enabled.bind(true))
-	toolbar.add_child(enable_button)
-
-	var disable_button := Button.new()
-	disable_button.text = "禁用全部"
-	disable_button.tooltip_text = "取消勾选当前发现的所有扩展"
-	disable_button.pressed.connect(_set_all_enabled.bind(false))
-	toolbar.add_child(disable_button)
-
-	var apply_button := Button.new()
-	apply_button.text = "保存设置"
-	apply_button.tooltip_text = "写入 ProjectSettings 并保存 project.godot"
-	apply_button.pressed.connect(_apply_selection)
-	toolbar.add_child(apply_button)
-
-	var option_row := HBoxContainer.new()
-	option_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var option_row := GFEditorWorkspaceUI.make_toolbar()
 	add_child(option_row)
 
 	_auto_install_check = CheckBox.new()
@@ -116,20 +76,8 @@ func _build_ui() -> void:
 	_export_fail_check.tooltip_text = "导出审计发现项目仍引用禁用扩展时，以错误形式报告，适合发布前检查"
 	option_row.add_child(_export_fail_check)
 
-	var filter_row := HBoxContainer.new()
-	filter_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var filter_row := GFEditorWorkspaceUI.make_toolbar()
 	add_child(filter_row)
-
-	var filter_label := Label.new()
-	filter_label.text = "分类"
-	filter_row.add_child(filter_label)
-
-	_filter_option = OptionButton.new()
-	_filter_option.add_item("全部", FILTER_ALL)
-	_filter_option.add_item("官方扩展", FILTER_OFFICIAL)
-	_filter_option.add_item("社区扩展", FILTER_COMMUNITY)
-	_filter_option.item_selected.connect(_on_filter_selected)
-	filter_row.add_child(_filter_option)
 
 	_search_field = LineEdit.new()
 	_search_field.placeholder_text = "搜索名称、ID、标签"
@@ -167,8 +115,7 @@ func _build_ui() -> void:
 	_details_output.scroll_active = true
 	split.add_child(_details_output)
 
-	_status_label = Label.new()
-	_status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_status_label = GFEditorWorkspaceUI.make_summary_label()
 	add_child(_status_label)
 
 
@@ -180,7 +127,7 @@ func _create_header_row() -> Control:
 	var name_label := _create_header_label("扩展", 0.0)
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_child(name_label)
-	row.add_child(_create_header_label("来源", KIND_COLUMN_WIDTH))
+	row.add_child(_create_header_label("类型", KIND_COLUMN_WIDTH))
 	row.add_child(_create_header_label("发行版", VERSION_COLUMN_WIDTH))
 	row.add_child(_create_header_label("扩展版本", EXTENSION_VERSION_COLUMN_WIDTH))
 	row.add_child(_create_header_label("状态", STATUS_COLUMN_WIDTH))
@@ -201,7 +148,7 @@ func _refresh_extensions() -> void:
 	_selection_by_id.clear()
 	_clear_extension_rows()
 
-	_manifests = GFExtensionSettingsBase.get_all_manifests(true)
+	_manifests = GFExtensionSettingsBase.get_all_manifests()
 	var enabled_ids := GFExtensionSettingsBase.resolve_extension_dependencies(
 		GFExtensionSettingsBase.get_enabled_extension_ids(),
 		_manifests
@@ -338,7 +285,7 @@ func _show_manifest_details(manifest: GFExtensionManifest) -> void:
 	lines.append("ID：%s" % manifest.id)
 	lines.append("发行版本：%s" % manifest.version)
 	lines.append("扩展版本：%s" % (manifest.extension_version if not manifest.extension_version.is_empty() else "-"))
-	lines.append("来源：%s" % _format_kind(manifest.kind))
+	lines.append("类型：%s" % _format_kind(manifest.kind))
 	lines.append("默认启用：%s" % ("是" if manifest.enabled_by_default else "否"))
 	lines.append("当前启用：%s" % ("是" if bool(_selection_by_id.get(manifest.id, false)) else "否"))
 	lines.append("状态：%s" % ("有效" if manifest.is_valid() else "无效"))
@@ -347,10 +294,9 @@ func _show_manifest_details(manifest: GFExtensionManifest) -> void:
 	lines.append(manifest.description)
 	lines.append("")
 	lines.append("依赖：%s" % _format_dependencies(manifest.dependencies))
-	lines.append("可选协作：%s" % _format_dependencies(manifest.optional_dependencies))
 	lines.append("Installer：%s" % _format_string_array(manifest.installer_paths))
 	lines.append("菜单动作：%s" % _format_string_array(manifest.editor_action_paths))
-	lines.append("底部面板：%s" % _format_string_array(manifest.editor_dock_paths))
+	lines.append("工作区页面：%s" % _format_string_array(manifest.editor_dock_paths))
 	lines.append("Inspector：%s" % _format_string_array(manifest.editor_inspector_paths))
 	lines.append("导出插件：%s" % _format_string_array(manifest.export_plugin_paths))
 	lines.append("访问器扩展：%s" % _format_string_array(manifest.access_generator_extension_paths))
@@ -370,22 +316,10 @@ func _show_manifest_details(manifest: GFExtensionManifest) -> void:
 func _get_visible_manifests() -> Array[GFExtensionManifest]:
 	var result: Array[GFExtensionManifest] = []
 	for manifest: GFExtensionManifest in _manifests:
-		if not _matches_filter(manifest):
-			continue
 		if not _matches_search(manifest):
 			continue
 		result.append(manifest)
 	return result
-
-
-func _matches_filter(manifest: GFExtensionManifest) -> bool:
-	match _filter_option.get_selected_id():
-		FILTER_OFFICIAL:
-			return manifest.kind == GFExtensionManifest.KIND_OFFICIAL
-		FILTER_COMMUNITY:
-			return manifest.kind == GFExtensionManifest.KIND_COMMUNITY
-		_:
-			return true
 
 
 func _matches_search(manifest: GFExtensionManifest) -> bool:
@@ -461,10 +395,8 @@ func _append_usage_warning_lines(lines: PackedStringArray, manifest: GFExtension
 
 func _format_kind(kind: String) -> String:
 	match kind:
-		GFExtensionManifest.KIND_OFFICIAL:
-			return "官方"
-		GFExtensionManifest.KIND_COMMUNITY:
-			return "社区"
+		GFExtensionManifest.KIND_EXTENSION:
+			return "扩展"
 		GFExtensionManifest.KIND_STANDARD:
 			return "标准"
 		_:
@@ -514,8 +446,7 @@ func _set_selection_status() -> void:
 
 
 func _set_status(message: String) -> void:
-	if is_instance_valid(_status_label):
-		_status_label.text = message
+	GFEditorWorkspaceUI.set_status(_status_label, message)
 
 
 func _scan_disabled_extension_references() -> void:
@@ -525,13 +456,6 @@ func _scan_disabled_extension_references() -> void:
 			if manifest.id == _selected_manifest_id:
 				_show_manifest_details(manifest)
 				break
-	_set_selection_status()
-
-
-# --- 信号处理函数 ---
-
-func _on_filter_selected(_index: int) -> void:
-	_refresh_visible_extension_rows()
 	_set_selection_status()
 
 

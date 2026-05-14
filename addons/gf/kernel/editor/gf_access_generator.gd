@@ -431,7 +431,7 @@ func _get_capability_utility_script_path(records: Array) -> String:
 
 
 func _append_access_generator_extension_records(records: Array[Dictionary]) -> void:
-	for extension_path: String in _EXTENSION_SETTINGS.get_enabled_access_generator_extension_paths(true):
+	for extension_path: String in _EXTENSION_SETTINGS.get_enabled_access_generator_extension_paths():
 		var extension := _load_access_generator_extension(extension_path)
 		if extension == null:
 			continue
@@ -451,7 +451,7 @@ func _append_access_generator_extension_records_from_instance(
 
 
 func _append_access_generator_extensions(builder: GFSourceBuilder, records: Array) -> void:
-	for extension_path: String in _EXTENSION_SETTINGS.get_enabled_access_generator_extension_paths(true):
+	for extension_path: String in _EXTENSION_SETTINGS.get_enabled_access_generator_extension_paths():
 		_append_access_generator_extension_path(builder, records, extension_path)
 
 

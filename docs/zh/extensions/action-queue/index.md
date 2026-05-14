@@ -5,7 +5,7 @@
 
 战斗、卡牌、战棋、剧情和教程经常需要把“规则已经结算完成”和“表现仍在播放”分开。`GFActionQueueSystem` 让表现动作按队列、并行组或命名流执行，避免把动画等待逻辑塞回战斗或回合结算系统。
 
-Action Queue 位于 `addons/gf/extensions/official/action_queue/`。动作可以继承 `GFVisualAction`，也可以实现动作协议方法，例如 `execute()`、`can_execute()` 和 `cancel()`。
+Action Queue 位于 `addons/gf/extensions/action_queue/`。动作可以继承 `GFVisualAction`，也可以实现动作协议方法，例如 `execute()`、`can_execute()` 和 `cancel()`。
 
 ### `GFVisualActionGroup` 复合动作与并行执行
 
@@ -155,6 +155,6 @@ q_sys.enqueue(config.create_action(card_node))
 
 ### 外部动作
 
-ActionQueue 只定义队列协议和通用动作，不内置面向其他官方扩展的适配动作。项目、社区扩展或外部扩展可以把自己的表现逻辑封装为实现 `execute()`、`can_execute()`、`cancel()` 和 `should_wait_for_result()` 的对象，再交给队列调度。
+ActionQueue 只定义队列协议和通用动作，不内置面向其他 GF 内置扩展的适配动作。项目代码或独立插件可以把自己的表现逻辑封装为实现 `execute()`、`can_execute()`、`cancel()` 和 `should_wait_for_result()` 的对象，再交给队列调度。
 
 ---

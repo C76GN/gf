@@ -2,7 +2,7 @@
 
 ## GF 扩展导出过滤插件。
 ##
-## 导出时可跳过禁用扩展目录，让未启用的官方扩展或社区扩展不进入最终导出产物。
+## 导出时可跳过禁用扩展目录，让未启用的 GF 扩展不进入最终导出产物。
 extends EditorExportPlugin
 
 
@@ -47,7 +47,7 @@ func _refresh_disabled_extension_roots() -> void:
 	if not GFExtensionSettingsBase.should_export_exclude_disabled_extensions():
 		return
 
-	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_disabled_manifests(true):
+	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_disabled_manifests():
 		if manifest.root_path.is_empty():
 			continue
 		_disabled_manifests.append(manifest)

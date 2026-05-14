@@ -13,6 +13,7 @@ extends Control
 const _MAX_EVENT_COUNT: int = 300
 const _MAX_DISPLAY_ARGUMENT_LENGTH: int = 120
 const GFSignalRuntimeProbeBase = preload("res://addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd")
+const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -103,9 +104,7 @@ func _build_ui() -> void:
 	if _tree != null:
 		return
 
-	clip_contents = true
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	GFEditorWorkspaceUI.apply_page_root(self)
 
 	var root_box := VBoxContainer.new()
 	root_box.clip_contents = true
@@ -114,13 +113,10 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := HBoxContainer.new()
+	var toolbar := GFEditorWorkspaceUI.make_toolbar()
 	root_box.add_child(toolbar)
 
-	var refresh_button := Button.new()
-	refresh_button.text = "刷新"
-	refresh_button.pressed.connect(refresh)
-	toolbar.add_child(refresh_button)
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "重新读取当前场景信号连接。", refresh))
 
 	_persistent_only_check = CheckBox.new()
 	_persistent_only_check.text = "持久连接"
@@ -138,10 +134,8 @@ func _build_ui() -> void:
 	_live_check.toggled.connect(_on_live_toggled)
 	toolbar.add_child(_live_check)
 
-	_clear_events_button = Button.new()
-	_clear_events_button.text = "清空事件"
+	_clear_events_button = GFEditorWorkspaceUI.make_button("清空事件", "清空实时追踪事件。", _on_clear_events_pressed)
 	_clear_events_button.disabled = true
-	_clear_events_button.pressed.connect(_on_clear_events_pressed)
 	toolbar.add_child(_clear_events_button)
 
 	_filter_edit = LineEdit.new()
@@ -155,14 +149,11 @@ func _build_ui() -> void:
 	_details_toggle.toggled.connect(_on_details_toggled)
 	toolbar.add_child(_details_toggle)
 
-	_summary_label = Label.new()
-	_summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_summary_label = GFEditorWorkspaceUI.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_hint_label = Label.new()
+	_hint_label = GFEditorWorkspaceUI.make_empty_label()
 	_hint_label.text = "连接=场景中保存的信号连接；运行事件=开启“实时追踪”后的实际发射。只读。"
-	_hint_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_hint_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	root_box.add_child(_hint_label)
 
 	_tabs = TabContainer.new()
@@ -176,13 +167,10 @@ func _build_ui() -> void:
 	connection_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tabs.add_child(connection_page)
 
-	_empty_state_label = Label.new()
+	_empty_state_label = GFEditorWorkspaceUI.make_empty_label()
 	_empty_state_label.text = "打开一个场景，或在场景树中选中节点后点击刷新。"
-	_empty_state_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_empty_state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_empty_state_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
-	_empty_state_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_empty_state_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	connection_page.add_child(_empty_state_label)
 
 	_tree = _make_tree(["来源", "信号", "目标", "方法"])
@@ -195,22 +183,16 @@ func _build_ui() -> void:
 	event_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tabs.add_child(event_page)
 
-	_event_empty_state_label = Label.new()
+	_event_empty_state_label = GFEditorWorkspaceUI.make_empty_label()
 	_event_empty_state_label.text = "开启“实时追踪”后，这里会显示当前场景实际发射的信号。"
-	_event_empty_state_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_event_empty_state_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_event_empty_state_label.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	event_page.add_child(_event_empty_state_label)
 
 	_event_tree = _make_tree(["时间", "来源", "信号", "参数"])
 	_event_tree.item_selected.connect(_on_event_tree_item_selected)
 	event_page.add_child(_event_tree)
 
-	_details = TextEdit.new()
-	_details.editable = false
+	_details = GFEditorWorkspaceUI.make_details_output()
 	_details.visible = false
-	_details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_details.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	root_box.add_child(_details)
 
 
@@ -252,7 +234,7 @@ func _render_graph() -> void:
 
 	_tree.clear()
 	if not bool(_last_graph.get("ok", false)):
-		_summary_label.text = String(_last_graph.get("message", "Signal graph unavailable."))
+		GFEditorWorkspaceUI.set_status(_summary_label, String(_last_graph.get("message", "信号图不可用。")), GFEditorWorkspaceUI.WARNING_TEXT_COLOR)
 		_tree.visible = false
 		_empty_state_label.visible = true
 		_empty_state_label.text = "打开一个场景，或在场景树中选中节点后点击刷新。"
@@ -262,12 +244,13 @@ func _render_graph() -> void:
 
 	var connection_total := int(_last_graph.get("connection_count", 0))
 	var signal_total := int(_last_graph.get("signal_count", 0))
-	_summary_label.text = "Nodes: %d  Signals: %d  Connections: %d  Runtime Events: %d" % [
+	_summary_label.text = "节点：%d  信号：%d  连接：%d  运行事件：%d" % [
 		int(_last_graph.get("node_count", 0)),
 		signal_total,
 		connection_total,
 		_last_events.size(),
 	]
+	_summary_label.modulate = GFEditorWorkspaceUI.OK_TEXT_COLOR
 	_details.text = "选中一条连接、信号或运行事件后查看详情。"
 
 	if connection_total == 0 and signal_total == 0:

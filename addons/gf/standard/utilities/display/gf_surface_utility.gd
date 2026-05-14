@@ -6,9 +6,38 @@ class_name GFSurfaceUtility
 extends GFUtility
 
 
+# --- 枚举 ---
+
+## Mesh surface face count 缓存策略。
+enum CacheMode {
+	## 不读写缓存，每次查询都重新计算。
+	DISABLED,
+	## 只使用显式预热写入的缓存。
+	MANUAL,
+	## 查询时自动缓存，并按 auto_cache_size 控制容量。
+	AUTOMATIC,
+}
+
+
+# --- 常量 ---
+
+## 自动缓存默认容量。
+const DEFAULT_AUTO_CACHE_SIZE: int = 8
+
+
+# --- 公共变量 ---
+
+## 当前缓存策略。
+var cache_mode: CacheMode = CacheMode.AUTOMATIC
+
+## 自动缓存容量。小于 1 时会被归一化为 1。
+var auto_cache_size: int = DEFAULT_AUTO_CACHE_SIZE
+
+
 # --- 私有变量 ---
 
 var _surface_face_counts_by_mesh: Dictionary = {}
+var _mesh_cache_order: Array[int] = []
 
 
 # --- Godot 生命周期方法 ---
@@ -80,6 +109,45 @@ func get_surface_index(source: Object, face_index: int) -> int:
 ## 清空 Mesh surface face count 缓存。
 func clear_cache() -> void:
 	_surface_face_counts_by_mesh.clear()
+	_mesh_cache_order.clear()
+
+
+## 预热指定 Mesh 或 MeshInstance3D 的 surface face count 缓存。
+## @param source: Mesh、MeshInstance3D、CollisionObject3D 或其相邻节点。
+## @return 缓存成功返回 true。
+func cache_mesh_surface(source: Object) -> bool:
+	if cache_mode == CacheMode.DISABLED:
+		return false
+
+	var mesh := _resolve_mesh(source)
+	if mesh == null:
+		return false
+
+	var cache_key := _get_mesh_cache_key(mesh)
+	_store_surface_face_counts(cache_key, _compute_surface_face_counts(mesh), true)
+	return true
+
+
+## 移除指定 Mesh 或 MeshInstance3D 的 surface face count 缓存。
+## @param source: Mesh、MeshInstance3D、CollisionObject3D 或其相邻节点。
+## @return 移除成功返回 true。
+func erase_cached_mesh(source: Object) -> bool:
+	var mesh := _resolve_mesh(source)
+	if mesh == null:
+		return false
+
+	var cache_key := _get_mesh_cache_key(mesh)
+	var existed := _surface_face_counts_by_mesh.has(cache_key)
+	_surface_face_counts_by_mesh.erase(cache_key)
+	_mesh_cache_order.erase(cache_key)
+	return existed
+
+
+## 设置自动缓存容量。
+## @param size: 自动缓存容量；小于 1 时按 1 处理。
+func set_auto_cache_size(size: int) -> void:
+	auto_cache_size = maxi(size, 1)
+	_trim_auto_cache()
 
 
 ## 获取调试快照。
@@ -87,6 +155,8 @@ func clear_cache() -> void:
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"cached_meshes": _surface_face_counts_by_mesh.size(),
+		"cache_mode": cache_mode,
+		"auto_cache_size": auto_cache_size,
 	}
 
 
@@ -117,17 +187,59 @@ func _resolve_mesh_instance(source: Object) -> MeshInstance3D:
 	return null
 
 
+func _resolve_mesh(source: Object) -> Mesh:
+	if source is Mesh:
+		return source as Mesh
+
+	var mesh_instance := _resolve_mesh_instance(source)
+	if mesh_instance != null:
+		return mesh_instance.mesh
+	return null
+
+
 func _get_surface_face_counts(mesh: Mesh) -> Array[int]:
 	var cache_key := _get_mesh_cache_key(mesh)
 	if _surface_face_counts_by_mesh.has(cache_key):
+		_touch_mesh_cache_key(cache_key)
 		return (_surface_face_counts_by_mesh[cache_key] as Array[int]).duplicate()
 
+	var face_counts := _compute_surface_face_counts(mesh)
+	if cache_mode == CacheMode.AUTOMATIC:
+		_store_surface_face_counts(cache_key, face_counts, false)
+	return face_counts
+
+
+func _compute_surface_face_counts(mesh: Mesh) -> Array[int]:
 	var face_counts: Array[int] = []
 	for surface_index: int in range(mesh.get_surface_count()):
 		face_counts.append(_get_surface_face_count(mesh, surface_index))
+	return face_counts
+
+
+func _store_surface_face_counts(cache_key: int, face_counts: Array[int], keep_when_manual: bool) -> void:
+	if cache_key == 0:
+		return
+	if cache_mode == CacheMode.DISABLED:
+		return
+	if cache_mode == CacheMode.MANUAL and not keep_when_manual:
+		return
 
 	_surface_face_counts_by_mesh[cache_key] = face_counts.duplicate()
-	return face_counts
+	_touch_mesh_cache_key(cache_key)
+	if cache_mode == CacheMode.AUTOMATIC:
+		_trim_auto_cache()
+
+
+func _touch_mesh_cache_key(cache_key: int) -> void:
+	_mesh_cache_order.erase(cache_key)
+	_mesh_cache_order.append(cache_key)
+
+
+func _trim_auto_cache() -> void:
+	auto_cache_size = maxi(auto_cache_size, 1)
+	while cache_mode == CacheMode.AUTOMATIC and _mesh_cache_order.size() > auto_cache_size:
+		var oldest_key := _mesh_cache_order.pop_front()
+		_surface_face_counts_by_mesh.erase(oldest_key)
 
 
 func _get_surface_face_count(mesh: Mesh, surface_index: int) -> int:

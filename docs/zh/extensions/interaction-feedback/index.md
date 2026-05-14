@@ -16,7 +16,7 @@ var command := DealDamageCommand.new()
 GFInteractions.with_sender(player).to(enemy).with_payload({ "amount": 10 }).execute(command)
 ```
 
-`execute(command)` 会优先通过当前架构发送命令，找不到架构时才回退直接调用命令的 `execute()`。`send_event(event)` 必须依赖当前或全局架构，没有架构时不会派发。命令或事件可通过 `interaction_context` 属性或 `set_interaction_context(context)` 方法接收上下文。Interaction 扩展只组织一次性交互上下文，不负责能力查询、冷却、权限、目标合法性或效果结算；这些组合关系应由项目、社区扩展或外部扩展显式装配。
+`execute(command)` 会优先通过当前架构发送命令，找不到架构时才回退直接调用命令的 `execute()`。`send_event(event)` 必须依赖当前或全局架构，没有架构时不会派发。命令或事件可通过 `interaction_context` 属性或 `set_interaction_context(context)` 方法接收上下文。Interaction 扩展只组织一次性交互上下文，不负责能力查询、冷却、权限、目标合法性或效果结算；这些组合关系应由项目、外部扩展或外部扩展显式装配。
 
 如果项目需要把场景节点之间的交互发送与接收标准化，可使用 `GFInteractionSensor` 和 `GFInteractionReceiver`。Sensor 负责构建上下文并调用接收对象的 `receive_interaction()`，Receiver 提供启用状态、交互 ID 白名单/黑名单、自定义校验回调和统一报告：
 
@@ -55,7 +55,7 @@ static_body.add_child(pointer)
 
 ## 与表现队列的关系
 
-Feedback 扩展只负责采样和应用反馈偏移；如果项目需要把反馈纳入表现队列，应在项目代码、社区扩展或外部扩展中把 `GFShakeUtility.play_shake()` 包装成自己的队列动作。
+Feedback 扩展只负责采样和应用反馈偏移；如果项目需要把反馈纳入表现队列，应在项目代码、外部扩展或外部扩展中把 `GFShakeUtility.play_shake()` 包装成自己的队列动作。
 
 
 ## 通用反馈采样 (`GFShakePreset` / `GFShakeUtility`)

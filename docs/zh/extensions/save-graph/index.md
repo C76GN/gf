@@ -1,9 +1,9 @@
 # Save 场景存档图
 
-本页聚焦官方 Save 扩展如何把场景树节点状态组织成可采集、可校验、可应用的存档图。
+本页聚焦 GF Save 扩展如何把场景树节点状态组织成可采集、可校验、可应用的存档图。
 ## Save 扩展与标准存储
 
-`GFStorageUtility`、`GFStorageCodec`、`GFStorageSyncUtility` 和 `GFSnapshotHistoryUtility` 是标准库能力，负责本地读写、编码、同步和快照历史，主说明见 [本地存储、编码、同步与快照](../../standard/utilities/io/storage-snapshot.md)。官方 Save 扩展负责把场景树节点状态组织成可采集、可校验、可应用的存档图；两者可以组合使用，但职责不同。
+`GFStorageUtility`、`GFStorageCodec`、`GFStorageSyncUtility` 和 `GFSnapshotHistoryUtility` 是标准库能力，负责本地读写、编码、同步和快照历史，主说明见 [本地存储、编码、同步与快照](../../standard/utilities/io/storage-snapshot.md)。GF Save 扩展负责把场景树节点状态组织成可采集、可校验、可应用的存档图；两者可以组合使用，但职责不同。
 
 
 ## 场景存档图 (`GFSaveGraphUtility`)

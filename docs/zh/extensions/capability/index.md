@@ -60,6 +60,8 @@ func take_damage(amount: int) -> void:
 
 GF 不使用隐式构造函数参数注入，依赖关系应通过 `get_required_capabilities()` 显式声明，便于搜索、测试和排错。
 
+`GFCapabilityUtility` 会在调用 `on_gf_capability_added()` 前写入能力实例的 `receiver` 字段，并在 `on_gf_capability_removed()` 后清空它；因此 Hook 内可以直接使用 `receiver` 或 `get_capability()` 查询同一 receiver 上已补齐的依赖能力。重写 Hook 时仍建议调用 `super`，便于兼容基类后续扩展，但依赖查询不再依赖项目脚本手动调用 `super`。
+
 从 `2.0.0` 起，移除主能力时默认会清理“仅由它自动补齐且未被用户显式添加”的依赖能力。用户显式添加的依赖、或仍被其他能力依赖的能力不会被级联移除。若某个能力希望依赖在主能力移除后继续保留，可重写：
 
 ```gdscript

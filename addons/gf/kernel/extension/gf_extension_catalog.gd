@@ -1,7 +1,7 @@
 ## GFExtensionCatalog: GF 扩展 manifest 发现与读取辅助。
 ##
-## 扫描 `addons/gf/extensions/official` 与 `addons/gf/extensions/community`
-## 下的 `gf_extension.json`，供编辑器工具或项目侧扩展管理界面使用。
+## 扫描 `addons/gf/extensions` 下一层扩展目录中的 `gf_extension.json`，
+## 供编辑器工具或项目侧扩展管理界面使用。
 class_name GFExtensionCatalog
 extends RefCounted
 
@@ -10,35 +10,22 @@ extends RefCounted
 
 const GFExtensionManifestBase = preload("res://addons/gf/kernel/extension/gf_extension_manifest.gd")
 
-## 官方扩展根目录。
-const OFFICIAL_EXTENSIONS_PATH: String = "res://addons/gf/extensions/official"
-
-## 社区扩展根目录。
-const COMMUNITY_EXTENSIONS_PATH: String = "res://addons/gf/extensions/community"
+## GF 内置可选扩展根目录。
+const EXTENSIONS_PATH: String = "res://addons/gf/extensions"
 
 
 # --- 公共方法 ---
 
-## 读取所有官方扩展 manifest。
-## @return 官方扩展 manifest 列表。
-static func load_official_manifests() -> Array[GFExtensionManifest]:
-	return load_manifests_in(OFFICIAL_EXTENSIONS_PATH)
-
-
-## 读取所有社区扩展 manifest。
-## @return 社区扩展 manifest 列表。
-static func load_community_manifests() -> Array[GFExtensionManifest]:
-	return load_manifests_in(COMMUNITY_EXTENSIONS_PATH)
-
-
-## 读取官方扩展与社区扩展 manifest。
-## @param include_community: 是否包含社区扩展目录。
+## 读取 GF 内置可选扩展 manifest。
 ## @return 扩展 manifest 列表。
-static func load_all_manifests(include_community: bool = true) -> Array[GFExtensionManifest]:
-	var manifests := load_official_manifests()
-	if include_community:
-		manifests.append_array(load_community_manifests())
-	return manifests
+static func load_extension_manifests() -> Array[GFExtensionManifest]:
+	return load_manifests_in(EXTENSIONS_PATH)
+
+
+## 读取所有 GF 内置可选扩展 manifest。
+## @return 扩展 manifest 列表。
+static func load_all_manifests() -> Array[GFExtensionManifest]:
+	return load_extension_manifests()
 
 
 ## 读取指定根目录下一层扩展目录中的 manifest。

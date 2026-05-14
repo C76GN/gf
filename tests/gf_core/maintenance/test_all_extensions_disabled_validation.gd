@@ -1,4 +1,4 @@
-## 验证所有官方扩展禁用时 kernel/standard 仍可独立加载。
+## 验证所有 GF 内置扩展禁用时 kernel/standard 仍可独立加载。
 extends GutTest
 
 
@@ -18,12 +18,12 @@ const GF_PLUGIN_INSPECTOR_TOOLS := preload("res://addons/gf/kernel/editor/gf_plu
 
 func test_all_extensions_disabled_keeps_extension_queries_empty() -> void:
 	var restore := _set_enabled_extensions([])
-	var enabled_manifests := GF_EXTENSION_SETTINGS_BASE.get_enabled_manifests(true)
-	var editor_action_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_action_paths(true)
-	var editor_dock_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_dock_paths(true)
-	var editor_inspector_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_inspector_paths(true)
-	var export_plugin_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_export_plugin_paths(true)
-	var access_extension_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_access_generator_extension_paths(true)
+	var enabled_manifests := GF_EXTENSION_SETTINGS_BASE.get_enabled_manifests()
+	var editor_action_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_action_paths()
+	var editor_dock_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_dock_paths()
+	var editor_inspector_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_inspector_paths()
+	var export_plugin_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_export_plugin_paths()
+	var access_extension_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_access_generator_extension_paths()
 	_restore_enabled_extensions(restore)
 
 	assert_true(enabled_manifests.is_empty(), "全禁用时不应解析出启用扩展 manifest。")

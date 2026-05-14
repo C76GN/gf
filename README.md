@@ -31,9 +31,9 @@ When enabled, the plugin registers the `Gf` AutoLoad automatically:
 Gf -> res://addons/gf/kernel/core/gf.gd
 ```
 
-The plugin also opens a `GF` bottom workspace. Use its `GF Extensions` page to inspect extension manifests, enable or disable GF extensions, auto-run enabled extension installers, exclude disabled extension folders from exported builds, and make disabled-extension references fail export checks when needed.
+The plugin also opens the standalone `GF Workspace`. Use its `GF Extensions` page to inspect extension manifests, enable or disable GF extensions, auto-run enabled extension installers, exclude disabled extension folders from exported builds, and make disabled-extension references fail export checks when needed.
 
-Official extensions are atomic: they depend only on the GF kernel/standard surface and do not declare, probe, or load other official extensions. Project code, community extensions, or external plugins own cross-extension composition. Unused extensions can be disabled, excluded from export, or removed after project scripts, scenes, resources, and preloads no longer reference them.
+Bundled GF extensions are atomic: they depend only on the GF kernel/standard surface and do not declare, probe, or load other bundled extensions. Project code or standalone Godot plugins outside `addons/gf` own cross-extension composition. Unused extensions can be disabled, excluded from export, or removed after project scripts, scenes, resources, and preloads no longer reference them.
 
 ## Quick Start
 
@@ -82,10 +82,9 @@ GF source is organized around stable ownership boundaries:
 
 - `addons/gf/kernel`: runtime kernel, base contracts, architecture container, binding, events, commands, queries, factories, AutoLoad entry, extension infrastructure, and core editor integration.
 - `addons/gf/standard`: stable standard library, including foundation, input, utilities, state machines, command history, sequence helpers, and common support primitives.
-- `addons/gf/extensions/official`: optional atomic official extensions shipped with GF, such as capability, interaction, feedback, action queue, combat, save, flow, network, turn-based flow, behavior tree, physics helpers, and domain models.
-- `addons/gf/extensions/community`: convention folder for local or third-party extensions that follow the GF extension manifest and directory standard, including project-specific composition extensions.
+- `addons/gf/extensions`: optional atomic GF extensions shipped with the framework, such as capability, interaction, feedback, action queue, combat, save, flow, network, turn-based flow, behavior tree, physics helpers, and domain models.
 
-The kernel does not hard reference the standard library or optional extensions. The standard library depends only on the kernel and must not probe official extensions through extension IDs, paths, dynamic loading, or extension class names. Official extensions are kept independent of each other; extensions that need to appear in standard diagnostics or tools contribute through generic registration APIs, and cross-extension orchestration stays in project or community code.
+The kernel does not hard reference the standard library or optional extensions. The standard library depends only on the kernel and must not probe optional extensions through extension IDs, paths, dynamic loading, or extension class names. Bundled GF extensions are kept independent of each other; extensions that need to appear in standard diagnostics or tools contribute through generic registration APIs, and cross-extension orchestration stays in project code or standalone plugins.
 
 ## Editor Tools
 

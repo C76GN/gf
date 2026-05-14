@@ -12,6 +12,7 @@ extends Control
 
 const GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
+const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -32,10 +33,9 @@ var _details: TextEdit = null
 
 func _init() -> void:
 	name = "GF State Tools"
-	clip_contents = true
-	size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	GFEditorWorkspaceUI.apply_page_root(self)
 	_build_ui()
+	call_deferred("refresh")
 
 
 # --- 公共方法 ---
@@ -85,15 +85,10 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := HBoxContainer.new()
-	toolbar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var toolbar := GFEditorWorkspaceUI.make_toolbar()
 	root_box.add_child(toolbar)
 
-	var refresh_button := Button.new()
-	refresh_button.text = "刷新"
-	refresh_button.tooltip_text = "扫描当前场景中的 GFNodeStateMachine。"
-	refresh_button.pressed.connect(refresh)
-	toolbar.add_child(refresh_button)
+	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "扫描当前场景中的 GFNodeStateMachine。", refresh))
 
 	_machine_option = OptionButton.new()
 	_machine_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -113,14 +108,10 @@ func _build_ui() -> void:
 	_select_button.pressed.connect(_on_select_pressed)
 	toolbar.add_child(_select_button)
 
-	_summary_label = Label.new()
-	_summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_summary_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_summary_label = GFEditorWorkspaceUI.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_empty_label = Label.new()
-	_empty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_empty_label = GFEditorWorkspaceUI.make_empty_label()
 	root_box.add_child(_empty_label)
 
 	_tree = Tree.new()
@@ -137,11 +128,7 @@ func _build_ui() -> void:
 	_tree.item_selected.connect(_on_issue_selected)
 	root_box.add_child(_tree)
 
-	_details = TextEdit.new()
-	_details.editable = false
-	_details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_details.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
-	_details.custom_minimum_size = Vector2(0.0, 72.0)
+	_details = GFEditorWorkspaceUI.make_details_output()
 	root_box.add_child(_details)
 
 
@@ -199,8 +186,7 @@ func _render_selected_machine() -> void:
 	_details.text = ""
 	if _machines.is_empty():
 		_last_report = {}
-		_summary_label.text = "当前场景没有 GFNodeStateMachine。"
-		_summary_label.modulate = Color(0.8, 0.8, 0.8)
+		GFEditorWorkspaceUI.set_status(_summary_label, "当前场景没有 GFNodeStateMachine。")
 		_empty_label.text = "打开包含节点状态机的场景后点击刷新。"
 		_empty_label.visible = true
 		_tree.visible = false
@@ -209,7 +195,7 @@ func _render_selected_machine() -> void:
 	var machine := _get_selected_machine()
 	if machine == null:
 		_last_report = {}
-		_summary_label.text = "当前选择无效。"
+		GFEditorWorkspaceUI.set_status(_summary_label, "当前选择无效。", GFEditorWorkspaceUI.WARNING_TEXT_COLOR)
 		_empty_label.visible = true
 		_tree.visible = false
 		return
@@ -219,11 +205,11 @@ func _render_selected_machine() -> void:
 		"include_metadata": true,
 		"summary_subject": _get_node_path_text(machine),
 	})
-	_summary_label.text = "%s\nNext: %s" % [
+	_summary_label.text = "%s\n下一步：%s" % [
 		String(_last_report.get("summary", "")),
 		String(_last_report.get("next_action", "")),
 	]
-	_summary_label.modulate = _get_report_color(_last_report)
+	_summary_label.modulate = GFEditorWorkspaceUI.get_report_color(_last_report)
 	_render_issues(_last_report.get("issues", []) as Array)
 
 
@@ -264,14 +250,6 @@ func _get_validator_options() -> Dictionary:
 	if _require_initial_check != null and _require_initial_check.button_pressed:
 		options["require_initial_state"] = true
 	return options
-
-
-func _get_report_color(report: Dictionary) -> Color:
-	if int(report.get("error_count", 0)) > 0:
-		return Color(1.0, 0.45, 0.35)
-	if int(report.get("warning_count", 0)) > 0:
-		return Color(1.0, 0.78, 0.35)
-	return Color(0.45, 0.9, 0.55)
 
 
 func _get_node_path_text(node: Node) -> String:

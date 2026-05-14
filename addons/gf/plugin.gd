@@ -39,6 +39,7 @@ func _enter_tree() -> void:
 
 	_actions = GFPluginActions.new()
 	_actions.setup(_standard_editor_extension_records.get("template_records", []))
+	_actions.workspace_requested.connect(_on_workspace_requested)
 
 	_menu = GFPluginMenu.new()
 	_menu.setup(self, Callable(_actions, "handle_menu_id"), _actions.get_menu_entries())
@@ -72,6 +73,7 @@ func _setup_dock_tools() -> void:
 		return
 
 	_dock_tools.setup(self, _standard_editor_extension_records.get("dock_records", []) as Array[Dictionary])
+	call_deferred("_open_workspace_on_startup")
 
 
 func _collect_standard_editor_extension_records() -> Dictionary:
@@ -81,3 +83,15 @@ func _collect_standard_editor_extension_records() -> Dictionary:
 		"dock_records": GFStandardEditorExtensions.get_dock_records(),
 		"template_records": GFStandardEditorExtensions.get_template_records(),
 	}
+
+
+func _open_workspace_on_startup() -> void:
+	if _plugin_active and _dock_tools != null:
+		_dock_tools.show_workspace()
+
+
+# --- 信号处理函数 ---
+
+func _on_workspace_requested() -> void:
+	if _dock_tools != null:
+		_dock_tools.show_workspace()

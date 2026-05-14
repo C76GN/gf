@@ -10,17 +10,17 @@ GF 3.0.0 的源码边界已经稳定为 `kernel <- standard <- extensions`，文
 
 ## 什么时候放进 standard？
 
-足够稳定、通用、默认随框架理解的能力放进 `standard`。例如 foundation、输入体系、状态机、命令序列、资源、存储、时间、日志、诊断、音频等。`standard` 可以依赖 `kernel`，但不能探测或硬绑定官方扩展。
+足够稳定、通用、默认随框架理解的能力放进 `standard`。例如 foundation、输入体系、状态机、命令序列、资源、存储、时间、日志、诊断、音频等。`standard` 可以依赖 `kernel`，但不能探测或硬绑定 GF 内置扩展。
 
 ## 什么时候放进 extensions？
 
-通用但不是所有项目都需要的能力放进 `extensions`，例如 Capability、Interaction、Combat、ActionQueue、Network、Save、Flow、Domain、BehaviorTree 等。官方扩展只依赖 `kernel` 和稳定的 `standard`，并保持原子化；如果项目需要组合多个官方扩展，应放在项目 Installer、社区扩展或外部插件中。
+通用但不是所有项目都需要的能力放进 `extensions`，例如 Capability、Interaction、Combat、ActionQueue、Network、Save、Flow、Domain、BehaviorTree 等。GF 内置扩展只依赖 `kernel` 和稳定的 `standard`，并保持原子化；如果项目需要组合多个 GF 内置扩展，应放在项目 Installer 或 `addons/gf` 外的独立插件中。
 
-## 为什么官方扩展不互相依赖？
+## 为什么 GF 内置扩展不互相依赖？
 
-官方扩展是 GF 随框架发布的最小可选能力单元。如果官方扩展彼此依赖或软探测，扩展边界会逐渐变成隐藏组合图，禁用、导出排除和测试都会越来越难控。GF 因此把官方扩展固定为原子层，把组合自由留给项目和社区。
+GF 内置扩展是 GF 随框架发布的最小可选能力单元。如果 GF 内置扩展彼此依赖或软探测，扩展边界会逐渐变成隐藏组合图，禁用、导出排除和测试都会越来越难控。GF 因此把 GF 内置扩展固定为原子层，把组合自由留给项目或独立插件。
 
-## 为什么 standard 不能弱探测官方扩展？
+## 为什么 standard 不能弱探测 GF 内置扩展？
 
 弱探测会让“可选扩展”变成事实上的隐藏依赖。3.0.0 的规则是：如果扩展能力需要出现在标准库诊断、Overlay 或工具快照里，由扩展侧依赖标准库的通用注册入口主动贡献；标准库本身不写扩展 ID、扩展路径或扩展内类型名。
 

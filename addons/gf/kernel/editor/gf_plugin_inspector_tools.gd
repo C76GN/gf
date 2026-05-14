@@ -80,7 +80,7 @@ func _setup_extension_export_plugin(plugin: EditorPlugin) -> void:
 
 
 func _setup_enabled_extension_export_plugins(plugin: EditorPlugin) -> void:
-	for export_plugin_path: String in GFExtensionSettingsBase.get_enabled_export_plugin_paths(true):
+	for export_plugin_path: String in GFExtensionSettingsBase.get_enabled_export_plugin_paths():
 		var export_plugin := _load_export_plugin(export_plugin_path, export_plugin_path)
 		if export_plugin == null:
 			continue
@@ -128,7 +128,7 @@ func _add_inspector_plugin(plugin: EditorPlugin, script_path: String, label: Str
 func _collect_enabled_extension_inspector_records() -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	var used_paths: Dictionary = {}
-	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_enabled_manifests(true):
+	for manifest: GFExtensionManifest in GFExtensionSettingsBase.get_enabled_manifests():
 		for inspector_path: String in manifest.editor_inspector_paths:
 			var normalized_path := inspector_path.strip_edges()
 			if normalized_path.is_empty() or used_paths.has(normalized_path):

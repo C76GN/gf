@@ -132,7 +132,7 @@ func test_readme_language_switches_and_doc_links_are_present() -> void:
 		READTHEDOCS_URL,
 		"addons/gf/kernel",
 		"addons/gf/standard",
-		"addons/gf/extensions/official",
+		"addons/gf/extensions",
 		"GF Extensions",
 		"tests/gf_core/maintenance",
 	]
