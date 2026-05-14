@@ -32,28 +32,33 @@ static func await_signal_safely(
 		return false
 
 	var completed := [false]
-	var on_resume := func(_arg1 = null, _arg2 = null, _arg3 = null, _arg4 = null) -> void:
+	var on_resume := func() -> void:
 		completed[0] = true
+	var result_callback := make_signal_resume_callable(result_signal, on_resume)
+	var tree_exit_callback := on_resume
+	var guard_exit_callback := on_resume
 
-	result_signal.connect(on_resume, CONNECT_ONE_SHOT)
+	result_signal.connect(result_callback, CONNECT_ONE_SHOT)
 
 	var tree_exit_signal := Signal()
 	var guard_exit_signal := Signal()
 	if target_obj is Node:
 		var node := target_obj as Node
 		if not node.is_inside_tree() and result_signal != node.tree_exited:
-			disconnect_signal_if_connected(result_signal, on_resume)
+			disconnect_signal_if_connected(result_signal, result_callback)
 			return false
 		if result_signal != node.tree_exited:
-			node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+			tree_exit_callback = make_signal_resume_callable(node.tree_exited, on_resume)
+			node.tree_exited.connect(tree_exit_callback, CONNECT_ONE_SHOT)
 			tree_exit_signal = node.tree_exited
 
 	if is_instance_valid(guard_node) and result_signal != guard_node.tree_exited and tree_exit_signal != guard_node.tree_exited:
 		if not guard_node.is_inside_tree():
-			disconnect_signal_if_connected(result_signal, on_resume)
-			disconnect_signal_if_connected(tree_exit_signal, on_resume)
+			disconnect_signal_if_connected(result_signal, result_callback)
+			disconnect_signal_if_connected(tree_exit_signal, tree_exit_callback)
 			return false
-		guard_node.tree_exited.connect(on_resume, CONNECT_ONE_SHOT)
+		guard_exit_callback = make_signal_resume_callable(guard_node.tree_exited, on_resume)
+		guard_node.tree_exited.connect(guard_exit_callback, CONNECT_ONE_SHOT)
 		guard_exit_signal = guard_node.tree_exited
 
 	var timeout_msec := maxf(timeout_seconds, 0.0) * 1000.0
@@ -89,9 +94,9 @@ static func await_signal_safely(
 			break
 		await tree.process_frame
 
-	disconnect_signal_if_connected(result_signal, on_resume)
-	disconnect_signal_if_connected(tree_exit_signal, on_resume)
-	disconnect_signal_if_connected(guard_exit_signal, on_resume)
+	disconnect_signal_if_connected(result_signal, result_callback)
+	disconnect_signal_if_connected(tree_exit_signal, tree_exit_callback)
+	disconnect_signal_if_connected(guard_exit_signal, guard_exit_callback)
 
 	if timed_out and not timeout_warning.is_empty():
 		push_warning(timeout_warning)
@@ -118,6 +123,36 @@ static func get_timeout_elapsed_msec(
 	if time_utility.is_paused:
 		return 0.0
 	return elapsed_msec * time_utility.time_scale
+
+
+## 创建可忽略 Signal 参数的恢复回调。
+## @param target_signal: 目标信号。
+## @param callback: 原始无参恢复回调。
+## @return 可连接到目标信号的回调。
+static func make_signal_resume_callable(target_signal: Signal, callback: Callable) -> Callable:
+	var argument_count := get_signal_argument_count(target_signal)
+	if argument_count <= 0:
+		return callback
+	return callback.unbind(argument_count)
+
+
+## 获取信号定义中的参数数量。
+## @param target_signal: 目标信号。
+## @return 参数数量。
+static func get_signal_argument_count(target_signal: Signal) -> int:
+	if target_signal.is_null():
+		return 0
+	var target_obj: Object = target_signal.get_object()
+	if not is_instance_valid(target_obj):
+		return 0
+
+	var target_name := StringName(target_signal.get_name())
+	for signal_info: Dictionary in target_obj.get_signal_list():
+		if StringName(signal_info.get("name", "")) != target_name:
+			continue
+		var args: Array = signal_info.get("args", [])
+		return args.size()
+	return 0
 
 
 ## 若信号已连接指定回调，则安全断开。

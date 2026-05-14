@@ -4,7 +4,7 @@
 
 ## 全局音频管理器 (`GFAudioUtility`)
 
-**应用场景：** 处理 BGM 切歌、音量总线，以及在 SFX 播放时自动处理 `AudioStreamPlayer` 的基于 `GFObjectPoolUtility` 的池化复用，减少频繁实例化带来的卡顿。
+**应用场景：** 处理 BGM 切歌、音量总线，以及在 SFX 播放时自动管理 `AudioStreamPlayer` 的创建、复用和释放。
 
 **如何使用：**
 ```gdscript
@@ -13,7 +13,7 @@ var audio := Gf.get_utility(GFAudioUtility) as GFAudioUtility
 # 异步无阻加载并播放背景音乐 (放入 BGM Bus)
 audio.play_bgm("res://audio/bgm/battle.ogg")
 
-# 从池子里分配一个播放器来播放音效 (放入 SFX Bus)
+# 播放音效 (放入 SFX Bus)
 audio.play_sfx("res://audio/sfx/hit.wav")
 
 # 也可以使用资源化音频片段和集合
@@ -60,7 +60,7 @@ audio.max_sfx_players = 24
 audio.sfx_overflow_policy = GFAudioUtility.SFXOverflowPolicy.STOP_OLDEST
 ```
 
-`GFAudioUtility` 会优先借助 `GFAssetUtility` 异步加载音频资源；未注册时退回同步 `load()`。SFX 播放依赖 `GFObjectPoolUtility` 分配 `AudioStreamPlayer`，如果没有注册对象池，工具会跳过 SFX 并输出 warning。BGM 和环境音使用独立播放器，异步加载回调带有请求序号，较旧请求完成得更晚时不会覆盖新的播放请求。
+`GFAudioUtility` 会优先借助 `GFAssetUtility` 异步加载音频资源；未注册时退回同步 `load()`。SFX 播放会在存在 `GFObjectPoolUtility` 时复用池化 `AudioStreamPlayer`，未注册对象池时则创建普通播放器并在播放结束后释放。BGM 和环境音使用独立播放器，异步加载回调带有请求序号，较旧请求完成得更晚时不会覆盖新的播放请求。
 
 需要接入外部音频中间件、平台事件音频或项目自定义混音系统时，继承 `GFAudioBackend` 并通过 `set_audio_backend()` 注入。后端只有在 `can_handle_path()` 或 `can_handle_clip()` 明确返回 `true` 时才接管请求；播放失败或不支持的请求会继续走默认 Godot 播放路径：
 
@@ -128,4 +128,4 @@ var import_report := GFAudioBankTools.sync_bank_from_scan(bank, "res://audio", {
 
 选中 `GFAudioBank` 资源时，Inspector 的验证入口也会使用同一套工具检查音频路径、候选片段和 bus 名；同一面板还提供扫描目录、选择 ID 生成方式、是否覆盖和默认 bus 的轻量导入入口。推荐把 `GFAudioBankTools` 用作生成和校验配置的工具；声音优先级、混音快照、场景预加载策略和具体事件命名仍由项目层决定。
 
-`register_audio_bank()` 后可用 `play_bgm_event()`、`play_ambient_event()`、`play_sfx_event()` 按稳定事件 ID 播放；场景或 UI 想临时拥有一组音频事件时，可使用 `GFAudioBankMounter` 在 ready/exit 时自动注册、恢复或卸载 bank。需要主动停止、淡出或读取本次 SFX/空间音效状态时，使用 `play_sfx_handle()`、`play_sfx_clip_handle()`、`play_sfx_event_handle()` 或 2D/3D 对应 handle 方法取得 `GFAudioEmitterHandle`；环境音通道可用 `get_ambient_handle(channel)` 获取当前播放器句柄。句柄只管理底层播放器的停止、淡出、音量、音高和可选 owner 生命周期绑定，不替项目决定混音快照、声音优先级或业务生命周期。`play_sfx_clip_2d()` / `play_sfx_clip_3d()` 和对应 event 方法默认只在当前位置创建空间播放器；传入 `follow_source = true` 时，播放器会挂到声源节点下并随声源移动。复杂混音、音频快照、距离规则、碰撞触发和平台音频权限仍属于项目层。
+`register_audio_bank()` 后可用 `play_bgm_event()`、`play_ambient_event()`、`play_sfx_event()` 按稳定事件 ID 播放；场景或 UI 想临时拥有一组音频事件时，可使用 `GFAudioBankMounter` 在 ready/exit 时自动注册、恢复或卸载 bank。同一 `bank_id` 的多个挂载由 `GFAudioUtility` 按栈管理，场景或 UI 交错退出时，较早退出的下层挂载不会覆盖仍处于顶层的 bank；需要手动控制同类逻辑时，可使用 `mount_audio_bank()` / `unmount_audio_bank()`。需要主动停止、淡出或读取本次 SFX/空间音效状态时，使用 `play_sfx_handle()`、`play_sfx_clip_handle()`、`play_sfx_event_handle()` 或 2D/3D 对应 handle 方法取得 `GFAudioEmitterHandle`；环境音通道可用 `get_ambient_handle(channel)` 获取当前播放器句柄。句柄只管理底层播放器的停止、淡出、音量、音高和可选 owner 生命周期绑定，不替项目决定混音快照、声音优先级或业务生命周期。`play_sfx_clip_2d()` / `play_sfx_clip_3d()` 和对应 event 方法默认只在当前位置创建空间播放器；传入 `follow_source = true` 时，播放器会挂到声源节点下并随声源移动。复杂混音、音频快照、距离规则、碰撞触发和平台音频权限仍属于项目层。

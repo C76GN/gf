@@ -184,6 +184,7 @@ func _render_selected_machine() -> void:
 
 	_tree.clear()
 	_details.text = ""
+	_details.visible = false
 	if _machines.is_empty():
 		_last_report = {}
 		GFEditorWorkspaceUI.set_status(_summary_label, "当前场景没有 GFNodeStateMachine。")
@@ -232,6 +233,7 @@ func _render_issues(issues: Array) -> void:
 	_tree.visible = visible_count > 0
 	_empty_label.visible = visible_count == 0
 	_empty_label.text = "当前状态机结构健康。" if visible_count == 0 else ""
+	_details.visible = visible_count > 0
 
 
 func _get_selected_machine() -> Node:
@@ -296,4 +298,5 @@ func _on_issue_selected() -> void:
 
 	var issue := item.get_metadata(0)
 	if issue is Dictionary:
+		_details.visible = true
 		_details.text = _safe_json(issue)

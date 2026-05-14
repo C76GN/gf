@@ -100,7 +100,7 @@ var projectiles := emitter.emit_projectiles({
 })
 ```
 
-如果项目使用 `GFObjectPoolUtility`，发射器可通过 `use_object_pool` 从池中获取节点，并在 `projectile_finished` 后自动归还；池化发射体场景应把 `auto_launch_on_ready` 设为 `false`，让发射器统一传入本次上下文后再启动。发射器会给每次准备运行态写入新的 emission token，旧的完成信号回调不会释放已经复用到下一轮的发射体。弹药、冷却时间、命中后的派生发射、穿透次数和目标过滤仍建议放在项目技能、能力、状态机或自定义策略资源中表达。
+如果项目使用 `GFObjectPoolUtility`，发射器可通过 `use_object_pool` 从池中获取节点，并在 `projectile_finished` 后自动归还；池化发射体场景应把 `auto_launch_on_ready` 设为 `false`，让发射器统一传入本次上下文后再启动。对象池依赖不会由发射器主动从全局 `Gf` 获取：项目可以给 `object_pool_utility` 显式赋值，也可以通过 `GFArchitecture.inject_node_tree()` 注入架构，或把发射器放在 `GFNodeContext` 子树下让它从局部上下文查询对象池。发射器会给每次准备运行态写入新的 emission token，旧的完成信号回调不会释放已经复用到下一轮的发射体。弹药、冷却时间、命中后的派生发射、穿透次数和目标过滤仍建议放在项目技能、能力、状态机或自定义策略资源中表达。
 
 ```gdscript
 var projectile := GFProjectile2D.new()

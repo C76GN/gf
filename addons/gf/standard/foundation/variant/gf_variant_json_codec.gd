@@ -8,8 +8,11 @@ extends RefCounted
 
 # --- 常量 ---
 
-const JSON_TYPE_KEY: String = "_gf_type"
+const JSON_MARKER_KEY: String = "__gf_variant__"
+const JSON_VERSION_KEY: String = "version"
+const JSON_TYPE_KEY: String = "type"
 const JSON_VALUE_KEY: String = "value"
+const JSON_SCHEMA_VERSION: int = 1
 
 
 # --- 公共方法 ---
@@ -209,13 +212,19 @@ static func _variant_to_json_compatible(value: Variant, options: Dictionary, vis
 
 static func _make_json_typed_value(type_name: String, typed_value: Variant) -> Dictionary:
 	return {
-		JSON_TYPE_KEY: type_name,
-		JSON_VALUE_KEY: typed_value,
+		JSON_MARKER_KEY: {
+			JSON_VERSION_KEY: JSON_SCHEMA_VERSION,
+			JSON_TYPE_KEY: type_name,
+			JSON_VALUE_KEY: typed_value,
+		},
 	}
 
 
 static func _is_json_typed_value(value: Dictionary) -> bool:
-	return value.has(JSON_TYPE_KEY) and value.has(JSON_VALUE_KEY)
+	if value.size() != 1 or not value.has(JSON_MARKER_KEY):
+		return false
+	var marker := value.get(JSON_MARKER_KEY) as Dictionary
+	return marker != null and marker.has(JSON_TYPE_KEY) and marker.has(JSON_VALUE_KEY)
 
 
 static func _dictionary_to_json_compatible(value: Dictionary, options: Dictionary, visited: Array) -> Variant:
@@ -249,8 +258,12 @@ static func _visited_contains_reference(visited: Array, value: Variant) -> bool:
 
 
 static func _json_typed_value_to_variant(value: Dictionary, options: Dictionary) -> Variant:
-	var type_name := String(value.get(JSON_TYPE_KEY, ""))
-	var raw_value: Variant = value.get(JSON_VALUE_KEY)
+	var marker := value.get(JSON_MARKER_KEY) as Dictionary
+	if marker == null:
+		return value
+
+	var type_name := String(marker.get(JSON_TYPE_KEY, ""))
+	var raw_value: Variant = marker.get(JSON_VALUE_KEY)
 	match type_name:
 		"StringName":
 			return StringName(String(raw_value))

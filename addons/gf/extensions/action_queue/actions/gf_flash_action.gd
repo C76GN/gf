@@ -47,7 +47,11 @@ func execute() -> Variant:
 		return null
 
 	_clear_active_tween()
-	var original_color := target.get_indexed(property_name) as Color
+	var original_color_value := _get_color_property_value()
+	if not (original_color_value is Color):
+		return null
+
+	var original_color := original_color_value as Color
 	if duration <= 0.0:
 		target.set_indexed(property_name, original_color)
 		return null
@@ -60,6 +64,7 @@ func execute() -> Variant:
 
 
 func cancel() -> void:
+	_emit_active_tween_finished()
 	_clear_active_tween()
 
 
@@ -73,3 +78,43 @@ func _clear_active_tween() -> void:
 	if is_instance_valid(_active_tween):
 		_active_tween.kill()
 	_active_tween = null
+
+
+func _emit_active_tween_finished() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.finished.emit()
+
+
+func _get_color_property_value() -> Variant:
+	if not _has_target_property_path():
+		push_warning("[GFFlashAction] 目标属性不存在：%s。" % String(property_name))
+		return null
+
+	var value: Variant = target.get_indexed(property_name)
+	if value is Color:
+		return value
+
+	push_warning("[GFFlashAction] 目标属性不是 Color：%s。" % String(property_name))
+	return null
+
+
+func _has_target_property_path() -> bool:
+	var base_name := _get_property_base_name(property_name)
+	if base_name.is_empty():
+		return false
+
+	for property: Dictionary in target.get_property_list():
+		if String(property.get("name", "")) == base_name:
+			return true
+	return false
+
+
+func _get_property_base_name(path: NodePath) -> String:
+	if path.get_name_count() > 0:
+		return String(path.get_name(0))
+
+	var text := String(path)
+	var separator_index := text.find(":")
+	if separator_index >= 0:
+		text = text.substr(0, separator_index)
+	return text

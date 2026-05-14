@@ -161,6 +161,48 @@ func test_projectile_emitter_2d_resolves_catalog_scene() -> void:
 	assert_true(projectile is GFProjectile2D, "目录场景应被实例化为发射体。")
 
 
+func test_projectile_emitter_2d_uses_explicit_object_pool() -> void:
+	var parent := Node2D.new()
+	add_child_autofree(parent)
+	var emitter := GFProjectileEmitter2DBase.new() as GFProjectileEmitter2D
+	parent.add_child(emitter)
+	var scene := _make_projectile_2d_scene()
+	var pool := GFObjectPoolUtility.new()
+	pool.init()
+	emitter.projectile_scene = scene
+	emitter.use_object_pool = true
+	emitter.object_pool_utility = pool
+
+	var projectile := emitter.emit_projectile()
+
+	assert_not_null(projectile, "显式对象池可用时发射器应生成发射体。")
+	assert_eq(pool.get_active_count(scene), 1, "发射器应通过显式对象池获取节点。")
+
+	pool.dispose()
+
+
+func test_projectile_emitter_2d_uses_injected_architecture_pool() -> void:
+	var parent := Node2D.new()
+	add_child_autofree(parent)
+	var emitter := GFProjectileEmitter2DBase.new() as GFProjectileEmitter2D
+	parent.add_child(emitter)
+	var scene := _make_projectile_2d_scene()
+	var architecture := GFArchitecture.new()
+	var pool := GFObjectPoolUtility.new()
+	await architecture.register_utility_instance(pool)
+	await architecture.init()
+	emitter.projectile_scene = scene
+	emitter.use_object_pool = true
+	emitter.inject_dependencies(architecture)
+
+	var projectile := emitter.emit_projectile()
+
+	assert_not_null(projectile, "注入架构提供对象池时发射器应生成发射体。")
+	assert_eq(pool.get_active_count(scene), 1, "发射器应通过注入架构查询对象池。")
+
+	architecture.dispose()
+
+
 func test_projectile_line_spawn_pattern_2d_distributes_points() -> void:
 	var emitter := Node2D.new()
 	add_child_autofree(emitter)

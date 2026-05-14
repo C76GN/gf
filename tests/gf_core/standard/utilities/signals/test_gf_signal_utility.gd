@@ -109,6 +109,7 @@ func test_debounce_keeps_last_emit() -> void:
 	await get_tree().create_timer(0.005).timeout
 	emitter.emit_changed(2)
 	await get_tree().create_timer(0.05).timeout
+	await get_tree().process_frame
 
 	assert_eq(received, [2], "防抖应只保留静默期后的最后一次触发。")
 

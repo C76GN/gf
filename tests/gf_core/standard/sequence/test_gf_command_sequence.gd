@@ -33,6 +33,33 @@ class ManualSignalStep extends GFSequenceStep:
 		return completed
 
 
+class CancellableSignalStep extends ManualSignalStep:
+	var cancel_count: int = 0
+
+	func _init(p_order: Array[String], p_label: String) -> void:
+		super._init(p_order, p_label)
+
+	func cancel(context: GFSequenceContext) -> void:
+		cancel_count += 1
+		order.append("cancel_" + label)
+		context.set_value(&"cancelled_step", label)
+
+
+class ManyArgumentSignalStep extends GFSequenceStep:
+	signal completed(a: int, b: int, c: int, d: int, e: int)
+
+	var order: Array[String] = []
+	var label: String = ""
+
+	func _init(p_order: Array[String], p_label: String) -> void:
+		order = p_order
+		label = p_label
+
+	func execute(_context: GFSequenceContext) -> Variant:
+		order.append(label)
+		return completed
+
+
 class UndoableRecordingStep extends RecordingStep:
 	func undo() -> void:
 		order.append("undo_" + label)
@@ -108,6 +135,24 @@ func test_sequence_waits_for_signal_step() -> void:
 	assert_false(sequence.is_running, "完成后应清除 running 状态。")
 
 
+func test_sequence_waits_for_signal_with_many_arguments() -> void:
+	var order: Array[String] = []
+	var wait_step := ManyArgumentSignalStep.new(order, "wait")
+	var sequence := GFCommandSequence.new([
+		wait_step,
+		RecordingStep.new(order, "after"),
+	])
+
+	sequence.run()
+	assert_eq(order, ["wait"], "多参数 Signal 未完成前不应执行后续步骤。")
+
+	wait_step.completed.emit(1, 2, 3, 4, 5)
+	await get_tree().process_frame
+
+	assert_eq(order, ["wait", "after"], "多参数 Signal 完成后应继续执行后续步骤。")
+	assert_false(sequence.is_running, "完成后应清除 running 状态。")
+
+
 ## 验证可取消正在等待的序列。
 func test_sequence_cancel_stops_following_steps_after_wait() -> void:
 	var order: Array[String] = []
@@ -147,6 +192,26 @@ func test_sequence_cancel_breaks_wait_without_signal() -> void:
 
 	assert_eq(order, ["wait"], "取消后不应等待外部 Signal 才停止。")
 	assert_false(sequence.is_running, "取消检查后序列应停止运行。")
+
+
+func test_sequence_cancel_calls_current_step_cancel() -> void:
+	var order: Array[String] = []
+	var context := GFSequenceContext.new()
+	var wait_step := CancellableSignalStep.new(order, "wait")
+	var sequence := GFCommandSequence.new([
+		wait_step,
+		RecordingStep.new(order, "after"),
+	], context)
+
+	sequence.run()
+	sequence.cancel()
+	await get_tree().process_frame
+
+	assert_eq(order, ["wait", "cancel_wait"], "取消时应通知当前步骤并停止后续步骤。")
+	assert_eq(wait_step.cancel_count, 1, "当前步骤的取消入口应只调用一次。")
+	assert_eq(context.get_value(&"cancelled_step", ""), "wait", "取消入口应收到序列上下文。")
+	assert_false(sequence.is_running, "取消检查后序列应停止运行。")
+	assert_true(bool(sequence.last_run_report["cancelled"]), "运行报告应标记取消。")
 
 
 ## 验证 Signal 超时后序列会继续后续步骤。

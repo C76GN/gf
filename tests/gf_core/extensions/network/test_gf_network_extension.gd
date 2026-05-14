@@ -79,6 +79,32 @@ func test_network_serializer_round_trips_message() -> void:
 	assert_eq(decoded.payload.get("hp", 0), 10, "payload 应保留。")
 
 
+func test_network_serializer_result_distinguishes_empty_dictionary_from_decode_failure() -> void:
+	var serializer := GFNetworkSerializerBase.new()
+	serializer.format = GFNetworkSerializerBase.Format.JSON
+
+	var empty_result := serializer.deserialize_dictionary_result("{}".to_utf8_buffer())
+	var empty_bytes_result := serializer.deserialize_dictionary_result(PackedByteArray())
+	var array_result := serializer.deserialize_dictionary_result("[]".to_utf8_buffer())
+
+	assert_true(bool(empty_result.get("ok")), "合法空字典应是成功结果。")
+	assert_true((empty_result.get("data") as Dictionary).is_empty(), "合法空字典应保留为空数据。")
+	assert_false(bool(empty_bytes_result.get("ok")), "空 bytes 不应与合法空字典混淆。")
+	assert_eq(empty_bytes_result.get("error"), "empty_bytes", "空 bytes 应报告明确错误。")
+	assert_false(bool(array_result.get("ok")), "非字典 JSON 不应解码成功。")
+	assert_eq(array_result.get("error"), "json_not_dictionary", "非字典 JSON 应报告明确错误。")
+
+
+func test_network_serializer_message_result_rejects_empty_message() -> void:
+	var serializer := GFNetworkSerializerBase.new()
+	serializer.format = GFNetworkSerializerBase.Format.JSON
+
+	var result := serializer.deserialize_message_result("{}".to_utf8_buffer())
+
+	assert_false(bool(result.get("ok")), "空字典不能被当作有效网络消息。")
+	assert_eq(result.get("error"), "empty_message", "空消息应报告明确错误。")
+
+
 func test_network_contract_builds_and_validates_typed_message() -> void:
 	var slot_field := GFNetworkContractFieldBase.new()
 	slot_field.field_name = &"slot"
@@ -230,6 +256,26 @@ func test_network_utility_bridges_backend_messages() -> void:
 	assert_eq(backend.sent_peer_id, 4, "后端应收到目标 peer。")
 	assert_eq(received.size(), 1, "后端消息应被解码并广播。")
 	assert_eq(received[0].message_type, &"ping", "解码后的消息类型应正确。")
+
+
+func test_network_utility_reports_decode_failure_details() -> void:
+	var utility := GFNetworkUtilityBase.new()
+	var backend := FakeBackend.new()
+	utility.serializer.format = GFNetworkSerializerBase.Format.JSON
+	utility.set_backend(backend)
+	watch_signals(utility)
+
+	backend.message_received.emit(1, "[]".to_utf8_buffer())
+
+	assert_signal_emitted_with_parameters(utility, "message_rejected", [
+		1,
+		"decode_failed",
+		{
+			"ok": false,
+			"data": {},
+			"error": "json_not_dictionary",
+		},
+	])
 
 
 ## 验证令牌桶限流器按时间恢复令牌。

@@ -29,6 +29,7 @@ func setup(plugin: EditorPlugin, standard_dock_records: Array[Dictionary] = []) 
 	set_standard_dock_records(standard_dock_records)
 	var records := _collect_core_dock_records()
 	records.append_array(_collect_enabled_extension_dock_records())
+	records.sort_custom(_sort_dock_records)
 	_add_workspace_window(records)
 
 
@@ -66,6 +67,8 @@ func _collect_core_dock_records() -> Array[Dictionary]:
 		{
 			"path": EXTENSION_MANAGER_DOCK_SCRIPT_PATH,
 			"label": "GF Extensions",
+			"short_label": "扩展",
+			"order": 80,
 		}
 	)
 	return records
@@ -92,6 +95,7 @@ func _collect_enabled_extension_dock_records() -> Array[Dictionary]:
 				"path": normalized_path,
 				"label": _get_extension_dock_label(manifest, normalized_path),
 				"short_label": _get_extension_short_label(manifest),
+				"order": manifest.editor_dock_order,
 			})
 	return records
 
@@ -123,9 +127,25 @@ func _get_extension_dock_label(manifest: GFExtensionManifest, dock_path: String)
 
 
 func _get_extension_short_label(manifest: GFExtensionManifest) -> String:
+	if not manifest.editor_dock_short_label.is_empty():
+		return manifest.editor_dock_short_label
+
 	var extension_name := manifest.display_name
 	if extension_name.is_empty():
 		extension_name = manifest.id
 	if extension_name.begins_with("GF "):
 		extension_name = extension_name.substr(3)
 	return extension_name
+
+
+func _sort_dock_records(left: Dictionary, right: Dictionary) -> bool:
+	var left_order := int(left.get("order", 1000))
+	var right_order := int(right.get("order", 1000))
+	if left_order != right_order:
+		return left_order < right_order
+
+	var left_label := String(left.get("label", ""))
+	var right_label := String(right.get("label", ""))
+	if left_label != right_label:
+		return left_label < right_label
+	return String(left.get("path", "")) < String(right.get("path", ""))

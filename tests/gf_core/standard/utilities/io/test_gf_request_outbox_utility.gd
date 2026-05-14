@@ -14,6 +14,24 @@ var _outbox: GFRequestOutboxUtilityBase
 var _storage_path: String = ""
 
 
+# --- 辅助类 ---
+
+class AsyncTransport:
+	extends RefCounted
+
+	signal finished(result: Dictionary)
+
+	var captured: Array[GFRequestEnvelopeBase] = []
+
+	func send(envelope: GFRequestEnvelopeBase) -> Signal:
+		captured.append(envelope)
+		call_deferred("_emit_success")
+		return finished
+
+	func _emit_success() -> void:
+		finished.emit({ "ok": true, "accepted": true })
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -43,11 +61,23 @@ func test_replay_success_removes_request_from_queue() -> void:
 		return { "ok": true, "accepted": true }
 	_outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.test/events", { "value": 1 })
 
-	var report: Dictionary = _outbox.replay()
+	var report: Dictionary = await _outbox.replay()
 
 	assert_eq(captured.size(), 1, "重放应调用一次 transport。")
 	assert_eq(int(report["succeeded"]), 1, "成功请求应计入报告。")
 	assert_eq(_outbox.get_queue_size(), 0, "成功后请求应从等待队列移除。")
+
+
+func test_replay_waits_for_async_transport_signal() -> void:
+	var transport := AsyncTransport.new()
+	_outbox.transport_callback = Callable(transport, "send")
+	_outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.test/events", { "value": 1 })
+
+	var report: Dictionary = await _outbox.replay()
+
+	assert_eq(transport.captured.size(), 1, "异步重放应调用一次 transport。")
+	assert_eq(int(report["succeeded"]), 1, "异步成功请求应计入报告。")
+	assert_eq(_outbox.get_queue_size(), 0, "异步成功后请求应从等待队列移除。")
 
 
 func test_replay_failure_retries_until_success() -> void:
@@ -58,9 +88,9 @@ func test_replay_failure_retries_until_success() -> void:
 	var envelope: GFRequestEnvelopeBase = _outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.test/retry")
 	envelope.max_attempts = 3
 
-	var failed_report: Dictionary = _outbox.replay()
+	var failed_report: Dictionary = await _outbox.replay()
 	assert_eq(envelope.retry_after_msec, 0, "0ms 重试延迟应允许立即重试。")
-	var success_report: Dictionary = _outbox.replay()
+	var success_report: Dictionary = await _outbox.replay()
 
 	assert_eq(int(failed_report["failed"]), 1, "首次失败应计入失败报告。")
 	assert_eq(int(success_report["succeeded"]), 1, "第二次成功应计入成功报告。")
@@ -74,7 +104,7 @@ func test_exhausted_request_moves_to_failed_store() -> void:
 	var envelope: GFRequestEnvelopeBase = _outbox.enqueue_request(HTTPClient.METHOD_DELETE, "https://example.test/delete")
 	envelope.max_attempts = 1
 
-	_outbox.replay()
+	await _outbox.replay()
 
 	assert_eq(_outbox.get_queue_size(), 0, "耗尽尝试次数后应离开等待队列。")
 	assert_eq(_outbox.get_failed_request_count(), 1, "耗尽请求应进入失败列表。")

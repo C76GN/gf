@@ -37,14 +37,32 @@ static func get_dock_records() -> Array[Dictionary]:
 		{
 			"path": "res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd",
 			"label": "GF State Tools",
+			"short_label": "状态",
+			"order": 10,
+		},
+		{
+			"path": "res://addons/gf/standard/input/editor/gf_input_mapping_dock.gd",
+			"label": "GF Input Mapping",
+			"short_label": "输入",
+			"order": 20,
 		},
 		{
 			"path": "res://addons/gf/standard/utilities/storage/editor/gf_storage_viewer_dock.gd",
-			"label": "GF Save Viewer",
+			"label": "GF Storage Viewer",
+			"short_label": "存储",
+			"order": 50,
 		},
 		{
 			"path": "res://addons/gf/standard/utilities/debug/editor/gf_signal_graph_dock.gd",
 			"label": "GF Signal Graph",
+			"short_label": "信号",
+			"order": 60,
+		},
+		{
+			"path": "res://addons/gf/standard/utilities/debug/editor/gf_diagnostics_dock.gd",
+			"label": "GF Diagnostics",
+			"short_label": "诊断",
+			"order": 70,
 		},
 	]
 

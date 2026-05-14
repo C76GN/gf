@@ -187,11 +187,19 @@ func test_plugin_dock_tools_keeps_core_docks_available_without_extensions() -> v
 
 	assert_true(
 		core_paths.has("res://addons/gf/standard/utilities/storage/editor/gf_storage_viewer_dock.gd"),
-		"Save Viewer 应作为 standard Dock 保持可用。"
+		"Storage Viewer 应作为 standard Dock 保持可用。"
+	)
+	assert_true(
+		core_paths.has("res://addons/gf/standard/input/editor/gf_input_mapping_dock.gd"),
+		"输入映射工作区页面应作为 standard Dock 保持可用。"
 	)
 	assert_true(
 		core_paths.has("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd"),
 		"节点状态机工具应作为 standard Dock 保持可用。"
+	)
+	assert_true(
+		core_paths.has("res://addons/gf/standard/utilities/debug/editor/gf_diagnostics_dock.gd"),
+		"诊断工作区页面应作为 standard Dock 保持可用。"
 	)
 	assert_true(
 		core_paths.has("res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd"),
@@ -215,7 +223,43 @@ func test_plugin_dock_tools_discovers_enabled_extension_docks() -> void:
 		"Flow 工具面板应由 Flow 扩展 manifest 注册。"
 	)
 	assert_eq(String(extension_records[0].get("label", "")), "GF Flow", "扩展页面记录应使用简洁扩展名作为 fallback。")
-	assert_eq(String(extension_records[0].get("short_label", "")), "Flow", "扩展页面应提供短标签。")
+	assert_eq(String(extension_records[0].get("short_label", "")), "流程", "扩展页面应提供短标签。")
+	assert_eq(int(extension_records[0].get("order", 0)), 40, "扩展页面应读取 manifest 中的工作区排序。")
+
+
+func test_plugin_dock_tools_discovers_save_extension_workspace_page() -> void:
+	var restore := _set_enabled_extensions(["gf.save"])
+	var tools: Variant = GF_PLUGIN_DOCK_TOOLS.new()
+	var extension_records: Array = tools._collect_enabled_extension_dock_records()
+	_restore_enabled_extensions(restore)
+
+	var paths: Array[String] = []
+	for record: Dictionary in extension_records:
+		paths.append(String(record.get("path", "")))
+
+	assert_true(
+		paths.has("res://addons/gf/extensions/save/editor/gf_save_graph_dock.gd"),
+		"SaveGraph 工作区页面应由 Save 扩展 manifest 注册。"
+	)
+	assert_eq(String(extension_records[0].get("label", "")), "GF Save", "Save 扩展页面应使用扩展名作为页面标题。")
+	assert_eq(String(extension_records[0].get("short_label", "")), "保存", "Save 扩展页面应提供短标签。")
+	assert_eq(int(extension_records[0].get("order", 0)), 30, "Save 扩展页面应读取 manifest 中的工作区排序。")
+
+
+func test_plugin_dock_tools_sorts_workspace_records_by_order() -> void:
+	var tools: Variant = GF_PLUGIN_DOCK_TOOLS.new()
+	var records: Array[Dictionary] = [
+		{"path": "res://z.gd", "label": "Z", "order": 30},
+		{"path": "res://b.gd", "label": "B", "order": 10},
+		{"path": "res://a.gd", "label": "A", "order": 10},
+	]
+
+	records.sort_custom(Callable(tools, "_sort_dock_records"))
+
+	var labels: Array[String] = []
+	for record: Dictionary in records:
+		labels.append(String(record.get("label", "")))
+	assert_eq(labels, ["A", "B", "Z"], "工作区页面应先按 order，再按标题稳定排序。")
 
 
 func test_editor_workspace_dock_groups_gf_panels() -> void:
@@ -223,11 +267,19 @@ func test_editor_workspace_dock_groups_gf_panels() -> void:
 	var records: Array[Dictionary] = [
 		{
 			"path": "res://addons/gf/standard/utilities/storage/editor/gf_storage_viewer_dock.gd",
-			"label": "GF Save Viewer",
+			"label": "GF Storage Viewer",
+		},
+		{
+			"path": "res://addons/gf/standard/input/editor/gf_input_mapping_dock.gd",
+			"label": "GF Input Mapping",
 		},
 		{
 			"path": "res://addons/gf/standard/utilities/debug/editor/gf_signal_graph_dock.gd",
 			"label": "GF Signal Graph",
+		},
+		{
+			"path": "res://addons/gf/standard/utilities/debug/editor/gf_diagnostics_dock.gd",
+			"label": "GF Diagnostics",
 		},
 		{
 			"path": "res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd",
@@ -239,9 +291,17 @@ func test_editor_workspace_dock_groups_gf_panels() -> void:
 	assert_eq(dock.name, "GF", "统一工作区根节点应保留 GF 名称。")
 	assert_true(dock.clip_contents, "统一工作区应裁剪超出内容，避免覆盖 Godot 底部栏。")
 	assert_eq(dock.custom_minimum_size, Vector2(0.0, 72.0), "统一工作区最小高度只应保留顶部入口区。")
-	assert_eq(dock.get_page_count(), 3, "工作区应把多个 GF 面板收束为内部页面。")
-	assert_eq(dock.get_page_titles(), PackedStringArray(["GF Save Viewer", "GF Signal Graph", "GF Extensions"]), "页面标题应保留原面板语义。")
-	assert_eq(dock.get_page_button_titles(), PackedStringArray(["Save", "Signals", "Extensions"]), "响应式页面入口应使用短标签。")
+	assert_eq(dock.get_page_count(), 5, "工作区应把多个 GF 面板收束为内部页面。")
+	assert_eq(
+		dock.get_page_titles(),
+		PackedStringArray(["GF Storage Viewer", "GF Input Mapping", "GF Signal Graph", "GF Diagnostics", "GF Extensions"]),
+		"页面标题应保留原面板语义。"
+	)
+	assert_eq(
+		dock.get_page_button_titles(),
+		PackedStringArray(["存储", "输入", "信号", "诊断", "扩展"]),
+		"响应式页面入口应使用短标签。"
+	)
 	assert_true(dock.get_about_text().contains("版本：%s" % dock._get_framework_version()), "关于弹窗应展示当前框架版本。")
 	assert_true(dock.get_about_text().contains("https://github.com/C76GN/gf-framework"), "关于弹窗应提供项目地址。")
 	assert_true(dock.get_about_text().contains("https://gf-framework.readthedocs.io/"), "关于弹窗应提供正式文档地址。")
@@ -320,7 +380,7 @@ func test_editor_workspace_prefers_record_label_over_page_script_name() -> void:
 	dock.setup(records)
 
 	assert_eq(dock.get_page_titles(), PackedStringArray(["GF Save"]), "工作区页面标题应优先使用产品化记录标题。")
-	assert_eq(dock.get_page_button_titles(), PackedStringArray(["Save"]), "短标签应从产品化标题派生。")
+	assert_eq(dock.get_page_button_titles(), PackedStringArray(["保存"]), "短标签应从产品化标题派生。")
 
 	dock.free()
 
@@ -330,7 +390,7 @@ func test_editor_workspace_window_hosts_workspace_pages() -> void:
 	var records: Array[Dictionary] = [
 		{
 			"path": "res://addons/gf/standard/utilities/storage/editor/gf_storage_viewer_dock.gd",
-			"label": "GF Save Viewer",
+			"label": "GF Storage Viewer",
 		},
 		{
 			"path": "res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd",
@@ -343,7 +403,7 @@ func test_editor_workspace_window_hosts_workspace_pages() -> void:
 	assert_eq(window.title, "GF Workspace", "独立窗口应使用统一 GF 工作区标题。")
 	assert_eq(window.min_size, Vector2i(900, 560), "独立窗口应提供足够的编辑器工作面积。")
 	assert_eq(window.get_page_count(), 2, "独立窗口应承载注入的工作区页面。")
-	assert_eq(window.get_page_titles(), PackedStringArray(["GF Save Viewer", "GF Extensions"]), "独立窗口应保留页面标题。")
+	assert_eq(window.get_page_titles(), PackedStringArray(["GF Storage Viewer", "GF Extensions"]), "独立窗口应保留页面标题。")
 	assert_not_null(window.get_workspace(), "独立窗口应持有内部工作区控件。")
 
 	window.free()

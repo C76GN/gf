@@ -83,6 +83,8 @@ downloads.enqueue_download(
 
 `enqueue_download()` 返回任务 ID；`cancel(id, delete_temp)` 可取消等待中或进行中的任务，`pause()` / `resume()` 会暂停启动新任务并把当前任务保留到队首。每个任务由 `GFDownloadTask` 描述，结果字典会包含 `status`、`status_name`、`received_bytes`、`total_bytes`、`response_code`、`error` 和项目传入的 `metadata`。下载成功后先写入临时文件，再提交到目标路径；如果启用 `resume` 且临时文件存在，会追加 `Range` 请求头并在服务器返回 `206` 时合并分段文件。`get_debug_snapshot()` 可被 `GFDiagnosticsUtility` 聚合到运行时工具快照中。
 
+当目标文件已存在且任务设置 `overwrite = false` 时，下载器不会直接把已有文件视为成功。如果任务提供了 `expected_sha256`，会先校验目标文件；校验通过才返回 `from_existing_file` 结果，校验失败则进入失败状态并保留原文件。未提供 checksum 时，已有目标文件仍按“不可覆盖的已完成文件”处理。
+
 ### 通用任务队列 (`GFJobQueueUtility` / `GFJob`)
 
 `GFJobQueueUtility` 适合承载“先排队，稍后由项目系统消费”的通用任务，例如导入、批处理、后台计算、生成预览或任意需要进度反馈的工作。它只管理等待、执行中、完成、失败、取消、暂停和调试快照，不内置线程模型、下载协议或业务含义：
@@ -111,7 +113,7 @@ worker.set_processor(func(job: GFJob) -> Dictionary:
 add_child(worker)
 ```
 
-`GFJobWorker` 不创建线程，也不解释任务数据；如果处理器返回 Signal，Worker 会等待信号后再完成任务，适合桥接项目自己的异步导入、下载、预览生成或工具流程。
+`GFJobWorker` 不创建线程，也不解释任务数据；如果处理器返回 Signal，Worker 会等待信号发出，并把信号结果按同步返回值同样写回完成或失败状态。信号不携带结果时视为完成。这个模式适合桥接项目自己的异步导入、下载、预览生成或工具流程。
 
 ### 渲染资源预热 (`GFRenderWarmupManifest` / `GFRenderWarmupUtility`)
 

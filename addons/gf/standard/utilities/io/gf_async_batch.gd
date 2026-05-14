@@ -27,6 +27,7 @@ const GFHttpResponseBase = preload("res://addons/gf/standard/utilities/io/gf_htt
 
 var _items: Dictionary = {}
 var _completed: bool = false
+var _watched_responses: Dictionary = {}
 
 
 # --- 公共方法 ---
@@ -66,7 +67,12 @@ func watch_response(response: GFHttpResponseBase, key: Variant = null) -> bool:
 	if response.is_finished():
 		mark_completed(item_key, response)
 	else:
-		response.completed.connect(_on_response_completed.bind(item_key), CONNECT_ONE_SHOT)
+		var callback := _on_response_completed.bind(item_key)
+		_watched_responses[item_key] = {
+			"response": response,
+			"callback": callback,
+		}
+		response.completed.connect(callback, CONNECT_ONE_SHOT)
 	return true
 
 
@@ -85,6 +91,7 @@ func mark_completed(key: Variant, result: Variant = null) -> bool:
 	item["done"] = true
 	item["result"] = result
 	_items[key] = item
+	_disconnect_watched_response(key)
 	item_completed.emit(key, result)
 	_emit_completed_if_ready()
 	return true
@@ -122,6 +129,7 @@ func get_results() -> Dictionary:
 
 ## 清空批处理。
 func clear() -> void:
+	_disconnect_all_watched_responses()
 	_items.clear()
 	_completed = false
 
@@ -151,7 +159,26 @@ func _emit_completed_if_ready() -> void:
 	completed.emit(get_results())
 
 
+func _disconnect_watched_response(key: Variant) -> void:
+	var entry := _watched_responses.get(key, {}) as Dictionary
+	_watched_responses.erase(key)
+	if entry == null or entry.is_empty():
+		return
+
+	var response := entry.get("response") as GFHttpResponseBase
+	var callback := entry.get("callback", Callable()) as Callable
+	if response != null and callback.is_valid() and response.completed.is_connected(callback):
+		response.completed.disconnect(callback)
+
+
+func _disconnect_all_watched_responses() -> void:
+	for key: Variant in _watched_responses.keys():
+		_disconnect_watched_response(key)
+	_watched_responses.clear()
+
+
 # --- 信号处理函数 ---
 
 func _on_response_completed(response: GFHttpResponseBase, key: Variant) -> void:
+	_disconnect_watched_response(key)
 	mark_completed(key, response)

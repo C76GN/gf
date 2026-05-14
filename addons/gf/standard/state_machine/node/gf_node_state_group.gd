@@ -578,5 +578,6 @@ func _reload_from_children_deferred() -> void:
 			start()
 
 
-func _on_child_entered_tree(_child: Node) -> void:
-	_queue_reload_from_children()
+func _on_child_entered_tree(child: Node) -> void:
+	if _is_node_state(child):
+		_queue_reload_from_children()

@@ -236,6 +236,22 @@ func test_bundled_extensions_do_not_reference_other_bundled_extensions() -> void
 	)
 
 
+func test_bundled_extensions_do_not_call_global_gf_facade() -> void:
+	var files: Array[String] = []
+	_collect_gd_files(EXTENSIONS_ROOT, files)
+	var issues: Array[String] = []
+	for path: String in files:
+		var source := _read_text(path)
+		if source.contains("Gf."):
+			issues.append("%s calls global Gf facade" % path)
+
+	assert_eq(
+		issues,
+		[],
+		"GF 内置扩展运行时代码不能直接调用全局 Gf facade；需要依赖时应通过注入、局部上下文或项目显式赋值获得。"
+	)
+
+
 func test_known_extension_soft_collaboration_protocols_do_not_return() -> void:
 	var issues: Array[String] = []
 	for extension_name_variant: Variant in EXTENSION_FORBIDDEN_SOFT_REFERENCES.keys():

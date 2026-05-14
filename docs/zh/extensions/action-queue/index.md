@@ -39,7 +39,7 @@ func execute() -> Variant:
 	return tween.finished
 ```
 
-自定义动作如果持有 Tween、Timer、临时信号连接或外部任务，应重写 `cancel()` 清理这些副作用；基础 `GFVisualAction.cancel()` 不知道项目动作内部资源，默认不做处理。等待 Signal 的动作默认有 30 秒超时，`with_signal_timeout(seconds, respect_time_scale)` 可调整超时时间，并默认跟随 `GFTimeUtility` 的暂停与 `time_scale`。
+自定义动作如果持有 Tween、Timer、临时信号连接或外部任务，应重写 `cancel()` 清理这些副作用，并释放正在等待该动作完成的调用点；基础 `GFVisualAction.cancel()` 不知道项目动作内部资源，默认不做处理。等待 Signal 的动作默认有 30 秒超时，`with_signal_timeout(seconds, respect_time_scale)` 可调整超时时间，并默认跟随 `GFTimeUtility` 的暂停与 `time_scale`。Signal 可以带任意载荷参数，动作队列只把发射本身视为等待完成，不解释参数内容。
 
 ### 入队执行
 
@@ -139,7 +139,7 @@ q_sys.enqueue(GFAction.sequence([
 
 `GFAction` 也提供 `tween_by()`、`move_by()`、`scale_to()`、`scale_by()`、`rotate_to()`、`rotate_by()`、`fade_by()`、`colorize()`、`set_property()`、`show()`、`hide()` 和 `remove_node()` 等便捷工厂。这些工厂仅将常见属性写入、Tween 或节点释放转换为 `GFVisualAction`；调度方式、业务对象含义和流程语义仍由调用方决定。
 
-`GFCallableAction` 用于把普通 `Callable` 插入队列；`GFWaitAction` 表达通用时间等待，取消后不会再由旧计时器触发动作完成；`GFRepeatAction` 会通过工厂每轮创建新动作，避免重复复用带 Tween、Timer 或节点引用的旧动作实例。无限重复的瞬时动作会按 `max_immediate_iterations_per_frame` 分批让出主循环，避免把表现队列锁在同一帧。运行时如果需要控制当前表现，可调用 `pause_current_action()`、`resume_current_action()`、`finish_current_action()` 或 `skip_current_action()`；自定义动作可以重写 `pause()`、`resume()`、`finish()` 和 `cancel()` 响应这些控制。队列控制只表达表现时序，不应承担回合结算、伤害结果或剧情状态修改。
+`GFCallableAction` 用于把普通 `Callable` 插入队列；`GFWaitAction` 表达通用时间等待，取消后不会发出 `wait_completed`，且不会再由旧计时器触发二次完成。队列取消、清空或跳过当前动作时，会通过队列自身的取消令牌停止等待并继续收敛状态，而不是把取消伪装成正常完成。`GFRepeatAction` 会通过工厂每轮创建新动作，避免重复复用带 Tween、Timer 或节点引用的旧动作实例。顺序或并行 `GFVisualActionGroup` 被取消时，也会结束当前组的等待，不会让队列卡在已经被取消的子动作上。无限重复的瞬时动作会按 `max_immediate_iterations_per_frame` 分批让出主循环，避免把表现队列锁在同一帧。运行时如果需要控制当前表现，可调用 `pause_current_action()`、`resume_current_action()`、`finish_current_action()` 或 `skip_current_action()`；自定义动作可以重写 `pause()`、`resume()`、`finish()` 和 `cancel()` 响应这些控制。队列控制只表达表现时序，不应承担回合结算、伤害结果或剧情状态修改。
 
 如果表现动画需要被多个界面、实体或流程复用，可以把属性 Tween 抽成资源配置，再生成动作交给队列：
 
@@ -151,7 +151,7 @@ config.add_property_step(^"modulate", Color.WHITE, 0.12)
 q_sys.enqueue(config.create_action(card_node))
 ```
 
-`GFTweenActionConfig` 只描述属性路径、目标值、时长、缓动和并行关系；每一段属性变化由 `GFTweenActionStep` 保存，支持延迟、相对值、并行、transition 和 ease。`GFTweenActionStep.can_apply_to(target)` / `get_validation_error(target)` 可在执行前检查目标属性是否存在、相对值类型是否匹配；无效步骤会被跳过并给出警告，避免把拼写错误推迟到 Tween 执行时才暴露。`create_action(target)` 会生成 `GFConfiguredTweenAction`，由它在执行时创建 Tween、追加步骤、返回 `finished` 信号并在取消时 kill 当前 Tween。具体节点含义、动画命名和业务时机仍由项目层决定。
+`GFTweenActionConfig` 只描述属性路径、目标值、时长、缓动和并行关系；每一段属性变化由 `GFTweenActionStep` 保存，支持延迟、相对值、并行、transition 和 ease。`GFTweenActionStep.can_apply_to(target)` / `get_validation_error(target)` 可在执行前检查目标属性是否存在、相对值类型是否匹配；无效步骤会被跳过并给出警告，避免把拼写错误推迟到 Tween 执行时才暴露。`GFMoveTweenAction` 与 `GFFlashAction` 也会在执行前校验目标属性和值类型，无法安全 Tween 时直接返回 `null`。`create_action(target)` 会生成 `GFConfiguredTweenAction`，由它在执行时创建 Tween、追加步骤、返回 `finished` 信号并在取消时结束当前等待、kill 当前 Tween。具体节点含义、动画命名和业务时机仍由项目层决定。
 
 ### 外部动作
 

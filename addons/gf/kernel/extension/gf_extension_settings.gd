@@ -346,9 +346,6 @@ static func resolve_extension_dependencies(
 	for manifest: GFExtensionManifest in source_manifests:
 		if resolved.has(manifest.id):
 			ordered.append(manifest.id)
-	for extension_id: String in requested_ids:
-		if resolved.has(extension_id) and not ordered.has(extension_id):
-			ordered.append(extension_id)
 	return ordered
 
 
@@ -543,7 +540,6 @@ static func _resolve_extension_dependency(
 			push_warning("[GFExtensionSettings] 检测到扩展依赖循环：%s" % " -> ".join(cycles[cycles.size() - 1]))
 		return
 	if not manifest_by_id.has(normalized_id):
-		resolved[normalized_id] = true
 		return
 
 	var manifest := manifest_by_id[normalized_id] as GFExtensionManifest

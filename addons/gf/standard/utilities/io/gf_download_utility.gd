@@ -259,6 +259,12 @@ func _try_start_next_download() -> void:
 
 	var task := _pending_tasks.pop_front()
 	if FileAccess.file_exists(task.target_path) and not task.overwrite:
+		if not _verify_file_checksum(task, task.target_path, "target file"):
+			task.status = GFDownloadTask.Status.FAILED
+			_finish_task(task, false, false)
+			_try_start_next_download()
+			return
+
 		task.status = GFDownloadTask.Status.COMPLETED
 		_finish_task(task, true, false, { "from_existing_file": true })
 		_try_start_next_download()
@@ -411,15 +417,19 @@ func _append_file(source_path: String, target_path: String) -> Error:
 
 
 func _verify_checksum(task: GFDownloadTask) -> bool:
+	return _verify_file_checksum(task, task.temp_path, "temp file")
+
+
+func _verify_file_checksum(task: GFDownloadTask, file_path: String, label: String) -> bool:
 	if task.expected_sha256.is_empty():
 		return true
-	if not FileAccess.file_exists(task.temp_path):
-		task.error = "checksum failed: temp file missing"
+	if not FileAccess.file_exists(file_path):
+		task.error = "checksum failed: %s missing" % label
 		return false
 
-	var actual := FileAccess.get_sha256(task.temp_path).to_lower()
+	var actual := FileAccess.get_sha256(file_path).to_lower()
 	if actual != task.expected_sha256:
-		task.error = "checksum mismatch"
+		task.error = "checksum mismatch: %s" % label
 		return false
 	return true
 

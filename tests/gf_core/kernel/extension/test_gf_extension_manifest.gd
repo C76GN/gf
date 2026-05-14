@@ -37,6 +37,8 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 		"installer_paths": PackedStringArray(["res://addons/terrain_tools/extension.gd"]),
 		"editor_action_paths": ["res://addons/terrain_tools/editor/terrain_actions.gd"],
 		"editor_dock_paths": ["res://addons/terrain_tools/editor/terrain_dock.gd"],
+		"editor_dock_order": 42,
+		"editor_dock_short_label": "Terrain",
 		"editor_inspector_paths": ["res://addons/terrain_tools/editor/terrain_inspector.gd"],
 		"export_plugin_paths": ["res://addons/terrain_tools/editor/terrain_export_plugin.gd"],
 		"access_generator_extension_paths": ["res://addons/terrain_tools/editor/terrain_access_generator.gd"],
@@ -53,10 +55,16 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 	assert_eq(manifest.installer_paths.size(), 1, "installer_paths 应支持 PackedStringArray。")
 	assert_eq(manifest.editor_action_paths.size(), 1, "editor_action_paths 应读取为字符串数组。")
 	assert_eq(manifest.editor_dock_paths.size(), 1, "editor_dock_paths 应读取为字符串数组。")
+	assert_eq(manifest.editor_dock_order, 42, "editor_dock_order 应读取为工作区排序值。")
+	assert_eq(manifest.editor_dock_short_label, "Terrain", "editor_dock_short_label 应读取为工作区短标签。")
 	assert_eq(manifest.editor_inspector_paths.size(), 1, "editor_inspector_paths 应读取为字符串数组。")
 	assert_eq(manifest.export_plugin_paths.size(), 1, "export_plugin_paths 应读取为字符串数组。")
 	assert_eq(manifest.access_generator_extension_paths.size(), 1, "access_generator_extension_paths 应读取为字符串数组。")
 	assert_false(manifest.enabled_by_default, "显式关闭默认启用时应保留配置。")
+
+	var dictionary := manifest.to_dictionary()
+	assert_eq(int(dictionary.get("editor_dock_order", 0)), 42, "manifest 字典应保留工作区排序。")
+	assert_eq(String(dictionary.get("editor_dock_short_label", "")), "Terrain", "manifest 字典应保留工作区短标签。")
 
 
 func test_extension_manifest_defaults_to_enabled() -> void:
@@ -175,6 +183,23 @@ func test_extension_settings_resolves_manifest_dependencies() -> void:
 	var resolved := GF_EXTENSION_SETTINGS_BASE.resolve_extension_dependencies(["author.feature"], manifests)
 
 	assert_eq(resolved, ["author.base", "author.feature"], "启用扩展应按 manifest 顺序自动补齐内部依赖。")
+
+
+func test_extension_settings_resolves_only_known_manifest_ids() -> void:
+	var feature_manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
+		"id": "author.feature",
+		"display_name": "Feature",
+		"version": "1.0.0",
+		"kind": "extension",
+	}, "res://addons/author_feature", "")
+
+	var manifests: Array[GFExtensionManifest] = [feature_manifest]
+	var resolved := GF_EXTENSION_SETTINGS_BASE.resolve_extension_dependencies(
+		["author.feature", "author.missing", "gf.kernel"],
+		manifests
+	)
+
+	assert_eq(resolved, ["author.feature"], "启用结果只能包含当前发现到的 manifest ID。")
 
 
 func test_extension_settings_resolves_dependency_cycles_without_recursing_forever() -> void:
@@ -322,7 +347,10 @@ func test_extension_settings_can_query_manifest_and_enabled_state() -> void:
 		save_action_paths.has("res://addons/gf/extensions/save/editor/gf_save_editor_actions.gd"),
 		"启用扩展的菜单动作路径应由统一查询入口返回。"
 	)
-	assert_true(save_dock_paths.is_empty(), "Save 扩展未声明 Dock 时应返回空 Dock 路径。")
+	assert_true(
+		save_dock_paths.has("res://addons/gf/extensions/save/editor/gf_save_graph_dock.gd"),
+		"Save 扩展的工作区页面路径应由统一查询入口返回。"
+	)
 	assert_true(save_inspector_paths.is_empty(), "Save 扩展未声明 Inspector 时应返回空 Inspector 路径。")
 	assert_true(save_export_paths.is_empty(), "Save 扩展未声明导出插件时应返回空导出插件路径。")
 	assert_true(save_access_extension_paths.is_empty(), "Save 扩展未声明访问器扩展时应返回空访问器扩展路径。")
@@ -337,11 +365,28 @@ func test_extension_selection_report_includes_unknown_enabled_ids() -> void:
 
 	var report := GF_EXTENSION_SETTINGS_BASE.get_extension_selection_report()
 	var unknown_enabled_ids := report.get("unknown_enabled_ids", []) as Array
+	var resolved_ids := report.get("resolved_ids", []) as Array
 
 	_restore_project_setting(GF_EXTENSION_SETTINGS_BASE.ENABLED_EXTENSIONS_SETTING, restore)
 
 	assert_true(unknown_enabled_ids.has("author.missing"), "启用列表中不存在 manifest 的扩展 ID 应被报告。")
+	assert_false(resolved_ids.has("author.missing"), "未知扩展 ID 不应进入最终启用结果。")
+	assert_eq(int(report.get("enabled_count", -1)), resolved_ids.size(), "启用数量应基于最终有效启用结果。")
 	assert_false(bool(report.get("ok", true)), "存在未知启用扩展时选择诊断不应通过。")
+
+
+func test_set_enabled_extension_ids_drops_unknown_ids() -> void:
+	var restore := _set_project_setting(
+		GF_EXTENSION_SETTINGS_BASE.ENABLED_EXTENSIONS_SETTING,
+		["gf.save", "author.missing"]
+	)
+
+	GF_EXTENSION_SETTINGS_BASE.set_enabled_extension_ids(["gf.save", "author.missing"], true)
+	var stored_ids := GF_EXTENSION_SETTINGS_BASE.get_enabled_extension_ids()
+
+	_restore_project_setting(GF_EXTENSION_SETTINGS_BASE.ENABLED_EXTENSIONS_SETTING, restore)
+
+	assert_eq(stored_ids, ["gf.save"], "保存启用扩展时应只保留可发现的 manifest ID。")
 
 
 func test_extension_settings_defaults_to_strict_disabled_reference_policy() -> void:

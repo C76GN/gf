@@ -133,6 +133,11 @@ func stop() -> void:
 	_rerun_requested = false
 
 
+## 释放 effect 持有的监听。
+func dispose() -> void:
+	stop()
+
+
 ## 检查 effect 是否处于激活状态。
 ## @return 激活时返回 true。
 func is_active() -> bool:

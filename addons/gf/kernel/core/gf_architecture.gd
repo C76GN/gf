@@ -230,8 +230,8 @@ func dispose() -> void:
 	_dispose_module_registry(_utility_registry)
 	for binding_variant: Variant in _factories.values():
 		var binding := binding_variant as Object
-		if binding != null and binding.has_method("clear_cached_instance"):
-			binding.call("clear_cached_instance")
+		if binding != null and binding.has_method("dispose_cached_instance"):
+			binding.call("dispose_cached_instance")
 	_model_registry._clear()
 	_system_registry._clear()
 	_utility_registry._clear()
@@ -588,6 +588,7 @@ func replace_factory(
 		return
 	if not _validate_factory_lifetime(lifetime, "replace_factory"):
 		return
+	_clear_factory_binding(script_cls)
 	_factories[script_cls] = GFBindingBase.new(script_cls, factory, self, lifetime, true)
 
 
@@ -603,12 +604,14 @@ func replace_factory_instance(script_cls: Script, instance: Object) -> void:
 	if instance == null:
 		push_error("[GFArchitecture] replace_factory_instance 失败：实例为空。")
 		return
+	_clear_factory_binding(script_cls)
 	_factories[script_cls] = GFBindingBase.new(script_cls, instance, self, GFBindingLifetimesBase.Lifetime.SINGLETON, true)
 
 
 ## 注销短生命周期对象工厂。
 ## @param script_cls: 要移除的脚本类型。
 func unregister_factory(script_cls: Script) -> void:
+	_clear_factory_binding(script_cls)
 	_factories.erase(script_cls)
 
 
@@ -1530,6 +1533,15 @@ func _collect_module_debug_state(registry: Dictionary) -> Dictionary:
 			"physics_tick_priority": _get_module_priority(instance, &"physics_tick_priority"),
 		}
 	return result
+
+
+func _clear_factory_binding(script_cls: Script) -> void:
+	if script_cls == null or not _factories.has(script_cls):
+		return
+
+	var binding := _factories[script_cls] as Object
+	if binding != null and binding.has_method("dispose_cached_instance"):
+		binding.call("dispose_cached_instance")
 
 
 func _collect_factory_debug_state() -> Dictionary:

@@ -81,6 +81,18 @@ func test_fetch_text_writes_and_reuses_cache() -> void:
 	assert_eq(results[1]["content"], "payload", "缓存内容应保持一致。")
 
 
+func test_write_cache_text_commits_without_sidecar_files() -> void:
+	var cache_key := _cache._build_cache_key("https://example.test/text", PackedStringArray(), &"text")
+
+	assert_eq(_cache._write_cache_text(cache_key, "first"), OK, "首次缓存写入应成功。")
+	assert_eq(_cache._write_cache_text(cache_key, "second"), OK, "覆盖缓存写入应成功。")
+
+	assert_eq(_cache._read_cache_text(cache_key), "second", "缓存提交后应读取最新内容。")
+	assert_true(FileAccess.file_exists(_cache._get_cache_path(cache_key)), "最终缓存文件应存在。")
+	assert_false(FileAccess.file_exists(_cache._get_cache_temp_path(cache_key)), "提交后不应残留临时文件。")
+	assert_false(FileAccess.file_exists(_cache._get_cache_backup_path(cache_key)), "提交后不应残留备份文件。")
+
+
 func test_fetch_json_parses_data() -> void:
 	var results: Array[Dictionary] = []
 	_cache.responses.append({

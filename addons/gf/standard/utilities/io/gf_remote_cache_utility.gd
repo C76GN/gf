@@ -449,6 +449,14 @@ func _get_cache_path(cache_key: String) -> String:
 	return "%s/%s.cache" % [_get_cache_dir_path(), cache_key.md5_text()]
 
 
+func _get_cache_temp_path(cache_key: String) -> String:
+	return "%s.tmp" % _get_cache_path(cache_key)
+
+
+func _get_cache_backup_path(cache_key: String) -> String:
+	return "%s.bak" % _get_cache_path(cache_key)
+
+
 func _has_valid_cache_key(cache_key: String, ttl_seconds: int) -> bool:
 	if cache_key.is_empty():
 		return false
@@ -480,16 +488,46 @@ func _read_cache_text(cache_key: String) -> String:
 	return content
 
 
-func _write_cache_text(cache_key: String, content: String) -> void:
+func _write_cache_text(cache_key: String, content: String) -> Error:
 	_ensure_cache_dir()
-	var file := FileAccess.open(_get_cache_path(cache_key), FileAccess.WRITE)
+	var path := _get_cache_path(cache_key)
+	var temp_path := _get_cache_temp_path(cache_key)
+	var backup_path := _get_cache_backup_path(cache_key)
+
+	DirAccess.remove_absolute(temp_path)
+	DirAccess.remove_absolute(backup_path)
+
+	var file := FileAccess.open(temp_path, FileAccess.WRITE)
 	if file == null:
 		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
-		return
+		return FileAccess.get_open_error()
 
 	file.store_string(content)
+	var write_error := file.get_error()
 	file.close()
+	if write_error != OK:
+		DirAccess.remove_absolute(temp_path)
+		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
+		return write_error
+
+	if FileAccess.file_exists(path):
+		var backup_error := DirAccess.rename_absolute(path, backup_path)
+		if backup_error != OK:
+			DirAccess.remove_absolute(temp_path)
+			push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
+			return backup_error
+
+	var commit_error := DirAccess.rename_absolute(temp_path, path)
+	if commit_error != OK:
+		if FileAccess.file_exists(backup_path):
+			DirAccess.rename_absolute(backup_path, path)
+		DirAccess.remove_absolute(temp_path)
+		push_warning("[GFRemoteCacheUtility] 写入缓存失败：%s" % cache_key)
+		return commit_error
+
+	DirAccess.remove_absolute(backup_path)
 	_prune_cache()
+	return OK
 
 
 func _prune_cache() -> void:
@@ -509,6 +547,8 @@ func _prune_cache() -> void:
 				"path": path,
 				"modified_time": FileAccess.get_modified_time(path),
 			})
+		elif not dir.current_is_dir() and (file_name.ends_with(".cache.tmp") or file_name.ends_with(".cache.bak")):
+			DirAccess.remove_absolute("%s/%s" % [dir_path, file_name])
 		file_name = dir.get_next()
 	dir.list_dir_end()
 

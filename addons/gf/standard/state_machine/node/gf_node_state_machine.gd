@@ -795,8 +795,15 @@ func _reload_from_children_deferred() -> void:
 		reload_from_children()
 
 
-func _on_child_entered_tree(_child: Node) -> void:
-	_queue_reload_from_children()
+func _on_child_entered_tree(child: Node) -> void:
+	if _should_reload_for_child(child):
+		_queue_reload_from_children()
+
+
+func _should_reload_for_child(child: Node) -> bool:
+	if child.get_meta(META_INTERNAL_GROUP, false):
+		return false
+	return _is_node_state(child) or _is_node_state_group(child)
 
 
 func _capture_state_snapshot() -> Dictionary:

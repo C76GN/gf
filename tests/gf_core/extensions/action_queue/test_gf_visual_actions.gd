@@ -84,6 +84,27 @@ func test_move_tween_action_wait_ends_when_target_exits_tree() -> void:
 	assert_true(completed[0], "Tween 目标节点退出树时，等待应立即结束。")
 
 
+func test_move_tween_action_rejects_incompatible_target_value() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+
+	var action: GFVisualAction = GF_MOVE_TWEEN_ACTION.new(node, "bad_target", 0.0)
+	var result: Variant = action.execute()
+
+	assert_null(result, "类型不兼容的移动动作不应创建 Tween。")
+	assert_eq(node.position, Vector2.ZERO, "类型不兼容时不应写入目标属性。")
+
+
+func test_move_tween_action_rejects_missing_property() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+
+	var action: GFVisualAction = GF_MOVE_TWEEN_ACTION.new(node, Vector2.ONE, 0.0, ^"missing_position")
+	var result: Variant = action.execute()
+
+	assert_null(result, "缺失属性不应创建移动 Tween。")
+
+
 func test_configured_tween_action_applies_zero_duration_steps_immediately() -> void:
 	var node := Node2D.new()
 	add_child_autofree(node)
@@ -132,6 +153,27 @@ func test_configured_tween_action_finish_handles_infinite_loop() -> void:
 	await get_tree().process_frame
 
 	assert_true(completed.value, "无限循环 Tween 的 finish 不应卡住等待。")
+
+
+func test_configured_tween_action_cancel_releases_waiters() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+
+	var config := GF_TWEEN_ACTION_CONFIG.new()
+	config.add_property_step(^"position", Vector2(32.0, 0.0), 1.0)
+	var action: GFVisualAction = config.create_action(node)
+	var result: Variant = action.execute()
+	var completed := { "value": false }
+	var wait_for_action := func() -> void:
+		await action.await_result_safely(result)
+		completed.value = true
+
+	wait_for_action.call()
+	await get_tree().process_frame
+	action.cancel()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "取消配置化 Tween 时等待者应被释放。")
 
 
 func test_gf_action_factories_create_common_actions() -> void:
@@ -193,6 +235,57 @@ func test_wait_action_can_finish_early() -> void:
 	await get_tree().process_frame
 
 	assert_true(completed.value, "finish 应提前完成等待动作。")
+
+
+func test_wait_action_cancel_suppresses_wait_completed() -> void:
+	var action := GFAction.wait(1.0, self)
+	var result: Variant = action.execute()
+	var completed: Array[bool] = []
+	var completion := result as Signal
+	completion.connect(func() -> void:
+		completed.append(true)
+	)
+
+	await get_tree().process_frame
+	action.cancel()
+	await get_tree().create_timer(0.03).timeout
+
+	assert_true(completed.is_empty(), "取消等待动作不应发出等待完成信号。")
+
+
+func test_action_group_cancel_releases_sequence_waiters() -> void:
+	var group: GFVisualAction = GFAction.sequence([GFAction.wait(1.0, self)])
+	var result: Variant = group.execute()
+	var completed := { "value": false }
+	var wait_for_group := func() -> void:
+		await group.await_result_safely(result)
+		completed.value = true
+
+	wait_for_group.call()
+	await get_tree().process_frame
+	group.cancel()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "取消顺序动作组时等待者应被释放。")
+
+
+func test_action_group_cancel_releases_parallel_waiters() -> void:
+	var group: GFVisualAction = GFAction.parallel([
+		GFAction.wait(1.0, self),
+		GFAction.wait(1.0, self),
+	])
+	var result: Variant = group.execute()
+	var completed := { "value": false }
+	var wait_for_group := func() -> void:
+		await group.await_result_safely(result)
+		completed.value = true
+
+	wait_for_group.call()
+	await get_tree().process_frame
+	group.cancel()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "取消并行动作组时等待者应被释放。")
 
 
 func test_repeat_action_creates_fresh_action_each_iteration() -> void:
@@ -289,6 +382,46 @@ func test_flash_action_restores_modulate() -> void:
 	await action.await_result_safely(result)
 
 	assert_eq(item.modulate, Color(0.2, 0.4, 0.6), "闪色动作完成后应恢复原始颜色。")
+
+
+func test_flash_action_rejects_non_color_property() -> void:
+	var item := ColorRect.new()
+	add_child_autofree(item)
+
+	var action: GFVisualAction = GF_FLASH_ACTION.new(item, Color.RED, 0.01, ^"visible")
+	var result: Variant = action.execute()
+
+	assert_null(result, "非 Color 属性不应创建闪色 Tween。")
+	assert_true(item.visible, "非 Color 属性不应被闪色动作改写。")
+
+
+func test_flash_action_rejects_missing_property() -> void:
+	var item := ColorRect.new()
+	add_child_autofree(item)
+
+	var action: GFVisualAction = GF_FLASH_ACTION.new(item, Color.RED, 0.01, ^"missing_color")
+	var result: Variant = action.execute()
+
+	assert_null(result, "缺失属性不应创建闪色 Tween。")
+
+
+func test_flash_action_cancel_releases_waiters() -> void:
+	var item := ColorRect.new()
+	add_child_autofree(item)
+
+	var action: GFVisualAction = GF_FLASH_ACTION.new(item, Color.RED, 1.0)
+	var result: Variant = action.execute()
+	var completed := { "value": false }
+	var wait_for_action := func() -> void:
+		await action.await_result_safely(result)
+		completed.value = true
+
+	wait_for_action.call()
+	await get_tree().process_frame
+	action.cancel()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "取消闪色动作时等待者应被释放。")
 
 
 func test_audio_action_is_fire_and_forget() -> void:

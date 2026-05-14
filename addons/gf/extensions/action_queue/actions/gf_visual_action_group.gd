@@ -34,6 +34,8 @@ var is_parallel: bool = true
 # --- 私有变量 ---
 
 var _execution_serial: int = 0
+var _is_executing: bool = false
+var _active_is_parallel: bool = true
 
 
 # --- Godot 生命周期方法 ---
@@ -64,6 +66,8 @@ func execute() -> Variant:
 
 	_execution_serial += 1
 	var current_serial: int = _execution_serial
+	_is_executing = true
+	_active_is_parallel = is_parallel
 
 	if is_parallel:
 		return _run_parallel(current_serial)
@@ -76,6 +80,7 @@ func cancel() -> void:
 	for action: Object in actions:
 		if is_instance_valid(action):
 			_ACTION_PROTOCOL.cancel(action)
+	_emit_active_completion()
 
 
 func pause() -> void:
@@ -95,10 +100,7 @@ func finish() -> void:
 	for action: Object in actions:
 		if is_instance_valid(action):
 			_ACTION_PROTOCOL.finish(action)
-	if is_parallel:
-		_parallel_completed.emit()
-	else:
-		_sequence_completed.emit()
+	_emit_active_completion()
 
 
 # --- 私有方法 ---
@@ -163,6 +165,7 @@ func _do_sequence_async(current_serial: int) -> void:
 		if current_serial != _execution_serial:
 			return
 
+	_is_executing = false
 	_sequence_completed.emit()
 
 
@@ -172,7 +175,11 @@ func _wait_parallel_action(
 	pending_state: Dictionary,
 	current_serial: int,
 ) -> void:
-	if current_serial != _execution_serial or not is_instance_valid(action):
+	if current_serial != _execution_serial:
+		return
+	if not is_instance_valid(action):
+		pending_state["count"] = int(pending_state["count"]) - 1
+		_try_emit_parallel_completed(pending_state, current_serial)
 		return
 
 	await _ACTION_PROTOCOL.await_result_safely(
@@ -204,8 +211,20 @@ func _try_emit_parallel_completed(pending_state: Dictionary, current_serial: int
 		return
 
 	pending_state["emitted"] = true
+	_is_executing = false
 	_parallel_completed.emit()
 
 
 func _is_execution_serial_current(serial: int) -> bool:
 	return serial == _execution_serial
+
+
+func _emit_active_completion() -> void:
+	if not _is_executing:
+		return
+
+	_is_executing = false
+	if _active_is_parallel:
+		_parallel_completed.emit()
+	else:
+		_sequence_completed.emit()

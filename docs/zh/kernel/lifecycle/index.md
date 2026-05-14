@@ -181,7 +181,7 @@ func install_bindings(binder: Variant) -> void:
 
 如果把 `process_scoped_ticks` 设为 `false`，该 Context 只负责创建和生命周期管理，不再驱动局部架构的 `tick()` / `physics_tick()`。这种模式适合由外部调度器统一驱动局部架构；否则局部 `GFSystem.tick()` 和 `GFUtility.tick()` 不会自动执行。
 
-如果只想让某个节点树分支复用父级上下文，可以把 `scope_mode` 设为 `INHERITED`。
+如果只想让某个节点树分支复用父级上下文，可以把 `scope_mode` 设为 `INHERITED`。继承模式不会创建或释放局部架构，但会在继承到的架构 ready 后发出同样的 `context_ready` 信号；如果父级架构稍后才初始化完成，上下文会等待后再发出信号。
 
 局部上下文中的 `GFController` 无需额外传参，会自动沿父节点查找最近的 `GFNodeContext`。注册到局部上下文的 `GFSystem` / `GFModel` / `GFUtility` 也会在注册时获得当前架构引用，因此基类提供的 `get_model()`、`get_system()`、`get_utility()` 会优先使用局部架构，并在本地未命中时回退父架构。
 
@@ -224,7 +224,7 @@ architecture.register_factory(
 architecture.register_factory_instance(BattleRuleSet, BattleRuleSet.new())
 ```
 
-当子架构回退到父级工厂时，transient 工厂会把发起请求的子架构注入新对象，适合局部关卡命令继续访问本地模块；singleton 工厂始终由拥有该绑定的架构持有和注入。常见用途包括命令、查询、技能执行载体和局部玩法 helper。长期存在并参与 `tick()` 或 `dispose()` 的对象仍应注册为 `Model`、`System` 或 `Utility`。`with_alias()` 只适用于 `Model`、`System` 和 `Utility`，用于 factory 绑定时会被忽略并输出 warning。
+当子架构回退到父级工厂时，transient 工厂会把发起请求的子架构注入新对象，适合局部关卡命令继续访问本地模块；singleton 工厂始终由拥有该绑定的架构持有和注入。替换、注销工厂或销毁架构时，框架会清理已缓存 singleton 实例的 owner 事件监听，调用实例自己的 `dispose()`（如果存在），并释放依赖作用域；外部继续持有旧对象时不应再通过它访问旧架构。常见用途包括命令、查询、技能执行载体和局部玩法 helper。长期存在并参与完整生命周期、tick 或跨系统协作的对象仍应注册为 `Model`、`System` 或 `Utility`。`with_alias()` 只适用于 `Model`、`System` 和 `Utility`，用于 factory 绑定时会被忽略并输出 warning。
 
 ---
 

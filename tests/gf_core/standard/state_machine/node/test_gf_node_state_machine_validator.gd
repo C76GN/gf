@@ -89,3 +89,17 @@ func test_state_machine_dock_scans_scene_root_and_reports_selected_machine() -> 
 
 	dock.free()
 	root.free()
+
+
+func test_state_machine_dock_uses_compact_empty_state() -> void:
+	var root := Node.new()
+	var dock: GFNodeStateMachineDock = GFNodeStateMachineDockBase.new()
+
+	dock.set_state_machine_source(root)
+
+	assert_true(dock._empty_label.visible, "没有状态机时应显示空状态。")
+	assert_false(dock._tree.visible, "没有状态机时不应显示空表格。")
+	assert_false(dock._details.visible, "没有状态机时不应留下空详情面板。")
+
+	dock.free()
+	root.free()

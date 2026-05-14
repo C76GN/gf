@@ -59,6 +59,9 @@ var error: String = ""
 ## 调用方附加元数据。
 var metadata: Dictionary = {}
 
+## 取消请求时执行的底层取消回调。
+var cancel_callback: Callable = Callable()
+
 
 # --- 公共方法 ---
 
@@ -80,9 +83,13 @@ func is_finished() -> bool:
 ## 标记请求成功完成。
 ## @param fields: 需要写入响应对象的字段。
 func complete_success(fields: Dictionary = {}) -> void:
+	if is_finished():
+		return
+
 	_apply_fields(fields)
 	state = State.COMPLETED
 	error = String(fields.get("error", error))
+	cancel_callback = Callable()
 	completed.emit(self)
 
 
@@ -90,9 +97,13 @@ func complete_success(fields: Dictionary = {}) -> void:
 ## @param message: 错误说明。
 ## @param fields: 需要写入响应对象的字段。
 func complete_failure(message: String, fields: Dictionary = {}) -> void:
+	if is_finished():
+		return
+
 	_apply_fields(fields)
 	state = State.FAILED
 	error = message
+	cancel_callback = Callable()
 	completed.emit(self)
 
 
@@ -101,6 +112,12 @@ func complete_failure(message: String, fields: Dictionary = {}) -> void:
 func cancel(reason: String = "cancelled") -> void:
 	if is_finished():
 		return
+
+	var callback := cancel_callback
+	cancel_callback = Callable()
+	if callback.is_valid():
+		callback.call()
+
 	state = State.CANCELLED
 	error = reason
 	completed.emit(self)

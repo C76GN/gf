@@ -77,6 +77,7 @@ func execute() -> Variant:
 
 
 func cancel() -> void:
+	_emit_active_tween_finished()
 	_clear_active_tween()
 
 
@@ -93,7 +94,7 @@ func resume() -> void:
 func finish() -> void:
 	if is_instance_valid(_active_tween):
 		if config != null and config.loop_count == 0:
-			_active_tween.finished.emit()
+			_emit_active_tween_finished()
 			_clear_active_tween()
 			return
 		_active_tween.custom_step(INF)
@@ -119,3 +120,8 @@ func _clear_active_tween() -> void:
 	if is_instance_valid(_active_tween):
 		_active_tween.kill()
 	_active_tween = null
+
+
+func _emit_active_tween_finished() -> void:
+	if is_instance_valid(_active_tween):
+		_active_tween.finished.emit()

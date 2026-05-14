@@ -55,6 +55,12 @@ var editor_action_paths: Array[String] = []
 ## 可选编辑器工作区页面脚本路径列表。
 var editor_dock_paths: Array[String] = []
 
+## 编辑器工作区页面排序。数值越小越靠前。
+var editor_dock_order: int = 1000
+
+## 编辑器工作区页面短标签。为空时使用扩展显示名。
+var editor_dock_short_label: String = ""
+
 ## 可选 EditorInspectorPlugin 路径列表。需要为扩展内类型提供 Inspector 增强时使用。
 var editor_inspector_paths: Array[String] = []
 
@@ -106,6 +112,8 @@ static func from_dictionary(
 	manifest.installer_paths = _to_string_array(data.get("installer_paths", []))
 	manifest.editor_action_paths = _to_string_array(data.get("editor_action_paths", []))
 	manifest.editor_dock_paths = _to_string_array(data.get("editor_dock_paths", []))
+	manifest.editor_dock_order = int(data.get("editor_dock_order", manifest.editor_dock_order))
+	manifest.editor_dock_short_label = String(data.get("editor_dock_short_label", "")).strip_edges()
 	manifest.editor_inspector_paths = _to_string_array(data.get("editor_inspector_paths", []))
 	manifest.export_plugin_paths = _to_string_array(data.get("export_plugin_paths", []))
 	manifest.access_generator_extension_paths = _to_string_array(data.get("access_generator_extension_paths", []))
@@ -153,6 +161,8 @@ func to_dictionary() -> Dictionary:
 		"installer_paths": installer_paths.duplicate(),
 		"editor_action_paths": editor_action_paths.duplicate(),
 		"editor_dock_paths": editor_dock_paths.duplicate(),
+		"editor_dock_order": editor_dock_order,
+		"editor_dock_short_label": editor_dock_short_label,
 		"editor_inspector_paths": editor_inspector_paths.duplicate(),
 		"export_plugin_paths": export_plugin_paths.duplicate(),
 		"access_generator_extension_paths": access_generator_extension_paths.duplicate(),

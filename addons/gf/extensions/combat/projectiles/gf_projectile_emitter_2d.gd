@@ -19,6 +19,11 @@ signal projectile_emitted(projectile: Node, projectile_context: Dictionary)
 signal projectile_emit_failed(reason: StringName, details: Dictionary)
 
 
+# --- 常量 ---
+
+const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+
+
 # --- 导出变量 ---
 
 ## 默认发射体场景。未使用目录或目录缺少 ID 时使用。
@@ -52,12 +57,25 @@ signal projectile_emit_failed(reason: StringName, details: Dictionary)
 @export var release_pooled_projectile_on_finish: bool = true
 
 
+# --- 公共变量 ---
+
+## 可选对象池工具。为空时会从注入架构或最近的 GFNodeContext 查询。
+var object_pool_utility: GFObjectPoolUtility = null
+
+
 # --- 私有变量 ---
 
 var _next_emission_token: int = 1
+var _architecture_ref: WeakRef = null
 
 
 # --- 公共方法 ---
+
+## 注入当前发射器所属架构。
+## @param architecture: 当前架构。
+func inject_dependencies(architecture: GFArchitecture) -> void:
+	_architecture_ref = weakref(architecture) if architecture != null else null
+
 
 ## 发射单个发射体。
 ## @param projectile_context: 本次发射上下文。
@@ -229,12 +247,33 @@ func _build_spawn_context(
 
 
 func _get_object_pool() -> GFObjectPoolUtility:
-	if not Gf.has_architecture():
-		return null
-	var architecture: GFArchitecture = Gf.get_architecture()
+	if object_pool_utility != null and is_instance_valid(object_pool_utility):
+		return object_pool_utility
+
+	var architecture := _get_architecture_or_null()
 	if architecture == null:
 		return null
 	return architecture.get_utility(GFObjectPoolUtility) as GFObjectPoolUtility
+
+
+func _get_architecture_or_null() -> GFArchitecture:
+	if _architecture_ref != null:
+		var architecture := _architecture_ref.get_ref() as GFArchitecture
+		if architecture != null:
+			return architecture
+	return _find_context_architecture()
+
+
+func _find_context_architecture() -> GFArchitecture:
+	var current_node: Node = self
+	while current_node != null:
+		if current_node is GFNodeContextBase:
+			var context := current_node as GFNodeContext
+			var architecture := context.get_architecture()
+			if architecture != null:
+				return architecture
+		current_node = current_node.get_parent()
+	return null
 
 
 func _emit_failure(reason: StringName, details: Dictionary) -> void:

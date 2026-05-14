@@ -43,13 +43,27 @@ func serialize_message(message: GFNetworkMessage) -> PackedByteArray:
 ## @param bytes: 源 bytes。
 ## @return 消息载体；失败时返回 null。
 func deserialize_message(bytes: PackedByteArray) -> GFNetworkMessage:
-	var data := deserialize_dictionary(bytes)
-	if data.is_empty():
+	var result := deserialize_message_result(bytes)
+	if not bool(result.get("ok", false)):
 		return null
+	return result.get("data") as GFNetworkMessage
+
+
+## 解码消息并返回结果字典。
+## @param bytes: 源 bytes。
+## @return 包含 ok、data、error 的结果字典。
+func deserialize_message_result(bytes: PackedByteArray) -> Dictionary:
+	var dictionary_result := deserialize_dictionary_result(bytes)
+	if not bool(dictionary_result.get("ok", false)):
+		return dictionary_result
+
+	var data := dictionary_result.get("data", {}) as Dictionary
+	if data == null or data.is_empty():
+		return _make_failure("empty_message")
 
 	var message := GFNetworkMessage.new()
 	message.from_dict(data)
-	return message
+	return _make_success(message)
 
 
 ## 编码字典。
@@ -64,19 +78,41 @@ func serialize_dictionary(data: Dictionary) -> PackedByteArray:
 			return var_to_bytes(data)
 
 
-## 解码字典。
+## 解码字典并返回结果字典。
 ## @param bytes: 源 bytes。
-## @return 字典；失败时返回空字典。
-func deserialize_dictionary(bytes: PackedByteArray) -> Dictionary:
+## @return 包含 ok、data、error 的结果字典；合法空字典会返回 ok=true。
+func deserialize_dictionary_result(bytes: PackedByteArray) -> Dictionary:
 	if bytes.is_empty():
-		return {}
+		return _make_failure("empty_bytes")
 
 	match format:
 		Format.JSON:
 			var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
 			if use_typed_json_codec:
 				parsed = GFVariantJsonCodec.json_compatible_to_variant(parsed, json_codec_options)
-			return parsed as Dictionary if parsed is Dictionary else {}
+			if not (parsed is Dictionary):
+				return _make_failure("json_not_dictionary")
+			return _make_success((parsed as Dictionary).duplicate(true))
 		_:
 			var value: Variant = bytes_to_var(bytes)
-			return value as Dictionary if value is Dictionary else {}
+			if not (value is Dictionary):
+				return _make_failure("binary_not_dictionary")
+			return _make_success((value as Dictionary).duplicate(true))
+
+
+# --- 私有/辅助方法 ---
+
+func _make_success(data: Variant) -> Dictionary:
+	return {
+		"ok": true,
+		"data": data,
+		"error": "",
+	}
+
+
+func _make_failure(error: String) -> Dictionary:
+	return {
+		"ok": false,
+		"data": {},
+		"error": error,
+	}

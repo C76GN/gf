@@ -182,6 +182,8 @@ func send(event_instance: Object) -> void:
 ## @param on_event: 回调函数，签名为 func(payload: Variant)。
 ## @param owner: 可选监听拥有者，用于批量注销。
 func register_simple(event_id: StringName, on_event: Callable, owner: Object = null) -> void:
+	if not _validate_simple_event_id(event_id, "register_simple"):
+		return
 	if not _validate_callable_min_args(on_event, 1, "简单事件回调", "payload"):
 		return
 
@@ -203,6 +205,8 @@ func register_simple(event_id: StringName, on_event: Callable, owner: Object = n
 ## @param event_id: StringName 事件标识符。
 ## @param on_event: 要移除的回调函数。
 func unregister_simple(event_id: StringName, on_event: Callable) -> void:
+	if not _validate_simple_event_id(event_id, "unregister_simple"):
+		return
 	if _simple_dispatch_depth > 0:
 		_simple_track.remove_pending_add(event_id, on_event)
 		_simple_track.queue_remove(event_id, on_event)
@@ -217,6 +221,8 @@ func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 ## @param event_id: StringName 事件标识符。
 ## @param payload: 传递给监听器的数据，可为任意类型。
 func send_simple(event_id: StringName, payload: Variant = null) -> void:
+	if not _validate_simple_event_id(event_id, "send_simple"):
+		return
 	if _would_exceed_dispatch_depth(_simple_dispatch_depth):
 		_report_dispatch_depth_exceeded("simple", String(event_id))
 		return
@@ -787,6 +793,13 @@ func _validate_callable_min_args(on_event: Callable, min_args: int, callback_lab
 				return false
 			break
 	return true
+
+
+func _validate_simple_event_id(event_id: StringName, operation: String) -> bool:
+	if event_id != &"":
+		return true
+	push_error("[GFTypeEventSystem] %s 失败：event_id 不能为空。" % operation)
+	return false
 
 
 func _invalidate_type_dispatch_cache_for_event(event_type: Script, assignable: bool) -> void:

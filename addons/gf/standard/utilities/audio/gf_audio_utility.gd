@@ -1,7 +1,7 @@
 ## GFAudioUtility: 全局音频管理器。
 ##
 ## 管理 BGM 和 SFX 的播放与音量。
-## 结合 GFObjectPoolUtility 构建 AudioStreamPlayer 对象池避免频繁实例化。
+## 注册 GFObjectPoolUtility 时会复用 AudioStreamPlayer，未注册时使用普通播放器。
 ## 支持通过 GFAssetUtility 异步加载音频资源。
 class_name GFAudioUtility
 extends GFUtility
@@ -61,6 +61,9 @@ var _ambient_players: Dictionary = {}
 var _ambient_request_serials: Dictionary = {}
 var _audio_rng: RandomNumberGenerator = RandomNumberGenerator.new()
 var _audio_banks: Dictionary = {}
+var _audio_bank_base_values: Dictionary = {}
+var _audio_bank_mount_stacks: Dictionary = {}
+var _audio_bank_mount_token: int = 0
 var _audio_backend: GFAudioBackend = null
 
 
@@ -78,7 +81,10 @@ func init() -> void:
 	_ambient_request_serials.clear()
 	_audio_rng.randomize()
 	_audio_banks.clear()
-	# 动态创建用于池化的 SFX 播放器模版
+	_audio_bank_base_values.clear()
+	_audio_bank_mount_stacks.clear()
+	_audio_bank_mount_token = 0
+	# 动态创建用于可选池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
 	_sfx_scene.pack(player_template)
@@ -111,8 +117,10 @@ func dispose() -> void:
 		_bgm_fade_player.queue_free()
 	_root = null
 	_audio_banks.clear()
+	_audio_bank_base_values.clear()
+	_audio_bank_mount_stacks.clear()
 	
-	# SFX 节点由 ObjectPoolUtility 管理并随其一起被清理
+	# SFX 节点已由 _release_all_sfx_players() 统一释放。
 
 
 # --- 公共方法 ---
@@ -251,6 +259,8 @@ func register_audio_bank(bank_id: StringName, bank: GFAudioBank) -> void:
 	if bank_id == &"":
 		push_error("[GFAudioUtility] register_audio_bank 失败：bank_id 为空。")
 		return
+	_audio_bank_base_values.erase(bank_id)
+	_audio_bank_mount_stacks.erase(bank_id)
 	if bank == null:
 		_audio_banks.erase(bank_id)
 		return
@@ -260,12 +270,82 @@ func register_audio_bank(bank_id: StringName, bank: GFAudioBank) -> void:
 ## 移除一个全局音频集合。
 ## @param bank_id: 音频集合标识。
 func unregister_audio_bank(bank_id: StringName) -> void:
+	_audio_bank_base_values.erase(bank_id)
+	_audio_bank_mount_stacks.erase(bank_id)
 	_audio_banks.erase(bank_id)
 
 
 ## 清空全局音频集合注册表。
 func clear_audio_banks() -> void:
+	_audio_bank_base_values.clear()
+	_audio_bank_mount_stacks.clear()
 	_audio_banks.clear()
+
+
+## 挂载一个临时音频集合，并返回用于卸载的挂载令牌。
+## @param bank_id: 音频集合标识。
+## @param bank: 音频集合。
+## @param restore_previous_bank: 卸载顶层挂载时是否恢复同 ID 的上一层音频集合。
+## @return 挂载令牌；失败时返回 0。
+func mount_audio_bank(
+	bank_id: StringName,
+	bank: GFAudioBank,
+	restore_previous_bank: bool = true
+) -> int:
+	if bank_id == &"":
+		push_error("[GFAudioUtility] mount_audio_bank 失败：bank_id 为空。")
+		return 0
+	if bank == null:
+		push_error("[GFAudioUtility] mount_audio_bank 失败：bank 为空。")
+		return 0
+
+	if not _audio_bank_mount_stacks.has(bank_id):
+		if _audio_banks.has(bank_id):
+			_audio_bank_base_values[bank_id] = _audio_banks[bank_id]
+		var new_stack: Array[Dictionary] = []
+		_audio_bank_mount_stacks[bank_id] = new_stack
+
+	_audio_bank_mount_token += 1
+	var token := _audio_bank_mount_token
+	var stack := _audio_bank_mount_stacks[bank_id] as Array
+	stack.append({
+		"token": token,
+		"bank": bank,
+		"restore_previous_bank": restore_previous_bank,
+	})
+	_audio_banks[bank_id] = bank
+	return token
+
+
+## 卸载由 mount_audio_bank() 创建的临时音频集合。
+## @param bank_id: 音频集合标识。
+## @param mount_token: mount_audio_bank() 返回的挂载令牌。
+## @return 找到并卸载对应挂载时返回 true。
+func unmount_audio_bank(bank_id: StringName, mount_token: int) -> bool:
+	if bank_id == &"" or mount_token <= 0:
+		return false
+	if not _audio_bank_mount_stacks.has(bank_id):
+		return false
+
+	var stack := _audio_bank_mount_stacks[bank_id] as Array
+	var remove_index := -1
+	for index: int in range(stack.size() - 1, -1, -1):
+		var entry := stack[index] as Dictionary
+		if int(entry.get("token", 0)) == mount_token:
+			remove_index = index
+			break
+	if remove_index == -1:
+		return false
+
+	var removed_entry := stack[remove_index] as Dictionary
+	var was_top := remove_index == stack.size() - 1
+	stack.remove_at(remove_index)
+	if was_top:
+		_restore_audio_bank_after_unmount(bank_id, stack, bool(removed_entry.get("restore_previous_bank", true)))
+	if stack.is_empty():
+		_audio_bank_mount_stacks.erase(bank_id)
+		_audio_bank_base_values.erase(bank_id)
+	return true
 
 
 ## 获取全局音频集合。
@@ -815,6 +895,28 @@ func _clear_audio_backend(dispose_backend: bool) -> void:
 	_audio_backend = null
 
 
+func _restore_audio_bank_after_unmount(
+	bank_id: StringName,
+	stack: Array,
+	restore_previous_bank: bool
+) -> void:
+	if not restore_previous_bank:
+		_audio_banks.erase(bank_id)
+		return
+	if not stack.is_empty():
+		var top_entry := stack[stack.size() - 1] as Dictionary
+		var top_bank := top_entry.get("bank") as GFAudioBank
+		if top_bank != null:
+			_audio_banks[bank_id] = top_bank
+			return
+	if _audio_bank_base_values.has(bank_id):
+		var base_bank := _audio_bank_base_values[bank_id] as GFAudioBank
+		if base_bank != null:
+			_audio_banks[bank_id] = base_bank
+			return
+	_audio_banks.erase(bank_id)
+
+
 func _try_backend_play_bgm_path(path: String, options: Dictionary) -> bool:
 	if _audio_backend == null:
 		return false
@@ -1301,19 +1403,22 @@ func _play_sfx_stream_with_settings(
 ) -> AudioStreamPlayer:
 	if stream == null or not is_instance_valid(_root):
 		return null
-		
-	var pool := _get_pool_util()
-	if pool == null:
-		push_warning("[GFAudioUtility] GFObjectPoolUtility 未注册，正在略过 SFX。")
-		return null
 
 	if _is_sfx_capacity_full():
 		if sfx_overflow_policy == SFXOverflowPolicy.STOP_OLDEST:
 			_stop_oldest_sfx()
 		else:
 			return null
-		
-	var player := pool.acquire(_sfx_scene, _root) as AudioStreamPlayer
+
+	var pool := _get_pool_util()
+	var player: AudioStreamPlayer = null
+	if pool != null:
+		player = pool.acquire(_sfx_scene, _root) as AudioStreamPlayer
+	else:
+		player = AudioStreamPlayer.new()
+		player.name = "GFSFXPlayer"
+		_root.add_child(player)
+
 	if player != null:
 		player.bus = _resolve_bus_name(bus_name)
 		player.volume_db = volume_db

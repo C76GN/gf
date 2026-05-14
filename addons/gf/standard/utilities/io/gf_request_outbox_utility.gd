@@ -62,7 +62,7 @@ var keep_failed_requests: bool = true
 ## 失败列表最多保留数量；小于等于 0 表示不保留。
 var max_failed_requests: int = 32
 
-## 传输回调，签名为 func(envelope: GFRequestEnvelope) -> Dictionary。
+## 传输回调，签名为 func(envelope: GFRequestEnvelope) -> Dictionary；也可返回会发出结果值的 Signal。
 var transport_callback: Callable = Callable()
 
 ## 可选重放过滤回调，签名为 func(envelope: GFRequestEnvelope) -> bool。
@@ -165,7 +165,7 @@ func replay(max_count: int = 0) -> Dictionary:
 		report["processed"] = int(report["processed"]) + 1
 		request_started.emit(envelope)
 		envelope.mark_attempt()
-		var result := _call_transport(envelope)
+		var result: Dictionary = await _call_transport(envelope)
 		if _is_success_result(result):
 			envelope.mark_success()
 			_queue.remove_at(index)
@@ -322,6 +322,20 @@ func _can_replay_envelope(envelope: GFRequestEnvelopeBase, now_msec: int) -> boo
 
 func _call_transport(envelope: GFRequestEnvelopeBase) -> Dictionary:
 	var value: Variant = transport_callback.call(envelope)
+	if value is Signal:
+		value = await (value as Signal)
+	return _normalize_transport_result(value)
+
+
+func _normalize_transport_result(value: Variant) -> Dictionary:
+	if value is Array:
+		var values := value as Array
+		if values.is_empty():
+			return { "ok": false, "error": "empty_transport_result" }
+		var result := _normalize_transport_result(values[0])
+		if values.size() > 1:
+			result["signal_args"] = GFVariantData.duplicate_variant(values)
+		return result
 	if value is Dictionary:
 		var result := GFVariantData.duplicate_variant(value) as Dictionary
 		if not result.has("ok") and result.has("success"):

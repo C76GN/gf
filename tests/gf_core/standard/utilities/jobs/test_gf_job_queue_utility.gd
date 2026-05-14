@@ -2,6 +2,19 @@
 extends GutTest
 
 
+class AsyncFailingProcessor:
+	extends RefCounted
+
+	signal finished(result: Dictionary)
+
+	func process(_job: GFJob) -> Signal:
+		call_deferred("_emit_failure")
+		return finished
+
+	func _emit_failure() -> void:
+		finished.emit({ "ok": false, "error": "async_failed" })
+
+
 func test_job_queue_lifecycle_progress_and_snapshot() -> void:
 	var utility := GFJobQueueUtility.new()
 	utility.init()
@@ -79,5 +92,26 @@ func test_job_worker_processes_queue_batch() -> void:
 	assert_eq(first.status, GFJob.Status.COMPLETED, "第一个任务应完成。")
 	assert_eq(second.status, GFJob.Status.COMPLETED, "第二个任务应完成。")
 	assert_eq((second.result as Dictionary)["value"], 4, "处理器结果应写回任务。")
+	worker.free()
+	utility.dispose()
+
+
+func test_job_worker_applies_async_processor_result() -> void:
+	var utility := GFJobQueueUtility.new()
+	utility.init()
+	var job := utility.enqueue(&"main", { "value": 1 })
+	var processor := AsyncFailingProcessor.new()
+
+	var worker := GFJobWorker.new()
+	worker.auto_start = false
+	worker.queue_name = &"main"
+	worker.set_queue_utility(utility)
+	worker.set_processor(Callable(processor, "process"))
+
+	var processed_job: GFJob = await worker.process_next_job()
+
+	assert_same(processed_job, job, "Worker 应等待异步处理器完成当前任务。")
+	assert_eq(job.status, GFJob.Status.FAILED, "异步处理器返回 ok=false 时应标记失败。")
+	assert_eq(job.error_message, "async_failed", "异步失败原因应写入任务。")
 	worker.free()
 	utility.dispose()

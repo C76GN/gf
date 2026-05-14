@@ -199,6 +199,29 @@ func test_play_sfx_and_pool() -> void:
 	assert_eq(_pool.get_available_count(_audio._sfx_scene), 1, "SFX 播放器响应 finished 后应该回收到池中。")
 
 
+func test_play_sfx_without_object_pool_creates_direct_player() -> void:
+	var local_arch := GFArchitecture.new()
+	var audio := GFAudioUtility.new()
+	await local_arch.register_utility_instance(audio)
+	await local_arch.init()
+	await get_tree().process_frame
+
+	var stream := AudioStreamGenerator.new()
+	var player := audio._play_sfx_stream(stream)
+
+	assert_not_null(player, "未注册对象池时 SFX 仍应创建普通播放器。")
+	if player != null:
+		assert_eq(player.stream, stream, "普通 SFX 播放器应写入对应音频流。")
+		assert_eq(audio._active_sfx_players.size(), 1, "普通 SFX 播放器也应进入活跃列表。")
+		assert_false(player.get_meta("_gf_pool_active", false), "普通 SFX 播放器不应伪装为池化节点。")
+		player.finished.emit()
+		assert_eq(audio._active_sfx_players.size(), 0, "普通 SFX 播放结束后应移出活跃列表。")
+		assert_true(player.is_queued_for_deletion(), "普通 SFX 播放结束后应直接释放节点。")
+
+	local_arch.dispose()
+	await get_tree().process_frame
+
+
 func test_sfx_handle_can_stop_and_release_player() -> void:
 	var clip := GFAudioClip.new()
 	clip.stream = AudioStreamGenerator.new()
@@ -335,6 +358,36 @@ func test_audio_bank_mounter_restores_previous_bank() -> void:
 	assert_true(mounter.unmount(), "卸载应成功。")
 	assert_same(_audio.get_audio_bank(&"scene"), previous_bank, "卸载后应恢复旧音频集合。")
 	mounter.free()
+
+
+func test_audio_bank_mounter_keeps_nested_mount_stack_consistent() -> void:
+	var base_bank := GFAudioBank.new()
+	var first_bank := GFAudioBank.new()
+	var second_bank := GFAudioBank.new()
+	_audio.register_audio_bank(&"scene", base_bank)
+
+	var first_mounter := GFAudioBankMounter.new()
+	first_mounter.bank_id = &"scene"
+	first_mounter.bank = first_bank
+	first_mounter.set_audio_utility(_audio)
+
+	var second_mounter := GFAudioBankMounter.new()
+	second_mounter.bank_id = &"scene"
+	second_mounter.bank = second_bank
+	second_mounter.set_audio_utility(_audio)
+
+	assert_true(first_mounter.mount(), "第一层挂载应成功。")
+	assert_same(_audio.get_audio_bank(&"scene"), first_bank, "第一层挂载后应使用第一层 bank。")
+	assert_true(second_mounter.mount(), "第二层挂载应成功。")
+	assert_same(_audio.get_audio_bank(&"scene"), second_bank, "第二层挂载后应使用顶层 bank。")
+
+	assert_true(first_mounter.unmount(), "先卸载下层挂载应成功。")
+	assert_same(_audio.get_audio_bank(&"scene"), second_bank, "下层卸载不应覆盖仍处于顶层的 bank。")
+	assert_true(second_mounter.unmount(), "最后卸载顶层挂载应成功。")
+	assert_same(_audio.get_audio_bank(&"scene"), base_bank, "所有挂载卸载后应恢复基础 bank。")
+
+	first_mounter.free()
+	second_mounter.free()
 
 
 func test_audio_backend_can_handle_selected_requests() -> void:

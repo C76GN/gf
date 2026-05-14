@@ -63,6 +63,11 @@ func stop() -> void:
 		_effect = null
 
 
+## 释放派生属性持有的监听。
+func dispose() -> void:
+	stop()
+
+
 ## 只读派生属性不允许外部直接写入值。
 ## @param _new_value: 调用方尝试写入的新值。
 func set_value(_new_value: Variant) -> void:

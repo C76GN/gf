@@ -76,10 +76,31 @@ func get_instance(requesting_architecture: GFArchitecture = null) -> Object:
 			return null
 
 
-## 清理 Singleton 生命周期缓存的实例引用。
+## 清理 Singleton 生命周期缓存的实例引用，并释放框架注入作用域。
 func clear_cached_instance() -> void:
+	var instance := _cached_instance
 	_cached_instance = null
 	_has_cached_instance = false
+
+	if is_instance_valid(instance):
+		_release_instance_scope(instance)
+
+
+## 释放 Singleton 生命周期缓存实例的框架归属。
+func dispose_cached_instance() -> void:
+	var instance := _cached_instance
+	_cached_instance = null
+	_has_cached_instance = false
+
+	if not is_instance_valid(instance):
+		return
+
+	if _owner_architecture != null:
+		_owner_architecture.unregister_owner_events(instance)
+	if is_instance_valid(instance) and instance.has_method("dispose"):
+		instance.dispose()
+	if is_instance_valid(instance):
+		_release_instance_scope(instance)
 
 
 # --- 私有/辅助方法 ---
@@ -119,6 +140,16 @@ func _inject_if_needed(instance: Object, architecture: GFArchitecture) -> void:
 		instance.inject_dependencies(architecture)
 	if instance.has_method("inject"):
 		instance.inject(architecture)
+
+
+func _release_instance_scope(instance: Object) -> void:
+	if instance == null or not is_instance_valid(instance):
+		return
+
+	if instance.has_method("_gf_set_dependency_scope"):
+		instance.call("_gf_set_dependency_scope", null)
+	elif instance.has_method("_release_dependency_scope"):
+		instance.call("_release_dependency_scope")
 
 
 func _cached_instance_is_valid() -> bool:

@@ -32,7 +32,7 @@ var _file_dialog: FileDialog
 # --- Godot 生命周期方法 ---
 
 func _init() -> void:
-	name = "GF Save Viewer"
+	name = "GF Storage Viewer"
 	GFEditorWorkspaceUI.apply_page_root(self)
 	_build_ui()
 
@@ -126,7 +126,7 @@ func _set_status(message: String, is_error: bool) -> void:
 		_status_label.text = message
 		_status_label.modulate = GFEditorWorkspaceUI.ERROR_TEXT_COLOR if is_error else GFEditorWorkspaceUI.OK_TEXT_COLOR
 	if is_error:
-		push_warning("[GF Save Viewer] " + message)
+		push_warning("[GF Storage Viewer] " + message)
 
 
 # --- 信号处理函数 ---

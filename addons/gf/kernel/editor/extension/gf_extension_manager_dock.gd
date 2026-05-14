@@ -297,6 +297,8 @@ func _show_manifest_details(manifest: GFExtensionManifest) -> void:
 	lines.append("Installer：%s" % _format_string_array(manifest.installer_paths))
 	lines.append("菜单动作：%s" % _format_string_array(manifest.editor_action_paths))
 	lines.append("工作区页面：%s" % _format_string_array(manifest.editor_dock_paths))
+	lines.append("工作区短标签：%s" % (manifest.editor_dock_short_label if not manifest.editor_dock_short_label.is_empty() else "-"))
+	lines.append("工作区排序：%d" % manifest.editor_dock_order)
 	lines.append("Inspector：%s" % _format_string_array(manifest.editor_inspector_paths))
 	lines.append("导出插件：%s" % _format_string_array(manifest.export_plugin_paths))
 	lines.append("访问器扩展：%s" % _format_string_array(manifest.access_generator_extension_paths))

@@ -63,11 +63,17 @@ var _architecture: GFArchitecture = null
 var _owns_architecture: bool = false
 var _is_context_ready: bool = false
 var _is_context_installing: bool = false
+var _context_ready_emitted: bool = false
+var _context_failed_emitted: bool = false
+var _context_lifecycle_serial: int = 0
 
 
 # --- Godot 生命周期方法 ---
 
 func _enter_tree() -> void:
+	_context_lifecycle_serial += 1
+	_context_ready_emitted = false
+	_context_failed_emitted = false
 	_setup_architecture()
 	if _owns_architecture:
 		_is_context_installing = true
@@ -92,6 +98,8 @@ func _enter_tree() -> void:
 			await _initialize_owned_architecture(context_architecture)
 	elif _architecture == null:
 		push_warning("[GFNodeContext] 未找到可继承的架构。")
+	else:
+		_watch_inherited_architecture_ready(_architecture, _context_lifecycle_serial)
 
 
 func _process(delta: float) -> void:
@@ -105,12 +113,15 @@ func _physics_process(delta: float) -> void:
 
 
 func _exit_tree() -> void:
+	_context_lifecycle_serial += 1
 	if _owns_architecture and _architecture != null:
 		_architecture.dispose()
 	_architecture = null
 	_owns_architecture = false
 	_is_context_ready = false
 	_is_context_installing = false
+	_context_ready_emitted = false
+	_context_failed_emitted = false
 
 
 # --- 公共方法 ---
@@ -191,7 +202,7 @@ func wait_until_ready() -> GFArchitecture:
 			return null
 
 	if _architecture != null:
-		_is_context_ready = true
+		_mark_context_ready(_architecture)
 	return _architecture
 
 
@@ -298,10 +309,26 @@ func _initialize_owned_architecture(architecture_instance: GFArchitecture = null
 
 	await initializing_architecture.init()
 	if _is_owned_architecture_current(initializing_architecture) and initializing_architecture.is_inited():
-		_is_context_ready = true
-		context_ready.emit(initializing_architecture)
+		_mark_context_ready(initializing_architecture)
 	elif _is_owned_architecture_current(initializing_architecture) and initializing_architecture.has_initialization_failed():
 		_fail_context(_get_architecture_failure_reason(initializing_architecture, "上下文架构初始化失败。"))
+
+
+func _watch_inherited_architecture_ready(inherited_architecture: GFArchitecture, lifecycle_serial: int) -> void:
+	await get_tree().process_frame
+	var start_msec := Time.get_ticks_msec()
+	while _is_inherited_architecture_current(inherited_architecture, lifecycle_serial):
+		if inherited_architecture.is_inited():
+			_mark_context_ready(inherited_architecture)
+			return
+		if inherited_architecture.has_initialization_failed():
+			_fail_context(_get_architecture_failure_reason(inherited_architecture, "上下文架构初始化失败。"))
+			return
+		var timeout_reason := _get_wait_timeout_reason(start_msec, "等待上下文初始化超时。")
+		if not timeout_reason.is_empty():
+			_fail_context(timeout_reason)
+			return
+		await get_tree().process_frame
 
 
 func _wait_for_parent_architecture_ready(architecture_instance: GFArchitecture = null) -> bool:
@@ -363,6 +390,9 @@ func _get_wait_timeout_reason(start_msec: int, reason: String) -> String:
 func _fail_context(reason: String) -> void:
 	if reason.is_empty():
 		return
+	if _context_failed_emitted:
+		return
+	_context_failed_emitted = true
 	push_warning("[GFNodeContext] %s" % reason)
 	context_failed.emit(reason)
 
@@ -379,3 +409,24 @@ func _is_owned_architecture_current(architecture_instance: GFArchitecture) -> bo
 		and _owns_architecture
 		and _architecture == architecture_instance
 	)
+
+
+func _is_inherited_architecture_current(architecture_instance: GFArchitecture, lifecycle_serial: int) -> bool:
+	return (
+		is_inside_tree()
+		and not _owns_architecture
+		and _architecture == architecture_instance
+		and _context_lifecycle_serial == lifecycle_serial
+	)
+
+
+func _mark_context_ready(architecture_instance: GFArchitecture) -> void:
+	if architecture_instance == null:
+		return
+	_is_context_ready = true
+	if _context_ready_emitted:
+		return
+	if _architecture != architecture_instance:
+		return
+	_context_ready_emitted = true
+	context_ready.emit(architecture_instance)

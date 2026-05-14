@@ -121,6 +121,49 @@ func test_checksum_failure_reports_failed_without_target_commit() -> void:
 	assert_false(FileAccess.file_exists(target), "校验失败不应提交目标文件。")
 
 
+func test_existing_target_without_overwrite_accepts_matching_checksum() -> void:
+	var target := _track_path("user://gf_download_existing_ok_%d.txt" % Time.get_ticks_usec())
+	_write_text(target, "cached")
+	var checksum := FileAccess.get_sha256(target)
+	var results: Array[Dictionary] = []
+
+	var handle := _utility.enqueue_download("https://example.test/file", target, func(result: Dictionary) -> void:
+		results.append(result)
+	, {
+		"overwrite": false,
+		"expected_sha256": checksum,
+	})
+	await get_tree().process_frame
+
+	assert_gt(handle, 0, "有效下载应返回任务句柄。")
+	assert_true(_utility.request_log.is_empty(), "已有文件校验通过时不应发起 HTTP 请求。")
+	assert_eq(results.size(), 1, "已有文件命中也应返回结果。")
+	assert_true(bool(results[0]["success"]), "已有文件 checksum 匹配时应视为完成。")
+	assert_true(bool(results[0]["from_existing_file"]), "结果应标记来自已有目标文件。")
+	assert_eq(_read_text(target), "cached", "已有目标文件不应被改写。")
+
+
+func test_existing_target_without_overwrite_rejects_checksum_mismatch() -> void:
+	var target := _track_path("user://gf_download_existing_bad_%d.txt" % Time.get_ticks_usec())
+	_write_text(target, "cached")
+	var results: Array[Dictionary] = []
+
+	_utility.enqueue_download("https://example.test/file", target, func(result: Dictionary) -> void:
+		results.append(result)
+	, {
+		"overwrite": false,
+		"expected_sha256": "0000",
+	})
+	await get_tree().process_frame
+
+	assert_true(_utility.request_log.is_empty(), "已有文件 checksum 不匹配时不应绕过目标文件策略再发起请求。")
+	assert_eq(results.size(), 1, "校验失败应返回结果。")
+	assert_false(bool(results[0]["success"]), "checksum 不匹配应标记失败。")
+	assert_eq(int(results[0]["status"]), GFDownloadTask.Status.FAILED, "任务状态应标记失败。")
+	assert_true(String(results[0]["error"]).contains("checksum mismatch"), "失败原因应说明 checksum 不匹配。")
+	assert_eq(_read_text(target), "cached", "失败时不应改写已有目标文件。")
+
+
 func test_cancel_active_download_reports_cancelled() -> void:
 	var target := _track_path("user://gf_download_cancel_%d.txt" % Time.get_ticks_usec())
 	_utility.auto_complete = false

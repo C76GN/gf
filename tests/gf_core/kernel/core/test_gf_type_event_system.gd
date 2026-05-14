@@ -439,6 +439,24 @@ func test_send_simple_register_and_send() -> void:
 	assert_eq(state.payload, 99, "简单事件回调应接收到正确的 payload。")
 
 
+func test_register_simple_rejects_empty_event_id() -> void:
+	var state := {"called": false}
+
+	_system.register_simple(&"", func(_payload: Variant) -> void:
+		state.called = true
+	)
+	_system.send_simple(&"valid_event", 1)
+
+	assert_false(state.called, "空简单事件 ID 不应注册监听。")
+	assert_push_error("[GFTypeEventSystem] register_simple 失败：event_id 不能为空。")
+
+
+func test_send_simple_rejects_empty_event_id() -> void:
+	_system.send_simple(&"", 1)
+
+	assert_push_error("[GFTypeEventSystem] send_simple 失败：event_id 不能为空。")
+
+
 ## 验证简单事件支持对象方法回调，并会走签名校验路径。
 func test_send_simple_register_method_callback() -> void:
 	var receiver := SimpleReceiver.new()

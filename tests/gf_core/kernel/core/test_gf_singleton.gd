@@ -13,6 +13,7 @@ const BLOCKING_BINDING_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/in
 const INVALID_INSTALLER_PATH: String = "res://tests/gf_core/fixtures/installers/gf_invalid_installer.gd"
 const BLOCKING_INSTALLER_STARTED_SETTING: String = "gf/test/blocking_installer_started"
 const BLOCKING_INSTALLER_RELEASE_SETTING: String = "gf/test/release_blocking_installer"
+const GFAutoloadBase = preload("res://addons/gf/kernel/core/gf_autoload.gd")
 const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
@@ -201,6 +202,20 @@ class InjectedFactoryCommand extends GFCommand:
 	func inject_dependencies(architecture: GFArchitecture) -> void:
 		super.inject_dependencies(architecture)
 		injected_architecture = architecture
+
+class DisposableFactoryCommand extends GFCommand:
+	var dispose_count: int = 0
+	var event_count: int = 0
+
+	func inject_dependencies(architecture: GFArchitecture) -> void:
+		super.inject_dependencies(architecture)
+		architecture.register_simple_event_owned(self, &"factory_owned_event", _on_factory_owned_event)
+
+	func dispose() -> void:
+		dispose_count += 1
+
+	func _on_factory_owned_event(_payload: Variant) -> void:
+		event_count += 1
 
 class TickUtility extends GFUtility:
 	var initialized: bool = false
@@ -449,6 +464,22 @@ func test_gf_process_mode_is_always() -> void:
 	Gf._ready()
 
 	assert_eq(Gf.process_mode, Node.PROCESS_MODE_ALWAYS, "Gf 应在 SceneTree.paused 时继续驱动框架 tick。")
+
+
+## 验证 GFAutoload 区分架构存在与架构 ready。
+func test_gf_autoload_distinguishes_existing_and_ready_architecture() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var architecture: GFArchitecture = Gf.create_architecture()
+
+	assert_eq(GFAutoloadBase.get_architecture_or_null(), architecture, "架构创建后应能通过 GFAutoload 查询实例。")
+	assert_null(GFAutoloadBase.get_ready_architecture_or_null(), "架构完成 init 前不应被视为 ready。")
+
+	await Gf.init()
+
+	assert_eq(GFAutoloadBase.get_ready_architecture_or_null(), architecture, "Gf.init() 完成后应能查询 ready 架构。")
 
 
 ## 验证 Gf.get_model 正确代理到架构
@@ -1068,6 +1099,62 @@ func test_scoped_node_context_owns_local_architecture() -> void:
 	assert_false(parent_utility.disposed, "Scoped NodeContext 不应释放父架构模块。")
 
 
+func test_inherited_node_context_emits_context_ready_for_ready_parent() -> void:
+	var parent_architecture: GFArchitecture = Gf.get_architecture()
+	var context := InheritedContext.new()
+	var ready_state := {
+		"done": false,
+		"architecture": null,
+	}
+	context.context_ready.connect(func(architecture: GFArchitecture) -> void:
+		ready_state["done"] = true
+		ready_state["architecture"] = architecture
+	)
+	add_child(context)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(bool(ready_state["done"]), "Inherited NodeContext 应在继承架构 ready 后发出 context_ready。")
+	assert_eq(ready_state["architecture"], parent_architecture, "context_ready 应传出继承的架构。")
+	assert_true(context.is_context_ready(), "Inherited NodeContext 应标记 ready。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
+func test_inherited_node_context_emits_context_ready_after_parent_initializes() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = GFArchitecture.new()
+	var parent_architecture: GFArchitecture = Gf.get_architecture()
+	var context := InheritedContext.new()
+	context.context_wait_timeout_seconds = 0.0
+	var ready_state := {
+		"done": false,
+		"architecture": null,
+	}
+	context.context_ready.connect(func(architecture: GFArchitecture) -> void:
+		ready_state["done"] = true
+		ready_state["architecture"] = architecture
+	)
+	add_child(context)
+	await get_tree().process_frame
+
+	assert_false(context.is_context_ready(), "父架构未初始化前，Inherited NodeContext 不应提前 ready。")
+	assert_false(bool(ready_state["done"]), "父架构未初始化前不应发出 context_ready。")
+
+	await parent_architecture.init()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(bool(ready_state["done"]), "父架构稍后 ready 时，Inherited NodeContext 应发出 context_ready。")
+	assert_eq(ready_state["architecture"], parent_architecture, "context_ready 应传出继承的架构。")
+	assert_true(context.is_context_ready(), "Inherited NodeContext 应标记 ready。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
 ## 验证 Controller 可以等待最近的局部上下文完成初始化。
 func test_controller_waits_for_context_ready() -> void:
 	if Gf.has_architecture():
@@ -1450,6 +1537,98 @@ func test_parent_singleton_factory_keeps_owner_architecture_injection() -> void:
 
 	child_arch.dispose()
 	parent_arch.dispose()
+
+
+## 验证注销 Singleton 工厂会释放缓存实例的依赖作用域。
+func test_unregister_singleton_factory_releases_cached_instance_scope() -> void:
+	var arch := GFArchitecture.new()
+	var utility := ParentScopedUtility.new()
+	await arch.register_utility_instance(utility)
+	arch.register_factory(
+		FactoryCommand,
+		func() -> Object:
+			return FactoryCommand.new(),
+		GFBindingLifetimes.Lifetime.SINGLETON
+	)
+
+	var command := arch.create_instance(FactoryCommand) as FactoryCommand
+
+	assert_eq(command.get_parent_utility_from_command(), utility, "工厂实例应先能访问注入架构中的依赖。")
+
+	arch.unregister_factory(FactoryCommand)
+
+	assert_null(command.get_parent_utility_from_command(), "工厂注销后旧 Singleton 实例不应继续访问旧架构。")
+	assert_push_error("[GFCommand] 依赖作用域已释放，无法继续访问架构。")
+	arch.dispose()
+
+
+## 验证替换 Singleton 工厂会释放旧缓存实例的依赖作用域。
+func test_replace_singleton_factory_releases_previous_cached_instance_scope() -> void:
+	var arch := GFArchitecture.new()
+	var utility := ParentScopedUtility.new()
+	await arch.register_utility_instance(utility)
+	arch.register_factory(
+		FactoryCommand,
+		func() -> Object:
+			return FactoryCommand.new(),
+		GFBindingLifetimes.Lifetime.SINGLETON
+	)
+
+	var previous := arch.create_instance(FactoryCommand) as FactoryCommand
+	arch.replace_factory(
+		FactoryCommand,
+		func() -> Object:
+			return FactoryCommand.new(),
+		GFBindingLifetimes.Lifetime.SINGLETON
+	)
+	var replacement := arch.create_instance(FactoryCommand) as FactoryCommand
+
+	assert_ne(previous, replacement, "替换工厂后应使用新的 Singleton 缓存实例。")
+	assert_eq(replacement.get_parent_utility_from_command(), utility, "新 Singleton 实例应接收当前架构注入。")
+	assert_null(previous.get_parent_utility_from_command(), "旧 Singleton 实例不应继续访问被替换前的架构作用域。")
+	assert_push_error("[GFCommand] 依赖作用域已释放，无法继续访问架构。")
+	arch.dispose()
+
+
+## 验证注销 Singleton 工厂会释放缓存实例的生命周期归属。
+func test_unregister_singleton_factory_disposes_cached_instance_and_owned_events() -> void:
+	var arch := GFArchitecture.new()
+	arch.register_factory(
+		DisposableFactoryCommand,
+		func() -> Object:
+			return DisposableFactoryCommand.new(),
+		GFBindingLifetimes.Lifetime.SINGLETON
+	)
+
+	var command := arch.create_instance(DisposableFactoryCommand) as DisposableFactoryCommand
+	arch.send_simple_event(&"factory_owned_event")
+
+	arch.unregister_factory(DisposableFactoryCommand)
+	arch.send_simple_event(&"factory_owned_event")
+
+	assert_eq(command.dispose_count, 1, "注销 Singleton 工厂应调用缓存实例的 dispose()。")
+	assert_eq(command.event_count, 1, "注销 Singleton 工厂后，缓存实例的 owner 事件监听应被清理。")
+	arch.dispose()
+
+
+## 验证架构销毁会释放 Singleton 工厂缓存实例的生命周期归属。
+func test_architecture_dispose_disposes_singleton_factory_cached_instance() -> void:
+	var arch := GFArchitecture.new()
+	arch.register_factory(
+		DisposableFactoryCommand,
+		func() -> Object:
+			return DisposableFactoryCommand.new(),
+		GFBindingLifetimes.Lifetime.SINGLETON
+	)
+
+	var command := arch.create_instance(DisposableFactoryCommand) as DisposableFactoryCommand
+	arch.send_simple_event(&"factory_owned_event")
+
+	arch.dispose()
+	arch.send_simple_event(&"factory_owned_event")
+
+	assert_eq(command.dispose_count, 1, "架构销毁应调用 Singleton 工厂缓存实例的 dispose()。")
+	assert_eq(command.event_count, 1, "架构销毁后，Singleton 工厂缓存实例的 owner 事件监听应被清理。")
 
 
 ## 验证模块注销会自动清理通过基类注册的事件监听。

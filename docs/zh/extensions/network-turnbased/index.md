@@ -26,14 +26,14 @@ network.send_message(-1, message)
 
 `GFNetworkSession` 只记录后端连接意图和状态快照。`host()` 会在后端真正返回成功或报告 connected 后再标记 `is_connected`；如果后端启动失败，会关闭本次会话而不会短暂发出 connected 状态。替换或清空 backend 时，`GFNetworkUtility` 会关闭旧后端并清理旧会话，避免把底层连接资源留给已失效的 backend。
 
-`GFNetworkSerializer` 默认使用 Godot Variant 二进制格式；切到 `Format.JSON` 时会保持旧的普通 JSON 行为。如果 JSON 通道需要保留 `Vector2`、`Color`、`NodePath`、PackedArray 等 Godot 类型，可显式启用类型化 JSON codec：
+`GFNetworkSerializer` 默认使用 Godot Variant 二进制格式；切到 `Format.JSON` 时使用 Godot JSON 可表达的普通结构。如果 JSON 通道需要保留 `Vector2`、`Color`、`NodePath`、PackedArray 等 Godot 类型，可显式启用类型化 JSON codec：
 
 ```gdscript
 network.serializer.format = GFNetworkSerializer.Format.JSON
 network.serializer.use_typed_json_codec = true
 ```
 
-类型化 codec 由 `GFVariantJsonCodec` 提供，只改变当前 serializer 的 JSON 编码方式；旧项目不启用该开关时，已有 JSON 载荷格式不变。
+类型化 codec 由 `GFVariantJsonCodec` 提供，只改变当前 serializer 的 JSON 编码方式。解码时优先使用 `deserialize_message_result(bytes)` 或 `deserialize_dictionary_result(bytes)`，结果会包含 `ok`、`data` 和 `error`，可明确区分合法空字典、空 bytes、非字典 JSON 和消息结构错误。`GFNetworkUtility` 收到无法解码的包体时，会在 `message_rejected` 的 details 中带上同一份结果字典。
 
 需要浏览器、工具链或 WebSocket 网关时，可以换成 WebSocket 后端。它仍然只收发 `PackedByteArray`，上层继续复用 `GFNetworkMessage` / channel / validator：
 

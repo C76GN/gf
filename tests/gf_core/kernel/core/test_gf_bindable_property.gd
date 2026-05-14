@@ -121,10 +121,10 @@ func test_clear_collection_handles_array_and_dictionary() -> void:
 	assert_eq(dict_prop.value, {})
 
 
-# --- 测试：unbind_all ---
+# --- 测试：解绑 ---
 
-## 验证 unbind_all 后，修改值不再调用已断开的回调。
-func test_unbind_all() -> void:
+## 验证 unbind_all 只清理 GF 管理的节点绑定，不断开业务层直接订阅。
+func test_unbind_all_preserves_direct_subscribers() -> void:
 	var state := {"count": 0}
 	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 1)
 
@@ -133,31 +133,31 @@ func test_unbind_all() -> void:
 
 	_prop.unbind_all()
 	_prop.set_value(2)
-	assert_eq(state.count, 1, "unbind_all 后，修改值不应再触发已断开的回调。")
+	assert_eq(state.count, 2, "unbind_all 不应断开非 bind_to 创建的业务订阅。")
 
 
-## 验证 unbind_all 断开多个连接。
-func test_unbind_all_multiple_listeners() -> void:
+## 验证 disconnect_all_subscribers 明确断开所有订阅。
+func test_disconnect_all_subscribers_removes_all_value_changed_connections() -> void:
 	var state := {"total": 0}
 	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.total += 1)
 	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.total += 10)
 
-	_prop.unbind_all()
+	_prop.disconnect_all_subscribers()
 	_prop.set_value(42)
 
-	assert_eq(state.total, 0, "unbind_all 后所有连接都应断开，total 应保持为 0。")
+	assert_eq(state.total, 0, "disconnect_all_subscribers 后所有连接都应断开，total 应保持为 0。")
 
 
-## 验证 unbind_all 后可以重新绑定。
-func test_rebind_after_unbind_all() -> void:
+## 验证 disconnect_all_subscribers 后可以重新绑定。
+func test_rebind_after_disconnect_all_subscribers() -> void:
 	var state := {"count": 0}
 	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 1)
-	_prop.unbind_all()
+	_prop.disconnect_all_subscribers()
 
 	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void: state.count += 100)
 	_prop.set_value(5)
 
-	assert_eq(state.count, 100, "unbind_all 后重新绑定的回调应正常工作。")
+	assert_eq(state.count, 100, "disconnect_all_subscribers 后重新绑定的回调应正常工作。")
 
 
 ## 验证 unbind_all 会同时清理 bind_to 附加的 tree_exited 监听。
@@ -170,6 +170,26 @@ func test_unbind_all_removes_tree_exited_helper_connections() -> void:
 
 	_prop.unbind_all()
 	assert_eq(node.tree_exited.get_connections().size(), 0, "unbind_all 后不应残留 tree_exited 自动解绑监听。")
+
+
+func test_unbind_all_node_bindings_removes_bound_callbacks_only() -> void:
+	var direct_count := {"value": 0}
+	var bound_count := {"value": 0}
+	var node := Node.new()
+	var bound_callback := func(_o: Variant, _n: Variant) -> void:
+		bound_count.value += 1
+	add_child_autofree(node)
+
+	_prop.value_changed.connect(func(_o: Variant, _n: Variant) -> void:
+		direct_count.value += 1
+	)
+	_prop.bind_to(node, bound_callback)
+	_prop.unbind_all_node_bindings()
+	_prop.set_value(1)
+
+	assert_eq(direct_count.value, 1, "节点绑定清理后，直接订阅仍应触发。")
+	assert_eq(bound_count.value, 0, "节点绑定清理后，bind_to 回调不应触发。")
+	assert_eq(node.tree_exited.get_connections().size(), 0, "节点绑定清理后不应残留 tree_exited 辅助连接。")
 
 
 ## 验证 unbind 只移除指定节点与回调，不影响其他监听者。
@@ -299,6 +319,21 @@ func test_reactive_effect_stops_with_owner_node() -> void:
 	owner_node.free()
 
 
+func test_reactive_effect_dispose_stops_sources() -> void:
+	var prop := GFBindableProperty.new(1)
+	var count := {"value": 0}
+	var effect := GFReactiveEffect.new([prop], func() -> void:
+		count.value += 1
+	, null, false)
+
+	prop.value = 2
+	effect.dispose()
+	prop.value = 3
+
+	assert_eq(count.value, 1, "dispose 后 effect 不应继续响应来源变化。")
+	assert_false(effect.is_active(), "dispose 后 effect 应进入非激活状态。")
+
+
 func test_computed_property_updates_from_sources() -> void:
 	var first := GFBindableProperty.new(2)
 	var second := GFBindableProperty.new(3)
@@ -311,6 +346,19 @@ func test_computed_property_updates_from_sources() -> void:
 	first.value = 4
 
 	assert_eq(computed.value, 12, "来源属性变化后 computed 属性应刷新。")
+
+
+func test_computed_property_dispose_stops_auto_refresh() -> void:
+	var source := GFBindableProperty.new(1)
+	var computed := GFComputedProperty.new([source], func() -> int:
+		return int(source.value) + 1
+	)
+
+	computed.dispose()
+	source.value = 4
+
+	assert_eq(computed.value, 2, "dispose 后 computed 属性不应继续自动刷新。")
+	assert_false(computed.is_computing(), "dispose 后 computed 属性不应保持计算状态。")
 
 
 func test_computed_property_rejects_external_set() -> void:

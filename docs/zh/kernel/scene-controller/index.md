@@ -153,6 +153,8 @@ func _ready() -> void:
 	_on_level_changed(null, player_model.level.get_value())
 ```
 
+需要手动清理 UI 绑定时，`unbind(node, callable)` 只断开指定节点绑定，`unbind_all()` / `unbind_all_node_bindings()` 只清理由 `bind_to()` 创建的节点生命周期绑定，不会断开业务层直接连接到 `value_changed` 的订阅。确实要清空 `value_changed` 上所有订阅者时，使用语义更明确的 `disconnect_all_subscribers()`。
+
 ## 数据绑定的局限性与设计哲学
 
 ## 派生属性与组合副作用
@@ -186,7 +188,7 @@ var effect := GFReactiveEffect.new(
 )
 ```
 
-这两者都只服务局部响应式组合，不替代 `GFModel` 的数据归属，也不规定属性字段含义。
+这两者都只服务局部响应式组合，不替代 `GFModel` 的数据归属，也不规定属性字段含义。无 owner 的 `GFReactiveEffect` 或 `GFComputedProperty` 需要由持有方在生命周期结束时调用 `stop()` 或 `dispose()`；传入 owner 时会随该节点退出树自动停止。
 
 如果某个对象需要把属性暴露给 UI 读取和订阅，但不希望外部调用方直接 `set_value()`，可以返回 `GFReadOnlyBindableProperty` 或由宿主对象封装只读视图。它复用 `GFBindableProperty` 的读取、`value_changed` 信号和 `bind_to()` 生命周期绑定能力，但外部写入会报错；真正的值更新应由宿主对象内部完成。对于 `Array` / `Dictionary` 等引用值，原地修改不会自动触发变更信号；需要通知监听者时应重新 `set_value()` 一个副本，或在明确接受引用语义时调用 `force_emit()`、`mutate()`、`append_to_array()`、`set_dictionary_value()` 等辅助方法。
 

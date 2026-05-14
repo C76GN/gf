@@ -107,6 +107,9 @@ func test_unordered_conflict_is_reported_without_write() -> void:
 	assert_eq(int((local.load_data("profile.json").get("data") as Dictionary).get("coins")), 10, "本地不应被改写。")
 	assert_eq(int((remote.load_data("profile.json").get("data") as Dictionary).get("coins")), 20, "远端不应被改写。")
 	assert_signal_emitted(sync, "sync_conflict_detected", "检测冲突时应发出信号。")
+	assert_signal_emitted(sync, "sync_conflict_unresolved", "未解决冲突应以独立终止信号报告。")
+	assert_signal_not_emitted(sync, "sync_completed", "未解决冲突不应伪装成同步完成。")
+	assert_signal_not_emitted(sync, "sync_failed", "未解决冲突不应伪装成后端失败。")
 
 
 func test_explicit_local_strategy_resolves_conflict() -> void:

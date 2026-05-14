@@ -23,3 +23,8 @@ extends Resource
 func execute(_context: GFSequenceContext) -> Variant:
 	return null
 
+
+## 请求取消步骤。
+## @param _context: 序列上下文。
+func cancel(_context: GFSequenceContext) -> void:
+	pass

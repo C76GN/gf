@@ -301,9 +301,17 @@ func _on_backend_message_received(peer_id: int, bytes: PackedByteArray) -> void:
 			message_rejected.emit(peer_id, "invalid_packet", bytes_report)
 			return
 
-	var message := serializer.deserialize_message(bytes)
+	var message_result := serializer.deserialize_message_result(bytes)
+	if not bool(message_result.get("ok", false)):
+		message_rejected.emit(peer_id, "decode_failed", message_result)
+		return
+	var message := message_result.get("data") as GFNetworkMessage
 	if message == null:
-		message_rejected.emit(peer_id, "decode_failed", {})
+		message_rejected.emit(peer_id, "decode_failed", {
+			"ok": false,
+			"data": null,
+			"error": "message_is_null",
+		})
 		return
 	if validator != null:
 		var channel := _resolve_inbound_channel(message)

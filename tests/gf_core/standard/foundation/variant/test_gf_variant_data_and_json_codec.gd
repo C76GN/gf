@@ -90,9 +90,10 @@ func test_json_compatible_codec_marks_circular_references() -> void:
 
 	var encoded := GFVariantJsonCodec.variant_to_json_compatible(source) as Dictionary
 	var circular_marker := encoded["self"] as Dictionary
+	var circular_payload := circular_marker[GFVariantJsonCodec.JSON_MARKER_KEY] as Dictionary
 	var json_text := JSON.stringify(encoded)
 
-	assert_eq(circular_marker[GFVariantJsonCodec.JSON_TYPE_KEY], "CircularReference", "循环引用应被标记而不是递归展开。")
+	assert_eq(circular_payload[GFVariantJsonCodec.JSON_TYPE_KEY], "CircularReference", "循环引用应被标记而不是递归展开。")
 	assert_false(json_text.is_empty(), "包含循环引用的结构仍应可被 JSON.stringify 编码。")
 
 
@@ -102,5 +103,32 @@ func test_json_compatible_codec_marks_circular_array_references() -> void:
 
 	var encoded := GFVariantJsonCodec.variant_to_json_compatible(source) as Array
 	var circular_marker := encoded[0] as Dictionary
+	var circular_payload := circular_marker[GFVariantJsonCodec.JSON_MARKER_KEY] as Dictionary
 
-	assert_eq(circular_marker[GFVariantJsonCodec.JSON_TYPE_KEY], "CircularReference", "数组自引用应被标记。")
+	assert_eq(circular_payload[GFVariantJsonCodec.JSON_TYPE_KEY], "CircularReference", "数组自引用应被标记。")
+
+
+func test_json_compatible_codec_does_not_decode_plain_dictionary_type_fields() -> void:
+	var source := {
+		"_gf_type": "Vector2",
+		"value": [1.0, 2.0],
+	}
+
+	var decoded := GFVariantJsonCodec.json_compatible_to_variant(source) as Dictionary
+
+	assert_eq(decoded["_gf_type"], "Vector2", "普通业务字典中的旧类型字段不应被误判为 typed marker。")
+	assert_eq(decoded["value"], [1.0, 2.0], "普通业务字典中的 value 字段应原样保留。")
+
+
+func test_json_compatible_codec_only_decodes_dedicated_variant_marker() -> void:
+	var marker := GFVariantJsonCodec.variant_to_json_compatible(Vector2(1.0, 2.0)) as Dictionary
+	var wrapped_business_data := {
+		GFVariantJsonCodec.JSON_MARKER_KEY: marker[GFVariantJsonCodec.JSON_MARKER_KEY],
+		"label": "business",
+	}
+
+	var decoded_marker: Variant = GFVariantJsonCodec.json_compatible_to_variant(marker)
+	var decoded_business_data := GFVariantJsonCodec.json_compatible_to_variant(wrapped_business_data) as Dictionary
+
+	assert_eq(decoded_marker, Vector2(1.0, 2.0), "独立 typed marker 应恢复为对应 Godot 类型。")
+	assert_true(decoded_business_data.has("label"), "带有额外业务字段的字典不应被当作 typed marker。")

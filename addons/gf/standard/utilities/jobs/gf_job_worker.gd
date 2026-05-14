@@ -121,13 +121,12 @@ func process_next_job() -> GFJob:
 
 	var result: Variant = processor.call(job)
 	if result is Signal:
-		await result
+		result = await (result as Signal)
 		if job.is_finished():
 			job_processed.emit(job)
 			return job
-		utility.complete_job(job.job_id)
-	else:
-		_apply_processor_result(utility, job, result)
+		result = _normalize_signal_result(result)
+	_apply_processor_result(utility, job, result)
 	job_processed.emit(job)
 	return job
 
@@ -186,3 +185,21 @@ func _apply_processor_result(utility: GFJobQueueUtility, job: GFJob, result: Var
 		utility.fail_job(job.job_id, "", result)
 	else:
 		utility.complete_job(job.job_id, result)
+
+
+func _normalize_signal_result(result: Variant) -> Variant:
+	if not (result is Array):
+		return result
+
+	var values := result as Array
+	if values.is_empty():
+		return null
+	if values.size() == 1:
+		return values[0]
+
+	var first_value: Variant = values[0]
+	if first_value is Dictionary:
+		var data := GFVariantData.duplicate_variant(first_value) as Dictionary
+		data["signal_args"] = GFVariantData.duplicate_variant(values)
+		return data
+	return values

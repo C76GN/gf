@@ -170,8 +170,34 @@ func unbind(node: Node, callable: Callable) -> void:
 		value_changed.disconnect(callable)
 
 
-## 断开 value_changed 信号上的所有连接，用于 UI 节点销毁时手动清理绑定关系。
+## 断开所有由 bind_to() 创建的 Node 生命周期绑定。
 func unbind_all() -> void:
+	unbind_all_node_bindings()
+
+
+## 断开所有由 bind_to() 创建的 Node 生命周期绑定。
+func unbind_all_node_bindings() -> void:
+	var tracked_callables: Array[Callable] = []
+
+	for binding: Dictionary in _node_bindings:
+		var callable: Callable = binding.get("callable", Callable())
+		if callable.is_valid() and not tracked_callables.has(callable):
+			tracked_callables.append(callable)
+
+		var node_ref: WeakRef = binding.get("node_ref")
+		var exit_callable: Callable = binding.get("exit_callable", Callable())
+		var node := node_ref.get_ref() as Node if node_ref != null else null
+		if is_instance_valid(node) and node.tree_exited.is_connected(exit_callable):
+			node.tree_exited.disconnect(exit_callable)
+
+	_node_bindings.clear()
+	for callable: Callable in tracked_callables:
+		if value_changed.is_connected(callable):
+			value_changed.disconnect(callable)
+
+
+## 断开 value_changed 信号上的所有订阅者，并清理 bind_to() 创建的 Node 生命周期绑定。
+func disconnect_all_subscribers() -> void:
 	for connection: Dictionary in value_changed.get_connections():
 		value_changed.disconnect(connection["callable"])
 

@@ -275,6 +275,50 @@ func test_start_can_reload_when_reload_on_ready_is_disabled() -> void:
 	assert_eq(idle.enter_count, 1, "延迟加载后应进入初始状态。")
 
 
+func test_runtime_helper_child_does_not_reload_internal_states() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := TrackingNodeState.new()
+	idle.name = "Idle"
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	await get_tree().process_frame
+
+	var initialized_count := idle.initialized_count
+	var enter_count := idle.enter_count
+	var exit_count := idle.exit_count
+	var helper := Node.new()
+	helper.name = "Helper"
+	machine.add_child(helper)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(idle.initialized_count, initialized_count, "运行时加入普通辅助子节点不应重载内部状态组。")
+	assert_eq(idle.enter_count, enter_count, "运行时加入普通辅助子节点不应重新进入当前状态。")
+	assert_eq(idle.exit_count, exit_count, "运行时加入普通辅助子节点不应退出当前状态。")
+
+
+func test_runtime_state_child_reloads_internal_states() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := TrackingNodeState.new()
+	var run := TrackingNodeState.new()
+	idle.name = "Idle"
+	run.name = "Run"
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	await get_tree().process_frame
+
+	machine.add_child(run)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	assert_eq(group.get_state(&"Run"), run, "运行时加入状态子节点应重新加载内部状态组。")
+	assert_eq(run.initialized_count, 1, "动态加入的状态应完成初始化。")
+	assert_eq(machine.get_current_state(), idle, "重载后应尽量保持当前状态。")
+
+
 func test_default_start_mode_waits_for_host_ready() -> void:
 	var host := ReadyHost.new()
 	var machine: Node = GFNodeStateMachineBase.new()
@@ -354,6 +398,53 @@ func test_state_group_auto_start_can_be_disabled() -> void:
 
 	assert_eq(group.get_current_state(), idle, "状态组 start() 应进入初始状态。")
 	assert_eq(idle.enter_count, 1, "状态组 start() 应调用初始状态 enter。")
+
+
+func test_runtime_helper_child_does_not_reload_state_group() -> void:
+	var group: Node = GFNodeStateGroupBase.new()
+	var idle := TrackingNodeState.new()
+	group.name = "Body"
+	group.group_name = &"Body"
+	group.initial_state = &"Idle"
+	idle.name = "Idle"
+	group.add_child(idle)
+	add_child_autofree(group)
+	await get_tree().process_frame
+
+	var initialized_count := idle.initialized_count
+	var enter_count := idle.enter_count
+	var exit_count := idle.exit_count
+	var helper := Node.new()
+	helper.name = "Helper"
+	group.add_child(helper)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(idle.initialized_count, initialized_count, "运行时加入普通辅助子节点不应重载状态组。")
+	assert_eq(idle.enter_count, enter_count, "运行时加入普通辅助子节点不应重新进入当前状态。")
+	assert_eq(idle.exit_count, exit_count, "运行时加入普通辅助子节点不应退出当前状态。")
+
+
+func test_runtime_state_child_reloads_state_group() -> void:
+	var group: Node = GFNodeStateGroupBase.new()
+	var idle := TrackingNodeState.new()
+	var run := TrackingNodeState.new()
+	group.name = "Body"
+	group.group_name = &"Body"
+	group.initial_state = &"Idle"
+	idle.name = "Idle"
+	run.name = "Run"
+	group.add_child(idle)
+	add_child_autofree(group)
+	await get_tree().process_frame
+
+	group.add_child(run)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_eq(group.get_state(&"Run"), run, "运行时加入状态子节点应重新加载状态组。")
+	assert_eq(run.initialized_count, 1, "动态加入的状态应完成初始化。")
+	assert_eq(group.get_current_state(), idle, "状态组重载后应回到初始状态。")
 
 
 func test_transition_to_changes_internal_state() -> void:

@@ -260,13 +260,25 @@ func _resolve_short_page_label(record: Dictionary, label: String) -> String:
 		result = result.substr(3)
 	match result:
 		"State Tools":
-			return "State"
+			return "状态"
+		"Input Mapping":
+			return "输入"
+		"Storage Viewer":
+			return "存储"
 		"Save Viewer":
-			return "Save"
+			return "存储"
 		"Signal Graph":
-			return "Signals"
+			return "信号"
+		"Diagnostics":
+			return "诊断"
+		"Extensions":
+			return "扩展"
+		"Flow":
+			return "流程"
+		"Save":
+			return "保存"
 		"Flow Tools":
-			return "Flow"
+			return "流程"
 	return result
 
 

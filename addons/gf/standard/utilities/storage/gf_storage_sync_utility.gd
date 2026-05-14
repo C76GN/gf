@@ -12,6 +12,11 @@ extends GFUtility
 ## @param report: 冲突报告。
 signal sync_conflict_detected(report: GFStorageConflictReport)
 
+## 单个逻辑文件存在未解决冲突时发出。
+## @param file_name: 逻辑文件名。
+## @param result: 同步结果字典。
+signal sync_conflict_unresolved(file_name: String, result: Dictionary)
+
 ## 单个逻辑文件同步完成后发出。
 ## @param file_name: 逻辑文件名。
 ## @param result: 同步结果字典。
@@ -227,8 +232,7 @@ func _resolve_and_write_conflict(
 		result["status"] = SyncStatus.CONFLICT
 		result["status_name"] = _get_status_name(SyncStatus.CONFLICT)
 		result["error"] = String(resolution.get("error", "Storage conflict is unresolved."))
-		sync_completed.emit(String(result.get("file_name", "")), result.duplicate(true))
-		return result
+		return _finish_conflict(result)
 
 	var selected_source := StringName(resolution.get("source", &"custom"))
 	var data := (resolution.get("data", {}) as Dictionary).duplicate(true)
@@ -533,6 +537,12 @@ func _finish_failed(result: Dictionary, error: String) -> Dictionary:
 	result["error"] = error
 	_failed_count += 1
 	sync_failed.emit(String(result.get("file_name", "")), result.duplicate(true))
+	return result
+
+
+func _finish_conflict(result: Dictionary) -> Dictionary:
+	result["ok"] = false
+	sync_conflict_unresolved.emit(String(result.get("file_name", "")), result.duplicate(true))
 	return result
 
 

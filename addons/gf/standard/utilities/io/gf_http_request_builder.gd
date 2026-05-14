@@ -208,6 +208,11 @@ func execute(parent: Node = null) -> GFHttpResponseBase:
 	var request_node := HTTPRequest.new()
 	request_node.timeout = timeout_seconds
 	host.add_child(request_node)
+	response.cancel_callback = func() -> void:
+		if is_instance_valid(request_node):
+			request_node.cancel_request()
+			request_node.queue_free()
+
 	request_node.request_completed.connect(
 		func(
 			result_code: int,
@@ -279,6 +284,11 @@ func _complete_response(
 	response_headers: PackedStringArray,
 	body: PackedByteArray
 ) -> void:
+	if response.is_finished():
+		if is_instance_valid(request_node):
+			request_node.queue_free()
+		return
+
 	if is_instance_valid(request_node):
 		request_node.queue_free()
 

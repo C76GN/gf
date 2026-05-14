@@ -24,7 +24,7 @@ addons/gf/kernel   <-  addons/gf/standard   <-  addons/gf/extensions
 
 根插件 `addons/gf/plugin.gd` 是组合入口，可以同时知道 `kernel` 与 `standard`，负责把标准库声明的编辑器增强记录传给 `kernel/editor` 辅助脚本。这个例外不改变内核边界：`addons/gf/kernel/**` 本身仍不能依赖 `addons/gf/standard/**`。
 
-框架内部通过 `GFAutoload` 解析全局 AutoLoad 节点，避免插件首次导入、脚本解析或测试环境里直接引用全局 `Gf` 时出错。项目代码通常继续使用 `Gf.get_model()` 等入口；只有编写框架级工具、编辑器脚本或需要在 AutoLoad 未就绪时安全探测架构，才需要直接使用 `GFAutoload.get_architecture_or_null()`。
+框架内部通过 `GFAutoload` 解析全局 AutoLoad 节点，避免插件首次导入、脚本解析或测试环境里直接引用全局 `Gf` 时出错。`get_architecture_or_null()` 只表示全局架构实例已经存在，不保证它完成 `init()`；需要读取 ready 后模块时，应使用 `get_ready_architecture_or_null()`。项目代码通常继续使用 `Gf.get_model()` 等入口；只有编写框架级工具、编辑器脚本或需要在 AutoLoad 未就绪时安全探测架构，才需要直接使用这些辅助入口。
 
 ```text
 Godot SceneTree
@@ -70,7 +70,7 @@ func install_bindings(binder: Variant) -> void:
 对于不需要进入生命周期的短生命周期对象，`GFArchitecture` 提供轻量工厂能力；详细注册、生命周期和父子架构回退规则见 [生命周期、装配与依赖](lifecycle/index.md)。
 
 工厂适合 Command、Query、技能执行载体等一次性对象，不建议用于需要参与 `init()` / `tick()` / `dispose()` 的长期模块。
-当子架构回退到父级工厂时，transient 工厂创建的对象会注入发起解析的子架构，从而优先访问当前局部上下文；singleton 工厂仍由拥有该绑定的架构持有和注入。
+当子架构回退到父级工厂时，transient 工厂创建的对象会注入发起解析的子架构，从而优先访问当前局部上下文；singleton 工厂仍由拥有该绑定的架构持有和注入，并在工厂替换、注销或架构销毁时清理缓存实例的 owner 事件监听、调用 `dispose()`（如果存在）和释放依赖作用域。
 
 ## 依赖诊断
 
@@ -197,9 +197,9 @@ var battle_system := Gf.get_system(BattleSystem) as BattleSystem
 battle_system.start_encounter()
 ```
 
-启用插件后，编辑器菜单还会提供 GF 脚本模板生成、访问器生成、能力 Inspector 和节点状态机 Inspector；独立 `GF Workspace` 会提供 Save Viewer、Extensions 和 Signal Graph 等页面，并在编辑器打开时默认弹出。启用插件会在缺少默认 GF ProjectSettings 时写入并保存 `project.godot`，禁用插件会移除指向 GF 的 `Gf` AutoLoad；如果项目临时关闭插件但仍要运行 GF，需要手动恢复 AutoLoad。插件主脚本只负责生命周期编排，ProjectSettings、AutoLoad、工具菜单、菜单动作、工作区窗口、Inspector/导出插件装配分别由 `addons/gf/kernel/editor/gf_plugin_*.gd` 内部辅助脚本承载。扩展级菜单动作、脚本模板、工作区页面、Inspector、导出插件和访问器生成扩展都通过 `gf_extension.json` 声明，核心插件只按启用状态动态装载，不在 `kernel` 中硬编码可选扩展 ID 或扩展内类型名。标准库自带的编辑器增强和标准库模板集中声明在 `addons/gf/standard/editor/gf_standard_editor_extensions.gd`，由根插件收集后传给 `kernel/editor` 辅助脚本装载，`kernel` 不直接 preload 标准库脚本，也不硬编码标准库类型名。脚本模板生成遇到已有文件会拒绝覆盖；访问器生成由 `GFAccessGenerator` 负责，可输出框架访问器或项目访问器脚本，减少手写 `get_model()` / `get_system()` 包装代码，默认会覆盖生成路径，工具调用方可通过 `overwrite_existing = false` 禁止覆盖。访问器只收集声明了 `class_name` 的脚本，Command/Query 没有 factory 时会走无参 `new()` fallback；需要构造参数的类型应注册 factory。项目常量访问器只采集命名层、项目保存的 InputMap 动作和 GF ProjectSettings 键；编辑器专用动作不会进入 `GFProjectAccess.InputActions`。编辑器侧生成脚本的缩进、section、文档注释和空行格式由 `GFSourceBuilder` 统一处理，项目自定义 generator 或扩展级访问器扩展也可以复用它来降低格式漂移风险。
+启用插件后，编辑器菜单还会提供 GF 脚本模板生成、访问器生成、能力 Inspector 和节点状态机 Inspector；独立 `GF Workspace` 会提供状态、输入、存储、保存、流程、信号、诊断和扩展等页面，并在编辑器打开时默认弹出。启用插件会在缺少默认 GF ProjectSettings 时写入并保存 `project.godot`，禁用插件会移除指向 GF 的 `Gf` AutoLoad；如果项目临时关闭插件但仍要运行 GF，需要手动恢复 AutoLoad。插件主脚本只负责生命周期编排，ProjectSettings、AutoLoad、工具菜单、菜单动作、工作区窗口、Inspector/导出插件装配分别由 `addons/gf/kernel/editor/gf_plugin_*.gd` 内部辅助脚本承载。扩展级菜单动作、脚本模板、工作区页面、Inspector、导出插件和访问器生成扩展都通过 `gf_extension.json` 声明，核心插件只按启用状态动态装载，不在 `kernel` 中硬编码可选扩展 ID 或扩展内类型名。标准库自带的编辑器增强和标准库模板集中声明在 `addons/gf/standard/editor/gf_standard_editor_extensions.gd`，由根插件收集后传给 `kernel/editor` 辅助脚本装载，`kernel` 不直接 preload 标准库脚本，也不硬编码标准库类型名。脚本模板生成遇到已有文件会拒绝覆盖；访问器生成由 `GFAccessGenerator` 负责，可输出框架访问器或项目访问器脚本，减少手写 `get_model()` / `get_system()` 包装代码，默认会覆盖生成路径，工具调用方可通过 `overwrite_existing = false` 禁止覆盖。访问器只收集声明了 `class_name` 的脚本，Command/Query 没有 factory 时会走无参 `new()` fallback；需要构造参数的类型应注册 factory。项目常量访问器只采集命名层、项目保存的 InputMap 动作和 GF ProjectSettings 键；编辑器专用动作不会进入 `GFProjectAccess.InputActions`。编辑器侧生成脚本的缩进、section、文档注释和空行格式由 `GFSourceBuilder` 统一处理，项目自定义 generator 或扩展级访问器扩展也可以复用它来降低格式漂移风险。
 
-类型扫描工具内部会复用 `GFEditorTypeIndex` 收集 `class_name` 脚本和能力场景；复用同一个 index 实例时，如果文件系统或继承关系变更，需要调用 `clear_cache()`，大型项目也可以用 `collect_scene_roots_extending(..., root_paths)` 限定场景扫描范围。需要在项目自定义编辑器工具里生成 3D 资源预览时，可以复用 `GFThumbnailRenderer` 渲染 `Node3D`、`Mesh` 或 `MeshLibrary` 条目缩略图；渲染尺寸会钳制到至少 1 像素，批量 MeshLibrary 预览可通过 `cancel_preview_generation` 中断。`render_node3d()` 会复制节点并加入内部 `SubViewport`，适合纯展示节点或 Mesh；带运行时脚本副作用的场景应提供预览专用节点。开发期还可以直接调用 `GFSceneSignalAudit.audit_directory("res://")` 扫描 `.tscn` 中保存的编辑器信号连接，报告缺失节点、缺失信号、缺失方法和参数数量不匹配；运行时或调试工具可用 `GFSceneSignalAudit.build_signal_graph(root)` 生成当前节点树的信号连接图快照。`GF` 工作区中的 Save Viewer 页面使用本地文件系统访问，适合开发机排查存档，不应暴露给玩家 UI 或读取不可信路径。它们都是编辑器辅助能力，不参与运行时 `GFArchitecture` 生命周期。
+类型扫描工具内部会复用 `GFEditorTypeIndex` 收集 `class_name` 脚本和能力场景；复用同一个 index 实例时，如果文件系统或继承关系变更，需要调用 `clear_cache()`，大型项目也可以用 `collect_scene_roots_extending(..., root_paths)` 限定场景扫描范围。需要在项目自定义编辑器工具里生成 3D 资源预览时，可以复用 `GFThumbnailRenderer` 渲染 `Node3D`、`Mesh` 或 `MeshLibrary` 条目缩略图；渲染尺寸会钳制到至少 1 像素，批量 MeshLibrary 预览可通过 `cancel_preview_generation` 中断。`render_node3d()` 会复制节点并加入内部 `SubViewport`，适合纯展示节点或 Mesh；带运行时脚本副作用的场景应提供预览专用节点。开发期还可以直接调用 `GFSceneSignalAudit.audit_directory("res://")` 扫描 `.tscn` 中保存的编辑器信号连接，报告缺失节点、缺失信号、缺失方法和参数数量不匹配；运行时或调试工具可用 `GFSceneSignalAudit.build_signal_graph(root)` 生成当前节点树的信号连接图快照。`GF` 工作区中的 Storage Viewer 页面使用本地文件系统访问，适合开发机排查存档，不应暴露给玩家 UI 或读取不可信路径。它们都是编辑器辅助能力，不参与运行时 `GFArchitecture` 生命周期。
 
 ## `GFArchitecture` 全局状态快照
 

@@ -226,7 +226,7 @@ remote_cache.fetch_json("https://example.com/config.json", func(result: Dictiona
 
 `fetch_text()` 与 `fetch_json()` 的回调都接收统一结果字典：`success`、`url`、`content`、`data`、`from_cache`、`stale`、`response_code` 和 `error`。当强制刷新失败但本地仍有旧缓存时，结果会以 `success = true`、`from_cache = true`、`stale = true` 返回，项目层可以自行决定是否展示旧内容或提示网络状态。
 
-缓存文件位于 `user://<cache_dir_name>/`，文件名由 URL、请求格式和 headers 组合出的缓存 key 的 MD5 派生，超过 `max_cache_entries` 后按修改时间删除最旧条目。项目可以用 `has_valid_cache()` / `get_cached_text()` 只读文本缓存，用 `remove_cache()` 清理单个缓存 key，用 `clear_cache()` 清空整个缓存目录；需要语言、账号态或 AB 分组等自定义维度时，可以提供 `cache_key_builder`。JSON 请求会先解析成功再写入缓存，避免远程服务短暂返回坏 JSON 后污染 TTL 缓存；强制刷新失败或新 JSON 解析失败但本地有可用旧缓存时，仍可返回 `stale = true` 的旧内容。
+缓存文件位于 `user://<cache_dir_name>/`，文件名由 URL、请求格式和 headers 组合出的缓存 key 的 MD5 派生，写入时会先提交到临时文件，再替换最终缓存文件，避免刷新中断污染旧缓存。超过 `max_cache_entries` 后按修改时间删除最旧条目。项目可以用 `has_valid_cache()` / `get_cached_text()` 只读文本缓存，用 `remove_cache()` 清理单个缓存 key，用 `clear_cache()` 清空整个缓存目录；需要语言、账号态或 AB 分组等自定义维度时，可以提供 `cache_key_builder`。JSON 请求会先解析成功再写入缓存，避免远程服务短暂返回坏 JSON 后污染 TTL 缓存；强制刷新失败或新 JSON 解析失败但本地有可用旧缓存时，仍可返回 `stale = true` 的旧内容。
 
 该工具串行处理内部请求队列，适合轻量公告和配置拉取，不适合作为大文件下载器或实时 API 客户端。相同缓存 key 的并发请求会合并到同一个 HTTP 请求；`max_pending_requests` 限制等待队列长度，`cancel(url, headers, format)` 可取消匹配请求，`cancel_all()` 可清空等待和当前请求。`get_debug_snapshot()` 会报告缓存目录、TTL、队列上限、队列数量和当前 active URL，便于和 `GFDiagnosticsUtility` 一起定位远程配置刷新问题。缓存写入仍使用同步 `FileAccess`，项目不应把它用于大文件下载或每帧高频刷新。
 
@@ -269,9 +269,9 @@ outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.com/api/events",
 	"position": Vector2(12.0, 4.0),
 })
 
-outbox.replay()
+await outbox.replay()
 ```
 
-`GFRequestEnvelope` 保存 `method`、`url`、`body`、`headers`、`idempotency_key`、`attempt_count`、`max_attempts`、`last_error` 和 `metadata`。队列写入 `storage_path` 时会使用 `GFVariantJsonCodec` 的类型化 JSON codec，因此 `Vector2`、`Color`、PackedArray 等常见 Godot 值可以作为普通载荷保存。`transport_callback` 返回 `{ "ok": true }` 或 `{ "success": true }` 时请求会从等待队列移除；失败时按 `retry_delays_msec` 安排下一次尝试，耗尽次数后可进入失败列表。
+`GFRequestEnvelope` 保存 `method`、`url`、`body`、`headers`、`idempotency_key`、`attempt_count`、`max_attempts`、`last_error` 和 `metadata`。队列写入 `storage_path` 时会使用 `GFVariantJsonCodec` 的类型化 JSON codec，因此 `Vector2`、`Color`、PackedArray 等常见 Godot 值可以作为普通载荷保存。`transport_callback` 可以同步返回结果，也可以返回会发出结果值的 `Signal`；结果为 `{ "ok": true }` 或 `{ "success": true }` 时请求会从等待队列移除；失败时按 `retry_delays_msec` 安排下一次尝试，耗尽次数后可进入失败列表。
 
 这个工具适合做“通用离线 outbox”边界，例如分析事件、自定义远程配置写入、轻量状态提交或编辑器工具请求。它不替项目决定哪些请求可重放、是否幂等、如何签名、如何脱敏、如何处理冲突；这些策略应放在项目自己的 `transport_callback`、`replay_filter` 或更高层同步系统中。

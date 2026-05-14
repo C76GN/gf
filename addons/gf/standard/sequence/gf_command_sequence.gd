@@ -66,6 +66,7 @@ var last_run_report: Dictionary = {}
 
 var _cancel_requested: bool = false
 var _architecture_ref: WeakRef = null
+var _current_step: Variant = null
 
 
 # --- Godot 生命周期方法 ---
@@ -110,8 +111,11 @@ func run(p_steps: Array = []) -> void:
 		if step == null:
 			continue
 
+		_current_step = step
 		step_started.emit(index, step)
 		var result: Variant = _execute_step(step)
+		if _cancel_requested:
+			break
 		if _should_wait_for_step(step, result):
 			await _await_signal_safely(result as Signal)
 			if _cancel_requested:
@@ -126,12 +130,15 @@ func run(p_steps: Array = []) -> void:
 			if stop_on_error:
 				break
 			step_completed.emit(index, step)
+			_current_step = null
 			continue
 
 		step_completed.emit(index, step)
 		completed_steps.append(step)
 		results.append(_make_step_report(index, true, "", result))
+		_current_step = null
 
+	_current_step = null
 	is_running = false
 	var rolled_back := false
 	if failed and stop_on_error and rollback_on_failure:
@@ -155,9 +162,12 @@ func run(p_steps: Array = []) -> void:
 		sequence_completed.emit()
 
 
-## 请求取消序列。当前正在等待的 Signal 会在下一帧取消检查后停止。
+## 请求取消序列。当前步骤实现取消入口时会先收到取消请求，正在等待的 Signal 会在下一帧取消检查后停止。
 func cancel() -> void:
+	if _cancel_requested:
+		return
 	_cancel_requested = true
+	_cancel_current_step()
 
 
 ## 设置等待 Signal 的超时时间，并返回自身以便链式调用。
@@ -198,6 +208,19 @@ func _execute_step(step: Variant) -> Variant:
 		if callable.is_valid():
 			return callable.call()
 	return null
+
+
+func _cancel_current_step() -> void:
+	if _current_step == null:
+		return
+
+	if _current_step is GFSequenceStep:
+		(_current_step as GFSequenceStep).cancel(context)
+		return
+
+	var step := _current_step as Object
+	if step != null and step.has_method("cancel"):
+		step.call("cancel")
 
 
 func _get_step_error(result: Variant) -> String:

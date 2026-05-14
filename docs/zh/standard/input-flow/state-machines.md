@@ -142,7 +142,7 @@ func _physics_process(_delta: float) -> void:
 		transition_to(&"Run")
 ```
 
-状态机支持直接子状态组成内部组，也支持 `GFNodeStateGroup` 形成多个并行状态层。`ready` 后动态加入的状态节点会自动重新加载；跨组切换使用 `"Group/State"` 路径：
+状态机支持直接子状态组成内部组，也支持 `GFNodeStateGroup` 形成多个并行状态层。`ready` 后动态加入 `GFNodeState` 或 `GFNodeStateGroup` 会自动重新加载状态结构，普通辅助子节点不会触发重载；跨组切换使用 `"Group/State"` 路径：
 
 ```gdscript
 transition_to(&"Combat/Fire", { "target": enemy })
