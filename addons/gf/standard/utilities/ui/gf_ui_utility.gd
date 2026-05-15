@@ -78,6 +78,9 @@ var _previous_focus_by_panel_id: Dictionary = {}
 ## 每个层级的结构性变更序号，用于阻止迟到异步回调污染新状态。
 var _layer_request_serials: Dictionary = {}
 
+## 同一层级、同一路径的异步 push 请求序号，避免连点造成重复面板实例。
+var _pending_async_push_serials: Dictionary = {}
+
 
 # --- Godot 生命周期方法 ---
 
@@ -98,6 +101,7 @@ func dispose() -> void:
 	_panel_options.clear()
 	_previous_focus_by_panel_id.clear()
 	_layer_request_serials.clear()
+	_pending_async_push_serials.clear()
 
 
 # --- 公共方法 ---
@@ -134,7 +138,13 @@ func push_panel_async_with_options(
 		return
 
 	var request_serial := _get_layer_request_serial(layer)
+	var request_key := _make_async_push_key(path, layer)
+	if _pending_async_push_serials.has(request_key):
+		return
+
+	_pending_async_push_serials[request_key] = request_serial
 	var on_loaded := func(res: Resource) -> void:
+		_clear_pending_async_push(request_key, request_serial)
 		if not _is_active or not _is_layer_request_serial_current(layer, request_serial):
 			return
 
@@ -355,6 +365,7 @@ func open_modal(
 ## @param layer: 目标层级。
 ## @param do_free: 是否在弹出后释放面板。
 func pop_panel(layer: Layer = Layer.POPUP, do_free: bool = true) -> void:
+	_next_layer_request_serial(layer)
 	_prune_layer_stack(layer)
 	var stack: Array = _panel_stacks[layer]
 	if stack.is_empty():
@@ -584,6 +595,7 @@ func _clear_layer_without_invalidating_requests(layer: Layer) -> void:
 func _next_layer_request_serial(layer: Layer) -> int:
 	var next_serial := _get_layer_request_serial(layer) + 1
 	_layer_request_serials[layer] = next_serial
+	_clear_pending_async_pushes_for_layer(layer)
 	return next_serial
 
 
@@ -593,6 +605,22 @@ func _get_layer_request_serial(layer: Layer) -> int:
 
 func _is_layer_request_serial_current(layer: Layer, request_serial: int) -> bool:
 	return _get_layer_request_serial(layer) == request_serial
+
+
+func _make_async_push_key(path: String, layer: Layer) -> String:
+	return "%d:%s" % [int(layer), path]
+
+
+func _clear_pending_async_push(request_key: String, request_serial: int) -> void:
+	if int(_pending_async_push_serials.get(request_key, -1)) == request_serial:
+		_pending_async_push_serials.erase(request_key)
+
+
+func _clear_pending_async_pushes_for_layer(layer: Layer) -> void:
+	var prefix := "%d:" % int(layer)
+	for request_key: String in _pending_async_push_serials.keys():
+		if request_key.begins_with(prefix):
+			_pending_async_push_serials.erase(request_key)
 
 
 func _create_layers() -> void:

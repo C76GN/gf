@@ -277,6 +277,30 @@ func test_sequence_stop_on_error_reports_failure() -> void:
 	assert_signal_emitted(sequence, "sequence_failed", "stop_on_error 时序列应发出 sequence_failed。")
 
 
+func test_sequence_failure_without_stop_does_not_complete_failed_step() -> void:
+	var order: Array[String] = []
+	var failed_indices: Array[int] = []
+	var completed_indices: Array[int] = []
+	var sequence := GFCommandSequence.new([
+		RecordingStep.new(order, "before"),
+		FailingStep.new(order, "fail", "broken"),
+		RecordingStep.new(order, "after"),
+	]).with_failure_policy(false, false)
+	sequence.step_failed.connect(func(index: int, _step: Variant, _error: String) -> void:
+		failed_indices.append(index)
+	)
+	sequence.step_completed.connect(func(index: int, _step: Variant) -> void:
+		completed_indices.append(index)
+	)
+
+	sequence.run()
+
+	assert_eq(order, ["before", "fail", "after"], "stop_on_error=false 时失败后应继续执行后续步骤。")
+	assert_eq(failed_indices, [1], "失败步骤应只发出 step_failed。")
+	assert_eq(completed_indices, [0, 2], "失败步骤不应再发出 step_completed。")
+	assert_true(bool(sequence.last_run_report["failed"]), "运行报告仍应记录曾发生失败。")
+
+
 func test_sequence_rollback_on_failure_undoes_completed_steps_reverse_order() -> void:
 	var order: Array[String] = []
 	var sequence := GFCommandSequence.new([

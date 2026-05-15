@@ -119,7 +119,7 @@ ui_util.open_modal(config, GFUIUtility.Layer.POPUP, { "source": "settings" }, fu
 )
 ```
 
-`pop_panel(layer, false)` 会把面板从 UI 根节点移除但不释放，适合项目层自己复用实例；如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。每个 UI 层都有请求序号保护，`clear_layer()`、替换层或释放工具后，迟到的异步加载回调会被忽略，不会把旧面板重新压回已经清空的栈。
+`pop_panel(layer, false)` 会把面板从 UI 根节点移除但不释放，适合项目层自己复用实例；如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。每个 UI 层都有请求序号保护，`pop_panel()`、`clear_layer()`、替换层或释放工具后，迟到的异步加载回调会被忽略，不会把旧面板重新压回已经取消或清空的栈。同一层级同一路径的重复异步压栈请求会在资源返回前合并，避免按钮连点时叠出多层相同面板。
 
 `panel_opened`、`panel_closed` 和 `navigation_changed` 适合把 UI 栈变化同步给焦点系统、音效、诊断面板或项目自己的路由层。`get_panel_stack()`、`get_stack_count()`、`is_panel_open()` 和 `get_debug_snapshot()` 只返回当前栈状态，不保存业务历史；如果项目只需要 route id 到面板场景的通用映射，可以在其上注册 `GFUIRouterUtility` 和 `GFUIRoute`：
 
@@ -135,7 +135,7 @@ router.push_route(&"settings", { "tab": "audio" })
 router.back()
 ```
 
-`GFUIRouterUtility` 只维护路由表、路由参数、面板打开选项和轻量历史；如果面板实现了 `set_route_params(params)` 或 `set_route_metadata(metadata)`，路由工具会在入栈前调用它们。复杂页面恢复、返回值、转场动画、权限和业务导航状态仍应由项目自己的 Model/System 或 UI 节点处理。
+`GFUIRouterUtility` 只维护路由表、路由参数、面板打开选项和轻量历史；如果面板实现了 `set_route_params(params)` 或 `set_route_metadata(metadata)`，路由工具会在入栈前调用它们。`back()` 只会弹出当前 UI 栈顶正好是路由历史记录中的面板；如果项目直接通过 `GFUIUtility.push_panel()` 在同层压入了普通面板，应先由项目关闭该普通面板，再让路由返回，避免路由历史和实际 UI 栈互相踩踏。复杂页面恢复、返回值、转场动画、权限和业务导航状态仍应由项目自己的 Model/System 或 UI 节点处理。
 
 每个层级都会创建独立 `CanvasLayer`：`HUD`、`POPUP`、`TOP` 数值越大显示越靠前。`GFUIUtility` 只负责层级根节点、栈顺序、自动隐藏、状态信号、实例加载和少量面板交互策略，不规定 UI 动画、视觉遮罩、输入绑定或面板间通信。
 

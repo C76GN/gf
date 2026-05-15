@@ -28,6 +28,25 @@ class RecordingReceiver extends GFInteractionReceiver:
 		}
 
 
+class BusinessInteractionReceiver extends Node:
+	var received_context: GFInteractionContext = null
+	var received_id: StringName = &""
+
+	func receive_interaction(context: GFInteractionContext, interaction_id: StringName = &"") -> Dictionary:
+		received_context = context
+		received_id = interaction_id
+		return {
+			"ok": true,
+			"interaction_id": interaction_id,
+			"receiver": self,
+			"reason": "handled",
+			"message": "",
+			"metadata": {
+				"business": true,
+			},
+		}
+
+
 class RecordingDispatchHost extends RefCounted:
 	var received_receiver: Object = null
 	var received_payload: Variant = null
@@ -77,6 +96,49 @@ func test_receiver_filters_interaction_ids() -> void:
 	assert_false(bool(rejected["ok"]), "不在 accepted_interaction_ids 内的交互应被拒绝。")
 	assert_eq(rejected["reason"], "unaccepted_id")
 	assert_true(bool(accepted["ok"]), "允许的交互 ID 应通过基础过滤。")
+
+
+func test_receiver_path_forwards_interaction_to_business_receiver() -> void:
+	var root := Node.new()
+	var bridge := GFInteractionReceiver.new()
+	var business_receiver := BusinessInteractionReceiver.new()
+	add_child_autofree(root)
+	root.add_child(bridge)
+	root.add_child(business_receiver)
+	bridge.name = "InteractionAreaBridge"
+	business_receiver.name = "BusinessReceiver"
+	bridge.receiver_path = NodePath("../BusinessReceiver")
+	bridge.accepted_interaction_ids = [&"use"]
+	watch_signals(bridge)
+
+	var context := GFInteractionContext.new(null, bridge, { "item": "door" })
+	var report := bridge.receive_interaction(context, &"use")
+
+	assert_true(bool(report["ok"]), "通过本地过滤的交互应转发给业务接收器。")
+	assert_same(business_receiver.received_context, context, "业务接收器应收到同一个交互上下文。")
+	assert_same(context.target, business_receiver, "转发时上下文 target 应更新为业务接收器。")
+	assert_eq(business_receiver.received_id, &"use", "交互 ID 应透传给业务接收器。")
+	assert_same(report["receiver"], business_receiver, "最终报告应来自业务接收器。")
+	assert_true(bool((report["metadata"] as Dictionary)["business"]), "业务接收器返回的报告应成为最终报告。")
+	assert_signal_emitted(bridge, "interaction_received", "业务接收成功后桥接节点应发出接收信号。")
+
+
+func test_receiver_path_does_not_forward_rejected_interaction() -> void:
+	var root := Node.new()
+	var bridge := GFInteractionReceiver.new()
+	var business_receiver := BusinessInteractionReceiver.new()
+	add_child_autofree(root)
+	root.add_child(bridge)
+	root.add_child(business_receiver)
+	business_receiver.name = "BusinessReceiver"
+	bridge.receiver_path = NodePath("../BusinessReceiver")
+	bridge.accepted_interaction_ids = [&"open"]
+
+	var report := bridge.receive_interaction(GFInteractionContext.new(null, bridge), &"use")
+
+	assert_false(bool(report["ok"]), "未通过本地 ID 过滤的交互不应转发。")
+	assert_eq(report["reason"], "unaccepted_id")
+	assert_null(business_receiver.received_context, "被本地拒绝时业务接收器不应收到上下文。")
 
 
 func test_sensor_rejects_invalid_receiver() -> void:

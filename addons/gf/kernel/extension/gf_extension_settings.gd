@@ -264,9 +264,11 @@ static func load_enabled_extension_script(
 static func get_enabled_manifests() -> Array[GFExtensionManifest]:
 	var manifests := get_all_manifests()
 	var enabled_ids := resolve_extension_dependencies(get_enabled_extension_ids(), manifests)
+	var manifest_by_id := _build_manifest_map(manifests)
 	var result: Array[GFExtensionManifest] = []
-	for manifest: GFExtensionManifest in manifests:
-		if enabled_ids.has(manifest.id):
+	for extension_id: String in enabled_ids:
+		var manifest := manifest_by_id.get(extension_id) as GFExtensionManifest
+		if manifest != null:
 			result.append(manifest)
 	return result
 
@@ -337,12 +339,25 @@ static func resolve_extension_dependencies(
 	var manifest_by_id := _build_manifest_map(source_manifests)
 	var requested_ids := _sorted_unique(extension_ids)
 	var resolved: Dictionary = {}
+	var resolved_order: Array[String] = []
 	var visiting: Dictionary = {}
 	var cycles: Array[PackedStringArray] = []
 	for extension_id: String in requested_ids:
-		_resolve_extension_dependency(extension_id, manifest_by_id, resolved, visiting, [], cycles)
+		_resolve_extension_dependency(
+			extension_id,
+			manifest_by_id,
+			resolved,
+			resolved_order,
+			visiting,
+			[],
+			cycles
+		)
 
 	var ordered: Array[String] = []
+	if cycles.is_empty():
+		ordered.append_array(resolved_order)
+		return ordered
+
 	for manifest: GFExtensionManifest in source_manifests:
 		if resolved.has(manifest.id):
 			ordered.append(manifest.id)
@@ -399,12 +414,14 @@ static func get_manifest_graph_report(manifests: Array[GFExtensionManifest] = []
 				})
 
 	var resolved: Dictionary = {}
+	var resolved_order: Array[String] = []
 	var visiting: Dictionary = {}
 	for extension_id: String in manifest_by_id.keys():
 		_resolve_extension_dependency(
 			extension_id,
 			manifest_by_id,
 			resolved,
+			resolved_order,
 			visiting,
 			[],
 			dependency_cycles,
@@ -526,6 +543,7 @@ static func _resolve_extension_dependency(
 	extension_id: String,
 	manifest_by_id: Dictionary,
 	resolved: Dictionary,
+	resolved_order: Array[String],
 	visiting: Dictionary,
 	stack: Array[String],
 	cycles: Array[PackedStringArray],
@@ -556,6 +574,7 @@ static func _resolve_extension_dependency(
 				normalized_dependency_id,
 				manifest_by_id,
 				resolved,
+				resolved_order,
 				visiting,
 				next_stack,
 				cycles,
@@ -563,6 +582,8 @@ static func _resolve_extension_dependency(
 			)
 	visiting.erase(normalized_id)
 	resolved[normalized_id] = true
+	if not resolved_order.has(normalized_id):
+		resolved_order.append(normalized_id)
 
 
 static func _append_dependency_cycle(

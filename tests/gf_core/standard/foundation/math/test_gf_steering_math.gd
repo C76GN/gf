@@ -2,6 +2,10 @@
 extends GutTest
 
 
+const GFSteeringBehaviorResourceBase = preload("res://addons/gf/standard/foundation/math/gf_steering_behavior_resource.gd")
+const GFSteeringBehaviorStackBase = preload("res://addons/gf/standard/foundation/math/gf_steering_behavior_stack.gd")
+
+
 func test_seek_and_flee_use_agent_acceleration_limit() -> void:
 	var agent := GFSteeringAgent.new(Vector3.ZERO)
 	agent.linear_acceleration_max = 10.0
@@ -121,3 +125,34 @@ func test_avoid_collisions_ignores_non_threatening_targets() -> void:
 	var avoidance := GFSteeringMath.avoid_collisions(agent, [target] as Array[GFSteeringAgent], 1.0)
 
 	assert_true(avoidance.is_zero(), "相对速度不会缩短距离时不应产生避让。")
+
+
+func test_steering_behavior_resource_uses_context_target() -> void:
+	var agent := GFSteeringAgent.new(Vector3.ZERO)
+	agent.linear_acceleration_max = 12.0
+	var behavior := GFSteeringBehaviorResourceBase.new()
+	behavior.behavior_type = GFSteeringBehaviorResourceBase.BehaviorType.SEEK
+
+	var acceleration: GFSteeringAcceleration = behavior.calculate(agent, { "target_position": Vector3.RIGHT * 40.0 })
+
+	assert_almost_eq(acceleration.linear.x, 12.0, 0.001, "资源化 seek 应复用 GFSteeringMath 的加速度上限。")
+
+
+func test_steering_behavior_stack_blends_weighted_behaviors() -> void:
+	var agent := GFSteeringAgent.new(Vector3.ZERO)
+	agent.linear_acceleration_max = 10.0
+	var seek_right := GFSteeringBehaviorResourceBase.new()
+	seek_right.behavior_type = GFSteeringBehaviorResourceBase.BehaviorType.SEEK
+	seek_right.target_position = Vector3.RIGHT
+	var seek_up := GFSteeringBehaviorResourceBase.new()
+	seek_up.behavior_type = GFSteeringBehaviorResourceBase.BehaviorType.SEEK
+	seek_up.target_position = Vector3.UP
+	seek_up.weight = 0.5
+	var stack := GFSteeringBehaviorStackBase.new()
+	stack.max_linear = 100.0
+	stack.add_behavior(seek_right)
+	stack.add_behavior(seek_up)
+
+	var acceleration: GFSteeringAcceleration = stack.calculate(agent)
+
+	assert_eq(acceleration.linear, Vector3(10.0, 5.0, 0.0), "BLEND 模式应按行为权重混合结果。")

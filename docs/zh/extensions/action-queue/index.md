@@ -151,7 +151,9 @@ config.add_property_step(^"modulate", Color.WHITE, 0.12)
 q_sys.enqueue(config.create_action(card_node))
 ```
 
-`GFTweenActionConfig` 只描述属性路径、目标值、时长、缓动和并行关系；每一段属性变化由 `GFTweenActionStep` 保存，支持延迟、相对值、并行、transition 和 ease。`GFTweenActionStep.can_apply_to(target)` / `get_validation_error(target)` 可在执行前检查目标属性是否存在、相对值类型是否匹配；无效步骤会被跳过并给出警告，避免把拼写错误推迟到 Tween 执行时才暴露。`GFMoveTweenAction` 与 `GFFlashAction` 也会在执行前校验目标属性和值类型，无法安全 Tween 时直接返回 `null`。`create_action(target)` 会生成 `GFConfiguredTweenAction`，由它在执行时创建 Tween、追加步骤，并返回 `GFVisualAction` 的动作完成信号；取消或强制完成会唤醒队列等待，但不会手动伪造 Godot `Tween.finished`，因此外部监听者不会把取消误判为 Tween 自然播放结束。具体节点含义、动画命名和业务时机仍由项目层决定。
+`GFTweenActionConfig` 只描述属性路径、目标值、时长、缓动和并行关系；每一段属性变化由 `GFTweenActionStep` 保存，支持延迟、相对值、并行、transition、ease 和可选 `marker_id`。`GFTweenActionStep.can_apply_to(target)` / `get_validation_error(target)` 可在执行前检查目标属性是否存在、相对值类型是否匹配；`GFTweenActionConfig.get_validation_report(target)` 会把整组步骤整理成 `GFValidationReport`，便于 Inspector、CI 或项目工具统一展示。无效步骤会被跳过并给出警告，避免把拼写错误推迟到 Tween 执行时才暴露。
+
+`create_action(target)` 会生成 `GFConfiguredTweenAction`，由它在执行时创建 Tween、追加步骤，并返回 `GFVisualAction` 的动作完成信号。步骤设置 `marker_id` 后，动作会在对应步骤结束时发出 `marker_reached(marker_id, step_index, target)`，项目可以把它用于通用时间点通知，而不需要把动画资源绑定到具体业务回调。`restore_initial_values_on_cancel` 和 `restore_initial_values_on_finish` 可让动作在取消或完成时恢复播放前捕获的属性值，适合编辑器预览或可回滚表现；它只恢复被步骤引用的属性，不隐藏、释放或重排节点。取消或强制完成会唤醒队列等待，但不会手动伪造 Godot `Tween.finished`，因此外部监听者不会把取消误判为 Tween 自然播放结束。具体节点含义、动画命名和业务时机仍由项目层决定。
 
 ### 外部动作
 

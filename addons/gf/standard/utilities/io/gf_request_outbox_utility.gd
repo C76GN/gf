@@ -73,6 +73,7 @@ var replay_filter: Callable = Callable()
 
 var _queue: Array[GFRequestEnvelopeBase] = []
 var _failed_requests: Array[GFRequestEnvelopeBase] = []
+var _is_replaying: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -88,6 +89,7 @@ func dispose() -> void:
 		save_queue()
 	_queue.clear()
 	_failed_requests.clear()
+	_is_replaying = false
 
 
 # --- 公共方法 ---
@@ -149,7 +151,12 @@ func replay(max_count: int = 0) -> Dictionary:
 		report["ok"] = false
 		report["reason"] = "missing_transport"
 		return report
+	if _is_replaying:
+		report["ok"] = false
+		report["reason"] = "replay_in_progress"
+		return report
 
+	_is_replaying = true
 	var now_msec := Time.get_ticks_msec()
 	var index := 0
 	while index < _queue.size():
@@ -166,9 +173,14 @@ func replay(max_count: int = 0) -> Dictionary:
 		request_started.emit(envelope)
 		envelope.mark_attempt()
 		var result: Dictionary = await _call_transport(envelope)
+		var queue_index := _find_queue_index(envelope)
 		if _is_success_result(result):
 			envelope.mark_success()
-			_queue.remove_at(index)
+			if queue_index >= 0:
+				_queue.remove_at(queue_index)
+				index = queue_index
+			else:
+				index = mini(index, _queue.size())
 			report["succeeded"] = int(report["succeeded"]) + 1
 			request_completed.emit(envelope, result)
 			continue
@@ -177,13 +189,21 @@ func replay(max_count: int = 0) -> Dictionary:
 		envelope.mark_failure(String(result.get("error", result.get("reason", "request_failed"))), _get_retry_delay_msec(envelope.attempt_count))
 		request_failed.emit(envelope, result)
 		if envelope.is_exhausted():
-			_queue.remove_at(index)
+			if queue_index >= 0:
+				_queue.remove_at(queue_index)
+				index = queue_index
+			else:
+				index = mini(index, _queue.size())
 			_store_failed_request(envelope)
 			continue
-		index += 1
+		if queue_index >= 0:
+			index = queue_index + 1
+		else:
+			index = mini(index, _queue.size())
 
 	report["pending"] = _queue.size()
 	report["failed_stored"] = _failed_requests.size()
+	_is_replaying = false
 	_persist_and_emit_changed()
 	return report
 
@@ -355,6 +375,13 @@ func _is_success_result(result: Dictionary) -> bool:
 	if result.has("success"):
 		return bool(result["success"])
 	return false
+
+
+func _find_queue_index(envelope: GFRequestEnvelopeBase) -> int:
+	for index: int in range(_queue.size()):
+		if _queue[index] == envelope:
+			return index
+	return -1
 
 
 func _get_retry_delay_msec(attempt_count: int) -> int:

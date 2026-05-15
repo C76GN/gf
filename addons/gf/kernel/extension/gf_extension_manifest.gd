@@ -29,10 +29,7 @@ var display_name: String = ""
 var version: String = ""
 
 ## 扩展自身版本号。GF 内置扩展按扩展内公开行为变化独立递增；未声明时回退到 version。
-var extension_version: String = "":
-	set(value):
-		extension_version = value
-		_has_extension_version = true
+var extension_version: String = ""
 
 ## 扩展类型，应为 `standard` 或 `extension`。
 var kind: String = KIND_EXTENSION
@@ -79,12 +76,6 @@ var enabled_by_default: bool = false
 ## manifest 文件路径。
 var source_path: String = ""
 
-
-# --- 私有变量 ---
-
-var _has_extension_version: bool = false
-
-
 # --- 公共方法 ---
 
 ## 从字典创建扩展 manifest。
@@ -102,7 +93,6 @@ static func from_dictionary(
 	manifest.display_name = String(data.get("display_name", data.get("name", "")))
 	manifest.version = String(data.get("version", ""))
 	manifest.extension_version = String(data.get("extension_version", manifest.version))
-	manifest._has_extension_version = data.has("extension_version")
 	manifest.kind = String(data.get("kind", KIND_EXTENSION)).strip_edges()
 	if manifest.kind.is_empty():
 		manifest.kind = KIND_EXTENSION
@@ -209,7 +199,7 @@ func _append_resource_path_errors(
 	paths: Array[String]
 ) -> void:
 	for path: String in paths:
-		var normalized_path := path.strip_edges()
+		var normalized_path := path.strip_edges().simplify_path()
 		if normalized_path.is_empty():
 			errors.append("%s contains empty path" % property_name)
 			continue
@@ -221,7 +211,7 @@ func _append_resource_path_errors(
 
 
 func _path_is_under_root(path: String) -> bool:
-	var normalized_root := root_path.strip_edges().trim_suffix("/")
+	var normalized_root := root_path.strip_edges().simplify_path().trim_suffix("/")
 	if normalized_root.is_empty():
 		return true
 	return path == normalized_root or path.begins_with(normalized_root + "/")

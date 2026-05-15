@@ -213,8 +213,11 @@ func matches(source_signal: Signal, callback: Callable, owner: Object = null) ->
 	return true
 
 
-## owner 或 signal 发射源失效时清理连接。
+## owner、signal 发射源或 callback 目标失效时清理连接。
 func prune_if_invalid() -> bool:
+	if not _callback.is_valid():
+		disconnect_signal()
+		return true
 	if _source_signal.is_null():
 		disconnect_signal()
 		return true

@@ -53,6 +53,9 @@ var auth_token: String = ""
 ## 是否允许执行 DANGER 等级命令。即使 max_command_tier 足够，也需要显式开启。
 var allow_danger_commands: bool = false
 
+## 是否把诊断命令结果转换为 JSON 兼容 Variant。
+var encode_command_results_for_json: bool = false
+
 ## 场景树快照默认递归深度。
 var default_scene_tree_max_depth: int = 4
 
@@ -63,6 +66,7 @@ var default_scene_tree_max_nodes: int = 128
 # --- 私有变量 ---
 
 var _commands: Dictionary = {}
+var _disabled_commands: Dictionary = {}
 var _monitors: Dictionary = {}
 var _monitor_presets: Dictionary = {}
 var _snapshot_section_providers: Dictionary = {}
@@ -82,6 +86,7 @@ func init() -> void:
 	register_command(&"diagnostics.monitors", Callable(self, "_command_collect_monitors"), "采集已注册诊断监控项。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.tools", Callable(self, "_command_collect_tools"), "采集已注册 GF 工具快照。", CommandTier.OBSERVE)
 	register_command(&"diagnostics.scene", Callable(self, "_command_collect_scene"), "采集只读场景树快照。", CommandTier.OBSERVE)
+	register_command(&"diagnostics.signals", Callable(self, "_command_collect_signals"), "采集只读信号连接图快照。", CommandTier.OBSERVE)
 
 
 func ready() -> void:
@@ -94,6 +99,7 @@ func dispose() -> void:
 	_console_utility = null
 	_console_command_registered = false
 	_commands.clear()
+	_disabled_commands.clear()
 	_monitors.clear()
 	_monitor_presets.clear()
 	_snapshot_section_providers.clear()
@@ -108,11 +114,13 @@ func dispose() -> void:
 ## @param callback: 回调，签名建议为 func(args: Dictionary) -> Variant。
 ## @param description: 描述文本。
 ## @param tier: 命令风险等级。
+## @param options: 可选元数据，支持 parameters、metadata、enabled。
 func register_command(
 	command_name: StringName,
 	callback: Callable,
 	description: String = "",
-	tier: CommandTier = CommandTier.OBSERVE
+	tier: CommandTier = CommandTier.OBSERVE,
+	options: Dictionary = {}
 ) -> void:
 	if command_name == &"" or not callback.is_valid():
 		return
@@ -120,13 +128,18 @@ func register_command(
 		"callback": callback,
 		"description": description,
 		"tier": tier,
+		"parameters": _normalize_parameter_schema(options.get("parameters", [])),
+		"metadata": (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {},
 	}
+	if options.has("enabled"):
+		set_command_enabled(command_name, bool(options.get("enabled", true)))
 
 
 ## 注销诊断命令。
 ## @param command_name: 命令名。
 func unregister_command(command_name: StringName) -> void:
 	_commands.erase(command_name)
+	_disabled_commands.erase(command_name)
 
 
 ## 检查诊断命令是否存在。
@@ -134,6 +147,59 @@ func unregister_command(command_name: StringName) -> void:
 ## @return 存在返回 true。
 func has_command(command_name: StringName) -> bool:
 	return _commands.has(command_name)
+
+
+## 设置诊断命令参数 schema。
+## @param command_name: 命令名。
+## @param parameters: 参数 schema，可为数组或按参数名索引的字典。
+## @return 设置成功返回 true。
+func set_command_parameter_schema(command_name: StringName, parameters: Variant) -> bool:
+	if not _commands.has(command_name):
+		return false
+	var entry := _commands[command_name] as Dictionary
+	entry["parameters"] = _normalize_parameter_schema(parameters)
+	return true
+
+
+## 设置诊断命令是否启用。
+## @param command_name: 命令名。
+## @param enabled: 是否启用。
+## @return 命令存在时返回 true。
+func set_command_enabled(command_name: StringName, enabled: bool) -> bool:
+	if not _commands.has(command_name):
+		return false
+	if enabled:
+		_disabled_commands.erase(command_name)
+	else:
+		_disabled_commands[command_name] = true
+	return true
+
+
+## 批量设置命令是否启用。
+## @param enabled: 是否启用。
+## @param command_names: 指定命令；为空时作用于全部已注册命令。
+## @return 实际处理的命令数量。
+func set_all_commands_enabled(
+	enabled: bool,
+	command_names: PackedStringArray = PackedStringArray()
+) -> int:
+	var selected_names := command_names.duplicate()
+	if selected_names.is_empty():
+		for command_name: StringName in _commands.keys():
+			selected_names.append(String(command_name))
+
+	var count := 0
+	for name_text: String in selected_names:
+		if set_command_enabled(StringName(name_text), enabled):
+			count += 1
+	return count
+
+
+## 检查命令是否启用。
+## @param command_name: 命令名。
+## @return 命令存在且启用时返回 true。
+func is_command_enabled(command_name: StringName) -> bool:
+	return _commands.has(command_name) and not _disabled_commands.has(command_name)
 
 
 ## 获取诊断命令描述。
@@ -157,6 +223,9 @@ func get_command_catalog() -> Dictionary:
 			"description": String(entry.get("description", "")),
 			"tier": tier,
 			"tier_name": _get_tier_name(tier),
+			"enabled": is_command_enabled(command_name),
+			"parameters": (entry.get("parameters", []) as Array).duplicate(true) if entry.get("parameters", []) is Array else [],
+			"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true) if entry.get("metadata", {}) is Dictionary else {},
 		}
 	return result
 
@@ -412,6 +481,11 @@ func execute_command(command_name: StringName, args: Dictionary = {}) -> Diction
 		return missing_result
 
 	var entry := _commands[command_name] as Dictionary
+	if _disabled_commands.has(command_name):
+		var disabled_result := _make_command_result(false, null, "Diagnostic command is disabled: %s" % String(command_name))
+		diagnostic_command_executed.emit(command_name, disabled_result)
+		return disabled_result
+
 	var tier := int(entry.get("tier", CommandTier.OBSERVE))
 	if not _is_tier_allowed(tier):
 		var tier_result := _make_command_result(false, null, "Diagnostic command tier is not allowed: %s" % _get_tier_name(tier), {
@@ -428,23 +502,52 @@ func execute_command(command_name: StringName, args: Dictionary = {}) -> Diction
 		diagnostic_command_executed.emit(command_name, auth_result)
 		return auth_result
 
+	var prepared_args := _prepare_command_args(args, entry)
+	var validation_report := _validate_command_args(entry, prepared_args, args)
+	if not validation_report.is_ok():
+		var validation_result := _make_command_result(false, null, validation_report.make_summary(String(command_name)), {
+			"tier": tier,
+			"tier_name": _get_tier_name(tier),
+			"validation": validation_report.to_dict(),
+		})
+		diagnostic_command_executed.emit(command_name, validation_result)
+		return validation_result
+
 	var callback: Callable = entry.get("callback")
 	if not callback.is_valid():
 		var invalid_result := _make_command_result(false, null, "Diagnostic command callback is invalid: %s" % String(command_name))
 		diagnostic_command_executed.emit(command_name, invalid_result)
 		return invalid_result
 
-	var value: Variant = callback.call(args.duplicate(true))
+	var value: Variant = callback.call(prepared_args)
 	var result := _make_command_result(true, value, "", {
 		"tier": tier,
 		"tier_name": _get_tier_name(tier),
 	})
+	if encode_command_results_for_json:
+		result = command_result_to_json_compatible(result)
 	diagnostic_command_executed.emit(command_name, result)
 	return result
 
 
+## 执行诊断命令并返回 JSON 兼容结果。
+## @param command_name: 命令名。
+## @param args: 命令参数。
+## @return JSON 兼容结果字典。
+func execute_command_json_safe(command_name: StringName, args: Dictionary = {}) -> Dictionary:
+	return command_result_to_json_compatible(execute_command(command_name, args))
+
+
+## 将命令结果转换为 JSON 兼容字典。
+## @param result: execute_command() 返回的结果。
+## @param options: 传给 GFVariantJsonCodec.variant_to_json_compatible() 的选项。
+## @return JSON 兼容结果字典。
+func command_result_to_json_compatible(result: Dictionary, options: Dictionary = {}) -> Dictionary:
+	return GFVariantJsonCodec.variant_to_json_compatible(result, options) as Dictionary
+
+
 ## 采集运行时诊断快照。
-## @param options: 可选参数，支持 recent_log_count、include_recent_logs、include_scene_tree、scene_tree_options。
+## @param options: 可选参数，支持 recent_log_count、include_recent_logs、include_scene_tree、scene_tree_options、include_signal_graph、signal_graph_options。
 ## @return 快照字典。
 func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	var snapshot := {
@@ -479,6 +582,10 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	if bool(options.get("include_scene_tree", false)):
 		var scene_options := options.get("scene_tree_options", {}) as Dictionary
 		snapshot["scene_tree"] = collect_scene_tree_snapshot(null, scene_options if scene_options != null else {})
+
+	if bool(options.get("include_signal_graph", false)):
+		var signal_options := options.get("signal_graph_options", {}) as Dictionary
+		snapshot["signal_graph"] = collect_signal_graph_snapshot(null, signal_options if signal_options != null else {})
 
 	snapshot["tools"] = _collect_tool_debug_snapshots()
 	_collect_registered_snapshot_sections(snapshot)
@@ -577,6 +684,31 @@ func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) ->
 	}
 
 
+## 采集只读信号连接图快照。
+## @param root: 可选根节点；为空时优先使用当前场景，再回退到 Viewport root。
+## @param options: 可选参数，支持 include_internal、persistent_only、include_empty_signals、include_external_targets、include_index。
+## @return 信号图快照字典。
+func collect_signal_graph_snapshot(root: Node = null, options: Dictionary = {}) -> Dictionary:
+	var target_root := root if root != null else _resolve_scene_tree_root(options)
+	if target_root == null:
+		return {
+			"ok": false,
+			"root_path": "",
+			"node_count": 0,
+			"signal_count": 0,
+			"connection_count": 0,
+			"nodes": [],
+			"signals": [],
+			"connections": [],
+			"message": "Signal graph root is unavailable.",
+		}
+
+	var graph := GFSceneSignalAudit.build_signal_graph(target_root, options)
+	if bool(options.get("include_index", false)):
+		graph["index"] = GFSceneSignalAudit.index_signal_graph(graph)
+	return graph
+
+
 # --- 私有/辅助方法 ---
 
 func _bind_console_command() -> void:
@@ -633,6 +765,10 @@ func _command_collect_tools(_args: Dictionary) -> Dictionary:
 
 func _command_collect_scene(args: Dictionary) -> Dictionary:
 	return collect_scene_tree_snapshot(null, args)
+
+
+func _command_collect_signals(args: Dictionary) -> Dictionary:
+	return collect_signal_graph_snapshot(null, args)
 
 
 func _collect_scene_tree_node(node: Node, depth: int, options: Dictionary, counters: Dictionary) -> Dictionary:
@@ -1045,6 +1181,166 @@ func _is_auth_allowed(args: Dictionary) -> bool:
 
 	var provided := String(args.get("auth_token", args.get("_auth_token", "")))
 	return provided == auth_token
+
+
+func _normalize_parameter_schema(parameters: Variant) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	if parameters is Dictionary:
+		for key: Variant in (parameters as Dictionary).keys():
+			var definition := (parameters as Dictionary)[key] as Dictionary
+			if definition == null:
+				definition = {}
+			definition = definition.duplicate(true)
+			definition["name"] = String(key)
+			result.append(_normalize_parameter_definition(definition))
+	elif parameters is Array:
+		for item: Variant in parameters as Array:
+			if item is Dictionary:
+				result.append(_normalize_parameter_definition((item as Dictionary).duplicate(true)))
+	return result
+
+
+func _normalize_parameter_definition(definition: Dictionary) -> Dictionary:
+	var name := String(definition.get("name", ""))
+	if name.is_empty():
+		return {}
+	return {
+		"name": name,
+		"type": String(definition.get("type", "any")).to_lower(),
+		"required": bool(definition.get("required", false)),
+		"allow_null": bool(definition.get("allow_null", false)),
+		"default": GFVariantData.duplicate_variant(definition.get("default", null)),
+		"has_default": definition.has("default"),
+		"allowed_values": GFVariantData.duplicate_variant(definition.get("allowed_values", [])),
+		"min": definition.get("min", null),
+		"max": definition.get("max", null),
+		"metadata": (definition.get("metadata", {}) as Dictionary).duplicate(true) if definition.get("metadata", {}) is Dictionary else {},
+	}
+
+
+func _prepare_command_args(args: Dictionary, entry: Dictionary) -> Dictionary:
+	var prepared := args.duplicate(true)
+	var parameters := entry.get("parameters", []) as Array
+	if parameters == null:
+		return prepared
+	for parameter_variant: Variant in parameters:
+		var parameter := parameter_variant as Dictionary
+		if parameter == null:
+			continue
+		var name := String(parameter.get("name", ""))
+		if not prepared.has(name) and bool(parameter.get("has_default", false)):
+			prepared[name] = GFVariantData.duplicate_variant(parameter.get("default", null))
+	return prepared
+
+
+func _validate_command_args(entry: Dictionary, prepared_args: Dictionary, original_args: Dictionary) -> GFValidationReport:
+	var report := GFValidationReport.new("Diagnostic command arguments")
+	var parameters := entry.get("parameters", []) as Array
+	if parameters == null:
+		return report
+
+	for parameter_variant: Variant in parameters:
+		var parameter := parameter_variant as Dictionary
+		if parameter == null or parameter.is_empty():
+			continue
+		_validate_command_parameter(report, parameter, prepared_args, original_args)
+	return report
+
+
+func _validate_command_parameter(
+	report: GFValidationReport,
+	parameter: Dictionary,
+	prepared_args: Dictionary,
+	original_args: Dictionary
+) -> void:
+	var name := String(parameter.get("name", ""))
+	if name.is_empty():
+		return
+	if bool(parameter.get("required", false)) and not original_args.has(name) and not bool(parameter.get("has_default", false)):
+		report.add_error(&"missing_parameter", "Missing required diagnostic command parameter.", name)
+		return
+	if not prepared_args.has(name):
+		return
+
+	var value: Variant = prepared_args[name]
+	if value == null:
+		if not bool(parameter.get("allow_null", false)):
+			report.add_error(&"null_parameter", "Diagnostic command parameter does not allow null.", name)
+		return
+
+	var type_name := String(parameter.get("type", "any")).to_lower()
+	if not _does_value_match_parameter_type(value, type_name):
+		report.add_error(&"parameter_type_mismatch", "Diagnostic command parameter has the wrong type.", name, "", {
+			"expected_type": type_name,
+			"actual_type": type_string(typeof(value)),
+		})
+		return
+
+	_validate_allowed_values(report, parameter, name, value)
+	_validate_numeric_range(report, parameter, name, value)
+
+
+func _validate_allowed_values(
+	report: GFValidationReport,
+	parameter: Dictionary,
+	name: String,
+	value: Variant
+) -> void:
+	var allowed_values := parameter.get("allowed_values", [])
+	if not (allowed_values is Array) or (allowed_values as Array).is_empty():
+		return
+	for allowed: Variant in allowed_values as Array:
+		if value == allowed:
+			return
+	report.add_error(&"parameter_value_not_allowed", "Diagnostic command parameter value is not allowed.", name)
+
+
+func _validate_numeric_range(
+	report: GFValidationReport,
+	parameter: Dictionary,
+	name: String,
+	value: Variant
+) -> void:
+	if not (value is int or value is float):
+		return
+	if parameter.get("min", null) != null and float(value) < float(parameter.get("min")):
+		report.add_error(&"parameter_below_minimum", "Diagnostic command parameter is below minimum.", name)
+	if parameter.get("max", null) != null and float(value) > float(parameter.get("max")):
+		report.add_error(&"parameter_above_maximum", "Diagnostic command parameter is above maximum.", name)
+
+
+func _does_value_match_parameter_type(value: Variant, type_name: String) -> bool:
+	match type_name:
+		"", "any", "variant":
+			return true
+		"bool", "boolean":
+			return value is bool
+		"int", "integer":
+			return value is int
+		"float", "number":
+			return value is float or value is int
+		"string":
+			return value is String
+		"string_name", "stringname":
+			return value is StringName
+		"node_path", "nodepath":
+			return value is NodePath
+		"dictionary", "dict":
+			return value is Dictionary
+		"array":
+			return value is Array
+		"packed_string_array":
+			return value is PackedStringArray
+		"vector2":
+			return value is Vector2
+		"vector3":
+			return value is Vector3
+		"color":
+			return value is Color
+		"object":
+			return value is Object
+		_:
+			return true
 
 
 func _get_tier_name(tier: int) -> String:

@@ -111,6 +111,20 @@ func test_editor_value_field_keeps_value_when_json_is_invalid() -> void:
 	assert_signal_not_emitted(field, "value_changed", "JSON 解析失败不应提交新值。")
 
 
+func test_editor_value_field_rejects_json_with_wrong_container_type() -> void:
+	var field := GFEditorValueField.new()
+	add_child_autofree(field)
+	watch_signals(field)
+
+	field.configure({ "name": &"metadata", "type": TYPE_DICTIONARY }, { "safe": true })
+	(field._editor as LineEdit).text = "[]"
+	field._on_text_changed("[]")
+
+	assert_eq(field.get_value(), { "safe": true }, "Dictionary 字段不应接受 Array JSON。")
+	assert_signal_emitted(field, "value_parse_failed", "JSON 容器类型不匹配应发出失败信号。")
+	assert_signal_not_emitted(field, "value_changed", "JSON 容器类型不匹配不应提交新值。")
+
+
 func test_resource_table_can_auto_save_committed_resource() -> void:
 	var resource := GFConfigTableColumn.new()
 	resource.field_name = &"old"

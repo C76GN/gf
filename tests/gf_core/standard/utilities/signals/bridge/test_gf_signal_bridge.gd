@@ -1,0 +1,87 @@
+## 测试声明式信号桥接资源。
+extends GutTest
+
+
+# --- 辅助子类 ---
+
+class TestEmitter:
+	extends Node
+
+	signal changed(value: int, label: String)
+
+	func emit_changed(value: int, label: String) -> void:
+		changed.emit(value, label)
+
+
+class TestListener:
+	extends Node
+
+	var received: Array = []
+
+	func record(label: String, value: int, constant_value: String, context: Dictionary) -> void:
+		received.append({
+			"label": label,
+			"value": value,
+			"constant": constant_value,
+			"context": context,
+		})
+
+
+# --- 测试方法 ---
+
+## 验证信号桥接可重排参数、追加常量和上下文。
+func test_signal_bridge_maps_signal_arguments() -> void:
+	var root := Node.new()
+	add_child_autofree(root)
+
+	var emitter := TestEmitter.new()
+	emitter.name = "Emitter"
+	root.add_child(emitter)
+
+	var listener := TestListener.new()
+	listener.name = "Listener"
+	root.add_child(listener)
+
+	var bridge := GFSignalBridge.new()
+	bridge.source.source_path = root.get_path_to(emitter)
+	bridge.source.signal_name = &"changed"
+	bridge.target.target_path = root.get_path_to(listener)
+	bridge.target.method_name = &"record"
+	bridge.argument_indices = PackedInt32Array([1, 0])
+	bridge.constant_args = ["fixed"]
+	bridge.append_context = true
+
+	var binding := bridge.connect_bridge(root)
+	emitter.emit_changed(7, "hp")
+
+	assert_true(binding != null and binding.is_active(), "桥接应创建有效运行绑定。")
+	assert_eq(listener.received.size(), 1, "桥接目标应收到调用。")
+	assert_eq(listener.received[0]["label"], "hp", "参数应支持重排。")
+	assert_eq(listener.received[0]["value"], 7, "参数值应保持原始信号数据。")
+	assert_eq(listener.received[0]["constant"], "fixed", "常量参数应追加到桥接参数后。")
+	assert_eq(listener.received[0]["context"]["signal_args"], [7, "hp"], "上下文应包含原始信号参数。")
+
+
+## 验证信号桥接报告无效目标。
+func test_signal_bridge_validation_reports_invalid_target() -> void:
+	var root := Node.new()
+	add_child_autofree(root)
+
+	var emitter := TestEmitter.new()
+	emitter.name = "Emitter"
+	root.add_child(emitter)
+
+	var listener := TestListener.new()
+	listener.name = "Listener"
+	root.add_child(listener)
+
+	var bridge := GFSignalBridge.new()
+	bridge.source.source_path = root.get_path_to(emitter)
+	bridge.source.signal_name = &"changed"
+	bridge.target.target_path = root.get_path_to(listener)
+	bridge.target.method_name = &"missing"
+
+	var report := bridge.get_validation_report(root)
+
+	assert_false(report["ok"], "无效目标应产生校验错误。")
+	assert_true((report["issues"] as Array).has("invalid_callable_target"), "校验报告应包含目标错误。")

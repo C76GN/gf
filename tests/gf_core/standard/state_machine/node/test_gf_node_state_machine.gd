@@ -597,6 +597,44 @@ func test_transition_requested_during_exit_replaces_outer_target() -> void:
 	assert_eq(machine.get_current_state(), attack, "最终当前状态应为 exit 内部请求的状态。")
 
 
+func test_transition_to_redirect_does_not_reexit_current_state_when_stacked_state_redirects() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := TrackingNodeState.new()
+	var menu := ExitRedirectNodeState.new(&"Inventory")
+	var confirm := ExitRedirectNodeState.new(&"Combat")
+	var run := TrackingNodeState.new()
+	var combat := TrackingNodeState.new()
+	var inventory := TrackingNodeState.new()
+	idle.name = "Idle"
+	menu.name = "Menu"
+	confirm.name = "Confirm"
+	run.name = "Run"
+	combat.name = "Combat"
+	inventory.name = "Inventory"
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	machine.add_child(menu)
+	machine.add_child(confirm)
+	machine.add_child(run)
+	machine.add_child(combat)
+	machine.add_child(inventory)
+	await get_tree().process_frame
+
+	machine.push_state(&"Menu")
+	machine.push_state(&"Confirm")
+	machine.transition_to(&"Run")
+
+	assert_eq(confirm.exit_count, 1, "当前叠加状态的 exit 重定向不应导致当前状态重复 exit。")
+	assert_eq(menu.exit_count, 1, "被丢弃的暂停状态应只退出一次。")
+	assert_eq(idle.exit_count, 1, "更早的暂停状态应按最终重定向目标退出。")
+	assert_eq(run.enter_count, 0, "外层目标应被当前状态 exit 重定向替换。")
+	assert_eq(combat.enter_count, 0, "较早的重定向目标应被暂停栈退出重定向替换。")
+	assert_eq(inventory.enter_count, 1, "暂停栈退出期间的最后一次重定向应成为最终状态。")
+	assert_eq(machine.get_current_state(), inventory, "最终当前状态应为暂停栈退出期间请求的目标。")
+	assert_eq(machine.get_stack_depth(), 0, "重定向切换后暂停栈应清空。")
+
+
 func test_push_and_pop_state_uses_pause_and_resume() -> void:
 	var machine: Node = GFNodeStateMachineBase.new()
 	var idle := TrackingNodeState.new()
@@ -626,6 +664,91 @@ func test_push_and_pop_state_uses_pause_and_resume() -> void:
 	assert_eq(menu.exit_count, 1, "pop_state 应退出当前子状态。")
 	assert_eq(idle.resume_count, 1, "pop_state 应恢复上一层状态。")
 	assert_eq(idle.last_previous, &"Menu", "恢复状态应收到来源子状态名。")
+
+
+func test_pop_state_redirect_does_not_reexit_current_state_when_stacked_state_redirects() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := TrackingNodeState.new()
+	var menu := ExitRedirectNodeState.new(&"Inventory")
+	var confirm := ExitRedirectNodeState.new(&"Combat")
+	var combat := TrackingNodeState.new()
+	var inventory := TrackingNodeState.new()
+	idle.name = "Idle"
+	menu.name = "Menu"
+	confirm.name = "Confirm"
+	combat.name = "Combat"
+	inventory.name = "Inventory"
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	machine.add_child(menu)
+	machine.add_child(confirm)
+	machine.add_child(combat)
+	machine.add_child(inventory)
+	await get_tree().process_frame
+
+	machine.push_state(&"Menu")
+	machine.push_state(&"Confirm")
+	var popped: bool = machine.pop_state(GFNodeStateMachineBase.INTERNAL_GROUP_NAME)
+
+	assert_true(popped, "pop_state 有暂停栈时应成功。")
+	assert_eq(confirm.exit_count, 1, "当前子状态的 exit 重定向不应导致当前状态重复 exit。")
+	assert_eq(menu.exit_count, 1, "被丢弃的暂停状态应只退出一次。")
+	assert_eq(idle.exit_count, 1, "更早的暂停状态应按最终重定向目标退出。")
+	assert_eq(combat.enter_count, 0, "较早的重定向目标应被后续退出重定向替换。")
+	assert_eq(inventory.enter_count, 1, "暂停栈退出期间的最后一次重定向应成为最终状态。")
+	assert_eq(machine.get_current_state(), inventory, "最终当前状态应为暂停栈退出期间请求的目标。")
+	assert_eq(machine.get_stack_depth(), 0, "重定向切换后暂停栈应清空。")
+
+
+func test_remove_current_pushed_state_restores_paused_state() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := TrackingNodeState.new()
+	var menu := TrackingNodeState.new()
+	idle.name = "Idle"
+	menu.name = "Menu"
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	machine.add_child(menu)
+	await get_tree().process_frame
+
+	machine.push_state(&"Menu")
+	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	watch_signals(group)
+	var removed := group.remove_state(menu)
+
+	assert_true(removed, "移除当前叠加状态应成功。")
+	assert_eq(machine.get_current_state(), idle, "移除当前叠加状态后应恢复上一层状态。")
+	assert_eq(machine.get_stack_depth(), 0, "恢复后状态栈应为空。")
+	assert_eq(menu.exit_count, 1, "被移除的当前叠加状态应执行 exit。")
+	assert_eq(idle.resume_count, 1, "暂停的上一层状态应执行 resume。")
+	assert_eq(idle.last_previous, &"Menu", "恢复状态应收到被移除状态名。")
+	assert_true(machine.is_in_state(&"Idle"), "恢复后的状态应被视为处于状态机内。")
+	assert_false(machine.is_in_state(&"Menu"), "被移除的状态不应继续被视为处于状态机内。")
+	assert_signal_emitted(group, "current_state_changed", "当前状态被恢复时应发出状态变化信号。")
+
+
+func test_remove_current_state_honors_exit_redirect() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var idle := ExitRedirectNodeState.new(&"Run")
+	var run := TrackingNodeState.new()
+	idle.name = "Idle"
+	run.name = "Run"
+	machine.initial_state = &"Idle"
+	add_child_autofree(machine)
+	machine.add_child(idle)
+	machine.add_child(run)
+	await get_tree().process_frame
+
+	var group := machine.get_state_group(GFNodeStateMachineBase.INTERNAL_GROUP_NAME) as GFNodeStateGroup
+	var removed := group.remove_state(idle)
+
+	assert_true(removed, "移除当前状态应成功。")
+	assert_eq(idle.exit_count, 1, "remove_state 应让当前状态执行一次 exit。")
+	assert_eq(run.enter_count, 1, "当前状态 exit 中请求的目标应被安全进入。")
+	assert_eq(machine.get_current_state(), run, "remove_state 后当前状态应为 exit 重定向目标。")
+	assert_null(group.get_state(&"Idle"), "被移除状态应从状态组注册表删除。")
 
 
 func test_config_controls_initial_state_and_history_limit() -> void:

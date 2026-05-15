@@ -72,7 +72,22 @@ signals.disconnect_owner(self)
 
 `filter()`、`map()`、`delay()`、`debounce()`、`throttle()`、`skip()`、`take()`、`scan()` 会按链式顺序执行；`first()` 是 `take(1)` 的语义糖，`start_with(value)` 可立即向链路注入一次初始值。`connect_any()` 可把多个 Signal 接到同一个回调，返回的连接列表可交给 `disconnect_connections()` 批量断开。`connect_once()` 或 `once()` 会在首次成功触发后自动断开并从工具追踪中移除。`connect_signal()` 返回的链式对象类型是 `GFSignalConnection`，通常不需要手动保存；只有需要主动 `disconnect_signal()`、延迟追加操作或查询连接状态时才保留引用。
 
-连接会用弱引用追踪 owner，`prune_invalid_connections()` 会清理 owner 或信号源已经失效的连接。当前连接包装器最多收集 8 个信号参数；超过这个数量的极少数自定义信号应直接使用 Godot 原生连接或自行封装 payload。`delay()` / `debounce()` 使用 SceneTree 计时器或帧等待做信号层延迟，`throttle()` 使用系统毫秒时间做信号层节流，适合 UI、编辑器工具和轻量运行时事件；它不是 `GFTimerUtility` 的替代品，也不会表达 GF 逻辑时间组的暂停语义。
+连接会用弱引用追踪 owner，`prune_invalid_connections()` 会清理 owner、信号源或回调目标已经失效的连接。当前连接包装器最多收集 8 个信号参数；超过这个数量的极少数自定义信号应直接使用 Godot 原生连接或自行封装 payload。`delay()` / `debounce()` 使用 SceneTree 计时器或帧等待做信号层延迟，`throttle()` 使用系统毫秒时间做信号层节流，适合 UI、编辑器工具和轻量运行时事件；它不是 `GFTimerUtility` 的替代品，也不会表达 GF 逻辑时间组的暂停语义。
+
+如果项目需要把信号连接保存成资源或配置，而不是在脚本里手写所有 `connect()`，可以使用 `GFSignalBridge`。桥接由 `GFSignalSourceRef` 描述来源节点和信号名，由 `GFCallableTargetRef` 描述目标节点和方法名，再通过参数索引、常量参数和上下文字典完成通用转发。`GFSignalBridgeBinding` 是运行时连接句柄，可用于检查或断开桥接。
+
+```gdscript
+var bridge := GFSignalBridge.new()
+bridge.source.source_path = get_path_to(button)
+bridge.source.signal_name = &"pressed"
+bridge.target.target_path = get_path_to(panel_controller)
+bridge.target.method_name = &"open_panel"
+bridge.constant_args = [&"inventory"]
+
+var binding := bridge.connect_bridge(self, self, signals)
+```
+
+桥接资源不解释信号业务含义，也不要求目标方法属于某个具体类。参数重排只处理“把第几个原始参数传给目标方法”，`append_context` 只追加包含桥接 ID、来源路径、信号名、原始参数和元数据的字典。是否把这些信号用于 UI、动画、场景逻辑或调试工具，仍由项目自己的目标方法决定。
 
 
 ## 节点对象池 (`GFObjectPoolUtility`)
@@ -101,7 +116,7 @@ await pool.prewarm_async_budget(explosion_scene, get_tree().root, 40, 4.0)
 
 ```gdscript
 func on_gf_pool_release() -> void:
-	# 清理 Tween、临时信号连接、运行时 meta 等
+	# 清理 Tween、临时信号连接、运行时 meta、动态子节点等
 	pass
 
 func on_gf_pool_acquire() -> void:
@@ -109,4 +124,4 @@ func on_gf_pool_acquire() -> void:
 	pass
 ```
 
-归还时节点会被移动到内部 `GFObjectPoolRoot`，并恢复/关闭 `process_mode`、`CanvasItem.visible` 和常见 `disabled` 属性；`manage_descendant_active_state` 控制是否递归处理子节点。`release()` 会校验节点是否确实来自对应池，避免把外部节点或其他 `PackedScene` 的实例混入。继承 `GFController` 的池化节点会在归还或预热时自动暂停由基类 `register_event()` / `register_simple_event()` 记录的事件监听，并在再次 `acquire()` 后恢复；这避免 `_ready()` 只执行一次的控制器复用后丢监听，也避免休眠节点继续接收事件。默认 `prune_invalid_on_each_operation = true` 会在高频接口前清理已释放节点引用，换取更稳的计数；极端热路径可在项目层确认生命周期后关闭，并在低频点主动调用 `prune_invalid_nodes()`。`get_available_count()`、`get_active_count()`、`get_debug_snapshot()` 可用于调试池容量。
+归还时节点会被移动到内部 `GFObjectPoolRoot`，并恢复/关闭 `process_mode`、`CanvasItem.visible` 和常见 `disabled` 属性；`manage_descendant_active_state` 控制是否递归处理子节点。对象池不会猜测项目在借出期间动态添加的子节点、Timer、AnimationPlayer 或其他业务状态该如何复原，这些清理应放进 `on_gf_pool_release()` / `on_gf_pool_acquire()`，或由项目把这类一次性对象放在池化根节点外管理。`release()` 会校验节点是否确实来自对应池，避免把外部节点或其他 `PackedScene` 的实例混入。继承 `GFController` 的池化节点会在归还或预热时自动暂停由基类 `register_event()` / `register_simple_event()` 记录的事件监听，并在再次 `acquire()` 后恢复；这避免 `_ready()` 只执行一次的控制器复用后丢监听，也避免休眠节点继续接收事件。默认 `prune_invalid_on_each_operation = true` 会在高频接口前清理已释放节点引用，换取更稳的计数；极端热路径可在项目层确认生命周期后关闭，并在低频点主动调用 `prune_invalid_nodes()`。`get_available_count()`、`get_active_count()`、`get_debug_snapshot()` 可用于调试池容量。

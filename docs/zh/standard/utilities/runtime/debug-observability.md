@@ -282,7 +282,36 @@ var snapshot_with_scene := diagnostics.collect_snapshot({
 })
 ```
 
+需要把诊断命令暴露给编辑器面板、远程开发工具或项目自定义控制台时，可以为命令声明参数 schema，并按命令启停。Schema 只做通用类型、必填、默认值、枚举值和数值范围校验，不负责业务权限；真正的入口权限仍由项目层决定：
+
+```gdscript
+diagnostics.register_command(
+	&"runtime.limit",
+	func(args: Dictionary) -> Dictionary:
+		return { "limit": args["limit"] },
+	"读取限制值。",
+	GFDiagnosticsUtility.CommandTier.OBSERVE,
+	{
+		"parameters": [
+			{
+				"name": "limit",
+				"type": "int",
+				"default": 3,
+				"min": 1,
+				"max": 10,
+			},
+		],
+	}
+)
+
+diagnostics.set_command_enabled(&"runtime.limit", false)
+```
+
+`execute_command_json_safe()` 会把命令结果通过 `GFVariantJsonCodec` 转成 JSON 友好结构，适合写入文件、支持报告或调试面板数据源。默认 `execute_command()` 仍返回原始 Variant，方便本地工具保留 `Vector3`、`Color`、`NodePath` 等 Godot 类型。
+
 诊断快照的 `tools` 字段会聚合已注册模块公开的 `get_debug_snapshot()`，标准库内置读取 `GFBuildInfoUtility`、`GFAssetUtility`、`GFTimerUtility`、`GFRemoteCacheUtility`、`GFDownloadUtility` 和 `GFObjectPoolUtility`。GF 内置扩展或项目模块如果也想进入诊断快照，应主动调用 `register_tool_snapshot_provider()`、`register_snapshot_section_provider()`、`register_monitor()` 或 `register_command()` 贡献数据；例如 ActionQueue 扩展贡献 `tools.action_queue` 监控和 `tools.action_queue` 快照，Network 扩展贡献 `network` 快照分区。`GFDiagnosticsUtility` 不硬编码任何 GF 内置扩展 ID、路径或类型，因此扩展禁用或删除时不会影响标准库加载。这些快照只表达版本、队列、缓存、pending 数量和运行状态，不解释项目业务含义。编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把运行中节点树的信号、连接、节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 则把当前编辑场景渲染为 `GF Workspace > 信号诊断` 页面，默认查看保存连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。快照默认可包含构建信息、最近日志、外部贡献分区、URL 派生的缓存状态、工具路径和项目自定义 monitor 输出；如果要暴露给远程调试、玩家可访问控制台或线上 GM 工具，应在项目层做脱敏、白名单过滤和权限控制。
+
+`collect_signal_graph_snapshot()` 与内置命令 `diagnostics.signals` 会对当前场景根或传入根节点生成只读信号图；`collect_snapshot({ "include_signal_graph": true })` 可把它合并进完整诊断快照。它不会连接、断开或触发信号，只读取节点、信号和连接摘要。
 
 诊断监控项适合给 Overlay、编辑器面板或远程调试工具提供稳定采样入口。内置预设包括 `minimal`、`performance`、`architecture`、`tools` 与 `overlay`；`GF Workspace > Diagnostics` 页面可直接采集这些预设、通用性能数据、工具快照和可选场景树摘要，便于开发期只读排查。项目也可以注册自己的轻量 provider，并按预设导出 JSON、文本或 CSV：
 

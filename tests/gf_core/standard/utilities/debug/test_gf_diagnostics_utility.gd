@@ -12,6 +12,7 @@ func test_diagnostics_command_executes() -> void:
 	assert_true(bool(result["ok"]), "内置性能诊断命令应执行成功。")
 	assert_true((result["value"] as Dictionary).has("fps"), "性能快照应包含 fps。")
 	assert_true(diagnostics.has_command(&"diagnostics.scene"), "Diagnostics 应注册只读场景树快照命令。")
+	assert_true(diagnostics.has_command(&"diagnostics.signals"), "Diagnostics 应注册只读信号图快照命令。")
 
 
 ## 验证场景树快照只采集结构摘要并遵守深度限制。
@@ -73,6 +74,55 @@ func test_diagnostics_command_requires_auth_token() -> void:
 
 	assert_false(bool(rejected["ok"]), "缺少 token 时命令应被拒绝。")
 	assert_true(bool(accepted["ok"]), "提供正确 token 时命令应执行。")
+
+
+func test_diagnostics_command_schema_validates_arguments_and_defaults() -> void:
+	var diagnostics := GFDiagnosticsUtility.new()
+	diagnostics.register_command(
+		&"runtime.limit",
+		func(args: Dictionary) -> Dictionary:
+			return { "limit": args["limit"] },
+		"读取限制值。",
+		GFDiagnosticsUtility.CommandTier.OBSERVE,
+		{
+			"parameters": [
+				{
+					"name": "limit",
+					"type": "int",
+					"required": true,
+					"default": 3,
+					"min": 1,
+					"max": 5,
+				},
+			],
+		}
+	)
+
+	var defaulted := diagnostics.execute_command(&"runtime.limit")
+	var rejected := diagnostics.execute_command(&"runtime.limit", { "limit": 8 })
+
+	assert_true(bool(defaulted["ok"]), "带默认值的必填参数缺省时应使用默认值。")
+	assert_eq(((defaulted["value"] as Dictionary)["limit"]), 3, "命令回调应收到填充默认值后的参数。")
+	assert_false(bool(rejected["ok"]), "超出 schema 范围的参数应被拒绝。")
+	assert_true(String(rejected["error"]).contains("error"), "参数校验失败应返回校验摘要。")
+
+
+func test_diagnostics_command_can_be_disabled_and_exported_json_safe() -> void:
+	var diagnostics := GFDiagnosticsUtility.new()
+	diagnostics.register_command(&"runtime.vector", func(_args: Dictionary) -> Dictionary:
+		return { "position": Vector3(1.0, 2.0, 3.0) }
+	)
+
+	var disabled_ok := diagnostics.set_command_enabled(&"runtime.vector", false)
+	var disabled := diagnostics.execute_command(&"runtime.vector")
+	diagnostics.set_command_enabled(&"runtime.vector", true)
+	var json_safe := diagnostics.execute_command_json_safe(&"runtime.vector")
+	var value := json_safe["value"] as Dictionary
+	var position := value["position"] as Dictionary
+
+	assert_true(disabled_ok, "已注册命令应可被禁用。")
+	assert_false(bool(disabled["ok"]), "禁用命令不应执行回调。")
+	assert_true(position.has(GFVariantJsonCodec.JSON_MARKER_KEY), "JSON-safe 命令结果应编码 Godot Variant。")
 
 
 ## 验证诊断快照可读取架构生命周期状态。
@@ -214,3 +264,41 @@ func test_diagnostics_builtin_tools_monitor_preset() -> void:
 	assert_true(monitors.has(&"tools.timer"), "tools 预设应包含 Timer 监控项。")
 
 	arch.dispose()
+
+
+func test_diagnostics_collects_signal_graph_snapshot() -> void:
+	var root := Node.new()
+	root.name = "Root"
+	var emitter := SignalEmitter.new()
+	emitter.name = "Emitter"
+	root.add_child(emitter)
+	emitter.ping.connect(func() -> void:
+		pass
+	)
+	add_child_autofree(root)
+
+	var diagnostics := GFDiagnosticsUtility.new()
+	var graph := diagnostics.collect_signal_graph_snapshot(root, { "include_index": true })
+	var index := graph["index"] as Dictionary
+	var ping_connection_count := 0
+	for connection_variant: Variant in graph.get("connections", []):
+		var connection := connection_variant as Dictionary
+		if connection == null:
+			continue
+		if (
+			String(connection.get("source_node_path", "")) == "Emitter"
+			and String(connection.get("signal_name", "")) == "ping"
+		):
+			ping_connection_count += 1
+
+	assert_true(bool(graph["ok"]), "传入根节点时信号图应可用。")
+	assert_eq(ping_connection_count, 1, "运行时连接应进入信号图。")
+	assert_true(index.has("outgoing"), "include_index 应附加按节点索引。")
+
+
+# --- 内部类 ---
+
+class SignalEmitter:
+	extends Node
+
+	signal ping

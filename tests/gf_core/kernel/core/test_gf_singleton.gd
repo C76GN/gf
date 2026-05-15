@@ -41,6 +41,10 @@ class InheritedConcreteTickSystem extends InheritedBaseTickSystem:
 class DummyUtility extends GFUtility:
 	pass
 
+class DirectArchitectureLookupUtility extends GFUtility:
+	func get_architecture_directly() -> GFArchitecture:
+		return _get_architecture()
+
 class RegistryModelBase extends GFModel:
 	pass
 
@@ -236,6 +240,23 @@ class TickUtility extends GFUtility:
 	func tick(delta: float) -> void:
 		tick_count += 1
 		last_delta = delta
+
+
+class ScalingTimeProvider extends GFTimeProvider:
+	var scale: float = 1.0
+	var paused: bool = false
+
+	func get_scaled_delta(delta: float) -> float:
+		return 0.0 if paused else delta * scale
+
+	func get_physics_scaled_delta_steps(delta: float) -> Array[float]:
+		return [get_scaled_delta(delta)] as Array[float]
+
+	func should_substep_physics(_delta: float) -> bool:
+		return false
+
+	func is_time_paused() -> bool:
+		return paused
 
 
 class RegisteringUtility extends GFUtility:
@@ -784,6 +805,26 @@ func test_unregistered_utility_does_not_fallback_to_global_architecture() -> voi
 	arch.dispose()
 
 
+## 验证释放后的内部架构访问不会绕过作用域保护回退到全局架构。
+func test_released_internal_scope_does_not_fallback_to_global_architecture() -> void:
+	var previous_global_architecture: GFArchitecture = Gf._architecture
+	var global_arch := GFArchitecture.new()
+	var local_arch := GFArchitecture.new()
+	var utility := DirectArchitectureLookupUtility.new()
+	Gf._architecture = global_arch
+
+	await local_arch.register_utility_instance(utility)
+	local_arch.unregister_utility(DirectArchitectureLookupUtility)
+	var resolved := utility.get_architecture_directly()
+
+	Gf._architecture = previous_global_architecture
+	global_arch.dispose()
+	local_arch.dispose()
+
+	assert_null(resolved, "释放后的内部 _get_architecture() 不应回退到全局架构。")
+	assert_push_error("[GFUtility] 依赖作用域已释放，无法继续访问架构。")
+
+
 ## 验证子架构未命中本地依赖时会回退到父架构。
 func test_child_architecture_falls_back_to_parent() -> void:
 	var parent_arch := GFArchitecture.new()
@@ -831,6 +872,25 @@ func test_stale_child_alias_does_not_shadow_parent_fallback() -> void:
 	parent_arch.dispose()
 
 
+## 验证子架构本地已注册但未 ready 的模块不会在 require_ready 查询中偷用父级同类型模块。
+func test_child_local_unready_module_shadows_parent_require_ready_lookup() -> void:
+	var parent_arch := GFArchitecture.new()
+	var parent_utility := ParentScopedUtility.new()
+	await parent_arch.register_utility_instance(parent_utility)
+	await parent_arch.init()
+
+	var child_arch := GFArchitecture.new(parent_arch)
+	var child_utility := ParentScopedUtility.new()
+	await child_arch.register_utility_instance(child_utility)
+
+	assert_eq(child_arch.get_utility(ParentScopedUtility), child_utility, "普通查询应返回子架构本地实例。")
+	assert_null(child_arch.get_utility(ParentScopedUtility, true), "本地存在但未 ready 的实例应遮蔽父级同类型 ready 实例。")
+	assert_eq(child_arch.get_local_utility(ParentScopedUtility), child_utility, "本地查询仍应能看到未 ready 的本地实例。")
+
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
 ## 验证注册时会拒绝与目标槽位不匹配的实例。
 func test_register_utility_rejects_wrong_base_type() -> void:
 	var arch := GFArchitecture.new()
@@ -866,6 +926,19 @@ func test_binder_registers_modules_alias_and_factory_lifetimes() -> void:
 	assert_eq(transient_a.injected_architecture, arch, "Transient 工厂结果应注入当前架构。")
 	assert_eq(singleton_a, singleton_b, "Singleton 工厂应缓存同一实例。")
 
+	arch.dispose()
+
+
+## 验证已有实例不能伪装成 transient 工厂，避免静默退化为单例。
+func test_binder_rejects_transient_factory_from_instance() -> void:
+	var arch := GFArchitecture.new()
+	var binder: Variant = arch.create_binder()
+	var command := FactoryCommand.new()
+
+	binder.bind_factory(FactoryCommand).from_instance(command).as_transient()
+
+	assert_false(arch.has_factory(FactoryCommand), "from_instance().as_transient() 不应注册单例工厂。")
+	assert_push_error("[GFBindBuilder] from_instance() 不支持 as_transient()；请改用 from_factory()。")
 	arch.dispose()
 
 
@@ -1381,6 +1454,53 @@ func test_context_wait_until_ready_times_out_when_parent_never_initializes() -> 
 	await get_tree().process_frame
 
 
+## 验证禁用超时时，等待上下文 ready 的协程仍会在节点离树时取消。
+func test_context_wait_until_ready_returns_null_when_context_exits_tree_without_timeout() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = GFArchitecture.new()
+
+	var context := InheritedContext.new()
+	context.context_wait_timeout_seconds = 0.0
+	add_child(context)
+
+	var state := {
+		"done": false,
+		"result": null,
+	}
+	_await_context_ready(context, state)
+	await get_tree().process_frame
+
+	remove_child(context)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(state["done"], "上下文离树应唤醒等待中的 wait_until_ready。")
+	assert_null(state["result"], "上下文离树后 wait_until_ready 应返回 null。")
+	context.free()
+
+
+## 验证 Inherited NodeContext 找不到任何父级或全局架构时会立即失败。
+func test_inherited_context_without_parent_architecture_emits_failure() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var context := InheritedContext.new()
+	context.context_wait_timeout_seconds = 0.0
+	watch_signals(context)
+	add_child(context)
+
+	var architecture := await context.wait_until_ready()
+
+	assert_null(architecture, "没有可继承架构时，wait_until_ready 应直接返回 null。")
+	assert_signal_emitted(context, "context_failed", "没有可继承架构时应发出 context_failed。")
+	assert_push_warning("[GFNodeContext] 未找到可继承的架构。")
+
+	context.queue_free()
+	await get_tree().process_frame
+
+
 ## 验证子 Scoped NodeContext 初始化前会等待父 Scoped 架构 ready。
 func test_child_scoped_context_waits_for_parent_scoped_context_ready() -> void:
 	if Gf.has_architecture():
@@ -1461,6 +1581,67 @@ func test_parent_transient_factory_injects_requesting_child_architecture() -> vo
 	assert_not_null(command, "子架构应能通过父级工厂创建对象。")
 	assert_eq(command.injected_architecture, child_arch, "父级 transient 工厂结果应注入发起解析的子架构。")
 
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
+## 验证子架构初始化后仍能感知父级后续注册的 TimeProvider。
+func test_child_architecture_uses_parent_time_provider_registered_late() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+	var system := TickUtility.new()
+	await child_arch.register_utility_instance(system)
+	await parent_arch.init()
+	await child_arch.init()
+
+	child_arch.tick(8.0)
+	assert_almost_eq(system.last_delta, 8.0, 0.0001, "父级尚无 TimeProvider 时应使用原始 delta。")
+
+	var time_provider := ScalingTimeProvider.new()
+	time_provider.scale = 0.25
+	await parent_arch.register_utility_instance(time_provider)
+	child_arch.tick(8.0)
+
+	assert_almost_eq(system.last_delta, 2.0, 0.0001, "父级后续注册 TimeProvider 后，子架构应动态使用父级时间缩放。")
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
+## 验证父级 TimeProvider 注销后，子架构不会继续使用旧缓存引用。
+func test_child_architecture_drops_parent_time_provider_after_unregister() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+	var time_provider := ScalingTimeProvider.new()
+	time_provider.scale = 0.5
+	var system := TickUtility.new()
+	await parent_arch.register_utility_instance(time_provider)
+	await child_arch.register_utility_instance(system)
+	await parent_arch.init()
+	await child_arch.init()
+
+	child_arch.tick(10.0)
+	assert_almost_eq(system.last_delta, 5.0, 0.0001, "子架构应先使用父级 TimeProvider。")
+
+	parent_arch.unregister_utility(ScalingTimeProvider)
+	child_arch.tick(10.0)
+
+	assert_almost_eq(system.last_delta, 10.0, 0.0001, "父级 TimeProvider 注销后，子架构应回退到原始 delta。")
+	child_arch.dispose()
+	parent_arch.dispose()
+
+
+## 验证父级架构配置拒绝自身与循环引用，避免依赖回退无限递归。
+func test_parent_architecture_rejects_self_and_cycles() -> void:
+	var parent_arch := GFArchitecture.new()
+	var child_arch := GFArchitecture.new(parent_arch)
+
+	parent_arch.set_parent_architecture(parent_arch)
+	parent_arch.set_parent_architecture(child_arch)
+
+	assert_null(parent_arch.get_parent_architecture(), "父级不能设为自身，也不能形成 parent-child 循环。")
+	assert_same(child_arch.get_parent_architecture(), parent_arch, "合法的子架构父级关系应保持不变。")
+	assert_push_error("[GFArchitecture] set_parent_architecture 失败：父级架构不能是自身。")
+	assert_push_error("[GFArchitecture] set_parent_architecture 失败：父级架构会形成循环引用。")
 	child_arch.dispose()
 	parent_arch.dispose()
 
@@ -1984,6 +2165,40 @@ func test_dispose_during_init_cancels_waiters_and_stale_resume() -> void:
 	assert_false(slow_utility.ready_called, "被 dispose 中断的模块不应继续进入 ready。")
 
 
+## 验证 async_init 超时轮询路径下 dispose 也会取消等待者和迟到恢复。
+func test_dispose_during_timed_async_init_cancels_waiters_and_stale_resume() -> void:
+	if Gf.has_architecture():
+		Gf.get_architecture().dispose()
+	Gf._architecture = null
+
+	var arch := GFArchitecture.new()
+	arch.module_async_init_timeout_seconds = 1.0
+	var slow_utility := SlowInitUtility.new()
+	await arch.register_utility_instance(slow_utility)
+	watch_signals(arch)
+
+	var first_state := { "done": false }
+	_await_arch_init(arch, first_state)
+	await get_tree().process_frame
+
+	assert_true(slow_utility.async_started, "限时 async_init 路径应已进入异步等待。")
+
+	arch.dispose()
+	await get_tree().process_frame
+
+	assert_true(first_state["done"], "dispose 应取消限时 async_init 的外层等待。")
+	assert_false(arch.is_inited(), "dispose 后架构不应被标记为已初始化。")
+	assert_signal_emit_count(arch, "initialization_finished", 1)
+
+	slow_utility.async_continue.emit()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_false(arch.is_inited(), "限时 async_init 迟到恢复后不应重新写回已初始化状态。")
+	assert_false(slow_utility.ready_called, "被 dispose 中断的限时 async_init 模块不应进入 ready。")
+	assert_signal_emit_count(arch, "initialization_finished", 1)
+
+
 ## 验证无架构时 Gf 门面方法只报错并返回空值，不发生空引用崩溃。
 func test_facade_returns_null_when_architecture_missing() -> void:
 	if Gf.has_architecture():
@@ -2030,6 +2245,11 @@ func test_architecture_warns_when_command_or_query_lacks_execute() -> void:
 
 func _await_arch_init(arch: GFArchitecture, state: Dictionary) -> void:
 	await arch.init()
+	state["done"] = true
+
+
+func _await_context_ready(context: GFNodeContextBase, state: Dictionary) -> void:
+	state["result"] = await context.wait_until_ready()
 	state["done"] = true
 
 

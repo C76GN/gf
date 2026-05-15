@@ -53,7 +53,7 @@ print(GFNumberFormatter.format_scientific(coins, 2)) # 1.23e7
 
 ## `GFDecimalStringFormatter`
 
-小数字符串格式化与校验辅助，主要用于框架内部的 `GFNumberFormatter`、`GFBigNumber` 和 `GFFixedDecimal` 共享同一套舍入、截断、尾零裁剪和纯数字校验规则。项目层如果也需要这些纯文本规则，可以直接静态调用；它不负责本地化、货币符号或业务单位选择。
+小数字符串格式化与校验辅助，主要用于框架内部的 `GFNumberFormatter`、`GFBigNumber` 和 `GFFixedDecimal` 共享同一套舍入、截断、尾零裁剪和纯数字校验规则。项目层如果也需要这些纯文本规则，可以直接静态调用；纯数字校验要求至少包含一个数字字符。它不负责本地化、货币符号或业务单位选择。
 
 ```gdscript
 var rounded := GFDecimalStringFormatter.format_decimal_value(12.345, 2, false, false)

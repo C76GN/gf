@@ -39,6 +39,59 @@ static func _receive(
 	rejected_id_message: String,
 	unaccepted_id_message: String
 ) -> Dictionary:
+	return _receive_with_delegate(
+		host,
+		context,
+		id_key,
+		id_value,
+		enabled,
+		accepted_ids,
+		rejected_ids,
+		metadata,
+		validation_callback,
+		validating_signal,
+		received_signal,
+		rejected_signal,
+		invalid_context_message,
+		disabled_message,
+		rejected_id_message,
+		unaccepted_id_message,
+		false,
+		null,
+		&"",
+		[],
+		"",
+		"",
+		""
+	)
+
+
+static func _receive_with_delegate(
+	host: Object,
+	context: Object,
+	id_key: String,
+	id_value: StringName,
+	enabled: bool,
+	accepted_ids: Array[StringName],
+	rejected_ids: Array[StringName],
+	metadata: Dictionary,
+	validation_callback: Callable,
+	validating_signal: StringName,
+	received_signal: StringName,
+	rejected_signal: StringName,
+	invalid_context_message: String,
+	disabled_message: String,
+	rejected_id_message: String,
+	unaccepted_id_message: String,
+	delegate_enabled: bool,
+	delegate_receiver: Object,
+	delegate_method: StringName,
+	delegate_args: Array,
+	missing_delegate_message: String,
+	invalid_delegate_message: String,
+	invalid_delegate_report_message: String,
+	target_property: StringName = &"target"
+) -> Dictionary:
 	if context == null:
 		var invalid_context_report := _make_report(host, false, id_key, id_value, "invalid_context", invalid_context_message, metadata)
 		host.emit_signal(rejected_signal, context, invalid_context_report)
@@ -59,13 +112,40 @@ static func _receive(
 		host.emit_signal(rejected_signal, context, blocked_report)
 		return blocked_report
 
-	if context.get("target") == null:
-		context.set("target", host)
+	if delegate_enabled and delegate_receiver == null:
+		var missing_delegate_report := _make_report(null, false, id_key, id_value, "missing_receiver", missing_delegate_message, metadata)
+		host.emit_signal(rejected_signal, context, missing_delegate_report)
+		return missing_delegate_report
 
-	var report := _make_report(host, true, id_key, id_value, "accepted", "", metadata)
+	if delegate_enabled and not delegate_receiver.has_method(delegate_method):
+		var invalid_delegate_report := _make_report(delegate_receiver, false, id_key, id_value, "invalid_receiver", invalid_delegate_message, metadata)
+		host.emit_signal(rejected_signal, context, invalid_delegate_report)
+		return invalid_delegate_report
+
+	var effective_receiver := delegate_receiver if delegate_enabled else host
+	var target_key := String(target_property)
+	if context.get(target_key) == null or context.get(target_key) == host:
+		context.set(target_key, effective_receiver)
+
+	var report := _make_report(effective_receiver, true, id_key, id_value, "accepted", "", metadata)
 	host.emit_signal(validating_signal, context, report.duplicate(true))
 	if validation_callback.is_valid():
 		report = _apply_validation_result(report, validation_callback.call(context, report.duplicate(true)))
+
+	if bool(report.get("ok", false)) and delegate_enabled:
+		var delegated_value: Variant = delegate_receiver.callv(delegate_method, delegate_args)
+		if delegated_value is Dictionary:
+			report = GFVariantData.duplicate_variant(delegated_value)
+		else:
+			report = _make_report(
+				delegate_receiver,
+				false,
+				id_key,
+				id_value,
+				"invalid_report",
+				invalid_delegate_report_message,
+				metadata
+			)
 
 	if bool(report.get("ok", false)):
 		host.emit_signal(received_signal, context, report)

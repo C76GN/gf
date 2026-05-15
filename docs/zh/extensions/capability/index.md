@@ -11,6 +11,13 @@
 如果能力需要参与全局生命周期、Tick 或跨模块调度，应继续使用 `GFSystem` / `GFUtility`；如果能力只是某个对象的局部组合行为，才使用 Capability。
 
 
+## 作为运行时接口
+
+Capability 可以被项目当作运行时接口使用：系统、交互逻辑或技能逻辑查询 receiver 是否拥有某个能力类型，再只依赖该能力公开的方法和数据，而不依赖 receiver 的具体脚本类。例如 `InteractableCapability`、`DamageableCapability`、`SelectableCapability` 这类小契约，适合表达“这个对象支持交互 / 承伤 / 选中”，并允许敌人、道具、UI 控件或临时生成对象用不同场景结构实现同一能力。
+
+这种用法应保持能力职责小而稳定。能力脚本可以持有局部状态、引用 receiver、实现 Hook、声明 `required_capabilities`，但不应变成包含移动、战斗、存档、UI 和任务规则的巨大对象；需要全局调度、跨实体缓存、Tick 顺序或长期核心数据时，应把这些职责放回 `GFSystem`、`GFUtility`、`GFModel` 或项目自己的资源，再让 Capability 只作为 receiver 上的查询入口和局部行为适配层。能力实例也具有单一 receiver 语义，同一个实例不要复用到多个对象；复用配置时用新实例或 `GFCapabilityRecipe`。
+
+
 ## 注册 Utility
 
 ```gdscript
@@ -134,7 +141,7 @@ Enemy
 
 容器进入场景树时会立即尝试把子节点能力注册到父节点 receiver，并保留一次延迟重试，便于宿主或状态机在 `_ready()` / `_enter()` 中查询已经随场景摆放好的 `GFNodeCapability`。如果旧场景或编辑器添加流程中留下的是带 `_gf_capability_container` 元数据、或命名为 `GFCapabilityContainer2D` / `GFCapabilityContainer3D` / `GFCapabilityContainerControl` / `GFCapabilityContainer` 的空间容器，但容器脚本没有成功附着，`GFCapabilityUtility.get_capability()` 也会在查询时同步扫描这些直属容器并注册其子能力。这样 Inspector 创建出的 2D/3D/UI 容器即使不是普通 `GFCapabilityContainer`，也应在 receiver `_ready()` 中可查询。该兜底只识别 GF 容器标记或 GF 容器命名，不会扫描任意普通子节点。
 
-如果运行时代码在 receiver 自身进入场景树的 setup 阶段动态添加 Node 能力，能力记录会立即写入，容器节点挂树会延迟到安全时机，避免 Godot 拒绝在 children setup 阶段 `add_child()`。该功能需要当前上下文或全局架构中已注册 `GFCapabilityUtility`；如果项目在容器进树后才初始化架构，可在架构就绪后调用 `register_children_now()` 主动扫描。
+如果运行时代码在 receiver 自身进入场景树的 setup 阶段动态添加 Node 能力，能力记录会立即写入，容器节点挂树会延迟到安全时机，避免 Godot 拒绝在 children setup 阶段 `add_child()`；如果 receiver 在同一帧被释放，延迟挂载或移除会在执行前重新检查节点有效性并静默放弃。该功能需要当前上下文或全局架构中已注册 `GFCapabilityUtility`；如果项目在容器进树后才初始化架构，可在架构就绪后调用 `register_children_now()` 主动扫描。
 
 能力实例具有单一 owner 语义，同一个 `GFCapability` / `GFNodeCapability` 实例不能同时挂到多个 receiver；需要复用配置时应创建新实例或使用 `GFCapabilityRecipe`。场景中的 `GFCapabilityContainer` 会跟踪已注册子能力的弱引用和退出树回调；子能力被提前 `remove_child()`、reparent 或释放时，也会从原 receiver 上注销，避免容器退出时只遍历当前子节点而漏掉已经移走的能力记录。`remove_capability()` 表示移除并释放由能力系统管理的实例；场景容器离树时会使用 `unregister_capability()` 只解除登记，不释放本来由场景树拥有的子节点。框架自动创建的空能力容器会在最后一个 Node 能力被移除后释放，避免场景树残留空容器。
 

@@ -168,7 +168,7 @@ func duplicate_entry() -> GFBlackboardEntry:
 	entry.value_type = value_type
 	entry.required = required
 	entry.allow_null = allow_null
-	entry.default_value = _duplicate_variant(default_value)
+	entry.default_value = GFVariantData.duplicate_variant(default_value)
 	entry.metadata = metadata.duplicate(true)
 	return entry
 
@@ -182,7 +182,7 @@ func describe() -> Dictionary:
 		"value_type_name": value_type_to_name(value_type),
 		"required": required,
 		"allow_null": allow_null,
-		"default_value": _duplicate_variant(default_value),
+		"default_value": GFVariantData.duplicate_variant(default_value),
 		"metadata": metadata.duplicate(true),
 	}
 
@@ -326,7 +326,9 @@ func _try_coerce_color(value: Variant) -> Dictionary:
 	if typeof(value) == TYPE_STRING or typeof(value) == TYPE_STRING_NAME:
 		var text := String(value).strip_edges()
 		if not text.is_empty():
-			return _make_coerce_result(true, Color(text))
+			if Color.html_is_valid(text):
+				return _make_coerce_result(true, Color.html(text))
+			return _make_coerce_result(false, Color.WHITE, "无效颜色字符串：%s" % text)
 
 	var channels := _read_numeric_fields(value, ["r", "g", "b", "a"], 3, 1.0)
 	if not bool(channels.get("ok", false)):
@@ -373,11 +375,3 @@ func _read_numeric_fields(value: Variant, field_names: Array, required_size: int
 			values.append(float(coerced["value"]))
 		return { "ok": true, "values": values }
 	return { "ok": false, "values": [] }
-
-
-func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

@@ -215,6 +215,11 @@ func back(layer: int = -1, do_free: bool = true) -> bool:
 
 	var route_id := StringName(entry.get("route_id", &""))
 	var route_layer := int(entry.get("layer", GFUIUtility.Layer.POPUP))
+	var route_panel := _get_history_panel(entry)
+	if route_panel == null or ui_utility.get_top_panel(route_layer as GFUIUtility.Layer) != route_panel:
+		push_warning("[GFUIRouterUtility] back 失败：路由面板不是当前 UI 栈顶。")
+		return false
+
 	ui_utility.pop_panel(route_layer as GFUIUtility.Layer, do_free)
 	_history.remove_at(history_index)
 	_prune_history()

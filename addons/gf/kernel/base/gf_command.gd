@@ -105,10 +105,7 @@ func _gf_set_dependency_scope(architecture: GFArchitecture) -> void:
 
 
 func _get_architecture() -> GFArchitecture:
-	var architecture := _get_architecture_or_null()
-	if architecture != null:
-		return architecture
-	return GFAutoload.get_architecture()
+	return _DEPENDENCY_SCOPE_SUPPORT._get_architecture_or_global(_dependency_scope, "GFCommand") as GFArchitecture
 
 
 func _release_dependency_scope() -> void:

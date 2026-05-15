@@ -129,7 +129,6 @@ func run(p_steps: Array = []) -> void:
 			step_failed.emit(index, step, step_error)
 			if stop_on_error:
 				break
-			step_completed.emit(index, step)
 			_current_step = null
 			continue
 

@@ -26,6 +26,15 @@ class TestOwner:
 	extends RefCounted
 
 
+class TestListener:
+	extends Node
+
+	var received: Array[int] = []
+
+	func on_changed(value: int) -> void:
+		received.append(value)
+
+
 # --- 私有变量 ---
 
 var _utility: GFUtility
@@ -124,7 +133,7 @@ func test_throttle_limits_signal_frequency() -> void:
 
 	emitter.emit_changed(1)
 	emitter.emit_changed(2)
-	await get_tree().create_timer(0.04).timeout
+	await _wait_real_msec(50)
 	emitter.emit_changed(3)
 	await get_tree().process_frame
 
@@ -233,6 +242,23 @@ func test_disconnect_owner_removes_owned_connections() -> void:
 	assert_eq(_utility.get_connection_count(), 0, "owner 清理后连接计数应归零。")
 
 
+func test_prune_invalid_connections_removes_released_callback_target_without_owner() -> void:
+	var emitter := TestEmitter.new()
+	var listener := TestListener.new()
+	add_child(listener)
+
+	_utility.connect_signal(emitter.changed, Callable(listener, "on_changed"))
+	assert_eq(_utility.get_connection_count(), 1, "释放监听目标前应记录连接。")
+
+	listener.queue_free()
+	await get_tree().process_frame
+
+	assert_eq(_utility.get_connection_count(), 0, "callback 目标失效后连接应能被清理。")
+	emitter.emit_changed(1)
+	await get_tree().process_frame
+	assert_eq(_utility.get_connection_count(), 0, "清理后再次发射信号不应恢复失效连接。")
+
+
 func test_invalid_callback_is_not_tracked_as_connection() -> void:
 	var emitter := TestEmitter.new()
 
@@ -258,3 +284,11 @@ func test_disconnect_signal_cancels_pending_delayed_callback() -> void:
 
 	assert_true(received.is_empty(), "延迟等待中的连接被断开后不应继续调用回调。")
 	assert_eq(_utility.get_connection_count(), 0, "断开延迟连接后追踪计数应归零。")
+
+
+# --- 私有/辅助方法 ---
+
+func _wait_real_msec(milliseconds: int) -> void:
+	var start_msec := Time.get_ticks_msec()
+	while Time.get_ticks_msec() - start_msec < milliseconds:
+		await get_tree().process_frame

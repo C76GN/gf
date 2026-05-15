@@ -8,6 +8,7 @@ extends Resource
 # --- 常量 ---
 
 const GFTweenActionStepBase = preload("res://addons/gf/extensions/action_queue/tween/gf_tween_action_step.gd")
+const GFValidationReportBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
 
 
 # --- 导出变量 ---
@@ -29,6 +30,12 @@ const GFTweenActionStepBase = preload("res://addons/gf/extensions/action_queue/t
 
 ## Tween 暂停模式。
 @export var pause_mode: Tween.TweenPauseMode = Tween.TWEEN_PAUSE_BOUND
+
+## 取消动作时是否恢复播放前捕获的属性值。
+@export var restore_initial_values_on_cancel: bool = false
+
+## 动作正常完成或 finish() 时是否恢复播放前捕获的属性值。
+@export var restore_initial_values_on_finish: bool = false
 
 
 # --- 公共方法 ---
@@ -86,6 +93,52 @@ func apply_instant(target: Object) -> void:
 			step.apply_instant(target)
 
 
+## 捕获所有有效步骤的初始属性值。
+## @param target: 目标对象。
+## @return 属性路径字符串到初始值的字典。
+func capture_initial_values(target: Object) -> Dictionary:
+	var snapshot: Dictionary = {}
+	for step: GFTweenActionStepBase in steps:
+		if step == null:
+			continue
+		var key := String(step.property_name)
+		if key.is_empty() or snapshot.has(key):
+			continue
+		if not step.get_validation_error(target).is_empty():
+			continue
+		snapshot[key] = step.capture_initial_value(target)
+	return snapshot
+
+
+## 恢复 capture_initial_values() 捕获的属性值。
+## @param target: 目标对象。
+## @param snapshot: 初始值快照。
+func restore_initial_values(target: Object, snapshot: Dictionary) -> void:
+	if not is_instance_valid(target):
+		return
+	for key: Variant in snapshot.keys():
+		var property_path := NodePath(String(key))
+		if property_path.is_empty():
+			continue
+		target.set_indexed(property_path, GFVariantData.duplicate_variant(snapshot[key]))
+
+
+## 获取配置对目标对象的校验报告。
+## @param target: 目标对象。
+## @return 校验报告。
+func get_validation_report(target: Object) -> GFValidationReport:
+	var report := GFValidationReportBase.new("GFTweenActionConfig") as GFValidationReport
+	for index: int in range(steps.size()):
+		var step := steps[index]
+		if step == null:
+			report.add_warning(&"null_step", "Tween step is null.", index)
+			continue
+		var validation_error := step.get_validation_error(target)
+		if not validation_error.is_empty():
+			report.add_error(&"invalid_step", validation_error, index, String(step.property_name))
+	return report
+
+
 ## 创建深拷贝。
 ## @return 新配置。
 func duplicate_config() -> GFTweenActionConfig:
@@ -95,6 +148,8 @@ func duplicate_config() -> GFTweenActionConfig:
 	config.ignore_time_scale = ignore_time_scale
 	config.process_mode = process_mode
 	config.pause_mode = pause_mode
+	config.restore_initial_values_on_cancel = restore_initial_values_on_cancel
+	config.restore_initial_values_on_finish = restore_initial_values_on_finish
 	for step: GFTweenActionStepBase in steps:
 		config.steps.append(step.duplicate_step() if step != null else null)
 	return config

@@ -57,6 +57,18 @@ func test_blackboard_schema_duplicate_isolated_entries() -> void:
 	assert_eq(schema_copy.entries.size(), 0, "拷贝应可独立修改。")
 
 
+func test_blackboard_entry_rejects_invalid_color_string() -> void:
+	var entry := GFBlackboardEntryBase.new()
+	entry.value_type = GFBlackboardEntry.ValueType.COLOR
+
+	var invalid_result := entry.try_coerce_value("not_a_color")
+	var valid_result := entry.try_coerce_value("#ff0000")
+
+	assert_false(bool(invalid_result.get("ok", false)), "无效颜色字符串不应静默转换为黑色。")
+	assert_true(bool(valid_result.get("ok", false)), "有效 HTML 颜色字符串应可转换。")
+	assert_eq(valid_result.get("value"), Color(1.0, 0.0, 0.0, 1.0), "颜色通道应来自输入文本。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_agent_schema() -> GFBlackboardSchema:

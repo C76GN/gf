@@ -354,6 +354,38 @@ func test_push_panel_async_ignores_late_callback_after_layer_clear() -> void:
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "清空层级后的迟到异步回调不应重新压入旧面板。")
 
 
+func test_push_panel_async_ignores_late_callback_after_pop_cancel() -> void:
+	_arch = GFArchitecture.new()
+	var asset_util := ManualAssetUtility.new()
+	_arch.register_utility_instance(asset_util)
+	await Gf.set_architecture(_arch)
+
+	var scene := _make_control_scene()
+	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
+	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
+
+	asset_util.resolve("res://tests/pending_async_panel.tscn", scene)
+	await get_tree().process_frame
+
+	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "pop 取消后的迟到异步回调不应重新压入旧面板。")
+
+
+func test_duplicate_pending_push_panel_async_is_coalesced() -> void:
+	_arch = GFArchitecture.new()
+	var asset_util := ManualAssetUtility.new()
+	_arch.register_utility_instance(asset_util)
+	await Gf.set_architecture(_arch)
+
+	var scene := _make_control_scene()
+	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_async("res://tests/pending_async_panel.tscn", GFUIUtility.Layer.POPUP)
+
+	asset_util.resolve("res://tests/pending_async_panel.tscn", scene)
+	await get_tree().process_frame
+
+	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 1, "同层同路径的重复异步 push 应只创建一个面板。")
+
+
 func _make_control_scene() -> PackedScene:
 	var control := Control.new()
 	var scene := PackedScene.new()

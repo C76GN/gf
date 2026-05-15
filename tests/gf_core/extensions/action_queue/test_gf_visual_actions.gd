@@ -178,6 +178,54 @@ func test_configured_tween_action_cancel_releases_waiters() -> void:
 	assert_true(completed.value, "取消配置化 Tween 时等待者应被释放。")
 
 
+func test_configured_tween_action_emits_step_markers() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+
+	var config := GF_TWEEN_ACTION_CONFIG.new()
+	var step := config.add_property_step(^"position", Vector2(4.0, 0.0), 0.01)
+	step.marker_id = &"arrived"
+	var action := config.create_action(node) as GFConfiguredTweenAction
+	var markers: Array[StringName] = []
+	action.marker_reached.connect(func(marker_id: StringName, _step_index: int, _target: Object) -> void:
+		markers.append(marker_id)
+	)
+	var result: Variant = action.execute()
+	await action.await_result_safely(result)
+
+	assert_eq(markers, [&"arrived"], "带 marker_id 的步骤完成后应发出 marker_reached。")
+
+
+func test_configured_tween_action_can_restore_initial_values_on_cancel() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	node.position = Vector2(2.0, 3.0)
+
+	var config := GF_TWEEN_ACTION_CONFIG.new()
+	config.restore_initial_values_on_cancel = true
+	config.add_property_step(^"position", Vector2(40.0, 0.0), 1.0)
+	var action := config.create_action(node)
+	var result: Variant = action.execute()
+	await get_tree().process_frame
+	action.cancel()
+	await get_tree().process_frame
+
+	assert_true(result is Signal, "带时长步骤应创建可等待动作。")
+	assert_eq(node.position, Vector2(2.0, 3.0), "取消时应恢复播放前捕获的属性值。")
+
+
+func test_tween_action_config_reports_invalid_steps() -> void:
+	var node := Node2D.new()
+	add_child_autofree(node)
+	var config := GF_TWEEN_ACTION_CONFIG.new()
+	config.add_property_step(^"missing_property", Vector2.ONE, 0.0)
+
+	var report := config.get_validation_report(node)
+
+	assert_false(report.is_ok(), "配置校验应复用 GFValidationReport 表达无效步骤。")
+	assert_eq(report.get_error_count(), 1, "缺失属性应产生一个错误。")
+
+
 func test_gf_action_factories_create_common_actions() -> void:
 	var node := Node2D.new()
 	add_child_autofree(node)

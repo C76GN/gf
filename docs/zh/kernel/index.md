@@ -232,3 +232,5 @@ var chain := GFScriptTypeInspector.get_inheritance_chain(player_script)
 ### `GFTimeProvider`
 
 `GFTimeProvider` 是 `GFArchitecture.tick()` / `physics_tick()` 识别的时间控制协议。标准库的 `GFTimeUtility` 继承该协议来提供全局暂停、时间缩放和物理子步；项目也可以实现自己的时间提供者，只要继承 `GFTimeProvider` 并注册为 Utility。
+
+局部 `GFArchitecture` 未注册自己的 `GFTimeProvider` 时，会在非严格依赖查询模式下动态回退到父级架构的时间提供者。父级后续注册、替换或注销时间提供者时，子架构下一帧会按当前父级状态重新解析，不需要重新初始化局部上下文。

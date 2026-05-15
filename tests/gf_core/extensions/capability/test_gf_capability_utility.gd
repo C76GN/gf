@@ -172,6 +172,18 @@ class EnterTreeAddReceiver extends Node:
 			added_capability = utility.add_capability(self, capability_type)
 
 
+class EnterTreeRemoveContainer extends Node:
+	var utility: Object = null
+	var receiver: Node = null
+	var capability: Node = null
+
+	func _enter_tree() -> void:
+		if utility == null or receiver == null or capability == null:
+			return
+		utility.add_capability_instance(receiver, capability, capability.get_script() as Script)
+		utility.remove_capability(receiver, capability.get_script() as Script)
+
+
 class BaseCapability extends GF_CAPABILITY_BASE:
 	pass
 
@@ -403,6 +415,26 @@ func test_removing_last_node_capability_cleans_generated_container() -> void:
 
 	receiver.queue_free()
 	await get_tree().process_frame
+
+
+func test_remove_node_capability_during_enter_tree_tolerates_receiver_free() -> void:
+	var receiver := Node.new()
+	var container := EnterTreeRemoveContainer.new()
+	container.name = "GFCapabilityContainer"
+	var capability := CapabilityNode.new()
+	container.utility = _utility
+	container.receiver = receiver
+	container.capability = capability
+	container.add_child(capability)
+	receiver.add_child(container)
+
+	add_child(receiver)
+	receiver.queue_free()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_false(is_instance_valid(receiver), "同帧移除能力并释放 receiver 后不应留下 receiver。")
+	assert_push_error_count(0, "延迟移除能力节点时不应对已释放父节点调用 remove_child。")
 
 
 func test_node2d_capability_uses_node2d_container() -> void:

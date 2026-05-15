@@ -73,6 +73,23 @@ class RecordingHurtBox2D extends GFHurtBox2D:
 		}
 
 
+class BusinessHitReceiver extends Node:
+	var received_context: GFCombatHitContext = null
+
+	func receive_hit(context: GFCombatHitContext) -> Dictionary:
+		received_context = context
+		return {
+			"ok": true,
+			"hit_id": context.hit_id,
+			"receiver": self,
+			"reason": "handled",
+			"message": "",
+			"metadata": {
+				"business": true,
+			},
+		}
+
+
 # --- 测试方法 ---
 
 ## 测试 GFModifiedAttribute 的修饰器计算。
@@ -943,6 +960,51 @@ func test_hurt_box_filters_hit_ids() -> void:
 	assert_false(bool(rejected["ok"]), "不在 accepted_hit_ids 内的命中应被拒绝。")
 	assert_eq(rejected["reason"], "unaccepted_id")
 	assert_true(bool(accepted["ok"]), "允许的命中 ID 应通过基础过滤。")
+
+
+func test_hurt_box_2d_receiver_path_forwards_hit_to_business_receiver() -> void:
+	var root := Node.new()
+	var hit_box := GFHitBox2D.new()
+	var hurt_box := GFHurtBox2D.new()
+	var business_receiver := BusinessHitReceiver.new()
+	add_child_autofree(root)
+	root.add_child(hit_box)
+	root.add_child(hurt_box)
+	root.add_child(business_receiver)
+	business_receiver.name = "BusinessReceiver"
+	hit_box.hit_id = &"impact"
+	hurt_box.accepted_hit_ids = [&"impact"]
+	hurt_box.receiver_path = NodePath("../BusinessReceiver")
+	watch_signals(hurt_box)
+
+	var report := hit_box.send_to(hurt_box)
+
+	assert_true(bool(report["ok"]), "通过本地过滤的 2D 命中应转发给业务接收器。")
+	assert_same(business_receiver.received_context.target, business_receiver, "转发时命中 target 应更新为业务接收器。")
+	assert_same(report["receiver"], business_receiver, "最终命中报告应来自业务接收器。")
+	assert_true(bool((report["metadata"] as Dictionary)["business"]), "业务命中接收器返回的报告应成为最终报告。")
+	assert_signal_emitted(hurt_box, "hit_received", "业务接收成功后 HurtBox 应发出接收信号。")
+
+
+func test_hurt_box_3d_receiver_path_forwards_hit_to_business_receiver() -> void:
+	var root := Node.new()
+	var hit_box := GFHitBox3D.new()
+	var hurt_box := GFHurtBox3D.new()
+	var business_receiver := BusinessHitReceiver.new()
+	add_child_autofree(root)
+	root.add_child(hit_box)
+	root.add_child(hurt_box)
+	root.add_child(business_receiver)
+	business_receiver.name = "BusinessReceiver"
+	hit_box.hit_id = &"impact"
+	hurt_box.accepted_hit_ids = [&"impact"]
+	hurt_box.receiver_path = NodePath("../BusinessReceiver")
+
+	var report := hit_box.send_to(hurt_box)
+
+	assert_true(bool(report["ok"]), "通过本地过滤的 3D 命中应转发给业务接收器。")
+	assert_same(business_receiver.received_context.target, business_receiver, "转发时 3D 命中 target 应更新为业务接收器。")
+	assert_same(report["receiver"], business_receiver, "最终 3D 命中报告应来自业务接收器。")
 
 
 func test_hit_and_hurt_boxes_emit_enabled_changed() -> void:

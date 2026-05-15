@@ -84,8 +84,8 @@ var _initialization_failed: bool = false
 # --- Godot 生命周期方法 ---
 
 func _init(parent_architecture: GFArchitecture = null) -> void:
-	_parent_architecture = parent_architecture
 	_event_system = GFTypeEventSystem.new()
+	_assign_parent_architecture(parent_architecture, "_init")
 
 
 # --- 公共方法 ---
@@ -133,7 +133,7 @@ func get_parent_architecture() -> GFArchitecture:
 ## 设置父级架构。不会接管父级生命周期。
 ## @param parent_architecture: 要作为依赖回退来源的父级架构。
 func set_parent_architecture(parent_architecture: GFArchitecture) -> void:
-	_parent_architecture = parent_architecture
+	_assign_parent_architecture(parent_architecture, "set_parent_architecture")
 
 
 ## 检查项目级 Installer 是否已经应用到当前架构。
@@ -257,14 +257,15 @@ func dispose() -> void:
 func tick(delta: float) -> void:
 	if not _inited:
 		return
-	var scaled_delta: float = _get_scaled_delta(delta)
+	var time_provider := _get_time_provider()
+	var scaled_delta: float = _get_scaled_delta(delta, time_provider)
 	_is_iterating_tick_caches = true
 	for system: Object in _tick_systems:
 		if is_instance_valid(system) and _is_module_ready_for_tick(system):
-			system.tick(_get_module_delta(system, delta, scaled_delta))
+			system.tick(_get_module_delta(system, delta, scaled_delta, time_provider))
 	for utility: Object in _tick_utilities:
 		if is_instance_valid(utility) and _is_module_ready_for_tick(utility):
-			utility.tick(_get_module_delta(utility, delta, scaled_delta))
+			utility.tick(_get_module_delta(utility, delta, scaled_delta, time_provider))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
 
@@ -278,17 +279,18 @@ func tick(delta: float) -> void:
 func physics_tick(delta: float) -> void:
 	if not _inited:
 		return
-	if _time_provider != null and bool(_time_provider.call("should_substep_physics", delta)):
-		var scaled_steps: Array = _time_provider.call("get_physics_scaled_delta_steps", delta) as Array
+	var time_provider := _get_time_provider()
+	if time_provider != null and bool(time_provider.call("should_substep_physics", delta)):
+		var scaled_steps: Array = time_provider.call("get_physics_scaled_delta_steps", delta) as Array
 		if scaled_steps.is_empty():
 			return
 		var raw_step := delta / float(scaled_steps.size())
 		for scaled_step_variant: Variant in scaled_steps:
-			_drive_physics_tick_step(raw_step, float(scaled_step_variant))
+			_drive_physics_tick_step(raw_step, float(scaled_step_variant), time_provider)
 		return
 
-	var scaled_delta: float = _get_scaled_delta(delta)
-	_drive_physics_tick_step(delta, scaled_delta)
+	var scaled_delta: float = _get_scaled_delta(delta, time_provider)
+	_drive_physics_tick_step(delta, scaled_delta, time_provider)
 
 
 ## 执行命令实例。支持 await：'await send_command(MyCommand.new())'。
@@ -1401,23 +1403,51 @@ func _reset_project_installers() -> void:
 		project_installers_finished.emit()
 
 
+func _assign_parent_architecture(parent_architecture: GFArchitecture, context: String) -> void:
+	if parent_architecture == null:
+		_parent_architecture = null
+		return
+	if parent_architecture == self:
+		push_error("[GFArchitecture] %s 失败：父级架构不能是自身。" % context)
+		return
+	if _parent_chain_contains(parent_architecture, self):
+		push_error("[GFArchitecture] %s 失败：父级架构会形成循环引用。" % context)
+		return
+	_parent_architecture = parent_architecture
+
+
+func _parent_chain_contains(parent_architecture: GFArchitecture, expected: GFArchitecture) -> bool:
+	var visited: Dictionary = {}
+	var current := parent_architecture
+	while current != null:
+		if current == expected:
+			return true
+		var instance_id := current.get_instance_id()
+		if visited.has(instance_id):
+			return false
+		visited[instance_id] = true
+		current = current.get_parent_architecture()
+	return false
+
+
 ## 获取经过时间工具缩放后的 delta。若未注册 GFTimeProvider，则返回原始 delta。
 ## @param delta: 引擎原始帧间隔时间。
+## @param time_provider: 本帧解析出的时间工具；为空时不缩放。
 ## @return 缩放后的 delta。
-func _get_scaled_delta(delta: float) -> float:
-	if _time_provider == null:
+func _get_scaled_delta(delta: float, time_provider: Object) -> float:
+	if time_provider == null:
 		return delta
-	return float(_time_provider.call("get_scaled_delta", delta))
+	return float(time_provider.call("get_scaled_delta", delta))
 
 
-func _drive_physics_tick_step(raw_delta: float, scaled_delta: float) -> void:
+func _drive_physics_tick_step(raw_delta: float, scaled_delta: float, time_provider: Object) -> void:
 	_is_iterating_tick_caches = true
 	for system: Object in _physics_systems:
 		if is_instance_valid(system) and _is_module_ready_for_tick(system):
-			system.physics_tick(_get_module_delta(system, raw_delta, scaled_delta))
+			system.physics_tick(_get_module_delta(system, raw_delta, scaled_delta, time_provider))
 	for utility: Object in _physics_utilities:
 		if is_instance_valid(utility) and _is_module_ready_for_tick(utility):
-			utility.physics_tick(_get_module_delta(utility, raw_delta, scaled_delta))
+			utility.physics_tick(_get_module_delta(utility, raw_delta, scaled_delta, time_provider))
 	_is_iterating_tick_caches = false
 	_flush_tick_cache_refresh()
 
@@ -1426,14 +1456,15 @@ func _drive_physics_tick_step(raw_delta: float, scaled_delta: float) -> void:
 ## @param instance: 被驱动的模块实例。
 ## @param raw_delta: 引擎原始 delta。
 ## @param scaled_delta: 已经由 GFTimeProvider 处理后的 delta。
+## @param time_provider: 本帧解析出的时间工具；为空时返回原始 delta。
 ## @return 模块本次应接收的 delta。
-func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float) -> float:
-	if _time_provider == null:
+func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float, time_provider: Object) -> float:
+	if time_provider == null:
 		return raw_delta
 
 	var ignores_pause: bool = "ignore_pause" in instance and instance.get("ignore_pause") == true
 	var ignores_time_scale: bool = "ignore_time_scale" in instance and instance.get("ignore_time_scale") == true
-	if bool(_time_provider.call("is_time_paused")):
+	if bool(time_provider.call("is_time_paused")):
 		return raw_delta if ignores_pause else 0.0
 
 	if ignores_time_scale:
@@ -1982,14 +2013,16 @@ func _instance_matches_registration_label(instance: Object, label: String) -> bo
 
 func _refresh_cached_utility_refs() -> void:
 	_time_provider = _get_local_registered_instance(_utility_registry, GFTimeProviderBase)
-	if _time_provider == null and not strict_dependency_lookup and _parent_architecture != null:
-		_time_provider = _parent_architecture._get_time_provider()
 
 
 func _get_time_provider() -> Object:
 	if _time_provider == null:
 		_refresh_cached_utility_refs()
-	return _time_provider
+	if _time_provider != null:
+		return _time_provider
+	if _parent_architecture != null and not strict_dependency_lookup:
+		return _parent_architecture._get_time_provider()
+	return null
 
 
 func _get_command_history_store() -> Object:

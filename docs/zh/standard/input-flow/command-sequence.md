@@ -82,7 +82,7 @@ sequence.run()
 
 如果步骤返回 `Signal`，默认会等待；Signal 发出的第一个参数会作为该步骤结果继续进入失败策略判断，多个参数会以数组形式保留。因此异步步骤可以 `completed.emit({ "ok": false, "error": "..." })`，序列会像同步返回失败字典一样处理。`GFSequenceStep.wait_for_result = false` 可把某个步骤声明为不阻塞序列。`cancel()` 会先通知当前步骤的 `cancel(context)` 钩子；普通对象步骤如果提供无参 `cancel()` 也会被调用。随后序列会停止当前等待、不再执行后续步骤，并发出 `sequence_cancelled`。Signal 等待默认有 30 秒超时，`with_signal_timeout(seconds, respect_time_scale)` 可配置等待上限，并默认跟随 `GFTimeUtility` 的暂停与 `time_scale`。
 
-需要更严格的流程控制时，可以配置失败策略。步骤返回 `{"ok": false, "error": "..."}`、`{"success": false}` 或 `{"status": "error"}` / `"failed"` / `"failure"` 这类失败字典时，序列会发出 `step_failed`，并把结果写入 `last_run_report`。只 `push_error()` 或返回任意自定义对象不会自动被视为失败；项目层应把可判定失败的步骤收敛为这些结果字典。默认继续执行后续步骤；开启 `stop_on_error` 后会停止，开启 `rollback_on_failure` 后会逆序调用已完成步骤的 `undo()`。
+需要更严格的流程控制时，可以配置失败策略。步骤返回 `{"ok": false, "error": "..."}`、`{"success": false}` 或 `{"status": "error"}` / `"failed"` / `"failure"` 这类失败字典时，序列会发出 `step_failed`，并把结果写入 `last_run_report`；失败步骤不会同时发出 `step_completed`。只 `push_error()` 或返回任意自定义对象不会自动被视为失败；项目层应把可判定失败的步骤收敛为这些结果字典。默认继续执行后续步骤；开启 `stop_on_error` 后会停止，开启 `rollback_on_failure` 后会逆序调用已完成步骤的 `undo()`。
 
 ```gdscript
 var sequence := GFCommandSequence.new([

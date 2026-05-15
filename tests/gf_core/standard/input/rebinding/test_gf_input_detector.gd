@@ -71,6 +71,17 @@ func test_countdown_delays_input_acceptance() -> void:
 	assert_not_null(_received_event, "倒计时结束后应接收输入。")
 
 
+## 验证无倒计时且无需清理时会立即进入接收状态。
+func test_detection_state_reports_accepting_phase() -> void:
+	_detector.countdown_seconds = 0.0
+	_detector.wait_for_clear_before_detection = false
+
+	_detector.begin_detection()
+
+	assert_eq(_detector.get_detection_state(), GFInputDetectorBase.DetectionState.DETECTING, "检测器应立即进入接收阶段。")
+	assert_true(_detector.is_accepting_input(), "接收阶段应允许候选输入。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_key_event(key: Key, pressed: bool) -> InputEventKey:

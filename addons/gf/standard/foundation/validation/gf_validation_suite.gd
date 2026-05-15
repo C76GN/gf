@@ -1,0 +1,180 @@
+## GFValidationSuite: 通用校验套件资源。
+##
+## 保存一组规则与可选资源路径筛选条件。套件只描述“要检查什么”，实际加载、
+## 实例化和报告聚合由 GFValidationRunner 完成。
+class_name GFValidationSuite
+extends Resource
+
+
+# --- 常量 ---
+
+const GFValidationRuleBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_rule.gd")
+
+
+# --- 导出变量 ---
+
+## 套件标识。
+@export var suite_id: StringName = &""
+
+## 套件说明。
+@export_multiline var description: String = ""
+
+## 是否启用套件。
+@export var enabled: bool = true
+
+## 是否把警告提升为错误。
+@export var treat_warnings_as_errors: bool = false
+
+## 校验规则列表。
+@export var rules: Array[GFValidationRuleBase] = []
+
+## 需要扫描的路径。可以是文件或目录；为空时不自动扫描。
+@export var include_paths: PackedStringArray = PackedStringArray()
+
+## 需要排除的路径或通配模式。
+@export var exclude_paths: PackedStringArray = PackedStringArray()
+
+## 资源文件扩展名，不含点号。
+@export var resource_extensions: PackedStringArray = PackedStringArray(["tres", "res"])
+
+## 场景文件扩展名，不含点号。
+@export var scene_extensions: PackedStringArray = PackedStringArray(["tscn", "scn"])
+
+## 扫描目录时是否递归。
+@export var recursive: bool = true
+
+## 扫描目录时是否包含隐藏目录和文件。
+@export var include_hidden: bool = false
+
+## 可选元数据。框架不解释该字段。
+@export var metadata: Dictionary = {}
+
+
+# --- 公共方法 ---
+
+## 添加规则。
+## @param rule: 规则资源。
+## @return 添加成功返回 true。
+func add_rule(rule: GFValidationRuleBase) -> bool:
+	if rule == null:
+		return false
+	rules.append(rule)
+	return true
+
+
+## 移除规则。
+## @param rule: 规则资源。
+## @return 移除成功返回 true。
+func remove_rule(rule: GFValidationRuleBase) -> bool:
+	var index := rules.find(rule)
+	if index < 0:
+		return false
+	rules.remove_at(index)
+	return true
+
+
+## 获取启用的规则。
+## @return 规则数组副本。
+func get_enabled_rules() -> Array[GFValidationRuleBase]:
+	var result: Array[GFValidationRuleBase] = []
+	if not enabled:
+		return result
+	for rule: GFValidationRuleBase in rules:
+		if rule != null and rule.enabled:
+			result.append(rule)
+	return result
+
+
+## 检查路径是否会被套件扫描。
+## @param path: 资源或场景路径。
+## @return 匹配返回 true。
+func matches_path(path: String) -> bool:
+	if path.is_empty():
+		return false
+	if _is_excluded(path):
+		return false
+	return _is_supported_file(path)
+
+
+## 收集 include_paths 中匹配的资源和场景路径。
+## @return 已排序路径列表。
+func collect_paths() -> PackedStringArray:
+	var result := PackedStringArray()
+	if not enabled:
+		return result
+
+	for include_path: String in include_paths:
+		_collect_path(include_path, result)
+	result.sort()
+	return result
+
+
+## 创建套件配置副本。
+## @return 新套件。
+func duplicate_suite() -> GFValidationSuite:
+	var suite := GFValidationSuite.new()
+	suite.suite_id = suite_id
+	suite.description = description
+	suite.enabled = enabled
+	suite.treat_warnings_as_errors = treat_warnings_as_errors
+	suite.include_paths = include_paths.duplicate()
+	suite.exclude_paths = exclude_paths.duplicate()
+	suite.resource_extensions = resource_extensions.duplicate()
+	suite.scene_extensions = scene_extensions.duplicate()
+	suite.recursive = recursive
+	suite.include_hidden = include_hidden
+	suite.metadata = metadata.duplicate(true)
+	for rule: GFValidationRuleBase in rules:
+		suite.rules.append(rule.duplicate_rule() if rule != null else null)
+	return suite
+
+
+# --- 私有/辅助方法 ---
+
+func _collect_path(path: String, result: PackedStringArray) -> void:
+	if path.is_empty() or _is_excluded(path):
+		return
+	if FileAccess.file_exists(path):
+		if matches_path(path) and not result.has(path):
+			result.append(path)
+		return
+
+	var dir := DirAccess.open(path)
+	if dir == null:
+		return
+	dir.include_hidden = include_hidden
+	dir.include_navigational = false
+	dir.list_dir_begin()
+	var entry := dir.get_next()
+	while not entry.is_empty():
+		var child_path := path.path_join(entry)
+		if dir.current_is_dir():
+			if recursive and _should_scan_directory(entry, child_path):
+				_collect_path(child_path, result)
+		elif matches_path(child_path) and not result.has(child_path):
+			result.append(child_path)
+		entry = dir.get_next()
+	dir.list_dir_end()
+
+
+func _should_scan_directory(entry: String, path: String) -> bool:
+	if not include_hidden and entry.begins_with("."):
+		return false
+	return not _is_excluded(path)
+
+
+func _is_supported_file(path: String) -> bool:
+	var extension := path.get_extension().to_lower()
+	return resource_extensions.has(extension) or scene_extensions.has(extension)
+
+
+func _is_excluded(path: String) -> bool:
+	for pattern: String in exclude_paths:
+		if pattern.is_empty():
+			continue
+		if path == pattern or path.begins_with(pattern.path_join("")):
+			return true
+		if pattern.contains("*") or pattern.contains("?"):
+			if path.match(pattern):
+				return true
+	return false

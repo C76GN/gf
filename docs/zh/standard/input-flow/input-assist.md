@@ -29,6 +29,7 @@ gameplay_context.mappings = [jump_mapping]
 var input_map := Gf.get_utility(GFInputMappingUtility) as GFInputMappingUtility
 input_map.enable_context(gameplay_context, 10)
 
+# 在 GFSystem.tick() 或状态 update() 中消费一次性动作。
 if input_map.consume_action(&"jump"):
 	print("jump requested")
 ```
@@ -36,6 +37,10 @@ if input_map.consume_action(&"jump"):
 运行时用代码组装 `GFInputAction` / `GFInputMapping` / `GFInputContext` 是合法的，适合原型、自动生成配置或测试；正式项目若希望策划可调、可复用和便于改键界面展示，通常把它们保存成 `.tres` 资源再由 Installer、System `ready()` 或场景入口启用。不要在 `GFSystem._init()` 里获取 Model/Utility 或启用上下文：构造阶段还没有完成架构注入，跨模块依赖应放在 `ready()`，纯内部默认值才放在 `init()` / `_init()`。
 
 连续轴输入可以监听 `action_value_changed` 后写入项目自己的输入 Model，也可以在 System `tick()` 中调用 `get_action_vector()` / `get_action_value()` 轮询；两种方式都符合框架边界。跳跃、攻击、确认这类一次性意图更推荐使用 `consume_action()`、`action_started` 或触发器语义，避免把按下、按住和释放都混成普通 value change。二维移动可用一个 `AXIS_2D` 动作配四个方向绑定，再通过 `get_action_vector(&"move")` 读取；拆成 `move_x` / `move_y` 也可以，但后续死区、归一化和重绑展示通常会更分散。
+
+`consume_action(action_id)` 消费的是 `GFInputMappingUtility` 已经处理出的 just-started 状态，不会读取任意节点 `_input(event)` 正在收到的当前 `InputEvent`。Utility 初始化后会创建内部 `GFInputMappingRouter` 节点并在它自己的 `_input()` 中调用 `handle_input_event(event)`；Godot 对不同节点 `_input()` 的调用顺序不应该作为项目逻辑依赖。如果项目节点先于内部 router 收到同一个事件，直接在该节点 `_input()` 中调用 `consume_action()` 可能返回 `false`，因为当前事件还没有被 GF 输入映射转换成抽象动作。
+
+因此，一次性动作的推荐读取位置是 `GFSystem.tick()`、状态机 `update()`，或监听 `action_started(action_id, value)` / `player_action_started(player_index, action_id, value)`。如果项目只想在 `_input(event)` 中判断 Godot 原生 InputMap 的当前事件，应直接使用 `event.is_action_pressed("jump")` 等 Godot API；如果确实要在项目自己的 `_input(event)` 中接管 GF 输入桥接，需要先调用 `input_map.handle_input_event(event)` 再查询或消费动作，并确保同一个事件不会又被内部 router 重复处理。
 
 如果项目还需要“提前输入仍能在短时间内执行”或“状态刚刚失效后仍保留一个宽容窗口”这类手感规则，再注册 `GFInputAssistUtility`。它的 API 会明确写出 `buffered` 和 `grace_window`，避免和 `GFInputMappingUtility.consume_action()` 的“消费本帧刚触发动作”混淆：
 
@@ -72,6 +77,35 @@ func _process(delta: float) -> void:
 ```
 
 `GFPointerActivityUtility` 发出 `pointer_pressed`、`pointer_moved`、`pointer_drag_started`、`pointer_dragged`、`pointer_drag_ended`、`pointer_released` 和空闲相关信号，只描述输入活动本身。是否把拖拽解释成地图平移、物品拖放、框选、UI 滚动或编辑器画刷，应继续留在项目层或具体工具层。
+
+如果项目已经把鼠标、触摸、手柄光标或编辑器指针整理成统一位置，并希望再把“拖拽会话”和“可释放落点”拆出来复用，可以使用 `GFDragDropUtility`。它只管理 `GFDragSession`、`GFDropZone`、命中排序和 drop 结果包装，不读取 `InputEvent`，不移动节点，也不规定背包、棋盘、卡牌、技能栏或编辑器工具的业务含义。
+
+```gdscript
+var drag_drop := GFDragDropUtility.new()
+var toolbar_drop := func(session: GFDragSession, zone: GFDropZone, position: Variant) -> Dictionary:
+	return {
+		"ok": true,
+		"payload": session.payload,
+		"zone": zone.zone_id,
+		"position": position,
+	}
+
+drag_drop.register_rect_zone(
+	&"toolbar",
+	Rect2(Vector2(0.0, 0.0), Vector2(320.0, 64.0)),
+	PackedStringArray(["command"]),
+	{
+		"priority": 10,
+		"drop": toolbar_drop,
+	}
+)
+
+var session_id := drag_drop.start_drag(&"command", { "id": &"inspect" }, pointer_position)
+drag_drop.update_drag(session_id, pointer_position)
+var result := drag_drop.drop(session_id, release_position)
+```
+
+`GFDropZone` 可以由矩形、`Control.get_global_rect()` 或自定义 `contains_callable` 描述命中范围；`accepted_types` 为空表示不限制拖拽类型，`priority` 越大越优先。更复杂的权限、容量、冷却、网格占用或跨模块事务应写在项目自己的 `can_accept` / `drop` 回调、Command 或 System 中，再把最终结果以 `{ "ok": true }` 或 `{ "ok": false, "reason": ... }` 返回给工具。
 
 自动化测试、回放、AI 控制或项目自己的输入桥接可以使用 `GFVirtualInputSource` 写入抽象动作值，而不是伪造具体按键。虚拟源仍要求动作已经通过上下文注册，并会复用 `GFInputMappingUtility` 的动作值、触发器、全局/玩家级状态和一次性 started/completed 语义：
 
@@ -121,7 +155,7 @@ profiles.set_active_profile(&"gamepad")
 input_map.set_remap_config(profiles.get_active_profile())
 ```
 
-`GFInputRemapConfig.to_dict()` 会把覆盖的 `InputEvent` 与显式解绑记录转换为可写入配置或存档的字典，`from_dict()` 可恢复，`duplicate_config()` 会用同一套持久化格式做深拷贝；默认绑定仍来自上下文资源，不会被复制进重映射配置。新的重映射记录使用白名单事件类型和结构化属性，不再为新数据写入 `str_to_var()` 文本；旧格式仍可被读取，便于已有存档渐进迁移。`GFInputDetector` 可放进改键界面中检测下一次输入；`GFInputFormatter` 提供轻量文本格式化，便于设置界面展示当前绑定。Joypad 默认会通过 `GFInputDeviceTextProvider` 输出抽象方位文本，例如 Button South、Left Stick X，也可通过 options 或注册自定义 `GFInputTextProvider` 替换为平台图标、图标字体或本地化文本；需要 RichTextLabel 图标输出时，可继承 `GFInputIconProvider` 把输入事件映射为项目自己的 `Texture2D` 或 BBCode，`input_event_as_rich_text()` 会优先使用图标 provider，再回退到文本。`GFInputIconAtlasProvider` 是内置的可配置图标 provider：它把按键、鼠标、手柄按钮和手柄轴归一化成 `key:k`、`mouse:left`、`joy_button:south`、`joy_axis:left_x_positive` 这类通用键，再通过显式路径、纹理映射或 `{root}/{style}/{platform}/{icon}.png` 模板解析图标。`GFInputConflictAnalyzer` 可在保存重绑定前检查同一上下文或跨上下文的有效输入冲突，也可以通过 `build_rebind_report()` 一次性获取有效绑定条目和冲突列表。它只读取资源和重映射配置，不接管运行时输入逻辑。编辑器中的 `GF Workspace > Input` 页面复用同一套资源与冲突分析能力，用于只读查看 `GFInputContext` 中的动作、绑定和结构问题，不保存项目按键配置，也不规定输入设置界面布局。
+`GFInputRemapConfig.to_dict()` 会把覆盖的 `InputEvent` 与显式解绑记录转换为可写入配置或存档的字典，`from_dict()` 可恢复，`duplicate_config()` 会用同一套持久化格式做深拷贝；默认绑定仍来自上下文资源，不会被复制进重映射配置。新的重映射记录使用白名单事件类型和结构化属性，不再为新数据写入 `str_to_var()` 文本；旧格式仍可被读取，便于已有存档渐进迁移。`GFInputDetector` 可放进改键界面中检测下一次输入；它通过 `DetectionState` 区分空闲、倒计时、预清理、正式检测和检测后清理阶段，`wait_for_clear_before_detection` 可避免“打开改键界面的确认键”立刻被记录，`wait_for_clear_after_detection` 可让项目等候检测到的按键或轴释放后再提交结果。`GFInputFormatter` 提供轻量文本格式化，便于设置界面展示当前绑定。Joypad 默认会通过 `GFInputDeviceTextProvider` 输出抽象方位文本，例如 Button South、Left Stick X，也可通过 options 或注册自定义 `GFInputTextProvider` 替换为平台图标、图标字体或本地化文本；需要 RichTextLabel 图标输出时，可继承 `GFInputIconProvider` 把输入事件映射为项目自己的 `Texture2D` 或 BBCode，`input_event_as_rich_text()` 会优先使用图标 provider，再回退到文本。`GFInputIconAtlasProvider` 是内置的可配置图标 provider：它把按键、鼠标、手柄按钮和手柄轴归一化成 `key:k`、`mouse:left`、`joy_button:south`、`joy_axis:left_x_positive` 这类通用键，再通过显式路径、纹理映射或 `{root}/{style}/{platform}/{icon}.png` 模板解析图标。`GFInputConflictAnalyzer` 可在保存重绑定前检查同一上下文或跨上下文的有效输入冲突，也可以通过 `build_rebind_report()` 一次性获取有效绑定条目和冲突列表。它只读取资源和重映射配置，不接管运行时输入逻辑。编辑器中的 `GF Workspace > Input` 页面复用同一套资源与冲突分析能力，用于只读查看 `GFInputContext` 中的动作、绑定和结构问题，不保存项目按键配置，也不规定输入设置界面布局。
 
 ```gdscript
 var icons := GFInputIconAtlasProvider.new()
@@ -138,7 +172,7 @@ var rich_text := GFInputFormatter.input_event_as_rich_text(jump_binding.input_ev
 
 动作值可通过 `GFInputModifier` 组合处理，例如死区、缩放、归一化和范围映射；动作活跃可通过 `GFInputTrigger` 延迟判断，例如按下、释放、短按、长按、周期脉冲、组合动作和动作序列。修饰器可以挂在 Binding 或 Mapping 上，触发器挂在 Mapping 上，运行时仍只暴露抽象动作状态，不把移动、攻击或 UI 选择规则写进输入层。同一 `action_id` 出现在多个已启用上下文时，动作定义、Mapping 级修饰器和触发器按实际处理顺序采用第一个定义；也就是高优先级上下文会覆盖低优先级上下文的动作语义，低优先级上下文不会反向改写这些定义。
 
-内置修饰器各自只处理通用数值变换：`GFInputDeadzoneModifier` 处理摇杆死区并可重映射剩余范围，`GFInputScaleModifier` 调节或反转轴分量，`GFInputNormalizeModifier` 限制二维/三维向量长度，`GFInputMapRangeModifier` 把输入范围线性映射到目标范围。内置触发器各自只处理通用动作时序：`GFInputPressedTrigger` 只在按下瞬间触发，`GFInputReleasedTrigger` 只在释放瞬间触发，`GFInputTapTrigger` 识别短按，`GFInputHoldTrigger` 识别长按，`GFInputPulseTrigger` 在持续输入时周期触发，`GFInputChordTrigger` 要求另一个动作同时活跃，`GFInputSequenceTrigger` 要求动作按顺序完成。组合键和动作序列都基于抽象 action id，不绑定具体键位。
+内置修饰器各自只处理通用数值变换：`GFInputDeadzoneModifier` 处理摇杆死区并可重映射剩余范围，`GFInputScaleModifier` 调节或反转轴分量，`GFInputNormalizeModifier` 限制二维/三维向量长度，`GFInputMapRangeModifier` 把输入范围线性映射到目标范围，`GFInputCurveModifier` 按 `Curve` 采样灵敏度或压力响应，`GFInputSwizzleModifier` 重排二维/三维分量，`GFInputMagnitudeModifier` 把多轴输入投影成幅值，`GFInputSignClampModifier` 只保留正向或负向分量，`GFInputVirtualCursorModifier` 把抽象速度积分为一个受限位置。虚拟光标修饰器只维护数值坐标，不读取 Viewport 或 Control；若要移动真实节点、焦点或 UI 光标，应由项目层消费输出位置。内置触发器各自只处理通用动作时序：`GFInputPressedTrigger` 只在按下瞬间触发，`GFInputReleasedTrigger` 只在释放瞬间触发，`GFInputTapTrigger` 识别短按，`GFInputHoldTrigger` 识别长按，`GFInputPulseTrigger` 在持续输入时周期触发，`GFInputChordTrigger` 要求另一个动作同时活跃，`GFInputSequenceTrigger` 要求动作按顺序完成。组合键和动作序列都基于抽象 action id，不绑定具体键位。
 
 简单序列可继续使用 `GFInputSequenceTrigger.required_action_ids`。需要多条可替代路径、单步最大间隔、按住时间或释放完成条件时，使用 `GFInputSequenceBranch` 和 `GFInputSequenceStep` 描述资源化序列：
 
@@ -155,7 +189,9 @@ var trigger := GFInputSequenceTrigger.new()
 trigger.branches = [branch]
 ```
 
-`GFInputMappingUtility` 会同步记录动作的 just-started、just-completed 和最近一次完成前的持续时间，供释放型触发器或项目层读取。全局查询使用 `was_action_just_completed(action_id)` / `get_last_completed_duration(action_id)`；本地多人使用对应的 `*_for_player()` 接口。一次性状态会保留到至少经过一次 GF System tick 的观察窗口后再清理：普通输入事件可在同帧 System 中消费，长按、短按或序列触发器在 Utility tick 中生成的动作可在下一次 System tick 中消费。持续时间只描述抽象动作状态，不包含具体按键、技能窗口或业务判定。
+`GFInputMappingUtility` 会同步记录动作的 just-started、just-completed 和最近一次完成前的持续时间，供释放型触发器或项目层读取。全局查询使用 `was_action_just_started(action_id)` / `was_action_just_completed(action_id)` / `get_last_completed_duration(action_id)`；本地多人使用对应的 `*_for_player()` 接口。一次性状态会保留到至少经过一次 GF System tick 的观察窗口后再清理：普通输入事件可在同帧 System 中消费，长按、短按或序列触发器在 Utility tick 中生成的动作可在下一次 System tick 中消费。持续时间只描述抽象动作状态，不包含具体按键、技能窗口或业务判定。
+
+排查 `consume_action()` 没有触发时，先确认 `action_id` 与 `GFInputAction.action_id` 完全一致，包含大小写；确认对应 `GFInputContext` 已启用，且绑定的 `InputEvent` 类型与实际事件匹配；确认没有更高优先级上下文的动作通过 `block_lower_priority_actions` 阻断同一个输入；如果动作使用了 `Released`、`Tap`、`Hold`、`Pulse` 或 `Sequence` 触发器，还要按触发器语义检查它是在按下、释放、持续时间满足，还是序列完成时才会进入 just-started。
 
 `GFInputAction.ValueType` 支持 `BOOL`、`AXIS_1D`、`AXIS_2D` 与 `AXIS_3D`。`GFInputBinding.ValueTarget.AUTO` 会按动作值类型自动产出贡献值，但二维/三维动作默认写入 X 分量；摇杆 Y、右摇杆、Z 轴或按钮方向应使用显式 `AXIS_2D_*` / `AXIS_3D_*` 目标。`get_action_vector()` / `get_action_vector_for_player()` 返回 `Vector2`；需要三维输入时使用 `get_action_vector3()` 或 `get_action_vector3_for_player()`。
 
@@ -172,10 +208,10 @@ for assignment in devices.get_assignments():
 
 `GFInputDeviceAssignment` 只是“玩家席位 -> 设备”的资源化记录，字段包含 `player_index`、`device_type`、`device_id` 和项目自定义 `metadata`，不会绑定任何动作名。键鼠通常使用设备 ID `0`，AI、虚拟触屏或自定义席位可以使用项目约定的 ID。
 
-`GFInputDeviceUtility` 会把输入事件解析到玩家席位；`GFInputMappingUtility` 在存在该工具时会同步维护玩家级动作状态：
+`GFInputDeviceUtility` 会把输入事件解析到玩家席位；`GFInputMappingUtility` 在存在该工具时会同步维护玩家级动作状态。事件由 `GFInputMappingUtility` 处理后，System 或状态逻辑可以按已知玩家索引消费：
 
 ```gdscript
-var player_index := devices.handle_input_event(event)
+var player_index := devices.active_player_index
 if input_map.consume_action_for_player(player_index, &"confirm"):
 	print("player confirm: ", player_index)
 

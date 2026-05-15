@@ -80,13 +80,17 @@ static func is_valid_decimal_parts(
 		return false
 	if integer_part.is_empty() and fractional_part.is_empty():
 		return false
-	return contains_only_digits(integer_part) and contains_only_digits(fractional_part)
+	var integer_valid := integer_part.is_empty() or contains_only_digits(integer_part)
+	var fractional_valid := fractional_part.is_empty() or contains_only_digits(fractional_part)
+	return integer_valid and fractional_valid
 
 
 ## 判断文本是否只包含数字字符。
 ## @param text: 输入文本。
 ## @return 只包含数字时返回 true。
 static func contains_only_digits(text: String) -> bool:
+	if text.is_empty():
+		return false
 	for i: int in range(text.length()):
 		var character := text.substr(i, 1)
 		if character < "0" or character > "9":

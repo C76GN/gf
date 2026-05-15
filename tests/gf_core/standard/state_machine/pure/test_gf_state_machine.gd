@@ -319,6 +319,29 @@ func test_nested_change_state_during_exit_uses_requested_final_state() -> void:
 	assert_eq(_fsm.current_state_name, &"Run", "最终状态应为 exit 内部请求的状态。")
 
 
+func test_chained_exit_redirects_use_final_requested_state() -> void:
+	var parent := ExitRedirectState.new(&"Fallback")
+	var child := ExitRedirectState.new(&"Other")
+	var outside := TrackingState.new()
+	var other := TrackingState.new()
+	var fallback := TrackingState.new()
+	_fsm.add_state(&"Parent", parent)
+	_fsm.add_state(&"Child", child, &"Parent")
+	_fsm.add_state(&"Outside", outside)
+	_fsm.add_state(&"Other", other)
+	_fsm.add_state(&"Fallback", fallback)
+	_fsm.start(&"Child")
+
+	_fsm.change_state(&"Outside")
+
+	assert_eq(child.exit_count, 1, "子状态 exit 重定向不应导致子状态重复退出。")
+	assert_eq(parent.exit_count, 1, "父状态在后续重定向中应只退出一次。")
+	assert_eq(outside.enter_count, 0, "外层目标应被子状态 exit 重定向替换。")
+	assert_eq(other.enter_count, 0, "父状态 exit 的重定向应替换子状态重定向目标。")
+	assert_eq(fallback.enter_count, 1, "最终应进入最后一次 exit 重定向请求的状态。")
+	assert_eq(_fsm.current_state_name, &"Fallback", "多层 exit 重定向后最终状态应稳定。")
+
+
 ## 验证状态可通过自身代理请求状态切换。
 func test_state_can_request_change_state() -> void:
 	var idle := TrackingState.new()

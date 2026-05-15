@@ -46,3 +46,18 @@ func test_decimal_string_parts_validation() -> void:
 		GFDecimalStringFormatterBase.is_valid_decimal_parts("12x", "34", true),
 		"非数字字符不应通过。"
 	)
+
+
+func test_contains_only_digits_rejects_empty_text() -> void:
+	assert_false(
+		GFDecimalStringFormatterBase.contains_only_digits(""),
+		"空字符串不应被视为纯数字。"
+	)
+	assert_true(
+		GFDecimalStringFormatterBase.contains_only_digits("12345"),
+		"纯数字字符串应通过。"
+	)
+	assert_false(
+		GFDecimalStringFormatterBase.contains_only_digits("12a45"),
+		"包含非数字字符时应失败。"
+	)

@@ -140,7 +140,7 @@ func _read_editor_value() -> Variant:
 		TYPE_COLOR:
 			return (_editor as ColorPickerButton).color
 		TYPE_ARRAY, TYPE_DICTIONARY:
-			var parse_result := _try_parse_json_value((_editor as LineEdit).text)
+			var parse_result := _try_parse_json_value((_editor as LineEdit).text, value_type)
 			if not bool(parse_result.get("ok", false)):
 				return _value
 			return parse_result.get("value")
@@ -167,13 +167,25 @@ func _stringify_value(value: Variant) -> String:
 	return str(value)
 
 
-func _try_parse_json_value(text: String) -> Dictionary:
+func _try_parse_json_value(text: String, expected_type: int = TYPE_NIL) -> Dictionary:
 	var json := JSON.new()
 	if json.parse(text) != OK:
 		return {
 			"ok": false,
 			"value": _value,
 			"error": json.get_error_message(),
+		}
+	if expected_type == TYPE_ARRAY and not (json.data is Array):
+		return {
+			"ok": false,
+			"value": _value,
+			"error": "Expected Array JSON.",
+		}
+	if expected_type == TYPE_DICTIONARY and not (json.data is Dictionary):
+		return {
+			"ok": false,
+			"value": _value,
+			"error": "Expected Dictionary JSON.",
 		}
 	return {
 		"ok": true,
@@ -206,7 +218,7 @@ func _on_color_changed(color: Color) -> void:
 func _on_text_changed(_text: String) -> void:
 	var value_type := int(_property_info.get("type", TYPE_STRING))
 	if value_type == TYPE_ARRAY or value_type == TYPE_DICTIONARY:
-		var parse_result := _try_parse_json_value((_editor as LineEdit).text)
+		var parse_result := _try_parse_json_value((_editor as LineEdit).text, value_type)
 		if not bool(parse_result.get("ok", false)):
 			value_parse_failed.emit((_editor as LineEdit).text, String(parse_result.get("error", "")))
 			return

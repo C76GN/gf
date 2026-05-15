@@ -52,6 +52,9 @@ const _GENERATED_COLLISION_SHAPE_NODE_NAME: StringName = &"GFGeneratedCollisionS
 ## 接收器自定义元数据。框架不解释该字段。
 @export var metadata: Dictionary = {}
 
+## 可选业务接收节点路径；为空时由当前 HurtBox 直接接收。
+@export_node_path("Node") var receiver_path: NodePath = NodePath("")
+
 ## 可选碰撞形状配置。设置后可自动生成或更新 CollisionShape2D 子节点。
 @export var collision_shape_config: GFHitCollisionShapeConfig2D = null:
 	get:
@@ -150,7 +153,12 @@ func clear_generated_collision_shapes() -> void:
 ## @param p_hit_id: 命中 ID。
 ## @return 可接受时返回 true。
 func can_receive_hit(p_hit_id: StringName = &"") -> bool:
-	return bool(_MESSAGE_RECEIVER_SUPPORT._can_receive(enabled, accepted_hit_ids, rejected_hit_ids, p_hit_id))
+	if not bool(_MESSAGE_RECEIVER_SUPPORT._can_receive(enabled, accepted_hit_ids, rejected_hit_ids, p_hit_id)):
+		return false
+	if receiver_path == NodePath(""):
+		return true
+	var receiver := _resolve_receiver()
+	return receiver != null and receiver.has_method(&"receive_hit")
 
 
 ## 接收一次命中。
@@ -158,7 +166,9 @@ func can_receive_hit(p_hit_id: StringName = &"") -> bool:
 ## @return 统一结果报告。
 func receive_hit(context: GFCombatHitContext) -> Dictionary:
 	var hit_id_value := context.hit_id if context != null else &""
-	var report: Dictionary = _MESSAGE_RECEIVER_SUPPORT._receive(
+	var receiver := _resolve_receiver()
+	var has_receiver_path := receiver_path != NodePath("")
+	var report: Dictionary = _MESSAGE_RECEIVER_SUPPORT._receive_with_delegate(
 		self,
 		context,
 		"hit_id",
@@ -174,12 +184,28 @@ func receive_hit(context: GFCombatHitContext) -> Dictionary:
 		"Hit context is null.",
 		"Hurt box is disabled.",
 		"Hit id is rejected.",
-		"Hit id is not accepted."
+		"Hit id is not accepted.",
+		has_receiver_path,
+		receiver,
+		&"receive_hit",
+		[context],
+		"Hit delegate receiver is missing.",
+		"Hit delegate receiver does not expose receive_hit().",
+		"Hit delegate receiver returned an invalid hit report."
 	) as Dictionary
 	return report
 
 
 # --- 私有/辅助方法 ---
+
+func _resolve_receiver() -> Object:
+	if receiver_path == NodePath(""):
+		return null
+	var receiver := get_node_or_null(receiver_path)
+	if receiver == self:
+		return null
+	return receiver
+
 
 func _apply_collision_shape_config(config: GFHitCollisionShapeConfig2D) -> CollisionShape2D:
 	var configs: Array[GFHitCollisionShapeConfig2D] = []

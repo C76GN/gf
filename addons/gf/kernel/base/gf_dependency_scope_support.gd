@@ -47,6 +47,15 @@ static func _get_architecture_or_null(scope: Dictionary, owner_label: String) ->
 	return GFAutoload.get_architecture_or_null()
 
 
+static func _get_architecture_or_global(scope: Dictionary, owner_label: String) -> GFArchitecture:
+	var architecture := _get_architecture_or_null(scope, owner_label)
+	if architecture != null:
+		return architecture
+	if bool(scope.get("was_bound", false)) or bool(scope.get("released", false)):
+		return null
+	return GFAutoload.get_architecture()
+
+
 static func _get_bound_architecture_or_null(scope: Dictionary) -> GFArchitecture:
 	var architecture_ref := scope.get("architecture_ref") as WeakRef
 	if architecture_ref == null:

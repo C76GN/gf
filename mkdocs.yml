@@ -81,6 +81,8 @@ nav:
       - 官方扩展总览与扩展规范: extensions/index.md
       - Capability: extensions/capability/index.md
       - Interaction 与 Feedback: extensions/interaction-feedback/index.md
+      - Camera: extensions/camera/index.md
+      - Dialogue: extensions/dialogue/index.md
       - Combat: extensions/combat/index.md
       - ActionQueue: extensions/action-queue/index.md
       - Network 与 TurnBased: extensions/network-turnbased/index.md

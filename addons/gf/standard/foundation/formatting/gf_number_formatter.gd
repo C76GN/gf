@@ -189,7 +189,7 @@ static func format_compact(
 	if compact_suffixes.is_empty():
 		compact_suffixes = DEFAULT_COMPACT_SUFFIXES
 
-	var big_number_script: Script = _get_big_number_script()
+	var big_number_script: Script = _BIG_NUMBER_SCRIPT
 	var big_value = big_number_script.from_variant(value)
 	if big_value.is_zero():
 		return "0"
@@ -235,7 +235,7 @@ static func format_scientific(
 	style: ScientificStyle = ScientificStyle.E_LOWER,
 	engineering: bool = false
 ) -> String:
-	var big_value = _get_big_number_script().from_variant(value)
+	var big_value = _BIG_NUMBER_SCRIPT.from_variant(value)
 	if big_value.is_zero():
 		return "0"
 
@@ -280,7 +280,7 @@ static func format_auto(
 	use_truncation: bool = false,
 	scientific_style: ScientificStyle = ScientificStyle.E_LOWER
 ) -> String:
-	var big_value = _get_big_number_script().from_variant(value)
+	var big_value = _BIG_NUMBER_SCRIPT.from_variant(value)
 	if big_value.is_zero():
 		return "0"
 
@@ -320,10 +320,6 @@ static func _group_integer_part(text: String) -> String:
 			grouped = "," + grouped
 
 	return sign_text + grouped + fractional_part
-
-
-static func _get_big_number_script() -> Script:
-	return _BIG_NUMBER_SCRIPT
 
 
 static func _is_big_number(value: Variant) -> bool:

@@ -179,4 +179,7 @@ func _bind_factory(lifetime: int) -> void:
 			_architecture.register_factory(_script_cls, _factory, lifetime)
 
 		SourceKind.INSTANCE:
+			if lifetime == GFBindingLifetimesBase.Lifetime.TRANSIENT:
+				push_error("[GFBindBuilder] from_instance() 不支持 as_transient()；请改用 from_factory()。")
+				return
 			_architecture.register_factory_instance(_script_cls, _instance)

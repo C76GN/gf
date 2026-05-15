@@ -163,7 +163,7 @@ var levels := GFConfigAccess.get_levels_table()
 
 生成器位于 kernel/editor，因此不会默认硬引用标准库的 `GFConfigProvider`；如果希望生成的访问器能在不显式传 provider 时工作，需要像上面这样传入项目自己的 `provider_accessor`。也可以在调用点显式传入 provider：`GFConfigAccess.get_items_record(1001, provider)`。访问器适合稳定表名、团队协作和重构检查；原始 `GFConfigProvider` 仍适合动态表名、热更新表包或项目自定义导表运行时。生成器只输出 GDScript，可用 `method_name_style`、`constant_prefix`、`record_method_pattern`、`table_method_pattern` 和 `include_schema_comments` 微调命名与注释，不生成其他语言代码。
 
-开发期如果需要做 Resource 批量检查或表格式编辑，可以复用 `GFResourceTableEditor` 和 `GFEditorValueField`。前者负责扫描 `.tres` / `.res`、从 Resource export 推导列、提交单元格值并广播变更；默认只修改内存中的 Resource，不接管完整 UndoRedo 工作流；如果资源已有 `resource_path` 且项目希望提交后立即写盘，可以开启 `auto_save_committed_resources` 并监听 `resource_save_failed`。后者负责按 Godot 属性类型创建基础输入控件；Array/Dictionary JSON 输入解析失败时会发出 `value_parse_failed` 并保留旧值，不会把错误输入静默提交成空容器。它们是编辑器通用控件，不保存业务表结构，也不替项目决定资源分类、校验规则或提交工作流。
+开发期如果需要做 Resource 批量检查或表格式编辑，可以复用 `GFResourceTableEditor` 和 `GFEditorValueField`。前者负责扫描 `.tres` / `.res`、从 Resource export 推导列、提交单元格值并广播变更；默认只修改内存中的 Resource，不接管完整 UndoRedo 工作流；如果资源已有 `resource_path` 且项目希望提交后立即写盘，可以开启 `auto_save_committed_resources` 并监听 `resource_save_failed`。后者负责按 Godot 属性类型创建基础输入控件；Array/Dictionary JSON 输入解析失败或容器类型不匹配时会发出 `value_parse_failed` 并保留旧值，不会把错误输入静默提交成空容器或错误容器。它们是编辑器通用控件，不保存业务表结构，也不替项目决定资源分类、校验规则或提交工作流。
 
 
 ## 通用分析事件 (`GFAnalyticsUtility`)
@@ -273,5 +273,7 @@ await outbox.replay()
 ```
 
 `GFRequestEnvelope` 保存 `method`、`url`、`body`、`headers`、`idempotency_key`、`attempt_count`、`max_attempts`、`last_error` 和 `metadata`。队列写入 `storage_path` 时会使用 `GFVariantJsonCodec` 的类型化 JSON codec，因此 `Vector2`、`Color`、PackedArray 等常见 Godot 值可以作为普通载荷保存。`transport_callback` 可以同步返回结果，也可以返回会发出结果值的 `Signal`；结果为 `{ "ok": true }` 或 `{ "success": true }` 时请求会从等待队列移除；失败时按 `retry_delays_msec` 安排下一次尝试，耗尽次数后可进入失败列表。
+
+同一个 outbox 实例同一时间只执行一轮 `replay()`；当异步 `transport_callback` 尚未返回时再次调用，会立即得到 `{ "ok": false, "reason": "replay_in_progress" }`。如果等待期间项目层调用 `remove_request()` 或 `clear_queue()` 改变队列，重放恢复后会重新定位正在处理的请求，避免按过期索引误删后续请求；项目自己的 transport 仍应保证请求幂等或能处理重复提交。
 
 这个工具适合做“通用离线 outbox”边界，例如分析事件、自定义远程配置写入、轻量状态提交或编辑器工具请求。它不替项目决定哪些请求可重放、是否幂等、如何签名、如何脱敏、如何处理冲突；这些策略应放在项目自己的 `transport_callback`、`replay_filter` 或更高层同步系统中。

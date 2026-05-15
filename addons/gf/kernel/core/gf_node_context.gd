@@ -97,7 +97,7 @@ func _enter_tree() -> void:
 		if auto_init:
 			await _initialize_owned_architecture(context_architecture)
 	elif _architecture == null:
-		push_warning("[GFNodeContext] 未找到可继承的架构。")
+		_fail_context("未找到可继承的架构。")
 	else:
 		_watch_inherited_architecture_ready(_architecture, _context_lifecycle_serial)
 

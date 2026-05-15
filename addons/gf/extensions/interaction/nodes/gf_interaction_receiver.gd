@@ -43,6 +43,9 @@ const _MESSAGE_RECEIVER_SUPPORT: Script = preload("res://addons/gf/standard/comm
 ## 接收器自定义元数据。框架不解释该字段。
 @export var metadata: Dictionary = {}
 
+## 可选业务接收节点路径；为空时由当前节点直接接收。
+@export_node_path("Node") var receiver_path: NodePath = NodePath("")
+
 
 # --- 公共变量 ---
 
@@ -57,12 +60,17 @@ var validation_callback: Callable = Callable()
 ## @param interaction_id: 交互 ID。
 ## @return 可接受时返回 true。
 func can_receive_interaction(interaction_id: StringName = &"") -> bool:
-	return bool(_MESSAGE_RECEIVER_SUPPORT._can_receive(
+	if not bool(_MESSAGE_RECEIVER_SUPPORT._can_receive(
 		enabled,
 		accepted_interaction_ids,
 		rejected_interaction_ids,
 		interaction_id
-	))
+	)):
+		return false
+	if receiver_path == NodePath(""):
+		return true
+	var receiver := _resolve_receiver()
+	return receiver != null and receiver.has_method(&"receive_interaction")
 
 
 ## 接收一次交互。
@@ -70,7 +78,9 @@ func can_receive_interaction(interaction_id: StringName = &"") -> bool:
 ## @param interaction_id: 交互 ID。
 ## @return 统一结果报告。
 func receive_interaction(context: GFInteractionContext, interaction_id: StringName = &"") -> Dictionary:
-	var report: Dictionary = _MESSAGE_RECEIVER_SUPPORT._receive(
+	var receiver := _resolve_receiver()
+	var has_receiver_path := receiver_path != NodePath("")
+	var report: Dictionary = _MESSAGE_RECEIVER_SUPPORT._receive_with_delegate(
 		self,
 		context,
 		"interaction_id",
@@ -86,6 +96,24 @@ func receive_interaction(context: GFInteractionContext, interaction_id: StringNa
 		"Interaction context is null.",
 		"Interaction receiver is disabled.",
 		"Interaction id is rejected.",
-		"Interaction id is not accepted."
+		"Interaction id is not accepted.",
+		has_receiver_path,
+		receiver,
+		&"receive_interaction",
+		[context, interaction_id],
+		"Interaction delegate receiver is missing.",
+		"Interaction delegate receiver does not expose receive_interaction().",
+		"Interaction delegate receiver returned an invalid interaction report."
 	) as Dictionary
 	return report
+
+
+# --- 私有/辅助方法 ---
+
+func _resolve_receiver() -> Object:
+	if receiver_path == NodePath(""):
+		return null
+	var receiver := get_node_or_null(receiver_path)
+	if receiver == self:
+		return null
+	return receiver

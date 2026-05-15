@@ -215,6 +215,22 @@ func test_unbind_removes_single_node_binding_only() -> void:
 	assert_eq(first_node.tree_exited.get_connections().size(), 0, "指定节点的 tree_exited 辅助连接应被清理。")
 
 
+## 验证节点已经失效时，手动 unbind 仍会清理 bind_to 持有的回调。
+func test_unbind_prunes_invalid_node_binding() -> void:
+	var count := {"value": 0}
+	var node := Node.new()
+	var callback := func(_old_value: Variant, _new_value: Variant) -> void:
+		count.value += 1
+
+	_prop.bind_to(node, callback)
+	node.free()
+	_prop.unbind(node, callback)
+	_prop.set_value(1)
+
+	assert_eq(count.value, 0, "失效节点的 bind_to 回调不应残留在 value_changed 上。")
+	assert_eq(_prop.value_changed.get_connections().size(), 0, "失效节点解绑后不应残留托管信号连接。")
+
+
 # --- 测试：bind_to (Task 4) ---
 
 ## 验证 bind_to 能在节点销毁时自动解绑。
@@ -264,6 +280,25 @@ func test_bind_to_same_callable_survives_until_last_bound_node_exits() -> void:
 
 	first_node.free()
 	second_node.free()
+
+
+func test_bind_to_same_callable_prunes_all_invalid_nodes_together() -> void:
+	var state := {"count": 0}
+	var first_node := Node.new()
+	var second_node := Node.new()
+	var callback := func(_o: Variant, _n: Variant) -> void:
+		state.count += 1
+
+	_prop.bind_to(first_node, callback)
+	_prop.bind_to(second_node, callback)
+	first_node.free()
+	second_node.free()
+
+	_prop.unbind(first_node, callback)
+	_prop.set_value(1)
+
+	assert_eq(state.count, 0, "同一回调的所有节点都失效后应整体断开托管连接。")
+	assert_eq(_prop.value_changed.get_connections().size(), 0, "批量剪枝失效节点后不应残留托管信号连接。")
 
 
 func test_reactive_effect_runs_when_any_source_changes() -> void:
@@ -371,3 +406,54 @@ func test_computed_property_rejects_external_set() -> void:
 
 	assert_eq(computed.value, 2, "外部写入 computed 属性不应改变派生值。")
 	assert_push_error("[GFComputedProperty] 当前属性由 compute 回调派生，请修改来源属性。")
+
+
+func test_computed_property_rejects_in_place_mutation_helpers() -> void:
+	var source := GFBindableProperty.new(1)
+	var computed_array := GFComputedProperty.new([source], func() -> Array:
+		return ["base"]
+	)
+	var computed_dict := GFComputedProperty.new([source], func() -> Dictionary:
+		return { "hp": 1 }
+	)
+	watch_signals(computed_array)
+	watch_signals(computed_dict)
+
+	assert_false(computed_array.mutate(func(value: Array) -> void:
+		value.append("mutated")
+	))
+	assert_false(computed_array.append_to_array("extra"))
+	assert_false(computed_array.append_array(["extra"]))
+	assert_false(computed_array.erase_from_array("base"))
+	assert_false(computed_array.clear_collection())
+	assert_false(computed_dict.set_dictionary_value("hp", 99))
+	assert_false(computed_dict.erase_dictionary_key("hp"))
+
+	assert_eq(computed_array.value, ["base"], "computed 数组值不应被外部原地修改。")
+	assert_eq(computed_dict.value, { "hp": 1 }, "computed 字典值不应被外部原地修改。")
+	assert_signal_not_emitted(computed_array, "value_changed", "拒绝原地修改时不应发出数组变化信号。")
+	assert_signal_not_emitted(computed_dict, "value_changed", "拒绝原地修改时不应发出字典变化信号。")
+	assert_push_error_count(7, "每次外部原地修改尝试都应报告只读错误。")
+
+
+func test_read_only_bindable_property_rejects_in_place_mutation_helpers() -> void:
+	var read_only_array := GFReadOnlyBindableProperty.new(["base"])
+	var read_only_dict := GFReadOnlyBindableProperty.new({ "hp": 1 })
+	watch_signals(read_only_array)
+	watch_signals(read_only_dict)
+
+	assert_false(read_only_array.mutate(func(value: Array) -> void:
+		value.append("mutated")
+	))
+	assert_false(read_only_array.append_to_array("extra"))
+	assert_false(read_only_array.append_array(["extra"]))
+	assert_false(read_only_array.erase_from_array("base"))
+	assert_false(read_only_array.clear_collection())
+	assert_false(read_only_dict.set_dictionary_value("hp", 99))
+	assert_false(read_only_dict.erase_dictionary_key("hp"))
+
+	assert_eq(read_only_array.value, ["base"], "只读数组视图不应被外部原地修改。")
+	assert_eq(read_only_dict.value, { "hp": 1 }, "只读字典视图不应被外部原地修改。")
+	assert_signal_not_emitted(read_only_array, "value_changed", "拒绝原地修改时不应发出数组变化信号。")
+	assert_signal_not_emitted(read_only_dict, "value_changed", "拒绝原地修改时不应发出字典变化信号。")
+	assert_push_error_count(7, "每次外部原地修改尝试都应报告只读错误。")

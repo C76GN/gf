@@ -169,6 +169,10 @@ machine.push_state(&"Inventory", { "source": "shortcut" })
 machine.pop_state()
 ```
 
+如果叠加状态或暂停栈状态在 `_exit()` 中请求切换到其他状态，状态组会先完成本轮栈清理，再按最后一次退出重定向进入目标状态；当前叠加状态不会因为后续重定向被重复 `_exit()`。
+
+如果当前叠加状态在运行时被 `GFNodeStateGroup.remove_state()` 移除，状态组会先让该状态执行 `_exit()`，再恢复暂停栈顶状态并调用 `_resume()`；这样编辑器工具、动态技能槽或临时 UI 状态清理时不会把状态机留在“无当前状态但栈里还有父状态”的中间状态。移除非当前的暂停栈状态只会把它从栈中摘除，不会改变当前状态。
+
 状态机还提供 `GFNodeStateMachineConfig` 资源，用于复用内部组初始状态、初始参数、历史容量与最大栈深度。运行时可通过 `get_current_state()`、`get_current_group_state()`、`get_current_state_name()`、`get_state_history()`、`get_stack_depth()` 和 `is_in_state()` 查询状态机状态；状态脚本内部可用 `get_host()` 或 `host` 获取状态机所在宿主节点。`GFNodeStateMachine` 的状态组、状态切换和状态事件信号使用 `GFNodeStateGroup` / `GFNodeState` 参数，监听者可以直接访问状态 API，不需要先把 `Node` 再转型。
 
 `GFNodeState` 与纯代码 `GFState` 保持同一套架构代理：`get_model()`、`get_system()`、`get_utility()`、`send_command()`、`send_query()`、`send_event()`、`send_simple_event()`、`register_event()`、`register_assignable_event()`、`register_simple_event()` 和 `unregister_owner_events()`。这些代理会优先解析最近的 `GFNodeContext`，再回退全局 `Gf` 架构。监听只在状态激活期间有效时，应在 `_exit()` 中调用 `unregister_owner_events()`：

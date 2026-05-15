@@ -97,7 +97,7 @@ func apply_defaults(values: Dictionary, include_optional: bool = true, should_co
 				result[entry_key] = entry.coerce_value(result[entry_key])
 			continue
 		if entry.required or include_optional:
-			result[entry_key] = entry.coerce_value(entry.default_value) if should_coerce else _duplicate_variant(entry.default_value)
+			result[entry_key] = entry.coerce_value(entry.default_value) if should_coerce else GFVariantData.duplicate_variant(entry.default_value)
 	return result
 
 
@@ -235,7 +235,7 @@ func _coerce_values_for_validation(values: Dictionary, report: Dictionary) -> Di
 func _normalize_keys(values: Dictionary) -> Dictionary:
 	var result: Dictionary = {}
 	for key_variant: Variant in values.keys():
-		result[StringName(key_variant)] = _duplicate_variant(values[key_variant])
+		result[StringName(key_variant)] = GFVariantData.duplicate_variant(values[key_variant])
 	return result
 
 
@@ -256,11 +256,3 @@ func _get_validation_next_actions() -> Dictionary:
 		"extra_key": "Remove the undeclared key or enable allow_extra_keys.",
 		"coerce_failed": "Fix the source value so it can be converted to the declared blackboard entry type.",
 	}
-
-
-func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

@@ -1,0 +1,221 @@
+## GFSteeringBehaviorResource: 可资源化配置的 steering 行为。
+##
+## 包装 GFSteeringMath 的纯算法，允许项目用 Resource 组合 seek、arrive、avoid 等
+## 通用行为。动态目标、邻居和路径通过 context 传入，避免把业务对象写死进资源。
+class_name GFSteeringBehaviorResource
+extends Resource
+
+
+# --- 枚举 ---
+
+## Steering 行为类型。
+enum BehaviorType {
+	## 朝目标位置加速。
+	SEEK,
+	## 远离目标位置。
+	FLEE,
+	## 抵达目标位置并减速。
+	ARRIVE,
+	## 追逐目标代理。
+	PURSUE,
+	## 躲避目标代理。
+	EVADE,
+	## 面向目标位置。
+	FACE,
+	## 朝当前速度方向转向。
+	LOOK_WHERE_YOU_GO,
+	## 对齐指定朝向。
+	ALIGN,
+	## 与邻居保持距离。
+	SEPARATION,
+	## 朝邻居中心靠拢。
+	COHESION,
+	## 基于预测最近距离避让碰撞。
+	AVOID_COLLISIONS,
+	## 沿路径计算目标点并 seek。
+	PATH_FOLLOW_SEEK,
+}
+
+
+# --- 导出变量 ---
+
+## 行为类型。
+@export var behavior_type: BehaviorType = BehaviorType.SEEK
+
+## 是否启用该行为。
+@export var enabled: bool = true
+
+## 组合时使用的权重。
+@export var weight: float = 1.0
+
+## 静态目标位置；context 中的 `target_position` 会覆盖该值。
+@export var target_position: Vector3 = Vector3.ZERO
+
+## 静态目标朝向；context 中的 `target_orientation` 会覆盖该值。
+@export var target_orientation: float = 0.0
+
+## 抵达半径。
+@export var arrival_radius: float = 4.0
+
+## 减速半径。
+@export var slow_radius: float = 64.0
+
+## 逼近期望时间。
+@export var time_to_target: float = 0.1
+
+## 角度对齐容差。
+@export var align_tolerance: float = 0.001
+
+## 开始角速度减速的角度。
+@export var slow_angle: float = 0.5
+
+## 3D 转向是否使用 x/z 平面。
+@export var use_z_axis: bool = false
+
+## 目标预测最大秒数。
+@export var max_prediction_seconds: float = 1.0
+
+## 分离行为距离衰减系数。
+@export var decay_coefficient: float = 1.0
+
+## 最大影响距离；小于 0 时由算法使用代理半径。
+@export var max_distance: float = -1.0
+
+## 避让碰撞半径；小于 0 时由算法使用双方半径。
+@export var collision_radius: float = -1.0
+
+## 避让最小分离距离；小于 0 时由算法使用碰撞半径。
+@export var minimum_separation: float = -1.0
+
+## 路径跟随前进偏移。
+@export var path_offset: float = 0.0
+
+
+# --- 公共方法 ---
+
+## 计算 steering 加速度。
+## @param agent: 代理状态。
+## @param context: 动态上下文，支持 target_position、target_orientation、target_agent、neighbors、targets、path。
+## @return steering 加速度。
+func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAcceleration:
+	if not enabled or agent == null:
+		return GFSteeringAcceleration.new()
+
+	match behavior_type:
+		BehaviorType.FLEE:
+			return GFSteeringMath.flee(agent, _get_vector3(context, &"target_position", target_position))
+		BehaviorType.ARRIVE:
+			return GFSteeringMath.arrive(
+				agent,
+				_get_vector3(context, &"target_position", target_position),
+				arrival_radius,
+				slow_radius,
+				time_to_target
+			)
+		BehaviorType.PURSUE:
+			return GFSteeringMath.pursue(agent, _get_agent(context, &"target_agent"), max_prediction_seconds)
+		BehaviorType.EVADE:
+			return GFSteeringMath.evade(agent, _get_agent(context, &"target_agent"), max_prediction_seconds)
+		BehaviorType.FACE:
+			return GFSteeringMath.face(
+				agent,
+				_get_vector3(context, &"target_position", target_position),
+				use_z_axis,
+				align_tolerance,
+				slow_angle,
+				time_to_target
+			)
+		BehaviorType.LOOK_WHERE_YOU_GO:
+			return GFSteeringMath.look_where_you_go(agent, use_z_axis, align_tolerance, slow_angle, time_to_target)
+		BehaviorType.ALIGN:
+			return GFSteeringMath.align(
+				agent,
+				float(context.get("target_orientation", target_orientation)),
+				align_tolerance,
+				slow_angle,
+				time_to_target
+			)
+		BehaviorType.SEPARATION:
+			return GFSteeringMath.separation(agent, _get_agents(context, &"neighbors"), decay_coefficient, max_distance)
+		BehaviorType.COHESION:
+			return GFSteeringMath.cohesion(agent, _get_agents(context, &"neighbors"))
+		BehaviorType.AVOID_COLLISIONS:
+			return GFSteeringMath.avoid_collisions(
+				agent,
+				_get_agents(context, &"targets"),
+				max_prediction_seconds,
+				collision_radius,
+				minimum_separation
+			)
+		BehaviorType.PATH_FOLLOW_SEEK:
+			var target := GFSteeringMath.path_follow_target(agent, _get_path(context), path_offset)
+			return GFSteeringMath.seek(agent, target)
+		_:
+			return GFSteeringMath.seek(agent, _get_vector3(context, &"target_position", target_position))
+
+
+## 创建配置副本。
+## @return 新行为资源。
+func duplicate_behavior() -> Resource:
+	var behavior := get_script().new() as Resource
+	behavior.set("behavior_type", behavior_type)
+	behavior.set("enabled", enabled)
+	behavior.set("weight", weight)
+	behavior.set("target_position", target_position)
+	behavior.set("target_orientation", target_orientation)
+	behavior.set("arrival_radius", arrival_radius)
+	behavior.set("slow_radius", slow_radius)
+	behavior.set("time_to_target", time_to_target)
+	behavior.set("align_tolerance", align_tolerance)
+	behavior.set("slow_angle", slow_angle)
+	behavior.set("use_z_axis", use_z_axis)
+	behavior.set("max_prediction_seconds", max_prediction_seconds)
+	behavior.set("decay_coefficient", decay_coefficient)
+	behavior.set("max_distance", max_distance)
+	behavior.set("collision_radius", collision_radius)
+	behavior.set("minimum_separation", minimum_separation)
+	behavior.set("path_offset", path_offset)
+	return behavior
+
+
+# --- 私有/辅助方法 ---
+
+func _get_vector3(context: Dictionary, key: StringName, fallback: Vector3) -> Vector3:
+	var value: Variant = context.get(String(key), context.get(key, fallback))
+	if value is Vector3:
+		return value
+	if value is Vector2:
+		var vector_2 := value as Vector2
+		return Vector3(vector_2.x, vector_2.y, 0.0)
+	return fallback
+
+
+func _get_agent(context: Dictionary, key: StringName) -> GFSteeringAgent:
+	var value: Variant = context.get(String(key), context.get(key, null))
+	return value as GFSteeringAgent
+
+
+func _get_agents(context: Dictionary, key: StringName) -> Array[GFSteeringAgent]:
+	var result: Array[GFSteeringAgent] = []
+	var value: Variant = context.get(String(key), context.get(key, []))
+	if not (value is Array):
+		return result
+	for item: Variant in value as Array:
+		var agent := item as GFSteeringAgent
+		if agent != null:
+			result.append(agent)
+	return result
+
+
+func _get_path(context: Dictionary) -> Array[Vector3]:
+	var result: Array[Vector3] = []
+	var value: Variant = context.get("path", [])
+	if not (value is Array):
+		return result
+	for item: Variant in value as Array:
+		if item is Vector3:
+			result.append(item)
+		elif item is Vector2:
+			var vector_2 := item as Vector2
+			result.append(Vector3(vector_2.x, vector_2.y, 0.0))
+	return result

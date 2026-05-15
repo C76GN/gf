@@ -6,7 +6,7 @@ GF Framework 采用三层稳定结构：
 
 - `addons/gf/kernel`：运行内核，只放框架能否启动、注册、注入、派发和编辑器集成所必需的代码。
 - `addons/gf/standard`：标准库，放足够通用、稳定、默认随框架理解的基础能力，例如 `foundation`、输入体系、通用运行时工具、状态机、命令、序列和消息支撑。
-- `addons/gf/extensions`：GF 随框架分发的可选原子能力，例如 Capability、Interaction、Combat、Save、Flow、Network、BehaviorTree、Physics 和 Domain。
+- `addons/gf/extensions`：GF 随框架分发的可选原子能力，例如 Capability、Interaction、Camera、Dialogue、Combat、Save、Flow、Network、BehaviorTree、Physics 和 Domain。
 
 依赖方向必须保持单向：`kernel` 不直接依赖 `standard` 或任何可选扩展；`standard` 可以依赖 `kernel`；GF 内置扩展可以依赖 `kernel`，也可以按需依赖稳定的 `standard` 能力。凡是 `kernel` 必须直接识别的概念，都应收敛为 `kernel` 中的契约或基础设施，再由 `standard` 或扩展提供具体实现。
 
@@ -85,13 +85,13 @@ addons/gf/extensions/example/
 
 `kind` 对 GF 内置扩展使用 `extension`；标准库内部 manifest 使用 `standard`。扩展工具只处理这两个稳定类型。
 
-`dependencies` 是硬依赖：启用当前扩展时，`GFExtensionSettings` 会自动补齐这些依赖。GF 内置扩展只允许声明 `gf.kernel` 与 `gf.standard`，并且源码只能引用自身、`kernel` 和稳定的 `standard`。外部插件如果要组合多个 GF 内置扩展，应在自己的代码、Installer 或文档中表达组合关系，不写回 GF 内置扩展。
+`dependencies` 是硬依赖：启用当前扩展时，`GFExtensionSettings` 会自动补齐这些依赖，并让依赖扩展排在依赖方之前。GF 内置扩展只允许声明 `gf.kernel` 与 `gf.standard`，并且源码只能引用自身、`kernel` 和稳定的 `standard`。外部插件如果要组合多个 GF 内置扩展，应在自己的代码、Installer 或文档中表达组合关系，不写回 GF 内置扩展。
 
-`enabled_by_default`、`installer_paths`、`editor_action_paths`、`editor_dock_paths`、`editor_dock_order`、`editor_dock_short_label`、`editor_inspector_paths`、`export_plugin_paths` 与 `access_generator_extension_paths` 可省略。没有安装器或编辑器扩展的扩展可以把对应数组留空。manifest 声明的扩展脚本路径必须位于扩展根目录内，避免扩展通过 manifest 越界绑定其他扩展或项目脚本。`editor_dock_order` 只影响 GF 工作区页面排序，数值越小越靠前；`editor_dock_short_label` 只影响顶部页面入口短标签，不改变页面脚本路径或运行时行为。
+`enabled_by_default`、`installer_paths`、`editor_action_paths`、`editor_dock_paths`、`editor_dock_order`、`editor_dock_short_label`、`editor_inspector_paths`、`export_plugin_paths` 与 `access_generator_extension_paths` 可省略。没有安装器或编辑器扩展的扩展可以把对应数组留空。manifest 声明的扩展脚本路径必须位于扩展根目录内，避免扩展通过 manifest 越界绑定其他扩展或项目脚本；校验时会先规范化路径，所以包含 `..` 后实际逃出根目录的路径也会被拒绝。`editor_dock_order` 只影响 GF 工作区页面排序，数值越小越靠前；`editor_dock_short_label` 只影响顶部页面入口短标签，不改变页面脚本路径或运行时行为。
 
 `GFExtensionManifest` 负责读取和校验 manifest。`GFExtensionCatalog` 负责扫描 `addons/gf/extensions` 下的一层扩展目录。`GFExtensionSettings` 负责读取项目启用状态、查询扩展是否存在或启用、补齐依赖闭包、收集启用扩展的 Installer 路径和编辑器扩展路径，并提供按扩展 ID 解析扩展内资源或加载启用扩展脚本的统一入口。这个设计在 Godot 中保持为轻量文件约定，不引入依赖安装器。
 
-`GFExtensionSettings` 会缓存一次 manifest 扫描结果，避免编辑器 Inspector、扩展面板和扩展查询在同一会话里反复读盘；扩展目录发生变化时可调用 `clear_manifest_cache()` 刷新。依赖补齐会检测循环依赖并停止递归，`get_manifest_graph_report()` 可一次性报告重复扩展 ID、缺失硬依赖、无效 manifest 与依赖环。`gf.kernel` 和 `gf.standard` 是允许声明的内置依赖 ID，它们不是可启停扩展目录。
+`GFExtensionSettings` 会缓存一次 manifest 扫描结果，避免编辑器 Inspector、扩展面板和扩展查询在同一会话里反复读盘；扩展目录发生变化时可调用 `clear_manifest_cache()` 刷新。依赖补齐会检测循环依赖并停止递归；正常无环时，`resolve_extension_dependencies()`、`get_enabled_manifests()` 和启用扩展路径收集都会保持依赖优先顺序，不依赖 manifest 扫描顺序。`get_manifest_graph_report()` 可一次性报告重复扩展 ID、缺失硬依赖、无效 manifest 与依赖环。`gf.kernel` 和 `gf.standard` 是允许声明的内置依赖 ID，它们不是可启停扩展目录。
 
 ## 安装与装配
 
@@ -108,7 +108,7 @@ addons/gf/extensions/example/
 
 启用状态解析只会产生当前可发现的 manifest ID。项目设置中如果残留不存在的扩展 ID，`GFExtensionSettings.get_extension_selection_report()` 会在 `unknown_enabled_ids` 中报告，并且这些 ID 不会进入最终启用集合；通过 `set_enabled_extension_ids()` 或扩展管理器保存设置时，也会只写回当前可发现的扩展 ID。
 
-`Gf` 会先收集启用扩展的 `installer_paths`，再追加 `gf/project/installers` 中的项目级 Installer。这样内置扩展负责装配自己的抽象模块，项目仍然可以在后面继续注册业务模块或覆盖绑定。
+`Gf` 会先按依赖优先顺序收集启用扩展的 `installer_paths`，再追加 `gf/project/installers` 中的项目级 Installer。这样内置扩展负责装配自己的抽象模块，项目仍然可以在后面继续注册业务模块或覆盖绑定。
 
 GF 内置扩展中，只有需要参与 `GFArchitecture` 生命周期的服务会进入 `extension.gd`。例如 `save` 注册 `GFSaveGraphUtility`，`combat` 注册 `GFSkillTargetingUtility` 和 `GFCombatSystem`，`domain` 注册 `GFLevelUtility` 和 `GFQuestUtility`；纯数据模型、Resource、动作对象和节点桥接不会被扩展安装器自动注册，仍由项目或局部上下文按使用场景装配。
 

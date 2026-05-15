@@ -31,6 +31,9 @@ extends Resource
 ## Tween 缓动类型。
 @export var ease_type: Tween.EaseType = Tween.EASE_OUT
 
+## 可选步骤标记。非空时 GFConfiguredTweenAction 会在步骤结束后发出 marker_reached。
+@export var marker_id: StringName = &""
+
 
 # --- 公共方法 ---
 
@@ -87,6 +90,7 @@ func duplicate_step() -> GFTweenActionStep:
 	step.parallel = parallel
 	step.transition_type = transition_type
 	step.ease_type = ease_type
+	step.marker_id = marker_id
 	return step
 
 
@@ -114,6 +118,15 @@ func get_validation_error(target: Object) -> String:
 	if as_relative and not _can_resolve_relative_value(target):
 		return "Relative value type mismatch for property: %s" % String(property_name)
 	return ""
+
+
+## 捕获当前属性值。
+## @param target: 目标对象。
+## @return 属性值；步骤无效时返回 null。
+func capture_initial_value(target: Object) -> Variant:
+	if not get_validation_error(target).is_empty():
+		return null
+	return GFVariantData.duplicate_variant(target.get_indexed(property_name))
 
 
 # --- 私有/辅助方法 ---

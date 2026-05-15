@@ -1,0 +1,13 @@
+{
+  "id": "gf.camera",
+  "display_name": "GF Camera",
+  "version": "3.9.0",
+  "extension_version": "1.0.0",
+  "kind": "extension",
+  "description": "Generic camera rigs, directors, priorities, and blend resources.",
+  "dependencies": ["gf.kernel", "gf.standard"],
+  "installer_paths": [],
+  "enabled_by_default": true,
+  "tags": ["camera", "presentation", "2d", "3d"]
+}
+

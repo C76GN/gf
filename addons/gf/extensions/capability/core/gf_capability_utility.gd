@@ -1256,14 +1256,14 @@ func _is_capability_container_name(node_name: StringName) -> bool:
 
 func _add_child_to_receiver(receiver: Node, child: Node) -> void:
 	if receiver.is_inside_tree() and not receiver.is_node_ready():
-		receiver.add_child.call_deferred(child, true, Node.INTERNAL_MODE_BACK)
+		_add_child_deferred.call_deferred(receiver.get_instance_id(), child.get_instance_id(), Node.INTERNAL_MODE_BACK)
 	else:
 		receiver.add_child(child, true, Node.INTERNAL_MODE_BACK)
 
 
 func _add_child_to_container(container: Node, child: Node) -> void:
 	if container.is_inside_tree() and not container.is_node_ready():
-		container.add_child.call_deferred(child, true, Node.INTERNAL_MODE_BACK)
+		_add_child_deferred.call_deferred(container.get_instance_id(), child.get_instance_id(), Node.INTERNAL_MODE_BACK)
 	else:
 		container.add_child(child, true, Node.INTERNAL_MODE_BACK)
 
@@ -1511,8 +1511,8 @@ func _free_capability(capability: Object, detach_node: bool) -> void:
 
 func _detach_capability_node(parent: Node, node: Node) -> void:
 	if parent.is_inside_tree() and not parent.is_node_ready():
-		parent.remove_child.call_deferred(node)
-		Callable(self, "_free_empty_generated_container").call_deferred(parent)
+		_remove_child_deferred.call_deferred(parent.get_instance_id(), node.get_instance_id())
+		_free_empty_generated_container_deferred.call_deferred(parent.get_instance_id())
 		return
 
 	parent.remove_child(node)
@@ -1534,11 +1534,45 @@ func _free_empty_generated_container(container: Node) -> void:
 		if parent.is_queued_for_deletion():
 			return
 		if parent.is_inside_tree() and not parent.is_node_ready():
-			parent.remove_child.call_deferred(container)
+			_remove_child_deferred.call_deferred(parent.get_instance_id(), container.get_instance_id())
 			container.queue_free()
 			return
 		parent.remove_child(container)
 	container.queue_free()
+
+
+func _add_child_deferred(parent_id: int, child_id: int, internal_mode: int) -> void:
+	var parent := instance_from_id(parent_id) as Node
+	var child := instance_from_id(child_id) as Node
+	if (
+		parent == null
+		or child == null
+		or parent.is_queued_for_deletion()
+		or child.is_queued_for_deletion()
+		or child.get_parent() != null
+	):
+		return
+
+	parent.add_child(child, true, internal_mode)
+
+
+func _remove_child_deferred(parent_id: int, child_id: int) -> void:
+	var parent := instance_from_id(parent_id) as Node
+	var child := instance_from_id(child_id) as Node
+	if parent == null or child == null or parent.is_queued_for_deletion():
+		return
+	if child.get_parent() != parent:
+		return
+
+	parent.remove_child(child)
+
+
+func _free_empty_generated_container_deferred(container_id: int) -> void:
+	var container := instance_from_id(container_id) as Node
+	if container == null:
+		return
+
+	_free_empty_generated_container(container)
 
 
 func _get_capability_meta_name(capability_type: Script) -> StringName:

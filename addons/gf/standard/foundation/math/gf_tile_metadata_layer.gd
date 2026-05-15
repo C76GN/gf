@@ -22,7 +22,7 @@ func set_cell_value(cell: Vector2i, key: StringName, value: Variant) -> void:
 	if key == &"":
 		return
 	var data := get_cell_data(cell)
-	data[key] = _duplicate_variant(value)
+	data[key] = GFVariantData.duplicate_variant(value)
 	set_cell_data(cell, data)
 
 
@@ -54,7 +54,7 @@ func merge_cell_data(cell: Vector2i, data: Dictionary, overwrite: bool = true) -
 	var current := get_cell_data(cell)
 	for key: Variant in data.keys():
 		if overwrite or not current.has(key):
-			current[key] = _duplicate_variant(data[key])
+			current[key] = GFVariantData.duplicate_variant(data[key])
 	set_cell_data(cell, current)
 
 
@@ -176,13 +176,3 @@ func from_tile_map_cache(cache: GFTileMapCache, merge: bool = false) -> void:
 		var value: Variant = cache.cells[cell]
 		if value is Dictionary:
 			set_cell_data(cell, value as Dictionary)
-
-
-# --- 私有/辅助方法 ---
-
-func _duplicate_variant(value: Variant) -> Variant:
-	if value is Dictionary:
-		return (value as Dictionary).duplicate(true)
-	if value is Array:
-		return (value as Array).duplicate(true)
-	return value

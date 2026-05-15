@@ -5,6 +5,15 @@ class_name GFConfiguredTweenAction
 extends GFVisualAction
 
 
+# --- 信号 ---
+
+## Tween 步骤标记到达后发出。
+## @param marker_id: 标记标识。
+## @param step_index: 步骤索引。
+## @param target: 被缓动目标。
+signal marker_reached(marker_id: StringName, step_index: int, target: Object)
+
+
 # --- 常量 ---
 
 const GFTweenActionConfigBase = preload("res://addons/gf/extensions/action_queue/tween/gf_tween_action_config.gd")
@@ -26,6 +35,7 @@ var host_node: Node
 # --- 私有变量 ---
 
 var _active_tween: Tween = null
+var _initial_values: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -48,8 +58,10 @@ func execute() -> Variant:
 
 	_clear_active_tween()
 	_reset_completion_state()
+	_capture_initial_values()
 	if not config.has_timed_steps():
 		config.apply_instant(target)
+		_restore_initial_values_on_finish()
 		return null
 
 	var tween_host := _get_tween_host()
@@ -65,11 +77,13 @@ func execute() -> Variant:
 		_active_tween.set_loops(config.loop_count)
 
 	var appended_count := 0
-	for step: GFTweenActionStepBase in config.steps:
+	for step_index: int in range(config.steps.size()):
+		var step := config.steps[step_index]
 		if step == null:
 			continue
 		if step.append_to_tween(_active_tween, target, config.duration_scale) != null:
 			appended_count += 1
+			_append_marker_callback(step, step_index)
 
 	if appended_count <= 0:
 		_clear_active_tween()
@@ -80,6 +94,7 @@ func execute() -> Variant:
 
 func cancel() -> void:
 	_clear_active_tween()
+	_restore_initial_values_on_cancel()
 	_emit_completed_once()
 
 
@@ -97,10 +112,12 @@ func finish() -> void:
 	if is_instance_valid(_active_tween):
 		if config != null and config.loop_count == 0:
 			_clear_active_tween()
+			_restore_initial_values_on_finish()
 			_emit_completed_once()
 			return
 		_active_tween.custom_step(INF)
 	_clear_active_tween()
+	_restore_initial_values_on_finish()
 	_emit_completed_once()
 
 
@@ -127,8 +144,40 @@ func _clear_active_tween() -> void:
 	_active_tween = null
 
 
+func _append_marker_callback(step: GFTweenActionStepBase, step_index: int) -> void:
+	if step.marker_id == &"" or not is_instance_valid(_active_tween):
+		return
+	_active_tween.tween_callback(
+		Callable(self, "_on_step_marker_reached").bind(step.marker_id, step_index)
+	)
+
+
+func _capture_initial_values() -> void:
+	_initial_values.clear()
+	if config == null or not (config.restore_initial_values_on_cancel or config.restore_initial_values_on_finish):
+		return
+	_initial_values = config.capture_initial_values(target)
+
+
+func _restore_initial_values_on_cancel() -> void:
+	if config == null or not config.restore_initial_values_on_cancel:
+		return
+	config.restore_initial_values(target, _initial_values)
+
+
+func _restore_initial_values_on_finish() -> void:
+	if config == null or not config.restore_initial_values_on_finish:
+		return
+	config.restore_initial_values(target, _initial_values)
+
+
 # --- 信号处理函数 ---
 
 func _on_active_tween_finished() -> void:
 	_active_tween = null
+	_restore_initial_values_on_finish()
 	_emit_completed_once()
+
+
+func _on_step_marker_reached(marker_id: StringName, step_index: int) -> void:
+	marker_reached.emit(marker_id, step_index, target)

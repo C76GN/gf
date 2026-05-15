@@ -160,13 +160,16 @@ func clear_collection() -> bool:
 
 
 ## 断开指定 Node 与 Callable 的绑定关系。
-## @param node: 绑定生命周期的节点。
+## @param node: 绑定生命周期的节点；已失效对象会触发失效绑定清理。
 ## @param callable: 要解绑的回调函数。
-func unbind(node: Node, callable: Callable) -> void:
-	if not is_instance_valid(node) or not callable.is_valid():
+func unbind(node: Variant, callable: Callable) -> void:
+	if not callable.is_valid():
 		return
 
-	_disconnect_node_binding(node, callable)
+	if is_instance_valid(node) and node is Node:
+		_disconnect_node_binding(node as Node, callable)
+	else:
+		_prune_invalid_node_bindings()
 	_release_value_connection_if_unbound(callable)
 
 

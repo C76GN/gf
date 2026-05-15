@@ -123,6 +123,22 @@ func test_manifest_validation_keeps_extension_paths_inside_root() -> void:
 	)
 
 
+func test_manifest_validation_rejects_parent_directory_escape_paths() -> void:
+	var manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
+		"id": "author.terrain",
+		"display_name": "Terrain Tools",
+		"version": "1.0.0",
+		"kind": "extension",
+		"editor_action_paths": ["res://addons/terrain_tools/../terrain_other/editor/actions.gd"],
+	}, "res://addons/terrain_tools", "")
+	var errors := manifest.get_validation_errors()
+
+	assert_true(
+		errors.has("editor_action_paths path must stay under root_path: res://addons/terrain_other/editor/actions.gd"),
+		"包含 .. 的扩展路径规范化后不应越过扩展根目录。"
+	)
+
+
 func test_catalog_loads_extension_manifests() -> void:
 	var manifests := GF_EXTENSION_CATALOG_BASE.load_extension_manifests()
 	var ids: Array[String] = []
@@ -182,7 +198,79 @@ func test_extension_settings_resolves_manifest_dependencies() -> void:
 	var manifests: Array[GFExtensionManifest] = [base_manifest, feature_manifest]
 	var resolved := GF_EXTENSION_SETTINGS_BASE.resolve_extension_dependencies(["author.feature"], manifests)
 
-	assert_eq(resolved, ["author.base", "author.feature"], "启用扩展应按 manifest 顺序自动补齐内部依赖。")
+	assert_eq(resolved, ["author.base", "author.feature"], "启用扩展应按依赖优先顺序自动补齐内部依赖。")
+
+
+func test_extension_settings_resolves_dependencies_before_dependents_when_manifest_order_is_reversed() -> void:
+	var base_manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
+		"id": "author.base",
+		"display_name": "Base",
+		"version": "1.0.0",
+		"kind": "extension",
+	}, "res://addons/author_base", "")
+	var feature_manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
+		"id": "author.feature",
+		"display_name": "Feature",
+		"version": "1.0.0",
+		"kind": "extension",
+		"dependencies": ["author.base"],
+	}, "res://addons/author_feature", "")
+
+	var manifests: Array[GFExtensionManifest] = [feature_manifest, base_manifest]
+	var resolved := GF_EXTENSION_SETTINGS_BASE.resolve_extension_dependencies(["author.feature"], manifests)
+
+	assert_eq(resolved, ["author.base", "author.feature"], "依赖 manifest 扫描顺序靠后时也应先于依赖方返回。")
+
+
+func test_enabled_manifest_and_installer_paths_follow_dependency_order() -> void:
+	var base_manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
+		"id": "author.base",
+		"display_name": "Base",
+		"version": "1.0.0",
+		"kind": "extension",
+		"installer_paths": ["res://addons/author_base/base_installer.gd"],
+	}, "res://addons/author_base", "")
+	var feature_manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
+		"id": "author.feature",
+		"display_name": "Feature",
+		"version": "1.0.0",
+		"kind": "extension",
+		"dependencies": ["author.base"],
+		"installer_paths": ["res://addons/author_feature/feature_installer.gd"],
+	}, "res://addons/author_feature", "")
+	var previous_cache := GF_EXTENSION_SETTINGS_BASE._manifest_cache.duplicate(true)
+	var enabled_restore := _set_project_setting(
+		GF_EXTENSION_SETTINGS_BASE.ENABLED_EXTENSIONS_SETTING,
+		["author.feature"]
+	)
+	var auto_install_restore := _set_project_setting(
+		GF_EXTENSION_SETTINGS_BASE.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING,
+		true
+	)
+	var manifests: Array[GFExtensionManifest] = [feature_manifest, base_manifest]
+	GF_EXTENSION_SETTINGS_BASE._manifest_cache = {
+		"all": manifests,
+	}
+
+	var enabled_manifests := GF_EXTENSION_SETTINGS_BASE.get_enabled_manifests()
+	var enabled_ids: Array[String] = []
+	for manifest: GFExtensionManifest in enabled_manifests:
+		enabled_ids.append(manifest.id)
+	var installer_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_installer_paths()
+
+	GF_EXTENSION_SETTINGS_BASE._manifest_cache = previous_cache
+	_restore_project_setting(GF_EXTENSION_SETTINGS_BASE.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, auto_install_restore)
+	_restore_project_setting(GF_EXTENSION_SETTINGS_BASE.ENABLED_EXTENSIONS_SETTING, enabled_restore)
+
+	assert_eq(enabled_ids, ["author.base", "author.feature"], "启用 manifest 列表应保持依赖优先顺序。")
+	assert_eq(
+		installer_paths,
+		[
+			"res://addons/author_base/base_installer.gd",
+			"res://addons/author_feature/feature_installer.gd",
+		],
+		"启用扩展 installer 应先执行依赖扩展，再执行依赖方。"
+	)
 
 
 func test_extension_settings_resolves_only_known_manifest_ids() -> void:

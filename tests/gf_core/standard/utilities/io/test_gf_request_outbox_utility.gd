@@ -32,6 +32,21 @@ class AsyncTransport:
 		finished.emit({ "ok": true, "accepted": true })
 
 
+class ManualTransport:
+	extends RefCounted
+
+	signal finished(result: Dictionary)
+
+	var captured: Array[GFRequestEnvelopeBase] = []
+
+	func send(envelope: GFRequestEnvelopeBase) -> Signal:
+		captured.append(envelope)
+		return finished
+
+	func emit_success() -> void:
+		finished.emit({ "ok": true, "accepted": true })
+
+
 # --- Godot 生命周期方法 ---
 
 func before_each() -> void:
@@ -78,6 +93,69 @@ func test_replay_waits_for_async_transport_signal() -> void:
 	assert_eq(transport.captured.size(), 1, "异步重放应调用一次 transport。")
 	assert_eq(int(report["succeeded"]), 1, "异步成功请求应计入报告。")
 	assert_eq(_outbox.get_queue_size(), 0, "异步成功后请求应从等待队列移除。")
+
+
+func test_replay_keeps_queue_consistent_when_current_request_is_removed_during_async_transport() -> void:
+	var transport := ManualTransport.new()
+	_outbox.transport_callback = Callable(transport, "send")
+	var first: GFRequestEnvelopeBase = _outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.test/first")
+	var second: GFRequestEnvelopeBase = _outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.test/second")
+	var replay_state := {
+		"done": false,
+		"report": {},
+	}
+
+	_await_outbox_replay(replay_state, 1)
+	await get_tree().process_frame
+
+	assert_eq(transport.captured.size(), 1, "重放应先发送队首请求。")
+	assert_eq(transport.captured[0].request_id, first.request_id, "等待中的请求应是第一个请求。")
+	assert_true(_outbox.remove_request(first.request_id), "外部应能在异步发送期间移除等待中的请求。")
+
+	transport.emit_success()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var report := replay_state["report"] as Dictionary
+	var pending_requests := _outbox.get_pending_requests()
+	assert_true(bool(replay_state["done"]), "异步 transport 返回后 replay 应结束。")
+	assert_eq(int(report["succeeded"]), 1, "已被外部移除的成功请求仍应计入成功报告。")
+	assert_eq(int(report["pending"]), 1, "报告应反映剩余等待队列。")
+	assert_eq(_outbox.get_queue_size(), 1, "外部移除当前请求后不应误删后续请求。")
+	assert_eq(pending_requests[0].request_id, second.request_id, "后续请求应继续保留在等待队列中。")
+
+
+func test_replay_rejects_concurrent_replay_while_transport_is_waiting() -> void:
+	var transport := ManualTransport.new()
+	_outbox.transport_callback = Callable(transport, "send")
+	_outbox.enqueue_request(HTTPClient.METHOD_POST, "https://example.test/events")
+	var first_state := {
+		"done": false,
+		"report": {},
+	}
+	var second_state := {
+		"done": false,
+		"report": {},
+	}
+
+	_await_outbox_replay(first_state)
+	await get_tree().process_frame
+	_await_outbox_replay(second_state)
+	await get_tree().process_frame
+
+	var second_report := second_state["report"] as Dictionary
+	assert_false(bool(first_state["done"]), "第一轮 replay 应仍在等待 transport。")
+	assert_true(bool(second_state["done"]), "并发 replay 应立即返回。")
+	assert_false(bool(second_report["ok"]), "并发 replay 应返回失败报告。")
+	assert_eq(String(second_report["reason"]), "replay_in_progress", "并发 replay 应给出稳定原因。")
+	assert_eq(transport.captured.size(), 1, "并发 replay 不应重复发送同一个请求。")
+
+	transport.emit_success()
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_true(bool(first_state["done"]), "第一轮 replay 应在 transport 返回后完成。")
+	assert_eq(_outbox.get_queue_size(), 0, "第一轮成功完成后队列应清空。")
 
 
 func test_replay_failure_retries_until_success() -> void:
@@ -131,3 +209,8 @@ func test_queue_persistence_round_trips_typed_body_values() -> void:
 	assert_eq(requests[0].body["position"], Vector2(3.0, 4.0), "请求 body 中的 Godot 类型应经 JSON 持久化恢复。")
 	assert_eq(requests[0].metadata["tags"], PackedStringArray(["state"]), "请求 metadata 中的 PackedStringArray 应恢复。")
 	loaded.dispose()
+
+
+func _await_outbox_replay(state: Dictionary, max_count: int = 0) -> void:
+	state["report"] = await _outbox.replay(max_count)
+	state["done"] = true

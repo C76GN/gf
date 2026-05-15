@@ -196,6 +196,8 @@ func _on_hit_box_area_entered(area: Area2D) -> void:
 
 被击中方监听 `hit_received`，读取 `context.payload` 后自行处理扣血、击退或特效；框架不会解释 `"damage"` 字段。若 HurtBox 配了 `accepted_hit_ids`，记得给 HitBox 设置对应的 `hit_id`。
 
+如果 HurtBox 只是碰撞桥接节点，而真正的业务接收函数在角色、能力或状态机节点上，可以设置 `GFHurtBox2D.receiver_path` / `GFHurtBox3D.receiver_path`。HurtBox 会先执行自身的启用状态、命中 ID 过滤和 `validation_callback`，通过后再调用目标节点的 `receive_hit(context)`；若 `context.target` 为空或仍指向该 HurtBox，会在转发前改为业务接收节点。这样场景可以保持 `Character -> HurtBox/Area` 的结构，而不用把扣血、格挡或能力逻辑写进 HurtBox 脚本。
+
 3D 版本用法相同：`GFHitBox3D` 发送给 `GFHurtBox3D`，传入目标仍需要能处理 `receive_hit(context)`。
 
 `GFHitBox2D` / `GFHitBox3D` 和 `GFHurtBox2D` / `GFHurtBox3D` 的 `enabled` 变化时会发出 `enabled_changed(enabled)`。它只报告框架命中收发开关，项目可以用它同步调试可见性、调试面板或外部状态；如果需要统一管理一组区域的 `enabled`、`monitoring` / `monitorable` 和 `visible`，优先使用下面的状态组。
