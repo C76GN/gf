@@ -313,6 +313,7 @@ func _on_backend_message_received(peer_id: int, bytes: PackedByteArray) -> void:
 			"error": "message_is_null",
 		})
 		return
+	message.sender_id = peer_id
 	if validator != null:
 		var channel := _resolve_inbound_channel(message)
 		if channel != null:

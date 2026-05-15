@@ -53,6 +53,23 @@ func test_match_device_requires_same_device_id() -> void:
 	assert_true(binding.matches_event(other_device), "设备与按键一致时应匹配。")
 
 
+func test_key_release_matches_template_without_modifier_state() -> void:
+	var template := InputEventKey.new()
+	template.keycode = KEY_A
+	template.pressed = true
+	template.ctrl_pressed = true
+
+	var binding := GFInputBindingBase.new()
+	binding.input_event = template
+
+	var release := InputEventKey.new()
+	release.keycode = KEY_A
+	release.pressed = false
+	release.ctrl_pressed = false
+
+	assert_true(binding.matches_event(release), "按键释放事件应按键位匹配，避免修饰键释放顺序导致动作卡住。")
+
+
 func test_match_touch_index_controls_screen_touch_index() -> void:
 	var template := InputEventScreenTouch.new()
 	template.index = 1

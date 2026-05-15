@@ -79,6 +79,19 @@ func test_slot_inventory_respects_stack_rules_and_serializes() -> void:
 	assert_eq(restored.get_item_total(&"item_a"), 10, "恢复后物品总数应一致。")
 
 
+func test_inventory_partial_result_normalizes_ok_reason() -> void:
+	var partial := GFInventoryOperationResult.partial(&"item_a", 5, 2, &"ok")
+	var failed := GFInventoryOperationResult.partial(&"item_a", 5, 0, &"ok")
+	var invalid := GFInventoryOperationResult.partial(&"item_a", 0, 0, &"invalid_request")
+
+	assert_false(partial.ok, "未处理完整请求时 ok 应为 false。")
+	assert_eq(partial.reason, &"partial", "部分成功不应继续报告 ok 原因。")
+	assert_eq(partial.remaining_amount, 3, "部分成功应保留剩余数量。")
+	assert_eq(failed.reason, &"failed", "完全未处理且未提供失败原因时应归一化为 failed。")
+	assert_false(invalid.ok, "请求数量为 0 的结果不应被误判为成功。")
+	assert_eq(invalid.reason, &"invalid_request", "显式失败原因应保留。")
+
+
 ## 验证槽位拆分不会绕过最大堆叠数量上限。
 func test_slot_inventory_split_respects_stack_count_limit() -> void:
 	var definition := GFInventoryItemDefinition.new()

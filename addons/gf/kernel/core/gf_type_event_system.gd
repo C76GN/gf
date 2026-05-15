@@ -39,13 +39,11 @@ var _assignable_event_listeners: Dictionary = _assignable_type_track.listeners
 var _simple_event_listeners: Dictionary = _simple_track.listeners
 var _type_dispatch_cache: Dictionary = {}
 var _script_ancestry_cache: Dictionary = {}
-var _is_iterating_type: bool = false
 var _type_dispatch_depth: int = 0
 var _type_dispatch_count: int = 0
 var _max_type_dispatch_depth_observed: int = 0
 var _clear_requested_type: bool = false
 
-var _is_iterating_simple: bool = false
 var _simple_dispatch_depth: int = 0
 var _simple_dispatch_count: int = 0
 var _max_simple_dispatch_depth_observed: int = 0
@@ -96,6 +94,7 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 	if _event_listeners.has(event_type):
 		var listeners := _event_listeners[event_type] as Array
 		_remove_entry_by_callable(listeners, on_event, event_type, false)
+		_erase_listener_key_if_empty(_event_listeners, event_type)
 
 
 ## 注册可赋值类型事件监听器。
@@ -139,6 +138,7 @@ func unregister_assignable(base_event_type: Script, on_event: Callable) -> void:
 	if _assignable_event_listeners.has(base_event_type):
 		var listeners := _assignable_event_listeners[base_event_type] as Array
 		_remove_entry_by_callable(listeners, on_event, base_event_type, true)
+		_erase_listener_key_if_empty(_assignable_event_listeners, base_event_type)
 
 
 ## 将事件实例发送给其脚本类型的所有注册监听器。
@@ -164,12 +164,10 @@ func send(event_instance: Object) -> void:
 	_type_dispatch_depth += 1
 	_type_dispatch_count += 1
 	_max_type_dispatch_depth_observed = maxi(_max_type_dispatch_depth_observed, _type_dispatch_depth)
-	_is_iterating_type = true
 
 	_dispatch_type_listener_entries(event_instance, dispatch_entries)
 
 	_type_dispatch_depth = maxi(_type_dispatch_depth - 1, 0)
-	_is_iterating_type = _type_dispatch_depth > 0
 	if _type_dispatch_depth == 0:
 		_clear_requested_type = false
 		_flush_type_pending()
@@ -215,6 +213,7 @@ func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 	if _simple_event_listeners.has(event_id):
 		var listeners := _simple_event_listeners[event_id] as Array
 		_remove_entry_by_callable(listeners, on_event)
+		_erase_listener_key_if_empty(_simple_event_listeners, event_id)
 
 
 ## 将 payload 发送给指定 StringName 事件的所有注册监听器。
@@ -236,7 +235,6 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	_simple_dispatch_depth += 1
 	_simple_dispatch_count += 1
 	_max_simple_dispatch_depth_observed = maxi(_max_simple_dispatch_depth_observed, _simple_dispatch_depth)
-	_is_iterating_simple = true
 	var has_pending_owner_removes := not _simple_track.pending_owner_removes.is_empty()
 	var has_pending_removes := not _simple_track.pending_removes.is_empty()
 
@@ -269,7 +267,6 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 			has_pending_removes = true
 
 	_simple_dispatch_depth = maxi(_simple_dispatch_depth - 1, 0)
-	_is_iterating_simple = _simple_dispatch_depth > 0
 	if _simple_dispatch_depth == 0:
 		_clear_requested_simple = false
 		_flush_simple_pending()
@@ -346,13 +343,11 @@ func clear() -> void:
 		_clear_requested_type = true
 	else:
 		_type_dispatch_depth = 0
-		_is_iterating_type = false
 		_clear_requested_type = false
 	if _simple_dispatch_depth > 0:
 		_clear_requested_simple = true
 	else:
 		_simple_dispatch_depth = 0
-		_is_iterating_simple = false
 		_clear_requested_simple = false
 	_type_dispatch_count = 0
 	_simple_dispatch_count = 0
@@ -607,6 +602,7 @@ func _flush_listener_track_removes(track: EventListenerTrack, assignable: bool) 
 			continue
 		var listeners := track.listeners[key] as Array
 		_remove_entry_by_callable(listeners, pending.callable, _event_type_from_key(key), assignable)
+		_erase_listener_key_if_empty(track.listeners, key)
 	track.pending_removes.clear()
 
 
@@ -667,6 +663,7 @@ func _remove_owner_from_listener_track(track: EventListenerTrack, owner_id: int,
 	for key: Variant in track.listeners.keys():
 		var listeners := track.listeners[key] as Array
 		_remove_entries_by_owner_id(listeners, owner_id, _event_type_from_key(key), assignable)
+		_erase_listener_key_if_empty(track.listeners, key)
 
 
 func _remove_entry_by_callable(
@@ -699,6 +696,14 @@ func _remove_entries_by_owner_id(
 			removed = true
 	if removed and event_type != null:
 		_invalidate_type_dispatch_cache_for_event(event_type, assignable)
+
+
+func _erase_listener_key_if_empty(registry: Dictionary, key: Variant) -> void:
+	if not registry.has(key):
+		return
+	var listeners := registry[key] as Array
+	if listeners != null and listeners.is_empty():
+		registry.erase(key)
 
 
 func _entry_owner_is_released(entry: Dictionary) -> bool:
@@ -775,12 +780,21 @@ func _validate_callable_min_args(on_event: Callable, min_args: int, callback_lab
 			var default_args := m.get("default_args", []) as Array
 			var required_arg_count := maxi(args.size() - default_args.size(), 0)
 			var provided_arg_count := min_args + on_event.get_bound_arguments_count()
+			var accepts_varargs := (int(m.get("flags", 0)) & METHOD_FLAG_VARARG) != 0
 			if args.size() < min_args:
 				push_error("[GFTypeEventSystem] 注册的%s %s 必须至少包含 %d 个参数用于接收%s！" % [
 					callback_label,
 					method_name,
 					min_args,
 					arg_label,
+				])
+				return false
+			if not accepts_varargs and args.size() < provided_arg_count:
+				push_error("[GFTypeEventSystem] 注册的%s %s 最多接收 %d 个参数，当前会传入 %d 个。" % [
+					callback_label,
+					method_name,
+					args.size(),
+					provided_arg_count,
 				])
 				return false
 			if required_arg_count > provided_arg_count:

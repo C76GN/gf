@@ -533,6 +533,22 @@ func test_play_sfx_ignores_async_load_after_dispose() -> void:
 	await get_tree().process_frame
 
 
+func test_sfx_handle_stop_before_async_load_prevents_playback() -> void:
+	var mock_asset := MockAssetUtility.new()
+	var audio := RecordingAudioUtility.new(mock_asset)
+	audio.init()
+	await get_tree().process_frame
+
+	var handle := audio.play_sfx_handle("res://audio/sfx.ogg")
+	handle.stop()
+	mock_asset.finish("res://audio/sfx.ogg", AudioStreamGenerator.new())
+
+	assert_true(handle.is_stop_requested(), "异步资源返回前停止句柄应记录停止请求。")
+	assert_eq(audio.sfx_play_count, 0, "已停止的异步 SFX 请求完成后不应再播放。")
+	audio.dispose()
+	await get_tree().process_frame
+
+
 func test_sfx_capacity_can_skip_new_requests() -> void:
 	_audio.max_sfx_players = 1
 	_audio.sfx_overflow_policy = GFAudioUtility.SFXOverflowPolicy.SKIP_NEW

@@ -54,8 +54,8 @@ static func get_dock_records() -> Array[Dictionary]:
 		},
 		{
 			"path": "res://addons/gf/standard/utilities/debug/editor/gf_signal_graph_dock.gd",
-			"label": "GF Signal Graph",
-			"short_label": "信号",
+			"label": "GF Signal Diagnostics",
+			"short_label": "信号诊断",
 			"order": 60,
 		},
 		{

@@ -90,6 +90,15 @@ class BTNode extends RefCounted:
 		pass
 
 
+	## 创建一份可独立运行的节点副本，不复制调试计数和正在运行的内部状态。
+	##
+	## 自定义节点若持有运行态，应重写此方法并复制自身类型；默认返回自身，
+	## 以避免未知子类被错误降级为基础 BTNode。
+	## @return 运行时副本。
+	func duplicate_runtime() -> BTNode:
+		return self
+
+
 	## 清空节点调试状态。
 	## @param recursive: 是否同时清空子节点调试状态。
 	func clear_debug_state(recursive: bool = true) -> void:
@@ -140,6 +149,19 @@ class BTNode extends RefCounted:
 	func _record_tick(status: int, reason: StringName = &"", started_usec: int = 0) -> int:
 		var elapsed := Time.get_ticks_usec() - started_usec if started_usec > 0 else 0
 		return record_status(status, reason, elapsed)
+
+
+	func _copy_base_fields_to(copy: BTNode) -> void:
+		copy.name = name
+		copy.node_id = node_id
+		copy.metadata = metadata.duplicate(true)
+
+
+	func _duplicate_child_nodes(children: Array[BTNode]) -> Array[BTNode]:
+		var result: Array[BTNode] = []
+		for child: BTNode in children:
+			result.append(child.duplicate_runtime() if child != null else null)
+		return result
 
 
 	func _get_debug_children() -> Array[BTNode]:
@@ -238,6 +260,12 @@ class Sequence extends BTNode:
 		super.reset()
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := Sequence.new(_duplicate_child_nodes(_children))
+		_copy_base_fields_to(copy)
+		return copy
+
+
 	func _get_debug_children() -> Array[BTNode]:
 		return _children
 
@@ -283,6 +311,12 @@ class Selector extends BTNode:
 			if child != null:
 				child.reset()
 		super.reset()
+
+
+	func duplicate_runtime() -> BTNode:
+		var copy := Selector.new(_duplicate_child_nodes(_children))
+		_copy_base_fields_to(copy)
+		return copy
 
 
 	func _get_debug_children() -> Array[BTNode]:
@@ -369,6 +403,12 @@ class Parallel extends BTNode:
 		super.reset()
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := Parallel.new(_duplicate_child_nodes(_children), policy)
+		_copy_base_fields_to(copy)
+		return copy
+
+
 	func _ensure_child_statuses() -> void:
 		if _child_statuses.size() == _children.size():
 			return
@@ -433,6 +473,12 @@ class RandomSelector extends BTNode:
 		super.reset()
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := RandomSelector.new(_duplicate_child_nodes(_children), _duplicate_rng(rng))
+		_copy_base_fields_to(copy)
+		return copy
+
+
 	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
 		var result: Array[BTNode] = []
 		result.append_array(_children)
@@ -458,6 +504,15 @@ class RandomSelector extends BTNode:
 			var temp := nodes[index]
 			nodes[index] = nodes[swap_index]
 			nodes[swap_index] = temp
+
+
+	func _duplicate_rng(source: RandomNumberGenerator) -> RandomNumberGenerator:
+		if source == null:
+			return null
+		var copy := RandomNumberGenerator.new()
+		copy.seed = source.seed
+		copy.state = source.state
+		return copy
 
 
 	func _get_debug_children() -> Array[BTNode]:
@@ -516,6 +571,12 @@ class RandomSequence extends BTNode:
 		super.reset()
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := RandomSequence.new(_duplicate_child_nodes(_children), _duplicate_rng(rng))
+		_copy_base_fields_to(copy)
+		return copy
+
+
 	func _make_random_order(blackboard: Dictionary) -> Array[BTNode]:
 		var result: Array[BTNode] = []
 		result.append_array(_children)
@@ -543,6 +604,15 @@ class RandomSequence extends BTNode:
 			nodes[swap_index] = temp
 
 
+	func _duplicate_rng(source: RandomNumberGenerator) -> RandomNumberGenerator:
+		if source == null:
+			return null
+		var copy := RandomNumberGenerator.new()
+		copy.seed = source.seed
+		copy.state = source.state
+		return copy
+
+
 	func _get_debug_children() -> Array[BTNode]:
 		return _children
 
@@ -568,6 +638,12 @@ class Action extends BTNode:
 		return _record_tick(Status.FAILURE, &"invalid_action", started)
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := Action.new(_action_func)
+		_copy_base_fields_to(copy)
+		return copy
+
+
 ## 条件检查节点 (叶子节点)。
 ##
 ## 包装一个返回布尔值的回调。true 为 SUCCESS，false 为 FAILURE。
@@ -587,6 +663,12 @@ class Condition extends BTNode:
 		if _condition_func.is_valid() and _condition_func.call(blackboard) == true:
 			return _record_tick(Status.SUCCESS, &"", started)
 		return _record_tick(Status.FAILURE, &"condition_false", started)
+
+
+	func duplicate_runtime() -> BTNode:
+		var copy := Condition.new(_condition_func)
+		_copy_base_fields_to(copy)
+		return copy
 
 
 ## 单子节点装饰器基类。
@@ -610,6 +692,12 @@ class Decorator extends BTNode:
 		if _child != null:
 			_child.reset()
 		super.reset()
+
+
+	func duplicate_runtime() -> BTNode:
+		var copy := Decorator.new(_child.duplicate_runtime() if _child != null else null)
+		_copy_base_fields_to(copy)
+		return copy
 
 
 	func _get_debug_children() -> Array[BTNode]:
@@ -645,6 +733,12 @@ class Inverter extends Decorator:
 		return _record_tick(status, &"", started)
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := Inverter.new(_child.duplicate_runtime() if _child != null else null)
+		_copy_base_fields_to(copy)
+		return copy
+
+
 ## 总是成功装饰节点。
 ##
 ## 子节点运行中时保持 RUNNING，子节点结束时统一返回 SUCCESS。
@@ -668,6 +762,12 @@ class AlwaysSucceed extends Decorator:
 		return _record_tick(Status.SUCCESS, &"", started)
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := AlwaysSucceed.new(_child.duplicate_runtime() if _child != null else null)
+		_copy_base_fields_to(copy)
+		return copy
+
+
 ## 总是失败装饰节点。
 ##
 ## 子节点运行中时保持 RUNNING，子节点结束时统一返回 FAILURE。
@@ -689,6 +789,12 @@ class AlwaysFail extends Decorator:
 			return _record_tick(Status.RUNNING, &"", started)
 		_child.reset()
 		return _record_tick(Status.FAILURE, &"", started)
+
+
+	func duplicate_runtime() -> BTNode:
+		var copy := AlwaysFail.new(_child.duplicate_runtime() if _child != null else null)
+		_copy_base_fields_to(copy)
+		return copy
 
 
 ## 概率装饰节点。
@@ -738,11 +844,26 @@ class Probability extends Decorator:
 		super.reset()
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := Probability.new(_child.duplicate_runtime() if _child != null else null, probability, _duplicate_rng(rng))
+		_copy_base_fields_to(copy)
+		return copy
+
+
 	func _resolve_rng(blackboard: Dictionary) -> RandomNumberGenerator:
 		if rng != null:
 			return rng
 		var blackboard_rng: Variant = blackboard.get("rng", null)
 		return blackboard_rng if blackboard_rng is RandomNumberGenerator else null
+
+
+	func _duplicate_rng(source: RandomNumberGenerator) -> RandomNumberGenerator:
+		if source == null:
+			return null
+		var copy := RandomNumberGenerator.new()
+		copy.seed = source.seed
+		copy.state = source.state
+		return copy
 
 
 ## 冷却装饰节点。
@@ -783,6 +904,12 @@ class Cooldown extends Decorator:
 	## 清空冷却状态。
 	func clear_cooldown() -> void:
 		_last_finish_msec = -1
+
+
+	func duplicate_runtime() -> BTNode:
+		var copy := Cooldown.new(_child.duplicate_runtime() if _child != null else null, cooldown_seconds)
+		_copy_base_fields_to(copy)
+		return copy
 
 
 	func _resolve_time_msec(blackboard: Dictionary) -> int:
@@ -828,6 +955,12 @@ class TimeLimit extends Decorator:
 		super.reset()
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := TimeLimit.new(_child.duplicate_runtime() if _child != null else null, limit_seconds)
+		_copy_base_fields_to(copy)
+		return copy
+
+
 ## 次数限制装饰节点。
 ##
 ## 子节点最多被 tick 指定次数；超过次数后返回 FAILURE。
@@ -859,6 +992,12 @@ class Limit extends Decorator:
 	func reset() -> void:
 		_tick_count = 0
 		super.reset()
+
+
+	func duplicate_runtime() -> BTNode:
+		var copy := Limit.new(_child.duplicate_runtime() if _child != null else null, max_ticks)
+		_copy_base_fields_to(copy)
+		return copy
 
 
 ## 重复装饰节点。
@@ -903,6 +1042,12 @@ class Repeat extends Decorator:
 		super.reset()
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := Repeat.new(_child.duplicate_runtime() if _child != null else null, repeat_count)
+		_copy_base_fields_to(copy)
+		return copy
+
+
 ## 直到成功装饰节点。
 ##
 ## 子节点失败时继续返回 RUNNING，直到子节点成功。
@@ -924,6 +1069,12 @@ class UntilSuccess extends Decorator:
 			reset()
 			return _record_tick(Status.SUCCESS, &"", started)
 		return _record_tick(Status.RUNNING, &"", started)
+
+
+	func duplicate_runtime() -> BTNode:
+		var copy := UntilSuccess.new(_child.duplicate_runtime() if _child != null else null)
+		_copy_base_fields_to(copy)
+		return copy
 
 
 ## 直到失败装饰节点。
@@ -949,15 +1100,25 @@ class UntilFail extends Decorator:
 		return _record_tick(Status.RUNNING, &"", started)
 
 
+	func duplicate_runtime() -> BTNode:
+		var copy := UntilFail.new(_child.duplicate_runtime() if _child != null else null)
+		_copy_base_fields_to(copy)
+		return copy
+
+
 ## 行为树的执行入口容器。
 class Runner extends RefCounted:
 	## 运行时共享黑板。
 	var blackboard: Dictionary = {}
 
+	## 是否在构造运行器时复制内置节点运行态，避免多个 Runner 共享同一棵树的进度。
+	var duplicates_runtime_tree: bool = true
+
 	var _root_node: BTNode
 
-	func _init(root: BTNode) -> void:
-		_root_node = root
+	func _init(root: BTNode, duplicate_runtime_tree: bool = true) -> void:
+		self.duplicates_runtime_tree = duplicate_runtime_tree
+		_root_node = root.duplicate_runtime() if duplicate_runtime_tree and root != null else root
 
 
 	## 驱动行为树运行逻辑。

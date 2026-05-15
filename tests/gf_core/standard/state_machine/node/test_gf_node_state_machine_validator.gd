@@ -11,6 +11,28 @@ const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/n
 const GFNodeStateMachineValidatorBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
 
 
+# --- 辅助子类 ---
+
+class MethodTrapNodeState:
+	extends GFNodeStateBase
+
+	var get_state_name_called: bool = false
+
+	func get_state_name() -> StringName:
+		get_state_name_called = true
+		return &"method_name"
+
+
+class MethodTrapNodeStateGroup:
+	extends GFNodeStateGroupBase
+
+	var get_group_name_called: bool = false
+
+	func get_group_name() -> StringName:
+		get_group_name_called = true
+		return &"method_group"
+
+
 # --- 测试 ---
 
 func test_validator_reports_duplicate_state_names_and_missing_initial() -> void:
@@ -44,6 +66,42 @@ func test_manual_machine_can_validate_without_initial_state() -> void:
 	var report := GFNodeStateMachineValidatorBase.validate_machine(machine)
 
 	assert_true(report.is_healthy(), "手动启动状态机允许不声明初始状态。")
+
+	machine.free()
+
+
+func test_validator_reads_state_name_without_calling_state_script_method() -> void:
+	var machine := GFNodeStateMachineBase.new()
+	machine.initial_state = &"idle"
+	var idle := MethodTrapNodeState.new()
+	idle.name = "Idle"
+	idle.state_name = &"idle"
+	machine.add_child(idle)
+
+	var report := GFNodeStateMachineValidatorBase.validate_machine(machine)
+
+	assert_true(report.is_healthy(), "校验器应通过导出属性读取状态名。")
+	assert_false(idle.get_state_name_called, "编辑器校验不应调用状态脚本方法，避免 placeholder 报错。")
+
+	machine.free()
+
+
+func test_validator_reads_group_name_without_calling_group_script_method() -> void:
+	var machine := GFNodeStateMachineBase.new()
+	var group := MethodTrapNodeStateGroup.new()
+	group.name = "Movement"
+	group.group_name = &"movement"
+	group.initial_state = &"idle"
+	var idle := GFNodeStateBase.new()
+	idle.name = "Idle"
+	idle.state_name = &"idle"
+	group.add_child(idle)
+	machine.add_child(group)
+
+	var report := GFNodeStateMachineValidatorBase.validate_machine(machine)
+
+	assert_true(report.is_healthy(), "校验器应通过导出属性读取状态组名。")
+	assert_false(group.get_group_name_called, "编辑器校验不应调用状态组脚本方法，避免 placeholder 报错。")
 
 	machine.free()
 

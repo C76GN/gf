@@ -367,6 +367,31 @@ func test_cooldown_survives_parent_runtime_reset() -> void:
 	assert_eq(sequence.tick({ "time_msec": 1200 }), GFBehaviorTree.Status.SUCCESS, "显式清空冷却后应允许下一轮执行。")
 
 
+func test_runner_duplicates_runtime_tree_by_default() -> void:
+	var action_count := { "value": 0 }
+	var action := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
+		action_count.value += 1
+		return GFBehaviorTree.Status.SUCCESS
+	)
+	var limited := GFBehaviorTree.Limit.new(action, 1)
+	var first_runner := GFBehaviorTree.Runner.new(limited)
+	var second_runner := GFBehaviorTree.Runner.new(limited)
+
+	assert_eq(first_runner.tick(), GFBehaviorTree.Status.SUCCESS, "第一个 Runner 应能执行一次。")
+	assert_eq(second_runner.tick(), GFBehaviorTree.Status.SUCCESS, "第二个 Runner 应使用独立运行副本。")
+	assert_eq(limited.tick({}), GFBehaviorTree.Status.SUCCESS, "原始树不应被 Runner 消耗内部运行态。")
+	assert_eq(action_count.value, 3, "两个 Runner 和原始树应各自执行一次叶子动作。")
+
+
+func test_runner_preserves_custom_node_behavior_without_duplicate_override() -> void:
+	var custom_node := CustomCountingNode.new()
+	var sequence := GFBehaviorTree.Sequence.new([custom_node] as Array[GFBehaviorTree.BTNode])
+	var runner := GFBehaviorTree.Runner.new(sequence)
+
+	assert_eq(runner.tick(), GFBehaviorTree.Status.SUCCESS, "Runner 默认复制运行树时仍应执行自定义节点逻辑。")
+	assert_eq(custom_node.tick_count_value, 1, "未重写 duplicate_runtime() 的自定义节点不应被降级为基础 BTNode。")
+
+
 func test_probability_keeps_decision_while_child_is_running() -> void:
 	var action_count := { "value": 0 }
 	var action := GFBehaviorTree.Action.new(func(_bb: Dictionary) -> int:
@@ -435,3 +460,11 @@ func _count_unique(values: Array) -> int:
 	for value in values:
 		lookup[value] = true
 	return lookup.size()
+
+
+class CustomCountingNode extends GFBehaviorTree.BTNode:
+	var tick_count_value: int = 0
+
+	func tick(_blackboard: Dictionary) -> int:
+		tick_count_value += 1
+		return _record_tick(GFBehaviorTree.Status.SUCCESS)

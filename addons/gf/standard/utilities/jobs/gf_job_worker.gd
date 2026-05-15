@@ -22,6 +22,11 @@ signal job_processed(job: GFJob)
 signal worker_idle
 
 
+# --- 常量 ---
+
+const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+
+
 # --- 导出变量 ---
 
 ## 消费的队列名。
@@ -38,6 +43,12 @@ signal worker_idle
 
 ## SceneTree 暂停时是否继续处理。
 @export var process_while_paused: bool = false
+
+## 等待异步任务处理器 Signal 的最长秒数。小于等于 0 时不启用超时。
+@export var signal_timeout_seconds: float = 30.0
+
+## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
+@export var signal_timeout_respects_time_scale: bool = true
 
 
 # --- 公共变量 ---
@@ -121,11 +132,16 @@ func process_next_job() -> GFJob:
 
 	var result: Variant = processor.call(job)
 	if result is Signal:
-		result = await (result as Signal)
+		var wait_result := await _await_processor_signal_result(result as Signal)
+		if not bool(wait_result.get("completed", false)):
+			if not job.is_finished():
+				utility.fail_job(job.job_id, "processor_signal_cancelled_or_timeout", wait_result)
+			job_processed.emit(job)
+			return job
 		if job.is_finished():
 			job_processed.emit(job)
 			return job
-		result = _normalize_signal_result(result)
+		result = wait_result.get("result")
 	_apply_processor_result(utility, job, result)
 	job_processed.emit(job)
 	return job
@@ -176,6 +192,25 @@ func _get_queue_utility() -> GFJobQueueUtility:
 	return architecture.get_utility(GFJobQueueUtility) as GFJobQueueUtility
 
 
+func _await_processor_signal_result(result_signal: Signal) -> Dictionary:
+	var guard_node := self if is_inside_tree() else null
+	var wait_result: Dictionary = await _GF_ASYNC_WAIT_SUPPORT.await_signal_payload_safely(
+		result_signal,
+		_should_continue_waiting,
+		_get_time_utility(),
+		signal_timeout_seconds,
+		signal_timeout_respects_time_scale,
+		"[GFJobWorker] 等待任务处理器 Signal 超时，任务将标记为失败。",
+		guard_node
+	)
+	var completed := bool(wait_result.get("completed", false))
+	return {
+		"completed": completed,
+		"result": _normalize_signal_result(wait_result.get("args", [])) if completed else null,
+		"reason": "completed" if completed else "cancelled_or_timeout",
+	}
+
+
 func _apply_processor_result(utility: GFJobQueueUtility, job: GFJob, result: Variant) -> void:
 	if job == null or job.is_finished():
 		return
@@ -203,3 +238,14 @@ func _normalize_signal_result(result: Variant) -> Variant:
 		data["signal_args"] = GFVariantData.duplicate_variant(values)
 		return data
 	return values
+
+
+func _get_time_utility() -> GFTimeUtility:
+	var architecture := GFAutoload.get_architecture_or_null()
+	if architecture == null:
+		return null
+	return architecture.get_utility(GFTimeUtility) as GFTimeUtility
+
+
+func _should_continue_waiting() -> bool:
+	return _running or _processing or not is_inside_tree()

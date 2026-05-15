@@ -5,7 +5,7 @@
 
 `GFStorageUtility` 是基于 Godot `user://` 的本地持久化工具。它负责把字典、槽位元数据和 `Resource` 文件写入项目可写目录，并在读取时执行 codec 解码、完整性校验、事务恢复和版本迁移；它不负责云同步、业务 schema 设计、玩家账号隔离或安全加密。
 
-槽位存储会把核心数据和展示用 Metadata 分开，读档列表 UI 可以只读取 Metadata 与修改时间，不必加载完整存档载荷。`GFStorageCodec` 提供 JSON/Binary 编码、可选压缩、SHA-256 完整性校验、轻量 XOR 混淆和 `_meta` 版本信息。这里的混淆只用于降低误编辑概率，不能用于保护敏感数据。
+槽位存储会把核心数据和展示用 Metadata 分开，读档列表 UI 可以只读取 Metadata 与修改时间，不必加载完整存档载荷。`GFStorageCodec` 提供 JSON/Binary 编码、可选压缩、SHA-256 完整性校验、轻量 XOR 混淆和框架存储元信息。若业务载荷根字典本身已有 `_meta` 字段，codec 会把框架元信息写入独立 envelope，读取时仍还原用户自己的 `_meta`，避免存档格式和业务数据抢同一个键。这里的混淆只用于降低误编辑概率，不能用于保护敏感数据。
 
 同时原生支持 Godot 的 `Resource` 类型（如 `.tres` 或 `.res`）直接存取。
 

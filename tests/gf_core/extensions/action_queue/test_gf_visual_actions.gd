@@ -58,6 +58,7 @@ func test_move_tween_action_waits_for_tween() -> void:
 	var result: Variant = action.execute()
 
 	assert_true(result is Signal, "非零时长移动动作应返回 Tween 完成信号。")
+	assert_eq(String((result as Signal).get_name()), "_action_completed", "Tween 动作应返回自身完成信号，而不是手动发射引擎 Tween.finished。")
 	await action.await_result_safely(result)
 
 	assert_almost_eq(node.position.x, 10.0, 0.01, "移动 Tween 完成后应到达目标 x。")
@@ -128,6 +129,7 @@ func test_configured_tween_action_waits_for_timed_steps() -> void:
 	var result: Variant = action.execute()
 
 	assert_true(result is Signal, "带时长的配置化 Tween 应返回完成 Signal。")
+	assert_eq(String((result as Signal).get_name()), "_action_completed", "配置化 Tween 应通过动作自身完成信号释放等待者。")
 	await action.await_result_safely(result)
 	assert_almost_eq(node.position.x, 16.0, 0.01, "配置化 Tween 完成后应写入 x。")
 	assert_almost_eq(node.position.y, 4.0, 0.01, "配置化 Tween 完成后应写入 y。")
@@ -379,6 +381,7 @@ func test_flash_action_restores_modulate() -> void:
 	var result: Variant = action.execute()
 
 	assert_true(result is Signal, "闪色动作应返回 Tween 完成信号。")
+	assert_eq(String((result as Signal).get_name()), "_action_completed", "闪色动作应通过动作自身完成信号释放等待者。")
 	await action.await_result_safely(result)
 
 	assert_eq(item.modulate, Color(0.2, 0.4, 0.6), "闪色动作完成后应恢复原始颜色。")

@@ -18,6 +18,7 @@ const GFSavePipelineStepBase = preload("res://addons/gf/extensions/save/pipeline
 const GFSaveScopeBase = preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
 const GFSaveSourceBase = preload("res://addons/gf/extensions/save/core/gf_save_source.gd")
 const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _CREATED_ENTITIES_CONTEXT_KEY: String = "_gf_save_graph_created_entities"
 
 
 # --- 公共变量 ---
@@ -290,6 +291,9 @@ func apply_scope(
 	var owns_pipeline_context := not _has_pipeline_context(context)
 	context = _ensure_pipeline_context(context, &"apply", scope)
 	var pipeline_context := _get_pipeline_context(context)
+	var owns_created_entities := not context.has(_CREATED_ENTITIES_CONTEXT_KEY)
+	if owns_created_entities:
+		context[_CREATED_ENTITIES_CONTEXT_KEY] = []
 	if owns_pipeline_context:
 		pipeline_context.record_event(&"apply_started", scope)
 
@@ -313,13 +317,14 @@ func apply_scope(
 		"invalid_scopes_payload"
 	)
 	if not errors.is_empty():
-		return _finish_apply_scope(
+		return _finalize_apply_scope(
 			scope,
 			payload,
 			_make_apply_result(false, applied, errors, missing),
 			context,
 			pipeline_context,
-			owns_pipeline_context
+			owns_pipeline_context,
+			owns_created_entities
 		)
 
 	scope.before_load(payload, context)
@@ -409,13 +414,14 @@ func apply_scope(
 			missing.append("%s/%s" % [child_key, missing_key])
 
 	scope.after_load(payload, context)
-	return _finish_apply_scope(
+	return _finalize_apply_scope(
 		scope,
 		payload,
 		_make_apply_result(errors.is_empty(), applied, errors, missing),
 		context,
 		pipeline_context,
-		owns_pipeline_context
+		owns_pipeline_context,
+		owns_created_entities
 	)
 
 
@@ -711,11 +717,21 @@ func _try_create_source_from_payload(
 	var entity := factory.create_entity(descriptor, context)
 	if entity == null:
 		return null
-	scope.add_child(entity)
-	factory.after_entity_created(entity, descriptor, context)
+
 	if entity is GFSaveSourceBase:
+		scope.add_child(entity)
+		_track_created_entity(context, entity)
+		factory.after_entity_created(entity, descriptor, context)
 		return entity as GFSaveSourceBase
-	return _find_first_source(entity)
+	var source := _find_first_source(entity)
+	if source == null:
+		_free_created_entity(entity)
+		return null
+
+	scope.add_child(entity)
+	_track_created_entity(context, entity)
+	factory.after_entity_created(entity, descriptor, context)
+	return source
 
 
 func _find_first_source(root: Node) -> GFSaveSourceBase:
@@ -782,6 +798,59 @@ func _finish_apply_scope(
 		if bool(context.get("include_pipeline_trace", false)):
 			final_result["pipeline_trace"] = pipeline_context.to_dict(true)
 	return final_result
+
+
+func _finalize_apply_scope(
+	scope: GFSaveScopeBase,
+	payload: Dictionary,
+	result: Dictionary,
+	context: Dictionary,
+	pipeline_context: GFSavePipelineContextBase,
+	owns_pipeline_context: bool,
+	owns_created_entities: bool
+) -> Dictionary:
+	var final_result := _finish_apply_scope(
+		scope,
+		payload,
+		result,
+		context,
+		pipeline_context,
+		owns_pipeline_context
+	)
+	if owns_created_entities:
+		if bool(context.get("transactional_apply", true)) and not bool(final_result.get("ok", false)):
+			_rollback_created_entities(context)
+		context.erase(_CREATED_ENTITIES_CONTEXT_KEY)
+	return final_result
+
+
+func _track_created_entity(context: Dictionary, entity: Node) -> void:
+	if not context.has(_CREATED_ENTITIES_CONTEXT_KEY):
+		return
+	var created_entities := context[_CREATED_ENTITIES_CONTEXT_KEY] as Array
+	if created_entities != null and not created_entities.has(entity):
+		created_entities.append(entity)
+
+
+func _rollback_created_entities(context: Dictionary) -> void:
+	var created_entities := context.get(_CREATED_ENTITIES_CONTEXT_KEY, []) as Array
+	if created_entities == null:
+		return
+
+	for index: int in range(created_entities.size() - 1, -1, -1):
+		var entity := created_entities[index] as Node
+		_free_created_entity(entity)
+	created_entities.clear()
+
+
+func _free_created_entity(entity: Node) -> void:
+	if not is_instance_valid(entity):
+		return
+
+	var parent := entity.get_parent()
+	if parent != null:
+		parent.remove_child(entity)
+	entity.free()
 
 
 func _ensure_pipeline_context(

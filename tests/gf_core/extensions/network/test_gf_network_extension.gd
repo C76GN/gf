@@ -256,6 +256,7 @@ func test_network_utility_bridges_backend_messages() -> void:
 	assert_eq(backend.sent_peer_id, 4, "后端应收到目标 peer。")
 	assert_eq(received.size(), 1, "后端消息应被解码并广播。")
 	assert_eq(received[0].message_type, &"ping", "解码后的消息类型应正确。")
+	assert_eq(received[0].sender_id, 4, "入站消息的 sender_id 应以传输层 peer_id 为准，不能信任载荷自报。")
 
 
 func test_network_utility_reports_decode_failure_details() -> void:

@@ -29,6 +29,7 @@ const WORKSPACE_TITLE: String = "GF Workspace"
 
 var _about_button: Button = null
 var _about_dialog: AcceptDialog = null
+var _always_on_top_button: Button = null
 var _latest_version_request: HTTPRequest = null
 var _page_buttons: Array[Button] = []
 var _page_selector: HFlowContainer = null
@@ -163,6 +164,14 @@ func _build_ui() -> void:
 	_about_button.pressed.connect(_on_about_button_pressed)
 	header.add_child(_about_button)
 
+	_always_on_top_button = Button.new()
+	_always_on_top_button.text = "置顶"
+	_always_on_top_button.toggle_mode = true
+	_always_on_top_button.focus_mode = Control.FOCUS_NONE
+	_always_on_top_button.tooltip_text = "让 GF Workspace 独立窗口保持在其他窗口上方。"
+	_always_on_top_button.toggled.connect(_on_always_on_top_toggled)
+	header.add_child(_always_on_top_button)
+
 	_tabs = TabContainer.new()
 	_tabs.clip_contents = true
 	_tabs.tabs_visible = false
@@ -268,7 +277,9 @@ func _resolve_short_page_label(record: Dictionary, label: String) -> String:
 		"Save Viewer":
 			return "存储"
 		"Signal Graph":
-			return "信号"
+			return "信号诊断"
+		"Signal Diagnostics":
+			return "信号诊断"
 		"Diagnostics":
 			return "诊断"
 		"Extensions":
@@ -292,6 +303,35 @@ func _copy_records(source: Array[Dictionary]) -> Array[Dictionary]:
 func _set_status(message: String) -> void:
 	if is_instance_valid(_status_label):
 		_status_label.text = message
+
+
+func _sync_window_controls() -> void:
+	_sync_always_on_top_button()
+
+
+func _sync_always_on_top_button() -> void:
+	if not is_instance_valid(_always_on_top_button):
+		return
+
+	var window := _get_workspace_window()
+	var available := window != null
+	_always_on_top_button.disabled = not available
+	_always_on_top_button.set_pressed_no_signal(available and window.always_on_top)
+	if available:
+		_always_on_top_button.tooltip_text = "让 GF Workspace 独立窗口保持在其他窗口上方。"
+	else:
+		_always_on_top_button.tooltip_text = "当前工作区没有运行在独立窗口中，无法置顶。"
+
+
+func _get_workspace_window() -> Window:
+	var current: Node = self
+	while current != null:
+		if current is Window:
+			var window := current as Window
+			if window.title == WORKSPACE_TITLE:
+				return window
+		current = current.get_parent()
+	return null
 
 
 func _rebuild_page_buttons() -> void:
@@ -599,6 +639,22 @@ func _parse_version_numbers(value: String) -> PackedInt32Array:
 
 func _on_about_button_pressed() -> void:
 	show_about_dialog()
+
+
+func _on_always_on_top_toggled(enabled: bool) -> void:
+	var window := _get_workspace_window()
+	if window == null:
+		_sync_always_on_top_button()
+		return
+
+	if window.has_method("set_always_on_top_enabled"):
+		window.call("set_always_on_top_enabled", enabled)
+	else:
+		if enabled:
+			window.transient = false
+			window.exclusive = false
+		window.always_on_top = enabled
+	_sync_always_on_top_button()
 
 
 func _on_page_button_pressed(index: int) -> void:

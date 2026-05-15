@@ -153,7 +153,7 @@ func _ready() -> void:
 	_on_level_changed(null, player_model.level.get_value())
 ```
 
-需要手动清理 UI 绑定时，`unbind(node, callable)` 只断开指定节点绑定，`unbind_all()` / `unbind_all_node_bindings()` 只清理由 `bind_to()` 创建的节点生命周期绑定，不会断开业务层直接连接到 `value_changed` 的订阅。确实要清空 `value_changed` 上所有订阅者时，使用语义更明确的 `disconnect_all_subscribers()`。
+需要手动清理 UI 绑定时，`unbind(node, callable)` 只断开指定节点绑定，`unbind_all()` / `unbind_all_node_bindings()` 只清理由 `bind_to()` 创建的节点生命周期绑定，不会断开业务层直接连接到 `value_changed` 的订阅。同一个 callable 绑定到多个节点时，只要仍有一个节点绑定存活，框架创建的 `value_changed` 连接就会保留；最后一个绑定离开后才自动断开。确实要清空 `value_changed` 上所有订阅者时，使用语义更明确的 `disconnect_all_subscribers()`。
 
 ## 数据绑定的局限性与设计哲学
 

@@ -1369,6 +1369,8 @@ func _apply_sfx_request(
 ) -> void:
 	if request_serial != _sfx_lifecycle_serial:
 		return
+	if handle != null and handle.is_stop_requested():
+		return
 
 	var player := _play_sfx_stream(stream)
 	if handle != null:
@@ -1384,6 +1386,8 @@ func _apply_sfx_request_with_settings(
 	handle: GFAudioEmitterHandle = null
 ) -> void:
 	if request_serial != _sfx_lifecycle_serial:
+		return
+	if handle != null and handle.is_stop_requested():
 		return
 
 	var player := _play_sfx_stream_with_settings(stream, bus_name, volume_db, pitch_scale)
@@ -1446,6 +1450,7 @@ func _on_sfx_finished(player: AudioStreamPlayer) -> void:
 	_untrack_sfx_player(player)
 	var pool := _get_pool_util()
 	if pool != null:
+		_reset_sfx_player_for_reuse(player)
 		pool.release(player, _sfx_scene)
 	else:
 		player.queue_free()
@@ -1523,6 +1528,7 @@ func _release_sfx_player(player: AudioStreamPlayer) -> void:
 	if player.finished.is_connected(finished_callback):
 		player.finished.disconnect(finished_callback)
 	player.stop()
+	_reset_sfx_player_for_reuse(player)
 
 	var pool := _get_pool_util()
 	if pool != null and is_instance_valid(_sfx_scene):
@@ -1536,6 +1542,17 @@ func _prune_inactive_sfx_players() -> void:
 		var player := _active_sfx_players[i]
 		if not is_instance_valid(player) or player.is_queued_for_deletion():
 			_active_sfx_players.remove_at(i)
+
+
+func _reset_sfx_player_for_reuse(player: AudioStreamPlayer) -> void:
+	if not is_instance_valid(player):
+		return
+
+	player.stop()
+	player.stream = null
+	player.bus = _resolve_bus_name(SFX_BUS_NAME)
+	player.volume_db = 0.0
+	player.pitch_scale = 1.0
 
 
 func _get_sfx_finished_callback(player: AudioStreamPlayer) -> Callable:

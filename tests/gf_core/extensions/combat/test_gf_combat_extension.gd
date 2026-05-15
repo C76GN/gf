@@ -23,6 +23,14 @@ class RejectingSkill extends GFSkill:
 		return false
 
 
+class FailingExecuteSkill extends GFSkill:
+	var executed: bool = false
+
+	func _try_execute(_targets: Array[Object]) -> bool:
+		executed = true
+		return false
+
+
 class UnregisterOtherBuff extends GFBuff:
 	var system: GFCombatSystem = null
 	var target: Object = null
@@ -357,6 +365,18 @@ func test_skill_cooldown() -> void:
 	assert_eq(skill.cooldown_left, 3.0, "Skill CD should be updated by system tick")
 
 
+func test_skill_does_not_start_cooldown_when_execute_hook_fails() -> void:
+	var entity := MockEntity.new()
+	var skill := FailingExecuteSkill.new(entity)
+	skill.cooldown_max = 5.0
+
+	var executed := skill.execute()
+
+	assert_false(executed, "执行钩子显式失败时 execute() 应返回 false。")
+	assert_true(skill.executed, "技能应已经进入执行钩子。")
+	assert_eq(skill.cooldown_left, 0.0, "执行钩子失败时不应进入冷却。")
+
+
 func test_add_skill_assigns_owner_when_missing() -> void:
 	var system := GFCombatSystem.new()
 	var entity := MockEntity.new()
@@ -460,6 +480,21 @@ func test_duplicate_buff_refresh_updates_duration_and_stacks() -> void:
 	assert_eq(buff.stacks, 2, "重复 Buff 应在 max_stacks 允许时增加层数。")
 	assert_eq(buff.duration, -1.0, "重复 Buff 刷新应同步新的 duration。")
 	assert_eq(buff.time_left, -1.0, "重复 Buff 刷新应同步新的剩余时间。")
+
+
+func test_empty_buff_ids_do_not_refresh_each_other() -> void:
+	var system := GFCombatSystem.new()
+	var entity := MockEntity.new()
+	system.register_entity(entity)
+	var first := GFBuff.new()
+	first.setup(&"", -1.0, entity)
+	var second := GFBuff.new()
+	second.setup(&"", -1.0, entity)
+
+	system.add_buff(entity, first)
+	system.add_buff(entity, second)
+
+	assert_eq(system.get_buffs(entity).size(), 2, "匿名 Buff 不应因为空 id 被当成同一 Buff 刷新。")
 
 
 func test_duplicate_buff_refresh_uses_refresh_from_hook() -> void:

@@ -86,6 +86,6 @@ track.rotation_axis_degrees = Vector3.ZERO
 preset.add_track(track)
 ```
 
-`GFShakeReceiver2D` 和 `GFShakeReceiver3D` 是可选场景桥接节点：它们记录目标节点的基础变换，并把某个 channel 的采样叠加到目标上。项目也可以完全不用接收器，直接读取 `sample_channel()` 后应用到自己的相机系统、UI 动画或 shader 参数。
+`GFShakeReceiver2D` 和 `GFShakeReceiver3D` 是可选场景桥接节点：它们记录目标节点的基础变换，并把某个 channel 的采样叠加到目标上。接收器按“上一帧已应用偏移”做差量更新，因此目标节点在抖动期间仍可被移动系统、动画或布局逻辑改位置，新的外部变换不会被下一次采样覆盖；`reset_to_base()` 会移除最后一次反馈偏移并更新基准。项目也可以完全不用接收器，直接读取 `sample_channel()` 后应用到自己的相机系统、UI 动画或 shader 参数。
 
 ---

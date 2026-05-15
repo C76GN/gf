@@ -13,6 +13,12 @@ class_name GFVisualAction
 extends RefCounted
 
 
+# --- 信号 ---
+
+## 内置可等待视觉动作的完成信号。
+signal _action_completed
+
+
 # --- 枚举 ---
 
 ## 队列如何处理 execute() 的返回值。
@@ -46,6 +52,7 @@ var signal_timeout_respects_time_scale: bool = true
 # --- 私有变量 ---
 
 var _architecture_ref: WeakRef = null
+var _completion_emitted: bool = false
 
 
 # --- 公共方法 ---
@@ -152,13 +159,15 @@ func await_result_safely(result: Variant, should_continue: Callable = Callable()
 
 # --- 私有/辅助方法 ---
 
-func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
-	return _GF_ASYNC_WAIT_SUPPORT.get_timeout_elapsed_msec(
-		previous_msec,
-		current_msec,
-		_get_time_utility(),
-		signal_timeout_respects_time_scale
-	)
+func _reset_completion_state() -> void:
+	_completion_emitted = false
+
+
+func _emit_completed_once() -> void:
+	if _completion_emitted:
+		return
+	_completion_emitted = true
+	_action_completed.emit()
 
 
 func _get_time_utility() -> GFTimeUtility:

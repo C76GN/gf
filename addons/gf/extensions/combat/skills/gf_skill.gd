@@ -94,9 +94,10 @@ func can_execute() -> bool:
 ## 执行技能。
 ## @param manual_target: 可选的手动目标。
 ## @param cast_center: 可选施法中心；传入 `null` 时回退到施法者位置。
-func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
+## @return 技能实际执行并进入冷却时返回 `true`。
+func execute(manual_target: Object = null, cast_center: Variant = null) -> bool:
 	if not can_execute():
-		return
+		return false
 
 	var final_targets: Array[Object] = []
 	var resolved_center := _resolve_cast_center(cast_center)
@@ -106,13 +107,13 @@ func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
 			var utility := _get_targeting_utility()
 			if utility == null:
 				push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
-				return
+				return false
 
 			var valid_targets := utility.find_targets(resolved_center, targeting_rule, [manual_target])
 			if not valid_targets.is_empty():
 				final_targets.append(manual_target)
 			else:
-				return
+				return false
 		else:
 			final_targets.append(manual_target)
 	elif targeting_rule != null:
@@ -126,16 +127,18 @@ func execute(manual_target: Object = null, cast_center: Variant = null) -> void:
 		var utility := _get_targeting_utility()
 		if utility == null:
 			push_error("[GFCombat] GFSkillTargetingUtility 尚未在架构中注册。")
-			return
+			return false
 
 		final_targets = utility.find_targets(resolved_center, targeting_rule, candidates)
 
 	if targeting_rule != null and targeting_rule.max_count > 0 and final_targets.is_empty():
-		return
+		return false
 
-	_on_execute(final_targets)
+	if not _try_execute(final_targets):
+		return false
 	cooldown_left = cooldown_max
 	cooldown_started.emit(self)
+	return true
 
 
 # --- 虚方法（由子类重写） ---
@@ -150,6 +153,14 @@ func _custom_can_execute() -> bool:
 ## @param targets: 经过筛选后的最终目标数组。
 func _on_execute(targets: Array[Object]) -> void:
 	pass
+
+
+## 可报告成功/失败的技能执行入口。默认调用旧的 `_on_execute()` 钩子并视为成功。
+## @param targets: 经过筛选后的最终目标数组。
+## @return 技能真正生效时返回 `true`。
+func _try_execute(targets: Array[Object]) -> bool:
+	_on_execute(targets)
+	return true
 
 
 # --- 私有/辅助方法 ---

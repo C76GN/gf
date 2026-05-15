@@ -224,7 +224,7 @@ architecture.register_factory(
 architecture.register_factory_instance(BattleRuleSet, BattleRuleSet.new())
 ```
 
-当子架构回退到父级工厂时，transient 工厂会把发起请求的子架构注入新对象，适合局部关卡命令继续访问本地模块；singleton 工厂始终由拥有该绑定的架构持有和注入。替换、注销工厂或销毁架构时，框架会清理已缓存 singleton 实例的 owner 事件监听，调用实例自己的 `dispose()`（如果存在），并释放依赖作用域；外部继续持有旧对象时不应再通过它访问旧架构。常见用途包括命令、查询、技能执行载体和局部玩法 helper。长期存在并参与完整生命周期、tick 或跨系统协作的对象仍应注册为 `Model`、`System` 或 `Utility`。`with_alias()` 只适用于 `Model`、`System` 和 `Utility`，用于 factory 绑定时会被忽略并输出 warning。
+当子架构回退到父级工厂时，transient 工厂会把发起请求的子架构注入新对象，适合局部关卡命令继续访问本地模块；singleton 工厂始终由拥有该绑定的架构持有和注入。替换、注销工厂或销毁架构时，框架会清理已缓存 singleton 实例的 owner 事件监听并释放依赖作用域；由工厂 callback 创建并由绑定缓存的实例会调用自身 `dispose()`，而通过 `register_factory_instance()` / `replace_factory_instance()` 传入的外部实例默认不由框架 dispose，避免项目对象被解绑工厂时意外销毁。外部继续持有已解绑对象时不应再通过它访问旧架构。常见用途包括命令、查询、技能执行载体和局部玩法 helper。长期存在并参与完整生命周期、tick 或跨系统协作的对象仍应注册为 `Model`、`System` 或 `Utility`。`with_alias()` 只适用于 `Model`、`System` 和 `Utility`，用于 factory 绑定时会被忽略并输出 warning。
 
 ---
 
@@ -256,7 +256,7 @@ func _ready() -> void:
 
 当未命中精确类型或 alias 时，框架会尝试寻找唯一的继承匹配；如果多个实例都继承同一个基类，会返回 `null` 并给出警告，此时应使用显式 alias 消除歧义。
 
-`Model`、`System` 与 `Utility` 的注册表遵循同一套规则：重复注册会被忽略并提示使用 `replace_*()`，通过 alias 注销会释放目标实例并清理同目标别名，注册表变化后继承匹配缓存会失效。项目层不需要关心内部注册表实现，只要保持注册键、alias 和实际实例类型一致即可。
+`Model`、`System` 与 `Utility` 的注册表遵循同一套规则：重复注册会被忽略并提示使用 `replace_*()`，通过 alias 注销会释放目标实例并清理同目标别名，注册表变化后继承匹配缓存会失效。显式 alias 会校验 `target_cls` 必须继承或等于 `alias_cls`，无关类型会被拒绝，避免 `get_utility(AbstractType)` 返回无法强转的实例。项目层不需要关心内部注册表实现，只要保持注册键、alias 和实际实例类型一致即可。
 
 ---
 

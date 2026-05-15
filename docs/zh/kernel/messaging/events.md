@@ -137,7 +137,7 @@ func _exit_tree() -> void:
 2. **优先使用 owner 绑定监听**：`GFSystem`、`GFUtility`、`GFController`、`GFState` 内部优先调用基类 `register_event()` / `register_simple_event()`；普通对象使用 `Gf.listen_owned()` / `Gf.listen_simple_owned()` 并在退出时调用 `Gf.unlisten_owner()`。如果使用无 owner 的 `Gf.listen()` / `Gf.listen_simple()`，必须手动 `unlisten`。
 3. **保持 Payload 轻量**：虽然 Godot 4 的内存回收针对 `RefCounted` 优化巨大，但在诸如物理碰撞这样`_physics_process`高频循环内部，大量 `new` 实例强类型 Payload 仍会构成 GC 压力。这种场景下考虑改为使用 `send_simple_event`。
 4. **简单事件 ID 必须稳定且非空**：空 `StringName` 会被拒绝。建议使用能表达来源和语义的事件名，例如 `&"ui_opened"` 或 `&"combat_hit_resolved"`，不要把临时通知塞进无名通道。
-5. **事件签名安全性校验**：类型事件回调必须至少接收一个事件实例参数；简单事件回调也必须至少接收一个 `payload` 参数。框架会对对象方法形式的回调做运行时反射校验，参数不足或额外必填参数未通过默认值/`bind()` 满足时输出错误并跳过注册。
+5. **事件签名安全性校验**：类型事件回调必须至少接收一个事件实例参数；简单事件回调也必须至少接收一个 `payload` 参数。框架会对对象方法形式的回调做运行时反射校验，参数不足、额外必填参数未通过默认值/`bind()` 满足，或 `bind()` 后会传入超过目标方法可接收参数数量的实参时，都会输出错误并跳过注册。
 6. **事件消费是字段约定**：`GFPayload` 提供了 `is_consumed` 字段。Type Event 派发后会检查事件实例上的 `is_consumed == true`，命中时停止后续监听。非 `GFPayload` 事件如果也定义并设置了同名字段，同样会触发消费语义。
 7. **监听器默认同步执行**：事件系统只调用回调，不会等待回调返回的 `Signal`。需要串行等待、失败处理、超时控制或可取消流程时，请使用 `GFCommandSequence`、Flow、Action Queue 或项目层 System 调度。
 8. **exact 与 assignable 不自动去重**：同一个 callable 如果同时注册到精确类型监听和 assignable 监听，可能在同一次派发中被调用两次。需要避免重复处理时，只注册其中一种，或在业务侧自行去重。

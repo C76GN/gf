@@ -395,22 +395,14 @@ func is_capability_active(receiver: Object, capability_type: Script) -> bool:
 ## @param receiver: 能力接收对象。
 ## @param capability_type: 要查询、添加或移除的能力脚本类型。
 func remove_capability(receiver: Object, capability_type: Script) -> void:
-	var record := _find_capability_record(receiver, capability_type)
-	if record.is_empty():
-		return
+	_remove_capability(receiver, capability_type, true)
 
-	var registered_type := record["type"] as Script
-	var capability := record["instance"] as Object
-	var dependency_types := _get_dependency_types(receiver, registered_type)
-	var dependency_removal_policy := _get_dependency_removal_policy(capability)
-	_call_removed_hook(receiver, capability)
-	_set_capability_receiver(capability, null)
-	_remove_capability_record(receiver, registered_type)
-	_remove_dependency_links(receiver, registered_type)
-	capability_removed.emit(receiver, registered_type, capability)
-	_free_registered_capability(capability)
-	if dependency_removal_policy == DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES:
-		_remove_unused_auto_dependencies(receiver, dependency_types)
+
+## 从对象注销指定能力，但不释放能力实例。
+## @param receiver: 能力接收对象。
+## @param capability_type: 要查询、添加或移除的能力脚本类型。
+func unregister_capability(receiver: Object, capability_type: Script) -> void:
+	_remove_capability(receiver, capability_type, false)
 
 
 ## 清空对象上的所有能力。
@@ -438,7 +430,7 @@ func clear_receiver_groups(receiver: Object) -> void:
 ## 把能力组合 Recipe 应用到 receiver。
 ## @param receiver: 能力接收对象。
 ## @param recipe: 能力组合资源。
-## @param options: 可选参数，支持 skip_groups 与 validate_after_apply。
+## @param options: 可选参数，支持 skip_groups、validate_after_apply 与 transactional。
 ## @return 应用报告。
 func apply_recipe(receiver: Object, recipe: GF_CAPABILITY_RECIPE_BASE, options: Dictionary = {}) -> Dictionary:
 	var result := {
@@ -449,6 +441,7 @@ func apply_recipe(receiver: Object, recipe: GF_CAPABILITY_RECIPE_BASE, options: 
 		"failed": [],
 		"groups": [],
 		"dependency_validation": {},
+		"rolled_back": false,
 	}
 	if not is_instance_valid(receiver):
 		result["ok"] = false
@@ -465,16 +458,25 @@ func apply_recipe(receiver: Object, recipe: GF_CAPABILITY_RECIPE_BASE, options: 
 		})
 		return result
 
+	var transactional := bool(options.get("transactional", true))
+	var added_types: Array[Script] = []
+	var newly_added_groups: Array[StringName] = []
+	var reused_active_states: Dictionary = {}
 	if not bool(options.get("skip_groups", false)):
 		for group_name: StringName in recipe.groups:
 			if group_name == &"":
 				continue
+			var had_group := get_receiver_groups(receiver).has(group_name)
 			add_receiver_to_group(receiver, group_name)
+			if not had_group:
+				newly_added_groups.append(group_name)
 			(result["groups"] as Array).append(group_name)
 
 	for index: int in range(recipe.entries.size()):
 		var entry := recipe.entries[index]
-		_apply_recipe_entry(receiver, entry, index, result)
+		_apply_recipe_entry(receiver, entry, index, result, added_types, reused_active_states)
+		if transactional and not (result["failed"] as Array).is_empty():
+			break
 
 	if bool(options.get("validate_after_apply", true)):
 		var validation := validate_receiver_dependencies(receiver)
@@ -484,6 +486,9 @@ func apply_recipe(receiver: Object, recipe: GF_CAPABILITY_RECIPE_BASE, options: 
 
 	if not (result["failed"] as Array).is_empty():
 		result["ok"] = false
+	if transactional and not bool(result["ok"]):
+		_rollback_recipe_apply(receiver, added_types, newly_added_groups, reused_active_states)
+		result["rolled_back"] = true
 	return result
 
 
@@ -604,11 +609,33 @@ func inspect_receiver(receiver: Object) -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
+func _remove_capability(receiver: Object, capability_type: Script, free_instance: bool) -> void:
+	var record := _find_capability_record(receiver, capability_type)
+	if record.is_empty():
+		return
+
+	var registered_type := record["type"] as Script
+	var capability := record["instance"] as Object
+	var dependency_types := _get_dependency_types(receiver, registered_type)
+	var dependency_removal_policy := _get_dependency_removal_policy(capability)
+	_call_removed_hook(receiver, capability)
+	_set_capability_receiver(capability, null)
+	_remove_capability_record(receiver, registered_type)
+	_remove_dependency_links(receiver, registered_type)
+	capability_removed.emit(receiver, registered_type, capability)
+	if free_instance:
+		_free_registered_capability(capability)
+	if dependency_removal_policy == DependencyRemovalPolicy.REMOVE_AUTO_DEPENDENCIES:
+		_remove_unused_auto_dependencies(receiver, dependency_types)
+
+
 func _apply_recipe_entry(
 	receiver: Object,
 	entry: GF_CAPABILITY_RECIPE_ENTRY_BASE,
 	index: int,
-	result: Dictionary
+	result: Dictionary,
+	added_types: Array[Script],
+	reused_active_states: Dictionary
 ) -> void:
 	if entry == null:
 		_append_recipe_failure(result, index, "null_entry", "Recipe entry is null.")
@@ -617,8 +644,8 @@ func _apply_recipe_entry(
 		_append_recipe_failure(result, index, "invalid_entry", "Recipe entry requires capability_type or scene.")
 		return
 
+	var before_types := _get_capability_type_list(receiver).duplicate()
 	var capability_type := entry.capability_type
-	var had_capability := capability_type != null and has_capability(receiver, capability_type)
 	var capability: Object = null
 	if entry.scene != null:
 		if not (receiver is Node):
@@ -634,6 +661,9 @@ func _apply_recipe_entry(
 
 	if capability_type == null:
 		capability_type = capability.get_script() as Script
+	var had_capability := capability_type != null and before_types.has(capability_type)
+	if had_capability and not reused_active_states.has(capability_type):
+		reused_active_states[capability_type] = is_capability_active(receiver, capability_type)
 	if capability_type != null:
 		set_capability_active(receiver, capability_type, entry.active)
 
@@ -646,7 +676,27 @@ func _apply_recipe_entry(
 	if had_capability:
 		(result["reused"] as Array).append(entry_report)
 	else:
+		if capability_type != null and not added_types.has(capability_type):
+			added_types.append(capability_type)
 		(result["added"] as Array).append(entry_report)
+
+
+func _rollback_recipe_apply(
+	receiver: Object,
+	added_types: Array[Script],
+	newly_added_groups: Array[StringName],
+	reused_active_states: Dictionary
+) -> void:
+	for index: int in range(added_types.size() - 1, -1, -1):
+		var capability_type := added_types[index]
+		if capability_type != null and has_capability(receiver, capability_type):
+			remove_capability(receiver, capability_type)
+	for capability_type_variant: Variant in reused_active_states.keys():
+		var capability_type := capability_type_variant as Script
+		if capability_type != null and has_capability(receiver, capability_type):
+			set_capability_active(receiver, capability_type, bool(reused_active_states[capability_type_variant]))
+	for group_name: StringName in newly_added_groups:
+		remove_receiver_from_group(receiver, group_name)
 
 
 func _append_recipe_failure(result: Dictionary, index: int, kind: String, message: String) -> void:
@@ -830,7 +880,6 @@ func _register_capability(receiver: Object, capability_type: Script, capability:
 	_attach_node_capability(receiver, capability)
 	_apply_capability_active_state(receiver, capability, _read_capability_active(capability), false)
 	_call_added_hook(receiver, capability)
-	_set_capability_receiver(capability, receiver)
 	capability_added.emit(receiver, capability_type, capability)
 
 
@@ -1444,7 +1493,13 @@ func _free_capability(capability: Object, detach_node: bool) -> void:
 	if capability is Node:
 		var node := capability as Node
 		var parent := node.get_parent()
-		if detach_node and parent != null and not parent.is_queued_for_deletion() and not node.is_queued_for_deletion():
+		if (
+			detach_node
+			and parent != null
+			and parent.is_inside_tree()
+			and not parent.is_queued_for_deletion()
+			and not node.is_queued_for_deletion()
+		):
 			_detach_capability_node(parent, node)
 		if not node.is_queued_for_deletion():
 			node.queue_free()

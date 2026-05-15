@@ -40,11 +40,19 @@ var auto_load_on_init: bool = true
 ## set_value() 修改持久化设置时是否自动保存。
 var auto_save_on_change: bool = true
 
+## 自动保存的防抖秒数；小于等于 0 时保持立即保存。
+var save_debounce_seconds: float = 0.25
+
 
 # --- 私有变量 ---
 
 var _definitions: Dictionary = {}
 var _values: Dictionary = {}
+var _save_queued: bool = false
+var _save_elapsed_seconds: float = 0.0
+var _save_queued_file_name: String = ""
+var _batch_depth: int = 0
+var _batch_save_requested: bool = false
 
 
 # --- Godot 生命周期方法 ---
@@ -57,8 +65,14 @@ func init() -> void:
 
 
 func dispose() -> void:
+	flush_pending_save()
 	_definitions.clear()
 	_values.clear()
+	_save_queued = false
+	_save_elapsed_seconds = 0.0
+	_save_queued_file_name = ""
+	_batch_depth = 0
+	_batch_save_requested = false
 
 
 # --- 公共方法 ---
@@ -141,6 +155,52 @@ func set_value(key: StringName, value: Variant, save_after_change: bool = true) 
 	_set_value_internal(key, value, true, save_after_change)
 
 
+## 开始一批设置修改。批处理中自动保存会延后到 end_batch()。
+func begin_batch() -> void:
+	_batch_depth += 1
+
+
+## 结束一批设置修改，并在需要时合并触发一次自动保存。
+## @param save_after_change: 本批变化结束后是否允许保存。
+func end_batch(save_after_change: bool = true) -> void:
+	if _batch_depth <= 0:
+		return
+
+	_batch_depth -= 1
+	if _batch_depth > 0:
+		return
+	if not _batch_save_requested:
+		return
+
+	_batch_save_requested = false
+	if save_after_change and auto_save_on_change:
+		queue_save()
+
+
+## 将当前设置标记为稍后保存，受 save_debounce_seconds 控制。
+func queue_save() -> void:
+	if save_debounce_seconds <= 0.0:
+		save_settings()
+		return
+
+	_save_queued = true
+	_save_elapsed_seconds = 0.0
+	_save_queued_file_name = storage_file_name
+
+
+## 立即执行正在等待的自动保存。
+## @return 保存结果；没有待保存内容时返回 OK。
+func flush_pending_save() -> Error:
+	if not _save_queued:
+		return OK
+
+	var target_file_name := _save_queued_file_name
+	_save_queued = false
+	_save_elapsed_seconds = 0.0
+	_save_queued_file_name = ""
+	return save_settings(target_file_name)
+
+
 ## 获取一个值。
 ## @param key: 设置键。
 ## @param fallback: 无当前值和默认值时返回的值。
@@ -179,7 +239,7 @@ func reset_value(key: StringName, save_after_change: bool = true) -> void:
 	_values.erase(key)
 	setting_changed.emit(key, old_value, null)
 	if save_after_change and auto_save_on_change:
-		save_settings()
+		_queue_auto_save()
 
 
 ## 重置所有已定义设置到默认值，并移除未定义的临时设置。
@@ -201,7 +261,7 @@ func reset_all(save_after_change: bool = true) -> void:
 			setting_changed.emit(key, null, _values[key])
 
 	if save_after_change:
-		save_settings()
+		_queue_auto_save()
 
 
 ## 转换为可持久化字典。
@@ -232,6 +292,7 @@ func from_dict(data: Dictionary, emit_changes: bool = true) -> void:
 ## @return 已读取的数据。
 func load_settings(file_name: String = "") -> Dictionary:
 	var target_file_name := storage_file_name if file_name.is_empty() else file_name
+	_clear_pending_save(target_file_name)
 	var data := _read_persisted_data(target_file_name)
 	from_dict(data, false)
 	settings_loaded.emit(data)
@@ -245,9 +306,21 @@ func save_settings(file_name: String = "") -> Error:
 	var target_file_name := storage_file_name if file_name.is_empty() else file_name
 	var data := to_dict(true)
 	var error := _write_persisted_data(target_file_name, data)
+	_clear_pending_save(target_file_name)
 	if error == OK:
 		settings_saved.emit(data)
 	return error
+
+
+## 驱动自动保存防抖。
+## @param delta: 距离上一帧的秒数。
+func tick(delta: float = 0.0) -> void:
+	if not _save_queued:
+		return
+
+	_save_elapsed_seconds += maxf(delta, 0.0)
+	if _save_elapsed_seconds >= maxf(save_debounce_seconds, 0.0):
+		flush_pending_save()
 
 
 # --- 私有/辅助方法 ---
@@ -273,7 +346,23 @@ func _set_value_internal(
 		setting_changed.emit(key, old_value, next_value)
 
 	if save_after_change and auto_save_on_change and _should_persist(key):
-		save_settings()
+		_queue_auto_save()
+
+
+func _queue_auto_save() -> void:
+	if _batch_depth > 0:
+		_batch_save_requested = true
+		return
+
+	queue_save()
+
+
+func _clear_pending_save(file_name: String) -> void:
+	var target_file_name := storage_file_name if file_name.is_empty() else file_name
+	if _save_queued and _save_queued_file_name == target_file_name:
+		_save_queued = false
+		_save_elapsed_seconds = 0.0
+		_save_queued_file_name = ""
 
 
 func _should_persist(key: StringName) -> bool:

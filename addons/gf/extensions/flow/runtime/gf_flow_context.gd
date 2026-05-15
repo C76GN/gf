@@ -21,6 +21,7 @@ var has_next_node_override: bool = false
 
 var _architecture_ref: WeakRef = null
 var _condition_handlers: Dictionary = {}
+var _node_runtime_states: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
@@ -134,6 +135,61 @@ func query_condition(
 
 	var raw_result: Variant = handler.call(condition_id, payload, self)
 	return _normalize_condition_result(condition_id, raw_result, default_value)
+
+
+## 写入指定流程节点的运行态值。
+## @param node_id: 节点标识。
+## @param key: 运行态键。
+## @param value: 运行态值。
+func set_node_runtime_value(node_id: StringName, key: StringName, value: Variant) -> void:
+	if node_id == &"" or key == &"":
+		return
+	if not _node_runtime_states.has(node_id):
+		_node_runtime_states[node_id] = {}
+	var state := _node_runtime_states[node_id] as Dictionary
+	state[key] = value
+
+
+## 读取指定流程节点的运行态值。
+## @param node_id: 节点标识。
+## @param key: 运行态键。
+## @param default_value: 缺失时返回的默认值。
+## @return 运行态值或默认值。
+func get_node_runtime_value(node_id: StringName, key: StringName, default_value: Variant = null) -> Variant:
+	var state := _node_runtime_states.get(node_id, {}) as Dictionary
+	if state == null:
+		return default_value
+	return state.get(key, default_value)
+
+
+## 清空节点运行态。node_id 为空时清空全部节点运行态。
+## @param node_id: 节点标识。
+func clear_node_runtime_state(node_id: StringName = &"") -> void:
+	if node_id == &"":
+		_node_runtime_states.clear()
+		return
+	_node_runtime_states.erase(node_id)
+
+
+## 序列化上下文持有的节点运行态。
+## @return 运行态快照。
+func serialize_runtime_state() -> Dictionary:
+	return {
+		"nodes": _node_runtime_states.duplicate(true),
+	}
+
+
+## 反序列化节点运行态到当前上下文。
+## @param data: 运行态快照。
+func deserialize_runtime_state(data: Dictionary) -> void:
+	_node_runtime_states.clear()
+	var node_states := data.get("nodes", {}) as Dictionary
+	if node_states == null:
+		return
+	for node_id_variant: Variant in node_states.keys():
+		var state := node_states[node_id_variant] as Dictionary
+		if state != null:
+			_node_runtime_states[StringName(node_id_variant)] = state.duplicate(true)
 
 
 # --- 私有/辅助方法 ---

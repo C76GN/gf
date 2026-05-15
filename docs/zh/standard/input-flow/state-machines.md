@@ -221,7 +221,7 @@ func _enter(state: GFNodeState, _previous_state: StringName = &"", _args: Dictio
 
 节点状态也支持状态事件分发。`GFNodeStateMachine.dispatch_state_event(event_id, payload, group_name)` 可以指定某个状态组，也可以在 `group_name` 为空时按已注册状态组顺序广播；单个 `GFNodeStateGroup` 会先交给当前状态，再交给暂停栈中的状态。状态脚本重写 `_handle_state_event()` 并返回 `true` 即表示事件已处理。`get_state_snapshot()` 可返回各状态组当前状态、栈、历史、注册状态和黑板副本，适合调试面板或诊断命令消费。
 
-编辑器菜单提供 `工具 > GF > 生成 NodeState` 与 `工具 > GF > 生成 NodeStateMachine` 模板，适合快速建立节点状态脚本。选中 `GFNodeStateMachine` 时，Inspector 会从直接子状态中提供初始状态选择，减少手填状态名带来的拼写错误；该列表读取状态节点导出的 `state_name`，为空时退回节点名，不要求状态脚本声明 `@tool`。Inspector 也提供结构验证入口，底层使用 `GFNodeStateMachineValidator` 返回 `GFValidationReport`，会检查空状态机、重复状态组、同组重复状态名、缺失或无效初始状态，以及 `enter_conditions`、`exit_conditions`、`behaviors` 中空槽位或缺少约定方法的资源。GF 工作区中的 `GFNodeStateMachineDock` 会扫描当前场景里的状态机，集中展示校验摘要和问题列表，适合在大型场景中快速切换检查对象；它仍然只复用标准结构校验，不推断项目自己的状态跳转表、动画命名或输入语义：
+编辑器菜单提供 `工具 > GF > 生成 NodeState` 与 `工具 > GF > 生成 NodeStateMachine` 模板，适合快速建立节点状态脚本。选中 `GFNodeStateMachine` 时，Inspector 会从直接子状态中提供初始状态选择，减少手填状态名带来的拼写错误；该列表读取状态节点导出的 `state_name`，为空时退回节点名，不要求状态脚本声明 `@tool`。Inspector 也提供结构验证入口，底层使用 `GFNodeStateMachineValidator` 返回 `GFValidationReport`，会检查空状态机、重复状态组、同组重复状态名、缺失或无效初始状态，以及 `enter_conditions`、`exit_conditions`、`behaviors` 中空槽位或缺少约定方法的资源。编辑器校验只读取 `state_name`、`group_name`、`initial_state` 和资源数组这类导出属性，不调用项目状态脚本的 `get_state_name()` 或状态组脚本的 `get_group_name()`；运行时动态覆盖这些方法仍只影响运行时行为。GF 工作区中的 `GFNodeStateMachineDock` 会扫描当前场景里的状态机，集中展示校验摘要和问题列表，适合在大型场景中快速切换检查对象；它仍然只复用标准结构校验，不推断项目自己的状态跳转表、动画命名或输入语义：
 
 ```gdscript
 var report := GFNodeStateMachineValidator.validate_machine($StateMachine)

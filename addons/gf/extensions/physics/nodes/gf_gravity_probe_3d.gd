@@ -17,6 +17,9 @@ extends Node3D
 ## 找不到力场时使用的默认加速度。
 @export var fallback_acceleration: Vector3 = Vector3.DOWN * 9.8
 
+## 同一帧、同一位置重复 sample() 时是否复用上次结果。
+@export var cache_samples_per_frame: bool = true
+
 
 # --- 公共变量 ---
 
@@ -24,17 +27,30 @@ extends Node3D
 var last_acceleration: Vector3 = Vector3.ZERO
 
 
+# --- 私有变量 ---
+
+var _cached_process_frame: int = -1
+var _cached_physics_frame: int = -1
+var _cached_position: Vector3 = Vector3.ZERO
+var _cached_field_group: StringName = &""
+
+
 # --- 公共方法 ---
 
 ## 采样场景树分组中的所有力场。
 ## @return 汇总后的加速度。
 func sample() -> Vector3:
+	if _can_use_cached_sample():
+		return last_acceleration
+
 	if get_tree() == null or field_group == &"":
 		last_acceleration = fallback_acceleration if use_fallback_when_empty else Vector3.ZERO
+		_store_sample_cache()
 		return last_acceleration
 
 	var fields := get_tree().get_nodes_in_group(String(field_group))
 	last_acceleration = sample_fields(fields)
+	_store_sample_cache()
 	return last_acceleration
 
 
@@ -72,3 +88,22 @@ func get_down_direction() -> Vector3:
 ## @return 向上方向。
 func get_up_direction() -> Vector3:
 	return -get_down_direction()
+
+
+# --- 私有/辅助方法 ---
+
+func _can_use_cached_sample() -> bool:
+	return (
+		cache_samples_per_frame
+		and _cached_process_frame == Engine.get_process_frames()
+		and _cached_physics_frame == Engine.get_physics_frames()
+		and _cached_field_group == field_group
+		and _cached_position == global_position
+	)
+
+
+func _store_sample_cache() -> void:
+	_cached_process_frame = Engine.get_process_frames()
+	_cached_physics_frame = Engine.get_physics_frames()
+	_cached_field_group = field_group
+	_cached_position = global_position

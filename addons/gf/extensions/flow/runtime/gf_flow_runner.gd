@@ -42,6 +42,9 @@ var signal_timeout_seconds: float = 30.0
 ## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
 var signal_timeout_respects_time_scale: bool = true
 
+## 运行时是否把节点 runtime_state 隔离到 GFFlowContext，避免污染共享图资源。
+var isolate_graph_runtime_state: bool = true
+
 
 # --- 私有变量 ---
 
@@ -75,7 +78,15 @@ func run(graph: GFFlowGraph, context: GFFlowContext = null) -> void:
 	is_running = true
 	_cancel_requested = false
 	flow_started.emit(graph)
+	var original_runtime_state := graph.serialize_runtime_state() if isolate_graph_runtime_state else {}
+	if isolate_graph_runtime_state:
+		graph.clear_runtime_state()
+		graph.deserialize_runtime_state(flow_context.serialize_runtime_state())
 	await _run_graph(graph, flow_context)
+	if isolate_graph_runtime_state:
+		flow_context.deserialize_runtime_state(graph.serialize_runtime_state())
+		graph.clear_runtime_state()
+		graph.deserialize_runtime_state(original_runtime_state)
 	is_running = false
 	if _cancel_requested:
 		flow_cancelled.emit()
@@ -143,15 +154,6 @@ func _await_signal_safely(result_signal: Signal) -> void:
 		signal_timeout_seconds,
 		signal_timeout_respects_time_scale,
 		"[GFFlowRunner] 等待 Signal 超时，流程将继续执行后续节点。"
-	)
-
-
-func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
-	return _GF_ASYNC_WAIT_SUPPORT.get_timeout_elapsed_msec(
-		previous_msec,
-		current_msec,
-		_get_time_utility(),
-		signal_timeout_respects_time_scale
 	)
 
 

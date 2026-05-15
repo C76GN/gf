@@ -15,6 +15,15 @@ class AsyncFailingProcessor:
 		finished.emit({ "ok": false, "error": "async_failed" })
 
 
+class NeverFinishingProcessor:
+	extends RefCounted
+
+	signal finished(result: Dictionary)
+
+	func process(_job: GFJob) -> Signal:
+		return finished
+
+
 func test_job_queue_lifecycle_progress_and_snapshot() -> void:
 	var utility := GFJobQueueUtility.new()
 	utility.init()
@@ -113,5 +122,27 @@ func test_job_worker_applies_async_processor_result() -> void:
 	assert_same(processed_job, job, "Worker 应等待异步处理器完成当前任务。")
 	assert_eq(job.status, GFJob.Status.FAILED, "异步处理器返回 ok=false 时应标记失败。")
 	assert_eq(job.error_message, "async_failed", "异步失败原因应写入任务。")
+	worker.free()
+	utility.dispose()
+
+
+func test_job_worker_times_out_stuck_async_processor() -> void:
+	var utility := GFJobQueueUtility.new()
+	utility.init()
+	var job := utility.enqueue(&"main", { "value": 1 })
+	var processor := NeverFinishingProcessor.new()
+
+	var worker := GFJobWorker.new()
+	worker.auto_start = false
+	worker.queue_name = &"main"
+	worker.signal_timeout_seconds = 0.001
+	worker.set_queue_utility(utility)
+	worker.set_processor(Callable(processor, "process"))
+
+	var processed_job: GFJob = await worker.process_next_job()
+
+	assert_same(processed_job, job, "Worker 超时后仍应返回当前任务。")
+	assert_eq(job.status, GFJob.Status.FAILED, "处理器 Signal 超时应把任务标记失败，避免队列永久卡住。")
+	assert_eq(job.error_message, "processor_signal_cancelled_or_timeout", "超时失败原因应稳定可诊断。")
 	worker.free()
 	utility.dispose()

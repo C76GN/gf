@@ -47,6 +47,7 @@ func execute() -> Variant:
 		return null
 
 	_clear_active_tween()
+	_reset_completion_state()
 	var original_color_value := _get_color_property_value()
 	if not (original_color_value is Color):
 		return null
@@ -60,12 +61,13 @@ func execute() -> Variant:
 	var half_duration := duration * 0.5
 	_active_tween.tween_property(target, property_name, flash_color, half_duration)
 	_active_tween.tween_property(target, property_name, original_color, half_duration)
-	return _active_tween.finished
+	_active_tween.finished.connect(_on_active_tween_finished, CONNECT_ONE_SHOT)
+	return _action_completed
 
 
 func cancel() -> void:
-	_emit_active_tween_finished()
 	_clear_active_tween()
+	_emit_completed_once()
 
 
 func get_wait_guard_node() -> Node:
@@ -76,13 +78,10 @@ func get_wait_guard_node() -> Node:
 
 func _clear_active_tween() -> void:
 	if is_instance_valid(_active_tween):
+		if _active_tween.finished.is_connected(_on_active_tween_finished):
+			_active_tween.finished.disconnect(_on_active_tween_finished)
 		_active_tween.kill()
 	_active_tween = null
-
-
-func _emit_active_tween_finished() -> void:
-	if is_instance_valid(_active_tween):
-		_active_tween.finished.emit()
 
 
 func _get_color_property_value() -> Variant:
@@ -118,3 +117,10 @@ func _get_property_base_name(path: NodePath) -> String:
 	if separator_index >= 0:
 		text = text.substr(0, separator_index)
 	return text
+
+
+# --- 信号处理函数 ---
+
+func _on_active_tween_finished() -> void:
+	_active_tween = null
+	_emit_completed_once()

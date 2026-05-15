@@ -161,12 +161,17 @@ func load_handle_async(
 		push_error("[GFAssetUtility] load_handle_async 失败：路径或回调无效。")
 		return
 
+	var owner_ref := weakref(owner) if owner != null else null
 	var on_resource_loaded := func(resource: Resource) -> void:
 		if resource == null:
 			on_loaded.call(null)
 			return
+		var resolved_owner := owner_ref.get_ref() as Object if owner_ref != null else null
+		if owner_ref != null and not is_instance_valid(resolved_owner):
+			on_loaded.call(null)
+			return
 
-		on_loaded.call(acquire_handle(path, owner, group_id, type_hint, resource))
+		on_loaded.call(acquire_handle(path, resolved_owner, group_id, type_hint, resource))
 
 	load_async(path, on_resource_loaded, type_hint)
 
@@ -529,7 +534,7 @@ func _poll_pending() -> void:
 			ResourceLoader.THREAD_LOAD_LOADED:
 				var resource := _take_threaded_resource(path)
 				_pending.erase(path)
-				if resource != null:
+				if resource != null and not cancelled:
 					put_cache(path, resource)
 				if not cancelled:
 					_dispatch_callbacks(callbacks, resource)

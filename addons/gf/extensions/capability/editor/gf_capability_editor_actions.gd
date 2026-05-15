@@ -79,10 +79,6 @@ extends {BaseClass}
 
 # --- 公共方法 ---
 
-func get_required_capabilities() -> Array[Script]:
-	return [] as Array[Script]
-
-
 func get_dependency_removal_policy() -> int:
 	return super.get_dependency_removal_policy()
 

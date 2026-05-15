@@ -334,6 +334,21 @@ func test_cancel_clears_callbacks_but_reuses_underlying_request_for_retry() -> v
 	assert_eq(_utility.get_cached("res://retry_resource.tres"), completing.loaded_resource, "底层请求完成后仍应写入缓存。")
 
 
+func test_cancelled_load_completion_does_not_populate_cache_without_retry() -> void:
+	_utility = CompletingAssetUtility.new()
+	_utility.init()
+	var completing := _utility as CompletingAssetUtility
+	_utility.load_async("res://cancelled_resource.tres", func(_res: Resource) -> void:
+		fail_test("取消后的旧回调不应再触发。")
+	)
+
+	_utility.cancel("res://cancelled_resource.tres")
+	completing.complete = true
+	_utility.tick()
+
+	assert_false(_utility.is_cached("res://cancelled_resource.tres"), "取消后底层请求迟到完成不应污染缓存。")
+
+
 func test_debug_snapshot_reports_cache_pending_and_pinned_state() -> void:
 	_utility = TrackingAssetUtility.new()
 	_utility.init()

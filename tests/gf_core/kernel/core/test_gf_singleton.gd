@@ -277,8 +277,8 @@ class LateRegisteringSlowUtility extends GFUtility:
 
 	func async_init() -> void:
 		async_started = true
-		await async_continue
 		var arch := _get_architecture_or_null()
+		await async_continue
 		if arch != null:
 			await arch.register_utility_instance(utility_to_register)
 
@@ -663,6 +663,18 @@ func test_register_utility_alias_resolves_base_type() -> void:
 	assert_eq(Gf.get_utility(UtilityBase), concrete, "显式 alias 应让基类查询解析到指定实现。")
 
 
+func test_register_utility_alias_rejects_unrelated_target_type() -> void:
+	var arch := GFArchitecture.new()
+	var concrete := ConcreteUtility.new()
+	await arch.register_utility_instance(concrete)
+
+	arch.register_utility_alias(NotUtility, ConcreteUtility)
+
+	assert_push_error("[GFArchitecture] register_utility_alias 失败：target 必须继承或等于 alias。")
+	assert_null(arch.get_utility(NotUtility), "无关 alias 不应写入注册表。")
+	arch.dispose()
+
+
 ## 验证共享注册表逻辑能通过 alias 注销三类模块。
 func test_module_registry_alias_unregister_removes_all_module_kinds() -> void:
 	var arch := GFArchitecture.new()
@@ -866,6 +878,19 @@ func test_factory_binding_warns_when_alias_is_ignored() -> void:
 
 	assert_true(arch.has_factory(FactoryCommand), "Factory alias 被忽略时，原始工厂绑定仍应完成。")
 	assert_push_warning("[GFBindBuilder] with_alias() 仅对 Model/System/Utility 有效，Factory 绑定会忽略 alias。")
+	arch.dispose()
+
+
+func test_register_factory_instance_does_not_dispose_external_instance() -> void:
+	var arch := GFArchitecture.new()
+	var command := DisposableFactoryCommand.new()
+
+	arch.register_factory_instance(DisposableFactoryCommand, command)
+	var resolved := arch.create_instance(DisposableFactoryCommand)
+	arch.unregister_factory(DisposableFactoryCommand)
+
+	assert_same(resolved, command, "外部实例工厂应返回传入实例。")
+	assert_eq(command.dispose_count, 0, "注销外部实例工厂不应调用项目对象的 dispose()。")
 	arch.dispose()
 
 

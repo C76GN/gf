@@ -27,6 +27,8 @@ const TIMESTAMP_KEY: String = "timestamp"
 const CHECKSUM_KEY: String = "checksum"
 const FORMAT_KEY: String = "format"
 const COMPRESSION_KEY: String = "compression"
+const ENVELOPE_KEY: String = "__gf_storage_envelope"
+const ENVELOPE_DATA_KEY: String = "data"
 
 const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 
@@ -76,13 +78,14 @@ const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 ## @param options: 临时覆盖当前 codec 设置的选项字典。
 ## @return 编码后的 bytes。
 func encode(data: Dictionary, options: Dictionary = {}) -> PackedByteArray:
-	var payload := data.duplicate(true)
 	var active_format := _get_format(options)
 	var should_compress := _get_bool_option(options, "use_compression", use_compression)
 	var key := _get_int_option(options, "obfuscation_key", obfuscation_key)
 	var should_write_checksum := _get_bool_option(options, "use_integrity_checksum", use_integrity_checksum)
+	var should_write_metadata := _get_bool_option(options, "include_metadata", include_metadata) or should_write_checksum
+	var payload := _make_storage_payload(data, should_write_metadata)
 
-	if _get_bool_option(options, "include_metadata", include_metadata) or should_write_checksum:
+	if should_write_metadata:
 		_prepare_metadata(payload, active_format, should_compress, should_write_checksum, options)
 
 	var bytes := _serialize_dictionary(payload, active_format)
@@ -153,11 +156,11 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 		if not has_checksum and not should_require_checksum:
 			integrity_valid = true
 		elif not has_checksum and should_reject_bad_checksum:
-			return _make_result(false, data, "Integrity checksum missing", false)
+			return _make_result(false, _get_user_payload(data), "Integrity checksum missing", false, get_metadata(data))
 		if not integrity_valid and should_reject_bad_checksum:
-			return _make_result(false, data, "Integrity checksum mismatch", false)
+			return _make_result(false, _get_user_payload(data), "Integrity checksum mismatch", false, get_metadata(data))
 
-	return _make_result(true, data, "", integrity_valid)
+	return _make_result(true, _get_user_payload(data), "", integrity_valid, get_metadata(data))
 
 
 ## 序列化字典。JSON 格式会递归排序字典键。
@@ -261,6 +264,27 @@ func _prepare_metadata(
 			payload[META_KEY] = metadata
 		metadata[CHECKSUM_KEY] = calculate_checksum(payload, active_format)
 		payload[META_KEY] = metadata
+
+
+func _make_storage_payload(data: Dictionary, should_write_metadata: bool) -> Dictionary:
+	var payload := data.duplicate(true)
+	if should_write_metadata and payload.has(META_KEY):
+		return {
+			ENVELOPE_KEY: true,
+			ENVELOPE_DATA_KEY: payload,
+		}
+	return payload
+
+
+func _get_user_payload(data: Dictionary) -> Dictionary:
+	if _is_storage_envelope(data):
+		var payload := data.get(ENVELOPE_DATA_KEY) as Dictionary
+		return payload.duplicate(true) if payload != null else {}
+	return data
+
+
+func _is_storage_envelope(data: Dictionary) -> bool:
+	return bool(data.get(ENVELOPE_KEY, false)) and data.get(ENVELOPE_DATA_KEY) is Dictionary
 
 
 func _serialize_dictionary(data: Dictionary, p_format: Format) -> PackedByteArray:
@@ -406,10 +430,17 @@ func _try_legacy_plain_json(bytes: PackedByteArray, should_normalize_json_number
 	})
 
 
-func _make_result(ok: bool, data: Dictionary, error: String, integrity_valid: bool) -> Dictionary:
+func _make_result(
+	ok: bool,
+	data: Dictionary,
+	error: String,
+	integrity_valid: bool,
+	metadata: Dictionary = {}
+) -> Dictionary:
+	var result_metadata := metadata if not metadata.is_empty() else get_metadata(data)
 	return GFResultDictionary.make(ok, {
 		GFResultDictionary.KEY_DATA: data,
-		GFResultDictionary.KEY_METADATA: get_metadata(data),
+		GFResultDictionary.KEY_METADATA: result_metadata,
 		GFResultDictionary.KEY_INTEGRITY_VALID: integrity_valid,
 		GFResultDictionary.KEY_ERROR: error,
 	})

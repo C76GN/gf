@@ -27,6 +27,7 @@ var _owner_architecture: GFArchitecture = null
 var _cached_instance: Object = null
 var _has_cached_instance: bool = false
 var _should_auto_inject: bool = true
+var _should_dispose_cached_instance: bool = true
 
 
 # --- Godot 生命周期方法 ---
@@ -36,13 +37,15 @@ func _init(
 	p_provider: Variant,
 	p_owner_architecture: GFArchitecture,
 	p_lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT,
-	p_should_auto_inject: bool = true
+	p_should_auto_inject: bool = true,
+	p_should_dispose_cached_instance: bool = true
 ) -> void:
 	key = p_key
 	provider = p_provider
 	_owner_architecture = p_owner_architecture
 	lifetime = p_lifetime
 	_should_auto_inject = p_should_auto_inject
+	_should_dispose_cached_instance = p_should_dispose_cached_instance
 
 
 # --- 公共方法 ---
@@ -97,7 +100,7 @@ func dispose_cached_instance() -> void:
 
 	if _owner_architecture != null:
 		_owner_architecture.unregister_owner_events(instance)
-	if is_instance_valid(instance) and instance.has_method("dispose"):
+	if _should_dispose_cached_instance and is_instance_valid(instance) and instance.has_method("dispose"):
 		instance.dispose()
 	if is_instance_valid(instance):
 		_release_instance_scope(instance)

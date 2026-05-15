@@ -2,6 +2,20 @@
 extends GutTest
 
 
+# --- 辅助类 ---
+
+class RecordingSettingsUtility:
+	extends GFSettingsUtility
+
+	var save_count: int = 0
+	var saved_files: Array[String] = []
+
+	func _write_persisted_data(file_name: String, _data: Dictionary) -> Error:
+		save_count += 1
+		saved_files.append(file_name)
+		return OK
+
+
 # --- 私有变量 ---
 
 var _settings: GFSettingsUtility
@@ -85,3 +99,24 @@ func test_setting_changed_signal_reports_old_and_new_value() -> void:
 
 	assert_signal_emitted(_settings, "setting_changed", "设置变化时应发出信号。")
 	assert_signal_emitted_with_parameters(_settings, "setting_changed", [&"audio/master", 1.0, 0.25])
+
+
+func test_auto_save_debounce_and_batch_flush_once() -> void:
+	var settings := RecordingSettingsUtility.new()
+	settings.auto_load_on_init = false
+	settings.auto_save_on_change = true
+	settings.save_debounce_seconds = 0.5
+	settings.init()
+	settings.register_setting(&"audio/master", 1.0, GFSettingDefinition.ValueType.FLOAT)
+
+	settings.begin_batch()
+	settings.set_value(&"audio/master", 0.8)
+	settings.set_value(&"audio/master", 0.6)
+	settings.end_batch()
+	settings.tick(0.25)
+	settings.tick(0.25)
+
+	assert_eq(settings.save_count, 1, "批量修改结束后应合并为一次防抖保存。")
+	assert_eq(settings.saved_files, [settings.storage_file_name], "防抖保存应使用当前 storage_file_name。")
+
+	settings.dispose()

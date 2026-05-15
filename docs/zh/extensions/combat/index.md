@@ -49,6 +49,7 @@ attrs.remove_modifiers_by_source(&"Sword")
 - **冷却管理**：内置冷却计时逻辑。
 - **条件检查**：支持 `require_tags` (必须包含) 和 `ignore_tags` (禁止包含) 逻辑检查。
 - **自动化索敌**：支持集成 `GFSkillTargetingRule` 实现管线化自动索敌。
+- **执行结果**：`execute()` 会返回是否真正施放成功；需要在子类中拒绝施放或等待项目校验时，重写 `_try_execute(targets) -> bool`，只有返回 `true` 才会进入冷却。
 
 ### 5. 技能目标选择系统 (Targeting Pipeline)
 这是一个高度通用、基于管线（Pipeline）设计的索敌方案，通过 `GFSkillTargetingUtility` 处理。
@@ -81,7 +82,7 @@ attrs.remove_modifiers_by_source(&"Sword")
 
 `GFProjectile2D` / `GFProjectile3D` 是可选的发射体桥接节点，分别继承 `GFHitBox2D` / `GFHitBox3D`。它们复用同一套 `GFCombatHitContext` 与 `receive_hit(context)` 协议，只额外负责三件事：按移动策略推进位置、按生命周期策略结束、碰到可接收对象时发送命中。它们不内置伤害字段、阵营判断、穿透规则、目标筛选或特效生成。
 
-`GFProjectileMotion` 是移动策略协议基类，`GFLinearProjectileMotion` 提供 2D/3D 通用直线移动，`GFHomingProjectileMotion` 可从发射上下文或相对节点路径读取目标对象/目标位置，并按通用速度朝目标推进。`GFProjectileLifetimePolicy` 默认支持按最大秒数、最大距离和成功命中次数结束；需要对象池时，把 `queue_free_on_finish` 设为 `false`，在 `projectile_finished` 信号中归还节点即可。
+`GFProjectileMotion` 是移动策略协议基类，`GFLinearProjectileMotion` 提供 2D/3D 通用直线移动，`GFHomingProjectileMotion` 可从发射上下文或相对节点路径读取目标对象/目标位置，并按通用速度朝目标推进。`GFProjectileLifetimePolicy` 默认支持按最大秒数、最大距离和成功命中次数结束；`finish_on_impact` 只会在目标接收并返回 `ok = true` 的命中后结束，rejected 或校验失败的尝试不会让发射体误消失。需要对象池时，把 `queue_free_on_finish` 设为 `false`，在 `projectile_finished` 信号中归还节点即可。
 
 需要把“创建发射体”也抽象出来时，可以使用 `GFProjectileEmitter2D` / `GFProjectileEmitter3D`。发射器只负责解析场景、计算生成变换、实例化节点并调用 `launch(context)`；它仍然不规定弹药、冷却、阵营、伤害、分裂或特效。发射场景可以直接挂在 `projectile_scene`，也可以通过 `GFProjectileCatalog` 与 `GFProjectileCatalogEntry` 用稳定 ID 管理。生成点由资源化模式提供：`GFProjectileSpawnPattern2D` / `GFProjectileSpawnPattern3D` 是基类，内置 `GFProjectileBurstPattern2D`、`GFProjectileLineSpawnPattern2D`、`GFProjectileConePattern3D` 和 `GFProjectileLineSpawnPattern3D`，覆盖常见扇形、线段、多炮口和水平锥形分布。
 
@@ -305,9 +306,10 @@ func _init(p_owner: Object) -> void:
 	targeting_rule.sort_rule = GFSkillTargetingRule.SortRule.ATTRIBUTE_LOWEST
 	targeting_rule.sort_attribute_name = &"HP" # 优先打血量最低的目标
 
-func _on_execute(p_targets: Array[Object]) -> void:
+func _try_execute(p_targets: Array[Object]) -> bool:
 	for target in p_targets:
 		print("Fireball hits: ", target)
+	return true
 ```
 
 ### 给属性挂载 Buff
@@ -320,7 +322,7 @@ combat_system.add_buff(entity, strength_buff)
 
 `attribute_id` 表示这个修饰器要挂到哪一个属性上；`source_id` 表示它来自哪个装备、Buff 或技能，便于按来源批量移除。2.0 起 Buff 不再把 `source_id` 当作目标属性回退，也不再提供旧字段名 `source_tag`；迁移旧代码时应把目标属性写入 `attribute_id`，把来源写入 `source_id`。
 
-运行时可通过 `get_buff(entity, buff_id)` 取得正在系统中生效的 Buff 实例，通过 `has_buff(entity, buff_id)` 判断是否存在，通过 `get_buffs(entity)` 取得 Buff 列表副本。列表副本可安全排序、过滤或清空，不会修改系统内部数组；但数组里的 `GFBuff` 仍是运行中的对象引用，适合调整剩余时间、层数或周期参数：
+运行时可通过 `get_buff(entity, buff_id)` 取得正在系统中生效的 Buff 实例，通过 `has_buff(entity, buff_id)` 判断是否存在，通过 `get_buffs(entity)` 取得 Buff 列表副本。空 `id` 的 Buff 会作为匿名实例加入，不参与同 ID 刷新，避免多个不同的临时 Buff 因为都没填 ID 而互相覆盖；需要刷新、叠层或按 ID 驱散时，应显式设置稳定 `id`。列表副本可安全排序、过滤或清空，不会修改系统内部数组；但数组里的 `GFBuff` 仍是运行中的对象引用，适合调整剩余时间、层数或周期参数：
 
 ```gdscript
 var buff := combat_system.get_buff(entity, &"StrBoost")

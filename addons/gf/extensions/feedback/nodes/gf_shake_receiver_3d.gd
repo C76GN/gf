@@ -39,6 +39,9 @@ var _target_ref: WeakRef = null
 var _base_position: Vector3 = Vector3.ZERO
 var _base_rotation_degrees: Vector3 = Vector3.ZERO
 var _base_scale: Vector3 = Vector3.ONE
+var _last_position_offset: Vector3 = Vector3.ZERO
+var _last_rotation_offset: Vector3 = Vector3.ZERO
+var _last_scale_offset: Vector3 = Vector3.ZERO
 
 
 # --- Godot 生命周期方法 ---
@@ -83,6 +86,9 @@ func capture_base_transform() -> bool:
 	_base_position = target.position
 	_base_rotation_degrees = target.rotation_degrees
 	_base_scale = target.scale
+	_last_position_offset = Vector3.ZERO
+	_last_rotation_offset = Vector3.ZERO
+	_last_scale_offset = Vector3.ZERO
 	return true
 
 
@@ -96,11 +102,26 @@ func apply_current_sample() -> bool:
 
 	var sample := shake_utility.sample_channel(channel)
 	if apply_position:
-		target.position = _base_position + (sample.get("position", Vector3.ZERO) as Vector3)
+		var position_offset := sample.get("position", Vector3.ZERO) as Vector3
+		target.position = target.position - _last_position_offset + position_offset
+		_last_position_offset = position_offset
+	elif _last_position_offset != Vector3.ZERO:
+		target.position -= _last_position_offset
+		_last_position_offset = Vector3.ZERO
 	if apply_rotation:
-		target.rotation_degrees = _base_rotation_degrees + (sample.get("rotation_degrees", Vector3.ZERO) as Vector3)
+		var rotation_offset := sample.get("rotation_degrees", Vector3.ZERO) as Vector3
+		target.rotation_degrees = target.rotation_degrees - _last_rotation_offset + rotation_offset
+		_last_rotation_offset = rotation_offset
+	elif _last_rotation_offset != Vector3.ZERO:
+		target.rotation_degrees -= _last_rotation_offset
+		_last_rotation_offset = Vector3.ZERO
 	if apply_scale:
-		target.scale = _base_scale + (sample.get("scale", Vector3.ZERO) as Vector3)
+		var scale_offset := sample.get("scale", Vector3.ZERO) as Vector3
+		target.scale = target.scale - _last_scale_offset + scale_offset
+		_last_scale_offset = scale_offset
+	elif _last_scale_offset != Vector3.ZERO:
+		target.scale -= _last_scale_offset
+		_last_scale_offset = Vector3.ZERO
 	return true
 
 
@@ -110,9 +131,15 @@ func reset_to_base() -> bool:
 	var target := get_target()
 	if target == null:
 		return false
-	target.position = _base_position
-	target.rotation_degrees = _base_rotation_degrees
-	target.scale = _base_scale
+	target.position -= _last_position_offset
+	target.rotation_degrees -= _last_rotation_offset
+	target.scale -= _last_scale_offset
+	_base_position = target.position
+	_base_rotation_degrees = target.rotation_degrees
+	_base_scale = target.scale
+	_last_position_offset = Vector3.ZERO
+	_last_rotation_offset = Vector3.ZERO
+	_last_scale_offset = Vector3.ZERO
 	return true
 
 

@@ -47,6 +47,7 @@ func execute() -> Variant:
 		return null
 
 	_clear_active_tween()
+	_reset_completion_state()
 	if not config.has_timed_steps():
 		config.apply_instant(target)
 		return null
@@ -73,12 +74,13 @@ func execute() -> Variant:
 	if appended_count <= 0:
 		_clear_active_tween()
 		return null
-	return _active_tween.finished
+	_active_tween.finished.connect(_on_active_tween_finished, CONNECT_ONE_SHOT)
+	return _action_completed
 
 
 func cancel() -> void:
-	_emit_active_tween_finished()
 	_clear_active_tween()
+	_emit_completed_once()
 
 
 func pause() -> void:
@@ -94,11 +96,12 @@ func resume() -> void:
 func finish() -> void:
 	if is_instance_valid(_active_tween):
 		if config != null and config.loop_count == 0:
-			_emit_active_tween_finished()
 			_clear_active_tween()
+			_emit_completed_once()
 			return
 		_active_tween.custom_step(INF)
 	_clear_active_tween()
+	_emit_completed_once()
 
 
 func get_wait_guard_node() -> Node:
@@ -118,10 +121,14 @@ func _get_tween_host() -> Node:
 
 func _clear_active_tween() -> void:
 	if is_instance_valid(_active_tween):
+		if _active_tween.finished.is_connected(_on_active_tween_finished):
+			_active_tween.finished.disconnect(_on_active_tween_finished)
 		_active_tween.kill()
 	_active_tween = null
 
 
-func _emit_active_tween_finished() -> void:
-	if is_instance_valid(_active_tween):
-		_active_tween.finished.emit()
+# --- 信号处理函数 ---
+
+func _on_active_tween_finished() -> void:
+	_active_tween = null
+	_emit_completed_once()

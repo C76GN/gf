@@ -106,6 +106,12 @@ func is_valid() -> bool:
 	return get_player() != null
 
 
+## 检查该句柄是否已经收到停止请求。
+## @return 已请求停止时返回 true。
+func is_stop_requested() -> bool:
+	return _stop_requested
+
+
 ## 检查播放器是否正在播放。
 ## @return 正在播放时返回 true。
 func is_playing() -> bool:

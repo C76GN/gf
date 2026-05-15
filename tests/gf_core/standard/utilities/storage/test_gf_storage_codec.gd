@@ -53,6 +53,32 @@ func test_checksum_without_extra_metadata_roundtrips() -> void:
 	assert_true(bool(result.get("integrity_valid")), "checksum 应通过校验。")
 
 
+func test_user_meta_key_roundtrips_with_storage_metadata() -> void:
+	var codec := GFStorageCodec.new()
+	var bytes := codec.encode({
+		"_meta": {
+			"player_note": "keep",
+		},
+		"coins": 10,
+	}, {
+		"include_metadata": true,
+		"use_integrity_checksum": true,
+		"obfuscation_key": 0,
+	})
+
+	var result := codec.decode(bytes, {
+		"use_integrity_checksum": true,
+		"strict_integrity": true,
+		"obfuscation_key": 0,
+	})
+	var data := result.get("data") as Dictionary
+	var metadata := result.get("metadata") as Dictionary
+
+	assert_true(bool(result.get("ok")), "带用户 _meta 的载荷仍应通过存储元数据校验。")
+	assert_eq((data.get("_meta") as Dictionary).get("player_note"), "keep", "用户 _meta 不应被存储 metadata 覆盖。")
+	assert_true(metadata.has(GFStorageCodec.CHECKSUM_KEY), "存储 metadata 应仍包含 checksum。")
+
+
 func test_checksum_enabled_rejects_missing_checksum_by_default() -> void:
 	var codec := GFStorageCodec.new()
 	var bytes := codec.encode({ "coins": 10 }, {

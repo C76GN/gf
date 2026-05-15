@@ -42,6 +42,9 @@ class SimpleReceiver:
 class ArgumentReceiver:
 	var count: int = 0
 
+	func on_type_one(_event: TestEventA) -> void:
+		count += 1
+
 	func on_type_extra_required(_event: TestEventA, _extra: Variant) -> void:
 		count += 1
 
@@ -82,6 +85,16 @@ func test_register_accepts_default_or_bound_extra_args() -> void:
 	_system.send(TestEventA.new())
 
 	assert_eq(receiver.count, 2, "默认参数和 bind 参数都应允许回调正常注册。")
+
+
+func test_register_rejects_bound_args_that_exceed_callback_arity() -> void:
+	var receiver := ArgumentReceiver.new()
+
+	_system.register(TestEventA, Callable(receiver, "on_type_one").bind("too_much"))
+	_system.send(TestEventA.new())
+
+	assert_eq(receiver.count, 0, "bind 后实参超过目标方法参数数量时不应注册。")
+	assert_push_error("[GFTypeEventSystem] 注册的类型事件回调 on_type_one 最多接收 1 个参数，当前会传入 2 个。")
 
 
 ## 验证简单事件也会拒绝必填参数过多的回调。

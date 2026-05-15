@@ -104,7 +104,7 @@ var decoded := schema.decode_snapshot(encoded)
 
 Schema 只改变状态字段的表示形式，不决定哪些字段应该同步、发给谁、是否可靠、如何预测或如何解决冲突。需要权限过滤、差量压缩、实体可见性或安全校验时，应继续放在项目协议层。
 
-`GFNetworkSnapshot.make_message()` 可以把快照打包成 `GFNetworkMessage`，方便复用已有 serializer/channel/backend。浅层 delta 只比较字典第一层字段；嵌套对象、实体集合、压缩、校验、冲突解决和安全过滤应由项目层或更上层同步系统决定。
+`GFNetworkSnapshot.make_message()` 可以把快照打包成 `GFNetworkMessage`，方便复用已有 serializer/channel/backend。浅层 delta 只比较字典第一层字段；嵌套对象、实体集合、压缩、校验、冲突解决和安全过滤应由项目层或更上层同步系统决定。接收端处理入站消息时，`GFNetworkUtility` 会以底层 backend 报告的 `peer_id` 覆盖 `message.sender_id`，再进入校验和广播流程；项目不要信任客户端 payload 中自带的 sender 身份。
 
 当项目希望减少手写 `message_type` 和 payload 字段名时，可以用 `GFNetworkContract` 描述一组消息契约。单条消息由 `GFNetworkContractMessage` 声明 `message_type`、默认 `channel_id` 和字段列表；字段由 `GFNetworkContractField` 声明名称、值类型、必填性、默认值和可选类名提示。契约只约束消息结构，不定义房间、鉴权、服务器权威或玩法语义：
 
@@ -184,6 +184,6 @@ flow.enqueue_action(GFTurnAction.new(actor_a, [target_b], { "value": 10 }, 1, 20
 flow.advance_phase()
 ```
 
-默认排序规则是 `priority` 降序，然后 `sort_value` 降序。需要项目自定义排序时，可向 `resolve_actions(order_resolver)` 传入比较回调。
+默认排序规则是 `priority` 降序，然后 `sort_value` 降序。需要项目自定义排序时，可向 `resolve_actions(order_resolver)` 传入比较回调。阶段和行动如果返回 Signal，系统会通过 `signal_timeout_seconds` 和当前流程 serial 做安全等待；`stop()` 或超时后不会继续调用旧阶段的 `exit()`，也不会把旧行动标记为 resolved。`resolve_actions()` 在上一批行动仍等待时会拒绝重入，避免同一批行动被重复解析。
 
 ---

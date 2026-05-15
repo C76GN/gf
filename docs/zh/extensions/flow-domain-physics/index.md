@@ -46,7 +46,7 @@ graph.add_connection(&"check_door", &"", &"locked", &"")
 
 运行器优先使用节点或上下文提供的后继列表；当节点没有默认后继、上下文也没有显式覆盖时，才会回退到 `connections`。如果节点需要明确停止，可调用 `context.set_next_nodes(PackedStringArray())`。节点 `wait_for_result` 且 `execute()` 返回 Signal 时，`GFFlowRunner` 会安全等待发射源或节点离树，并使用 `with_signal_timeout(seconds, respect_time_scale)` 控制等待上限；默认超时同样跟随 `GFTimeUtility` 的暂停与 `time_scale`。Signal 可以带任意载荷参数，运行器只把发射本身视为等待完成。等待期间调用 `cancel()` 后，运行器会停止在当前等待点，不再发送当前节点完成事件或推进后继节点。如果自定义节点在 `execute()` 内部自行 await 且永不返回，运行器无法替它取消这段内部逻辑，项目层应把等待对象作为 Signal 返回。
 
-`GFFlowContext` 可注册条件查询处理器：`register_condition_handler(condition_id, handler)` 接收一个通用 `Callable`，`query_condition()` 会把返回值归一化为 `ok`、`value`、`reason` 和 `metadata`。这适合把“某个条件如何判断”留在项目层，同时让节点、导入器或编辑器工具使用同一套查询结果结构。`GFFlowNode.runtime_state` 提供不导出的节点运行态字典，`GFFlowGraph.serialize_runtime_state()` / `deserialize_runtime_state()` 可保存和恢复图内节点状态；需要从资源创建运行副本时，优先使用 `instantiate_graph()`，默认会清空运行态，避免编辑器资源被运行时临时数据污染。
+`GFFlowContext` 可注册条件查询处理器：`register_condition_handler(condition_id, handler)` 接收一个通用 `Callable`，`query_condition()` 会把返回值归一化为 `ok`、`value`、`reason` 和 `metadata`。这适合把“某个条件如何判断”留在项目层，同时让节点、导入器或编辑器工具使用同一套查询结果结构。运行态默认写入 `GFFlowContext` 的节点状态表：节点可通过 `set_node_runtime_value(node_id, key, value)`、`get_node_runtime_value(node_id, key, default)` 和 `clear_node_runtime_state(node_id)` 保存跨 tick 进度；`serialize_runtime_state()` / `deserialize_runtime_state()` 可把这份上下文运行态随项目存档保存。`GFFlowRunner.isolate_graph_runtime_state` 默认开启，运行同一个 `GFFlowGraph` 资源时会把图内节点运行态隔离到当前 context，再在运行结束后恢复资源原状态，避免多个 NPC、任务实例或测试共享同一资源时串状态。需要从资源创建独立配置副本时，仍可使用 `instantiate_graph()`。
 
 `GFFlowGraph.metadata_schema` 是轻量元数据约束，支持 `required`、`type`、`class_name`、`allow_null` 和 `allowed_values` 这类通用规则。`validate_graph_metadata()` 只校验 `editor_metadata` 的结构，不解释字段业务含义；项目可以把它接到导入、保存前检查或自定义编辑器提示中。
 
@@ -78,7 +78,7 @@ func _physics_process(delta: float) -> void:
 	up_direction = probe.get_up_direction()
 ```
 
-默认分组是 `gf_gravity_field_3d`，`GFGravityField3D` 进树时会自动加入。项目可以继承 `GFGravityField3D` 重写 `_get_direction_at(world_position)`，或提供自己的对象加入同一分组，只要实现 `get_acceleration_at()` 即可被采样。GF 层只提供采样和方向计算，不接管运动积分、碰撞响应、角色朝向、网络同步或具体玩法规则。
+默认分组是 `gf_gravity_field_3d`，`GFGravityField3D` 进树时会自动加入。项目可以继承 `GFGravityField3D` 重写 `_get_direction_at(world_position)`，或提供自己的对象加入同一分组，只要实现 `get_acceleration_at()` 即可被采样。`GFGravityProbe3D.cache_samples_per_frame` 默认开启，同一帧、同一位置和同一 field 分组会复用采样结果，减少多个系统在同一帧重复读取时的 O(probe × field) 成本；如果项目在同一帧内移动 field 或需要强制重新采样，可关闭该开关。GF 层只提供采样和方向计算，不接管运动积分、碰撞响应、角色朝向、网络同步或具体玩法规则。
 
 ---
 
@@ -145,6 +145,6 @@ var result := slots.add_item(&"item_a", 35, { "variant": "basic" })
 print(result.accepted_amount, result.remaining_amount)
 ```
 
-`GFSlotInventoryModel.get_slots_for_item()` 会维护物品到槽位的惰性索引，适合 UI 局部刷新或规则查询；`validate_inventory()` 和 `apply_registry_constraints()` 可检查或修复注册表约束，例如未注册物品、单堆叠超量或堆叠数量超限。默认实例数据比较仍由 `stack_key_fields` 控制；需要更特殊的合并规则时，可给 `GFInventoryItemDefinition.compatibility_checker` 传入项目层回调，但 GF 不保存该回调到字典数据中。
+`GFSlotInventoryModel.get_slots_for_item()` 会维护物品到槽位的惰性索引，适合 UI 局部刷新或规则查询；`validate_inventory()` 和 `apply_registry_constraints()` 可检查或修复注册表约束，例如未注册物品、单堆叠超量或堆叠数量超限。`GFInventoryOperationResult.partial()` 会把“未完全接受”的结果规范为 `ok = false`，并在调用方误传 `reason = &"ok"` 时改为 `&"partial"` 或 `&"failed"`，避免 UI 和日志遇到“失败但原因是 ok”的冲突状态。默认实例数据比较仍由 `stack_key_fields` 控制；需要更特殊的合并规则时，可给 `GFInventoryItemDefinition.compatibility_checker` 传入项目层回调，但 GF 不保存该回调到字典数据中。
 
 这些模型适合放在项目自己的 `Model` 或资源配置中，具体物品含义、标签体系和结算规则仍由项目层定义。

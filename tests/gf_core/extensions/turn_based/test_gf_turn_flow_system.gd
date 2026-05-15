@@ -127,6 +127,22 @@ func test_stop_prevents_awaited_phase_from_resuming() -> void:
 	assert_eq(order, ["enter", "execute"], "stop 后等待中的阶段不应继续 finish/exit。")
 
 
+func test_phase_signal_timeout_aborts_without_exit() -> void:
+	var order: Array[String] = []
+	var phase := ManualPhase.new(order)
+	var system := GFTurnFlowSystem.new()
+	system.signal_timeout_seconds = 0.001
+	system.set_phases([phase])
+
+	system.start()
+	system.advance_phase()
+	await get_tree().create_timer(0.05).timeout
+	await get_tree().process_frame
+
+	assert_push_warning("[GFTurnFlowSystem] 等待阶段 Signal 超时，阶段推进已中止。")
+	assert_eq(order, ["enter", "execute"], "阶段 Signal 超时后不应继续 finish/exit。")
+
+
 func test_stop_prevents_awaited_action_from_resuming() -> void:
 	var order: Array[String] = []
 	var action := ManualAction.new(order)
@@ -142,6 +158,23 @@ func test_stop_prevents_awaited_action_from_resuming() -> void:
 
 	assert_eq(order, ["resolve"], "stop 后等待中的行动不应继续发出 resolved。")
 	assert_null(system.context.current_actor, "stop 打断行动解析后 current_actor 应复位。")
+
+
+func test_resolve_actions_reentry_is_rejected_while_waiting() -> void:
+	var order: Array[String] = []
+	var action := ManualAction.new(order)
+	var system := GFTurnFlowSystem.new()
+	system.enqueue_action(action)
+
+	system.resolve_actions()
+	await get_tree().process_frame
+	system.resolve_actions()
+
+	assert_push_warning("[GFTurnFlowSystem] resolve_actions 失败：行动正在解析中。")
+	assert_eq(order, ["resolve"], "解析等待中再次调用 resolve_actions 不应重复执行同一批行动。")
+
+	system.stop()
+	await get_tree().process_frame
 
 
 ## 验证上下文可安全读取参与者排序值。

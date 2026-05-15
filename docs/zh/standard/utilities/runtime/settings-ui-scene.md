@@ -20,7 +20,7 @@ settings.set_value(&"gameplay/difficulty", "hard")
 settings.save_settings()
 ```
 
-`GFSettingDefinition` 可以资源化描述稳定键、默认值、值类型、是否持久化和 UI 元数据。`set_value()` 会按定义做类型转换，`to_dict(true)` 只导出持久化设置；未注册定义的临时值也能读写，但不会获得默认值、类型钳制或元数据。
+`GFSettingDefinition` 可以资源化描述稳定键、默认值、值类型、是否持久化和 UI 元数据。`set_value()` 会按定义做类型转换，`to_dict(true)` 只导出持久化设置；未注册定义的临时值也能读写，但不会获得默认值、类型钳制或元数据。自动保存默认会按 `save_debounce_seconds` 做防抖，避免设置页拖动滑块时每次变化都落盘；需要一次性应用多个字段时，可用 `begin_batch()` / `end_batch()` 包裹，或手动 `queue_save()` 后在合适时机 `flush_pending_save()`。
 
 显示、语言和音频总线可通过应用器处理：
 
@@ -119,7 +119,7 @@ ui_util.open_modal(config, GFUIUtility.Layer.POPUP, { "source": "settings" }, fu
 )
 ```
 
-`pop_panel(layer, false)` 会把面板从 UI 根节点移除但不释放，适合项目层自己复用实例；如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。
+`pop_panel(layer, false)` 会把面板从 UI 根节点移除但不释放，适合项目层自己复用实例；如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。每个 UI 层都有请求序号保护，`clear_layer()`、替换层或释放工具后，迟到的异步加载回调会被忽略，不会把旧面板重新压回已经清空的栈。
 
 `panel_opened`、`panel_closed` 和 `navigation_changed` 适合把 UI 栈变化同步给焦点系统、音效、诊断面板或项目自己的路由层。`get_panel_stack()`、`get_stack_count()`、`is_panel_open()` 和 `get_debug_snapshot()` 只返回当前栈状态，不保存业务历史；如果项目只需要 route id 到面板场景的通用映射，可以在其上注册 `GFUIRouterUtility` 和 `GFUIRoute`：
 

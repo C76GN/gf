@@ -11,6 +11,7 @@ const GFFlowGraphEditorModelBase = preload("res://addons/gf/extensions/flow/edit
 const GFFlowNodeBase = preload("res://addons/gf/extensions/flow/resources/gf_flow_node.gd")
 const GFFlowPortBase = preload("res://addons/gf/extensions/flow/resources/gf_flow_port.gd")
 const GFFlowRunnerBase = preload("res://addons/gf/extensions/flow/runtime/gf_flow_runner.gd")
+const GFAsyncWaitSupportBase = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
 
 
 # --- 辅助类 ---
@@ -63,6 +64,15 @@ class ManualWaitFlowNode extends GFFlowNode:
 
 	func complete() -> void:
 		completed.emit()
+
+
+class RuntimeStateFlowNode extends GFFlowNode:
+	func _init() -> void:
+		node_id = &"runtime"
+
+	func execute(_context: GFFlowContext) -> Variant:
+		set_runtime_value(&"count", int(get_runtime_value(&"count", 0)) + 1)
+		return null
 
 
 # --- 测试方法 ---
@@ -461,6 +471,21 @@ func test_flow_graph_serializes_runtime_state() -> void:
 	assert_eq(runtime_node.get_runtime_value(&"cursor", 0), 0, "实例化运行副本默认应清理运行态。")
 
 
+func test_flow_runner_isolates_node_runtime_state_into_context() -> void:
+	var graph := GFFlowGraphBase.new()
+	var node := RuntimeStateFlowNode.new()
+	node.set_runtime_value(&"count", 7)
+	graph.start_node_id = &"runtime"
+	graph.nodes = [node]
+	var context := GFFlowContextBase.new()
+	var runner := GFFlowRunnerBase.new()
+
+	runner.run(graph, context)
+
+	assert_eq(node.get_runtime_value(&"count", 0), 7, "Runner 默认不应把本次运行态写回共享图资源。")
+	assert_eq(context.get_node_runtime_value(&"runtime", &"count", 0), 1, "本次运行态应沉淀到 FlowContext。")
+
+
 ## 验证流程图可用轻量 Schema 校验编辑器元数据。
 func test_flow_graph_validates_metadata_schema() -> void:
 	var graph := GFFlowGraphBase.new()
@@ -593,13 +618,43 @@ func test_flow_runner_signal_timeout_respects_time_utility() -> void:
 	runner.inject_dependencies(arch)
 
 	time_utility.time_scale = 0.5
-	assert_almost_eq(runner._get_timeout_elapsed_msec(1000, 2000), 500.0, 0.001, "默认应按 GFTimeUtility.time_scale 推进超时。")
+	assert_almost_eq(
+		GFAsyncWaitSupportBase.get_timeout_elapsed_msec(
+			1000,
+			2000,
+			time_utility,
+			runner.signal_timeout_respects_time_scale
+		),
+		500.0,
+		0.001,
+		"默认应按 GFTimeUtility.time_scale 推进超时。"
+	)
 
 	time_utility.is_paused = true
-	assert_almost_eq(runner._get_timeout_elapsed_msec(2000, 3000), 0.0, 0.001, "GFTimeUtility 暂停时超时不应推进。")
+	assert_almost_eq(
+		GFAsyncWaitSupportBase.get_timeout_elapsed_msec(
+			2000,
+			3000,
+			time_utility,
+			runner.signal_timeout_respects_time_scale
+		),
+		0.0,
+		0.001,
+		"GFTimeUtility 暂停时超时不应推进。"
+	)
 
 	runner.with_signal_timeout(1.0, false)
-	assert_almost_eq(runner._get_timeout_elapsed_msec(3000, 4000), 1000.0, 0.001, "关闭 time scale 后应使用真实时间。")
+	assert_almost_eq(
+		GFAsyncWaitSupportBase.get_timeout_elapsed_msec(
+			3000,
+			4000,
+			time_utility,
+			runner.signal_timeout_respects_time_scale
+		),
+		1000.0,
+		0.001,
+		"关闭 time scale 后应使用真实时间。"
+	)
 
 	arch.dispose()
 

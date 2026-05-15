@@ -60,7 +60,7 @@ audio.max_sfx_players = 24
 audio.sfx_overflow_policy = GFAudioUtility.SFXOverflowPolicy.STOP_OLDEST
 ```
 
-`GFAudioUtility` 会优先借助 `GFAssetUtility` 异步加载音频资源；未注册时退回同步 `load()`。SFX 播放会在存在 `GFObjectPoolUtility` 时复用池化 `AudioStreamPlayer`，未注册对象池时则创建普通播放器并在播放结束后释放。BGM 和环境音使用独立播放器，异步加载回调带有请求序号，较旧请求完成得更晚时不会覆盖新的播放请求。
+`GFAudioUtility` 会优先借助 `GFAssetUtility` 异步加载音频资源；未注册时退回同步 `load()`。SFX 播放会在存在 `GFObjectPoolUtility` 时复用池化 `AudioStreamPlayer`，未注册对象池时则创建普通播放器并在播放结束后释放。`GFAudioEmitterHandle.stop()` 即使在异步资源返回前调用，也会记录停止请求；迟到的 SFX 资源不会再创建播放器。池化播放器归还前会重置 stream、bus、音量和 pitch，避免上一次播放设置污染下一次请求。BGM 和环境音使用独立播放器，异步加载回调带有请求序号，较旧请求完成得更晚时不会覆盖新的播放请求。
 
 需要接入外部音频中间件、平台事件音频或项目自定义混音系统时，继承 `GFAudioBackend` 并通过 `set_audio_backend()` 注入。后端只有在 `can_handle_path()` 或 `can_handle_clip()` 明确返回 `true` 时才接管请求；播放失败或不支持的请求会继续走默认 Godot 播放路径：
 

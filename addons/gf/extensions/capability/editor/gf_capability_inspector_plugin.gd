@@ -279,12 +279,22 @@ func _join_resource_path(dir_path: String, file_name: String) -> String:
 
 
 func _get_recipe_display_label(recipe: Resource, path: String) -> String:
-	var display_name := ""
-	if recipe != null and recipe.has_method("get_display_name"):
-		display_name = String(recipe.call("get_display_name"))
+	var display_name := String(recipe.get("display_name")).strip_edges() if recipe != null and "display_name" in recipe else ""
+	if display_name.is_empty() and recipe != null and "recipe_id" in recipe:
+		var recipe_id := StringName(recipe.get("recipe_id"))
+		if recipe_id != &"":
+			display_name = String(recipe_id)
 	if display_name.is_empty():
 		display_name = path.get_file().get_basename().to_pascal_case()
 	return "%s (%s)" % [display_name, path]
+
+
+func _is_recipe_entry_valid(entry: Resource) -> bool:
+	if entry == null:
+		return false
+	var capability_type := entry.get("capability_type") as Script if "capability_type" in entry else null
+	var scene := entry.get("scene") as PackedScene if "scene" in entry else null
+	return capability_type != null or scene != null
 
 
 func _script_is_node_capability(script: Script) -> bool:
@@ -570,7 +580,7 @@ func _apply_recipe_to_target(target: Node, recipe: Resource) -> Dictionary:
 		if entry == null:
 			report.add_warning(&"null_entry", "Recipe contains a null entry.", str(index))
 			continue
-		if not entry.has_method("is_valid_entry") or not bool(entry.call("is_valid_entry")):
+		if not _is_recipe_entry_valid(entry):
 			report.add_error(&"invalid_entry", "Recipe entry requires capability_type or scene.", str(index))
 			continue
 
@@ -750,23 +760,24 @@ func _build_editor_capability_report(target: Node) -> Dictionary:
 	)
 
 
-func _get_required_capability_types(
+static func _get_required_capability_types(
 	capability: Node,
 	report: Variant,
 	script_key: String
 ) -> Array[Script]:
-	if capability == null or not capability.has_method("get_required_capabilities"):
+	if capability == null or not "required_capabilities" in capability:
 		return [] as Array[Script]
 
-	var raw_value: Variant = capability.call("get_required_capabilities")
+	var raw_value: Variant = capability.get("required_capabilities")
 	if raw_value == null:
 		return [] as Array[Script]
 	if not raw_value is Array:
-		report.add_warning(
-			&"invalid_required_capabilities",
-			"get_required_capabilities() must return an Array of Script values.",
-			script_key
-		)
+		if report != null and report.has_method("add_warning"):
+			report.add_warning(
+				&"invalid_required_capabilities",
+				"required_capabilities must be an Array of Script values.",
+				script_key
+			)
 		return [] as Array[Script]
 
 	var result: Array[Script] = []
@@ -774,11 +785,12 @@ func _get_required_capability_types(
 		if item is Script and not result.has(item):
 			result.append(item as Script)
 		elif item != null:
-			report.add_warning(
-				&"invalid_required_capability_type",
-				"get_required_capabilities() contains a non-Script value.",
-				script_key
-			)
+			if report != null and report.has_method("add_warning"):
+				report.add_warning(
+					&"invalid_required_capability_type",
+					"required_capabilities contains a non-Script value.",
+					script_key
+				)
 	return result
 
 
@@ -889,9 +901,9 @@ func _get_editor_capability_next_actions() -> Dictionary:
 		"scene_root_not_node": "Use a scene whose root is a Node.",
 		"missing_capability_script": "Attach a script to the capability node or remove it.",
 		"duplicate_capability": "Remove duplicate capability nodes unless they intentionally use different registered types.",
-		"missing_required_capability": "Add the required capability or adjust get_required_capabilities().",
-		"invalid_required_capabilities": "Return Array[Script] from get_required_capabilities().",
-		"invalid_required_capability_type": "Only Script values should be returned from get_required_capabilities().",
+		"missing_required_capability": "Add the required capability or adjust required_capabilities.",
+		"invalid_required_capabilities": "Store an Array[Script] in required_capabilities.",
+		"invalid_required_capability_type": "Only Script values should be stored in required_capabilities.",
 	}
 
 

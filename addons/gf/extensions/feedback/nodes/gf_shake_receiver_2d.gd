@@ -39,6 +39,9 @@ var _target_ref: WeakRef = null
 var _base_position: Vector2 = Vector2.ZERO
 var _base_rotation_degrees: float = 0.0
 var _base_scale: Vector2 = Vector2.ONE
+var _last_position_offset: Vector2 = Vector2.ZERO
+var _last_rotation_offset: float = 0.0
+var _last_scale_offset: Vector2 = Vector2.ZERO
 
 
 # --- Godot 生命周期方法 ---
@@ -83,6 +86,9 @@ func capture_base_transform() -> bool:
 	_base_position = target.position
 	_base_rotation_degrees = target.rotation_degrees
 	_base_scale = target.scale
+	_last_position_offset = Vector2.ZERO
+	_last_rotation_offset = 0.0
+	_last_scale_offset = Vector2.ZERO
 	return true
 
 
@@ -99,11 +105,25 @@ func apply_current_sample() -> bool:
 	var rotation_degrees := sample.get("rotation_degrees", Vector3.ZERO) as Vector3
 	var scale := sample.get("scale", Vector3.ZERO) as Vector3
 	if apply_position:
-		target.position = _base_position + Vector2(position.x, position.y)
+		var position_offset := Vector2(position.x, position.y)
+		target.position = target.position - _last_position_offset + position_offset
+		_last_position_offset = position_offset
+	elif _last_position_offset != Vector2.ZERO:
+		target.position -= _last_position_offset
+		_last_position_offset = Vector2.ZERO
 	if apply_rotation:
-		target.rotation_degrees = _base_rotation_degrees + rotation_degrees.z
+		target.rotation_degrees = target.rotation_degrees - _last_rotation_offset + rotation_degrees.z
+		_last_rotation_offset = rotation_degrees.z
+	elif not is_zero_approx(_last_rotation_offset):
+		target.rotation_degrees -= _last_rotation_offset
+		_last_rotation_offset = 0.0
 	if apply_scale:
-		target.scale = _base_scale + Vector2(scale.x, scale.y)
+		var scale_offset := Vector2(scale.x, scale.y)
+		target.scale = target.scale - _last_scale_offset + scale_offset
+		_last_scale_offset = scale_offset
+	elif _last_scale_offset != Vector2.ZERO:
+		target.scale -= _last_scale_offset
+		_last_scale_offset = Vector2.ZERO
 	return true
 
 
@@ -113,9 +133,15 @@ func reset_to_base() -> bool:
 	var target := get_target()
 	if target == null:
 		return false
-	target.position = _base_position
-	target.rotation_degrees = _base_rotation_degrees
-	target.scale = _base_scale
+	target.position -= _last_position_offset
+	target.rotation_degrees -= _last_rotation_offset
+	target.scale -= _last_scale_offset
+	_base_position = target.position
+	_base_rotation_degrees = target.rotation_degrees
+	_base_scale = target.scale
+	_last_position_offset = Vector2.ZERO
+	_last_rotation_offset = 0.0
+	_last_scale_offset = Vector2.ZERO
 	return true
 
 

@@ -465,7 +465,7 @@ func register_system(script_cls: Script, instance: Object) -> void:
 
 	_refresh_tick_caches()
 	if _inited:
-		await _initialize_registered_module(instance)
+		await _initialize_registered_module(_system_registry, instance)
 
 
 ## 注册 Model 实例。
@@ -476,7 +476,7 @@ func register_model(script_cls: Script, instance: Object) -> void:
 		return
 
 	if _inited:
-		await _initialize_registered_module(instance)
+		await _initialize_registered_module(_model_registry, instance)
 
 
 ## 注册 Utility 实例。
@@ -489,7 +489,7 @@ func register_utility(script_cls: Script, instance: Object) -> void:
 	_refresh_cached_utility_refs()
 	_refresh_tick_caches()
 	if _inited:
-		await _initialize_registered_module(instance)
+		await _initialize_registered_module(_utility_registry, instance)
 		_refresh_cached_utility_refs()
 
 
@@ -566,7 +566,7 @@ func register_factory_instance(script_cls: Script, instance: Object) -> void:
 	if _factories.has(script_cls):
 		push_warning("[GFArchitecture] register_factory_instance：类型已注册，已忽略重复注册。若需要替换，请使用 replace_factory_instance()。")
 		return
-	_factories[script_cls] = GFBindingBase.new(script_cls, instance, self, GFBindingLifetimesBase.Lifetime.SINGLETON, true)
+	_factories[script_cls] = GFBindingBase.new(script_cls, instance, self, GFBindingLifetimesBase.Lifetime.SINGLETON, true, false)
 
 
 ## 替换短生命周期对象工厂。
@@ -605,7 +605,7 @@ func replace_factory_instance(script_cls: Script, instance: Object) -> void:
 		push_error("[GFArchitecture] replace_factory_instance 失败：实例为空。")
 		return
 	_clear_factory_binding(script_cls)
-	_factories[script_cls] = GFBindingBase.new(script_cls, instance, self, GFBindingLifetimesBase.Lifetime.SINGLETON, true)
+	_factories[script_cls] = GFBindingBase.new(script_cls, instance, self, GFBindingLifetimesBase.Lifetime.SINGLETON, true, false)
 
 
 ## 注销短生命周期对象工厂。
@@ -1544,6 +1544,25 @@ func _clear_factory_binding(script_cls: Script) -> void:
 		binding.call("dispose_cached_instance")
 
 
+func _clear_failed_initialization_state() -> void:
+	_dispose_module_registry(_system_registry)
+	_dispose_module_registry(_model_registry)
+	_dispose_module_registry(_utility_registry)
+	for binding_variant: Variant in _factories.values():
+		var binding := binding_variant as Object
+		if binding != null and binding.has_method("dispose_cached_instance"):
+			binding.call("dispose_cached_instance")
+
+	_model_registry._clear()
+	_system_registry._clear()
+	_utility_registry._clear()
+	_factories.clear()
+	_module_lifecycle_stages.clear()
+	_event_system.clear()
+	_time_provider = null
+	_refresh_tick_caches()
+
+
 func _collect_factory_debug_state() -> Dictionary:
 	var result: Dictionary = {}
 	for script_cls: Script in _factories.keys():
@@ -1650,11 +1669,11 @@ func _on_dispose() -> void:
 	pass
 
 
-func _initialize_registered_module(instance: Object) -> void:
+func _initialize_registered_module(module_registry: ModuleRegistry, instance: Object) -> void:
 	if instance == null:
 		return
 	var current_serial := _lifecycle_serial
-	await _advance_module_to_stage(instance, 3, current_serial)
+	await _advance_module_to_stage(module_registry, instance, 3, current_serial)
 
 
 func _create_instance_for_requester(script_cls: Script, requesting_architecture: GFArchitecture) -> Object:
@@ -1707,22 +1726,33 @@ func _advance_module_registry_to_stage(module_registry: ModuleRegistry, target_s
 	for instance: Object in _get_modules_by_lifecycle_priority(module_registry.instances):
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
 			return progressed
+		if not _module_registry_contains_instance(module_registry, instance):
+			continue
 
 		var current_stage: int = _module_lifecycle_stages.get(instance, 0)
 		if current_stage < target_stage:
-			await _advance_module_to_stage(instance, target_stage, lifecycle_serial)
-			progressed = true
+			var advanced := await _advance_module_to_stage(module_registry, instance, target_stage, lifecycle_serial)
+			if advanced:
+				progressed = true
 	return progressed
 
 
-func _advance_module_to_stage(instance: Object, target_stage: int, lifecycle_serial: int) -> void:
+func _advance_module_to_stage(
+	module_registry: ModuleRegistry,
+	instance: Object,
+	target_stage: int,
+	lifecycle_serial: int
+) -> bool:
 	if instance == null:
-		return
+		return false
 
 	var current_stage: int = _module_lifecycle_stages.get(instance, 0)
+	var advanced := false
 	while current_stage < target_stage:
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
-			return
+			return advanced
+		if not _module_registry_contains_instance(module_registry, instance):
+			return advanced
 
 		current_stage += 1
 		match current_stage:
@@ -1733,15 +1763,19 @@ func _advance_module_to_stage(instance: Object, target_stage: int, lifecycle_ser
 				if instance.has_method("async_init"):
 					var async_completed := await _await_module_async_init(instance, lifecycle_serial)
 					if not async_completed:
-						return
+						return advanced
 			3:
 				if instance.has_method("ready"):
 					instance.ready()
 
 		if not _is_lifecycle_current(lifecycle_serial) or _initialization_failed:
-			return
+			return advanced
+		if not _module_registry_contains_instance(module_registry, instance):
+			return advanced
 
 		_module_lifecycle_stages[instance] = current_stage
+		advanced = true
+	return advanced
 
 
 func _await_module_async_init(instance: Object, lifecycle_serial: int) -> bool:
@@ -1797,6 +1831,7 @@ func _fail_initialization(reason: String, lifecycle_serial: int) -> void:
 	_is_initializing = false
 	_inited = false
 	_stop_project_installers_after_failure()
+	_clear_failed_initialization_state()
 	push_error(reason)
 	initialization_failed.emit(reason)
 	initialization_finished.emit()
@@ -1807,6 +1842,15 @@ func _track_registered_module(instance: Object) -> void:
 		return
 	if not _module_lifecycle_stages.has(instance):
 		_module_lifecycle_stages[instance] = 0
+
+
+func _module_registry_contains_instance(module_registry: ModuleRegistry, instance: Object) -> bool:
+	if instance == null:
+		return false
+	for registered_instance: Object in module_registry.instances.values():
+		if registered_instance == instance:
+			return true
+	return false
 
 
 func _register_module(module_registry: ModuleRegistry, script_cls: Script, instance: Object) -> bool:
@@ -2087,6 +2131,9 @@ func _register_module_alias(module_registry: ModuleRegistry, alias_cls: Script, 
 		return
 	if alias_cls == null or target_cls == null:
 		push_error("[GFArchitecture] register_%s_alias 失败：alias 或 target 为空。" % module_registry._label_key())
+		return
+	if not _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(target_cls, alias_cls):
+		push_error("[GFArchitecture] register_%s_alias 失败：target 必须继承或等于 alias。" % module_registry._label_key())
 		return
 	if not module_registry._has_direct(target_cls):
 		push_warning("[GFArchitecture] register_%s_alias：目标类型尚未注册，仍会记录别名。" % module_registry._label_key())

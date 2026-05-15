@@ -219,7 +219,12 @@ func pop_state(args: Dictionary = {}) -> bool:
 		return false
 
 	if _current_state == null:
-		_current_state = _state_stack.pop_back()
+		var restore_state := _state_stack.pop_back()
+		_current_state = restore_state
+		if restore_state != null:
+			restore_state.call("resume", &"", args)
+			_push_history(restore_state.call("get_state_name") as StringName)
+		current_state_changed.emit(null, _current_state)
 		return true
 
 	if _is_exiting_current_state:
@@ -297,6 +302,8 @@ func remove_state(state: GFNodeState) -> bool:
 	var transition_signal: Signal = state.get("requested_transition")
 	if transition_signal.is_connected(_on_state_requested_transition):
 		transition_signal.disconnect(_on_state_requested_transition)
+	if state.has_method("unregister_owner_events"):
+		state.call("unregister_owner_events")
 	_states.erase(key)
 	state_removed.emit(state)
 	return true
@@ -420,6 +427,8 @@ func clear_states(free_states: bool = false) -> void:
 		var transition_signal: Signal = state.get("requested_transition")
 		if transition_signal.is_connected(_on_state_requested_transition):
 			transition_signal.disconnect(_on_state_requested_transition)
+		if state.has_method("unregister_owner_events"):
+			state.call("unregister_owner_events")
 		state_removed.emit(state)
 		if free_states:
 			state.queue_free()

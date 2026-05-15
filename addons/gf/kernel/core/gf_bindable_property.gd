@@ -28,6 +28,7 @@ var value: Variant:
 
 var _value: Variant
 var _node_bindings: Array[Dictionary] = []
+var _owned_value_connections: Array[Callable] = []
 
 
 # --- Godot 生命周期方法 ---
@@ -166,8 +167,7 @@ func unbind(node: Node, callable: Callable) -> void:
 		return
 
 	_disconnect_node_binding(node, callable)
-	if not _has_node_binding_for_callable(callable) and value_changed.is_connected(callable):
-		value_changed.disconnect(callable)
+	_release_value_connection_if_unbound(callable)
 
 
 ## 断开所有由 bind_to() 创建的 Node 生命周期绑定。
@@ -177,13 +177,7 @@ func unbind_all() -> void:
 
 ## 断开所有由 bind_to() 创建的 Node 生命周期绑定。
 func unbind_all_node_bindings() -> void:
-	var tracked_callables: Array[Callable] = []
-
 	for binding: Dictionary in _node_bindings:
-		var callable: Callable = binding.get("callable", Callable())
-		if callable.is_valid() and not tracked_callables.has(callable):
-			tracked_callables.append(callable)
-
 		var node_ref: WeakRef = binding.get("node_ref")
 		var exit_callable: Callable = binding.get("exit_callable", Callable())
 		var node := node_ref.get_ref() as Node if node_ref != null else null
@@ -191,9 +185,10 @@ func unbind_all_node_bindings() -> void:
 			node.tree_exited.disconnect(exit_callable)
 
 	_node_bindings.clear()
-	for callable: Callable in tracked_callables:
-		if value_changed.is_connected(callable):
+	for callable: Callable in _owned_value_connections:
+		if callable.is_valid() and value_changed.is_connected(callable):
 			value_changed.disconnect(callable)
+	_owned_value_connections.clear()
 
 
 ## 断开 value_changed 信号上的所有订阅者，并清理 bind_to() 创建的 Node 生命周期绑定。
@@ -209,6 +204,7 @@ func disconnect_all_subscribers() -> void:
 			node.tree_exited.disconnect(exit_callable)
 
 	_node_bindings.clear()
+	_owned_value_connections.clear()
 
 
 ## 绑定信号到一个 Node 的 Callable。当该 Node 退出场景树时，自动断开连接。
@@ -223,14 +219,13 @@ func bind_to(node: Node, callable: Callable) -> void:
 		push_error("[GFBindableProperty] 尝试绑定一个无效的 Callable。")
 		return
 
-	# 连接值变更信号
-	if not value_changed.is_connected(callable):
-		value_changed.connect(callable)
-
 	if _find_node_binding_index(node, callable) != -1:
 		return
 
-	# 监听节点的 tree_exited 信号，实现自动注销
+	if not value_changed.is_connected(callable):
+		value_changed.connect(callable)
+		_track_owned_value_connection(callable)
+
 	var exit_callable := _on_node_exited.bind(node, callable)
 	if not node.tree_exited.is_connected(exit_callable):
 		node.tree_exited.connect(exit_callable, CONNECT_ONE_SHOT)
@@ -247,19 +242,15 @@ func bind_to(node: Node, callable: Callable) -> void:
 
 func _on_node_exited(node: Node, callable: Callable) -> void:
 	_disconnect_node_binding(node, callable)
-	if not _has_node_binding_for_callable(callable) and value_changed.is_connected(callable):
-		value_changed.disconnect(callable)
+	_release_value_connection_if_unbound(callable)
 
 
 func _find_node_binding_index(node: Node, callable: Callable) -> int:
-	for i in range(_node_bindings.size() - 1, -1, -1):
+	_prune_invalid_node_bindings()
+	for i: int in range(_node_bindings.size()):
 		var binding: Dictionary = _node_bindings[i]
 		var node_ref: WeakRef = binding.get("node_ref")
 		var tracked_node := node_ref.get_ref() as Node if node_ref != null else null
-		if not is_instance_valid(tracked_node):
-			_node_bindings.remove_at(i)
-			continue
-
 		if tracked_node == node and binding.get("callable") == callable:
 			return i
 
@@ -278,16 +269,46 @@ func _disconnect_node_binding(node: Node, callable: Callable) -> void:
 	_node_bindings.remove_at(binding_index)
 
 
-func _has_node_binding_for_callable(callable: Callable) -> bool:
+func _has_node_binding_for_callable(callable: Callable, prune_invalid: bool = true) -> bool:
+	if prune_invalid:
+		_prune_invalid_node_bindings()
+
+	for binding: Dictionary in _node_bindings:
+		if binding.get("callable") == callable:
+			return true
+
+	return false
+
+
+func _prune_invalid_node_bindings() -> void:
+	var pruned_callables: Array[Callable] = []
 	for i in range(_node_bindings.size() - 1, -1, -1):
 		var binding: Dictionary = _node_bindings[i]
 		var node_ref: WeakRef = binding.get("node_ref")
 		var tracked_node := node_ref.get_ref() as Node if node_ref != null else null
 		if not is_instance_valid(tracked_node):
+			var pruned_callable: Callable = binding.get("callable", Callable())
+			if pruned_callable.is_valid() and not pruned_callables.has(pruned_callable):
+				pruned_callables.append(pruned_callable)
 			_node_bindings.remove_at(i)
-			continue
 
-		if binding.get("callable") == callable:
-			return true
+	for pruned_callable: Callable in pruned_callables:
+		_release_value_connection_if_unbound(pruned_callable, false)
 
-	return false
+
+func _track_owned_value_connection(callable: Callable) -> void:
+	if callable.is_valid() and not _owned_value_connections.has(callable):
+		_owned_value_connections.append(callable)
+
+
+func _release_value_connection_if_unbound(callable: Callable, prune_invalid: bool = true) -> void:
+	if not callable.is_valid():
+		return
+	if _has_node_binding_for_callable(callable, prune_invalid):
+		return
+	if not _owned_value_connections.has(callable):
+		return
+
+	_owned_value_connections.erase(callable)
+	if value_changed.is_connected(callable):
+		value_changed.disconnect(callable)

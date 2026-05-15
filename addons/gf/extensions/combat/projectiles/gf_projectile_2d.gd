@@ -140,8 +140,9 @@ func _send_impact_to_candidate(candidate: Object) -> void:
 	if receiver == null:
 		return
 	var report := send_to(receiver)
+	var accepted := bool(report.get("ok", false))
 	_record_impact(report)
-	if finish_on_impact:
+	if finish_on_impact and accepted:
 		finish(&"impact")
 	elif _lifetime_should_finish():
 		finish(&"lifetime")

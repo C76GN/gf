@@ -75,6 +75,9 @@ var _panel_options: Dictionary = {}
 ## 面板实例 id 到打开前焦点控件的映射。
 var _previous_focus_by_panel_id: Dictionary = {}
 
+## 每个层级的结构性变更序号，用于阻止迟到异步回调污染新状态。
+var _layer_request_serials: Dictionary = {}
+
 
 # --- Godot 生命周期方法 ---
 
@@ -94,6 +97,7 @@ func dispose() -> void:
 		stack.clear()
 	_panel_options.clear()
 	_previous_focus_by_panel_id.clear()
+	_layer_request_serials.clear()
 
 
 # --- 公共方法 ---
@@ -129,8 +133,9 @@ func push_panel_async_with_options(
 		push_panel_with_options(path, layer, options, config_callback)
 		return
 
+	var request_serial := _get_layer_request_serial(layer)
 	var on_loaded := func(res: Resource) -> void:
-		if not _is_active:
+		if not _is_active or not _is_layer_request_serial_current(layer, request_serial):
 			return
 
 		var scene := res as PackedScene
@@ -235,6 +240,7 @@ func replace_layer_async_with_options(
 	options: Dictionary = {},
 	config_callback: Callable = Callable()
 ) -> void:
+	var request_serial := _next_layer_request_serial(layer)
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		push_warning("[GFUIUtility] GFAssetUtility 未注册，回退为同步加载。")
@@ -242,7 +248,7 @@ func replace_layer_async_with_options(
 		return
 
 	var on_loaded := func(res: Resource) -> void:
-		if not _is_active:
+		if not _is_active or not _is_layer_request_serial_current(layer, request_serial):
 			return
 
 		var scene := res as PackedScene
@@ -251,7 +257,7 @@ func replace_layer_async_with_options(
 			return
 
 		var panel_instance: Node = scene.instantiate()
-		clear_layer(layer)
+		_clear_layer_without_invalidating_requests(layer)
 		if not _add_panel_instance(panel_instance, layer, config_callback, options) and is_instance_valid(panel_instance):
 			panel_instance.queue_free()
 
@@ -390,15 +396,8 @@ func pop_to_panel(panel: Node, layer: Layer = Layer.POPUP, do_free: bool = true)
 ## 清空指定层级的所有面板。
 ## @param layer: 目标层级。
 func clear_layer(layer: Layer) -> void:
-	_prune_layer_stack(layer)
-	var stack: Array = _panel_stacks[layer]
-	while not stack.is_empty():
-		var panel: Node = stack.pop_back()
-		if is_instance_valid(panel):
-			_handle_panel_closed(panel)
-			panel_closed.emit(panel, layer)
-			panel.queue_free()
-	_emit_navigation_changed(layer)
+	_next_layer_request_serial(layer)
+	_clear_layer_without_invalidating_requests(layer)
 
 
 ## 清空所有层级的所有面板。
@@ -569,6 +568,32 @@ func keep_focus_inside_top_modal(layer: Layer = Layer.POPUP) -> bool:
 
 
 # --- 私有/辅助方法 ---
+
+func _clear_layer_without_invalidating_requests(layer: Layer) -> void:
+	_prune_layer_stack(layer)
+	var stack: Array = _panel_stacks[layer]
+	while not stack.is_empty():
+		var panel: Node = stack.pop_back()
+		if is_instance_valid(panel):
+			_handle_panel_closed(panel)
+			panel_closed.emit(panel, layer)
+			panel.queue_free()
+	_emit_navigation_changed(layer)
+
+
+func _next_layer_request_serial(layer: Layer) -> int:
+	var next_serial := _get_layer_request_serial(layer) + 1
+	_layer_request_serials[layer] = next_serial
+	return next_serial
+
+
+func _get_layer_request_serial(layer: Layer) -> int:
+	return int(_layer_request_serials.get(layer, 0))
+
+
+func _is_layer_request_serial_current(layer: Layer, request_serial: int) -> bool:
+	return _get_layer_request_serial(layer) == request_serial
+
 
 func _create_layers() -> void:
 	var scene_tree := Engine.get_main_loop() as SceneTree

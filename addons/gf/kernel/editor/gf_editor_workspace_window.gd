@@ -26,6 +26,8 @@ func _init() -> void:
 	title = WINDOW_TITLE
 	size = DEFAULT_WINDOW_SIZE
 	min_size = MIN_WINDOW_SIZE
+	transient = false
+	exclusive = false
 	wrap_controls = true
 	visible = false
 	close_requested.connect(_on_close_requested)
@@ -46,7 +48,15 @@ func setup(dock_records: Array[Dictionary]) -> void:
 func popup_workspace() -> void:
 	if size.x <= 0 or size.y <= 0:
 		size = DEFAULT_WINDOW_SIZE
+	var restore_always_on_top := always_on_top
+	if restore_always_on_top:
+		always_on_top = false
+		_prepare_always_on_top_window()
 	popup_centered(size)
+	if restore_always_on_top:
+		_prepare_always_on_top_window()
+		always_on_top = true
+	_sync_workspace_window_controls()
 
 
 ## 隐藏工作区窗口。
@@ -76,6 +86,20 @@ func get_workspace() -> Control:
 	return _workspace
 
 
+## 设置独立工作区窗口是否保持置顶。
+## @param enabled: 为 true 时窗口保持在其他窗口上方。
+func set_always_on_top_enabled(enabled: bool) -> void:
+	if enabled:
+		_prepare_always_on_top_window()
+	always_on_top = enabled
+	_sync_workspace_window_controls()
+
+
+## 查询独立工作区窗口是否保持置顶。
+func is_always_on_top_enabled() -> bool:
+	return always_on_top
+
+
 # --- 私有/辅助方法 ---
 
 func _build_ui() -> void:
@@ -89,6 +113,7 @@ func _build_ui() -> void:
 	_workspace.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(_workspace)
 	_workspace.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_sync_workspace_window_controls()
 
 
 func _copy_records(source: Array[Dictionary]) -> Array[Dictionary]:
@@ -96,6 +121,16 @@ func _copy_records(source: Array[Dictionary]) -> Array[Dictionary]:
 	for record: Dictionary in source:
 		records.append(record.duplicate(true))
 	return records
+
+
+func _sync_workspace_window_controls() -> void:
+	if _workspace != null and _workspace.has_method("_sync_window_controls"):
+		_workspace.call("_sync_window_controls")
+
+
+func _prepare_always_on_top_window() -> void:
+	transient = false
+	exclusive = false
 
 
 # --- 信号处理函数 ---

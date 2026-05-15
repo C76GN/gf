@@ -11,6 +11,8 @@ extends RefCounted
 # --- 常量 ---
 
 const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
+const GFNodeStateBehaviorBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_behavior.gd")
+const GFNodeStateConditionBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_condition.gd")
 const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
 const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GFValidationReportBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
@@ -52,7 +54,7 @@ static func validate_machine(machine: GFNodeStateMachine, options: Dictionary = 
 		group_names[GFNodeStateMachineBase.INTERNAL_GROUP_NAME] = _get_node_path_text(machine)
 
 	for group: GFNodeStateGroup in groups:
-		var group_name := group.get_group_name()
+		var group_name := _get_group_name(group)
 		var group_path := _get_node_path_text(group)
 		if group_names.has(group_name):
 			report.add_error(
@@ -92,9 +94,9 @@ static func validate_group(group: GFNodeStateGroup, options: Dictionary = {}) ->
 	var states := _collect_direct_states(group)
 	_validate_group_shape(
 		report,
-		group.get_group_name(),
+		_get_group_name(group),
 		states,
-		group.initial_state,
+		_get_group_initial_state(group),
 		_should_require_group_initial_state(group, options),
 		_get_node_path_text(group),
 		options
@@ -181,7 +183,7 @@ static func _validate_state(
 		report.add_error(&"missing_state", "State entry is null.", group_name)
 		return
 
-	var state_name := state.get_state_name()
+	var state_name := _get_state_name(state)
 	var state_path := _get_node_path_text(state)
 	if state_name == &"":
 		report.add_error(
@@ -207,7 +209,7 @@ static func _validate_state(
 	if bool(options.get("check_state_resources", true)):
 		_validate_resource_list(
 			report,
-			state.enter_conditions,
+			_get_resource_array_property(state, &"enter_conditions"),
 			&"enter_conditions",
 			&"evaluate",
 			state_name,
@@ -215,13 +217,18 @@ static func _validate_state(
 		)
 		_validate_resource_list(
 			report,
-			state.exit_conditions,
+			_get_resource_array_property(state, &"exit_conditions"),
 			&"exit_conditions",
 			&"evaluate",
 			state_name,
 			state_path
 		)
-		_validate_behavior_resources(report, state.behaviors, state_name, state_path)
+		_validate_behavior_resources(
+			report,
+			_get_resource_array_property(state, &"behaviors"),
+			state_name,
+			state_path
+		)
 
 
 static func _validate_resource_list(
@@ -249,7 +256,7 @@ static func _validate_resource_list(
 				metadata
 			)
 			continue
-		if not resource.has_method(required_method):
+		if not _resource_exposes_required_method(resource, field_name, required_method):
 			report.add_error(
 				&"invalid_state_resource",
 				"State resource does not expose the required method.",
@@ -322,6 +329,8 @@ static func _track_duplicate_resource_id(
 
 
 static func _has_any_behavior_method(resource: Resource) -> bool:
+	if resource is GFNodeStateBehaviorBase:
+		return true
 	return (
 		resource.has_method(&"initialize")
 		or resource.has_method(&"enter")
@@ -332,13 +341,27 @@ static func _has_any_behavior_method(resource: Resource) -> bool:
 	)
 
 
+static func _resource_exposes_required_method(resource: Resource, field_name: StringName, required_method: StringName) -> bool:
+	if resource == null:
+		return false
+	if field_name == &"enter_conditions" or field_name == &"exit_conditions":
+		if resource is GFNodeStateConditionBase:
+			return true
+	return resource.has_method(required_method)
+
+
 static func _get_resource_id(resource: Resource, field_name: StringName) -> StringName:
-	if field_name == &"behaviors" and "behavior_id" in resource:
-		return StringName(resource.get("behavior_id"))
-	if "condition_id" in resource:
-		return StringName(resource.get("condition_id"))
-	if "resource_id" in resource:
-		return StringName(resource.get("resource_id"))
+	if field_name == &"behaviors":
+		var behavior_id := _get_string_name_property(resource, &"behavior_id", &"")
+		if behavior_id != &"":
+			return behavior_id
+
+	var condition_id := _get_string_name_property(resource, &"condition_id", &"")
+	if condition_id != &"":
+		return condition_id
+	var resource_id := _get_string_name_property(resource, &"resource_id", &"")
+	if resource_id != &"":
+		return resource_id
 	return &""
 
 
@@ -351,22 +374,71 @@ static func _collect_direct_states(parent: Node) -> Array[GFNodeState]:
 
 
 static func _get_machine_initial_state(machine: GFNodeStateMachine) -> StringName:
-	var config := machine.config
+	var config := machine.get("config") as Resource
 	if config != null:
-		return config.initial_state
-	return machine.initial_state
+		return _get_string_name_property(config, &"initial_state", &"")
+	return _get_string_name_property(machine, &"initial_state", &"")
 
 
 static func _should_require_machine_initial_state(machine: GFNodeStateMachine, options: Dictionary) -> bool:
 	if options.has("require_initial_state"):
 		return bool(options["require_initial_state"])
-	return machine.start_mode != GFNodeStateMachineBase.StartMode.MANUAL
+	var start_mode := int(machine.get("start_mode"))
+	return start_mode != GFNodeStateMachineBase.StartMode.MANUAL
 
 
 static func _should_require_group_initial_state(group: GFNodeStateGroup, options: Dictionary) -> bool:
 	if options.has("require_initial_state"):
 		return bool(options["require_initial_state"])
-	return group.auto_start
+	return _get_bool_property(group, &"auto_start", true)
+
+
+static func _get_group_name(group: Node) -> StringName:
+	return _get_string_name_property(group, &"group_name", StringName(group.name))
+
+
+static func _get_group_initial_state(group: Node) -> StringName:
+	return _get_string_name_property(group, &"initial_state", &"")
+
+
+static func _get_state_name(state: Node) -> StringName:
+	return _get_string_name_property(state, &"state_name", StringName(state.name))
+
+
+static func _get_string_name_property(object: Object, property_name: StringName, fallback: StringName = &"") -> StringName:
+	if object == null:
+		return fallback
+
+	var value: Variant = object.get(property_name)
+	if value is StringName:
+		var string_name := value as StringName
+		return fallback if string_name == &"" else string_name
+	if value is String:
+		var text := String(value).strip_edges()
+		return fallback if text.is_empty() else StringName(text)
+	return fallback
+
+
+static func _get_bool_property(object: Object, property_name: StringName, fallback: bool = false) -> bool:
+	if object == null:
+		return fallback
+
+	var value: Variant = object.get(property_name)
+	return bool(value) if value is bool else fallback
+
+
+static func _get_resource_array_property(object: Object, property_name: StringName) -> Array[Resource]:
+	var result: Array[Resource] = []
+	if object == null:
+		return result
+
+	var value: Variant = object.get(property_name)
+	if not value is Array:
+		return result
+
+	for entry: Variant in value as Array:
+		result.append(entry as Resource)
+	return result
 
 
 static func _get_node_path_text(node: Node) -> String:

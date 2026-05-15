@@ -21,6 +21,42 @@ class MetadataPipelineStep extends GFSavePipelineStep:
 		return payload
 
 
+class PlainEntityFactory extends GFSaveEntityFactory:
+	var created_entity: Node = null
+
+	func _init() -> void:
+		type_key = &"plain_entity"
+
+	func create_entity(_descriptor: Dictionary, _context: Dictionary = {}) -> Node:
+		created_entity = Node.new()
+		created_entity.name = "PlainEntity"
+		return created_entity
+
+
+class FailingCreatedSource extends GFSaveSource:
+	func apply_save_data(
+		_data: Variant,
+		_context: Dictionary = {},
+		_serializer_registry: GFNodeSerializerRegistry = null
+	) -> Dictionary:
+		return make_result(false, "created_failed")
+
+
+class FailingSourceFactory extends GFSaveEntityFactory:
+	var created_source: FailingCreatedSource = null
+	var create_count: int = 0
+
+	func _init() -> void:
+		type_key = &"failing_source"
+
+	func create_entity(descriptor: Dictionary, _context: Dictionary = {}) -> Node:
+		create_count += 1
+		created_source = FailingCreatedSource.new()
+		created_source.name = String(descriptor.get("source_key", "created_source"))
+		created_source.source_key = StringName(descriptor.get("source_key", &"created_source"))
+		return created_source
+
+
 # --- 私有变量 ---
 
 var _utility: GFSaveGraphUtilityBase
@@ -341,6 +377,23 @@ func test_apply_scope_rejects_invalid_sources_payload() -> void:
 	assert_true((result["errors"] as Array).has("Invalid save payload: sources must be a Dictionary."), "结构错误应写入 apply result。")
 
 
+func test_apply_scope_clears_created_entities_context_after_invalid_payload() -> void:
+	var pipeline_context := _utility.create_pipeline_context(&"apply", _scope)
+	var context := { "pipeline_context": pipeline_context }
+	var payload := {
+		"format": GFSaveGraphUtilityBase.FORMAT_ID,
+		"format_version": GFSaveGraphUtilityBase.FORMAT_VERSION,
+		"scope": {},
+		"sources": [],
+		"scopes": {},
+	}
+
+	var result := _utility.apply_scope(_scope, payload, context)
+
+	assert_false(bool(result["ok"]), "结构错误应让 apply_scope 返回失败。")
+	assert_false(context.has("_gf_save_graph_created_entities"), "结构错误早退后不应残留本次事务创建实体上下文。")
+
+
 func test_apply_scope_rejects_invalid_child_payload() -> void:
 	var child_scope := GFSaveScopeBase.new()
 	child_scope.name = "ChildScope"
@@ -455,6 +508,31 @@ func test_validate_payload_for_scope_reports_missing_source() -> void:
 	assert_true(_has_issue(report, "missing_source"), "诊断报告应包含 missing_source。")
 
 
+func test_apply_scope_frees_factory_entity_without_save_source() -> void:
+	_scope.restore_policy = GFSaveScope.RestorePolicy.ALLOW_FACTORIES
+	var factory := PlainEntityFactory.new()
+	_utility.register_entity_factory(factory)
+	var payload := _make_factory_payload("plain", &"plain_entity", {})
+
+	var result := _utility.apply_scope(_scope, payload, {}, true)
+
+	assert_false(bool(result["ok"]), "工厂创建的实体不包含 GFSaveSource 时应视为缺失 Source。")
+	assert_false(is_instance_valid(factory.created_entity), "无法归属到 Source 的工厂实体应立即释放，避免场景残留。")
+
+
+func test_apply_scope_rolls_back_factory_created_sources_on_failure() -> void:
+	_scope.restore_policy = GFSaveScope.RestorePolicy.ALLOW_FACTORIES
+	var factory := FailingSourceFactory.new()
+	_utility.register_entity_factory(factory)
+	var payload := _make_factory_payload("spawned", &"failing_source", {})
+
+	var result := _utility.apply_scope(_scope, payload, {}, true)
+
+	assert_false(bool(result["ok"]), "事务化应用中，工厂创建 Source 应用失败时整体失败。")
+	assert_eq(factory.create_count, 1, "测试工厂应创建 Source 实体。")
+	assert_false(is_instance_valid(factory.created_source), "事务失败后应回滚并释放本次创建的 Source。")
+
+
 # --- 私有/辅助方法 ---
 
 func _make_source(source_key: StringName, target_path: NodePath) -> GFSaveSourceBase:
@@ -464,6 +542,24 @@ func _make_source(source_key: StringName, target_path: NodePath) -> GFSaveSource
 	source.target_node_path = target_path
 	source.use_registry_serializers = true
 	return source
+
+
+func _make_factory_payload(source_key: String, type_key: StringName, data: Dictionary) -> Dictionary:
+	return {
+		"format": GFSaveGraphUtilityBase.FORMAT_ID,
+		"format_version": GFSaveGraphUtilityBase.FORMAT_VERSION,
+		"scope": {},
+		"sources": {
+			source_key: {
+				"descriptor": {
+					"source_key": source_key,
+					"type_key": type_key,
+				},
+				"data": data,
+			},
+		},
+		"scopes": {},
+	}
 
 
 func _has_issue(report: Dictionary, kind: String) -> bool:

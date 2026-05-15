@@ -44,13 +44,27 @@ static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionar
 	var skip_empty_lines := bool(options.get("skip_empty_lines", true))
 	var reject_duplicate_headers := bool(options.get("reject_duplicate_headers", true))
 	var source := String(options.get("source", ""))
-	var rows := _parse_csv_rows(_normalize_csv_text(text), delimiter.substr(0, 1), trim_cells)
+	var parse_result := _parse_csv_rows(_normalize_csv_text(text), delimiter.substr(0, 1), trim_cells)
+	if not bool(parse_result.get("success", false)):
+		return {
+			"success": false,
+			"data": null,
+			"row_locations": [],
+			"error": String(parse_result.get("error", "")),
+			"error_line": int(parse_result.get("error_line", 0)),
+			"error_column": int(parse_result.get("error_column", 0)),
+			"source": source,
+		}
+
+	var rows := parse_result.get("rows", []) as Array
 	if rows.is_empty():
 		return {
 			"success": true,
 			"data": [],
 			"row_locations": [],
 			"error": "",
+			"error_line": 0,
+			"error_column": 0,
 			"source": source,
 	}
 
@@ -62,6 +76,8 @@ static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionar
 			"data": null,
 			"row_locations": [],
 			"error": header_error,
+			"error_line": 1,
+			"error_column": 1,
 			"source": source,
 		}
 
@@ -87,6 +103,8 @@ static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionar
 		"data": records,
 		"row_locations": row_locations,
 		"error": "",
+		"error_line": 0,
+		"error_column": 0,
 		"source": source,
 	}
 
@@ -122,6 +140,8 @@ static func validate_csv_table(text: String, schema: GFConfigTableSchema, option
 	if not bool(parsed.get("success", false)):
 		return _make_error_report(schema.get_table_key(), "parse_failed", str(parsed.get("error", "")), {
 			"source": parsed.get("source", ""),
+			"line": parsed.get("error_line", 0),
+			"column": parsed.get("error_column", 0),
 		})
 	return schema.validate_table(parsed.get("data"), _make_validation_options(options, parsed))
 
@@ -171,12 +191,16 @@ static func export_csv_table(
 
 # --- 私有/辅助方法 ---
 
-static func _parse_csv_rows(text: String, delimiter: String, trim_cells: bool) -> Array[PackedStringArray]:
+static func _parse_csv_rows(text: String, delimiter: String, trim_cells: bool) -> Dictionary:
 	var rows: Array[PackedStringArray] = []
 	var row := PackedStringArray()
 	var cell := ""
 	var in_quotes := false
+	var quote_start_line := 1
+	var quote_start_column := 1
 	var index := 0
+	var line := 1
+	var column := 1
 
 	while index < text.length():
 		var ch := text.substr(index, 1)
@@ -189,9 +213,14 @@ static func _parse_csv_rows(text: String, delimiter: String, trim_cells: bool) -
 					in_quotes = false
 			else:
 				cell += ch
+				if ch == "\n":
+					line += 1
+					column = 0
 		else:
 			if ch == "\"":
 				in_quotes = true
+				quote_start_line = line
+				quote_start_column = column
 			elif ch == delimiter:
 				row.append(cell.strip_edges() if trim_cells else cell)
 				cell = ""
@@ -200,14 +229,32 @@ static func _parse_csv_rows(text: String, delimiter: String, trim_cells: bool) -
 				rows.append(row)
 				row = PackedStringArray()
 				cell = ""
+				line += 1
+				column = 0
 			elif ch != "\r":
 				cell += ch
 		index += 1
+		column += 1
+
+	if in_quotes:
+		return {
+			"success": false,
+			"rows": rows,
+			"error": "CSV parse failed: unclosed_quote",
+			"error_line": quote_start_line,
+			"error_column": quote_start_column,
+		}
 
 	row.append(cell.strip_edges() if trim_cells else cell)
 	if row.size() > 1 or not _csv_row_is_empty(row):
 		rows.append(row)
-	return rows
+	return {
+		"success": true,
+		"rows": rows,
+		"error": "",
+		"error_line": 0,
+		"error_column": 0,
+	}
 
 
 static func _normalize_csv_text(text: String) -> String:

@@ -86,7 +86,7 @@ schema.table_validation_rules.append(table_size)
 
 字段规则在类型校验通过后执行；记录规则放在 `GFConfigTableSchema.record_validation_rules`，表规则放在 `table_validation_rules`。校验上下文会写入 `table_name`、`row_key`、`field`、`rule_id`，并在导入器提供来源信息时附带 `source`、`line`、`column`，方便编辑器工具或 CI 精确定位错误。自定义规则继承 `GFConfigValidationRule`，只需要重写 `_validate_value()`、`_validate_record()` 或 `_validate_table()`，并通过 `_add_issue()` 写入稳定错误码。
 
-`GFConfigTableImporter` 提供轻量 JSON/CSV 文本解析、`validate_json_table()` / `validate_csv_table()` 和 `export_csv_table()` 入口，适合编辑器导入按钮、CI 检查或项目自定义导表流水线在写入缓存前做统一报告。CSV 解析会去掉 UTF-8 BOM，默认拒绝重复表头；导出会按 schema 列顺序或显式 `columns` 输出，并对包含分隔符、换行或引号的单元格做 CSV 转义。传入 `{ "source": "res://..." }` 后，CSV 校验报告会尽量附带行列位置；JSON 解析失败会附带解析行号。它仍是轻量解析器，只取 `delimiter` 的第一个字符，空表头会跳过，复杂 Excel、多 sheet 或编码探测仍建议交给项目导表流水线。校验报告固定包含 `ok`、`row_count`、`error_count`、`warning_count` 和 `issues`，项目工具可以直接把 `issues` 渲染成表格或控制台输出。
+`GFConfigTableImporter` 提供轻量 JSON/CSV 文本解析、`validate_json_table()` / `validate_csv_table()` 和 `export_csv_table()` 入口，适合编辑器导入按钮、CI 检查或项目自定义导表流水线在写入缓存前做统一报告。CSV 解析会去掉 UTF-8 BOM，默认拒绝重复表头，并在引号字段未闭合时返回带行列位置的 `unclosed_quote` 问题，而不是把后续整段文本静默吞进一个单元格；导出会按 schema 列顺序或显式 `columns` 输出，并对包含分隔符、换行或引号的单元格做 CSV 转义。传入 `{ "source": "res://..." }` 后，CSV 校验报告会尽量附带行列位置；JSON 解析失败会附带解析行号。它仍是轻量解析器，只取 `delimiter` 的第一个字符，空表头会跳过，复杂 Excel、多 sheet 或编码探测仍建议交给项目导表流水线。校验报告固定包含 `ok`、`row_count`、`error_count`、`warning_count` 和 `issues`，项目工具可以直接把 `issues` 渲染成表格或控制台输出。
 
 需要表达唯一键或跨表关系时，可以在 `GFConfigTableSchema.indexes` 中加入 `GFConfigTableIndexDefinition`，在 `references` 中加入 `GFConfigTableReference`。唯一索引会参与单表校验；跨表引用由 `GFConfigReferenceResolver.validate_tables()` 在多表上下文中检查，`resolve_record_references()` 可把一条记录的引用解析为目标记录副本。GF 只理解字段、复合键和报告结构，不解释外键背后的业务含义：
 

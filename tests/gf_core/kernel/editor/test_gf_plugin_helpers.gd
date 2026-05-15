@@ -170,7 +170,7 @@ func test_plugin_actions_discovers_enabled_extension_templates() -> void:
 		labels.append(String(entry.get("label", "")))
 
 	assert_true(labels.has("生成 NodeCapability"), "Capability 模板应由 Capability 扩展 manifest 注册。")
-	assert_true(source.contains("func get_required_capabilities()"), "Capability 模板源码应由包动作贡献。")
+	assert_true(source.contains("func get_dependency_removal_policy()"), "Capability 模板源码应由包动作贡献。")
 
 
 func test_plugin_dock_tools_keeps_core_docks_available_without_extensions() -> void:
@@ -275,7 +275,7 @@ func test_editor_workspace_dock_groups_gf_panels() -> void:
 		},
 		{
 			"path": "res://addons/gf/standard/utilities/debug/editor/gf_signal_graph_dock.gd",
-			"label": "GF Signal Graph",
+			"label": "GF Signal Diagnostics",
 		},
 		{
 			"path": "res://addons/gf/standard/utilities/debug/editor/gf_diagnostics_dock.gd",
@@ -294,12 +294,12 @@ func test_editor_workspace_dock_groups_gf_panels() -> void:
 	assert_eq(dock.get_page_count(), 5, "工作区应把多个 GF 面板收束为内部页面。")
 	assert_eq(
 		dock.get_page_titles(),
-		PackedStringArray(["GF Storage Viewer", "GF Input Mapping", "GF Signal Graph", "GF Diagnostics", "GF Extensions"]),
+		PackedStringArray(["GF Storage Viewer", "GF Input Mapping", "GF Signal Diagnostics", "GF Diagnostics", "GF Extensions"]),
 		"页面标题应保留原面板语义。"
 	)
 	assert_eq(
 		dock.get_page_button_titles(),
-		PackedStringArray(["存储", "输入", "信号", "诊断", "扩展"]),
+		PackedStringArray(["存储", "输入", "信号诊断", "诊断", "扩展"]),
 		"响应式页面入口应使用短标签。"
 	)
 	assert_true(dock.get_about_text().contains("版本：%s" % dock._get_framework_version()), "关于弹窗应展示当前框架版本。")
@@ -405,6 +405,15 @@ func test_editor_workspace_window_hosts_workspace_pages() -> void:
 	assert_eq(window.get_page_count(), 2, "独立窗口应承载注入的工作区页面。")
 	assert_eq(window.get_page_titles(), PackedStringArray(["GF Storage Viewer", "GF Extensions"]), "独立窗口应保留页面标题。")
 	assert_not_null(window.get_workspace(), "独立窗口应持有内部工作区控件。")
+	window.transient = true
+	window.exclusive = true
+	window.set_always_on_top_enabled(true)
+	assert_true(window.is_always_on_top_enabled(), "独立工作区窗口应支持置顶。")
+	assert_false(window.transient, "启用置顶前应解除 transient，避免 Godot 报错。")
+	assert_false(window.exclusive, "启用置顶前应解除 exclusive，避免沿用临时弹窗语义。")
+	assert_true(window.get_workspace()._always_on_top_button.button_pressed, "工作区置顶按钮应同步窗口状态。")
+	window.get_workspace()._on_always_on_top_toggled(false)
+	assert_false(window.is_always_on_top_enabled(), "置顶按钮应能关闭独立窗口置顶。")
 
 	window.free()
 

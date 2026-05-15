@@ -123,6 +123,7 @@ func enter(previous_state: StringName = &"", args: Dictionary = {}) -> void:
 func exit(next_state: StringName = &"", args: Dictionary = {}) -> void:
 	_exit(next_state, args)
 	_run_behaviors_exit(next_state, args)
+	unregister_owner_events()
 	_set_state_enabled(false)
 
 
@@ -376,6 +377,7 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 func unregister_owner_events() -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
 		architecture.unregister_owner_events(self)
+	_event_architectures.clear()
 
 
 # --- 虚方法（由子类重写） ---

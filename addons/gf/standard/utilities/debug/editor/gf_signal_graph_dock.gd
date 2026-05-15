@@ -1,6 +1,6 @@
 @tool
 
-## GFSignalGraphDock: 当前场景信号连接与运行事件查看面板。
+## GFSignalGraphDock: 当前场景信号连接与发射记录查看面板。
 ##
 ## 基于 GFSceneSignalAudit 渲染编辑器中保存的信号连接，并可显式开启
 ## GFSignalRuntimeProbe 观察当前场景信号发射。面板只读，不修改场景。
@@ -12,6 +12,9 @@ extends Control
 
 const _MAX_EVENT_COUNT: int = 300
 const _MAX_DISPLAY_ARGUMENT_LENGTH: int = 120
+const _NOISY_UNCONNECTED_SIGNAL_NAMES: Array[StringName] = [
+	&"draw",
+]
 const GFSignalRuntimeProbeBase = preload("res://addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd")
 const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
@@ -21,6 +24,8 @@ const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_wo
 var _root_ref: WeakRef = null
 var _last_graph: Dictionary = {}
 var _last_events: Array[Dictionary] = []
+var _live_watch_count: int = 0
+var _live_signal_names: PackedStringArray = PackedStringArray()
 var _probe: GFSignalRuntimeProbeBase = null
 var _persistent_only_check: CheckBox = null
 var _include_empty_check: CheckBox = null
@@ -41,7 +46,7 @@ var _details: TextEdit = null
 # --- Godot 生命周期方法 ---
 
 func _ready() -> void:
-	name = "GF Signal Graph"
+	name = "GF Signal Diagnostics"
 	_build_ui()
 	call_deferred("_refresh_deferred")
 
@@ -89,8 +94,8 @@ func get_last_graph() -> Dictionary:
 	return _last_graph.duplicate(true)
 
 
-## 获取最近运行事件。
-## @return 运行事件副本。
+## 获取最近信号发射记录。
+## @return 发射记录副本。
 func get_recent_events() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for event: Dictionary in _last_events:
@@ -119,22 +124,25 @@ func _build_ui() -> void:
 	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "重新读取当前场景信号连接。", refresh))
 
 	_persistent_only_check = CheckBox.new()
-	_persistent_only_check.text = "持久连接"
+	_persistent_only_check.text = "保存连接"
+	_persistent_only_check.tooltip_text = "只显示场景文件中保存的信号连接。"
 	_persistent_only_check.button_pressed = true
 	_persistent_only_check.toggled.connect(_on_option_toggled)
 	toolbar.add_child(_persistent_only_check)
 
 	_include_empty_check = CheckBox.new()
-	_include_empty_check.text = "空信号"
+	_include_empty_check.text = "未连接信号"
+	_include_empty_check.tooltip_text = "没有连接目标的节点信号也显示出来。"
 	_include_empty_check.toggled.connect(_on_option_toggled)
 	toolbar.add_child(_include_empty_check)
 
 	_live_check = CheckBox.new()
-	_live_check.text = "实时追踪"
+	_live_check.text = "追踪发射"
+	_live_check.tooltip_text = "开启后记录连接页当前可见信号的发射。"
 	_live_check.toggled.connect(_on_live_toggled)
 	toolbar.add_child(_live_check)
 
-	_clear_events_button = GFEditorWorkspaceUI.make_button("清空事件", "清空实时追踪事件。", _on_clear_events_pressed)
+	_clear_events_button = GFEditorWorkspaceUI.make_button("清空记录", "清空信号发射记录。", _on_clear_events_pressed)
 	_clear_events_button.disabled = true
 	toolbar.add_child(_clear_events_button)
 
@@ -153,7 +161,7 @@ func _build_ui() -> void:
 	root_box.add_child(_summary_label)
 
 	_hint_label = GFEditorWorkspaceUI.make_empty_label()
-	_hint_label.text = "连接=场景中保存的信号连接；运行事件=开启“实时追踪”后的实际发射。只读。"
+	_hint_label.text = "连接页查看场景保存的信号连接；发射记录页查看开启“追踪发射”后的信号发射。只读。"
 	root_box.add_child(_hint_label)
 
 	_tabs = TabContainer.new()
@@ -178,13 +186,13 @@ func _build_ui() -> void:
 	connection_page.add_child(_tree)
 
 	var event_page := VBoxContainer.new()
-	event_page.name = "运行事件"
+	event_page.name = "发射记录"
 	event_page.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	event_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tabs.add_child(event_page)
 
 	_event_empty_state_label = GFEditorWorkspaceUI.make_empty_label()
-	_event_empty_state_label.text = "开启“实时追踪”后，这里会显示当前场景实际发射的信号。"
+	_event_empty_state_label.text = _get_event_empty_text()
 	event_page.add_child(_event_empty_state_label)
 
 	_event_tree = _make_tree(["时间", "来源", "信号", "参数"])
@@ -244,19 +252,19 @@ func _render_graph() -> void:
 
 	var connection_total := int(_last_graph.get("connection_count", 0))
 	var signal_total := int(_last_graph.get("signal_count", 0))
-	_summary_label.text = "节点：%d  信号：%d  连接：%d  运行事件：%d" % [
+	_summary_label.text = "节点：%d  信号：%d  连接：%d  发射记录：%d" % [
 		int(_last_graph.get("node_count", 0)),
 		signal_total,
 		connection_total,
 		_last_events.size(),
 	]
 	_summary_label.modulate = GFEditorWorkspaceUI.OK_TEXT_COLOR
-	_details.text = "选中一条连接、信号或运行事件后查看详情。"
+	_details.text = "选中一条连接、信号或发射记录后查看详情。"
 
 	if connection_total == 0 and signal_total == 0:
 		_tree.visible = false
 		_empty_state_label.visible = true
-		_empty_state_label.text = "当前场景没有可显示的持久信号连接。连接节点信号后点击刷新；或勾选“空信号”查看节点声明的信号。"
+		_empty_state_label.text = _get_connection_empty_text()
 		_render_events()
 		return
 
@@ -317,7 +325,7 @@ func _render_events() -> void:
 	_event_tree.visible = visible_count > 0
 	_event_empty_state_label.visible = visible_count == 0
 	if visible_count == 0:
-		_event_empty_state_label.text = "没有匹配当前筛选条件的运行事件。" if not _last_events.is_empty() else "开启“实时追踪”后，这里会显示当前场景实际发射的信号。"
+		_event_empty_state_label.text = "没有匹配当前筛选条件的发射记录。" if not _last_events.is_empty() else _get_event_empty_text()
 
 
 func _resolve_selected_scene_node() -> Node:
@@ -344,6 +352,7 @@ func _restart_live_probe_if_enabled() -> void:
 	if _live_check == null or not _live_check.button_pressed:
 		return
 	_start_live_probe()
+	_render_events()
 
 
 func _start_live_probe() -> void:
@@ -352,17 +361,25 @@ func _start_live_probe() -> void:
 	if target_root == null:
 		return
 
+	_live_signal_names = _collect_live_signal_names()
+	if _live_signal_names.is_empty():
+		return
+
 	_probe = GFSignalRuntimeProbeBase.new()
 	_probe.max_events = _MAX_EVENT_COUNT
 	_probe.signal_emitted.connect(_on_probe_signal_emitted)
-	_probe.watch_tree(target_root, {
+	var report := _probe.watch_tree(target_root, {
 		"recursive": true,
 		"include_internal": false,
+		"include_signals": _live_signal_names,
 		"max_argument_count": 8,
 	})
+	_live_watch_count = int(report.get("watched_count", 0))
 
 
 func _stop_live_probe() -> void:
+	_live_watch_count = 0
+	_live_signal_names = PackedStringArray()
 	if _probe == null:
 		return
 	if _probe.signal_emitted.is_connected(_on_probe_signal_emitted):
@@ -397,6 +414,53 @@ func _format_arguments(arguments: Variant) -> String:
 
 func _safe_json(value: Variant) -> String:
 	return JSON.stringify(_sanitize_for_display(value), "\t")
+
+
+func _collect_live_signal_names() -> PackedStringArray:
+	var result := PackedStringArray()
+	var seen: Dictionary = {}
+	for connection_variant: Variant in _last_graph.get("connections", []):
+		var connection := connection_variant as Dictionary
+		if connection == null or not _matches_filter(connection):
+			continue
+		_append_live_signal_name(result, seen, StringName(connection.get("signal_name", "")), false)
+
+	if result.is_empty() and _include_empty_check != null and _include_empty_check.button_pressed:
+		for signal_variant: Variant in _last_graph.get("signals", []):
+			var signal_entry := signal_variant as Dictionary
+			if signal_entry == null or not _matches_filter(signal_entry):
+				continue
+			_append_live_signal_name(result, seen, StringName(signal_entry.get("signal_name", "")), true)
+	return result
+
+
+func _append_live_signal_name(
+	result: PackedStringArray,
+	seen: Dictionary,
+	signal_name: StringName,
+	from_unconnected_signal: bool
+) -> void:
+	if signal_name == &"":
+		return
+	if from_unconnected_signal and _NOISY_UNCONNECTED_SIGNAL_NAMES.has(signal_name):
+		return
+	var key := String(signal_name)
+	if seen.has(key):
+		return
+	seen[key] = true
+	result.append(key)
+
+
+func _get_connection_empty_text() -> String:
+	return "当前场景没有可显示的保存连接。用 Godot 的“节点 > 信号”连接信号后点刷新；或勾选“未连接信号”查看节点声明过但还没连接目标的信号。"
+
+
+func _get_event_empty_text() -> String:
+	if _live_check != null and _live_check.button_pressed:
+		if _live_signal_names.is_empty() or _live_watch_count <= 0:
+			return "追踪已开启，但当前筛选没有可追踪信号。先在连接页确认有保存连接，或勾选“未连接信号”后刷新。独立运行的游戏进程不会被自动抓取。"
+		return "追踪已开启：%d 个信号正在监听。现在操作当前编辑场景，让按钮、Area、AnimationPlayer 或自定义脚本发出信号，新的发射记录会出现在这里。独立运行的游戏进程不会被自动抓取。" % _live_watch_count
+	return "勾选“追踪发射”后，再操作当前编辑场景；之后发出的 pressed、area_entered、animation_finished 或自定义信号会记录在这里。"
 
 
 func _sanitize_for_display(value: Variant) -> Variant:
@@ -447,6 +511,7 @@ func _on_clear_events_pressed() -> void:
 
 func _on_filter_text_changed(_text: String) -> void:
 	_render_graph()
+	_restart_live_probe_if_enabled()
 
 
 func _on_details_toggled(pressed: bool) -> void:

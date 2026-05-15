@@ -27,6 +27,16 @@ class HitReceiver2D:
 		return { "ok": true }
 
 
+class RejectingHitReceiver2D:
+	extends Node2D
+
+	func receive_hit(_context: GFCombatHitContext) -> Dictionary:
+		return {
+			"ok": false,
+			"reason": "blocked",
+		}
+
+
 # --- 私有/辅助方法 ---
 
 func _make_projectile_2d_scene() -> PackedScene:
@@ -113,6 +123,25 @@ func test_projectile_impact_sends_combat_hit_context() -> void:
 	assert_eq(receiver.received_context.hit_id, &"projectile_hit", "命中 ID 应来自发射体节点。")
 	assert_eq(receiver.received_context.payload.get("kind"), "test", "payload 应随命中上下文传递。")
 	assert_false(projectile.is_projectile_active(), "finish_on_impact 开启时命中后应结束。")
+
+	projectile.free()
+	receiver.free()
+
+
+func test_projectile_finish_on_impact_waits_for_accepted_hit() -> void:
+	var projectile := GFProjectile2DBase.new()
+	projectile.auto_launch_on_ready = false
+	projectile.queue_free_on_finish = false
+	projectile.finish_on_impact = true
+	var receiver := RejectingHitReceiver2D.new()
+
+	projectile.launch()
+	projectile.send_impact_to(receiver)
+	var context := projectile.get_projectile_context()
+
+	assert_true(projectile.is_projectile_active(), "被接收器拒绝的命中不应结束发射体。")
+	assert_eq(context.get("impact_attempt_count"), 1, "拒绝命中仍应记录尝试次数。")
+	assert_eq(context.get("impact_count", 0), 0, "拒绝命中不应累计成功命中次数。")
 
 	projectile.free()
 	receiver.free()

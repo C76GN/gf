@@ -31,7 +31,7 @@ if assets.is_loading("res://ui/inventory_panel.tscn", "PackedScene"):
 assets.pin_cache("res://ui/common_icons.tres")
 ```
 
-同一路径的并发加载会合并到同一个 threaded request；如果已存在请求或缓存的资源类型与新的 `type_hint` 明显不兼容，回调会收到 `null`。命中缓存时回调会同步执行。`cancel()` 只取消 GF 侧的回调分发并把请求标记为已取消，不会中止 Godot 已发起的 `ResourceLoader` 线程请求；如果资源随后成功完成，工具仍会把它写入缓存，方便后续请求复用。`get_debug_snapshot()` 会报告缓存、pending、pinned 路径、引用计数和资源分组数量，便于诊断面板或测试读取。工具只管理 `ResourceLoader` 请求、回调分发和内存缓存，不负责实例化节点、引用计数之外的资源生命周期或远程下载。
+同一路径的并发加载会合并到同一个 threaded request；如果已存在请求或缓存的资源类型与新的 `type_hint` 明显不兼容，回调会收到 `null`。命中缓存时回调会同步执行。`cancel()` 只取消 GF 侧的回调分发并把请求标记为已取消，不会中止 Godot 已发起的 `ResourceLoader` 线程请求；如果资源随后成功完成，已取消请求不会再写入缓存，避免项目显式取消后又被迟到结果重新命中。需要重新使用该资源时，发起新的加载请求即可。`get_debug_snapshot()` 会报告缓存、pending、pinned 路径、引用计数和资源分组数量，便于诊断面板或测试读取。工具只管理 `ResourceLoader` 请求、回调分发和内存缓存，不负责实例化节点、引用计数之外的资源生命周期或远程下载。
 
 当资源会被多个短生命周期对象持有时，可以用 `GFAssetHandle` 表达所有权。句柄会增加路径引用计数并锁定缓存，`release()` 后才允许 LRU 淘汰；如果传入 owner，`release_owner(owner)` 或 Node 退出树时会释放该 owner 的引用。资源分组适合 UI 包、关卡包或主题包这类“成组预热、成组卸载”的通用流程，不要求项目把业务语义写进工具层。
 
@@ -113,7 +113,7 @@ worker.set_processor(func(job: GFJob) -> Dictionary:
 add_child(worker)
 ```
 
-`GFJobWorker` 不创建线程，也不解释任务数据；如果处理器返回 Signal，Worker 会等待信号发出，并把信号结果按同步返回值同样写回完成或失败状态。信号不携带结果时视为完成。这个模式适合桥接项目自己的异步导入、下载、预览生成或工具流程。
+`GFJobWorker` 不创建线程，也不解释任务数据；如果处理器返回 Signal，Worker 会等待信号发出，并把信号结果按同步返回值同样写回完成或失败状态。信号不携带结果时视为完成。`signal_timeout_seconds` 默认提供等待上限，超时或取消会把任务标记为失败，避免某个永不发射的处理器让 worker 长期停在 `_processing` 状态；`signal_timeout_respects_time_scale` 控制该等待是否跟随 `GFTimeUtility`。这个模式适合桥接项目自己的异步导入、下载、预览生成或工具流程。
 
 ### 渲染资源预热 (`GFRenderWarmupManifest` / `GFRenderWarmupUtility`)
 

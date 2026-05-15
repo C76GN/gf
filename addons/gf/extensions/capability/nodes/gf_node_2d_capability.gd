@@ -10,6 +10,12 @@ extends Node2D
 const _CAPABILITY_SUPPORT_SCRIPT: Script = preload("res://addons/gf/extensions/capability/nodes/gf_node_capability_support.gd")
 
 
+# --- 导出变量 ---
+
+## 当前能力依赖的其他能力类型。运行时挂载前会先确保这些能力存在。
+@export var required_capabilities: Array[Script] = []
+
+
 # --- 公共变量 ---
 
 ## 当前能力所属对象。由 GFCapabilityUtility 挂载时写入。
@@ -33,9 +39,10 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 
 
 ## 返回当前能力依赖的其他能力类型。
+## 默认返回 required_capabilities；只有运行时动态依赖才建议在子类中重写。
 ## GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。
 func get_required_capabilities() -> Array[Script]:
-	return [] as Array[Script]
+	return required_capabilities
 
 
 ## 返回移除当前能力时对自动补齐依赖能力的处理策略。

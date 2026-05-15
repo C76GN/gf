@@ -108,10 +108,15 @@ class InjectedAction:
 	extends GFVisualAction
 
 	var injected_architecture: GFArchitecture = null
+	var executed: bool = false
 
 	func inject_dependencies(architecture: GFArchitecture) -> void:
 		super.inject_dependencies(architecture)
 		injected_architecture = architecture
+
+	func execute() -> Variant:
+		executed = true
+		return null
 
 
 ## 按标签跳过或替换动作的测试拦截器。
@@ -165,6 +170,29 @@ class StopAfterInterceptor:
 			return GFActionInterceptionResult.stop_queue()
 		if action is ManualSignalAction and (action as ManualSignalAction).label == "STOP":
 			return GFActionInterceptionResult.stop_queue()
+		return GFActionInterceptionResult.continue_action()
+
+
+class ReplaceWithInjectedInterceptor:
+	extends GFActionInterceptor
+
+	var replacement: InjectedAction
+
+	func _init(p_replacement: InjectedAction) -> void:
+		replacement = p_replacement
+
+	func before_execute(_action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+		return GFActionInterceptionResult.replace_with(replacement)
+
+
+class ObserveInjectedReplacementInterceptor:
+	extends GFActionInterceptor
+
+	var observed_architecture: GFArchitecture = null
+
+	func before_execute(action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+		if action is InjectedAction:
+			observed_architecture = (action as InjectedAction).injected_architecture
 		return GFActionInterceptionResult.continue_action()
 
 
@@ -497,6 +525,27 @@ func test_action_interceptor_can_skip_and_replace_actions() -> void:
 	await get_tree().process_frame
 
 	assert_eq(order, ["before:SKIP", "before:OLD", "NEW", "after:NEW"], "拦截器应能跳过和替换动作。")
+
+
+func test_replaced_action_is_injected_before_following_interceptors() -> void:
+	var arch := GFArchitecture.new()
+	_system.inject_dependencies(arch)
+	var replacement := InjectedAction.new()
+	var observer := ObserveInjectedReplacementInterceptor.new()
+	var replacer := ReplaceWithInjectedInterceptor.new(replacement)
+	replacer.priority = 10
+	observer.priority = 0
+	_system.add_interceptor(replacer)
+	_system.add_interceptor(observer)
+
+	_system.enqueue(OrderAction.new([], "OLD"))
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_same(observer.observed_architecture, arch, "替换动作进入后续拦截器前应完成依赖注入。")
+	assert_true(replacement.executed, "替换动作应被实际执行。")
+
+	arch.dispose()
 
 
 func test_action_interceptors_run_by_priority() -> void:

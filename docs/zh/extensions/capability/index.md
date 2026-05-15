@@ -50,15 +50,15 @@ if capabilities.has_capability(enemy, HealthCapability):
 class_name DamageableCapability
 extends GFCapability
 
-func get_required_capabilities() -> Array[Script]:
-	return [HealthCapability]
+func _init() -> void:
+	required_capabilities = [HealthCapability]
 
 func take_damage(amount: int) -> void:
 	var health := get_capability(HealthCapability) as HealthCapability
 	health.health = maxi(health.health - amount, 0)
 ```
 
-GF 不使用隐式构造函数参数注入，依赖关系应通过 `get_required_capabilities()` 显式声明，便于搜索、测试和排错。
+GF 不使用隐式构造函数参数注入，依赖关系应优先通过 `required_capabilities` 显式声明，便于编辑器检查、搜索、测试和排错。节点能力放在场景中时，可以直接在 Inspector 的 `required_capabilities` 数组里配置依赖；纯代码能力如果需要类级默认依赖，可以在 `_init()` 中设置该数组。
 
 `GFCapabilityUtility` 会在调用 `on_gf_capability_added()` 前写入能力实例的 `receiver` 字段，并在 `on_gf_capability_removed()` 后清空它；因此 Hook 内可以直接使用 `receiver` 或 `get_capability()` 查询同一 receiver 上已补齐的依赖能力。重写 Hook 时仍建议调用 `super`，便于兼容基类后续扩展，但依赖查询不再依赖项目脚本手动调用 `super`。
 
@@ -89,7 +89,7 @@ if not result["ok"]:
 	push_warning(result["failed"])
 ```
 
-`GFCapabilityRecipeEntry` 可以通过 `capability_type` 创建普通能力，也可以通过 `scene` 挂载节点能力场景；如果两者都提供，运行时会实例化场景并按 `capability_type` 注册。`apply_recipe()` 默认会在应用后调用依赖校验，并把新增、复用、失败条目和分组写入报告；`remove_recipe()` 可按 Recipe 反向移除能力和可选分组。复杂实体预设应保持为项目资源，不应把具体敌人、卡牌、任务或 UI 规则写进 GF 能力基类。
+`GFCapabilityRecipeEntry` 可以通过 `capability_type` 创建普通能力，也可以通过 `scene` 挂载节点能力场景；如果两者都提供，运行时会实例化场景并按 `capability_type` 注册。`apply_recipe()` 默认会在应用后调用依赖校验，并把新增、复用、失败条目和分组写入报告；默认 `transactional = true`，任一条目失败或依赖校验失败时，会移除本次新增能力、回滚本次新增分组，并恢复被复用能力的原 active 状态，避免留下半应用的实体预设。确实需要“尽力应用”的工具流程，可在 options 中显式传 `{ "transactional": false }`。`remove_recipe()` 可按 Recipe 反向移除能力和可选分组。复杂实体预设应保持为项目资源，不应把具体敌人、卡牌、任务或 UI 规则写进 GF 能力基类。
 
 
 ## Node 能力与场景容器
@@ -136,11 +136,11 @@ Enemy
 
 如果运行时代码在 receiver 自身进入场景树的 setup 阶段动态添加 Node 能力，能力记录会立即写入，容器节点挂树会延迟到安全时机，避免 Godot 拒绝在 children setup 阶段 `add_child()`。该功能需要当前上下文或全局架构中已注册 `GFCapabilityUtility`；如果项目在容器进树后才初始化架构，可在架构就绪后调用 `register_children_now()` 主动扫描。
 
-能力实例具有单一 owner 语义，同一个 `GFCapability` / `GFNodeCapability` 实例不能同时挂到多个 receiver；需要复用配置时应创建新实例或使用 `GFCapabilityRecipe`。场景中的 `GFCapabilityContainer` 离开树时会注销它此前注册的子能力；框架自动创建的空能力容器会在最后一个 Node 能力被移除后释放，避免场景树残留空容器。
+能力实例具有单一 owner 语义，同一个 `GFCapability` / `GFNodeCapability` 实例不能同时挂到多个 receiver；需要复用配置时应创建新实例或使用 `GFCapabilityRecipe`。场景中的 `GFCapabilityContainer` 会跟踪已注册子能力的弱引用和退出树回调；子能力被提前 `remove_child()`、reparent 或释放时，也会从原 receiver 上注销，避免容器退出时只遍历当前子节点而漏掉已经移走的能力记录。`remove_capability()` 表示移除并释放由能力系统管理的实例；场景容器离树时会使用 `unregister_capability()` 只解除登记，不释放本来由场景树拥有的子节点。框架自动创建的空能力容器会在最后一个 Node 能力被移除后释放，避免场景树残留空容器。
 
 启用 GF 插件后，选中普通 `Node` 时 Inspector 会显示 `GF Capabilities` 区域。这里可以添加、启停、编辑和移除继承 `GFNodeCapability`、`GFNode2DCapability`、`GFNode3DCapability` 或 `GFControlCapability` 的能力脚本或能力场景；也可以从 `Recipe` 菜单把 `GFCapabilityRecipe` 中的节点能力条目应用到当前节点。通过 Inspector 添加的容器和能力是可见场景节点，便于在场景树中检查与保存。Inspector 内联区域只展示能力脚本自己的导出属性；需要编辑完整 Node 属性时可点击“编辑”进入能力节点自身 Inspector。
 
-Inspector 的“校验”按钮会检查当前节点能力的重复脚本和 `get_required_capabilities()` 声明缺失项，并用统一报告展示错误、警告和下一步建议。它只辅助编辑器排查节点能力组合，不会自动补齐业务能力，也不会替代运行时 `GFCapabilityUtility.inspect_receiver()`。编辑器菜单也提供 `工具 > GF > 生成 Capability`、`生成 NodeCapability`、`生成 Node2DCapability`、`生成 Node3DCapability` 与 `生成 ControlCapability` 模板入口。
+Inspector 的“校验”按钮会检查当前节点能力的重复脚本和 `required_capabilities` 声明缺失项，并用统一报告展示错误、警告和下一步建议。编辑器校验只读取场景结构与导出属性，不会执行非 `@tool` 的项目能力脚本方法；这避免业务逻辑在编辑器中运行。它只辅助编辑器排查节点能力组合，不会自动补齐业务能力，也不会替代运行时 `GFCapabilityUtility.inspect_receiver()`。编辑器菜单也提供 `工具 > GF > 生成 Capability`、`生成 NodeCapability`、`生成 Node2DCapability`、`生成 Node3DCapability` 与 `生成 ControlCapability` 模板入口。
 
 
 ## 能力启停
@@ -217,9 +217,6 @@ bag.set_property_value(&"score", 100)
 能力实例可选择实现以下方法：
 
 ```gdscript
-func get_required_capabilities() -> Array[Script]:
-	return []
-
 func on_gf_capability_added(receiver: Object) -> void:
 	pass
 
@@ -235,6 +232,8 @@ func get_dependency_removal_policy() -> int:
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	pass
 ```
+
+依赖声明不是 Hook，优先写入 `required_capabilities`；基类的 `get_required_capabilities()` 默认会返回这个数组。只有确实需要运行时动态依赖时，才建议重写 `get_required_capabilities()`；编辑器 Inspector 不会调用该方法。
 
 继承 `GFCapability`、`GFNodeCapability`、`GFNode2DCapability`、`GFNode3DCapability` 或 `GFControlCapability` 时这些方法已有默认实现。自定义 Node 能力不强制继承特定基类，只要实现需要的 Hook 也能被运行时识别；但需要编辑器添加与统一补全时，推荐继承最匹配的 GF 能力基类。
 

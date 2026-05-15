@@ -111,6 +111,18 @@ func test_csv_importer_reports_duplicate_headers() -> void:
 	assert_true(String(parsed["error"]).contains("duplicate"), "错误信息应说明重复表头。")
 
 
+func test_csv_importer_reports_unclosed_quote_location() -> void:
+	var parsed := GFConfigTableImporter.parse_csv_table("id,name\n1,\"Potion\n")
+	var report := GFConfigTableImporter.validate_csv_table("id,name\n1,\"Potion\n", _make_item_schema())
+	var issue := (report["issues"] as Array)[0] as Dictionary
+
+	assert_false(bool(parsed["success"]), "未闭合引号应报告解析失败。")
+	assert_eq(parsed["error_line"], 2, "解析结果应报告引号起始行。")
+	assert_eq(parsed["error_column"], 3, "解析结果应报告引号起始列。")
+	assert_eq(issue["code"], "parse_failed", "校验报告应标记解析失败。")
+	assert_eq(issue["line"], 2, "校验报告应透出解析失败行号。")
+
+
 func test_json_importer_reports_parse_failure_as_validation_report() -> void:
 	var report := GFConfigTableImporter.validate_json_table("{bad", _make_item_schema())
 

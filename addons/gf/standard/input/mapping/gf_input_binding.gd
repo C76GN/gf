@@ -199,6 +199,9 @@ func _matches_key(event: InputEventKey, template: InputEventKey) -> bool:
 	if event_key == KEY_NONE:
 		event_key = event.keycode
 
+	if not event.pressed:
+		return template_key == event_key
+
 	return (
 		template_key == event_key
 		and template.ctrl_pressed == event.ctrl_pressed

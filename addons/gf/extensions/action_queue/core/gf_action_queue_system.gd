@@ -481,6 +481,8 @@ func _apply_before_interceptors(action: Object) -> GFActionInterceptionResult:
 		result = _normalize_interception_result(result)
 		if result.is_replace():
 			current_action = result.replacement_action
+			_inject_action_dependencies(current_action)
+			continue
 		if not result.is_continue():
 			return result
 	return GFActionInterceptionResult.replace_with(current_action) if current_action != action else GFActionInterceptionResult.continue_action()

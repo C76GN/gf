@@ -84,6 +84,7 @@ var _timestamp: int = 0
 var _router: _GFInputRouter
 var _router_attach_serial: int = 0
 var _clear_transient_input_state_queued: bool = false
+var _transient_input_state_mark_frame: int = -1
 
 
 # --- Godot 生命周期方法 ---
@@ -871,10 +872,13 @@ func _mark_player_action_just_completed(player_index: int, action_id: StringName
 
 func _queue_clear_transient_input_state() -> void:
 	_clear_transient_input_state_queued = true
+	_transient_input_state_mark_frame = Engine.get_process_frames()
 
 
 func _clear_transient_input_state_if_queued() -> void:
 	if not _clear_transient_input_state_queued:
+		return
+	if Engine.get_process_frames() <= _transient_input_state_mark_frame:
 		return
 
 	_just_started.clear()
@@ -882,6 +886,7 @@ func _clear_transient_input_state_if_queued() -> void:
 	_player_just_started.clear()
 	_player_just_completed.clear()
 	_clear_transient_input_state_queued = false
+	_transient_input_state_mark_frame = -1
 
 
 func _clear_runtime_state(emit_completed: bool = false) -> void:
@@ -922,6 +927,7 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 	_player_action_active_elapsed.clear()
 	_player_last_completed_duration.clear()
 	_clear_transient_input_state_queued = false
+	_transient_input_state_mark_frame = -1
 	_reset_all_trigger_states()
 
 

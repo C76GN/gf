@@ -13,6 +13,7 @@ const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capabi
 const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/extensions/capability/recipes/gf_capability_recipe.gd")
 const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/extensions/capability/recipes/gf_capability_recipe_entry.gd")
 const GF_PROPERTY_BAG_CAPABILITY_BASE := preload("res://addons/gf/extensions/capability/core/gf_property_bag_capability.gd")
+const GF_CAPABILITY_INSPECTOR_PLUGIN_BASE := preload("res://addons/gf/extensions/capability/editor/gf_capability_inspector_plugin.gd")
 
 
 # --- 辅助类 ---
@@ -31,8 +32,8 @@ class HealthCapability extends GF_CAPABILITY_BASE:
 
 
 class DamageCapability extends GF_CAPABILITY_BASE:
-	func get_required_capabilities() -> Array[Script]:
-		return [HealthCapability]
+	func _init() -> void:
+		required_capabilities = [HealthCapability]
 
 
 class NoSuperDamageCapability extends GF_CAPABILITY_BASE:
@@ -40,8 +41,8 @@ class NoSuperDamageCapability extends GF_CAPABILITY_BASE:
 	var receiver_during_removed: Object = null
 	var health_during_added: Object = null
 
-	func get_required_capabilities() -> Array[Script]:
-		return [HealthCapability]
+	func _init() -> void:
+		required_capabilities = [HealthCapability]
 
 	func on_gf_capability_added(_target: Object) -> void:
 		receiver_during_added = receiver
@@ -57,13 +58,18 @@ class KeepDependencyDamageCapability extends DamageCapability:
 
 
 class RollbackRootCapability extends GF_CAPABILITY_BASE:
-	func get_required_capabilities() -> Array[Script]:
-		return [HealthCapability, RollbackCycleCapability]
+	func _init() -> void:
+		required_capabilities = [HealthCapability, RollbackCycleCapability]
 
 
 class RollbackCycleCapability extends GF_CAPABILITY_BASE:
+	func _init() -> void:
+		required_capabilities = [RollbackRootCapability]
+
+
+class DynamicDependencyCapability extends GF_CAPABILITY_BASE:
 	func get_required_capabilities() -> Array[Script]:
-		return [RollbackRootCapability]
+		return [HealthCapability]
 
 
 class InjectedCapability extends GF_CAPABILITY_BASE:
@@ -86,6 +92,18 @@ class ActiveNodeCapability extends GF_NODE_CAPABILITY_BASE:
 
 	func on_gf_capability_active_changed(_target: Object, is_active: bool) -> void:
 		active_events.append(is_active)
+
+
+class ExportDependencyCapability extends GF_NODE_CAPABILITY_BASE:
+	pass
+
+
+class RequiredByPropertyCapability extends GF_NODE_CAPABILITY_BASE:
+	var get_required_capabilities_called: bool = false
+
+	func get_required_capabilities() -> Array[Script]:
+		get_required_capabilities_called = true
+		return [] as Array[Script]
 
 
 class Spatial2DCapability extends GF_NODE_2D_CAPABILITY_BASE:
@@ -225,6 +243,31 @@ func test_required_capabilities_are_created_first() -> void:
 	assert_eq(damage.get_capability(HealthCapability), health, "能力基类应能访问同一 receiver 上的依赖能力。")
 
 
+func test_dynamic_required_capability_hook_is_supported_at_runtime() -> void:
+	var receiver := RefCounted.new()
+
+	var capability := _utility.add_capability(receiver, DynamicDependencyCapability) as DynamicDependencyCapability
+	var health := _utility.get_capability(receiver, HealthCapability) as HealthCapability
+
+	assert_not_null(capability, "运行时动态依赖 Hook 应仍可挂载主能力。")
+	assert_not_null(health, "运行时动态依赖 Hook 应能补齐依赖。")
+
+
+func test_required_capability_export_property_is_used_by_default_hook() -> void:
+	var receiver := Node.new()
+	add_child(receiver)
+	var capability := ExportDependencyCapability.new()
+	capability.required_capabilities = [HealthCapability]
+
+	_utility.add_capability_instance(receiver, capability, ExportDependencyCapability)
+	var health := _utility.get_capability(receiver, HealthCapability) as HealthCapability
+
+	assert_not_null(health, "默认依赖 Hook 应读取 required_capabilities 导出属性。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_capability_receiver_does_not_depend_on_super_hook_call() -> void:
 	var receiver := RefCounted.new()
 
@@ -315,6 +358,17 @@ func test_remove_capability_calls_hook_and_clears_storage() -> void:
 
 	assert_eq(capability.removed_receiver, receiver, "移除前应调用 removed hook。")
 	assert_false(_utility.has_capability(receiver, HealthCapability), "移除后不应再查询到能力。")
+
+
+func test_unregister_capability_keeps_instance_detached_from_lifecycle() -> void:
+	var receiver := RefCounted.new()
+	var capability := _utility.add_capability(receiver, HealthCapability) as HealthCapability
+
+	_utility.unregister_capability(receiver, HealthCapability)
+
+	assert_false(_utility.has_capability(receiver, HealthCapability), "注销后不应再查询到能力。")
+	assert_eq(capability.removed_receiver, receiver, "注销前应调用 removed hook。")
+	assert_null(capability.receiver, "注销后应清空能力 receiver。")
 
 
 func test_node_capability_is_attached_to_container() -> void:
@@ -543,6 +597,9 @@ func test_scene_container_unregisters_children_when_removed() -> void:
 	await get_tree().process_frame
 
 	assert_false(_utility.has_capability(receiver, CapabilityNode), "场景容器离树时应注销已注册子能力。")
+	assert_true(is_instance_valid(child_capability), "容器离树只注销登记，不应释放原场景子能力。")
+	assert_false(child_capability.is_queued_for_deletion(), "容器离树不应把原场景子能力标记为释放。")
+	assert_eq(child_capability.get_parent(), container, "容器离树后子能力仍应留在原容器场景结构中。")
 
 	container.queue_free()
 	receiver.queue_free()
@@ -763,6 +820,25 @@ func test_capability_recipe_applies_entries_and_groups() -> void:
 	assert_false(_utility.get_receivers_in_group(&"targets").has(receiver), "remove_recipe 应移除分组。")
 
 
+func test_capability_recipe_rolls_back_added_entries_and_groups_on_failure() -> void:
+	var receiver := RefCounted.new()
+	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
+	recipe.groups = [&"targets"]
+	var valid_entry := GF_CAPABILITY_RECIPE_ENTRY_BASE.new()
+	valid_entry.capability_type = ActiveCapability
+	var failing_entry := GF_CAPABILITY_RECIPE_ENTRY_BASE.new()
+	failing_entry.capability_type = RollbackRootCapability
+	recipe.entries = [valid_entry, failing_entry]
+
+	var result: Dictionary = _utility.apply_recipe(receiver, recipe)
+
+	assert_false(bool(result["ok"]), "事务化 Recipe 中任一条目失败时整体应失败。")
+	assert_true(bool(result["rolled_back"]), "默认 transactional=true 时应执行回滚。")
+	assert_false(_utility.has_capability(receiver, ActiveCapability), "失败前已新增的能力应被移除。")
+	assert_false(_utility.get_receivers_in_group(&"targets").has(receiver), "失败前新增的分组也应回滚。")
+	assert_push_error("[GFCapabilityUtility] 检测到循环能力依赖：")
+
+
 func test_capability_recipe_validation_reports_invalid_entries() -> void:
 	var recipe := GF_CAPABILITY_RECIPE_BASE.new()
 	recipe.entries = [GF_CAPABILITY_RECIPE_ENTRY_BASE.new()]
@@ -783,6 +859,23 @@ func test_capability_recipe_validation_reports_empty_recipe_as_healthy() -> void
 	assert_true(bool(report["healthy"]), "空 Recipe 没有警告时应视为健康。")
 	assert_eq(int(report["entry_count"]), 0, "报告应保留条目数量。")
 	assert_eq(String(report["summary"]), "Capability recipe is healthy.", "健康报告应提供稳定摘要。")
+
+
+func test_capability_inspector_reads_required_property_without_calling_capability_method() -> void:
+	var capability := RequiredByPropertyCapability.new()
+	capability.name = "RequiredByPropertyCapability"
+	capability.required_capabilities = [HealthCapability]
+
+	var required_types: Array[Script] = GF_CAPABILITY_INSPECTOR_PLUGIN_BASE._get_required_capability_types(
+		capability,
+		null,
+		"RequiredByPropertyCapability"
+	)
+
+	assert_false(capability.get_required_capabilities_called, "编辑器 Inspector 不应调用能力脚本方法。")
+	assert_eq(required_types, [HealthCapability], "编辑器 Inspector 应从 required_capabilities 读取依赖。")
+
+	capability.free()
 
 
 # --- 私有/辅助方法 ---

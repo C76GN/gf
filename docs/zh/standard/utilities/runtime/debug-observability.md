@@ -83,9 +83,9 @@ print(inspector.get_target_snapshot())
 `GFRuntimeTunableProperty` 可声明 bool、int、float、String、StringName、Vector2、Vector3、Color 或任意值，也可以设置范围、可选值、只读、显示分组和自定义 getter/setter/validator。`GFRuntimeInspectorUtility.allow_writes` 可整体关闭写入，`debug_build_writes_only` 默认让非 debug 构建不能通过该工具写值。需要把调参快照放进调试覆盖层时，调用 `attach_to_debug_overlay()`；面向玩家的入口、远程运维工具或线上调试入口仍应由项目层做权限、白名单和脱敏。
 
 
-## 信号图与运行时信号探针 (`GFSceneSignalAudit` / `GFSignalRuntimeProbe`)
+## 信号诊断与运行时信号探针 (`GFSceneSignalAudit` / `GFSignalRuntimeProbe`)
 
-编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把当前节点树的信号、连接和节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 会把当前编辑场景渲染为 `GF` 工作区页面，默认查看持久连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。
+编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把当前节点树的信号、连接和节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 会把当前编辑场景渲染为 `GF Workspace > 信号诊断` 页面，默认查看场景文件中保存的信号连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。勾选“未连接信号”可以列出节点声明过但还没有连接目标的信号；勾选“追踪发射”后，面板会按连接页当前可见信号建立监听，优先追踪保存连接里的信号，避免 `draw` 这类高频内建信号刷屏。
 
 如果要确认“信号有没有真的发射”，可以显式创建 `GFSignalRuntimeProbe` 监听一个节点或节点树。它会记录最近事件、发射时间、来源节点、信号名、参数和当前连接摘要；它只在项目主动 watch 后工作，不会默认全局接管所有信号：
 
@@ -102,7 +102,7 @@ probe.watch_tree(get_tree().current_scene, {
 })
 ```
 
-`GFSignalGraphDock` 的“运行事件”页也是基于这个探针，只有打开“实时追踪”后才会连接当前场景信号。不要在生产构建默认开启全场景探针；面对远程调试、玩家可见工具或包含敏感参数的信号时，应由项目层限制范围、脱敏和权限。
+`GFSignalGraphDock` 的“发射记录”页也是基于这个探针，只有打开“追踪发射”后才会连接当前场景信号。它记录的是开启追踪之后发生的事件，不会回放旧信号；编辑器工作区也不会自动抓取独立运行的游戏进程。不要在生产构建默认开启全场景探针；面对远程调试、玩家可见工具或包含敏感参数的信号时，应由项目层限制范围、脱敏和权限。
 
 
 ## 全局随机数种子管理器 (`GFSeedUtility`)
@@ -282,7 +282,7 @@ var snapshot_with_scene := diagnostics.collect_snapshot({
 })
 ```
 
-诊断快照的 `tools` 字段会聚合已注册模块公开的 `get_debug_snapshot()`，标准库内置读取 `GFBuildInfoUtility`、`GFAssetUtility`、`GFTimerUtility`、`GFRemoteCacheUtility`、`GFDownloadUtility` 和 `GFObjectPoolUtility`。GF 内置扩展或项目模块如果也想进入诊断快照，应主动调用 `register_tool_snapshot_provider()`、`register_snapshot_section_provider()`、`register_monitor()` 或 `register_command()` 贡献数据；例如 ActionQueue 扩展贡献 `tools.action_queue` 监控和 `tools.action_queue` 快照，Network 扩展贡献 `network` 快照分区。`GFDiagnosticsUtility` 不硬编码任何 GF 内置扩展 ID、路径或类型，因此扩展禁用或删除时不会影响标准库加载。这些快照只表达版本、队列、缓存、pending 数量和运行状态，不解释项目业务含义。编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把运行中节点树的信号、连接、节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 则把当前编辑场景渲染为 `GF` 工作区页面，默认查看持久场景连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。快照默认可包含构建信息、最近日志、外部贡献分区、URL 派生的缓存状态、工具路径和项目自定义 monitor 输出；如果要暴露给远程调试、玩家可访问控制台或线上 GM 工具，应在项目层做脱敏、白名单过滤和权限控制。
+诊断快照的 `tools` 字段会聚合已注册模块公开的 `get_debug_snapshot()`，标准库内置读取 `GFBuildInfoUtility`、`GFAssetUtility`、`GFTimerUtility`、`GFRemoteCacheUtility`、`GFDownloadUtility` 和 `GFObjectPoolUtility`。GF 内置扩展或项目模块如果也想进入诊断快照，应主动调用 `register_tool_snapshot_provider()`、`register_snapshot_section_provider()`、`register_monitor()` 或 `register_command()` 贡献数据；例如 ActionQueue 扩展贡献 `tools.action_queue` 监控和 `tools.action_queue` 快照，Network 扩展贡献 `network` 快照分区。`GFDiagnosticsUtility` 不硬编码任何 GF 内置扩展 ID、路径或类型，因此扩展禁用或删除时不会影响标准库加载。这些快照只表达版本、队列、缓存、pending 数量和运行状态，不解释项目业务含义。编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把运行中节点树的信号、连接、节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。`GFSignalGraphDock` 则把当前编辑场景渲染为 `GF Workspace > 信号诊断` 页面，默认查看保存连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。快照默认可包含构建信息、最近日志、外部贡献分区、URL 派生的缓存状态、工具路径和项目自定义 monitor 输出；如果要暴露给远程调试、玩家可访问控制台或线上 GM 工具，应在项目层做脱敏、白名单过滤和权限控制。
 
 诊断监控项适合给 Overlay、编辑器面板或远程调试工具提供稳定采样入口。内置预设包括 `minimal`、`performance`、`architecture`、`tools` 与 `overlay`；`GF Workspace > Diagnostics` 页面可直接采集这些预设、通用性能数据、工具快照和可选场景树摘要，便于开发期只读排查。项目也可以注册自己的轻量 provider，并按预设导出 JSON、文本或 CSV：
 

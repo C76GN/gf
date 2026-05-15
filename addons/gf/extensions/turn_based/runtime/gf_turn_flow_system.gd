@@ -24,6 +24,11 @@ signal action_enqueued(action: GFTurnAction)
 signal action_resolved(action: GFTurnAction)
 
 
+# --- 常量 ---
+
+const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+
+
 # --- 公共变量 ---
 
 ## 当前回合上下文。
@@ -41,10 +46,17 @@ var is_running: bool = false
 ## 解析行动前是否按优先级排序。
 var sort_actions_before_resolve: bool = true
 
+## Signal 等待超时时间。小于等于 0 表示不启用超时。
+var signal_timeout_seconds: float = 30.0
+
+## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
+var signal_timeout_respects_time_scale: bool = true
+
 
 # --- 私有变量 ---
 
 var _flow_serial: int = 0
+var _is_resolving_actions: bool = false
 
 
 # --- 公共方法 ---
@@ -107,16 +119,24 @@ func advance_phase() -> void:
 
 	var result: Variant = phase.execute(context)
 	if result is Signal:
-		await (result as Signal)
-		if not _is_active_flow_serial(flow_serial):
+		var completed := await _await_signal_safely(
+			result as Signal,
+			Callable(self, "_is_active_flow_serial").bind(flow_serial),
+			"[GFTurnFlowSystem] 等待阶段 Signal 超时，阶段推进已中止。"
+		)
+		if not completed or not _is_active_flow_serial(flow_serial):
 			return
 	if phase.auto_finish:
 		phase.finish()
 	if not _is_active_flow_serial(flow_serial):
 		return
 	if not phase.is_finished:
-		await phase.finished
-		if not _is_active_flow_serial(flow_serial):
+		var completed := await _await_signal_safely(
+			phase.finished,
+			Callable(self, "_is_active_flow_serial").bind(flow_serial),
+			"[GFTurnFlowSystem] 等待阶段完成超时，阶段推进已中止。"
+		)
+		if not completed or not _is_active_flow_serial(flow_serial):
 			return
 	phase.exit(context)
 
@@ -133,9 +153,14 @@ func enqueue_action(action: GFTurnAction) -> void:
 ## 解析当前上下文中的所有行动。
 ## @param order_resolver: 可选排序回调，签名为 func(a, b) -> bool。
 func resolve_actions(order_resolver: Callable = Callable()) -> void:
+	if _is_resolving_actions:
+		push_warning("[GFTurnFlowSystem] resolve_actions 失败：行动正在解析中。")
+		return
+
 	var flow_serial := _flow_serial
 	var pending_actions := context.actions.duplicate()
 	context.actions.clear()
+	_is_resolving_actions = true
 
 	if sort_actions_before_resolve:
 		if order_resolver.is_valid():
@@ -152,12 +177,19 @@ func resolve_actions(order_resolver: Callable = Callable()) -> void:
 		context.current_actor = action.actor
 		var result: Variant = action.resolve(context)
 		if result is Signal:
-			await (result as Signal)
+			var completed := await _await_signal_safely(
+				result as Signal,
+				Callable(self, "_is_flow_serial_current").bind(flow_serial),
+				"[GFTurnFlowSystem] 等待行动 Signal 超时，当前行动已跳过。"
+			)
 			if not _is_flow_serial_current(flow_serial):
 				break
+			if not completed:
+				continue
 		action_resolved.emit(action)
 
 	context.current_actor = null
+	_is_resolving_actions = false
 
 
 # --- 私有/辅助方法 ---
@@ -176,6 +208,21 @@ func _inject_action(action: GFTurnAction) -> void:
 		action.call("inject_dependencies", architecture)
 	if action.has_method("inject"):
 		action.call("inject", architecture)
+
+
+func _await_signal_safely(result_signal: Signal, should_continue: Callable, timeout_warning: String) -> bool:
+	return await _GF_ASYNC_WAIT_SUPPORT.await_signal_safely(
+		result_signal,
+		should_continue,
+		_get_time_utility(),
+		signal_timeout_seconds,
+		signal_timeout_respects_time_scale,
+		timeout_warning
+	)
+
+
+func _get_time_utility() -> GFTimeUtility:
+	return get_utility(GFTimeUtility) as GFTimeUtility
 
 
 func _is_flow_serial_current(serial: int) -> bool:

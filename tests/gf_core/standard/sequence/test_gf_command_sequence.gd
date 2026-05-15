@@ -60,6 +60,17 @@ class ManyArgumentSignalStep extends GFSequenceStep:
 		return completed
 
 
+class FailingSignalStep extends GFSequenceStep:
+	signal completed(result: Dictionary)
+
+	func execute(_context: GFSequenceContext) -> Variant:
+		call_deferred("_emit_failure")
+		return completed
+
+	func _emit_failure() -> void:
+		completed.emit({ "ok": false, "error": "async_broken" })
+
+
 class UndoableRecordingStep extends RecordingStep:
 	func undo() -> void:
 		order.append("undo_" + label)
@@ -151,6 +162,21 @@ func test_sequence_waits_for_signal_with_many_arguments() -> void:
 
 	assert_eq(order, ["wait", "after"], "多参数 Signal 完成后应继续执行后续步骤。")
 	assert_false(sequence.is_running, "完成后应清除 running 状态。")
+
+
+func test_sequence_uses_signal_payload_as_step_result() -> void:
+	var sequence := GFCommandSequence.new([
+		FailingSignalStep.new(),
+		RecordingStep.new([], "after"),
+	]).with_failure_policy(true, false)
+	watch_signals(sequence)
+
+	sequence.run()
+	await get_tree().process_frame
+
+	assert_true(bool(sequence.last_run_report["failed"]), "异步步骤 Signal 发出的失败结果应被识别。")
+	assert_eq(sequence.last_run_report["error"], "async_broken", "失败原因应来自 Signal payload。")
+	assert_signal_emitted(sequence, "sequence_failed", "异步失败且 stop_on_error 时应发出失败信号。")
 
 
 ## 验证可取消正在等待的序列。

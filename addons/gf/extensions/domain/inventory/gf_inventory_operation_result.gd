@@ -78,14 +78,16 @@ static func partial(
 	result_target_slot: int = -1
 ) -> GFInventoryOperationResult:
 	var result := GFInventoryOperationResult.new()
-	result.ok = accepted >= requested and requested >= 0
+	var normalized_requested := maxi(requested, 0)
+	var normalized_accepted := clampi(accepted, 0, normalized_requested)
+	result.ok = normalized_requested > 0 and normalized_accepted >= normalized_requested
 	result.item_id = result_item_id
-	result.requested_amount = maxi(requested, 0)
-	result.accepted_amount = maxi(accepted, 0)
+	result.requested_amount = normalized_requested
+	result.accepted_amount = normalized_accepted
 	result.remaining_amount = maxi(result.requested_amount - result.accepted_amount, 0)
 	result.source_slot = result_source_slot
 	result.target_slot = result_target_slot
-	result.reason = result_reason
+	result.reason = _normalize_reason(result.ok, result.accepted_amount, result.requested_amount, result_reason)
 	return result
 
 
@@ -109,3 +111,20 @@ func to_dict() -> Dictionary:
 		"reason": String(reason),
 		"metadata": metadata.duplicate(true),
 	}
+
+
+# --- 私有/辅助方法 ---
+
+static func _normalize_reason(
+	is_ok: bool,
+	accepted: int,
+	requested: int,
+	result_reason: StringName
+) -> StringName:
+	if is_ok:
+		return &"ok"
+	if result_reason != &"" and result_reason != &"ok":
+		return result_reason
+	if accepted > 0 and accepted < requested:
+		return &"partial"
+	return &"failed"

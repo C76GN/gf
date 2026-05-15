@@ -79,7 +79,7 @@ func add_buff(p_entity: Object, p_buff: GFBuff) -> void:
 	
 	# 检查重叠逻辑 (简单的 ID 排斥/刷新)
 	for existing: GFBuff in buffs:
-		if existing.id == p_buff.id:
+		if _should_refresh_existing_buff(existing, p_buff):
 			existing.refresh_from(p_buff)
 			_send_combat_event(GFCombatPayloads.GFBuffRefreshedPayload.new(p_entity, existing))
 			return
@@ -329,6 +329,14 @@ func _remove_buff_at(p_entity: Object, buffs: Array, index: int, remove_effects:
 	if remove_effects:
 		buff.on_remove()
 	_send_combat_event(GFCombatPayloads.GFBuffRemovedPayload.new(p_entity, removed_id))
+
+
+func _should_refresh_existing_buff(existing: GFBuff, incoming: GFBuff) -> bool:
+	if existing == null or incoming == null:
+		return false
+	if incoming.id == &"":
+		return false
+	return existing.id == incoming.id
 
 
 func _refresh_buff_modifier_attributes(buff: GFBuff) -> bool:

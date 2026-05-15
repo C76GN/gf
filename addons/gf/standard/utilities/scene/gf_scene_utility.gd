@@ -195,6 +195,7 @@ var _pending_scene_change_kind: int = _SCENE_CHANGE_NONE
 var _pending_scene_change_path: String = ""
 var _pending_scene_change_scene: PackedScene = null
 var _pending_scene_change_previous_pause_state: bool = false
+var _pending_previous_history_path: String = ""
 
 
 # --- Godot 生命周期方法 ---
@@ -756,7 +757,7 @@ func load_previous_scene(loading_scene_path: String = "", minimum_duration_secon
 		push_error(validation_error)
 		return ERR_INVALID_PARAMETER
 
-	_scene_history.remove_at(_scene_history.size() - 1)
+	_pending_previous_history_path = path
 	load_scene_async(
 		path,
 		loading_scene_path,
@@ -1119,6 +1120,7 @@ func _apply_target_scene_change(path: String, scene: PackedScene) -> void:
 	_notify_loading_scene_exit_if_needed()
 	if _do_change_scene(scene):
 		_is_showing_loading_scene = false
+		_consume_pending_previous_history(path)
 		_push_scene_history(previous_path, _current_scene_params)
 		_current_scene_params = _active_transition_params.duplicate(true)
 		_background_scene_params.erase(path)
@@ -1295,6 +1297,17 @@ func _push_scene_history(path: String, params: Dictionary) -> void:
 	_trim_scene_history()
 
 
+func _consume_pending_previous_history(path: String) -> void:
+	if _pending_previous_history_path != path:
+		return
+	_pending_previous_history_path = ""
+	if _scene_history.is_empty():
+		return
+	var entry := _scene_history[_scene_history.size() - 1] as Dictionary
+	if String(entry.get("path", "")) == path:
+		_scene_history.remove_at(_scene_history.size() - 1)
+
+
 func _trim_scene_history() -> void:
 	while _scene_history.size() > _max_scene_history:
 		_scene_history.remove_at(0)
@@ -1313,6 +1326,7 @@ func _reset_loading_state() -> void:
 	_active_transition_started_msec = 0
 	_active_transition_minimum_seconds = 0.0
 	_active_transition_params.clear()
+	_pending_previous_history_path = ""
 	_pending_loaded_path = ""
 	_pending_loaded_scene = null
 

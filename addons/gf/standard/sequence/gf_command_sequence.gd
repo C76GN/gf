@@ -117,7 +117,7 @@ func run(p_steps: Array = []) -> void:
 		if _cancel_requested:
 			break
 		if _should_wait_for_step(step, result):
-			await _await_signal_safely(result as Signal)
+			result = await _await_signal_result_safely(result as Signal)
 			if _cancel_requested:
 				break
 		var step_error := _get_step_error(result)
@@ -139,11 +139,11 @@ func run(p_steps: Array = []) -> void:
 		_current_step = null
 
 	_current_step = null
-	is_running = false
 	var rolled_back := false
 	if failed and stop_on_error and rollback_on_failure:
 		await _rollback_steps(completed_steps)
 		rolled_back = true
+	is_running = false
 
 	last_run_report = {
 		"cancelled": _cancel_requested,
@@ -298,13 +298,29 @@ func _await_signal_safely(result_signal: Signal) -> void:
 	)
 
 
-func _get_timeout_elapsed_msec(previous_msec: int, current_msec: int) -> float:
-	return _GF_ASYNC_WAIT_SUPPORT.get_timeout_elapsed_msec(
-		previous_msec,
-		current_msec,
+func _await_signal_result_safely(result_signal: Signal) -> Variant:
+	var wait_result: Dictionary = await _GF_ASYNC_WAIT_SUPPORT.await_signal_payload_safely(
+		result_signal,
+		_should_continue_waiting,
 		_get_time_utility(),
-		signal_timeout_respects_time_scale
+		signal_timeout_seconds,
+		signal_timeout_respects_time_scale,
+		"[GFCommandSequence] 等待 Signal 超时，序列将继续执行后续步骤。"
 	)
+	if not bool(wait_result.get("completed", false)):
+		return null
+	return _normalize_signal_result(wait_result.get("args", []))
+
+
+func _normalize_signal_result(args: Variant) -> Variant:
+	if not (args is Array):
+		return args
+	var values := args as Array
+	if values.is_empty():
+		return null
+	if values.size() == 1:
+		return values[0]
+	return values
 
 
 func _get_time_utility() -> GFTimeUtility:
