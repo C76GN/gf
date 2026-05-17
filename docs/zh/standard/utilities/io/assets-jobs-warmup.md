@@ -115,6 +115,33 @@ add_child(worker)
 
 `GFJobWorker` 不创建线程，也不解释任务数据；如果处理器返回 Signal，Worker 会等待信号发出，并把信号结果按同步返回值同样写回完成或失败状态。信号不携带结果时视为完成。`signal_timeout_seconds` 默认提供等待上限，超时或取消会把任务标记为失败，避免某个永不发射的处理器让 worker 长期停在 `_processing` 状态；`signal_timeout_respects_time_scale` 控制该等待是否跟随 `GFTimeUtility`。这个模式适合桥接项目自己的异步导入、下载、预览生成或工具流程。
 
+### 后台工作协调器 (`GFBackgroundWorkUtility` / `GFBackgroundWorkTask`)
+
+`GFBackgroundWorkUtility` 适合真正需要线程执行的“纯数据工作”：解析大型 JSON、生成寻路网格中间数据、压缩/解压缓存、计算导入报告，或把 Godot 的 threaded `ResourceLoader` 请求纳入统一状态面板。它和 `GFJobQueueUtility` 的分工不同：任务队列只保存状态并等待项目消费；后台工作协调器会启动受限数量的 `Thread`，轮询资源线程加载，并把结果安排回下一次 `tick()` 的主线程应用回调。
+
+```gdscript
+var background := Gf.get_utility(GFBackgroundWorkUtility) as GFBackgroundWorkUtility
+
+background.submit_cpu_work(
+	func(input: Variant) -> Dictionary:
+		var rows := input as Array
+		return {
+			"count": rows.size(),
+			"checksum": hash(rows),
+		},
+	rows_from_disk,
+	func(task: GFBackgroundWorkTask) -> void:
+		# 这里已经回到主线程，可以写入 Model、创建节点或刷新 UI。
+		print(task.result)
+)
+```
+
+默认情况下，`submit_cpu_work()` 和 `submit_io_work()` 会拒绝包含 `Object`、`Resource`、`Callable`、`Signal` 或 `RID` 的 payload，只接受标量、数学结构、PackedArray、Array 和 Dictionary 组成的纯 Variant 数据。这个限制是故意的：线程中不直接触碰场景树、Resource 实例或托管对象，才能避免把 Unity JobSystem 中“绕过托管类型检查却丢掉优化价值”的问题搬进 Godot。确实需要迁移旧代码时可以用 `options["allow_object_payloads"] = true` 或全局 `allow_object_payloads` 打开，但推荐做法仍是只传路径、ID、数值和结构化数据。
+
+资源加载使用 `submit_resource_load(path, type_hint, apply_callback)`。相同路径、兼容 `type_hint` 的请求会合并到同一个 threaded `ResourceLoader` 请求；取消只阻止 GF 侧应用和完成回调，不会强行中止 Godot 已经发起的加载线程。CPU/IO 线程任务也是协作式取消：等待中的任务会立刻进入 `cancelled`，运行中的任务会等 worker 返回后再落到取消终态。`get_debug_snapshot()` 会报告等待、运行、资源请求、应用队列和终态任务 ID，适合和运行时诊断面板或加载界面联动。
+
+这套工具不替代 `GFAssetUtility` 或 `GFSceneUtility` 的专用缓存/切场景能力。需要资源句柄、分组预加载和 LRU 缓存时继续用 `GFAssetUtility`；需要场景切换和 loading scene 时继续用 `GFSceneUtility`；需要“排队后由项目自己的系统逐帧消费”时继续用 `GFJobQueueUtility`。`GFBackgroundWorkUtility` 的定位是把通用 CPU/IO 纯数据工作和主线程应用边界标准化。
+
 ### 渲染资源预热 (`GFRenderWarmupManifest` / `GFRenderWarmupUtility`)
 
 当项目希望在切场景、打开复杂 UI 或进入高负载玩法前提前触碰材质、Mesh、Texture 或 Shader 资源时，可以把这些资源写入 `GFRenderWarmupManifest`，再交给 `GFRenderWarmupUtility` 按帧预算处理。它只负责加载和触碰渲染资源 RID，不创建业务对象、不规定关卡流程，也不替项目决定预热时机。

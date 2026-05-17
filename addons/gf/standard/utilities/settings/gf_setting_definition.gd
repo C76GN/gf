@@ -76,9 +76,9 @@ func coerce_value(value: Variant) -> Variant:
 		ValueType.FLOAT:
 			return float(value)
 		ValueType.STRING:
-			return String(value)
+			return str(value)
 		ValueType.STRING_NAME:
-			return StringName(value)
+			return StringName(str(value))
 		ValueType.VECTOR2:
 			return _coerce_vector2(value)
 		ValueType.VECTOR2I:

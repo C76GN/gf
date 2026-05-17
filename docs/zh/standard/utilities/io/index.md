@@ -4,7 +4,7 @@
 
 ## 阅读入口
 
-- [资源加载、下载、任务队列与预热](assets-jobs-warmup.md)：`GFAssetUtility`、下载队列、任务队列、渲染预热。
+- [资源加载、下载、任务队列与预热](assets-jobs-warmup.md)：`GFAssetUtility`、下载队列、任务队列、后台工作协调器、渲染预热。
 - [本地存储、编码、同步与快照](storage-snapshot.md)：`GFStorageUtility`、编码器、后端、同步和快照历史。
 - [导表、分析、远程缓存与请求 Outbox](config-remote-outbox.md)：配置表、分析事件、远程缓存、离线请求。
 
@@ -14,5 +14,5 @@
 - `addons/gf/standard/utilities/storage/`：本地存储、编码、同步后端、快照历史。
 - `addons/gf/standard/utilities/io/`：下载、远程缓存、请求 Outbox。
 - `addons/gf/standard/utilities/config/`：静态导表读取、表结构声明、导入校验。
-- `addons/gf/standard/utilities/jobs/`：通用任务队列和节点工作器。
+- `addons/gf/standard/utilities/jobs/`：通用任务队列、节点工作器和纯数据后台工作协调。
 - `addons/gf/standard/utilities/display/`：渲染预热、显示相关通用支撑。

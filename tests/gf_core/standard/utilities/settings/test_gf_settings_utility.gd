@@ -45,6 +45,16 @@ func test_register_setting_applies_default_and_coerces_values() -> void:
 	assert_eq(_settings.get_value(&"gameplay/max_lives"), 5, "设置值应按定义转换为 int。")
 
 
+func test_string_settings_accept_non_string_values() -> void:
+	_settings.register_setting(&"profile/slot", "", GFSettingDefinition.ValueType.STRING)
+	_settings.register_setting(&"profile/tag", &"", GFSettingDefinition.ValueType.STRING_NAME)
+	_settings.set_value(&"profile/slot", 42)
+	_settings.set_value(&"profile/tag", 7)
+
+	assert_eq(_settings.get_value(&"profile/slot"), "42", "字符串设置应使用安全字符串化。")
+	assert_eq(_settings.get_value(&"profile/tag"), &"7", "StringName 设置应使用安全字符串化。")
+
+
 func test_register_definition_coerces_preloaded_value() -> void:
 	_settings.from_dict({
 		"display/window_size": {
@@ -88,6 +98,23 @@ func test_serialized_values_roundtrip_structured_types() -> void:
 
 	assert_eq(restored.get_value(&"video/size"), Vector2i(1024, 769), "Vector2i 设置应可序列化往返。")
 	assert_eq(restored.get_value(&"ui/accent"), Color(0.25, 0.5, 0.75, 1.0), "Color 设置应可序列化往返。")
+	restored.dispose()
+
+
+func test_serialized_settings_preserve_unsafe_int64_values_through_json() -> void:
+	var large_revision := 9_007_199_254_740_993
+	_settings.register_setting(&"sync/revision", 0, GFSettingDefinition.ValueType.INT)
+	_settings.set_value(&"sync/revision", large_revision)
+
+	var parsed := JSON.parse_string(JSON.stringify(_settings.to_dict(true))) as Dictionary
+	var restored := GFSettingsUtility.new()
+	restored.auto_load_on_init = false
+	restored.auto_save_on_change = false
+	restored.init()
+	restored.from_dict(parsed, false)
+	restored.register_setting(&"sync/revision", 0, GFSettingDefinition.ValueType.INT)
+
+	assert_eq(restored.get_value(&"sync/revision"), large_revision, "持久化设置中的大整数应精确往返 JSON。")
 	restored.dispose()
 
 

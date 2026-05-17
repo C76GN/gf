@@ -185,9 +185,7 @@ func deserialize_dictionary(bytes: PackedByteArray, p_format: Format = Format.JS
 ## @param p_format: 序列化格式。
 ## @return checksum hex 字符串。
 func calculate_checksum(data: Dictionary, p_format: Format = Format.JSON) -> String:
-	var checksum_data := data
-	if p_format == Format.JSON:
-		checksum_data = _normalize_numbers(data) as Dictionary
+	var checksum_data := _normalize_checksum_data(data, p_format)
 	var bytes := _serialize_dictionary(checksum_data, p_format)
 	var hashing := HashingContext.new()
 	hashing.start(HashingContext.HASH_SHA256)
@@ -327,7 +325,7 @@ func _sort_value_recursive(value: Variant) -> Variant:
 		var dictionary := value as Dictionary
 		var keys := dictionary.keys()
 		keys.sort_custom(func(left: Variant, right: Variant) -> bool:
-			return String(left) < String(right)
+			return str(left) < str(right)
 		)
 		for key: Variant in keys:
 			result[key] = _sort_value_recursive(dictionary[key])
@@ -338,6 +336,18 @@ func _sort_value_recursive(value: Variant) -> Variant:
 			result.append(_sort_value_recursive(item))
 		return result
 	return value
+
+
+func _normalize_checksum_data(data: Dictionary, p_format: Format) -> Dictionary:
+	if p_format != Format.JSON:
+		return data
+
+	var normalized: Dictionary = _normalize_numbers(data) as Dictionary
+	var bytes := _serialize_dictionary(normalized, p_format)
+	var parsed: Variant = JSON.parse_string(bytes.get_string_from_utf8())
+	if parsed is Dictionary:
+		return _normalize_numbers(parsed) as Dictionary
+	return normalized
 
 
 func _normalize_numbers(value: Variant) -> Variant:

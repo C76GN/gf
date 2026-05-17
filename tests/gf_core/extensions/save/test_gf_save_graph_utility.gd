@@ -508,6 +508,26 @@ func test_validate_payload_for_scope_reports_missing_source() -> void:
 	assert_true(_has_issue(report, "missing_source"), "诊断报告应包含 missing_source。")
 
 
+func test_validate_payload_for_scope_handles_non_string_payload_keys() -> void:
+	var sources := {}
+	sources[42] = {
+		"descriptor": {},
+		"data": {},
+	}
+	var payload := {
+		"format": GFSaveGraphUtilityBase.FORMAT_ID,
+		"format_version": GFSaveGraphUtilityBase.FORMAT_VERSION,
+		"scope": {},
+		"sources": sources,
+		"scopes": {},
+	}
+
+	var report := _utility.validate_payload_for_scope(_scope, payload, true)
+
+	assert_false(bool(report["ok"]), "非字符串载荷 key 应被安全字符串化后进入诊断。")
+	assert_true(_has_issue(report, "missing_source"), "诊断报告应包含 missing_source。")
+
+
 func test_apply_scope_frees_factory_entity_without_save_source() -> void:
 	_scope.restore_policy = GFSaveScope.RestorePolicy.ALLOW_FACTORIES
 	var factory := PlainEntityFactory.new()

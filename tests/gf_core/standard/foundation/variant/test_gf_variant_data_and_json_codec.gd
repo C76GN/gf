@@ -71,6 +71,40 @@ func test_json_compatible_codec_round_trips_godot_value_types() -> void:
 	assert_eq(decoded["points"], PackedVector2Array([Vector2(1.0, 2.0), Vector2(3.0, 4.0)]), "PackedVector2Array 应恢复。")
 
 
+func test_json_compatible_codec_preserves_unsafe_int64_values() -> void:
+	var large_positive := 9_223_372_036_854_775_000
+	var large_negative := -9_223_372_036_854_775_000
+	var source := {
+		"safe": 42,
+		"large_positive": large_positive,
+		"large_negative": large_negative,
+		"packed": PackedInt64Array([large_positive, large_negative]),
+	}
+
+	var encoded := GFVariantJsonCodec.variant_to_json_compatible(source) as Dictionary
+	var decoded := GFVariantJsonCodec.json_compatible_to_variant(JSON.parse_string(JSON.stringify(encoded))) as Dictionary
+
+	assert_eq(encoded["safe"], 42, "JSON 安全范围内的整数应保持普通数字，方便阅读。")
+	assert_true(encoded["large_positive"] is Dictionary, "超出 JSON 安全范围的 64 位整数应写入类型标记。")
+	assert_eq(decoded["large_positive"], large_positive, "正向大整数应精确往返。")
+	assert_eq(decoded["large_negative"], large_negative, "负向大整数应精确往返。")
+	assert_eq(decoded["packed"], PackedInt64Array([large_positive, large_negative]), "PackedInt64Array 中的大整数应精确往返。")
+
+
+func test_json_compatible_codec_decodes_malformed_typed_marker_values_safely() -> void:
+	var marker := {
+		GFVariantJsonCodec.JSON_MARKER_KEY: {
+			GFVariantJsonCodec.JSON_VERSION_KEY: GFVariantJsonCodec.JSON_SCHEMA_VERSION,
+			GFVariantJsonCodec.JSON_TYPE_KEY: "Int64",
+			GFVariantJsonCodec.JSON_VALUE_KEY: 42,
+		},
+	}
+
+	var decoded: Variant = GFVariantJsonCodec.json_compatible_to_variant(marker)
+
+	assert_eq(decoded, 42, "手写 typed marker 使用数字 value 时也不应触发 String(Variant) 转换错误。")
+
+
 func test_json_compatible_codec_can_preserve_dictionary_keys() -> void:
 	var source := {
 		Vector2i(1, 2): "cell",

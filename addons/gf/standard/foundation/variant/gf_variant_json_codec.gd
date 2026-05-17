@@ -13,13 +13,15 @@ const JSON_VERSION_KEY: String = "version"
 const JSON_TYPE_KEY: String = "type"
 const JSON_VALUE_KEY: String = "value"
 const JSON_SCHEMA_VERSION: int = 1
+const JSON_SAFE_INTEGER_MAX: int = 9_007_199_254_740_991
+const JSON_SAFE_INTEGER_MIN: int = -9_007_199_254_740_991
 
 
 # --- 公共方法 ---
 
 ## 将 Variant 转为 JSON.stringify() 可安全编码的值。
 ## @param value: 待转换的 Variant。
-## @param options: 可选项；encode_dictionary_keys 为 true 时会保留非字符串字典键。
+## @param options: 可选项；encode_dictionary_keys 为 true 时会保留非字符串字典键；encode_unsafe_ints 为 false 时不标记超出 JSON 安全范围的整数。
 ## @return JSON 兼容值；Godot 专有类型会带类型标记。
 static func variant_to_json_compatible(value: Variant, options: Dictionary = {}) -> Variant:
 	return _variant_to_json_compatible(value, options, [])
@@ -116,8 +118,13 @@ static func array_to_color(value: Variant, fallback: Color = Color.WHITE) -> Col
 
 static func _variant_to_json_compatible(value: Variant, options: Dictionary, visited: Array) -> Variant:
 	match typeof(value):
-		TYPE_NIL, TYPE_BOOL, TYPE_INT, TYPE_FLOAT, TYPE_STRING:
+		TYPE_NIL, TYPE_BOOL, TYPE_FLOAT, TYPE_STRING:
 			return value
+		TYPE_INT:
+			var int_value := int(value)
+			if bool(options.get("encode_unsafe_ints", true)) and _is_unsafe_json_integer(int_value):
+				return _make_json_typed_value("Int64", str(int_value))
+			return int_value
 		TYPE_STRING_NAME:
 			return _make_json_typed_value("StringName", String(value))
 		TYPE_NODE_PATH:
@@ -205,7 +212,7 @@ static func _variant_to_json_compatible(value: Variant, options: Dictionary, vis
 		TYPE_PACKED_VECTOR4_ARRAY:
 			return _make_json_typed_value("PackedVector4Array", _packed_vector4_array_to_array(value as PackedVector4Array))
 		_:
-			if String(options.get("unsupported", "null")) == "string":
+			if str(options.get("unsupported", "null")) == "string":
 				return str(value)
 	return null
 
@@ -262,13 +269,15 @@ static func _json_typed_value_to_variant(value: Dictionary, options: Dictionary)
 	if marker == null:
 		return value
 
-	var type_name := String(marker.get(JSON_TYPE_KEY, ""))
+	var type_name := str(marker.get(JSON_TYPE_KEY, ""))
 	var raw_value: Variant = marker.get(JSON_VALUE_KEY)
 	match type_name:
+		"Int64":
+			return int(str(raw_value))
 		"StringName":
-			return StringName(String(raw_value))
+			return StringName(str(raw_value))
 		"NodePath":
-			return NodePath(String(raw_value))
+			return NodePath(str(raw_value))
 		"Vector2":
 			var vector_2 := _to_array(raw_value)
 			return Vector2(_float_at(vector_2, 0), _float_at(vector_2, 1))
@@ -343,6 +352,10 @@ static func _json_key_to_string(key: Variant) -> String:
 	if key is StringName:
 		return String(key)
 	return str(key)
+
+
+static func _is_unsafe_json_integer(value: int) -> bool:
+	return value < JSON_SAFE_INTEGER_MIN or value > JSON_SAFE_INTEGER_MAX
 
 
 static func _to_array(value: Variant) -> Array:
@@ -448,10 +461,10 @@ static func _array_to_packed_int32_array(value: Array) -> PackedInt32Array:
 	return result
 
 
-static func _packed_int64_array_to_array(value: PackedInt64Array) -> Array[int]:
-	var result: Array[int] = []
+static func _packed_int64_array_to_array(value: PackedInt64Array) -> Array[String]:
+	var result: Array[String] = []
 	for item: int in value:
-		result.append(item)
+		result.append(str(item))
 	return result
 
 
@@ -500,7 +513,7 @@ static func _packed_string_array_to_array(value: PackedStringArray) -> Array[Str
 static func _array_to_packed_string_array(value: Array) -> PackedStringArray:
 	var result := PackedStringArray()
 	for item: Variant in value:
-		result.append(String(item))
+		result.append(str(item))
 	return result
 
 

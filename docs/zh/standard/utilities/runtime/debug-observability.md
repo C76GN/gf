@@ -132,7 +132,7 @@ var combat_rng := seed_util.get_branched_rng("combat_calculations")
 print(combat_rng.randi())
 ```
 
-`get_state()` / `set_state()` 只处理主 RNG 的内部状态；如果项目还使用了 `get_branched_rng()`，应使用 `get_full_state()` / `set_full_state()` 保存和恢复主种子、主 RNG 状态以及各标签的分支调用计数。2.0 起 `set_full_state()` 只接收 `get_full_state()` 产生的字典；需要恢复单个整数 RNG 状态时使用 `set_state()`。`set_global_seed()` 会重置分支计数。作为 Utility 注册到架构时会正常初始化；测试或工具代码直接 `GFSeedUtility.new()` 调用公共方法时，也会懒初始化内部 RNG。
+`get_state()` / `set_state()` 只处理主 RNG 的内部状态；如果项目还使用了 `get_branched_rng()`，应使用 `get_full_state()` / `set_full_state()` 保存和恢复主种子、主 RNG 状态以及各标签的分支调用计数。`get_full_state()` 返回的是面向默认 JSON 存储的状态字典，当前 `state_schema_version` 为 `2`；`global_seed`、`rng_state` 和分支计数都使用十进制字符串保存，避免 Godot JSON 解析 64 位整数时丢失精度。项目层不要把这些字段改回裸数字，也不要把 `state_schema_version` 当作 GF 框架版本号。需要恢复单个整数 RNG 状态时使用 `set_state()`。`set_global_seed()` 会重置分支计数。作为 Utility 注册到架构时会正常初始化；测试或工具代码直接 `GFSeedUtility.new()` 调用公共方法时，也会懒初始化内部 RNG。
 
 分支 RNG 的生成不会推进主 RNG 序列。同一主种子、同一主状态、同一标签和同一调用序号会得到相同的子随机序列，适合掉落表、AI 局部决策或回放中需要隔离随机流的模块。分支种子使用稳定 FNV-32 哈希，目标是玩法确定性和回放稳定，不适合作为安全随机、抽卡防作弊或服务端权威随机来源。
 
