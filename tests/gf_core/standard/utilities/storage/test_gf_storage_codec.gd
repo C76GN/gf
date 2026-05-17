@@ -13,6 +13,16 @@ func test_json_encoding_sorts_dictionary_keys() -> void:
 	assert_eq(left, right, "JSON 编码应递归排序字典键，保证输出稳定。")
 
 
+func test_json_encoding_sorts_non_string_dictionary_keys() -> void:
+	var codec := GFStorageCodec.new()
+
+	var left := codec.encode({ 10: "ten", &"2": "two" }, { "obfuscation_key": 0 })
+	var right := codec.encode({ &"2": "two", 10: "ten" }, { "obfuscation_key": 0 })
+
+	assert_eq(left, right, "JSON 编码应能稳定排序非字符串键。")
+	assert_false(left.is_empty(), "非字符串键不应导致 JSON 编码失败。")
+
+
 func test_checksum_rejects_tampered_payload_in_strict_mode() -> void:
 	var codec := GFStorageCodec.new()
 	var bytes := codec.encode({
@@ -33,6 +43,26 @@ func test_checksum_rejects_tampered_payload_in_strict_mode() -> void:
 
 	assert_false(bool(result.get("ok")), "严格模式下 checksum 不匹配应拒绝读取。")
 	assert_false(bool(result.get("integrity_valid")), "结果应标记完整性失败。")
+
+
+func test_checksum_accepts_json_roundtrip_large_integers() -> void:
+	var codec := GFStorageCodec.new()
+	var bytes := codec.encode({
+		"rng_state": 9_223_372_036_854_775_000,
+	}, {
+		"include_metadata": true,
+		"use_integrity_checksum": true,
+		"obfuscation_key": 0,
+	})
+
+	var result := codec.decode(bytes, {
+		"use_integrity_checksum": true,
+		"strict_integrity": true,
+		"obfuscation_key": 0,
+	})
+
+	assert_true(bool(result.get("ok")), "checksum 应按 JSON 写盘后的语义校验，不能把合法大整数 JSON 往返误判为损坏。")
+	assert_true(bool(result.get("integrity_valid")), "大整数 JSON 往返后的 checksum 应保持有效。")
 
 
 func test_checksum_without_extra_metadata_roundtrips() -> void:

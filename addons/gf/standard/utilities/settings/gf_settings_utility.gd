@@ -282,7 +282,7 @@ func to_dict(persistent_only: bool = true) -> Dictionary:
 ## @param emit_changes: 变化时是否发出 setting_changed。
 func from_dict(data: Dictionary, emit_changes: bool = true) -> void:
 	for key_variant: Variant in data.keys():
-		var key := StringName(key_variant)
+		var key := StringName(str(key_variant))
 		_set_value_internal(key, _deserialize_value(data[key_variant]), emit_changes, false)
 	_apply_defaults_to_missing()
 
@@ -464,9 +464,9 @@ func _serialize_value(value: Variant) -> Variant:
 	if value is Dictionary:
 		var result: Dictionary = {}
 		for key_variant: Variant in value.keys():
-			result[String(key_variant)] = _serialize_value(value[key_variant])
+			result[str(key_variant)] = _serialize_value(value[key_variant])
 		return result
-	return value
+	return GFVariantJsonCodec.variant_to_json_compatible(value)
 
 
 func _deserialize_value(value: Variant) -> Variant:
@@ -480,8 +480,11 @@ func _deserialize_value(value: Variant) -> Variant:
 		return value
 
 	var data := value as Dictionary
+	if data.size() == 1 and data.has(GFVariantJsonCodec.JSON_MARKER_KEY):
+		return GFVariantJsonCodec.json_compatible_to_variant(data)
+
 	if data.has(_SETTING_TYPE_KEY):
-		match String(data[_SETTING_TYPE_KEY]):
+		match str(data[_SETTING_TYPE_KEY]):
 			"Vector2":
 				return Vector2(float(data.get("x", 0.0)), float(data.get("y", 0.0)))
 			"Vector2i":
@@ -494,7 +497,7 @@ func _deserialize_value(value: Variant) -> Variant:
 					float(data.get("a", 1.0))
 				)
 			"StringName":
-				return StringName(data.get(_SETTING_VALUE_KEY, ""))
+				return StringName(str(data.get(_SETTING_VALUE_KEY, "")))
 
 	var result: Dictionary = {}
 	for key_variant: Variant in data.keys():

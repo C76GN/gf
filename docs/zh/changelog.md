@@ -22,93 +22,50 @@
 
 ---
 
-## [3.9.0] - 2026-05-15
+## [3.10.0] - 2026-05-17
 
-**版本概述**：本轮聚焦 kernel 层级的时间回退、父级架构关系、扩展 manifest 路径校验、声明式绑定语义、依赖作用域保护和编辑器 JSON 字段提交边界，以及 standard 层级的小型边界修复、通用拖拽抽象、声明式信号桥、输入检测与修饰器增强、UI 异步生命周期加固、Camera/Dialogue 扩展、Interaction/Combat 场景桥接可维护性和冗余代码清理，保持现有公开 API 兼容。
+**版本概述**：本轮加固 JSON 存储、Variant JSON 编码和确定性随机状态的 64 位整数处理，避免 Godot 4.6 JSON 解析造成 checksum 误报或回放状态精度丢失；同时新增纯数据后台工作协调器，标准化 CPU/IO 线程工作、ResourceLoader 线程加载和主线程应用边界。
 
 ### 🚀 新增特性
 
-- 标准库输入层新增 `GFDragDropUtility`、`GFDragSession` 与 `GFDropZone`，用于通用拖拽会话、落点注册、命中排序和结构化 drop 结果包装。
-- 标准库信号工具新增 `GFSignalBridge`、`GFSignalSourceRef`、`GFCallableTargetRef` 与 `GFSignalBridgeBinding`，用于资源化描述原生 Signal 到 Callable 的通用桥接。
-- 标准库输入修饰器新增 `GFInputCurveModifier`、`GFInputSwizzleModifier`、`GFInputMagnitudeModifier`、`GFInputSignClampModifier` 与 `GFInputVirtualCursorModifier`，覆盖曲线采样、分量重排、幅值投影、符号方向限制和抽象虚拟光标积分。
-- 新增 `gf.camera` 内置扩展，提供 `GFCameraBlend`、`GFCameraRig2D`、`GFCameraRig3D`、`GFCameraDirector2D` 与 `GFCameraDirector3D`，用于通用相机 Rig 优先级选择和 2D/3D 过渡应用。
-- 新增 `gf.dialogue` 内置扩展，提供 `GFDialogueResource`、`GFDialogueLine`、`GFDialogueResponse`、`GFDialogueContext` 与 `GFDialogueRunner`，用于通用对话行、响应、条件、mutation 和运行推进。
-- 标准库校验基础新增 `GFValidationRule`、`GFValidationSuite`、`GFValidationRunner` 与 `GFValidationJUnitExporter`，用于通用资源/场景/对象校验流水线和 CI 报告导出。
-- `GFDiagnosticsUtility` 新增诊断命令参数 schema、命令启停、JSON-safe 命令结果和只读信号图快照命令。
-- Steering 基础新增 `GFSteeringBehaviorResource` 与 `GFSteeringBehaviorStack`，用于资源化组合现有纯 steering 算法。
-- ActionQueue Tween 配置新增步骤 marker、配置级校验报告和初始值恢复选项。
+- 标准库 jobs 目录新增 `GFBackgroundWorkUtility` 与 `GFBackgroundWorkTask`，用于提交纯 Variant CPU/IO 后台工作、合并 threaded `ResourceLoader` 请求、限制并发线程数量、协作式取消、主线程应用回调和调试快照。
 
 ### 🔄 机制更改
 
-- `GFDecimalStringFormatter.contains_only_digits()` 空字符串现在返回 `false`，符合"仅包含数字"的语义。
-- `GFCommandSequence` 失败步骤在 `stop_on_error=false` 时不再发射 `step_completed` 信号，只发射 `step_failed`。
-- `GFBlackboardEntry._try_coerce_color()` 使用 `Color.html_is_valid()` 校验颜色字符串，无效格式现在返回转换失败而非静默接受为黑色。
-- `GFBlackboardEntry`、`GFBlackboardSchema`、`GFTileMetadataLayer` 中重复的 `_duplicate_variant()` 统一替换为 `GFVariantData.duplicate_variant()`。
-- `GFNumberFormatter` 移除只返回常量的内部脚本获取 helper，直接使用已缓存的脚本引用。
-- `GFExtensionSettings.resolve_extension_dependencies()`、`get_enabled_manifests()` 和启用扩展路径收集现在保持依赖优先顺序，不再受 manifest 扫描顺序影响。
-- `GFBindBuilder.from_instance().as_transient()` 现在直接报错；已有实例只能以单例工厂语义暴露，短生命周期对象应使用 `from_factory()`。
-- `GFUIUtility.push_panel_async()` 对同一层级、同一路径的待完成请求做合并，避免连点重复异步压入相同面板。
-- `GFReadOnlyBindableProperty` 与 `GFComputedProperty` 现在会拒绝继承自 `GFBindableProperty` 的原地修改 helper，保持只读语义一致。
-- `GFInteractionReceiver`、`GFHurtBox2D` 与 `GFHurtBox3D` 新增 `receiver_path` 委托入口，可把碰撞/过滤桥接节点与业务接收节点拆开。
-- `GFRequestOutboxUtility.replay()` 同一实例同一时间只允许一轮重放；并发调用会返回 `replay_in_progress` 报告，避免异步 transport 等待期间重复发送同一请求。
-- `GFInputDetector` 新增检测阶段状态，并可在正式检测前等待取消输入释放、在检测后等待候选输入释放，减少改键界面中的误触发。
-- `GFDiagnosticsUtility.register_command()` 可通过可选 `options` 声明参数 schema 和元数据；命令执行前会做通用参数校验，但不解释业务权限。
+- `GFSeedUtility.get_full_state()` 现在输出带 `state_schema_version = 2` 的状态字典，并将 `global_seed`、`rng_state` 与分支计数保存为十进制字符串，确保默认 JSON 存储可精确往返。
+- `GFVariantJsonCodec.variant_to_json_compatible()` 会把超出 JSON 安全范围的 64 位整数编码为 `Int64` 类型标记；`PackedInt64Array` 的元素也会以文本形式保存在类型标记中。
+- `GFSettingsUtility` 持久化设置值时复用 `GFVariantJsonCodec` 处理非设置专用类型，设置中的超大整数现在会以类型标记保存。
 
 ### 🐛 Bug 修复
 
-- 修复子级 `GFArchitecture` 在初始化后无法感知父级后续注册或注销 `GFTimeProvider` 的问题，局部上下文现在会按当前父级状态动态解析时间缩放。
-- 修复 `GFArchitecture.set_parent_architecture()` 可把父级设为自身或形成循环引用的问题，避免依赖回退和时间提供者查询出现无限递归。
-- 修复扩展 manifest 路径校验在包含 `..` 时可能按未规范化文本前缀误判为仍在扩展根目录内的问题。
-- 修复启用扩展的依赖 manifest 扫描顺序靠后时，扩展 Installer 可能先于自己的依赖执行的问题。
-- 修复 `GFBindBuilder.from_instance().as_transient()` 静默注册为单例工厂的问题，避免调用方误以为每次会创建新实例。
-- 修复 `GFModel`、`GFSystem`、`GFUtility`、`GFCommand` 与 `GFQuery` 的内部 `_get_architecture()` 在依赖作用域释放后仍可能回退到全局架构的问题。
-- 修复 `GFBindableProperty.unbind()` 在绑定节点已失效时无法清理 `bind_to()` 持有的托管回调，导致失效节点的监听可能继续触发的问题。
-- 修复 `GFNodeContext` 在 `INHERITED` 模式下找不到父级或全局架构时只输出 warning、不发出 `context_failed` 的问题。
-- 修复 `GFSignalUtility` 在未传 owner 且回调目标已释放时仍保留连接包装器的问题。
-- 修复 `GFEditorValueField` 的 Array/Dictionary JSON 输入只检查语法、不检查容器类型的问题，避免表格编辑器把合法 JSON 但错误容器类型的值提交给资源字段。
-- 修复 `GFDecimalStringFormatter.contains_only_digits("")` 对空字符串返回 `true` 的语义错误。
-- 修复 `GFCommandSequence` 失败步骤在 `stop_on_error=false` 时同时发射 `step_failed` 和 `step_completed` 的语义冲突。
-- 修复 `GFBlackboardEntry._try_coerce_color()` 对无效颜色字符串（如 `"not_a_color"`）静默构造黑色 `Color(0,0,0,1)` 的问题。
-- 修复 `GFUIUtility.push_panel_async()` 发起后调用 `pop_panel()` 取消/后退时，迟到的异步资源回调仍可能把旧面板重新压入栈的问题。
-- 修复 `GFUIRouterUtility.push_route_async()` 连续打开同一路由时，底层异步面板加载可能叠出多个相同路由实例的问题。
-- 修复 `GFUIRouterUtility.back()` 在同层路由面板上方存在普通 UI 面板时误弹普通面板并删除路由历史的问题。
-- 修复 `GFRequestOutboxUtility.replay()` 在异步 transport 等待期间当前请求被外部移除后，仍按旧索引删除队列而可能误删后续请求的问题。
-- 修复 `GFDialogueRunner.advance()` 到达文本行后再次推进时未进入默认后继，导致后继条件失败 fallback 无法触发的问题。
-- 修复 `GFNodeStateGroup.remove_state()` 移除当前叠加状态时只清空当前状态、不恢复暂停父状态的问题。
-- 修复 `GFNodeStateGroup.pop_state()` 在当前叠加状态和暂停栈状态退出时连续请求重定向，可能重复退出当前状态并进入较早目标状态的问题。
-- 修复 `GFCapabilityUtility` 在 receiver 或能力容器 setup 阶段延迟挂载/移除 Node 能力时，父节点同帧释放可能触发延迟 `add_child()` / `remove_child()` 引擎错误的问题。
+- 修复 `GFStorageCodec` 在 Godot 4.6 下对非字符串 JSON 字典键排序时使用 `String(int)` 导致解析失败的问题。
+- 修复 JSON checksum 在载荷包含 64 位整数或 `StringName` 键时，写入后读回可能被误判为完整性损坏的问题。
+- 修复 `GFSeedUtility` 完整随机状态通过默认 JSON 存储后，主种子、RNG 状态或分支计数可能因 64 位整数精度丢失而破坏确定性回放的问题。
+- 修复 `GFStorageSyncUtility` 使用非数字 metadata 比较冲突新旧时，任意 Variant 字符串化可能触发 Godot `String(Variant)` 转换错误的问题。
+- 修复 `GFSettingDefinition` 将数字等非字符串值钳制为 `STRING` / `STRING_NAME` 时可能触发 `String(Variant)` 转换错误的问题。
+- 修复 `GFSaveGraphUtility` 校验或应用手写载荷时，非字符串 source/scope key 可能触发 `String(Variant)` 转换错误的问题。
 
 ### 🔌 API 变动说明
 
-- 新增 `GFDragDropUtility`，提供 `register_zone()`、`register_rect_zone()`、`register_control_zone()`、`start_drag()`、`update_drag()`、`drop()`、`cancel_drag()` 和候选落点查询接口。
-- 新增 `GFDragSession` 与 `GFDropZone`，分别描述拖拽会话上下文和通用落点规则。
-- 新增 `GFSignalBridge.connect_bridge()`、`invoke()`、`build_callable_args()`、`get_validation_report()` 与 `to_dictionary()`；新增 `GFSignalSourceRef`、`GFCallableTargetRef` 和 `GFSignalBridgeBinding` 作为桥接引用与运行句柄。
-- 新增 `GFInputDetector.DetectionState`、`wait_for_clear_before_detection`、`wait_for_clear_after_detection` 与 `get_detection_state()`。
-- 新增输入修饰器公开类：`GFInputCurveModifier`、`GFInputSwizzleModifier`、`GFInputMagnitudeModifier`、`GFInputSignClampModifier` 与 `GFInputVirtualCursorModifier`。
-- 新增 Camera 扩展公开类：`GFCameraBlend`、`GFCameraRig2D`、`GFCameraRig3D`、`GFCameraDirector2D` 与 `GFCameraDirector3D`。
-- 新增 Dialogue 扩展公开类：`GFDialogueResource`、`GFDialogueLine`、`GFDialogueResponse`、`GFDialogueContext` 与 `GFDialogueRunner`。
-- 新增校验流水线公开类：`GFValidationRule`、`GFValidationSuite`、`GFValidationRunner` 与 `GFValidationJUnitExporter`。
-- 新增 Steering 资源化公开类：`GFSteeringBehaviorResource` 与 `GFSteeringBehaviorStack`。
-- `GFDiagnosticsUtility.register_command()` 新增可选 `options` 参数；新增 `set_command_parameter_schema()`、`set_command_enabled()`、`set_all_commands_enabled()`、`is_command_enabled()`、`execute_command_json_safe()`、`command_result_to_json_compatible()` 与 `collect_signal_graph_snapshot()`。
-- `GFTweenActionStep` 新增 `marker_id` 与 `capture_initial_value()`；`GFTweenActionConfig` 新增 `restore_initial_values_on_cancel`、`restore_initial_values_on_finish`、`capture_initial_values()`、`restore_initial_values()` 与 `get_validation_report()`；`GFConfiguredTweenAction` 新增 `marker_reached` 信号。
-- 新增 `GFInteractionReceiver.receiver_path`，接收通过本地过滤后可转发给目标节点的 `receive_interaction(context, interaction_id)`。
-- 新增 `GFHurtBox2D.receiver_path` 与 `GFHurtBox3D.receiver_path`，命中通过本地过滤后可转发给目标节点的 `receive_hit(context)`。
-- `GFBindableProperty.unbind(node, callable)` 的 `node` 参数类型从 `Node` 放宽为 `Variant`，以便传入已失效的节点引用时仍能触发失效绑定清理；有效节点的调用方式保持不变。
+- `GFSeedUtility.get_full_state()` 的状态字典新增明确的 `state_schema_version` 字段，当前值为 `2`；`global_seed`、`rng_state` 与 `branch_counters` 的计数值由整数改为十进制字符串。
+- `GFVariantJsonCodec.variant_to_json_compatible()` 新增 `encode_unsafe_ints` 选项；默认 `true`，可显式设为 `false` 以保留旧的裸数字输出。
+- 新增公开类 `GFBackgroundWorkUtility` 和 `GFBackgroundWorkTask`；后台工作提交方法返回 `RefCounted` 任务实例，实际对象为 `GFBackgroundWorkTask`。
+
+### 📘 升级指南
+
+- 项目代码不要再把 `get_full_state()` 的 `global_seed`、`rng_state` 或分支计数字段当作数字直接编辑；恢复时继续把完整字典交给 `set_full_state()`。
+- JSON 存档中需要精确保留任意 64 位整数的业务字段，应使用字符串、`GFVariantJsonCodec` 的类型化 JSON 值，或切换到 `GFStorageCodec.Format.BINARY`。
+- 项目若直接读取 `get_full_state()` 字典做调试展示，可显示 `state_schema_version`，但业务判断不要把它当作 GF 框架版本号。
+- 新后台工作推荐只传路径、ID、数值、数组和字典等纯 Variant 数据；需要触碰 Node、Resource 或 UI 的逻辑应放到 `apply_callback`，由 `GFBackgroundWorkUtility.tick()` 在主线程执行。
 
 ### 📁 核心受影响文件
 
-- 内核容器与绑定：`addons/gf/kernel/core/gf_architecture.gd`、`addons/gf/kernel/core/gf_bind_builder.gd`、`addons/gf/kernel/core/gf_bindable_property.gd`、`addons/gf/kernel/core/gf_computed_property.gd`、`addons/gf/kernel/core/gf_read_only_bindable_property.gd`、`addons/gf/kernel/core/gf_node_context.gd`。
-- 内核依赖作用域：`addons/gf/kernel/base/gf_dependency_scope_support.gd`、`addons/gf/kernel/base/gf_model.gd`、`addons/gf/kernel/base/gf_system.gd`、`addons/gf/kernel/base/gf_utility.gd`、`addons/gf/kernel/base/gf_command.gd`、`addons/gf/kernel/base/gf_query.gd`。
-- 内核编辑器控件：`addons/gf/kernel/editor/gf_editor_value_field.gd`。
-- 扩展 manifest 与启用设置：`addons/gf/kernel/extension/gf_extension_manifest.gd`、`addons/gf/kernel/extension/gf_extension_settings.gd`。
-- 标准库基础：`addons/gf/standard/foundation/blackboard/gf_blackboard_entry.gd`、`addons/gf/standard/foundation/blackboard/gf_blackboard_schema.gd`、`addons/gf/standard/foundation/math/gf_tile_metadata_layer.gd`。
-- 标准库格式化：`addons/gf/standard/foundation/formatting/gf_number_formatter.gd`、`addons/gf/standard/foundation/formatting/gf_decimal_string_formatter.gd`。
-- 标准库序列：`addons/gf/standard/sequence/gf_command_sequence.gd`。
-- 标准库输入：`addons/gf/standard/input/drag_drop/**`、`addons/gf/standard/input/modifiers/**`、`addons/gf/standard/input/rebinding/gf_input_detector.gd`。
-- 标准库信号与 UI：`addons/gf/standard/utilities/signals/gf_signal_connection.gd`、`addons/gf/standard/utilities/signals/bridge/**`、`addons/gf/standard/utilities/ui/gf_ui_utility.gd`、`addons/gf/standard/utilities/ui/gf_ui_router_utility.gd`。
-- 标准库校验、诊断和 Steering：`addons/gf/standard/foundation/validation/**`、`addons/gf/standard/utilities/debug/gf_diagnostics_utility.gd`、`addons/gf/standard/foundation/math/gf_steering_behavior_resource.gd`、`addons/gf/standard/foundation/math/gf_steering_behavior_stack.gd`。
-- 标准库请求 Outbox 与节点状态机：`addons/gf/standard/utilities/io/gf_request_outbox_utility.gd`、`addons/gf/standard/state_machine/node/gf_node_state_group.gd`。
-- 相机扩展：`addons/gf/extensions/camera/**`。
-- 对话扩展：`addons/gf/extensions/dialogue/**`。
-- ActionQueue Tween：`addons/gf/extensions/action_queue/tween/**`、`addons/gf/extensions/action_queue/actions/gf_configured_tween_action.gd`。
-- 扩展桥接：`addons/gf/extensions/interaction/nodes/gf_interaction_receiver.gd`、`addons/gf/extensions/combat/hit_detection/gf_hurt_box_2d.gd`、`addons/gf/extensions/combat/hit_detection/gf_hurt_box_3d.gd`、`addons/gf/standard/common/gf_message_receiver_support.gd`。
+- 随机状态：`addons/gf/standard/utilities/random/gf_seed_utility.gd`。
+- 存储编码：`addons/gf/standard/utilities/storage/gf_storage_codec.gd`。
+- 存储同步：`addons/gf/standard/utilities/storage/gf_storage_sync_utility.gd`。
+- 设置持久化：`addons/gf/standard/utilities/settings/gf_settings_utility.gd`、`addons/gf/standard/utilities/settings/gf_setting_definition.gd`。
+- Variant JSON 编码：`addons/gf/standard/foundation/variant/gf_variant_json_codec.gd`。
+- 存档图：`addons/gf/extensions/save/graph/gf_save_graph_utility.gd`。
+- 后台工作协调：`addons/gf/standard/utilities/jobs/gf_background_work_utility.gd`、`addons/gf/standard/utilities/jobs/gf_background_work_task.gd`。
+- 测试：`tests/gf_core/standard/utilities/jobs/test_gf_background_work_utility.gd`。
+- 文档：`docs/zh/standard/utilities/io/assets-jobs-warmup.md`、`docs/zh/standard/utilities/io/index.md`。

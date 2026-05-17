@@ -92,3 +92,41 @@ func test_full_state_restores_branch_counters() -> void:
 
 	assert_eq(restored_rng.seed, expected_rng.seed, "完整状态应恢复每个标签的分支计数。")
 	assert_eq(restored_rng.randi(), expected_value, "恢复完整状态后，后续子 RNG 序列应保持一致。")
+
+
+func test_full_state_uses_json_safe_text_numbers() -> void:
+	_seed_util.set_global_seed(9_223_372_036_854_775_000)
+	_seed_util.get_branched_rng("loot")
+
+	var snapshot := _seed_util.get_full_state()
+	var branch_counters := snapshot.get(&"branch_counters") as Dictionary
+
+	assert_eq(int(snapshot.get(&"state_schema_version")), 2, "完整状态 schema 应标记当前版本。")
+	assert_false(snapshot.has(&"version"), "完整状态不应使用含义模糊的 version 字段。")
+	assert_eq(typeof(snapshot.get(&"global_seed")), TYPE_STRING, "主种子应以文本保存，避免 JSON 精度丢失。")
+	assert_eq(typeof(snapshot.get(&"rng_state")), TYPE_STRING, "RNG 状态应以文本保存，避免 JSON 精度丢失。")
+	assert_eq(typeof(branch_counters.get("loot")), TYPE_STRING, "分支计数应以文本保存，保证完整状态全量 JSON 安全。")
+	assert_false(snapshot.has(&"rng_state_text"), "完整状态不应输出重复的兼容字段。")
+
+
+func test_full_state_roundtrips_through_json_with_large_64_bit_values() -> void:
+	var large_seed := 9_223_372_036_854_775_000
+	_seed_util.set_global_seed(large_seed)
+	_seed_util._rng.randi()
+	_seed_util.get_branched_rng("loot")
+	var snapshot := _seed_util.get_full_state()
+	var expected_rng := _seed_util.get_branched_rng("loot")
+	var expected_rng_seed := expected_rng.seed
+	var expected_rng_value := expected_rng.randi()
+	var expected_next_main := _seed_util._rng.randi()
+	var parsed := JSON.parse_string(JSON.stringify(snapshot)) as Dictionary
+
+	_seed_util.set_global_seed(1)
+	_seed_util.get_branched_rng("loot")
+	_seed_util.set_full_state(parsed)
+	var restored_rng := _seed_util.get_branched_rng("loot")
+
+	assert_eq(_seed_util.get_global_seed(), large_seed, "JSON 往返后应精确恢复 64 位主种子。")
+	assert_eq(restored_rng.seed, expected_rng_seed, "JSON 往返后应精确恢复分支计数与分支种子。")
+	assert_eq(restored_rng.randi(), expected_rng_value, "JSON 往返后分支 RNG 序列应保持一致。")
+	assert_eq(_seed_util._rng.randi(), expected_next_main, "JSON 往返后主 RNG 序列应保持一致。")

@@ -91,6 +91,19 @@ func test_newer_remote_metadata_wins_default_strategy() -> void:
 	assert_eq(int((local_result.get("data") as Dictionary).get("coins")), 20, "本地应被更新为远端数据。")
 
 
+func test_non_numeric_metadata_comparison_uses_safe_text_conversion() -> void:
+	var sync := GFStorageSyncUtilityBase.new()
+	var local := MemoryStorageBackend.new()
+	var remote := MemoryStorageBackend.new()
+	local.set_record("profile.json", { "coins": 10 }, { "revision": false })
+	remote.set_record("profile.json", { "coins": 20 }, { "revision": true })
+
+	var result := sync.sync_data("profile.json", local, remote)
+
+	assert_true(bool(result.get("ok")), "非数字元数据也应能稳定比较。")
+	assert_eq(result.get("selected_source"), &"remote", "文本比较后较新的远端应成为来源。")
+
+
 func test_unordered_conflict_is_reported_without_write() -> void:
 	var sync := GFStorageSyncUtilityBase.new()
 	var local := MemoryStorageBackend.new()

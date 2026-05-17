@@ -335,7 +335,7 @@ func apply_scope(
 	)
 
 	for source_key_variant: Variant in source_keys:
-		var source_key := String(source_key_variant)
+		var source_key := str(source_key_variant)
 		if not (source_payloads[source_key_variant] is Dictionary):
 			var invalid_source_error := "Invalid source payload: %s" % source_key
 			errors.append(invalid_source_error)
@@ -376,15 +376,15 @@ func apply_scope(
 		else:
 			var source_errors := result.get("errors", []) as Array
 			if source_errors.is_empty():
-				source_errors = [String(result.get("error", "Apply failed"))]
+				source_errors = [str(result.get("error", "Apply failed"))]
 			for source_error_variant: Variant in source_errors:
-				var source_error := "%s: %s" % [source_key, String(source_error_variant)]
+				var source_error := "%s: %s" % [source_key, str(source_error_variant)]
 				errors.append(source_error)
 				pipeline_context.add_error(source_error, { "source_key": source_key })
 
 	var child_scope_index := _index_child_scopes(scope)
 	for child_key_variant: Variant in child_payloads.keys():
-		var child_key := String(child_key_variant)
+		var child_key := str(child_key_variant)
 		var child_scope := child_scope_index.get(child_key) as GFSaveScopeBase
 		if child_scope == null:
 			missing.append(child_key)
@@ -581,7 +581,7 @@ func _inspect_scope_recursive(
 	for source_key_variant: Variant in source_key_counts.keys():
 		var count := int(source_key_counts[source_key_variant])
 		if count > 1:
-			_append_diagnostic_issue(report, "error", "duplicate_source_key", String(source_key_variant), _get_node_debug_path(scope), "Duplicate save source key in the same scope.")
+			_append_diagnostic_issue(report, "error", "duplicate_source_key", str(source_key_variant), _get_node_debug_path(scope), "Duplicate save source key in the same scope.")
 
 	var child_scope_key_counts: Dictionary = {}
 	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
@@ -590,7 +590,7 @@ func _inspect_scope_recursive(
 	for child_key_variant: Variant in child_scope_key_counts.keys():
 		var count := int(child_scope_key_counts[child_key_variant])
 		if count > 1:
-			_append_diagnostic_issue(report, "error", "duplicate_scope_key", String(child_key_variant), _get_node_debug_path(scope), "Duplicate child scope key in the same scope.")
+			_append_diagnostic_issue(report, "error", "duplicate_scope_key", str(child_key_variant), _get_node_debug_path(scope), "Duplicate child scope key in the same scope.")
 
 	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
 		_inspect_scope_recursive(child_scope, context, report, "%s/%s" % [scope_path, String(child_scope.get_scope_key())])
@@ -612,7 +612,7 @@ func _validate_payload_scope_recursive(
 		source_payloads = {}
 	for source_key_variant: Variant in source_payloads.keys():
 		report["checked_source_count"] = int(report.get("checked_source_count", 0)) + 1
-		var source_key := String(source_key_variant)
+		var source_key := str(source_key_variant)
 		if not source_index.has(source_key):
 			(report["missing"] as Array).append("%s:%s" % [scope_path, source_key])
 			_append_diagnostic_issue(report, severity, "missing_source", source_key, _get_node_debug_path(scope), "Payload source does not exist in the current scope.")
@@ -623,7 +623,7 @@ func _validate_payload_scope_recursive(
 		_append_diagnostic_issue(report, "error", "invalid_scopes_payload", scope_path, _get_node_debug_path(scope), "Payload scopes must be a Dictionary.")
 		child_payloads = {}
 	for child_key_variant: Variant in child_payloads.keys():
-		var child_key := String(child_key_variant)
+		var child_key := str(child_key_variant)
 		var child_scope := child_scope_index.get(child_key) as GFSaveScopeBase
 		if child_scope == null:
 			(report["missing"] as Array).append("%s/%s" % [scope_path, child_key])

@@ -459,8 +459,8 @@ func _compare_metadata_values(left: Variant, right: Variant) -> int:
 			return 0
 		return 1 if left_number > right_number else -1
 
-	var left_text := String(left)
-	var right_text := String(right)
+	var left_text := str(left)
+	var right_text := str(right)
 	if left_text == right_text:
 		return 0
 	return 1 if left_text > right_text else -1
@@ -501,7 +501,7 @@ func _get_string_array_option(options: Dictionary, key: String, fallback: Array[
 		return result
 	if value is Array:
 		for item: Variant in value:
-			result.append(String(item))
+			result.append(str(item))
 		return result
 	return fallback.duplicate()
 
