@@ -75,6 +75,98 @@ class RuntimeStateFlowNode extends GFFlowNode:
 		return null
 
 
+class MethodTrapFlowPort extends GFFlowPort:
+	var get_port_id_called := false
+	var get_display_name_called := false
+	var describe_called := false
+	var get_compatibility_report_called := false
+	var is_compatible_with_called := false
+
+	func get_port_id() -> StringName:
+		get_port_id_called = true
+		return &"method_port"
+
+	func get_display_name() -> String:
+		get_display_name_called = true
+		return "Method Port"
+
+	func describe() -> Dictionary:
+		describe_called = true
+		return { "port_id": &"method_port" }
+
+	func get_compatibility_report(_target_port: GFFlowPort) -> Dictionary:
+		get_compatibility_report_called = true
+		return { "ok": false, "message": "method compatibility should not run" }
+
+	func is_compatible_with(_target_port: GFFlowPort) -> bool:
+		is_compatible_with_called = true
+		return false
+
+	func any_method_called() -> bool:
+		return (
+			get_port_id_called
+			or get_display_name_called
+			or describe_called
+			or get_compatibility_report_called
+			or is_compatible_with_called
+		)
+
+
+class MethodTrapFlowNode extends GFFlowNode:
+	var get_display_name_called := false
+	var get_input_ports_called := false
+	var get_output_ports_called := false
+	var get_input_port_called := false
+	var get_output_port_called := false
+	var describe_ports_called := false
+	var describe_editor_called := false
+	var describe_node_called := false
+
+	func get_display_name() -> String:
+		get_display_name_called = true
+		return "Method Node"
+
+	func get_input_ports() -> Array[GFFlowPort]:
+		get_input_ports_called = true
+		return []
+
+	func get_output_ports() -> Array[GFFlowPort]:
+		get_output_ports_called = true
+		return []
+
+	func get_input_port(_port_id: StringName) -> GFFlowPort:
+		get_input_port_called = true
+		return null
+
+	func get_output_port(_port_id: StringName) -> GFFlowPort:
+		get_output_port_called = true
+		return null
+
+	func describe_ports() -> Dictionary:
+		describe_ports_called = true
+		return {}
+
+	func describe_editor() -> Dictionary:
+		describe_editor_called = true
+		return {}
+
+	func describe_node() -> Dictionary:
+		describe_node_called = true
+		return {}
+
+	func any_method_called() -> bool:
+		return (
+			get_display_name_called
+			or get_input_ports_called
+			or get_output_ports_called
+			or get_input_port_called
+			or get_output_port_called
+			or describe_ports_called
+			or describe_editor_called
+			or describe_node_called
+		)
+
+
 # --- 测试方法 ---
 
 ## 验证流程节点会按后继关系执行。
@@ -332,6 +424,88 @@ func test_flow_graph_editor_model_builds_graph_edit_ready_data() -> void:
 	assert_eq(((nodes[0] as Dictionary)["output_ports"] as Array)[0]["graph_slot_index"], 1, "数据端口应避开执行连接 slot。")
 	assert_eq(connections[0]["from_graph_slot_index"], 1, "连接应包含 GraphEdit 输出 slot。")
 	assert_eq(connections[0]["to_graph_slot_index"], 1, "连接应包含 GraphEdit 输入 slot。")
+
+
+## 验证 FlowGraph 编辑器视图模型只读取导出属性，不调用项目节点或端口方法。
+func test_flow_graph_editor_model_reads_exports_without_calling_node_or_port_methods() -> void:
+	var graph := GFFlowGraphBase.new()
+	var start := MethodTrapFlowNode.new()
+	start.node_id = &"start"
+	start.display_name = "Start Export"
+	var output_port := MethodTrapFlowPort.new()
+	output_port.port_id = &"done"
+	output_port.display_name = "Done Export"
+	output_port.direction = GFFlowPort.Direction.OUTPUT
+	output_port.value_type = GFFlowPort.ValueType.BOOL
+	start.output_ports = [output_port]
+	var end := MethodTrapFlowNode.new()
+	end.node_id = &"end"
+	end.display_name = "End Export"
+	var input_port := MethodTrapFlowPort.new()
+	input_port.port_id = &"enter"
+	input_port.display_name = "Enter Export"
+	input_port.direction = GFFlowPort.Direction.INPUT
+	input_port.value_type = GFFlowPort.ValueType.BOOL
+	end.input_ports = [input_port]
+	graph.nodes = [start, end]
+
+	assert_true(graph.add_connection(&"start", &"done", &"end", &"enter"), "结构化属性应足以添加有效端口连接。")
+	var editor_model: GFFlowGraphEditorModelBase = GFFlowGraphEditorModelBase.new()
+	var view_model := editor_model.build_view_model(graph)
+	var nodes := view_model["nodes"] as Array
+	var connections := view_model["connections"] as Array
+
+	assert_true(bool(view_model["ok"]), "导出属性完整时编辑器视图模型应通过校验。")
+	assert_eq(nodes[0]["display_name"], "Start Export", "节点显示名应来自导出属性。")
+	assert_eq(((nodes[0] as Dictionary)["output_ports"] as Array)[0]["display_name"], "Done Export", "端口显示名应来自导出属性。")
+	assert_eq(connections[0]["from_port_index"], 0, "连接应能通过导出端口定位。")
+	assert_false(start.any_method_called(), "编辑器模型不应调用自定义节点方法。")
+	assert_false(end.any_method_called(), "编辑器模型不应调用自定义节点方法。")
+	assert_false(output_port.any_method_called(), "编辑器模型不应调用自定义端口方法。")
+	assert_false(input_port.any_method_called(), "编辑器模型不应调用自定义端口方法。")
+
+
+## 验证 FlowGraph 结构报告也只读取导出属性。
+func test_flow_graph_structural_reports_read_exports_without_calling_methods() -> void:
+	var graph := GFFlowGraphBase.new()
+	var start := MethodTrapFlowNode.new()
+	start.node_id = &"start"
+	start.display_name = "Start Export"
+	var output_port := MethodTrapFlowPort.new()
+	output_port.port_id = &"done"
+	output_port.direction = GFFlowPort.Direction.OUTPUT
+	output_port.value_type = GFFlowPort.ValueType.STRING
+	start.output_ports = [output_port]
+	var end := MethodTrapFlowNode.new()
+	end.node_id = &"end"
+	var input_port := MethodTrapFlowPort.new()
+	input_port.port_id = &"enter"
+	input_port.direction = GFFlowPort.Direction.INPUT
+	input_port.value_type = GFFlowPort.ValueType.STRING
+	end.input_ports = [input_port]
+	graph.nodes = [start, end]
+	graph.connections = [
+		{
+			"from_node_id": &"start",
+			"from_port_id": &"done",
+			"to_node_id": &"end",
+			"to_port_id": &"enter",
+			"metadata": {},
+		},
+	]
+
+	var report := graph.build_editor_report()
+	var description := graph.describe_graph()
+	var compatibility := graph.check_connection_compatibility(&"start", &"done", &"end", &"enter")
+
+	assert_true(bool(report["ok"]), "结构报告应通过导出属性完成校验。")
+	assert_eq(((report["catalog"] as Dictionary)["nodes"] as Array)[0]["display_name"], "Start Export", "目录应读取导出显示名。")
+	assert_eq(((description["nodes"] as Array)[0] as Dictionary)["display_name"], "Start Export", "图描述应读取导出显示名。")
+	assert_true(bool(compatibility["ok"]), "兼容性检查应读取导出端口属性。")
+	assert_false(start.any_method_called(), "结构报告不应调用自定义节点方法。")
+	assert_false(end.any_method_called(), "结构报告不应调用自定义节点方法。")
+	assert_false(output_port.any_method_called(), "结构报告不应调用自定义端口方法。")
+	assert_false(input_port.any_method_called(), "结构报告不应调用自定义端口方法。")
 
 
 ## 验证 FlowGraph 编辑器模型可应用通用自动布局。

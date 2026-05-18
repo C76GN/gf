@@ -772,7 +772,7 @@ static func _get_required_capability_types(
 	if raw_value == null:
 		return [] as Array[Script]
 	if not raw_value is Array:
-		if report != null and report.has_method("add_warning"):
+		if report != null:
 			report.add_warning(
 				&"invalid_required_capabilities",
 				"required_capabilities must be an Array of Script values.",
@@ -785,7 +785,7 @@ static func _get_required_capability_types(
 		if item is Script and not result.has(item):
 			result.append(item as Script)
 		elif item != null:
-			if report != null and report.has_method("add_warning"):
+			if report != null:
 				report.add_warning(
 					&"invalid_required_capability_type",
 					"required_capabilities contains a non-Script value.",

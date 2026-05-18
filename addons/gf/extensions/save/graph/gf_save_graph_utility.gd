@@ -89,7 +89,7 @@ func create_pipeline_context(
 	scope: GFSaveScopeBase = null,
 	shared: Dictionary = {}
 ) -> GFSavePipelineContextBase:
-	var root_scope_key := StringName(scope.get_scope_key()) if scope != null else &""
+	var root_scope_key := _get_scope_key_for_inspection(scope) if scope != null else &""
 	return GFSavePipelineContextBase.new(operation, root_scope_key, shared)
 
 
@@ -101,7 +101,7 @@ func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictiona
 	var report := {
 		"ok": true,
 		"healthy": true,
-		"scope_key": String(scope.get_scope_key()) if scope != null else "",
+		"scope_key": String(_get_scope_key_for_inspection(scope)) if scope != null else "",
 		"scope_count": 0,
 		"source_count": 0,
 		"enabled_scope_count": 0,
@@ -120,7 +120,7 @@ func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictiona
 		report["ok"] = false
 		return _finalize_diagnostic_report(report, "Save scope")
 
-	_inspect_scope_recursive(scope, context, report, String(scope.get_scope_key()))
+	_inspect_scope_recursive(scope, context, report, String(_get_scope_key_for_inspection(scope)))
 	report["ok"] = _report_has_no_error_issues(report)
 	return _finalize_diagnostic_report(report, "Save scope")
 
@@ -142,7 +142,7 @@ func validate_payload_for_scope(scope: GFSaveScopeBase, payload: Dictionary, str
 	var report := {
 		"ok": true,
 		"healthy": true,
-		"scope_key": String(scope.get_scope_key()) if scope != null else "",
+		"scope_key": String(_get_scope_key_for_inspection(scope)) if scope != null else "",
 		"checked_source_count": 0,
 		"checked_scope_count": 0,
 		"error_count": 0,
@@ -158,16 +158,16 @@ func validate_payload_for_scope(scope: GFSaveScopeBase, payload: Dictionary, str
 		report["ok"] = false
 		return _finalize_diagnostic_report(report, "Save payload")
 	if payload.is_empty():
-		_append_diagnostic_issue(report, "error", "empty_payload", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload is empty.")
+		_append_diagnostic_issue(report, "error", "empty_payload", String(_get_scope_key_for_inspection(scope)), _get_node_debug_path(scope), "Payload is empty.")
 		report["ok"] = false
 		return _finalize_diagnostic_report(report, "Save payload")
 
 	if String(payload.get("format", "")) != FORMAT_ID:
-		_append_diagnostic_issue(report, "error", "format_mismatch", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload format does not match GF save graph.")
+		_append_diagnostic_issue(report, "error", "format_mismatch", String(_get_scope_key_for_inspection(scope)), _get_node_debug_path(scope), "Payload format does not match GF save graph.")
 	if int(payload.get("format_version", -1)) > FORMAT_VERSION:
-		_append_diagnostic_issue(report, "warning", "future_format_version", String(scope.get_scope_key()), _get_node_debug_path(scope), "Payload format version is newer than this utility.")
+		_append_diagnostic_issue(report, "warning", "future_format_version", String(_get_scope_key_for_inspection(scope)), _get_node_debug_path(scope), "Payload format version is newer than this utility.")
 
-	_validate_payload_scope_recursive(scope, payload, strict, report, String(scope.get_scope_key()))
+	_validate_payload_scope_recursive(scope, payload, strict, report, String(_get_scope_key_for_inspection(scope)))
 	report["ok"] = _report_has_no_error_issues(report)
 	return _finalize_diagnostic_report(report, "Save payload")
 
@@ -328,7 +328,7 @@ func apply_scope(
 		)
 
 	scope.before_load(payload, context)
-	var source_index := _index_sources_by_key(scope)
+	var source_index := _index_sources_by_key_for_inspection(scope)
 	var source_keys := source_payloads.keys()
 	source_keys.sort_custom(func(left: Variant, right: Variant) -> bool:
 		return _source_payload_phase(source_payloads[left]) < _source_payload_phase(source_payloads[right])
@@ -382,7 +382,7 @@ func apply_scope(
 				errors.append(source_error)
 				pipeline_context.add_error(source_error, { "source_key": source_key })
 
-	var child_scope_index := _index_child_scopes(scope)
+	var child_scope_index := _index_child_scopes_for_inspection(scope)
 	for child_key_variant: Variant in child_payloads.keys():
 		var child_key := str(child_key_variant)
 		var child_scope := child_scope_index.get(child_key) as GFSaveScopeBase
@@ -527,6 +527,19 @@ func _get_sources_for_scope(scope: GFSaveScopeBase) -> Array[GFSaveSourceBase]:
 	return result
 
 
+func _get_sources_for_scope_for_inspection(scope: Node) -> Array[GFSaveSourceBase]:
+	var result: Array[GFSaveSourceBase] = []
+	_collect_sources_for_inspection(scope, result)
+	result.sort_custom(func(left: GFSaveSourceBase, right: GFSaveSourceBase) -> bool:
+		var left_phase := _get_int_property(left, &"phase", GFSaveScopeBase.Phase.NORMAL)
+		var right_phase := _get_int_property(right, &"phase", GFSaveScopeBase.Phase.NORMAL)
+		if left_phase != right_phase:
+			return left_phase < right_phase
+		return String(_get_source_key_for_inspection(left)) < String(_get_source_key_for_inspection(right))
+	)
+	return result
+
+
 func _inspect_scope_recursive(
 	scope: GFSaveScopeBase,
 	context: Dictionary,
@@ -534,46 +547,57 @@ func _inspect_scope_recursive(
 	scope_path: String
 ) -> void:
 	report["scope_count"] = int(report.get("scope_count", 0)) + 1
-	if scope.can_save_scope(context):
+	var can_save_scope := _can_save_scope_for_inspection(scope, context)
+	var can_load_scope := _can_load_scope_for_inspection(scope, context)
+	if can_save_scope:
 		report["enabled_scope_count"] = int(report.get("enabled_scope_count", 0)) + 1
 
-	var scope_key := String(scope.get_scope_key())
+	var scope_key := String(_get_scope_key_for_inspection(scope))
 	(report["scopes"] as Array).append({
 		"key": scope_key,
 		"path": _get_node_debug_path(scope),
-		"can_save": scope.can_save_scope(context),
-		"can_load": scope.can_load_scope(context),
-		"phase": scope.phase,
+		"can_save": can_save_scope,
+		"can_load": can_load_scope,
+		"phase": _get_int_property(scope, &"phase", GFSaveScopeBase.Phase.NORMAL),
 	})
 
 	var source_key_counts: Dictionary = {}
-	for source: GFSaveSourceBase in _get_sources_for_scope(scope):
+	for source: GFSaveSourceBase in _get_sources_for_scope_for_inspection(scope):
 		report["source_count"] = int(report.get("source_count", 0)) + 1
-		if source.can_save_source(context):
+		var can_save_source := _can_save_source_for_inspection(source, context)
+		var can_load_source := _can_load_source_for_inspection(source, context)
+		if can_save_source:
 			report["enabled_source_count"] = int(report.get("enabled_source_count", 0)) + 1
 
-		var source_key := _make_scoped_source_key(scope, source)
+		var source_key := _make_scoped_source_key_for_inspection(scope, source)
 		source_key_counts[source_key] = int(source_key_counts.get(source_key, 0)) + 1
-		var target := source.get_target_node()
-		var serializer_ids := _get_source_serializer_ids(source, target)
+		var target := _get_source_target_node_for_inspection(source)
+		var serializer_ids := _get_source_serializer_ids_for_inspection(source, target)
 		(report["sources"] as Array).append({
 			"key": source_key,
 			"path": _get_node_debug_path(source),
 			"target_path": _get_node_debug_path(target),
-			"can_save": source.can_save_source(context),
-			"can_load": source.can_load_source(context),
-			"phase": source.phase,
+			"can_save": can_save_source,
+			"can_load": can_load_source,
+			"phase": _get_int_property(source, &"phase", GFSaveScopeBase.Phase.NORMAL),
 			"serializer_ids": serializer_ids,
 		})
 
 		if source_key.is_empty():
 			_append_diagnostic_issue(report, "error", "empty_source_key", scope_path, _get_node_debug_path(source), "Save source key is empty.")
-		if source.can_save_source(context) and not source.target_node_path.is_empty() and target == null:
+		if (
+			can_save_source
+			and not _get_node_path_property(source, &"target_node_path").is_empty()
+			and target == null
+		):
 			_append_diagnostic_issue(report, "warning", "missing_target", source_key, _get_node_debug_path(source), "Save source target node is missing.")
 		if (
-			source.can_save_source(context)
+			can_save_source
 			and target != null
-			and (source.use_registry_serializers or not source.serializers.is_empty())
+			and (
+				_get_bool_property(source, &"use_registry_serializers", false)
+				or not _get_resource_array_property(source, &"serializers").is_empty()
+			)
 			and serializer_ids.is_empty()
 		):
 			_append_diagnostic_issue(report, "warning", "no_matching_serializer", source_key, _get_node_debug_path(source), "No configured serializer supports the target node.")
@@ -584,16 +608,16 @@ func _inspect_scope_recursive(
 			_append_diagnostic_issue(report, "error", "duplicate_source_key", str(source_key_variant), _get_node_debug_path(scope), "Duplicate save source key in the same scope.")
 
 	var child_scope_key_counts: Dictionary = {}
-	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
-		var child_key := String(child_scope.get_scope_key())
+	for child_scope: GFSaveScopeBase in _get_child_scopes_for_inspection(scope):
+		var child_key := String(_get_scope_key_for_inspection(child_scope))
 		child_scope_key_counts[child_key] = int(child_scope_key_counts.get(child_key, 0)) + 1
 	for child_key_variant: Variant in child_scope_key_counts.keys():
 		var count := int(child_scope_key_counts[child_key_variant])
 		if count > 1:
 			_append_diagnostic_issue(report, "error", "duplicate_scope_key", str(child_key_variant), _get_node_debug_path(scope), "Duplicate child scope key in the same scope.")
 
-	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
-		_inspect_scope_recursive(child_scope, context, report, "%s/%s" % [scope_path, String(child_scope.get_scope_key())])
+	for child_scope: GFSaveScopeBase in _get_child_scopes_for_inspection(scope):
+		_inspect_scope_recursive(child_scope, context, report, "%s/%s" % [scope_path, String(_get_scope_key_for_inspection(child_scope))])
 
 
 func _validate_payload_scope_recursive(
@@ -605,7 +629,7 @@ func _validate_payload_scope_recursive(
 ) -> void:
 	report["checked_scope_count"] = int(report.get("checked_scope_count", 0)) + 1
 	var severity := "error" if strict else "warning"
-	var source_index := _index_sources_by_key(scope)
+	var source_index := _index_sources_by_key_for_inspection(scope)
 	var source_payloads: Dictionary = payload.get("sources", {}) as Dictionary
 	if source_payloads == null:
 		_append_diagnostic_issue(report, "error", "invalid_sources_payload", scope_path, _get_node_debug_path(scope), "Payload sources must be a Dictionary.")
@@ -617,7 +641,7 @@ func _validate_payload_scope_recursive(
 			(report["missing"] as Array).append("%s:%s" % [scope_path, source_key])
 			_append_diagnostic_issue(report, severity, "missing_source", source_key, _get_node_debug_path(scope), "Payload source does not exist in the current scope.")
 
-	var child_scope_index := _index_child_scopes(scope)
+	var child_scope_index := _index_child_scopes_for_inspection(scope)
 	var child_payloads: Dictionary = payload.get("scopes", {}) as Dictionary
 	if child_payloads == null:
 		_append_diagnostic_issue(report, "error", "invalid_scopes_payload", scope_path, _get_node_debug_path(scope), "Payload scopes must be a Dictionary.")
@@ -646,6 +670,18 @@ func _collect_sources(current: Node, result: Array[GFSaveSourceBase]) -> void:
 		_collect_sources(child, result)
 
 
+func _collect_sources_for_inspection(current: Node, result: Array[GFSaveSourceBase]) -> void:
+	if current == null:
+		return
+
+	for child: Node in current.get_children():
+		if child is GFSaveScopeBase:
+			continue
+		if child is GFSaveSourceBase:
+			result.append(child as GFSaveSourceBase)
+		_collect_sources_for_inspection(child, result)
+
+
 func _get_child_scopes(scope: GFSaveScopeBase) -> Array[GFSaveScopeBase]:
 	var result: Array[GFSaveScopeBase] = []
 	for child: Node in scope.get_children():
@@ -654,17 +690,28 @@ func _get_child_scopes(scope: GFSaveScopeBase) -> Array[GFSaveScopeBase]:
 	return result
 
 
-func _index_sources_by_key(scope: GFSaveScopeBase) -> Dictionary:
-	var result: Dictionary = {}
-	for source: GFSaveSourceBase in _get_sources_for_scope(scope):
-		result[_make_scoped_source_key(scope, source)] = source
+func _get_child_scopes_for_inspection(scope: Node) -> Array[GFSaveScopeBase]:
+	var result: Array[GFSaveScopeBase] = []
+	if scope == null:
+		return result
+
+	for child: Node in scope.get_children():
+		if child is GFSaveScopeBase:
+			result.append(child as GFSaveScopeBase)
 	return result
 
 
-func _index_child_scopes(scope: GFSaveScopeBase) -> Dictionary:
+func _index_sources_by_key_for_inspection(scope: Node) -> Dictionary:
 	var result: Dictionary = {}
-	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
-		result[String(child_scope.get_scope_key())] = child_scope
+	for source: GFSaveSourceBase in _get_sources_for_scope_for_inspection(scope):
+		result[_make_scoped_source_key_for_inspection(scope, source)] = source
+	return result
+
+
+func _index_child_scopes_for_inspection(scope: Node) -> Dictionary:
+	var result: Dictionary = {}
+	for child_scope: GFSaveScopeBase in _get_child_scopes_for_inspection(scope):
+		result[String(_get_scope_key_for_inspection(child_scope))] = child_scope
 	return result
 
 
@@ -674,6 +721,158 @@ func _make_scoped_source_key(scope: GFSaveScopeBase, source: GFSaveSourceBase) -
 	if prefix.is_empty():
 		return key
 	return "%s/%s" % [prefix, key]
+
+
+func _make_scoped_source_key_for_inspection(scope: Node, source: Node) -> String:
+	var prefix := String(_get_string_name_property(scope, &"key_namespace", &""))
+	var key := String(_get_source_key_for_inspection(source))
+	if prefix.is_empty():
+		return key
+	return "%s/%s" % [prefix, key]
+
+
+func _get_scope_key_for_inspection(scope: Node) -> StringName:
+	if scope == null:
+		return &""
+	return _get_string_name_property(scope, &"scope_key", StringName(scope.name))
+
+
+func _get_source_key_for_inspection(source: Node) -> StringName:
+	if source == null:
+		return &""
+	return _get_string_name_property(source, &"source_key", StringName(source.name))
+
+
+func _can_save_scope_for_inspection(scope: Node, _context: Dictionary = {}) -> bool:
+	return (
+		_get_bool_property(scope, &"enabled", true)
+		and _get_bool_property(scope, &"save_enabled", true)
+	)
+
+
+func _can_load_scope_for_inspection(scope: Node, _context: Dictionary = {}) -> bool:
+	return (
+		_get_bool_property(scope, &"enabled", true)
+		and _get_bool_property(scope, &"load_enabled", true)
+	)
+
+
+func _can_save_source_for_inspection(source: Node, _context: Dictionary = {}) -> bool:
+	return (
+		_get_bool_property(source, &"enabled", true)
+		and _get_bool_property(source, &"save_enabled", true)
+	)
+
+
+func _can_load_source_for_inspection(source: Node, _context: Dictionary = {}) -> bool:
+	return (
+		_get_bool_property(source, &"enabled", true)
+		and _get_bool_property(source, &"load_enabled", true)
+	)
+
+
+func _get_source_target_node_for_inspection(source: Node) -> Node:
+	if source == null:
+		return null
+
+	var target_node_path := _get_node_path_property(source, &"target_node_path")
+	if not target_node_path.is_empty():
+		return source.get_node_or_null(target_node_path)
+	return source.get_parent()
+
+
+func _get_source_serializer_ids_for_inspection(source: Node, target: Node) -> PackedStringArray:
+	var result := PackedStringArray()
+	if source == null or target == null:
+		return result
+
+	var local_serializers := _get_resource_array_property(source, &"serializers")
+	if not local_serializers.is_empty():
+		for serializer: Resource in local_serializers:
+			var serializer_id := _get_serializer_id_for_inspection(serializer)
+			if serializer_id != &"":
+				result.append(String(serializer_id))
+		return result
+
+	if _get_bool_property(source, &"use_registry_serializers", false) and serializer_registry != null:
+		for serializer: GFNodeSerializer in serializer_registry.get_serializers_for_node(target):
+			if serializer != null:
+				result.append(String(serializer.get_serializer_id()))
+	return result
+
+
+func _get_serializer_id_for_inspection(serializer: Resource) -> StringName:
+	if serializer == null:
+		return &""
+
+	var serializer_id := _get_string_name_property(serializer, &"serializer_id", &"")
+	if serializer_id != &"":
+		return serializer_id
+	if not serializer.resource_path.is_empty():
+		return StringName(serializer.resource_path)
+
+	var script := serializer.get_script() as Script
+	if script != null:
+		return StringName(script.resource_path)
+	return &""
+
+
+func _get_string_name_property(object: Object, property_name: StringName, fallback: StringName = &"") -> StringName:
+	if object == null:
+		return fallback
+
+	var value: Variant = object.get(property_name)
+	if value is StringName:
+		var string_name := value as StringName
+		return fallback if string_name == &"" else string_name
+	if value is String:
+		var text := String(value).strip_edges()
+		return fallback if text.is_empty() else StringName(text)
+	return fallback
+
+
+func _get_bool_property(object: Object, property_name: StringName, fallback: bool = false) -> bool:
+	if object == null:
+		return fallback
+
+	var value: Variant = object.get(property_name)
+	return bool(value) if value is bool else fallback
+
+
+func _get_int_property(object: Object, property_name: StringName, fallback: int = 0) -> int:
+	if object == null:
+		return fallback
+
+	var value: Variant = object.get(property_name)
+	return int(value) if value is int else fallback
+
+
+func _get_node_path_property(object: Object, property_name: StringName) -> NodePath:
+	if object == null:
+		return NodePath("")
+
+	var value: Variant = object.get(property_name)
+	if value is NodePath:
+		return value as NodePath
+	if value is String or value is StringName:
+		return NodePath(String(value))
+	return NodePath("")
+
+
+func _get_resource_array_property(object: Object, property_name: StringName) -> Array[Resource]:
+	var result: Array[Resource] = []
+	if object == null:
+		return result
+
+	var value: Variant = object.get(property_name)
+	if not value is Array:
+		return result
+
+	for entry: Variant in value as Array:
+		var resource := entry as Resource
+		if resource != null:
+			result.append(resource)
+	return result
 
 
 func _merge_identity_descriptor(source: GFSaveSourceBase, descriptor: Dictionary) -> void:

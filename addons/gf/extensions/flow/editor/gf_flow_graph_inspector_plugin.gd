@@ -8,6 +8,7 @@ extends EditorInspectorPlugin
 
 const FLOW_EXTENSION_ID: String = "gf.flow"
 const GF_FLOW_GRAPH_SCRIPT_PATH: String = "res://addons/gf/extensions/flow/resources/gf_flow_graph.gd"
+const GF_FLOW_GRAPH_EDITOR_MODEL_BASE := preload("res://addons/gf/extensions/flow/editor/gf_flow_graph_editor_model.gd")
 const GF_EXTENSION_SETTINGS_BASE := preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
@@ -86,22 +87,23 @@ func _populate_start_options(option: OptionButton, graph: Resource) -> void:
 	option.set_item_metadata(0, &"")
 	option.select(0)
 
-	var nodes := graph.get("nodes") as Array
+	var editor_model: GFFlowGraphEditorModel = GF_FLOW_GRAPH_EDITOR_MODEL_BASE.new()
+	var catalog := editor_model.build_editor_catalog(graph)
+	var nodes := catalog.get("nodes", []) as Array
 	if nodes == null:
 		return
 
 	var entries: Array[Dictionary] = []
 	for node_variant: Variant in nodes:
-		var node := node_variant as Resource
+		var node := node_variant as Dictionary
 		if node == null:
 			continue
-		var node_id := node.get("node_id") as StringName
+		var node_id := StringName(node.get("node_id", &""))
 		if node_id == &"":
 			continue
-		var display_name := String(node.call("get_display_name")) if node.has_method("get_display_name") else String(node_id)
 		entries.append({
 			"node_id": node_id,
-			"display_name": display_name,
+			"display_name": String(node.get("display_name", node_id)),
 		})
 
 	entries.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
@@ -136,10 +138,11 @@ func _set_start_node(graph: Resource, node_id: StringName) -> void:
 
 
 func _update_summary(label: Label, graph: Resource) -> void:
-	if label == null or graph == null or not graph.has_method("build_editor_report"):
+	if label == null or graph == null:
 		return
 
-	var report := graph.call("build_editor_report") as Dictionary
+	var editor_model: GFFlowGraphEditorModel = GF_FLOW_GRAPH_EDITOR_MODEL_BASE.new()
+	var report := editor_model.build_editor_report(graph)
 	var validation := report.get("validation", {}) as Dictionary
 	label.text = "%s\nNext: %s" % [
 		String(report.get("summary", "")),

@@ -157,9 +157,10 @@ func _format_report_tooltip(report: RefCounted) -> String:
 	for issue: RefCounted in issues:
 		if issue == null:
 			continue
-		var issue_dict := issue.call("to_dict") as Dictionary
-		var kind := String(issue_dict.get("kind", "unknown"))
-		var message := String(issue_dict.get("message", ""))
+		var kind := String(issue.get("kind"))
+		if kind.is_empty():
+			kind = String(issue.get("code", "unknown"))
+		var message := String(issue.get("message", ""))
 		lines.append("%s: %s" % [kind, message])
 		if lines.size() >= 8:
 			lines.append("...")

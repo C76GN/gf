@@ -57,6 +57,52 @@ class FailingSourceFactory extends GFSaveEntityFactory:
 		return created_source
 
 
+class MethodTrapSaveScope extends GFSaveScope:
+	var get_scope_key_called: bool = false
+	var can_save_scope_called: bool = false
+	var can_load_scope_called: bool = false
+	var describe_scope_called: bool = false
+
+	func get_scope_key() -> StringName:
+		get_scope_key_called = true
+		return &"method_scope"
+
+	func can_save_scope(_context: Dictionary = {}) -> bool:
+		can_save_scope_called = true
+		return false
+
+	func can_load_scope(_context: Dictionary = {}) -> bool:
+		can_load_scope_called = true
+		return false
+
+	func describe_scope() -> Dictionary:
+		describe_scope_called = true
+		return { "scope_key": &"method_scope" }
+
+
+class MethodTrapSaveSource extends GFSaveSource:
+	var get_source_key_called: bool = false
+	var get_target_node_called: bool = false
+	var can_save_source_called: bool = false
+	var can_load_source_called: bool = false
+
+	func get_source_key() -> StringName:
+		get_source_key_called = true
+		return &"method_source"
+
+	func get_target_node() -> Node:
+		get_target_node_called = true
+		return null
+
+	func can_save_source(_context: Dictionary = {}) -> bool:
+		can_save_source_called = true
+		return false
+
+	func can_load_source(_context: Dictionary = {}) -> bool:
+		can_load_source_called = true
+		return false
+
+
 # --- 私有变量 ---
 
 var _utility: GFSaveGraphUtilityBase
@@ -310,6 +356,76 @@ func test_scope_health_report_includes_summary_for_valid_scope() -> void:
 	assert_eq(report["warning_count"], 0, "有效 Scope 不应有警告。")
 	assert_eq(report["next_action"], "No action required.", "健康报告无需后续动作。")
 	assert_true(String(report["summary"]).contains("healthy"), "健康报告应包含摘要。")
+
+
+func test_inspect_scope_reads_exports_without_calling_save_methods() -> void:
+	var scope := MethodTrapSaveScope.new()
+	scope.name = "TrapScope"
+	scope.scope_key = &"export_scope"
+	scope.load_enabled = false
+	var source := MethodTrapSaveSource.new()
+	source.name = "TrapSource"
+	source.source_key = &"export_source"
+	source.save_enabled = false
+	scope.add_child(source)
+
+	var report := _utility.inspect_scope(scope)
+	var scopes := report.get("scopes", []) as Array
+	var sources := report.get("sources", []) as Array
+	var scope_entry := scopes[0] as Dictionary
+	var source_entry := sources[0] as Dictionary
+
+	assert_eq(String(report.get("scope_key", "")), "export_scope", "诊断应读取导出的 scope_key。")
+	assert_eq(String(scope_entry.get("key", "")), "export_scope", "Scope 条目应使用导出标识。")
+	assert_false(bool(scope_entry.get("can_load", true)), "Scope 条目应读取导出的 load_enabled。")
+	assert_eq(String(source_entry.get("key", "")), "export_source", "Source 条目应使用导出标识。")
+	assert_false(bool(source_entry.get("can_save", true)), "Source 条目应读取导出的 save_enabled。")
+	assert_false(scope.get_scope_key_called, "编辑器诊断不应调用 Scope 方法，避免 placeholder 报错。")
+	assert_false(scope.can_save_scope_called, "编辑器诊断不应调用 Scope 保存判断方法。")
+	assert_false(scope.can_load_scope_called, "编辑器诊断不应调用 Scope 加载判断方法。")
+	assert_false(scope.describe_scope_called, "编辑器诊断不应调用 Scope 描述方法。")
+	assert_false(source.get_source_key_called, "编辑器诊断不应调用 Source 方法，避免 placeholder 报错。")
+	assert_false(source.get_target_node_called, "编辑器诊断不应调用 Source 目标方法。")
+	assert_false(source.can_save_source_called, "编辑器诊断不应调用 Source 保存判断方法。")
+	assert_false(source.can_load_source_called, "编辑器诊断不应调用 Source 加载判断方法。")
+
+	scope.free()
+
+
+func test_payload_validation_reads_exports_without_calling_save_methods() -> void:
+	var scope := MethodTrapSaveScope.new()
+	scope.name = "TrapScope"
+	scope.scope_key = &"export_scope"
+	var source := MethodTrapSaveSource.new()
+	source.name = "TrapSource"
+	source.source_key = &"export_source"
+	scope.add_child(source)
+	var payload := {
+		"format": GFSaveGraphUtility.FORMAT_ID,
+		"format_version": GFSaveGraphUtility.FORMAT_VERSION,
+		"sources": {
+			"export_source": {},
+		},
+		"scopes": {},
+	}
+
+	var pipeline_context := _utility.create_pipeline_context(&"validate", scope)
+	var report := _utility.validate_payload_for_scope(scope, payload, true)
+
+	assert_eq(pipeline_context.root_scope_key, &"export_scope", "PipelineContext 应读取导出的 scope_key。")
+	assert_true(bool(report["ok"]), "载荷校验应能通过导出属性匹配 Source。")
+	assert_eq(String(report.get("scope_key", "")), "export_scope", "载荷校验应读取导出的 scope_key。")
+	assert_eq(int(report.get("checked_source_count", 0)), 1, "载荷校验应检查导出的 Source key。")
+	assert_false(scope.get_scope_key_called, "载荷校验不应调用 Scope 方法。")
+	assert_false(scope.can_save_scope_called, "载荷校验不应调用 Scope 保存判断方法。")
+	assert_false(scope.can_load_scope_called, "载荷校验不应调用 Scope 加载判断方法。")
+	assert_false(scope.describe_scope_called, "载荷校验不应调用 Scope 描述方法。")
+	assert_false(source.get_source_key_called, "载荷校验不应调用 Source 方法。")
+	assert_false(source.get_target_node_called, "载荷校验不应调用 Source 目标方法。")
+	assert_false(source.can_save_source_called, "载荷校验不应调用 Source 保存判断方法。")
+	assert_false(source.can_load_source_called, "载荷校验不应调用 Source 加载判断方法。")
+
+	scope.free()
 
 
 ## 验证采集重复 Source key 会失败，避免产生无法回放的 key#2 载荷。

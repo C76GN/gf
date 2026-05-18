@@ -249,12 +249,16 @@ func _render_report(scope: GFSaveScopeBase) -> void:
 	_details.text = _safe_json(_last_scope_report)
 
 	var root_item := _tree.create_item()
+	var root_scope_entry := _get_root_scope_entry()
 	var scope_item := _tree.create_item(root_item)
 	scope_item.set_text(0, "Root")
-	scope_item.set_text(1, String(scope.get_scope_key()))
-	scope_item.set_text(2, _get_save_load_state(scope.can_save_scope(), scope.can_load_scope()))
-	scope_item.set_text(3, _get_node_path_text(scope))
-	scope_item.set_metadata(0, scope.describe_scope())
+	scope_item.set_text(1, String(root_scope_entry.get("key", "")))
+	scope_item.set_text(2, _get_save_load_state(
+		bool(root_scope_entry.get("can_save", false)),
+		bool(root_scope_entry.get("can_load", false))
+	))
+	scope_item.set_text(3, String(root_scope_entry.get("path", _get_node_path_text(scope))))
+	scope_item.set_metadata(0, root_scope_entry.duplicate(true))
 
 	for scope_variant: Variant in _last_scope_report.get("scopes", []):
 		var scope_entry := scope_variant as Dictionary
@@ -319,6 +323,14 @@ func _render_empty(message: String, hint: String = "") -> void:
 		_empty_label.text = hint if not hint.is_empty() else message
 		_empty_label.visible = true
 	GFEditorWorkspaceUI.set_status(_summary_label, message, GFEditorWorkspaceUI.INFO_TEXT_COLOR)
+
+
+func _get_root_scope_entry() -> Dictionary:
+	for scope_variant: Variant in _last_scope_report.get("scopes", []):
+		var scope_entry := scope_variant as Dictionary
+		if scope_entry != null:
+			return scope_entry
+	return {}
 
 
 func _get_selected_scope() -> GFSaveScopeBase:

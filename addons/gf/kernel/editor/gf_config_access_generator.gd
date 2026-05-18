@@ -18,7 +18,7 @@ const DEFAULT_PROVIDER_ACCESSOR: String = "null"
 # --- 公共方法 ---
 
 ## 根据 schema 列表生成访问器并写入文件。
-## @param schemas: 带有 `get_table_key()` 方法或 `table_name` 属性的 schema 列表。
+## @param schemas: 带有 `table_name` 或 `table_key` 属性的 schema 列表。
 ## @param output_path: 生成文件输出路径。
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
 ## @param access_class_name: 生成脚本的 class_name。
@@ -37,7 +37,7 @@ func generate(
 
 
 ## 根据 schema 列表生成访问器源码。
-## @param schemas: 带有 `get_table_key()` 方法或 `table_name` 属性的 schema 列表。
+## @param schemas: 带有 `table_name` 或 `table_key` 属性的 schema 列表。
 ## @param access_class_name: 生成脚本的 class_name。
 ## @param provider_accessor: 无显式 provider 参数时用于获取 provider 的表达式。
 ## @param options: 可选生成选项。
@@ -299,9 +299,10 @@ func _get_schema_table_name(schema: Variant) -> String:
 		return ""
 	if schema is Object:
 		var object := schema as Object
-		if object.has_method("get_table_key"):
-			return String(object.call("get_table_key"))
-		return String(_get_object_property_or_default(object, &"table_name", ""))
+		var table_name := String(_get_object_property_or_default(object, &"table_name", ""))
+		if not table_name.is_empty():
+			return table_name
+		return String(_get_object_property_or_default(object, &"table_key", ""))
 	return ""
 
 

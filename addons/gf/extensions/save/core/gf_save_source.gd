@@ -1,3 +1,5 @@
+@tool
+
 ## GFSaveSource: 存档图数据源节点。
 ##
 ## Source 是存档图的最小数据入口。项目可继承并重写 gather/apply，

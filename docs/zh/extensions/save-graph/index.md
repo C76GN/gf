@@ -10,15 +10,48 @@
 
 需要把场景树上的多个节点状态组合成一个存档图时，可以使用 `GFSaveGraphUtility`。`GFSaveScope` 定义保存边界，`GFSaveSource` 定义数据入口，`GFNodeSerializerRegistry` 管理可组合节点序列化器；框架只负责遍历、聚合和应用，不规定玩家、关卡、背包或实体字段。
 
+最短闭环是：`GFSaveGraphUtility` 负责从 `GFSaveScope` 树采集/应用 Dictionary payload，`GFStorageUtility` 负责把这个 Dictionary 写盘/读盘。项目不需要先手动收集一份业务数据再“转给” SaveGraph；SaveGraph 会遍历 `GFSaveSource` 并生成可直接交给 Storage 的 payload。
+
 ```gdscript
 var save_graph := Gf.get_utility(GFSaveGraphUtility) as GFSaveGraphUtility
+var storage := Gf.get_utility(GFStorageUtility) as GFStorageUtility
+
 var report := save_graph.inspect_scope(%SaveScope)
+if not bool(report.get("ok", false)):
+	push_warning(String(report.get("summary", "")))
+	return
+
 var payload := save_graph.gather_scope(%SaveScope)
-var payload_report := save_graph.validate_payload_for_scope(%SaveScope, payload, true)
-save_graph.apply_scope(%SaveScope, payload)
+if payload.is_empty():
+	return
+
+storage.save_data("hero_save.sav", payload)
 ```
 
-项目可以继承 `GFSaveSource` 或注册自定义 `GFNodeSerializer`，也可以在需要补建实体时注册 `GFSaveEntityFactory`。默认能力提供 Transform、CanvasItem、Control、Range 等通用节点状态片段，并可通过 `GFSavePipelineStep` 在采集/应用前后插入校验、版本适配或调试标记；`inspect_scope()` / `validate_payload_for_scope()` 用于开发期提前发现重复 key、缺失目标或载荷不匹配，报告会包含 `healthy`、`error_count`、`warning_count`、`summary` 与 `next_action`，便于编辑器面板、CI 或测试直接消费。`load_scope()` 从存储读取后会先校验载荷格式与当前 Scope 树，不会把明显不匹配的文件继续应用。`apply_scope()` 会拒绝非 Dictionary 的 `sources`、`scopes`、子 Scope 载荷、Source `data` 和 Serializer `data`，把结构错误写入结果而不是继续应用，并清理本次事务使用的临时实体上下文。若 `GFSaveScope.restore_policy` 允许工厂恢复，工厂创建出的实体必须自身就是 `GFSaveSource`，或子树中能找到 `GFSaveSource`；否则该实体会被释放，不会残留在场景树中。默认 `transactional_apply = true` 时，本次应用中新建的工厂实体会在后续 Source 或子 Scope 应用失败时回滚释放，避免读档一半失败后留下半恢复场景。`gather_scope()` 遇到重复 Source key、重复子 Scope key 或子 Scope 采集失败时会整体返回空载荷，并把错误写入共享的 `GFSavePipelineContext`，避免生成缺失子树的部分存档。插件菜单 `工具 > GF > 校验当前场景 SaveGraph` 与 `GF Workspace > Save` 页面会扫描当前编辑场景里的 `GFSaveScope` 并展示同一套健康报告；工作区页面还可以按需采集预览 payload 和 pipeline trace，具体 schema 仍由项目层决定。
+读取时反过来：Storage 读出 Dictionary，SaveGraph 校验并应用回当前场景里的 `GFSaveScope` 树。
+
+```gdscript
+var payload := storage.load_data("hero_save.sav")
+var payload_report := save_graph.validate_payload_for_scope(%SaveScope, payload, true)
+if not bool(payload_report.get("ok", false)):
+	push_warning(String(payload_report.get("summary", "")))
+	return
+
+var result := save_graph.apply_scope(%SaveScope, payload, {}, true)
+if not bool(result.get("ok", false)):
+	push_warning("Load failed: %s" % str(result.get("errors", [])))
+```
+
+如果 `GFSaveGraphUtility` 是通过 `Gf.get_utility()` 取得，并且 `GFStorageUtility` 已注册到同一个 `GFArchitecture`，也可以直接使用封装方法：
+
+```gdscript
+save_graph.save_scope("hero_save.sav", %SaveScope)
+save_graph.load_scope("hero_save.sav", %SaveScope, {}, true)
+```
+
+如果已经有项目自己的 `SaveGamePayload` / Model 聚合对象，且不想让 SaveGraph 遍历场景节点，可以直接把它转成 Dictionary 后交给 `GFStorageUtility.save_data()` 或 `save_slot()`；这种模式不需要 `GFSaveGraphUtility`。如果希望这份业务数据也进入 SaveGraph 的统一 payload，则把它封装成一个自定义 `GFSaveSource`，在 `gather_save_data()` 返回业务 Dictionary，在 `apply_save_data()` 中恢复业务状态。
+
+项目可以继承 `GFSaveSource` 或注册自定义 `GFNodeSerializer`，也可以在需要补建实体时注册 `GFSaveEntityFactory`。默认能力提供 Transform、CanvasItem、Control、Range 等通用节点状态片段，并可通过 `GFSavePipelineStep` 在采集/应用前后插入校验、版本适配或调试标记；`inspect_scope()` / `validate_payload_for_scope()` 用于开发期提前发现重复 key、缺失目标或载荷不匹配，报告会包含 `healthy`、`error_count`、`warning_count`、`summary` 与 `next_action`，便于编辑器面板、CI 或测试直接消费。这两个接口属于结构诊断，只读取 `scope_key`、`source_key`、启用开关、阶段和目标路径等导出属性，不执行项目自定义 `get_scope_key()`、`can_save_scope()`、`get_source_key()` 或 `get_target_node()` 方法。`load_scope()` 从存储读取后会先校验载荷格式与当前 Scope 树，不会把明显不匹配的文件继续应用。`apply_scope()` 会拒绝非 Dictionary 的 `sources`、`scopes`、子 Scope 载荷、Source `data` 和 Serializer `data`，把结构错误写入结果而不是继续应用，并清理本次事务使用的临时实体上下文。若 `GFSaveScope.restore_policy` 允许工厂恢复，工厂创建出的实体必须自身就是 `GFSaveSource`，或子树中能找到 `GFSaveSource`；否则该实体会被释放，不会残留在场景树中。默认 `transactional_apply = true` 时，本次应用中新建的工厂实体会在后续 Source 或子 Scope 应用失败时回滚释放，避免读档一半失败后留下半恢复场景。`gather_scope()` 遇到重复 Source key、重复子 Scope key 或子 Scope 采集失败时会整体返回空载荷，并把错误写入共享的 `GFSavePipelineContext`，避免生成缺失子树的部分存档。插件菜单 `工具 > GF > 校验当前场景 SaveGraph` 与 `GF Workspace > Save` 页面会扫描当前编辑场景里的 `GFSaveScope` 并展示同一套健康报告；刷新健康报告不要求项目自定义 SaveScope/SaveSource 脚本声明 `@tool`。工作区页面还可以按需采集预览 payload 和 pipeline trace；预览载荷会执行实际采集逻辑，若项目希望在编辑器中运行自定义保存代码，应让对应脚本安全支持 `@tool`。
 
 默认节点序列化器按节点类型拆分：`GFNodeTransform2DSerializer` / `GFNodeTransform3DSerializer` 保存空间变换，`GFNodeCanvasItemSerializer` 保存可见性与调制等 2D 表现状态，`GFNodeControlSerializer` 保存常见 UI Control 状态，`GFNodeRangeSerializer` 保存 Slider/ProgressBar 等 Range 值，`GFNodeTimerSerializer` 保存 Timer 运行状态，`GFNodeAnimationPlayerSerializer` 保存动画播放器状态，`GFNodeAudioStreamPlayerSerializer` 保存音频播放器状态，`GFNodePropertySerializer` 则用于项目显式声明的属性列表。属性序列化器应用数据时会检查属性存在、可写性和基础 Variant 类型兼容性；复杂迁移、旧字段别名和业务范围钳制应放在项目自己的 Serializer 或 Pipeline Step 中处理。需要给动态实体稳定身份时，可在节点上挂 `GFSaveIdentity`，它只描述 `persistent_id`、`type_key` 和扩展描述，不负责实例化。
 
@@ -53,4 +86,4 @@ save_graph.apply_scope(%SaveScope, payload, {
 print(pipeline_context.to_dict())
 ```
 
-trace 中的单条记录由 `GFSavePipelineEvent` 表示，包含阶段、严重级别、Scope key、Source key、节点路径、调试消息和附加载荷。它适合写入日志、测试断言或编辑器诊断面板；业务字段仍应放在项目自己的 payload 中。
+`GFSavePipelineContext` 只是流程事件日志，不是要保存的游戏数据。保存时应写入 `gather_scope()` 返回的 payload；`pipeline_context.to_dict()` 只适合写日志、测试断言或编辑器诊断面板。trace 中的单条记录由 `GFSavePipelineEvent` 表示，包含阶段、严重级别、Scope key、Source key、节点路径、调试消息和附加载荷。业务字段仍应放在项目自己的 payload 中，或由自定义 `GFSaveSource` 写入 SaveGraph payload。

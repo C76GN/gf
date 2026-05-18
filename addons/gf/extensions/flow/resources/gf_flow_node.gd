@@ -180,7 +180,7 @@ func deserialize_runtime_state(data: Dictionary) -> void:
 
 func _find_port(ports: Array[GFFlowPortBase], port_id: StringName) -> GFFlowPortBase:
 	for port: GFFlowPortBase in ports:
-		if port != null and port.get_port_id() == port_id:
+		if port != null and _get_port_id(port) == port_id:
 			return port
 	return null
 
@@ -189,5 +189,43 @@ func _describe_ports(ports: Array[GFFlowPortBase]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for port: GFFlowPortBase in ports:
 		if port != null:
-			result.append(port.describe())
+			result.append(_describe_port(port))
 	return result
+
+
+func _describe_port(port: GFFlowPortBase) -> Dictionary:
+	var port_id := _get_port_id(port)
+	return {
+		"port_id": port_id,
+		"display_name": _get_port_display_name(port, port_id),
+		"direction": port.direction,
+		"value_type": port.value_type,
+		"allow_multiple": port.allow_multiple,
+		"editor_color": port.editor_color,
+		"type_hint": port.type_hint,
+		"class_name_hint": port.class_name_hint,
+		"semantic_tags": port.semantic_tags.duplicate(),
+		"metadata": port.metadata.duplicate(true),
+	}
+
+
+func _get_port_id(port: GFFlowPortBase) -> StringName:
+	if port == null:
+		return &""
+	if port.port_id != &"":
+		return port.port_id
+	if not port.resource_path.is_empty():
+		return StringName(port.resource_path)
+	return &""
+
+
+func _get_port_display_name(port: GFFlowPortBase, port_id: StringName) -> String:
+	if port == null:
+		return "Flow Port"
+	if not port.display_name.is_empty():
+		return port.display_name
+	if port_id != &"":
+		return String(port_id)
+	if not port.resource_path.is_empty():
+		return port.resource_path.get_file().get_basename().capitalize()
+	return "Flow Port"

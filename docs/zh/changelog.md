@@ -22,36 +22,40 @@
 
 ---
 
-## [3.11.0] - 2026-05-18
+## [3.12.0] - 2026-05-18
 
-**版本概述**：扩展标准音频工具的 BGM transport 与 SFX 生命周期控制，让暂停菜单、剧情恢复、关卡切换和全局静音/停止流程可以复用 GF 自己的音频抽象，而不是项目层手动管理播放器节点。
+**版本概述**：加固编辑器结构诊断，避免刷新 SaveGraph、FlowGraph 或生成配置访问器时执行项目脚本方法。
 
 ### 🚀 新增特性
 
-- `GFAudioUtility` 新增 `play_bgm_with_options()`、`pause_bgm()`、`resume_bgm()`、`seek_bgm()`、`get_bgm_playback_position()`、`is_bgm_paused()` 和 `stop_all_sfx()`。
-- `GFAudioBackend` 新增对应 BGM transport 与 stop-all SFX 可选协议，外部音频后端可选择接管这些控制请求。
-- `GFAudioUtility` 新增 `bgm_finished(history_key)` 信号，并在调试快照中公开 BGM 暂停状态、播放位置、loop 覆盖值和空间 SFX 活跃数量。
+- `GFFlowGraphEditorModel` 新增 `build_editor_report()`、`build_editor_catalog()`、`validate_graph_for_editor()` 和 `validate_metadata_for_editor()`，供 Inspector、工作区和项目自定义编辑器复用同一套 property-only 结构报告。
 
-### 🔄 机制更改
+### 🐛 Bug 修复
 
-- 默认 Godot BGM 播放路径使用 `AudioStreamPlayer.stream_paused` 保留暂停位置，显式传入 `loop` 时复制音频流再尝试设置循环属性，避免修改共享 Resource。
-- 普通 SFX 与 2D/3D 空间 SFX 现在都会被 `stop_all_sfx()` 跟踪和释放；该接口会同时取消尚未完成的异步 SFX 请求。
+- `GF Workspace > Save` 页面和 `工具 > GF > 校验当前场景 SaveGraph` 的健康检查改为读取导出属性，避免 Godot 编辑器中的 placeholder 脚本实例在刷新时因调用 `get_scope_key()` 等方法报错。
+- `GFSaveGraphUtility.validate_payload_for_scope()` 与 PipelineContext 根 key 创建也改为读取 SaveScope/SaveSource 的导出属性，载荷结构校验不再调用项目保存方法。
+- FlowGraph 的 Inspector、工作区图视图模型、编辑器目录、结构描述和结构校验改为读取 FlowNode/FlowPort 导出属性，避免编辑器刷新触发项目自定义节点或端口方法。
+- `GFConfigAccessGenerator` 生成表访问器时改为读取 schema 的 `table_name` / `table_key` 属性，不再通过 `get_table_key()` 调用项目 schema 方法。
+- AudioBank 与 NodeStateMachine Inspector 的校验提示改为直接读取 `GFValidationIssue` 字段，Capability Inspector 去掉不必要的动态 `has_method()` 分支。
+- `GFSaveScope`、`GFSaveSource` 和 `GFSaveIdentity` 基类声明为 `@tool`，让框架内置 Save 节点在编辑器诊断中保持可读。
 
 ### 🔌 API 变动说明
 
-- `GFAudioUtility.get_debug_snapshot()` 新增 `bgm_paused`、`bgm_position`、`current_bgm_loop` 和 `active_spatial_sfx_count` 字段。
-- `GFAudioBackend` 的新增方法都是默认返回未处理的可选协议；未实现这些方法的项目后端应继承当前基类以获得默认行为。
+- 新增的 Flow 编辑器模型方法都是向后兼容的公开 API；现有 `GFFlowGraph.build_editor_report()`、`get_editor_catalog()` 和 `validate_graph()` 签名不变，但编辑器结构数据现在以导出属性为准。
 
 ### 📘 升级指南
 
-- 项目中用于暂停菜单或场景切换的手写 BGM 暂停/恢复逻辑，可迁移到 `pause_bgm()`、`resume_bgm()` 和 `get_bgm_playback_position()`。
-- 项目中手动遍历 SFX 播放器的停止逻辑，可迁移到 `stop_all_sfx()`；需要精细控制单次播放时仍使用 `GFAudioEmitterHandle`。
+- 只使用导出属性配置 SaveGraph 的项目无需改动；如果项目要在编辑器里预览 payload 并执行自定义保存/加载方法，请确保对应自定义脚本本身也适合 `@tool` 环境。
+- SaveGraph 文档补充了 `GFSaveGraphUtility -> GFStorageUtility` 的最短保存/读取闭环，并明确 `GFSavePipelineContext` 是流程日志，不是应写盘的游戏 payload。
+- FlowGraph 编辑器工具以 `node_id`、`display_name`、端口数组、连接数组等导出属性为准；项目自定义方法仍可服务运行时，但不应作为编辑器结构数据来源。
+- 配置访问器生成器现在要求 schema 通过 `table_name` 或 `table_key` 属性暴露表名。
 
 ### 📁 核心受影响文件
 
-- 音频协议：`addons/gf/standard/utilities/audio/gf_audio_backend.gd`。
-- 音频工具：`addons/gf/standard/utilities/audio/gf_audio_utility.gd`。
-- 测试：`tests/gf_core/standard/utilities/audio/test_gf_audio_utility.gd`。
-- 文档：`docs/zh/standard/utilities/runtime/audio.md`。
-
----
+- Save 节点基类：`addons/gf/extensions/save/core/gf_save_scope.gd`、`addons/gf/extensions/save/core/gf_save_source.gd`、`addons/gf/extensions/save/core/gf_save_identity.gd`。
+- SaveGraph 诊断：`addons/gf/extensions/save/graph/gf_save_graph_utility.gd`、`addons/gf/extensions/save/editor/gf_save_graph_dock.gd`。
+- FlowGraph 编辑器结构：`addons/gf/extensions/flow/resources/gf_flow_graph.gd`、`addons/gf/extensions/flow/resources/gf_flow_node.gd`、`addons/gf/extensions/flow/resources/gf_flow_port.gd`、`addons/gf/extensions/flow/editor/gf_flow_graph_editor_model.gd`、`addons/gf/extensions/flow/editor/gf_flow_graph_inspector_plugin.gd`。
+- 配置访问器生成器：`addons/gf/kernel/editor/gf_config_access_generator.gd`。
+- 其他编辑器提示：`addons/gf/standard/utilities/audio/editor/gf_audio_bank_inspector_plugin.gd`、`addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd`、`addons/gf/extensions/capability/editor/gf_capability_inspector_plugin.gd`。
+- 测试：`tests/gf_core/extensions/save/test_gf_save_graph_utility.gd`、`tests/gf_core/extensions/save/test_gf_save_graph_dock.gd`、`tests/gf_core/extensions/flow/test_gf_flow_graph.gd`、`tests/gf_core/kernel/editor/test_gf_config_access_generator.gd`。
+- 文档：`docs/zh/extensions/save-graph/index.md`、`docs/zh/extensions/flow-domain-physics/index.md`、`docs/zh/standard/utilities/io/config-remote-outbox.md`。

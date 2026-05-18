@@ -212,8 +212,8 @@ func check_connection_compatibility(
 	to_node_id: StringName,
 	to_port_id: StringName
 ) -> Dictionary:
-	var from_node := get_node(from_node_id)
-	var to_node := get_node(to_node_id)
+	var from_node := _find_node_by_id(from_node_id)
+	var to_node := _find_node_by_id(to_node_id)
 	if from_node == null:
 		return _make_connection_compatibility_report(false, "missing_from_node", "Connection source node does not exist.")
 	if to_node == null:
@@ -221,14 +221,14 @@ func check_connection_compatibility(
 	if from_port_id == &"" or to_port_id == &"":
 		return _make_connection_compatibility_report(true, "", "")
 
-	var output_port := from_node.get_output_port(from_port_id)
-	var input_port := to_node.get_input_port(to_port_id)
+	var output_port := _find_output_port(from_node, from_port_id)
+	var input_port := _find_input_port(to_node, to_port_id)
 	if output_port == null:
 		return _make_connection_compatibility_report(false, "missing_output_port", "Connection output port does not exist.")
 	if input_port == null:
 		return _make_connection_compatibility_report(false, "missing_input_port", "Connection input port does not exist.")
 
-	var report := output_port.get_compatibility_report(input_port)
+	var report := _get_port_compatibility_report(output_port, input_port)
 	report["from_node_id"] = from_node_id
 	report["from_port_id"] = from_port_id
 	report["to_node_id"] = to_node_id
@@ -297,10 +297,10 @@ func get_editor_catalog() -> Dictionary:
 			category = "Flow"
 		var entry := {
 			"node_id": node.node_id,
-			"display_name": node.get_display_name(),
+			"display_name": _get_node_display_name(node),
 			"category": category,
-			"ports": node.describe_ports(),
-			"editor": node.describe_editor(),
+			"ports": _describe_node_ports(node),
+			"editor": _describe_node_editor(node),
 			"metadata": node.metadata.duplicate(true),
 		}
 		node_entries.append(entry)
@@ -328,7 +328,7 @@ func describe_graph() -> Dictionary:
 	var node_descriptions: Array[Dictionary] = []
 	for node: GFFlowNode in nodes:
 		if node != null:
-			node_descriptions.append(node.describe_node())
+			node_descriptions.append(_describe_node(node))
 	return {
 		"start_node_id": start_node_id,
 		"node_count": node_descriptions.size(),
@@ -499,6 +499,167 @@ func build_editor_report() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
+func _find_node_by_id(node_id: StringName) -> GFFlowNode:
+	for node: GFFlowNode in nodes:
+		if node != null and node.node_id == node_id:
+			return node
+	return null
+
+
+func _get_node_display_name(node: GFFlowNode) -> String:
+	if node == null:
+		return "Flow Node"
+	if not node.display_name.is_empty():
+		return node.display_name
+	if node.node_id != &"":
+		return String(node.node_id)
+	return "Flow Node"
+
+
+func _describe_node(node: GFFlowNode) -> Dictionary:
+	return {
+		"node_id": node.node_id,
+		"display_name": _get_node_display_name(node),
+		"category": node.category,
+		"next_node_ids": node.next_node_ids.duplicate(),
+		"wait_for_result": node.wait_for_result,
+		"ports": _describe_node_ports(node),
+		"editor": _describe_node_editor(node),
+		"metadata": node.metadata.duplicate(true),
+	}
+
+
+func _describe_node_ports(node: GFFlowNode) -> Dictionary:
+	return {
+		"inputs": _describe_ports(node.input_ports),
+		"outputs": _describe_ports(node.output_ports),
+	}
+
+
+func _describe_node_editor(node: GFFlowNode) -> Dictionary:
+	return {
+		"display_name": _get_node_display_name(node),
+		"category": node.category,
+		"position": node.editor_position,
+		"size": node.editor_size,
+		"collapsed": node.editor_collapsed,
+	}
+
+
+func _describe_ports(ports: Array) -> Array[Dictionary]:
+	var result: Array[Dictionary] = []
+	for port_variant: Variant in ports:
+		var port := port_variant as GFFlowPort
+		if port != null:
+			result.append(_describe_port(port))
+	return result
+
+
+func _describe_port(port: GFFlowPort) -> Dictionary:
+	var port_id := _get_port_id(port)
+	return {
+		"port_id": port_id,
+		"display_name": _get_port_display_name(port, port_id),
+		"direction": port.direction,
+		"value_type": port.value_type,
+		"allow_multiple": port.allow_multiple,
+		"editor_color": port.editor_color,
+		"type_hint": port.type_hint,
+		"class_name_hint": port.class_name_hint,
+		"semantic_tags": port.semantic_tags.duplicate(),
+		"metadata": port.metadata.duplicate(true),
+	}
+
+
+func _get_port_id(port: GFFlowPort) -> StringName:
+	if port == null:
+		return &""
+	if port.port_id != &"":
+		return port.port_id
+	if not port.resource_path.is_empty():
+		return StringName(port.resource_path)
+	return &""
+
+
+func _get_port_display_name(port: GFFlowPort, port_id: StringName) -> String:
+	if port == null:
+		return "Flow Port"
+	if not port.display_name.is_empty():
+		return port.display_name
+	if port_id != &"":
+		return String(port_id)
+	if not port.resource_path.is_empty():
+		return port.resource_path.get_file().get_basename().capitalize()
+	return "Flow Port"
+
+
+func _find_input_port(node: GFFlowNode, port_id: StringName) -> GFFlowPort:
+	return _find_port(node.input_ports, port_id) if node != null else null
+
+
+func _find_output_port(node: GFFlowNode, port_id: StringName) -> GFFlowPort:
+	return _find_port(node.output_ports, port_id) if node != null else null
+
+
+func _find_port(ports: Array, port_id: StringName) -> GFFlowPort:
+	for port_variant: Variant in ports:
+		var port := port_variant as GFFlowPort
+		if port != null and _get_port_id(port) == port_id:
+			return port
+	return null
+
+
+func _get_port_compatibility_report(source_port: GFFlowPort, target_port: GFFlowPort) -> Dictionary:
+	if target_port == null:
+		return _make_port_compatibility_report(source_port, null, false, "missing_target_port", "Target port is null.")
+
+	var output_port := source_port
+	var input_port := target_port
+	if source_port != null and source_port.direction == GFFlowPort.Direction.INPUT and target_port.direction == GFFlowPort.Direction.OUTPUT:
+		output_port = target_port
+		input_port = source_port
+
+	if output_port == null or output_port.direction != GFFlowPort.Direction.OUTPUT or input_port.direction != GFFlowPort.Direction.INPUT:
+		return _make_port_compatibility_report(output_port, input_port, false, "invalid_direction", "Connections require an output port and an input port.")
+	if not _value_types_are_compatible(output_port.value_type, input_port.value_type):
+		return _make_port_compatibility_report(output_port, input_port, false, "value_type_mismatch", "Port value types are not compatible.")
+	if not _class_hints_are_compatible(output_port, input_port):
+		return _make_port_compatibility_report(output_port, input_port, false, "class_hint_mismatch", "Port class hints are not compatible.")
+
+	return _make_port_compatibility_report(output_port, input_port, true, "", "")
+
+
+func _value_types_are_compatible(source_type: GFFlowPort.ValueType, target_type: GFFlowPort.ValueType) -> bool:
+	if source_type == GFFlowPort.ValueType.ANY or target_type == GFFlowPort.ValueType.ANY:
+		return true
+	return source_type == target_type
+
+
+func _class_hints_are_compatible(source_port: GFFlowPort, target_port: GFFlowPort) -> bool:
+	if source_port.value_type != GFFlowPort.ValueType.OBJECT or target_port.value_type != GFFlowPort.ValueType.OBJECT:
+		return true
+	if source_port.class_name_hint == &"" or target_port.class_name_hint == &"":
+		return true
+	return source_port.class_name_hint == target_port.class_name_hint
+
+
+func _make_port_compatibility_report(
+	source_port: GFFlowPort,
+	target_port: GFFlowPort,
+	ok: bool,
+	reason: String,
+	message: String
+) -> Dictionary:
+	return {
+		"ok": ok,
+		"reason": reason,
+		"message": message,
+		"source_port_id": _get_port_id(source_port) if source_port != null else &"",
+		"source_value_type": source_port.value_type if source_port != null else GFFlowPort.ValueType.ANY,
+		"target_port_id": _get_port_id(target_port) if target_port != null else &"",
+		"target_value_type": target_port.value_type if target_port != null else GFFlowPort.ValueType.ANY,
+	}
+
 func _get_validation_next_actions() -> Dictionary:
 	return {
 		"null_node": "Remove the null entry or replace it with a valid GFFlowNode resource.",
@@ -551,7 +712,7 @@ func _validate_ports(node_id: StringName, label: String, ports: Array, report: D
 			_append_validation_issue(report, "warning", "null_%s_port" % label, String(node_id), "Flow node contains a null %s port." % label)
 			continue
 
-		var port_id := port.get_port_id()
+		var port_id := _get_port_id(port)
 		if port_id == &"":
 			_append_validation_issue(report, "error", "empty_%s_port_id" % label, String(node_id), "Flow node contains an empty %s port id." % label)
 			continue
@@ -579,8 +740,8 @@ func _validate_connections(report: Dictionary, node_ids: Dictionary) -> void:
 			_append_validation_issue(report, "error", "duplicate_connection", String(from_node_id), "Duplicate flow connection.")
 		connection_keys[connection_key] = true
 
-		var from_node := get_node(from_node_id)
-		var to_node := get_node(to_node_id)
+		var from_node := _find_node_by_id(from_node_id)
+		var to_node := _find_node_by_id(to_node_id)
 		if from_node == null or not node_ids.has(from_node_id):
 			_append_validation_issue(report, "error", "missing_connection_from_node", String(from_node_id), "Connection source node does not exist.")
 		if to_node == null or not node_ids.has(to_node_id):
@@ -591,7 +752,7 @@ func _validate_connections(report: Dictionary, node_ids: Dictionary) -> void:
 		_count_connection_port(output_counts, from_node_id, from_port_id, output_port, false, report)
 		_count_connection_port(input_counts, to_node_id, to_port_id, input_port, true, report)
 		if validate_port_compatibility and output_port != null and input_port != null:
-			var compatibility := output_port.get_compatibility_report(input_port)
+			var compatibility := _get_port_compatibility_report(output_port, input_port)
 			if not bool(compatibility.get("ok", false)):
 				_append_validation_issue(report, "error", "incompatible_connection_ports", String(from_node_id), String(compatibility.get("message", "")))
 
@@ -714,7 +875,7 @@ func _metadata_get_value(target_metadata: Dictionary, key: StringName) -> Varian
 
 func _get_successor_node_ids(node_id: StringName, node_ids: Dictionary) -> Array[StringName]:
 	var result: Array[StringName] = []
-	var node := get_node(node_id)
+	var node := _find_node_by_id(node_id)
 	if node != null:
 		for next_id_text: String in node.next_node_ids:
 			_append_successor_id(result, StringName(next_id_text), node_ids)
@@ -765,7 +926,7 @@ func _validate_connection_port(
 	if node == null or port_id == &"":
 		return null
 
-	var port := node.get_input_port(port_id) if is_input else node.get_output_port(port_id)
+	var port := _find_input_port(node, port_id) if is_input else _find_output_port(node, port_id)
 	if port == null:
 		var kind := "missing_connection_input_port" if is_input else "missing_connection_output_port"
 		var label := "input" if is_input else "output"
@@ -799,13 +960,13 @@ func _can_append_connection(
 	to_node_id: StringName,
 	to_port_id: StringName
 ) -> bool:
-	var from_node := get_node(from_node_id)
-	var to_node := get_node(to_node_id)
+	var from_node := _find_node_by_id(from_node_id)
+	var to_node := _find_node_by_id(to_node_id)
 	if from_node == null or to_node == null:
 		return true
 
-	var output_port := from_node.get_output_port(from_port_id) if from_port_id != &"" else null
-	var input_port := to_node.get_input_port(to_port_id) if to_port_id != &"" else null
+	var output_port := _find_output_port(from_node, from_port_id) if from_port_id != &"" else null
+	var input_port := _find_input_port(to_node, to_port_id) if to_port_id != &"" else null
 	if from_port_id != &"" and output_port == null:
 		return false
 	if to_port_id != &"" and input_port == null:
@@ -814,7 +975,7 @@ func _can_append_connection(
 		return false
 	if output_port != null and not output_port.allow_multiple and not get_connections_from(from_node_id, from_port_id).is_empty():
 		return false
-	if validate_port_compatibility and output_port != null and input_port != null and not output_port.is_compatible_with(input_port):
+	if validate_port_compatibility and output_port != null and input_port != null and not bool(_get_port_compatibility_report(output_port, input_port).get("ok", false)):
 		return false
 	return true
 

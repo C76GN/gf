@@ -41,6 +41,25 @@ func test_build_source_accepts_dictionary_schemas() -> void:
 	assert_true(source.contains("const ENEMY_DATA: StringName = &\"enemy_data\""), "字典 schema 应可提供表名。")
 
 
+func test_build_source_reads_schema_properties_without_calling_methods() -> void:
+	var schema := MethodTrapConfigSchemaStub.new(&"item_data")
+	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+
+	var source: String = generator.build_source([schema])
+
+	assert_true(source.contains("const ITEM_DATA: StringName = &\"item_data\""), "对象 schema 应通过导出属性提供表名。")
+	assert_false(schema.get_table_key_called, "编辑器生成器不应调用 schema 方法，避免 placeholder 报错。")
+
+
+func test_build_source_accepts_object_table_key_property() -> void:
+	var schema := TableKeyConfigSchemaStub.new(&"enemy_data")
+	var generator: Variant = GF_CONFIG_ACCESS_GENERATOR_BASE.new()
+
+	var source: String = generator.build_source([schema])
+
+	assert_true(source.contains("const ENEMY_DATA: StringName = &\"enemy_data\""), "对象 schema 应支持 table_key 属性。")
+
+
 func test_build_source_supports_gdscript_generation_options() -> void:
 	var schema := ConfigSchemaStub.new(&"item_data")
 	schema.metadata = { "comment": "道具配置表。" }
@@ -70,3 +89,24 @@ class ConfigSchemaStub:
 
 	func get_table_key() -> StringName:
 		return table_name
+
+
+class MethodTrapConfigSchemaStub:
+	var table_name: StringName = &""
+	var metadata: Dictionary = {}
+	var get_table_key_called: bool = false
+
+	func _init(p_table_name: StringName) -> void:
+		table_name = p_table_name
+
+	func get_table_key() -> StringName:
+		get_table_key_called = true
+		return &"method_table"
+
+
+class TableKeyConfigSchemaStub:
+	var table_key: StringName = &""
+	var metadata: Dictionary = {}
+
+	func _init(p_table_key: StringName) -> void:
+		table_key = p_table_key

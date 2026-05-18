@@ -107,13 +107,37 @@ func has_semantic_tag(tag: StringName) -> bool:
 ## @param target_port: 目标端口。
 ## @return 兼容返回 true。
 func is_compatible_with(target_port: GFFlowPort) -> bool:
-	return bool(get_compatibility_report(target_port).get("ok", false))
+	return bool(_get_compatibility_report(target_port).get("ok", false))
 
 
 ## 获取当前端口连接到目标端口的兼容性报告。
 ## @param target_port: 目标端口。
 ## @return 兼容性报告。
 func get_compatibility_report(target_port: GFFlowPort) -> Dictionary:
+	return _get_compatibility_report(target_port)
+
+
+## 描述端口。
+## @return 端口描述字典。
+func describe() -> Dictionary:
+	var effective_port_id := _get_effective_port_id(self)
+	return {
+		"port_id": effective_port_id,
+		"display_name": _get_effective_display_name(self, effective_port_id),
+		"direction": direction,
+		"value_type": value_type,
+		"allow_multiple": allow_multiple,
+		"editor_color": editor_color,
+		"type_hint": type_hint,
+		"class_name_hint": class_name_hint,
+		"semantic_tags": semantic_tags.duplicate(),
+		"metadata": metadata.duplicate(true),
+	}
+
+
+# --- 私有/辅助方法 ---
+
+func _get_compatibility_report(target_port: GFFlowPort) -> Dictionary:
 	if target_port == null:
 		return _make_compatibility_report(self, null, false, "missing_target_port", "Target port is null.")
 
@@ -131,26 +155,6 @@ func get_compatibility_report(target_port: GFFlowPort) -> Dictionary:
 		return _make_compatibility_report(source_port, input_port, false, "class_hint_mismatch", "Port class hints are not compatible.")
 
 	return _make_compatibility_report(source_port, input_port, true, "", "")
-
-
-## 描述端口。
-## @return 端口描述字典。
-func describe() -> Dictionary:
-	return {
-		"port_id": get_port_id(),
-		"display_name": get_display_name(),
-		"direction": direction,
-		"value_type": value_type,
-		"allow_multiple": allow_multiple,
-		"editor_color": editor_color,
-		"type_hint": type_hint,
-		"class_name_hint": class_name_hint,
-		"semantic_tags": semantic_tags.duplicate(),
-		"metadata": metadata.duplicate(true),
-	}
-
-
-# --- 私有/辅助方法 ---
 
 func _value_types_are_compatible(source_type: ValueType, target_type: ValueType) -> bool:
 	if source_type == ValueType.ANY or target_type == ValueType.ANY:
@@ -177,8 +181,30 @@ func _make_compatibility_report(
 		"ok": ok,
 		"reason": reason,
 		"message": message,
-		"source_port_id": source_port.get_port_id() if source_port != null else &"",
+		"source_port_id": _get_effective_port_id(source_port) if source_port != null else &"",
 		"source_value_type": source_port.value_type if source_port != null else ValueType.ANY,
-		"target_port_id": target_port.get_port_id() if target_port != null else &"",
+		"target_port_id": _get_effective_port_id(target_port) if target_port != null else &"",
 		"target_value_type": target_port.value_type if target_port != null else ValueType.ANY,
 	}
+
+
+func _get_effective_port_id(port: GFFlowPort) -> StringName:
+	if port == null:
+		return &""
+	if port.port_id != &"":
+		return port.port_id
+	if not port.resource_path.is_empty():
+		return StringName(port.resource_path)
+	return &""
+
+
+func _get_effective_display_name(port: GFFlowPort, effective_port_id: StringName) -> String:
+	if port == null:
+		return "Flow Port"
+	if not port.display_name.is_empty():
+		return port.display_name
+	if effective_port_id != &"":
+		return String(effective_port_id)
+	if not port.resource_path.is_empty():
+		return port.resource_path.get_file().get_basename().capitalize()
+	return "Flow Port"
