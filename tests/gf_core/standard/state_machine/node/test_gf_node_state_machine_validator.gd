@@ -6,6 +6,7 @@ extends GutTest
 
 const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
 const GFNodeStateMachineDockBase = preload("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd")
+const GFNodeStateMachineInspectorPluginBase = preload("res://addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd")
 const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
 const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GFNodeStateMachineValidatorBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
@@ -52,6 +53,26 @@ func test_validator_reports_duplicate_state_names_and_missing_initial() -> void:
 	assert_gt(report.get_error_count(), 0, "重复状态名应产生错误。")
 	assert_eq(counts.get("duplicate_state_name", 0), 1, "应报告同组重复状态名。")
 	assert_eq(counts.get("missing_initial_state", 0), 1, "自动启动状态机缺少初始状态时应给出警告。")
+
+	machine.free()
+
+
+func test_state_machine_inspector_tooltip_formats_validation_issue_objects() -> void:
+	var machine := GFNodeStateMachineBase.new()
+	var idle_a := GFNodeStateBase.new()
+	var idle_b := GFNodeStateBase.new()
+	idle_a.name = "IdleA"
+	idle_b.name = "IdleB"
+	idle_a.state_name = &"idle"
+	idle_b.state_name = &"idle"
+	machine.add_child(idle_a)
+	machine.add_child(idle_b)
+
+	var report := GFNodeStateMachineValidatorBase.validate_machine(machine)
+	var tooltip := GFNodeStateMachineInspectorPluginBase._format_report_tooltip(report)
+
+	assert_true(tooltip.contains("duplicate_state_name"), "Inspector tooltip 应能读取 GFValidationIssue.kind。")
+	assert_true(tooltip.contains("State name is duplicated inside the group."), "Inspector tooltip 应能读取 GFValidationIssue.message。")
 
 	machine.free()
 

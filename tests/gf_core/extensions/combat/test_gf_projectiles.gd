@@ -37,6 +37,51 @@ class RejectingHitReceiver2D:
 		}
 
 
+class HitReceiver3D:
+	extends Node3D
+
+	func receive_hit(_context: GFCombatHitContext) -> Dictionary:
+		return { "ok": true }
+
+
+class RecordingProjectileSender2D:
+	extends Node2D
+
+	var received_receiver: Object = null
+	var received_payload: Variant = null
+	var received_hit_id: StringName = &""
+
+	func send_to(receiver: Object, payload_override: Variant = null, hit_id_override: StringName = &"") -> Dictionary:
+		received_receiver = receiver
+		received_payload = payload_override
+		received_hit_id = hit_id_override
+		return {
+			"ok": true,
+			"hit_id": hit_id_override,
+			"receiver": receiver,
+			"metadata": {},
+		}
+
+
+class RecordingProjectileSender3D:
+	extends Node3D
+
+	var received_receiver: Object = null
+	var received_payload: Variant = null
+	var received_hit_id: StringName = &""
+
+	func send_to(receiver: Object, payload_override: Variant = null, hit_id_override: StringName = &"") -> Dictionary:
+		received_receiver = receiver
+		received_payload = payload_override
+		received_hit_id = hit_id_override
+		return {
+			"ok": true,
+			"hit_id": hit_id_override,
+			"receiver": receiver,
+			"metadata": {},
+		}
+
+
 # --- 私有/辅助方法 ---
 
 func _make_projectile_2d_scene() -> PackedScene:
@@ -126,6 +171,54 @@ func test_projectile_impact_sends_combat_hit_context() -> void:
 
 	projectile.free()
 	receiver.free()
+
+
+func test_projectile_2d_impact_uses_sender_send_to_override() -> void:
+	var root := Node2D.new()
+	var projectile := GFProjectile2DBase.new()
+	var sender := RecordingProjectileSender2D.new()
+	var receiver := HitReceiver2D.new()
+	add_child_autofree(root)
+	root.add_child(projectile)
+	root.add_child(sender)
+	root.add_child(receiver)
+	sender.name = "Sender"
+	projectile.auto_launch_on_ready = false
+	projectile.queue_free_on_finish = false
+	projectile.finish_on_impact = false
+	projectile.sender_path = NodePath("../Sender")
+
+	projectile.launch()
+	projectile.send_impact_to(receiver)
+	var context := projectile.get_projectile_context()
+
+	assert_same(sender.received_receiver, receiver, "2D 发射体自动命中应交给 sender_path 指向的业务发送者。")
+	assert_null(sender.received_payload, "未覆盖 payload 时应透传 null，让业务发送者使用自身默认值。")
+	assert_eq(sender.received_hit_id, &"", "未覆盖命中 ID 时应透传空值，让业务发送者使用自身默认值。")
+	assert_eq(context.get("impact_count"), 1, "业务发送者接受后仍应记录发射体命中次数。")
+
+
+func test_projectile_3d_impact_uses_sender_send_to_override() -> void:
+	var root := Node3D.new()
+	var projectile := GFProjectile3DBase.new()
+	var sender := RecordingProjectileSender3D.new()
+	var receiver := HitReceiver3D.new()
+	add_child_autofree(root)
+	root.add_child(projectile)
+	root.add_child(sender)
+	root.add_child(receiver)
+	sender.name = "Sender"
+	projectile.auto_launch_on_ready = false
+	projectile.queue_free_on_finish = false
+	projectile.finish_on_impact = false
+	projectile.sender_path = NodePath("../Sender")
+
+	projectile.launch()
+	projectile.send_impact_to(receiver)
+	var context := projectile.get_projectile_context()
+
+	assert_same(sender.received_receiver, receiver, "3D 发射体自动命中应交给 sender_path 指向的业务发送者。")
+	assert_eq(context.get("impact_count"), 1, "3D 业务发送者接受后仍应记录发射体命中次数。")
 
 
 func test_projectile_finish_on_impact_waits_for_accepted_hit() -> void:

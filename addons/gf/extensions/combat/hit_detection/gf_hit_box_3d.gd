@@ -229,7 +229,7 @@ func broadcast_overlaps(
 	candidates.append_array(get_overlapping_bodies())
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
-		self,
+		_resolve_collision_dispatch_host(),
 		candidates,
 		max_count,
 		payload_override,
@@ -254,6 +254,13 @@ func _resolve_sender() -> Object:
 		var sender := get_node_or_null(sender_path)
 		if sender != null:
 			return sender
+	return self
+
+
+func _resolve_collision_dispatch_host() -> Object:
+	var sender := _resolve_sender()
+	if sender != self and sender.has_method(&"send_to"):
+		return sender
 	return self
 
 

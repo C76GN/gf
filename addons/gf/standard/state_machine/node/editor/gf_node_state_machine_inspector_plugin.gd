@@ -9,6 +9,7 @@ extends EditorInspectorPlugin
 const GF_NODE_STATE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
 const GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
+const GF_VALIDATION_DIAGNOSTIC_ADAPTER := preload("res://addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd")
 
 
 # --- Godot 回调方法 ---
@@ -151,16 +152,12 @@ func _update_validation_report(label: Label, target: Node) -> void:
 		label.modulate = Color(0.45, 0.9, 0.55)
 
 
-func _format_report_tooltip(report: RefCounted) -> String:
+static func _format_report_tooltip(report: RefCounted) -> String:
 	var lines := PackedStringArray()
-	var issues := report.get("issues") as Array
-	for issue: RefCounted in issues:
-		if issue == null:
-			continue
-		var kind := String(issue.get("kind"))
-		if kind.is_empty():
-			kind = String(issue.get("code", "unknown"))
-		var message := String(issue.get("message", ""))
+	var diagnostics := GF_VALIDATION_DIAGNOSTIC_ADAPTER.report_to_diagnostics(report)
+	for diagnostic: Dictionary in diagnostics:
+		var kind := String(diagnostic.get("kind", "unknown"))
+		var message := String(diagnostic.get("message", ""))
 		lines.append("%s: %s" % [kind, message])
 		if lines.size() >= 8:
 			lines.append("...")

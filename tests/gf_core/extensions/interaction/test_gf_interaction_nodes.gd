@@ -47,7 +47,37 @@ class BusinessInteractionReceiver extends Node:
 		}
 
 
+class SideEffectInteractionReceiver extends Node:
+	var received_context: GFInteractionContext = null
+	var received_id: StringName = &""
+
+	func receive_interaction(context: GFInteractionContext, interaction_id: StringName = &"") -> void:
+		received_context = context
+		received_id = interaction_id
+
+
+class PlainInteractionTarget extends Node:
+	pass
+
+
 class RecordingDispatchHost extends RefCounted:
+	var received_receiver: Object = null
+	var received_payload: Variant = null
+	var received_id: StringName = &""
+
+	func send_to(receiver: Object, payload_override: Variant = null, id_override: StringName = &"") -> Dictionary:
+		received_receiver = receiver
+		received_payload = payload_override
+		received_id = id_override
+		return {
+			"ok": true,
+			"receiver": receiver,
+			"interaction_id": id_override,
+			"metadata": {},
+		}
+
+
+class RecordingDispatchNode extends Node:
 	var received_receiver: Object = null
 	var received_payload: Variant = null
 	var received_id: StringName = &""
@@ -123,6 +153,51 @@ func test_receiver_path_forwards_interaction_to_business_receiver() -> void:
 	assert_signal_emitted(bridge, "interaction_received", "业务接收成功后桥接节点应发出接收信号。")
 
 
+func test_receiver_path_accepts_side_effect_business_receiver() -> void:
+	var root := Node.new()
+	var bridge := GFInteractionReceiver.new()
+	var business_receiver := SideEffectInteractionReceiver.new()
+	add_child_autofree(root)
+	root.add_child(bridge)
+	root.add_child(business_receiver)
+	business_receiver.name = "BusinessReceiver"
+	bridge.receiver_path = NodePath("../BusinessReceiver")
+	bridge.accepted_interaction_ids = [&"use"]
+	watch_signals(bridge)
+
+	var context := GFInteractionContext.new(null, bridge, { "item": "door" })
+	var report := bridge.receive_interaction(context, &"use")
+
+	assert_true(bool(report["ok"]), "副作用式业务接收器不返回报告时仍应沿用桥接接收报告。")
+	assert_same(business_receiver.received_context, context, "业务接收器应收到同一个交互上下文。")
+	assert_same(context.target, business_receiver, "转发时上下文 target 应更新为业务接收器。")
+	assert_eq(business_receiver.received_id, &"use", "交互 ID 应透传给业务接收器。")
+	assert_same(report["receiver"], business_receiver, "默认接收报告应指向业务接收器。")
+	assert_signal_emitted(bridge, "interaction_received", "业务接收器处理后桥接节点应发出接收信号。")
+
+
+func test_receiver_path_can_only_retarget_context() -> void:
+	var root := Node.new()
+	var bridge := GFInteractionReceiver.new()
+	var business_target := PlainInteractionTarget.new()
+	add_child_autofree(root)
+	root.add_child(bridge)
+	root.add_child(business_target)
+	business_target.name = "BusinessTarget"
+	bridge.receiver_path = NodePath("../BusinessTarget")
+	bridge.accepted_interaction_ids = [&"use"]
+	watch_signals(bridge)
+
+	var context := GFInteractionContext.new(null, bridge, { "item": "door" })
+	var report := bridge.receive_interaction(context, &"use")
+
+	assert_true(bridge.can_receive_interaction(&"use"), "receiver_path 指向普通业务节点时仍应允许 Receiver 接收交互。")
+	assert_true(bool(report["ok"]), "普通业务节点可只作为交互 target，不必实现 receive_interaction()。")
+	assert_same(context.target, business_target, "转发时上下文 target 应更新为业务 target。")
+	assert_same(report["receiver"], business_target, "默认接收报告应指向业务 target。")
+	assert_signal_emitted(bridge, "interaction_received", "Receiver retarget 后仍应发出接收信号。")
+
+
 func test_receiver_path_does_not_forward_rejected_interaction() -> void:
 	var root := Node.new()
 	var bridge := GFInteractionReceiver.new()
@@ -170,6 +245,28 @@ func test_sensor_broadcast_to_group_sends_to_receivers() -> void:
 	assert_eq(receiver_a.validate_count + receiver_b.validate_count, 2, "每个接收器都应收到一次交互。")
 
 
+func test_sensor_broadcast_to_group_uses_sender_send_to_override() -> void:
+	var root := Node.new()
+	var sensor := GFInteractionSensor.new()
+	var sender := RecordingDispatchNode.new()
+	var receiver := RecordingReceiver.new()
+	add_child_autofree(root)
+	root.add_child(sensor)
+	root.add_child(sender)
+	root.add_child(receiver)
+	sender.name = "Sender"
+	sensor.group_name = &"targets"
+	sensor.sender_path = NodePath("../Sender")
+	receiver.add_to_group("targets")
+
+	var reports := sensor.broadcast_to_group()
+
+	assert_eq(reports.size(), 1, "分组广播应通过可覆写发送者发送一次交互。")
+	assert_same(sender.received_receiver, receiver, "sender_path 指向的发送者实现 send_to() 时应接管分组广播。")
+	assert_null(sender.received_payload, "未覆盖 payload 时应透传 null，让业务发送者使用自身默认值。")
+	assert_eq(sender.received_id, &"", "未覆盖交互 ID 时应透传空值，让业务发送者使用自身默认值。")
+
+
 func test_sensor_collision_candidates_resolve_receiver_ancestors() -> void:
 	var host := RecordingDispatchHost.new()
 	var receiver := RecordingReceiver.new()
@@ -192,6 +289,34 @@ func test_sensor_collision_candidates_resolve_receiver_ancestors() -> void:
 	assert_same(host.received_receiver, receiver, "交互上下文 target 应使用解析后的接收器。")
 	assert_eq(host.received_payload, { "value": 3 }, "payload 覆盖值应透传给发送宿主。")
 	assert_eq(host.received_id, &"hit", "交互 ID 覆盖值应透传给发送宿主。")
+
+
+func test_sensor_collision_dispatch_uses_sender_send_to_override() -> void:
+	var root := Node.new()
+	var sensor := GFInteractionSensor.new()
+	var sender := RecordingDispatchNode.new()
+	var receiver := RecordingReceiver.new()
+	add_child_autofree(root)
+	root.add_child(sensor)
+	root.add_child(sender)
+	root.add_child(receiver)
+	sender.name = "Sender"
+	sensor.sender_path = NodePath("../Sender")
+
+	var reports: Array[Dictionary] = []
+	reports.assign(GF_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
+		sensor._resolve_collision_dispatch_host(),
+		[receiver],
+		0,
+		{ "value": 3 },
+		&"use",
+		&"receive_interaction"
+	))
+
+	assert_eq(reports.size(), 1, "碰撞广播应通过可覆写发送者发送一次交互。")
+	assert_same(sender.received_receiver, receiver, "sender_path 指向的发送者实现 send_to() 时应接管碰撞分发。")
+	assert_eq(sender.received_payload, { "value": 3 }, "payload 覆盖值应透传给业务发送者。")
+	assert_eq(sender.received_id, &"use", "交互 ID 覆盖值应透传给业务发送者。")
 
 
 func test_pointer_interaction_3d_sends_click_context_to_receiver() -> void:

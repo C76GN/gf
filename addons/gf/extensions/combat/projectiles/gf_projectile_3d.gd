@@ -139,7 +139,10 @@ func _send_impact_to_candidate(candidate: Object) -> void:
 	var receiver := _resolve_receiver_from_candidate(candidate)
 	if receiver == null:
 		return
-	var report := send_to(receiver)
+	var report_value: Variant = _resolve_collision_dispatch_host().call("send_to", receiver, null, &"")
+	if not report_value is Dictionary:
+		return
+	var report := report_value as Dictionary
 	var accepted := bool(report.get("ok", false))
 	_record_impact(report)
 	if finish_on_impact and accepted:

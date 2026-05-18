@@ -38,9 +38,9 @@ receiver.validation_callback = func(context: GFInteractionContext, report: Dicti
 var result := sensor.send_to(receiver)
 ```
 
-当碰撞区域只想承担检测和过滤，而业务逻辑在角色、物品或能力节点上时，可以把 `GFInteractionReceiver` 放在碰撞对象自身或其父级，并通过 `receiver_path` 指向真正的业务接收节点。Receiver 会先执行自己的 `enabled`、交互 ID 过滤和 `validation_callback`，通过后再调用目标节点的 `receive_interaction(context, interaction_id)`；如果上下文的 `target` 为空或仍指向桥接 Receiver，会在转发前更新为业务接收节点。
+当碰撞区域只想承担检测和过滤，而业务目标在角色、物品或能力节点上时，可以把 `GFInteractionReceiver` 放在碰撞对象自身或其父级，并通过 `receiver_path` 指向真正的业务目标。Receiver 会先执行自己的 `enabled`、交互 ID 过滤和 `validation_callback`；如果上下文的 `target` 为空或仍指向桥接 Receiver，会在通过后更新为业务目标。业务目标实现了 `receive_interaction(context, interaction_id)` 时会被调用，可以返回 `Dictionary` 覆盖报告、返回 `bool` 决定通过或拒绝，也可以只做副作用不返回值；未实现 `receive_interaction()` 时只作为 target 使用，Receiver 仍会沿用自身的接收报告并发出 `interaction_received`。
 
-这组节点只表达“谁向谁发送了什么上下文、接收方是否接受”，不会绑定碰撞层、提示 UI、距离规则、冷却、物品消耗或目标效果。需要 2D/3D 范围或射线时，可把项目自己的 `RayCast2D` / `RayCast3D` / `Area2D` / `Area3D` 检测结果交给 `send_to_raycast_2d()`、`send_to_raycast_3d()`、`broadcast_to_area_2d()` 或 `broadcast_to_area_3d()`；Sensor 会从碰撞对象向父节点查找具备 `receive_interaction()` 的接收器。输入触发、碰撞层筛选、UI 焦点和目标合法性仍由项目层决定。
+这组节点只表达“谁向谁发送了什么上下文、接收方是否接受”，不会绑定碰撞层、提示 UI、距离规则、冷却、物品消耗或目标效果。需要 2D/3D 范围或射线时，可把项目自己的 `RayCast2D` / `RayCast3D` / `Area2D` / `Area3D` 检测结果交给 `send_to_raycast_2d()`、`send_to_raycast_3d()`、`broadcast_to_area_2d()` 或 `broadcast_to_area_3d()`；Sensor 会从碰撞对象向父节点查找具备 `receive_interaction()` 的接收器。若 Sensor 配置了 `sender_path`，且业务发送者实现了 `send_to(receiver, payload_override, interaction_id_override)`，分组广播和范围广播会交给业务发送者接管；否则仍使用 Sensor 自身的 `send_to()`。输入触发、碰撞层筛选、UI 焦点和目标合法性仍由项目层决定。
 
 3D 鼠标/指针点击可使用 `GFPointerInteraction3D` 作为场景桥接节点。它监听绑定的 `CollisionObject3D.input_event`、`mouse_entered` 和 `mouse_exited`，把 hover、press、release、click、wheel 转为 `GFInteractionContext`，payload 中包含 `pointer_position`、`pointer_normal`、`pointer_shape_idx`、`pointer_button_index`、`pointer_tags` 和 `pointer_metadata` 等通用字段：
 

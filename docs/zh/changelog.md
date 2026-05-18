@@ -22,40 +22,33 @@
 
 ---
 
-## [3.12.0] - 2026-05-18
+## [3.12.1] - 2026-05-18
 
-**版本概述**：加固编辑器结构诊断，避免刷新 SaveGraph、FlowGraph 或生成配置访问器时执行项目脚本方法。
-
-### 🚀 新增特性
-
-- `GFFlowGraphEditorModel` 新增 `build_editor_report()`、`build_editor_catalog()`、`validate_graph_for_editor()` 和 `validate_metadata_for_editor()`，供 Inspector、工作区和项目自定义编辑器复用同一套 property-only 结构报告。
+**版本概述**：修复 Godot 4.6 Inspector 校验提示解析、业务接收目标转发和自动发送分发一致性问题。
 
 ### 🐛 Bug 修复
 
-- `GF Workspace > Save` 页面和 `工具 > GF > 校验当前场景 SaveGraph` 的健康检查改为读取导出属性，避免 Godot 编辑器中的 placeholder 脚本实例在刷新时因调用 `get_scope_key()` 等方法报错。
-- `GFSaveGraphUtility.validate_payload_for_scope()` 与 PipelineContext 根 key 创建也改为读取 SaveScope/SaveSource 的导出属性，载荷结构校验不再调用项目保存方法。
-- FlowGraph 的 Inspector、工作区图视图模型、编辑器目录、结构描述和结构校验改为读取 FlowNode/FlowPort 导出属性，避免编辑器刷新触发项目自定义节点或端口方法。
-- `GFConfigAccessGenerator` 生成表访问器时改为读取 schema 的 `table_name` / `table_key` 属性，不再通过 `get_table_key()` 调用项目 schema 方法。
-- AudioBank 与 NodeStateMachine Inspector 的校验提示改为直接读取 `GFValidationIssue` 字段，Capability Inspector 去掉不必要的动态 `has_method()` 分支。
-- `GFSaveScope`、`GFSaveSource` 和 `GFSaveIdentity` 基类声明为 `@tool`，让框架内置 Save 节点在编辑器诊断中保持可读。
+- 修复 AudioBank 与 NodeStateMachine Inspector 在 Godot 4.6 中格式化 `GFValidationIssue` 提示时错误调用双参数 `Object.get()`，避免编辑器加载插件脚本失败，并新增维护检查防止显式对象类型再次混用 `Dictionary.get()` 默认值写法。
+- 修复 `GFSaveScope`、`GFSaveSource` 和 `GFSaveIdentity` 作为运行时基类声明 `@tool` 导致项目业务脚本继承后在编辑器中反复出现 `@tool` 基类警告的问题；SaveGraph 编辑器诊断仍通过导出属性读取结构，不要求用户业务脚本声明 `@tool`。
+- 修复 HurtBox / InteractionReceiver 的 `receiver_path` 业务目标不实现接收函数或不返回报告时被误判为失败的问题；业务目标现在可只作为 `context.target`，副作用式业务接收函数也会沿用桥接节点的接收报告并正常发出接收信号。
+- 修复 HitBox / Projectile / InteractionSensor 的自动发送分发固定使用桥接节点的问题；当 `sender_path` 指向的业务发送者实现 `send_to()` 时，分组/范围广播和发射体命中会交给业务发送者接管。
 
 ### 🔌 API 变动说明
 
-- 新增的 Flow 编辑器模型方法都是向后兼容的公开 API；现有 `GFFlowGraph.build_editor_report()`、`get_editor_catalog()` 和 `validate_graph()` 签名不变，但编辑器结构数据现在以导出属性为准。
+- 本版本没有新增、移除或重命名公开方法、导出属性、信号或资源字段；调整的是已文档化的运行时行为。
 
 ### 📘 升级指南
 
-- 只使用导出属性配置 SaveGraph 的项目无需改动；如果项目要在编辑器里预览 payload 并执行自定义保存/加载方法，请确保对应自定义脚本本身也适合 `@tool` 环境。
-- SaveGraph 文档补充了 `GFSaveGraphUtility -> GFStorageUtility` 的最短保存/读取闭环，并明确 `GFSavePipelineContext` 是流程日志，不是应写盘的游戏 payload。
-- FlowGraph 编辑器工具以 `node_id`、`display_name`、端口数组、连接数组等导出属性为准；项目自定义方法仍可服务运行时，但不应作为编辑器结构数据来源。
-- 配置访问器生成器现在要求 schema 通过 `table_name` 或 `table_key` 属性暴露表名。
+- 自定义编辑器或 Inspector 代码如需展示 `GFValidationIssue`，应先通过 `GFValidationDiagnosticAdapter` 转成诊断字典，避免把 `RefCounted` 当作 `Dictionary` 调用双参数 `get()`。
+- 自定义 SaveScope / SaveSource / SaveIdentity 脚本不需要为了消除继承警告而声明 `@tool`；只有确实要在编辑器预览阶段执行项目自定义采集或应用逻辑时，才需要项目自行评估并声明 `@tool`。
+- 使用 `receiver_path` 的 HurtBox / InteractionReceiver 可把路径指向普通业务节点；只有业务节点实现对应接收函数时才会额外调用业务接收函数。
+- 使用 `sender_path` 的 HitBox、Projectile 或 InteractionSensor 可在业务发送者中实现 `send_to(receiver, payload_override, id_override)` 接管自动发送；未实现时仍回退到桥接节点自身。
 
 ### 📁 核心受影响文件
 
-- Save 节点基类：`addons/gf/extensions/save/core/gf_save_scope.gd`、`addons/gf/extensions/save/core/gf_save_source.gd`、`addons/gf/extensions/save/core/gf_save_identity.gd`。
-- SaveGraph 诊断：`addons/gf/extensions/save/graph/gf_save_graph_utility.gd`、`addons/gf/extensions/save/editor/gf_save_graph_dock.gd`。
-- FlowGraph 编辑器结构：`addons/gf/extensions/flow/resources/gf_flow_graph.gd`、`addons/gf/extensions/flow/resources/gf_flow_node.gd`、`addons/gf/extensions/flow/resources/gf_flow_port.gd`、`addons/gf/extensions/flow/editor/gf_flow_graph_editor_model.gd`、`addons/gf/extensions/flow/editor/gf_flow_graph_inspector_plugin.gd`。
-- 配置访问器生成器：`addons/gf/kernel/editor/gf_config_access_generator.gd`。
-- 其他编辑器提示：`addons/gf/standard/utilities/audio/editor/gf_audio_bank_inspector_plugin.gd`、`addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd`、`addons/gf/extensions/capability/editor/gf_capability_inspector_plugin.gd`。
-- 测试：`tests/gf_core/extensions/save/test_gf_save_graph_utility.gd`、`tests/gf_core/extensions/save/test_gf_save_graph_dock.gd`、`tests/gf_core/extensions/flow/test_gf_flow_graph.gd`、`tests/gf_core/kernel/editor/test_gf_config_access_generator.gd`。
-- 文档：`docs/zh/extensions/save-graph/index.md`、`docs/zh/extensions/flow-domain-physics/index.md`、`docs/zh/standard/utilities/io/config-remote-outbox.md`。
+- Inspector 提示：`addons/gf/standard/utilities/audio/editor/gf_audio_bank_inspector_plugin.gd`、`addons/gf/standard/state_machine/node/editor/gf_node_state_machine_inspector_plugin.gd`。
+- SaveGraph 运行时基类：`addons/gf/extensions/save/core/gf_save_scope.gd`、`addons/gf/extensions/save/core/gf_save_source.gd`、`addons/gf/extensions/save/core/gf_save_identity.gd`。
+- 消息收发共享实现：`addons/gf/standard/common/gf_message_receiver_support.gd`。
+- Combat 桥接：`addons/gf/extensions/combat/hit_detection/gf_hit_box_2d.gd`、`addons/gf/extensions/combat/hit_detection/gf_hit_box_3d.gd`、`addons/gf/extensions/combat/hit_detection/gf_hurt_box_2d.gd`、`addons/gf/extensions/combat/hit_detection/gf_hurt_box_3d.gd`、`addons/gf/extensions/combat/projectiles/gf_projectile_2d.gd`、`addons/gf/extensions/combat/projectiles/gf_projectile_3d.gd`。
+- Interaction 桥接：`addons/gf/extensions/interaction/nodes/gf_interaction_receiver.gd`、`addons/gf/extensions/interaction/nodes/gf_interaction_sensor.gd`。
+- 测试与维护检查：`tests/gf_core/extensions/combat/test_gf_combat_extension.gd`、`tests/gf_core/extensions/combat/test_gf_projectiles.gd`、`tests/gf_core/extensions/interaction/test_gf_interaction_nodes.gd`、`tests/gf_core/maintenance/test_gdscript_parse_validation.gd`。

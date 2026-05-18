@@ -5,6 +5,7 @@ extends GutTest
 # --- 常量 ---
 
 const GFAudioBankBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_bank.gd")
+const GFAudioBankInspectorPluginBase = preload("res://addons/gf/standard/utilities/audio/editor/gf_audio_bank_inspector_plugin.gd")
 const GFAudioBankToolsBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_bank_tools.gd")
 const GFAudioClipBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_clip.gd")
 
@@ -88,3 +89,16 @@ func test_validate_bank_playback_reports_bus_and_extension_issues() -> void:
 
 	assert_eq(counts.get("unsupported_audio_extension", 0), 1, "不支持的扩展名应产生警告。")
 	assert_eq(counts.get("missing_audio_bus", 0), 1, "不存在的音频总线应产生警告。")
+
+
+func test_audio_bank_inspector_tooltip_formats_validation_issue_objects() -> void:
+	var bank := GFAudioBankBase.new()
+	var clip := GFAudioClipBase.new()
+	clip.path = "res://audio/not_audio.txt"
+	bank.set_clip(&"bad", clip)
+
+	var report := GFAudioBankToolsBase.validate_bank_playback(bank)
+	var tooltip := GFAudioBankInspectorPluginBase._format_report_tooltip(report)
+
+	assert_true(tooltip.contains("unsupported_audio_extension"), "Inspector tooltip 应能读取 GFValidationIssue.kind。")
+	assert_true(tooltip.contains("Audio clip path uses an unsupported extension."), "Inspector tooltip 应能读取 GFValidationIssue.message。")

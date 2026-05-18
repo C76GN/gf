@@ -70,7 +70,7 @@ func can_receive_interaction(interaction_id: StringName = &"") -> bool:
 	if receiver_path == NodePath(""):
 		return true
 	var receiver := _resolve_receiver()
-	return receiver != null and receiver.has_method(&"receive_interaction")
+	return receiver != null
 
 
 ## 接收一次交互。
@@ -102,7 +102,6 @@ func receive_interaction(context: GFInteractionContext, interaction_id: StringNa
 		&"receive_interaction",
 		[context, interaction_id],
 		"Interaction delegate receiver is missing.",
-		"Interaction delegate receiver does not expose receive_interaction().",
 		"Interaction delegate receiver returned an invalid interaction report."
 	) as Dictionary
 	return report

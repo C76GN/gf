@@ -125,10 +125,13 @@ func broadcast_to_group(target_group_name: StringName = &"", max_count: int = 0)
 		return reports
 
 	var receivers := get_tree().get_nodes_in_group(String(effective_group))
+	var dispatch_host := _resolve_collision_dispatch_host()
 	for receiver: Node in receivers:
 		if max_count > 0 and reports.size() >= max_count:
 			break
-		reports.append(send_to(receiver))
+		var report_value: Variant = dispatch_host.call("send_to", receiver, null, &"")
+		if report_value is Dictionary:
+			reports.append(report_value)
 	return reports
 
 
@@ -189,7 +192,7 @@ func broadcast_to_area_2d(
 	candidates.append_array(area.get_overlapping_bodies())
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
-		self,
+		_resolve_collision_dispatch_host(),
 		candidates,
 		max_count,
 		payload_override,
@@ -218,7 +221,7 @@ func broadcast_to_area_3d(
 	candidates.append_array(area.get_overlapping_bodies())
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
-		self,
+		_resolve_collision_dispatch_host(),
 		candidates,
 		max_count,
 		payload_override,
@@ -254,4 +257,11 @@ func _resolve_sender() -> Object:
 		var sender := get_node_or_null(sender_path)
 		if sender != null:
 			return sender
+	return self
+
+
+func _resolve_collision_dispatch_host() -> Object:
+	var sender := _resolve_sender()
+	if sender != self and sender.has_method(&"send_to"):
+		return sender
 	return self

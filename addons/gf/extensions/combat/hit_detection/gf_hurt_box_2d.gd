@@ -158,7 +158,7 @@ func can_receive_hit(p_hit_id: StringName = &"") -> bool:
 	if receiver_path == NodePath(""):
 		return true
 	var receiver := _resolve_receiver()
-	return receiver != null and receiver.has_method(&"receive_hit")
+	return receiver != null
 
 
 ## 接收一次命中。
@@ -190,7 +190,6 @@ func receive_hit(context: GFCombatHitContext) -> Dictionary:
 		&"receive_hit",
 		[context],
 		"Hit delegate receiver is missing.",
-		"Hit delegate receiver does not expose receive_hit().",
 		"Hit delegate receiver returned an invalid hit report."
 	) as Dictionary
 	return report

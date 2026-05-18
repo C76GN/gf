@@ -61,7 +61,6 @@ static func _receive(
 		&"",
 		[],
 		"",
-		"",
 		""
 	)
 
@@ -88,7 +87,6 @@ static func _receive_with_delegate(
 	delegate_method: StringName,
 	delegate_args: Array,
 	missing_delegate_message: String,
-	invalid_delegate_message: String,
 	invalid_delegate_report_message: String,
 	target_property: StringName = &"target"
 ) -> Dictionary:
@@ -117,11 +115,6 @@ static func _receive_with_delegate(
 		host.emit_signal(rejected_signal, context, missing_delegate_report)
 		return missing_delegate_report
 
-	if delegate_enabled and not delegate_receiver.has_method(delegate_method):
-		var invalid_delegate_report := _make_report(delegate_receiver, false, id_key, id_value, "invalid_receiver", invalid_delegate_message, metadata)
-		host.emit_signal(rejected_signal, context, invalid_delegate_report)
-		return invalid_delegate_report
-
 	var effective_receiver := delegate_receiver if delegate_enabled else host
 	var target_key := String(target_property)
 	if context.get(target_key) == null or context.get(target_key) == host:
@@ -132,10 +125,14 @@ static func _receive_with_delegate(
 	if validation_callback.is_valid():
 		report = _apply_validation_result(report, validation_callback.call(context, report.duplicate(true)))
 
-	if bool(report.get("ok", false)) and delegate_enabled:
+	if bool(report.get("ok", false)) and delegate_enabled and delegate_receiver.has_method(delegate_method):
 		var delegated_value: Variant = delegate_receiver.callv(delegate_method, delegate_args)
 		if delegated_value is Dictionary:
 			report = GFVariantData.duplicate_variant(delegated_value)
+		elif delegated_value is bool:
+			report = _apply_validation_result(report, delegated_value)
+		elif delegated_value == null:
+			pass
 		else:
 			report = _make_report(
 				delegate_receiver,

@@ -25,9 +25,9 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for exten
 - Repository URL: `https://github.com/C76GN/gf-framework`
 - Issues URL: `https://github.com/C76GN/gf-framework/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `3.12.0`
-- Download Commit/URL: `3.12.0`
-- Icon URL: `https://raw.githubusercontent.com/C76GN/gf-framework/3.12.0/addons/gf/icon.png`
+- Asset Version: `3.12.1`
+- Download Commit/URL: `3.12.1`
+- Icon URL: `https://raw.githubusercontent.com/C76GN/gf-framework/3.12.1/addons/gf/icon.png`
 
 ## Short Description
 
@@ -54,7 +54,7 @@ No preview images are currently pinned. If previews are added, store their sourc
 3. Use the icon raw URL with that same commit hash.
 4. Verify the generated archive only contains the installable plugin payload.
 5. Run the GUT test suite on the target minimum Godot version.
-6. Create the GitHub Release from a no-prefix SemVer tag such as `3.12.0`.
+6. Create the GitHub Release from a no-prefix SemVer tag such as `3.12.1`.
 
 ## Version Bump Checklist
 

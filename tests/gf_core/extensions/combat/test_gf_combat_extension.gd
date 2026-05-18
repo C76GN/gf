@@ -90,6 +90,36 @@ class BusinessHitReceiver extends Node:
 		}
 
 
+class SideEffectHitReceiver extends Node:
+	var received_context: GFCombatHitContext = null
+
+	func receive_hit(context: GFCombatHitContext) -> void:
+		received_context = context
+
+
+class PlainHitTarget extends Node:
+	pass
+
+
+class RecordingHitSender extends Node:
+	var received_receiver: Object = null
+	var received_payload: Variant = null
+	var received_hit_id: StringName = &""
+
+	func send_to(receiver: Object, payload_override: Variant = null, hit_id_override: StringName = &"") -> Dictionary:
+		received_receiver = receiver
+		received_payload = payload_override
+		received_hit_id = hit_id_override
+		return {
+			"ok": true,
+			"hit_id": hit_id_override,
+			"receiver": receiver,
+			"reason": "sender_override",
+			"message": "",
+			"metadata": {},
+		}
+
+
 # --- 测试方法 ---
 
 ## 测试 GFModifiedAttribute 的修饰器计算。
@@ -986,6 +1016,52 @@ func test_hurt_box_2d_receiver_path_forwards_hit_to_business_receiver() -> void:
 	assert_signal_emitted(hurt_box, "hit_received", "业务接收成功后 HurtBox 应发出接收信号。")
 
 
+func test_hurt_box_2d_receiver_path_accepts_side_effect_receiver() -> void:
+	var root := Node.new()
+	var hit_box := GFHitBox2D.new()
+	var hurt_box := GFHurtBox2D.new()
+	var business_receiver := SideEffectHitReceiver.new()
+	add_child_autofree(root)
+	root.add_child(hit_box)
+	root.add_child(hurt_box)
+	root.add_child(business_receiver)
+	business_receiver.name = "BusinessReceiver"
+	hit_box.hit_id = &"impact"
+	hurt_box.accepted_hit_ids = [&"impact"]
+	hurt_box.receiver_path = NodePath("../BusinessReceiver")
+	watch_signals(hurt_box)
+
+	var report := hit_box.send_to(hurt_box)
+
+	assert_true(bool(report["ok"]), "副作用式业务接收器不返回报告时仍应沿用 HurtBox 接收报告。")
+	assert_same(business_receiver.received_context.target, business_receiver, "转发时命中 target 应更新为业务接收器。")
+	assert_same(report["receiver"], business_receiver, "默认接收报告应指向业务接收器。")
+	assert_signal_emitted(hurt_box, "hit_received", "业务接收器处理后 HurtBox 应发出接收信号。")
+
+
+func test_hurt_box_2d_receiver_path_can_only_retarget_context() -> void:
+	var root := Node.new()
+	var hit_box := GFHitBox2D.new()
+	var hurt_box := GFHurtBox2D.new()
+	var business_target := PlainHitTarget.new()
+	add_child_autofree(root)
+	root.add_child(hit_box)
+	root.add_child(hurt_box)
+	root.add_child(business_target)
+	business_target.name = "BusinessTarget"
+	hit_box.hit_id = &"impact"
+	hurt_box.accepted_hit_ids = [&"impact"]
+	hurt_box.receiver_path = NodePath("../BusinessTarget")
+	watch_signals(hurt_box)
+
+	var report := hit_box.send_to(hurt_box)
+
+	assert_true(hurt_box.can_receive_hit(&"impact"), "receiver_path 指向普通业务节点时仍应允许 HurtBox 接收命中。")
+	assert_true(bool(report["ok"]), "普通业务节点可只作为命中 target，不必实现 receive_hit()。")
+	assert_same(report["receiver"], business_target, "默认接收报告应指向业务 target。")
+	assert_signal_emitted(hurt_box, "hit_received", "HurtBox retarget 后仍应发出接收信号。")
+
+
 func test_hurt_box_3d_receiver_path_forwards_hit_to_business_receiver() -> void:
 	var root := Node.new()
 	var hit_box := GFHitBox3D.new()
@@ -1005,6 +1081,34 @@ func test_hurt_box_3d_receiver_path_forwards_hit_to_business_receiver() -> void:
 	assert_true(bool(report["ok"]), "通过本地过滤的 3D 命中应转发给业务接收器。")
 	assert_same(business_receiver.received_context.target, business_receiver, "转发时 3D 命中 target 应更新为业务接收器。")
 	assert_same(report["receiver"], business_receiver, "最终 3D 命中报告应来自业务接收器。")
+
+
+func test_hit_box_2d_collision_dispatch_uses_sender_send_to_override() -> void:
+	var root := Node.new()
+	var hit_box := GFHitBox2D.new()
+	var sender := RecordingHitSender.new()
+	var hurt_box := GFHurtBox2D.new()
+	add_child_autofree(root)
+	root.add_child(hit_box)
+	root.add_child(sender)
+	root.add_child(hurt_box)
+	sender.name = "Sender"
+	hit_box.sender_path = NodePath("../Sender")
+
+	var reports: Array[Dictionary] = []
+	reports.assign(preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")._send_to_collision_candidates(
+		hit_box._resolve_collision_dispatch_host(),
+		[hurt_box],
+		0,
+		{ "value": 3 },
+		&"impact",
+		&"receive_hit"
+	))
+
+	assert_eq(reports.size(), 1, "碰撞广播应通过可覆写发送者发送一次命中。")
+	assert_same(sender.received_receiver, hurt_box, "sender_path 指向的发送者实现 send_to() 时应接管碰撞分发。")
+	assert_eq(sender.received_payload, { "value": 3 }, "payload 覆盖值应透传给业务发送者。")
+	assert_eq(sender.received_hit_id, &"impact", "命中 ID 覆盖值应透传给业务发送者。")
 
 
 func test_hit_and_hurt_boxes_emit_enabled_changed() -> void:
