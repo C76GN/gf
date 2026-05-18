@@ -22,50 +22,36 @@
 
 ---
 
-## [3.10.0] - 2026-05-17
+## [3.11.0] - 2026-05-18
 
-**版本概述**：本轮加固 JSON 存储、Variant JSON 编码和确定性随机状态的 64 位整数处理，避免 Godot 4.6 JSON 解析造成 checksum 误报或回放状态精度丢失；同时新增纯数据后台工作协调器，标准化 CPU/IO 线程工作、ResourceLoader 线程加载和主线程应用边界。
+**版本概述**：扩展标准音频工具的 BGM transport 与 SFX 生命周期控制，让暂停菜单、剧情恢复、关卡切换和全局静音/停止流程可以复用 GF 自己的音频抽象，而不是项目层手动管理播放器节点。
 
 ### 🚀 新增特性
 
-- 标准库 jobs 目录新增 `GFBackgroundWorkUtility` 与 `GFBackgroundWorkTask`，用于提交纯 Variant CPU/IO 后台工作、合并 threaded `ResourceLoader` 请求、限制并发线程数量、协作式取消、主线程应用回调和调试快照。
+- `GFAudioUtility` 新增 `play_bgm_with_options()`、`pause_bgm()`、`resume_bgm()`、`seek_bgm()`、`get_bgm_playback_position()`、`is_bgm_paused()` 和 `stop_all_sfx()`。
+- `GFAudioBackend` 新增对应 BGM transport 与 stop-all SFX 可选协议，外部音频后端可选择接管这些控制请求。
+- `GFAudioUtility` 新增 `bgm_finished(history_key)` 信号，并在调试快照中公开 BGM 暂停状态、播放位置、loop 覆盖值和空间 SFX 活跃数量。
 
 ### 🔄 机制更改
 
-- `GFSeedUtility.get_full_state()` 现在输出带 `state_schema_version = 2` 的状态字典，并将 `global_seed`、`rng_state` 与分支计数保存为十进制字符串，确保默认 JSON 存储可精确往返。
-- `GFVariantJsonCodec.variant_to_json_compatible()` 会把超出 JSON 安全范围的 64 位整数编码为 `Int64` 类型标记；`PackedInt64Array` 的元素也会以文本形式保存在类型标记中。
-- `GFSettingsUtility` 持久化设置值时复用 `GFVariantJsonCodec` 处理非设置专用类型，设置中的超大整数现在会以类型标记保存。
-
-### 🐛 Bug 修复
-
-- 修复 `GFStorageCodec` 在 Godot 4.6 下对非字符串 JSON 字典键排序时使用 `String(int)` 导致解析失败的问题。
-- 修复 JSON checksum 在载荷包含 64 位整数或 `StringName` 键时，写入后读回可能被误判为完整性损坏的问题。
-- 修复 `GFSeedUtility` 完整随机状态通过默认 JSON 存储后，主种子、RNG 状态或分支计数可能因 64 位整数精度丢失而破坏确定性回放的问题。
-- 修复 `GFStorageSyncUtility` 使用非数字 metadata 比较冲突新旧时，任意 Variant 字符串化可能触发 Godot `String(Variant)` 转换错误的问题。
-- 修复 `GFSettingDefinition` 将数字等非字符串值钳制为 `STRING` / `STRING_NAME` 时可能触发 `String(Variant)` 转换错误的问题。
-- 修复 `GFSaveGraphUtility` 校验或应用手写载荷时，非字符串 source/scope key 可能触发 `String(Variant)` 转换错误的问题。
+- 默认 Godot BGM 播放路径使用 `AudioStreamPlayer.stream_paused` 保留暂停位置，显式传入 `loop` 时复制音频流再尝试设置循环属性，避免修改共享 Resource。
+- 普通 SFX 与 2D/3D 空间 SFX 现在都会被 `stop_all_sfx()` 跟踪和释放；该接口会同时取消尚未完成的异步 SFX 请求。
 
 ### 🔌 API 变动说明
 
-- `GFSeedUtility.get_full_state()` 的状态字典新增明确的 `state_schema_version` 字段，当前值为 `2`；`global_seed`、`rng_state` 与 `branch_counters` 的计数值由整数改为十进制字符串。
-- `GFVariantJsonCodec.variant_to_json_compatible()` 新增 `encode_unsafe_ints` 选项；默认 `true`，可显式设为 `false` 以保留旧的裸数字输出。
-- 新增公开类 `GFBackgroundWorkUtility` 和 `GFBackgroundWorkTask`；后台工作提交方法返回 `RefCounted` 任务实例，实际对象为 `GFBackgroundWorkTask`。
+- `GFAudioUtility.get_debug_snapshot()` 新增 `bgm_paused`、`bgm_position`、`current_bgm_loop` 和 `active_spatial_sfx_count` 字段。
+- `GFAudioBackend` 的新增方法都是默认返回未处理的可选协议；未实现这些方法的项目后端应继承当前基类以获得默认行为。
 
 ### 📘 升级指南
 
-- 项目代码不要再把 `get_full_state()` 的 `global_seed`、`rng_state` 或分支计数字段当作数字直接编辑；恢复时继续把完整字典交给 `set_full_state()`。
-- JSON 存档中需要精确保留任意 64 位整数的业务字段，应使用字符串、`GFVariantJsonCodec` 的类型化 JSON 值，或切换到 `GFStorageCodec.Format.BINARY`。
-- 项目若直接读取 `get_full_state()` 字典做调试展示，可显示 `state_schema_version`，但业务判断不要把它当作 GF 框架版本号。
-- 新后台工作推荐只传路径、ID、数值、数组和字典等纯 Variant 数据；需要触碰 Node、Resource 或 UI 的逻辑应放到 `apply_callback`，由 `GFBackgroundWorkUtility.tick()` 在主线程执行。
+- 项目中用于暂停菜单或场景切换的手写 BGM 暂停/恢复逻辑，可迁移到 `pause_bgm()`、`resume_bgm()` 和 `get_bgm_playback_position()`。
+- 项目中手动遍历 SFX 播放器的停止逻辑，可迁移到 `stop_all_sfx()`；需要精细控制单次播放时仍使用 `GFAudioEmitterHandle`。
 
 ### 📁 核心受影响文件
 
-- 随机状态：`addons/gf/standard/utilities/random/gf_seed_utility.gd`。
-- 存储编码：`addons/gf/standard/utilities/storage/gf_storage_codec.gd`。
-- 存储同步：`addons/gf/standard/utilities/storage/gf_storage_sync_utility.gd`。
-- 设置持久化：`addons/gf/standard/utilities/settings/gf_settings_utility.gd`、`addons/gf/standard/utilities/settings/gf_setting_definition.gd`。
-- Variant JSON 编码：`addons/gf/standard/foundation/variant/gf_variant_json_codec.gd`。
-- 存档图：`addons/gf/extensions/save/graph/gf_save_graph_utility.gd`。
-- 后台工作协调：`addons/gf/standard/utilities/jobs/gf_background_work_utility.gd`、`addons/gf/standard/utilities/jobs/gf_background_work_task.gd`。
-- 测试：`tests/gf_core/standard/utilities/jobs/test_gf_background_work_utility.gd`。
-- 文档：`docs/zh/standard/utilities/io/assets-jobs-warmup.md`、`docs/zh/standard/utilities/io/index.md`。
+- 音频协议：`addons/gf/standard/utilities/audio/gf_audio_backend.gd`。
+- 音频工具：`addons/gf/standard/utilities/audio/gf_audio_utility.gd`。
+- 测试：`tests/gf_core/standard/utilities/audio/test_gf_audio_utility.gd`。
+- 文档：`docs/zh/standard/utilities/runtime/audio.md`。
+
+---

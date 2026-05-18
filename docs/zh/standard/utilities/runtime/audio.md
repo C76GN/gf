@@ -45,7 +45,19 @@ audio.play_sfx_event(&"ui+confirm+primary", &"ui") # 可逐级回退到 ui+confi
 
 # BGM 可按需淡入淡出，并可查询最近播放历史
 audio.play_bgm("res://audio/bgm/explore.ogg", 0.5)
+audio.play_bgm_with_options("res://audio/bgm/boss.ogg", {
+	"crossfade_seconds": 0.5,
+	"loop": true,
+})
+audio.pause_bgm(0.2)
+var bgm_position := audio.get_bgm_playback_position()
+audio.resume_bgm(bgm_position, 0.2)
+audio.seek_bgm(12.0)
 print(audio.get_bgm_history())
+
+audio.bgm_finished.connect(func(history_key: String) -> void:
+	print("BGM finished: ", history_key)
+)
 
 # 环境音按 channel 独立播放和停止
 audio.play_ambient("res://audio/ambient/rain.ogg", &"rain")
@@ -58,9 +70,12 @@ audio.set_bus_volume("BGM", 0.5)
 # 限制同时播放的 SFX 数量；小于等于 0 表示不限制
 audio.max_sfx_players = 24
 audio.sfx_overflow_policy = GFAudioUtility.SFXOverflowPolicy.STOP_OLDEST
+audio.stop_all_sfx(0.1)
 ```
 
-`GFAudioUtility` 会优先借助 `GFAssetUtility` 异步加载音频资源；未注册时退回同步 `load()`。SFX 播放会在存在 `GFObjectPoolUtility` 时复用池化 `AudioStreamPlayer`，未注册对象池时则创建普通播放器并在播放结束后释放。`GFAudioEmitterHandle.stop()` 即使在异步资源返回前调用，也会记录停止请求；迟到的 SFX 资源不会再创建播放器。池化播放器归还前会重置 stream、bus、音量和 pitch，避免上一次播放设置污染下一次请求。BGM 和环境音使用独立播放器，异步加载回调带有请求序号，较旧请求完成得更晚时不会覆盖新的播放请求。
+`GFAudioUtility` 会优先借助 `GFAssetUtility` 异步加载音频资源；未注册时退回同步 `load()`。SFX 播放会在存在 `GFObjectPoolUtility` 时复用池化 `AudioStreamPlayer`，未注册对象池时则创建普通播放器并在播放结束后释放。`GFAudioEmitterHandle.stop()` 即使在异步资源返回前调用，也会记录停止请求；迟到的 SFX 资源不会再创建播放器。`stop_all_sfx()` 会递增 SFX 生命周期序号，停止普通 SFX 和 2D/3D 空间 SFX，并阻止尚未返回的异步 SFX 继续落地。池化播放器归还前会重置 stream、bus、音量和 pitch，避免上一次播放设置污染下一次请求。BGM 和环境音使用独立播放器，异步加载回调带有请求序号，较旧请求完成得更晚时不会覆盖新的播放请求。
+
+BGM transport 接口面向暂停菜单、剧情演出、音量淡入淡出和进度恢复：`pause_bgm()` / `resume_bgm()` 使用 Godot `AudioStreamPlayer.stream_paused` 保留当前位置，`seek_bgm()` 和 `get_bgm_playback_position()` 用于显式跳转和记录。`play_bgm_with_options()` 支持 `crossfade_seconds`、`history_key`、`bus_name`、`volume_db`、`pitch_scale` 与可选 `loop` 覆盖；只有显式传入 `loop` 时才尝试复制当前 `AudioStream` 并设置循环属性，避免修改共享 Resource 或改变默认循环语义。当前 BGM 自然结束时会发出 `bgm_finished(history_key)`。
 
 需要接入外部音频中间件、平台事件音频或项目自定义混音系统时，继承 `GFAudioBackend` 并通过 `set_audio_backend()` 注入。后端只有在 `can_handle_path()` 或 `can_handle_clip()` 明确返回 `true` 时才接管请求；播放失败或不支持的请求会继续走默认 Godot 播放路径：
 
@@ -79,7 +94,7 @@ audio.set_audio_backend(ProjectAudioBackend.new())
 audio.play_sfx("event://ui/confirm")
 ```
 
-`GFAudioBackend` 是协议层，不内置任何第三方 SDK、事件命名或业务混音快照。后端可选择只处理部分 BGM、SFX、环境音、空间音效或总线音量，其余请求保持默认行为；`GFAudioUtility.get_debug_snapshot()` 会把后端的 `get_debug_snapshot()` 放进 `backend_snapshot`，便于诊断面板统一展示。
+`GFAudioBackend` 是协议层，不内置任何第三方 SDK、事件命名或业务混音快照。后端可选择只处理部分 BGM、BGM transport、SFX、stop-all SFX、环境音、空间音效或总线音量，其余请求保持默认行为；`GFAudioUtility.get_debug_snapshot()` 会把后端的 `get_debug_snapshot()` 放进 `backend_snapshot`，并提供 `bgm_paused`、`bgm_position`、`current_bgm_loop`、`active_sfx_count` 和 `active_spatial_sfx_count` 等字段，便于诊断面板统一展示。
 
 后端可以通过 `GFAudioBackendCapability` 声明支持 BGM、SFX、环境音、空间音效、资源化事件、参数、状态、开关、监听器或异步加载等能力；快照中的 `backend_capabilities` 可供调试面板或项目工具展示。需要把音频请求资源化时，可使用 `GFAudioEvent`、`GFAudioParameter`、`GFAudioState` 和 `GFAudioSwitch`，再通过 `post_audio_event()`、`set_audio_parameter()`、`set_audio_state()` 或 `set_audio_switch()` 交给当前后端；默认 Godot 播放路径只处理通用 BGM/SFX/环境音，不解释外部后端的项目含义。编辑器选择器或构建工具需要列出外部音频 ID 时，可实现或填充 `GFAudioCatalogProvider`：
 

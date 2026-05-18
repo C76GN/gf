@@ -52,9 +52,19 @@ class MockAudioBackend:
 
 	var setup_called: bool = false
 	var disposed: bool = false
+	var handle_bgm_paths: bool = false
+	var played_bgm_paths: PackedStringArray = PackedStringArray()
 	var played_sfx_paths: PackedStringArray = PackedStringArray()
 	var posted_events: PackedStringArray = PackedStringArray()
 	var parameter_values: Dictionary = {}
+	var last_bgm_options: Dictionary = {}
+	var pause_bgm_fade: float = -1.0
+	var resume_bgm_position: float = -1.0
+	var resume_bgm_fade: float = -1.0
+	var seek_bgm_position: float = -1.0
+	var bgm_position: float = -1.0
+	var bgm_paused: bool = false
+	var stop_all_sfx_fade: float = -1.0
 	var external_volume: float = -1.0
 
 	func _init() -> void:
@@ -71,11 +81,44 @@ class MockAudioBackend:
 		super.dispose()
 
 	func can_handle_path(path: String, channel: StringName, _context: Dictionary = {}) -> bool:
+		if channel == &"bgm":
+			return handle_bgm_paths and path.begins_with("event://")
 		return channel == &"sfx" and path.begins_with("event://")
+
+	func play_bgm_path(path: String, options: Dictionary = {}) -> bool:
+		played_bgm_paths.append(path)
+		last_bgm_options = options.duplicate(true)
+		return true
+
+	func pause_bgm(fade_seconds: float = 0.0) -> bool:
+		pause_bgm_fade = fade_seconds
+		bgm_paused = true
+		return true
+
+	func resume_bgm(from_position: float = -1.0, fade_seconds: float = 0.0) -> bool:
+		resume_bgm_position = from_position
+		resume_bgm_fade = fade_seconds
+		bgm_paused = false
+		return true
+
+	func seek_bgm(position_seconds: float) -> bool:
+		seek_bgm_position = position_seconds
+		bgm_position = position_seconds
+		return true
+
+	func get_bgm_playback_position() -> float:
+		return bgm_position
+
+	func is_bgm_paused() -> bool:
+		return bgm_paused
 
 	func play_sfx_path(path: String, options: Dictionary = {}) -> GFAudioEmitterHandle:
 		played_sfx_paths.append(path)
 		return GFAudioEmitterHandle.new(null, Callable(), &"backend", options)
+
+	func stop_all_sfx(fade_seconds: float = 0.0) -> bool:
+		stop_all_sfx_fade = fade_seconds
+		return true
 
 	func can_handle_event(event: GFAudioEvent, _options: Dictionary = {}) -> bool:
 		return event.event_id != &""
@@ -146,6 +189,79 @@ func test_play_bgm_empty_path_respects_crossfade() -> void:
 	assert_true(_audio._bgm_player.playing, "传入淡出时间时，空路径停止 BGM 应先执行淡出。")
 	await get_tree().create_timer(0.08).timeout
 	assert_false(_audio._bgm_player.playing, "淡出完成后 BGM 应停止播放。")
+
+
+func test_bgm_transport_controls_default_player() -> void:
+	var stream := AudioStreamGenerator.new()
+	_audio._play_bgm_stream(stream)
+
+	assert_true(_audio.pause_bgm(), "默认播放器应支持暂停 BGM。")
+	assert_true(_audio.is_bgm_paused(), "暂停后查询应返回已暂停。")
+	assert_true(_audio._bgm_player.stream_paused, "默认播放器应使用 Godot 的 stream_paused。")
+	assert_true(_audio.seek_bgm(0.0), "默认播放器应支持跳转。")
+	assert_true(_audio.resume_bgm(-1.0), "默认播放器应支持恢复。")
+	assert_false(_audio.is_bgm_paused(), "恢复后查询应返回未暂停。")
+	assert_false(_audio._bgm_player.stream_paused, "恢复后应解除 Godot 暂停状态。")
+	assert_almost_eq(_audio.get_bgm_playback_position(), 0.0, 0.2, "默认播放器应能查询播放位置。")
+
+
+func test_bgm_resume_cancels_pending_pause_fade() -> void:
+	var stream := AudioStreamGenerator.new()
+	_audio._play_bgm_stream(stream)
+
+	assert_true(_audio.pause_bgm(0.05), "淡出暂停应开始。")
+	assert_true(_audio.resume_bgm(-1.0), "淡出尚未完成时也应能立即恢复。")
+	await get_tree().create_timer(0.08).timeout
+
+	assert_false(_audio.is_bgm_paused(), "恢复后迟到的暂停 tween 不应再次暂停 BGM。")
+	assert_false(_audio._bgm_player.stream_paused, "恢复后底层播放器不应被迟到回调暂停。")
+	assert_almost_eq(_audio._bgm_player.volume_db, 0.0, 0.001, "恢复后迟到的暂停 tween 不应把音量留在淡出值。")
+
+
+func test_bgm_transport_delegates_to_backend() -> void:
+	var backend := MockAudioBackend.new()
+	backend.bgm_position = 12.5
+	_audio.set_audio_backend(backend)
+
+	assert_true(_audio.pause_bgm(0.2), "后端可接管 BGM 暂停。")
+	assert_true(_audio.is_bgm_paused(), "后端暂停状态应暴露给查询接口。")
+	assert_true(_audio.resume_bgm(3.0, 0.1), "后端可接管 BGM 恢复。")
+	assert_true(_audio.seek_bgm(8.0), "后端可接管 BGM 跳转。")
+	assert_almost_eq(backend.pause_bgm_fade, 0.2, 0.001, "暂停淡出时间应传给后端。")
+	assert_almost_eq(backend.resume_bgm_position, 3.0, 0.001, "恢复位置应传给后端。")
+	assert_almost_eq(backend.resume_bgm_fade, 0.1, 0.001, "恢复淡入时间应传给后端。")
+	assert_almost_eq(backend.seek_bgm_position, 8.0, 0.001, "跳转位置应传给后端。")
+	assert_almost_eq(_audio.get_bgm_playback_position(), 8.0, 0.001, "播放位置应优先读取后端。")
+
+
+func test_play_bgm_with_options_passes_loop_to_backend_and_debug_snapshot() -> void:
+	var backend := MockAudioBackend.new()
+	backend.handle_bgm_paths = true
+	_audio.set_audio_backend(backend)
+
+	_audio.play_bgm_with_options("event://music/title", {
+		"crossfade_seconds": 0.25,
+		"history_key": "title",
+		"loop": false,
+	})
+	var snapshot := _audio.get_debug_snapshot()
+
+	assert_eq(backend.played_bgm_paths, PackedStringArray(["event://music/title"]), "后端声明可处理时应接管 BGM 路径。")
+	assert_false(bool(backend.last_bgm_options["loop"]), "loop 覆盖选项应传给后端。")
+	assert_almost_eq(float(backend.last_bgm_options["crossfade_seconds"]), 0.25, 0.001, "crossfade 应规范化后传给后端。")
+	assert_eq(_audio.get_current_bgm_key(), "title", "后端播放也应记录 BGM 历史 key。")
+	assert_eq(snapshot["current_bgm_loop"], false, "调试快照应记录当前 loop 覆盖值。")
+
+
+func test_bgm_finished_signal_emits_for_active_player() -> void:
+	watch_signals(_audio)
+	var stream := AudioStreamGenerator.new()
+	_audio._play_bgm_stream_with_settings(stream, GFAudioUtility.BGM_BUS_NAME, 0.0, 1.0, -1.0, "finish-test")
+
+	_audio._bgm_player.finished.emit()
+
+	assert_signal_emitted_with_parameters(_audio, "bgm_finished", ["finish-test"])
+	assert_eq(_audio.get_current_bgm_key(), "", "自然结束后当前 BGM key 应清空。")
 
 
 func test_play_bgm_clip_applies_settings() -> void:
@@ -473,6 +589,51 @@ func test_play_sfx_clip_2d_can_follow_source() -> void:
 	assert_eq(player.position, Vector2.ZERO, "跟随模式下播放器应使用本地零偏移。")
 	source.global_position = Vector2(32.0, 48.0)
 	assert_eq(player.global_position, source.global_position, "声源移动后播放器应跟随全局位置。")
+
+
+func test_stop_all_sfx_releases_normal_and_spatial_players() -> void:
+	var source := Node2D.new()
+	add_child_autofree(source)
+	var clip := GFAudioClip.new()
+	clip.stream = AudioStreamGenerator.new()
+	clip.bus_name = "Master"
+	var normal_player := _audio._play_sfx_stream(AudioStreamGenerator.new())
+	var spatial_player := _audio.play_sfx_clip_2d(clip, source)
+
+	assert_not_null(normal_player, "测试应先创建普通 SFX 播放器。")
+	assert_not_null(spatial_player, "测试应先创建空间 SFX 播放器。")
+	assert_eq(_audio._active_sfx_players.size(), 1, "停止前应有普通 SFX 播放器。")
+	assert_eq(_audio._active_spatial_sfx_players.size(), 1, "停止前应有空间 SFX 播放器。")
+
+	_audio.stop_all_sfx()
+	var snapshot := _audio.get_debug_snapshot()
+
+	assert_eq(_audio._active_sfx_players.size(), 0, "stop_all_sfx 后普通 SFX 列表应清空。")
+	assert_eq(_audio._active_spatial_sfx_players.size(), 0, "stop_all_sfx 后空间 SFX 列表应清空。")
+	assert_eq(int(snapshot["active_spatial_sfx_count"]), 0, "调试快照应同步空间 SFX 数量。")
+	assert_eq(_pool.get_available_count(_audio._sfx_scene), 1, "普通 SFX 应归还对象池。")
+	if is_instance_valid(spatial_player):
+		assert_true(spatial_player.is_queued_for_deletion(), "空间 SFX 应排队释放。")
+
+
+func test_stop_all_sfx_cancels_pending_async_request_and_delegates_to_backend() -> void:
+	var backend := MockAudioBackend.new()
+	_audio.set_audio_backend(backend)
+	_audio.stop_all_sfx(0.15)
+	assert_almost_eq(backend.stop_all_sfx_fade, 0.15, 0.001, "stop_all_sfx 淡出秒数应传给后端。")
+
+	var mock_asset := MockAssetUtility.new()
+	var audio := RecordingAudioUtility.new(mock_asset)
+	audio.init()
+	await get_tree().process_frame
+
+	audio.play_sfx("res://audio/sfx.ogg")
+	audio.stop_all_sfx()
+	mock_asset.finish("res://audio/sfx.ogg", AudioStreamGenerator.new())
+
+	assert_eq(audio.sfx_play_count, 0, "stop_all_sfx 后迟到的异步 SFX 不应再播放。")
+	audio.dispose()
+	await get_tree().process_frame
 
 
 func test_play_ambient_clip_uses_channel_player() -> void:

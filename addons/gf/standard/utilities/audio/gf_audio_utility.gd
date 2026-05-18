@@ -7,6 +7,13 @@ class_name GFAudioUtility
 extends GFUtility
 
 
+# --- 信号 ---
+
+## 当前 BGM 自然播放结束时发出。
+## @param history_key: 播放请求记录的 BGM key。
+signal bgm_finished(history_key: String)
+
+
 # --- 枚举 ---
 
 ## SFX 超出并发上限时的处理策略。
@@ -52,11 +59,18 @@ var _sfx_scene: PackedScene
 var _root: Node
 var _bgm_request_serial: int = 0
 var _bgm_fade_serial: int = 0
+var _bgm_fade_tween_ref: WeakRef = null
+var _bgm_pause_serial: int = 0
+var _bgm_transport_tween_ref: WeakRef = null
+var _bgm_paused: bool = false
+var _bgm_pause_volume_db: float = 0.0
 var _sfx_lifecycle_serial: int = 0
 var _missing_bus_warnings: Dictionary = {}
 var _active_sfx_players: Array[AudioStreamPlayer] = []
+var _active_spatial_sfx_players: Array[Node] = []
 var _bgm_history: PackedStringArray = PackedStringArray()
 var _current_bgm_key: String = ""
+var _current_bgm_loop: Variant = null
 var _ambient_players: Dictionary = {}
 var _ambient_request_serials: Dictionary = {}
 var _audio_rng: RandomNumberGenerator = RandomNumberGenerator.new()
@@ -72,11 +86,18 @@ var _audio_backend: GFAudioBackend = null
 func init() -> void:
 	_bgm_request_serial = 0
 	_bgm_fade_serial = 0
+	_bgm_fade_tween_ref = null
+	_bgm_pause_serial = 0
+	_bgm_transport_tween_ref = null
+	_bgm_paused = false
+	_bgm_pause_volume_db = 0.0
 	_sfx_lifecycle_serial += 1
 	_missing_bus_warnings.clear()
 	_active_sfx_players.clear()
+	_active_spatial_sfx_players.clear()
 	_bgm_history = PackedStringArray()
 	_current_bgm_key = ""
+	_current_bgm_loop = null
 	_ambient_players.clear()
 	_ambient_request_serials.clear()
 	_audio_rng.randomize()
@@ -93,9 +114,11 @@ func init() -> void:
 	_bgm_player = AudioStreamPlayer.new()
 	_bgm_player.name = "GFBGMPlayer"
 	_bgm_player.bus = _resolve_bus_name(BGM_BUS_NAME)
+	_bgm_player.finished.connect(_on_bgm_player_finished.bind(_bgm_player))
 	_bgm_fade_player = AudioStreamPlayer.new()
 	_bgm_fade_player.name = "GFBGMFadePlayer"
 	_bgm_fade_player.bus = _resolve_bus_name(BGM_BUS_NAME)
+	_bgm_fade_player.finished.connect(_on_bgm_player_finished.bind(_bgm_fade_player))
 	
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
@@ -107,9 +130,15 @@ func init() -> void:
 func dispose() -> void:
 	_bgm_request_serial += 1
 	_bgm_fade_serial += 1
+	_bgm_pause_serial += 1
+	_cancel_bgm_fade_tween()
+	_cancel_bgm_transport_tween()
 	_sfx_lifecycle_serial += 1
+	_bgm_paused = false
+	_current_bgm_loop = null
 	_clear_audio_backend(true)
-	_release_all_sfx_players()
+	_release_all_sfx_players(0.0)
+	_release_all_spatial_sfx_players(0.0)
 	_free_all_ambient_players()
 	if is_instance_valid(_bgm_player):
 		_bgm_player.queue_free()
@@ -129,26 +158,69 @@ func dispose() -> void:
 ## @param path: 音频资源的路径
 ## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
 func play_bgm(path: String, crossfade_seconds: float = -1.0) -> void:
+	play_bgm_with_options(path, {
+		"crossfade_seconds": crossfade_seconds,
+	})
+
+
+## 使用选项播放 BGM。
+## @param path: 音频资源路径或后端事件路径。
+## @param options: 支持 crossfade_seconds、history_key、loop、bus_name、volume_db 和 pitch_scale。
+func play_bgm_with_options(path: String, options: Dictionary = {}) -> void:
 	_bgm_request_serial += 1
+	_bgm_pause_serial += 1
+	_bgm_paused = false
 	var request_serial := _bgm_request_serial
+	var crossfade_seconds := float(options.get("crossfade_seconds", -1.0))
+	var history_key := path
+	if options.has("history_key"):
+		history_key = str(options["history_key"])
+	var bus_name := BGM_BUS_NAME
+	if options.has("bus_name"):
+		bus_name = str(options["bus_name"])
+	var volume_db := float(options.get("volume_db", 0.0))
+	var pitch_scale := float(options.get("pitch_scale", 1.0))
+	var loop_override: Variant = options.get("loop") if options.has("loop") else null
+	_current_bgm_loop = loop_override
 	if path.is_empty():
 		stop_bgm(crossfade_seconds)
 		return
 
-	if _try_backend_play_bgm_path(path, {
-		"crossfade_seconds": _resolve_bgm_crossfade_seconds(crossfade_seconds),
-		"history_key": path,
-	}):
-		_record_bgm_history(path)
+	var backend_options := options.duplicate(true)
+	backend_options["crossfade_seconds"] = _resolve_bgm_crossfade_seconds(crossfade_seconds)
+	backend_options["history_key"] = history_key
+	backend_options["bus_name"] = bus_name
+	backend_options["volume_db"] = volume_db
+	backend_options["pitch_scale"] = pitch_scale
+	if _try_backend_play_bgm_path(path, backend_options):
+		_record_bgm_history(history_key)
 		return
 		
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(path) as AudioStream
-		_apply_bgm_request(request_serial, stream, crossfade_seconds, path)
+		_apply_bgm_request_with_settings(
+			request_serial,
+			stream,
+			bus_name,
+			volume_db,
+			pitch_scale,
+			crossfade_seconds,
+			history_key,
+			loop_override
+		)
 	else:
 		var on_loaded := func(res: Resource) -> void:
-			_apply_bgm_request(request_serial, res as AudioStream, crossfade_seconds, path)
+			_apply_bgm_request_with_settings(
+				request_serial,
+				res as AudioStream,
+				bus_name,
+				volume_db,
+				pitch_scale,
+				crossfade_seconds,
+				history_key,
+				loop_override
+			)
 		asset_util.load_async(path, on_loaded)
 
 
@@ -160,6 +232,9 @@ func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -> void:
 		return
 
 	_bgm_request_serial += 1
+	_bgm_pause_serial += 1
+	_bgm_paused = false
+	_current_bgm_loop = null
 	var request_serial := _bgm_request_serial
 	var bus_name := clip.resolve_bus(BGM_BUS_NAME)
 	var volume_db := clip.volume_db
@@ -178,13 +253,29 @@ func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -> void:
 		return
 
 	if clip.stream != null:
-		_apply_bgm_request_with_settings(request_serial, clip.stream, bus_name, volume_db, pitch_scale, crossfade_seconds, history_key)
+		_apply_bgm_request_with_settings(
+			request_serial,
+			clip.stream,
+			bus_name,
+			volume_db,
+			pitch_scale,
+			crossfade_seconds,
+			history_key
+		)
 		return
 
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(clip.path) as AudioStream
-		_apply_bgm_request_with_settings(request_serial, stream, bus_name, volume_db, pitch_scale, crossfade_seconds, history_key)
+		_apply_bgm_request_with_settings(
+			request_serial,
+			stream,
+			bus_name,
+			volume_db,
+			pitch_scale,
+			crossfade_seconds,
+			history_key
+		)
 	else:
 		var on_loaded := func(res: Resource) -> void:
 			_apply_bgm_request_with_settings(
@@ -227,12 +318,120 @@ func play_bgm_event(
 func stop_bgm(fade_seconds: float = 0.0) -> void:
 	if _audio_backend != null:
 		_audio_backend.stop_bgm(maxf(fade_seconds, 0.0))
-	_bgm_fade_serial += 1
+	_cancel_bgm_crossfade_playback()
+	_bgm_pause_serial += 1
+	_cancel_bgm_transport_tween()
+	_bgm_paused = false
 	_current_bgm_key = ""
+	_current_bgm_loop = null
 	if is_instance_valid(_bgm_player):
+		_bgm_player.stream_paused = false
 		_stop_player(_bgm_player, fade_seconds)
 	if is_instance_valid(_bgm_fade_player):
+		_bgm_fade_player.stream_paused = false
 		_bgm_fade_player.stop()
+
+
+## 暂停当前 BGM。
+## @param fade_seconds: 淡出到暂停的秒数。
+## @return 成功暂停或后端已处理时返回 true。
+func pause_bgm(fade_seconds: float = 0.0) -> bool:
+	var safe_fade := maxf(fade_seconds, 0.0)
+	_cancel_bgm_crossfade_playback()
+	_cancel_bgm_transport_tween()
+	if _audio_backend != null and _audio_backend.pause_bgm(safe_fade):
+		_bgm_paused = true
+		return true
+
+	if not is_instance_valid(_bgm_player) or _bgm_player.stream == null:
+		return false
+
+	_bgm_pause_serial += 1
+	var pause_serial := _bgm_pause_serial
+	_bgm_paused = true
+	_bgm_pause_volume_db = _bgm_player.volume_db
+	if safe_fade > 0.0 and _bgm_player.playing:
+		var tween := _fade_player_volume(_bgm_player, -80.0, safe_fade)
+		if tween != null:
+			_bgm_transport_tween_ref = weakref(tween)
+			tween.finished.connect(_apply_bgm_pause.bind(pause_serial, _bgm_player), CONNECT_ONE_SHOT)
+			return true
+
+	_apply_bgm_pause(pause_serial, _bgm_player)
+	return true
+
+
+## 恢复当前 BGM。
+## @param from_position: 大于等于 0 时从指定秒数恢复。
+## @param fade_seconds: 淡入秒数。
+## @return 成功恢复或后端已处理时返回 true。
+func resume_bgm(from_position: float = -1.0, fade_seconds: float = 0.0) -> bool:
+	var safe_fade := maxf(fade_seconds, 0.0)
+	var safe_position := maxf(from_position, 0.0)
+	_cancel_bgm_transport_tween()
+	if _audio_backend != null and _audio_backend.resume_bgm(from_position, safe_fade):
+		_bgm_paused = false
+		return true
+
+	if not is_instance_valid(_bgm_player) or _bgm_player.stream == null:
+		return false
+
+	_bgm_pause_serial += 1
+	var resume_serial := _bgm_pause_serial
+	var target_volume := _bgm_pause_volume_db if _bgm_paused else _bgm_player.volume_db
+	if from_position >= 0.0:
+		_bgm_player.seek(safe_position)
+	_bgm_player.stream_paused = false
+	if not _bgm_player.playing:
+		_bgm_player.play(safe_position if from_position >= 0.0 else 0.0)
+	_bgm_paused = false
+	if safe_fade > 0.0:
+		_bgm_player.volume_db = -80.0
+		var tween := _fade_player_volume(_bgm_player, target_volume, safe_fade)
+		if tween != null:
+			_bgm_transport_tween_ref = weakref(tween)
+			tween.finished.connect(_clear_bgm_transport_tween.bind(resume_serial), CONNECT_ONE_SHOT)
+	else:
+		_bgm_player.volume_db = target_volume
+	return true
+
+
+## 跳转当前 BGM 播放位置。
+## @param position_seconds: 目标秒数。
+## @return 成功跳转或后端已处理时返回 true。
+func seek_bgm(position_seconds: float) -> bool:
+	var safe_position := maxf(position_seconds, 0.0)
+	if _audio_backend != null and _audio_backend.seek_bgm(safe_position):
+		return true
+
+	if not is_instance_valid(_bgm_player) or _bgm_player.stream == null:
+		return false
+
+	_bgm_player.seek(safe_position)
+	return true
+
+
+## 获取当前 BGM 播放位置。
+## @return 当前播放秒数；无可查询播放器时返回 0。
+func get_bgm_playback_position() -> float:
+	if _audio_backend != null:
+		var backend_position := _audio_backend.get_bgm_playback_position()
+		if backend_position >= 0.0:
+			return backend_position
+
+	if not is_instance_valid(_bgm_player) or _bgm_player.stream == null:
+		return 0.0
+	return _bgm_player.get_playback_position()
+
+
+## 查询当前 BGM 是否暂停。
+## @return 暂停时返回 true。
+func is_bgm_paused() -> bool:
+	if _audio_backend != null and _audio_backend.is_bgm_paused():
+		return true
+	if is_instance_valid(_bgm_player) and _bgm_player.stream_paused:
+		return true
+	return _bgm_paused
 
 
 ## 获取 BGM 播放历史。
@@ -554,6 +753,17 @@ func is_ambient_playing(channel: StringName = &"default") -> bool:
 	return is_instance_valid(player) and player.playing
 
 
+## 停止全部普通 SFX 与空间 SFX。
+## @param fade_seconds: 淡出秒数。
+func stop_all_sfx(fade_seconds: float = 0.0) -> void:
+	var safe_fade := maxf(fade_seconds, 0.0)
+	if _audio_backend != null:
+		_audio_backend.stop_all_sfx(safe_fade)
+	_sfx_lifecycle_serial += 1
+	_release_all_sfx_players(safe_fade)
+	_release_all_spatial_sfx_players(safe_fade)
+
+
 ## 播放 SFX（音效），自动从池中分配播放器
 ## @param path: 音频资源的路径
 func play_sfx(path: String) -> void:
@@ -761,7 +971,7 @@ func play_sfx_clip_2d_handle(
 	var player := _play_spatial_sfx_clip(clip, source, follow_source)
 	if player == null:
 		return null
-	var handle := GFAudioEmitterHandle.new(player, Callable(self, "_queue_free_audio_player"))
+	var handle := GFAudioEmitterHandle.new(player, Callable(self, "_release_spatial_sfx_player"))
 	if follow_source:
 		handle.bind_to_owner(source)
 	return handle
@@ -799,7 +1009,7 @@ func play_sfx_clip_3d_handle(
 	var player := _play_spatial_sfx_clip(clip, source, follow_source)
 	if player == null:
 		return null
-	var handle := GFAudioEmitterHandle.new(player, Callable(self, "_queue_free_audio_player"))
+	var handle := GFAudioEmitterHandle.new(player, Callable(self, "_release_spatial_sfx_player"))
 	if follow_source:
 		handle.bind_to_owner(source)
 	return handle
@@ -856,6 +1066,7 @@ func get_bus_volume(bus_name: String) -> float:
 ## @return 调试快照。
 func get_debug_snapshot() -> Dictionary:
 	_prune_inactive_sfx_players()
+	_prune_inactive_spatial_sfx_players()
 	var ambient_channels := PackedStringArray()
 	for channel_variant: Variant in _ambient_players.keys():
 		var channel := String(channel_variant)
@@ -877,8 +1088,12 @@ func get_debug_snapshot() -> Dictionary:
 		"backend_snapshot": backend_snapshot,
 		"backend_capabilities": backend_capabilities,
 		"current_bgm_key": _current_bgm_key,
+		"current_bgm_loop": _current_bgm_loop,
+		"bgm_paused": is_bgm_paused(),
+		"bgm_position": get_bgm_playback_position(),
 		"bgm_history": get_bgm_history(),
 		"active_sfx_count": _active_sfx_players.size(),
+		"active_spatial_sfx_count": _active_spatial_sfx_players.size(),
 		"max_sfx_players": max_sfx_players,
 		"ambient_channels": ambient_channels,
 		"audio_bank_count": _audio_banks.size(),
@@ -1062,6 +1277,7 @@ func _play_spatial_sfx_clip(clip: GFAudioClip, source: Node, follow_source: bool
 
 	player.name = "GFSpatialSFXPlayer"
 	parent.add_child(player)
+	_track_spatial_sfx_player(player)
 
 	var request_serial := _sfx_lifecycle_serial
 	var bus_name := clip.resolve_bus(SFX_BUS_NAME)
@@ -1091,12 +1307,10 @@ func _apply_spatial_sfx_request(
 	pitch_scale: float
 ) -> void:
 	if request_serial != _sfx_lifecycle_serial:
-		if is_instance_valid(player):
-			player.queue_free()
+		_release_spatial_sfx_player(player, 0.0)
 		return
 	if stream == null or not is_instance_valid(player):
-		if is_instance_valid(player):
-			player.queue_free()
+		_release_spatial_sfx_player(player, 0.0)
 		return
 
 	if player is AudioStreamPlayer2D:
@@ -1105,7 +1319,9 @@ func _apply_spatial_sfx_request(
 		player_2d.volume_db = volume_db
 		player_2d.pitch_scale = pitch_scale
 		player_2d.stream = stream
-		player_2d.finished.connect(player_2d.queue_free, CONNECT_ONE_SHOT)
+		var finished_callback := _get_spatial_sfx_finished_callback(player_2d)
+		if not player_2d.finished.is_connected(finished_callback):
+			player_2d.finished.connect(finished_callback, CONNECT_ONE_SHOT)
 		player_2d.play()
 	elif player is AudioStreamPlayer3D:
 		var player_3d := player as AudioStreamPlayer3D
@@ -1113,10 +1329,12 @@ func _apply_spatial_sfx_request(
 		player_3d.volume_db = volume_db
 		player_3d.pitch_scale = pitch_scale
 		player_3d.stream = stream
-		player_3d.finished.connect(player_3d.queue_free, CONNECT_ONE_SHOT)
+		var finished_callback := _get_spatial_sfx_finished_callback(player_3d)
+		if not player_3d.finished.is_connected(finished_callback):
+			player_3d.finished.connect(finished_callback, CONNECT_ONE_SHOT)
 		player_3d.play()
 	else:
-		player.queue_free()
+		_release_spatial_sfx_player(player, 0.0)
 
 
 func _get_spatial_sfx_parent(source: Node) -> Node:
@@ -1136,18 +1354,24 @@ func _play_bgm_stream_with_settings(
 	volume_db: float,
 	pitch_scale: float,
 	crossfade_seconds: float = -1.0,
-	history_key: String = ""
+	history_key: String = "",
+	loop_override: Variant = null
 ) -> void:
 	if stream == null or not is_instance_valid(_bgm_player):
 		return
 
+	_cancel_bgm_crossfade_playback()
+	_cancel_bgm_transport_tween()
+	_bgm_pause_serial += 1
+	_bgm_paused = false
 	_record_bgm_history(history_key)
+	var prepared_stream := _prepare_bgm_stream(stream, loop_override)
 	var fade_seconds := _resolve_bgm_crossfade_seconds(crossfade_seconds)
 	if fade_seconds > 0.0 and _bgm_player.playing and _bgm_player.stream != null:
-		_start_bgm_crossfade(stream, bus_name, volume_db, pitch_scale, fade_seconds)
+		_start_bgm_crossfade(prepared_stream, bus_name, volume_db, pitch_scale, fade_seconds)
 		return
 
-	_apply_player_settings(_bgm_player, stream, bus_name, volume_db, pitch_scale)
+	_apply_player_settings(_bgm_player, prepared_stream, bus_name, volume_db, pitch_scale)
 	_bgm_player.play()
 
 
@@ -1155,12 +1379,21 @@ func _apply_bgm_request(
 	request_serial: int,
 	stream: AudioStream,
 	crossfade_seconds: float = -1.0,
-	history_key: String = ""
+	history_key: String = "",
+	loop_override: Variant = null
 ) -> void:
 	if request_serial != _bgm_request_serial:
 		return
 
-	_play_bgm_stream_with_settings(stream, BGM_BUS_NAME, 0.0, 1.0, crossfade_seconds, history_key)
+	_play_bgm_stream_with_settings(
+		stream,
+		BGM_BUS_NAME,
+		0.0,
+		1.0,
+		crossfade_seconds,
+		history_key,
+		loop_override
+	)
 
 
 func _apply_bgm_request_with_settings(
@@ -1170,12 +1403,21 @@ func _apply_bgm_request_with_settings(
 	volume_db: float,
 	pitch_scale: float,
 	crossfade_seconds: float = -1.0,
-	history_key: String = ""
+	history_key: String = "",
+	loop_override: Variant = null
 ) -> void:
 	if request_serial != _bgm_request_serial:
 		return
 
-	_play_bgm_stream_with_settings(stream, bus_name, volume_db, pitch_scale, crossfade_seconds, history_key)
+	_play_bgm_stream_with_settings(
+		stream,
+		bus_name,
+		volume_db,
+		pitch_scale,
+		crossfade_seconds,
+		history_key,
+		loop_override
+	)
 
 
 func _start_bgm_crossfade(
@@ -1200,6 +1442,7 @@ func _start_bgm_crossfade(
 		_complete_bgm_crossfade(fade_serial, volume_db)
 		return
 
+	_bgm_fade_tween_ref = weakref(tween)
 	tween.tween_property(_bgm_player, "volume_db", -80.0, fade_seconds)
 	tween.parallel().tween_property(_bgm_fade_player, "volume_db", volume_db, fade_seconds)
 	var finished_callback := func() -> void:
@@ -1213,12 +1456,26 @@ func _complete_bgm_crossfade(fade_serial: int, target_volume_db: float) -> void:
 	if not is_instance_valid(_bgm_player) or not is_instance_valid(_bgm_fade_player):
 		return
 
+	_bgm_fade_tween_ref = null
 	_bgm_player.stop()
+	_bgm_player.stream_paused = false
 	var previous_player := _bgm_player
 	_bgm_player = _bgm_fade_player
+	_bgm_player.stream_paused = false
 	_bgm_player.volume_db = target_volume_db
 	_bgm_fade_player = previous_player
+	_bgm_fade_player.stream_paused = false
 	_bgm_fade_player.volume_db = 0.0
+
+
+func _apply_bgm_pause(pause_serial: int, player: AudioStreamPlayer) -> void:
+	if pause_serial != _bgm_pause_serial:
+		return
+	if not is_instance_valid(player) or player.stream == null:
+		return
+
+	_bgm_transport_tween_ref = null
+	player.stream_paused = true
 
 
 func _apply_player_settings(
@@ -1232,6 +1489,35 @@ func _apply_player_settings(
 	player.volume_db = volume_db
 	player.pitch_scale = pitch_scale
 	player.stream = stream
+	player.stream_paused = false
+
+
+func _prepare_bgm_stream(stream: AudioStream, loop_override: Variant = null) -> AudioStream:
+	if stream == null or typeof(loop_override) != TYPE_BOOL:
+		return stream
+
+	var duplicated := stream.duplicate() as AudioStream
+	if duplicated == null:
+		return stream
+	if _try_set_stream_loop(duplicated, bool(loop_override)):
+		return duplicated
+	return stream
+
+
+func _try_set_stream_loop(stream: AudioStream, loop_enabled: bool) -> bool:
+	if stream == null:
+		return false
+
+	for property_info: Dictionary in stream.get_property_list():
+		var property_name := str(property_info.get("name", ""))
+		if property_name == "loop":
+			stream.set("loop", loop_enabled)
+			return true
+		if property_name == "loop_mode":
+			var current_mode := int(stream.get("loop_mode"))
+			stream.set("loop_mode", maxi(current_mode, 1) if loop_enabled else 0)
+			return true
+	return false
 
 
 func _resolve_bgm_crossfade_seconds(crossfade_seconds: float) -> float:
@@ -1362,6 +1648,38 @@ func _create_tween_or_null() -> Tween:
 	return null
 
 
+func _cancel_bgm_fade_tween() -> void:
+	_kill_tween_ref(_bgm_fade_tween_ref)
+	_bgm_fade_tween_ref = null
+
+
+func _cancel_bgm_crossfade_playback() -> void:
+	_bgm_fade_serial += 1
+	_cancel_bgm_fade_tween()
+	if is_instance_valid(_bgm_fade_player):
+		_bgm_fade_player.stream_paused = false
+		_bgm_fade_player.stop()
+
+
+func _cancel_bgm_transport_tween() -> void:
+	_kill_tween_ref(_bgm_transport_tween_ref)
+	_bgm_transport_tween_ref = null
+
+
+func _clear_bgm_transport_tween(pause_serial: int) -> void:
+	if pause_serial == _bgm_pause_serial:
+		_bgm_transport_tween_ref = null
+
+
+func _kill_tween_ref(tween_ref: WeakRef) -> void:
+	if tween_ref == null:
+		return
+
+	var tween := tween_ref.get_ref() as Tween
+	if tween != null:
+		tween.kill()
+
+
 func _apply_sfx_request(
 	request_serial: int,
 	stream: AudioStream,
@@ -1441,9 +1759,16 @@ func _stop_audio_player(player: Node) -> void:
 		player.call("stop")
 
 
-func _queue_free_audio_player(player: Node) -> void:
-	if is_instance_valid(player):
-		player.queue_free()
+func _on_bgm_player_finished(player: AudioStreamPlayer) -> void:
+	if player != _bgm_player:
+		return
+
+	var history_key := _current_bgm_key
+	_bgm_paused = false
+	_current_bgm_key = ""
+	_current_bgm_loop = null
+	if not history_key.is_empty():
+		bgm_finished.emit(history_key)
 
 
 func _on_sfx_finished(player: AudioStreamPlayer) -> void:
@@ -1454,6 +1779,10 @@ func _on_sfx_finished(player: AudioStreamPlayer) -> void:
 		pool.release(player, _sfx_scene)
 	else:
 		player.queue_free()
+
+
+func _on_spatial_sfx_finished(player: Node) -> void:
+	_finish_release_spatial_sfx_player(player)
 
 
 func _get_asset_util() -> GFAssetUtility:
@@ -1502,24 +1831,42 @@ func _untrack_sfx_player(player: AudioStreamPlayer) -> void:
 	_active_sfx_players.erase(player)
 
 
+func _track_spatial_sfx_player(player: Node) -> void:
+	_prune_inactive_spatial_sfx_players()
+	if is_instance_valid(player) and not _active_spatial_sfx_players.has(player):
+		_active_spatial_sfx_players.append(player)
+
+
+func _untrack_spatial_sfx_player(player: Node) -> void:
+	_active_spatial_sfx_players.erase(player)
+
+
 func _stop_oldest_sfx() -> void:
 	_prune_inactive_sfx_players()
 	if _active_sfx_players.is_empty():
 		return
 
 	var player := _active_sfx_players.pop_front() as AudioStreamPlayer
-	_release_sfx_player(player)
+	_release_sfx_player(player, 0.0)
 
 
-func _release_all_sfx_players() -> void:
+func _release_all_sfx_players(fade_seconds: float = 0.0) -> void:
 	_prune_inactive_sfx_players()
 	var players := _active_sfx_players.duplicate()
 	_active_sfx_players.clear()
 	for player: AudioStreamPlayer in players:
-		_release_sfx_player(player)
+		_release_sfx_player(player, fade_seconds)
 
 
-func _release_sfx_player(player: AudioStreamPlayer) -> void:
+func _release_all_spatial_sfx_players(fade_seconds: float = 0.0) -> void:
+	_prune_inactive_spatial_sfx_players()
+	var players := _active_spatial_sfx_players.duplicate()
+	_active_spatial_sfx_players.clear()
+	for player: Node in players:
+		_release_spatial_sfx_player(player, fade_seconds)
+
+
+func _release_sfx_player(player: AudioStreamPlayer, fade_seconds: float = 0.0) -> void:
 	if not is_instance_valid(player):
 		return
 
@@ -1527,6 +1874,20 @@ func _release_sfx_player(player: AudioStreamPlayer) -> void:
 	var finished_callback := _get_sfx_finished_callback(player)
 	if player.finished.is_connected(finished_callback):
 		player.finished.disconnect(finished_callback)
+	if fade_seconds > 0.0 and player.playing:
+		var tween := _fade_player_volume(player, -80.0, fade_seconds)
+		if tween != null:
+			tween.finished.connect(_finish_release_sfx_player.bind(player), CONNECT_ONE_SHOT)
+			return
+
+	_finish_release_sfx_player(player)
+
+
+func _finish_release_sfx_player(player: AudioStreamPlayer) -> void:
+	if not is_instance_valid(player):
+		return
+
+	_untrack_sfx_player(player)
 	player.stop()
 	_reset_sfx_player_for_reuse(player)
 
@@ -1537,11 +1898,44 @@ func _release_sfx_player(player: AudioStreamPlayer) -> void:
 		player.queue_free()
 
 
+func _release_spatial_sfx_player(player: Node, fade_seconds: float = 0.0) -> void:
+	if not is_instance_valid(player):
+		return
+
+	_untrack_spatial_sfx_player(player)
+	_disconnect_spatial_sfx_finished_callback(player)
+	if fade_seconds > 0.0 and _is_audio_node_playing(player):
+		var tween := _fade_audio_node_volume(player, -80.0, fade_seconds)
+		if tween != null:
+			tween.finished.connect(_finish_release_spatial_sfx_player.bind(player), CONNECT_ONE_SHOT)
+			return
+
+	_finish_release_spatial_sfx_player(player)
+
+
+func _finish_release_spatial_sfx_player(player: Node) -> void:
+	if not is_instance_valid(player):
+		return
+
+	_untrack_spatial_sfx_player(player)
+	_disconnect_spatial_sfx_finished_callback(player)
+	if player.has_method("stop"):
+		player.call("stop")
+	player.queue_free()
+
+
 func _prune_inactive_sfx_players() -> void:
 	for i: int in range(_active_sfx_players.size() - 1, -1, -1):
 		var player := _active_sfx_players[i]
 		if not is_instance_valid(player) or player.is_queued_for_deletion():
 			_active_sfx_players.remove_at(i)
+
+
+func _prune_inactive_spatial_sfx_players() -> void:
+	for i: int in range(_active_spatial_sfx_players.size() - 1, -1, -1):
+		var player := _active_spatial_sfx_players[i]
+		if not is_instance_valid(player) or player.is_queued_for_deletion():
+			_active_spatial_sfx_players.remove_at(i)
 
 
 func _reset_sfx_player_for_reuse(player: AudioStreamPlayer) -> void:
@@ -1557,3 +1951,39 @@ func _reset_sfx_player_for_reuse(player: AudioStreamPlayer) -> void:
 
 func _get_sfx_finished_callback(player: AudioStreamPlayer) -> Callable:
 	return _on_sfx_finished.bind(player)
+
+
+func _get_spatial_sfx_finished_callback(player: Node) -> Callable:
+	return _on_spatial_sfx_finished.bind(player)
+
+
+func _disconnect_spatial_sfx_finished_callback(player: Node) -> void:
+	var finished_callback := _get_spatial_sfx_finished_callback(player)
+	if player is AudioStreamPlayer2D:
+		var player_2d := player as AudioStreamPlayer2D
+		if player_2d.finished.is_connected(finished_callback):
+			player_2d.finished.disconnect(finished_callback)
+	elif player is AudioStreamPlayer3D:
+		var player_3d := player as AudioStreamPlayer3D
+		if player_3d.finished.is_connected(finished_callback):
+			player_3d.finished.disconnect(finished_callback)
+
+
+func _is_audio_node_playing(player: Node) -> bool:
+	if player is AudioStreamPlayer:
+		return (player as AudioStreamPlayer).playing
+	if player is AudioStreamPlayer2D:
+		return (player as AudioStreamPlayer2D).playing
+	if player is AudioStreamPlayer3D:
+		return (player as AudioStreamPlayer3D).playing
+	return false
+
+
+func _fade_audio_node_volume(player: Node, volume_db: float, fade_seconds: float) -> Tween:
+	var tween := _create_tween_or_null()
+	if tween == null:
+		player.set("volume_db", volume_db)
+		return null
+
+	tween.tween_property(player, "volume_db", volume_db, maxf(fade_seconds, 0.0))
+	return tween

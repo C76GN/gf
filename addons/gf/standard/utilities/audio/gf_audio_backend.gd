@@ -90,6 +90,40 @@ func stop_bgm(_fade_seconds: float = 0.0) -> bool:
 	return false
 
 
+## 暂停 BGM。
+## @param _fade_seconds: 淡出到暂停的秒数。
+## @return 已处理返回 true。
+func pause_bgm(_fade_seconds: float = 0.0) -> bool:
+	return false
+
+
+## 恢复 BGM。
+## @param _from_position: 大于等于 0 时从指定秒数恢复。
+## @param _fade_seconds: 淡入秒数。
+## @return 已处理返回 true。
+func resume_bgm(_from_position: float = -1.0, _fade_seconds: float = 0.0) -> bool:
+	return false
+
+
+## 跳转当前 BGM 播放位置。
+## @param _position_seconds: 目标秒数。
+## @return 已处理返回 true。
+func seek_bgm(_position_seconds: float) -> bool:
+	return false
+
+
+## 获取当前 BGM 播放位置。
+## @return 播放秒数；负数表示后端不处理该查询。
+func get_bgm_playback_position() -> float:
+	return -1.0
+
+
+## 查询 BGM 是否暂停。
+## @return 已暂停返回 true。
+func is_bgm_paused() -> bool:
+	return false
+
+
 ## 播放环境音路径。
 ## @param _path: 音频资源路径或后端事件路径。
 ## @param _channel: 环境音通道。
@@ -144,6 +178,13 @@ func play_sfx_path(_path: String, _options: Dictionary = {}) -> GFAudioEmitterHa
 ## @return 控制句柄；未处理返回 null。
 func play_sfx_clip(_clip: GFAudioClip, _options: Dictionary = {}) -> GFAudioEmitterHandle:
 	return null
+
+
+## 停止全部 SFX。
+## @param _fade_seconds: 淡出秒数。
+## @return 已处理返回 true。
+func stop_all_sfx(_fade_seconds: float = 0.0) -> bool:
+	return false
 
 
 ## 播放空间 SFX Clip。
