@@ -53,7 +53,7 @@ debug.watch_value(&"scene_path", scene_path_provider, {
 })
 ```
 
-`watch_value()` 适合廉价、无副作用的当前状态读取；`push_watch_value()` 适合由项目循环或回调主动更新的值。注册了 `GFDiagnosticsUtility` 时，Overlay 默认也会显示 `overlay` 诊断监控预设，可用 `set_diagnostics_monitor_preset()` 切换预设，或把 `include_diagnostics_monitors` 设为 `false` 只显示手动 watch。Watch 只是一层调试显示通道，不保存历史、不做采样统计，也不规定业务字段；需要长期记录请接入 `GFLogUtility` / `GFDiagnosticsUtility` 或项目自己的分析系统。
+`watch_value()` 适合廉价、无副作用的当前状态读取；`push_watch_value()` 适合由项目循环或回调主动更新的值。注册了 `GFDiagnosticsUtility` 时，Overlay 默认也会显示 `overlay` 诊断监控预设，可用 `set_diagnostics_monitor_preset()` 切换预设，或把 `include_diagnostics_monitors` 设为 `false` 只显示手动 watch。Watch 只是一层调试显示通道，不保存历史、不做采样统计，也不规定业务字段；需要长期记录请接入 `GFLogUtility` / `GFDiagnosticsUtility` 或项目自己的分析系统。Overlay 所属 GUI 在 `dispose()` 时会立即从场景树移除，避免调试层在架构销毁同一帧继续残留。
 
 需要显示多行结构化内容时，可以用 `register_panel()` 或 `push_panel_text()` 注册 Overlay 面板。面板 provider 可以返回字符串、数组或字典，Overlay 会把它们格式化为只读文本；`include_recent_logs` 开启时还会附加最近日志面板。面板同样不做脱敏，适合开发期聚合 `GFDiagnosticsUtility` 快照、项目局部状态或自定义工具输出。
 
@@ -460,4 +460,4 @@ console.keep_topmost = true
 console.debug_only = true
 ```
 
-`windowed = false` 是兼容默认值，适合只在需要时全屏覆盖查看日志。`windowed = true` 更适合边运行边观察状态或执行调试命令；拖拽区域位于标题文本，右下角手柄用于缩放。`debug_only = true` 会在非 debug 构建中跳过 GUI 创建，适合把控制台注册代码留在通用启动流程里，但仍由项目发布策略决定是否注册调试命令。
+`windowed = false` 是兼容默认值，适合只在需要时全屏覆盖查看日志。`windowed = true` 更适合边运行边观察状态或执行调试命令；拖拽区域位于标题文本，右下角手柄用于缩放。`debug_only = true` 会在非 debug 构建中跳过 GUI 创建，适合把控制台注册代码留在通用启动流程里，但仍由项目发布策略决定是否注册调试命令。控制台 GUI 在 `dispose()` 时会立即脱离场景树，并断开日志信号，避免关闭架构后同一帧仍留下调试输入层。

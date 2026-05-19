@@ -174,7 +174,7 @@ static func set_owner_recursive(node: Node, owner: Node) -> void:
 		set_owner_recursive(child, owner)
 
 
-## queue_free() 父节点下的全部子节点。
+## 从父节点移除并 queue_free() 父节点下的全部子节点。
 ## @param parent: 目标父节点。
 ## @param include_internal: 是否包含内部子节点。
 ## @return 进入释放队列的子节点数量。
@@ -184,6 +184,7 @@ static func free_children(parent: Node, include_internal: bool = false) -> int:
 
 	var count := 0
 	for child: Node in parent.get_children(include_internal):
+		parent.remove_child(child)
 		if child.is_queued_for_deletion():
 			continue
 		child.queue_free()

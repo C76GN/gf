@@ -74,12 +74,16 @@ func clear_split_screen(free_cameras: bool = false) -> void:
 	for camera: Node in _cameras:
 		if not is_instance_valid(camera):
 			continue
-		if camera.get_parent() in _viewports:
-			camera.get_parent().remove_child(camera)
+		var camera_parent := camera.get_parent()
+		if camera_parent != null and (camera_parent in _viewports or free_cameras):
+			camera_parent.remove_child(camera)
 		if free_cameras:
 			camera.queue_free()
 
 	if is_instance_valid(_grid):
+		var grid_parent := _grid.get_parent()
+		if grid_parent != null:
+			grid_parent.remove_child(_grid)
 		_grid.queue_free()
 
 	_root_ref = null

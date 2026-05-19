@@ -191,6 +191,7 @@ func _refresh_visible_extension_rows() -> void:
 
 func _clear_extension_rows() -> void:
 	for child: Node in _extension_rows.get_children():
+		_extension_rows.remove_child(child)
 		child.queue_free()
 
 

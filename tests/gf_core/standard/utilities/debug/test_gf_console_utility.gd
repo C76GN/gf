@@ -309,6 +309,18 @@ func test_console_is_debug_only_by_default() -> void:
 	assert_true(console.debug_only, "控制台默认应只在 debug 构建启用。")
 
 
+func test_dispose_detaches_console_gui_immediately() -> void:
+	var gui := _console._console_gui
+
+	_console.dispose()
+	_console = null
+
+	assert_null(gui.get_parent(), "dispose 应立即从 SceneTree.root 移除控制台 GUI。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(gui), "下一帧控制台 GUI 应完成释放。")
+
+
 func test_dispose_disconnects_log_signal() -> void:
 	var arch := GFArchitecture.new()
 	var log_util := GFLogUtility.new()

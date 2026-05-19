@@ -17,6 +17,7 @@ func after_each() -> void:
 		_utility.clear_split_screen()
 	_utility = null
 	_root = null
+	await get_tree().process_frame
 
 
 func test_setup_split_screen_creates_viewports() -> void:
@@ -51,6 +52,32 @@ func test_set_viewport_camera_adds_camera_to_subviewport() -> void:
 	_utility.clear_split_screen(false)
 	assert_null(camera.get_parent(), "清理布局但不释放相机时，应先从 SubViewport 移除。")
 	camera.free()
+
+
+func test_clear_split_screen_detaches_grid_immediately() -> void:
+	_utility.setup_split_screen(_root, 2)
+	var grid := _root.get_node("GFViewportGrid") as GridContainer
+
+	_utility.clear_split_screen(false)
+
+	assert_null(grid.get_parent(), "清理分屏布局时 GridContainer 应立即脱离 root。")
+	assert_eq(_root.get_child_count(), 0, "清理分屏布局后 root 不应继续持有旧布局节点。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(grid), "下一帧旧布局节点应完成释放。")
+
+
+func test_clear_split_screen_with_free_cameras_detaches_camera_immediately() -> void:
+	_utility.setup_split_screen(_root, 1)
+	var camera := Camera2D.new()
+	assert_true(_utility.set_viewport_camera(0, camera))
+
+	_utility.clear_split_screen(true)
+
+	assert_null(camera.get_parent(), "释放相机时应立即从 SubViewport 移除。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(camera), "下一帧相机应完成释放。")
 
 
 func test_set_postprocess_material_updates_container() -> void:
@@ -99,3 +126,4 @@ func test_setup_with_zero_count_clears_layout() -> void:
 
 	assert_eq(viewports, [])
 	assert_eq(_utility.get_viewport_count(), 0)
+	assert_eq(_root.get_child_count(), 0, "viewport_count 为 0 时应立即清空旧布局节点。")

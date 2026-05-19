@@ -921,6 +921,24 @@ func test_clear_state_groups_disconnects_external_group_signals() -> void:
 	assert_signal_not_emitted(machine, "state_changed", "清理状态组后旧 group 信号不应继续转发到状态机。")
 
 
+func test_clear_state_groups_with_free_detaches_group_immediately() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
+	group.name = "Body"
+	group.group_name = &"Body"
+	add_child_autofree(machine)
+	machine.add_child(group)
+	machine.add_state_group(group)
+
+	machine.clear_state_groups(true)
+
+	assert_null(group.get_parent(), "释放状态组时应立即从状态机节点下移除。")
+	assert_false(machine.get_children().has(group), "状态机子节点不应残留已释放状态组。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(group), "下一帧状态组应完成释放。")
+
+
 func test_clear_states_exits_current_and_stacked_states() -> void:
 	var machine: Node = GFNodeStateMachineBase.new()
 	var idle := TrackingNodeState.new()
@@ -941,3 +959,21 @@ func test_clear_states_exits_current_and_stacked_states() -> void:
 	assert_eq(idle.exit_count, 1, "清空状态时暂停栈状态也应执行 exit。")
 	assert_eq(menu.process_mode, Node.PROCESS_MODE_DISABLED, "当前状态清空后应停止处理。")
 	assert_eq(idle.process_mode, Node.PROCESS_MODE_DISABLED, "暂停栈状态清空后应保持停止处理。")
+
+
+func test_clear_states_with_free_detaches_state_nodes_immediately() -> void:
+	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
+	var idle := TrackingNodeState.new()
+	idle.name = "Idle"
+	group.initial_state = &"Idle"
+	group.add_child(idle)
+	add_child_autofree(group)
+	await get_tree().process_frame
+
+	group.clear_states(true)
+
+	assert_null(idle.get_parent(), "释放状态时应立即从状态组节点下移除。")
+	assert_false(group.get_children().has(idle), "状态组子节点不应残留已释放状态。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(idle), "下一帧状态节点应完成释放。")

@@ -138,7 +138,7 @@ ui_util.open_modal(config, GFUIUtility.Layer.POPUP, { "source": "settings" }, fu
 )
 ```
 
-`pop_panel(layer, false)` 会把面板从 UI 根节点移除但不释放，适合项目层自己复用实例；如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。每个 UI 层都有请求序号保护，`pop_panel()`、`clear_layer()`、替换层或释放工具后，迟到的异步加载回调会被忽略，不会把旧面板重新压回已经取消或清空的栈。同一层级同一路径的重复异步压栈请求会在资源返回前合并，避免按钮连点时叠出多层相同面板。
+`pop_panel()`、`clear_layer()` 和替换层入口会先把旧面板从 UI 根节点移除，再按需释放实例，因此关闭后的面板会立即脱离 `GFUILayer_*`。默认 `pop_panel()` 会释放面板；`pop_panel(layer, false)` 只移除但不释放，适合项目层自己复用实例。如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。每个 UI 层都有请求序号保护，`pop_panel()`、`clear_layer()`、替换层或释放工具后，迟到的异步加载回调会被忽略，不会把旧面板重新压回已经取消或清空的栈。同一层级同一路径的重复异步压栈请求会在资源返回前合并，避免按钮连点时叠出多层相同面板。
 
 `panel_opened`、`panel_closed` 和 `navigation_changed` 适合把 UI 栈变化同步给焦点系统、音效、诊断面板或项目自己的路由层。`get_panel_stack()`、`get_stack_count()`、`is_panel_open()` 和 `get_debug_snapshot()` 只返回当前栈状态，不保存业务历史；如果项目只需要 route id 到面板场景的通用映射，可以在其上注册 `GFUIRouterUtility` 和 `GFUIRoute`：
 
@@ -168,7 +168,7 @@ var viewports := viewport_util.setup_split_screen(%Root, 2, {
 viewport_util.set_viewport_camera(0, $Camera2D)
 ```
 
-默认情况下，`viewport_size` 会保持 SubViewport 的渲染尺寸，`viewport_resolution_scale` 会按比例缩放该尺寸；需要让 SubViewport 跟随容器大小时，可在 options 中传入 `"stretch": true`。
+默认情况下，`viewport_size` 会保持 SubViewport 的渲染尺寸，`viewport_resolution_scale` 会按比例缩放该尺寸；需要让 SubViewport 跟随容器大小时，可在 options 中传入 `"stretch": true`。`clear_split_screen()` 会立即把旧 `GridContainer` 和已挂载相机从当前树上移除，再按参数决定是否释放相机，便于同一帧重建布局或切换分屏配置。
 
 同一个工具还提供少量不绑定输入来源的坐标辅助。`screen_to_world_ray_3d(camera, screen_position, length)` 可从 Camera3D 和 Viewport 坐标生成射线，`raycast_from_screen_3d()` 在此基础上执行物理射线检测，`world_to_screen_3d()` 做 3D 投影；2D 侧可用 `world_to_screen_2d(canvas_item, world_position)` 与 `screen_to_world_2d(canvas_item, screen_position)` 在 CanvasItem 世界坐标和屏幕坐标之间转换。这些方法不读取鼠标、不选择玩家、不决定命中对象含义，只提供稳定几何转换。
 
@@ -211,7 +211,7 @@ var bbcode := GFRichTextFormatter.to_bbcode("Hello {{name}} :confirm:", {
 
 ### 通用节点树操作 (`GFNodeTreeOps`)
 
-`GFNodeTreeOps` 是纯静态节点树操作集合，不需要注册到 `GFArchitecture`。它适合编辑器工具、运行时装配、能力容器、对象池或场景工厂中复用一些容易写散的操作：安全添加子节点并设置 `owner`、重挂节点、替换子节点、按类型向上/向下查找、收集节点树、递归设置 owner 和释放直接子节点。
+`GFNodeTreeOps` 是纯静态节点树操作集合，不需要注册到 `GFArchitecture`。它适合编辑器工具、运行时装配、能力容器、对象池或场景工厂中复用一些容易写散的操作：安全添加子节点并设置 `owner`、重挂节点、替换子节点、按类型向上/向下查找、收集节点树、递归设置 owner 和释放直接子节点。`free_children()` 会先把直接子节点从父节点移除，再调用 `queue_free()`，因此调用后父节点同帧就不再持有旧子节点。
 
 ```gdscript
 var capability := HitboxCapability.new()

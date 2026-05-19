@@ -55,6 +55,18 @@ func test_layer_creation() -> void:
 	assert_eq(popup_layer.layer, 60, "POPUP 层的基础 layer 应为 60。")
 
 
+func test_dispose_detaches_layer_roots_immediately() -> void:
+	var popup_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
+
+	_ui_utility.dispose()
+	_ui_utility = null
+
+	assert_null(popup_layer.get_parent(), "dispose 应立即从 SceneTree.root 移除 UI 层级。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(popup_layer), "下一帧 UI 层级应完成释放。")
+
+
 func test_push_and_pop_panel_instance() -> void:
 	var panel1 := Control.new()
 	var panel2 := Control.new()
@@ -71,6 +83,35 @@ func test_push_and_pop_panel_instance() -> void:
 	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP, true)
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel1, "弹出 panel2 后栈顶应恢复为 panel1。")
 	assert_true(panel1.visible, "弹出顶层后，下层面板应重新可见。")
+
+
+func test_pop_panel_detaches_freed_panel_immediately() -> void:
+	var panel := Control.new()
+	var popup_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
+
+	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
+
+	assert_null(panel.get_parent(), "弹出并释放面板时，应立即从 UI 层级移除。")
+	assert_eq(popup_layer.get_child_count(), 0, "弹出后 POPUP CanvasLayer 不应继续持有旧面板。")
+	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "弹出后栈顶应为空。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(panel), "弹出并释放面板后，下一帧实例应被释放。")
+
+
+func test_pop_panel_without_free_detaches_and_keeps_instance() -> void:
+	var panel := Control.new()
+	var popup_layer := _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP)
+	_ui_utility.push_panel_instance(panel, GFUIUtility.Layer.POPUP)
+
+	_ui_utility.pop_panel(GFUIUtility.Layer.POPUP, false)
+
+	assert_null(panel.get_parent(), "弹出但不释放时，也应立即从 UI 层级移除。")
+	assert_eq(popup_layer.get_child_count(), 0, "弹出但不释放后 POPUP CanvasLayer 不应继续持有旧面板。")
+	assert_true(is_instance_valid(panel), "do_free 为 false 时，面板实例应交还给调用方复用。")
+
+	panel.free()
 
 
 func test_panel_signals_and_stack_snapshot() -> void:
@@ -172,6 +213,56 @@ func test_open_modal_returns_result_and_closes_panel() -> void:
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "modal 解析后应从栈中关闭。")
 
 
+func test_resolved_hidden_modal_detaches_immediately() -> void:
+	var confirm := GFModalAction.new()
+	confirm.action_id = &"confirm"
+	confirm.label = "Confirm"
+	confirm.result_status = GFModalResult.STATUS_CONFIRMED
+
+	var config := GFModalConfig.new()
+	config.actions = [confirm]
+	var panel := _ui_utility.open_modal(config, GFUIUtility.Layer.POPUP)
+	var overlay := Control.new()
+	_ui_utility.push_panel_instance(overlay, GFUIUtility.Layer.POPUP)
+
+	assert_true(panel.resolve_action(&"confirm"), "被上层面板遮住的 modal 仍应能解析结果。")
+	assert_null(panel.get_parent(), "非栈顶 modal 解析后也应立即脱离 UI 层级。")
+	assert_false(_ui_utility.is_panel_open(panel, GFUIUtility.Layer.POPUP), "解析后的非栈顶 modal 应从栈中移除。")
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), overlay, "移除非栈顶 modal 不应影响当前栈顶。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(panel), "解析后的非栈顶 modal 下一帧应被释放。")
+
+
+func test_modal_panel_rerender_detaches_old_action_buttons_immediately() -> void:
+	var first_action := GFModalAction.new()
+	first_action.action_id = &"first"
+	first_action.label = "First"
+	var second_action := GFModalAction.new()
+	second_action.action_id = &"second"
+	second_action.label = "Second"
+	var first_config := GFModalConfig.new()
+	first_config.actions = [first_action, second_action]
+
+	var panel := GFModalPanel.new()
+	add_child_autofree(panel)
+	await get_tree().process_frame
+	panel.configure(first_config)
+	var old_buttons := panel._actions_box.get_children()
+
+	var next_action := GFModalAction.new()
+	next_action.action_id = &"next"
+	next_action.label = "Next"
+	var next_config := GFModalConfig.new()
+	next_config.actions = [next_action]
+
+	panel.configure(next_config)
+
+	assert_eq(panel._actions_box.get_child_count(), 1, "重新渲染 modal 动作时应立即移除旧按钮。")
+	for button: Node in old_buttons:
+		assert_null(button.get_parent(), "旧动作按钮应立即脱离 actions 容器。")
+
+
 func test_request_dismiss_top_resolves_modal_cancel() -> void:
 	var config := GFModalConfig.new()
 	config.dismiss_on_cancel = true
@@ -220,6 +311,9 @@ func test_replace_layer_instance_clears_old_stack() -> void:
 
 	assert_eq(_ui_utility.get_stack_count(GFUIUtility.Layer.POPUP), 1, "替换层级后应只保留新面板。")
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), replacement, "替换层级后栈顶应为新面板。")
+	assert_null(panel1.get_parent(), "替换层级后旧底层面板应立即脱离 UI 层级。")
+	assert_null(panel2.get_parent(), "替换层级后旧顶层面板应立即脱离 UI 层级。")
+	assert_eq(replacement.get_parent(), _ui_utility.get_layer_root(GFUIUtility.Layer.POPUP), "替换后层级下应只挂载新面板。")
 
 
 func test_pop_to_panel_returns_to_existing_panel() -> void:
@@ -316,6 +410,9 @@ func test_clear_layer() -> void:
 
 	_ui_utility.clear_layer(GFUIUtility.Layer.TOP)
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.TOP), "清空层后不应再有顶部面板。")
+	assert_null(p1.get_parent(), "清空层级应立即移除旧面板。")
+	assert_null(p2.get_parent(), "清空层级应立即移除所有旧面板。")
+	assert_eq(_ui_utility.get_layer_root(GFUIUtility.Layer.TOP).get_child_count(), 0, "清空层级后 CanvasLayer 不应继续持有旧面板。")
 
 	await get_tree().process_frame
 	assert_false(is_instance_valid(p1), "clear_layer 后原面板应被 queue_free。")

@@ -22,50 +22,21 @@
 
 ---
 
-## [3.14.0] - 2026-05-19
+## [3.14.1] - 2026-05-19
 
-**版本概述**：收口大型项目中的递归扫描边界，修复自动分发信号所有权与动作队列生命周期释放问题，并降低框架内部对脚本路径的脆弱耦合。
-
-### 🚀 新增特性
-
-- `GFValidationSuite` 新增 `max_scan_depth` 与 `max_collected_paths`，用于限制递归路径扫描的目录深度和单次收集数量；设为 `0` 可关闭对应限制。
-- `GFEditorTypeIndex`、`GFExtensionUsageAudit`、`GFSceneSignalAudit`、`GFResourceTableEditor`、`GFAudioBankTools`、`GFStorageUtility`、`GFSignalRuntimeProbe` 与 `GFSupportReportUtility` 新增递归扫描或节点收集上限选项；设为 `0` 可关闭对应限制。
-
-### 🔄 机制更改
-
-- `GFValidationSuite.collect_paths()` 默认限制递归扫描深度与收集数量，避免误把项目根目录、生成目录或极深目录作为 include path 时长时间阻塞编辑器或 CI。
-- 编辑器类型扫描、项目引用审计、场景信号审计、资源表扫描、音频 bank 扫描、存储文件递归枚举、运行时信号探针和支持报告场景统计默认限制递归深度与收集数量，避免开发期工具在大型目录或大型节点树上无界遍历。
-- `GFExtensionUsageAudit` 的默认忽略目录收窄为 Godot / VCS 隐藏缓存目录，不再把 `addons/gf`、`addons/gut`、`docs`、`tests`、`tools` 或 `ai_analysis` 当作所有项目的默认目录结构；项目需要跳过自有目录时应显式传入 `ignored_roots`。
-- `GFTimeUtility` 与发射体移动策略改为直接继承稳定 `class_name` 契约，减少跨层和扩展内部对脚本文件路径的脆弱耦合。
+**版本概述**：修复 UI 栈、调试界面、对象池、节点状态机和编辑器列表在关闭、清空或重建时的同帧脱树时序问题，避免旧节点在父节点下残留到帧尾。
 
 ### 🐛 Bug 修复
 
-- 修复 HitBox、Projectile 与 InteractionSensor 在 `sender_path` 业务发送者接管自动发送时，把桥接节点信号也隐式迁移到业务发送者的问题；自动分发现在仍由业务 sender 执行 `send_to()`，但 `hit_sent` / `hit_accepted` / `hit_rejected` 与 `interaction_sent` / `interaction_accepted` / `interaction_rejected` 继续由桥接节点发出。
-- 修复 `GFActionQueueSystem` 销毁时只清空命名子队列而不释放子队列依赖作用域的问题；父队列或架构销毁现在会递归取消命名子队列并释放其架构引用。
-
-### 🔌 API 变动说明
-
-- `GFValidationSuite` 新增导出属性 `max_scan_depth`（默认 `32`）和 `max_collected_paths`（默认 `10000`）。
-- `GFEditorTypeIndex.collect_scene_roots_extending()` 新增可选 `options` 参数，支持 `max_scan_depth` 与 `max_scanned_scenes`。
-- `GFExtensionUsageAudit.find_references_to_root()` / `audit_disabled_extensions()` 的 `options` 新增 `max_scan_depth` 与 `max_scanned_files`。
-- `GFSceneSignalAudit.collect_scene_paths()` / `audit_directory()` 的 `options` 新增 `max_scan_depth` 与 `max_scene_paths`；`build_signal_graph()` 的 `options` 新增 `max_node_depth` 与 `max_nodes`，返回报告新增 `truncated`。
-- `GFResourceTableEditor.scan_resource_paths()` 新增可选 `options` 参数，支持 `max_scan_depth` 与 `max_resource_paths`。
-- `GFAudioBankTools.scan_audio_paths()` 的 `options` 新增 `max_scan_depth` 与 `max_audio_paths`。
-- `GFStorageUtility.list_files()` 新增可选 `options` 参数，支持 `max_scan_depth` 与 `max_file_count`。
-- `GFSignalRuntimeProbe.watch_tree()` 的 `options` 新增 `max_node_depth` 与 `max_nodes`；触达上限时监听报告会返回 `max_node_depth_reached:*` 或 `max_nodes_reached:*` 错误。
-- `GFSupportReportUtility` 新增 `default_scene_count_max_depth` 与 `default_scene_count_max_nodes`；`build_report()` 的 `options.scene_options` 支持 `max_depth` 与 `max_nodes`，场景快照新增 `node_count_truncated`。
-
-### 📘 升级指南
-
-- 如果校验套件确实需要扫描超过 32 层目录或单次收集超过 10000 个资源路径，请在套件资源中显式调高 `max_scan_depth` / `max_collected_paths`，或设为 `0` 关闭对应限制。
-- 如果项目工具确实需要全量扫描超大目录或节点树，请在对应入口显式调高上限，或设为 `0` 关闭限制；推荐优先收窄扫描根目录，而不是默认扫描整个项目。
-- 如果项目的禁用扩展引用审计不希望检查测试、文档、构建脚本或第三方插件目录，请在自定义调用 `GFExtensionUsageAudit` 时显式设置 `ignored_roots`；框架默认不会再假定这些目录一定是可跳过的维护目录。
+- 修复 `GFUIUtility.pop_panel()`、`clear_layer()`、替换层入口、`dispose()` 和非栈顶 modal 解析关闭旧面板时只等待 `queue_free()` 而没有先从 `GFUILayer_*` 脱离的问题；面板关闭后会立即从 UI 层级移除，避免同一帧远程节点树或画面里残留旧面板。
+- 同步收口 `GFModalPanel` 动作按钮重渲染、`GFViewportUtility.clear_split_screen()`、`GFNodeTreeOps.free_children()`、`GFObjectPoolUtility` 容量淘汰与销毁、节点状态机清空释放、Debug Overlay / Console 销毁和扩展管理器列表刷新中的同类延迟脱树问题，避免清空或重建同一帧父节点下残留旧子节点。
+- 修复 modal 自动聚焦和 UI 栈焦点查找在同一帧关闭面板后仍可能对已脱离场景树的控件调用 `grab_focus()` 的问题。
 
 ### 📁 核心受影响文件
 
-- 动作队列生命周期：`addons/gf/extensions/action_queue/core/gf_action_queue_system.gd`。
-- 自动分发信号所有权：`addons/gf/standard/common/gf_message_dispatch_support.gd`、`addons/gf/extensions/combat/hit_detection/gf_hit_box_2d.gd`、`addons/gf/extensions/combat/hit_detection/gf_hit_box_3d.gd`、`addons/gf/extensions/combat/projectiles/gf_projectile_2d.gd`、`addons/gf/extensions/combat/projectiles/gf_projectile_3d.gd`、`addons/gf/extensions/interaction/nodes/gf_interaction_sensor.gd`。
-- Foundation 校验套件：`addons/gf/standard/foundation/validation/gf_validation_suite.gd`。
-- 递归扫描与诊断工具：`addons/gf/kernel/editor/gf_editor_type_index.gd`、`addons/gf/kernel/extension/gf_extension_usage_audit.gd`、`addons/gf/kernel/editor/gf_scene_signal_audit.gd`、`addons/gf/kernel/editor/gf_resource_table_editor.gd`、`addons/gf/extensions/capability/editor/gf_capability_inspector_plugin.gd`、`addons/gf/standard/utilities/audio/gf_audio_bank_tools.gd`、`addons/gf/standard/utilities/storage/gf_storage_utility.gd`、`addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd`、`addons/gf/standard/utilities/debug/gf_support_report_utility.gd`。
-- 时间协议实现：`addons/gf/standard/utilities/time/gf_time_utility.gd`。
-- 测试与文档：`tests/gf_core/extensions/action_queue/test_gf_action_queue.gd`、`tests/gf_core/extensions/combat/test_gf_combat_extension.gd`、`tests/gf_core/extensions/combat/test_gf_projectiles.gd`、`tests/gf_core/extensions/interaction/test_gf_interaction_nodes.gd`、`tests/gf_core/standard/foundation/validation/test_gf_validation_runner_suite.gd`、`tests/gf_core/kernel/editor/test_gf_scene_signal_audit.gd`、`tests/gf_core/kernel/editor/test_gf_resource_table_editor.gd`、`tests/gf_core/kernel/extension/test_gf_extension_manifest.gd`、`tests/gf_core/standard/utilities/audio/test_gf_audio_bank_tools.gd`、`tests/gf_core/standard/utilities/storage/test_gf_storage_utility.gd`、`tests/gf_core/standard/utilities/debug/test_gf_signal_runtime_probe.gd`、`docs/zh/extensions/action-queue/index.md`、`docs/zh/extensions/combat/index.md`、`docs/zh/extensions/interaction-feedback/index.md`、`docs/zh/standard/foundation/data-validation.md`。
+- UI 与调试界面：`addons/gf/standard/utilities/ui/gf_ui_utility.gd`、`addons/gf/standard/utilities/ui/gf_modal_panel.gd`、`addons/gf/standard/utilities/display/gf_viewport_utility.gd`、`addons/gf/standard/utilities/debug/gf_debug_overlay_utility.gd`、`addons/gf/standard/utilities/debug/gf_console_utility.gd`。
+- 节点生命周期工具：`addons/gf/standard/utilities/nodes/gf_node_tree_ops.gd`、`addons/gf/standard/utilities/nodes/gf_object_pool_utility.gd`、`addons/gf/standard/state_machine/node/gf_node_state_machine.gd`、`addons/gf/standard/state_machine/node/gf_node_state_group.gd`。
+- 编辑器扩展管理：`addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd`。
+- 测试与文档：`tests/gf_core/standard/utilities/ui/test_gf_ui_utility.gd`、`tests/gf_core/standard/utilities/display/test_gf_viewport_utility.gd`、`tests/gf_core/standard/utilities/nodes/test_gf_node_tree_ops.gd`、`tests/gf_core/standard/utilities/nodes/test_gf_object_pool_utility.gd`、`tests/gf_core/standard/state_machine/node/test_gf_node_state_machine.gd`、`tests/gf_core/standard/utilities/debug/test_gf_debug_overlay_utility.gd`、`tests/gf_core/standard/utilities/debug/test_gf_console_utility.gd`、`tests/gf_core/kernel/editor/test_gf_plugin_helpers.gd`、`docs/zh/standard/utilities/runtime/settings-ui-scene.md`、`docs/zh/standard/utilities/runtime/debug-observability.md`。
+
+---

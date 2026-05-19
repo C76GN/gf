@@ -591,7 +591,7 @@ func clear_state_groups(free_groups: bool = false) -> void:
 		if group == _internal_group:
 			_free_internal_group(group)
 		elif free_groups:
-			group.queue_free()
+			_queue_free_detached(group)
 	if old_internal_group != null and is_instance_valid(old_internal_group) and not groups.has(old_internal_group):
 		_free_internal_group(old_internal_group)
 	_internal_group = null
@@ -756,6 +756,16 @@ func _free_internal_group(group: GFNodeStateGroup) -> void:
 	if parent != null:
 		parent.remove_child(group)
 	group.free()
+
+
+func _queue_free_detached(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	var parent := node.get_parent()
+	if parent != null:
+		parent.remove_child(node)
+	if not node.is_queued_for_deletion():
+		node.queue_free()
 
 
 func _is_group_in_state(group_name: StringName, state_name: StringName) -> bool:

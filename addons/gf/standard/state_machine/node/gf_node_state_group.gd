@@ -463,7 +463,7 @@ func clear_states(free_states: bool = false) -> void:
 			state.call("unregister_owner_events")
 		state_removed.emit(state)
 		if free_states:
-			state.queue_free()
+			_queue_free_detached(state)
 
 
 ## 从子节点重新加载状态。
@@ -480,6 +480,16 @@ func _get_machine() -> Object:
 	if _machine_ref == null:
 		return null
 	return _machine_ref.get_ref()
+
+
+func _queue_free_detached(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	var parent := node.get_parent()
+	if parent != null:
+		parent.remove_child(node)
+	if not node.is_queued_for_deletion():
+		node.queue_free()
 
 
 func _get_event_dispatch_candidates() -> Array[GFNodeState]:

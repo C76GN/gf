@@ -45,6 +45,7 @@ func test_dispose_detaches_overlay_callbacks_before_queue_free() -> void:
 	assert_false(gui.architecture_provider.is_valid(), "dispose 应清空架构回调。")
 	assert_false(gui.watch_snapshot_provider.is_valid(), "dispose 应清空 watch 回调。")
 	assert_false(gui.panel_snapshot_provider.is_valid(), "dispose 应清空 panel 回调。")
+	assert_null(gui.get_parent(), "dispose 应立即从 SceneTree.root 移除 overlay。")
 
 
 func test_process_model() -> void:

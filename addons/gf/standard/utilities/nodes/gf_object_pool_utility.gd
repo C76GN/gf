@@ -76,7 +76,7 @@ func init() -> void:
 	_lifecycle_serial += 1
 	_is_disposed = false
 	if is_instance_valid(_pool_root):
-		_pool_root.queue_free()
+		_queue_free_detached(_pool_root)
 	_all_nodes = {}
 	_available_pools = {}
 	_pool_root = null
@@ -90,9 +90,9 @@ func dispose() -> void:
 		var pool: Array = _all_nodes[scene]
 		for node in pool:
 			if is_instance_valid(node):
-				node.queue_free()
+				_queue_free_detached(node)
 	if is_instance_valid(_pool_root):
-		_pool_root.queue_free()
+		_queue_free_detached(_pool_root)
 	_all_nodes.clear()
 	_available_pools.clear()
 	_pool_root = null
@@ -185,7 +185,7 @@ func release(node: Node, scene: PackedScene) -> void:
 	var available_pool: Array = _available_pools[owner_scene]
 	if max_available_per_scene > 0 and available_pool.size() >= max_available_per_scene:
 		_remove_node_from_scene_pool(node, owner_scene)
-		node.queue_free()
+		_queue_free_detached(node)
 		return
 
 	_move_to_pool_root(node)
@@ -403,6 +403,16 @@ func _move_to_pool_root(node: Node) -> void:
 		node.reparent(pool_root, false)
 	else:
 		pool_root.add_child(node)
+
+
+func _queue_free_detached(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	var parent := node.get_parent()
+	if parent != null:
+		parent.remove_child(node)
+	if not node.is_queued_for_deletion():
+		node.queue_free()
 
 
 func _ensure_pool_root() -> Node:

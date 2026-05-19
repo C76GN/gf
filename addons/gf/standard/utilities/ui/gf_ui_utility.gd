@@ -93,6 +93,7 @@ func dispose() -> void:
 	_is_active = false
 	for canvas: CanvasLayer in _layer_roots.values():
 		if is_instance_valid(canvas):
+			_detach_node_from_tree(canvas)
 			canvas.queue_free()
 	_layer_roots.clear()
 
@@ -373,11 +374,10 @@ func pop_panel(layer: Layer = Layer.POPUP, do_free: bool = true) -> void:
 
 	var top_panel: Node = stack.pop_back()
 	if is_instance_valid(top_panel):
+		_detach_node_from_tree(top_panel)
+		_handle_panel_closed(top_panel)
 		if do_free:
 			top_panel.queue_free()
-		elif top_panel.get_parent() != null:
-			top_panel.get_parent().remove_child(top_panel)
-		_handle_panel_closed(top_panel)
 		panel_closed.emit(top_panel, layer)
 
 	if _auto_hide_under:
@@ -586,10 +586,17 @@ func _clear_layer_without_invalidating_requests(layer: Layer) -> void:
 	while not stack.is_empty():
 		var panel: Node = stack.pop_back()
 		if is_instance_valid(panel):
+			_detach_node_from_tree(panel)
 			_handle_panel_closed(panel)
-			panel_closed.emit(panel, layer)
 			panel.queue_free()
+			panel_closed.emit(panel, layer)
 	_emit_navigation_changed(layer)
+
+
+func _detach_node_from_tree(node: Node) -> void:
+	var parent := node.get_parent()
+	if parent != null:
+		parent.remove_child(node)
 
 
 func _next_layer_request_serial(layer: Layer) -> int:
@@ -824,6 +831,7 @@ func _focus_first_control(root: Node) -> bool:
 func _can_focus_control(control: Control) -> bool:
 	return (
 		is_instance_valid(control)
+		and control.is_inside_tree()
 		and control.visible
 		and control.focus_mode != Control.FOCUS_NONE
 		and not control.is_queued_for_deletion()
@@ -854,6 +862,7 @@ func _on_modal_resolved(result: GFModalResult, panel: Node, layer: Layer, result
 		if get_top_panel(layer) == panel:
 			pop_panel(layer)
 		elif is_instance_valid(panel):
+			_detach_node_from_tree(panel)
 			panel.queue_free()
 
 	if result_callback.is_valid():

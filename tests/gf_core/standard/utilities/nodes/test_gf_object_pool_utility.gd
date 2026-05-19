@@ -332,6 +332,40 @@ func test_max_available_per_scene_limits_retained_nodes() -> void:
 	assert_eq(_pool.get_available_count(_scene), 1, "超过容量上限的归还节点不应继续留在可用池。")
 
 
+func test_release_over_capacity_detaches_rejected_node_immediately() -> void:
+	_pool.max_available_per_scene = 1
+	var node_a: Node = _pool.acquire(_scene, _parent)
+	var node_b: Node = _pool.acquire(_scene, _parent)
+
+	_pool.release(node_a, _scene)
+	_pool.release(node_b, _scene)
+
+	assert_null(node_b.get_parent(), "超过对象池容量的归还节点应立即脱离原父节点。")
+	assert_eq(_parent.get_child_count(), 0, "超过容量的归还节点不应在原父节点残留到帧尾。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(node_b), "超过容量的归还节点下一帧应完成释放。")
+
+
+func test_dispose_detaches_active_and_pooled_nodes_immediately() -> void:
+	var active_node: Node = _pool.acquire(_scene, _parent)
+	var pooled_node: Node = _pool.acquire(_scene, _parent)
+	_pool.release(pooled_node, _scene)
+	var pool_root := _pool._pool_root
+
+	_pool.dispose()
+
+	assert_null(active_node.get_parent(), "dispose 应立即移除仍在使用中的对象池节点。")
+	assert_null(pooled_node.get_parent(), "dispose 应立即移除已回收的对象池节点。")
+	assert_null(pool_root.get_parent(), "dispose 应立即移除对象池根节点。")
+	assert_eq(_parent.get_child_count(), 0, "dispose 后业务父节点不应残留对象池节点。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(active_node), "dispose 后 active 节点下一帧应完成释放。")
+	assert_false(is_instance_valid(pooled_node), "dispose 后 pooled 节点下一帧应完成释放。")
+	assert_false(is_instance_valid(pool_root), "dispose 后对象池根节点下一帧应完成释放。")
+
+
 # --- 测试：get_available_count ---
 
 ## 验证初始时可用数量为 0。

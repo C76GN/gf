@@ -170,6 +170,7 @@ func _render() -> void:
 	_message_label.text = _config.message
 
 	for child: Node in _actions_box.get_children():
+		_actions_box.remove_child(child)
 		child.queue_free()
 	_actions_by_id.clear()
 
@@ -182,7 +183,18 @@ func _render() -> void:
 			first_focus_button = button
 
 	if _config.auto_focus and first_focus_button != null:
-		first_focus_button.call_deferred("grab_focus")
+		call_deferred("_grab_focus_if_inside_tree", first_focus_button)
+
+
+func _grab_focus_if_inside_tree(control: Control) -> void:
+	if (
+		is_instance_valid(control)
+		and control.is_inside_tree()
+		and control.visible
+		and control.focus_mode != Control.FOCUS_NONE
+		and not control.is_queued_for_deletion()
+	):
+		control.grab_focus()
 
 
 func _make_action_button(action: GFModalAction) -> Button:

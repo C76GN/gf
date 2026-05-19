@@ -437,6 +437,25 @@ func test_extension_manager_dock_exposes_strict_reference_export_policy() -> voi
 	)
 
 
+func test_extension_manager_dock_clears_rows_immediately() -> void:
+	var dock: Variant = GF_EXTENSION_MANAGER_DOCK.new()
+	var first := Label.new()
+	var second := Label.new()
+	dock._extension_rows.add_child(first)
+	dock._extension_rows.add_child(second)
+
+	dock._clear_extension_rows()
+
+	assert_eq(dock._extension_rows.get_child_count(), 0, "刷新扩展列表时旧行应立即从容器移除。")
+	assert_null(first.get_parent(), "第一行应立即脱离扩展列表容器。")
+	assert_null(second.get_parent(), "第二行应立即脱离扩展列表容器。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(first), "下一帧第一行应完成释放。")
+	assert_false(is_instance_valid(second), "下一帧第二行应完成释放。")
+	dock.free()
+
+
 # --- 私有/辅助方法 ---
 
 func _set_enabled_extensions(extension_ids: Array[String]) -> Dictionary:

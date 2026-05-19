@@ -92,9 +92,18 @@ func test_find_nodes_by_gdscript_class_name_string() -> void:
 func test_free_children_queues_direct_children() -> void:
 	var parent := Node.new()
 	add_child_autofree(parent)
-	parent.add_child(Node.new())
-	parent.add_child(Node.new())
+	var first := Node.new()
+	var second := Node.new()
+	parent.add_child(first)
+	parent.add_child(second)
 
 	var count := GFNodeTreeOps.free_children(parent)
 
 	assert_eq(count, 2, "应返回进入释放队列的子节点数量。")
+	assert_eq(parent.get_child_count(), 0, "释放子节点时应立即从父节点移除。")
+	assert_null(first.get_parent(), "第一个子节点应立即脱离父节点。")
+	assert_null(second.get_parent(), "第二个子节点应立即脱离父节点。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(first), "下一帧第一个子节点应完成释放。")
+	assert_false(is_instance_valid(second), "下一帧第二个子节点应完成释放。")
