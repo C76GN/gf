@@ -40,7 +40,9 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 		"editor_dock_order": 42,
 		"editor_dock_short_label": "Terrain",
 		"editor_inspector_paths": ["res://addons/terrain_tools/editor/terrain_inspector.gd"],
+		"import_plugin_paths": ["res://addons/terrain_tools/editor/terrain_import_plugin.gd"],
 		"export_plugin_paths": ["res://addons/terrain_tools/editor/terrain_export_plugin.gd"],
+		"gltf_document_extension_paths": ["res://addons/terrain_tools/editor/terrain_gltf_extension.gd"],
 		"access_generator_extension_paths": ["res://addons/terrain_tools/editor/terrain_access_generator.gd"],
 		"tags": ["terrain", "editor"],
 		"enabled_by_default": false,
@@ -58,13 +60,17 @@ func test_manifest_from_dictionary_normalizes_fields() -> void:
 	assert_eq(manifest.editor_dock_order, 42, "editor_dock_order 应读取为工作区排序值。")
 	assert_eq(manifest.editor_dock_short_label, "Terrain", "editor_dock_short_label 应读取为工作区短标签。")
 	assert_eq(manifest.editor_inspector_paths.size(), 1, "editor_inspector_paths 应读取为字符串数组。")
+	assert_eq(manifest.import_plugin_paths.size(), 1, "import_plugin_paths 应读取为字符串数组。")
 	assert_eq(manifest.export_plugin_paths.size(), 1, "export_plugin_paths 应读取为字符串数组。")
+	assert_eq(manifest.gltf_document_extension_paths.size(), 1, "gltf_document_extension_paths 应读取为字符串数组。")
 	assert_eq(manifest.access_generator_extension_paths.size(), 1, "access_generator_extension_paths 应读取为字符串数组。")
 	assert_false(manifest.enabled_by_default, "显式关闭默认启用时应保留配置。")
 
 	var dictionary := manifest.to_dictionary()
 	assert_eq(int(dictionary.get("editor_dock_order", 0)), 42, "manifest 字典应保留工作区排序。")
 	assert_eq(String(dictionary.get("editor_dock_short_label", "")), "Terrain", "manifest 字典应保留工作区短标签。")
+	assert_eq((dictionary.get("import_plugin_paths", []) as Array).size(), 1, "manifest 字典应保留导入插件路径。")
+	assert_eq((dictionary.get("gltf_document_extension_paths", []) as Array).size(), 1, "manifest 字典应保留 glTF 文档扩展路径。")
 
 
 func test_extension_manifest_defaults_to_enabled() -> void:
@@ -109,7 +115,9 @@ func test_manifest_validation_keeps_extension_paths_inside_root() -> void:
 		"version": "1.0.0",
 		"kind": "extension",
 		"editor_action_paths": ["res://addons/terrain_other/editor/actions.gd"],
+		"import_plugin_paths": ["res://addons/terrain_other/editor/terrain_import_plugin.gd"],
 		"export_plugin_paths": ["user://terrain_export_plugin.gd"],
+		"gltf_document_extension_paths": ["res://addons/terrain_other/editor/gltf_extension.gd"],
 	}, "res://addons/terrain_tools", "")
 	var errors := manifest.get_validation_errors()
 
@@ -120,6 +128,14 @@ func test_manifest_validation_keeps_extension_paths_inside_root() -> void:
 	assert_true(
 		errors.has("export_plugin_paths path must be res://: user://terrain_export_plugin.gd"),
 		"扩展导出扩展应声明 res:// 脚本路径。"
+	)
+	assert_true(
+		errors.has("import_plugin_paths path must stay under root_path: res://addons/terrain_other/editor/terrain_import_plugin.gd"),
+		"扩展导入插件路径不应越过扩展根目录。"
+	)
+	assert_true(
+		errors.has("gltf_document_extension_paths path must stay under root_path: res://addons/terrain_other/editor/gltf_extension.gd"),
+		"扩展 glTF 文档扩展路径不应越过扩展根目录。"
 	)
 
 
@@ -222,13 +238,14 @@ func test_extension_settings_resolves_dependencies_before_dependents_when_manife
 	assert_eq(resolved, ["author.base", "author.feature"], "依赖 manifest 扫描顺序靠后时也应先于依赖方返回。")
 
 
-func test_enabled_manifest_and_installer_paths_follow_dependency_order() -> void:
+func test_enabled_manifest_and_extension_paths_follow_dependency_order() -> void:
 	var base_manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
 		"id": "author.base",
 		"display_name": "Base",
 		"version": "1.0.0",
 		"kind": "extension",
 		"installer_paths": ["res://addons/author_base/base_installer.gd"],
+		"import_plugin_paths": ["res://addons/author_base/base_import_plugin.gd"],
 	}, "res://addons/author_base", "")
 	var feature_manifest := GF_EXTENSION_MANIFEST_BASE.from_dictionary({
 		"id": "author.feature",
@@ -237,6 +254,7 @@ func test_enabled_manifest_and_installer_paths_follow_dependency_order() -> void
 		"kind": "extension",
 		"dependencies": ["author.base"],
 		"installer_paths": ["res://addons/author_feature/feature_installer.gd"],
+		"import_plugin_paths": ["res://addons/author_feature/feature_import_plugin.gd"],
 	}, "res://addons/author_feature", "")
 	var previous_cache := GF_EXTENSION_SETTINGS_BASE._manifest_cache.duplicate(true)
 	var enabled_restore := _set_project_setting(
@@ -257,6 +275,7 @@ func test_enabled_manifest_and_installer_paths_follow_dependency_order() -> void
 	for manifest: GFExtensionManifest in enabled_manifests:
 		enabled_ids.append(manifest.id)
 	var installer_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_installer_paths()
+	var import_paths: Array[String] = GF_EXTENSION_SETTINGS_BASE.get_enabled_import_plugin_paths()
 
 	GF_EXTENSION_SETTINGS_BASE._manifest_cache = previous_cache
 	_restore_project_setting(GF_EXTENSION_SETTINGS_BASE.AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, auto_install_restore)
@@ -270,6 +289,14 @@ func test_enabled_manifest_and_installer_paths_follow_dependency_order() -> void
 			"res://addons/author_feature/feature_installer.gd",
 		],
 		"启用扩展 installer 应先执行依赖扩展，再执行依赖方。"
+	)
+	assert_eq(
+		import_paths,
+		[
+			"res://addons/author_base/base_import_plugin.gd",
+			"res://addons/author_feature/feature_import_plugin.gd",
+		],
+		"启用扩展导入插件应保持依赖优先顺序。"
 	)
 
 
@@ -410,7 +437,9 @@ func test_extension_settings_can_query_manifest_and_enabled_state() -> void:
 	var save_action_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_action_paths()
 	var save_dock_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_dock_paths()
 	var save_inspector_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_editor_inspector_paths()
+	var save_import_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_import_plugin_paths()
 	var save_export_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_export_plugin_paths()
+	var save_gltf_document_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_gltf_document_extension_paths()
 	var save_access_extension_paths := GF_EXTENSION_SETTINGS_BASE.get_enabled_access_generator_extension_paths()
 	var combat_script := GF_EXTENSION_SETTINGS_BASE.load_enabled_extension_script(
 		"gf.combat",
@@ -440,7 +469,9 @@ func test_extension_settings_can_query_manifest_and_enabled_state() -> void:
 		"Save 扩展的工作区页面路径应由统一查询入口返回。"
 	)
 	assert_true(save_inspector_paths.is_empty(), "Save 扩展未声明 Inspector 时应返回空 Inspector 路径。")
+	assert_true(save_import_paths.is_empty(), "Save 扩展未声明导入插件时应返回空导入插件路径。")
 	assert_true(save_export_paths.is_empty(), "Save 扩展未声明导出插件时应返回空导出插件路径。")
+	assert_true(save_gltf_document_paths.is_empty(), "Save 扩展未声明 glTF 文档扩展时应返回空 glTF 文档扩展路径。")
 	assert_true(save_access_extension_paths.is_empty(), "Save 扩展未声明访问器扩展时应返回空访问器扩展路径。")
 	assert_null(combat_script, "未启用扩展内脚本不应被统一加载入口加载。")
 

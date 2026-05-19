@@ -8,6 +8,7 @@ const GF_PLUGIN_ACTIONS := preload("res://addons/gf/kernel/editor/gf_plugin_acti
 const GF_PLUGIN_AUTOLOAD := preload("res://addons/gf/kernel/editor/gf_plugin_autoload.gd")
 const GF_PLUGIN_DOCK_TOOLS := preload("res://addons/gf/kernel/editor/gf_plugin_dock_tools.gd")
 const GF_PLUGIN_INSPECTOR_TOOLS := preload("res://addons/gf/kernel/editor/gf_plugin_inspector_tools.gd")
+const GF_PLUGIN_IMPORT_TOOLS := preload("res://addons/gf/kernel/editor/gf_plugin_import_tools.gd")
 const GF_PLUGIN_MENU := preload("res://addons/gf/kernel/editor/gf_plugin_menu.gd")
 const GF_PLUGIN_PROJECT_SETTINGS := preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
 const GF_EDITOR_WORKSPACE_DOCK := preload("res://addons/gf/kernel/editor/gf_editor_workspace_dock.gd")
@@ -26,6 +27,7 @@ func test_plugin_split_helpers_load() -> void:
 	assert_not_null(GF_PLUGIN_AUTOLOAD, "Autoload 辅助脚本应可加载。")
 	assert_not_null(GF_PLUGIN_DOCK_TOOLS, "Dock 辅助脚本应可加载。")
 	assert_not_null(GF_PLUGIN_INSPECTOR_TOOLS, "Inspector 辅助脚本应可加载。")
+	assert_not_null(GF_PLUGIN_IMPORT_TOOLS, "导入插件辅助脚本应可加载。")
 	assert_not_null(GF_PLUGIN_MENU, "菜单辅助脚本应可加载。")
 	assert_not_null(GF_PLUGIN_PROJECT_SETTINGS, "ProjectSettings 辅助脚本应可加载。")
 	assert_not_null(GF_EDITOR_WORKSPACE_UI, "工作区页面 UI 辅助脚本应可加载。")
@@ -159,6 +161,15 @@ func test_plugin_inspector_tools_discovers_enabled_extension_inspectors() -> voi
 		paths.has("res://addons/gf/extensions/flow/editor/gf_flow_graph_inspector_plugin.gd"),
 		"Flow Graph Inspector 应由扩展 manifest 声明。"
 	)
+
+
+func test_plugin_import_tools_ignores_null_plugin() -> void:
+	var tools: Variant = GF_PLUGIN_IMPORT_TOOLS.new()
+
+	tools.setup(null)
+	tools.cleanup(null)
+
+	assert_true(tools._import_plugins.is_empty(), "无 EditorPlugin 实例时导入插件辅助脚本不应注册任何对象。")
 
 
 func test_plugin_actions_discovers_enabled_extension_menu_entries() -> void:

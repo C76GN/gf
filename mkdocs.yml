@@ -85,6 +85,7 @@ nav:
       - Dialogue: extensions/dialogue/index.md
       - Combat: extensions/combat/index.md
       - ActionQueue: extensions/action-queue/index.md
+      - Asset Metadata: extensions/asset-metadata/index.md
       - Network 与 TurnBased: extensions/network-turnbased/index.md
       - Flow、Domain 与 Physics: extensions/flow-domain-physics/index.md
       - Save 场景存档图: extensions/save-graph/index.md

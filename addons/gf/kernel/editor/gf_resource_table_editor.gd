@@ -35,6 +35,7 @@ signal resource_filter_changed(query: String, visible_count: int)
 
 const DEFAULT_MAX_SCAN_DEPTH: int = 32
 const DEFAULT_MAX_RESOURCE_PATHS: int = 10000
+const _OBJECT_PROPERTY_TOOLS: Script = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
@@ -78,7 +79,7 @@ static func build_export_columns(resource: Resource, include_read_only: bool = f
 	if resource == null:
 		return result
 
-	for property_info: Dictionary in resource.get_property_list():
+	for property_info: Dictionary in _OBJECT_PROPERTY_TOOLS.get_property_infos(resource):
 		var usage := int(property_info.get("usage", 0))
 		var has_storage := (usage & PROPERTY_USAGE_STORAGE) != 0
 		var has_editor := (usage & PROPERTY_USAGE_EDITOR) != 0
@@ -293,11 +294,15 @@ func commit_cell_value(row_index: int, property: StringName, new_value: Variant)
 		return false
 
 	var resource := _resources[row_index]
-	if resource == null or not _resource_has_property(resource, property):
+	if resource == null or not _OBJECT_PROPERTY_TOOLS.has_property(resource, property):
 		return false
 
 	var old_value: Variant = resource.get(property)
-	resource.set(property, new_value)
+	var result: Dictionary = _OBJECT_PROPERTY_TOOLS.write_property(resource, NodePath(String(property)), new_value, {
+		"check_type": false,
+	})
+	if not bool(result.get("ok", false)):
+		return false
 	cell_value_committed.emit(resource, property, old_value, new_value)
 	_save_resource_if_requested(resource)
 	refresh()
@@ -337,7 +342,7 @@ func refresh() -> void:
 		for column_index: int in range(_columns.size()):
 			var column := _columns[column_index] as Dictionary
 			var property := StringName(column.get("name", ""))
-			var value: Variant = resource.get(property) if _resource_has_property(resource, property) else null
+			var value: Variant = _OBJECT_PROPERTY_TOOLS.read_property(resource, NodePath(String(property)))
 			item.set_text(column_index + 1, _format_cell_value(value))
 
 
@@ -454,13 +459,6 @@ static func _resource_matches_script_filter(resource: Resource, script_filter: S
 	return _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(resource.get_script() as Script, script_filter)
 
 
-func _resource_has_property(resource: Resource, property: StringName) -> bool:
-	for property_info: Dictionary in resource.get_property_list():
-		if StringName(property_info.get("name", "")) == property:
-			return true
-	return false
-
-
 func _resource_matches_search(resource: Resource, row_index: int, query: String) -> bool:
 	var normalized_query := query.strip_edges().to_lower()
 	if normalized_query.is_empty():
@@ -478,9 +476,10 @@ func _resource_matches_search(resource: Resource, row_index: int, query: String)
 
 	for column: Dictionary in _columns:
 		var property := StringName(column.get("name", ""))
-		if property == &"" or not _resource_has_property(resource, property):
+		if property == &"" or not _OBJECT_PROPERTY_TOOLS.has_property(resource, property):
 			continue
-		if _format_cell_value(resource.get(property)).to_lower().contains(normalized_query):
+		var value: Variant = _OBJECT_PROPERTY_TOOLS.read_property(resource, NodePath(String(property)))
+		if _format_cell_value(value).to_lower().contains(normalized_query):
 			return true
 	return false
 
@@ -496,8 +495,8 @@ func _compare_resources_for_sort(left: Resource, right: Resource, property: Stri
 	if property == &"":
 		return _compare_variant_values(_resource_label(left, _resources.find(left)), _resource_label(right, _resources.find(right)))
 
-	var left_value: Variant = left.get(property) if _resource_has_property(left, property) else null
-	var right_value: Variant = right.get(property) if _resource_has_property(right, property) else null
+	var left_value: Variant = _OBJECT_PROPERTY_TOOLS.read_property(left, NodePath(String(property)))
+	var right_value: Variant = _OBJECT_PROPERTY_TOOLS.read_property(right, NodePath(String(property)))
 	return _compare_variant_values(left_value, right_value)
 
 

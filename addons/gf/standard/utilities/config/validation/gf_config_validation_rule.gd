@@ -17,6 +17,11 @@ enum IssueSeverity {
 }
 
 
+# --- 常量 ---
+
+const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/config/gf_config_validation_report.gd")
+
+
 # --- 导出变量 ---
 
 ## 规则稳定标识。为空时使用规则类型默认标识。
@@ -131,48 +136,26 @@ func _validate_table(_rows: Array[Dictionary], _context: Dictionary, _report: Di
 # --- 私有/辅助方法 ---
 
 func _make_report(context: Dictionary) -> Dictionary:
-	return {
-		"ok": true,
-		"table_name": StringName(context.get("table_name", &"")),
-		"row_count": 0,
-		"error_count": 0,
-		"warning_count": 0,
-		"issues": [],
-	}
+	return _CONFIG_VALIDATION_REPORT.new().make_report(StringName(context.get("table_name", &"")))
 
 
 func _add_issue(report: Dictionary, context: Dictionary, kind: String, message: String) -> void:
-	var issue := {
-		"severity": _severity_to_string(),
-		"kind": kind,
-		"table_name": StringName(context.get("table_name", &"")),
-		"row_key": context.get("row_key", null),
-		"field": StringName(context.get("field", &"")),
-		"message": message,
-		"rule_id": get_rule_id(),
-	}
-	_copy_context_field(issue, context, "source")
-	_copy_context_field(issue, context, "line")
-	_copy_context_field(issue, context, "column")
-	_copy_context_field(issue, context, "row_index")
-	_copy_context_field(issue, context, "column_index")
-
-	var issues := report["issues"] as Array
-	issues.append(issue)
-	if issue["severity"] == "warning":
-		report["warning_count"] = int(report["warning_count"]) + 1
-	else:
-		report["error_count"] = int(report["error_count"]) + 1
-		report["ok"] = false
-
-
-func _copy_context_field(target: Dictionary, context: Dictionary, field_name: String) -> void:
-	if context.has(field_name):
-		target[field_name] = GFVariantData.duplicate_variant(context[field_name])
+	var issue_context := context.duplicate(true)
+	issue_context["rule_id"] = get_rule_id()
+	_CONFIG_VALIDATION_REPORT.new().add_issue(
+		report,
+		_severity_to_string(),
+		kind,
+		StringName(context.get("table_name", &"")),
+		context.get("row_key", null),
+		StringName(context.get("field", &"")),
+		message,
+		issue_context
+	)
 
 
 func _finalize_report(report: Dictionary) -> void:
-	report["ok"] = int(report.get("error_count", 0)) == 0
+	_CONFIG_VALIDATION_REPORT.new().finalize_report(report)
 
 
 func _severity_to_string() -> String:

@@ -6,6 +6,11 @@ class_name GFConfigTableMergeTools
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/config/gf_config_validation_report.gd")
+
+
 # --- 公共方法 ---
 
 ## 合并 base 表与 patch 表。
@@ -72,18 +77,14 @@ static func _is_dictionary_table(table_data: Variant) -> bool:
 
 
 static func _make_result(dictionary_output: bool, base_table: Variant) -> Dictionary:
-	return {
-		"ok": true,
-		"data": {} if dictionary_output else [],
-		"dictionary_output": dictionary_output,
-		"base_count": (base_table as Dictionary).size() if base_table is Dictionary else (base_table as Array).size() if base_table is Array else 0,
-		"inserted_count": 0,
-		"updated_count": 0,
-		"deleted_count": 0,
-		"error_count": 0,
-		"warning_count": 0,
-		"issues": [],
-	}
+	var result := _CONFIG_VALIDATION_REPORT.new().make_report()
+	result["data"] = {} if dictionary_output else []
+	result["dictionary_output"] = dictionary_output
+	result["base_count"] = (base_table as Dictionary).size() if base_table is Dictionary else (base_table as Array).size() if base_table is Array else 0
+	result["inserted_count"] = 0
+	result["updated_count"] = 0
+	result["deleted_count"] = 0
+	return result
 
 
 static func _build_base_state(rows: Array[Dictionary], policy: GFConfigTableMergePolicy, report: Dictionary) -> Dictionary:
@@ -219,19 +220,8 @@ static func _ordered_keys(order: Array, records: Dictionary, preserve_base_order
 
 
 static func _add_issue(report: Dictionary, severity: String, kind: String, row_key: Variant, message: String) -> void:
-	var issues := report["issues"] as Array
-	issues.append({
-		"severity": severity,
-		"kind": kind,
-		"row_key": row_key,
-		"message": message,
-	})
-	if severity == "warning":
-		report["warning_count"] = int(report["warning_count"]) + 1
-	else:
-		report["error_count"] = int(report["error_count"]) + 1
-		report["ok"] = false
+	_CONFIG_VALIDATION_REPORT.new().add_issue(report, severity, kind, &"", row_key, &"", message)
 
 
 static func _finalize_result(report: Dictionary) -> void:
-	report["ok"] = int(report.get("error_count", 0)) == 0
+	_CONFIG_VALIDATION_REPORT.new().finalize_report(report)

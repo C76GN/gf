@@ -53,6 +53,18 @@ var resume: bool = true
 ## 目标文件已存在时是否覆盖。
 var overwrite: bool = true
 
+## 最大重试次数。
+var max_retries: int = 0
+
+## 已执行重试次数。
+var retry_count: int = 0
+
+## 每次重试前等待的秒数。
+var retry_delay_seconds: float = 0.0
+
+## 下次可重试的时间戳，单位毫秒。
+var retry_not_before_msec: int = 0
+
 ## 项目层可附加的任务元数据。
 var metadata: Dictionary = {}
 
@@ -87,6 +99,10 @@ func duplicate_task() -> GFDownloadTask:
 	task.expected_sha256 = expected_sha256
 	task.resume = resume
 	task.overwrite = overwrite
+	task.max_retries = max_retries
+	task.retry_count = retry_count
+	task.retry_delay_seconds = retry_delay_seconds
+	task.retry_not_before_msec = retry_not_before_msec
 	task.metadata = metadata.duplicate(true)
 	task.status = status
 	task.received_bytes = received_bytes
@@ -109,6 +125,10 @@ func to_dict() -> Dictionary:
 		"expected_sha256": expected_sha256,
 		"resume": resume,
 		"overwrite": overwrite,
+		"max_retries": max_retries,
+		"retry_count": retry_count,
+		"retry_delay_seconds": retry_delay_seconds,
+		"retry_not_before_msec": retry_not_before_msec,
 		"metadata": metadata.duplicate(true),
 		"status": status,
 		"status_name": get_status_name(status),

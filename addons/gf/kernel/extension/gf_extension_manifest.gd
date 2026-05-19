@@ -61,8 +61,14 @@ var editor_dock_short_label: String = ""
 ## 可选 EditorInspectorPlugin 路径列表。需要为扩展内类型提供 Inspector 增强时使用。
 var editor_inspector_paths: Array[String] = []
 
+## 可选 EditorImportPlugin 路径列表。需要为自定义资源格式提供导入器时使用。
+var import_plugin_paths: Array[String] = []
+
 ## 可选 EditorExportPlugin 路径列表。
 var export_plugin_paths: Array[String] = []
+
+## 可选 GLTFDocumentExtension 路径列表。用于导入期资产元数据桥接等编辑器能力。
+var gltf_document_extension_paths: Array[String] = []
 
 ## 可选 GFAccessGenerator 扩展脚本路径列表。
 var access_generator_extension_paths: Array[String] = []
@@ -105,7 +111,9 @@ static func from_dictionary(
 	manifest.editor_dock_order = int(data.get("editor_dock_order", manifest.editor_dock_order))
 	manifest.editor_dock_short_label = String(data.get("editor_dock_short_label", "")).strip_edges()
 	manifest.editor_inspector_paths = _to_string_array(data.get("editor_inspector_paths", []))
+	manifest.import_plugin_paths = _to_string_array(data.get("import_plugin_paths", []))
 	manifest.export_plugin_paths = _to_string_array(data.get("export_plugin_paths", []))
+	manifest.gltf_document_extension_paths = _to_string_array(data.get("gltf_document_extension_paths", []))
 	manifest.access_generator_extension_paths = _to_string_array(data.get("access_generator_extension_paths", []))
 	manifest.tags = _to_string_array(data.get("tags", []))
 	manifest.enabled_by_default = bool(data.get(
@@ -154,7 +162,9 @@ func to_dictionary() -> Dictionary:
 		"editor_dock_order": editor_dock_order,
 		"editor_dock_short_label": editor_dock_short_label,
 		"editor_inspector_paths": editor_inspector_paths.duplicate(),
+		"import_plugin_paths": import_plugin_paths.duplicate(),
 		"export_plugin_paths": export_plugin_paths.duplicate(),
+		"gltf_document_extension_paths": gltf_document_extension_paths.duplicate(),
 		"access_generator_extension_paths": access_generator_extension_paths.duplicate(),
 		"tags": tags.duplicate(),
 		"enabled_by_default": enabled_by_default,
@@ -186,7 +196,9 @@ func get_validation_errors() -> Array[String]:
 	_append_resource_path_errors(errors, "editor_action_paths", editor_action_paths)
 	_append_resource_path_errors(errors, "editor_dock_paths", editor_dock_paths)
 	_append_resource_path_errors(errors, "editor_inspector_paths", editor_inspector_paths)
+	_append_resource_path_errors(errors, "import_plugin_paths", import_plugin_paths)
 	_append_resource_path_errors(errors, "export_plugin_paths", export_plugin_paths)
+	_append_resource_path_errors(errors, "gltf_document_extension_paths", gltf_document_extension_paths)
 	_append_resource_path_errors(errors, "access_generator_extension_paths", access_generator_extension_paths)
 	return errors
 

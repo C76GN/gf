@@ -5,6 +5,11 @@ class_name GFConfigTableImporter
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/config/gf_config_validation_report.gd")
+
+
 # --- 公共方法 ---
 
 ## 解析 JSON 表文本。
@@ -314,25 +319,7 @@ static func _make_error_report(
 	message: String,
 	context: Dictionary = {}
 ) -> Dictionary:
-	var issue := {
-		"severity": "error",
-		"kind": kind,
-		"table_name": table_name,
-		"row_key": null,
-		"field": &"",
-		"message": message,
-	}
-	for field_name: String in ["source", "line", "column"]:
-		if context.has(field_name):
-			issue[field_name] = context[field_name]
-	return {
-		"ok": false,
-		"table_name": table_name,
-		"row_count": 0,
-		"error_count": 1,
-		"warning_count": 0,
-		"issues": [issue],
-	}
+	return _CONFIG_VALIDATION_REPORT.new().make_error_report(table_name, kind, message, context)
 
 
 static func _make_validation_options(options: Dictionary, parsed: Dictionary) -> Dictionary:

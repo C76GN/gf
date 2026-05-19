@@ -56,6 +56,62 @@ func test_schema_can_report_duplicate_array_ids() -> void:
 	assert_true(_has_issue_kind(report["issues"] as Array, "duplicate_id"), "错误报告应包含重复 ID。")
 
 
+func test_schema_can_report_duplicate_dictionary_ids() -> void:
+	var schema := _make_item_schema()
+	schema.require_unique_id = true
+
+	var report := schema.validate_table({
+		"potion": { "id": 1, "name": "Potion", "power": 1.0 },
+		"ether": { "id": 1, "name": "Ether", "power": 2.0 },
+	})
+
+	assert_false(bool(report["ok"]), "Dictionary 表要求唯一 ID 时重复记录应失败。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "duplicate_id"), "错误报告应包含重复 ID。")
+
+
+func test_schema_definition_reports_invalid_declarations() -> void:
+	var schema := _make_item_schema()
+	var duplicate_id_column := _make_column(&"id", GFConfigTableColumn.ValueType.INT)
+	var empty_column := GFConfigTableColumn.new()
+	schema.columns.append(duplicate_id_column)
+	schema.columns.append(empty_column)
+	schema.columns.append(null)
+
+	var invalid_index := GFConfigTableIndexDefinition.new()
+	invalid_index.index_id = &"bad_index"
+	invalid_index.field_names = PackedStringArray(["missing"])
+	schema.indexes.append(invalid_index)
+
+	var duplicate_index := GFConfigTableIndexDefinition.new()
+	duplicate_index.index_id = &"bad_index"
+	duplicate_index.field_names = PackedStringArray(["id"])
+	schema.indexes.append(duplicate_index)
+
+	var invalid_reference := GFConfigTableReference.new()
+	invalid_reference.reference_id = &"bad_reference"
+	invalid_reference.source_fields = PackedStringArray(["missing_ref"])
+	invalid_reference.target_table_name = &"items"
+	schema.references.append(invalid_reference)
+
+	var duplicate_reference := GFConfigTableReference.new()
+	duplicate_reference.reference_id = &"bad_reference"
+	duplicate_reference.source_fields = PackedStringArray(["id"])
+	duplicate_reference.target_table_name = &"items"
+	schema.references.append(duplicate_reference)
+
+	var report: Dictionary = schema.validate_definition()
+	var issues := report["issues"] as Array
+
+	assert_false(bool(report["ok"]), "schema 定义存在结构问题时应失败。")
+	assert_true(_has_issue_kind(issues, "duplicate_column_field"), "应报告重复字段声明。")
+	assert_true(_has_issue_kind(issues, "empty_field"), "应报告空字段声明。")
+	assert_true(_has_issue_kind(issues, "null_column"), "应报告空列声明。")
+	assert_true(_has_issue_kind(issues, "index_unknown_field"), "应报告索引未知字段。")
+	assert_true(_has_issue_kind(issues, "duplicate_index_id"), "应报告重复索引 ID。")
+	assert_true(_has_issue_kind(issues, "reference_unknown_source_field"), "应报告引用未知来源字段。")
+	assert_true(_has_issue_kind(issues, "duplicate_reference_id"), "应报告重复引用 ID。")
+
+
 func test_config_provider_registers_schema_and_validates_table() -> void:
 	var provider := GFConfigProvider.new()
 	var schema := _make_item_schema()

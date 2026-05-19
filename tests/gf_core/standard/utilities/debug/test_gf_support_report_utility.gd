@@ -70,6 +70,42 @@ func test_support_report_exports_and_submits_with_transport_callback() -> void:
 	assert_eq(submitted_ids.size(), 1, "transport 应收到报告副本。")
 
 
+## 验证支持报告可导出适合人工审阅的 Markdown。
+func test_support_report_exports_markdown_summary_sections_and_attachments() -> void:
+	var utility := GFSupportReportUtilityBase.new()
+	assert_true(utility.register_section(&"runtime_state", func(_options: Dictionary) -> Dictionary:
+		return {
+			"screen": "settings",
+			"accent": Color.RED,
+		}
+	), "有效分区应注册成功。")
+
+	var report := utility.build_report("Markdown export", {
+		"include_diagnostics": false,
+		"include_scene": false,
+		"metadata": {
+			"channel": "qa",
+		},
+		"attachments": {
+			"log": {
+				"text": "hello",
+				"filename": "recent.log",
+			},
+		},
+	})
+	var markdown := utility.export_report_markdown(report, {
+		"title": "QA Support Report",
+	})
+
+	assert_true(markdown.contains("# QA Support Report"), "Markdown 应包含自定义标题。")
+	assert_true(markdown.contains("Markdown export"), "Markdown 应包含用户描述。")
+	assert_true(markdown.contains("## Metadata"), "Markdown 应包含元数据分区。")
+	assert_true(markdown.contains("## Sections"), "Markdown 应包含自定义分区。")
+	assert_true(markdown.contains("```json"), "自定义分区值应使用 JSON 代码块。")
+	assert_true(markdown.contains("## Attachments"), "Markdown 应包含附件摘要。")
+	assert_false(markdown.contains("hello"), "Markdown 附件摘要不应内联完整附件内容。")
+
+
 ## 验证支持报告可规范化文本附件。
 func test_support_report_collects_text_attachments() -> void:
 	var utility := GFSupportReportUtilityBase.new()

@@ -58,6 +58,11 @@ var max_apply_per_tick: int = 8:
 	set(value):
 		max_apply_per_tick = maxi(value, 1)
 
+## 单帧主线程应用回调的最大秒数。小于等于 0 时不启用时间预算；启用时每帧仍至少尝试一个应用回调。
+var max_apply_seconds_per_tick: float = 0.0:
+	set(value):
+		max_apply_seconds_per_tick = maxf(value, 0.0)
+
 ## 最多保留多少个终态任务用于调试快照；设为 0 时不保留历史。
 var max_finished_tasks: int = 128:
 	set(value):
@@ -269,6 +274,7 @@ func get_debug_snapshot() -> Dictionary:
 		"resource_paths": PackedStringArray(_resource_requests.keys()),
 		"apply_ids": _task_ids(_apply_queue),
 		"finished_ids": _task_ids(_finished_tasks),
+		"max_apply_seconds_per_tick": max_apply_seconds_per_tick,
 	}
 
 
@@ -525,7 +531,12 @@ func _queue_apply_or_complete(task: Variant) -> void:
 
 func _process_apply_queue() -> void:
 	var remaining := maxi(max_apply_per_tick, 1)
+	var started_usec := Time.get_ticks_usec()
+	var applied_count := 0
 	while remaining > 0 and not _apply_queue.is_empty():
+		if _is_apply_time_budget_exhausted(started_usec, applied_count):
+			break
+
 		remaining -= 1
 		var task: Variant = _apply_queue.pop_front()
 		if task == null or task.is_finished():
@@ -535,6 +546,7 @@ func _process_apply_queue() -> void:
 			continue
 
 		var value: Variant = task._apply_callback.call(task)
+		applied_count += 1
 		task.apply_result = value
 		if value is Dictionary and not bool((value as Dictionary).get("ok", true)):
 			_fail_task(task, str((value as Dictionary).get("error", "")), value)
@@ -604,6 +616,13 @@ func _trim_finished_tasks() -> void:
 		var removed: Variant = _finished_tasks.pop_front()
 		if removed != null and removed.is_finished():
 			_tasks.erase(removed.work_id)
+
+
+func _is_apply_time_budget_exhausted(started_usec: int, applied_count: int) -> bool:
+	if max_apply_seconds_per_tick <= 0.0 or applied_count <= 0:
+		return false
+	var elapsed_seconds := float(Time.get_ticks_usec() - started_usec) / 1000000.0
+	return elapsed_seconds >= max_apply_seconds_per_tick
 
 
 func _is_thread_payload_safe(value: Variant, depth: int = 0) -> bool:

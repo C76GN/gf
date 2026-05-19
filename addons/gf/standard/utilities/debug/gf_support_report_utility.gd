@@ -1,6 +1,6 @@
 ## GFSupportReportUtility: 通用支持报告构建工具。
 ##
-## 聚合用户描述、项目元数据、诊断快照、日志和可扩展分区，并提供 JSON 导出与回调提交入口。
+## 聚合用户描述、项目元数据、诊断快照、日志和可扩展分区，并提供 JSON / Markdown 导出与回调提交入口。
 ## 它不绑定任何工单系统、上传服务或反馈 UI。
 class_name GFSupportReportUtility
 extends GFUtility
@@ -222,6 +222,51 @@ func add_attachment_to_report(
 ## @return JSON 文本。
 func export_report_json(report: Dictionary, indent: String = "\t") -> String:
 	return JSON.stringify(report, indent)
+
+
+## 将报告导出为 Markdown 文本。
+## @param report: 报告字典。
+## @param options: 可选参数，支持 title、include_metadata、include_diagnostics_summary、include_sections、include_attachments。
+## @return Markdown 文本。
+func export_report_markdown(report: Dictionary, options: Dictionary = {}) -> String:
+	var lines := PackedStringArray()
+	var title := _variant_to_string(options.get("title", "GF Support Report"), "GF Support Report")
+	lines.append("# %s" % _markdown_line(title))
+	lines.append("")
+
+	_append_markdown_summary(lines, report)
+	_append_markdown_dictionary_fields(lines, "Build", report.get("build", {}), PackedStringArray([
+		"project_name",
+		"project_version",
+		"gf_version",
+		"build_id",
+		"godot_version",
+		"platform",
+	]))
+	_append_markdown_dictionary_fields(lines, "Runtime", report.get("runtime", {}), PackedStringArray([
+		"platform",
+		"locale",
+		"processor_count",
+		"static_memory",
+		"object_count",
+	]))
+	_append_markdown_dictionary_fields(lines, "Scene", report.get("scene", {}), PackedStringArray([
+		"available",
+		"name",
+		"path",
+		"node_count",
+		"node_count_truncated",
+	]))
+	if bool(options.get("include_metadata", true)):
+		_append_markdown_dictionary(lines, "Metadata", report.get("metadata", {}))
+	if bool(options.get("include_diagnostics_summary", true)):
+		_append_markdown_diagnostics(lines, report.get("diagnostics", {}))
+	if bool(options.get("include_sections", true)):
+		_append_markdown_sections(lines, report.get("sections", {}))
+	if bool(options.get("include_attachments", true)):
+		_append_markdown_attachments(lines, report.get("attachments", {}))
+
+	return "\n".join(lines)
 
 
 ## 保存报告到文件。
@@ -554,6 +599,211 @@ func _normalize_submit_result(raw_result: Variant) -> Dictionary:
 		"error": "",
 		"metadata": {},
 	}
+
+
+func _append_markdown_summary(lines: PackedStringArray, report: Dictionary) -> void:
+	lines.append("## Summary")
+	lines.append("")
+	_append_markdown_field(lines, "Report ID", report.get("report_id", ""))
+	_append_markdown_field(lines, "Timestamp", _format_unix_timestamp(report.get("timestamp_unix", "")))
+	var description := _variant_to_string(report.get("description", ""))
+	if not description.is_empty():
+		_append_markdown_field(lines, "Description", description)
+	var tags := _tags_to_markdown_text(report.get("tags", PackedStringArray()))
+	if not tags.is_empty():
+		_append_markdown_field(lines, "Tags", tags)
+	lines.append("")
+
+
+func _append_markdown_dictionary_fields(
+	lines: PackedStringArray,
+	title: String,
+	value: Variant,
+	keys: PackedStringArray
+) -> void:
+	if not (value is Dictionary):
+		return
+
+	var dictionary := value as Dictionary
+	if dictionary.is_empty():
+		return
+
+	var wrote_field := false
+	lines.append("## %s" % _markdown_line(title))
+	lines.append("")
+	for key: String in keys:
+		if dictionary.has(key):
+			_append_markdown_field(lines, key, dictionary[key])
+			wrote_field = true
+	if not wrote_field:
+		_append_markdown_dictionary_items(lines, dictionary)
+	lines.append("")
+
+
+func _append_markdown_dictionary(lines: PackedStringArray, title: String, value: Variant) -> void:
+	if not (value is Dictionary):
+		return
+
+	var dictionary := value as Dictionary
+	if dictionary.is_empty():
+		return
+
+	lines.append("## %s" % _markdown_line(title))
+	lines.append("")
+	_append_markdown_dictionary_items(lines, dictionary)
+	lines.append("")
+
+
+func _append_markdown_diagnostics(lines: PackedStringArray, value: Variant) -> void:
+	if not (value is Dictionary):
+		return
+
+	var diagnostics := value as Dictionary
+	if diagnostics.is_empty():
+		return
+
+	lines.append("## Diagnostics")
+	lines.append("")
+	if diagnostics.has("available"):
+		_append_markdown_field(lines, "available", diagnostics["available"])
+	if diagnostics.has("timestamp_unix"):
+		_append_markdown_field(lines, "timestamp", _format_unix_timestamp(diagnostics["timestamp_unix"]))
+
+	var keys := PackedStringArray()
+	for key: Variant in _get_sorted_dictionary_keys(diagnostics):
+		keys.append(_variant_to_string(key))
+	if not keys.is_empty():
+		_append_markdown_field(lines, "keys", ", ".join(keys))
+
+	var performance := diagnostics.get("performance", {}) as Dictionary
+	if performance != null and not performance.is_empty():
+		_append_markdown_field(lines, "performance.fps", performance.get("fps", ""))
+		_append_markdown_field(lines, "performance.object_count", performance.get("object_count", ""))
+		_append_markdown_field(lines, "performance.node_count", performance.get("node_count", ""))
+
+	var logs := diagnostics.get("logs", {}) as Dictionary
+	if logs != null and not logs.is_empty():
+		_append_markdown_field(lines, "logs.memory_count", logs.get("memory_count", ""))
+		_append_markdown_field(lines, "logs.dropped_count", logs.get("dropped_count", ""))
+	lines.append("")
+
+
+func _append_markdown_sections(lines: PackedStringArray, value: Variant) -> void:
+	if not (value is Dictionary):
+		return
+
+	var sections := value as Dictionary
+	if sections.is_empty():
+		return
+
+	lines.append("## Sections")
+	lines.append("")
+	for section_id: Variant in _get_sorted_dictionary_keys(sections):
+		var section := sections[section_id] as Dictionary
+		if section == null:
+			continue
+
+		var label := _variant_to_string(section.get("label", section_id), _variant_to_string(section_id))
+		lines.append("### %s" % _markdown_line(label))
+		lines.append("")
+		_append_markdown_field(lines, "id", section_id)
+		_append_markdown_field(lines, "ok", section.get("ok", false))
+		var error := _variant_to_string(section.get("error", ""))
+		if not error.is_empty():
+			_append_markdown_field(lines, "error", error)
+		if section.has("value"):
+			lines.append("")
+			lines.append("```json")
+			lines.append(_variant_to_json_text(section["value"]))
+			lines.append("```")
+		lines.append("")
+
+
+func _append_markdown_attachments(lines: PackedStringArray, value: Variant) -> void:
+	if not (value is Dictionary):
+		return
+
+	var attachments := value as Dictionary
+	if attachments.is_empty():
+		return
+
+	lines.append("## Attachments")
+	lines.append("")
+	for attachment_id: Variant in _get_sorted_dictionary_keys(attachments):
+		var attachment := attachments[attachment_id] as Dictionary
+		if attachment == null:
+			continue
+
+		lines.append("### %s" % _markdown_line(_variant_to_string(attachment_id)))
+		lines.append("")
+		_append_markdown_field(lines, "ok", attachment.get("ok", false))
+		_append_markdown_field(lines, "filename", attachment.get("filename", ""))
+		_append_markdown_field(lines, "mime_type", attachment.get("mime_type", ""))
+		_append_markdown_field(lines, "size_bytes", attachment.get("size_bytes", 0))
+		if attachment.has("reason"):
+			_append_markdown_field(lines, "reason", attachment["reason"])
+		if attachment.has("saved_path"):
+			_append_markdown_field(lines, "saved_path", attachment["saved_path"])
+		lines.append("")
+
+
+func _append_markdown_dictionary_items(lines: PackedStringArray, dictionary: Dictionary) -> void:
+	for key: Variant in _get_sorted_dictionary_keys(dictionary):
+		_append_markdown_field(lines, _variant_to_string(key), dictionary[key])
+
+
+func _append_markdown_field(lines: PackedStringArray, label: String, value: Variant) -> void:
+	lines.append("- %s: %s" % [_markdown_line(label), _markdown_value(value)])
+
+
+func _markdown_value(value: Variant) -> String:
+	if value is Dictionary or value is Array:
+		return "`%s`" % _markdown_inline(_variant_to_json_text(value))
+	if value is PackedStringArray:
+		return "`%s`" % _markdown_inline(", ".join(value as PackedStringArray))
+	return "`%s`" % _markdown_inline(_variant_to_string(value))
+
+
+func _markdown_line(value: String) -> String:
+	var result := value.replace("\r", " ").replace("\n", " ").strip_edges()
+	return result if not result.is_empty() else "-"
+
+
+func _markdown_inline(value: String) -> String:
+	return _markdown_line(value).replace("`", "'")
+
+
+func _format_unix_timestamp(value: Variant) -> String:
+	if value is int or value is float:
+		var timestamp := int(value)
+		if timestamp > 0:
+			return Time.get_datetime_string_from_unix_time(timestamp, true)
+	return _variant_to_string(value)
+
+
+func _tags_to_markdown_text(value: Variant) -> String:
+	var tags := PackedStringArray()
+	if value is PackedStringArray:
+		tags = (value as PackedStringArray).duplicate()
+	elif value is Array:
+		for item: Variant in value as Array:
+			tags.append(_variant_to_string(item))
+	return ", ".join(tags)
+
+
+func _variant_to_json_text(value: Variant) -> String:
+	var compatible := GFVariantJsonCodec.variant_to_json_compatible(value, {
+		"unsupported": "string",
+	})
+	return JSON.stringify(compatible, "\t")
+
+
+func _get_sorted_dictionary_keys(dictionary: Dictionary) -> Array:
+	var keys := dictionary.keys()
+	keys.sort_custom(func(a: Variant, b: Variant) -> bool:
+		return _variant_to_string(a) < _variant_to_string(b)
+	)
+	return keys
 
 
 func _get_dictionary_option(options: Dictionary, key: String) -> Dictionary:

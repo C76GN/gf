@@ -5,6 +5,11 @@ class_name GFConfigTableSchema
 extends Resource
 
 
+# --- 常量 ---
+
+const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/config/gf_config_validation_report.gd")
+
+
 # --- 导出变量 ---
 
 ## 表名。为空时可由调用方自行决定表标识。
@@ -25,7 +30,7 @@ extends Resource
 ## 启用 coerce_values 时，转换失败是否作为校验错误。
 @export var fail_on_coerce_error: bool = true
 
-## 校验 Array 表时是否要求 id_field 唯一。
+## 校验整表时是否要求 id_field 唯一。
 @export var require_unique_id: bool = false
 
 ## 可选复合索引声明。唯一索引会参与表级校验。
@@ -160,6 +165,19 @@ func get_column_names() -> PackedStringArray:
 			result.append(str(column.get_field_key()))
 	result.sort()
 	return result
+
+
+## 校验 schema 自身声明是否完整、一致。
+## @param options: 可选上下文，支持 source。
+## @return 校验报告字典。
+func validate_definition(options: Dictionary = {}) -> Dictionary:
+	var report: Dictionary = _make_report(0)
+	_validate_column_definitions(report, options)
+	_validate_index_definitions(report, options)
+	_validate_reference_definitions(report, options)
+	_validate_rule_definitions(report, options)
+	_finalize_report(report)
+	return report
 
 
 ## 校验单条记录。
@@ -340,6 +358,7 @@ func _validate_array_table(rows: Array, report: Dictionary, options: Dictionary)
 
 func _validate_dictionary_table(table: Dictionary, report: Dictionary, options: Dictionary) -> void:
 	report["row_count"] = table.size()
+	var seen_ids: Dictionary = {}
 	var valid_rows: Array[Dictionary] = []
 	for key: Variant in table.keys():
 		var row: Variant = table[key]
@@ -354,19 +373,138 @@ func _validate_dictionary_table(table: Dictionary, report: Dictionary, options: 
 			"record": record,
 		})
 		_merge_report(report, validate_record(record, row_key, options))
+		_validate_unique_id(record, row_key, seen_ids, report, options)
 	_validate_index_constraints(valid_rows, report)
 	_validate_table_rules(valid_rows, report, options)
 
 
 func _make_report(row_count: int) -> Dictionary:
-	return {
-		"ok": true,
-		"table_name": table_name,
-		"row_count": row_count,
-		"error_count": 0,
-		"warning_count": 0,
-		"issues": [],
-	}
+	return _CONFIG_VALIDATION_REPORT.new().make_report(table_name, row_count)
+
+
+func _validate_column_definitions(report: Dictionary, options: Dictionary) -> void:
+	var seen_fields: Dictionary = {}
+	for index: int in range(columns.size()):
+		var column: GFConfigTableColumn = columns[index]
+		var context := _make_definition_context(options, index)
+		if column == null:
+			_add_issue(report, "error", "null_column", null, &"", "字段声明为空。", context)
+			continue
+
+		var field_key := column.get_field_key()
+		context["field"] = field_key
+		if field_key == &"":
+			_add_issue(report, "error", "empty_field", null, &"", "字段名为空。", context)
+			continue
+		if seen_fields.has(field_key):
+			_add_issue(
+				report,
+				"error",
+				"duplicate_column_field",
+				null,
+				field_key,
+				"字段声明重复：%s。" % String(field_key),
+				context
+			)
+		seen_fields[field_key] = true
+		_validate_column_rule_definitions(column, report, context)
+
+
+func _validate_column_rule_definitions(
+	column: GFConfigTableColumn,
+	report: Dictionary,
+	context: Dictionary
+) -> void:
+	for rule: GFConfigValidationRule in column.validation_rules:
+		if rule == null:
+			_add_issue(
+				report,
+				"error",
+				"null_validation_rule",
+				null,
+				column.get_field_key(),
+				"字段校验规则为空。",
+				context
+			)
+
+
+func _validate_index_definitions(report: Dictionary, options: Dictionary) -> void:
+	var seen_index_ids: Dictionary = {}
+	for index: GFConfigTableIndexDefinition in indexes:
+		if index == null:
+			_add_issue(report, "error", "null_index", null, &"", "索引声明为空。", _make_record_context(null, options))
+			continue
+		if not index.is_valid_definition():
+			_add_issue(report, "error", "invalid_index", null, &"", "索引声明无效。", _make_record_context(null, options))
+			continue
+
+		var index_id := index.get_index_id()
+		if seen_index_ids.has(index_id):
+			_add_issue(
+				report,
+				"error",
+				"duplicate_index_id",
+				null,
+				&"",
+				"索引 ID 重复：%s。" % String(index_id),
+				_make_record_context(null, options)
+			)
+		seen_index_ids[index_id] = true
+		for field_name: String in index.field_names:
+			if not has_column(StringName(field_name)):
+				_add_issue(
+					report,
+					"error",
+					"index_unknown_field",
+					null,
+					StringName(field_name),
+					"索引字段未声明：%s。" % field_name,
+					_make_field_context(null, StringName(field_name), options)
+				)
+
+
+func _validate_reference_definitions(report: Dictionary, options: Dictionary) -> void:
+	var seen_reference_ids: Dictionary = {}
+	for reference: GFConfigTableReference in references:
+		if reference == null:
+			_add_issue(report, "error", "null_reference", null, &"", "引用声明为空。", _make_record_context(null, options))
+			continue
+		if not reference.is_valid_definition():
+			_add_issue(report, "error", "invalid_reference", null, &"", "引用声明无效。", _make_record_context(null, options))
+			continue
+
+		var reference_id := reference.get_reference_id()
+		if seen_reference_ids.has(reference_id):
+			_add_issue(
+				report,
+				"error",
+				"duplicate_reference_id",
+				null,
+				&"",
+				"引用 ID 重复：%s。" % String(reference_id),
+				_make_record_context(null, options)
+			)
+		seen_reference_ids[reference_id] = true
+		for field_name: String in reference.source_fields:
+			if not has_column(StringName(field_name)):
+				_add_issue(
+					report,
+					"error",
+					"reference_unknown_source_field",
+					null,
+					StringName(field_name),
+					"引用来源字段未声明：%s。" % field_name,
+					_make_field_context(null, StringName(field_name), options)
+				)
+
+
+func _validate_rule_definitions(report: Dictionary, options: Dictionary) -> void:
+	for rule: GFConfigValidationRule in record_validation_rules:
+		if rule == null:
+			_add_issue(report, "error", "null_record_validation_rule", null, &"", "记录校验规则为空。", _make_record_context(null, options))
+	for rule: GFConfigValidationRule in table_validation_rules:
+		if rule == null:
+			_add_issue(report, "error", "null_table_validation_rule", null, &"", "表校验规则为空。", _make_record_context(null, options))
 
 
 func _coerce_record_for_validation(record: Dictionary, row_key: Variant, report: Dictionary, options: Dictionary) -> Dictionary:
@@ -511,45 +649,27 @@ func _add_issue(
 	message: String,
 	context: Dictionary = {}
 ) -> void:
-	var issue := {
-		"severity": severity,
-		"kind": kind,
-		"table_name": table_name,
-		"row_key": row_key,
-		"field": field_name,
-		"message": message,
-	}
-	_apply_issue_context(issue, context)
-	var issues := report["issues"] as Array
-	issues.append(issue)
-
-	if severity == "warning":
-		report["warning_count"] = int(report["warning_count"]) + 1
-	else:
-		report["error_count"] = int(report["error_count"]) + 1
-		report["ok"] = false
+	_CONFIG_VALIDATION_REPORT.new().add_issue(report, severity, kind, table_name, row_key, field_name, message, context)
 
 
 func _merge_report(target: Dictionary, source: Dictionary) -> void:
-	target["error_count"] = int(target["error_count"]) + int(source.get("error_count", 0))
-	target["warning_count"] = int(target["warning_count"]) + int(source.get("warning_count", 0))
-	if not bool(source.get("ok", true)):
-		target["ok"] = false
-
-	var target_issues := target["issues"] as Array
-	var source_issues := source.get("issues", []) as Array
-	for issue: Dictionary in source_issues:
-		target_issues.append(issue.duplicate(true))
+	_CONFIG_VALIDATION_REPORT.new().merge_report(target, source)
 
 
 func _finalize_report(report: Dictionary) -> void:
-	report["ok"] = int(report.get("error_count", 0)) == 0
+	_CONFIG_VALIDATION_REPORT.new().finalize_report(report)
 
 
 func _make_row_options(options: Dictionary, row_index: int) -> Dictionary:
 	var result := options.duplicate(true)
 	result["row_index"] = row_index
 	return result
+
+
+func _make_definition_context(options: Dictionary, column_index: int) -> Dictionary:
+	var context := _make_record_context(null, options)
+	context["column_index"] = column_index
+	return context
 
 
 func _make_record_context(row_key: Variant, options: Dictionary) -> Dictionary:
@@ -597,12 +717,6 @@ func _apply_row_location(context: Dictionary, field_name: StringName, options: D
 	var field_location: Variant = fields.get(field_name, fields.get(String(field_name), null))
 	if field_location is Dictionary:
 		_copy_context_fields(context, field_location as Dictionary)
-
-
-func _apply_issue_context(issue: Dictionary, context: Dictionary) -> void:
-	for field_name: String in ["source", "line", "column", "row_index", "column_index", "rule_id"]:
-		if context.has(field_name):
-			issue[field_name] = GFVariantData.duplicate_variant(context[field_name])
 
 
 static func _normalize_inference_rows(table_data: Variant) -> Array[Dictionary]:

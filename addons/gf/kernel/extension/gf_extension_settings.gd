@@ -312,10 +312,22 @@ static func get_enabled_editor_inspector_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("editor_inspector_paths")
 
 
+## 获取启用扩展声明的导入插件路径。
+## @return EditorImportPlugin 脚本路径列表。
+static func get_enabled_import_plugin_paths() -> Array[String]:
+	return _collect_enabled_manifest_paths("import_plugin_paths")
+
+
 ## 获取启用扩展声明的导出插件路径。
 ## @return EditorExportPlugin 脚本路径列表。
 static func get_enabled_export_plugin_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("export_plugin_paths")
+
+
+## 获取启用扩展声明的 glTF 文档扩展路径。
+## @return GLTFDocumentExtension 脚本路径列表。
+static func get_enabled_gltf_document_extension_paths() -> Array[String]:
+	return _collect_enabled_manifest_paths("gltf_document_extension_paths")
 
 
 ## 获取启用扩展声明的访问器生成扩展路径。

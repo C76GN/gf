@@ -6,6 +6,11 @@ class_name GFConfigProvider
 extends GFUtility
 
 
+# --- 常量 ---
+
+const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/config/gf_config_validation_report.gd")
+
+
 # --- 私有变量 ---
 
 var _schemas: Dictionary = {}
@@ -121,18 +126,4 @@ func coerce_record(table_name: StringName, record: Dictionary) -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _make_missing_schema_report(table_name: StringName) -> Dictionary:
-	return {
-		"ok": false,
-		"table_name": table_name,
-		"row_count": 0,
-		"error_count": 1,
-		"warning_count": 0,
-		"issues": [{
-			"severity": "error",
-			"kind": "missing_schema",
-			"table_name": table_name,
-			"row_key": null,
-			"field": &"",
-			"message": "未注册导表结构声明：%s。" % String(table_name),
-		}],
-	}
+	return _CONFIG_VALIDATION_REPORT.new().make_error_report(table_name, "missing_schema", "未注册导表结构声明：%s。" % String(table_name))

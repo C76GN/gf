@@ -31,6 +31,11 @@ enum ValueKind {
 }
 
 
+# --- 常量 ---
+
+const _OBJECT_PROPERTY_TOOLS: Script = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
+
+
 # --- 导出变量 ---
 
 ## 属性 ID，在同一目标内必须唯一。
@@ -148,7 +153,7 @@ func read_value(target: Object) -> Variant:
 		return getter.call(target, self)
 	if not is_instance_valid(target) or property_name.is_empty():
 		return null
-	return target.get_indexed(property_name)
+	return _OBJECT_PROPERTY_TOOLS.read_property(target, property_name)
 
 
 ## 写入目标对象。
@@ -167,8 +172,8 @@ func write_value(target: Object, value: Variant) -> bool:
 		return true
 	if property_name.is_empty():
 		return false
-	target.set_indexed(property_name, normalized_value)
-	return true
+	var result: Dictionary = _OBJECT_PROPERTY_TOOLS.write_property(target, property_name, normalized_value)
+	return bool(result.get("ok", false))
 
 
 ## 根据 schema 归一化写入值。

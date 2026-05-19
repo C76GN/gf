@@ -1,0 +1,130 @@
+## 测试 GFObjectPropertyTools 的属性查询、校验与安全读写。
+extends GutTest
+
+
+# --- 常量 ---
+
+const GFObjectPropertyToolsBase = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
+
+
+# --- 测试用例 ---
+
+func test_get_property_info_and_names_use_usage_filter() -> void:
+	var object := DynamicPropertyObject.new()
+
+	var names := GFObjectPropertyToolsBase.get_property_names(object, PROPERTY_USAGE_STORAGE)
+	var info := GFObjectPropertyToolsBase.get_property_info(object, &"dynamic_number")
+
+	assert_true(names.has("dynamic_number"), "应返回匹配 usage 的动态属性。")
+	assert_false(names.has("editor_only"), "不匹配 usage 的属性应被过滤。")
+	assert_eq(int(info.get("type", TYPE_NIL)), TYPE_INT)
+
+
+func test_read_property_returns_default_for_missing_property() -> void:
+	var object := DynamicPropertyObject.new()
+
+	var value: Variant = GFObjectPropertyToolsBase.read_property(object, ^"missing", "fallback")
+
+	assert_eq(value, "fallback")
+
+
+func test_write_property_rejects_read_only_property() -> void:
+	var object := DynamicPropertyObject.new()
+
+	var result: Dictionary = GFObjectPropertyToolsBase.write_property(object, ^"locked_number", 12)
+
+	assert_false(bool(result.get("ok", false)))
+	assert_true(String(result.get("error", "")).contains("Property is not writable: locked_number"))
+	assert_eq(object.locked_number_value, 7)
+
+
+func test_write_property_rejects_type_mismatch_before_setting() -> void:
+	var node := Node2D.new()
+
+	var result: Dictionary = GFObjectPropertyToolsBase.write_property(node, ^"position", "bad-position")
+
+	assert_false(bool(result.get("ok", false)))
+	assert_true(String(result.get("error", "")).contains("Property type mismatch: position"))
+	assert_eq(node.position, Vector2.ZERO)
+
+	node.free()
+
+
+func test_write_property_supports_indexed_subproperty() -> void:
+	var node := Node2D.new()
+	node.position = Vector2(1.0, 2.0)
+
+	var result: Dictionary = GFObjectPropertyToolsBase.write_property(node, ^"position:x", 4.5)
+
+	assert_true(bool(result.get("ok", false)))
+	assert_eq(node.position, Vector2(4.5, 2.0))
+	assert_eq(result.get("old_value"), 1.0)
+	assert_eq(result.get("new_value"), 4.5)
+
+	node.free()
+
+
+func test_write_property_coerces_supported_value_types() -> void:
+	var object := DynamicPropertyObject.new()
+
+	var result: Dictionary = GFObjectPropertyToolsBase.write_property(object, ^"target_path", "Child/Label")
+
+	assert_true(bool(result.get("ok", false)))
+	assert_eq(object.target_path_value, ^"Child/Label")
+
+
+# --- 内部类 ---
+
+class DynamicPropertyObject extends RefCounted:
+	var dynamic_number_value: int = 5
+	var locked_number_value: int = 7
+	var target_path_value: NodePath = NodePath("")
+
+
+	func _get_property_list() -> Array[Dictionary]:
+		return [
+			{
+				"name": "dynamic_number",
+				"type": TYPE_INT,
+				"usage": PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_STORAGE,
+			},
+			{
+				"name": "locked_number",
+				"type": TYPE_INT,
+				"usage": PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_STORAGE | PROPERTY_USAGE_READ_ONLY,
+			},
+			{
+				"name": "target_path",
+				"type": TYPE_NODE_PATH,
+				"usage": PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_STORAGE,
+			},
+			{
+				"name": "editor_only",
+				"type": TYPE_STRING,
+				"usage": PROPERTY_USAGE_EDITOR,
+			},
+		]
+
+
+	func _get(property: StringName) -> Variant:
+		match property:
+			&"dynamic_number":
+				return dynamic_number_value
+			&"locked_number":
+				return locked_number_value
+			&"target_path":
+				return target_path_value
+			_:
+				return null
+
+
+	func _set(property: StringName, value: Variant) -> bool:
+		match property:
+			&"dynamic_number":
+				dynamic_number_value = int(value)
+				return true
+			&"target_path":
+				target_path_value = value if value is NodePath else NodePath(String(value))
+				return true
+			_:
+				return false

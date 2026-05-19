@@ -5,6 +5,11 @@ class_name GFConfigReferenceResolver
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/config/gf_config_validation_report.gd")
+
+
 # --- 公共方法 ---
 
 ## 构建表数据索引。
@@ -46,6 +51,7 @@ static func validate_tables(
 			_add_issue(report, "error", "missing_table", table_name, null, &"", "缺少表数据：%s。" % String(table_name))
 			continue
 		if validate_schema:
+			_merge_report(report, schema.validate_definition())
 			_merge_report(report, schema.validate_table(tables_by_name[table_name]))
 		_validate_schema_references(schema, tables_by_name, schema_lookup, report)
 
@@ -198,14 +204,7 @@ static func _make_key(record: Dictionary, field_names: PackedStringArray, allow_
 
 
 static func _make_report() -> Dictionary:
-	return {
-		"ok": true,
-		"table_name": &"",
-		"row_count": 0,
-		"error_count": 0,
-		"warning_count": 0,
-		"issues": [],
-	}
+	return _CONFIG_VALIDATION_REPORT.new().make_report()
 
 
 static func _add_issue(
@@ -217,36 +216,15 @@ static func _add_issue(
 	field_name: StringName,
 	message: String
 ) -> void:
-	var issues := report["issues"] as Array
-	issues.append({
-		"severity": severity,
-		"kind": kind,
-		"table_name": table_name,
-		"row_key": row_key,
-		"field": field_name,
-		"message": message,
-	})
-	if severity == "warning":
-		report["warning_count"] = int(report["warning_count"]) + 1
-	else:
-		report["error_count"] = int(report["error_count"]) + 1
-		report["ok"] = false
+	_CONFIG_VALIDATION_REPORT.new().add_issue(report, severity, kind, table_name, row_key, field_name, message)
 
 
 static func _merge_report(target: Dictionary, source: Dictionary) -> void:
-	target["row_count"] = int(target.get("row_count", 0)) + int(source.get("row_count", 0))
-	target["error_count"] = int(target.get("error_count", 0)) + int(source.get("error_count", 0))
-	target["warning_count"] = int(target.get("warning_count", 0)) + int(source.get("warning_count", 0))
-	if not bool(source.get("ok", true)):
-		target["ok"] = false
-
-	var target_issues := target["issues"] as Array
-	for issue: Dictionary in source.get("issues", []) as Array:
-		target_issues.append(issue.duplicate(true))
+	_CONFIG_VALIDATION_REPORT.new().merge_report(target, source, true)
 
 
 static func _finalize_report(report: Dictionary) -> void:
-	report["ok"] = int(report.get("error_count", 0)) == 0
+	_CONFIG_VALIDATION_REPORT.new().finalize_report(report)
 
 
 static func _first_field(fields: PackedStringArray) -> StringName:

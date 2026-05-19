@@ -229,6 +229,19 @@ if GFScriptTypeInspector.script_extends_or_equals(player_script, GFController):
 var chain := GFScriptTypeInspector.get_inheritance_chain(player_script)
 ```
 
+### `GFObjectPropertyTools`
+
+Godot `Object` 属性访问辅助，用于集中查询 `get_property_list()` 元信息、读取/写入 `NodePath` 属性路径、判断只读属性，并在写入前做基础 `Variant.Type` 校验和少量安全转换。它适合框架级编辑器工具、调试工具和通用序列化器复用同一套属性边界判断。
+
+```gdscript
+if GFObjectPropertyTools.can_write_property(node, ^"position:x"):
+	var result := GFObjectPropertyTools.write_property(node, ^"position:x", 120.0)
+	if not result["ok"]:
+		push_warning(result["error"])
+```
+
+`GFObjectPropertyTools` 只处理 Godot 属性机制本身，不做属性绑定、自动派发、表达式执行、转换管线或业务字段解释。需要长期监听属性变化、把属性映射到玩法数据，或定义复杂编辑器表单时，应在项目自己的模块或更高层工具中组合它，而不是把这些语义写入内核。
+
 ### `GFTimeProvider`
 
 `GFTimeProvider` 是 `GFArchitecture.tick()` / `physics_tick()` 识别的时间控制协议。标准库的 `GFTimeUtility` 继承该协议来提供全局暂停、时间缩放和物理子步；项目也可以实现自己的时间提供者，只要继承 `GFTimeProvider` 并注册为 Utility。

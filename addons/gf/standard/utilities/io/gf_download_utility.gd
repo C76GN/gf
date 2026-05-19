@@ -40,6 +40,12 @@ var overwrite_existing: bool = true
 ## 进度信号最小间隔，单位秒。
 var emit_progress_interval_seconds: float = 0.1
 
+## 默认最大重试次数。
+var default_max_retries: int = 0
+
+## 默认重试等待秒数。
+var default_retry_delay_seconds: float = 0.0
+
 
 # --- 私有变量 ---
 
@@ -82,7 +88,10 @@ func dispose() -> void:
 ## 驱动下载进度采样。
 ## @param _delta: 为兼容统一 tick 签名而保留的参数。
 func tick(_delta: float = 0.0) -> void:
-	if _active_task == null or not is_instance_valid(_http_request):
+	if _active_task == null:
+		_try_start_next_download()
+		return
+	if not is_instance_valid(_http_request):
 		return
 
 	var now_msec := Time.get_ticks_msec()
@@ -101,7 +110,7 @@ func tick(_delta: float = 0.0) -> void:
 ## @param url: 下载 URL。
 ## @param target_path: 最终写入路径。
 ## @param callback: 完成、失败或取消时执行的回调，签名为 func(result: Dictionary)。
-## @param options: 可选参数，支持 headers、resume、overwrite、expected_sha256、metadata、temp_path、segment_path。
+## @param options: 可选参数，支持 headers、resume、overwrite、expected_sha256、metadata、temp_path、segment_path、max_retries、retry_delay_seconds。
 ## @return 任务句柄；输入无效时返回 0。
 func enqueue_download(
 	url: String,
@@ -124,6 +133,8 @@ func enqueue_download(
 	task.expected_sha256 = str(options.get("expected_sha256", "")).to_lower()
 	task.resume = bool(options.get("resume", true))
 	task.overwrite = bool(options.get("overwrite", overwrite_existing))
+	task.max_retries = maxi(0, int(options.get("max_retries", default_max_retries)))
+	task.retry_delay_seconds = maxf(0.0, float(options.get("retry_delay_seconds", default_retry_delay_seconds)))
 	task.metadata = (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {}
 	if callback.is_valid():
 		_callbacks[task.task_id] = callback
@@ -257,7 +268,10 @@ func _try_start_next_download() -> void:
 	if _paused or _active_task != null or _pending_tasks.is_empty():
 		return
 
-	var task := _pending_tasks.pop_front()
+	var task := _pop_next_ready_task()
+	if task == null:
+		return
+
 	if FileAccess.file_exists(task.target_path) and not task.overwrite:
 		if not _verify_file_checksum(task, task.target_path, "target file"):
 			task.status = GFDownloadTask.Status.FAILED
@@ -340,7 +354,8 @@ func _ensure_http_request() -> HTTPRequest:
 func _complete_active_download(
 	success: bool,
 	response_code: int,
-	error: String = ""
+	error: String = "",
+	retryable: bool = false
 ) -> void:
 	if _active_task == null:
 		return
@@ -358,13 +373,15 @@ func _complete_active_download(
 			task.error = ""
 			_finish_task(task, true, false)
 		else:
-			task.status = GFDownloadTask.Status.FAILED
-			task.error = "Commit failed: %s" % error_string(commit_error)
-			_finish_task(task, false, false)
+			_fail_or_retry_task(task, "Commit failed: %s" % error_string(commit_error), false)
 	else:
-		task.status = GFDownloadTask.Status.FAILED
-		task.error = error
-		_finish_task(task, false, false)
+		_fail_or_retry_task(
+			task,
+			error,
+			retryable or _is_retryable_http_failure(response_code),
+			request_data,
+			response_code
+		)
 
 	_try_start_next_download()
 
@@ -488,6 +505,61 @@ func _normalize_headers(value: Variant) -> PackedStringArray:
 			result.append("%s: %s" % [str(key), str(data[key])])
 		return result
 	return PackedStringArray()
+
+
+func _pop_next_ready_task() -> GFDownloadTask:
+	var now_msec := Time.get_ticks_msec()
+	for index: int in range(_pending_tasks.size()):
+		var task := _pending_tasks[index]
+		if task.retry_not_before_msec > now_msec:
+			continue
+		_pending_tasks.remove_at(index)
+		return task
+	return null
+
+
+func _fail_or_retry_task(
+	task: GFDownloadTask,
+	error: String,
+	retryable: bool,
+	request_data: Dictionary = {},
+	response_code: int = 0
+) -> void:
+	task.error = error
+	if retryable and _schedule_retry(task):
+		_cleanup_failed_retry_download_file(request_data, response_code)
+		return
+
+	task.status = GFDownloadTask.Status.FAILED
+	_finish_task(task, false, false)
+
+
+func _schedule_retry(task: GFDownloadTask) -> bool:
+	if task.retry_count >= task.max_retries:
+		return false
+
+	task.retry_count += 1
+	task.status = GFDownloadTask.Status.QUEUED
+	task.received_bytes = 0
+	task.total_bytes = -1
+	task.response_code = 0
+	task.retry_not_before_msec = Time.get_ticks_msec() + int(task.retry_delay_seconds * 1000.0)
+	_pending_tasks.push_front(task)
+	return true
+
+
+func _is_retryable_http_failure(response_code: int) -> bool:
+	return response_code == 0 or response_code == 408 or response_code == 425 or response_code == 429 or response_code >= 500
+
+
+func _cleanup_failed_retry_download_file(request_data: Dictionary, response_code: int) -> void:
+	if response_code == 0:
+		return
+
+	var download_file := String(request_data.get("download_file", ""))
+	if download_file.is_empty() or not FileAccess.file_exists(download_file):
+		return
+	DirAccess.remove_absolute(download_file)
 
 
 func _delete_task_temp_files(task: GFDownloadTask) -> void:

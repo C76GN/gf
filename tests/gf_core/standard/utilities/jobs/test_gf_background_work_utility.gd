@@ -30,6 +30,7 @@ class PureWorker:
 
 var _applied_value: int = 0
 var _applied_resource: Resource = null
+var _slow_apply_count: int = 0
 
 
 # --- 测试生命周期方法 ---
@@ -37,6 +38,7 @@ var _applied_resource: Resource = null
 func before_each() -> void:
 	_applied_value = 0
 	_applied_resource = null
+	_slow_apply_count = 0
 
 
 # --- 测试用例 ---
@@ -145,6 +147,34 @@ func test_resource_load_uses_threaded_resource_loader_and_applies_on_tick() -> v
 	utility.dispose()
 
 
+func test_apply_queue_respects_time_budget_after_first_callback() -> void:
+	var utility: Variant = GFBackgroundWorkUtilityScript.new()
+	utility.init()
+	utility.max_apply_per_tick = 8
+	utility.max_apply_seconds_per_tick = 0.000001
+
+	var first: Variant = _make_apply_task(&"first")
+	var second: Variant = _make_apply_task(&"second")
+	utility._tasks[first.work_id] = first
+	utility._tasks[second.work_id] = second
+	utility._apply_queue.append(first)
+	utility._apply_queue.append(second)
+
+	utility.tick()
+
+	assert_eq(_slow_apply_count, 1, "时间预算启用时同一帧至少执行一个 apply。")
+	assert_eq(first.status, GFBackgroundWorkTaskScript.Status.COMPLETED, "第一个 apply 应完成。")
+	assert_eq(second.status, GFBackgroundWorkTaskScript.Status.APPLYING, "超出时间预算后应保留后续 apply。")
+	assert_eq(utility.get_debug_snapshot()["apply_count"], 1, "后续 apply 应留在队列中。")
+
+	utility.max_apply_seconds_per_tick = 0.0
+	utility.tick()
+
+	assert_eq(_slow_apply_count, 2, "关闭时间预算后应继续处理剩余 apply。")
+	assert_eq(second.status, GFBackgroundWorkTaskScript.Status.COMPLETED, "第二个 apply 应完成。")
+	utility.dispose()
+
+
 # --- 私有/辅助方法 ---
 
 func _apply_value(task: Variant) -> bool:
@@ -153,9 +183,26 @@ func _apply_value(task: Variant) -> bool:
 	return true
 
 
+func _apply_slow_task(_task: Variant) -> bool:
+	var started_usec := Time.get_ticks_usec()
+	while Time.get_ticks_usec() - started_usec < 2000:
+		pass
+	_slow_apply_count += 1
+	return true
+
+
 func _apply_resource(task: Variant) -> bool:
 	_applied_resource = task.result as Resource
 	return _applied_resource != null
+
+
+func _make_apply_task(work_id: StringName) -> Variant:
+	var task: Variant = GFBackgroundWorkTaskScript.new()
+	task.work_id = work_id
+	task.kind = GFBackgroundWorkTaskScript.Kind.CPU
+	task.status = GFBackgroundWorkTaskScript.Status.APPLYING
+	task._apply_callback = Callable(self, "_apply_slow_task")
+	return task
 
 
 func _pump_until_finished(

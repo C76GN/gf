@@ -77,11 +77,15 @@ downloads.enqueue_download(
 	{
 		"resume": true,
 		"expected_sha256": "",
+		"max_retries": 2,
+		"retry_delay_seconds": 0.5,
 	}
 )
 ```
 
-`enqueue_download()` 返回任务 ID；`cancel(id, delete_temp)` 可取消等待中或进行中的任务，`pause()` / `resume()` 会暂停启动新任务并把当前任务保留到队首。每个任务由 `GFDownloadTask` 描述，结果字典会包含 `status`、`status_name`、`received_bytes`、`total_bytes`、`response_code`、`error` 和项目传入的 `metadata`。下载成功后先写入临时文件，再提交到目标路径；如果启用 `resume` 且临时文件存在，会追加 `Range` 请求头并在服务器返回 `206` 时合并分段文件。`get_debug_snapshot()` 可被 `GFDiagnosticsUtility` 聚合到运行时工具快照中。
+`enqueue_download()` 返回任务 ID；`cancel(id, delete_temp)` 可取消等待中或进行中的任务，`pause()` / `resume()` 会暂停启动新任务并把当前任务保留到队首。每个任务由 `GFDownloadTask` 描述，结果字典会包含 `status`、`status_name`、`received_bytes`、`total_bytes`、`response_code`、`error`、`retry_count` 和项目传入的 `metadata`。下载成功后先写入临时文件，再提交到目标路径；如果启用 `resume` 且临时文件存在，会追加 `Range` 请求头并在服务器返回 `206` 时合并分段文件。`get_debug_snapshot()` 可被 `GFDiagnosticsUtility` 聚合到运行时工具快照中。
+
+如果下载面向不稳定网络，可以在任务选项中设置 `max_retries` 和 `retry_delay_seconds`。下载器只会重试传输失败、无响应码、`408`、`425`、`429` 或 `5xx` 这类通常可恢复的失败；`4xx` 权限、缺失资源、校验失败、提交失败等不会被盲目重试。重试期间不会发出最终完成/失败信号，只有任务最终成功、失败或取消时才写入结果。
 
 当目标文件已存在且任务设置 `overwrite = false` 时，下载器不会直接把已有文件视为成功。如果任务提供了 `expected_sha256`，会先校验目标文件；校验通过才返回 `from_existing_file` 结果，校验失败则进入失败状态并保留原文件。未提供 checksum 时，已有目标文件仍按“不可覆盖的已完成文件”处理。
 
@@ -139,6 +143,8 @@ background.submit_cpu_work(
 默认情况下，`submit_cpu_work()` 和 `submit_io_work()` 会拒绝包含 `Object`、`Resource`、`Callable`、`Signal` 或 `RID` 的 payload，只接受标量、数学结构、PackedArray、Array 和 Dictionary 组成的纯 Variant 数据。这个限制是故意的：线程中不直接触碰场景树、Resource 实例或托管对象，才能避免把 Unity JobSystem 中“绕过托管类型检查却丢掉优化价值”的问题搬进 Godot。确实需要迁移旧代码时可以用 `options["allow_object_payloads"] = true` 或全局 `allow_object_payloads` 打开，但推荐做法仍是只传路径、ID、数值和结构化数据。
 
 资源加载使用 `submit_resource_load(path, type_hint, apply_callback)`。相同路径、兼容 `type_hint` 的请求会合并到同一个 threaded `ResourceLoader` 请求；取消只阻止 GF 侧应用和完成回调，不会强行中止 Godot 已经发起的加载线程。CPU/IO 线程任务也是协作式取消：等待中的任务会立刻进入 `cancelled`，运行中的任务会等 worker 返回后再落到取消终态。`get_debug_snapshot()` 会报告等待、运行、资源请求、应用队列和终态任务 ID，适合和运行时诊断面板或加载界面联动。
+
+主线程应用回调用 `max_apply_per_tick` 限制每帧数量；如果每个应用回调成本差异很大，可以再设置 `max_apply_seconds_per_tick` 作为时间预算。时间预算小于等于 `0.0` 时关闭；启用后每次 `tick()` 仍至少尝试一个应用回调，避免预算过低导致队列永远不前进。重活仍应放在线程 worker 中完成，`apply_callback` 只做写回 Model、创建节点或刷新 UI 这类必须回到主线程的收尾。
 
 这套工具不替代 `GFAssetUtility` 或 `GFSceneUtility` 的专用缓存/切场景能力。需要资源句柄、分组预加载和 LRU 缓存时继续用 `GFAssetUtility`；需要场景切换和 loading scene 时继续用 `GFSceneUtility`；需要“排队后由项目自己的系统逐帧消费”时继续用 `GFJobQueueUtility`。`GFBackgroundWorkUtility` 的定位是把通用 CPU/IO 纯数据工作和主线程应用边界标准化。
 

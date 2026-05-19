@@ -13,6 +13,8 @@ const GFPluginInspectorTools = preload("res://addons/gf/kernel/editor/gf_plugin_
 const GFPluginActions = preload("res://addons/gf/kernel/editor/gf_plugin_actions.gd")
 const GFPluginMenu = preload("res://addons/gf/kernel/editor/gf_plugin_menu.gd")
 const GFPluginDockTools = preload("res://addons/gf/kernel/editor/gf_plugin_dock_tools.gd")
+const GFPluginImportTools = preload("res://addons/gf/kernel/editor/gf_plugin_import_tools.gd")
+const GFPluginGltfDocumentTools = preload("res://addons/gf/kernel/editor/gf_plugin_gltf_document_tools.gd")
 const GFStandardEditorExtensions = preload("res://addons/gf/standard/editor/gf_standard_editor_extensions.gd")
 
 
@@ -22,6 +24,8 @@ var _inspector_tools: RefCounted
 var _actions: RefCounted
 var _menu: RefCounted
 var _dock_tools: RefCounted
+var _import_tools: RefCounted
+var _gltf_document_tools: RefCounted
 var _plugin_active: bool = false
 var _standard_editor_extension_records: Dictionary = {}
 
@@ -45,6 +49,11 @@ func _enter_tree() -> void:
 	_menu.setup(self, Callable(_actions, "handle_menu_id"), _actions.get_menu_entries())
 
 	_dock_tools = GFPluginDockTools.new()
+	_import_tools = GFPluginImportTools.new()
+	_import_tools.setup(self)
+
+	_gltf_document_tools = GFPluginGltfDocumentTools.new()
+	_gltf_document_tools.setup()
 	call_deferred("_setup_dock_tools")
 
 
@@ -55,6 +64,12 @@ func _exit_tree() -> void:
 	if _dock_tools != null:
 		_dock_tools.cleanup(self)
 		_dock_tools = null
+	if _import_tools != null:
+		_import_tools.cleanup(self)
+		_import_tools = null
+	if _gltf_document_tools != null:
+		_gltf_document_tools.cleanup()
+		_gltf_document_tools = null
 	if _menu != null:
 		_menu.cleanup(self)
 		_menu = null

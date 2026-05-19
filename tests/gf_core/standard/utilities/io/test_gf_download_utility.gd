@@ -37,7 +37,8 @@ class FakeDownloadUtility:
 			"_complete_active_download",
 			bool(response.get("success", true)),
 			int(response.get("response_code", 200)),
-			str(response.get("error", ""))
+			str(response.get("error", "")),
+			bool(response.get("retryable", false))
 		)
 		return OK
 
@@ -162,6 +163,60 @@ func test_existing_target_without_overwrite_rejects_checksum_mismatch() -> void:
 	assert_eq(int(results[0]["status"]), GFDownloadTask.Status.FAILED, "任务状态应标记失败。")
 	assert_true(String(results[0]["error"]).contains("checksum mismatch"), "失败原因应说明 checksum 不匹配。")
 	assert_eq(_read_text(target), "cached", "失败时不应改写已有目标文件。")
+
+
+func test_retryable_failure_requeues_before_reporting_result() -> void:
+	var target := _track_path("user://gf_download_retry_%d.txt" % Time.get_ticks_usec())
+	var results: Array[Dictionary] = []
+	_utility.responses.append({
+		"success": false,
+		"response_code": 0,
+		"error": "temporary",
+		"retryable": true,
+	})
+	_utility.responses.append({ "success": true, "response_code": 200, "content": "ok" })
+
+	var handle := _utility.enqueue_download("https://example.test/file", target, func(result: Dictionary) -> void:
+		results.append(result)
+	, {
+		"max_retries": 1,
+	})
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	assert_gt(handle, 0, "有效下载应返回任务句柄。")
+	assert_eq(_utility.request_log.size(), 2, "可重试失败应再次发起请求。")
+	assert_eq(results.size(), 1, "重试成功后只应报告最终结果。")
+	assert_true(bool(results[0]["success"]), "重试成功应返回成功结果。")
+	assert_eq(int(results[0]["retry_count"]), 1, "结果应记录已重试次数。")
+	assert_eq(_read_text(target), "ok", "重试成功后应提交最终文件。")
+
+
+func test_retryable_http_error_does_not_resume_from_error_body() -> void:
+	var target := _track_path("user://gf_download_retry_body_%d.txt" % Time.get_ticks_usec())
+	var results: Array[Dictionary] = []
+	_utility.responses.append({
+		"success": false,
+		"response_code": 500,
+		"content": "server-error",
+		"error": "HTTP 500",
+	})
+	_utility.responses.append({ "success": true, "response_code": 200, "content": "ok" })
+
+	_utility.enqueue_download("https://example.test/file", target, func(result: Dictionary) -> void:
+		results.append(result)
+	, {
+		"max_retries": 1,
+	})
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+	var retry_headers := (_utility.request_log[1] as Dictionary)["headers"] as PackedStringArray
+
+	assert_false(retry_headers.has("Range: bytes=12-"), "HTTP 错误响应体不应被当作可续传内容。")
+	assert_eq(results.size(), 1, "重试成功后只应报告最终结果。")
+	assert_true(bool(results[0]["success"]), "HTTP 错误重试成功应返回成功结果。")
+	assert_eq(_read_text(target), "ok", "最终文件不应包含错误响应体。")
 
 
 func test_cancel_active_download_reports_cancelled() -> void:
