@@ -39,7 +39,6 @@ static func issue_to_diagnostic(issue: Variant, options: Dictionary = {}) -> Dic
 	var diagnostic := {
 		"severity": severity,
 		"kind": kind_key,
-		"code": String(issue_data.get("code", "")),
 		"message": String(issue_data.get("message", "")),
 		"key": GFVariantData.duplicate_variant(issue_data.get("key", null)),
 		"path": String(issue_data.get("path", "")),
@@ -164,7 +163,13 @@ static func _issue_to_dict(issue: Variant, include_empty_fields: bool = false) -
 		var issue_dict: Variant = (issue as RefCounted).call("to_dict", include_empty_fields)
 		return issue_dict as Dictionary if issue_dict is Dictionary else {}
 	if issue is Dictionary:
-		return (issue as Dictionary).duplicate(true)
+		var issue_data := issue as Dictionary
+		if issue_data.is_empty():
+			return {}
+		var normalized_issue := GF_VALIDATION_ISSUE_BASE.new() as RefCounted
+		normalized_issue.call("apply_dict", issue_data)
+		var normalized_dict: Variant = normalized_issue.call("to_dict", include_empty_fields)
+		return normalized_dict as Dictionary if normalized_dict is Dictionary else {}
 	return {}
 
 
@@ -201,7 +206,7 @@ static func _source_span_from_dict(data: Dictionary) -> RefCounted:
 
 
 static func _get_issue_kind(issue_data: Dictionary) -> String:
-	var kind_value: Variant = issue_data.get("kind", issue_data.get("code", issue_data.get("type", "unknown")))
+	var kind_value: Variant = issue_data.get("kind", "unknown")
 	var kind_text := String(kind_value)
 	return kind_text if not kind_text.is_empty() else "unknown"
 

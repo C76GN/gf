@@ -128,6 +128,86 @@ func test_setting_changed_signal_reports_old_and_new_value() -> void:
 	assert_signal_emitted_with_parameters(_settings, "setting_changed", [&"audio/master", 1.0, 0.25])
 
 
+func test_apply_values_coerces_values_and_reports_counts() -> void:
+	_settings.register_setting(&"audio/master", 1.0, GFSettingDefinition.ValueType.FLOAT)
+	_settings.register_setting(&"video/fullscreen", false, GFSettingDefinition.ValueType.BOOL)
+
+	var report := _settings.apply_values({
+		"audio/master": "0.5",
+		&"video/fullscreen": true,
+	}, { "save_after_change": false })
+
+	assert_true(report["ok"], "合法预设应应用成功。")
+	assert_true(report["healthy"], "无警告和错误时报告应 healthy。")
+	assert_eq(report["applied_count"], 2, "应报告已应用设置数量。")
+	assert_eq(report["changed_count"], 2, "应报告实际变化数量。")
+	assert_eq(_settings.get_value(&"audio/master"), 0.5, "批量应用应沿用设置定义做类型转换。")
+	assert_eq(_settings.get_value(&"video/fullscreen"), true, "批量应用应支持 StringName 键。")
+
+
+func test_apply_values_batches_auto_save_once() -> void:
+	var settings := RecordingSettingsUtility.new()
+	settings.auto_load_on_init = false
+	settings.auto_save_on_change = true
+	settings.save_debounce_seconds = 0.5
+	settings.init()
+	settings.register_setting(&"audio/master", 1.0, GFSettingDefinition.ValueType.FLOAT)
+	settings.register_setting(&"audio/music", 1.0, GFSettingDefinition.ValueType.FLOAT)
+
+	settings.apply_values({
+		"audio/master": 0.8,
+		"audio/music": 0.6,
+	})
+	settings.tick(0.25)
+	settings.tick(0.25)
+
+	assert_eq(settings.save_count, 1, "批量应用设置时应合并自动保存。")
+	assert_eq(settings.saved_files, [settings.storage_file_name], "批量应用保存应使用当前 storage_file_name。")
+
+	settings.dispose()
+
+
+func test_apply_values_requires_scope_before_reset_missing() -> void:
+	_settings.register_setting(&"audio/master", 1.0, GFSettingDefinition.ValueType.FLOAT)
+	_settings.set_value(&"audio/master", 0.25)
+
+	var report := _settings.apply_values({}, { "reset_missing": true, "save_after_change": false })
+	var issues := report["issues"] as Array
+
+	assert_false(report["ok"], "缺少 scope 时不应执行 reset_missing。")
+	assert_eq(report["error_count"], 1, "缺少 scope 应报告一个错误。")
+	assert_eq((issues[0] as Dictionary)["kind"], "missing_reset_scope", "问题类型应说明缺少重置作用域。")
+	assert_eq(_settings.get_value(&"audio/master"), 0.25, "失败的重置预设不应改变设置。")
+
+
+func test_apply_values_resets_missing_keys_inside_explicit_scope() -> void:
+	_settings.register_setting(&"audio/master", 1.0, GFSettingDefinition.ValueType.FLOAT)
+	_settings.register_setting(&"audio/music", 1.0, GFSettingDefinition.ValueType.FLOAT)
+	_settings.register_setting(&"video/fullscreen", false, GFSettingDefinition.ValueType.BOOL)
+	_settings.set_value(&"audio/master", 0.25)
+	_settings.set_value(&"audio/music", 0.3)
+	_settings.set_value(&"video/fullscreen", true)
+
+	var report := _settings.apply_values({
+		"audio/master": 0.75,
+		"video/fullscreen": false,
+	}, {
+		"reset_missing": true,
+		"scope": PackedStringArray(["audio/master", "audio/music"]),
+		"save_after_change": false,
+	})
+
+	assert_true(report["ok"], "显式作用域内的预设应应用成功。")
+	assert_false(report["healthy"], "跳过作用域外键时应标记非 healthy。")
+	assert_eq(report["applied_count"], 1, "只应应用作用域内传入键。")
+	assert_eq(report["reset_count"], 1, "缺失的作用域内键应重置。")
+	assert_eq(report["skipped_count"], 1, "作用域外键应被跳过。")
+	assert_eq(report["warning_count"], 1, "作用域外键应报告 warning。")
+	assert_eq(_settings.get_value(&"audio/master"), 0.75, "作用域内值应被应用。")
+	assert_eq(_settings.get_value(&"audio/music"), 1.0, "作用域内缺失值应重置默认值。")
+	assert_eq(_settings.get_value(&"video/fullscreen"), true, "作用域外值不应被修改。")
+
+
 func test_auto_save_debounce_and_batch_flush_once() -> void:
 	var settings := RecordingSettingsUtility.new()
 	settings.auto_load_on_init = false

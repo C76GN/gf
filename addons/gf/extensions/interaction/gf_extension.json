@@ -1,7 +1,7 @@
 {
   "id": "gf.interaction",
   "display_name": "GF Interaction",
-  "version": "3.12.1",
+  "version": "3.13.0",
   "extension_version": "1.1.1",
   "kind": "extension",
   "description": "Generic interaction contexts, flows, sender/receiver nodes, sensors, and 3D pointer bridges.",

@@ -22,7 +22,7 @@ static func _can_receive(
 
 
 static func _receive(
-	host: Object,
+	signal_owner: Object,
 	context: Object,
 	id_key: String,
 	id_value: StringName,
@@ -40,7 +40,7 @@ static func _receive(
 	unaccepted_id_message: String
 ) -> Dictionary:
 	return _receive_with_delegate(
-		host,
+		signal_owner,
 		context,
 		id_key,
 		id_value,
@@ -66,7 +66,7 @@ static func _receive(
 
 
 static func _receive_with_delegate(
-	host: Object,
+	signal_owner: Object,
 	context: Object,
 	id_key: String,
 	id_value: StringName,
@@ -91,37 +91,69 @@ static func _receive_with_delegate(
 	target_property: StringName = &"target"
 ) -> Dictionary:
 	if context == null:
-		var invalid_context_report := _make_report(host, false, id_key, id_value, "invalid_context", invalid_context_message, metadata)
-		host.emit_signal(rejected_signal, context, invalid_context_report)
+		var invalid_context_report := _make_report(
+			signal_owner,
+			false,
+			id_key,
+			id_value,
+			"invalid_context",
+			invalid_context_message,
+			metadata
+		)
+		signal_owner.emit_signal(rejected_signal, context, invalid_context_report)
 		return invalid_context_report
 
 	if not enabled:
-		var disabled_report := _make_report(host, false, id_key, id_value, "disabled", disabled_message, metadata)
-		host.emit_signal(rejected_signal, context, disabled_report)
+		var disabled_report := _make_report(
+			signal_owner,
+			false,
+			id_key,
+			id_value,
+			"disabled",
+			disabled_message,
+			metadata
+		)
+		signal_owner.emit_signal(rejected_signal, context, disabled_report)
 		return disabled_report
 
 	if rejected_ids.has(id_value):
-		var rejected_report := _make_report(host, false, id_key, id_value, "rejected_id", rejected_id_message, metadata)
-		host.emit_signal(rejected_signal, context, rejected_report)
+		var rejected_report := _make_report(
+			signal_owner,
+			false,
+			id_key,
+			id_value,
+			"rejected_id",
+			rejected_id_message,
+			metadata
+		)
+		signal_owner.emit_signal(rejected_signal, context, rejected_report)
 		return rejected_report
 
 	if not accepted_ids.is_empty() and not accepted_ids.has(id_value):
-		var blocked_report := _make_report(host, false, id_key, id_value, "unaccepted_id", unaccepted_id_message, metadata)
-		host.emit_signal(rejected_signal, context, blocked_report)
+		var blocked_report := _make_report(
+			signal_owner,
+			false,
+			id_key,
+			id_value,
+			"unaccepted_id",
+			unaccepted_id_message,
+			metadata
+		)
+		signal_owner.emit_signal(rejected_signal, context, blocked_report)
 		return blocked_report
 
 	if delegate_enabled and delegate_receiver == null:
 		var missing_delegate_report := _make_report(null, false, id_key, id_value, "missing_receiver", missing_delegate_message, metadata)
-		host.emit_signal(rejected_signal, context, missing_delegate_report)
+		signal_owner.emit_signal(rejected_signal, context, missing_delegate_report)
 		return missing_delegate_report
 
-	var effective_receiver := delegate_receiver if delegate_enabled else host
+	var effective_receiver := delegate_receiver if delegate_enabled else signal_owner
 	var target_key := String(target_property)
-	if context.get(target_key) == null or context.get(target_key) == host:
+	if context.get(target_key) == null or context.get(target_key) == signal_owner:
 		context.set(target_key, effective_receiver)
 
 	var report := _make_report(effective_receiver, true, id_key, id_value, "accepted", "", metadata)
-	host.emit_signal(validating_signal, context, report.duplicate(true))
+	signal_owner.emit_signal(validating_signal, context, report.duplicate(true))
 	if validation_callback.is_valid():
 		report = _apply_validation_result(report, validation_callback.call(context, report.duplicate(true)))
 
@@ -145,14 +177,14 @@ static func _receive_with_delegate(
 			)
 
 	if bool(report.get("ok", false)):
-		host.emit_signal(received_signal, context, report)
+		signal_owner.emit_signal(received_signal, context, report)
 	else:
-		host.emit_signal(rejected_signal, context, report)
+		signal_owner.emit_signal(rejected_signal, context, report)
 	return report
 
 
 static func _make_report(
-	host: Object,
+	receiver: Object,
 	ok: bool,
 	id_key: String,
 	id_value: StringName,
@@ -163,7 +195,7 @@ static func _make_report(
 	return {
 		"ok": ok,
 		id_key: id_value,
-		"receiver": host,
+		"receiver": receiver,
 		"reason": reason,
 		"message": message,
 		"metadata": metadata.duplicate(true),

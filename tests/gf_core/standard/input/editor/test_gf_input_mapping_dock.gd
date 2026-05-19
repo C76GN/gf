@@ -31,6 +31,7 @@ func test_input_mapping_dock_reports_context_bindings() -> void:
 	assert_eq(int(report.get("binding_count", 0)), 1, "Input 页面应统计绑定数量。")
 	assert_eq(int(report.get("conflict_count", 0)), 0, "单个绑定不应产生冲突。")
 	assert_true(bool(report.get("ok", false)), "结构健康的输入上下文应报告 ok。")
+	assert_true(bool(report.get("healthy", false)), "没有 warning 或 error 时应报告 healthy。")
 
 	dock.free()
 
@@ -44,7 +45,10 @@ func test_input_mapping_dock_reports_binding_conflicts() -> void:
 
 	assert_eq(int(report.get("conflict_count", 0)), 1, "相同输入绑定到两个动作时应报告冲突。")
 	assert_eq(int(report.get("warning_count", 0)), 1, "绑定冲突应作为 warning 进入统一问题列表。")
-	assert_false(bool(report.get("ok", true)), "存在冲突时输入上下文报告不应为 ok。")
+	assert_eq(int(report.get("issue_count", 0)), 1, "Input 页面报告应统计问题总数。")
+	assert_true(bool(report.get("ok", false)), "只有 warning 时标准校验报告仍应 ok。")
+	assert_false(bool(report.get("healthy", true)), "存在冲突 warning 时不应报告 healthy。")
+	assert_eq(String(((report["issues"] as Array)[0] as Dictionary).get("kind", "")), "binding_conflict")
 
 	dock.free()
 

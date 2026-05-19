@@ -218,11 +218,11 @@ static func _ordered_keys(order: Array, records: Dictionary, preserve_base_order
 	return result
 
 
-static func _add_issue(report: Dictionary, severity: String, code: String, row_key: Variant, message: String) -> void:
+static func _add_issue(report: Dictionary, severity: String, kind: String, row_key: Variant, message: String) -> void:
 	var issues := report["issues"] as Array
 	issues.append({
 		"severity": severity,
-		"code": code,
+		"kind": kind,
 		"row_key": row_key,
 		"message": message,
 	})

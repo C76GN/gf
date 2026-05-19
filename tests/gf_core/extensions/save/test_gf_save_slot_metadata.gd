@@ -68,14 +68,19 @@ func test_validate_metadata_reports_warnings_and_errors() -> void:
 	empty_id.schema_version = 1
 	var r0 := empty_id.validate_metadata()
 	assert_true(bool(r0["ok"]), "仅有 warning 时不应标记 ok 为 false。")
+	assert_false(bool(r0["healthy"]), "包含 warning 时不应视为完全健康。")
+	assert_eq(int(r0["warning_count"]), 1, "校验报告应统计 warning 数量。")
+	assert_eq(int(r0["issue_count"]), 1, "校验报告应统计问题总数。")
 	assert_eq(r0["issues"].size(), 1)
 	assert_eq(String((r0["issues"] as Array)[0].get("severity", "")), "warning")
+	assert_eq(String((r0["issues"] as Array)[0].get("kind", "")), "empty_slot_id")
 
 	var bad_version := GFSaveSlotMetadata.new()
 	bad_version.slot_id = &"x"
 	bad_version.schema_version = 0
 	var r1 := bad_version.validate_metadata()
 	assert_false(bool(r1["ok"]), "非法 schema_version 应标记为不通过。")
+	assert_eq(int(r1["error_count"]), 1, "非法 schema_version 应统计为 error。")
 
 	var bad_elapsed := GFSaveSlotMetadata.new()
 	bad_elapsed.slot_id = &"x"
@@ -83,6 +88,7 @@ func test_validate_metadata_reports_warnings_and_errors() -> void:
 	bad_elapsed.elapsed_seconds = -1.0
 	var r2 := bad_elapsed.validate_metadata()
 	assert_false(bool(r2["ok"]), "负游玩时长应产生 error。")
+	assert_eq(String((r2["issues"] as Array)[0].get("path", "")), "elapsed_seconds")
 
 
 func test_duplicate_metadata_deep_copies_custom_metadata() -> void:

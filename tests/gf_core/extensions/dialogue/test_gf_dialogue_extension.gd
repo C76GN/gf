@@ -2,6 +2,11 @@
 extends GutTest
 
 
+# --- 常量 ---
+
+const GF_VALIDATION_DIAGNOSTIC_ADAPTER_BASE := preload("res://addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd")
+
+
 # --- 测试方法 ---
 
 ## 验证对话运行器可处理响应、mutation 和文本行推进。
@@ -69,9 +74,27 @@ func test_dialogue_resource_validation_reports_missing_next_line() -> void:
 	resource.set_line(_make_text_line(&"start", "Start", &"missing"))
 
 	var report := resource.validate_resource()
+	var diagnostics := GF_VALIDATION_DIAGNOSTIC_ADAPTER_BASE.report_to_diagnostics(report)
 
 	assert_false(report["ok"], "缺失后继应导致校验失败。")
-	assert_eq(report["issues"][0]["issue_id"], &"missing_next_line", "校验报告应标明缺失后继。")
+	assert_eq(report["issues"][0]["kind"], "missing_next_line", "校验报告应写入标准 kind。")
+	assert_false(report["issues"][0].has("issue_id"), "校验报告不应再输出旧 issue_id 字段。")
+	assert_eq(report["error_count"], 1, "标准报告应统计错误数量。")
+	assert_eq(report["issue_count"], 1, "标准报告应统计问题总数。")
+	assert_eq(diagnostics[0]["kind"], "missing_next_line", "对话校验报告应可转换为通用诊断。")
+
+
+## 验证对话资源校验会报告无效起始行。
+func test_dialogue_resource_validation_reports_missing_start_line() -> void:
+	var resource := GFDialogueResource.new()
+	resource.start_line_id = &"missing_start"
+	resource.set_line(_make_text_line(&"start", "Start", &""))
+
+	var report := resource.validate_resource()
+
+	assert_false(report["ok"], "缺失起始行应导致校验失败。")
+	assert_eq(report["issues"][0]["kind"], "missing_start_line", "校验报告应标明缺失起始行。")
+	assert_true(String(report["next_action"]).contains("start_line_id"), "下一步建议应指向起始行配置。")
 
 
 # --- 私有/辅助方法 ---

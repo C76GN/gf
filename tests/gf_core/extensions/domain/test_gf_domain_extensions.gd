@@ -138,8 +138,8 @@ func test_slot_inventory_index_and_constraint_report() -> void:
 
 	assert_eq(base_slots, PackedInt32Array([0, 2]), "索引查询应支持实例数据兼容筛选。")
 	assert_false(bool(report["ok"]), "违反注册表约束时应返回失败报告。")
-	assert_true(_has_domain_issue_code(report["issues"] as Array, "stack_amount_exceeds_limit"), "报告应包含单堆叠超限。")
-	assert_true(_has_domain_issue_code(report["issues"] as Array, "stack_count_exceeds_limit"), "报告应包含堆叠数量超限。")
+	assert_true(_has_domain_issue_kind(report["issues"] as Array, "stack_amount_exceeds_limit"), "报告应包含单堆叠超限。")
+	assert_true(_has_domain_issue_kind(report["issues"] as Array, "stack_count_exceeds_limit"), "报告应包含堆叠数量超限。")
 
 
 ## 验证槽位集合按标签规则挂载物品。
@@ -256,8 +256,8 @@ func test_attribute_set_recalculates_derived_rules_when_limits_clamp_base() -> v
 
 # --- 私有/辅助方法 ---
 
-func _has_domain_issue_code(issues: Array, code: String) -> bool:
+func _has_domain_issue_kind(issues: Array, kind: String) -> bool:
 	for issue: Dictionary in issues:
-		if str(issue.get("code", "")) == code:
+		if str(issue.get("kind", "")) == kind:
 			return true
 	return false

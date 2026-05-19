@@ -6,6 +6,11 @@ class_name GFNetworkContract
 extends Resource
 
 
+# --- 常量 ---
+
+const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+
+
 # --- 导出变量 ---
 
 ## 契约稳定标识。
@@ -144,23 +149,38 @@ func _make_issue(severity: String, kind: String, message: String, key: String = 
 	}
 	if not key.is_empty():
 		issue["key"] = key
+		issue["path"] = key
+	elif contract_id != &"":
+		issue["path"] = String(contract_id)
 	return issue
 
 
 func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
-	var error_count := 0
-	var warning_count := 0
-	for issue: Dictionary in issues:
-		match String(issue.get("severity", "")):
-			"error":
-				error_count += 1
-			"warning":
-				warning_count += 1
-
-	return {
-		"ok": error_count == 0,
-		"healthy": error_count == 0 and warning_count == 0,
-		"error_count": error_count,
-		"warning_count": warning_count,
+	var report := {
+		"subject": "Network contract",
+		"contract_id": contract_id,
 		"issues": issues,
+	}
+	return GFValidationReportDictionaryBase.finalize_report(report, "Network contract", {
+		"include_issue_count": true,
+		"next_actions": _get_validation_next_actions(),
+	})
+
+
+func _get_validation_next_actions() -> Dictionary:
+	return {
+		"missing_message": "Pass a GFNetworkMessage before validating it.",
+		"unknown_message_type": "Declare the message_type in this network contract before validating the message.",
+		"empty_contract_id": "Assign the network contract a stable contract_id.",
+		"null_message_contract": "Remove empty message slots or assign a GFNetworkContractMessage resource.",
+		"empty_message_type": "Assign every network contract message a stable message_type.",
+		"duplicate_message_type": "Make message_type unique within this network contract.",
+		"null_field": "Remove empty field slots or assign a GFNetworkContractField resource.",
+		"empty_field_name": "Assign every network contract field a stable field_name.",
+		"duplicate_field_name": "Make field_name unique within its network contract message.",
+		"missing_required_field": "Add the required field to the payload or mark it optional.",
+		"null_not_allowed": "Provide a value or allow null for this network contract field.",
+		"type_mismatch": "Send a value matching the declared network contract field type.",
+		"class_name_mismatch": "Send an Object or Resource matching class_name_hint.",
+		"message_type_mismatch": "Validate the message against a contract with the same message_type.",
 	}

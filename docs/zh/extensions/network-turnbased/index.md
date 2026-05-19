@@ -126,7 +126,9 @@ var message := contract.make_message(&"player_ready", { &"slot": 1 })
 var report := contract.validate_message(message)
 ```
 
-`GFNetworkContractGenerator` 可把契约资源生成 GDScript 辅助类，提供强类型构造、发送、匹配和字段读取函数。生成器不会扫描或推断项目业务协议；需要生成哪些契约由项目显式配置。启用 Network 扩展后，GF 工具菜单会提供“生成 Network Contract 访问器”，读取 `gf/network/contract_paths` 和 `gf/network/contract_output_dir`：
+`validate_contract()`、`validate_message()`、`GFNetworkContractMessage.validate_payload()` 和 `GFNetworkContractField.validate_value()` 都返回标准校验报告字典。报告包含 `ok`、`healthy`、`error_count`、`warning_count`、`issue_count`、`issue_counts_by_kind`、`summary`、`next_action` 和 `issues`；单个问题使用 `severity` / `kind` / `message` / `path` 字段，字段名、消息类型和契约 ID 只作为附加上下文保留。这样生成器、编辑器面板、CI 和项目工具可以复用同一套诊断展示逻辑，而不需要识别 Network 专用报告格式。
+
+`GFNetworkContractGenerator` 可把契约资源生成 GDScript 辅助类，提供强类型构造、发送、匹配和字段读取函数。批量生成报告同样使用标准校验报告字段描述失败路径和问题类别。生成器不会扫描或推断项目业务协议；需要生成哪些契约由项目显式配置。启用 Network 扩展后，GF 工具菜单会提供“生成 Network Contract 访问器”，读取 `gf/network/contract_paths` 和 `gf/network/contract_output_dir`：
 
 ```gdscript
 var generator := GFNetworkContractGenerator.new()

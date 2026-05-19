@@ -1,7 +1,7 @@
 ## GFValidationReportDictionary: 通用校验报告字典辅助。
 ##
-## 提供字典报告的追加、归一化、统计和严重级别提升工具，便于旧的字典式报告
-## 逐步接入 `GFValidationIssue` / `GFValidationReport`，同时保持返回结构兼容。
+## 提供字典报告的追加、归一化、统计和严重级别提升工具，便于字典式报告
+## 接入 `GFValidationIssue` / `GFValidationReport` 使用的标准字段。
 class_name GFValidationReportDictionary
 extends RefCounted
 
@@ -24,7 +24,13 @@ static func issue_to_dict(issue: Variant, include_empty_fields: bool = false) ->
 		var issue_dict: Variant = (issue as RefCounted).call("to_dict", include_empty_fields)
 		return issue_dict as Dictionary if issue_dict is Dictionary else {}
 	if issue is Dictionary:
-		return (issue as Dictionary).duplicate(true)
+		var issue_data := issue as Dictionary
+		if issue_data.is_empty():
+			return {}
+		var normalized_issue := _GF_VALIDATION_ISSUE_SCRIPT.new() as RefCounted
+		normalized_issue.call("apply_dict", issue_data)
+		var normalized_dict: Variant = normalized_issue.call("to_dict", include_empty_fields)
+		return normalized_dict as Dictionary if normalized_dict is Dictionary else {}
 	return {}
 
 
@@ -106,10 +112,11 @@ static func finalize_report(
 	var info_count := 0
 	var issue_counts_by_kind: Dictionary = {}
 	var issues := _get_issue_array(report)
-	for issue_variant: Variant in issues:
-		var issue := issue_to_dict(issue_variant)
+	for issue_index in range(issues.size()):
+		var issue := issue_to_dict(issues[issue_index])
 		if issue.is_empty():
 			continue
+		issues[issue_index] = issue
 
 		var kind_key := _get_issue_kind(issue)
 		issue_counts_by_kind[kind_key] = int(issue_counts_by_kind.get(kind_key, 0)) + 1
@@ -261,7 +268,7 @@ static func _kind_is_promoted(kind_key: String, promoted_kinds: Variant) -> bool
 
 
 static func _get_issue_kind(issue: Dictionary) -> String:
-	var kind_value: Variant = issue.get("kind", issue.get("code", issue.get("type", "unknown")))
+	var kind_value: Variant = issue.get("kind", "unknown")
 	var kind_text := String(kind_value)
 	return kind_text if not kind_text.is_empty() else "unknown"
 

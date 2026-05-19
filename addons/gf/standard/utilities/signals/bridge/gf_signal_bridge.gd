@@ -6,6 +6,11 @@ class_name GFSignalBridge
 extends Resource
 
 
+# --- 常量 ---
+
+const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+
+
 # --- 导出变量 ---
 
 ## 桥接 ID，便于调试和项目侧索引。
@@ -117,27 +122,30 @@ func build_callable_args(signal_args: Array = []) -> Array:
 
 ## 获取校验报告。
 ## @param root: 路径解析根节点。
-## @return 包含 ok 与 issues 的报告。
+## @return 兼容 GFValidationReportDictionary 的报告字典。
 func get_validation_report(root: Node) -> Dictionary:
-	var issues: Array[String] = []
+	var report := {
+		"subject": "Signal bridge",
+		"bridge_id": bridge_id,
+		"issues": [],
+	}
 	if source == null:
-		issues.append("missing_source")
+		_append_validation_issue(report, &"missing_source", "source", "Signal bridge source is missing.")
 	elif not source.is_valid_for(root):
-		issues.append("invalid_source_signal")
+		_append_validation_issue(report, &"invalid_source_signal", "source", "Signal bridge source signal is invalid.")
 
 	if target == null:
-		issues.append("missing_target")
+		_append_validation_issue(report, &"missing_target", "target", "Signal bridge target is missing.")
 	elif not target.is_valid_for(root):
-		issues.append("invalid_callable_target")
+		_append_validation_issue(report, &"invalid_callable_target", "target", "Signal bridge target callable is invalid.")
 
 	if argument_indices.has(-1):
-		issues.append("negative_argument_index")
+		_append_validation_issue(report, &"negative_argument_index", "argument_indices", "Signal bridge argument index cannot be negative.")
 
-	return {
-		"ok": issues.is_empty(),
-		"issues": issues,
-		"bridge_id": bridge_id,
-	}
+	return GFValidationReportDictionaryBase.finalize_report(report, "Signal bridge", {
+		"include_issue_count": true,
+		"next_actions": _get_validation_next_actions(),
+	})
 
 
 ## 转换为调试字典。
@@ -174,4 +182,26 @@ func _make_result(ok: bool, reason: StringName, value: Variant) -> Dictionary:
 		"reason": reason,
 		"value": value,
 		"bridge_id": bridge_id,
+	}
+
+
+func _append_validation_issue(
+	report: Dictionary,
+	kind: StringName,
+	path: String,
+	message: String
+) -> void:
+	GFValidationReportDictionaryBase.append_issue(report, "error", kind, message, {
+		"bridge_id": bridge_id,
+		"path": path,
+	})
+
+
+func _get_validation_next_actions() -> Dictionary:
+	return {
+		"missing_source": "Assign a GFSignalSourceRef before connecting the bridge.",
+		"invalid_source_signal": "Check the source path and signal name against the bridge root.",
+		"missing_target": "Assign a GFCallableTargetRef before connecting the bridge.",
+		"invalid_callable_target": "Check the target path and method name against the bridge root.",
+		"negative_argument_index": "Remove negative values from argument_indices.",
 	}

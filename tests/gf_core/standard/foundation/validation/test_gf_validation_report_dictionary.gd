@@ -14,8 +14,7 @@ const GF_VALIDATION_REPORT_DICTIONARY_BASE := preload("res://addons/gf/standard/
 func test_issue_from_dict_preserves_extra_fields() -> void:
 	var issue := GF_VALIDATION_ISSUE_BASE.from_dict({
 		"severity": "warn",
-		"code": "missing_field",
-		"type": "legacy_type",
+		"kind": "missing_field",
 		"row_key": 3,
 		"field": &"name",
 		"message": "Missing field.",
@@ -24,9 +23,8 @@ func test_issue_from_dict_preserves_extra_fields() -> void:
 	var data: Dictionary = issue.to_dict()
 
 	assert_eq(data["severity"], "warning", "严重级别应归一为稳定字符串。")
-	assert_eq(data["kind"], "missing_field", "code 应可作为统计用 kind。")
-	assert_eq(data["code"], "missing_field", "原始 code 字段应保留。")
-	assert_eq(data["type"], "legacy_type", "已有 type 风格字段应作为附加字段保留。")
+	assert_eq(data["kind"], "missing_field", "kind 应作为统计用问题类别。")
+	assert_false(data.has("code"), "问题字典不应再输出旧 code 字段。")
 	assert_eq(data["row_key"], 3, "自定义定位字段应保留。")
 	assert_eq(data["field"], &"name", "StringName 字段应保留。")
 
@@ -78,6 +76,29 @@ func test_dictionary_report_finalize_preserves_existing_fields() -> void:
 	assert_eq(int(report["row_count"]), 2, "调用方已有统计字段应保留。")
 	assert_eq(int(report["warning_count"]), 1, "字典报告应计算警告数量。")
 	assert_eq(((report["issues"] as Array)[0] as Dictionary)["row_key"], 1, "问题附加字段应保留。")
+
+
+func test_dictionary_report_finalize_normalizes_legacy_issue_fields() -> void:
+	var report := {
+		"issues": [
+			{
+				"severity": "warning",
+				"code": "legacy_code",
+				"type": "legacy_type",
+				"message": "Legacy issue.",
+				"row_key": 7,
+			},
+		],
+	}
+
+	GF_VALIDATION_REPORT_DICTIONARY_BASE.finalize_report(report, "Legacy report")
+
+	var issue := (report["issues"] as Array)[0] as Dictionary
+	assert_eq(issue["kind"], "unknown", "缺少 kind 的旧问题应归入 unknown，而不是读取旧 code/type。")
+	assert_false(issue.has("code"), "字典报告归一化后不应继续输出旧 code 字段。")
+	assert_false(issue.has("type"), "字典报告归一化后不应继续输出旧 type 字段。")
+	assert_eq(issue["row_key"], 7, "自定义定位字段应继续保留。")
+	assert_eq((report["issue_counts_by_kind"] as Dictionary)["unknown"], 1, "统计应使用标准 kind。")
 
 
 func test_dictionary_report_can_treat_warnings_as_errors() -> void:

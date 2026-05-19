@@ -32,9 +32,6 @@ var severity: Severity = Severity.ERROR
 ## 通用问题类别。推荐使用稳定的 snake_case 标识。
 var kind: StringName = &""
 
-## 可选错误码。用于兼容或桥接已有 code 风格报告。
-var code: StringName = &""
-
 ## 可选定位键，例如行号、资源 key、节点 key 或调用方自定义标识。
 var key: Variant = null
 
@@ -131,8 +128,7 @@ func apply_dict(data: Dictionary) -> void:
 	if data.get("source_span") is Dictionary:
 		_apply_source_span(data.get("source_span") as Dictionary, true)
 	severity = normalize_severity(data.get("severity", severity))
-	kind = _read_string_name(data, "kind", _read_string_name(data, "code", _read_string_name(data, "type", kind)))
-	code = _read_string_name(data, "code", code)
+	kind = _read_string_name(data, "kind", kind)
 	key = GFVariantData.duplicate_variant(data.get("key", key))
 	path = String(data.get("path", path))
 	_apply_source_span(data)
@@ -159,8 +155,6 @@ func to_dict(include_empty_fields: bool = false) -> Dictionary:
 	var kind_key := get_kind_key()
 	if include_empty_fields or not kind_key.is_empty():
 		result["kind"] = kind_key
-	if include_empty_fields or code != &"":
-		result["code"] = String(code)
 	if include_empty_fields or key != null:
 		result["key"] = GFVariantData.duplicate_variant(key)
 	if include_empty_fields or not path.is_empty():
@@ -220,12 +214,10 @@ func get_location_text() -> String:
 
 
 ## 获取统计用问题类别。
-## @return 优先返回 kind，其次返回 code，最后返回 unknown。
+## @return 优先返回 kind，最后返回 unknown。
 func get_kind_key() -> String:
 	if kind != &"":
 		return String(kind)
-	if code != &"":
-		return String(code)
 	return "unknown"
 
 
@@ -344,6 +336,7 @@ static func _is_reserved_field(field_name: String) -> bool:
 		field_name == "severity"
 		or field_name == "kind"
 		or field_name == "code"
+		or field_name == "type"
 		or field_name == "key"
 		or field_name == "path"
 		or field_name == "source"

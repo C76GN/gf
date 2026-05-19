@@ -84,4 +84,7 @@ func test_signal_bridge_validation_reports_invalid_target() -> void:
 	var report := bridge.get_validation_report(root)
 
 	assert_false(report["ok"], "无效目标应产生校验错误。")
-	assert_true((report["issues"] as Array).has("invalid_callable_target"), "校验报告应包含目标错误。")
+	assert_eq(report["issues"][0]["kind"], "invalid_callable_target", "校验报告应包含目标错误。")
+	assert_eq(report["error_count"], 1, "校验报告应统计错误数量。")
+	assert_eq(report["issue_count"], 1, "校验报告应统计问题总数。")
+	assert_eq(report["issues"][0]["path"], "target", "校验问题应包含通用路径字段。")

@@ -91,6 +91,21 @@ func test_report_source_issue_converts_to_editor_diagnostics() -> void:
 	assert_eq((grouped["res://data/items.csv"] as Array).size(), 1, "诊断应按源路径分组。")
 
 
+func test_diagnostic_adapter_normalizes_legacy_issue_fields() -> void:
+	var diagnostic := GF_VALIDATION_DIAGNOSTIC_ADAPTER_BASE.issue_to_diagnostic({
+		"severity": "error",
+		"code": "legacy_code",
+		"type": "legacy_type",
+		"message": "Legacy issue.",
+		"path": "items[0]",
+	})
+
+	assert_eq(diagnostic["kind"], "unknown", "诊断适配器不应再把旧 code/type 当作问题类别。")
+	assert_false(diagnostic.has("code"), "诊断不应输出旧 code 字段。")
+	assert_false(diagnostic.has("type"), "诊断不应输出旧 type 字段。")
+	assert_eq(diagnostic["path"], "items[0]", "标准定位字段应继续保留。")
+
+
 func test_report_source_issue_accepts_string_severity() -> void:
 	var report := GF_VALIDATION_REPORT_BASE.new("Config table")
 	report.add_source_issue(

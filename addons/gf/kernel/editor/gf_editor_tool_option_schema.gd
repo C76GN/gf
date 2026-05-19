@@ -153,10 +153,10 @@ func describe() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
-func _make_issue(severity: String, code: String, option_id: StringName, message: String) -> Dictionary:
+func _make_issue(severity: String, kind: String, option_id: StringName, message: String) -> Dictionary:
 	return {
 		"severity": severity,
-		"code": code,
+		"kind": kind,
 		"option_id": option_id,
 		"message": message,
 	}

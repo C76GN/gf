@@ -43,6 +43,11 @@ enum ValueType {
 }
 
 
+# --- 常量 ---
+
+const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+
+
 # --- 导出变量 ---
 
 ## 字段稳定名称。
@@ -216,30 +221,35 @@ func _make_type_issue(expected_type: String) -> Dictionary:
 
 
 func _make_issue(severity: String, kind: String, message: String) -> Dictionary:
-	return {
+	var issue := {
 		"severity": severity,
 		"kind": kind,
 		"field_name": field_name,
 		"message": message,
 	}
+	if field_name != &"":
+		issue["path"] = String(field_name)
+	return issue
 
 
 func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
-	var error_count := 0
-	var warning_count := 0
-	for issue: Dictionary in issues:
-		match String(issue.get("severity", "")):
-			"error":
-				error_count += 1
-			"warning":
-				warning_count += 1
-
-	return {
-		"ok": error_count == 0,
-		"healthy": error_count == 0 and warning_count == 0,
-		"error_count": error_count,
-		"warning_count": warning_count,
+	var report := {
+		"subject": "Network contract field",
+		"field_name": field_name,
 		"issues": issues,
+	}
+	return GFValidationReportDictionaryBase.finalize_report(report, "Network contract field", {
+		"include_issue_count": true,
+		"next_actions": _get_validation_next_actions(),
+	})
+
+
+func _get_validation_next_actions() -> Dictionary:
+	return {
+		"empty_field_name": "Assign every network contract field a stable field_name.",
+		"null_not_allowed": "Provide a value or allow null for this network contract field.",
+		"type_mismatch": "Send a value matching the declared network contract field type.",
+		"class_name_mismatch": "Send an Object or Resource matching class_name_hint.",
 	}
 
 

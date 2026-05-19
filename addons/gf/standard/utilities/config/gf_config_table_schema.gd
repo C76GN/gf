@@ -505,7 +505,7 @@ func _describe_validation_rules(rules: Array[GFConfigValidationRule]) -> Array[D
 func _add_issue(
 	report: Dictionary,
 	severity: String,
-	code: String,
+	kind: String,
 	row_key: Variant,
 	field_name: StringName,
 	message: String,
@@ -513,7 +513,7 @@ func _add_issue(
 ) -> void:
 	var issue := {
 		"severity": severity,
-		"code": code,
+		"kind": kind,
 		"table_name": table_name,
 		"row_key": row_key,
 		"field": field_name,

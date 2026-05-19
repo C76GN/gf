@@ -135,6 +135,10 @@ func test_network_contract_builds_and_validates_typed_message() -> void:
 	assert_true(bool(valid_report["ok"]), "有效消息应通过契约校验。")
 	assert_false(bool(missing_report["ok"]), "缺失必填字段应校验失败。")
 	assert_false(bool(wrong_type_report["ok"]), "字段类型错误应校验失败。")
+	assert_eq(missing_report["issues"][0]["kind"], "missing_required_field", "契约校验问题应使用标准 kind 字段。")
+	assert_eq(missing_report["issue_count"], 1, "契约校验报告应统计问题总数。")
+	assert_eq((missing_report["issue_counts_by_kind"] as Dictionary)["missing_required_field"], 1, "契约校验报告应按 kind 统计。")
+	assert_true(String(missing_report["next_action"]).contains("required field"), "契约校验报告应提供下一步建议。")
 
 
 func test_network_contract_generator_builds_typed_helpers() -> void:
@@ -193,6 +197,20 @@ func test_network_contract_generator_omits_optional_null_fields() -> void:
 	var runtime_script := GDScript.new()
 	runtime_script.source_code = source.replace("class_name LobbyNetworkMessages\n", "")
 	assert_eq(runtime_script.reload(), OK, "可选 null 语义生成源码应能编译。")
+
+
+func test_network_contract_generator_reports_invalid_resources_with_standard_report() -> void:
+	var invalid_path := "user://not_a_network_contract.tres"
+	assert_eq(ResourceSaver.save(Resource.new(), invalid_path), OK, "测试应能写入临时非契约资源。")
+	var generator: Variant = GFNetworkContractGeneratorBase.new()
+
+	var report: Dictionary = generator.generate_many(PackedStringArray([invalid_path]))
+
+	assert_false(bool(report["ok"]), "非 GFNetworkContract 资源应让生成报告失败。")
+	assert_eq(int(report["issue_count"]), 1, "生成报告应统计问题总数。")
+	assert_eq(report["issues"][0]["kind"], "invalid_contract_resource", "生成报告问题应使用标准 kind。")
+	assert_eq((report["issue_counts_by_kind"] as Dictionary)["invalid_contract_resource"], 1, "生成报告应按 kind 统计。")
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(invalid_path))
 
 
 func test_network_json_serializer_can_use_typed_variant_codec() -> void:

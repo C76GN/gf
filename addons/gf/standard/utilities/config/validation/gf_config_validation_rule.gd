@@ -141,10 +141,10 @@ func _make_report(context: Dictionary) -> Dictionary:
 	}
 
 
-func _add_issue(report: Dictionary, context: Dictionary, code: String, message: String) -> void:
+func _add_issue(report: Dictionary, context: Dictionary, kind: String, message: String) -> void:
 	var issue := {
 		"severity": _severity_to_string(),
-		"code": code,
+		"kind": kind,
 		"table_name": StringName(context.get("table_name", &"")),
 		"row_key": context.get("row_key", null),
 		"field": StringName(context.get("field", &"")),

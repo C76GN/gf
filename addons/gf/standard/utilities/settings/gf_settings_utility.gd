@@ -155,6 +155,76 @@ func set_value(key: StringName, value: Variant, save_after_change: bool = true) 
 	_set_value_internal(key, value, true, save_after_change)
 
 
+## 批量应用一组设置值，适合图形质量、辅助功能或输入方案等项目预设。
+## @param values: 设置键到设置值的字典。
+## @param options: 可选行为。支持 save_after_change、emit_changes、reset_missing 与 scope。
+## @return 应用报告；问题项使用标准 kind 字段。
+func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
+	var report := _make_apply_values_report()
+	var save_after_change := bool(options.get("save_after_change", true))
+	var emit_changes := bool(options.get("emit_changes", true))
+	var reset_missing := bool(options.get("reset_missing", false))
+	var scope := _normalize_apply_scope(options.get("scope", []))
+	if reset_missing and scope.is_empty():
+		_add_apply_values_issue(
+			report,
+			"error",
+			"missing_reset_scope",
+			&"",
+			"reset_missing 需要显式 scope，避免误重置全部设置。"
+		)
+		_finalize_apply_values_report(report)
+		return report
+
+	var normalized_values: Dictionary = {}
+	for key_variant: Variant in values.keys():
+		var key := StringName(str(key_variant))
+		if key == &"":
+			_add_apply_values_issue(
+				report,
+				"error",
+				"empty_setting_key",
+				&"",
+				"设置预设包含空键。"
+			)
+			continue
+		if not scope.is_empty() and not scope.has(key):
+			report["skipped_count"] = int(report["skipped_count"]) + 1
+			_add_apply_values_issue(
+				report,
+				"warning",
+				"outside_scope",
+				key,
+				"设置键不在本次预设作用域内：%s。" % String(key)
+			)
+			continue
+		normalized_values[key] = values[key_variant]
+
+	begin_batch()
+	for key: StringName in normalized_values.keys():
+		var old_value: Variant = get_value(key)
+		_set_value_internal(key, normalized_values[key], emit_changes, save_after_change)
+		var new_value: Variant = get_value(key)
+		report["applied_count"] = int(report["applied_count"]) + 1
+		if old_value != new_value:
+			report["changed_count"] = int(report["changed_count"]) + 1
+
+	if reset_missing:
+		for key: StringName in scope.keys():
+			if normalized_values.has(key) or not has_setting(key):
+				continue
+			var old_value: Variant = get_value(key)
+			_reset_value_internal(key, emit_changes, save_after_change)
+			var new_value: Variant = get_value(key)
+			report["reset_count"] = int(report["reset_count"]) + 1
+			if old_value != new_value:
+				report["changed_count"] = int(report["changed_count"]) + 1
+
+	end_batch(save_after_change)
+	_finalize_apply_values_report(report)
+	return report
+
+
 ## 开始一批设置修改。批处理中自动保存会延后到 end_batch()。
 func begin_batch() -> void:
 	_batch_depth += 1
@@ -227,19 +297,7 @@ func has_setting(key: StringName) -> bool:
 ## @param key: 设置键。
 ## @param save_after_change: 若为持久化设置，变化后是否保存。
 func reset_value(key: StringName, save_after_change: bool = true) -> void:
-	var definition := _definitions.get(key) as GFSettingDefinition
-	if definition != null:
-		_set_value_internal(key, definition.default_value, true, save_after_change)
-		return
-
-	if not _values.has(key):
-		return
-
-	var old_value: Variant = _values[key]
-	_values.erase(key)
-	setting_changed.emit(key, old_value, null)
-	if save_after_change and auto_save_on_change:
-		_queue_auto_save()
+	_reset_value_internal(key, true, save_after_change)
 
 
 ## 重置所有已定义设置到默认值，并移除未定义的临时设置。
@@ -325,6 +383,23 @@ func tick(delta: float = 0.0) -> void:
 
 # --- 私有/辅助方法 ---
 
+func _reset_value_internal(key: StringName, emit_change: bool, save_after_change: bool) -> void:
+	var definition := _definitions.get(key) as GFSettingDefinition
+	if definition != null:
+		_set_value_internal(key, definition.default_value, emit_change, save_after_change)
+		return
+
+	if not _values.has(key):
+		return
+
+	var old_value: Variant = _values[key]
+	_values.erase(key)
+	if emit_change:
+		setting_changed.emit(key, old_value, null)
+	if save_after_change and auto_save_on_change:
+		_queue_auto_save()
+
+
 func _set_value_internal(
 	key: StringName,
 	value: Variant,
@@ -347,6 +422,74 @@ func _set_value_internal(
 
 	if save_after_change and auto_save_on_change and _should_persist(key):
 		_queue_auto_save()
+
+
+func _make_apply_values_report() -> Dictionary:
+	return {
+		"ok": true,
+		"healthy": true,
+		"applied_count": 0,
+		"changed_count": 0,
+		"reset_count": 0,
+		"skipped_count": 0,
+		"error_count": 0,
+		"warning_count": 0,
+		"issue_count": 0,
+		"issues": [],
+	}
+
+
+func _add_apply_values_issue(
+	report: Dictionary,
+	severity: String,
+	kind: String,
+	key: StringName,
+	message: String
+) -> void:
+	var issues := report["issues"] as Array
+	var issue := {
+		"severity": severity,
+		"kind": kind,
+		"message": message,
+	}
+	if key != &"":
+		issue["key"] = key
+	issues.append(issue)
+	if severity == "error":
+		report["error_count"] = int(report["error_count"]) + 1
+	elif severity == "warning":
+		report["warning_count"] = int(report["warning_count"]) + 1
+
+
+func _finalize_apply_values_report(report: Dictionary) -> void:
+	report["issue_count"] = (report["issues"] as Array).size()
+	report["ok"] = int(report["error_count"]) == 0
+	report["healthy"] = int(report["error_count"]) == 0 and int(report["warning_count"]) == 0
+
+
+func _normalize_apply_scope(scope_value: Variant) -> Dictionary:
+	var result: Dictionary = {}
+	if scope_value is Dictionary:
+		for key_variant: Variant in (scope_value as Dictionary).keys():
+			_add_scope_key(result, key_variant)
+		return result
+	if scope_value is PackedStringArray:
+		for key: String in scope_value:
+			_add_scope_key(result, key)
+		return result
+	if scope_value is Array:
+		for key_variant: Variant in scope_value:
+			_add_scope_key(result, key_variant)
+		return result
+	if typeof(scope_value) == TYPE_STRING or typeof(scope_value) == TYPE_STRING_NAME:
+		_add_scope_key(result, scope_value)
+	return result
+
+
+func _add_scope_key(scope: Dictionary, key_value: Variant) -> void:
+	var key := StringName(str(key_value))
+	if key != &"":
+		scope[key] = true
 
 
 func _queue_auto_save() -> void:

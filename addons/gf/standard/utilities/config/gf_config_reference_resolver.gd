@@ -211,7 +211,7 @@ static func _make_report() -> Dictionary:
 static func _add_issue(
 	report: Dictionary,
 	severity: String,
-	table_code: String,
+	kind: String,
 	table_name: StringName,
 	row_key: Variant,
 	field_name: StringName,
@@ -220,7 +220,7 @@ static func _add_issue(
 	var issues := report["issues"] as Array
 	issues.append({
 		"severity": severity,
-		"code": table_code,
+		"kind": kind,
 		"table_name": table_name,
 		"row_key": row_key,
 		"field": field_name,

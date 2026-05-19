@@ -14,6 +14,7 @@ const GFInputConflictAnalyzerBase = preload("res://addons/gf/standard/input/rebi
 const GFInputContextBase = preload("res://addons/gf/standard/input/mapping/gf_input_context.gd")
 const GFInputFormatterBase = preload("res://addons/gf/standard/input/formatting/gf_input_formatter.gd")
 const GFInputMappingBase = preload("res://addons/gf/standard/input/mapping/gf_input_mapping.gd")
+const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 const GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
@@ -193,24 +194,23 @@ func _build_report(context: GFInputContextBase) -> Dictionary:
 			"metadata": _sanitize_for_display(conflict),
 		})
 
-	var error_count := _count_issues(issues, "error")
-	var warning_count := _count_issues(issues, "warning")
-	report["ok"] = error_count == 0 and warning_count == 0
 	report["context_id"] = context.get_context_id()
 	report["context_name"] = context.get_display_name()
 	report["mapping_count"] = context.mappings.size()
 	report["binding_count"] = _count_bindings(context)
-	report["error_count"] = error_count
-	report["warning_count"] = warning_count
 	report["issues"] = issues
-	report["summary"] = "动作：%d  绑定：%d  冲突：%d  问题：%d" % [
+	report["resource_summary"] = "动作：%d  绑定：%d  冲突：%d  问题：%d" % [
 		context.mappings.size(),
 		int(report.get("item_count", 0)),
 		int(report.get("conflict_count", 0)),
 		issues.size(),
 	]
-	report["next_action"] = _make_next_action(error_count, warning_count)
-	return report
+	return GFValidationReportDictionaryBase.finalize_report(report, "Input mapping", {
+		"include_issue_count": true,
+		"next_actions": _get_validation_next_actions(),
+		"fallback_action": "检查输入映射诊断中的第一条问题。",
+		"no_action": "当前输入上下文结构健康。",
+	})
 
 
 func _collect_structure_issues(context: GFInputContextBase, issues: Array[Dictionary]) -> void:
@@ -249,8 +249,10 @@ func _render_context() -> void:
 	_empty_label.visible = false
 	_content_split.visible = true
 	_tree.visible = true
-	_summary_label.text = "%s\n下一步：%s" % [
+	var resource_summary := String(_last_report.get("resource_summary", ""))
+	_summary_label.text = "%s\n%s\n下一步：%s" % [
 		String(_last_report.get("summary", "")),
+		resource_summary,
 		String(_last_report.get("next_action", "")),
 	]
 	_summary_label.modulate = GFEditorWorkspaceUI.get_report_color(_last_report)
@@ -369,14 +371,6 @@ func _make_issue(severity: String, kind: String, path: String, message: String) 
 	}
 
 
-func _make_next_action(error_count: int, warning_count: int) -> String:
-	if error_count > 0:
-		return "先修复缺失动作、空映射或空绑定。"
-	if warning_count > 0:
-		return "检查冲突、空绑定和缺少稳定标识的配置。"
-	return "当前输入上下文结构健康。"
-
-
 func _count_bindings(context: GFInputContextBase) -> int:
 	var count := 0
 	for mapping: GFInputMappingBase in context.mappings:
@@ -385,12 +379,17 @@ func _count_bindings(context: GFInputContextBase) -> int:
 	return count
 
 
-func _count_issues(issues: Array[Dictionary], severity: String) -> int:
-	var count := 0
-	for issue: Dictionary in issues:
-		if String(issue.get("severity", "")) == severity:
-			count += 1
-	return count
+func _get_validation_next_actions() -> Dictionary:
+	return {
+		"binding_conflict": "检查冲突输入绑定并决定是否保留、改键或拆分上下文。",
+		"empty_context_id": "为输入上下文设置稳定 context_id。",
+		"null_mapping": "移除空映射或补齐 GFInputMapping 资源。",
+		"missing_action": "为映射补齐 GFInputAction。",
+		"empty_action_id": "为动作设置稳定 action_id。",
+		"empty_bindings": "按需补齐输入绑定，或确认该动作只由虚拟输入驱动。",
+		"null_binding": "移除空绑定或补齐 GFInputBinding 资源。",
+		"empty_input_event": "为绑定设置 InputEvent，或移除该空绑定。",
+	}
 
 
 func _set_status(message: String, color: Color) -> void:

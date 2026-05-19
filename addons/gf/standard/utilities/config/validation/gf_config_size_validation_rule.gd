@@ -53,11 +53,11 @@ func _validate_table(rows: Array[Dictionary], context: Dictionary, report: Dicti
 
 # --- 私有/辅助方法 ---
 
-func _validate_size(size: int, context: Dictionary, report: Dictionary, code: String) -> void:
+func _validate_size(size: int, context: Dictionary, report: Dictionary, kind: String) -> void:
 	if has_minimum_size and size < minimum_size:
-		_add_issue(report, context, code, "数量小于允许范围。")
+		_add_issue(report, context, kind, "数量小于允许范围。")
 	if has_maximum_size and size > maximum_size:
-		_add_issue(report, context, code, "数量大于允许范围。")
+		_add_issue(report, context, kind, "数量大于允许范围。")
 
 
 func _get_value_size(value: Variant) -> int:

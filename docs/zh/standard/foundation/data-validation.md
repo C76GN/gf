@@ -257,7 +257,9 @@ GFValidationReportDictionary.append_source_issue(
 GFValidationReportDictionary.finalize_report(legacy_report, "Config table")
 ```
 
-推荐把 `kind` / `code` 设计成稳定、抽象的 snake_case 标识，把具体修复策略放在调用方传入的 `next_actions` 映射中。这样框架层只负责报告结构和统计，不把项目业务规则写死进基础件。
+`finalize_report()` 会把 `issues` 中的字典问题归一化为标准问题字典，并回写 `severity`、`kind`、`message`、定位字段和附加字段。旧的 `code` / `type` 不再作为问题类别别名读取，也不会继续透出；需要稳定问题标识时请显式写入 `kind`。
+
+推荐把 `kind` 设计成稳定、抽象的 snake_case 标识，把具体修复策略放在调用方传入的 `next_actions` 映射中。这样框架层只负责报告结构和统计，不把项目业务规则写死进基础件。
 
 
 ## `GFValidationRule` / `GFValidationSuite` / `GFValidationRunner` / `GFValidationJUnitExporter`

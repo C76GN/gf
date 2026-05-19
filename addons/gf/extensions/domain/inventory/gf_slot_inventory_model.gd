@@ -706,7 +706,7 @@ func _make_validation_report() -> Dictionary:
 func _add_validation_issue(
 	report: Dictionary,
 	severity: String,
-	code: String,
+	kind: String,
 	slot_index: int,
 	item_id: StringName,
 	message: String
@@ -714,7 +714,7 @@ func _add_validation_issue(
 	var issues := report["issues"] as Array
 	issues.append({
 		"severity": severity,
-		"code": code,
+		"kind": kind,
 		"slot_index": slot_index,
 		"item_id": item_id,
 		"message": message,

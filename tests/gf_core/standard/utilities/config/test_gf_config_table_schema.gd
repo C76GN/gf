@@ -16,9 +16,9 @@ func test_schema_validate_table_reports_missing_type_and_extra_fields() -> void:
 
 	assert_false(bool(report["ok"]), "包含缺字段、类型错误和额外字段时校验应失败。")
 	assert_eq(int(report["row_count"]), 2, "表校验应记录行数。")
-	assert_true(_has_issue_code(issues, "invalid_type"), "错误报告应包含类型错误。")
-	assert_true(_has_issue_code(issues, "missing_required"), "错误报告应包含缺失必填字段。")
-	assert_true(_has_issue_code(issues, "extra_field"), "错误报告应包含额外字段。")
+	assert_true(_has_issue_kind(issues, "invalid_type"), "错误报告应包含类型错误。")
+	assert_true(_has_issue_kind(issues, "missing_required"), "错误报告应包含缺失必填字段。")
+	assert_true(_has_issue_kind(issues, "extra_field"), "错误报告应包含额外字段。")
 
 
 func test_schema_coerce_record_applies_column_types_and_defaults() -> void:
@@ -40,7 +40,7 @@ func test_schema_coerce_validation_reports_invalid_conversion() -> void:
 	var issues := report["issues"] as Array
 
 	assert_false(bool(report["ok"]), "严格转换失败时校验应失败。")
-	assert_true(_has_issue_code(issues, "coerce_failed"), "错误报告应包含转换失败。")
+	assert_true(_has_issue_kind(issues, "coerce_failed"), "错误报告应包含转换失败。")
 
 
 func test_schema_can_report_duplicate_array_ids() -> void:
@@ -53,7 +53,7 @@ func test_schema_can_report_duplicate_array_ids() -> void:
 	])
 
 	assert_false(bool(report["ok"]), "要求唯一 ID 时重复记录应失败。")
-	assert_true(_has_issue_code(report["issues"] as Array, "duplicate_id"), "错误报告应包含重复 ID。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "duplicate_id"), "错误报告应包含重复 ID。")
 
 
 func test_config_provider_registers_schema_and_validates_table() -> void:
@@ -119,7 +119,7 @@ func test_csv_importer_reports_unclosed_quote_location() -> void:
 	assert_false(bool(parsed["success"]), "未闭合引号应报告解析失败。")
 	assert_eq(parsed["error_line"], 2, "解析结果应报告引号起始行。")
 	assert_eq(parsed["error_column"], 3, "解析结果应报告引号起始列。")
-	assert_eq(issue["code"], "parse_failed", "校验报告应标记解析失败。")
+	assert_eq(issue["kind"], "parse_failed", "校验报告应标记解析失败。")
 	assert_eq(issue["line"], 2, "校验报告应透出解析失败行号。")
 
 
@@ -127,7 +127,7 @@ func test_json_importer_reports_parse_failure_as_validation_report() -> void:
 	var report := GFConfigTableImporter.validate_json_table("{bad", _make_item_schema())
 
 	assert_false(bool(report["ok"]), "非法 JSON 应返回失败校验报告。")
-	assert_eq(((report["issues"] as Array)[0] as Dictionary)["code"], "parse_failed", "失败报告应标记解析错误。")
+	assert_eq(((report["issues"] as Array)[0] as Dictionary)["kind"], "parse_failed", "失败报告应标记解析错误。")
 
 
 func test_csv_exporter_uses_schema_column_order_and_quotes_cells() -> void:
@@ -170,7 +170,7 @@ func test_schema_unique_composite_index_reports_duplicates() -> void:
 	])
 
 	assert_false(bool(report["ok"]), "唯一复合索引重复时表校验应失败。")
-	assert_true(_has_issue_code(report["issues"] as Array, "duplicate_index_key"), "错误报告应包含重复索引键。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "duplicate_index_key"), "错误报告应包含重复索引键。")
 
 
 func test_reference_resolver_validates_and_resolves_cross_table_records() -> void:
@@ -240,7 +240,7 @@ func test_reference_resolver_reports_missing_target_record() -> void:
 	}, [item_schema, owner_schema])
 
 	assert_false(bool(report["ok"]), "缺失引用目标时应报告失败。")
-	assert_true(_has_issue_code(report["issues"] as Array, "missing_reference"), "错误报告应包含缺失引用。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "missing_reference"), "错误报告应包含缺失引用。")
 
 
 func test_column_validation_rules_report_common_data_errors() -> void:
@@ -293,13 +293,13 @@ func test_column_validation_rules_report_common_data_errors() -> void:
 	var issues := report["issues"] as Array
 
 	assert_false(bool(report["ok"]), "内置字段规则命中时校验应失败。")
-	assert_true(_has_issue_code(issues, "default_value_not_allowed"), "应报告默认值。")
-	assert_true(_has_issue_code(issues, "regex_mismatch"), "应报告正则不匹配。")
-	assert_true(_has_issue_code(issues, "set_value_not_allowed"), "应报告集合外取值。")
-	assert_true(_has_issue_code(issues, "size_out_of_range"), "应报告数量越界。")
-	assert_true(_has_issue_code(issues, "resource_path_extension_not_allowed"), "应报告资源扩展名不匹配。")
-	assert_true(_has_issue_code(issues, "localization_key_missing"), "应报告文本 key 缺失。")
-	assert_true(_has_issue_code(issues, "range_above_maximum"), "应报告范围越界。")
+	assert_true(_has_issue_kind(issues, "default_value_not_allowed"), "应报告默认值。")
+	assert_true(_has_issue_kind(issues, "regex_mismatch"), "应报告正则不匹配。")
+	assert_true(_has_issue_kind(issues, "set_value_not_allowed"), "应报告集合外取值。")
+	assert_true(_has_issue_kind(issues, "size_out_of_range"), "应报告数量越界。")
+	assert_true(_has_issue_kind(issues, "resource_path_extension_not_allowed"), "应报告资源扩展名不匹配。")
+	assert_true(_has_issue_kind(issues, "localization_key_missing"), "应报告文本 key 缺失。")
+	assert_true(_has_issue_kind(issues, "range_above_maximum"), "应报告范围越界。")
 
 
 func test_resource_and_localization_rules_accept_valid_values() -> void:
@@ -340,8 +340,8 @@ func test_record_and_table_validation_rules_can_be_customized() -> void:
 	])
 
 	assert_false(bool(report["ok"]), "记录级和表级规则应参与 schema 校验。")
-	assert_true(_has_issue_code(report["issues"] as Array, "name_power_pair_missing"), "应报告自定义记录规则。")
-	assert_true(_has_issue_code(report["issues"] as Array, "table_size_out_of_range"), "应报告表级数量规则。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "name_power_pair_missing"), "应报告自定义记录规则。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "table_size_out_of_range"), "应报告表级数量规则。")
 
 
 func test_csv_validation_report_keeps_source_line_and_column() -> void:
@@ -396,9 +396,9 @@ func _make_column(field_name: StringName, value_type: int) -> GFConfigTableColum
 	return column
 
 
-func _has_issue_code(issues: Array, code: String) -> bool:
+func _has_issue_kind(issues: Array, kind: String) -> bool:
 	for issue: Dictionary in issues:
-		if str(issue.get("code", "")) == code:
+		if str(issue.get("kind", "")) == kind:
 			return true
 	return false
 

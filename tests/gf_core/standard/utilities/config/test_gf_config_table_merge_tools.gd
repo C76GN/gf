@@ -51,7 +51,7 @@ func test_merge_tables_reports_duplicate_base_keys() -> void:
 	], [])
 
 	assert_false(bool(result["ok"]), "基础表合并键重复时应失败。")
-	assert_true(_has_issue_code(result["issues"] as Array, "duplicate_base_key"), "应报告重复基础键。")
+	assert_true(_has_issue_kind(result["issues"] as Array, "duplicate_base_key"), "应报告重复基础键。")
 
 
 func test_build_profile_filters_schema_and_records_by_metadata() -> void:
@@ -94,8 +94,8 @@ func _make_column(field_name: StringName) -> GFConfigTableColumn:
 	return column
 
 
-func _has_issue_code(issues: Array, code: String) -> bool:
+func _has_issue_kind(issues: Array, kind: String) -> bool:
 	for issue: Dictionary in issues:
-		if String(issue.get("code", "")) == code:
+		if String(issue.get("kind", "")) == kind:
 			return true
 	return false

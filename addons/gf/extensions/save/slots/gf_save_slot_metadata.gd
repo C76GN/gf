@@ -5,6 +5,11 @@ class_name GFSaveSlotMetadata
 extends Resource
 
 
+# --- 常量 ---
+
+const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+
+
 # --- 导出变量 ---
 
 ## 槽位逻辑标识。可由项目映射到整数槽、文件名或云端 key。
@@ -121,17 +126,27 @@ func get_display_name(fallback: String = "") -> String:
 ## 校验元数据的通用结构。
 ## @return 诊断报告。
 func validate_metadata() -> Dictionary:
-	var issues: Array[Dictionary] = []
-	if slot_id == &"":
-		issues.append({ "severity": "warning", "kind": "empty_slot_id", "message": "Slot id is empty." })
-	if schema_version <= 0:
-		issues.append({ "severity": "error", "kind": "invalid_schema_version", "message": "Schema version must be positive." })
-	if elapsed_seconds < 0.0:
-		issues.append({ "severity": "error", "kind": "invalid_elapsed_seconds", "message": "Elapsed seconds cannot be negative." })
-	return {
-		"ok": _has_no_error_issues(issues),
-		"issues": issues,
+	var report := {
+		"issues": [],
 	}
+	if slot_id == &"":
+		GFValidationReportDictionaryBase.append_issue(report, "warning", &"empty_slot_id", "Slot id is empty.", {
+			"path": "slot_id",
+		})
+	if schema_version <= 0:
+		GFValidationReportDictionaryBase.append_issue(report, "error", &"invalid_schema_version", "Schema version must be positive.", {
+			"path": "schema_version",
+		})
+	if elapsed_seconds < 0.0:
+		GFValidationReportDictionaryBase.append_issue(report, "error", &"invalid_elapsed_seconds", "Elapsed seconds cannot be negative.", {
+			"path": "elapsed_seconds",
+		})
+	return GFValidationReportDictionaryBase.finalize_report(report, "Save slot metadata", {
+		"include_issue_count": true,
+		"next_actions": _get_validation_next_actions(),
+		"fallback_action": "Review the first save slot metadata issue.",
+		"no_action": "Save slot metadata is healthy.",
+	})
 
 
 ## 从 Dictionary 创建元数据。
@@ -190,8 +205,9 @@ func _to_string_array(value: Variant) -> PackedStringArray:
 	return result
 
 
-func _has_no_error_issues(issues: Array[Dictionary]) -> bool:
-	for issue: Dictionary in issues:
-		if String(issue.get("severity", "")) == "error":
-			return false
-	return true
+func _get_validation_next_actions() -> Dictionary:
+	return {
+		"empty_slot_id": "Set a stable slot_id before showing or saving this slot.",
+		"invalid_schema_version": "Use a positive schema_version for save compatibility checks.",
+		"invalid_elapsed_seconds": "Clamp elapsed_seconds to zero or a positive duration.",
+	}

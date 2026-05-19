@@ -129,7 +129,7 @@ func _make_missing_schema_report(table_name: StringName) -> Dictionary:
 		"warning_count": 0,
 		"issues": [{
 			"severity": "error",
-			"code": "missing_schema",
+			"kind": "missing_schema",
 			"table_name": table_name,
 			"row_key": null,
 			"field": &"",

@@ -310,13 +310,13 @@ static func _make_csv_row_location(source: String, line_number: int, header: Pac
 
 static func _make_error_report(
 	table_name: StringName,
-	code: String,
+	kind: String,
 	message: String,
 	context: Dictionary = {}
 ) -> Dictionary:
 	var issue := {
 		"severity": "error",
-		"code": code,
+		"kind": kind,
 		"table_name": table_name,
 		"row_key": null,
 		"field": &"",

@@ -12,6 +12,7 @@ extends RefCounted
 
 const DEFAULT_OUTPUT_DIR: String = "res://gf/generated/network"
 const GF_SOURCE_BUILDER_BASE := preload("res://addons/gf/kernel/editor/gf_source_builder.gd")
+const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 公共方法 ---
@@ -87,13 +88,19 @@ func generate_many(
 		else:
 			generated_count += 1
 
-	return {
+	var report := {
 		"ok": issues.is_empty(),
 		"generated_count": generated_count,
 		"attempted_count": generated.size(),
 		"generated": generated,
 		"issues": issues,
 	}
+	return GFValidationReportDictionaryBase.finalize_report(report, "Network contract generation", {
+		"include_issue_count": true,
+		"next_actions": _get_generation_next_actions(),
+		"fallback_action": "Review the first network contract generation issue.",
+		"no_action": "Network contract generation completed.",
+	})
 
 
 ## 构建契约访问器源码。测试或项目工具可直接调用该方法。
@@ -624,6 +631,13 @@ func _make_unique_name(base_name: String, used_names: Dictionary) -> String:
 		index += 1
 	used_names[candidate] = true
 	return candidate
+
+
+func _get_generation_next_actions() -> Dictionary:
+	return {
+		"invalid_contract_resource": "Check that the configured path points to a GFNetworkContract resource.",
+		"generate_failed": "Review the output path, overwrite setting, and filesystem error.",
+	}
 
 
 func _starts_with_digit(value: String) -> bool:

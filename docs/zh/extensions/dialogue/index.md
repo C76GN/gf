@@ -48,4 +48,6 @@ runner.start(resource, &"", context)
 runner.advance()
 ```
 
-`validate_resource()` 可报告空行、空 ID、重复 ID 和缺失后继引用。复杂导入、图编辑器、分支可视化、语音/字幕、本地化表和存档恢复都应放在项目层或独立插件里；Dialogue 扩展只保留可复用的最小运行时抽象。
+`validate_resource()` 可报告无效起始行、空行、空 ID、重复 ID 和缺失后继引用。返回值兼容标准库的校验报告字典，包含 `ok`、`healthy`、`error_count`、`warning_count`、`issue_count`、`issue_counts_by_kind`、`summary`、`next_action` 和 `issues`；单个问题使用标准 `severity` / `kind` / `message` / `path` 字段，便于编辑器、导入器或 CI 通过 `GFValidationDiagnosticAdapter` 统一展示。
+
+复杂导入、图编辑器、分支可视化、语音/字幕、本地化表和存档恢复都应放在项目层或独立插件里；Dialogue 扩展只保留可复用的最小运行时抽象。
