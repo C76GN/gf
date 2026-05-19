@@ -38,12 +38,13 @@ static func _dispatch_to_receiver(
 
 
 static func _send_to_collision_candidates(
-	host: Object,
+	dispatch_host: Object,
 	candidates: Array,
 	max_count: int,
 	payload_override: Variant,
 	id_override: StringName,
-	receiver_method: StringName
+	receiver_method: StringName,
+	send_result_callback: Callable = Callable()
 ) -> Array[Dictionary]:
 	var reports: Array[Dictionary] = []
 	var visited_receivers: Dictionary = {}
@@ -59,9 +60,11 @@ static func _send_to_collision_candidates(
 			continue
 		visited_receivers[receiver_id] = true
 
-		var report := host.call("send_to", receiver, payload_override, id_override) as Dictionary
+		var report := dispatch_host.call("send_to", receiver, payload_override, id_override) as Dictionary
 		if report != null:
 			reports.append(report)
+			if send_result_callback.is_valid():
+				send_result_callback.call(receiver, payload_override, id_override, report)
 	return reports
 
 

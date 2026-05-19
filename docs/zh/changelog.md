@@ -22,56 +22,50 @@
 
 ---
 
-## [3.13.0] - 2026-05-19
+## [3.14.0] - 2026-05-19
 
-**版本概述**：统一框架校验报告字段，并增强通用设置预设应用能力，让编辑器、导入器、CI 和项目设置界面更容易消费标准化结果。
+**版本概述**：收口大型项目中的递归扫描边界，修复自动分发信号所有权与动作队列生命周期释放问题，并降低框架内部对脚本路径的脆弱耦合。
 
 ### 🚀 新增特性
 
-- `GFSettingsUtility.apply_values()` 可批量应用设置值并返回标准报告；需要重置缺失键时必须显式传入 `scope`，避免项目预设误修改不属于自身的设置。
+- `GFValidationSuite` 新增 `max_scan_depth` 与 `max_collected_paths`，用于限制递归路径扫描的目录深度和单次收集数量；设为 `0` 可关闭对应限制。
+- `GFEditorTypeIndex`、`GFExtensionUsageAudit`、`GFSceneSignalAudit`、`GFResourceTableEditor`、`GFAudioBankTools`、`GFStorageUtility`、`GFSignalRuntimeProbe` 与 `GFSupportReportUtility` 新增递归扫描或节点收集上限选项；设为 `0` 可关闭对应限制。
 
 ### 🔄 机制更改
 
-- `GFDialogueResource.validate_resource()` 现在返回兼容 `GFValidationReportDictionary` 的标准报告字段，统一使用 `severity`、`kind`、`message`、`path`、统计、摘要和下一步建议描述问题。
-- `GFSignalBridge.get_validation_report()` 现在返回标准校验报告字典，不再把 `issues` 作为字符串列表输出。
-- `GFValidationIssue`、`GFValidationDiagnosticAdapter` 与 `GFValidationReportDictionary` 统一只使用 `kind` 作为问题类别，不再输出或回退读取旧的 `code` / `type` 问题类别字段。
-- Network 契约校验入口与批量生成报告现在统一通过 `GFValidationReportDictionary` 生成报告，补齐 `issue_count`、`issue_counts_by_kind`、`summary` 和 `next_action`。
-- Config 导表校验、导入、引用解析和合并工具的问题标识统一使用标准 `kind` 字段，不再输出旧的 `code` 字段。
-- Save 槽位元数据校验与 Input 工作区诊断现在返回标准校验报告字段，区分 `ok`（无错误）与 `healthy`（无警告和错误）。
-- Domain 背包校验报告的问题标识统一使用标准 `kind` 字段，不再输出旧的 `code` 字段。
+- `GFValidationSuite.collect_paths()` 默认限制递归扫描深度与收集数量，避免误把项目根目录、生成目录或极深目录作为 include path 时长时间阻塞编辑器或 CI。
+- 编辑器类型扫描、项目引用审计、场景信号审计、资源表扫描、音频 bank 扫描、存储文件递归枚举、运行时信号探针和支持报告场景统计默认限制递归深度与收集数量，避免开发期工具在大型目录或大型节点树上无界遍历。
+- `GFExtensionUsageAudit` 的默认忽略目录收窄为 Godot / VCS 隐藏缓存目录，不再把 `addons/gf`、`addons/gut`、`docs`、`tests`、`tools` 或 `ai_analysis` 当作所有项目的默认目录结构；项目需要跳过自有目录时应显式传入 `ignored_roots`。
+- `GFTimeUtility` 与发射体移动策略改为直接继承稳定 `class_name` 契约，减少跨层和扩展内部对脚本文件路径的脆弱耦合。
 
 ### 🐛 Bug 修复
 
-- 修复 `GFDialogueResource.start_line_id` 指向不存在的行时资源校验仍可能通过的问题；现在会报告 `missing_start_line` 错误。
+- 修复 HitBox、Projectile 与 InteractionSensor 在 `sender_path` 业务发送者接管自动发送时，把桥接节点信号也隐式迁移到业务发送者的问题；自动分发现在仍由业务 sender 执行 `send_to()`，但 `hit_sent` / `hit_accepted` / `hit_rejected` 与 `interaction_sent` / `interaction_accepted` / `interaction_rejected` 继续由桥接节点发出。
+- 修复 `GFActionQueueSystem` 销毁时只清空命名子队列而不释放子队列依赖作用域的问题；父队列或架构销毁现在会递归取消命名子队列并释放其架构引用。
 
 ### 🔌 API 变动说明
 
-- `validate_resource()` 的既有 `ok` 与 `issues` 保持可用；单个问题不再输出旧的 `issue_id` 字段，请读取标准 `kind` 字段作为稳定问题标识。
-- `GFSignalBridge.get_validation_report()["issues"]` 的元素从字符串改为标准问题字典，请读取 `issues[i]["kind"]`。
-- `GFValidationIssue.to_dict()` 和 `GFValidationDiagnosticAdapter.issue_to_diagnostic()` 不再输出 `code` 字段；`GFValidationIssue.from_dict()`、`GFValidationDiagnosticAdapter` 与 `GFValidationReportDictionary` 不再把 `code` / `type` 当作 `kind` 的兼容别名。
-- `GFSettingsUtility` 新增 `apply_values(values, options = {})`；`options` 支持 `save_after_change`、`emit_changes`、`reset_missing` 与 `scope`。
-- `GFNetworkContract`、`GFNetworkContractMessage` 与 `GFNetworkContractField` 的校验报告新增标准统计和诊断字段；既有 `ok`、`healthy`、`error_count`、`warning_count`、`issues` 字段保持同名语义。
-- `GFConfigTableSchema`、`GFConfigValidationRule`、`GFConfigTableImporter`、`GFConfigReferenceResolver`、`GFConfigTableMergeTools` 与 `GFConfigProvider` 的校验问题不再输出 `code` 字段，请读取标准 `kind` 字段。
-- `GFSaveSlotMetadata.validate_metadata()` 与 `GF Workspace > Input` 的诊断报告新增 `healthy`、`issue_count`、`issue_counts_by_kind`、`summary` 和 `next_action` 等标准字段；只有 warning 时 `ok` 为 `true`，`healthy` 为 `false`。
-- `GFSlotInventoryModel.validate_inventory()` 的校验问题不再输出 `code` 字段，请读取标准 `kind` 字段。
+- `GFValidationSuite` 新增导出属性 `max_scan_depth`（默认 `32`）和 `max_collected_paths`（默认 `10000`）。
+- `GFEditorTypeIndex.collect_scene_roots_extending()` 新增可选 `options` 参数，支持 `max_scan_depth` 与 `max_scanned_scenes`。
+- `GFExtensionUsageAudit.find_references_to_root()` / `audit_disabled_extensions()` 的 `options` 新增 `max_scan_depth` 与 `max_scanned_files`。
+- `GFSceneSignalAudit.collect_scene_paths()` / `audit_directory()` 的 `options` 新增 `max_scan_depth` 与 `max_scene_paths`；`build_signal_graph()` 的 `options` 新增 `max_node_depth` 与 `max_nodes`，返回报告新增 `truncated`。
+- `GFResourceTableEditor.scan_resource_paths()` 新增可选 `options` 参数，支持 `max_scan_depth` 与 `max_resource_paths`。
+- `GFAudioBankTools.scan_audio_paths()` 的 `options` 新增 `max_scan_depth` 与 `max_audio_paths`。
+- `GFStorageUtility.list_files()` 新增可选 `options` 参数，支持 `max_scan_depth` 与 `max_file_count`。
+- `GFSignalRuntimeProbe.watch_tree()` 的 `options` 新增 `max_node_depth` 与 `max_nodes`；触达上限时监听报告会返回 `max_node_depth_reached:*` 或 `max_nodes_reached:*` 错误。
+- `GFSupportReportUtility` 新增 `default_scene_count_max_depth` 与 `default_scene_count_max_nodes`；`build_report()` 的 `options.scene_options` 支持 `max_depth` 与 `max_nodes`，场景快照新增 `node_count_truncated`。
 
 ### 📘 升级指南
 
-- 如果项目代码曾读取 `GFDialogueResource.validate_resource()["issues"][i]["issue_id"]`，请改为读取 `["kind"]`。`kind` 与 `GFValidationDiagnosticAdapter`、报告统计和编辑器诊断使用同一套字段。
-- 如果项目代码曾判断 `GFSignalBridge.get_validation_report()["issues"].has("invalid_callable_target")`，请改为遍历问题字典并读取 `issue["kind"]`。
-- 如果项目代码曾向 `GFValidationIssue.from_dict()` 或 `GFValidationReportDictionary.finalize_report()` 传入只含 `code` / `type` 的问题字典，请改为写入 `kind`。
-- 如果项目代码曾读取 Config 校验问题的 `issue["code"]`，请改为 `issue["kind"]`。字段、行列、表名和规则 ID 等上下文字段保持原语义。
-- 如果项目或编辑器扩展曾用 `ok == false` 判断 Input 工作区是否存在 warning，请改为读取 `healthy == false` 或 `warning_count > 0`。
-- 如果项目代码曾读取 Domain 背包校验问题的 `issue["code"]`，请改为 `issue["kind"]`。
+- 如果校验套件确实需要扫描超过 32 层目录或单次收集超过 10000 个资源路径，请在套件资源中显式调高 `max_scan_depth` / `max_collected_paths`，或设为 `0` 关闭对应限制。
+- 如果项目工具确实需要全量扫描超大目录或节点树，请在对应入口显式调高上限，或设为 `0` 关闭限制；推荐优先收窄扫描根目录，而不是默认扫描整个项目。
+- 如果项目的禁用扩展引用审计不希望检查测试、文档、构建脚本或第三方插件目录，请在自定义调用 `GFExtensionUsageAudit` 时显式设置 `ignored_roots`；框架默认不会再假定这些目录一定是可跳过的维护目录。
 
 ### 📁 核心受影响文件
 
-- Dialogue 资源校验：`addons/gf/extensions/dialogue/resources/gf_dialogue_resource.gd`。
-- SignalBridge 校验：`addons/gf/standard/utilities/signals/bridge/gf_signal_bridge.gd`。
-- Foundation 校验基础件：`addons/gf/standard/foundation/validation/gf_validation_issue.gd`、`addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd`、`addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd`。
-- Network 契约校验与生成报告：`addons/gf/extensions/network/contracts/gf_network_contract.gd`、`addons/gf/extensions/network/contracts/gf_network_contract_message.gd`、`addons/gf/extensions/network/contracts/gf_network_contract_field.gd`、`addons/gf/extensions/network/editor/gf_network_contract_generator.gd`。
-- Config 校验报告：`addons/gf/standard/utilities/config/gf_config_table_schema.gd`、`addons/gf/standard/utilities/config/validation/gf_config_validation_rule.gd`、`addons/gf/standard/utilities/config/gf_config_table_importer.gd`、`addons/gf/standard/utilities/config/gf_config_reference_resolver.gd`、`addons/gf/standard/utilities/config/gf_config_table_merge_tools.gd`、`addons/gf/standard/utilities/config/gf_config_provider.gd`。
-- Save 与 Input 诊断报告：`addons/gf/extensions/save/slots/gf_save_slot_metadata.gd`、`addons/gf/standard/input/editor/gf_input_mapping_dock.gd`。
-- Domain 背包校验：`addons/gf/extensions/domain/inventory/gf_slot_inventory_model.gd`。
-- 设置预设应用：`addons/gf/standard/utilities/settings/gf_settings_utility.gd`。
-- 测试与文档：`tests/gf_core/extensions/dialogue/test_gf_dialogue_extension.gd`、`tests/gf_core/standard/foundation/validation/test_gf_validation_report_dictionary.gd`、`tests/gf_core/standard/utilities/signals/bridge/test_gf_signal_bridge.gd`、`tests/gf_core/extensions/network/test_gf_network_extension.gd`、`tests/gf_core/standard/utilities/config/test_gf_config_table_schema.gd`、`tests/gf_core/standard/utilities/config/test_gf_config_table_merge_tools.gd`、`tests/gf_core/extensions/save/test_gf_save_slot_metadata.gd`、`tests/gf_core/standard/input/editor/test_gf_input_mapping_dock.gd`、`tests/gf_core/extensions/domain/test_gf_domain_extensions.gd`、`tests/gf_core/standard/utilities/settings/test_gf_settings_utility.gd`、`docs/zh/extensions/dialogue/index.md`、`docs/zh/standard/foundation/data-validation.md`、`docs/zh/standard/input-flow/input-assist.md`、`docs/zh/extensions/save-graph/index.md`、`docs/zh/extensions/network-turnbased/index.md`、`docs/zh/standard/utilities/io/config-remote-outbox.md`、`docs/zh/standard/utilities/runtime/settings-ui-scene.md`。
+- 动作队列生命周期：`addons/gf/extensions/action_queue/core/gf_action_queue_system.gd`。
+- 自动分发信号所有权：`addons/gf/standard/common/gf_message_dispatch_support.gd`、`addons/gf/extensions/combat/hit_detection/gf_hit_box_2d.gd`、`addons/gf/extensions/combat/hit_detection/gf_hit_box_3d.gd`、`addons/gf/extensions/combat/projectiles/gf_projectile_2d.gd`、`addons/gf/extensions/combat/projectiles/gf_projectile_3d.gd`、`addons/gf/extensions/interaction/nodes/gf_interaction_sensor.gd`。
+- Foundation 校验套件：`addons/gf/standard/foundation/validation/gf_validation_suite.gd`。
+- 递归扫描与诊断工具：`addons/gf/kernel/editor/gf_editor_type_index.gd`、`addons/gf/kernel/extension/gf_extension_usage_audit.gd`、`addons/gf/kernel/editor/gf_scene_signal_audit.gd`、`addons/gf/kernel/editor/gf_resource_table_editor.gd`、`addons/gf/extensions/capability/editor/gf_capability_inspector_plugin.gd`、`addons/gf/standard/utilities/audio/gf_audio_bank_tools.gd`、`addons/gf/standard/utilities/storage/gf_storage_utility.gd`、`addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd`、`addons/gf/standard/utilities/debug/gf_support_report_utility.gd`。
+- 时间协议实现：`addons/gf/standard/utilities/time/gf_time_utility.gd`。
+- 测试与文档：`tests/gf_core/extensions/action_queue/test_gf_action_queue.gd`、`tests/gf_core/extensions/combat/test_gf_combat_extension.gd`、`tests/gf_core/extensions/combat/test_gf_projectiles.gd`、`tests/gf_core/extensions/interaction/test_gf_interaction_nodes.gd`、`tests/gf_core/standard/foundation/validation/test_gf_validation_runner_suite.gd`、`tests/gf_core/kernel/editor/test_gf_scene_signal_audit.gd`、`tests/gf_core/kernel/editor/test_gf_resource_table_editor.gd`、`tests/gf_core/kernel/extension/test_gf_extension_manifest.gd`、`tests/gf_core/standard/utilities/audio/test_gf_audio_bank_tools.gd`、`tests/gf_core/standard/utilities/storage/test_gf_storage_utility.gd`、`tests/gf_core/standard/utilities/debug/test_gf_signal_runtime_probe.gd`、`docs/zh/extensions/action-queue/index.md`、`docs/zh/extensions/combat/index.md`、`docs/zh/extensions/interaction-feedback/index.md`、`docs/zh/standard/foundation/data-validation.md`。

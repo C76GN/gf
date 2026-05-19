@@ -740,6 +740,30 @@ func test_linked_queue_clears_when_node_is_released() -> void:
 	assert_false(queue.is_processing, "绑定节点释放后队列应停止处理。")
 
 
+func test_dispose_releases_named_queue_dependency_scope() -> void:
+	var arch := GFArchitecture.new()
+	var parent_queue := GFActionQueueSystem.new()
+	await arch.register_system_instance(parent_queue)
+	await arch.init()
+	var named_queue := parent_queue.get_named_queue(&"scene")
+	var order: Array = []
+	var waiting_action := ManualSignalAction.new(order, "WAIT")
+	named_queue.enqueue(waiting_action)
+
+	await get_tree().process_frame
+	assert_true(named_queue.is_processing, "命名子队列应进入等待状态。")
+
+	arch.dispose()
+	assert_true(waiting_action.cancelled, "父队列销毁时应取消命名子队列当前动作。")
+	assert_false(named_queue.is_processing, "父队列销毁后命名子队列不应继续处理。")
+
+	var injected_action := InjectedAction.new()
+	named_queue.enqueue(injected_action)
+
+	assert_null(injected_action.injected_architecture, "已被父队列销毁的命名子队列不应继续持有旧架构。")
+	assert_push_error("[GFSystem] 依赖作用域已释放，无法继续访问架构。")
+
+
 func test_skip_current_action_continues_with_next_action() -> void:
 	var order: Array = []
 	var waiting_action := ManualSignalAction.new(order, "WAIT")

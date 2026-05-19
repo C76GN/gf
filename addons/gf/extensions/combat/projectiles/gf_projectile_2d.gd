@@ -139,16 +139,26 @@ func _send_impact_to_candidate(candidate: Object) -> void:
 	var receiver := _resolve_receiver_from_candidate(candidate)
 	if receiver == null:
 		return
-	var report_value: Variant = _resolve_collision_dispatch_host().call("send_to", receiver, null, &"")
-	if not report_value is Dictionary:
-		return
-	var report := report_value as Dictionary
+	var report := _send_to_impact_receiver(receiver)
 	var accepted := bool(report.get("ok", false))
 	_record_impact(report)
 	if finish_on_impact and accepted:
 		finish(&"impact")
 	elif _lifetime_should_finish():
 		finish(&"lifetime")
+
+
+func _send_to_impact_receiver(receiver: Object) -> Dictionary:
+	var dispatch_host := _resolve_collision_dispatch_host()
+	if dispatch_host == self:
+		return send_to(receiver)
+
+	var report_value: Variant = dispatch_host.call("send_to", receiver, null, &"")
+	if not report_value is Dictionary:
+		return {}
+	var report := report_value as Dictionary
+	_emit_send_result(build_hit_context(receiver), receiver, report)
+	return report
 
 
 func _resolve_receiver_from_candidate(candidate: Object) -> Object:

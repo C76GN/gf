@@ -18,6 +18,12 @@ signal report_saved(path: String, error: Error)
 signal report_submitted(result: Dictionary)
 
 
+# --- 常量 ---
+
+const DEFAULT_SCENE_COUNT_MAX_DEPTH: int = 64
+const DEFAULT_SCENE_COUNT_MAX_NODES: int = 10000
+
+
 # --- 公共变量 ---
 
 ## 默认是否包含 GFDiagnosticsUtility 快照。
@@ -25,6 +31,12 @@ var include_diagnostics_by_default: bool = true
 
 ## 默认是否包含场景快照。
 var include_scene_by_default: bool = true
+
+## 场景节点数量统计默认最大深度。0 表示不限制。
+var default_scene_count_max_depth: int = DEFAULT_SCENE_COUNT_MAX_DEPTH
+
+## 场景节点数量统计默认最大节点数。0 表示不限制。
+var default_scene_count_max_nodes: int = DEFAULT_SCENE_COUNT_MAX_NODES
 
 ## 默认最近日志数量。
 var default_recent_log_count: int = 50
@@ -100,7 +112,7 @@ func get_section_catalog() -> Dictionary:
 
 ## 构建支持报告。
 ## @param description: 用户描述或问题摘要。
-## @param options: 可选参数，支持 metadata、tags、include_diagnostics、diagnostics_options、include_scene、include_sections、section_options、attachments、max_attachment_bytes、include_screenshot、viewport、screenshot_path。
+## @param options: 可选参数，支持 metadata、tags、include_diagnostics、diagnostics_options、include_scene、scene_options、include_sections、section_options、attachments、max_attachment_bytes、include_screenshot、viewport、screenshot_path。
 ## @return 报告字典。
 func build_report(description: String = "", options: Dictionary = {}) -> Dictionary:
 	var report_id: String = _variant_to_string(options.get("report_id", null), _make_report_id())
@@ -120,7 +132,7 @@ func build_report(description: String = "", options: Dictionary = {}) -> Diction
 	}
 
 	if bool(options.get("include_scene", include_scene_by_default)):
-		report["scene"] = _collect_scene_snapshot()
+		report["scene"] = _collect_scene_snapshot(_get_dictionary_option(options, "scene_options"))
 	if bool(options.get("include_diagnostics", include_diagnostics_by_default)):
 		report["diagnostics"] = _collect_diagnostics_snapshot(options)
 	if bool(options.get("include_sections", true)):
@@ -288,6 +300,8 @@ func get_debug_snapshot() -> Dictionary:
 		"reports_submitted_count": _reports_submitted_count,
 		"include_diagnostics_by_default": include_diagnostics_by_default,
 		"include_scene_by_default": include_scene_by_default,
+		"default_scene_count_max_depth": default_scene_count_max_depth,
+		"default_scene_count_max_nodes": default_scene_count_max_nodes,
 		"default_recent_log_count": default_recent_log_count,
 		"default_max_attachment_bytes": default_max_attachment_bytes,
 		"include_screenshot_by_default": include_screenshot_by_default,
@@ -311,19 +325,25 @@ func _collect_runtime_snapshot() -> Dictionary:
 	}
 
 
-func _collect_scene_snapshot() -> Dictionary:
+func _collect_scene_snapshot(options: Dictionary = {}) -> Dictionary:
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree == null or tree.current_scene == null:
 		return {
 			"available": false,
+			"node_count": 0,
+			"node_count_truncated": false,
 		}
 
 	var scene := tree.current_scene
+	var counters := _make_node_count_counters()
+	var max_depth := maxi(int(options.get("max_depth", default_scene_count_max_depth)), 0)
+	var max_nodes := maxi(int(options.get("max_nodes", default_scene_count_max_nodes)), 0)
 	return {
 		"available": true,
 		"name": scene.name,
 		"path": scene.scene_file_path,
-		"node_count": _count_nodes(scene),
+		"node_count": _count_nodes(scene, 0, max_depth, max_nodes, counters),
+		"node_count_truncated": bool(counters.get("truncated", false)),
 	}
 
 
@@ -551,14 +571,37 @@ func _get_tags(value: Variant) -> PackedStringArray:
 	return result
 
 
-func _count_nodes(root: Node) -> int:
+func _count_nodes(root: Node, depth: int, max_depth: int, max_nodes: int, counters: Dictionary) -> int:
 	if root == null:
+		return 0
+	if not _can_count_more_nodes(counters, max_nodes):
+		counters["truncated"] = true
 		return 0
 
 	var count := 1
+	counters["count"] = int(counters.get("count", 0)) + 1
+	if max_depth > 0 and depth >= max_depth:
+		if root.get_child_count() > 0:
+			counters["truncated"] = true
+		return count
+
 	for child: Node in root.get_children():
-		count += _count_nodes(child)
+		if not _can_count_more_nodes(counters, max_nodes):
+			counters["truncated"] = true
+			break
+		count += _count_nodes(child, depth + 1, max_depth, max_nodes, counters)
 	return count
+
+
+func _can_count_more_nodes(counters: Dictionary, max_nodes: int) -> bool:
+	return max_nodes <= 0 or int(counters.get("count", 0)) < max_nodes
+
+
+func _make_node_count_counters() -> Dictionary:
+	return {
+		"count": 0,
+		"truncated": false,
+	}
 
 
 func _variant_to_string(value: Variant, fallback: String = "") -> String:

@@ -1,5 +1,5 @@
 ## Gf 异步声明式绑定 Installer 回归测试夹具。
-extends "res://addons/gf/kernel/core/gf_installer.gd"
+extends GFInstaller
 
 
 # --- 常量 ---

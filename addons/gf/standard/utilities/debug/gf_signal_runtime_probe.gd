@@ -27,6 +27,8 @@ signal signal_watch_stopped(source_path: String, signal_name: StringName)
 
 const DEFAULT_MAX_EVENTS: int = 256
 const DEFAULT_MAX_ARGUMENT_COUNT: int = 8
+const DEFAULT_MAX_WATCH_TREE_DEPTH: int = 64
+const DEFAULT_MAX_WATCH_TREE_NODES: int = 4096
 
 
 # --- 公共变量 ---
@@ -98,7 +100,7 @@ func watch_node(source: Node, options: Dictionary = {}) -> Dictionary:
 
 ## 递归监听节点树。
 ## @param root: 需要观察的根节点。
-## @param options: 选项，支持 watch_node() 选项以及 recursive、include_internal_nodes。
+## @param options: 选项，支持 watch_node() 选项以及 recursive、include_internal_nodes、max_node_depth 与 max_nodes。
 ## @return 监听报告。
 func watch_tree(root: Node, options: Dictionary = {}) -> Dictionary:
 	if root == null:
@@ -106,12 +108,15 @@ func watch_tree(root: Node, options: Dictionary = {}) -> Dictionary:
 
 	var recursive := bool(options.get("recursive", true))
 	var include_internal_nodes := bool(options.get("include_internal_nodes", false))
+	var max_node_depth := maxi(int(options.get("max_node_depth", DEFAULT_MAX_WATCH_TREE_DEPTH)), 0)
+	var max_nodes := maxi(int(options.get("max_nodes", DEFAULT_MAX_WATCH_TREE_NODES)), 0)
 	var nodes: Array[Node] = []
-	_collect_nodes(root, nodes, recursive, include_internal_nodes)
+	var tree_scan_state := _make_tree_scan_state()
+	_collect_nodes(root, nodes, recursive, include_internal_nodes, 0, max_node_depth, max_nodes, tree_scan_state)
 
 	var total_watched := 0
 	var total_skipped := 0
-	var errors: Array[String] = []
+	var errors := _get_tree_scan_errors(tree_scan_state, max_node_depth, max_nodes)
 	for node: Node in nodes:
 		var report := watch_node(node, options)
 		total_watched += int(report.get("watched_count", 0))
@@ -322,13 +327,55 @@ func _to_string_name_filter(value: Variant) -> Array[StringName]:
 	return result
 
 
-func _collect_nodes(root: Node, result: Array[Node], recursive: bool, include_internal_nodes: bool) -> void:
+func _collect_nodes(
+	root: Node,
+	result: Array[Node],
+	recursive: bool,
+	include_internal_nodes: bool,
+	depth: int,
+	max_node_depth: int,
+	max_nodes: int,
+	scan_state: Dictionary
+) -> void:
+	if not _can_collect_more_nodes(result, max_nodes):
+		scan_state["node_limit_reached"] = true
+		return
+
 	result.append(root)
 	if not recursive:
 		return
 
+	var child_count := root.get_child_count(include_internal_nodes)
+	if max_node_depth > 0 and depth >= max_node_depth:
+		if child_count > 0:
+			scan_state["depth_limit_reached"] = true
+		return
+
 	for child: Node in root.get_children(include_internal_nodes):
-		_collect_nodes(child, result, recursive, include_internal_nodes)
+		if not _can_collect_more_nodes(result, max_nodes):
+			scan_state["node_limit_reached"] = true
+			break
+		_collect_nodes(child, result, recursive, include_internal_nodes, depth + 1, max_node_depth, max_nodes, scan_state)
+
+
+func _can_collect_more_nodes(result: Array[Node], max_nodes: int) -> bool:
+	return max_nodes <= 0 or result.size() < max_nodes
+
+
+func _make_tree_scan_state() -> Dictionary:
+	return {
+		"depth_limit_reached": false,
+		"node_limit_reached": false,
+	}
+
+
+func _get_tree_scan_errors(scan_state: Dictionary, max_node_depth: int, max_nodes: int) -> Array[String]:
+	var errors: Array[String] = []
+	if bool(scan_state.get("depth_limit_reached", false)):
+		errors.append("max_node_depth_reached:%d" % max_node_depth)
+	if bool(scan_state.get("node_limit_reached", false)):
+		errors.append("max_nodes_reached:%d" % max_nodes)
+	return errors
 
 
 func _prune_invalid_watches() -> void:

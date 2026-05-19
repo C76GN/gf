@@ -1,4 +1,4 @@
-extends "res://addons/gut/test.gd"
+extends GutTest
 
 
 # --- 辅助类 (模拟战斗实体) ---
@@ -118,6 +118,24 @@ class RecordingHitSender extends Node:
 			"message": "",
 			"metadata": {},
 		}
+
+
+class ForwardingHitSender extends RecordingHitSender:
+	func send_to(receiver: Object, payload_override: Variant = null, hit_id_override: StringName = &"") -> Dictionary:
+		received_receiver = receiver
+		received_payload = payload_override
+		received_hit_id = hit_id_override
+		if receiver == null or not receiver.has_method(&"receive_hit"):
+			return {
+				"ok": false,
+				"hit_id": hit_id_override,
+				"receiver": receiver,
+				"reason": "invalid_receiver",
+				"message": "",
+				"metadata": {},
+			}
+		var context := GFCombatHitContext.new(self, receiver, payload_override, hit_id_override)
+		return receiver.call("receive_hit", context) as Dictionary
 
 
 # --- 测试方法 ---
@@ -1094,6 +1112,7 @@ func test_hit_box_2d_collision_dispatch_uses_sender_send_to_override() -> void:
 	root.add_child(hurt_box)
 	sender.name = "Sender"
 	hit_box.sender_path = NodePath("../Sender")
+	watch_signals(hit_box)
 
 	var reports: Array[Dictionary] = []
 	reports.assign(preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")._send_to_collision_candidates(
@@ -1102,13 +1121,46 @@ func test_hit_box_2d_collision_dispatch_uses_sender_send_to_override() -> void:
 		0,
 		{ "value": 3 },
 		&"impact",
-		&"receive_hit"
+		&"receive_hit",
+		Callable(hit_box, "_emit_collision_dispatch_result")
 	))
 
 	assert_eq(reports.size(), 1, "碰撞广播应通过可覆写发送者发送一次命中。")
 	assert_same(sender.received_receiver, hurt_box, "sender_path 指向的发送者实现 send_to() 时应接管碰撞分发。")
 	assert_eq(sender.received_payload, { "value": 3 }, "payload 覆盖值应透传给业务发送者。")
 	assert_eq(sender.received_hit_id, &"impact", "命中 ID 覆盖值应透传给业务发送者。")
+	assert_signal_emitted(hit_box, "hit_sent", "业务发送者接管碰撞分发时 HitBox 仍应发出 hit_sent。")
+	assert_signal_emitted(hit_box, "hit_accepted", "业务发送者返回成功报告时 HitBox 仍应发出 hit_accepted。")
+
+
+func test_hit_box_2d_collision_dispatch_keeps_hurt_box_signal_when_sender_forwards() -> void:
+	var root := Node.new()
+	var hit_box := GFHitBox2D.new()
+	var sender := ForwardingHitSender.new()
+	var hurt_box := GFHurtBox2D.new()
+	add_child_autofree(root)
+	root.add_child(hit_box)
+	root.add_child(sender)
+	root.add_child(hurt_box)
+	sender.name = "Sender"
+	hit_box.sender_path = NodePath("../Sender")
+	watch_signals(hit_box)
+	watch_signals(hurt_box)
+
+	var reports: Array[Dictionary] = []
+	reports.assign(preload("res://addons/gf/standard/common/gf_message_dispatch_support.gd")._send_to_collision_candidates(
+		hit_box._resolve_collision_dispatch_host(),
+		[hurt_box],
+		0,
+		{ "value": 3 },
+		&"impact",
+		&"receive_hit",
+		Callable(hit_box, "_emit_collision_dispatch_result")
+	))
+
+	assert_eq(reports.size(), 1, "业务发送者转发时应返回一次命中报告。")
+	assert_signal_emitted(hit_box, "hit_sent", "sender_path 接管后 HitBox 信号仍归 HitBox 发出。")
+	assert_signal_emitted(hurt_box, "hit_received", "业务发送者调用 receiver.receive_hit() 后 HurtBox 仍应发出 hit_received。")
 
 
 func test_hit_and_hurt_boxes_emit_enabled_changed() -> void:

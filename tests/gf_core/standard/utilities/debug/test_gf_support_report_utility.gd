@@ -93,6 +93,21 @@ func test_support_report_collects_text_attachments() -> void:
 	assert_eq(log_attachment["data"], "hello", "文本附件应保留内容。")
 
 
+## 验证场景节点数量统计会遵守节点上限。
+func test_support_report_scene_node_count_respects_limit() -> void:
+	var utility := GFSupportReportUtilityBase.new()
+	var root := Node.new()
+	root.add_child(Node.new())
+	var counters := utility._make_node_count_counters()
+
+	var count := utility._count_nodes(root, 0, 64, 1, counters)
+
+	assert_eq(count, 1, "节点数量统计应遵守 max_nodes 上限。")
+	assert_true(bool(counters["truncated"]), "节点数量统计被截断时应记录 truncated。")
+
+	root.free()
+
+
 ## 验证支持报告会按大小限制拒绝附件。
 func test_support_report_rejects_oversized_attachments() -> void:
 	var utility := GFSupportReportUtilityBase.new()

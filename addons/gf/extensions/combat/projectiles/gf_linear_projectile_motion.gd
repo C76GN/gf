@@ -2,7 +2,7 @@
 ##
 ## 该策略只处理线性位移，不处理碰撞、伤害、生命周期或目标选择。
 class_name GFLinearProjectileMotion
-extends "res://addons/gf/extensions/combat/projectiles/gf_projectile_motion.gd"
+extends GFProjectileMotion
 
 
 # --- 导出变量 ---

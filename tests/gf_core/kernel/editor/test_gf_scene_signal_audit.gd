@@ -80,6 +80,25 @@ func test_collect_scene_paths_respects_gdignore() -> void:
 	assert_false(paths.has("res://tests/gf_core/fixtures/scene_signal_audit_ignored/ignored_scene.tscn"), "默认应跳过包含 .gdignore 的目录。")
 
 
+func test_collect_scene_paths_respects_path_limit() -> void:
+	var directory := "user://gf_scene_signal_audit_scan"
+	var first_path := directory.path_join("first.tscn")
+	var second_path := directory.path_join("second.tscn")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
+	_write_empty_user_file(first_path)
+	_write_empty_user_file(second_path)
+
+	var paths: PackedStringArray = GF_SCENE_SIGNAL_AUDIT.collect_scene_paths(directory, {
+		"max_scene_paths": 1,
+	})
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(first_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(second_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(directory))
+
+	assert_eq(paths.size(), 1, "场景路径收集应遵守 max_scene_paths 上限。")
+
+
 func test_build_signal_graph_reports_runtime_connections() -> void:
 	var root := Node.new()
 	var emitter := GraphEmitter.new()
@@ -100,6 +119,21 @@ func test_build_signal_graph_reports_runtime_connections() -> void:
 	assert_eq(connection["source_node_path"], "Emitter", "连接应记录相对源节点路径。")
 	assert_eq(connection["target_node_path"], "Receiver", "连接应记录相对目标节点路径。")
 	assert_eq(connection["method_name"], "receive", "连接应记录目标方法名。")
+
+
+func test_build_signal_graph_reports_truncation_when_node_limit_is_reached() -> void:
+	var root := Node.new()
+	root.name = "Root"
+	root.add_child(Node.new())
+	root.add_child(Node.new())
+	add_child_autofree(root)
+
+	var graph: Dictionary = GF_SCENE_SIGNAL_AUDIT.build_signal_graph(root, {
+		"max_nodes": 1,
+	})
+
+	assert_eq(int(graph["node_count"]), 1, "信号图应遵守 max_nodes 上限。")
+	assert_true(bool(graph["truncated"]), "信号图被截断时应返回 truncated 标记。")
 
 
 func test_signal_graph_index_groups_runtime_connections() -> void:
@@ -142,3 +176,14 @@ func test_build_signal_graph_can_filter_external_targets() -> void:
 
 	assert_true(bool(graph["ok"]), "信号图应成功构建。")
 	assert_eq(graph["connection_count"], 0, "关闭外部目标时不应记录根节点外的连接。")
+
+
+# --- 私有/辅助方法 ---
+
+func _write_empty_user_file(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	assert_not_null(file, "测试应能创建 user:// 临时文件。")
+	if file == null:
+		return
+	file.store_string("")
+	file.close()

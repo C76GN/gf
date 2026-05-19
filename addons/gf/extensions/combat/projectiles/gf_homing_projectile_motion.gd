@@ -3,7 +3,7 @@
 ## 目标可通过 launch() 上下文中的 target、target_position、target_position_2d
 ## 或 target_position_3d 传入，也可以用 target_path 从发射体节点相对查找。
 class_name GFHomingProjectileMotion
-extends "res://addons/gf/extensions/combat/projectiles/gf_projectile_motion.gd"
+extends GFProjectileMotion
 
 
 # --- 常量 ---

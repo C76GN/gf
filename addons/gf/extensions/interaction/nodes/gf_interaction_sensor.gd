@@ -129,9 +129,9 @@ func broadcast_to_group(target_group_name: StringName = &"", max_count: int = 0)
 	for receiver: Node in receivers:
 		if max_count > 0 and reports.size() >= max_count:
 			break
-		var report_value: Variant = dispatch_host.call("send_to", receiver, null, &"")
-		if report_value is Dictionary:
-			reports.append(report_value)
+		var report := _send_to_with_dispatch_host(dispatch_host, receiver, null, &"")
+		if report != null:
+			reports.append(report)
 	return reports
 
 
@@ -190,14 +190,16 @@ func broadcast_to_area_2d(
 	var candidates: Array = []
 	candidates.append_array(area.get_overlapping_areas())
 	candidates.append_array(area.get_overlapping_bodies())
+	var dispatch_host := _resolve_collision_dispatch_host()
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
-		_resolve_collision_dispatch_host(),
+		dispatch_host,
 		candidates,
 		max_count,
 		payload_override,
 		interaction_id_override,
-		&"receive_interaction"
+		&"receive_interaction",
+		Callable(self, "_emit_collision_dispatch_result") if dispatch_host != self else Callable()
 	))
 	return reports
 
@@ -219,14 +221,16 @@ func broadcast_to_area_3d(
 	var candidates: Array = []
 	candidates.append_array(area.get_overlapping_areas())
 	candidates.append_array(area.get_overlapping_bodies())
+	var dispatch_host := _resolve_collision_dispatch_host()
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
-		_resolve_collision_dispatch_host(),
+		dispatch_host,
 		candidates,
 		max_count,
 		payload_override,
 		interaction_id_override,
-		&"receive_interaction"
+		&"receive_interaction",
+		Callable(self, "_emit_collision_dispatch_result") if dispatch_host != self else Callable()
 	))
 	return reports
 
@@ -239,6 +243,15 @@ func _emit_send_result(context: GFInteractionContext, receiver: Object, report: 
 		interaction_accepted.emit(context, receiver, report)
 	else:
 		interaction_rejected.emit(context, receiver, report)
+
+
+func _emit_collision_dispatch_result(
+	receiver: Object,
+	payload_override: Variant,
+	interaction_id_override: StringName,
+	report: Dictionary
+) -> void:
+	_emit_send_result(build_context(receiver, payload_override), receiver, report)
 
 
 func _make_report(ok: bool, effective_interaction_id: StringName, reason: String, message: String) -> Dictionary:
@@ -265,3 +278,18 @@ func _resolve_collision_dispatch_host() -> Object:
 	if sender != self and sender.has_method(&"send_to"):
 		return sender
 	return self
+
+
+func _send_to_with_dispatch_host(
+	dispatch_host: Object,
+	receiver: Object,
+	payload_override: Variant,
+	interaction_id_override: StringName
+) -> Variant:
+	var report_value: Variant = dispatch_host.call("send_to", receiver, payload_override, interaction_id_override)
+	if not report_value is Dictionary:
+		return null
+	var report := report_value as Dictionary
+	if dispatch_host != self:
+		_emit_collision_dispatch_result(receiver, payload_override, interaction_id_override, report)
+	return report

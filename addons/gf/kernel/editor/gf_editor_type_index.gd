@@ -9,6 +9,8 @@ extends RefCounted
 
 # --- 常量 ---
 
+const DEFAULT_MAX_SCAN_DEPTH: int = 32
+const DEFAULT_MAX_SCANNED_SCENES: int = 10000
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
@@ -58,10 +60,12 @@ func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Scri
 ## @param base_script: 要匹配的基类脚本。
 ## @param used_paths: 已使用的资源路径集合。
 ## @param root_paths: 可选扫描根路径；为空时扫描整个资源树。
+## @param options: 可选参数，支持 max_scan_depth 与 max_scanned_scenes。
 func collect_scene_roots_extending(
 	base_script: Script,
 	used_paths: Dictionary = {},
-	root_paths: PackedStringArray = PackedStringArray()
+	root_paths: PackedStringArray = PackedStringArray(),
+	options: Dictionary = {}
 ) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	if base_script == null or not Engine.is_editor_hint():
@@ -75,15 +79,35 @@ func collect_scene_roots_extending(
 	if root_dir == null:
 		return records
 
-	var dir_stack: Array[EditorFileSystemDirectory] = [root_dir]
+	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_SCAN_DEPTH)), 0)
+	var max_scanned_scenes := maxi(int(options.get("max_scanned_scenes", DEFAULT_MAX_SCANNED_SCENES)), 0)
+	var scan_state := _make_scene_scan_state()
+	var dir_stack: Array[Dictionary] = [{
+		"directory": root_dir,
+		"depth": 0,
+	}]
 	while not dir_stack.is_empty():
-		var current_dir := dir_stack.pop_back()
+		var stack_entry := dir_stack.pop_back() as Dictionary
+		var current_dir := stack_entry.get("directory") as EditorFileSystemDirectory
+		var current_depth := int(stack_entry.get("depth", 0))
+		if current_dir == null:
+			continue
+
 		for i: int in range(current_dir.get_subdir_count()):
-			dir_stack.append(current_dir.get_subdir(i))
+			var subdir := current_dir.get_subdir(i)
+			if _can_scan_deeper(subdir.get_path(), current_depth, max_scan_depth, scan_state):
+				dir_stack.append({
+					"directory": subdir,
+					"depth": current_depth + 1,
+				})
 
 		for i: int in range(current_dir.get_file_count()):
 			if current_dir.get_file_type(i) != "PackedScene":
 				continue
+			if not _can_scan_more_scene_files(scan_state, max_scanned_scenes):
+				_warn_scene_file_limit(max_scanned_scenes, scan_state)
+				break
+			scan_state["scanned_scene_count"] = int(scan_state.get("scanned_scene_count", 0)) + 1
 
 			var path := _join_resource_path(current_dir.get_path(), current_dir.get_file(i))
 			if used_paths.has(path):
@@ -172,3 +196,36 @@ func _path_matches_roots(path: String, root_paths: PackedStringArray) -> bool:
 		if path == root_path or path.begins_with(normalized_root):
 			return true
 	return false
+
+
+func _can_scan_deeper(path: String, current_depth: int, max_scan_depth: int, scan_state: Dictionary) -> bool:
+	if max_scan_depth <= 0 or current_depth < max_scan_depth:
+		return true
+	_warn_scan_depth_limit(path, max_scan_depth, scan_state)
+	return false
+
+
+func _can_scan_more_scene_files(scan_state: Dictionary, max_scanned_scenes: int) -> bool:
+	return max_scanned_scenes <= 0 or int(scan_state.get("scanned_scene_count", 0)) < max_scanned_scenes
+
+
+func _make_scene_scan_state() -> Dictionary:
+	return {
+		"scanned_scene_count": 0,
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+func _warn_scene_file_limit(max_scanned_scenes: int, scan_state: Dictionary) -> void:
+	if max_scanned_scenes <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFEditorTypeIndex] collect_scene_roots_extending 已达到 max_scanned_scenes=%d，后续场景已跳过。" % max_scanned_scenes)
+
+
+func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
+	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+		return
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFEditorTypeIndex] collect_scene_roots_extending 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])

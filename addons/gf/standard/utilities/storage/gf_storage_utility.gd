@@ -36,6 +36,8 @@ signal load_completed(file_name: String, result: Dictionary)
 const _TEMP_SUFFIX: String = ".tmp"
 const _BACKUP_SUFFIX: String = ".bak"
 const _TRANSACTION_SUFFIX: String = ".txn"
+const DEFAULT_MAX_LIST_DEPTH: int = 32
+const DEFAULT_MAX_LISTED_FILES: int = 10000
 
 
 # --- 公共变量 ---
@@ -177,18 +179,33 @@ func ensure_directory(directory_name: String = "") -> Error:
 ## @param directory_name: 相对存储目录；为空时枚举根存储目录。
 ## @param extension_filter: 可选扩展名过滤，允许传入 `"json"` 或 `".json"`。
 ## @param recursive: 是否递归枚举子目录。
+## @param options: 可选参数，支持 `max_scan_depth` 与 `max_file_count`。
 ## @return 存储相对文件路径数组；若传入允许的绝对目录，则返回绝对文件路径。
 func list_files(
 	directory_name: String = "",
 	extension_filter: String = "",
-	recursive: bool = false
+	recursive: bool = false,
+	options: Dictionary = {}
 ) -> PackedStringArray:
 	init()
 	var result := PackedStringArray()
 	var normalized_directory := _normalize_storage_directory_name(directory_name)
 	var directory_path := _get_full_directory_path_from_normalized(normalized_directory)
 	var normalized_extension := _normalize_extension_filter(extension_filter)
-	_append_listed_files(directory_path, normalized_directory, normalized_extension, recursive, result)
+	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_LIST_DEPTH)), 0)
+	var max_file_count := maxi(int(options.get("max_file_count", DEFAULT_MAX_LISTED_FILES)), 0)
+	var scan_state := _make_list_scan_state()
+	_append_listed_files(
+		directory_path,
+		normalized_directory,
+		normalized_extension,
+		recursive,
+		result,
+		0,
+		max_scan_depth,
+		max_file_count,
+		scan_state
+	)
 	result.sort()
 	return result
 
@@ -845,8 +862,16 @@ func _append_listed_files(
 	relative_prefix: String,
 	extension_filter: String,
 	recursive: bool,
-	result: PackedStringArray
+	result: PackedStringArray,
+	depth: int,
+	max_scan_depth: int,
+	max_file_count: int,
+	scan_state: Dictionary
 ) -> void:
+	if not _can_append_listed_file(result, max_file_count):
+		_warn_list_file_limit(max_file_count, scan_state)
+		return
+
 	var dir := DirAccess.open(directory_path)
 	if dir == null:
 		return
@@ -854,23 +879,68 @@ func _append_listed_files(
 	dir.list_dir_begin()
 	var entry_name := dir.get_next()
 	while not entry_name.is_empty():
+		if not _can_append_listed_file(result, max_file_count):
+			_warn_list_file_limit(max_file_count, scan_state)
+			break
+
 		if entry_name.begins_with("."):
 			entry_name = dir.get_next()
 			continue
 
 		if dir.current_is_dir():
-			if recursive:
+			if recursive and _can_scan_list_deeper(
+				directory_path.path_join(entry_name),
+				depth,
+				max_scan_depth,
+				scan_state
+			):
 				_append_listed_files(
 					directory_path.path_join(entry_name),
 					_get_storage_relative_file_path(relative_prefix, entry_name),
 					extension_filter,
 					recursive,
-					result
+					result,
+					depth + 1,
+					max_scan_depth,
+					max_file_count,
+					scan_state
 				)
 		elif _file_matches_extension(entry_name, extension_filter):
 			result.append(_get_storage_relative_file_path(relative_prefix, entry_name))
 		entry_name = dir.get_next()
 	dir.list_dir_end()
+
+
+func _can_scan_list_deeper(path: String, current_depth: int, max_scan_depth: int, scan_state: Dictionary) -> bool:
+	if max_scan_depth <= 0 or current_depth < max_scan_depth:
+		return true
+	_warn_list_depth_limit(path, max_scan_depth, scan_state)
+	return false
+
+
+func _can_append_listed_file(result: PackedStringArray, max_file_count: int) -> bool:
+	return max_file_count <= 0 or result.size() < max_file_count
+
+
+func _make_list_scan_state() -> Dictionary:
+	return {
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+func _warn_list_file_limit(max_file_count: int, scan_state: Dictionary) -> void:
+	if max_file_count <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFStorageUtility] list_files 已达到 max_file_count=%d，后续文件已跳过。" % max_file_count)
+
+
+func _warn_list_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
+	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+		return
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFStorageUtility] list_files 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
 
 
 func _get_storage_relative_file_path(directory_name: String, file_name: String) -> String:

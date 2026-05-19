@@ -54,6 +54,27 @@ func test_probe_respects_event_limit_and_unwatch() -> void:
 	source.free()
 
 
+func test_watch_tree_reports_node_limit() -> void:
+	var root := Node.new()
+	var first_child := SignalSource.new()
+	var second_child := SignalSource.new()
+	root.add_child(first_child)
+	root.add_child(second_child)
+	var probe: GFSignalRuntimeProbeBase = GFSignalRuntimeProbeBase.new()
+
+	var report := probe.watch_tree(root, {
+		"include_signals": [&"value_changed"],
+		"max_nodes": 1,
+	})
+
+	assert_false(bool(report["ok"]), "节点树监听被截断时报告应标记失败。")
+	assert_true((report["errors"] as Array).has("max_nodes_reached:1"), "报告应包含 max_nodes 截断原因。")
+	assert_eq(probe.get_watch_count(), 0, "达到节点上限时只收集根节点，根节点无业务信号不应产生监听。")
+
+	probe.unwatch_all()
+	root.free()
+
+
 func test_signal_graph_dock_keeps_empty_runtime_page_compact() -> void:
 	var dock: Variant = GF_SIGNAL_GRAPH_DOCK.new()
 	dock._build_ui()

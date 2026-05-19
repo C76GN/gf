@@ -187,6 +187,7 @@ func test_projectile_2d_impact_uses_sender_send_to_override() -> void:
 	projectile.queue_free_on_finish = false
 	projectile.finish_on_impact = false
 	projectile.sender_path = NodePath("../Sender")
+	watch_signals(projectile)
 
 	projectile.launch()
 	projectile.send_impact_to(receiver)
@@ -196,6 +197,8 @@ func test_projectile_2d_impact_uses_sender_send_to_override() -> void:
 	assert_null(sender.received_payload, "未覆盖 payload 时应透传 null，让业务发送者使用自身默认值。")
 	assert_eq(sender.received_hit_id, &"", "未覆盖命中 ID 时应透传空值，让业务发送者使用自身默认值。")
 	assert_eq(context.get("impact_count"), 1, "业务发送者接受后仍应记录发射体命中次数。")
+	assert_signal_emitted(projectile, "hit_sent", "业务发送者接管 2D 发射体命中时 Projectile 仍应发出 hit_sent。")
+	assert_signal_emitted(projectile, "hit_accepted", "业务发送者返回成功报告时 Projectile 仍应发出 hit_accepted。")
 
 
 func test_projectile_3d_impact_uses_sender_send_to_override() -> void:
@@ -212,6 +215,7 @@ func test_projectile_3d_impact_uses_sender_send_to_override() -> void:
 	projectile.queue_free_on_finish = false
 	projectile.finish_on_impact = false
 	projectile.sender_path = NodePath("../Sender")
+	watch_signals(projectile)
 
 	projectile.launch()
 	projectile.send_impact_to(receiver)
@@ -219,6 +223,7 @@ func test_projectile_3d_impact_uses_sender_send_to_override() -> void:
 
 	assert_same(sender.received_receiver, receiver, "3D 发射体自动命中应交给 sender_path 指向的业务发送者。")
 	assert_eq(context.get("impact_count"), 1, "3D 业务发送者接受后仍应记录发射体命中次数。")
+	assert_signal_emitted(projectile, "hit_sent", "业务发送者接管 3D 发射体命中时 Projectile 仍应发出 hit_sent。")
 
 
 func test_projectile_finish_on_impact_waits_for_accepted_hit() -> void:

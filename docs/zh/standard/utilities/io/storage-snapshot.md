@@ -35,7 +35,7 @@ storage.save_resource("my_custom_resource.tres", my_res)
 var loaded_res := storage.load_resource("my_custom_resource.tres")
 ```
 
-除槽位和字典读写外，`ensure_directory()`、`list_files()` 与 `delete_file()` 可用于管理同一存储根目录下的通用文件，例如列出本地缩略图、缓存 manifest 或项目自定义资源文件。它们复用 `GFStorageUtility` 的路径安全策略：默认拒绝绝对路径并阻止 `..` 跨目录；纯字典读写 API 会直接拒绝空 `file_name`，而不是写入内部兜底文件名。枚举结果返回存储相对路径，适合交给 `load_data()`、`load_resource()` 或项目自己的读取流程继续处理。槽位列表仍应优先使用 `list_slots()`，避免把内部事务文件、备份文件或项目临时文件混入读档 UI。
+除槽位和字典读写外，`ensure_directory()`、`list_files()` 与 `delete_file()` 可用于管理同一存储根目录下的通用文件，例如列出本地缩略图、缓存 manifest 或项目自定义资源文件。它们复用 `GFStorageUtility` 的路径安全策略：默认拒绝绝对路径并阻止 `..` 跨目录；纯字典读写 API 会直接拒绝空 `file_name`，而不是写入内部兜底文件名。递归枚举默认限制深度和返回数量，可通过 `list_files(..., { "max_scan_depth": 64, "max_file_count": 20000 })` 调整。枚举结果返回存储相对路径，适合交给 `load_data()`、`load_resource()` 或项目自己的读取流程继续处理。槽位列表仍应优先使用 `list_slots()`，避免把内部事务文件、备份文件或项目临时文件混入读档 UI。
 
 `GFStorageUtility` 的本地写入路径、文件操作和事务提交/恢复共用同一套内部策略，因此槽位存档、纯字典存档和异步纯字典存档会遵循一致的路径规整、目录创建、临时文件、备份文件与事务标记规则。项目层不应依赖 `.tmp`、`.bak`、`.txn` 这些内部文件，恢复流程会在下次读取、写入或槽位检查时自动收敛。
 

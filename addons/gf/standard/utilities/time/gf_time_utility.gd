@@ -11,7 +11,7 @@
 ##   4. 使用 set_group_paused() 实现 UI 层/逻辑层分组暂停。
 ##   5. System 可设置 ignore_pause = true 来忽略暂停（如暂停菜单动画）。
 class_name GFTimeUtility
-extends "res://addons/gf/kernel/base/gf_time_provider.gd"
+extends GFTimeProvider
 
 
 # --- 公共变量 ---

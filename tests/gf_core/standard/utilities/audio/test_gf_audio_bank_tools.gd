@@ -75,6 +75,25 @@ func test_sync_bank_from_scan_imports_audio_paths() -> void:
 	assert_eq(bank.get_clip(&"click").bus_name, "SFX", "扫描同步应传递导入选项。")
 
 
+func test_scan_audio_paths_respects_audio_path_limit() -> void:
+	var root_path := "user://gf_audio_bank_tools_limit"
+	var first_path := root_path.path_join("first.ogg")
+	var second_path := root_path.path_join("second.ogg")
+	DirAccess.make_dir_recursive_absolute(root_path)
+	_write_empty_user_file(first_path)
+	_write_empty_user_file(second_path)
+
+	var paths := GFAudioBankToolsBase.scan_audio_paths(root_path, {
+		"max_audio_paths": 1,
+	})
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(first_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(second_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(root_path))
+
+	assert_eq(paths.size(), 1, "音频扫描应遵守 max_audio_paths 上限。")
+
+
 func test_validate_bank_playback_reports_bus_and_extension_issues() -> void:
 	var bank := GFAudioBankBase.new()
 	var clip := GFAudioClipBase.new()

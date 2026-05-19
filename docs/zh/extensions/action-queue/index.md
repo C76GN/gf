@@ -87,6 +87,8 @@ var popup_queue := q_sys.get_linked_queue(&"popup_intro", popup_node)
 popup_queue.enqueue(FadeInAction.new(popup_node))
 ```
 
+命名队列由创建它的 `GFActionQueueSystem` 拥有；父队列或所属架构销毁时，会递归取消命名子队列中的等待动作并释放依赖作用域。项目层不应长期缓存已被父队列销毁后的命名队列引用，后续需要同名表现流时重新通过 `get_named_queue()` / `get_linked_queue()` 获取。`clear_all_named_queues(stop_current)` 只用于重置当前父队列记录的命名流。
+
 如需跳过当前表现动作并继续后续队列，可以调用：
 
 ```gdscript

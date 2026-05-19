@@ -117,6 +117,8 @@ audio.set_audio_parameter(parameter)
 ```gdscript
 var paths := GFAudioBankTools.scan_audio_paths("res://audio", {
 	"include_addons": false,
+	"max_scan_depth": 32,
+	"max_audio_paths": 10000,
 })
 
 var bank := GFAudioBankTools.create_bank_from_paths(paths, {
@@ -141,6 +143,6 @@ var import_report := GFAudioBankTools.sync_bank_from_scan(bank, "res://audio", {
 })
 ```
 
-选中 `GFAudioBank` 资源时，Inspector 的验证入口也会使用同一套工具检查音频路径、候选片段和 bus 名；同一面板还提供扫描目录、选择 ID 生成方式、是否覆盖和默认 bus 的轻量导入入口。推荐把 `GFAudioBankTools` 用作生成和校验配置的工具；声音优先级、混音快照、场景预加载策略和具体事件命名仍由项目层决定。
+选中 `GFAudioBank` 资源时，Inspector 的验证入口也会使用同一套工具检查音频路径、候选片段和 bus 名；同一面板还提供扫描目录、选择 ID 生成方式、是否覆盖和默认 bus 的轻量导入入口。音频扫描默认限制递归深度和路径数量，项目构建脚本可按音频目录规模调高 `max_scan_depth` / `max_audio_paths`。推荐把 `GFAudioBankTools` 用作生成和校验配置的工具；声音优先级、混音快照、场景预加载策略和具体事件命名仍由项目层决定。
 
 `register_audio_bank()` 后可用 `play_bgm_event()`、`play_ambient_event()`、`play_sfx_event()` 按稳定事件 ID 播放；场景或 UI 想临时拥有一组音频事件时，可使用 `GFAudioBankMounter` 在 ready/exit 时自动注册、恢复或卸载 bank。同一 `bank_id` 的多个挂载由 `GFAudioUtility` 按栈管理，场景或 UI 交错退出时，较早退出的下层挂载不会覆盖仍处于顶层的 bank；需要手动控制同类逻辑时，可使用 `mount_audio_bank()` / `unmount_audio_bank()`。需要主动停止、淡出或读取本次 SFX/空间音效状态时，使用 `play_sfx_handle()`、`play_sfx_clip_handle()`、`play_sfx_event_handle()` 或 2D/3D 对应 handle 方法取得 `GFAudioEmitterHandle`；环境音通道可用 `get_ambient_handle(channel)` 获取当前播放器句柄。句柄只管理底层播放器的停止、淡出、音量、音高和可选 owner 生命周期绑定，不替项目决定混音快照、声音优先级或业务生命周期。`play_sfx_clip_2d()` / `play_sfx_clip_3d()` 和对应 event 方法默认只在当前位置创建空间播放器；传入 `follow_source = true` 时，播放器会挂到声源节点下并随声源移动。复杂混音、音频快照、距离规则、碰撞触发和平台音频权限仍属于项目层。

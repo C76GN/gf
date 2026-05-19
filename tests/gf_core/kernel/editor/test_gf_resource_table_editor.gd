@@ -24,6 +24,29 @@ func test_build_export_columns_reads_resource_exports() -> void:
 	assert_true(names.has("amount"), "导出列应包含 int export。")
 
 
+func test_scan_resource_paths_respects_resource_limit() -> void:
+	var directory := "user://gf_resource_table_scan"
+	var first_path := directory.path_join("first.tres")
+	var second_path := directory.path_join("second.tres")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
+	_write_empty_user_file(first_path)
+	_write_empty_user_file(second_path)
+
+	var paths := GFResourceTableEditor.scan_resource_paths(
+		directory,
+		PackedStringArray(["tres"]),
+		{
+			"max_resource_paths": 1,
+		}
+	)
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(first_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(second_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(directory))
+
+	assert_eq(paths.size(), 1, "资源路径扫描应遵守 max_resource_paths 上限。")
+
+
 func test_commit_cell_value_updates_resource_and_emits_signal() -> void:
 	var resource := TableResource.new()
 	resource.label = "old"
@@ -145,3 +168,14 @@ func test_resource_table_can_auto_save_committed_resource() -> void:
 	DirAccess.remove_absolute(ProjectSettings.globalize_path(path))
 
 	assert_eq(reloaded.field_name, &"new", "启用自动保存后提交值应写回资源文件。")
+
+
+# --- 私有/辅助方法 ---
+
+func _write_empty_user_file(path: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	assert_not_null(file, "测试应能创建 user:// 临时文件。")
+	if file == null:
+		return
+	file.store_string("")
+	file.close()

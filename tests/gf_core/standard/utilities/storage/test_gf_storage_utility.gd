@@ -301,6 +301,11 @@ func test_file_management_ensure_list_and_delete_files() -> void:
 		"递归枚举应返回排序后的存储相对路径。",
 	)
 	assert_eq(
+		_storage.list_files("managed", "json", true, { "max_file_count": 1 }).size(),
+		1,
+		"递归枚举应遵守 max_file_count 上限。",
+	)
+	assert_eq(
 		_storage.list_files("managed", "tres", true),
 		PackedStringArray(["managed/b.tres"]),
 		"扩展名过滤应同时支持 Resource 文件。",

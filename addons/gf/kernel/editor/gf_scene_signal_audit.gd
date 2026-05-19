@@ -23,11 +23,19 @@ enum IssueType {
 }
 
 
+# --- 常量 ---
+
+const DEFAULT_MAX_SCAN_DEPTH: int = 32
+const DEFAULT_MAX_SCENE_PATHS: int = 10000
+const DEFAULT_MAX_SIGNAL_GRAPH_DEPTH: int = 64
+const DEFAULT_MAX_SIGNAL_GRAPH_NODES: int = 10000
+
+
 # --- 公共方法 ---
 
 ## 审计指定目录下的场景文件。
 ## @param root_path: 需要扫描的目录，通常为 `res://`。
-## @param options: 审计选项，支持 `include_hidden`、`respect_gdignore` 与 `check_parameter_count`。
+## @param options: 审计选项，支持 `include_hidden`、`respect_gdignore`、`check_parameter_count`、`max_scan_depth` 与 `max_scene_paths`。
 static func audit_directory(root_path: String = "res://", options: Dictionary = {}) -> Dictionary:
 	var scene_paths := collect_scene_paths(root_path, options)
 	var report := audit_scene_paths(scene_paths, options)
@@ -164,19 +172,31 @@ static func audit_scene(scene_path: String, options: Dictionary = {}) -> Array[D
 
 ## 收集目录下可审计的 `.tscn` 场景路径。
 ## @param root_path: 需要扫描的目录。
-## @param options: 收集选项，支持 `include_hidden` 与 `respect_gdignore`。
+## @param options: 收集选项，支持 `include_hidden`、`respect_gdignore`、`max_scan_depth` 与 `max_scene_paths`。
 static func collect_scene_paths(root_path: String = "res://", options: Dictionary = {}) -> PackedStringArray:
 	var result := PackedStringArray()
 	var include_hidden := bool(options.get("include_hidden", false))
 	var respect_gdignore := bool(options.get("respect_gdignore", true))
-	_collect_scene_paths_recursive(root_path, result, include_hidden, respect_gdignore)
+	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_SCAN_DEPTH)), 0)
+	var max_scene_paths := maxi(int(options.get("max_scene_paths", DEFAULT_MAX_SCENE_PATHS)), 0)
+	var scan_state := _make_scan_state()
+	_collect_scene_paths_recursive(
+		root_path,
+		result,
+		include_hidden,
+		respect_gdignore,
+		0,
+		max_scan_depth,
+		max_scene_paths,
+		scan_state
+	)
 	result.sort()
 	return result
 
 
 ## 构建运行中节点树的信号连接图快照。
 ## @param root: 需要扫描的根节点。
-## @param options: 选项，支持 `include_internal`、`persistent_only`、`include_empty_signals` 与 `include_external_targets`。
+## @param options: 选项，支持 `include_internal`、`persistent_only`、`include_empty_signals`、`include_external_targets`、`max_node_depth` 与 `max_nodes`。
 ## @return 信号连接图报告。
 static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictionary:
 	if root == null:
@@ -189,6 +209,7 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 			"nodes": [],
 			"signals": [],
 			"connections": [],
+			"truncated": false,
 			"message": "root 为空。",
 		}
 
@@ -196,8 +217,11 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 	var persistent_only := bool(options.get("persistent_only", false))
 	var include_empty_signals := bool(options.get("include_empty_signals", false))
 	var include_external_targets := bool(options.get("include_external_targets", true))
+	var max_node_depth := maxi(int(options.get("max_node_depth", DEFAULT_MAX_SIGNAL_GRAPH_DEPTH)), 0)
+	var max_nodes := maxi(int(options.get("max_nodes", DEFAULT_MAX_SIGNAL_GRAPH_NODES)), 0)
 	var nodes: Array[Node] = []
-	_collect_signal_graph_nodes(root, nodes, include_internal)
+	var scan_state := _make_signal_graph_scan_state()
+	_collect_signal_graph_nodes(root, nodes, include_internal, 0, max_node_depth, max_nodes, scan_state)
 
 	var node_entries: Array[Dictionary] = []
 	var signal_entries: Array[Dictionary] = []
@@ -238,6 +262,7 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 		"nodes": node_entries,
 		"signals": signal_entries,
 		"connections": connection_entries,
+		"truncated": bool(scan_state.get("truncated", false)),
 	}
 
 
@@ -290,18 +315,47 @@ static func index_signal_graph(graph: Dictionary) -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
-static func _collect_signal_graph_nodes(root: Node, result: Array[Node], include_internal: bool) -> void:
+static func _collect_signal_graph_nodes(
+	root: Node,
+	result: Array[Node],
+	include_internal: bool,
+	depth: int,
+	max_node_depth: int,
+	max_nodes: int,
+	scan_state: Dictionary
+) -> void:
+	if not _can_collect_more_signal_graph_nodes(result, max_nodes):
+		_warn_signal_graph_node_limit(max_nodes, scan_state)
+		return
+
 	result.append(root)
+	var child_count := root.get_child_count(include_internal)
+	if max_node_depth > 0 and depth >= max_node_depth:
+		if child_count > 0:
+			_warn_signal_graph_depth_limit(root, max_node_depth, scan_state)
+		return
+
 	for child: Node in root.get_children(include_internal):
-		_collect_signal_graph_nodes(child, result, include_internal)
+		if not _can_collect_more_signal_graph_nodes(result, max_nodes):
+			_warn_signal_graph_node_limit(max_nodes, scan_state)
+			break
+		_collect_signal_graph_nodes(child, result, include_internal, depth + 1, max_node_depth, max_nodes, scan_state)
 
 
 static func _collect_scene_paths_recursive(
 	root_path: String,
 	result: PackedStringArray,
 	include_hidden: bool,
-	respect_gdignore: bool
+	respect_gdignore: bool,
+	depth: int,
+	max_scan_depth: int,
+	max_scene_paths: int,
+	scan_state: Dictionary
 ) -> void:
+	if not _can_collect_more_scene_paths(result, max_scene_paths):
+		_warn_scene_path_limit(max_scene_paths, scan_state)
+		return
+
 	var dir := DirAccess.open(root_path)
 	if dir == null:
 		return
@@ -311,10 +365,31 @@ static func _collect_scene_paths_recursive(
 	dir.list_dir_begin()
 	var entry := dir.get_next()
 	while not entry.is_empty():
+		if not _can_collect_more_scene_paths(result, max_scene_paths):
+			_warn_scene_path_limit(max_scene_paths, scan_state)
+			break
+
 		var child_path := root_path.path_join(entry)
 		if dir.current_is_dir():
-			if _should_scan_directory(child_path, entry, include_hidden, respect_gdignore):
-				_collect_scene_paths_recursive(child_path, result, include_hidden, respect_gdignore)
+			if _should_scan_directory(
+				child_path,
+				entry,
+				include_hidden,
+				respect_gdignore,
+				depth,
+				max_scan_depth,
+				scan_state
+			):
+				_collect_scene_paths_recursive(
+					child_path,
+					result,
+					include_hidden,
+					respect_gdignore,
+					depth + 1,
+					max_scan_depth,
+					max_scene_paths,
+					scan_state
+				)
 		elif entry.ends_with(".tscn"):
 			result.append(child_path)
 		entry = dir.get_next()
@@ -325,13 +400,75 @@ static func _should_scan_directory(
 	path: String,
 	dir_name: String,
 	include_hidden: bool,
-	respect_gdignore: bool
+	respect_gdignore: bool,
+	current_depth: int,
+	max_scan_depth: int,
+	scan_state: Dictionary
 ) -> bool:
 	if not include_hidden and dir_name.begins_with("."):
 		return false
 	if respect_gdignore and FileAccess.file_exists(path.path_join(".gdignore")):
 		return false
+	if max_scan_depth > 0 and current_depth >= max_scan_depth:
+		_warn_scene_depth_limit(path, max_scan_depth, scan_state)
+		return false
 	return true
+
+
+static func _can_collect_more_scene_paths(result: PackedStringArray, max_scene_paths: int) -> bool:
+	return max_scene_paths <= 0 or result.size() < max_scene_paths
+
+
+static func _can_collect_more_signal_graph_nodes(result: Array[Node], max_nodes: int) -> bool:
+	return max_nodes <= 0 or result.size() < max_nodes
+
+
+static func _make_scan_state() -> Dictionary:
+	return {
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+static func _make_signal_graph_scan_state() -> Dictionary:
+	return {
+		"truncated": false,
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+static func _warn_scene_path_limit(max_scene_paths: int, scan_state: Dictionary) -> void:
+	if max_scene_paths <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFSceneSignalAudit] collect_scene_paths 已达到 max_scene_paths=%d，后续场景已跳过。" % max_scene_paths)
+
+
+static func _warn_scene_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
+	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+		return
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFSceneSignalAudit] collect_scene_paths 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
+
+
+static func _warn_signal_graph_node_limit(max_nodes: int, scan_state: Dictionary) -> void:
+	if max_nodes <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	scan_state["truncated"] = true
+	push_warning("[GFSceneSignalAudit] build_signal_graph 已达到 max_nodes=%d，后续节点已跳过。" % max_nodes)
+
+
+static func _warn_signal_graph_depth_limit(node: Node, max_node_depth: int, scan_state: Dictionary) -> void:
+	if max_node_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+		return
+	scan_state["depth_warning_emitted"] = true
+	scan_state["truncated"] = true
+	push_warning("[GFSceneSignalAudit] build_signal_graph 已达到 max_node_depth=%d，已跳过更深节点：%s。" % [
+		max_node_depth,
+		_relative_node_path(node, node),
+	])
 
 
 static func _get_node_or_root(root: Node, path: NodePath) -> Node:

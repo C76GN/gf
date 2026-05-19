@@ -234,7 +234,7 @@ var shape_configs: Array[GFHitCollisionShapeConfig2D] = [close_range, wide_arc]
 hit_box.apply_collision_shape_configs(shape_configs)
 ```
 
-HitBox 的 `broadcast_overlaps()` 会从当前重叠的 Area/Body 中向上查找具备 `receive_hit()` 的节点，并去重发送。若 HitBox 配置了 `sender_path`，且该业务发送者实现了 `send_to(receiver, payload_override, hit_id_override)`，碰撞广播会交给业务发送者接管；否则仍使用 HitBox 自身的 `send_to()`。Projectile 的自动命中沿用同一条 sender 分发规则。HurtBox 支持 `accepted_hit_ids`、`rejected_hit_ids` 和 `validation_callback`，适合项目层接入护盾、无敌帧、阵营过滤或编辑器调试；这些规则都在回调里表达，不写进框架默认逻辑。
+HitBox 的 `broadcast_overlaps()` 会从当前重叠的 Area/Body 中向上查找具备 `receive_hit()` 的节点，并去重发送。若 HitBox 配置了 `sender_path`，且该业务发送者实现了 `send_to(receiver, payload_override, hit_id_override)`，碰撞广播会交给业务发送者接管；否则仍使用 HitBox 自身的 `send_to()`。Projectile 的自动命中沿用同一条 sender 分发规则。业务 sender 接管时，发送结果信号仍由 HitBox / Projectile 发出；如果项目还希望 HurtBox 发出 `hit_received`，业务 sender 的 `send_to()` 需要实际调用 `receiver.receive_hit(context)`。HurtBox 支持 `accepted_hit_ids`、`rejected_hit_ids` 和 `validation_callback`，适合项目层接入护盾、无敌帧、阵营过滤或编辑器调试；这些规则都在回调里表达，不写进框架默认逻辑。
 
 需要随状态统一开关一组命中区域时，可以把 `GFHitBoxState2D` 或 `GFHitBoxState3D` 放在区域节点上层。它会递归管理子树内的 `GFHitBox*`、`GFHurtBox*` 和 `Area*`，可选择同步 `enabled`、`monitoring` / `monitorable` 和可见性：
 

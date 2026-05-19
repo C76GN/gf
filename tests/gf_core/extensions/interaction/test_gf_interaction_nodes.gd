@@ -258,6 +258,7 @@ func test_sensor_broadcast_to_group_uses_sender_send_to_override() -> void:
 	sensor.group_name = &"targets"
 	sensor.sender_path = NodePath("../Sender")
 	receiver.add_to_group("targets")
+	watch_signals(sensor)
 
 	var reports := sensor.broadcast_to_group()
 
@@ -265,6 +266,8 @@ func test_sensor_broadcast_to_group_uses_sender_send_to_override() -> void:
 	assert_same(sender.received_receiver, receiver, "sender_path 指向的发送者实现 send_to() 时应接管分组广播。")
 	assert_null(sender.received_payload, "未覆盖 payload 时应透传 null，让业务发送者使用自身默认值。")
 	assert_eq(sender.received_id, &"", "未覆盖交互 ID 时应透传空值，让业务发送者使用自身默认值。")
+	assert_signal_emitted(sensor, "interaction_sent", "业务发送者接管分组广播时 Sensor 仍应发出 interaction_sent。")
+	assert_signal_emitted(sensor, "interaction_accepted", "业务发送者返回成功报告时 Sensor 仍应发出 interaction_accepted。")
 
 
 func test_sensor_collision_candidates_resolve_receiver_ancestors() -> void:
@@ -302,6 +305,7 @@ func test_sensor_collision_dispatch_uses_sender_send_to_override() -> void:
 	root.add_child(receiver)
 	sender.name = "Sender"
 	sensor.sender_path = NodePath("../Sender")
+	watch_signals(sensor)
 
 	var reports: Array[Dictionary] = []
 	reports.assign(GF_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
@@ -310,13 +314,15 @@ func test_sensor_collision_dispatch_uses_sender_send_to_override() -> void:
 		0,
 		{ "value": 3 },
 		&"use",
-		&"receive_interaction"
+		&"receive_interaction",
+		Callable(sensor, "_emit_collision_dispatch_result")
 	))
 
 	assert_eq(reports.size(), 1, "碰撞广播应通过可覆写发送者发送一次交互。")
 	assert_same(sender.received_receiver, receiver, "sender_path 指向的发送者实现 send_to() 时应接管碰撞分发。")
 	assert_eq(sender.received_payload, { "value": 3 }, "payload 覆盖值应透传给业务发送者。")
 	assert_eq(sender.received_id, &"use", "交互 ID 覆盖值应透传给业务发送者。")
+	assert_signal_emitted(sensor, "interaction_sent", "业务发送者接管碰撞分发时 Sensor 仍应发出 interaction_sent。")
 
 
 func test_pointer_interaction_3d_sends_click_context_to_receiver() -> void:

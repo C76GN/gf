@@ -674,6 +674,48 @@ func test_extension_usage_audit_finds_project_reference() -> void:
 	assert_eq(String(references[0].get("path", "")), path, "审计结果应包含引用文件路径。")
 
 
+func test_extension_usage_audit_does_not_ignore_project_test_roots_by_default() -> void:
+	var references: Array = GF_EXTENSION_USAGE_AUDIT_BASE.find_references_to_root(
+		"res://addons/gf/extensions/save",
+		{
+			"scan_roots": ["res://tests/gf_core/fixtures/extension_usage_audit"],
+			"max_references_per_extension": 10,
+		}
+	)
+
+	assert_eq(references.size(), 1, "默认忽略列表不应把项目 tests/docs/tools 等目录当成框架内置细节。")
+	assert_eq(
+		String(references[0].get("path", "")),
+		"res://tests/gf_core/fixtures/extension_usage_audit/uses_save_in_project_tests.gd",
+		"审计应能报告项目测试目录里的禁用扩展引用。"
+	)
+
+
+func test_extension_usage_audit_respects_scanned_file_limit() -> void:
+	var directory := "user://gf_extension_usage_audit_limit"
+	var first_path := directory.path_join("uses_save_a.gd")
+	var second_path := directory.path_join("uses_save_b.gd")
+	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(directory))
+	_write_text_file(first_path, 'const SaveA = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")')
+	_write_text_file(second_path, 'const SaveB = preload("res://addons/gf/extensions/save/slots/gf_save_slot_metadata.gd")')
+
+	var references: Array = GF_EXTENSION_USAGE_AUDIT_BASE.find_references_to_root(
+		"res://addons/gf/extensions/save",
+		{
+			"scan_roots": [directory],
+			"ignored_roots": [],
+			"max_scanned_files": 1,
+			"max_references_per_extension": 10,
+		}
+	)
+
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(first_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(second_path))
+	DirAccess.remove_absolute(ProjectSettings.globalize_path(directory))
+
+	assert_eq(references.size(), 1, "禁用扩展引用审计应遵守 max_scanned_files 上限。")
+
+
 func test_extension_usage_audit_does_not_match_similar_prefix() -> void:
 	var directory := "user://gf_extension_usage_audit"
 	var path := directory.path_join("uses_save_extra.gd")
@@ -747,6 +789,15 @@ func _read_text(path: String) -> String:
 	var text := file.get_as_text()
 	file.close()
 	return text
+
+
+func _write_text_file(path: String, text: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	assert_not_null(file, "测试应能创建临时文本文件。")
+	if file == null:
+		return
+	file.store_string(text)
+	file.close()
 
 
 func _get_extension_root(path: String) -> String:

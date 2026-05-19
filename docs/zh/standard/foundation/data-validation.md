@@ -289,7 +289,7 @@ var junit_xml := GFValidationJUnitExporter.export_report(report, {
 })
 ```
 
-`GFValidationSuite` 只保存规则、include/exclude 路径、支持扩展名和是否把 warning 当 error。`GFValidationRunner` 可以直接校验对象数组，也可以加载路径；遇到 `PackedScene` 时默认会额外实例化根节点给 Node 规则检查。路径扫描只按扩展名和显式排除规则工作，不推断项目资源目录职责。`GFValidationJUnitExporter` 只把报告转成 CI 友好的 XML 字符串，构建是否失败、报告保存到哪里、如何展示问题都留给项目或流水线决定。
+`GFValidationSuite` 只保存规则、include/exclude 路径、支持扩展名和是否把 warning 当 error。`GFValidationRunner` 可以直接校验对象数组，也可以加载路径；遇到 `PackedScene` 时默认会额外实例化根节点给 Node 规则检查。路径扫描只按扩展名和显式排除规则工作，不推断项目资源目录职责；为避免误把整个项目或生成目录递归扫爆，`collect_paths()` 默认限制 `max_scan_depth = 32`、`max_collected_paths = 10000`，需要深度 CI 扫描时可以显式调高，设为 `0` 表示不限制。`GFValidationJUnitExporter` 只把报告转成 CI 友好的 XML 字符串，构建是否失败、报告保存到哪里、如何展示问题都留给项目或流水线决定。
 
 
 ## `GFResultDictionary`

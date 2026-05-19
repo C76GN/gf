@@ -66,7 +66,7 @@ func ready() -> void:
 func dispose() -> void:
 	_unregister_diagnostics_contribution()
 	clear_queue(true)
-	clear_all_named_queues(true)
+	_dispose_all_named_queues()
 	_interceptors.clear()
 
 
@@ -521,6 +521,16 @@ func _cancel_current_action() -> void:
 	if is_instance_valid(_current_action):
 		_ACTION_PROTOCOL.cancel(_current_action)
 	_current_action = null
+
+
+func _dispose_all_named_queues() -> void:
+	var queues: Array = _named_queues.values()
+	_named_queues.clear()
+	for queue: GFActionQueueSystem in queues:
+		if queue == null:
+			continue
+		queue.dispose()
+		queue._release_dependency_scope()
 
 
 func _register_diagnostics_contribution() -> void:

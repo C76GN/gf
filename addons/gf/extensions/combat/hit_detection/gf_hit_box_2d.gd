@@ -227,14 +227,16 @@ func broadcast_overlaps(
 	var candidates: Array = []
 	candidates.append_array(get_overlapping_areas())
 	candidates.append_array(get_overlapping_bodies())
+	var dispatch_host := _resolve_collision_dispatch_host()
 	var reports: Array[Dictionary] = []
 	reports.assign(_MESSAGE_DISPATCH_SUPPORT._send_to_collision_candidates(
-		_resolve_collision_dispatch_host(),
+		dispatch_host,
 		candidates,
 		max_count,
 		payload_override,
 		hit_id_override,
-		&"receive_hit"
+		&"receive_hit",
+		Callable(self, "_emit_collision_dispatch_result") if dispatch_host != self else Callable()
 	))
 	return reports
 
@@ -247,6 +249,15 @@ func _emit_send_result(context: GFCombatHitContext, receiver: Object, report: Di
 		hit_accepted.emit(context, receiver, report)
 	else:
 		hit_rejected.emit(context, receiver, report)
+
+
+func _emit_collision_dispatch_result(
+	receiver: Object,
+	payload_override: Variant,
+	hit_id_override: StringName,
+	report: Dictionary
+) -> void:
+	_emit_send_result(build_hit_context(receiver, payload_override, hit_id_override), receiver, report)
 
 
 func _resolve_sender() -> Object:

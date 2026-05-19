@@ -16,6 +16,8 @@ const GF_NODE_2D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/ca
 const GF_NODE_3D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_node_3d_capability.gd"
 const GF_CONTROL_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_control_capability.gd"
 const GF_CAPABILITY_RECIPE_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/recipes/gf_capability_recipe.gd"
+const DEFAULT_MAX_RECIPE_SCAN_DEPTH: int = 32
+const DEFAULT_MAX_RECIPE_CANDIDATES: int = 10000
 const GF_EXTENSION_SETTINGS_BASE := preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 const GF_EDITOR_TYPE_INDEX_BASE := preload("res://addons/gf/kernel/editor/gf_editor_type_index.gd")
 const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
@@ -189,7 +191,8 @@ func _collect_recipe_candidates() -> Array[Dictionary]:
 		return candidates
 
 	var used_paths: Dictionary = {}
-	_collect_recipe_candidates_recursive(root_dir, candidates, used_paths)
+	var scan_state := _make_recipe_scan_state()
+	_collect_recipe_candidates_recursive(root_dir, candidates, used_paths, 0, scan_state)
 	candidates.sort_custom(func(left: Dictionary, right: Dictionary) -> bool:
 		return String(left["label"]) < String(right["label"])
 	)
@@ -199,12 +202,20 @@ func _collect_recipe_candidates() -> Array[Dictionary]:
 func _collect_recipe_candidates_recursive(
 	directory: EditorFileSystemDirectory,
 	candidates: Array[Dictionary],
-	used_paths: Dictionary
+	used_paths: Dictionary,
+	depth: int,
+	scan_state: Dictionary
 ) -> void:
 	for i: int in range(directory.get_subdir_count()):
-		_collect_recipe_candidates_recursive(directory.get_subdir(i), candidates, used_paths)
+		var subdir := directory.get_subdir(i)
+		if _can_scan_recipe_deeper(subdir.get_path(), depth, scan_state):
+			_collect_recipe_candidates_recursive(subdir, candidates, used_paths, depth + 1, scan_state)
 
 	for i: int in range(directory.get_file_count()):
+		if not _can_collect_more_recipe_candidates(candidates, scan_state):
+			_warn_recipe_candidate_limit(scan_state)
+			break
+
 		var file_name := directory.get_file(i)
 		if not _is_recipe_resource_file(file_name):
 			continue
@@ -226,6 +237,37 @@ func _collect_recipe_candidates_recursive(
 			"path": path,
 			"recipe": recipe,
 		})
+
+
+func _can_scan_recipe_deeper(path: String, current_depth: int, scan_state: Dictionary) -> bool:
+	if current_depth < DEFAULT_MAX_RECIPE_SCAN_DEPTH:
+		return true
+	if bool(scan_state.get("depth_warning_emitted", false)):
+		return false
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFCapabilityInspector] Recipe 扫描已达到最大目录深度 %d，已跳过更深目录：%s。" % [
+		DEFAULT_MAX_RECIPE_SCAN_DEPTH,
+		path,
+	])
+	return false
+
+
+func _can_collect_more_recipe_candidates(candidates: Array[Dictionary], _scan_state: Dictionary) -> bool:
+	return candidates.size() < DEFAULT_MAX_RECIPE_CANDIDATES
+
+
+func _make_recipe_scan_state() -> Dictionary:
+	return {
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+func _warn_recipe_candidate_limit(scan_state: Dictionary) -> void:
+	if bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFCapabilityInspector] Recipe 候选已达到最大数量 %d，后续资源已跳过。" % DEFAULT_MAX_RECIPE_CANDIDATES)
 
 
 func _get_node_capability_base_scripts() -> Array[Script]:

@@ -25,6 +25,8 @@ enum ClipIdMode {
 
 const AUDIO_EXTENSIONS: PackedStringArray = ["wav", "ogg", "mp3", "opus"]
 const DEFAULT_EXCLUDED_PATHS: PackedStringArray = ["res://addons"]
+const DEFAULT_MAX_SCAN_DEPTH: int = 32
+const DEFAULT_MAX_AUDIO_PATHS: int = 10000
 const GFAudioBankBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_bank.gd")
 const GFAudioClipBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_clip.gd")
 const GFValidationReportBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
@@ -43,7 +45,7 @@ static func is_audio_path(path: String, extensions: PackedStringArray = AUDIO_EX
 
 ## 递归扫描音频路径。
 ## @param root_path: 扫描起点，通常是 res:// 下的目录。
-## @param options: 可选项，支持 recursive、include_addons、excluded_paths、extensions。
+## @param options: 可选项，支持 recursive、include_addons、excluded_paths、extensions、max_scan_depth 与 max_audio_paths。
 ## @return 按字典序排序的音频路径。
 static func scan_audio_paths(root_path: String = "res://", options: Dictionary = {}) -> PackedStringArray:
 	var result := PackedStringArray()
@@ -51,7 +53,20 @@ static func scan_audio_paths(root_path: String = "res://", options: Dictionary =
 	var extensions := _get_extensions(options)
 	var recursive := bool(options.get("recursive", true))
 	var excluded_paths := _get_excluded_paths(options)
-	_scan_audio_paths_recursive(normalized_root, recursive, excluded_paths, extensions, result)
+	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_SCAN_DEPTH)), 0)
+	var max_audio_paths := maxi(int(options.get("max_audio_paths", DEFAULT_MAX_AUDIO_PATHS)), 0)
+	var scan_state := _make_scan_state()
+	_scan_audio_paths_recursive(
+		normalized_root,
+		recursive,
+		excluded_paths,
+		extensions,
+		result,
+		0,
+		max_scan_depth,
+		max_audio_paths,
+		scan_state
+	)
 	result.sort()
 	return result
 
@@ -236,8 +251,15 @@ static func _scan_audio_paths_recursive(
 	recursive: bool,
 	excluded_paths: PackedStringArray,
 	extensions: PackedStringArray,
-	result: PackedStringArray
+	result: PackedStringArray,
+	depth: int,
+	max_scan_depth: int,
+	max_audio_paths: int,
+	scan_state: Dictionary
 ) -> void:
+	if not _can_collect_more_audio_paths(result, max_audio_paths):
+		_warn_audio_path_limit(max_audio_paths, scan_state)
+		return
 	if _is_excluded_path(dir_path, excluded_paths):
 		return
 
@@ -248,6 +270,10 @@ static func _scan_audio_paths_recursive(
 	dir.list_dir_begin()
 	var entry := dir.get_next()
 	while not entry.is_empty():
+		if not _can_collect_more_audio_paths(result, max_audio_paths):
+			_warn_audio_path_limit(max_audio_paths, scan_state)
+			break
+
 		if entry.begins_with("."):
 			entry = dir.get_next()
 			continue
@@ -255,11 +281,54 @@ static func _scan_audio_paths_recursive(
 		var child_path := dir_path.path_join(entry)
 		if dir.current_is_dir():
 			if recursive:
-				_scan_audio_paths_recursive(child_path, recursive, excluded_paths, extensions, result)
+				if _can_scan_deeper(child_path, depth, max_scan_depth, scan_state):
+					_scan_audio_paths_recursive(
+						child_path,
+						recursive,
+						excluded_paths,
+						extensions,
+						result,
+						depth + 1,
+						max_scan_depth,
+						max_audio_paths,
+						scan_state
+					)
 		elif is_audio_path(entry, extensions):
 			result.append(child_path)
 		entry = dir.get_next()
 	dir.list_dir_end()
+
+
+static func _can_scan_deeper(path: String, current_depth: int, max_scan_depth: int, scan_state: Dictionary) -> bool:
+	if max_scan_depth <= 0 or current_depth < max_scan_depth:
+		return true
+	_warn_scan_depth_limit(path, max_scan_depth, scan_state)
+	return false
+
+
+static func _can_collect_more_audio_paths(result: PackedStringArray, max_audio_paths: int) -> bool:
+	return max_audio_paths <= 0 or result.size() < max_audio_paths
+
+
+static func _make_scan_state() -> Dictionary:
+	return {
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+static func _warn_audio_path_limit(max_audio_paths: int, scan_state: Dictionary) -> void:
+	if max_audio_paths <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFAudioBankTools] scan_audio_paths 已达到 max_audio_paths=%d，后续音频已跳过。" % max_audio_paths)
+
+
+static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
+	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+		return
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFAudioBankTools] scan_audio_paths 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
 
 
 static func _get_extensions(options: Dictionary) -> PackedStringArray:

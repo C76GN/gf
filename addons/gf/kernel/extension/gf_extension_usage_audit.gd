@@ -6,15 +6,11 @@ extends RefCounted
 # --- 常量 ---
 
 const DEFAULT_SCAN_ROOTS: Array[String] = ["res://"]
+const DEFAULT_MAX_SCAN_DEPTH: int = 32
+const DEFAULT_MAX_SCANNED_FILES: int = 10000
 const DEFAULT_IGNORED_ROOTS: Array[String] = [
 	"res://.godot",
 	"res://.git",
-	"res://addons/gf",
-	"res://addons/gut",
-	"res://ai_analysis",
-	"res://docs",
-	"res://tests",
-	"res://tools",
 ]
 const TEXT_FILE_EXTENSIONS: Array[String] = [
 	"cfg",
@@ -34,7 +30,7 @@ const TEXT_FILE_EXTENSIONS: Array[String] = [
 
 ## 检查一组禁用扩展是否仍被项目文件直接引用。
 ## @param manifests: 要检查的禁用扩展 manifest 列表。
-## @param options: 可选参数，支持 scan_roots、ignored_roots、max_references_per_extension。
+## @param options: 可选参数，支持 scan_roots、ignored_roots、max_references_per_extension、max_scan_depth、max_scanned_files。
 ## @return 引用审计报告。
 static func audit_disabled_extensions(
 	manifests: Array[GFExtensionManifest],
@@ -70,7 +66,7 @@ static func audit_disabled_extensions(
 
 ## 查找项目文件中对指定扩展根目录的直接路径引用。
 ## @param root_path: 扩展根目录。
-## @param options: 可选参数，支持 scan_roots、ignored_roots、max_references_per_extension。
+## @param options: 可选参数，支持 scan_roots、ignored_roots、max_references_per_extension、max_scan_depth、max_scanned_files。
 ## @return 引用列表。
 static func find_references_to_root(root_path: String, options: Dictionary = {}) -> Array[Dictionary]:
 	var normalized_root := root_path.trim_suffix("/")
@@ -80,10 +76,24 @@ static func find_references_to_root(root_path: String, options: Dictionary = {})
 	var scan_roots := _to_string_array(options.get("scan_roots", DEFAULT_SCAN_ROOTS))
 	var ignored_roots := _to_string_array(options.get("ignored_roots", DEFAULT_IGNORED_ROOTS))
 	ignored_roots.append(normalized_root)
+	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_SCAN_DEPTH)), 0)
+	var max_scanned_files := maxi(int(options.get("max_scanned_files", DEFAULT_MAX_SCANNED_FILES)), 0)
+	var scan_state := _make_scan_state()
 
 	var files: Array[String] = []
 	for scan_root: String in scan_roots:
-		_collect_text_files(scan_root.trim_suffix("/"), ignored_roots, files)
+		_collect_text_files(
+			scan_root.trim_suffix("/"),
+			ignored_roots,
+			files,
+			0,
+			max_scan_depth,
+			max_scanned_files,
+			scan_state
+		)
+		if not _can_collect_more_files(files, max_scanned_files):
+			_warn_scanned_file_limit(max_scanned_files, scan_state)
+			break
 
 	var extension_class_names := _collect_extension_class_names(normalized_root)
 	var max_references := maxi(int(options.get("max_references_per_extension", 50)), 1)
@@ -102,7 +112,18 @@ static func find_references_to_root(root_path: String, options: Dictionary = {})
 
 # --- 私有/辅助方法 ---
 
-static func _collect_text_files(root_path: String, ignored_roots: Array[String], result: Array[String]) -> void:
+static func _collect_text_files(
+	root_path: String,
+	ignored_roots: Array[String],
+	result: Array[String],
+	depth: int,
+	max_scan_depth: int,
+	max_scanned_files: int,
+	scan_state: Dictionary
+) -> void:
+	if not _can_collect_more_files(result, max_scanned_files):
+		_warn_scanned_file_limit(max_scanned_files, scan_state)
+		return
 	if root_path.is_empty() or _is_path_ignored(root_path, ignored_roots):
 		return
 
@@ -113,10 +134,23 @@ static func _collect_text_files(root_path: String, ignored_roots: Array[String],
 	dir.list_dir_begin()
 	var entry := dir.get_next()
 	while not entry.is_empty():
+		if not _can_collect_more_files(result, max_scanned_files):
+			_warn_scanned_file_limit(max_scanned_files, scan_state)
+			break
+
 		var path := root_path.path_join(entry)
 		if dir.current_is_dir():
-			if not entry.begins_with(".") or entry == ".godot":
-				_collect_text_files(path, ignored_roots, result)
+			if not entry.begins_with("."):
+				if _can_scan_deeper(path, depth, max_scan_depth, scan_state):
+					_collect_text_files(
+						path,
+						ignored_roots,
+						result,
+						depth + 1,
+						max_scan_depth,
+						max_scanned_files,
+						scan_state
+					)
 		elif _is_text_resource_file(entry):
 			result.append(path)
 		entry = dir.get_next()
@@ -235,9 +269,49 @@ static func _is_path_ignored(path: String, ignored_roots: Array[String]) -> bool
 	return false
 
 
+static func _can_scan_deeper(path: String, current_depth: int, max_scan_depth: int, scan_state: Dictionary) -> bool:
+	if max_scan_depth <= 0 or current_depth < max_scan_depth:
+		return true
+	_warn_scan_depth_limit(path, max_scan_depth, scan_state)
+	return false
+
+
+static func _can_collect_more_files(result: Array[String], max_scanned_files: int) -> bool:
+	return max_scanned_files <= 0 or result.size() < max_scanned_files
+
+
+static func _make_scan_state() -> Dictionary:
+	return {
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+static func _warn_scanned_file_limit(max_scanned_files: int, scan_state: Dictionary) -> void:
+	if max_scanned_files <= 0 or bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFExtensionUsageAudit] 已达到 max_scanned_files=%d，后续文件已跳过。" % max_scanned_files)
+
+
+static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state: Dictionary) -> void:
+	if max_scan_depth <= 0 or bool(scan_state.get("depth_warning_emitted", false)):
+		return
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFExtensionUsageAudit] 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
+
+
 static func _collect_extension_class_names(root_path: String) -> Array[String]:
 	var files: Array[String] = []
-	_collect_gd_files(root_path, files)
+	var scan_state := _make_scan_state()
+	_collect_gd_files(
+		root_path,
+		files,
+		0,
+		DEFAULT_MAX_SCAN_DEPTH,
+		DEFAULT_MAX_SCANNED_FILES,
+		scan_state
+	)
 
 	var names: Array[String] = []
 	var regex := RegEx.new()
@@ -258,7 +332,18 @@ static func _collect_extension_class_names(root_path: String) -> Array[String]:
 	return names
 
 
-static func _collect_gd_files(root_path: String, result: Array[String]) -> void:
+static func _collect_gd_files(
+	root_path: String,
+	result: Array[String],
+	depth: int,
+	max_scan_depth: int,
+	max_scanned_files: int,
+	scan_state: Dictionary
+) -> void:
+	if not _can_collect_more_files(result, max_scanned_files):
+		_warn_scanned_file_limit(max_scanned_files, scan_state)
+		return
+
 	var dir := DirAccess.open(root_path)
 	if dir == null:
 		return
@@ -266,10 +351,22 @@ static func _collect_gd_files(root_path: String, result: Array[String]) -> void:
 	dir.list_dir_begin()
 	var entry := dir.get_next()
 	while not entry.is_empty():
+		if not _can_collect_more_files(result, max_scanned_files):
+			_warn_scanned_file_limit(max_scanned_files, scan_state)
+			break
+
 		var path := root_path.path_join(entry)
 		if dir.current_is_dir():
 			if not entry.begins_with("."):
-				_collect_gd_files(path, result)
+				if _can_scan_deeper(path, depth, max_scan_depth, scan_state):
+					_collect_gd_files(
+						path,
+						result,
+						depth + 1,
+						max_scan_depth,
+						max_scanned_files,
+						scan_state
+					)
 		elif entry.ends_with(".gd"):
 			result.append(path)
 		entry = dir.get_next()

@@ -10,6 +10,12 @@ extends Resource
 
 const GFValidationRuleBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_rule.gd")
 
+## 默认递归扫描目录深度上限。
+const DEFAULT_MAX_SCAN_DEPTH: int = 32
+
+## 默认单次路径收集数量上限。
+const DEFAULT_MAX_COLLECTED_PATHS: int = 10_000
+
 
 # --- 导出变量 ---
 
@@ -45,6 +51,16 @@ const GFValidationRuleBase = preload("res://addons/gf/standard/foundation/valida
 
 ## 扫描目录时是否包含隐藏目录和文件。
 @export var include_hidden: bool = false
+
+## 递归扫描的最大目录深度。0 表示不限制。
+@export var max_scan_depth: int = DEFAULT_MAX_SCAN_DEPTH:
+	set(value):
+		max_scan_depth = maxi(value, 0)
+
+## 单次 collect_paths() 最多收集的路径数量。0 表示不限制。
+@export var max_collected_paths: int = DEFAULT_MAX_COLLECTED_PATHS:
+	set(value):
+		max_collected_paths = maxi(value, 0)
 
 ## 可选元数据。框架不解释该字段。
 @export var metadata: Dictionary = {}
@@ -103,8 +119,11 @@ func collect_paths() -> PackedStringArray:
 	if not enabled:
 		return result
 
+	var scan_state := _make_scan_state()
 	for include_path: String in include_paths:
-		_collect_path(include_path, result)
+		_collect_path(include_path, result, 0, scan_state)
+		if not _can_collect_more_paths(result):
+			break
 	result.sort()
 	return result
 
@@ -123,6 +142,8 @@ func duplicate_suite() -> GFValidationSuite:
 	suite.scene_extensions = scene_extensions.duplicate()
 	suite.recursive = recursive
 	suite.include_hidden = include_hidden
+	suite.max_scan_depth = max_scan_depth
+	suite.max_collected_paths = max_collected_paths
 	suite.metadata = metadata.duplicate(true)
 	for rule: GFValidationRuleBase in rules:
 		suite.rules.append(rule.duplicate_rule() if rule != null else null)
@@ -131,12 +152,14 @@ func duplicate_suite() -> GFValidationSuite:
 
 # --- 私有/辅助方法 ---
 
-func _collect_path(path: String, result: PackedStringArray) -> void:
+func _collect_path(path: String, result: PackedStringArray, depth: int, scan_state: Dictionary) -> void:
+	if not _can_collect_more_paths(result):
+		_warn_collected_path_limit(scan_state)
+		return
 	if path.is_empty() or _is_excluded(path):
 		return
 	if FileAccess.file_exists(path):
-		if matches_path(path) and not result.has(path):
-			result.append(path)
+		_append_path_if_allowed(path, result, scan_state)
 		return
 
 	var dir := DirAccess.open(path)
@@ -147,20 +170,63 @@ func _collect_path(path: String, result: PackedStringArray) -> void:
 	dir.list_dir_begin()
 	var entry := dir.get_next()
 	while not entry.is_empty():
+		if not _can_collect_more_paths(result):
+			_warn_collected_path_limit(scan_state)
+			break
+
 		var child_path := path.path_join(entry)
 		if dir.current_is_dir():
-			if recursive and _should_scan_directory(entry, child_path):
-				_collect_path(child_path, result)
-		elif matches_path(child_path) and not result.has(child_path):
-			result.append(child_path)
+			if recursive and _should_scan_directory(entry, child_path, depth, scan_state):
+				_collect_path(child_path, result, depth + 1, scan_state)
+		else:
+			_append_path_if_allowed(child_path, result, scan_state)
 		entry = dir.get_next()
 	dir.list_dir_end()
 
 
-func _should_scan_directory(entry: String, path: String) -> bool:
+func _should_scan_directory(entry: String, path: String, current_depth: int, scan_state: Dictionary) -> bool:
 	if not include_hidden and entry.begins_with("."):
 		return false
-	return not _is_excluded(path)
+	if _is_excluded(path):
+		return false
+	if max_scan_depth > 0 and current_depth >= max_scan_depth:
+		_warn_scan_depth_limit(path, scan_state)
+		return false
+	return true
+
+
+func _append_path_if_allowed(path: String, result: PackedStringArray, scan_state: Dictionary) -> void:
+	if not matches_path(path) or result.has(path):
+		return
+	if not _can_collect_more_paths(result):
+		_warn_collected_path_limit(scan_state)
+		return
+	result.append(path)
+
+
+func _can_collect_more_paths(result: PackedStringArray) -> bool:
+	return max_collected_paths <= 0 or result.size() < max_collected_paths
+
+
+func _make_scan_state() -> Dictionary:
+	return {
+		"count_warning_emitted": false,
+		"depth_warning_emitted": false,
+	}
+
+
+func _warn_collected_path_limit(scan_state: Dictionary) -> void:
+	if bool(scan_state.get("count_warning_emitted", false)):
+		return
+	scan_state["count_warning_emitted"] = true
+	push_warning("[GFValidationSuite] collect_paths 已达到 max_collected_paths=%d，后续路径已跳过。" % max_collected_paths)
+
+
+func _warn_scan_depth_limit(path: String, scan_state: Dictionary) -> void:
+	if bool(scan_state.get("depth_warning_emitted", false)):
+		return
+	scan_state["depth_warning_emitted"] = true
+	push_warning("[GFValidationSuite] collect_paths 已达到 max_scan_depth=%d，已跳过更深目录：%s。" % [max_scan_depth, path])
 
 
 func _is_supported_file(path: String) -> bool:
