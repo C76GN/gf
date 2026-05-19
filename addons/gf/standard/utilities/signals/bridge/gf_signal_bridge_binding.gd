@@ -6,6 +6,12 @@ class_name GFSignalBridgeBinding
 extends RefCounted
 
 
+# --- 常量 ---
+
+const MAX_SIGNAL_ARGUMENTS: int = 16
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 公共变量 ---
 
 ## 桥接资源。
@@ -55,13 +61,38 @@ func _invoke_from_signal(
 	arg5: Variant = null,
 	arg6: Variant = null,
 	arg7: Variant = null,
-	arg8: Variant = null
+	arg8: Variant = null,
+	arg9: Variant = null,
+	arg10: Variant = null,
+	arg11: Variant = null,
+	arg12: Variant = null,
+	arg13: Variant = null,
+	arg14: Variant = null,
+	arg15: Variant = null,
+	arg16: Variant = null
 ) -> void:
 	var root := _get_root()
 	if bridge == null or root == null:
 		disconnect_bridge()
 		return
-	bridge.invoke(root, _collect_args(root, [arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8]))
+	bridge.invoke(root, _collect_args(root, [
+		arg1,
+		arg2,
+		arg3,
+		arg4,
+		arg5,
+		arg6,
+		arg7,
+		arg8,
+		arg9,
+		arg10,
+		arg11,
+		arg12,
+		arg13,
+		arg14,
+		arg15,
+		arg16,
+	]))
 
 
 func _collect_args(root: Node, raw_args: Array) -> Array:
@@ -70,6 +101,8 @@ func _collect_args(root: Node, raw_args: Array) -> Array:
 
 	var argument_count := bridge.source.get_signal_argument_count(root)
 	if argument_count >= 0:
+		if argument_count > MAX_SIGNAL_ARGUMENTS:
+			push_warning("[GFSignalBridgeBinding] 信号桥接当前最多捕获 %d 个参数。" % MAX_SIGNAL_ARGUMENTS)
 		return raw_args.slice(0, mini(argument_count, raw_args.size()))
 	return _trim_trailing_null_args(raw_args)
 
@@ -84,4 +117,4 @@ func _trim_trailing_null_args(raw_args: Array) -> Array:
 func _get_root() -> Node:
 	if _root_ref == null:
 		return null
-	return _root_ref.get_ref() as Node
+	return _INSTANCE_GUARD._get_live_node_from_ref(_root_ref)

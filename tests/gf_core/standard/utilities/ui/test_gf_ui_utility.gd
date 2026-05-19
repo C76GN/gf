@@ -25,6 +25,42 @@ class ManualAssetUtility extends GFAssetUtility:
 			callback.call(resource)
 
 
+class TestModalPanel extends Control:
+	signal resolved(result: GFModalResult)
+
+	var config: GFModalConfig = null
+	var context: Dictionary = {}
+	var did_resolve: bool = false
+
+	func configure(modal_config: GFModalConfig, modal_context: Dictionary = {}) -> void:
+		config = modal_config.duplicate_config() if modal_config != null else GFModalConfig.new()
+		context = modal_context.duplicate(true)
+		did_resolve = false
+
+	func resolve_action(action_id: StringName) -> bool:
+		if did_resolve:
+			return false
+		var action := config.get_action(action_id) if config != null else null
+		if action == null:
+			return false
+		did_resolve = true
+		resolved.emit(action.make_result(context))
+		return true
+
+	func resolve_cancel() -> bool:
+		if did_resolve:
+			return false
+		did_resolve = true
+		resolved.emit(GFModalResult.create(
+			GFModalResult.STATUS_CANCELLED,
+			&"cancel",
+			null,
+			config.metadata if config != null else {},
+			context
+		))
+		return true
+
+
 func before_each() -> void:
 	_ui_utility = GFUIUtility.new()
 	_ui_utility.init()
@@ -164,7 +200,7 @@ func test_modal_panel_options_and_cancel_dismiss() -> void:
 
 	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
 
-	assert_true(handled, "默认 modal 面板应允许取消关闭。")
+	assert_true(handled, "modal 面板默认策略应允许取消关闭。")
 	assert_eq(dismissed, [[panel, GFUIUtility.Layer.POPUP, "cancel"]], "取消请求应发出信号。")
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "取消关闭后栈顶应为空。")
 
@@ -182,7 +218,7 @@ func test_modal_can_refuse_cancel_dismiss() -> void:
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "拒绝取消后面板应仍在栈顶。")
 
 
-func test_open_modal_returns_result_and_closes_panel() -> void:
+func test_custom_modal_protocol_returns_result_and_project_closes_panel() -> void:
 	var confirm := GFModalAction.new()
 	confirm.action_id = &"confirm"
 	confirm.label = "Confirm"
@@ -195,13 +231,21 @@ func test_open_modal_returns_result_and_closes_panel() -> void:
 	config.actions = [confirm]
 
 	var received := { "result": null }
-	var panel := _ui_utility.open_modal(config, GFUIUtility.Layer.POPUP, {
-		"source": "test",
-	}, func(callback_result: GFModalResult) -> void:
+	var panel := TestModalPanel.new()
+	panel.configure(config, { "source": "test" })
+	panel.resolved.connect(func(callback_result: GFModalResult) -> void:
 		received["result"] = callback_result
+		_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
 	)
+	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
+		"mode": GFUIUtility.PanelMode.MODAL,
+		"dismiss_on_cancel": config.dismiss_on_cancel,
+		"focus_on_open": config.auto_focus,
+		"restore_focus_on_close": config.restore_focus_on_close,
+		"metadata": config.metadata,
+	})
 
-	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "open_modal 应把默认面板压入 UI 栈。")
+	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "项目 modal 面板应通过 UI 栈打开。")
 	assert_true(panel.resolve_action(&"confirm"), "按动作解析应成功。")
 
 	var received_result := received["result"] as GFModalResult
@@ -213,63 +257,20 @@ func test_open_modal_returns_result_and_closes_panel() -> void:
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "modal 解析后应从栈中关闭。")
 
 
-func test_resolved_hidden_modal_detaches_immediately() -> void:
-	var confirm := GFModalAction.new()
-	confirm.action_id = &"confirm"
-	confirm.label = "Confirm"
-	confirm.result_status = GFModalResult.STATUS_CONFIRMED
-
-	var config := GFModalConfig.new()
-	config.actions = [confirm]
-	var panel := _ui_utility.open_modal(config, GFUIUtility.Layer.POPUP)
-	var overlay := Control.new()
-	_ui_utility.push_panel_instance(overlay, GFUIUtility.Layer.POPUP)
-
-	assert_true(panel.resolve_action(&"confirm"), "被上层面板遮住的 modal 仍应能解析结果。")
-	assert_null(panel.get_parent(), "非栈顶 modal 解析后也应立即脱离 UI 层级。")
-	assert_false(_ui_utility.is_panel_open(panel, GFUIUtility.Layer.POPUP), "解析后的非栈顶 modal 应从栈中移除。")
-	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), overlay, "移除非栈顶 modal 不应影响当前栈顶。")
-
-	await get_tree().process_frame
-	assert_false(is_instance_valid(panel), "解析后的非栈顶 modal 下一帧应被释放。")
-
-
-func test_modal_panel_rerender_detaches_old_action_buttons_immediately() -> void:
-	var first_action := GFModalAction.new()
-	first_action.action_id = &"first"
-	first_action.label = "First"
-	var second_action := GFModalAction.new()
-	second_action.action_id = &"second"
-	second_action.label = "Second"
-	var first_config := GFModalConfig.new()
-	first_config.actions = [first_action, second_action]
-
-	var panel := GFModalPanel.new()
-	add_child_autofree(panel)
-	await get_tree().process_frame
-	panel.configure(first_config)
-	var old_buttons := panel._actions_box.get_children()
-
-	var next_action := GFModalAction.new()
-	next_action.action_id = &"next"
-	next_action.label = "Next"
-	var next_config := GFModalConfig.new()
-	next_config.actions = [next_action]
-
-	panel.configure(next_config)
-
-	assert_eq(panel._actions_box.get_child_count(), 1, "重新渲染 modal 动作时应立即移除旧按钮。")
-	for button: Node in old_buttons:
-		assert_null(button.get_parent(), "旧动作按钮应立即脱离 actions 容器。")
-
-
 func test_request_dismiss_top_resolves_modal_cancel() -> void:
 	var config := GFModalConfig.new()
 	config.dismiss_on_cancel = true
 	var received := { "status": &"" }
-	_ui_utility.open_modal(config, GFUIUtility.Layer.POPUP, {}, func(result: GFModalResult) -> void:
+	var panel := TestModalPanel.new()
+	panel.configure(config)
+	panel.resolved.connect(func(result: GFModalResult) -> void:
 		received["status"] = result.status
+		_ui_utility.pop_panel(GFUIUtility.Layer.POPUP)
 	)
+	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
+		"mode": GFUIUtility.PanelMode.MODAL,
+		"dismiss_on_cancel": config.dismiss_on_cancel,
+	})
 
 	var handled := _ui_utility.request_dismiss_top(GFUIUtility.Layer.POPUP, "cancel")
 
@@ -383,6 +384,16 @@ func test_external_free_of_top_panel_prunes_stack_and_reveals_under_panel() -> v
 	assert_true(panel1.visible, "外部释放顶层面板后，下层面板应重新可见。")
 
 
+func test_stale_freed_panel_reference_is_pruned_without_cast_error() -> void:
+	var stale_panel := Control.new()
+	var stack := _ui_utility._panel_stacks[GFUIUtility.Layer.POPUP] as Array
+	stack.append(stale_panel)
+	stale_panel.free()
+
+	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "已释放面板引用应被清出 UI 栈。")
+	assert_eq(stack.size(), 0, "清理后 UI 栈不应保留已释放面板引用。")
+
+
 func test_config_callback_destroying_panel_restores_hidden_panel() -> void:
 	var panel1 := Control.new()
 	var panel2 := Control.new()
@@ -433,6 +444,105 @@ func test_push_panel_async_ignores_late_callback_after_dispose() -> void:
 	await get_tree().process_frame
 
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "销毁后的异步回调不应再把面板压入栈。")
+
+
+func test_push_panel_async_reports_pending_load_lifecycle() -> void:
+	_arch = GFArchitecture.new()
+	var asset_util := ManualAssetUtility.new()
+	_arch.register_utility_instance(asset_util)
+	await Gf.set_architecture(_arch)
+
+	var path := "res://tests/pending_async_panel.tscn"
+	var started: Array = []
+	var finished: Array = []
+	_ui_utility.panel_async_load_started.connect(func(load_path: String, layer: int, operation: StringName) -> void:
+		started.append([load_path, layer, operation])
+	)
+	_ui_utility.panel_async_load_finished.connect(func(
+		load_path: String,
+		layer: int,
+		operation: StringName,
+		status: int,
+		panel: Node
+	) -> void:
+		finished.append([load_path, layer, operation, status, panel])
+	)
+
+	_ui_utility.push_panel_async(path, GFUIUtility.Layer.POPUP)
+
+	assert_true(_ui_utility.has_pending_async_panel(GFUIUtility.Layer.POPUP, path), "异步加载期间应暴露 pending 状态。")
+	assert_eq(_ui_utility.get_pending_async_panel_requests(GFUIUtility.Layer.POPUP).size(), 1, "pending 快照应包含当前请求。")
+	assert_eq(started, [[path, GFUIUtility.Layer.POPUP, &"push"]], "异步请求开始时应发出开始信号。")
+
+	asset_util.resolve(path, _make_control_scene())
+	await get_tree().process_frame
+
+	assert_false(_ui_utility.has_pending_async_panel(GFUIUtility.Layer.POPUP, path), "资源返回后 pending 状态应清理。")
+	assert_eq(finished.size(), 1, "异步请求结束时应发出结束信号。")
+	assert_eq(finished[0][3], GFUIUtility.AsyncPanelLoadStatus.OPENED, "成功入栈应报告 OPENED。")
+	assert_not_null(finished[0][4], "成功状态应携带已打开面板。")
+
+
+func test_pending_async_panel_cancel_clears_state_and_reports_finished() -> void:
+	_arch = GFArchitecture.new()
+	var asset_util := ManualAssetUtility.new()
+	_arch.register_utility_instance(asset_util)
+	await Gf.set_architecture(_arch)
+
+	var path := "res://tests/pending_async_panel.tscn"
+	var finished: Array = []
+	_ui_utility.panel_async_load_finished.connect(func(
+		load_path: String,
+		layer: int,
+		operation: StringName,
+		status: int,
+		panel: Node
+	) -> void:
+		finished.append([load_path, layer, operation, status, panel])
+	)
+
+	_ui_utility.push_panel_async(path, GFUIUtility.Layer.POPUP)
+	_ui_utility.clear_layer(GFUIUtility.Layer.POPUP)
+
+	assert_false(_ui_utility.has_pending_async_panel(GFUIUtility.Layer.POPUP, path), "清层应立即清理 pending 状态。")
+	assert_eq(finished.size(), 1, "取消异步请求应发出结束信号。")
+	assert_eq(finished[0][3], GFUIUtility.AsyncPanelLoadStatus.CANCELLED, "清层取消应报告 CANCELLED。")
+	assert_null(finished[0][4], "取消状态不应携带面板。")
+
+	asset_util.resolve(path, _make_control_scene())
+	await get_tree().process_frame
+
+	assert_eq(finished.size(), 1, "迟到资源回调不应重复发出结束信号。")
+	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "取消后的迟到异步回调不应打开面板。")
+
+
+func test_push_panel_async_reports_failed_when_resource_is_not_scene() -> void:
+	_arch = GFArchitecture.new()
+	var asset_util := ManualAssetUtility.new()
+	_arch.register_utility_instance(asset_util)
+	await Gf.set_architecture(_arch)
+
+	var path := "res://tests/invalid_async_panel.tscn"
+	var finished: Array = []
+	_ui_utility.panel_async_load_finished.connect(func(
+		load_path: String,
+		layer: int,
+		operation: StringName,
+		status: int,
+		panel: Node
+	) -> void:
+		finished.append([load_path, layer, operation, status, panel])
+	)
+
+	_ui_utility.push_panel_async(path, GFUIUtility.Layer.POPUP)
+	asset_util.resolve(path, Resource.new())
+	await get_tree().process_frame
+
+	assert_false(_ui_utility.has_pending_async_panel(GFUIUtility.Layer.POPUP, path), "加载失败后 pending 状态应清理。")
+	assert_eq(finished.size(), 1, "加载失败也应发出结束信号。")
+	assert_eq(finished[0][3], GFUIUtility.AsyncPanelLoadStatus.FAILED, "非 PackedScene 资源应报告 FAILED。")
+	assert_null(finished[0][4], "失败状态不应携带面板。")
+	assert_push_error("[GFUIUtility] 无法实例化面板场景：%s" % path)
 
 
 func test_push_panel_async_ignores_late_callback_after_layer_clear() -> void:

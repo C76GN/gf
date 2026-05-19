@@ -23,6 +23,11 @@ signal asset_handle_released(path: String, reference_count: int)
 signal asset_group_preloaded(group_id: StringName, report: Dictionary)
 
 
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 公共变量 ---
 
 ## LRU 缓存最大容量；设为 `0` 时表示禁用缓存。
@@ -166,8 +171,8 @@ func load_handle_async(
 		if resource == null:
 			on_loaded.call(null)
 			return
-		var resolved_owner := owner_ref.get_ref() as Object if owner_ref != null else null
-		if owner_ref != null and not is_instance_valid(resolved_owner):
+		var resolved_owner: Object = _INSTANCE_GUARD._get_live_object_from_ref(owner_ref)
+		if owner_ref != null and resolved_owner == null:
 			on_loaded.call(null)
 			return
 

@@ -11,6 +11,7 @@ extends Control
 const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
 const GFSaveScopeBase = preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
 const GFSaveSourceBase = preload("res://addons/gf/extensions/save/core/gf_save_source.gd")
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 const GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
@@ -165,7 +166,7 @@ func _build_ui() -> void:
 
 func _resolve_root() -> Node:
 	if _root_ref != null:
-		var root := _root_ref.get_ref() as Node
+		var root: Node = _INSTANCE_GUARD._get_live_node_from_ref(_root_ref)
 		if root != null:
 			return root
 

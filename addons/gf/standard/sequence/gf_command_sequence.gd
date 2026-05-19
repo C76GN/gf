@@ -33,6 +33,7 @@ signal sequence_cancelled
 # --- 常量 ---
 
 const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/gf_async_wait_support.gd")
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -194,15 +195,16 @@ func with_failure_policy(
 # --- 私有/辅助方法 ---
 
 func _execute_step(step: Variant) -> Variant:
-	if step is Object:
-		_inject_step(step)
-		if step is GFSequenceStep:
-			return step.execute(context)
-		if step.has_method("execute"):
-			return step.call("execute")
-		if step.has_method("resolve"):
-			return step.call("resolve")
-	elif step is Callable:
+	var step_object := _get_valid_step_object(step)
+	if step_object != null:
+		_inject_step(step_object)
+		if step_object is GFSequenceStep:
+			return (step_object as GFSequenceStep).execute(context)
+		if step_object.has_method("execute"):
+			return step_object.call("execute")
+		if step_object.has_method("resolve"):
+			return step_object.call("resolve")
+	if step is Callable:
 		var callable := step as Callable
 		if callable.is_valid():
 			return callable.call()
@@ -213,13 +215,16 @@ func _cancel_current_step() -> void:
 	if _current_step == null:
 		return
 
-	if _current_step is GFSequenceStep:
-		(_current_step as GFSequenceStep).cancel(context)
+	var step_object := _get_valid_step_object(_current_step)
+	if step_object == null:
 		return
 
-	var step := _current_step as Object
-	if step != null and step.has_method("cancel"):
-		step.call("cancel")
+	if step_object is GFSequenceStep:
+		(step_object as GFSequenceStep).cancel(context)
+		return
+
+	if step_object.has_method("cancel"):
+		step_object.call("cancel")
 
 
 func _get_step_error(result: Variant) -> String:
@@ -259,7 +264,7 @@ func _make_step_report(index: int, ok: bool, error: String, result: Variant) -> 
 
 func _rollback_steps(completed_steps: Array) -> void:
 	for index: int in range(completed_steps.size() - 1, -1, -1):
-		var step := completed_steps[index] as Object
+		var step := _get_valid_step_object(completed_steps[index])
 		if step == null or not step.has_method("undo"):
 			continue
 		_inject_step(step)
@@ -281,9 +286,14 @@ func _inject_step(step: Object) -> void:
 func _should_wait_for_step(step: Variant, result: Variant) -> bool:
 	if not (result is Signal):
 		return false
-	if step is GFSequenceStep:
-		return step.wait_for_result
+	var step_object := _get_valid_step_object(step)
+	if step_object is GFSequenceStep:
+		return (step_object as GFSequenceStep).wait_for_result
 	return true
+
+
+func _get_valid_step_object(step: Variant) -> Object:
+	return _INSTANCE_GUARD._get_live_object(step)
 
 
 func _await_signal_safely(result_signal: Signal) -> void:

@@ -43,6 +43,8 @@ const _HOOK_INTERNAL_ON_RELEASE: StringName = &"_gf_on_object_pool_release"
 ## 框架内部对象池取出钩子。用于让 GFController 等基础类型同步生命周期。
 const _HOOK_INTERNAL_ON_ACQUIRE: StringName = &"_gf_on_object_pool_acquire"
 
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
 
 # --- 公共变量 ---
 
@@ -88,8 +90,9 @@ func dispose() -> void:
 	_is_disposed = true
 	for scene in _all_nodes:
 		var pool: Array = _all_nodes[scene]
-		for node in pool:
-			if is_instance_valid(node):
+		for node_variant: Variant in pool:
+			var node := _get_valid_pool_node(node_variant)
+			if node != null:
 				_queue_free_detached(node)
 	if is_instance_valid(_pool_root):
 		_queue_free_detached(_pool_root)
@@ -122,9 +125,8 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 
 	while not available_pool.is_empty():
 		var popped_item = available_pool.pop_back()
-		
-		if is_instance_valid(popped_item) and not popped_item.is_queued_for_deletion():
-			var node: Node = popped_item as Node
+		var node := _get_valid_pool_node(popped_item)
+		if node != null:
 			node.set_meta(_META_ACTIVE, true)
 			node.set_meta(_META_SOURCE_SCENE, scene)
 			_set_node_tree_active_state(node, true)
@@ -305,7 +307,7 @@ func get_available_count(scene: PackedScene) -> int:
 
 	var count: int = 0
 	for item in _available_pools[scene]:
-		if is_instance_valid(item) and not item.is_queued_for_deletion():
+		if _get_valid_pool_node(item) != null:
 			count += 1
 	return count
 
@@ -327,8 +329,8 @@ func get_active_nodes(scene: PackedScene) -> Array[Node]:
 
 	_prune_invalid_scene_nodes_if_needed(scene)
 	for item in _all_nodes[scene]:
-		var node := item as Node
-		if is_instance_valid(node) and bool(node.get_meta(_META_ACTIVE, false)):
+		var node := _get_valid_pool_node(item)
+		if node != null and bool(node.get_meta(_META_ACTIVE, false)):
 			result.append(node)
 	return result
 
@@ -494,6 +496,15 @@ func _call_node_tree_internal_hook(node: Node, hook_name: StringName) -> void:
 		_call_node_tree_internal_hook(child, hook_name)
 
 
+func _get_valid_pool_node(value: Variant) -> Node:
+	var node: Node = _INSTANCE_GUARD._get_live_node(value)
+	if node == null:
+		return null
+	if node.is_queued_for_deletion():
+		return null
+	return node
+
+
 func _resolve_owner_scene(node: Node, fallback_scene: PackedScene) -> PackedScene:
 	var owner_scene := fallback_scene
 
@@ -522,14 +533,14 @@ func _prune_invalid_scene_nodes(scene: PackedScene) -> void:
 		var all_nodes: Array = _all_nodes[scene]
 		for i: int in range(all_nodes.size() - 1, -1, -1):
 			var node_variant: Variant = all_nodes[i]
-			if not is_instance_valid(node_variant) or node_variant.is_queued_for_deletion():
+			if _get_valid_pool_node(node_variant) == null:
 				all_nodes.remove_at(i)
 
 	if _available_pools.has(scene):
 		var available_pool: Array = _available_pools[scene]
 		for i: int in range(available_pool.size() - 1, -1, -1):
 			var node_variant: Variant = available_pool[i]
-			if not is_instance_valid(node_variant) or node_variant.is_queued_for_deletion():
+			if _get_valid_pool_node(node_variant) == null:
 				available_pool.remove_at(i)
 
 

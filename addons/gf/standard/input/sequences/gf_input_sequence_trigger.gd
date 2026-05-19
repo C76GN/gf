@@ -9,6 +9,7 @@ extends GFInputTrigger
 
 const GFInputSequenceBranchBase = preload("res://addons/gf/standard/input/sequences/gf_input_sequence_branch.gd")
 const GFInputSequenceStepBase = preload("res://addons/gf/standard/input/sequences/gf_input_sequence_step.gd")
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 导出变量 ---
@@ -93,7 +94,7 @@ func _advance_branches(
 	delta: float,
 	effective_branches: Array[GFInputSequenceBranchBase]
 ) -> void:
-	var input_runtime := state.get("input_runtime") as Object
+	var input_runtime := _get_input_runtime(state)
 	if input_runtime == null:
 		return
 
@@ -136,6 +137,10 @@ func _advance_branch(
 		branch_state["step_was_active"] = false
 		if sequence_index >= steps.size():
 			branch_state["completed"] = true
+
+
+func _get_input_runtime(state: Dictionary) -> Object:
+	return _INSTANCE_GUARD._get_live_object(state.get("input_runtime"))
 
 
 func _advance_step(

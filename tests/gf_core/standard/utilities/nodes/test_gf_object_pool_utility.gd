@@ -397,6 +397,16 @@ func test_active_count_and_debug_snapshot_report_pool_state() -> void:
 	_pool.release(node, _scene)
 
 
+func test_active_nodes_tolerates_stale_freed_node_when_auto_prune_disabled() -> void:
+	_pool.prune_invalid_on_each_operation = false
+	var node: Node = _pool.acquire(_scene, _parent)
+	_parent.remove_child(node)
+	node.free()
+
+	assert_eq(_pool.get_active_nodes(_scene).size(), 0, "active 查询不应对已释放池节点执行类型转换。")
+	assert_eq(_pool.get_active_count(_scene), 0, "active 计数应忽略已释放池节点。")
+
+
 func test_disposed_pool_rejects_new_operations() -> void:
 	_pool.dispose()
 

@@ -72,7 +72,7 @@ signals.disconnect_owner(self)
 
 `filter()`、`map()`、`delay()`、`debounce()`、`throttle()`、`skip()`、`take()`、`scan()` 会按链式顺序执行；`first()` 是 `take(1)` 的语义糖，`start_with(value)` 可立即向链路注入一次初始值。`connect_any()` 可把多个 Signal 接到同一个回调，返回的连接列表可交给 `disconnect_connections()` 批量断开。`connect_once()` 或 `once()` 会在首次成功触发后自动断开并从工具追踪中移除。`connect_signal()` 返回的链式对象类型是 `GFSignalConnection`，通常不需要手动保存；只有需要主动 `disconnect_signal()`、延迟追加操作或查询连接状态时才保留引用。
 
-连接会用弱引用追踪 owner，`prune_invalid_connections()` 会清理 owner、信号源或回调目标已经失效的连接。当前连接包装器最多收集 8 个信号参数；超过这个数量的极少数自定义信号应直接使用 Godot 原生连接或自行封装 payload。`delay()` / `debounce()` 使用 SceneTree 计时器或帧等待做信号层延迟，`throttle()` 使用系统毫秒时间做信号层节流，适合 UI、编辑器工具和轻量运行时事件；它不是 `GFTimerUtility` 的替代品，也不会表达 GF 逻辑时间组的暂停语义。
+连接会用弱引用追踪 owner，`prune_invalid_connections()` 会清理 owner、信号源或回调目标已经失效的连接。当前连接包装器、异步等待 payload 捕获、`GFSignalBridgeBinding` 和运行时信号探针最多收集 16 个信号参数；超过这个数量的极少数自定义信号应直接使用 Godot 原生连接或自行封装 payload。`delay()` / `debounce()` 使用 SceneTree 计时器或帧等待做信号层延迟，`throttle()` 使用系统毫秒时间做信号层节流，适合 UI、编辑器工具和轻量运行时事件；它不是 `GFTimerUtility` 的替代品，也不会表达 GF 逻辑时间组的暂停语义。
 
 如果项目需要把信号连接保存成资源或配置，而不是在脚本里手写所有 `connect()`，可以使用 `GFSignalBridge`。桥接由 `GFSignalSourceRef` 描述来源节点和信号名，由 `GFCallableTargetRef` 描述目标节点和方法名，再通过参数索引、常量参数和上下文字典完成通用转发。`GFSignalBridgeBinding` 是运行时连接句柄，可用于检查或断开桥接。
 

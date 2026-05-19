@@ -6,6 +6,11 @@ class_name GFDropZone
 extends RefCounted
 
 
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 公共变量 ---
 
 ## 落点 ID。
@@ -139,7 +144,7 @@ static func from_control(
 	zone.contains_callable = func(position: Variant, _session: GFDragSession) -> bool:
 		if typeof(position) != TYPE_VECTOR2 or control_ref == null:
 			return false
-		var current := control_ref.get_ref() as Control
+		var current: Control = _INSTANCE_GUARD._get_live_control_from_ref(control_ref)
 		if current == null:
 			return false
 		return current.get_global_rect().has_point(position)
@@ -152,4 +157,3 @@ func _accepts_type(drag_type: StringName) -> bool:
 	if accepted_types.is_empty():
 		return true
 	return accepted_types.has(String(drag_type))
-

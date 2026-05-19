@@ -42,6 +42,11 @@ enum Operation {
 }
 
 
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 公共变量 ---
 
 ## 路由历史最大保留数量。小于等于 0 表示不保留历史。
@@ -459,7 +464,7 @@ func _get_history_panel(entry: Dictionary) -> Node:
 	var panel_ref := entry.get("panel_ref") as WeakRef
 	if panel_ref == null:
 		return null
-	return panel_ref.get_ref() as Node
+	return _INSTANCE_GUARD._get_live_node_from_ref(panel_ref)
 
 
 func _make_public_history_entry(entry: Dictionary) -> Dictionary:

@@ -35,6 +35,27 @@ func test_probe_records_watched_signal_emissions() -> void:
 	source.free()
 
 
+func test_probe_records_wide_signal_payload() -> void:
+	var source := SignalSource.new()
+	var probe: GFSignalRuntimeProbeBase = GFSignalRuntimeProbeBase.new()
+
+	var report := probe.watch_node(source, {
+		"include_signals": [&"wide_payload"],
+	})
+	source.wide_payload.emit(0, 1, 2, 3, 4, 5, 6, 7, 8)
+
+	var events := probe.get_events()
+	var arguments := events[0]["arguments"] as Array
+
+	assert_true(bool(report["ok"]), "9 参数信号应能被运行时探针监听。")
+	assert_eq(events.size(), 1, "9 参数信号发射应被记录。")
+	assert_eq(arguments.size(), 9, "运行时探针应保留 9 参数 payload。")
+	assert_eq(arguments[8], 8, "运行时探针应保留第 9 个参数。")
+
+	probe.unwatch_all()
+	source.free()
+
+
 func test_probe_respects_event_limit_and_unwatch() -> void:
 	var source := SignalSource.new()
 	var probe: GFSignalRuntimeProbeBase = GFSignalRuntimeProbeBase.new()
@@ -127,6 +148,7 @@ class SignalSource extends Node:
 	signal no_args
 	signal value_changed(value)
 	signal pair_changed(left, right)
+	signal wide_payload(a, b, c, d, e, f, g, h, i)
 
 	func _on_no_args() -> void:
 		pass

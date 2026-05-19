@@ -423,6 +423,16 @@ func start(args: Dictionary = {}) -> void:
 	transition_to(initial_state, args if not args.is_empty() else initial_args)
 
 
+## 停止当前激活状态，但保留已注册状态节点。
+func stop() -> void:
+	_exit_active_states_for_clear()
+	_current_state = null
+	_state_stack.clear()
+	_history.clear()
+	_is_exiting_current_state = false
+	_queued_exit_transition.clear()
+
+
 ## 获取所有状态。
 func get_states() -> Array[GFNodeState]:
 	var result: Array[GFNodeState] = []
@@ -448,13 +458,8 @@ func get_state_snapshot() -> Dictionary:
 ## @param free_states: 为 true 时同时释放已移除的状态节点。
 func clear_states(free_states: bool = false) -> void:
 	var states := get_states()
-	_exit_active_states_for_clear()
+	stop()
 	_states.clear()
-	_current_state = null
-	_state_stack.clear()
-	_history.clear()
-	_is_exiting_current_state = false
-	_queued_exit_transition.clear()
 	for state: GFNodeState in states:
 		var transition_signal: Signal = state.get("requested_transition")
 		if transition_signal.is_connected(_on_state_requested_transition):

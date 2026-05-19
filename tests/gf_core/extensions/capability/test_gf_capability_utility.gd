@@ -372,6 +372,23 @@ func test_remove_capability_calls_hook_and_clears_storage() -> void:
 	assert_false(_utility.has_capability(receiver, HealthCapability), "移除后不应再查询到能力。")
 
 
+func test_get_capability_prunes_freed_meta_instance_without_cast_error() -> void:
+	var receiver := Node.new()
+	add_child(receiver)
+	var capability := CapabilityNode.new()
+	var capability_types: Array[Script] = _utility._get_capability_type_list(receiver)
+	capability_types.append(CapabilityNode)
+	receiver.set_meta(_utility._get_capability_meta_name(CapabilityNode), capability)
+	capability.free()
+
+	assert_null(_utility.get_capability(receiver, CapabilityNode), "能力元数据里的已释放实例应被清理。")
+	assert_false(receiver.has_meta(_utility._get_capability_meta_name(CapabilityNode)), "清理后 receiver 不应保留失效能力元数据。")
+	assert_false(capability_types.has(CapabilityNode), "清理后能力类型列表不应保留失效能力类型。")
+
+	receiver.queue_free()
+	await get_tree().process_frame
+
+
 func test_unregister_capability_keeps_instance_detached_from_lifecycle() -> void:
 	var receiver := RefCounted.new()
 	var capability := _utility.add_capability(receiver, HealthCapability) as HealthCapability

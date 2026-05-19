@@ -24,7 +24,7 @@ enabled=PackedStringArray("res://addons/gf/plugin.cfg", "res://addons/gut/plugin
 
 [gf]
 
-extensions/enabled=Array[String](["gf.action_queue", "gf.behavior_tree", "gf.capability", "gf.combat", "gf.domain", "gf.feedback", "gf.flow", "gf.interaction", "gf.network", "gf.physics", "gf.save", "gf.turn_based"])
+extensions/enabled=Array[String](["gf.action_queue", "gf.behavior_tree", "gf.camera", "gf.capability", "gf.combat", "gf.dialogue", "gf.domain", "gf.feedback", "gf.flow", "gf.interaction", "gf.network", "gf.physics", "gf.save", "gf.turn_based"])
 extensions/export_fail_on_disabled_references=true
 network/contract_paths=PackedStringArray()
 network/contract_output_dir="res://gf/generated/network"

@@ -921,6 +921,8 @@ func _try_create_source_from_payload(
 		scope.add_child(entity)
 		_track_created_entity(context, entity)
 		factory.after_entity_created(entity, descriptor, context)
+		if not is_instance_valid(entity):
+			return null
 		return entity as GFSaveSourceBase
 	var source := _find_first_source(entity)
 	if source == null:
@@ -930,6 +932,8 @@ func _try_create_source_from_payload(
 	scope.add_child(entity)
 	_track_created_entity(context, entity)
 	factory.after_entity_created(entity, descriptor, context)
+	if not is_instance_valid(entity) or not is_instance_valid(source):
+		return null
 	return source
 
 
@@ -1037,7 +1041,10 @@ func _rollback_created_entities(context: Dictionary) -> void:
 		return
 
 	for index: int in range(created_entities.size() - 1, -1, -1):
-		var entity := created_entities[index] as Node
+		var entity_variant: Variant = created_entities[index]
+		if not is_instance_valid(entity_variant):
+			continue
+		var entity := entity_variant as Node
 		_free_created_entity(entity)
 	created_entities.clear()
 

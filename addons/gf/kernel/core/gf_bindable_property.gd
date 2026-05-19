@@ -1,4 +1,4 @@
-﻿## GFBindableProperty: 响应式数据绑定属性容器。
+## GFBindableProperty: 响应式数据绑定属性容器。
 ##
 ## 封装一个 Variant 值，当值发生变化时自动发出 value_changed 信号。
 ## 可用于 Controller 直接监听 Model 数据变化，无需通过事件总线中转。
@@ -12,6 +12,11 @@ extends RefCounted
 ## @param old_value: 变化前的旧值。
 ## @param new_value: 变化后的新值。
 signal value_changed(old_value: Variant, new_value: Variant)
+
+
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -183,7 +188,7 @@ func unbind_all_node_bindings() -> void:
 	for binding: Dictionary in _node_bindings:
 		var node_ref: WeakRef = binding.get("node_ref")
 		var exit_callable: Callable = binding.get("exit_callable", Callable())
-		var node := node_ref.get_ref() as Node if node_ref != null else null
+		var node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
 		if is_instance_valid(node) and node.tree_exited.is_connected(exit_callable):
 			node.tree_exited.disconnect(exit_callable)
 
@@ -202,7 +207,7 @@ func disconnect_all_subscribers() -> void:
 	for binding: Dictionary in _node_bindings:
 		var node_ref: WeakRef = binding.get("node_ref")
 		var exit_callable: Callable = binding.get("exit_callable", Callable())
-		var node := node_ref.get_ref() as Node if node_ref != null else null
+		var node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
 		if is_instance_valid(node) and node.tree_exited.is_connected(exit_callable):
 			node.tree_exited.disconnect(exit_callable)
 
@@ -253,7 +258,7 @@ func _find_node_binding_index(node: Node, callable: Callable) -> int:
 	for i: int in range(_node_bindings.size()):
 		var binding: Dictionary = _node_bindings[i]
 		var node_ref: WeakRef = binding.get("node_ref")
-		var tracked_node := node_ref.get_ref() as Node if node_ref != null else null
+		var tracked_node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
 		if tracked_node == node and binding.get("callable") == callable:
 			return i
 
@@ -288,7 +293,7 @@ func _prune_invalid_node_bindings() -> void:
 	for i in range(_node_bindings.size() - 1, -1, -1):
 		var binding: Dictionary = _node_bindings[i]
 		var node_ref: WeakRef = binding.get("node_ref")
-		var tracked_node := node_ref.get_ref() as Node if node_ref != null else null
+		var tracked_node: Node = _INSTANCE_GUARD._get_live_node_from_ref(node_ref)
 		if not is_instance_valid(tracked_node):
 			var pruned_callable: Callable = binding.get("callable", Callable())
 			if pruned_callable.is_valid() and not pruned_callables.has(pruned_callable):

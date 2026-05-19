@@ -89,6 +89,27 @@ func test_plugin_action_menu_ids_are_unique() -> void:
 	assert_gt(highest_id, GF_PLUGIN_ACTIONS.MENU_GENERATE_PROJECT_ACCESSORS, "动态模板或包动作应可注册到菜单。")
 
 
+func test_plugin_actions_setup_replaces_previous_file_dialog_immediately() -> void:
+	var actions: Variant = GF_PLUGIN_ACTIONS.new()
+	var old_dialog := FileDialog.new()
+	add_child(old_dialog)
+	actions._file_dialog = old_dialog
+
+	actions.setup([])
+	var current_dialog := actions._file_dialog as FileDialog
+
+	assert_not_null(current_dialog, "setup 应创建新的文件对话框。")
+	assert_ne(current_dialog, old_dialog, "重复 setup 应替换旧文件对话框。")
+	assert_null(old_dialog.get_parent(), "重复 setup 应立即让旧文件对话框脱离父节点。")
+
+	actions.cleanup()
+	assert_null(current_dialog.get_parent(), "cleanup 应立即让当前文件对话框脱离父节点。")
+
+	await get_tree().process_frame
+	assert_false(is_instance_valid(old_dialog), "旧文件对话框应在下一帧释放。")
+	assert_false(is_instance_valid(current_dialog), "当前文件对话框应在下一帧释放。")
+
+
 func test_plugin_action_system_template_uses_gf_lifecycle_section() -> void:
 	var actions: Variant = GF_PLUGIN_ACTIONS.new()
 	actions._setup_menu_actions([])

@@ -3,6 +3,11 @@ class_name GFShakeReceiver2D
 extends Node
 
 
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 导出变量 ---
 
 ## 目标 Node2D 路径；为空时优先使用自身，其次使用父节点。
@@ -74,7 +79,8 @@ func set_utility(shake_utility: GFShakeUtility) -> void:
 func get_target() -> Node2D:
 	if _target_ref == null:
 		return null
-	return _target_ref.get_ref() as Node2D
+	var target: Node = _INSTANCE_GUARD._get_live_node_from_ref(_target_ref)
+	return target as Node2D if target is Node2D else null
 
 
 ## 记录当前目标基础变换。

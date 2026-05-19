@@ -14,12 +14,26 @@ class TestEmitter:
 
 	signal changed(value: int)
 	signal optional_payload(value: Variant)
+	signal wide_payload(
+		first: int,
+		second: int,
+		third: int,
+		fourth: int,
+		fifth: int,
+		sixth: int,
+		seventh: int,
+		eighth: int,
+		ninth: int
+	)
 
 	func emit_changed(value: int) -> void:
 		changed.emit(value)
 
 	func emit_optional_payload(value: Variant) -> void:
 		optional_payload.emit(value)
+
+	func emit_wide_payload() -> void:
+		wide_payload.emit(1, 2, 3, 4, 5, 6, 7, 8, 9)
 
 
 class TestOwner:
@@ -84,6 +98,31 @@ func test_connect_signal_preserves_declared_trailing_null_argument() -> void:
 	await get_tree().process_frame
 
 	assert_eq(received, [null], "显式发出的 null 参数不应被当作占位默认值裁掉。")
+
+
+func test_connect_signal_keeps_nine_signal_arguments() -> void:
+	var emitter := TestEmitter.new()
+	var received: Array = []
+
+	_utility.connect_signal(emitter.wide_payload, func(
+		first: int,
+		second: int,
+		third: int,
+		fourth: int,
+		fifth: int,
+		sixth: int,
+		seventh: int,
+		eighth: int,
+		ninth: int
+	) -> void:
+		received.clear()
+		received.append_array([first, second, third, fourth, fifth, sixth, seventh, eighth, ninth])
+	)
+	emitter.emit_wide_payload()
+
+	await get_tree().process_frame
+
+	assert_eq(received, [1, 2, 3, 4, 5, 6, 7, 8, 9], "Signal 连接应保留 9 个参数。")
 
 
 func test_filter_map_delay_chain() -> void:

@@ -24,7 +24,7 @@ for item in debug_draw.get_items(&"path"):
 
 **应用场景：** 当你在运行游戏时觉得模型状态不对，但没有连上编辑器检查时。本工具会创建一个轻量 `CanvasLayer` 覆盖层，通过反射扫描当前架构内注册的 `GFModel`，并显示脚本变量的实时值；项目也可以主动注册少量运行时 watch，把不适合放进 Model 的临时观察值显示在同一个面板里。
 
-它不是命令行控制台，也不执行指令；需要输入调试命令、查看日志输出时请使用后面的 `GFConsoleUtility`。覆盖层会直接反射显示脚本变量值，并显示项目注册的 watch 返回值，不做字段脱敏或白名单过滤；不要在生产构建、公开演示或包含账号/token/存档密钥等敏感字段的环境中默认注册或开启。
+它不是命令行控制台，也不执行指令；需要输入调试命令、查看日志输出时请使用后面的 `GFConsoleUtility`。覆盖层默认 `debug_only = true`，发布构建不会创建 GUI；如果项目确实需要在非 debug 构建中显示，必须显式关闭该选项，并自行确认数据脱敏和玩家可见性。覆盖层会直接反射显示脚本变量值，并显示项目注册的 watch 返回值，不做字段脱敏或白名单过滤；不要在生产构建、公开演示或包含账号/token/存档密钥等敏感字段的环境中默认注册或开启。
 
 **如何使用：**
 ```gdscript
@@ -87,7 +87,7 @@ print(inspector.get_target_snapshot())
 
 编辑器侧的 `GFSceneSignalAudit.build_signal_graph()` / `index_signal_graph()` 可把当前节点树的信号、连接和节点索引整理为结构化数据；需要隐藏根节点外的目标时可传入 `include_external_targets = false`。信号图默认限制节点深度和节点数量，可通过 `max_node_depth` / `max_nodes` 调整，截断时报告会标记 `truncated`。`GFSignalGraphDock` 会把当前编辑场景渲染为 `GF Workspace > 信号诊断` 页面，默认查看场景文件中保存的信号连接并过滤编辑器外部目标，方便查看 source、signal、target 和 method。勾选“未连接信号”可以列出节点声明过但还没有连接目标的信号；勾选“追踪发射”后，面板会按连接页当前可见信号建立监听，优先追踪保存连接里的信号，避免 `draw` 这类高频内建信号刷屏。
 
-如果要确认“信号有没有真的发射”，可以显式创建 `GFSignalRuntimeProbe` 监听一个节点或节点树。它会记录最近事件、发射时间、来源节点、信号名、参数和当前连接摘要；它只在项目主动 watch 后工作，不会默认全局接管所有信号：
+如果要确认“信号有没有真的发射”，可以显式创建 `GFSignalRuntimeProbe` 监听一个节点或节点树。它会记录最近事件、发射时间、来源节点、信号名、参数和当前连接摘要；单个信号最多追踪 16 个参数，超过上限的极少数自定义信号应在项目层自行封装 payload。它只在项目主动 watch 后工作，不会默认全局接管所有信号：
 
 ```gdscript
 var probe := GFSignalRuntimeProbe.new()

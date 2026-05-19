@@ -1,4 +1,4 @@
-﻿## GFReactiveEffect: GFBindableProperty 的轻量响应式副作用。
+## GFReactiveEffect: GFBindableProperty 的轻量响应式副作用。
 ##
 ## 监听一组 GFBindableProperty，在任意来源变化时执行回调。可绑定 Node 生命周期，
 ## 适合 Controller 层组合多个 Model 属性，不要求项目引入新的状态模型。
@@ -11,6 +11,11 @@ extends RefCounted
 ## effect 执行后发出。
 ## @param value: 回调返回值。
 signal effect_ran(value: Variant)
+
+
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -175,7 +180,7 @@ func _filter_sources(sources: Array[GFBindableProperty]) -> Array[GFBindableProp
 func _get_owner() -> Node:
 	if _owner_ref == null:
 		return null
-	return _owner_ref.get_ref() as Node
+	return _INSTANCE_GUARD._get_live_node_from_ref(_owner_ref)
 
 
 func _on_source_changed(_old_value: Variant, _new_value: Variant) -> void:

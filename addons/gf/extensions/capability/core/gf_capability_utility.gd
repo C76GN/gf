@@ -47,6 +47,7 @@ const HOOK_ON_ACTIVE_CHANGED: StringName = &"on_gf_capability_active_changed"
 const GF_CAPABILITY_CONTAINER_BASE := preload("res://addons/gf/extensions/capability/nodes/gf_capability_container.gd")
 const GF_CAPABILITY_RECIPE_BASE := preload("res://addons/gf/extensions/capability/recipes/gf_capability_recipe.gd")
 const GF_CAPABILITY_RECIPE_ENTRY_BASE := preload("res://addons/gf/extensions/capability/recipes/gf_capability_recipe_entry.gd")
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
@@ -859,10 +860,8 @@ func _can_attach_capability_instance(receiver: Object, capability: Object) -> bo
 	if capability == null or not ("receiver" in capability):
 		return true
 
-	var existing_receiver := capability.get("receiver") as Object
+	var existing_receiver: Object = _INSTANCE_GUARD._get_live_object(capability.get("receiver"))
 	if existing_receiver == null or existing_receiver == receiver:
-		return true
-	if not is_instance_valid(existing_receiver):
 		return true
 
 	push_error("[GFCapabilityUtility] 同一个能力实例不能挂载到多个 receiver。")
@@ -1088,8 +1087,8 @@ func _get_capability_instance(receiver: Object, capability_type: Script) -> Obje
 	if not receiver.has_meta(meta_name):
 		return null
 
-	var capability := receiver.get_meta(meta_name) as Object
-	if is_instance_valid(capability):
+	var capability: Object = _INSTANCE_GUARD._get_live_object(receiver.get_meta(meta_name))
+	if capability != null:
 		return capability
 
 	receiver.remove_meta(meta_name)
@@ -1360,8 +1359,8 @@ func _get_receiver_from_id(receiver_id: int) -> Object:
 	if receiver_ref == null:
 		return null
 
-	var receiver := receiver_ref.get_ref() as Object
-	if receiver != null and is_instance_valid(receiver):
+	var receiver: Object = _INSTANCE_GUARD._get_live_object_from_ref(receiver_ref)
+	if receiver != null:
 		return receiver
 	_remove_receiver_index(receiver_id)
 	return null
@@ -1542,8 +1541,8 @@ func _free_empty_generated_container(container: Node) -> void:
 
 
 func _add_child_deferred(parent_id: int, child_id: int, internal_mode: int) -> void:
-	var parent := instance_from_id(parent_id) as Node
-	var child := instance_from_id(child_id) as Node
+	var parent := _get_live_node_from_id(parent_id)
+	var child := _get_live_node_from_id(child_id)
 	if (
 		parent == null
 		or child == null
@@ -1557,8 +1556,8 @@ func _add_child_deferred(parent_id: int, child_id: int, internal_mode: int) -> v
 
 
 func _remove_child_deferred(parent_id: int, child_id: int) -> void:
-	var parent := instance_from_id(parent_id) as Node
-	var child := instance_from_id(child_id) as Node
+	var parent := _get_live_node_from_id(parent_id)
+	var child := _get_live_node_from_id(child_id)
 	if parent == null or child == null or parent.is_queued_for_deletion():
 		return
 	if child.get_parent() != parent:
@@ -1568,11 +1567,15 @@ func _remove_child_deferred(parent_id: int, child_id: int) -> void:
 
 
 func _free_empty_generated_container_deferred(container_id: int) -> void:
-	var container := instance_from_id(container_id) as Node
+	var container := _get_live_node_from_id(container_id)
 	if container == null:
 		return
 
 	_free_empty_generated_container(container)
+
+
+func _get_live_node_from_id(instance_id: int) -> Node:
+	return _INSTANCE_GUARD._get_live_node_from_id(instance_id)
 
 
 func _get_capability_meta_name(capability_type: Script) -> StringName:

@@ -13,6 +13,11 @@ extends RefCounted
 signal field_changed(key: StringName, value: Variant)
 
 
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 私有变量 ---
 
 var _fields: Dictionary = {}
@@ -130,7 +135,7 @@ func _get_control(key: StringName) -> Control:
 
 	var control_ref_variant: Variant = info.get("control_ref")
 	var control_ref := control_ref_variant as WeakRef if control_ref_variant is WeakRef else null
-	var control := control_ref.get_ref() as Control if control_ref != null else null
+	var control: Control = _INSTANCE_GUARD._get_live_control_from_ref(control_ref)
 	if not is_instance_valid(control):
 		unbind_field(key)
 		return null
@@ -160,7 +165,7 @@ func _disconnect_field_info(info: Dictionary) -> void:
 
 	var control_ref_variant: Variant = info.get("control_ref")
 	var control_ref := control_ref_variant as WeakRef if control_ref_variant is WeakRef else null
-	var control := control_ref.get_ref() as Control if control_ref != null else null
+	var control: Control = _INSTANCE_GUARD._get_live_control_from_ref(control_ref)
 	var tree_exited_callable := info.get("tree_exited_callable") as Callable
 	if (
 		is_instance_valid(control)

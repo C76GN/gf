@@ -5,6 +5,11 @@ class_name GFInputChordTrigger
 extends GFInputTrigger
 
 
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 导出变量 ---
 
 ## 需要同时保持活跃的动作标识。
@@ -42,7 +47,7 @@ func update(raw_active: bool, _value: Variant, _delta: float, state: Dictionary)
 	if required_action_id == &"":
 		return TriggerState.TRIGGERED
 
-	var input_runtime := state.get("input_runtime") as Object
+	var input_runtime := _get_input_runtime(state)
 	if input_runtime == null:
 		return TriggerState.INACTIVE
 
@@ -57,3 +62,9 @@ func update(raw_active: bool, _value: Variant, _delta: float, state: Dictionary)
 	if input_runtime.has_method("is_action_active") and bool(input_runtime.call("is_action_active", required_action_id)):
 		return TriggerState.TRIGGERED
 	return TriggerState.INACTIVE
+
+
+# --- 私有/辅助方法 ---
+
+func _get_input_runtime(state: Dictionary) -> Object:
+	return _INSTANCE_GUARD._get_live_object(state.get("input_runtime"))

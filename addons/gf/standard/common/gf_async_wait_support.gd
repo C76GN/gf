@@ -4,6 +4,11 @@
 extends RefCounted
 
 
+# --- 常量 ---
+
+const MAX_CAPTURED_SIGNAL_ARGUMENTS: int = 16
+
+
 # --- 公共方法 ---
 
 ## 安全等待 Signal，并在发射源失效、保护节点离树、取消回调返回 false 或超时时结束等待。
@@ -232,45 +237,49 @@ static func _await_signal_state_safely(
 
 
 static func _make_signal_capture_callable(target_signal: Signal, completion_state: Dictionary) -> Callable:
-	match get_signal_argument_count(target_signal):
-		0:
-			return func() -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = []
-		1:
-			return func(first: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first]
-		2:
-			return func(first: Variant, second: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first, second]
-		3:
-			return func(first: Variant, second: Variant, third: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first, second, third]
-		4:
-			return func(first: Variant, second: Variant, third: Variant, fourth: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first, second, third, fourth]
-		5:
-			return func(first: Variant, second: Variant, third: Variant, fourth: Variant, fifth: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first, second, third, fourth, fifth]
-		6:
-			return func(first: Variant, second: Variant, third: Variant, fourth: Variant, fifth: Variant, sixth: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first, second, third, fourth, fifth, sixth]
-		7:
-			return func(first: Variant, second: Variant, third: Variant, fourth: Variant, fifth: Variant, sixth: Variant, seventh: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first, second, third, fourth, fifth, sixth, seventh]
-		8:
-			return func(first: Variant, second: Variant, third: Variant, fourth: Variant, fifth: Variant, sixth: Variant, seventh: Variant, eighth: Variant) -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = [first, second, third, fourth, fifth, sixth, seventh, eighth]
-		_:
-			return make_signal_resume_callable(target_signal, func() -> void:
-				completion_state["completed"] = true
-				completion_state["args"] = []
-			)
+	var argument_count := get_signal_argument_count(target_signal)
+	if argument_count > MAX_CAPTURED_SIGNAL_ARGUMENTS:
+		push_warning("[GFAsyncWaitSupport] 信号 payload 当前最多捕获 %d 个参数。" % MAX_CAPTURED_SIGNAL_ARGUMENTS)
+		return make_signal_resume_callable(target_signal, func() -> void:
+			completion_state["completed"] = true
+			completion_state["args"] = []
+		)
+
+	return func(
+		arg1: Variant = null,
+		arg2: Variant = null,
+		arg3: Variant = null,
+		arg4: Variant = null,
+		arg5: Variant = null,
+		arg6: Variant = null,
+		arg7: Variant = null,
+		arg8: Variant = null,
+		arg9: Variant = null,
+		arg10: Variant = null,
+		arg11: Variant = null,
+		arg12: Variant = null,
+		arg13: Variant = null,
+		arg14: Variant = null,
+		arg15: Variant = null,
+		arg16: Variant = null
+	) -> void:
+		var raw_args := [
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5,
+			arg6,
+			arg7,
+			arg8,
+			arg9,
+			arg10,
+			arg11,
+			arg12,
+			arg13,
+			arg14,
+			arg15,
+			arg16,
+		]
+		completion_state["completed"] = true
+		completion_state["args"] = raw_args.slice(0, mini(argument_count, raw_args.size()))

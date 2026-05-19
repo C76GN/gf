@@ -921,6 +921,29 @@ func test_clear_state_groups_disconnects_external_group_signals() -> void:
 	assert_signal_not_emitted(machine, "state_changed", "清理状态组后旧 group 信号不应继续转发到状态机。")
 
 
+func test_clear_state_groups_stops_external_group_without_removing_states() -> void:
+	var machine: Node = GFNodeStateMachineBase.new()
+	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()
+	var idle := TrackingNodeState.new()
+	group.name = "Body"
+	group.group_name = &"Body"
+	group.initial_state = &"Idle"
+	idle.name = "Idle"
+	group.add_child(idle)
+	machine.add_state_group(group)
+
+	assert_eq(group.get_current_state(), idle, "测试准备应让外部状态组进入初始状态。")
+
+	machine.clear_state_groups()
+
+	assert_eq(idle.exit_count, 1, "清理状态组时外部组当前状态应执行 exit。")
+	assert_null(group.get_current_state(), "清理状态组后外部组不应继续保持当前状态。")
+	assert_eq(group.get_state(&"Idle"), idle, "默认清理状态组不应移除外部组已注册状态。")
+
+	group.free()
+	machine.free()
+
+
 func test_clear_state_groups_with_free_detaches_group_immediately() -> void:
 	var machine: Node = GFNodeStateMachineBase.new()
 	var group: GFNodeStateGroup = GFNodeStateGroupBase.new()

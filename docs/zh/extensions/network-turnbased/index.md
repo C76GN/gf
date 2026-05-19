@@ -24,7 +24,7 @@ var message := GFNetworkMessage.new(&"player_ready", { "slot": 1 })
 network.send_message(-1, message)
 ```
 
-`GFNetworkSession` 只记录后端连接意图和状态快照。`host()` 会在后端真正返回成功或报告 connected 后再标记 `is_connected`；如果后端启动失败，会关闭本次会话而不会短暂发出 connected 状态。替换或清空 backend 时，`GFNetworkUtility` 会关闭旧后端并清理旧会话，避免把底层连接资源留给已失效的 backend。
+`GFNetworkSession` 只记录后端连接意图和状态快照。`host()` 会在后端真正返回成功或报告 connected 后再标记 `is_connected`；如果后端启动失败，会关闭本次会话而不会短暂发出 connected 状态。`options.metadata` 必须是 `Dictionary`，传入其他类型会被忽略并输出 warning，避免把错误配置静默保存到会话快照里。替换或清空 backend 时，`GFNetworkUtility` 会关闭旧后端并清理旧会话，避免把底层连接资源留给已失效的 backend。
 
 `GFNetworkSerializer` 默认使用 Godot Variant 二进制格式；切到 `Format.JSON` 时使用 Godot JSON 可表达的普通结构。如果 JSON 通道需要保留 `Vector2`、`Color`、`NodePath`、PackedArray 等 Godot 类型，可显式启用类型化 JSON codec：
 

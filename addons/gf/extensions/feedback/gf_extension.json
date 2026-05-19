@@ -1,8 +1,8 @@
 {
   "id": "gf.feedback",
   "display_name": "GF Feedback",
-  "version": "3.14.1",
-  "extension_version": "1.1.1",
+  "version": "3.15.0",
+  "extension_version": "1.1.2",
   "kind": "extension",
   "description": "Reusable feedback sampling, shake receivers, and presets.",
   "dependencies": ["gf.kernel", "gf.standard"],

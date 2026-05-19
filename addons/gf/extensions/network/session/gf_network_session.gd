@@ -140,7 +140,11 @@ func _get_mode_name(query_mode: Mode) -> String:
 
 
 func _get_metadata_copy(options: Dictionary) -> Dictionary:
+	if not options.has("metadata") or options.get("metadata") == null:
+		return {}
+
 	var metadata_variant: Variant = options.get("metadata", {})
 	if metadata_variant is Dictionary:
 		return (metadata_variant as Dictionary).duplicate(true)
+	push_warning("[GFNetworkSession] metadata 必须是 Dictionary，已忽略。")
 	return {}

@@ -1,6 +1,6 @@
 ## GFModalConfig: 通用 modal 配置。
 ##
-## 用 Resource 描述标题、正文、动作和交互策略，使默认面板、自定义面板或项目 UI
+## 用 Resource 描述标题、正文、动作和交互策略，使项目自定义 modal 面板
 ## 可以共享同一套打开与结果协议。
 class_name GFModalConfig
 extends Resource

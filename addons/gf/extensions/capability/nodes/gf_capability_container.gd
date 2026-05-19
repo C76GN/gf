@@ -9,6 +9,7 @@ extends Node
 # --- 常量 ---
 
 const GF_NODE_CONTEXT_BASE = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 const GF_CAPABILITY_UTILITY_BASE = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
 
 
@@ -169,7 +170,7 @@ func _unregister_child_record(child_id: int, receiver: Node, capability_utility:
 		return
 
 	var child_ref := record.get("ref") as WeakRef
-	var child := child_ref.get_ref() as Node if child_ref != null else null
+	var child: Node = _INSTANCE_GUARD._get_live_node_from_ref(child_ref)
 	var exiting_callback := record.get("tree_exiting") as Callable
 	if child != null and exiting_callback.is_valid() and child.tree_exiting.is_connected(exiting_callback):
 		child.tree_exiting.disconnect(exiting_callback)

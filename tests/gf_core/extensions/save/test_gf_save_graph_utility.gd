@@ -57,6 +57,25 @@ class FailingSourceFactory extends GFSaveEntityFactory:
 		return created_source
 
 
+class DeletingAfterCreateFactory extends GFSaveEntityFactory:
+	var created_source: GFSaveSourceBase = null
+
+	func _init() -> void:
+		type_key = &"deleting_source"
+
+	func create_entity(descriptor: Dictionary, _context: Dictionary = {}) -> Node:
+		created_source = GFSaveSourceBase.new()
+		created_source.name = String(descriptor.get("source_key", "deleted_source"))
+		created_source.source_key = StringName(descriptor.get("source_key", &"deleted_source"))
+		return created_source
+
+	func after_entity_created(entity: Node, _descriptor: Dictionary, _context: Dictionary = {}) -> void:
+		var parent := entity.get_parent()
+		if parent != null:
+			parent.remove_child(entity)
+		entity.free()
+
+
 class MethodTrapSaveScope extends GFSaveScope:
 	var get_scope_key_called: bool = false
 	var can_save_scope_called: bool = false
@@ -667,6 +686,18 @@ func test_apply_scope_rolls_back_factory_created_sources_on_failure() -> void:
 	assert_false(bool(result["ok"]), "事务化应用中，工厂创建 Source 应用失败时整体失败。")
 	assert_eq(factory.create_count, 1, "测试工厂应创建 Source 实体。")
 	assert_false(is_instance_valid(factory.created_source), "事务失败后应回滚并释放本次创建的 Source。")
+
+
+func test_apply_scope_rejects_factory_source_deleted_by_after_hook() -> void:
+	_scope.restore_policy = GFSaveScope.RestorePolicy.ALLOW_FACTORIES
+	var factory := DeletingAfterCreateFactory.new()
+	_utility.register_entity_factory(factory)
+	var payload := _make_factory_payload("deleted", &"deleting_source", {})
+
+	var result := _utility.apply_scope(_scope, payload, {}, true)
+
+	assert_false(bool(result["ok"]), "after_entity_created 删除 Source 后应视为缺失 Source。")
+	assert_false(is_instance_valid(factory.created_source), "测试工厂应已释放创建出的 Source。")
 
 
 # --- 私有/辅助方法 ---

@@ -1,7 +1,7 @@
-## GFDebugOverlayUtility: 框架内部 Debugger 控制台。
+## GFDebugOverlayUtility: 开发期运行时观察覆盖层。
 ##
-## 纯代码驱动的悬浮监控面板，可以通过快捷键（默认 `~`）呼出。
-## 实时利用反射遍历架构中所有注册的 GFModel，也可显示项目主动注册的轻量运行时观察值。
+## 提供 watch / panel 注册、轻量运行时快照和可选调试 GUI。默认只在 debug 构建中创建 GUI。
+## 发布构建如确实需要显示，必须显式关闭 debug_only 并自行确认可见性与数据脱敏策略。
 class_name GFDebugOverlayUtility
 extends GFUtility
 
@@ -26,6 +26,9 @@ var include_recent_logs: bool = true
 ## 最近日志面板读取的日志数量。
 var recent_log_count: int = 12
 
+## 是否只在 debug 构建中创建 Overlay GUI。发布构建需要显式关闭此项才会创建 GUI。
+var debug_only: bool = true
+
 
 # --- 私有变量 ---
 
@@ -39,6 +42,9 @@ var _panel_order_counter: int = 0
 # --- Godot 生命周期方法 ---
 
 func init() -> void:
+	if debug_only and not OS.is_debug_build():
+		return
+
 	_overlay_gui = _GFDebugGUI.new()
 	_overlay_gui.name = "GFDebugOverlay"
 	_overlay_gui.toggle_key = toggle_key

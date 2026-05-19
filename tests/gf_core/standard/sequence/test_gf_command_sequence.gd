@@ -76,6 +76,21 @@ class UndoableRecordingStep extends RecordingStep:
 		order.append("undo_" + label)
 
 
+class NodeUndoStep extends Node:
+	var order: Array[String] = []
+	var label: String = ""
+
+	func _init(p_order: Array[String], p_label: String) -> void:
+		order = p_order
+		label = p_label
+
+	func execute() -> void:
+		order.append(label)
+
+	func undo() -> void:
+		order.append("undo_" + label)
+
+
 class FailingStep extends GFSequenceStep:
 	var order: Array[String] = []
 	var label: String = ""
@@ -100,6 +115,20 @@ class SuccessFlagFailingStep extends FailingStep:
 		result = {
 			"success": false,
 		}
+
+
+class FreeingFailingStep extends FailingStep:
+	var target: Object = null
+
+	func _init(p_order: Array[String], p_label: String, p_target: Object) -> void:
+		super._init(p_order, p_label)
+		target = p_target
+
+	func execute(_context: GFSequenceContext) -> Variant:
+		order.append(label)
+		if is_instance_valid(target) and target is Node:
+			(target as Node).free()
+		return result
 
 
 # --- 测试方法 ---
@@ -314,6 +343,20 @@ func test_sequence_rollback_on_failure_undoes_completed_steps_reverse_order() ->
 
 	assert_eq(order, ["first", "second", "fail", "undo_second", "undo_first"], "失败回滚应逆序 undo 已完成步骤。")
 	assert_true(bool(sequence.last_run_report["rolled_back"]), "运行报告应标记已回滚。")
+
+
+func test_sequence_rollback_skips_freed_completed_step_without_cast_error() -> void:
+	var order: Array[String] = []
+	var freed_step := NodeUndoStep.new(order, "first")
+	var sequence := GFCommandSequence.new([
+		freed_step,
+		FreeingFailingStep.new(order, "fail", freed_step),
+	]).with_failure_policy(true, true)
+
+	sequence.run()
+
+	assert_eq(order, ["first", "fail"], "已释放完成步骤不应在失败回滚时再次 undo。")
+	assert_true(bool(sequence.last_run_report["rolled_back"]), "运行报告仍应标记已执行回滚流程。")
 
 
 func test_sequence_success_false_uses_default_error() -> void:

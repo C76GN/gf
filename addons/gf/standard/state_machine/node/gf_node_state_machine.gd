@@ -587,6 +587,7 @@ func clear_state_groups(free_groups: bool = false) -> void:
 	_group_state_changed_callables.clear()
 	_group_state_event_handled_callables.clear()
 	for group: GFNodeStateGroup in groups:
+		group.stop()
 		state_group_removed.emit(group)
 		if group == _internal_group:
 			_free_internal_group(group)

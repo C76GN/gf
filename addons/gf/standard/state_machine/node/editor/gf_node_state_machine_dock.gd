@@ -12,6 +12,7 @@ extends Control
 
 const GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
 const GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
@@ -134,7 +135,7 @@ func _build_ui() -> void:
 
 func _resolve_root() -> Node:
 	if _root_ref != null:
-		var root := _root_ref.get_ref() as Node
+		var root: Node = _INSTANCE_GUARD._get_live_node_from_ref(_root_ref)
 		if root != null:
 			return root
 

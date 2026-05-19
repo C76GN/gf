@@ -20,6 +20,11 @@ enum OperationType {
 }
 
 
+# --- 常量 ---
+
+const MAX_SIGNAL_ARGUMENTS: int = 16
+
+
 # --- 私有变量 ---
 
 var _source_signal: Signal
@@ -262,9 +267,34 @@ func _on_signal_emitted(
 	arg5: Variant = null,
 	arg6: Variant = null,
 	arg7: Variant = null,
-	arg8: Variant = null
+	arg8: Variant = null,
+	arg9: Variant = null,
+	arg10: Variant = null,
+	arg11: Variant = null,
+	arg12: Variant = null,
+	arg13: Variant = null,
+	arg14: Variant = null,
+	arg15: Variant = null,
+	arg16: Variant = null
 ) -> void:
-	var args := _collect_args([arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8])
+	var args := _collect_args([
+		arg1,
+		arg2,
+		arg3,
+		arg4,
+		arg5,
+		arg6,
+		arg7,
+		arg8,
+		arg9,
+		arg10,
+		arg11,
+		arg12,
+		arg13,
+		arg14,
+		arg15,
+		arg16,
+	])
 	_serial += 1
 	_process_async(args, _serial)
 
@@ -362,6 +392,8 @@ func _wait_seconds(seconds: float, serial: int) -> void:
 func _collect_args(raw_args: Array) -> Array:
 	var declared_count := _get_source_signal_argument_count()
 	if declared_count >= 0:
+		if declared_count > MAX_SIGNAL_ARGUMENTS:
+			push_warning("[GFSignalConnection] 信号连接当前最多捕获 %d 个参数。" % MAX_SIGNAL_ARGUMENTS)
 		return raw_args.slice(0, mini(declared_count, raw_args.size()))
 
 	var args: Array = raw_args.duplicate()

@@ -13,9 +13,15 @@ func before_each() -> void:
 	var arch := GFArchitecture.new()
 	Gf._architecture = arch
 	_debug = GFDebugOverlayUtility.new()
+	_debug.debug_only = false
 	Gf.register_utility(_debug)
 	await Gf.set_architecture(arch)
 	await get_tree().process_frame
+
+
+func test_overlay_is_debug_only_by_default() -> void:
+	var overlay := GFDebugOverlayUtility.new()
+	assert_true(overlay.debug_only, "Overlay 默认应只在 debug 构建创建 GUI。")
 
 
 func test_overlay_creation_and_toggle() -> void:

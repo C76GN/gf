@@ -9,6 +9,7 @@ class_name GFTypeEventSystem
 
 ## 默认最大事件嵌套派发深度。
 const DEFAULT_MAX_DISPATCH_DEPTH: int = 64
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
@@ -733,7 +734,7 @@ func _owner_from_ref(owner_ref_variant: Variant) -> Object:
 	var owner_ref := owner_ref_variant as WeakRef
 	if owner_ref == null:
 		return null
-	return owner_ref.get_ref() as Object
+	return _INSTANCE_GUARD._get_live_object_from_ref(owner_ref)
 
 
 func _owner_id_from_ref(owner_ref_variant: Variant) -> int:

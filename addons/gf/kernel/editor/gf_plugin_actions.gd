@@ -50,14 +50,16 @@ var _next_extension_menu_id: int = EXTENSION_MENU_ID_START
 ## 初始化菜单动作需要的文件对话框。
 ## @param template_records: 根插件或上层组合入口注入的模板记录。
 func setup(template_records: Array = []) -> void:
+	cleanup()
 	_file_dialog = FileDialog.new()
 	_file_dialog.file_mode = FileDialog.FILE_MODE_SAVE_FILE
 	_file_dialog.access = FileDialog.ACCESS_RESOURCES
 	_file_dialog.filters = PackedStringArray(["*.gd ; GDScript Files"])
 	_file_dialog.file_selected.connect(_on_file_selected)
 
-	var base_control := EditorInterface.get_base_control()
-	base_control.add_child(_file_dialog)
+	var base_control := _get_editor_base_control()
+	if base_control != null:
+		base_control.add_child(_file_dialog)
 	_setup_menu_actions(template_records)
 
 
@@ -67,7 +69,7 @@ func cleanup() -> void:
 	_cleanup_diagnostic_dialog()
 	_reset_menu_actions()
 	if is_instance_valid(_file_dialog):
-		_file_dialog.queue_free()
+		_queue_free_detached(_file_dialog)
 	_file_dialog = null
 
 
@@ -438,9 +440,25 @@ func _cleanup_extension_editor_actions() -> void:
 
 func _cleanup_diagnostic_dialog() -> void:
 	if is_instance_valid(_diagnostic_dialog):
-		_diagnostic_dialog.queue_free()
+		_queue_free_detached(_diagnostic_dialog)
 	_diagnostic_dialog = null
 	_diagnostic_output = null
+
+
+func _queue_free_detached(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+	var parent := node.get_parent()
+	if parent != null:
+		parent.remove_child(node)
+	if not node.is_queued_for_deletion():
+		node.queue_free()
+
+
+func _get_editor_base_control() -> Control:
+	if not Engine.is_editor_hint():
+		return null
+	return EditorInterface.get_base_control()
 
 
 func _get_template(type: String) -> String:

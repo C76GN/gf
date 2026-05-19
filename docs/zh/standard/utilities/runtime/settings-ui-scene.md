@@ -119,7 +119,7 @@ if ui_util.request_dismiss_top(-1, "cancel"):
 
 `modal` / `PanelMode.MODAL` 只表达“项目层应该把它视为独占交互面板”，并提供取消关闭、打开抢焦点、关闭恢复焦点和 `keep_focus_inside_top_modal()` 这些通用辅助；它不创建遮罩、不播放动画、不拦截输入树，也不决定返回值或页面路由。项目可以监听 `panel_dismiss_requested` 决定音效、路由记录或额外确认。
 
-需要一个通用“确认/选择”协议时，可以使用 `GFModalConfig`、`GFModalAction`、`GFModalResult` 和默认 `GFModalPanel`。它们只描述标题、正文、动作、结果状态、payload 和上下文，不解释奖励、购买、删除存档等业务含义；`GFUIUtility.open_modal()` 会把默认面板压入 UI 栈，并在 `resolved` 后关闭面板：
+需要一个通用“确认/选择”协议时，可以使用 `GFModalConfig`、`GFModalAction` 和 `GFModalResult` 描述动作与返回值。框架不提供默认弹窗视觉实现；项目应使用自己的 `.tscn` 面板渲染标题、正文、按钮、动画、音效、主题和输入规则，只复用这套结果协议：
 
 ```gdscript
 var action := GFModalAction.new()
@@ -132,13 +132,45 @@ config.title = "Confirm"
 config.message = "Continue?"
 config.actions = [action]
 
-ui_util.open_modal(config, GFUIUtility.Layer.POPUP, { "source": "settings" }, func(result: GFModalResult) -> void:
-	if result.status == GFModalResult.STATUS_CONFIRMED:
-		print(result.context)
+var panel := ui_util.push_panel_with_options("res://ui/confirm_modal.tscn", GFUIUtility.Layer.POPUP, {
+	"mode": GFUIUtility.PanelMode.MODAL,
+	"dismiss_on_cancel": config.dismiss_on_cancel,
+	"focus_on_open": config.auto_focus,
+	"restore_focus_on_close": config.restore_focus_on_close,
+	"metadata": config.metadata,
+}, func(instance: Node) -> void:
+	instance.call("configure", config, { "source": "settings" })
+	var on_resolved := func(result: GFModalResult) -> void:
+		ui_util.pop_panel(GFUIUtility.Layer.POPUP)
+		if result.status == GFModalResult.STATUS_CONFIRMED:
+			print(result.context)
+	instance.connect("resolved", on_resolved, CONNECT_ONE_SHOT)
 )
 ```
 
+项目 modal 面板可以约定实现 `configure(config: GFModalConfig, context: Dictionary)`、`resolve_cancel()` 和 `resolved(result: GFModalResult)`。`request_dismiss_top()` 会在允许取消时优先调用栈顶面板的 `resolve_cancel()`；是否关闭、播放动画或等待转场结束，由项目面板在发出 `resolved` 前后自行决定。
+
 `pop_panel()`、`clear_layer()` 和替换层入口会先把旧面板从 UI 根节点移除，再按需释放实例，因此关闭后的面板会立即脱离 `GFUILayer_*`。默认 `pop_panel()` 会释放面板；`pop_panel(layer, false)` 只移除但不释放，适合项目层自己复用实例。如果面板被外部 `queue_free()`，工具会在 `tree_exited` 后从栈中移除并恢复下层面板。`push_panel_async()` 和 `replace_layer_async()` 会优先使用 `GFAssetUtility`，未注册时回退同步加载。每个 UI 层都有请求序号保护，`pop_panel()`、`clear_layer()`、替换层或释放工具后，迟到的异步加载回调会被忽略，不会把旧面板重新压回已经取消或清空的栈。同一层级同一路径的重复异步压栈请求会在资源返回前合并，避免按钮连点时叠出多层相同面板。
+
+异步加载的视觉 Loading 仍属于项目 UI：框架不创建默认遮罩、进度条或转场动画。但异步请求状态不需要项目完全手写计数器，`panel_async_load_started` / `panel_async_load_finished` 会报告 `push` / `replace` 请求的开始与结束，结束状态使用 `AsyncPanelLoadStatus.OPENED`、`FAILED` 或 `CANCELLED`；`has_pending_async_panel()` 和 `get_pending_async_panel_requests()` 可查询当前仍在等待资源回调的请求。常见做法是只在同层没有 pending 请求时关闭项目自己的 loading 面板：
+
+```gdscript
+ui_util.panel_async_load_started.connect(func(_path: String, layer: int, _operation: StringName) -> void:
+	if layer == GFUIUtility.Layer.POPUP:
+		show_popup_loading()
+)
+
+ui_util.panel_async_load_finished.connect(func(
+	_path: String,
+	layer: int,
+	_operation: StringName,
+	_status: int,
+	_panel: Node
+) -> void:
+	if layer == GFUIUtility.Layer.POPUP and not ui_util.has_pending_async_panel(layer):
+		hide_popup_loading()
+)
+```
 
 `panel_opened`、`panel_closed` 和 `navigation_changed` 适合把 UI 栈变化同步给焦点系统、音效、诊断面板或项目自己的路由层。`get_panel_stack()`、`get_stack_count()`、`is_panel_open()` 和 `get_debug_snapshot()` 只返回当前栈状态，不保存业务历史；如果项目只需要 route id 到面板场景的通用映射，可以在其上注册 `GFUIRouterUtility` 和 `GFUIRoute`：
 

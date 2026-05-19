@@ -22,21 +22,46 @@
 
 ---
 
-## [3.14.1] - 2026-05-19
+## [3.15.0] - 2026-05-19
 
-**版本概述**：修复 UI 栈、调试界面、对象池、节点状态机和编辑器列表在关闭、清空或重建时的同帧脱树时序问题，避免旧节点在父节点下残留到帧尾。
+**版本概述**：以框架抽象边界和 Godot 4.6 稳定性为优先，移除内置默认 modal 视觉面板，补齐 UI 异步加载状态观测，并收口信号参数、节点状态组、对象生命周期、编辑器动作、保存图和网络会话的边界问题。
+
+### 🔄 机制更改 (Changed)
+
+- `GFUIUtility` 不再创建框架默认 modal 视觉面板；modal 只保留配置、动作、结果和面板栈策略，项目应使用自己的 `.tscn` 面板实现视觉、动画、输入和结果发射。
+- `GFUIUtility` 的异步面板入口新增请求开始/结束信号和 pending 查询；框架仍不创建 Loading 视觉，但项目不需要自行维护底层资源请求计数。
+- `GFDebugOverlayUtility` 与开发者控制台保持一致，默认只在 debug 构建中创建调试 GUI，发布构建需要显式关闭 `debug_only` 才会显示覆盖层。
+- 新增内部 `GFInstanceGuard` helper，统一从 `Variant`、`WeakRef` 和 `instance_id` 安全解析仍有效的 `Object` / `Node` / `Control`，供 kernel、standard 与扩展侧复用失效实例防护逻辑。
+- `GFNodeStateGroup` 新增 `stop()`，用于退出当前状态与暂停栈但保留已注册状态；`GFNodeStateMachine.clear_state_groups()` 会在解绑状态组前停止外部状态组，避免旧状态组脱离状态机后仍保持 active state。
+- `GFSignalConnection`、`GFAsyncWaitSupport.await_signal_payload_safely()`、`GFSignalBridgeBinding` 与 `GFSignalRuntimeProbe` 的通用信号参数捕获上限从 8 个提高到 16 个。
 
 ### 🐛 Bug 修复
 
-- 修复 `GFUIUtility.pop_panel()`、`clear_layer()`、替换层入口、`dispose()` 和非栈顶 modal 解析关闭旧面板时只等待 `queue_free()` 而没有先从 `GFUILayer_*` 脱离的问题；面板关闭后会立即从 UI 层级移除，避免同一帧远程节点树或画面里残留旧面板。
-- 同步收口 `GFModalPanel` 动作按钮重渲染、`GFViewportUtility.clear_split_screen()`、`GFNodeTreeOps.free_children()`、`GFObjectPoolUtility` 容量淘汰与销毁、节点状态机清空释放、Debug Overlay / Console 销毁和扩展管理器列表刷新中的同类延迟脱树问题，避免清空或重建同一帧父节点下残留旧子节点。
-- 修复 modal 自动聚焦和 UI 栈焦点查找在同一帧关闭面板后仍可能对已脱离场景树的控件调用 `grab_focus()` 的问题。
+- 修复 `GFPluginActions.setup()` 重复调用时旧 `FileDialog` 没有立即脱离父节点的问题，避免编辑器插件重复初始化留下旧对话框。
+- 修复 9 个参数以上的 Signal 通过异步等待、信号工具、信号桥接或运行时信号探针时 payload 被截断或丢失的问题。
+- 修复 `GFNetworkSession` 收到非 `Dictionary` metadata 时静默丢弃的问题，现在会输出 warning 并保留空 metadata。
+- 修复 `GFSaveEntityFactory.after_entity_created()` 若删除刚创建的实体，SaveGraph 仍可能把失效 Source 交给后续恢复流程的问题。
+- 修复 UI 栈、对象池、能力元数据、命令序列回滚和输入触发器在缓存对象已释放后仍先执行类型转换的问题，避免 Godot 4.6 报告 freed object cast 错误。
 
-### 📁 核心受影响文件
+### ⚠️ 废弃与移除 (Removed)
 
-- UI 与调试界面：`addons/gf/standard/utilities/ui/gf_ui_utility.gd`、`addons/gf/standard/utilities/ui/gf_modal_panel.gd`、`addons/gf/standard/utilities/display/gf_viewport_utility.gd`、`addons/gf/standard/utilities/debug/gf_debug_overlay_utility.gd`、`addons/gf/standard/utilities/debug/gf_console_utility.gd`。
-- 节点生命周期工具：`addons/gf/standard/utilities/nodes/gf_node_tree_ops.gd`、`addons/gf/standard/utilities/nodes/gf_object_pool_utility.gd`、`addons/gf/standard/state_machine/node/gf_node_state_machine.gd`、`addons/gf/standard/state_machine/node/gf_node_state_group.gd`。
-- 编辑器扩展管理：`addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd`。
-- 测试与文档：`tests/gf_core/standard/utilities/ui/test_gf_ui_utility.gd`、`tests/gf_core/standard/utilities/display/test_gf_viewport_utility.gd`、`tests/gf_core/standard/utilities/nodes/test_gf_node_tree_ops.gd`、`tests/gf_core/standard/utilities/nodes/test_gf_object_pool_utility.gd`、`tests/gf_core/standard/state_machine/node/test_gf_node_state_machine.gd`、`tests/gf_core/standard/utilities/debug/test_gf_debug_overlay_utility.gd`、`tests/gf_core/standard/utilities/debug/test_gf_console_utility.gd`、`tests/gf_core/kernel/editor/test_gf_plugin_helpers.gd`、`docs/zh/standard/utilities/runtime/settings-ui-scene.md`、`docs/zh/standard/utilities/runtime/debug-observability.md`。
+- 移除代码构建 UI 的 `GFModalPanel` 默认面板，框架不再提供内置弹窗视觉实现。
 
----
+### 🔌 API 变动说明 (API Changes)
+
+- 移除 `GFModalPanel`。
+- 移除 `GFUIUtility.open_modal()`；项目应通过 `push_panel_with_options()`、`push_panel_async_with_options()` 或 `push_panel_instance_with_options()` 打开自己的 modal scene / instance，并自行连接面板的 `resolved(result: GFModalResult)` 信号。
+- `GFUIUtility` 新增 `AsyncPanelLoadStatus`、`panel_async_load_started`、`panel_async_load_finished`、`has_pending_async_panel()` 和 `get_pending_async_panel_requests()`。
+- `GFDebugOverlayUtility` 新增 `debug_only` 公共变量，默认 `true`。
+- 新增 `GFNodeStateGroup.stop()`。
+
+### 📘 升级指南 (Migration Guide)
+
+- 将 `GFUIUtility.open_modal(config, layer, context, callback)` 改为打开项目自己的 modal scene：使用 `push_panel_with_options("res://ui/your_modal.tscn", layer, modal_options, config_callback)`，在 `config_callback` 中调用项目面板的 `configure(config, context)` 并连接 `resolved(result)`。
+- 自定义 modal 面板建议实现 `configure(config: GFModalConfig, context: Dictionary)`、`resolve_cancel()` 和 `resolved(result: GFModalResult)`；`request_dismiss_top()` 会在允许取消时调用 `resolve_cancel()`，关闭时机由项目面板或项目回调决定。
+- 异步 UI 的 Loading 视觉仍由项目面板实现；项目可改为监听 `panel_async_load_started` / `panel_async_load_finished`，并用 `has_pending_async_panel(layer)` 判断是否还有同层请求未完成。
+
+### 📁 核心受影响文件 (Affected Files)
+
+- 信号与状态机：`addons/gf/standard/utilities/signals/gf_signal_connection.gd`、`addons/gf/standard/common/gf_async_wait_support.gd`、`addons/gf/standard/utilities/signals/bridge/gf_signal_bridge_binding.gd`、`addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd`、`addons/gf/standard/state_machine/node/gf_node_state_group.gd`、`addons/gf/standard/state_machine/node/gf_node_state_machine.gd`。
+- UI、调试、编辑器、网络、保存与生命周期：`addons/gf/standard/utilities/ui/gf_ui_utility.gd`、`addons/gf/standard/utilities/ui/gf_modal_panel.gd`、`addons/gf/standard/utilities/debug/gf_debug_overlay_utility.gd`、`addons/gf/kernel/core/gf_instance_guard.gd`、`addons/gf/kernel/editor/gf_plugin_actions.gd`、`addons/gf/extensions/network/session/gf_network_session.gd`、`addons/gf/extensions/save/graph/gf_save_graph_utility.gd`、`addons/gf/standard/utilities/nodes/gf_object_pool_utility.gd`、`addons/gf/extensions/capability/core/gf_capability_utility.gd`、`addons/gf/standard/sequence/gf_command_sequence.gd`。

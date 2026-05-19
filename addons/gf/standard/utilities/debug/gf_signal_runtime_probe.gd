@@ -26,9 +26,11 @@ signal signal_watch_stopped(source_path: String, signal_name: StringName)
 # --- 常量 ---
 
 const DEFAULT_MAX_EVENTS: int = 256
-const DEFAULT_MAX_ARGUMENT_COUNT: int = 8
+const _MAX_SUPPORTED_ARGUMENT_COUNT: int = 16
+const DEFAULT_MAX_ARGUMENT_COUNT: int = _MAX_SUPPORTED_ARGUMENT_COUNT
 const DEFAULT_MAX_WATCH_TREE_DEPTH: int = 64
 const DEFAULT_MAX_WATCH_TREE_NODES: int = 4096
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
@@ -59,7 +61,7 @@ func watch_node(source: Node, options: Dictionary = {}) -> Dictionary:
 	var include_names := _to_string_name_filter(options.get("include_signals", []))
 	var exclude_names := _to_string_name_filter(options.get("exclude_signals", []))
 	var include_internal := bool(options.get("include_internal", false))
-	var limit := int(options.get("max_argument_count", max_argument_count))
+	var limit := clampi(int(options.get("max_argument_count", max_argument_count)), 0, _MAX_SUPPORTED_ARGUMENT_COUNT)
 	var connect_flags := int(options.get("connect_flags", 0))
 	var watched_count := 0
 	var skipped_count := 0
@@ -223,7 +225,7 @@ func _watch_signal(source: Node, signal_name: StringName, argument_count: int, c
 
 func _disconnect_entry(entry: Dictionary) -> bool:
 	var source_ref := entry.get("source_ref") as WeakRef
-	var source := source_ref.get_ref() as Node if source_ref != null else null
+	var source: Node = _INSTANCE_GUARD._get_live_node_from_ref(source_ref)
 	var signal_name := StringName(entry.get("signal_name", ""))
 	var callback := entry.get("callable") as Callable
 	if source == null or signal_name == &"" or not callback.is_valid():
@@ -236,7 +238,7 @@ func _disconnect_entry(entry: Dictionary) -> bool:
 
 
 func _record_signal(source_id: int, source_path: String, signal_name: StringName, arguments: Array) -> void:
-	var source := instance_from_id(source_id) as Node
+	var source := _get_live_node_from_id(source_id)
 	var event := {
 		"timestamp_msec": Time.get_ticks_msec(),
 		"process_frame": Engine.get_process_frames(),
@@ -305,6 +307,22 @@ func _make_emit_callable(argument_count: int) -> Callable:
 			return Callable(self, "_on_signal_emitted_7")
 		8:
 			return Callable(self, "_on_signal_emitted_8")
+		9:
+			return Callable(self, "_on_signal_emitted_9")
+		10:
+			return Callable(self, "_on_signal_emitted_10")
+		11:
+			return Callable(self, "_on_signal_emitted_11")
+		12:
+			return Callable(self, "_on_signal_emitted_12")
+		13:
+			return Callable(self, "_on_signal_emitted_13")
+		14:
+			return Callable(self, "_on_signal_emitted_14")
+		15:
+			return Callable(self, "_on_signal_emitted_15")
+		16:
+			return Callable(self, "_on_signal_emitted_16")
 		_:
 			return Callable()
 
@@ -382,7 +400,7 @@ func _prune_invalid_watches() -> void:
 	for key: String in _watched.keys().duplicate():
 		var entry := _watched[key] as Dictionary
 		var source_ref := entry.get("source_ref") as WeakRef if entry != null else null
-		if source_ref == null or source_ref.get_ref() == null:
+		if _INSTANCE_GUARD._get_live_object_from_ref(source_ref) == null:
 			_watched.erase(key)
 
 
@@ -392,6 +410,10 @@ func _get_node_path_text(node: Node) -> String:
 	if node.is_inside_tree():
 		return str(node.get_path())
 	return node.name
+
+
+func _get_live_node_from_id(instance_id: int) -> Node:
+	return _INSTANCE_GUARD._get_live_node_from_id(instance_id)
 
 
 func _make_watch_key(source_id: int, signal_name: StringName) -> String:
@@ -506,3 +528,183 @@ func _on_signal_emitted_8(
 	signal_name: StringName
 ) -> void:
 	_record_signal(source_id, source_path, signal_name, [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7])
+
+
+func _on_signal_emitted_9(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8])
+
+
+func _on_signal_emitted_10(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	arg9: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [
+		arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9,
+	])
+
+
+func _on_signal_emitted_11(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	arg9: Variant,
+	arg10: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [
+		arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10,
+	])
+
+
+func _on_signal_emitted_12(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	arg9: Variant,
+	arg10: Variant,
+	arg11: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [
+		arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11,
+	])
+
+
+func _on_signal_emitted_13(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	arg9: Variant,
+	arg10: Variant,
+	arg11: Variant,
+	arg12: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [
+		arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12,
+	])
+
+
+func _on_signal_emitted_14(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	arg9: Variant,
+	arg10: Variant,
+	arg11: Variant,
+	arg12: Variant,
+	arg13: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [
+		arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13,
+	])
+
+
+func _on_signal_emitted_15(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	arg9: Variant,
+	arg10: Variant,
+	arg11: Variant,
+	arg12: Variant,
+	arg13: Variant,
+	arg14: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [
+		arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13,
+		arg14,
+	])
+
+
+func _on_signal_emitted_16(
+	arg0: Variant,
+	arg1: Variant,
+	arg2: Variant,
+	arg3: Variant,
+	arg4: Variant,
+	arg5: Variant,
+	arg6: Variant,
+	arg7: Variant,
+	arg8: Variant,
+	arg9: Variant,
+	arg10: Variant,
+	arg11: Variant,
+	arg12: Variant,
+	arg13: Variant,
+	arg14: Variant,
+	arg15: Variant,
+	source_id: int,
+	source_path: String,
+	signal_name: StringName
+) -> void:
+	_record_signal(source_id, source_path, signal_name, [
+		arg0, arg1, arg2, arg3, arg4, arg5, arg6, arg7, arg8, arg9, arg10, arg11, arg12, arg13,
+		arg14, arg15,
+	])

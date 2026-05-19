@@ -15,6 +15,7 @@ const _MAX_DISPLAY_ARGUMENT_LENGTH: int = 120
 const _NOISY_UNCONNECTED_SIGNAL_NAMES: Array[StringName] = [
 	&"draw",
 ]
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 const GFSignalRuntimeProbeBase = preload("res://addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd")
 const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
@@ -220,7 +221,7 @@ func _make_tree(titles: Array[String]) -> Tree:
 
 func _resolve_root() -> Node:
 	if _root_ref != null:
-		var existing := _root_ref.get_ref() as Node
+		var existing: Node = _INSTANCE_GUARD._get_live_node_from_ref(_root_ref)
 		if existing != null:
 			return existing
 

@@ -12,6 +12,7 @@ const GFNetworkMessageBase = preload("res://addons/gf/extensions/network/message
 const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/network/messages/gf_network_message_validator.gd")
 const GFNetworkRateLimiterBase = preload("res://addons/gf/extensions/network/session/gf_network_rate_limiter.gd")
 const GFNetworkReconnectPolicyBase = preload("res://addons/gf/extensions/network/session/gf_network_reconnect_policy.gd")
+const GFNetworkSessionBase = preload("res://addons/gf/extensions/network/session/gf_network_session.gd")
 const GFNetworkSerializerBase = preload("res://addons/gf/extensions/network/serialization/gf_network_serializer.gd")
 const GFNetworkFieldSerializerBase = preload("res://addons/gf/extensions/network/serialization/gf_network_field_serializer.gd")
 const GFNetworkSnapshotSchemaBase = preload("res://addons/gf/extensions/network/snapshot/gf_network_snapshot_schema.gd")
@@ -537,6 +538,15 @@ func test_network_utility_tracks_session_state() -> void:
 	assert_eq((host_snapshot["session"] as Dictionary).get("mode_name"), "host", "主机会话应记录 host 模式。")
 	assert_eq((host_snapshot["session"] as Dictionary).get("max_peers"), 8, "主机会话应记录最大连接数。")
 	assert_eq((client_snapshot["session"] as Dictionary).get("mode_name"), "client", "客户端连接应记录 client 模式。")
+
+
+func test_network_session_warns_and_ignores_non_dictionary_metadata() -> void:
+	var session: GFNetworkSession = GFNetworkSessionBase.new()
+
+	session.start_host({ "metadata": "invalid" })
+
+	assert_true(session.metadata.is_empty(), "非 Dictionary metadata 应被忽略。")
+	assert_push_warning("[GFNetworkSession] metadata 必须是 Dictionary，已忽略。")
 
 
 ## 验证后端在 host() 内立即报告 connected 时，会话已经带有主机 peer 信息且不会重复派发。

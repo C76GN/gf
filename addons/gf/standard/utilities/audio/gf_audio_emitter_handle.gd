@@ -18,6 +18,11 @@ signal player_attached(handle: GFAudioEmitterHandle, player: Node)
 signal stopped(handle: GFAudioEmitterHandle)
 
 
+# --- 常量 ---
+
+const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
+
+
 # --- 公共变量 ---
 
 ## 可选通道标识。框架不解释该字段。
@@ -97,7 +102,7 @@ func unbind_owner() -> void:
 func get_player() -> Node:
 	if _player_ref == null:
 		return null
-	return _player_ref.get_ref() as Node
+	return _INSTANCE_GUARD._get_live_node_from_ref(_player_ref)
 
 
 ## 检查句柄是否仍绑定有效播放器。
@@ -220,7 +225,7 @@ func _finish_stop(player: Node) -> void:
 func _get_owner() -> Node:
 	if _owner_ref == null:
 		return null
-	return _owner_ref.get_ref() as Node
+	return _INSTANCE_GUARD._get_live_node_from_ref(_owner_ref)
 
 
 func _disconnect_owner_exit() -> void:
