@@ -26,10 +26,12 @@ signal inventory_changed
 ## 可选物品定义注册表。
 var registry: GFInventoryItemRegistry = null
 
-## 是否允许库存在没有空槽时自动增长。
+## 是否允许库存在创建新堆叠时自动增长。
+## 为 false 时，0 槽位库存不会接收 `add_item()` 的新堆叠。
 var allow_growth: bool = false
 
-## 默认初始槽位数量。
+## 默认初始槽位数量。仅在 GF 生命周期调用 `init()` 时自动应用。
+## 手动创建后直接使用时，应调用 `set_slot_count()` 或启用 `allow_growth`。
 var default_slot_count: int = 0
 
 
@@ -169,11 +171,13 @@ func add_item(
 			return GFInventoryOperationResult.success(item_id, amount)
 
 	while remaining > 0 and (_has_empty_slot() or allow_growth):
+		if not _can_create_new_stack(item_id):
+			break
 		var empty_slot := _find_empty_slot()
 		if empty_slot == -1 and allow_growth:
 			_slots.append(null)
 			empty_slot = _slots.size() - 1
-		if empty_slot == -1 or not _can_create_new_stack(item_id):
+		if empty_slot == -1:
 			break
 		remaining = _try_add_to_empty_slot(empty_slot, item_id, remaining, normalized_data)
 
@@ -378,7 +382,8 @@ func get_remaining_capacity_for_item(item_id: StringName, instance_data: Diction
 	if allow_growth and max_stack_count <= 0:
 		return capacity + 2147483647
 	if max_stack_count > 0:
-		free_stack_slots = mini(free_stack_slots, maxi(max_stack_count - current_stack_count, 0))
+		var remaining_stack_slots := maxi(max_stack_count - current_stack_count, 0)
+		free_stack_slots = remaining_stack_slots if allow_growth else mini(free_stack_slots, remaining_stack_slots)
 	capacity += free_stack_slots * _get_max_stack_amount(item_id)
 	return capacity
 

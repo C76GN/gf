@@ -129,18 +129,26 @@ func get_validation_report(root: Node) -> Dictionary:
 		"bridge_id": bridge_id,
 		"issues": [],
 	}
+	var source_is_valid := false
 	if source == null:
 		_append_validation_issue(report, &"missing_source", "source", "Signal bridge source is missing.")
 	elif not source.is_valid_for(root):
 		_append_validation_issue(report, &"invalid_source_signal", "source", "Signal bridge source signal is invalid.")
+	else:
+		source_is_valid = true
 
+	var target_is_valid := false
 	if target == null:
 		_append_validation_issue(report, &"missing_target", "target", "Signal bridge target is missing.")
 	elif not target.is_valid_for(root):
 		_append_validation_issue(report, &"invalid_callable_target", "target", "Signal bridge target callable is invalid.")
+	else:
+		target_is_valid = true
 
-	if argument_indices.has(-1):
-		_append_validation_issue(report, &"negative_argument_index", "argument_indices", "Signal bridge argument index cannot be negative.")
+	var signal_argument_count := source.get_signal_argument_count(root) if source_is_valid else -1
+	_validate_argument_indices(report, signal_argument_count)
+	if target_is_valid:
+		_validate_callable_argument_count(report, root, signal_argument_count)
 
 	return GFValidationReportDictionaryBase.finalize_report(report, "Signal bridge", {
 		"include_issue_count": true,
@@ -185,16 +193,101 @@ func _make_result(ok: bool, reason: StringName, value: Variant) -> Dictionary:
 	}
 
 
+func _validate_argument_indices(report: Dictionary, signal_argument_count: int) -> void:
+	for argument_index: int in argument_indices:
+		if argument_index < 0:
+			_append_validation_issue(
+				report,
+				&"negative_argument_index",
+				"argument_indices",
+				"Signal bridge argument index cannot be negative.",
+				{ "argument_index": argument_index }
+			)
+		elif signal_argument_count >= 0 and argument_index >= signal_argument_count:
+			_append_validation_issue(
+				report,
+				&"argument_index_out_of_range",
+				"argument_indices",
+				"Signal bridge argument index %d is outside the source signal argument count %d." % [
+					argument_index,
+					signal_argument_count,
+				],
+				{
+					"argument_index": argument_index,
+					"signal_argument_count": signal_argument_count,
+				}
+			)
+
+
+func _validate_callable_argument_count(report: Dictionary, root: Node, signal_argument_count: int) -> void:
+	var provided_argument_count := _get_provided_callable_argument_count(signal_argument_count)
+	if provided_argument_count < 0:
+		return
+
+	var target_object := target.resolve_target(root)
+	if target_object == null:
+		return
+
+	for method_info: Dictionary in target_object.get_method_list():
+		if StringName(method_info.get("name", &"")) != target.method_name:
+			continue
+
+		var method_args: Array = method_info.get("args", [])
+		var default_args: Array = method_info.get("default_args", [])
+		var required_argument_count := maxi(method_args.size() - default_args.size(), 0)
+		var maximum_argument_count := method_args.size()
+		var accepts_extra_args := (int(method_info.get("flags", 0)) & METHOD_FLAG_VARARG) != 0
+		if provided_argument_count >= required_argument_count and (accepts_extra_args or provided_argument_count <= maximum_argument_count):
+			return
+
+		_append_validation_issue(
+			report,
+			&"callable_argument_mismatch",
+			"target",
+			"Signal bridge provides %d argument(s), but target method expects %d-%s." % [
+				provided_argument_count,
+				required_argument_count,
+				"*" if accepts_extra_args else str(maximum_argument_count),
+			],
+			{
+				"provided_argument_count": provided_argument_count,
+				"required_argument_count": required_argument_count,
+				"maximum_argument_count": maximum_argument_count,
+				"accepts_extra_args": accepts_extra_args,
+			}
+		)
+		return
+
+
+func _get_provided_callable_argument_count(signal_argument_count: int) -> int:
+	var count := 0
+	if argument_indices.is_empty():
+		if signal_argument_count < 0:
+			return -1
+		count = signal_argument_count
+	else:
+		count = argument_indices.size()
+	count += constant_args.size()
+	if append_context:
+		count += 1
+	if target != null:
+		count += target.default_args.size()
+	return count
+
+
 func _append_validation_issue(
 	report: Dictionary,
 	kind: StringName,
 	path: String,
-	message: String
+	message: String,
+	fields: Dictionary = {}
 ) -> void:
-	GFValidationReportDictionaryBase.append_issue(report, "error", kind, message, {
+	var issue_fields := {
 		"bridge_id": bridge_id,
 		"path": path,
-	})
+	}
+	issue_fields.merge(fields, true)
+	GFValidationReportDictionaryBase.append_issue(report, "error", kind, message, issue_fields)
 
 
 func _get_validation_next_actions() -> Dictionary:
@@ -204,4 +297,6 @@ func _get_validation_next_actions() -> Dictionary:
 		"missing_target": "Assign a GFCallableTargetRef before connecting the bridge.",
 		"invalid_callable_target": "Check the target path and method name against the bridge root.",
 		"negative_argument_index": "Remove negative values from argument_indices.",
+		"argument_index_out_of_range": "Keep argument_indices within the source signal argument list.",
+		"callable_argument_mismatch": "Adjust argument_indices, constant_args, append_context, or the target method signature.",
 	}

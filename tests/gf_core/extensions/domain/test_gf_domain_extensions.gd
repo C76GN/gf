@@ -79,6 +79,63 @@ func test_slot_inventory_respects_stack_rules_and_serializes() -> void:
 	assert_eq(restored.get_item_total(&"item_a"), 10, "恢复后物品总数应一致。")
 
 
+## 验证 0 槽位库存默认不会隐式新增槽位。
+func test_slot_inventory_zero_slots_require_explicit_capacity() -> void:
+	var inventory := GFSlotInventoryModel.new()
+
+	var result := inventory.add_item(&"item_a")
+
+	assert_false(result.ok, "未配置槽位且未启用增长时不应接受新物品。")
+	assert_eq(result.reason, &"not_enough_space", "失败原因应说明容量不足。")
+	assert_eq(result.accepted_amount, 0, "不应部分接受物品。")
+	assert_eq(inventory.get_slot_count(), 0, "默认 0 槽位库存不应隐式增长。")
+
+
+## 验证可增长槽位会按有限堆叠数量上限计算容量。
+func test_slot_inventory_growth_counts_finite_stack_capacity() -> void:
+	var definition := GFInventoryItemDefinition.new()
+	definition.item_id = &"item_a"
+	definition.max_stack_amount = 5
+	definition.max_stack_count = 2
+
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(definition)
+
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.allow_growth = true
+
+	var remaining_capacity := inventory.get_remaining_capacity_for_item(&"item_a")
+	var result := inventory.add_item(&"item_a", 10, {}, -1, false)
+
+	assert_eq(remaining_capacity, 10, "可增长库存应把有限堆叠上限计入剩余容量。")
+	assert_true(result.ok, "非部分加入应在增长容量足够时成功。")
+	assert_eq(inventory.get_slot_count(), 2, "应只增长到需要的堆叠数量。")
+	assert_eq(inventory.get_item_total(&"item_a"), 10, "新增槽位中的物品数量应完整写入。")
+
+
+## 验证可增长槽位达到堆叠数量上限时不会多创建空槽。
+func test_slot_inventory_growth_does_not_create_spare_slot_after_stack_limit() -> void:
+	var definition := GFInventoryItemDefinition.new()
+	definition.item_id = &"item_a"
+	definition.max_stack_amount = 5
+	definition.max_stack_count = 2
+
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(definition)
+
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.allow_growth = true
+
+	var result := inventory.add_item(&"item_a", 12)
+
+	assert_false(result.ok, "超过有限增长容量时应返回部分成功。")
+	assert_eq(result.accepted_amount, 10, "只应接受两个堆叠的容量。")
+	assert_eq(result.remaining_amount, 2, "超出堆叠数量上限的部分应保留为剩余数量。")
+	assert_eq(inventory.get_slot_count(), 2, "达到堆叠数量上限后不应额外创建空槽。")
+
+
 func test_inventory_partial_result_normalizes_ok_reason() -> void:
 	var partial := GFInventoryOperationResult.partial(&"item_a", 5, 2, &"ok")
 	var failed := GFInventoryOperationResult.partial(&"item_a", 5, 0, &"ok")

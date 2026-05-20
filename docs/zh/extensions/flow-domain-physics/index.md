@@ -145,6 +145,8 @@ var result := slots.add_item(&"item_a", 35, { "variant": "basic" })
 print(result.accepted_amount, result.remaining_amount)
 ```
 
-`GFSlotInventoryModel.get_slots_for_item()` 会维护物品到槽位的惰性索引，适合 UI 局部刷新或规则查询；`validate_inventory()` 和 `apply_registry_constraints()` 可检查或修复注册表约束，例如未注册物品、单堆叠超量或堆叠数量超限。`GFInventoryOperationResult.partial()` 会把“未完全接受”的结果规范为 `ok = false`，并在调用方误传 `reason = &"ok"` 时改为 `&"partial"` 或 `&"failed"`，避免 UI 和日志遇到“失败但原因是 ok”的冲突状态。默认实例数据比较仍由 `stack_key_fields` 控制；需要更特殊的合并规则时，可给 `GFInventoryItemDefinition.compatibility_checker` 传入项目层回调，但 GF 不保存该回调到字典数据中。
+`GFSlotInventoryModel` 手动 `new()` 后默认是 0 槽位且 `allow_growth = false`，因此不会在 `add_item()` 时隐式新增槽位。固定容量背包应先调用 `set_slot_count(count)`；如果模型由 GF 生命周期管理，也可以设置 `default_slot_count` 让 `init()` 自动应用初始槽位。需要无固定格子上限、但仍受物品 `max_stack_amount` / `max_stack_count` 约束的容器时，再显式启用 `allow_growth = true`。
+
+`GFSlotInventoryModel.get_slots_for_item()` 会维护物品到槽位的惰性索引，适合 UI 局部刷新或规则查询；`get_remaining_capacity_for_item()` 会同时考虑已有兼容堆叠、空槽位、`allow_growth` 和注册表中的堆叠数量上限，适合在非部分加入前做容量预判。`validate_inventory()` 和 `apply_registry_constraints()` 可检查或修复注册表约束，例如未注册物品、单堆叠超量或堆叠数量超限。`GFInventoryOperationResult.partial()` 会把“未完全接受”的结果规范为 `ok = false`，并在调用方误传 `reason = &"ok"` 时改为 `&"partial"` 或 `&"failed"`，避免 UI 和日志遇到“失败但原因是 ok”的冲突状态。默认实例数据比较仍由 `stack_key_fields` 控制；需要更特殊的合并规则时，可给 `GFInventoryItemDefinition.compatibility_checker` 传入项目层回调，但 GF 不保存该回调到字典数据中。
 
 这些模型适合放在项目自己的 `Model` 或资源配置中，具体物品含义、标签体系和结算规则仍由项目层定义。

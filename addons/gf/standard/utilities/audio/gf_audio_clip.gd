@@ -9,7 +9,7 @@ extends Resource
 # --- 导出变量 ---
 
 ## 音频资源路径。`stream` 为空时使用该路径加载。
-@export_file("*.wav", "*.ogg", "*.mp3") var path: String = ""
+@export_file("*.wav", "*.ogg", "*.mp3", "*.opus") var path: String = ""
 
 ## 音频流资源。
 @export var stream: AudioStream

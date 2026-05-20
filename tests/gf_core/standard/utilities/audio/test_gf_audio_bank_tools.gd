@@ -20,6 +20,13 @@ func _write_empty_user_file(path: String) -> void:
 		file.close()
 
 
+func _find_property_info(object: Object, property_name: String) -> Dictionary:
+	for property_info: Dictionary in object.get_property_list():
+		if String(property_info.get("name", "")) == property_name:
+			return property_info
+	return {}
+
+
 # --- 测试 ---
 
 func test_create_bank_from_paths_uses_relative_clip_ids() -> void:
@@ -73,6 +80,18 @@ func test_sync_bank_from_scan_imports_audio_paths() -> void:
 	assert_eq(report.metadata.get("added_count", 0), 1, "扫描同步应导入新音频片段。")
 	assert_true(bank.has_clip(&"click"), "扫描同步应按相对路径生成片段 ID。")
 	assert_eq(bank.get_clip(&"click").bus_name, "SFX", "扫描同步应传递导入选项。")
+
+
+func test_audio_clip_path_picker_accepts_default_tool_extensions() -> void:
+	var clip := GFAudioClipBase.new()
+	var path_property := _find_property_info(clip, "path")
+	var hint_string := String(path_property.get("hint_string", ""))
+
+	for extension: String in GFAudioBankToolsBase.AUDIO_EXTENSIONS:
+		assert_true(
+			hint_string.contains("*.%s" % extension),
+			"GFAudioClip.path 的文件选择器应包含 GFAudioBankTools 默认音频扩展名。"
+		)
 
 
 func test_scan_audio_paths_respects_audio_path_limit() -> void:

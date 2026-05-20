@@ -45,6 +45,9 @@ class TestListener:
 			"context": context,
 		})
 
+	func record_value(value: int) -> void:
+		received.append(value)
+
 
 class WideListener:
 	extends Node
@@ -125,6 +128,55 @@ func test_signal_bridge_keeps_nine_signal_arguments() -> void:
 	assert_eq(listener.received, [1, 2, 3, 4, 5, 6, 7, 8, 9], "桥接应保留 9 个信号参数。")
 
 
+func test_signal_bridge_validation_reports_argument_index_out_of_range() -> void:
+	var root := Node.new()
+	add_child_autofree(root)
+
+	var emitter := TestEmitter.new()
+	emitter.name = "Emitter"
+	root.add_child(emitter)
+
+	var listener := TestListener.new()
+	listener.name = "Listener"
+	root.add_child(listener)
+
+	var bridge := GFSignalBridge.new()
+	bridge.source.source_path = root.get_path_to(emitter)
+	bridge.source.signal_name = &"changed"
+	bridge.target.target_path = root.get_path_to(listener)
+	bridge.target.method_name = &"record_value"
+	bridge.argument_indices = PackedInt32Array([2])
+
+	var report := bridge.get_validation_report(root)
+
+	assert_false(report["ok"], "越界参数索引应产生校验错误。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "argument_index_out_of_range"), "校验报告应包含参数索引越界问题。")
+
+
+func test_signal_bridge_validation_reports_callable_argument_mismatch() -> void:
+	var root := Node.new()
+	add_child_autofree(root)
+
+	var emitter := TestEmitter.new()
+	emitter.name = "Emitter"
+	root.add_child(emitter)
+
+	var listener := TestListener.new()
+	listener.name = "Listener"
+	root.add_child(listener)
+
+	var bridge := GFSignalBridge.new()
+	bridge.source.source_path = root.get_path_to(emitter)
+	bridge.source.signal_name = &"changed"
+	bridge.target.target_path = root.get_path_to(listener)
+	bridge.target.method_name = &"record_value"
+
+	var report := bridge.get_validation_report(root)
+
+	assert_false(report["ok"], "目标方法参数数量不匹配应产生校验错误。")
+	assert_true(_has_issue_kind(report["issues"] as Array, "callable_argument_mismatch"), "校验报告应包含目标参数数量不匹配问题。")
+
+
 ## 验证信号桥接报告无效目标。
 func test_signal_bridge_validation_reports_invalid_target() -> void:
 	var root := Node.new()
@@ -151,3 +203,12 @@ func test_signal_bridge_validation_reports_invalid_target() -> void:
 	assert_eq(report["error_count"], 1, "校验报告应统计错误数量。")
 	assert_eq(report["issue_count"], 1, "校验报告应统计问题总数。")
 	assert_eq(report["issues"][0]["path"], "target", "校验问题应包含通用路径字段。")
+
+
+# --- 私有/辅助方法 ---
+
+func _has_issue_kind(issues: Array, kind: String) -> bool:
+	for issue: Dictionary in issues:
+		if String(issue.get("kind", "")) == kind:
+			return true
+	return false
