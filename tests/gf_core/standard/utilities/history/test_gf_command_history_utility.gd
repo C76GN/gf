@@ -329,14 +329,14 @@ func test_dispose_cancels_pending_async_history_operation() -> void:
 
 	_history.execute_command(cmd)
 	await get_tree().process_frame
-	assert_true(_history._is_processing_async, "异步命令未完成时应进入处理锁。")
+	assert_true(_history.is_processing_async, "异步命令未完成时应进入处理锁。")
 
 	_history.dispose()
 	cmd.complete()
 	await get_tree().process_frame
 	await get_tree().process_frame
 
-	assert_false(_history._is_processing_async, "dispose 应解除异步处理锁。")
+	assert_false(_history.is_processing_async, "dispose 应解除异步处理锁。")
 	assert_eq(_history.undo_count, 0, "dispose 后旧异步命令完成不应写入历史。")
 
 

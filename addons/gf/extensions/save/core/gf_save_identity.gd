@@ -2,6 +2,12 @@
 ##
 ## 用于为可恢复实体提供稳定 id、类型键和额外描述信息。它只描述身份，
 ## 不直接负责保存或实例化。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class_name GFSaveIdentity
 extends Node
 
@@ -9,31 +15,50 @@ extends Node
 # --- 导出变量 ---
 
 ## 稳定实体 id。留空时由调用方决定是否使用节点路径等回退方案。
+## [br]
+## @api public
 @export var persistent_id: StringName = &""
 
 ## 可选实体类型键，通常用于恢复时选择工厂。
+## [br]
+## @api public
 @export var type_key: StringName = &""
 
 ## 可写入存档描述的扩展字段。
+## [br]
+## @api public
+## [br]
+## @schema descriptor_extra: Dictionary，会合并进 describe_identity() 返回值的项目自定义描述字段。
 @export var descriptor_extra: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取稳定实体 id。
+## [br]
+## @api public
+## [br]
 ## @return 实体 id。
 func get_persistent_id() -> StringName:
 	return persistent_id
 
 
 ## 获取实体类型键。
+## [br]
+## @api public
+## [br]
 ## @return 类型键。
 func get_type_key() -> StringName:
 	return type_key
 
 
 ## 构造身份描述。
+## [br]
+## @api public
+## [br]
 ## @return 描述字典。
+## [br]
+## @schema return: Dictionary，包含 descriptor_extra，并在非空时包含 persistent_id 与 type_key。
 func describe_identity() -> Dictionary:
 	var descriptor := descriptor_extra.duplicate(true)
 	if persistent_id != &"":

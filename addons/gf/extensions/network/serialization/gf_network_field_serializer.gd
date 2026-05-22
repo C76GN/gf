@@ -2,6 +2,12 @@
 ##
 ## 将常见 Godot 值归一化为可序列化 Variant。它只处理字段值的形态转换，
 ## 不规定同步方向、可靠性、预测、回滚或冲突解决策略。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNetworkFieldSerializer
 extends Resource
 
@@ -9,6 +15,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 字段值类型。
+## [br]
+## @api public
 enum ValueType {
 	## 保持原始 Variant。
 	VARIANT,
@@ -38,26 +46,44 @@ enum ValueType {
 # --- 导出变量 ---
 
 ## 字段值类型。
+## [br]
+## @api public
 @export var value_type: ValueType = ValueType.VARIANT
 
 ## 浮点量化小数位；小于 0 表示不量化。
+## [br]
+## @api public
 @export_range(-1, 8, 1) var quantize_decimals: int = -1
 
 ## 是否夹取数值。
+## [br]
+## @api public
 @export var clamp_enabled: bool = false
 
 ## 数值夹取下限。
+## [br]
+## @api public
 @export var min_value: float = 0.0
 
 ## 数值夹取上限。
+## [br]
+## @api public
 @export var max_value: float = 1.0
 
 
 # --- 公共方法 ---
 
 ## 编码字段值。
+## [br]
+## @api public
+## [br]
 ## @param value: 原始值。
+## [br]
 ## @return 可序列化值。
+## [br]
+## @schema value: Variant，原始字段值。
+## [br]
+## @schema return: Variant，可序列化字段值；向量和颜色会编码为 Array。
 func serialize_value(value: Variant) -> Variant:
 	match value_type:
 		ValueType.BOOL:
@@ -85,8 +111,16 @@ func serialize_value(value: Variant) -> Variant:
 
 
 ## 解码字段值。
+## [br]
+## @api public
+## [br]
 ## @param value: 编码值。
+## [br]
 ## @return 解码后的值。
+## [br]
+## @schema value: Variant，serialize_value() 产生的编码值或兼容输入。
+## [br]
+## @schema return: Variant，按 value_type 解码后的字段值。
 func deserialize_value(value: Variant) -> Variant:
 	match value_type:
 		ValueType.BOOL:
@@ -114,6 +148,9 @@ func deserialize_value(value: Variant) -> Variant:
 
 
 ## 复制编码器配置。
+## [br]
+## @api public
+## [br]
 ## @return 新编码器。
 func duplicate_serializer() -> GFNetworkFieldSerializer:
 	var serializer := GFNetworkFieldSerializer.new()

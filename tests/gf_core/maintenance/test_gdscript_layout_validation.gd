@@ -5,6 +5,7 @@ extends GutTest
 # --- 常量 ---
 
 const SOURCE_ROOT: String = "res://addons/gf"
+const TEST_ROOT: String = "res://tests/gf_core"
 const SECTION_PREFIX: String = "# --- "
 const SECTION_SUFFIX: String = " ---"
 const TRIPLE_QUOTE: String = "\"\"\""
@@ -177,6 +178,16 @@ func test_editor_generation_templates_use_documented_sections() -> void:
 	assert_false(actions_source.contains("var lifecycle_template := \"\"\"# --- Godot 生命周期方法 ---"), "GF 模块模板不应把 GF 生命周期误写成 Godot 生命周期。")
 	assert_true(source.contains("# --- 私有/辅助方法 ---"), "编辑器代码生成模板应包含私有/辅助方法 section。")
 	assert_true(actions_source.contains("var lifecycle_template := \"\"\"# --- GF 生命周期方法 ---"), "编辑器代码生成模板应包含 GF 生命周期 section。")
+
+
+func test_local_variables_do_not_shadow_node_name_property() -> void:
+	var script_paths := _collect_gdscript_files(SOURCE_ROOT)
+	script_paths.append_array(_collect_gdscript_files(TEST_ROOT))
+	var issues: Array[String] = []
+	for path: String in script_paths:
+		issues.append_array(_collect_local_name_shadow_issues(path))
+
+	assert_eq(issues, [], "局部变量不应命名为 name，以免在 Node 派生脚本和 GUT 测试中遮蔽 Node.name：\n%s" % _join_lines(issues))
 
 
 # --- 私有/辅助方法 ---
@@ -370,6 +381,46 @@ func _collect_section_order_issues(path: String) -> Array[String]:
 	return issues
 
 
+func _collect_local_name_shadow_issues(path: String) -> Array[String]:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return ["%s: cannot open file" % path]
+
+	var lines := file.get_as_text().split("\n")
+	file.close()
+	var issues: Array[String] = []
+	var inside_multiline_string := false
+	var function_indent := -1
+	for line_index: int in range(lines.size()):
+		var raw_line := _trim_cr(String(lines[line_index]))
+		var triple_quote_count := _count_substring(raw_line, TRIPLE_QUOTE)
+		if inside_multiline_string:
+			if triple_quote_count % 2 == 1:
+				inside_multiline_string = false
+			continue
+		if triple_quote_count % 2 == 1:
+			inside_multiline_string = true
+			continue
+
+		var trimmed := raw_line.strip_edges()
+		if trimmed.is_empty() or trimmed.begins_with("#"):
+			continue
+
+		var indent := _get_indent_level(raw_line)
+		if function_indent != -1 and indent <= function_indent:
+			function_indent = -1
+		if trimmed.begins_with("func ") or trimmed.begins_with("static func "):
+			function_indent = indent
+			continue
+		if function_indent == -1:
+			continue
+		if not _declares_reserved_local_name(trimmed):
+			continue
+
+		issues.append("%s:%d local variable 'name' shadows Node.name; use a semantic name" % [path, line_index + 1])
+	return issues
+
+
 func _scan_top_level_source(path: String, callback: Callable) -> void:
 	var file := FileAccess.open(path, FileAccess.READ)
 	if file == null:
@@ -450,6 +501,21 @@ func _line_starts_private_variable(line: String) -> bool:
 	return line.begins_with("@export") and line.contains(" var _")
 
 
+func _declares_reserved_local_name(trimmed_line: String) -> bool:
+	return _starts_with_keyword_identifier(trimmed_line, "var", "name") or _starts_with_keyword_identifier(trimmed_line, "for", "name")
+
+
+func _starts_with_keyword_identifier(trimmed_line: String, keyword: String, identifier: String) -> bool:
+	var prefix := "%s %s" % [keyword, identifier]
+	if not trimmed_line.begins_with(prefix):
+		return false
+	if trimmed_line.length() == prefix.length():
+		return true
+
+	var next_character := trimmed_line[prefix.length()]
+	return [" ", "\t", ":", "=", ","].has(next_character)
+
+
 func _underscore_method_section_is_valid(function_name: String, section_name: String) -> bool:
 	if _section_has_marker(section_name, PRIVATE_SECTION_MARKERS):
 		return true
@@ -473,7 +539,17 @@ func _section_is_private_variable_section(section_name: String) -> bool:
 func _section_is_private_helper_section(section_name: String) -> bool:
 	return (
 		_section_has_marker(section_name, PRIVATE_SECTION_MARKERS)
+		and not _section_is_framework_or_layer_internal_section(section_name)
 		and not _section_has_marker(section_name, VARIABLE_SECTION_MARKERS)
+	)
+
+
+func _section_is_framework_or_layer_internal_section(section_name: String) -> bool:
+	return (
+		section_name.contains("框架内部")
+		or section_name.contains("层内")
+		or section_name.to_lower().contains("framework internal")
+		or section_name.to_lower().contains("layer internal")
 	)
 
 
@@ -531,6 +607,19 @@ func _trim_cr(text: String) -> String:
 	if text.ends_with("\r"):
 		return text.substr(0, text.length() - 1)
 	return text
+
+
+func _get_indent_level(line: String) -> int:
+	var result := 0
+	for index: int in range(line.length()):
+		var character := line[index]
+		if character == "\t":
+			result += 1
+		elif character == " ":
+			result += 1
+		else:
+			break
+	return result
 
 
 func _get_section_label(section_name: String) -> String:

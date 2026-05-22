@@ -1,21 +1,14 @@
 ## GFNodeSerializerRegistry: 节点序列化器注册表。
 ##
 ## 负责按 serializer_id 管理序列化器，并为节点执行一组可组合的采集和应用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFNodeSerializerRegistry
 extends RefCounted
-
-
-# --- 常量 ---
-
-const GFNodeSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_serializer.gd")
-const GFNodeAnimationPlayerSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_animation_player_serializer.gd")
-const GFNodeAudioStreamPlayerSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_audio_stream_player_serializer.gd")
-const GFNodeCanvasItemSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_canvas_item_serializer.gd")
-const GFNodeControlSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_control_serializer.gd")
-const GFNodeRangeSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_range_serializer.gd")
-const GFNodeTimerSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_timer_serializer.gd")
-const GFNodeTransform2DSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_transform_2d_serializer.gd")
-const GFNodeTransform3DSerializerBase = preload("res://addons/gf/extensions/save/serializers/gf_node_transform_3d_serializer.gd")
 
 
 # --- 私有变量 ---
@@ -27,21 +20,24 @@ var _serializers: Dictionary = {}
 
 func _init(include_default_serializers: bool = true) -> void:
 	if include_default_serializers:
-		register_serializer(GFNodeTransform2DSerializerBase.new())
-		register_serializer(GFNodeTransform3DSerializerBase.new())
-		register_serializer(GFNodeCanvasItemSerializerBase.new())
-		register_serializer(GFNodeControlSerializerBase.new())
-		register_serializer(GFNodeRangeSerializerBase.new())
-		register_serializer(GFNodeTimerSerializerBase.new())
-		register_serializer(GFNodeAnimationPlayerSerializerBase.new())
-		register_serializer(GFNodeAudioStreamPlayerSerializerBase.new())
+		register_serializer(GFNodeTransform2DSerializer.new())
+		register_serializer(GFNodeTransform3DSerializer.new())
+		register_serializer(GFNodeCanvasItemSerializer.new())
+		register_serializer(GFNodeControlSerializer.new())
+		register_serializer(GFNodeRangeSerializer.new())
+		register_serializer(GFNodeTimerSerializer.new())
+		register_serializer(GFNodeAnimationPlayerSerializer.new())
+		register_serializer(GFNodeAudioStreamPlayerSerializer.new())
 
 
 # --- 公共方法 ---
 
 ## 注册序列化器。相同 id 会被后注册的实例覆盖。
+## [br]
+## @api public
+## [br]
 ## @param serializer: 序列化器。
-func register_serializer(serializer: GFNodeSerializerBase) -> void:
+func register_serializer(serializer: GFNodeSerializer) -> void:
 	if serializer == null:
 		return
 
@@ -52,42 +48,64 @@ func register_serializer(serializer: GFNodeSerializerBase) -> void:
 
 
 ## 注销序列化器。
+## [br]
+## @api public
+## [br]
 ## @param serializer_id: 序列化器标识。
 func unregister_serializer(serializer_id: StringName) -> void:
 	_serializers.erase(serializer_id)
 
 
 ## 清空注册表。
+## [br]
+## @api public
 func clear() -> void:
 	_serializers.clear()
 
 
 ## 获取指定序列化器。
+## [br]
+## @api public
+## [br]
 ## @param serializer_id: 序列化器标识。
+## [br]
 ## @return 序列化器实例。
-func get_serializer(serializer_id: StringName) -> GFNodeSerializerBase:
-	return _serializers.get(serializer_id) as GFNodeSerializerBase
+func get_serializer(serializer_id: StringName) -> GFNodeSerializer:
+	return _serializers.get(serializer_id) as GFNodeSerializer
 
 
 ## 获取所有支持指定节点的序列化器。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @return 序列化器数组。
-func get_serializers_for_node(node: Node) -> Array[GFNodeSerializerBase]:
-	var result: Array[GFNodeSerializerBase] = []
+func get_serializers_for_node(node: Node) -> Array[GFNodeSerializer]:
+	var result: Array[GFNodeSerializer] = []
 	for serializer_variant: Variant in _serializers.values():
-		var serializer := serializer_variant as GFNodeSerializerBase
+		var serializer := serializer_variant as GFNodeSerializer
 		if serializer != null and serializer.supports_node(node):
 			result.append(serializer)
 	return result
 
 
 ## 采集节点上所有支持的默认序列化器数据。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
 ## @return 序列化片段数组。
+## [br]
+## @schema context: Dictionary，传递给各序列化器的调用上下文，可包含项目自定义字段。
+## [br]
+## @schema return: Array[Dictionary]，每项包含 id: StringName 与 data: Dictionary。
 func gather_node(node: Node, context: Dictionary = {}) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for serializer: GFNodeSerializerBase in get_serializers_for_node(node):
+	for serializer: GFNodeSerializer in get_serializers_for_node(node):
 		var data := serializer.gather(node, context)
 		if data.is_empty():
 			continue
@@ -99,10 +117,22 @@ func gather_node(node: Node, context: Dictionary = {}) -> Array[Dictionary]:
 
 
 ## 应用节点序列化片段。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @param serializer_payloads: 由 gather_node 返回的片段数组。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
 ## @return 结果字典。
+## [br]
+## @schema serializer_payloads: Array[Dictionary]，每项包含 id: StringName 与 data: Dictionary。
+## [br]
+## @schema context: Dictionary，传递给各序列化器的调用上下文，可包含项目自定义字段。
+## [br]
+## @schema return: Dictionary，包含 ok: bool、applied: int 与 errors: Array[String]。
 func apply_node(node: Node, serializer_payloads: Array, context: Dictionary = {}) -> Dictionary:
 	var errors: Array[String] = []
 	var applied := 0

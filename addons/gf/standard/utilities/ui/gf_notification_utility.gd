@@ -1,6 +1,12 @@
 ## GFNotificationUtility: 通用运行时通知队列。
 ##
 ## 只管理通知数据、队列、去重和生命周期信号，不规定 Toast、HUD 或编辑器 UI 样式。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFNotificationUtility
 extends GFUtility
 
@@ -8,35 +14,73 @@ extends GFUtility
 # --- 信号 ---
 
 ## 通知进入队列时发出。
+## [br]
+## @api public
+## [br]
+## @param notification: 通知副本。
+## [br]
+## @schema notification: Dictionary，包含 id、key、dedupe_key、title、message、level、priority、sticky、duration_seconds、created_at_unix、actions 和 metadata。
 signal notification_queued(notification: Dictionary)
 
 ## 通知开始展示时发出。
+## [br]
+## @api public
+## [br]
+## @param notification: 通知副本。
+## [br]
+## @schema notification: Dictionary，字段同 notification_queued 的 notification。
 signal notification_started(notification: Dictionary)
 
 ## 通知结束时发出。
+## [br]
+## @api public
+## [br]
+## @param notification: 通知副本。
+## [br]
+## @param reason: 结束原因。
+## [br]
+## @schema notification: Dictionary，字段同 notification_queued 的 notification。
 signal notification_finished(notification: Dictionary, reason: String)
 
 ## 当前通知动作被触发时发出。
+## [br]
+## @api public
+## [br]
 ## @param notification: 当前通知副本。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
+## @schema notification: Dictionary，字段同 notification_queued 的 notification。
 signal notification_action_invoked(notification: Dictionary, action_id: StringName)
 
 
 # --- 枚举 ---
 
 ## 通知等级。
+## [br]
+## @api public
 enum Level {
+	## 普通信息。
 	INFO,
+	## 成功反馈。
 	SUCCESS,
+	## 警告信息。
 	WARNING,
+	## 错误信息。
 	ERROR,
 }
 
 ## 通知优先级。数值越大越靠前。
+## [br]
+## @api public
 enum Priority {
+	## 低优先级。
 	LOW,
+	## 默认优先级。
 	NORMAL,
+	## 高优先级。
 	HIGH,
+	## 最高优先级。
 	CRITICAL,
 }
 
@@ -44,12 +88,18 @@ enum Priority {
 # --- 公共变量 ---
 
 ## 默认展示时长。
+## [br]
+## @api public
 var default_duration_seconds: float = 3.0
 
 ## 最大排队数量。设为 0 时只允许当前通知，不保留等待队列。
+## [br]
+## @api public
 var max_queue_size: int = 32
 
 ## 是否抑制重复入队。有显式 key 时按 key 去重，否则按消息文本去重。
+## [br]
+## @api public
 var suppress_duplicates: bool = true
 
 
@@ -62,9 +112,12 @@ var _active_paused: bool = false
 var _next_notification_id: int = 1
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if _active_notification.is_empty():
@@ -77,7 +130,9 @@ func tick(delta: float) -> void:
 	if _active_remaining_seconds <= 0.0:
 		dismiss_active("timeout")
 
-
+## 释放通知队列状态。
+## [br]
+## @api public
 func dispose() -> void:
 	clear_notifications("disposed")
 
@@ -85,11 +140,20 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 推入通知。
+## [br]
+## @api public
+## [br]
 ## @param message: 通知正文。
+## [br]
 ## @param title: 通知标题。
+## [br]
 ## @param level: 通知等级。
+## [br]
 ## @param options: 可选参数，支持 duration_seconds、key、metadata、priority、sticky、actions。
+## [br]
 ## @return 通知 id；被去重抑制时返回已有通知 id。
+## [br]
+## @schema options: Dictionary，支持 duration_seconds、key、metadata、priority、sticky 和 actions。actions 为 Array[StringName|String|Dictionary]，Dictionary action 包含 id、label、dismiss 和 metadata。
 func push_notification(
 	message: String,
 	title: String = "",
@@ -113,6 +177,9 @@ func push_notification(
 
 
 ## 结束当前通知。
+## [br]
+## @api public
+## [br]
 ## @param reason: 结束原因。
 func dismiss_active(reason: String = "dismissed") -> void:
 	if _active_notification.is_empty():
@@ -127,6 +194,9 @@ func dismiss_active(reason: String = "dismissed") -> void:
 
 
 ## 清空当前通知和等待队列。
+## [br]
+## @api public
+## [br]
 ## @param reason: 结束原因。
 func clear_notifications(reason: String = "cleared") -> void:
 	if not _active_notification.is_empty():
@@ -139,30 +209,46 @@ func clear_notifications(reason: String = "cleared") -> void:
 
 
 ## 获取当前通知。
+## [br]
+## @api public
+## [br]
 ## @return 当前通知副本。
+## [br]
+## @schema return: Dictionary，当前通知记录；无当前通知时为空。字段同 notification_queued 的 notification。
 func get_active_notification() -> Dictionary:
 	return _active_notification.duplicate(true)
 
 
 ## 暂停当前通知倒计时。
+## [br]
+## @api public
 func pause_active() -> void:
 	if not _active_notification.is_empty():
 		_active_paused = true
 
 
 ## 恢复当前通知倒计时。
+## [br]
+## @api public
 func resume_active() -> void:
 	_active_paused = false
 
 
 ## 当前通知是否处于暂停状态。
+## [br]
+## @api public
+## [br]
 ## @return 暂停时返回 true。
 func is_active_paused() -> bool:
 	return _active_paused
 
 
 ## 触发当前通知的一个动作。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 当前通知包含该动作时返回 true。
 func invoke_active_action(action_id: StringName) -> bool:
 	if _active_notification.is_empty() or action_id == &"":
@@ -181,7 +267,12 @@ func invoke_active_action(action_id: StringName) -> bool:
 
 
 ## 获取等待队列。
+## [br]
+## @api public
+## [br]
 ## @return 通知副本数组。
+## [br]
+## @schema return: Array，元素为通知记录 Dictionary，字段同 notification_queued 的 notification。
 func get_queue() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for notification: Dictionary in _queue:
@@ -190,7 +281,12 @@ func get_queue() -> Array[Dictionary]:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 通知队列状态。
+## [br]
+## @schema return: Dictionary，包含 active、queue、queue_size、active_remaining_seconds、active_paused 和 max_queue_size。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"active": get_active_notification(),

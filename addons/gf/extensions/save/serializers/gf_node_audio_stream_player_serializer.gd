@@ -1,6 +1,12 @@
 ## GFNodeAudioStreamPlayerSerializer: AudioStreamPlayer 通用播放状态序列化器。
 ##
 ## 支持 AudioStreamPlayer、AudioStreamPlayer2D 与 AudioStreamPlayer3D 的通用播放参数。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNodeAudioStreamPlayerSerializer
 extends GFNodeSerializer
 
@@ -27,14 +33,29 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 判断序列化器是否支持指定节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
+## @return 节点是否为 AudioStreamPlayer、AudioStreamPlayer2D 或 AudioStreamPlayer3D。
 func supports_node(node: Node) -> bool:
 	return node is AudioStreamPlayer or node is AudioStreamPlayer2D or node is AudioStreamPlayer3D
 
 
 ## 采集节点的可保存状态。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return 音频播放状态载荷。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，可包含 playing、playback_position、stream_paused、volume_db、pitch_scale、bus、max_distance 与 attenuation。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	if not supports_node(node):
 		return {}
@@ -48,9 +69,22 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 
 
 ## 将序列化数据应用到节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
-## @param payload: 随事件或交互传递的数据。
+## [br]
+## @param payload: 音频播放状态载荷。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return 应用结果字典。
+## [br]
+## @schema payload: Dictionary，可包含 playing、playback_position、stream_paused、volume_db、pitch_scale、bus、max_distance 与 attenuation。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
 	if not supports_node(node):
 		return make_result(false, "Node is not AudioStreamPlayer.")
@@ -75,7 +109,6 @@ func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictio
 
 
 # --- 私有/辅助方法 ---
-
 
 func _can_start_playback(node: Object) -> bool:
 	if not _has_property(node, "stream"):

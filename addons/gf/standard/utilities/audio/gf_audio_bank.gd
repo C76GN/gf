@@ -2,6 +2,12 @@
 ##
 ## 用 StringName 管理一组 `GFAudioClip`，便于 UI、表现动作或项目配置
 ## 通过稳定 ID 播放音频。单个 ID 可保存一个片段或多个候选片段。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFAudioBank
 extends Resource
 
@@ -9,6 +15,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 音频集合加载状态。
+## [br]
+## @api public
 enum LifecycleState {
 	## 尚未加载。
 	UNLOADED,
@@ -23,23 +31,37 @@ enum LifecycleState {
 
 # --- 导出变量 ---
 
-## 音频片段表。Key 推荐使用 StringName，Value 可为 GFAudioClip 或 GFAudioClip 数组。
+## 音频片段表。
+## [br]
+## @api public
+## [br]
+## @schema clips: Key 为 StringName 片段 ID，Value 为 GFAudioClip 或 GFAudioClip 数组。
 @export var clips: Dictionary = {}
 
 ## 分层事件 ID 的回退分隔符。例如 `ui+confirm+primary` 可回退到 `ui+confirm` 再到 `ui`。
+## [br]
+## @api public
 @export var fallback_separator: String = "+"
 
 ## 加载状态。框架只记录状态，不假设具体加载后端。
+## [br]
+## @api public
 @export var lifecycle_state: LifecycleState = LifecycleState.UNLOADED
 
 ## 最近一次加载或卸载结果原因。
+## [br]
+## @api public
 @export var lifecycle_reason: StringName = &""
 
 
 # --- 公共方法 ---
 
 ## 设置一个音频片段。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
+## [br]
 ## @param clip: 片段配置。
 func set_clip(clip_id: StringName, clip: GFAudioClip) -> void:
 	if clip_id == &"":
@@ -52,8 +74,14 @@ func set_clip(clip_id: StringName, clip: GFAudioClip) -> void:
 
 
 ## 设置一个音频片段候选列表。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
+## [br]
 ## @param clip_list: 片段候选列表。
+## [br]
+## @schema clip_list: GFAudioClip 候选数组。
 func set_clips(clip_id: StringName, clip_list: Array[GFAudioClip]) -> void:
 	if clip_id == &"":
 		push_error("[GFAudioBank] set_clips 失败：clip_id 为空。")
@@ -70,8 +98,12 @@ func set_clips(clip_id: StringName, clip_list: Array[GFAudioClip]) -> void:
 
 
 ## 获取音频片段。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
-## @return 片段配置；多个候选时返回第一个有效片段，不存在时返回 null。
+## [br]
+## @return: 片段配置；多个候选时返回第一个有效片段，不存在时返回 null。
 func get_clip(clip_id: StringName) -> GFAudioClip:
 	var clip_list := get_clips(clip_id)
 	if clip_list.is_empty():
@@ -80,8 +112,14 @@ func get_clip(clip_id: StringName) -> GFAudioClip:
 
 
 ## 获取音频片段候选列表。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
-## @return 片段候选列表。
+## [br]
+## @return: 片段候选列表。
+## [br]
+## @schema return: GFAudioClip 候选数组。
 func get_clips(clip_id: StringName) -> Array[GFAudioClip]:
 	var result: Array[GFAudioClip] = []
 	var raw_value: Variant = clips.get(clip_id)
@@ -95,9 +133,14 @@ func get_clips(clip_id: StringName) -> Array[GFAudioClip]:
 
 
 ## 按候选权重获取片段。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
+## [br]
 ## @param rng: 可选随机数生成器；为空时返回第一个有效片段。
-## @return 片段配置；不存在时返回 null。
+## [br]
+## @return: 片段配置；不存在时返回 null。
 func get_weighted_clip(clip_id: StringName, rng: RandomNumberGenerator = null) -> GFAudioClip:
 	var clip_list := get_clips(clip_id)
 	if clip_list.is_empty():
@@ -120,18 +163,30 @@ func get_weighted_clip(clip_id: StringName, rng: RandomNumberGenerator = null) -
 
 
 ## 按 ID 获取片段；找不到时按 fallback_separator 逐级回退。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
+## [br]
 ## @param rng: 可选随机数生成器。
-## @return 片段配置；不存在时返回 null。
+## [br]
+## @return: 片段配置；不存在时返回 null。
 func get_clip_with_fallback(clip_id: StringName, rng: RandomNumberGenerator = null) -> GFAudioClip:
 	var resolution := resolve_clip(clip_id, rng)
 	return resolution.get("clip") as GFAudioClip
 
 
 ## 解析片段并返回诊断报告。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
+## [br]
 ## @param rng: 可选随机数生成器。
-## @return 解析报告，包含 ok、requested_id、resolved_id、fallback_used、attempted_ids、clip。
+## [br]
+## @return: 解析报告。
+## [br]
+## @schema return: Dictionary，包含 ok、requested_id、resolved_id、fallback_used、attempted_ids 和 clip 字段。
 func resolve_clip(clip_id: StringName, rng: RandomNumberGenerator = null) -> Dictionary:
 	var attempted_ids := PackedStringArray()
 	if clip_id == &"":
@@ -158,14 +213,21 @@ func resolve_clip(clip_id: StringName, rng: RandomNumberGenerator = null) -> Dic
 
 
 ## 检查是否存在指定片段。
+## [br]
+## @api public
+## [br]
 ## @param clip_id: 片段标识。
-## @return 存在时返回 true。
+## [br]
+## @return: 存在时返回 true。
 func has_clip(clip_id: StringName) -> bool:
 	return not get_clips(clip_id).is_empty()
 
 
 ## 获取全部片段 ID。
-## @return 按字典序排列的片段 ID。
+## [br]
+## @api public
+## [br]
+## @return: 按字典序排列的片段 ID。
 func get_clip_ids() -> PackedStringArray:
 	var result := PackedStringArray()
 	for key: Variant in clips.keys():
@@ -175,7 +237,11 @@ func get_clip_ids() -> PackedStringArray:
 
 
 ## 设置音频集合加载状态。
+## [br]
+## @api public
+## [br]
 ## @param state: 新状态。
+## [br]
 ## @param reason: 可选原因。
 func set_lifecycle_state(state: LifecycleState, reason: StringName = &"") -> void:
 	lifecycle_state = state
@@ -183,7 +249,12 @@ func set_lifecycle_state(state: LifecycleState, reason: StringName = &"") -> voi
 
 
 ## 获取加载状态快照。
-## @return 状态快照字典。
+## [br]
+## @api public
+## [br]
+## @return: 状态快照字典。
+## [br]
+## @schema return: Dictionary，包含 state、reason 和 clip_count 字段。
 func get_lifecycle_snapshot() -> Dictionary:
 	return {
 		"state": lifecycle_state,
@@ -193,8 +264,12 @@ func get_lifecycle_snapshot() -> Dictionary:
 
 
 ## 校验音频集合。
+## [br]
+## @api public
+## [br]
 ## @param check_resource_exists: 是否检查 path 指向的资源存在。
-## @return 校验报告。
+## [br]
+## @return: 校验报告。
 func validate_bank(check_resource_exists: bool = false) -> GFValidationReport:
 	var report := GFValidationReport.new("GFAudioBank")
 	report.metadata["clip_count"] = clips.size()

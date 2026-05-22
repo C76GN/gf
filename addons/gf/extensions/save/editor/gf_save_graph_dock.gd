@@ -1,25 +1,23 @@
 @tool
 
-## GF SaveGraph 工作区页面。
-##
-## 查看当前场景中的 GFSaveScope/GFSaveSource 结构，执行健康检查并按需采集预览载荷。
+# GF SaveGraph 工作区页面。
+#
+# 查看当前场景中的 GFSaveScope/GFSaveSource 结构，执行健康检查并按需采集预览载荷。
 extends Control
 
 
 # --- 常量 ---
 
-const GFSaveGraphUtilityBase = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
-const GFSaveScopeBase = preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
-const GFSaveSourceBase = preload("res://addons/gf/extensions/save/core/gf_save_source.gd")
+const _GF_SAVE_GRAPH_UTILITY_SCRIPT = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
-const GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _GF_EDITOR_WORKSPACE_UI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
 
 var _root_ref: WeakRef = null
 var _scopes: Array[Node] = []
-var _utility: GFSaveGraphUtilityBase = null
+var _utility: GFSaveGraphUtility = null
 var _last_scope_report: Dictionary = {}
 var _last_payload: Dictionary = {}
 var _last_payload_report: Dictionary = {}
@@ -40,15 +38,18 @@ var _payload_output: TextEdit = null
 
 func _init() -> void:
 	name = "GF Save"
-	GFEditorWorkspaceUI.apply_page_root(self)
-	_utility = GFSaveGraphUtilityBase.new()
+	_GF_EDITOR_WORKSPACE_UI.apply_page_root(self)
+	_utility = _GF_SAVE_GRAPH_UTILITY_SCRIPT.new()
 	_build_ui()
 	call_deferred("refresh")
 
 
-# --- 公共方法 ---
+# --- 框架内部方法 ---
 
 ## 设置要扫描的场景根节点。
+## [br]
+## @api framework_internal
+## [br]
 ## @param root: 场景根节点。
 func set_save_graph_source(root: Node) -> void:
 	_root_ref = weakref(root) if root != null else null
@@ -56,6 +57,9 @@ func set_save_graph_source(root: Node) -> void:
 
 
 ## 刷新 SaveGraph 结构与健康报告。
+## [br]
+## @api framework_internal
+## [br]
 ## @param root: 可选场景根节点。
 func refresh(root: Node = null) -> void:
 	_build_ui()
@@ -69,13 +73,23 @@ func refresh(root: Node = null) -> void:
 
 
 ## 获取最近一次 Scope 健康报告。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 报告副本。
+## [br]
+## @schema return: Dictionary，包含 ok、summary、next_action、scopes、sources 与 issues 等健康报告字段。
 func get_last_scope_report() -> Dictionary:
 	return _last_scope_report.duplicate(true)
 
 
 ## 获取最近一次预览载荷。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 载荷副本。
+## [br]
+## @schema return: Dictionary，包含 format、format_version、scope_key、sources、children 与可选 pipeline_trace。
 func get_last_payload() -> Dictionary:
 	return _last_payload.duplicate(true)
 
@@ -93,10 +107,10 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := GFEditorWorkspaceUI.make_toolbar()
+	var toolbar := _GF_EDITOR_WORKSPACE_UI.make_toolbar()
 	root_box.add_child(toolbar)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "扫描当前场景中的 GFSaveScope。", refresh))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI.make_button("刷新", "扫描当前场景中的 GFSaveScope。", refresh))
 
 	_scope_option = OptionButton.new()
 	_scope_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -115,16 +129,16 @@ func _build_ui() -> void:
 	_include_trace_check.tooltip_text = "采集预览载荷时包含 pipeline trace。"
 	toolbar.add_child(_include_trace_check)
 
-	_select_button = GFEditorWorkspaceUI.make_button("选中", "在编辑器场景树中选中当前 Scope。", _on_select_pressed)
+	_select_button = _GF_EDITOR_WORKSPACE_UI.make_button("选中", "在编辑器场景树中选中当前 Scope。", _on_select_pressed)
 	toolbar.add_child(_select_button)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("预览载荷", "采集当前 Scope 的 SaveGraph 预览载荷。", _on_preview_payload_pressed))
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("复制报告", "复制当前 SaveGraph 报告 JSON。", _on_copy_report_pressed))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI.make_button("预览载荷", "采集当前 Scope 的 SaveGraph 预览载荷。", _on_preview_payload_pressed))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI.make_button("复制报告", "复制当前 SaveGraph 报告 JSON。", _on_copy_report_pressed))
 
-	_summary_label = GFEditorWorkspaceUI.make_summary_label()
+	_summary_label = _GF_EDITOR_WORKSPACE_UI.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_empty_label = GFEditorWorkspaceUI.make_empty_label()
+	_empty_label = _GF_EDITOR_WORKSPACE_UI.make_empty_label()
 	root_box.add_child(_empty_label)
 
 	_content_split = HSplitContainer.new()
@@ -151,13 +165,13 @@ func _build_ui() -> void:
 	_tabs.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_content_split.add_child(_tabs)
 
-	_details = GFEditorWorkspaceUI.make_details_output()
+	_details = _GF_EDITOR_WORKSPACE_UI.make_details_output()
 	_details.name = "详情"
 	_details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tabs.add_child(_details)
 
-	_payload_output = GFEditorWorkspaceUI.make_details_output()
+	_payload_output = _GF_EDITOR_WORKSPACE_UI.make_details_output()
 	_payload_output.name = "载荷"
 	_payload_output.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_payload_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -182,7 +196,7 @@ func _resolve_root() -> Node:
 
 
 func _collect_scopes(node: Node, result: Array[Node]) -> void:
-	if node is GFSaveScopeBase:
+	if node is GFSaveScope:
 		result.append(node)
 
 	for child: Node in node.get_children():
@@ -237,7 +251,7 @@ func _render_selected_scope() -> void:
 	_render_report(scope)
 
 
-func _render_report(scope: GFSaveScopeBase) -> void:
+func _render_report(scope: GFSaveScope) -> void:
 	_empty_label.visible = false
 	_content_split.visible = true
 	_tree.visible = true
@@ -246,7 +260,7 @@ func _render_report(scope: GFSaveScopeBase) -> void:
 		String(_last_scope_report.get("summary", "")),
 		String(_last_scope_report.get("next_action", "")),
 	]
-	_summary_label.modulate = GFEditorWorkspaceUI.get_report_color(_last_scope_report)
+	_summary_label.modulate = _GF_EDITOR_WORKSPACE_UI.get_report_color(_last_scope_report)
 	_details.text = _safe_json(_last_scope_report)
 
 	var root_item := _tree.create_item()
@@ -323,7 +337,7 @@ func _render_empty(message: String, hint: String = "") -> void:
 	if _empty_label != null:
 		_empty_label.text = hint if not hint.is_empty() else message
 		_empty_label.visible = true
-	GFEditorWorkspaceUI.set_status(_summary_label, message, GFEditorWorkspaceUI.INFO_TEXT_COLOR)
+	_GF_EDITOR_WORKSPACE_UI.set_status(_summary_label, message, _GF_EDITOR_WORKSPACE_UI.INFO_TEXT_COLOR)
 
 
 func _get_root_scope_entry() -> Dictionary:
@@ -334,13 +348,13 @@ func _get_root_scope_entry() -> Dictionary:
 	return {}
 
 
-func _get_selected_scope() -> GFSaveScopeBase:
+func _get_selected_scope() -> GFSaveScope:
 	if _scope_option == null or _scopes.is_empty():
 		return null
 	var index := _scope_option.selected
 	if index < 0 or index >= _scopes.size():
 		return null
-	var scope := _scopes[index] as GFSaveScopeBase
+	var scope := _scopes[index] as GFSaveScope
 	return scope if is_instance_valid(scope) else null
 
 
@@ -355,7 +369,7 @@ func _preview_payload() -> void:
 	})
 	if _last_payload.is_empty():
 		_payload_output.text = ""
-		GFEditorWorkspaceUI.set_status(_summary_label, "预览载荷为空。", GFEditorWorkspaceUI.WARNING_TEXT_COLOR)
+		_GF_EDITOR_WORKSPACE_UI.set_status(_summary_label, "预览载荷为空。", _GF_EDITOR_WORKSPACE_UI.WARNING_TEXT_COLOR)
 		return
 
 	_last_payload_report = _utility.validate_payload_for_scope(
@@ -368,13 +382,13 @@ func _preview_payload() -> void:
 		"payload_report": _last_payload_report,
 	})
 	_tabs.current_tab = 1
-	GFEditorWorkspaceUI.set_status(
+	_GF_EDITOR_WORKSPACE_UI.set_status(
 		_summary_label,
 		"%s\nPayload：%s" % [
 			String(_last_scope_report.get("summary", "")),
 			String(_last_payload_report.get("summary", "")),
 		],
-		GFEditorWorkspaceUI.get_report_color(_last_payload_report)
+		_GF_EDITOR_WORKSPACE_UI.get_report_color(_last_payload_report)
 	)
 
 
@@ -459,7 +473,7 @@ func _on_copy_report_pressed() -> void:
 	if not _last_payload.is_empty():
 		report["payload"] = _last_payload
 	DisplayServer.clipboard_set(_safe_json(report))
-	GFEditorWorkspaceUI.set_status(_summary_label, "已复制 SaveGraph 报告。", GFEditorWorkspaceUI.OK_TEXT_COLOR)
+	_GF_EDITOR_WORKSPACE_UI.set_status(_summary_label, "已复制 SaveGraph 报告。", _GF_EDITOR_WORKSPACE_UI.OK_TEXT_COLOR)
 
 
 func _on_tree_item_selected() -> void:

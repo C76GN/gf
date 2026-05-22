@@ -1,6 +1,12 @@
 ## GFNodeStateGroup: 管理一组互斥激活的节点状态。
 ##
 ## 一个状态组内同一时间只有一个 GFNodeState 处于启用状态。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFNodeStateGroup
 extends Node
 
@@ -8,53 +14,119 @@ extends Node
 # --- 信号 ---
 
 ## 状态加入组后发出。
+## [br]
+## @api public
+## [br]
+## @param state: 新加入的状态节点。
 signal state_added(state: GFNodeState)
 
 ## 状态从组中移除后发出。
+## [br]
+## @api public
+## [br]
+## @param state: 被移除的状态节点。
 signal state_removed(state: GFNodeState)
 
 ## 当前状态切换后发出。
+## [br]
+## @api public
+## [br]
+## @param old_state: 切换前的状态；没有旧状态时为 null。
+## [br]
+## @param new_state: 切换后的状态；状态组停止时可为 null。
 signal current_state_changed(old_state: GFNodeState, new_state: GFNodeState)
 
 ## 状态切换被守卫阻止后发出。
+## [br]
+## @api public
+## [br]
+## @param from_state: 发起切换时的当前状态；没有当前状态时为 null。
+## [br]
+## @param to_state_name: 被阻止的目标状态名。
+## [br]
+## @param args: 状态切换参数。
+## [br]
+## @param reason: 阻止原因，通常为 "exit_guard" 或 "enter_guard"。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 signal transition_blocked(from_state: GFNodeState, to_state_name: StringName, args: Dictionary, reason: String)
 
 ## 子状态请求跨组切换时发出。
+## [br]
+## @api public
+## [br]
+## @param group_name: 目标状态组名。
+## [br]
+## @param state_name: 目标状态名。
+## [br]
+## @param args: 状态切换参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 signal requested_transition(group_name: StringName, state_name: StringName, args: Dictionary)
 
 ## 当前状态或暂停栈状态处理状态事件后发出。
+## [br]
+## @api public
+## [br]
+## @param event_id: 状态事件标识。
+## [br]
+## @param handler_state: 实际处理事件的状态节点。
+## [br]
+## @param payload: 状态事件载荷。
+## [br]
+## @schema payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。
 signal state_event_handled(event_id: StringName, handler_state: GFNodeState, payload: Variant)
 
 
 # --- 常量 ---
 
-const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
+const _GF_NODE_STATE_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
 
 
 # --- 导出变量 ---
 
 ## 状态组注册名。为空时使用节点名称。
+## [br]
+## @api public
 @export var group_name: StringName = &""
 
 ## 初始状态名。
+## [br]
+## @api public
 @export var initial_state: StringName = &""
 
 ## 初始状态参数。
+## [br]
+## @api public
+## [br]
+## @schema initial_args: 初始状态参数 Dictionary；键和值由初始状态的项目逻辑约定。
 @export var initial_args: Dictionary = {}
 
 ## ready 时是否自动从子节点加载状态。
+## [br]
+## @api public
 @export var reload_states_on_ready: bool = true
 
 ## 初始化后是否自动进入 initial_state。关闭后可通过 start() 手动启动。
+## [br]
+## @api public
 @export var auto_start: bool = true
 
 ## 每个状态组保留的历史状态名数量。
+## [br]
+## @api public
 @export_range(1, 256, 1) var history_max_size: int = 32
 
 ## push_state 可叠加的最大栈深度。
+## [br]
+## @api public
 @export_range(1, 64, 1) var max_stack_depth: int = 8
 
 ## 状态组共享黑板。框架不解释其中字段。
+## [br]
+## @api public
+## [br]
+## @schema blackboard: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定。
 @export var blackboard: Dictionary = {}
 
 
@@ -96,21 +168,11 @@ func _exit_tree() -> void:
 
 # --- 公共方法 ---
 
-## 初始化状态组。
-## @param machine: 所属节点状态机。
-## @param start_initial_state: 本次初始化是否允许自动进入 initial_state。
-func initialize(machine: Object = null, start_initial_state: bool = true) -> void:
-	_is_ready = true
-	if machine != null:
-		_machine_ref = weakref(machine)
-		_setup_existing_states()
-	if reload_states_on_ready:
-		reload_states_from_children()
-	if auto_start and start_initial_state:
-		start()
-
-
 ## 获取状态组注册名。
+## [br]
+## @api public
+## [br]
+## @return: 非空 group_name，或节点名称转换出的 StringName。
 func get_group_name() -> StringName:
 	if group_name != &"":
 		return group_name
@@ -118,8 +180,14 @@ func get_group_name() -> StringName:
 
 
 ## 切换到指定状态。
+## [br]
+## @api public
+## [br]
 ## @param next_state_name: 要切换到的目标状态名称。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 	if not _states.has(next_state_name):
 		_warn_missing_state(next_state_name)
@@ -190,8 +258,14 @@ func transition_to(next_state_name: StringName, args: Dictionary = {}) -> void:
 
 
 ## 暂停当前状态并叠加进入一个子状态。
+## [br]
+## @api public
+## [br]
 ## @param next_state_name: 要切换到的目标状态名称。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
 	if not _states.has(next_state_name):
 		_warn_missing_state(next_state_name)
@@ -231,7 +305,14 @@ func push_state(next_state_name: StringName, args: Dictionary = {}) -> void:
 
 
 ## 退出当前子状态并恢复上一层状态。
+## [br]
+## @api public
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
+## [br]
+## @return: 成功恢复上一层状态时返回 true。
 func pop_state(args: Dictionary = {}) -> bool:
 	if _state_stack.is_empty():
 		return false
@@ -299,6 +380,9 @@ func pop_state(args: Dictionary = {}) -> bool:
 
 
 ## 添加状态节点。
+## [br]
+## @api public
+## [br]
 ## @param state: 状态节点。
 func add_state(state: GFNodeState) -> void:
 	if not _is_node_state(state):
@@ -319,7 +403,12 @@ func add_state(state: GFNodeState) -> void:
 
 
 ## 移除状态节点。
+## [br]
+## @api public
+## [br]
 ## @param state: 状态节点。
+## [br]
+## @return: 成功移除已注册状态时返回 true。
 func remove_state(state: GFNodeState) -> bool:
 	if not _is_node_state(state):
 		return false
@@ -342,17 +431,30 @@ func remove_state(state: GFNodeState) -> bool:
 
 
 ## 获取状态。
+## [br]
+## @api public
+## [br]
 ## @param query_state_name: 目标名称。
+## [br]
+## @return: 注册名对应的状态节点；不存在时返回 null。
 func get_state(query_state_name: StringName) -> GFNodeState:
 	return _states.get(query_state_name) as GFNodeState
 
 
 ## 获取当前状态。
+## [br]
+## @api public
+## [br]
+## @return: 当前激活状态；未启动或已停止时返回 null。
 func get_current_state() -> GFNodeState:
 	return _current_state
 
 
 ## 获取当前状态名。
+## [br]
+## @api public
+## [br]
+## @return: 当前激活状态名；未启动或已停止时返回空 StringName。
 func get_current_state_name() -> StringName:
 	if _current_state == null:
 		return &""
@@ -360,6 +462,12 @@ func get_current_state_name() -> StringName:
 
 
 ## 获取状态切换历史。
+## [br]
+## @api public
+## [br]
+## @return: 最近进入过的状态名列表。
+## [br]
+## @schema return: 状态历史 Array[StringName]，按进入顺序排列。
 func get_state_history() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for state_name: StringName in _history:
@@ -368,20 +476,36 @@ func get_state_history() -> Array[StringName]:
 
 
 ## 获取当前暂停栈深度。
+## [br]
+## @api public
+## [br]
+## @return: 当前暂停栈深度。
 func get_stack_depth() -> int:
 	return _state_stack.size()
 
 
 ## 获取状态组共享黑板。
-## @return 黑板字典。
+## [br]
+## @api public
+## [br]
+## @return: 黑板字典。
+## [br]
+## @schema return: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定，调用方可直接修改。
 func get_blackboard() -> Dictionary:
 	return blackboard
 
 
 ## 从当前状态开始向暂停栈上抛状态事件。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 状态事件标识。
+## [br]
 ## @param payload: 状态事件载荷。
-## @return 有状态处理该事件时返回 true。
+## [br]
+## @schema payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。
+## [br]
+## @return: 有状态处理该事件时返回 true。
 func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
 	var candidates := _get_event_dispatch_candidates()
 	for state: GFNodeState in candidates:
@@ -392,7 +516,12 @@ func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool
 
 
 ## 判断指定状态是否为当前状态或暂停栈中的状态。
+## [br]
+## @api public
+## [br]
 ## @param query_state_name: 目标名称。
+## [br]
+## @return: 指定状态位于当前状态或暂停栈中时返回 true。
 func is_in_state(query_state_name: StringName) -> bool:
 	if get_current_state_name() == query_state_name:
 		return true
@@ -405,7 +534,12 @@ func is_in_state(query_state_name: StringName) -> bool:
 
 
 ## 重启当前状态；若当前没有状态，则尝试进入初始状态。
+## [br]
+## @api public
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func restart(args: Dictionary = {}) -> void:
 	if _current_state == null:
 		start(args)
@@ -415,7 +549,12 @@ func restart(args: Dictionary = {}) -> void:
 
 
 ## 进入初始状态。若已有当前状态则保持不变。
+## [br]
+## @api public
+## [br]
 ## @param args: 启动时传给初始状态的参数；为空时使用 initial_args。
+## [br]
+## @schema args: 启动参数 Dictionary；为空时使用 initial_args。
 func start(args: Dictionary = {}) -> void:
 	if _current_state != null or initial_state == &"":
 		return
@@ -424,6 +563,8 @@ func start(args: Dictionary = {}) -> void:
 
 
 ## 停止当前激活状态，但保留已注册状态节点。
+## [br]
+## @api public
 func stop() -> void:
 	_exit_active_states_for_clear()
 	_current_state = null
@@ -434,6 +575,12 @@ func stop() -> void:
 
 
 ## 获取所有状态。
+## [br]
+## @api public
+## [br]
+## @return: 已注册状态节点列表。
+## [br]
+## @schema return: 已注册 GFNodeState 节点数组。
 func get_states() -> Array[GFNodeState]:
 	var result: Array[GFNodeState] = []
 	for state: GFNodeState in _states.values():
@@ -442,7 +589,12 @@ func get_states() -> Array[GFNodeState]:
 
 
 ## 获取状态组调试快照。
-## @return 包含当前状态、暂停栈、历史、注册状态和黑板副本的字典。
+## [br]
+## @api public
+## [br]
+## @return: 包含当前状态、暂停栈、历史、注册状态和黑板副本的字典。
+## [br]
+## @schema return: 调试快照 Dictionary，包含 group_name、current_state、stack、history、states 和 blackboard 字段。
 func get_state_snapshot() -> Dictionary:
 	return {
 		"group_name": get_group_name(),
@@ -455,6 +607,9 @@ func get_state_snapshot() -> Dictionary:
 
 
 ## 清空状态。
+## [br]
+## @api public
+## [br]
 ## @param free_states: 为 true 时同时释放已移除的状态节点。
 func clear_states(free_states: bool = false) -> void:
 	var states := get_states()
@@ -472,11 +627,33 @@ func clear_states(free_states: bool = false) -> void:
 
 
 ## 从子节点重新加载状态。
+## [br]
+## @api public
 func reload_states_from_children() -> void:
 	clear_states()
 	for child: Node in get_children():
 		if _is_node_state(child):
 			add_state(child as GFNodeState)
+
+
+# --- 框架内部方法 ---
+
+## 初始化状态组，并在状态机托管模式下注入所属状态机。
+## [br]
+## @api framework_internal
+## [br]
+## @param machine: 所属节点状态机；独立状态组初始化时可为 null。
+## [br]
+## @param start_initial_state: 本次初始化是否允许自动进入 initial_state。
+func initialize(machine: Object = null, start_initial_state: bool = true) -> void:
+	_is_ready = true
+	if machine != null:
+		_machine_ref = weakref(machine)
+		_setup_existing_states()
+	if reload_states_on_ready:
+		reload_states_from_children()
+	if auto_start and start_initial_state:
+		start()
 
 
 # --- 私有/辅助方法 ---
@@ -543,7 +720,7 @@ func _exit_active_states_for_clear() -> void:
 
 
 func _is_node_state(node: Node) -> bool:
-	return node is GFNodeStateBase
+	return node is _GF_NODE_STATE_BASE
 
 
 func _warn_missing_state(state_name: StringName) -> void:

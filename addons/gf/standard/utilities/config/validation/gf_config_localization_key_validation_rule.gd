@@ -1,6 +1,12 @@
 ## GFConfigLocalizationKeyValidationRule: 文本 key 校验规则。
 ##
 ## 用于检查配置字段中的本地化 key 是否存在于显式 key 列表、字典或 Godot 翻译表中。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFConfigLocalizationKeyValidationRule
 extends GFConfigValidationRule
 
@@ -8,22 +14,37 @@ extends GFConfigValidationRule
 # --- 导出变量 ---
 
 ## 空字符串是否直接视为通过。
+## [br]
+## @api public
 @export var allow_empty: bool = true
 
 ## 显式允许的文本 key。
+## [br]
+## @api public
 @export var known_keys: PackedStringArray = PackedStringArray()
 
 ## 可选文本字典。只检查 key 是否存在，不解释 value。
+## [br]
+## @api public
+## [br]
+## @schema text_map: Dictionary，将本地化 key 映射到项目自有文本值。
 @export var text_map: Dictionary = {}
 
 ## 是否尝试通过 TranslationServer 判断 key。
+## [br]
+## @api public
 @export var use_translation_server: bool = true
 
 
 # --- 公共方法 ---
 
 ## 导出规则摘要。
+## [br]
+## @api public
+## [br]
 ## @return 规则摘要字典。
+## [br]
+## @schema return: Dictionary，包含基础规则字段和本地化 key 来源设置。
 func describe() -> Dictionary:
 	var result := super.describe()
 	result["allow_empty"] = allow_empty
@@ -33,12 +54,32 @@ func describe() -> Dictionary:
 	return result
 
 
-# --- 可重写钩子 ---
+# --- 可重写钩子 / 虚方法 ---
 
+## 返回本地化 key 规则的默认稳定标识。
+## [br]
+## @api protected
+## [br]
+## @return 默认规则标识。
 func _get_default_rule_id() -> StringName:
 	return &"localization_key"
 
 
+## 校验单个字段值是否存在于配置的文本 key 来源中。
+## [br]
+## @api protected
+## [br]
+## @param value: 待校验值。
+## [br]
+## @param context: 校验上下文。
+## [br]
+## @param report: 当前校验报告。
+## [br]
+## @schema value: Variant，期望为 String 或 StringName 本地化 key。
+## [br]
+## @schema context: Dictionary，可包含 table_name、row_key、field、source、line 和 column 字段。
+## [br]
+## @schema report: GFConfigValidationReport 兼容 Dictionary，会被当前规则修改。
 func _validate_value(value: Variant, context: Dictionary, report: Dictionary) -> void:
 	if typeof(value) != TYPE_STRING and typeof(value) != TYPE_STRING_NAME:
 		_add_issue(report, context, "localization_key_invalid_type", "文本 key 校验只支持 String 或 StringName。")

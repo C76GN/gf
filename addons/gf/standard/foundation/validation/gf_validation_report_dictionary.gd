@@ -2,6 +2,12 @@
 ##
 ## 提供字典报告的追加、归一化、统计和严重级别提升工具，便于字典式报告
 ## 接入 `GFValidationIssue` / `GFValidationReport` 使用的标准字段。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFValidationReportDictionary
 extends RefCounted
 
@@ -16,9 +22,18 @@ const _GF_SOURCE_SPAN_SCRIPT: Script = preload("res://addons/gf/standard/foundat
 # --- 公共方法 ---
 
 ## 将任意问题转换为字典。
+## [br]
+## @api public
+## [br]
 ## @param issue: GFValidationIssue 或问题字典。
+## [br]
+## @schema issue: Variant accepting GFValidationIssue or Dictionary issue payload.
+## [br]
 ## @param include_empty_fields: 为 true 时包含空的可选字段。
+## [br]
 ## @return 问题字典。
+## [br]
+## @schema return: Dictionary serialized issue payload.
 static func issue_to_dict(issue: Variant, include_empty_fields: bool = false) -> Dictionary:
 	if issue is _GF_VALIDATION_ISSUE_SCRIPT:
 		var issue_dict: Variant = (issue as RefCounted).call("to_dict", include_empty_fields)
@@ -35,7 +50,13 @@ static func issue_to_dict(issue: Variant, include_empty_fields: bool = false) ->
 
 
 ## 将报告字典转换为 GFValidationReport。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
+## @schema data: Dictionary report payload.
+## [br]
 ## @return 新报告。
 static func report_from_dict(data: Dictionary) -> RefCounted:
 	var report := _GF_VALIDATION_REPORT_SCRIPT.new() as RefCounted
@@ -44,12 +65,28 @@ static func report_from_dict(data: Dictionary) -> RefCounted:
 
 
 ## 向字典报告追加问题。
+## [br]
+## @api public
+## [br]
 ## @param report: 目标报告字典。
+## [br]
+## @schema report: Dictionary report payload mutated in place.
+## [br]
 ## @param severity: 严重级别，可传入 Severity、int 或字符串。
+## [br]
+## @schema severity: Variant accepting GFValidationIssue.Severity, int, String, or StringName.
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param fields: 附加字段，例如 key、path、row_key、metadata。
+## [br]
+## @schema fields: Dictionary additional issue fields.
+## [br]
 ## @return 追加的问题字典。
+## [br]
+## @schema return: Dictionary appended issue payload.
 static func append_issue(
 	report: Dictionary,
 	severity: Variant,
@@ -73,13 +110,32 @@ static func append_issue(
 
 
 ## 向字典报告追加带源码定位的问题。
+## [br]
+## @api public
+## [br]
 ## @param report: 目标报告字典。
+## [br]
+## @schema report: Dictionary report payload mutated in place.
+## [br]
 ## @param severity: 严重级别，可传入 Severity、int 或字符串。
+## [br]
+## @schema severity: Variant accepting GFValidationIssue.Severity, int, String, or StringName.
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param source_span: GFSourceSpan 或兼容字典。
+## [br]
+## @schema source_span: Variant accepting GFSourceSpan or Dictionary span payload.
+## [br]
 ## @param fields: 附加字段，例如 key、path、row_key、metadata。
+## [br]
+## @schema fields: Dictionary additional issue fields.
+## [br]
 ## @return 追加的问题字典。
+## [br]
+## @schema return: Dictionary appended issue payload.
 static func append_source_issue(
 	report: Dictionary,
 	severity: Variant,
@@ -98,10 +154,22 @@ static func append_source_issue(
 
 
 ## 重新计算字典报告的统计字段。
+## [br]
+## @api public
+## [br]
 ## @param report: 目标报告字典。
+## [br]
+## @schema report: Dictionary report payload mutated in place.
+## [br]
 ## @param subject: 摘要主题；为空时使用 report.subject 或 Validation report。
+## [br]
 ## @param options: 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、include_issue_count、warnings_as_errors、promote_warning_kinds。
+## [br]
+## @schema options: Dictionary controlling report finalization.
+## [br]
 ## @return 同一个报告字典。
+## [br]
+## @schema return: Dictionary finalized report payload.
 static func finalize_report(
 	report: Dictionary,
 	subject: String = "",
@@ -154,9 +222,15 @@ static func finalize_report(
 
 
 ## 生成摘要文本。
+## [br]
+## @api public
+## [br]
 ## @param subject: 摘要主题。
+## [br]
 ## @param error_count: 错误数量。
+## [br]
 ## @param warning_count: 警告数量。
+## [br]
 ## @return 摘要文本。
 static func make_summary(subject: String, error_count: int, warning_count: int) -> String:
 	var label := subject
@@ -170,11 +244,25 @@ static func make_summary(subject: String, error_count: int, warning_count: int) 
 
 
 ## 获取报告下一步建议。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
+## @schema report: Dictionary report payload.
+## [br]
 ## @param action_map: 按问题类别映射的建议文本。
+## [br]
+## @schema action_map: Dictionary keyed by issue kind with action text values.
+## [br]
 ## @param fallback_action: 存在问题但未命中映射时返回的建议。
+## [br]
 ## @param no_action: 没有问题时返回的建议。
+## [br]
 ## @param options: 严重级别计算选项。
+## [br]
+## @schema options: Dictionary severity evaluation options.
+## [br]
 ## @return 建议文本。
 static func get_next_action(
 	report: Dictionary,
@@ -197,8 +285,17 @@ static func get_next_action(
 
 
 ## 检查报告是否包含错误。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
+## @schema report: Dictionary report payload.
+## [br]
 ## @param options: 严重级别计算选项。
+## [br]
+## @schema options: Dictionary severity evaluation options.
+## [br]
 ## @return 存在错误时返回 true。
 static func has_error_issues(report: Dictionary, options: Dictionary = {}) -> bool:
 	for issue_variant: Variant in _get_issue_array(report):
@@ -209,9 +306,18 @@ static func has_error_issues(report: Dictionary, options: Dictionary = {}) -> bo
 
 
 ## 将报告中的警告提升为错误。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
+## @schema report: Dictionary report payload mutated in place.
+## [br]
 ## @param kinds: 为空时提升全部警告；否则只提升匹配类别。
+## [br]
 ## @return 同一个报告字典。
+## [br]
+## @schema return: Dictionary report payload mutated in place.
 static func promote_warnings(report: Dictionary, kinds: PackedStringArray = PackedStringArray()) -> Dictionary:
 	for issue_variant: Variant in _get_issue_array(report):
 		if issue_variant is _GF_VALIDATION_ISSUE_SCRIPT:

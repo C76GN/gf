@@ -2,6 +2,12 @@
 ##
 ## 负责维护 `GFUndoableCommand` 的撤销栈与重做栈，
 ## 并提供同步/异步重放与历史序列化能力。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFCommandHistoryUtility
 extends GFUtility
 
@@ -14,6 +20,8 @@ const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/
 # --- 公共变量 ---
 
 ## 撤销栈的最大容量；为 0 时表示不限制。
+## [br]
+## @api public
 var max_history_size: int:
 	get:
 		return _max_history_size
@@ -22,36 +30,52 @@ var max_history_size: int:
 		_trim_undo_stack()
 
 ## 当前撤销栈深度。
+## [br]
+## @api public
 var undo_count: int:
 	get:
 		return _undo_stack.size()
 
 ## 当前重做栈深度。
+## [br]
+## @api public
 var redo_count: int:
 	get:
 		return _redo_stack.size()
 
 ## 异步命令等待超时时间（秒）。小于等于 0 时表示不启用超时。
+## [br]
+## @api public
 var async_timeout_seconds: float = 30.0
+
+## 当前是否正在等待一条异步命令完成。
+## [br]
+## @api public
+var is_processing_async: bool:
+	get:
+		return _is_processing_async
 
 
 # --- 私有变量 ---
 
-## 已执行命令的撤销栈。
+# 已执行命令的撤销栈。
 var _undo_stack: Array[GFUndoableCommand] = []
 
-## 已撤销命令的重做栈。
+# 已撤销命令的重做栈。
 var _redo_stack: Array[GFUndoableCommand] = []
 
-## 当前是否正在等待一条异步命令完成。
+# 当前是否正在等待一条异步命令完成。
 var _is_processing_async: bool = false
 
 var _max_history_size: int = 1024
 var _lifecycle_serial: int = 0
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化命令历史并清空撤销、重做栈。
+## [br]
+## @api public
 func init() -> void:
 	_lifecycle_serial += 1
 	_undo_stack = []
@@ -59,6 +83,9 @@ func init() -> void:
 	_is_processing_async = false
 
 
+## 释放命令历史并取消等待中的异步历史操作。
+## [br]
+## @api public
 func dispose() -> void:
 	_lifecycle_serial += 1
 	_undo_stack.clear()
@@ -69,6 +96,9 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 记录一条已经执行完成的命令。
+## [br]
+## @api public
+## [br]
 ## @param cmd: 已执行的命令实例。
 func record(cmd: GFUndoableCommand) -> void:
 	if not is_instance_valid(cmd):
@@ -82,8 +112,14 @@ func record(cmd: GFUndoableCommand) -> void:
 
 
 ## 执行命令并自动记录到撤销栈。
+## [br]
+## @api public
+## [br]
 ## @param cmd: 要执行的命令实例。
+## [br]
 ## @return `execute()` 的原始返回值；异步命令可由调用方自行 `await`。
+## [br]
+## @schema return: Variant returned by GFUndoableCommand.execute(), including null or Signal.
 func execute_command(cmd: GFUndoableCommand) -> Variant:
 	if not is_instance_valid(cmd):
 		return null
@@ -109,6 +145,9 @@ func execute_command(cmd: GFUndoableCommand) -> Variant:
 
 
 ## 撤销最后一条命令。
+## [br]
+## @api public
+## [br]
 ## @return 成功撤销时返回 `true`。
 func undo_last() -> bool:
 	if _is_processing_async or _undo_stack.is_empty():
@@ -127,6 +166,9 @@ func undo_last() -> bool:
 
 
 ## 异步撤销最后一条命令。
+## [br]
+## @api public
+## [br]
 ## @return 成功撤销时返回 `true`。
 func undo_last_async() -> bool:
 	if _is_processing_async or _undo_stack.is_empty():
@@ -151,6 +193,9 @@ func undo_last_async() -> bool:
 
 
 ## 重做最近被撤销的命令。
+## [br]
+## @api public
+## [br]
 ## @return 成功重做时返回 `true`。
 func redo() -> bool:
 	if _is_processing_async or _redo_stack.is_empty():
@@ -169,6 +214,9 @@ func redo() -> bool:
 
 
 ## 异步重做最近被撤销的命令。
+## [br]
+## @api public
+## [br]
 ## @return 成功重做时返回 `true`。
 func redo_async() -> bool:
 	if _is_processing_async or _redo_stack.is_empty():
@@ -193,6 +241,8 @@ func redo_async() -> bool:
 
 
 ## 清空所有历史记录。
+## [br]
+## @api public
 func clear() -> void:
 	if _is_processing_async:
 		push_warning("[GFCommandHistoryUtility] 当前正在处理异步命令，忽略清空请求。")
@@ -203,38 +253,60 @@ func clear() -> void:
 
 
 ## 检查当前是否允许撤销。
+## [br]
+## @api public
+## [br]
 ## @return 有可撤销命令时返回 `true`。
 func can_undo() -> bool:
 	return not _is_processing_async and not _undo_stack.is_empty()
 
 
 ## 检查当前是否允许重做。
+## [br]
+## @api public
+## [br]
 ## @return 有可重做命令时返回 `true`。
 func can_redo() -> bool:
 	return not _is_processing_async and not _redo_stack.is_empty()
 
 
 ## 获取撤销栈副本。
+## [br]
+## @api public
+## [br]
 ## @return 撤销历史的浅拷贝。
 func get_undo_history() -> Array[GFUndoableCommand]:
 	return _undo_stack.duplicate()
 
 
 ## 获取重做栈副本。
+## [br]
+## @api public
+## [br]
 ## @return 重做历史的浅拷贝。
 func get_redo_history() -> Array[GFUndoableCommand]:
 	return _redo_stack.duplicate()
 
 
 ## 将撤销栈序列化为纯数据数组。
+## [br]
+## @api public
+## [br]
 ## @return 适合持久化的历史数据。
+## [br]
+## @schema return: Array[Dictionary] serialized command snapshots produced by command serialize() or get_snapshot().
 func serialize_history() -> Array[Dictionary]:
 	return _serialize_stack(_undo_stack)
 
 
 ## 将完整命令历史序列化为纯数据字典。
 ## 包含 `undo` 与 `redo` 两个栈，可用于全量运行时快照恢复。
+## [br]
+## @api public
+## [br]
 ## @return 适合持久化的完整历史数据。
+## [br]
+## @schema return: Dictionary with undo and redo Array[Dictionary] stacks.
 func serialize_full_history() -> Dictionary:
 	return {
 		"undo": _serialize_stack(_undo_stack),
@@ -243,7 +315,13 @@ func serialize_full_history() -> Dictionary:
 
 
 ## 通过构造器从纯数据恢复撤销栈。
+## [br]
+## @api public
+## [br]
 ## @param data_array: 历史数据数组。
+## [br]
+## @schema data_array: Array[Dictionary] serialized command snapshots produced by serialize_history().
+## [br]
 ## @param command_builder: 负责反序列化命令实例的构造器。
 func deserialize_history(data_array: Array, command_builder: Callable) -> void:
 	if _is_processing_async:
@@ -266,7 +344,13 @@ func deserialize_history(data_array: Array, command_builder: Callable) -> void:
 
 
 ## 通过构造器从完整历史数据恢复撤销栈与重做栈。
+## [br]
+## @api public
+## [br]
 ## @param data: 由 `serialize_full_history()` 生成的字典数据。
+## [br]
+## @schema data: Dictionary with undo and redo Array[Dictionary] stacks.
+## [br]
 ## @param command_builder: 负责反序列化命令实例的构造器。
 func deserialize_full_history(data: Dictionary, command_builder: Callable) -> void:
 	if _is_processing_async:

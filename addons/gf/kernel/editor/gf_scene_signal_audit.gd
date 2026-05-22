@@ -5,37 +5,81 @@
 ## 扫描 PackedScene 中由编辑器保存的信号连接，报告缺失节点、缺失信号、
 ## 缺失方法和可选的参数数量不匹配。该工具只返回结构化报告，不修改场景，
 ## 也不参与运行时 GFArchitecture 生命周期。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFSceneSignalAudit
 extends RefCounted
 
 
 # --- 枚举 ---
 
+## 场景信号连接审计问题类型。
+## [br]
+## @api public
 enum IssueType {
+	## 场景资源加载失败。
 	SCENE_LOAD_FAILED,
+	## 无法读取场景保存的连接状态。
 	SCENE_STATE_UNAVAILABLE,
+	## 场景实例化失败。
 	SCENE_INSTANTIATION_FAILED,
+	## 连接源节点缺失。
 	MISSING_SOURCE,
+	## 连接目标节点缺失。
 	MISSING_TARGET,
+	## 连接源信号缺失。
 	MISSING_SIGNAL,
+	## 连接目标方法缺失。
 	MISSING_METHOD,
+	## 信号参数数量与目标方法不匹配。
 	PARAMETER_COUNT_MISMATCH,
 }
 
 
 # --- 常量 ---
 
+## 默认最大目录扫描深度。
+## [br]
+## @api public
 const DEFAULT_MAX_SCAN_DEPTH: int = 32
+
+## 默认最大扫描场景路径数量。
+## [br]
+## @api public
 const DEFAULT_MAX_SCENE_PATHS: int = 10000
+
+## 默认最大运行时信号图节点深度。
+## [br]
+## @api public
 const DEFAULT_MAX_SIGNAL_GRAPH_DEPTH: int = 64
+
+## 默认最大运行时信号图节点数量。
+## [br]
+## @api public
 const DEFAULT_MAX_SIGNAL_GRAPH_NODES: int = 10000
 
 
 # --- 公共方法 ---
 
 ## 审计指定目录下的场景文件。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 需要扫描的目录，通常为 `res://`。
+## [br]
 ## @param options: 审计选项，支持 `include_hidden`、`respect_gdignore`、`check_parameter_count`、`max_scan_depth` 与 `max_scene_paths`。
+## [br]
+## @schema options: Dictionary with include_hidden, respect_gdignore, check_parameter_count, max_scan_depth, and max_scene_paths.
+## [br]
+## @return 审计汇总报告。
+## [br]
+## @schema return: Dictionary containing ok, root_path, scene_count, issue_count, scanned_paths, and issues.
 static func audit_directory(root_path: String = "res://", options: Dictionary = {}) -> Dictionary:
 	var scene_paths := collect_scene_paths(root_path, options)
 	var report := audit_scene_paths(scene_paths, options)
@@ -44,8 +88,18 @@ static func audit_directory(root_path: String = "res://", options: Dictionary = 
 
 
 ## 审计一组场景路径并返回汇总报告。
+## [br]
+## @api public
+## [br]
 ## @param scene_paths: 需要审计的 PackedScene 路径列表。
+## [br]
 ## @param options: 审计选项，支持 `check_parameter_count`。
+## [br]
+## @schema options: Dictionary with optional check_parameter_count.
+## [br]
+## @return 审计汇总报告。
+## [br]
+## @schema return: Dictionary containing ok, scene_count, issue_count, scanned_paths, and issues.
 static func audit_scene_paths(scene_paths: PackedStringArray, options: Dictionary = {}) -> Dictionary:
 	var issues: Array[Dictionary] = []
 	var scanned_paths := PackedStringArray()
@@ -63,8 +117,18 @@ static func audit_scene_paths(scene_paths: PackedStringArray, options: Dictionar
 
 
 ## 审计单个 PackedScene 的编辑器信号连接。
+## [br]
+## @api public
+## [br]
 ## @param scene_path: 需要审计的 PackedScene 路径。
+## [br]
 ## @param options: 审计选项，支持 `check_parameter_count`。
+## [br]
+## @schema options: Dictionary with optional check_parameter_count.
+## [br]
+## @return 场景连接问题列表。
+## [br]
+## @schema return: Array of Dictionary scene signal audit issues.
 static func audit_scene(scene_path: String, options: Dictionary = {}) -> Array[Dictionary]:
 	var packed_scene := load(scene_path) as PackedScene
 	if packed_scene == null:
@@ -171,8 +235,16 @@ static func audit_scene(scene_path: String, options: Dictionary = {}) -> Array[D
 
 
 ## 收集目录下可审计的 `.tscn` 场景路径。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 需要扫描的目录。
+## [br]
 ## @param options: 收集选项，支持 `include_hidden`、`respect_gdignore`、`max_scan_depth` 与 `max_scene_paths`。
+## [br]
+## @schema options: Dictionary with include_hidden, respect_gdignore, max_scan_depth, and max_scene_paths.
+## [br]
+## @return 场景路径列表。
 static func collect_scene_paths(root_path: String = "res://", options: Dictionary = {}) -> PackedStringArray:
 	var result := PackedStringArray()
 	var include_hidden := bool(options.get("include_hidden", false))
@@ -195,9 +267,18 @@ static func collect_scene_paths(root_path: String = "res://", options: Dictionar
 
 
 ## 构建运行中节点树的信号连接图快照。
+## [br]
+## @api public
+## [br]
 ## @param root: 需要扫描的根节点。
+## [br]
 ## @param options: 选项，支持 `include_internal`、`persistent_only`、`include_empty_signals`、`include_external_targets`、`max_node_depth` 与 `max_nodes`。
+## [br]
+## @schema options: Dictionary with include_internal, persistent_only, include_empty_signals, include_external_targets, max_node_depth, and max_nodes.
+## [br]
 ## @return 信号连接图报告。
+## [br]
+## @schema return: Dictionary containing ok, root_path, node_count, signal_count, connection_count, nodes, signals, connections, and truncated.
 static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictionary:
 	if root == null:
 		return {
@@ -267,8 +348,16 @@ static func build_signal_graph(root: Node, options: Dictionary = {}) -> Dictiona
 
 
 ## 为信号图报告构建按节点分组的索引。
+## [br]
+## @api public
+## [br]
 ## @param graph: build_signal_graph() 返回的报告。
+## [br]
+## @schema graph: Dictionary returned by build_signal_graph().
+## [br]
 ## @return 节点索引，包含 incoming/outgoing/signals。
+## [br]
+## @schema return: Dictionary containing node_count, connection_count, nodes, outgoing, incoming, and signals.
 static func index_signal_graph(graph: Dictionary) -> Dictionary:
 	var nodes_by_path: Dictionary = {}
 	var outgoing: Dictionary = {}

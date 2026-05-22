@@ -1,6 +1,12 @@
 ## GFNodeAnimationPlayerSerializer: AnimationPlayer 通用播放状态序列化器。
 ##
 ## 保存当前动画、播放位置与速度缩放等通用播放状态，不保存动画资源内容。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNodeAnimationPlayerSerializer
 extends GFNodeSerializer
 
@@ -15,14 +21,29 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 判断序列化器是否支持指定节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
+## @return 节点是否为 AnimationPlayer。
 func supports_node(node: Node) -> bool:
 	return node is AnimationPlayer
 
 
 ## 采集节点的可保存状态。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return AnimationPlayer 播放状态载荷。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，可包含 current_animation、assigned_animation、current_animation_position、speed_scale、playing 与 active。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	var player := node as AnimationPlayer
 	if player == null:
@@ -39,9 +60,22 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 
 
 ## 将序列化数据应用到节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
-## @param payload: 随事件或交互传递的数据。
+## [br]
+## @param payload: AnimationPlayer 播放状态载荷。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return 应用结果字典。
+## [br]
+## @schema payload: Dictionary，可包含 current_animation、assigned_animation、current_animation_position、speed_scale、playing 与 active。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
 	var player := node as AnimationPlayer
 	if player == null:

@@ -1,6 +1,12 @@
 ## GFNetworkHistoryBuffer: 按 tick 保存网络快照的环形历史。
 ##
 ## 用于插值、重放、状态对账或项目自定义同步流程；不会自动执行预测、回滚或冲突解决。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFNetworkHistoryBuffer
 extends RefCounted
 
@@ -8,6 +14,8 @@ extends RefCounted
 # --- 公共变量 ---
 
 ## 最大保存快照数量。小于等于 0 表示不限制。
+## [br]
+## @api public
 var capacity: int = 120
 
 
@@ -26,7 +34,11 @@ func _init(p_capacity: int = 120) -> void:
 # --- 公共方法 ---
 
 ## 添加快照。
+## [br]
+## @api public
+## [br]
 ## @param snapshot: 快照。
+## [br]
 ## @return 添加成功返回 true。
 func add_snapshot(snapshot: GFNetworkSnapshot) -> bool:
 	if snapshot == null:
@@ -41,11 +53,22 @@ func add_snapshot(snapshot: GFNetworkSnapshot) -> bool:
 
 
 ## 添加状态字典并返回生成的快照。
+## [br]
+## @api public
+## [br]
 ## @param tick: 快照 tick。
+## [br]
 ## @param state: 状态字典。
+## [br]
 ## @param peer_id: 来源 peer。
+## [br]
 ## @param metadata: 元数据。
+## [br]
 ## @return 新快照。
+## [br]
+## @schema state: Dictionary[StringName|String, Variant]，保存项目自定义同步状态。
+## [br]
+## @schema metadata: Dictionary，保存项目自定义快照元数据。
 func add_state(
 	tick: int,
 	state: Dictionary,
@@ -58,14 +81,22 @@ func add_state(
 
 
 ## 检查指定 tick 是否存在快照。
+## [br]
+## @api public
+## [br]
 ## @param tick: 快照 tick。
+## [br]
 ## @return 存在返回 true。
 func has_snapshot(tick: int) -> bool:
 	return _snapshots.has(tick)
 
 
 ## 获取指定 tick 的快照副本。
+## [br]
+## @api public
+## [br]
 ## @param tick: 快照 tick。
+## [br]
 ## @return 快照副本；不存在时返回 null。
 func get_snapshot(tick: int) -> GFNetworkSnapshot:
 	var snapshot := _snapshots.get(tick, null) as GFNetworkSnapshot
@@ -73,6 +104,9 @@ func get_snapshot(tick: int) -> GFNetworkSnapshot:
 
 
 ## 获取最新快照副本。
+## [br]
+## @api public
+## [br]
 ## @return 最新快照；不存在时返回 null。
 func get_latest_snapshot() -> GFNetworkSnapshot:
 	if _tick_order.is_empty():
@@ -81,6 +115,9 @@ func get_latest_snapshot() -> GFNetworkSnapshot:
 
 
 ## 获取最早快照副本。
+## [br]
+## @api public
+## [br]
 ## @return 最早快照；不存在时返回 null。
 func get_earliest_snapshot() -> GFNetworkSnapshot:
 	if _tick_order.is_empty():
@@ -89,8 +126,13 @@ func get_earliest_snapshot() -> GFNetworkSnapshot:
 
 
 ## 获取最接近指定 tick 的快照副本。
+## [br]
+## @api public
+## [br]
 ## @param tick: 查询 tick。
+## [br]
 ## @param prefer_older: 距离相同时是否优先旧快照。
+## [br]
 ## @return 快照副本；不存在时返回 null。
 func get_closest_snapshot(tick: int, prefer_older: bool = true) -> GFNetworkSnapshot:
 	if _tick_order.is_empty():
@@ -112,10 +154,18 @@ func get_closest_snapshot(tick: int, prefer_older: bool = true) -> GFNetworkSnap
 
 
 ## 获取指定 tick 范围内的快照副本。
+## [br]
+## @api public
+## [br]
 ## @param from_tick: 起始 tick。
+## [br]
 ## @param to_tick: 结束 tick。
+## [br]
 ## @param include_bounds: 是否包含边界 tick。
+## [br]
 ## @return 按 tick 升序排列的快照副本。
+## [br]
+## @schema return: Array[GFNetworkSnapshot]，按 tick 升序排列的快照副本。
 func get_snapshots_between(
 	from_tick: int,
 	to_tick: int,
@@ -142,8 +192,14 @@ func get_snapshots_between(
 
 
 ## 获取包围指定 tick 的快照副本。
+## [br]
+## @api public
+## [br]
 ## @param tick: 查询 tick。
+## [br]
 ## @return 字典，包含 exact、previous、next 三个可选快照。
+## [br]
+## @schema return: Dictionary，包含 exact、previous、next，值为 GFNetworkSnapshot 或 null。
 func get_surrounding_snapshots(tick: int) -> Dictionary:
 	var result := {
 		"exact": null,
@@ -164,6 +220,9 @@ func get_surrounding_snapshots(tick: int) -> Dictionary:
 
 
 ## 获取已保存 tick 列表。
+## [br]
+## @api public
+## [br]
 ## @return tick 列表。
 func get_ticks() -> PackedInt64Array:
 	var result := PackedInt64Array()
@@ -173,7 +232,11 @@ func get_ticks() -> PackedInt64Array:
 
 
 ## 删除指定 tick 之前的快照。
+## [br]
+## @api public
+## [br]
 ## @param tick: 保留起点 tick。
+## [br]
 ## @return 删除数量。
 func prune_before(tick: int) -> int:
 	var removed_count := 0
@@ -188,19 +251,29 @@ func prune_before(tick: int) -> int:
 
 
 ## 清空历史。
+## [br]
+## @api public
 func clear() -> void:
 	_snapshots.clear()
 	_tick_order.clear()
 
 
 ## 获取快照数量。
+## [br]
+## @api public
+## [br]
 ## @return 快照数量。
 func size() -> int:
 	return _tick_order.size()
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 capacity、size、earliest_tick、latest_tick。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"capacity": capacity,

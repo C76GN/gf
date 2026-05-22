@@ -1,6 +1,12 @@
 ## GFTweenActionStep: 配置化 Tween 属性步骤。
 ##
 ## 描述一个目标对象属性如何缓动，不绑定具体节点或业务动作。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFTweenActionStep
 extends Resource
 
@@ -8,40 +14,68 @@ extends Resource
 # --- 导出变量 ---
 
 ## 要缓动的属性路径。
+## [br]
+## @api public
 @export var property_name: NodePath = ^"position"
 
 ## 目标值。
+## [br]
+## @api public
+## [br]
+## @schema target_value: Variant，可写入 property_name 的目标值；相对步骤中会与当前值相加。
 @export var target_value: Variant = null
 
 ## 步骤持续时间。
+## [br]
+## @api public
 @export var duration: float = 0.2
 
 ## 步骤延迟。
+## [br]
+## @api public
 @export var delay: float = 0.0
 
 ## 是否相对当前值偏移。
+## [br]
+## @api public
 @export var as_relative: bool = false
 
 ## 是否与前一个步骤并行。
+## [br]
+## @api public
 @export var parallel: bool = false
 
 ## Tween 过渡类型。
+## [br]
+## @api public
 @export var transition_type: Tween.TransitionType = Tween.TRANS_CUBIC
 
 ## Tween 缓动类型。
+## [br]
+## @api public
 @export var ease_type: Tween.EaseType = Tween.EASE_OUT
 
 ## 可选步骤标记。非空时 GFConfiguredTweenAction 会在步骤结束后发出 marker_reached。
+## [br]
+## @api public
 @export var marker_id: StringName = &""
 
 
 # --- 公共方法 ---
 
 ## 追加到 Tween。
+## [br]
+## @api public
+## [br]
 ## @param tween: 目标 Tween。
+## [br]
 ## @param target: 目标对象。
+## [br]
 ## @param duration_scale: 时长缩放。
+## [br]
 ## @return 创建的 Tweener。
+## [br]
+## @schema return: Variant，成功时为 PropertyTweener；无效时为 null。
 func append_to_tween(tween: Tween, target: Object, duration_scale: float = 1.0) -> Variant:
 	if tween == null:
 		return null
@@ -66,6 +100,9 @@ func append_to_tween(tween: Tween, target: Object, duration_scale: float = 1.0) 
 
 
 ## 立即应用步骤目标值。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标对象。
 func apply_instant(target: Object) -> void:
 	var validation_error := get_validation_error(target)
@@ -79,6 +116,9 @@ func apply_instant(target: Object) -> void:
 
 
 ## 创建深拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新步骤。
 func duplicate_step() -> GFTweenActionStep:
 	var step := GFTweenActionStep.new()
@@ -95,14 +135,22 @@ func duplicate_step() -> GFTweenActionStep:
 
 
 ## 检查目标对象是否能应用当前步骤。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标对象。
+## [br]
 ## @return 可应用时返回 true。
 func can_apply_to(target: Object) -> bool:
 	return get_validation_error(target).is_empty()
 
 
 ## 获取当前步骤对目标对象的校验错误。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标对象。
+## [br]
 ## @return 校验通过时返回空字符串。
 func get_validation_error(target: Object) -> String:
 	if not is_instance_valid(target):
@@ -121,8 +169,14 @@ func get_validation_error(target: Object) -> String:
 
 
 ## 捕获当前属性值。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标对象。
+## [br]
 ## @return 属性值；步骤无效时返回 null。
+## [br]
+## @schema return: Variant，目标属性的深拷贝值；步骤无效时为 null。
 func capture_initial_value(target: Object) -> Variant:
 	if not get_validation_error(target).is_empty():
 		return null

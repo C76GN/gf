@@ -2,6 +2,12 @@
 ##
 ## 只实现 GFNetworkBackend 的 bytes 传输边界，适合浏览器、原生客户端或工具链
 ## 之间复用同一套 GFNetworkMessage 序列化流程。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFWebSocketNetworkBackend
 extends GFNetworkBackend
 
@@ -9,6 +15,8 @@ extends GFNetworkBackend
 # --- 枚举 ---
 
 ## WebSocket 后端运行模式。
+## [br]
+## @api public
 enum Mode {
 	## 未连接。
 	DISCONNECTED,
@@ -22,18 +30,26 @@ enum Mode {
 # --- 常量 ---
 
 ## 广播 peer 标识。
+## [br]
+## @api public
 const BROADCAST_PEER_ID: int = -1
 
 ## 客户端视角下远端服务器的 peer 标识。
+## [br]
+## @api public
 const SERVER_PEER_ID: int = 1
 
 
 # --- 公共变量 ---
 
 ## 每次 poll 最多接受的 TCP 连接数量。小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_accepts_per_poll: int = 16
 
 ## 每个 peer 每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_packets_per_peer_per_poll: int = 64
 
 
@@ -54,7 +70,14 @@ var _client_was_open: bool = false
 
 ## 启动 WebSocket 主机。
 ## 支持 options: port, bind_address, supported_protocols。
+## [br]
+## @api public
+## [br]
 ## @param options: 操作选项字典。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，支持 port、bind_address、address、supported_protocols、inbound_buffer_size、outbound_buffer_size、max_queued_packets、no_delay。
 func host(options: Dictionary = {}) -> Error:
 	var port := int(options.get("port", 0))
 	if port <= 0:
@@ -78,8 +101,16 @@ func host(options: Dictionary = {}) -> Error:
 
 ## 连接 WebSocket 远端。
 ## endpoint 应为 ws:// 或 wss:// URL。
+## [br]
+## @api public
+## [br]
 ## @param endpoint: WebSocket 地址。
+## [br]
 ## @param options: 操作选项字典，支持 tls_options、supported_protocols。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，支持 tls_options、supported_protocols、inbound_buffer_size、outbound_buffer_size、max_queued_packets、no_delay。
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 	if endpoint.strip_edges().is_empty():
 		return ERR_INVALID_PARAMETER
@@ -100,14 +131,25 @@ func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 
 
 ## 断开 WebSocket 连接。
+## [br]
+## @api public
 func disconnect_backend() -> void:
 	_close_all(true)
 
 
 ## 发送 bytes。
+## [br]
+## @api public
+## [br]
 ## @param peer_id: 目标 peer；服务器模式下 -1 表示广播，客户端模式下可传 1 或 -1。
+## [br]
 ## @param bytes: 要发送的字节数据。
+## [br]
 ## @param _options: 操作选项字典。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema _options: Dictionary，保留给后端自定义发送选项。
 func send_bytes(peer_id: int, bytes: PackedByteArray, _options: Dictionary = {}) -> Error:
 	if bytes.is_empty():
 		return ERR_INVALID_DATA
@@ -123,6 +165,9 @@ func send_bytes(peer_id: int, bytes: PackedByteArray, _options: Dictionary = {})
 
 
 ## 轮询 WebSocket 连接、握手和收包。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func poll(_delta: float) -> void:
 	if _mode == Mode.SERVER:
@@ -133,6 +178,12 @@ func poll(_delta: float) -> void:
 
 
 ## 获取后端调试快照。
+## [br]
+## @api public
+## [br]
+## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 backend、available、mode、mode_name、endpoint、peer_count、open_peer_count、client_state、max_accepts_per_poll、max_packets_per_peer_per_poll。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"backend": "GFWebSocketNetworkBackend",

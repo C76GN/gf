@@ -2,42 +2,68 @@
 ##
 ## 消息定义描述 message_type、默认通道和 payload 字段集合，可用于构造、
 ## 校验和生成强类型辅助函数。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNetworkContractMessage
 extends Resource
 
 
 # --- 常量 ---
 
-const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
 
 ## 消息类型标识。
+## [br]
+## @api public
 @export var message_type: StringName = &""
 
 ## 编辑器展示名称。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 默认逻辑通道。为空时发送时不强制通道。
+## [br]
+## @api public
 @export var channel_id: StringName = &""
 
 ## payload 字段定义。
+## [br]
+## @api public
+## [br]
+## @schema fields: Array[GFNetworkContractField]，按声明顺序保存 payload 字段定义。
 @export var fields: Array[GFNetworkContractField] = []
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存项目自定义消息元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取消息类型。
+## [br]
+## @api public
+## [br]
 ## @return 消息类型。
 func get_message_type() -> StringName:
 	return message_type
 
 
 ## 获取展示名称。
+## [br]
+## @api public
+## [br]
 ## @return 展示名称。
 func get_display_name() -> String:
 	if not display_name.is_empty():
@@ -48,7 +74,11 @@ func get_display_name() -> String:
 
 
 ## 查找字段定义。
+## [br]
+## @api public
+## [br]
 ## @param target_field_name: 字段名称。
+## [br]
 ## @return 字段定义；不存在时返回 null。
 func get_field(target_field_name: StringName) -> GFNetworkContractField:
 	for field: GFNetworkContractField in fields:
@@ -58,9 +88,20 @@ func get_field(target_field_name: StringName) -> GFNetworkContractField:
 
 
 ## 构建 payload 字典。
+## [br]
+## @api public
+## [br]
 ## @param values: 字段值字典，可使用 StringName 或 String 作为键。
+## [br]
 ## @param options: 可选项，支持 include_defaults。
+## [br]
 ## @return payload 字典。
+## [br]
+## @schema values: Dictionary[StringName|String, Variant]，字段名到字段值的映射。
+## [br]
+## @schema options: Dictionary，支持 include_defaults。
+## [br]
+## @schema return: Dictionary[StringName, Variant]，按字段契约归一化后的 payload。
 func build_payload(values: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
 	var include_defaults := bool(options.get("include_defaults", true))
 	var payload: Dictionary = {}
@@ -77,9 +118,18 @@ func build_payload(values: Dictionary = {}, options: Dictionary = {}) -> Diction
 
 
 ## 构建 GFNetworkMessage。
+## [br]
+## @api public
+## [br]
 ## @param values: 字段值字典。
+## [br]
 ## @param options: 可选元信息，支持 sequence、tick、sender_id、channel_id。
+## [br]
 ## @return 网络消息。
+## [br]
+## @schema values: Dictionary[StringName|String, Variant]，字段名到字段值的映射。
+## [br]
+## @schema options: Dictionary，支持 include_defaults、sequence、tick、sender_id、channel_id。
 func make_message(values: Dictionary = {}, options: Dictionary = {}) -> GFNetworkMessage:
 	var resolved_channel_id := channel_id
 	if options.has("channel_id"):
@@ -95,7 +145,12 @@ func make_message(values: Dictionary = {}, options: Dictionary = {}) -> GFNetwor
 
 
 ## 校验消息定义是否完整。
+## [br]
+## @api public
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。
 func validate_definition() -> Dictionary:
 	var issues: Array[Dictionary] = []
 	if message_type == &"":
@@ -120,8 +175,16 @@ func validate_definition() -> Dictionary:
 
 
 ## 校验 payload 是否符合字段契约。
+## [br]
+## @api public
+## [br]
 ## @param payload: payload 字典。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema payload: Dictionary[StringName|String, Variant]，待校验 payload 字段值。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。
 func validate_payload(payload: Dictionary) -> Dictionary:
 	var issues: Array[Dictionary] = []
 	for field: GFNetworkContractField in fields:
@@ -141,8 +204,14 @@ func validate_payload(payload: Dictionary) -> Dictionary:
 
 
 ## 校验 GFNetworkMessage 是否匹配该消息契约。
+## [br]
+## @api public
+## [br]
 ## @param message: 网络消息。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。
 func validate_message(message: GFNetworkMessage) -> Dictionary:
 	if message == null:
 		return _finalize_report([_make_issue("error", "missing_message", "Network message is null.")])
@@ -152,7 +221,12 @@ func validate_message(message: GFNetworkMessage) -> Dictionary:
 
 
 ## 描述消息契约。
+## [br]
+## @api public
+## [br]
 ## @return 描述字典。
+## [br]
+## @schema return: Dictionary，包含 message_type、display_name、channel_id、field_count、fields、metadata。
 func describe() -> Dictionary:
 	var field_descriptions: Array[Dictionary] = []
 	for field: GFNetworkContractField in fields:
@@ -213,7 +287,7 @@ func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
 		"message_type": message_type,
 		"issues": issues,
 	}
-	return GFValidationReportDictionaryBase.finalize_report(report, "Network contract message", {
+	return _GF_VALIDATION_REPORT_DICTIONARY.finalize_report(report, "Network contract message", {
 		"include_issue_count": true,
 		"next_actions": _get_validation_next_actions(),
 	})

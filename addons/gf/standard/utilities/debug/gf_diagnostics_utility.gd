@@ -2,6 +2,12 @@
 ##
 ## 提供架构生命周期、事件系统、性能、日志和外部贡献诊断的统一快照。
 ## 诊断命令、监控项和快照分区通过 Callable 注册，框架只负责调度和包装结果，不解释项目业务数据。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFDiagnosticsUtility
 extends GFUtility
 
@@ -9,18 +15,42 @@ extends GFUtility
 # --- 信号 ---
 
 ## 采集快照后发出。
+## [br]
+## @api public
+## [br]
+## @param snapshot: 刚采集到的诊断快照。
+## [br]
+## @schema snapshot: Dictionary，包含 collect_snapshot() 返回的顶层诊断分区。
 signal snapshot_collected(snapshot: Dictionary)
 
 ## 执行诊断命令后发出。
+## [br]
+## @api public
+## [br]
+## @param command_name: 已执行的诊断命令名。
+## [br]
+## @param result: 命令执行结果。
+## [br]
+## @schema result: Dictionary，包含 ok、value、error、metadata 等字段。
 signal diagnostic_command_executed(command_name: StringName, result: Dictionary)
 
 ## 采样诊断监控项后发出。
+## [br]
+## @api public
+## [br]
+## @param monitor_id: 监控项标识。
+## [br]
+## @param sample: 采样结果。
+## [br]
+## @schema sample: Dictionary，包含 id、label、group、value、valid、error、metadata 和 sampled_at_unix。
 signal monitor_sampled(monitor_id: StringName, sample: Dictionary)
 
 
 # --- 枚举 ---
 
 ## 诊断命令风险等级。
+## [br]
+## @api public
 enum CommandTier {
 	## 只读取状态。
 	OBSERVE,
@@ -36,30 +66,48 @@ enum CommandTier {
 # --- 公共变量 ---
 
 ## 是否采集 Godot Performance 监视器。
+## [br]
+## @api public
 var include_performance_monitors: bool = true
 
 ## 快照中默认包含的最近日志数量。
+## [br]
+## @api public
 var default_recent_log_count: int = 20
 
 ## 当前允许执行的最高命令等级。
+## [br]
+## @api public
 var max_command_tier: CommandTier = CommandTier.OBSERVE
 
 ## 是否要求命令参数提供 auth_token 或 _auth_token。
+## [br]
+## @api public
 var require_auth_token: bool = false
 
 ## 诊断命令认证 token。为空时无法通过认证。
+## [br]
+## @api public
 var auth_token: String = ""
 
 ## 是否允许执行 DANGER 等级命令。即使 max_command_tier 足够，也需要显式开启。
+## [br]
+## @api public
 var allow_danger_commands: bool = false
 
 ## 是否把诊断命令结果转换为 JSON 兼容 Variant。
+## [br]
+## @api public
 var encode_command_results_for_json: bool = false
 
 ## 场景树快照默认递归深度。
+## [br]
+## @api public
 var default_scene_tree_max_depth: int = 4
 
 ## 场景树快照默认最多采集节点数。
+## [br]
+## @api public
 var default_scene_tree_max_nodes: int = 128
 
 
@@ -76,8 +124,11 @@ var _console_utility: GFConsoleUtility = null
 var _console_command_registered: bool = false
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化内置诊断命令和监控项。
+## [br]
+## @api public
 func init() -> void:
 	_register_builtin_monitors()
 	register_command(&"diagnostics.snapshot", Callable(self, "_command_collect_snapshot"), "采集 GF 诊断快照。", CommandTier.OBSERVE)
@@ -89,10 +140,16 @@ func init() -> void:
 	register_command(&"diagnostics.signals", Callable(self, "_command_collect_signals"), "采集只读信号连接图快照。", CommandTier.OBSERVE)
 
 
+## 绑定控制台诊断命令。
+## [br]
+## @api public
 func ready() -> void:
 	_bind_console_command()
 
 
+## 释放诊断注册表并解绑控制台命令。
+## [br]
+## @api public
 func dispose() -> void:
 	if _console_utility != null and _console_command_registered:
 		_console_utility.unregister_command("diagnostics")
@@ -110,11 +167,20 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注册诊断命令。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
+## [br]
 ## @param callback: 回调，签名建议为 func(args: Dictionary) -> Variant。
+## [br]
 ## @param description: 描述文本。
+## [br]
 ## @param tier: 命令风险等级。
+## [br]
 ## @param options: 可选元数据，支持 parameters、metadata、enabled。
+## [br]
+## @schema options: Dictionary，支持 parameters、metadata 和 enabled。
 func register_command(
 	command_name: StringName,
 	callback: Callable,
@@ -136,6 +202,9 @@ func register_command(
 
 
 ## 注销诊断命令。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
 func unregister_command(command_name: StringName) -> void:
 	_commands.erase(command_name)
@@ -143,16 +212,27 @@ func unregister_command(command_name: StringName) -> void:
 
 
 ## 检查诊断命令是否存在。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
+## [br]
 ## @return 存在返回 true。
 func has_command(command_name: StringName) -> bool:
 	return _commands.has(command_name)
 
 
 ## 设置诊断命令参数 schema。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
+## [br]
 ## @param parameters: 参数 schema，可为数组或按参数名索引的字典。
+## [br]
 ## @return 设置成功返回 true。
+## [br]
+## @schema parameters: Variant，支持 Array[Dictionary] 或 Dictionary 形式的参数 schema。
 func set_command_parameter_schema(command_name: StringName, parameters: Variant) -> bool:
 	if not _commands.has(command_name):
 		return false
@@ -162,8 +242,13 @@ func set_command_parameter_schema(command_name: StringName, parameters: Variant)
 
 
 ## 设置诊断命令是否启用。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
+## [br]
 ## @param enabled: 是否启用。
+## [br]
 ## @return 命令存在时返回 true。
 func set_command_enabled(command_name: StringName, enabled: bool) -> bool:
 	if not _commands.has(command_name):
@@ -176,8 +261,13 @@ func set_command_enabled(command_name: StringName, enabled: bool) -> bool:
 
 
 ## 批量设置命令是否启用。
+## [br]
+## @api public
+## [br]
 ## @param enabled: 是否启用。
+## [br]
 ## @param command_names: 指定命令；为空时作用于全部已注册命令。
+## [br]
 ## @return 实际处理的命令数量。
 func set_all_commands_enabled(
 	enabled: bool,
@@ -196,14 +286,23 @@ func set_all_commands_enabled(
 
 
 ## 检查命令是否启用。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
+## [br]
 ## @return 命令存在且启用时返回 true。
 func is_command_enabled(command_name: StringName) -> bool:
 	return _commands.has(command_name) and not _disabled_commands.has(command_name)
 
 
 ## 获取诊断命令描述。
+## [br]
+## @api public
+## [br]
 ## @return 命令名到描述的字典。
+## [br]
+## @schema return: Dictionary[StringName, String]，以命令名为键。
 func get_command_descriptions() -> Dictionary:
 	var result: Dictionary = {}
 	for command_name: StringName in _commands.keys():
@@ -213,7 +312,12 @@ func get_command_descriptions() -> Dictionary:
 
 
 ## 获取诊断命令目录。
+## [br]
+## @api public
+## [br]
 ## @return 命令名到命令元数据的字典。
+## [br]
+## @schema return: Dictionary[StringName, Dictionary]，每个值包含 description、tier、tier_name、enabled、parameters 和 metadata。
 func get_command_catalog() -> Dictionary:
 	var result: Dictionary = {}
 	for command_name: StringName in _commands.keys():
@@ -231,10 +335,18 @@ func get_command_catalog() -> Dictionary:
 
 
 ## 注册诊断监控项。
+## [br]
+## @api public
+## [br]
 ## @param monitor_id: 监控项唯一标识。
+## [br]
 ## @param provider: 无参数采样回调。
+## [br]
 ## @param options: 可选元数据，支持 label、group、visible、metadata、min_interval_seconds。
+## [br]
 ## @return 注册成功返回 true。
+## [br]
+## @schema options: Dictionary，支持 label、group、visible、metadata 和 min_interval_seconds。
 func register_monitor(monitor_id: StringName, provider: Callable, options: Dictionary = {}) -> bool:
 	if monitor_id == &"" or not provider.is_valid():
 		return false
@@ -256,6 +368,9 @@ func register_monitor(monitor_id: StringName, provider: Callable, options: Dicti
 
 
 ## 注销诊断监控项。
+## [br]
+## @api public
+## [br]
 ## @param monitor_id: 监控项唯一标识。
 func unregister_monitor(monitor_id: StringName) -> void:
 	_monitors.erase(monitor_id)
@@ -267,14 +382,23 @@ func unregister_monitor(monitor_id: StringName) -> void:
 
 
 ## 检查诊断监控项是否存在。
+## [br]
+## @api public
+## [br]
 ## @param monitor_id: 监控项唯一标识。
+## [br]
 ## @return 存在返回 true。
 func has_monitor(monitor_id: StringName) -> bool:
 	return _monitors.has(monitor_id)
 
 
 ## 获取诊断监控项目录。
+## [br]
+## @api public
+## [br]
 ## @return 监控项元数据字典。
+## [br]
+## @schema return: Dictionary[StringName, Dictionary]，每个值包含 label、group、visible、metadata 和 min_interval_seconds。
 func get_monitor_catalog() -> Dictionary:
 	var result: Dictionary = {}
 	for monitor_id: StringName in _monitors.keys():
@@ -290,10 +414,18 @@ func get_monitor_catalog() -> Dictionary:
 
 
 ## 注册诊断监控预设。
+## [br]
+## @api public
+## [br]
 ## @param preset_id: 预设唯一标识。
+## [br]
 ## @param monitor_ids: 预设包含的监控项标识。
+## [br]
 ## @param options: 可选元数据，支持 label、metadata。
+## [br]
 ## @return 注册成功返回 true。
+## [br]
+## @schema options: Dictionary，支持 label 和 metadata。
 func register_monitor_preset(
 	preset_id: StringName,
 	monitor_ids: PackedStringArray,
@@ -311,8 +443,13 @@ func register_monitor_preset(
 
 
 ## 将一个监控项追加到已有预设；预设不存在时会创建。
+## [br]
+## @api public
+## [br]
 ## @param preset_id: 预设唯一标识。
+## [br]
 ## @param monitor_id: 监控项唯一标识。
+## [br]
 ## @return 追加成功返回 true。
 func add_monitor_to_preset(preset_id: StringName, monitor_id: StringName) -> bool:
 	if preset_id == &"" or monitor_id == &"":
@@ -329,19 +466,29 @@ func add_monitor_to_preset(preset_id: StringName, monitor_id: StringName) -> boo
 
 
 ## 注销诊断监控预设。
+## [br]
+## @api public
+## [br]
 ## @param preset_id: 预设唯一标识。
 func unregister_monitor_preset(preset_id: StringName) -> void:
 	_monitor_presets.erase(preset_id)
 
 
 ## 检查诊断监控预设是否存在。
+## [br]
+## @api public
+## [br]
 ## @param preset_id: 预设唯一标识。
+## [br]
 ## @return 存在返回 true。
 func has_monitor_preset(preset_id: StringName) -> bool:
 	return _monitor_presets.has(preset_id)
 
 
 ## 获取诊断监控预设列表。
+## [br]
+## @api public
+## [br]
 ## @return 预设标识列表。
 func get_monitor_preset_ids() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -352,8 +499,13 @@ func get_monitor_preset_ids() -> PackedStringArray:
 
 
 ## 注册快照分区 provider。用于扩展或项目把自己的诊断数据贡献到 collect_snapshot() 顶层字段。
+## [br]
+## @api public
+## [br]
 ## @param section_id: 快照顶层字段名。
+## [br]
 ## @param provider: 无参数采样回调，建议返回 Dictionary。
+## [br]
 ## @return 注册成功返回 true。
 func register_snapshot_section_provider(section_id: StringName, provider: Callable) -> bool:
 	if section_id == &"" or not provider.is_valid():
@@ -363,21 +515,33 @@ func register_snapshot_section_provider(section_id: StringName, provider: Callab
 
 
 ## 注销快照分区 provider。
+## [br]
+## @api public
+## [br]
 ## @param section_id: 快照顶层字段名。
 func unregister_snapshot_section_provider(section_id: StringName) -> void:
 	_snapshot_section_providers.erase(section_id)
 
 
 ## 检查快照分区 provider 是否存在。
+## [br]
+## @api public
+## [br]
 ## @param section_id: 快照顶层字段名。
+## [br]
 ## @return 存在返回 true。
 func has_snapshot_section_provider(section_id: StringName) -> bool:
 	return _snapshot_section_providers.has(section_id)
 
 
 ## 注册工具快照 provider。用于扩展或项目把 get_debug_snapshot() 风格数据贡献到 tools 字段。
+## [br]
+## @api public
+## [br]
 ## @param tool_id: tools 内部字段名。
+## [br]
 ## @param provider: 无参数采样回调，建议返回 Dictionary。
+## [br]
 ## @return 注册成功返回 true。
 func register_tool_snapshot_provider(tool_id: StringName, provider: Callable) -> bool:
 	if tool_id == &"" or not provider.is_valid():
@@ -387,22 +551,36 @@ func register_tool_snapshot_provider(tool_id: StringName, provider: Callable) ->
 
 
 ## 注销工具快照 provider。
+## [br]
+## @api public
+## [br]
 ## @param tool_id: tools 内部字段名。
 func unregister_tool_snapshot_provider(tool_id: StringName) -> void:
 	_tool_snapshot_providers.erase(tool_id)
 
 
 ## 检查工具快照 provider 是否存在。
+## [br]
+## @api public
+## [br]
 ## @param tool_id: tools 内部字段名。
+## [br]
 ## @return 存在返回 true。
 func has_tool_snapshot_provider(tool_id: StringName) -> bool:
 	return _tool_snapshot_providers.has(tool_id)
 
 
 ## 采集诊断监控快照。
+## [br]
+## @api public
+## [br]
 ## @param monitor_ids: 指定监控项；为空时采集全部可见监控项。
+## [br]
 ## @param include_hidden: 为 true 时包含 visible=false 的监控项。
+## [br]
 ## @return 监控快照字典。
+## [br]
+## @schema return: Dictionary，包含 timestamp_unix、monitor_count 和 monitors。
 func collect_monitor_snapshot(
 	monitor_ids: PackedStringArray = PackedStringArray(),
 	include_hidden: bool = false
@@ -432,9 +610,16 @@ func collect_monitor_snapshot(
 
 
 ## 按预设采集诊断监控快照。
+## [br]
+## @api public
+## [br]
 ## @param preset_id: 预设唯一标识。
+## [br]
 ## @param include_hidden: 为 true 时包含 visible=false 的监控项。
+## [br]
 ## @return 监控快照字典。
+## [br]
+## @schema return: Dictionary，包含 collect_monitor_snapshot() 字段以及 preset_id、preset_label、preset_metadata。
 func collect_monitor_preset(preset_id: StringName, include_hidden: bool = false) -> Dictionary:
 	if not _monitor_presets.has(preset_id):
 		return collect_monitor_snapshot(PackedStringArray(), include_hidden)
@@ -449,9 +634,16 @@ func collect_monitor_preset(preset_id: StringName, include_hidden: bool = false)
 
 
 ## 导出诊断监控快照。
+## [br]
+## @api public
+## [br]
 ## @param snapshot: collect_monitor_snapshot() 或 collect_monitor_preset() 返回值。
+## [br]
 ## @param format: 导出格式，支持 json、text、csv。
+## [br]
 ## @return 导出文本。
+## [br]
+## @schema snapshot: Dictionary，collect_monitor_snapshot() 或 collect_monitor_preset() 返回结构。
 func export_monitor_snapshot(snapshot: Dictionary, format: StringName = &"json") -> String:
 	match format:
 		&"text":
@@ -463,7 +655,11 @@ func export_monitor_snapshot(snapshot: Dictionary, format: StringName = &"json")
 
 
 ## 设置诊断认证 token。
+## [br]
+## @api public
+## [br]
 ## @param token: token 文本。
+## [br]
 ## @param required: 是否立即启用 token 校验。
 func set_auth_token(token: String, required: bool = true) -> void:
 	auth_token = token
@@ -471,9 +667,18 @@ func set_auth_token(token: String, required: bool = true) -> void:
 
 
 ## 执行诊断命令。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
+## [br]
 ## @param args: 命令参数。
+## [br]
 ## @return 统一结果字典。
+## [br]
+## @schema args: Dictionary，命令参数；可包含 auth_token 以及该命令 parameter_schema 定义的字段。
+## [br]
+## @schema return: Dictionary，包含 ok、value、error、metadata。
 func execute_command(command_name: StringName, args: Dictionary = {}) -> Dictionary:
 	if not _commands.has(command_name):
 		var missing_result := _make_command_result(false, null, "Missing diagnostic command: %s" % String(command_name))
@@ -531,24 +736,52 @@ func execute_command(command_name: StringName, args: Dictionary = {}) -> Diction
 
 
 ## 执行诊断命令并返回 JSON 兼容结果。
+## [br]
+## @api public
+## [br]
 ## @param command_name: 命令名。
+## [br]
 ## @param args: 命令参数。
+## [br]
 ## @return JSON 兼容结果字典。
+## [br]
+## @schema args: Dictionary，命令参数；可包含 auth_token 以及该命令 parameter_schema 定义的字段。
+## [br]
+## @schema return: Dictionary，包含 JSON 兼容的 ok、value、error、metadata。
 func execute_command_json_safe(command_name: StringName, args: Dictionary = {}) -> Dictionary:
 	return command_result_to_json_compatible(execute_command(command_name, args))
 
 
 ## 将命令结果转换为 JSON 兼容字典。
+## [br]
+## @api public
+## [br]
 ## @param result: execute_command() 返回的结果。
+## [br]
 ## @param options: 传给 GFVariantJsonCodec.variant_to_json_compatible() 的选项。
+## [br]
 ## @return JSON 兼容结果字典。
+## [br]
+## @schema result: Dictionary，execute_command() 返回结构。
+## [br]
+## @schema options: Dictionary，传给 GFVariantJsonCodec.variant_to_json_compatible() 的编码选项。
+## [br]
+## @schema return: Dictionary，JSON 兼容命令结果。
 func command_result_to_json_compatible(result: Dictionary, options: Dictionary = {}) -> Dictionary:
 	return GFVariantJsonCodec.variant_to_json_compatible(result, options) as Dictionary
 
 
 ## 采集运行时诊断快照。
+## [br]
+## @api public
+## [br]
 ## @param options: 可选参数，支持 recent_log_count、include_recent_logs、include_scene_tree、scene_tree_options、include_signal_graph、signal_graph_options。
+## [br]
 ## @return 快照字典。
+## [br]
+## @schema options: Dictionary，支持 recent_log_count、include_recent_logs、include_scene_tree、scene_tree_options、include_signal_graph、signal_graph_options、include_monitors、monitor_preset、monitor_ids、include_hidden_monitors。
+## [br]
+## @schema return: Dictionary，包含 timestamp_unix、engine、build、architecture、event_system、performance、logs、network、tools，可选 scene_tree、signal_graph、monitors 和注册分区。
 func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 	var snapshot := {
 		"timestamp_unix": Time.get_unix_time_from_system(),
@@ -609,7 +842,12 @@ func collect_snapshot(options: Dictionary = {}) -> Dictionary:
 
 
 ## 采集性能监视器快照。
+## [br]
 ## @return 性能数据字典。
+## [br]
+## @api public
+## [br]
+## @schema return: Dictionary，包含 fps、process_time、physics_process_time、static_memory、object_count、node_count、resource_count。
 func collect_performance_snapshot() -> Dictionary:
 	return {
 		"fps": Performance.get_monitor(Performance.TIME_FPS),
@@ -623,9 +861,16 @@ func collect_performance_snapshot() -> Dictionary:
 
 
 ## 采集日志缓存快照。
+## [br]
+## @api public
+## [br]
 ## @param recent_log_count: 最近日志数量。
+## [br]
 ## @param include_recent_logs: 是否包含日志条目。
+## [br]
 ## @return 日志数据字典。
+## [br]
+## @schema return: Dictionary，包含 available、memory_count、dropped_count、recent。
 func collect_log_snapshot(recent_log_count: int = 20, include_recent_logs: bool = true) -> Dictionary:
 	var log_utility := get_utility(GFLogUtility) as GFLogUtility
 	if log_utility == null:
@@ -645,9 +890,18 @@ func collect_log_snapshot(recent_log_count: int = 20, include_recent_logs: bool 
 
 
 ## 采集只读场景树快照。
+## [br]
+## @api public
+## [br]
 ## @param root: 可选根节点；为空时优先使用当前场景，再回退到 Viewport root。
+## [br]
 ## @param options: 可选参数，支持 max_depth、max_nodes、include_groups、include_owner_path、include_script_path、include_internal。
+## [br]
 ## @return 场景树快照字典。
+## [br]
+## @schema options: Dictionary，支持 max_depth、max_nodes、include_groups、include_owner_path、include_script_path、include_internal、root_path、prefer_current_scene。
+## [br]
+## @schema return: Dictionary，包含 available、node_count、truncated、root_path、root。
 func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) -> Dictionary:
 	var target_root := root if root != null else _resolve_scene_tree_root(options)
 	var max_depth := maxi(int(options.get("max_depth", default_scene_tree_max_depth)), 0)
@@ -685,9 +939,18 @@ func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) ->
 
 
 ## 采集只读信号连接图快照。
+## [br]
+## @api public
+## [br]
 ## @param root: 可选根节点；为空时优先使用当前场景，再回退到 Viewport root。
+## [br]
 ## @param options: 可选参数，支持 include_internal、persistent_only、include_empty_signals、include_external_targets、include_index。
+## [br]
 ## @return 信号图快照字典。
+## [br]
+## @schema options: Dictionary，支持 include_internal、persistent_only、include_empty_signals、include_external_targets、include_index、root_path、prefer_current_scene。
+## [br]
+## @schema return: Dictionary，包含 ok、root_path、node_count、signal_count、connection_count、nodes、signals、connections，可选 index。
 func collect_signal_graph_snapshot(root: Node = null, options: Dictionary = {}) -> Dictionary:
 	var target_root := root if root != null else _resolve_scene_tree_root(options)
 	if target_root == null:
@@ -1201,11 +1464,11 @@ func _normalize_parameter_schema(parameters: Variant) -> Array[Dictionary]:
 
 
 func _normalize_parameter_definition(definition: Dictionary) -> Dictionary:
-	var name := String(definition.get("name", ""))
-	if name.is_empty():
+	var parameter_name := String(definition.get("name", ""))
+	if parameter_name.is_empty():
 		return {}
 	return {
-		"name": name,
+		"name": parameter_name,
 		"type": String(definition.get("type", "any")).to_lower(),
 		"required": bool(definition.get("required", false)),
 		"allow_null": bool(definition.get("allow_null", false)),
@@ -1227,9 +1490,9 @@ func _prepare_command_args(args: Dictionary, entry: Dictionary) -> Dictionary:
 		var parameter := parameter_variant as Dictionary
 		if parameter == null:
 			continue
-		var name := String(parameter.get("name", ""))
-		if not prepared.has(name) and bool(parameter.get("has_default", false)):
-			prepared[name] = GFVariantData.duplicate_variant(parameter.get("default", null))
+		var parameter_name := String(parameter.get("name", ""))
+		if not prepared.has(parameter_name) and bool(parameter.get("has_default", false)):
+			prepared[parameter_name] = GFVariantData.duplicate_variant(parameter.get("default", null))
 	return prepared
 
 
@@ -1253,31 +1516,31 @@ func _validate_command_parameter(
 	prepared_args: Dictionary,
 	original_args: Dictionary
 ) -> void:
-	var name := String(parameter.get("name", ""))
-	if name.is_empty():
+	var parameter_name := String(parameter.get("name", ""))
+	if parameter_name.is_empty():
 		return
-	if bool(parameter.get("required", false)) and not original_args.has(name) and not bool(parameter.get("has_default", false)):
-		report.add_error(&"missing_parameter", "Missing required diagnostic command parameter.", name)
+	if bool(parameter.get("required", false)) and not original_args.has(parameter_name) and not bool(parameter.get("has_default", false)):
+		report.add_error(&"missing_parameter", "Missing required diagnostic command parameter.", parameter_name)
 		return
-	if not prepared_args.has(name):
+	if not prepared_args.has(parameter_name):
 		return
 
-	var value: Variant = prepared_args[name]
+	var value: Variant = prepared_args[parameter_name]
 	if value == null:
 		if not bool(parameter.get("allow_null", false)):
-			report.add_error(&"null_parameter", "Diagnostic command parameter does not allow null.", name)
+			report.add_error(&"null_parameter", "Diagnostic command parameter does not allow null.", parameter_name)
 		return
 
 	var type_name := String(parameter.get("type", "any")).to_lower()
 	if not _does_value_match_parameter_type(value, type_name):
-		report.add_error(&"parameter_type_mismatch", "Diagnostic command parameter has the wrong type.", name, "", {
+		report.add_error(&"parameter_type_mismatch", "Diagnostic command parameter has the wrong type.", parameter_name, "", {
 			"expected_type": type_name,
 			"actual_type": type_string(typeof(value)),
 		})
 		return
 
-	_validate_allowed_values(report, parameter, name, value)
-	_validate_numeric_range(report, parameter, name, value)
+	_validate_allowed_values(report, parameter, parameter_name, value)
+	_validate_numeric_range(report, parameter, parameter_name, value)
 
 
 func _validate_allowed_values(

@@ -2,6 +2,12 @@
 ##
 ## 提供 URL 请求、本地 TTL 缓存、失败时陈旧缓存回退和队列化 HTTP 访问。
 ## 具体内容类型、字段结构和业务策略由项目层自行决定。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFRemoteCacheUtility
 extends GFUtility
 
@@ -9,30 +15,58 @@ extends GFUtility
 # --- 信号 ---
 
 ## 请求成功完成时发出。成功使用陈旧缓存回退时也会发出。
+## [br]
+## @api public
+## [br]
+## @param url: 请求 URL。
+## [br]
+## @param result: 请求结果字典。
+## [br]
+## @schema result: Dictionary，包含 success、url、content、data、from_cache、stale、response_code 和 error。
 signal fetch_completed(url: String, result: Dictionary)
 
 ## 请求失败且没有可用缓存时发出。
+## [br]
+## @api public
+## [br]
+## @param url: 请求 URL。
+## [br]
+## @param result: 请求结果字典。
+## [br]
+## @schema result: Dictionary，包含 success、url、content、data、from_cache、stale、response_code 和 error。
 signal fetch_failed(url: String, result: Dictionary)
 
 
 # --- 公共变量 ---
 
 ## user:// 下的缓存子目录名。
+## [br]
+## @api public
 var cache_dir_name: String = "gf_remote_cache"
 
 ## 默认缓存有效期，单位秒。单次请求可覆盖。
+## [br]
+## @api public
 var default_ttl_seconds: int = 86400
 
 ## HTTP 请求超时时间，单位秒。
+## [br]
+## @api public
 var timeout_seconds: float = 20.0
 
 ## 最大缓存条目数，超过后会按修改时间清理最旧条目。
+## [br]
+## @api public
 var max_cache_entries: int = 128
 
 ## 最大等待队列长度。小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_pending_requests: int = 64
 
 ## 自定义缓存 key 构造器。签名为 `func(url: String, headers: PackedStringArray, format: StringName) -> String`。
+## [br]
+## @api public
 var cache_key_builder: Callable = Callable()
 
 
@@ -43,13 +77,19 @@ var _active_request: Dictionary = {}
 var _http_request: HTTPRequest = null
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化远程缓存目录并启用暂停无关处理。
+## [br]
+## @api public
 func init() -> void:
 	ignore_pause = true
 	_ensure_cache_dir()
 
 
+## 取消等待请求、释放 HTTPRequest 并清理运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	_pending_requests.clear()
 	_active_request.clear()
@@ -61,11 +101,18 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 获取远程文本。callback 签名为 `func(result: Dictionary) -> void`。
+## [br]
+## @api public
+## [br]
 ## @param url: 远程资源 URL。
+## [br]
 ## @param callback: 操作完成或事件触发时执行的回调。
+## [br]
 ## @param ttl_seconds: 缓存有效期（秒）。
+## [br]
 ## @param force_refresh: 为 true 时忽略现有缓存并重新请求。
-## @param headers: HTTP 请求头字典。
+## [br]
+## @param headers: HTTP 请求头数组。
 func fetch_text(
 	url: String,
 	callback: Callable = Callable(),
@@ -77,11 +124,18 @@ func fetch_text(
 
 
 ## 获取远程 JSON。成功时 result["data"] 为解析结果。
+## [br]
+## @api public
+## [br]
 ## @param url: 远程资源 URL。
+## [br]
 ## @param callback: 操作完成或事件触发时执行的回调。
+## [br]
 ## @param ttl_seconds: 缓存有效期（秒）。
+## [br]
 ## @param force_refresh: 为 true 时忽略现有缓存并重新请求。
-## @param headers: HTTP 请求头字典。
+## [br]
+## @param headers: HTTP 请求头数组。
 func fetch_json(
 	url: String,
 	callback: Callable = Callable(),
@@ -93,10 +147,18 @@ func fetch_json(
 
 
 ## 判断 URL 当前是否存在有效缓存。
+## [br]
+## @api public
+## [br]
 ## @param url: 远程资源 URL。
+## [br]
 ## @param ttl_seconds: 缓存有效期（秒）。
+## [br]
 ## @param headers: HTTP 请求头。
+## [br]
 ## @param format: 缓存格式标识。
+## [br]
+## @return 存在有效缓存时返回 true。
 func has_valid_cache(
 	url: String,
 	ttl_seconds: int = -1,
@@ -120,9 +182,16 @@ func has_valid_cache(
 
 
 ## 读取有效文本缓存；不存在或过期时返回空字符串。
+## [br]
+## @api public
+## [br]
 ## @param url: 远程资源 URL。
+## [br]
 ## @param ttl_seconds: 缓存有效期（秒）。
+## [br]
 ## @param headers: HTTP 请求头。
+## [br]
+## @return 有效缓存文本；不存在或过期时返回空字符串。
 func get_cached_text(
 	url: String,
 	ttl_seconds: int = -1,
@@ -134,9 +203,16 @@ func get_cached_text(
 
 
 ## 移除指定 URL 的缓存。
+## [br]
+## @api public
+## [br]
 ## @param url: 远程资源 URL。
+## [br]
 ## @param headers: HTTP 请求头。
+## [br]
 ## @param format: 缓存格式标识。
+## [br]
+## @return Godot 错误码。
 func remove_cache(
 	url: String,
 	headers: PackedStringArray = PackedStringArray(),
@@ -149,9 +225,16 @@ func remove_cache(
 
 
 ## 取消匹配 URL、headers 与 format 的等待或进行中请求，返回取消数量。
+## [br]
+## @api public
+## [br]
 ## @param url: 远程资源 URL。
+## [br]
 ## @param headers: HTTP 请求头。
+## [br]
 ## @param format: 缓存格式标识。
+## [br]
+## @return 已取消的回调数量。
 func cancel(
 	url: String,
 	headers: PackedStringArray = PackedStringArray(),
@@ -164,6 +247,10 @@ func cancel(
 
 
 ## 取消所有等待或进行中请求，返回取消数量。
+## [br]
+## @api public
+## [br]
+## @return 已取消的回调数量。
 func cancel_all() -> int:
 	var cancelled := _pending_requests.size()
 	_pending_requests.clear()
@@ -176,6 +263,8 @@ func cancel_all() -> int:
 
 
 ## 清空当前缓存目录。
+## [br]
+## @api public
 func clear_cache() -> void:
 	var dir_path := _get_cache_dir_path()
 	var dir := DirAccess.open(dir_path)
@@ -192,7 +281,12 @@ func clear_cache() -> void:
 
 
 ## 获取远程缓存工具诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 诊断快照字典。
+## [br]
+## @schema return: Dictionary，包含缓存设置、pending_count、active_url、active_cache_key 和 has_active_request。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"cache_dir_name": cache_dir_name,
@@ -206,6 +300,76 @@ func get_debug_snapshot() -> Dictionary:
 		"active_cache_key": String(_active_request.get("cache_key", "")),
 		"has_active_request": not _active_request.is_empty(),
 	}
+
+
+# --- 可重写钩子 / 虚方法 ---
+
+## 启动底层 HTTP 请求。
+## [br]
+## @api protected
+## [br]
+## @param request_data: 请求数据。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema request_data: Dictionary，包含 url、headers、ttl_seconds、format、cache_key 和 callbacks。
+func _start_http_request(request_data: Dictionary) -> Error:
+	var request := _ensure_http_request()
+	if request == null:
+		return ERR_UNAVAILABLE
+
+	request.timeout = timeout_seconds
+	return request.request(
+		String(request_data["url"]),
+		request_data["headers"] as PackedStringArray
+	)
+
+
+## 完成当前活动请求，并写入缓存、回退陈旧缓存或分发失败结果。
+## [br]
+## @api protected
+## [br]
+## @param success: 底层请求是否成功。
+## [br]
+## @param response_code: HTTP 响应码。
+## [br]
+## @param content: 响应文本内容。
+## [br]
+## @param error: 失败原因。
+func _complete_active_request(
+	success: bool,
+	response_code: int,
+	content: String,
+	error: String
+) -> void:
+	if _active_request.is_empty():
+		return
+
+	var request_data := _active_request.duplicate(true)
+	_active_request.clear()
+
+	var url := String(request_data["url"])
+	var format := request_data["format"] as StringName
+	var callbacks := _get_request_callbacks(request_data)
+	var cache_key := String(request_data["cache_key"])
+	var result: Dictionary
+
+	if success:
+		result = _build_success(url, content, false, false, response_code, format)
+		if bool(result.get("success", false)):
+			_write_cache_text(cache_key, content)
+		elif _has_cache_file(cache_key):
+			var parse_error := String(result.get("error", ""))
+			result = _build_success(url, _read_cache_text(cache_key), true, true, response_code, format)
+			result["error"] = parse_error
+	else:
+		result = _build_failure(url, response_code, error)
+		if _has_cache_file(cache_key):
+			result = _build_success(url, _read_cache_text(cache_key), true, true, response_code, format)
+			result["error"] = error
+
+	_finish_callbacks(callbacks, result)
+	_process_next_request()
 
 
 # --- 私有/辅助方法 ---
@@ -297,18 +461,6 @@ func _get_request_callbacks(request_data: Dictionary) -> Array:
 	return callbacks as Array if callbacks is Array else []
 
 
-func _start_http_request(request_data: Dictionary) -> Error:
-	var request := _ensure_http_request()
-	if request == null:
-		return ERR_UNAVAILABLE
-
-	request.timeout = timeout_seconds
-	return request.request(
-		String(request_data["url"]),
-		request_data["headers"] as PackedStringArray
-	)
-
-
 func _ensure_http_request() -> HTTPRequest:
 	if is_instance_valid(_http_request):
 		return _http_request
@@ -322,42 +474,6 @@ func _ensure_http_request() -> HTTPRequest:
 	_http_request.request_completed.connect(_on_request_completed)
 	tree.root.add_child(_http_request)
 	return _http_request
-
-
-func _complete_active_request(
-	success: bool,
-	response_code: int,
-	content: String,
-	error: String
-) -> void:
-	if _active_request.is_empty():
-		return
-
-	var request_data := _active_request.duplicate(true)
-	_active_request.clear()
-
-	var url := String(request_data["url"])
-	var format := request_data["format"] as StringName
-	var callbacks := _get_request_callbacks(request_data)
-	var cache_key := String(request_data["cache_key"])
-	var result: Dictionary
-
-	if success:
-		result = _build_success(url, content, false, false, response_code, format)
-		if bool(result.get("success", false)):
-			_write_cache_text(cache_key, content)
-		elif _has_cache_file(cache_key):
-			var parse_error := String(result.get("error", ""))
-			result = _build_success(url, _read_cache_text(cache_key), true, true, response_code, format)
-			result["error"] = parse_error
-	else:
-		result = _build_failure(url, response_code, error)
-		if _has_cache_file(cache_key):
-			result = _build_success(url, _read_cache_text(cache_key), true, true, response_code, format)
-			result["error"] = error
-
-	_finish_callbacks(callbacks, result)
-	_process_next_request()
 
 
 func _finish_immediate(callback: Callable, result: Dictionary) -> void:

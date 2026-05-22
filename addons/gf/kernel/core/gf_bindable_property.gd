@@ -2,6 +2,12 @@
 ##
 ## 封装一个 Variant 值，当值发生变化时自动发出 value_changed 信号。
 ## 可用于 Controller 直接监听 Model 数据变化，无需通过事件总线中转。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFBindableProperty
 extends RefCounted
 
@@ -9,8 +15,22 @@ extends RefCounted
 # --- 信号 ---
 
 ## 当属性值被设置为不同的新值时发出。
+## [br]
+## @api public
+## [br]
 ## @param old_value: 变化前的旧值。
+## [br]
 ## @param new_value: 变化后的新值。
+## [br]
+## @schema old_value {
+##   "type": "Variant",
+##   "description": "变化前的旧值。"
+## }
+## [br]
+## @schema new_value {
+##   "type": "Variant",
+##   "description": "变化后的新值。"
+## }
 signal value_changed(old_value: Variant, new_value: Variant)
 
 
@@ -22,6 +42,13 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## 当前属性值。设置该属性等价于调用 `set_value()`。
+## [br]
+## @api public
+## [br]
+## @schema value {
+##   "type": "Variant",
+##   "description": "当前属性值。"
+## }
 var value: Variant:
 	get:
 		return get_value()
@@ -39,7 +66,15 @@ var _owned_value_connections: Array[Callable] = []
 # --- Godot 生命周期方法 ---
 
 ## 构造函数。
+## [br]
+## @api public
+## [br]
 ## @param default_value: 属性的初始值，默认为 null。
+## [br]
+## @schema default_value {
+##   "type": "Variant",
+##   "description": "属性的初始值。"
+## }
 func _init(default_value: Variant = null) -> void:
 	_value = default_value
 
@@ -47,13 +82,29 @@ func _init(default_value: Variant = null) -> void:
 # --- 公共方法 ---
 
 ## 获取当前属性值。
+## [br]
+## @api public
+## [br]
 ## @return 当前存储的值。
+## [br]
+## @schema return {
+##   "type": "Variant",
+##   "description": "当前存储的值。"
+## }
 func get_value() -> Variant:
 	return _value
 
 
 ## 设置属性值。仅当新值与旧值不同时，才会更新并发出 value_changed 信号。
+## [br]
+## @api public
+## [br]
 ## @param new_value: 要设置的新值。
+## [br]
+## @schema new_value {
+##   "type": "Variant",
+##   "description": "要设置的新值。"
+## }
 func set_value(new_value: Variant) -> void:
 	if _value == new_value:
 		return
@@ -64,12 +115,18 @@ func set_value(new_value: Variant) -> void:
 
 ## 强制发出 value_changed 信号。
 ## 适合在 Array、Dictionary 或 Object 发生原地变更后，由业务层显式通知监听者。
+## [br]
+## @api public
 func force_emit() -> void:
 	value_changed.emit(_value, _value)
 
 
 ## 通过回调修改当前值并强制广播。
+## [br]
+## @api public
+## [br]
 ## @param mutator: 修改当前值的回调。
+## [br]
 ## @return 回调有效时返回 true。
 func mutate(mutator: Callable) -> bool:
 	if not mutator.is_valid():
@@ -80,8 +137,17 @@ func mutate(mutator: Callable) -> bool:
 
 
 ## 向当前 Array 追加一个元素。
+## [br]
+## @api public
+## [br]
 ## @param item: 要追加的元素。
+## [br]
 ## @return 成功返回 true。
+## [br]
+## @schema item {
+##   "type": "Variant",
+##   "description": "要追加的元素。"
+## }
 func append_to_array(item: Variant) -> bool:
 	if not (_value is Array):
 		return false
@@ -92,8 +158,17 @@ func append_to_array(item: Variant) -> bool:
 
 
 ## 向当前 Array 追加多个元素。
+## [br]
+## @api public
+## [br]
 ## @param items: 要追加的元素列表。
+## [br]
 ## @return 成功返回 true。
+## [br]
+## @schema items {
+##   "type": "Array",
+##   "description": "要追加的元素列表。"
+## }
 func append_array(items: Array) -> bool:
 	if not (_value is Array):
 		return false
@@ -104,8 +179,17 @@ func append_array(items: Array) -> bool:
 
 
 ## 从当前 Array 删除一个元素。
+## [br]
+## @api public
+## [br]
 ## @param item: 要删除的元素。
+## [br]
 ## @return 成功返回 true。
+## [br]
+## @schema item {
+##   "type": "Variant",
+##   "description": "要删除的元素。"
+## }
 func erase_from_array(item: Variant) -> bool:
 	if not (_value is Array):
 		return false
@@ -118,9 +202,24 @@ func erase_from_array(item: Variant) -> bool:
 
 
 ## 设置当前 Dictionary 的一个键值。
+## [br]
+## @api public
+## [br]
 ## @param key: 键。
+## [br]
 ## @param new_value: 新值。
+## [br]
 ## @return 成功返回 true。
+## [br]
+## @schema key {
+##   "type": "Variant",
+##   "description": "Dictionary 键。"
+## }
+## [br]
+## @schema new_value {
+##   "type": "Variant",
+##   "description": "Dictionary 新值。"
+## }
 func set_dictionary_value(key: Variant, new_value: Variant) -> bool:
 	if not (_value is Dictionary):
 		return false
@@ -131,8 +230,17 @@ func set_dictionary_value(key: Variant, new_value: Variant) -> bool:
 
 
 ## 从当前 Dictionary 删除一个键。
+## [br]
+## @api public
+## [br]
 ## @param key: 键。
+## [br]
 ## @return 成功返回 true。
+## [br]
+## @schema key {
+##   "type": "Variant",
+##   "description": "Dictionary 键。"
+## }
 func erase_dictionary_key(key: Variant) -> bool:
 	if not (_value is Dictionary):
 		return false
@@ -145,6 +253,9 @@ func erase_dictionary_key(key: Variant) -> bool:
 
 
 ## 清空当前 Array 或 Dictionary。
+## [br]
+## @api public
+## [br]
 ## @return 成功返回 true。
 func clear_collection() -> bool:
 	if _value is Array:
@@ -165,8 +276,17 @@ func clear_collection() -> bool:
 
 
 ## 断开指定 Node 与 Callable 的绑定关系。
+## [br]
+## @api public
+## [br]
 ## @param node: 绑定生命周期的节点；已失效对象会触发失效绑定清理。
+## [br]
 ## @param callable: 要解绑的回调函数。
+## [br]
+## @schema node {
+##   "type": "Variant",
+##   "description": "绑定生命周期的 Node；已失效对象会触发失效绑定清理。"
+## }
 func unbind(node: Variant, callable: Callable) -> void:
 	if not callable.is_valid():
 		return
@@ -179,11 +299,15 @@ func unbind(node: Variant, callable: Callable) -> void:
 
 
 ## 断开所有由 bind_to() 创建的 Node 生命周期绑定。
+## [br]
+## @api public
 func unbind_all() -> void:
 	unbind_all_node_bindings()
 
 
 ## 断开所有由 bind_to() 创建的 Node 生命周期绑定。
+## [br]
+## @api public
 func unbind_all_node_bindings() -> void:
 	for binding: Dictionary in _node_bindings:
 		var node_ref: WeakRef = binding.get("node_ref")
@@ -200,6 +324,8 @@ func unbind_all_node_bindings() -> void:
 
 
 ## 断开 value_changed 信号上的所有订阅者，并清理 bind_to() 创建的 Node 生命周期绑定。
+## [br]
+## @api public
 func disconnect_all_subscribers() -> void:
 	for connection: Dictionary in value_changed.get_connections():
 		value_changed.disconnect(connection["callable"])
@@ -216,7 +342,11 @@ func disconnect_all_subscribers() -> void:
 
 
 ## 绑定信号到一个 Node 的 Callable。当该 Node 退出场景树时，自动断开连接。
+## [br]
+## @api public
+## [br]
 ## @param node: 监听生命周期的节点。
+## [br]
 ## @param callable: 绑定的回调函数。
 func bind_to(node: Node, callable: Callable) -> void:
 	if not is_instance_valid(node):
@@ -245,7 +375,7 @@ func bind_to(node: Node, callable: Callable) -> void:
 	})
 
 
-# --- 私有方法 ---
+# --- 私有/辅助方法 ---
 
 
 func _on_node_exited(node: Node, callable: Callable) -> void:

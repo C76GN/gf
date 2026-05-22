@@ -1,14 +1,25 @@
 @tool
 
-## GF 扩展导出过滤插件。
-##
-## 导出时可跳过禁用扩展目录，让未启用的 GF 扩展不进入最终导出产物。
+# GF 扩展导出过滤插件。
+#
+# 导出时可跳过禁用扩展目录，让未启用的 GF 扩展不进入最终导出产物。
 extends EditorExportPlugin
 
 
 # --- 常量 ---
 
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
+
+## 扩展引用审计脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionUsageAuditBase = preload("res://addons/gf/kernel/extension/gf_extension_usage_audit.gd")
 
 

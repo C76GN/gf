@@ -1,33 +1,138 @@
 @tool
 
-## GF 插件菜单动作与脚本模板生成辅助。
+# GF 插件菜单动作与脚本模板生成辅助。
 extends RefCounted
 
 
 # --- 信号 ---
 
 ## 请求打开 GF 编辑器工作区。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 signal workspace_requested
 
 
 # --- 常量 ---
 
+## 菜单 ID：生成 System。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MENU_GENERATE_SYSTEM: int = 0
+
+## 菜单 ID：生成 Model。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MENU_GENERATE_MODEL: int = 1
+
+## 菜单 ID：生成 Utility。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MENU_GENERATE_UTILITY: int = 2
+
+## 菜单 ID：生成 Command。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MENU_GENERATE_COMMAND: int = 3
+
+## 菜单 ID：打开工作区。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MENU_OPEN_WORKSPACE: int = 10
+
+## 菜单 ID：生成强类型访问器。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MENU_GENERATE_ACCESSORS: int = 11
+
+## 菜单 ID：生成项目常量访问器。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MENU_GENERATE_PROJECT_ACCESSORS: int = 12
+
+## 扩展模板菜单 ID 起始值。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const TEMPLATE_MENU_ID_START: int = 100
+
+## 扩展动作菜单 ID 起始值。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const EXTENSION_MENU_ID_START: int = 1000
+
+## 强类型访问器生成器脚本路径。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const ACCESS_GENERATOR_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/gf_access_generator.gd"
+
+## 诊断对话框最小尺寸。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
+
+## 菜单分组：核心模板。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const SECTION_CORE_TEMPLATES: String = "核心模块"
+
+## 菜单分组：扩展模板。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const SECTION_EXTENSION_TEMPLATES: String = "扩展模板"
+
+## 菜单分组：代码生成。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const SECTION_CODE_GENERATION: String = "代码生成"
+
+## 菜单分组：扩展工具。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const SECTION_EXTENSION_TOOLS: String = "扩展工具"
+
+## GF ProjectSettings 注册辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFPluginProjectSettings = preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
+
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
@@ -48,7 +153,14 @@ var _next_extension_menu_id: int = EXTENSION_MENU_ID_START
 # --- 公共方法 ---
 
 ## 初始化菜单动作需要的文件对话框。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param template_records: 根插件或上层组合入口注入的模板记录。
+## [br]
+## @schema template_records: Array of Dictionary template records.
 func setup(template_records: Array = []) -> void:
 	cleanup()
 	_file_dialog = FileDialog.new()
@@ -64,6 +176,10 @@ func setup(template_records: Array = []) -> void:
 
 
 ## 清理菜单动作持有的对话框。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 func cleanup() -> void:
 	_cleanup_extension_editor_actions()
 	_cleanup_diagnostic_dialog()
@@ -74,12 +190,24 @@ func cleanup() -> void:
 
 
 ## 获取 GF 工具菜单项。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 菜单项字典列表，每项包含 `id`、`label`、`section`。
+## [br]
+## @schema return: Array of Dictionary menu entries with id, label, and section.
 func get_menu_entries() -> Array[Dictionary]:
 	return _menu_entries.duplicate(true)
 
 
 ## 执行 GF 工具菜单对应动作。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param id: 菜单项 ID。
 func handle_menu_id(id: int) -> void:
 	var handler := _menu_action_handlers.get(id, {}) as Dictionary

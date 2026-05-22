@@ -2,6 +2,12 @@
 ##
 ## 设置项以 StringName 键访问，可选使用 GFSettingDefinition 声明默认值和类型。
 ## 该工具只管理抽象设置值，不直接绑定窗口、音频、输入或任何项目业务。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSettingsUtility
 extends GFUtility
 
@@ -9,17 +15,36 @@ extends GFUtility
 # --- 信号 ---
 
 ## 设置值变化时发出。
+## [br]
+## @api public
+## [br]
 ## @param key: 设置键。
+## [br]
 ## @param old_value: 旧值。
+## [br]
+## @schema old_value: Variant previous setting value or null when the setting did not exist.
+## [br]
 ## @param new_value: 新值。
+## [br]
+## @schema new_value: Variant next setting value or null when the setting was removed.
 signal setting_changed(key: StringName, old_value: Variant, new_value: Variant)
 
 ## 设置加载完成时发出。
+## [br]
+## @api public
+## [br]
 ## @param data: 已加载的持久化设置数据。
+## [br]
+## @schema data: Dictionary[String, Variant] loaded persisted settings data.
 signal settings_loaded(data: Dictionary)
 
 ## 设置保存完成时发出。
+## [br]
+## @api public
+## [br]
 ## @param data: 已保存的持久化设置数据。
+## [br]
+## @schema data: Dictionary[String, Variant] saved persisted settings data produced by to_dict(true).
 signal settings_saved(data: Dictionary)
 
 
@@ -32,15 +57,23 @@ const _SETTING_VALUE_KEY: String = "value"
 # --- 公共变量 ---
 
 ## 默认持久化文件名。
+## [br]
+## @api public
 var storage_file_name: String = "settings.sav"
 
 ## init() 时是否自动读取持久化设置。
+## [br]
+## @api public
 var auto_load_on_init: bool = true
 
 ## set_value() 修改持久化设置时是否自动保存。
+## [br]
+## @api public
 var auto_save_on_change: bool = true
 
 ## 自动保存的防抖秒数；小于等于 0 时保持立即保存。
+## [br]
+## @api public
 var save_debounce_seconds: float = 0.25
 
 
@@ -55,8 +88,11 @@ var _batch_depth: int = 0
 var _batch_save_requested: bool = false
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化设置工具，并按配置自动加载持久化设置或应用默认值。
+## [br]
+## @api public
 func init() -> void:
 	if auto_load_on_init:
 		load_settings()
@@ -64,6 +100,9 @@ func init() -> void:
 		_apply_defaults_to_missing()
 
 
+## 释放设置工具，并清理已注册定义、当前值和等待中的自动保存状态。
+## [br]
+## @api public
 func dispose() -> void:
 	flush_pending_save()
 	_definitions.clear()
@@ -78,7 +117,11 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注册一个设置定义。
+## [br]
+## @api public
+## [br]
 ## @param definition: 设置定义。
+## [br]
 ## @param apply_default: 缺少当前值时是否写入默认值。
 func register_definition(definition: GFSettingDefinition, apply_default: bool = true) -> void:
 	if definition == null:
@@ -98,11 +141,23 @@ func register_definition(definition: GFSettingDefinition, apply_default: bool = 
 
 
 ## 使用参数快速注册一个设置定义。
+## [br]
+## @api public
+## [br]
 ## @param key: 设置键。
+## [br]
 ## @param default_value: 默认值。
+## [br]
+## @schema default_value: Variant default setting value accepted by value_type.
+## [br]
 ## @param value_type: 值类型。
+## [br]
 ## @param persistent: 是否持久化。
+## [br]
 ## @param metadata: 可选元数据。
+## [br]
+## @schema metadata: Dictionary with optional UI grouping, ordering, label, and project-defined metadata.
+## [br]
 ## @return 新设置定义。
 func register_setting(
 	key: StringName,
@@ -122,6 +177,9 @@ func register_setting(
 
 
 ## 批量注册设置定义。
+## [br]
+## @api public
+## [br]
 ## @param definitions: 设置定义数组。
 func register_definitions(definitions: Array[GFSettingDefinition]) -> void:
 	for definition: GFSettingDefinition in definitions:
@@ -129,7 +187,11 @@ func register_definitions(definitions: Array[GFSettingDefinition]) -> void:
 
 
 ## 获取指定设置定义。
+## [br]
+## @api public
+## [br]
 ## @param key: 设置键。
+## [br]
 ## @return 设置定义；不存在时返回 null。
 func get_definition(key: StringName) -> GFSettingDefinition:
 	var definition := _definitions.get(key) as GFSettingDefinition
@@ -139,6 +201,9 @@ func get_definition(key: StringName) -> GFSettingDefinition:
 
 
 ## 获取所有设置定义。
+## [br]
+## @api public
+## [br]
 ## @return 设置定义数组。
 func get_definitions() -> Array[GFSettingDefinition]:
 	var result: Array[GFSettingDefinition] = []
@@ -148,17 +213,35 @@ func get_definitions() -> Array[GFSettingDefinition]:
 
 
 ## 设置一个值。
+## [br]
+## @api public
+## [br]
 ## @param key: 设置键。
+## [br]
 ## @param value: 设置值。
+## [br]
+## @schema value: Variant setting value coerced by the registered definition when present.
+## [br]
 ## @param save_after_change: 若为持久化设置，变化后是否保存。
 func set_value(key: StringName, value: Variant, save_after_change: bool = true) -> void:
 	_set_value_internal(key, value, true, save_after_change)
 
 
 ## 批量应用一组设置值，适合图形质量、辅助功能或输入方案等项目预设。
+## [br]
+## @api public
+## [br]
 ## @param values: 设置键到设置值的字典。
+## [br]
+## @schema values: Dictionary[String, Variant] mapping setting keys to new values.
+## [br]
 ## @param options: 可选行为。支持 save_after_change、emit_changes、reset_missing 与 scope。
+## [br]
+## @schema options: Dictionary with save_after_change: bool, emit_changes: bool, reset_missing: bool, and scope as Array, PackedStringArray, Dictionary, String, or StringName.
+## [br]
 ## @return 应用报告；问题项使用标准 kind 字段。
+## [br]
+## @schema return: Dictionary with ok, healthy, applied_count, changed_count, reset_count, skipped_count, error_count, warning_count, issue_count, and issues: Array[Dictionary].
 func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
 	var report := _make_apply_values_report()
 	var save_after_change := bool(options.get("save_after_change", true))
@@ -226,11 +309,16 @@ func apply_values(values: Dictionary, options: Dictionary = {}) -> Dictionary:
 
 
 ## 开始一批设置修改。批处理中自动保存会延后到 end_batch()。
+## [br]
+## @api public
 func begin_batch() -> void:
 	_batch_depth += 1
 
 
 ## 结束一批设置修改，并在需要时合并触发一次自动保存。
+## [br]
+## @api public
+## [br]
 ## @param save_after_change: 本批变化结束后是否允许保存。
 func end_batch(save_after_change: bool = true) -> void:
 	if _batch_depth <= 0:
@@ -248,6 +336,8 @@ func end_batch(save_after_change: bool = true) -> void:
 
 
 ## 将当前设置标记为稍后保存，受 save_debounce_seconds 控制。
+## [br]
+## @api public
 func queue_save() -> void:
 	if save_debounce_seconds <= 0.0:
 		save_settings()
@@ -259,6 +349,9 @@ func queue_save() -> void:
 
 
 ## 立即执行正在等待的自动保存。
+## [br]
+## @api public
+## [br]
 ## @return 保存结果；没有待保存内容时返回 OK。
 func flush_pending_save() -> Error:
 	if not _save_queued:
@@ -272,9 +365,18 @@ func flush_pending_save() -> Error:
 
 
 ## 获取一个值。
+## [br]
+## @api public
+## [br]
 ## @param key: 设置键。
+## [br]
 ## @param fallback: 无当前值和默认值时返回的值。
+## [br]
+## @schema fallback: Variant value returned when the setting has no current value or definition.
+## [br]
 ## @return 设置值。
+## [br]
+## @schema return: Variant current setting value, coerced default, or fallback.
 func get_value(key: StringName, fallback: Variant = null) -> Variant:
 	if _values.has(key):
 		return _values[key]
@@ -287,20 +389,31 @@ func get_value(key: StringName, fallback: Variant = null) -> Variant:
 
 
 ## 检查设置是否存在当前值或定义。
+## [br]
+## @api public
+## [br]
 ## @param key: 设置键。
+## [br]
 ## @return 存在时返回 true。
 func has_setting(key: StringName) -> bool:
 	return _values.has(key) or _definitions.has(key)
 
 
 ## 重置单个设置到默认值。未定义设置会被移除。
+## [br]
+## @api public
+## [br]
 ## @param key: 设置键。
+## [br]
 ## @param save_after_change: 若为持久化设置，变化后是否保存。
 func reset_value(key: StringName, save_after_change: bool = true) -> void:
 	_reset_value_internal(key, true, save_after_change)
 
 
 ## 重置所有已定义设置到默认值，并移除未定义的临时设置。
+## [br]
+## @api public
+## [br]
 ## @param save_after_change: 是否保存。
 func reset_all(save_after_change: bool = true) -> void:
 	var previous_values := _values.duplicate(true)
@@ -323,8 +436,14 @@ func reset_all(save_after_change: bool = true) -> void:
 
 
 ## 转换为可持久化字典。
+## [br]
+## @api public
+## [br]
 ## @param persistent_only: 是否仅包含 persistent 定义。
+## [br]
 ## @return 设置字典。
+## [br]
+## @schema return: Dictionary[String, Variant] serialized setting values suitable for persistence.
 func to_dict(persistent_only: bool = true) -> Dictionary:
 	var result: Dictionary = {}
 	for key: StringName in _values.keys():
@@ -336,7 +455,13 @@ func to_dict(persistent_only: bool = true) -> Dictionary:
 
 
 ## 从字典恢复设置。
+## [br]
+## @api public
+## [br]
 ## @param data: 设置数据。
+## [br]
+## @schema data: Dictionary[String, Variant] serialized setting values produced by to_dict().
+## [br]
 ## @param emit_changes: 变化时是否发出 setting_changed。
 func from_dict(data: Dictionary, emit_changes: bool = true) -> void:
 	for key_variant: Variant in data.keys():
@@ -346,8 +471,14 @@ func from_dict(data: Dictionary, emit_changes: bool = true) -> void:
 
 
 ## 读取持久化设置。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 可选文件名；为空时使用 storage_file_name。
+## [br]
 ## @return 已读取的数据。
+## [br]
+## @schema return: Dictionary[String, Variant] loaded persisted settings data.
 func load_settings(file_name: String = "") -> Dictionary:
 	var target_file_name := storage_file_name if file_name.is_empty() else file_name
 	_clear_pending_save(target_file_name)
@@ -358,7 +489,11 @@ func load_settings(file_name: String = "") -> Dictionary:
 
 
 ## 保存持久化设置。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 可选文件名；为空时使用 storage_file_name。
+## [br]
 ## @return Godot 错误码。
 func save_settings(file_name: String = "") -> Error:
 	var target_file_name := storage_file_name if file_name.is_empty() else file_name
@@ -371,6 +506,9 @@ func save_settings(file_name: String = "") -> Error:
 
 
 ## 驱动自动保存防抖。
+## [br]
+## @api public
+## [br]
 ## @param delta: 距离上一帧的秒数。
 func tick(delta: float = 0.0) -> void:
 	if not _save_queued:
@@ -379,6 +517,64 @@ func tick(delta: float = 0.0) -> void:
 	_save_elapsed_seconds += maxf(delta, 0.0)
 	if _save_elapsed_seconds >= maxf(save_debounce_seconds, 0.0):
 		flush_pending_save()
+
+
+# --- 可重写钩子 / 虚方法 ---
+
+## 读取持久化设置数据。子类可覆盖该钩子以接入自定义存储后端。
+## [br]
+## @api protected
+## [br]
+## @param file_name: 要读取的设置文件名。
+## [br]
+## @return 已读取的数据；不存在或无法解析时返回空字典。
+## [br]
+## @schema return: Dictionary[String, Variant] persisted settings data.
+func _read_persisted_data(file_name: String) -> Dictionary:
+	var storage := _get_storage_utility()
+	if storage != null:
+		return storage.load_data(file_name)
+
+	var path := _get_fallback_path(file_name)
+	if not FileAccess.file_exists(path):
+		return {}
+
+	var content := FileAccess.get_file_as_string(path)
+	if content.is_empty():
+		return {}
+
+	var parsed: Variant = JSON.parse_string(content)
+	return parsed as Dictionary if parsed is Dictionary else {}
+
+
+## 写入持久化设置数据。子类可覆盖该钩子以接入自定义存储后端。
+## [br]
+## @api protected
+## [br]
+## @param file_name: 要写入的设置文件名。
+## [br]
+## @param data: 要写入的设置数据。
+## [br]
+## @schema data: Dictionary[String, Variant] persisted settings data produced by to_dict(true).
+## [br]
+## @return Godot 错误码。
+func _write_persisted_data(file_name: String, data: Dictionary) -> Error:
+	var storage := _get_storage_utility()
+	if storage != null:
+		return storage.save_data(file_name, data)
+
+	var path := _get_fallback_path(file_name)
+	var base_dir := path.get_base_dir()
+	if not base_dir.is_empty():
+		DirAccess.make_dir_recursive_absolute(base_dir)
+
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		return FileAccess.get_open_error()
+
+	file.store_string(JSON.stringify(data, "\t"))
+	file.close()
+	return OK
 
 
 # --- 私有/辅助方法 ---
@@ -519,42 +715,6 @@ func _apply_defaults_to_missing() -> void:
 			continue
 		var definition := _definitions[key] as GFSettingDefinition
 		_values[key] = definition.coerce_value(definition.default_value)
-
-
-func _read_persisted_data(file_name: String) -> Dictionary:
-	var storage := _get_storage_utility()
-	if storage != null:
-		return storage.load_data(file_name)
-
-	var path := _get_fallback_path(file_name)
-	if not FileAccess.file_exists(path):
-		return {}
-
-	var content := FileAccess.get_file_as_string(path)
-	if content.is_empty():
-		return {}
-
-	var parsed: Variant = JSON.parse_string(content)
-	return parsed as Dictionary if parsed is Dictionary else {}
-
-
-func _write_persisted_data(file_name: String, data: Dictionary) -> Error:
-	var storage := _get_storage_utility()
-	if storage != null:
-		return storage.save_data(file_name, data)
-
-	var path := _get_fallback_path(file_name)
-	var base_dir := path.get_base_dir()
-	if not base_dir.is_empty():
-		DirAccess.make_dir_recursive_absolute(base_dir)
-
-	var file := FileAccess.open(path, FileAccess.WRITE)
-	if file == null:
-		return FileAccess.get_open_error()
-
-	file.store_string(JSON.stringify(data, "\t"))
-	file.close()
-	return OK
 
 
 func _get_storage_utility() -> GFStorageUtility:

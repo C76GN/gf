@@ -915,7 +915,7 @@ func test_capability_inspector_reads_required_property_without_calling_capabilit
 	capability.name = "RequiredByPropertyCapability"
 	capability.required_capabilities = [HealthCapability]
 
-	var required_types: Array[Script] = GF_CAPABILITY_INSPECTOR_PLUGIN_BASE._get_required_capability_types(
+	var required_types: Array[Script] = GF_CAPABILITY_INSPECTOR_PLUGIN_BASE.collect_required_capability_types(
 		capability,
 		null,
 		"RequiredByPropertyCapability"

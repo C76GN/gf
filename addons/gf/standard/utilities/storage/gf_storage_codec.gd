@@ -4,6 +4,12 @@
 ##
 ## 负责字典序列化、可选压缩、完整性校验和轻量混淆。
 ## 它不负责路径、槽位、事务提交或云同步。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFStorageCodec
 extends Resource
 
@@ -11,6 +17,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 存档载荷序列化格式。
+## [br]
+## @api public
 enum Format {
 	## 稳定排序后的 JSON 文本。
 	JSON,
@@ -21,13 +29,44 @@ enum Format {
 
 # --- 常量 ---
 
+## 存储元信息字段名。
+## [br]
+## @api public
 const META_KEY: String = "_meta"
+
+## 存储版本字段名。
+## [br]
+## @api public
 const VERSION_KEY: String = "version"
+
+## 存储时间戳字段名。
+## [br]
+## @api public
 const TIMESTAMP_KEY: String = "timestamp"
+
+## 存储完整性校验字段名。
+## [br]
+## @api public
 const CHECKSUM_KEY: String = "checksum"
+
+## 存储编码格式字段名。
+## [br]
+## @api public
 const FORMAT_KEY: String = "format"
+
+## 存储压缩方式字段名。
+## [br]
+## @api public
 const COMPRESSION_KEY: String = "compression"
+
+## 当用户数据自身包含 `_meta` 时，外层包裹使用的标记字段名。
+## [br]
+## @api public
 const ENVELOPE_KEY: String = "__gf_storage_envelope"
+
+## 存储 envelope 内原始用户数据的字段名。
+## [br]
+## @api public
 const ENVELOPE_DATA_KEY: String = "data"
 
 const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
@@ -36,46 +75,77 @@ const _COMPRESSION_MODE: int = FileAccess.COMPRESSION_DEFLATE
 # --- 导出变量 ---
 
 ## 默认序列化格式。
+## [br]
+## @api public
 @export var format: Format = Format.JSON
 
 ## 是否压缩载荷。
+## [br]
+## @api public
 @export var use_compression: bool = false
 
 ## 是否在 `_meta.checksum` 中写入 SHA-256 完整性校验。
+## [br]
+## @api public
 @export var use_integrity_checksum: bool = false
 
 ## 校验失败时是否拒绝读取。
+## [br]
+## @api public
 @export var strict_integrity: bool = true
 
 ## 启用完整性校验时，是否要求载荷必须包含 `_meta.checksum`。
+## [br]
+## @api public
 @export var require_integrity_checksum: bool = true
 
 ## 是否写入 `_meta.version` 和 `_meta.timestamp`。
+## [br]
+## @api public
 @export var include_metadata: bool = false
 
 ## 当前数据版本。
+## [br]
+## @api public
 @export var version: int = 1:
 	set(value):
 		version = maxi(value, 1)
 
 ## 轻量 XOR 混淆密钥；为 0 时写入原始 bytes。该字段不提供安全加密能力。
+## [br]
+## @api public
 @export var obfuscation_key: int = 0
 
 ## 解压时允许的最大输出字节数。
+## [br]
+## @api public
 @export var max_decompressed_bytes: int = 64 * 1024 * 1024
 
 ## 解码失败时是否尝试按旧版未压缩、未混淆 JSON 读取原始 bytes。
+## [br]
+## @api public
 @export var allow_legacy_plain_json_fallback: bool = false
 
 ## JSON 解码时是否把接近整数的 float 归一为 int。Binary 格式不受影响。
+## [br]
+## @api public
 @export var normalize_json_numbers: bool = false
 
 
 # --- 公共方法 ---
 
 ## 将字典编码为可写入文件的 bytes。
+## [br]
+## @api public
+## [br]
 ## @param data: 要编码的数据。
+## [br]
 ## @param options: 临时覆盖当前 codec 设置的选项字典。
+## [br]
+## @schema data: Dictionary，要序列化的数据载荷；启用存储元数据时，用户 `_meta` 键会通过信封结构保留。
+## [br]
+## @schema options: Dictionary，可包含 format、use_compression、obfuscation_key、use_integrity_checksum、include_metadata、version 和 max_decompressed_bytes。
+## [br]
 ## @return 编码后的 bytes。
 func encode(data: Dictionary, options: Dictionary = {}) -> PackedByteArray:
 	var active_format := _get_format(options)
@@ -98,9 +168,18 @@ func encode(data: Dictionary, options: Dictionary = {}) -> PackedByteArray:
 
 
 ## 从 bytes 解码字典。
+## [br]
+## @api public
+## [br]
 ## @param bytes: 文件读取到的 bytes。
+## [br]
 ## @param options: 临时覆盖当前 codec 设置的选项字典。
+## [br]
 ## @return 结果字典，包含 ok、data、metadata、integrity_valid、error。
+## [br]
+## @schema options: Dictionary，可包含 format、use_compression、obfuscation_key、allow_legacy_plain_json_fallback、use_integrity_checksum、strict_integrity、normalize_json_numbers、require_integrity_checksum 和 max_decompressed_bytes。
+## [br]
+## @schema return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。
 func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 	var active_format := _get_format(options)
 	var should_compress := _get_bool_option(options, "use_compression", use_compression)
@@ -164,25 +243,46 @@ func decode(bytes: PackedByteArray, options: Dictionary = {}) -> Dictionary:
 
 
 ## 序列化字典。JSON 格式会递归排序字典键。
+## [br]
+## @api public
+## [br]
 ## @param data: 要序列化的数据。
+## [br]
 ## @param p_format: 目标格式。
+## [br]
+## @schema data: Dictionary，要序列化的数据载荷。
+## [br]
 ## @return 字节数组。
 func serialize_dictionary(data: Dictionary, p_format: Format = Format.JSON) -> PackedByteArray:
 	return _serialize_dictionary(data, p_format)
 
 
 ## 反序列化字典。
+## [br]
+## @api public
+## [br]
 ## @param bytes: 源 bytes。
+## [br]
 ## @param p_format: 源格式。
+## [br]
 ## @return 字典；失败时返回空字典。
+## [br]
+## @schema return: Dictionary，从字节解析出的数据；解析失败时为空字典。
 func deserialize_dictionary(bytes: PackedByteArray, p_format: Format = Format.JSON) -> Dictionary:
 	return _deserialize_dictionary(bytes, p_format)
 
 
 ## 计算当前数据按指定格式序列化后的 SHA-256。
 ## JSON 格式会在 checksum 输入中规范化整数字面量，避免不同 Godot 版本解析 JSON 数字类型导致误判损坏。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入数据。
+## [br]
 ## @param p_format: 序列化格式。
+## [br]
+## @schema data: Dictionary，用作校验和输入的数据载荷。
+## [br]
 ## @return checksum hex 字符串。
 func calculate_checksum(data: Dictionary, p_format: Format = Format.JSON) -> String:
 	var checksum_data := _normalize_checksum_data(data, p_format)
@@ -194,8 +294,15 @@ func calculate_checksum(data: Dictionary, p_format: Format = Format.JSON) -> Str
 
 
 ## 校验 `_meta.checksum`。
+## [br]
+## @api public
+## [br]
 ## @param data: 包含可选 `_meta.checksum` 的字典。
+## [br]
 ## @param p_format: checksum 计算使用的格式。
+## [br]
+## @schema data: Dictionary，包含可选 `_meta.checksum` 的数据载荷。
+## [br]
 ## @return 缺少 checksum 或校验通过时返回 true。
 func verify_integrity(data: Dictionary, p_format: Format = Format.JSON) -> bool:
 	var metadata := get_metadata(data)
@@ -215,8 +322,16 @@ func verify_integrity(data: Dictionary, p_format: Format = Format.JSON) -> bool:
 
 
 ## 获取存档元信息副本。
+## [br]
+## @api public
+## [br]
 ## @param data: 存档数据。
+## [br]
 ## @return `_meta` 字典副本；不存在时为空字典。
+## [br]
+## @schema data: Dictionary，可能包含 `_meta` 的数据载荷。
+## [br]
+## @schema return: Dictionary，从 `_meta` 复制出的元数据；不存在元数据时为空字典。
 func get_metadata(data: Dictionary) -> Dictionary:
 	var metadata_variant: Variant = data.get(META_KEY, {})
 	if metadata_variant is Dictionary:
@@ -225,7 +340,13 @@ func get_metadata(data: Dictionary) -> Dictionary:
 
 
 ## 判断字典是否包含完整性 checksum。
+## [br]
+## @api public
+## [br]
 ## @param data: 存档数据。
+## [br]
+## @schema data: Dictionary，可能包含 `_meta.checksum` 的数据载荷。
+## [br]
 ## @return 包含 `_meta.checksum` 时返回 true。
 func has_integrity_checksum(data: Dictionary) -> bool:
 	return get_metadata(data).has(CHECKSUM_KEY)

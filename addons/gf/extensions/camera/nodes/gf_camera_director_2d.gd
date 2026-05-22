@@ -2,6 +2,12 @@
 ##
 ## Director 从显式路径或分组中收集 GFCameraRig2D，按优先级选择当前 Rig，
 ## 并把过渡后的姿态应用到 Camera2D。它不规定目标含义、输入来源或业务流程。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFCameraDirector2D
 extends Node
 
@@ -9,18 +15,27 @@ extends Node
 # --- 信号 ---
 
 ## 当前 Rig 变化后发出。
+## [br]
+## @api public
+## [br]
 ## @param previous_rig: 上一个 Rig。
+## [br]
 ## @param new_rig: 新 Rig。
-signal active_rig_changed(previous_rig: Node, new_rig: Node)
+signal active_rig_changed(previous_rig: GFCameraRig2D, new_rig: GFCameraRig2D)
 
 ## 相机姿态应用后发出。
+## [br]
+## @api public
+## [br]
 ## @param rig: 当前 Rig。
-signal camera_pose_applied(rig: Node)
+signal camera_pose_applied(rig: GFCameraRig2D)
 
 
 # --- 枚举 ---
 
 ## Director 自动更新模式。
+## [br]
+## @api public
 enum UpdateMode {
 	## 在 _process 中更新。
 	IDLE,
@@ -34,24 +49,40 @@ enum UpdateMode {
 # --- 导出变量 ---
 
 ## 要控制的 Camera2D。
+## [br]
+## @api public
 @export_node_path("Camera2D") var camera_path: NodePath = NodePath("")
 
 ## 显式候选 Rig 路径。
+## [br]
+## @api public
+## [br]
+## @schema rig_paths: Array[NodePath]，按顺序保存显式候选 GFCameraRig2D 节点路径。
 @export var rig_paths: Array[NodePath] = []
 
 ## 是否按分组收集候选 Rig。
+## [br]
+## @api public
 @export var collect_group_rigs: bool = true
 
 ## 候选 Rig 分组名。
+## [br]
+## @api public
 @export var rig_group_name: StringName = &"gf_camera_rig_2d"
 
 ## 自动更新模式。
+## [br]
+## @api public
 @export var update_mode: UpdateMode = UpdateMode.IDLE
 
 ## 默认过渡资源。Rig 没有设置 blend 时使用它。
+## [br]
+## @api public
 @export var default_blend: GFCameraBlend = GFCameraBlend.new()
 
 ## 没有 Rig 时是否保持相机当前姿态。
+## [br]
+## @api public
 @export var keep_camera_when_no_rig: bool = true
 
 
@@ -79,6 +110,9 @@ func _physics_process(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 获取当前相机。
+## [br]
+## @api public
+## [br]
 ## @return Camera2D；不存在时返回 null。
 func get_camera() -> Camera2D:
 	if camera_path.is_empty():
@@ -87,13 +121,21 @@ func get_camera() -> Camera2D:
 
 
 ## 获取当前激活 Rig。
+## [br]
+## @api public
+## [br]
 ## @return 当前 Rig；没有时返回 null。
 func get_active_rig() -> GFCameraRig2D:
 	return _active_rig
 
 
 ## 收集候选 Rig。
+## [br]
+## @api public
+## [br]
 ## @return 候选 Rig 列表。
+## [br]
+## @schema return: Array[GFCameraRig2D]，已去重并按优先级排序的候选 Rig。
 func collect_candidate_rigs() -> Array[GFCameraRig2D]:
 	var result: Array[GFCameraRig2D] = []
 	var seen: Dictionary = {}
@@ -109,7 +151,11 @@ func collect_candidate_rigs() -> Array[GFCameraRig2D]:
 
 
 ## 刷新当前激活 Rig。
+## [br]
+## @api public
+## [br]
 ## @param force_snap: 为 true 时立即切到新 Rig。
+## [br]
 ## @return 当前 Rig。
 func refresh_active_rig(force_snap: bool = false) -> GFCameraRig2D:
 	var best_rig: GFCameraRig2D = null
@@ -122,8 +168,13 @@ func refresh_active_rig(force_snap: bool = false) -> GFCameraRig2D:
 
 
 ## 显式设置当前 Rig。
+## [br]
+## @api public
+## [br]
 ## @param rig: 新 Rig；可为 null。
+## [br]
 ## @param force_snap: 为 true 时立即切换。
+## [br]
 ## @return 设置成功返回 true。
 func set_active_rig(rig: GFCameraRig2D, force_snap: bool = false) -> bool:
 	if rig == _active_rig:
@@ -138,7 +189,11 @@ func set_active_rig(rig: GFCameraRig2D, force_snap: bool = false) -> bool:
 
 
 ## 推进并应用相机姿态。
+## [br]
+## @api public
+## [br]
 ## @param delta: 秒。
+## [br]
 ## @return 成功应用时返回 true。
 func process_camera(delta: float) -> bool:
 	refresh_active_rig(false)

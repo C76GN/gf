@@ -1,6 +1,12 @@
 ## GFHitBoxState2D: 2D 命中区域状态组。
 ##
 ## 统一启停子树内的 GFHitBox2D、GFHurtBox2D 与 Area2D，不处理伤害、阵营或技能规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFHitBoxState2D
 extends Node2D
 
@@ -8,6 +14,9 @@ extends Node2D
 # --- 信号 ---
 
 ## 状态应用后发出。
+## [br]
+## @api public
+## [br]
 ## @param active: 当前是否激活。
 signal active_changed(active: bool)
 
@@ -15,6 +24,8 @@ signal active_changed(active: bool)
 # --- 导出变量 ---
 
 ## 当前状态是否激活。
+## [br]
+## @api public
 @export var active: bool = true:
 	set(value):
 		if active == value:
@@ -25,18 +36,28 @@ signal active_changed(active: bool)
 			active_changed.emit(active)
 
 ## 是否在 _ready() 时应用当前状态。
+## [br]
+## @api public
 @export var apply_on_ready: bool = true
 
 ## 是否递归管理子节点。
+## [br]
+## @api public
 @export var recursive: bool = true
 
 ## 是否同步 GFHitBox2D/GFHurtBox2D 的 enabled 字段。
+## [br]
+## @api public
 @export var manage_enabled: bool = true
 
 ## 是否同步 Area2D 的 monitoring 与 monitorable。
+## [br]
+## @api public
 @export var manage_monitoring: bool = true
 
 ## 是否同步 CanvasItem.visible。
+## [br]
+## @api public
 @export var manage_visibility: bool = false
 
 
@@ -50,16 +71,23 @@ func _ready() -> void:
 # --- 公共方法 ---
 
 ## 激活状态组。
+## [br]
+## @api public
 func activate() -> void:
 	set_active_state(true)
 
 
 ## 关闭状态组。
+## [br]
+## @api public
 func deactivate() -> void:
 	set_active_state(false)
 
 
 ## 设置状态组激活状态。
+## [br]
+## @api public
+## [br]
 ## @param value: 是否激活。
 func set_active_state(value: bool) -> void:
 	active = value
@@ -69,12 +97,17 @@ func set_active_state(value: bool) -> void:
 
 
 ## 应用当前状态到所有受管理节点。
+## [br]
+## @api public
 func apply_state() -> void:
 	for node: Node in get_managed_nodes():
 		_apply_to_node(node)
 
 
 ## 获取受管理节点列表。
+## [br]
+## @api public
+## [br]
 ## @return 节点列表。
 func get_managed_nodes() -> Array[Node]:
 	var result: Array[Node] = []

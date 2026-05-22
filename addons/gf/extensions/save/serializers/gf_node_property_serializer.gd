@@ -1,6 +1,12 @@
 ## GFNodePropertySerializer: 通用节点属性序列化器。
 ##
 ## 通过显式属性白名单保存和恢复节点属性，适合项目层快速接入简单状态。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNodePropertySerializer
 extends GFNodeSerializer
 
@@ -22,9 +28,13 @@ const _PROPERTY_TYPE_UNSUPPORTED_OBJECT: String = "UnsupportedObject"
 # --- 导出变量 ---
 
 ## 需要保存的属性名。
+## [br]
+## @api public
 @export var properties: PackedStringArray = PackedStringArray()
 
 ## 应用数据时遇到缺失属性是否跳过。
+## [br]
+## @api public
 @export var skip_missing_properties: bool = true
 
 
@@ -37,8 +47,18 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 采集节点的可保存状态。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return 属性载荷字典。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，键为 properties 中声明的属性名，值为 JSON 兼容值；Resource 引用使用 __gf_save_property__ 标记。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	if node == null:
 		return {}
@@ -58,9 +78,22 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 
 
 ## 将序列化数据应用到节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
-## @param payload: 随事件或交互传递的数据。
+## [br]
+## @param payload: 属性载荷字典。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return 应用结果字典。
+## [br]
+## @schema payload: Dictionary，键为属性名，值为 JSON 兼容值或 __gf_save_property__ 标记。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
 	if node == null:
 		return make_result(false, "Node is null.")

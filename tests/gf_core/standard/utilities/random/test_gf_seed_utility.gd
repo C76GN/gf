@@ -16,16 +16,16 @@ func after_each() -> void:
 func test_state_save_and_restore() -> void:
 	_seed_util.set_global_seed(12345)
 	
-	var _first_val := _seed_util._rng.randi()
+	var _first_val := _seed_util.get_rng().randi()
 	var state_to_save := _seed_util.get_state()
 	
-	var next_val1 := _seed_util._rng.randi()
-	var next_val2 := _seed_util._rng.randi()
+	var next_val1 := _seed_util.get_rng().randi()
+	var next_val2 := _seed_util.get_rng().randi()
 	
 	_seed_util.set_state(state_to_save)
 	
-	var restored_val1 := _seed_util._rng.randi()
-	var restored_val2 := _seed_util._rng.randi()
+	var restored_val1 := _seed_util.get_rng().randi()
+	var restored_val2 := _seed_util.get_rng().randi()
 	
 	assert_eq(restored_val1, next_val1, "恢复状态后，生成的第一个随机数应与之前一致。")
 	assert_eq(restored_val2, next_val2, "恢复状态后，生成的第二个随机数应与之前一致。")
@@ -112,13 +112,13 @@ func test_full_state_uses_json_safe_text_numbers() -> void:
 func test_full_state_roundtrips_through_json_with_large_64_bit_values() -> void:
 	var large_seed := 9_223_372_036_854_775_000
 	_seed_util.set_global_seed(large_seed)
-	_seed_util._rng.randi()
+	_seed_util.get_rng().randi()
 	_seed_util.get_branched_rng("loot")
 	var snapshot := _seed_util.get_full_state()
 	var expected_rng := _seed_util.get_branched_rng("loot")
 	var expected_rng_seed := expected_rng.seed
 	var expected_rng_value := expected_rng.randi()
-	var expected_next_main := _seed_util._rng.randi()
+	var expected_next_main := _seed_util.get_rng().randi()
 	var parsed := JSON.parse_string(JSON.stringify(snapshot)) as Dictionary
 
 	_seed_util.set_global_seed(1)
@@ -129,4 +129,4 @@ func test_full_state_roundtrips_through_json_with_large_64_bit_values() -> void:
 	assert_eq(_seed_util.get_global_seed(), large_seed, "JSON 往返后应精确恢复 64 位主种子。")
 	assert_eq(restored_rng.seed, expected_rng_seed, "JSON 往返后应精确恢复分支计数与分支种子。")
 	assert_eq(restored_rng.randi(), expected_rng_value, "JSON 往返后分支 RNG 序列应保持一致。")
-	assert_eq(_seed_util._rng.randi(), expected_next_main, "JSON 往返后主 RNG 序列应保持一致。")
+	assert_eq(_seed_util.get_rng().randi(), expected_next_main, "JSON 往返后主 RNG 序列应保持一致。")

@@ -2,9 +2,6 @@
 extends GutTest
 
 
-const GFSceneTransitionConfigBase = preload("res://addons/gf/standard/utilities/scene/gf_scene_transition_config.gd")
-
-
 var _scene_util: TestSceneUtility
 
 
@@ -144,7 +141,7 @@ func test_failed_load_restores_previous_scene_after_loading_scene() -> void:
 	_scene_util.load_scene_async("res://icon.svg", loading_scene_path)
 
 	assert_push_error("[GFSceneUtility] load_scene_async 失败：资源不是 PackedScene：res://icon.svg")
-	assert_false(_scene_util._is_loading, "前置校验失败后不应进入 loading 状态。")
+	assert_false(_is_scene_utility_loading(_scene_util), "前置校验失败后不应进入 loading 状态。")
 	assert_eq(_scene_util.sync_scene_changes.size(), 0, "前置校验失败不应切到 loading scene。")
 	assert_eq(_scene_util.packed_scene_changes, 0, "错误资源不应触发正式场景切换。")
 
@@ -168,7 +165,7 @@ func test_empty_scene_path_fails_before_loading_state_changes() -> void:
 
 	_scene_util.load_scene_async("")
 
-	assert_false(_scene_util._is_loading, "空路径不应进入 loading 状态。")
+	assert_false(_is_scene_utility_loading(_scene_util), "空路径不应进入 loading 状态。")
 	assert_signal_emitted(_scene_util, "scene_load_failed", "前置校验失败仍应发出失败信号。")
 	assert_push_error("[GFSceneUtility] load_scene_async 失败：path 为空。")
 
@@ -217,13 +214,13 @@ func test_load_scene_async_uses_preloaded_scene() -> void:
 	_scene_util.load_scene_async(scene_path)
 
 	assert_eq(_scene_util.packed_scene_changes, 0, "命中预加载缓存时也不应在调用栈内同步切场。")
-	assert_true(_scene_util._is_loading, "安全帧切场前应保持 loading 状态。")
+	assert_true(_is_scene_utility_loading(_scene_util), "安全帧切场前应保持 loading 状态。")
 	assert_signal_not_emitted(_scene_util, "scene_load_completed", "安全帧切场前不应提前发出完成信号。")
 
 	_scene_util.tick(0.0)
 
 	assert_eq(_scene_util.packed_scene_changes, 1, "安全帧后应切换 PackedScene。")
-	assert_false(_scene_util._is_loading, "缓存命中完成切场后应重置 loading 状态。")
+	assert_false(_is_scene_utility_loading(_scene_util), "缓存命中完成切场后应重置 loading 状态。")
 	assert_signal_emitted(_scene_util, "scene_load_completed", "缓存命中也应发出加载完成信号。")
 
 
@@ -252,14 +249,14 @@ func test_headless_style_sync_active_load_uses_safe_scene_change_flow() -> void:
 	_scene_util.load_scene_async(scene_path)
 
 	assert_eq(_scene_util.sync_active_load_paths, PackedStringArray([scene_path]), "同步降级应加载目标场景资源。")
-	assert_true(_scene_util._is_loading, "同步资源解析后仍应保持 loading 状态直到安全切场。")
+	assert_true(_is_scene_utility_loading(_scene_util), "同步资源解析后仍应保持 loading 状态直到安全切场。")
 	assert_eq(_scene_util.packed_scene_changes, 0, "同步资源解析不应在调用栈内直接切场。")
 	assert_signal_not_emitted(_scene_util, "scene_load_completed", "安全切场前不应发出完成信号。")
 
 	_scene_util.tick(0.0)
 
 	assert_eq(_scene_util.packed_scene_changes, 1, "安全 tick 后应完成目标 PackedScene 切换。")
-	assert_false(_scene_util._is_loading, "同步降级完成切场后应重置 loading 状态。")
+	assert_false(_is_scene_utility_loading(_scene_util), "同步降级完成切场后应重置 loading 状态。")
 	assert_signal_emitted(_scene_util, "scene_load_completed", "同步降级成功后应沿用原有完成信号。")
 
 
@@ -271,7 +268,7 @@ func test_headless_style_sync_active_load_failure_resets_loading_state() -> void
 	_scene_util.load_scene_async(scene_path)
 
 	assert_eq(_scene_util.sync_active_load_paths, PackedStringArray([scene_path]), "同步降级应尝试加载目标场景。")
-	assert_false(_scene_util._is_loading, "同步加载失败后应重置 loading 状态。")
+	assert_false(_is_scene_utility_loading(_scene_util), "同步加载失败后应重置 loading 状态。")
 	assert_eq(_scene_util.packed_scene_changes, 0, "同步加载失败不应切换目标场景。")
 	assert_signal_emitted(_scene_util, "scene_load_failed", "同步加载失败应沿用加载失败信号。")
 	assert_push_error("[GFSceneUtility] 同步加载场景失败：%s" % scene_path)
@@ -290,7 +287,7 @@ func test_failure_restore_after_loading_scene_is_deferred_until_safe_tick() -> v
 
 	assert_push_error("[test] failed")
 	assert_eq(_scene_util.sync_scene_changes, [loading_scene_path], "失败恢复不应在失败调用栈内同步切回旧场景。")
-	assert_true(_scene_util._is_loading, "等待恢复切场时应保持 loading 状态，避免新切场插队。")
+	assert_true(_is_scene_utility_loading(_scene_util), "等待恢复切场时应保持 loading 状态，避免新切场插队。")
 
 	_scene_util.tick(0.0)
 
@@ -299,7 +296,7 @@ func test_failure_restore_after_loading_scene_is_deferred_until_safe_tick() -> v
 		[loading_scene_path, "res://tests/current_scene.tscn"],
 		"安全帧后应恢复上一场景。"
 	)
-	assert_false(_scene_util._is_loading, "恢复上一场景后应重置 loading 状态。")
+	assert_false(_is_scene_utility_loading(_scene_util), "恢复上一场景后应重置 loading 状态。")
 
 
 func test_background_scene_load_can_activate_cached_scene_with_params() -> void:
@@ -333,7 +330,7 @@ func test_scene_load_completed_is_not_emitted_when_scene_change_fails() -> void:
 
 
 func test_scene_transition_config_can_drive_scene_load() -> void:
-	var config := GFSceneTransitionConfigBase.new()
+	var config := GFSceneTransitionConfig.new()
 	config.target_scene_path = "res://addons/gut/gui/NormalGui.tscn"
 	config.cache_loaded_scene = false
 	config.params = { "spawn": "door_a" }
@@ -342,14 +339,16 @@ func test_scene_transition_config_can_drive_scene_load() -> void:
 	var error := _scene_util.load_scene_with_transition(config)
 
 	assert_eq(error, OK, "场景切换配置应能发起加载。")
-	assert_true(_scene_util._is_loading, "配置化场景切换应进入加载状态。")
-	assert_false(_scene_util._active_load_cache_loaded_scene, "配置化场景切换应应用本次缓存策略。")
-	assert_eq(_scene_util._active_transition_params["spawn"], "door_a", "配置化场景切换应应用切换参数。")
-	assert_almost_eq(_scene_util._active_transition_minimum_seconds, 0.25, 0.001, "配置化场景切换应应用最短时长。")
+	var transition := _get_scene_utility_transition(_scene_util)
+
+	assert_true(_is_scene_utility_loading(_scene_util), "配置化场景切换应进入加载状态。")
+	assert_false(bool(transition["cache_loaded_scene"]), "配置化场景切换应应用本次缓存策略。")
+	assert_eq((transition["params"] as Dictionary)["spawn"], "door_a", "配置化场景切换应应用切换参数。")
+	assert_almost_eq(float(transition["minimum_duration_seconds"]), 0.25, 0.001, "配置化场景切换应应用最短时长。")
 
 
 func test_scene_transition_config_serializes_params_and_minimum_duration() -> void:
-	var config := GFSceneTransitionConfigBase.new()
+	var config := GFSceneTransitionConfig.new()
 	config.target_scene_path = "res://target.tscn"
 	config.params = {
 		"spawn": "door_a",
@@ -359,7 +358,7 @@ func test_scene_transition_config_serializes_params_and_minimum_duration() -> vo
 	}
 	config.minimum_duration_seconds = 0.5
 
-	var copy := GFSceneTransitionConfigBase.from_dict(config.to_dict())
+	var copy := GFSceneTransitionConfig.from_dict(config.to_dict())
 	(copy.params["nested"] as Dictionary)["value"] = 2
 
 	assert_eq(copy.params["spawn"], "door_a", "切换参数应可序列化。")
@@ -374,15 +373,15 @@ func test_minimum_transition_duration_delays_cached_completion_and_sets_params()
 
 	_scene_util.load_scene_async(scene_path, "", { "spawn": "door_a" })
 
-	assert_true(_scene_util._is_loading, "最短时长未到时应保持 loading 状态。")
+	assert_true(_is_scene_utility_loading(_scene_util), "最短时长未到时应保持 loading 状态。")
 	assert_eq(_scene_util.packed_scene_changes, 0, "最短时长未到时不应切换目标场景。")
-	assert_true(_scene_util._pending_loaded_scene != null, "已加载场景应等待最短时长结束。")
+	assert_true(bool(_get_scene_utility_transition(_scene_util)["pending_completion"]), "已加载场景应等待最短时长结束。")
 
 	_scene_util._active_transition_started_msec = Time.get_ticks_msec() - 2000
 	_scene_util.tick(0.0)
 	var history := _scene_util.get_scene_history()
 
-	assert_false(_scene_util._is_loading, "最短时长结束后应完成切换。")
+	assert_false(_is_scene_utility_loading(_scene_util), "最短时长结束后应完成切换。")
 	assert_eq(_scene_util.packed_scene_changes, 1, "应切换目标场景。")
 	assert_eq(_scene_util.get_current_scene_params()["spawn"], "door_a", "完成后应保存当前场景参数。")
 	assert_eq(history.size(), 1, "成功切换后应记录上一场景。")
@@ -444,3 +443,11 @@ func _make_empty_scene() -> PackedScene:
 	scene.pack(node)
 	node.free()
 	return scene
+
+
+func _is_scene_utility_loading(scene_util: GFSceneUtility) -> bool:
+	return bool(scene_util.get_scene_cache_debug_snapshot()["is_loading"])
+
+
+func _get_scene_utility_transition(scene_util: GFSceneUtility) -> Dictionary:
+	return scene_util.get_scene_cache_debug_snapshot()["transition"] as Dictionary

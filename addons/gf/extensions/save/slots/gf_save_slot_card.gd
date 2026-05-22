@@ -1,6 +1,12 @@
 ## GFSaveSlotCard: 通用存档槽展示卡片数据。
 ##
 ## 作为 UI 和存档系统之间的轻量 DTO，不规定具体界面布局或业务字段。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFSaveSlotCard
 extends Resource
 
@@ -8,43 +14,73 @@ extends Resource
 # --- 导出变量 ---
 
 ## 整数槽位索引。文件名/云端 key 场景可保持为 -1。
+## [br]
+## @api public
 @export var slot_index: int = -1
 
 ## 逻辑槽位标识。
+## [br]
+## @api public
 @export var slot_id: StringName = &""
 
 ## 展示名称。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 展示描述。
+## [br]
+## @api public
 @export_multiline var description: String = ""
 
 ## 是否为空槽位。
+## [br]
+## @api public
 @export var is_empty: bool = true
 
 ## 是否为当前选中槽位。
+## [br]
+## @api public
 @export var is_active: bool = false
 
 ## 是否兼容当前项目版本或数据结构。
+## [br]
+## @api public
 @export var is_compatible: bool = true
 
 ## 最近修改时间戳。
+## [br]
+## @api public
 @export var modified_time: int = 0
 
 ## 原始元数据副本。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，通常来自 GFSaveSlotMetadata.to_dict() 或 GFStorageUtility.list_slots() 的 metadata 字段。
 @export var metadata: Dictionary = {}
 
 ## 兼容性问题列表。
+## [br]
+## @api public
 @export var compatibility_errors: PackedStringArray = PackedStringArray()
 
 
 # --- 公共方法 ---
 
 ## 从 GFStorageUtility.list_slots() 风格的摘要配置卡片。
+## [br]
+## @api public
+## [br]
 ## @param summary: 槽位摘要。
+## [br]
 ## @param fallback_slot_id: 摘要缺少 slot_id 时的兜底标识。
+## [br]
 ## @param active_slot_index: 当前选中槽位索引。
+## [br]
 ## @return 当前卡片。
+## [br]
+## @schema summary: Dictionary，可包含 slot_index、slot_id、modified_time、is_compatible、compatibility_errors 与 metadata。
 func configure_from_slot_summary(
 	summary: Dictionary,
 	fallback_slot_id: StringName = &"",
@@ -65,7 +101,12 @@ func configure_from_slot_summary(
 
 
 ## 转换为 Dictionary。
+## [br]
+## @api public
+## [br]
 ## @return 卡片字典。
+## [br]
+## @schema return: Dictionary，包含 slot_index、slot_id、display_name、description、is_empty、is_active、is_compatible、modified_time、metadata 与 compatibility_errors。
 func to_dict() -> Dictionary:
 	return {
 		"slot_index": slot_index,
@@ -82,6 +123,9 @@ func to_dict() -> Dictionary:
 
 
 ## 获取通用状态文本。
+## [br]
+## @api public
+## [br]
 ## @return 状态文本。
 func get_status_text() -> String:
 	if is_empty:
@@ -94,10 +138,18 @@ func get_status_text() -> String:
 
 
 ## 从摘要创建卡片。
+## [br]
+## @api public
+## [br]
 ## @param summary: 槽位摘要。
+## [br]
 ## @param fallback_slot_id: 兜底标识。
+## [br]
 ## @param active_slot_index: 当前选中槽位索引。
+## [br]
 ## @return 新卡片。
+## [br]
+## @schema summary: Dictionary，可包含 slot_index、slot_id、modified_time、is_compatible、compatibility_errors 与 metadata。
 static func from_slot_summary(
 	summary: Dictionary,
 	fallback_slot_id: StringName = &"",

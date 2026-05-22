@@ -1,6 +1,12 @@
 ## GFTraitSet: 通用特征集合。
 ##
 ## 可从任意来源收集 `GFTrait`，再按目标键与分类计算最终数值。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class_name GFTraitSet
 extends Resource
 
@@ -8,12 +14,19 @@ extends Resource
 # --- 导出变量 ---
 
 ## 特征列表。
+## [br]
+## @api public
+## [br]
+## @schema traits: Array[GFTrait]，按 priority 排序保存的特征资源列表。
 @export var traits: Array[GFTrait] = []
 
 
 # --- 公共方法 ---
 
 ## 添加一个特征。
+## [br]
+## @api public
+## [br]
 ## @param p_trait: 特征资源。
 func add_trait(p_trait: GFTrait) -> void:
 	if p_trait == null:
@@ -23,6 +36,9 @@ func add_trait(p_trait: GFTrait) -> void:
 
 
 ## 按 ID 移除特征。
+## [br]
+## @api public
+## [br]
 ## @param trait_id: 特征 ID。
 func remove_traits_by_id(trait_id: StringName) -> void:
 	for index: int in range(traits.size() - 1, -1, -1):
@@ -32,9 +48,16 @@ func remove_traits_by_id(trait_id: StringName) -> void:
 
 
 ## 查询匹配的特征。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标键。
+## [br]
 ## @param category: 可选分类；为空时不按分类过滤。
+## [br]
 ## @return 匹配特征数组。
+## [br]
+## @schema return: Array[GFTrait]，匹配目标键和分类过滤条件的特征资源。
 func get_traits(target_id: StringName, category: StringName = &"") -> Array[GFTrait]:
 	var result: Array[GFTrait] = []
 	for current_trait: GFTrait in traits:
@@ -49,9 +72,15 @@ func get_traits(target_id: StringName, category: StringName = &"") -> Array[GFTr
 
 
 ## 计算目标键的最终数值。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标键。
+## [br]
 ## @param base_value: 基础值。
+## [br]
 ## @param category: 可选分类。
+## [br]
 ## @return 合并后的数值。
 func calculate_number(target_id: StringName, base_value: float, category: StringName = &"") -> float:
 	var result := base_value
@@ -61,6 +90,8 @@ func calculate_number(target_id: StringName, base_value: float, category: String
 
 
 ## 清空特征。
+## [br]
+## @api public
 func clear() -> void:
 	traits.clear()
 

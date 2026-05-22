@@ -3,13 +3,28 @@
 ## GFEditorTypeIndex: 编辑器侧 GF 类型查询工具。
 ##
 ## 集中扫描 class_name 脚本与能力场景，供代码生成器和 Inspector 工具复用。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFEditorTypeIndex
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 默认最大扫描深度。
+## [br]
+## @api public
 const DEFAULT_MAX_SCAN_DEPTH: int = 32
+
+## 默认最大扫描场景数。
+## [br]
+## @api public
 const DEFAULT_MAX_SCANNED_SCENES: int = 10000
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
@@ -23,8 +38,16 @@ var _scene_root_script_cache: Dictionary = {}
 # --- 公共方法 ---
 
 ## 收集继承指定脚本基类的全局脚本类。
+## [br]
+## @api public
+## [br]
 ## @param base_script: 要匹配的基类脚本。
+## [br]
 ## @param excluded_scripts: 收集类型时需要排除的脚本列表。
+## [br]
+## @return 匹配脚本记录列表。
+## [br]
+## @schema return: Array of Dictionary script records with class_name, path, and script.
 func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Script] = []) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	if base_script == null:
@@ -57,10 +80,24 @@ func collect_scripts_extending(base_script: Script, excluded_scripts: Array[Scri
 
 
 ## 收集根脚本继承指定基类的场景。
+## [br]
+## @api public
+## [br]
 ## @param base_script: 要匹配的基类脚本。
+## [br]
 ## @param used_paths: 已使用的资源路径集合。
+## [br]
+## @schema used_paths: Dictionary keyed by already consumed resource path.
+## [br]
 ## @param root_paths: 可选扫描根路径；为空时扫描整个资源树。
+## [br]
 ## @param options: 可选参数，支持 max_scan_depth 与 max_scanned_scenes。
+## [br]
+## @schema options: Dictionary with optional max_scan_depth and max_scanned_scenes.
+## [br]
+## @return 匹配场景记录列表。
+## [br]
+## @schema return: Array of Dictionary scene root records with path, root_script, and class metadata.
 func collect_scene_roots_extending(
 	base_script: Script,
 	used_paths: Dictionary = {},
@@ -133,7 +170,12 @@ func collect_scene_roots_extending(
 
 
 ## 获取 PackedScene 根节点脚本。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径或状态路径。
+## [br]
+## @return 根节点脚本；无法解析时返回 null。
 func get_scene_root_script(path: String) -> Script:
 	if _scene_root_script_cache.has(path):
 		return _scene_root_script_cache[path] as Script
@@ -163,6 +205,8 @@ func get_scene_root_script(path: String) -> Script:
 
 
 ## 清空脚本和场景根脚本缓存。
+## [br]
+## @api public
 func clear_cache() -> void:
 	_script_cache.clear()
 	_scene_root_script_cache.clear()

@@ -2,6 +2,12 @@
 ##
 ## 它继承 GFHitBox2D，命中仍通过 GFCombatHitContext 发送给 receive_hit()。
 ## 节点只负责移动、寿命和碰撞触发，不解释伤害、阵营或生命值规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFProjectile2D
 extends GFHitBox2D
 
@@ -9,32 +15,47 @@ extends GFHitBox2D
 # --- 信号 ---
 
 ## 发射体启动时发出。
+## [br]
+## @api public
+## [br]
 ## @param projectile: 当前发射体。
 signal projectile_launched(projectile: GFProjectile2D)
 
 ## 发射体结束时发出。
+## [br]
+## @api public
+## [br]
 ## @param projectile: 当前发射体。
+## [br]
 ## @param reason: 结束原因。
 signal projectile_finished(projectile: GFProjectile2D, reason: StringName)
 
 
-# --- 常量 ---
-
 # --- 导出变量 ---
 
 ## ready 后是否自动启动本次发射。
+## [br]
+## @api public
 @export var auto_launch_on_ready: bool = true
 
 ## 移动策略。应实现 setup(projectile, context) 与 step(projectile, delta, context)。
+## [br]
+## @api public
 @export var motion: Resource = null
 
 ## 生命周期策略。应实现 setup(projectile, context) 与 should_finish(projectile, elapsed, context)。
+## [br]
+## @api public
 @export var lifetime_policy: Resource = null
 
 ## 命中任意 receive_hit() 接收器后是否结束。
+## [br]
+## @api public
 @export var finish_on_impact: bool = true
 
 ## 结束时是否 queue_free。使用对象池时通常应关闭。
+## [br]
+## @api public
 @export var queue_free_on_finish: bool = true
 
 
@@ -73,7 +94,12 @@ func _physics_process(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 启动或重置本次发射。
+## [br]
+## @api public
+## [br]
 ## @param projectile_context: 本次发射的上下文字典。
+## [br]
+## @schema projectile_context: Dictionary，本次发射上下文；会复制后传给 motion、lifetime_policy 和命中记录。
 func launch(projectile_context: Dictionary = {}) -> void:
 	_active = true
 	_elapsed_seconds = 0.0
@@ -87,6 +113,9 @@ func launch(projectile_context: Dictionary = {}) -> void:
 
 
 ## 结束本次发射。
+## [br]
+## @api public
+## [br]
 ## @param reason: 结束原因。
 func finish(reason: StringName = &"finished") -> void:
 	if not _active:
@@ -100,24 +129,38 @@ func finish(reason: StringName = &"finished") -> void:
 
 
 ## 判断发射体是否处于已启动状态。
+## [br]
+## @api public
+## [br]
 ## @return 已启动且未结束时返回 true。
 func is_projectile_active() -> bool:
 	return _active
 
 
 ## 获取本次发射经过的秒数。
+## [br]
+## @api public
+## [br]
 ## @return 经过的秒数。
 func get_elapsed_seconds() -> float:
 	return _elapsed_seconds
 
 
 ## 获取本次发射上下文副本。
+## [br]
+## @api public
+## [br]
 ## @return 上下文字典副本。
+## [br]
+## @schema return: Dictionary，本次发射上下文副本，包含调用方上下文、发射器写入字段和 impact 计数。
 func get_projectile_context() -> Dictionary:
 	return _projectile_context.duplicate(true)
 
 
 ## 向碰撞候选对象发送一次发射体命中。
+## [br]
+## @api public
+## [br]
 ## @param candidate: 碰撞候选对象，可为接收器或其子节点。
 func send_impact_to(candidate: Object) -> void:
 	_send_impact_to_candidate(candidate)

@@ -1,37 +1,57 @@
 ## GFAssetMetadataRecord: 资产元数据记录。
 ##
 ## 记录某个导入资产、节点或资源片段上的结构化元数据，不解释字段业务含义。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFAssetMetadataRecord
 extends Resource
-
-
-# --- 常量 ---
-
-const GFVariantDataBase = preload("res://addons/gf/standard/foundation/variant/gf_variant_data.gd")
 
 
 # --- 导出变量 ---
 
 ## 元数据来源资产路径。
+## [br]
+## @api public
 @export var source_path: String = ""
 
 ## 元数据所属对象相对路径。节点树中通常是相对根节点的 NodePath。
+## [br]
+## @api public
 @export var subject_path: NodePath = NodePath(".")
 
 ## 元数据所属对象类别，例如 node、resource 或 asset。
+## [br]
+## @api public
 @export var subject_kind: StringName = &""
 
 ## 结构化元数据。框架只复制和查询，不解释业务字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存导入资产、节点或资源片段的项目自定义元数据字段。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 配置记录。
+## [br]
+## @api public
+## [br]
 ## @param p_source_path: 来源资产路径。
+## [br]
 ## @param p_subject_path: 所属对象路径。
+## [br]
 ## @param p_subject_kind: 所属对象类别。
+## [br]
 ## @param p_metadata: 结构化元数据。
+## [br]
+## @schema p_metadata: Dictionary，保存导入资产、节点或资源片段的项目自定义元数据字段。
+## [br]
 ## @return 当前记录。
 func configure(
 	p_source_path: String = "",
@@ -47,34 +67,55 @@ func configure(
 
 
 ## 检查记录是否没有元数据。
+## [br]
+## @api public
+## [br]
 ## @return 没有元数据时返回 true。
 func is_empty() -> bool:
 	return metadata.is_empty()
 
 
 ## 检查元数据键是否存在。StringName 与 String 形式会被同时识别。
+## [br]
+## @api public
+## [br]
 ## @param key: 元数据键。
+## [br]
 ## @return 存在时返回 true。
 func has_value(key: StringName) -> bool:
 	return metadata.has(key) or metadata.has(String(key))
 
 
 ## 读取元数据值并返回安全副本。
+## [br]
+## @api public
+## [br]
 ## @param key: 元数据键。
+## [br]
 ## @param default_value: 缺失时返回的默认值。
+## [br]
+## @schema default_value: Variant，缺失时返回的调用方默认值，会按 GFVariantData 规则复制。
+## [br]
 ## @return 元数据值副本或默认值。
+## [br]
+## @schema return: Variant，元数据值副本；缺失时为 default_value 的安全副本。
 func get_value(key: StringName, default_value: Variant = null) -> Variant:
 	if metadata.has(key):
-		return GFVariantDataBase.duplicate_variant(metadata[key])
+		return GFVariantData.duplicate_variant(metadata[key])
 
 	var key_text := String(key)
 	if metadata.has(key_text):
-		return GFVariantDataBase.duplicate_variant(metadata[key_text])
-	return GFVariantDataBase.duplicate_variant(default_value)
+		return GFVariantData.duplicate_variant(metadata[key_text])
+	return GFVariantData.duplicate_variant(default_value)
 
 
 ## 转换为字典。
+## [br]
+## @api public
+## [br]
 ## @return 记录字典副本。
+## [br]
+## @schema return: Dictionary，包含 source_path、subject_path、subject_kind 与 metadata 字段。
 func to_dict() -> Dictionary:
 	return {
 		"source_path": source_path,
@@ -85,7 +126,12 @@ func to_dict() -> Dictionary:
 
 
 ## 从字典应用字段。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
+## @schema data: Dictionary，可包含 source_path、subject_path、subject_kind 与 metadata 字段。
 func apply_dict(data: Dictionary) -> void:
 	source_path = String(data.get("source_path", source_path))
 	subject_path = NodePath(String(data.get("subject_path", String(subject_path))))
@@ -95,6 +141,9 @@ func apply_dict(data: Dictionary) -> void:
 
 
 ## 创建记录深拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新记录。
 func duplicate_record() -> GFAssetMetadataRecord:
 	var record := get_script().new() as GFAssetMetadataRecord
@@ -103,9 +152,15 @@ func duplicate_record() -> GFAssetMetadataRecord:
 
 
 ## 从字典创建记录。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
+## @schema data: Dictionary，可包含 source_path、subject_path、subject_kind 与 metadata 字段。
+## [br]
 ## @return 新记录。
 static func from_dict(data: Dictionary) -> GFAssetMetadataRecord:
-	var record := (load("res://addons/gf/extensions/asset_metadata/resources/gf_asset_metadata_record.gd") as Script).new() as GFAssetMetadataRecord
+	var record := GFAssetMetadataRecord.new()
 	record.apply_dict(data)
 	return record

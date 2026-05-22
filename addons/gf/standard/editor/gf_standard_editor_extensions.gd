@@ -1,11 +1,20 @@
 @tool
 
-## GF 标准库编辑器扩展声明。
+# GF 标准库编辑器扩展声明。
 extends RefCounted
 
 
 # --- 公共方法 ---
 
+## 获取标准库 Inspector 插件记录。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/editor
+## [br]
+## @return Inspector 插件记录列表。
+## [br]
+## @schema return: Array of Dictionary inspector plugin records.
 static func get_inspector_plugin_records() -> Array[Dictionary]:
 	return [
 		{
@@ -23,6 +32,15 @@ static func get_inspector_plugin_records() -> Array[Dictionary]:
 	]
 
 
+## 获取标准库导出插件记录。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/editor
+## [br]
+## @return 导出插件记录列表。
+## [br]
+## @schema return: Array of Dictionary export plugin records.
 static func get_export_plugin_records() -> Array[Dictionary]:
 	return [
 		{
@@ -32,6 +50,15 @@ static func get_export_plugin_records() -> Array[Dictionary]:
 	]
 
 
+## 获取标准库工作区页面记录。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/editor
+## [br]
+## @return 工作区页面记录列表。
+## [br]
+## @schema return: Array of Dictionary dock page records.
 static func get_dock_records() -> Array[Dictionary]:
 	return [
 		{
@@ -67,6 +94,15 @@ static func get_dock_records() -> Array[Dictionary]:
 	]
 
 
+## 获取标准库脚本模板记录。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/editor
+## [br]
+## @return 脚本模板记录列表。
+## [br]
+## @schema return: Array of Dictionary script template records.
 static func get_template_records() -> Array[Dictionary]:
 	return [
 		{

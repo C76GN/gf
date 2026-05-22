@@ -1,6 +1,12 @@
 ## GFSettingDefinition: 单个运行时设置项的声明。
 ##
 ## 只描述稳定键、默认值、值类型和持久化策略，不绑定具体 UI 或业务含义。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFSettingDefinition
 extends Resource
 
@@ -8,6 +14,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 设置值类型，用于运行时输入钳制和持久化恢复。
+## [br]
+## @api public
 enum ValueType {
 	## 不做类型转换。
 	ANY,
@@ -37,24 +45,41 @@ enum ValueType {
 # --- 导出变量 ---
 
 ## 设置项稳定键。建议使用 `category/name` 形式。
+## [br]
+## @api public
 @export var key: StringName = &""
 
 ## 默认值。
+## [br]
+## @api public
+## [br]
+## @schema default_value: Variant setting value accepted by value_type.
 @export var default_value: Variant = null
 
 ## 值类型。
+## [br]
+## @api public
 @export var value_type: ValueType = ValueType.ANY
 
 ## 是否参与持久化保存。
+## [br]
+## @api public
 @export var persistent: bool = true
 
 ## 可选元数据，供设置界面分组、排序或展示使用。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary with optional UI grouping, ordering, label, and project-defined metadata.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取稳定设置键。
+## [br]
+## @api public
+## [br]
 ## @return 设置键；未显式设置时尝试使用资源路径。
 func get_setting_key() -> StringName:
 	if key != &"":
@@ -65,8 +90,16 @@ func get_setting_key() -> StringName:
 
 
 ## 将输入值转换为当前定义要求的类型。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
+## @schema value: Variant setting value accepted by value_type.
+## [br]
 ## @return 转换后的值。
+## [br]
+## @schema return: Variant coerced to the configured value_type when possible.
 func coerce_value(value: Variant) -> Variant:
 	match value_type:
 		ValueType.BOOL:
@@ -94,7 +127,13 @@ func coerce_value(value: Variant) -> Variant:
 
 
 ## 检查值是否符合声明类型。
+## [br]
+## @api public
+## [br]
 ## @param value: 待检查值。
+## [br]
+## @schema value: Variant setting value to validate against value_type.
+## [br]
 ## @return 符合时返回 true。
 func is_value_valid(value: Variant) -> bool:
 	match value_type:
@@ -125,6 +164,9 @@ func is_value_valid(value: Variant) -> bool:
 
 
 ## 创建同内容拷贝，避免运行时修改污染共享资源。
+## [br]
+## @api public
+## [br]
 ## @return 新定义。
 func duplicate_definition() -> GFSettingDefinition:
 	var definition := GFSettingDefinition.new()

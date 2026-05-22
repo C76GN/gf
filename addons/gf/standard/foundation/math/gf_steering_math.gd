@@ -2,59 +2,88 @@
 ##
 ## 提供 seek、flee、arrive、pursue、separation、cohesion、blend、priority 等
 ## 可组合计算，不负责把结果应用到具体 Node、物理体或业务状态。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSteeringMath
 extends RefCounted
 
 
 # --- 常量 ---
 
-const EPSILON: float = 0.00001
+const _EPSILON: float = 0.00001
 
 
 # --- 公共方法 ---
 
 ## 创建加速度结果。
+## [br]
+## @api public
+## [br]
 ## @param linear: 线性加速度。
+## [br]
 ## @param angular: 角加速度。
+## [br]
 ## @return 新加速度结果。
 static func acceleration(linear: Vector3 = Vector3.ZERO, angular: float = 0.0) -> GFSteeringAcceleration:
 	return GFSteeringAcceleration.new(linear, angular)
 
 
 ## 计算朝目标点加速的 seek 行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param target_position: 目标位置。
+## [br]
 ## @return steering 加速度。
 static func seek(agent: GFSteeringAgent, target_position: Vector3) -> GFSteeringAcceleration:
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
 	var direction := target_position - agent.position
-	if direction.length_squared() <= EPSILON:
+	if direction.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 	return GFSteeringAcceleration.new(direction.normalized() * agent.linear_acceleration_max)
 
 
 ## 计算远离目标点的 flee 行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param target_position: 目标位置。
+## [br]
 ## @return steering 加速度。
 static func flee(agent: GFSteeringAgent, target_position: Vector3) -> GFSteeringAcceleration:
 	if agent == null:
 		return GFSteeringAcceleration.new()
 
 	var direction := agent.position - target_position
-	if direction.length_squared() <= EPSILON:
+	if direction.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 	return GFSteeringAcceleration.new(direction.normalized() * agent.linear_acceleration_max)
 
 
 ## 计算抵达目标点并在近处减速的 arrive 行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param target_position: 目标位置。
+## [br]
 ## @param arrival_radius: 视为到达的半径。
+## [br]
 ## @param slow_radius: 开始减速的半径。
+## [br]
 ## @param time_to_target: 期望在多少秒内逼近目标速度。
+## [br]
 ## @return steering 加速度。
 static func arrive(
 	agent: GFSteeringAgent,
@@ -68,22 +97,28 @@ static func arrive(
 
 	var direction := target_position - agent.position
 	var distance := direction.length()
-	if distance <= maxf(arrival_radius, 0.0) or distance <= EPSILON:
+	if distance <= maxf(arrival_radius, 0.0) or distance <= _EPSILON:
 		return GFSteeringAcceleration.new(-agent.velocity).clamp_to(agent.linear_acceleration_max)
 
 	var target_speed := agent.linear_speed_max
 	if distance < maxf(slow_radius, arrival_radius):
-		target_speed *= distance / maxf(slow_radius, EPSILON)
+		target_speed *= distance / maxf(slow_radius, _EPSILON)
 
 	var desired_velocity := direction.normalized() * target_speed
-	var linear := (desired_velocity - agent.velocity) / maxf(time_to_target, EPSILON)
+	var linear := (desired_velocity - agent.velocity) / maxf(time_to_target, _EPSILON)
 	return GFSteeringAcceleration.new(linear).clamp_to(agent.linear_acceleration_max)
 
 
 ## 计算追逐移动目标的 pursue 行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param target_agent: 目标代理状态。
+## [br]
 ## @param max_prediction_seconds: 最大预测秒数。
+## [br]
 ## @return steering 加速度。
 static func pursue(
 	agent: GFSteeringAgent,
@@ -98,9 +133,15 @@ static func pursue(
 
 
 ## 计算逃离移动目标的 evade 行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param target_agent: 目标代理状态。
+## [br]
 ## @param max_prediction_seconds: 最大预测秒数。
+## [br]
 ## @return steering 加速度。
 static func evade(
 	agent: GFSteeringAgent,
@@ -115,12 +156,21 @@ static func evade(
 
 
 ## 计算面向目标点的角加速度。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param target_position: 目标位置。
+## [br]
 ## @param use_z_axis: 为 true 时使用 x/z 平面，否则使用 x/y 平面。
+## [br]
 ## @param align_tolerance: 视为对齐的角度阈值。
+## [br]
 ## @param slow_angle: 开始减速的角度。
+## [br]
 ## @param time_to_target: 期望在多少秒内逼近目标角速度。
+## [br]
 ## @return steering 加速度。
 static func face(
 	agent: GFSteeringAgent,
@@ -134,7 +184,7 @@ static func face(
 		return GFSteeringAcceleration.new()
 
 	var direction := target_position - agent.position
-	if direction.length_squared() <= EPSILON:
+	if direction.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 
 	return align(
@@ -147,11 +197,19 @@ static func face(
 
 
 ## 计算朝当前速度方向转向的角加速度。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param use_z_axis: 为 true 时使用 x/z 平面，否则使用 x/y 平面。
+## [br]
 ## @param align_tolerance: 视为对齐的角度阈值。
+## [br]
 ## @param slow_angle: 开始减速的角度。
+## [br]
 ## @param time_to_target: 期望在多少秒内逼近目标角速度。
+## [br]
 ## @return steering 加速度。
 static func look_where_you_go(
 	agent: GFSteeringAgent,
@@ -160,7 +218,7 @@ static func look_where_you_go(
 	slow_angle: float = 0.5,
 	time_to_target: float = 0.1
 ) -> GFSteeringAcceleration:
-	if agent == null or agent.velocity.length_squared() <= EPSILON:
+	if agent == null or agent.velocity.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 	return align(
 		agent,
@@ -172,11 +230,19 @@ static func look_where_you_go(
 
 
 ## 计算对齐指定朝向的角加速度。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param target_orientation: 目标朝向弧度。
+## [br]
 ## @param align_tolerance: 视为对齐的角度阈值。
+## [br]
 ## @param slow_angle: 开始减速的角度。
+## [br]
 ## @param time_to_target: 期望在多少秒内逼近目标角速度。
+## [br]
 ## @return steering 加速度。
 static func align(
 	agent: GFSteeringAgent,
@@ -198,18 +264,25 @@ static func align(
 
 	var target_rotation_speed := agent.angular_speed_max
 	if rotation_size < maxf(slow_angle, align_tolerance):
-		target_rotation_speed *= rotation_size / maxf(slow_angle, EPSILON)
+		target_rotation_speed *= rotation_size / maxf(slow_angle, _EPSILON)
 	target_rotation_speed *= signf(rotation)
 
-	var angular := (target_rotation_speed - agent.angular_velocity) / maxf(time_to_target, EPSILON)
+	var angular := (target_rotation_speed - agent.angular_velocity) / maxf(time_to_target, _EPSILON)
 	return GFSteeringAcceleration.new(Vector3.ZERO, angular).clamp_to(-1.0, agent.angular_acceleration_max)
 
 
 ## 计算邻居分离行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param neighbors: 邻居代理列表。
+## [br]
 ## @param decay_coefficient: 距离衰减系数。
+## [br]
 ## @param max_distance: 最大影响距离；小于等于 0 时使用双方半径之和。
+## [br]
 ## @return steering 加速度。
 static func separation(
 	agent: GFSteeringAgent,
@@ -230,7 +303,7 @@ static func separation(
 		var effective_distance := max_distance
 		if effective_distance <= 0.0:
 			effective_distance = agent.radius + neighbor.radius
-		if distance <= EPSILON or distance > effective_distance:
+		if distance <= _EPSILON or distance > effective_distance:
 			continue
 
 		var strength := minf(decay_coefficient / (distance * distance), agent.linear_acceleration_max)
@@ -240,8 +313,13 @@ static func separation(
 
 
 ## 计算朝邻居中心靠拢的 cohesion 行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param neighbors: 邻居代理列表。
+## [br]
 ## @return steering 加速度。
 static func cohesion(agent: GFSteeringAgent, neighbors: Array[GFSteeringAgent]) -> GFSteeringAcceleration:
 	if agent == null:
@@ -261,10 +339,17 @@ static func cohesion(agent: GFSteeringAgent, neighbors: Array[GFSteeringAgent]) 
 
 
 ## 混合多个 steering 加速度。
+## [br]
+## @api public
+## [br]
 ## @param accelerations: 加速度列表。
+## [br]
 ## @param weights: 对应权重；缺失时使用 1。
+## [br]
 ## @param max_linear: 最大线性加速度；小于 0 时不限制。
+## [br]
 ## @param max_angular: 最大角加速度；小于 0 时不限制。
+## [br]
 ## @return 混合后的加速度。
 static func blend(
 	accelerations: Array[GFSteeringAcceleration],
@@ -281,8 +366,13 @@ static func blend(
 
 
 ## 从多个 steering 加速度中选择第一个超过阈值的结果。
+## [br]
+## @api public
+## [br]
 ## @param accelerations: 加速度列表。
+## [br]
 ## @param threshold: 非零阈值。
+## [br]
 ## @return 第一个有效加速度；没有时返回零加速度。
 static func priority(
 	accelerations: Array[GFSteeringAcceleration],
@@ -295,9 +385,15 @@ static func priority(
 
 
 ## 获取半径内的邻居代理。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param candidates: 候选代理列表。
+## [br]
 ## @param radius: 查询半径；小于 0 时使用 agent.radius。
+## [br]
 ## @return 半径内邻居列表。
 static func radius_neighbors(
 	agent: GFSteeringAgent,
@@ -319,11 +415,19 @@ static func radius_neighbors(
 
 
 ## 计算基于未来最近距离的动态碰撞避让行为。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param targets: 需要避让的目标代理列表。
+## [br]
 ## @param max_prediction_seconds: 最大预测秒数；小于等于 0 时只处理当前重叠。
+## [br]
 ## @param collision_radius: 碰撞半径；小于 0 时使用双方半径之和。
+## [br]
 ## @param minimum_separation: 预测最近距离阈值；小于 0 时使用碰撞半径。
+## [br]
 ## @return steering 加速度。
 static func avoid_collisions(
 	agent: GFSteeringAgent,
@@ -362,7 +466,7 @@ static func avoid_collisions(
 
 		var relative_velocity := target.velocity - agent.velocity
 		var relative_speed_squared := relative_velocity.length_squared()
-		if relative_speed_squared <= EPSILON:
+		if relative_speed_squared <= _EPSILON:
 			continue
 
 		var time_to_closest := -relative_position.dot(relative_velocity) / relative_speed_squared
@@ -396,15 +500,21 @@ static func avoid_collisions(
 		collision_radius,
 		best_relative_velocity
 	)
-	if direction.length_squared() <= EPSILON:
+	if direction.length_squared() <= _EPSILON:
 		return GFSteeringAcceleration.new()
 	return GFSteeringAcceleration.new(direction.normalized() * agent.linear_acceleration_max)
 
 
 ## 计算路径跟随的下一个目标点。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param path: 路径点列表。
+## [br]
 ## @param path_offset: 沿路径前进的距离。
+## [br]
 ## @return 路径上的目标点；路径为空时返回代理当前位置。
 static func path_follow_target(
 	agent: GFSteeringAgent,
@@ -430,7 +540,7 @@ static func _predict_seconds(
 	var direction := target_agent.position - agent.position
 	var distance := direction.length()
 	var speed := agent.velocity.length()
-	if speed <= EPSILON:
+	if speed <= _EPSILON:
 		return maxf(max_prediction_seconds, 0.0)
 	return minf(distance / speed, maxf(max_prediction_seconds, 0.0))
 
@@ -459,7 +569,7 @@ static func _find_closest_path_projection(position: Vector3, path: Array[Vector3
 		var segment := end - start
 		var length_squared := segment.length_squared()
 		var t := 0.0
-		if length_squared > EPSILON:
+		if length_squared > _EPSILON:
 			t = clampf((position - start).dot(segment) / length_squared, 0.0, 1.0)
 		var projection := start + segment * t
 		var distance_squared := position.distance_squared_to(projection)
@@ -484,7 +594,7 @@ static func _advance_along_path(
 	var current := path[index].lerp(path[index + 1], clampf(segment_t, 0.0, 1.0))
 	var remaining := maxf(distance, 0.0)
 
-	while remaining > EPSILON and index < path.size() - 1:
+	while remaining > _EPSILON and index < path.size() - 1:
 		var end := path[index + 1]
 		var segment_remaining := current.distance_to(end)
 		if remaining <= segment_remaining:
@@ -524,28 +634,28 @@ static func _get_avoidance_direction(
 	relative_velocity: Vector3
 ) -> Vector3:
 	var effective_collision_radius := _resolve_collision_radius(agent, target, collision_radius)
-	if time_to_collision <= EPSILON or current_distance <= effective_collision_radius:
+	if time_to_collision <= _EPSILON or current_distance <= effective_collision_radius:
 		var immediate_direction := agent.position - target.position
-		if immediate_direction.length_squared() > EPSILON:
+		if immediate_direction.length_squared() > _EPSILON:
 			return immediate_direction
 
 	var future_agent_position := agent.position + agent.velocity * time_to_collision
 	var future_target_position := target.position + target.velocity * time_to_collision
 	var future_direction := future_agent_position - future_target_position
-	if future_direction.length_squared() > EPSILON:
+	if future_direction.length_squared() > _EPSILON:
 		return future_direction
-	if relative_velocity.length_squared() > EPSILON:
+	if relative_velocity.length_squared() > _EPSILON:
 		return _get_perpendicular_direction(relative_velocity)
-	if agent.velocity.length_squared() > EPSILON:
+	if agent.velocity.length_squared() > _EPSILON:
 		return _get_perpendicular_direction(agent.velocity)
 	return Vector3.ZERO
 
 
 static func _get_perpendicular_direction(direction: Vector3) -> Vector3:
 	var perpendicular := direction.cross(Vector3.FORWARD)
-	if perpendicular.length_squared() > EPSILON:
+	if perpendicular.length_squared() > _EPSILON:
 		return perpendicular
 	perpendicular = direction.cross(Vector3.UP)
-	if perpendicular.length_squared() > EPSILON:
+	if perpendicular.length_squared() > _EPSILON:
 		return perpendicular
 	return direction.cross(Vector3.RIGHT)

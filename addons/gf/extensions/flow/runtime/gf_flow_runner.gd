@@ -1,6 +1,12 @@
 ## GFFlowRunner: 通用流程图执行器。
 ##
 ## 按节点后继关系执行 GFFlowGraph，支持 Signal 等待、取消和简单循环保护。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFFlowRunner
 extends RefCounted
 
@@ -8,18 +14,38 @@ extends RefCounted
 # --- 信号 ---
 
 ## 流程开始时发出。
+## [br]
+## @api public
+## [br]
+## @param graph: 流程图资源。
 signal flow_started(graph: GFFlowGraph)
 
 ## 节点开始执行时发出。
+## [br]
+## @api public
+## [br]
+## @param node_id: 节点 ID。
+## [br]
+## @param node: 节点资源。
 signal node_started(node_id: StringName, node: GFFlowNode)
 
 ## 节点完成执行时发出。
+## [br]
+## @api public
+## [br]
+## @param node_id: 节点 ID。
+## [br]
+## @param node: 节点资源。
 signal node_completed(node_id: StringName, node: GFFlowNode)
 
 ## 流程完成时发出。
+## [br]
+## @api public
 signal flow_completed
 
 ## 流程取消时发出。
+## [br]
+## @api public
 signal flow_cancelled
 
 
@@ -31,18 +57,28 @@ const _GF_ASYNC_WAIT_SUPPORT: Script = preload("res://addons/gf/standard/common/
 # --- 公共变量 ---
 
 ## 当前是否正在执行。
+## [br]
+## @api public
 var is_running: bool = false
 
 ## 最多执行节点数量，避免循环图无限运行。小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_executed_nodes: int = 1024
 
 ## Signal 等待超时时间。小于等于 0 表示不启用超时。
+## [br]
+## @api public
 var signal_timeout_seconds: float = 30.0
 
 ## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
+## [br]
+## @api public
 var signal_timeout_respects_time_scale: bool = true
 
 ## 运行时是否把节点 runtime_state 隔离到 GFFlowContext，避免污染共享图资源。
+## [br]
+## @api public
 var isolate_graph_runtime_state: bool = true
 
 
@@ -55,13 +91,20 @@ var _architecture_ref: WeakRef = null
 # --- 公共方法 ---
 
 ## 注入架构。通常由 GFArchitecture 创建或注册时自动调用。
+## [br]
+## @api framework_internal
+## [br]
 ## @param architecture: 架构实例。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
 
 
 ## 运行流程图。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param context: 可选上下文。
 func run(graph: GFFlowGraph, context: GFFlowContext = null) -> void:
 	if graph == null:
@@ -95,14 +138,21 @@ func run(graph: GFFlowGraph, context: GFFlowContext = null) -> void:
 
 
 ## 请求取消流程。
+## [br]
+## @api public
 func cancel() -> void:
 	_cancel_requested = true
 
 
 ## 设置 Signal 等待超时时间。
+## [br]
+## @api public
+## [br]
 ## @param seconds: 秒数；小于等于 0 时表示不启用超时。
+## [br]
 ## @param respect_time_scale: 是否跟随 GFTimeUtility 的暂停与 time_scale。
-## @return 当前执行器。
+## [br]
+## @return: 当前执行器。
 func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFFlowRunner:
 	signal_timeout_seconds = maxf(seconds, 0.0)
 	signal_timeout_respects_time_scale = respect_time_scale

@@ -1,7 +1,7 @@
-## GFInstanceGuard: 内部实例生命周期守卫工具。
-##
-## 用于从 Variant、WeakRef 或 instance_id 中安全解析仍有效的 Object / Node / Control。
-## 该脚本不声明 class_name，作为 kernel 内部基础 helper 由上层模块按需 preload。
+# GFInstanceGuard: 内部实例生命周期守卫工具。
+#
+# 用于从 Variant、WeakRef 或 instance_id 中安全解析仍有效的 Object / Node / Control。
+# 该脚本不声明 class_name，作为 kernel 内部基础 helper 由上层模块按需 preload。
 extends RefCounted
 
 

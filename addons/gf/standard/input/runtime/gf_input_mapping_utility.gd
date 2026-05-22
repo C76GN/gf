@@ -2,6 +2,12 @@
 ##
 ## 负责把 Godot InputEvent 转换为项目定义的抽象动作状态，并支持上下文优先级、
 ## 运行时重绑定、动作值查询和一次性触发消费。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFInputMappingUtility
 extends GFUtility
 
@@ -9,47 +15,114 @@ extends GFUtility
 # --- 信号 ---
 
 ## 启用上下文变化后发出。
-signal contexts_changed(contexts: Array)
+## [br]
+## @api public
+## [br]
+## @param contexts: 当前启用上下文，已按运行时处理顺序排序。
+## [br]
+## @schema contexts: Array[GFInputContext]，按有效优先级和激活时间戳排序。
+signal contexts_changed(contexts: Array[GFInputContext])
 
 ## 有效映射变化后发出。
+## [br]
+## @api public
 signal mappings_changed
 
 ## 动作值变化时发出。
+## [br]
+## @api public
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 新动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal action_value_changed(action_id: StringName, value: Variant)
 
 ## 动作从非活跃变为活跃时发出。
+## [br]
+## @api public
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 激活时的动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal action_started(action_id: StringName, value: Variant)
 
 ## 动作活跃且收到匹配输入事件时发出。
+## [br]
+## @api public
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 当前动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal action_triggered(action_id: StringName, value: Variant)
 
 ## 动作从活跃变为非活跃时发出。
+## [br]
+## @api public
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 完成时的动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal action_completed(action_id: StringName, value: Variant)
 
 ## 玩家动作值变化时发出。
+## [br]
+## @api public
+## [br]
+## @param player_index: 玩家索引。
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 新动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal player_action_value_changed(player_index: int, action_id: StringName, value: Variant)
 
 ## 玩家动作从非活跃变为活跃时发出。
+## [br]
+## @api public
+## [br]
+## @param player_index: 玩家索引。
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 激活时的动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal player_action_started(player_index: int, action_id: StringName, value: Variant)
 
 ## 玩家动作活跃且收到匹配输入事件时发出。
+## [br]
+## @api public
+## [br]
+## @param player_index: 玩家索引。
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 当前动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal player_action_triggered(player_index: int, action_id: StringName, value: Variant)
 
 ## 玩家动作从活跃变为非活跃时发出。
+## [br]
+## @api public
+## [br]
+## @param player_index: 玩家索引。
+## [br]
+## @param action_id: 动作标识。
+## [br]
+## @param value: 完成时的动作值。
+## [br]
+## @schema value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。
 signal player_action_completed(player_index: int, action_id: StringName, value: Variant)
-
-
-# --- 常量 ---
-
-const GFInputActionBase = preload("res://addons/gf/standard/input/mapping/gf_input_action.gd")
-const GFInputBindingBase = preload("res://addons/gf/standard/input/mapping/gf_input_binding.gd")
-const GFInputContextBase = preload("res://addons/gf/standard/input/mapping/gf_input_context.gd")
-const GFInputMappingBase = preload("res://addons/gf/standard/input/mapping/gf_input_mapping.gd")
-const GFInputModifierBase = preload("res://addons/gf/standard/input/modifiers/gf_input_modifier.gd")
-const GFInputRemapConfigBase = preload("res://addons/gf/standard/input/rebinding/gf_input_remap_config.gd")
-const GFInputTriggerBase = preload("res://addons/gf/standard/input/triggers/gf_input_trigger.gd")
-const GFVirtualInputSourceBase = preload("res://addons/gf/standard/input/sources/gf_virtual_input_source.gd")
-
 
 # --- 私有变量 ---
 
@@ -79,7 +152,7 @@ var _player_just_started: Dictionary = {}
 var _player_just_completed: Dictionary = {}
 var _player_action_active_elapsed: Dictionary = {}
 var _player_last_completed_duration: Dictionary = {}
-var _remap_config: GFInputRemapConfigBase
+var _remap_config: GFInputRemapConfig
 var _timestamp: int = 0
 var _router: _GFInputRouter
 var _router_attach_serial: int = 0
@@ -87,8 +160,11 @@ var _clear_transient_input_state_queued: bool = false
 var _transient_input_state_mark_frame: int = -1
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化输入映射运行时状态并挂载输入路由节点。
+## [br]
+## @api public
 func init() -> void:
 	ignore_pause = true
 	ignore_time_scale = true
@@ -96,6 +172,9 @@ func init() -> void:
 	_ensure_router()
 
 
+## 释放输入路由节点并清理全部运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	_router_attach_serial += 1
 	_active_contexts.clear()
@@ -107,6 +186,9 @@ func dispose() -> void:
 
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	_clear_transient_input_state_if_queued()
@@ -117,25 +199,36 @@ func tick(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 设置重映射配置。
+## [br]
+## @api public
+## [br]
 ## @param config: 输入重映射配置；传 null 表示使用默认绑定。
-func set_remap_config(config: GFInputRemapConfigBase) -> void:
+func set_remap_config(config: GFInputRemapConfig) -> void:
 	_remap_config = config
 	_rebuild_effective_entries()
 
 
 ## 获取当前重映射配置。若不存在且 create_if_missing 为 true，会自动创建。
+## [br]
+## @api public
+## [br]
 ## @param create_if_missing: 是否在缺失时创建。
+## [br]
 ## @return 重映射配置。
-func get_remap_config(create_if_missing: bool = false) -> GFInputRemapConfigBase:
+func get_remap_config(create_if_missing: bool = false) -> GFInputRemapConfig:
 	if _remap_config == null and create_if_missing:
-		_remap_config = GFInputRemapConfigBase.new()
+		_remap_config = GFInputRemapConfig.new()
 	return _remap_config
 
 
 ## 启用输入上下文。
+## [br]
+## @api public
+## [br]
 ## @param context: 输入上下文资源。
+## [br]
 ## @param priority: 优先级，数值越大越先处理。
-func enable_context(context: GFInputContextBase, priority: int = 0) -> void:
+func enable_context(context: GFInputContext, priority: int = 0) -> void:
 	if context == null:
 		push_error("[GFInputMappingUtility] enable_context 失败：context 为空。")
 		return
@@ -149,8 +242,11 @@ func enable_context(context: GFInputContextBase, priority: int = 0) -> void:
 
 
 ## 禁用输入上下文。
+## [br]
+## @api public
+## [br]
 ## @param context: 输入上下文资源。
-func disable_context(context: GFInputContextBase) -> void:
+func disable_context(context: GFInputContext) -> void:
 	if context == null:
 		return
 	_active_contexts.erase(context)
@@ -158,11 +254,17 @@ func disable_context(context: GFInputContextBase) -> void:
 
 
 ## 批量替换当前启用的上下文。
+## [br]
+## @api public
+## [br]
 ## @param contexts: 输入上下文数组。
+## [br]
 ## @param priority: 批量上下文默认优先级；数组越靠后，同优先级下越先处理。
-func set_enabled_contexts(contexts: Array[GFInputContextBase], priority: int = 0) -> void:
+## [br]
+## @schema contexts: Array[GFInputContext]，作为新的活跃 context 集启用。
+func set_enabled_contexts(contexts: Array[GFInputContext], priority: int = 0) -> void:
 	_active_contexts.clear()
-	for context: GFInputContextBase in contexts:
+	for context: GFInputContext in contexts:
 		if context == null:
 			continue
 		_timestamp += 1
@@ -174,25 +276,39 @@ func set_enabled_contexts(contexts: Array[GFInputContextBase], priority: int = 0
 
 
 ## 清空所有启用上下文。
+## [br]
+## @api public
 func clear_contexts() -> void:
 	_active_contexts.clear()
 	_rebuild_effective_entries()
 
 
 ## 检查上下文是否启用。
+## [br]
+## @api public
+## [br]
 ## @param context: 输入上下文资源。
+## [br]
 ## @return 是否启用。
-func is_context_enabled(context: GFInputContextBase) -> bool:
+func is_context_enabled(context: GFInputContext) -> bool:
 	return _active_contexts.has(context)
 
 
 ## 获取已启用上下文，按实际处理顺序返回。
+## [br]
+## @api public
+## [br]
 ## @return 上下文数组。
-func get_enabled_contexts() -> Array[GFInputContextBase]:
+## [br]
+## @schema return: Array[GFInputContext]，按有效优先级和激活时间戳排序。
+func get_enabled_contexts() -> Array[GFInputContext]:
 	return _get_sorted_contexts()
 
 
 ## 手动处理输入事件。通常由内部路由节点自动调用，也可用于测试或自定义输入桥接。
+## [br]
+## @api public
+## [br]
 ## @param event: Godot 输入事件。
 func handle_input_event(event: InputEvent) -> void:
 	if event == null or _should_ignore_event(event):
@@ -208,7 +324,7 @@ func handle_input_event(event: InputEvent) -> void:
 		if not matched:
 			continue
 
-		var action := entry["action"] as GFInputActionBase
+		var action := entry["action"] as GFInputAction
 		var action_id := action.get_action_id()
 		var value: Variant = get_action_value(action_id)
 		if action.block_lower_priority_actions and is_action_active(action_id):
@@ -221,29 +337,43 @@ func handle_input_event(event: InputEvent) -> void:
 
 
 ## 创建可编程虚拟输入源。
+## [br]
 ## @param source_id: 虚拟输入源标识。
+## [br]
 ## @param player_index: 玩家索引；小于 0 时只写入全局动作状态。
+## [br]
 ## @return 虚拟输入源。
+## [br]
+## @api public
 func create_virtual_source(
 	source_id: StringName = &"virtual",
 	player_index: int = -1
-) -> GFVirtualInputSourceBase:
-	return GFVirtualInputSourceBase.new(self, source_id, player_index)
+) -> GFVirtualInputSource:
+	return GFVirtualInputSource.new(self, source_id, player_index)
 
 
 ## 写入虚拟动作值。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param value: 动作值。
+## [br]
 ## @param source_id: 虚拟输入源标识。
+## [br]
 ## @param player_index: 玩家索引；小于 0 时只写入全局动作状态。
+## [br]
 ## @return 写入成功返回 true。
+## [br]
+## @api public
+## [br]
+## @schema value: Variant，要转换为动作运行时向量贡献的 bool、float、Vector2 或 Vector3 值。
 func set_virtual_action_value(
 	action_id: StringName,
 	value: Variant,
 	source_id: StringName = &"virtual",
 	player_index: int = -1
 ) -> bool:
-	var action := _actions.get(action_id) as GFInputActionBase
+	var action := _actions.get(action_id) as GFInputAction
 	if action == null:
 		return false
 
@@ -268,16 +398,22 @@ func set_virtual_action_value(
 
 
 ## 清除虚拟动作值。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param source_id: 虚拟输入源标识。
+## [br]
 ## @param player_index: 玩家索引；小于 0 时只清除全局动作状态。
+## [br]
 ## @return 清除成功返回 true。
+## [br]
+## @api public
 func clear_virtual_action(
 	action_id: StringName,
 	source_id: StringName = &"virtual",
 	player_index: int = -1
 ) -> bool:
-	var action := _actions.get(action_id) as GFInputActionBase
+	var action := _actions.get(action_id) as GFInputAction
 	if action == null:
 		return false
 
@@ -300,6 +436,9 @@ func clear_virtual_action(
 
 
 ## 清除指定虚拟输入源的所有动作贡献。
+## [br]
+## @api public
+## [br]
 ## @param source_id: 虚拟输入源标识。
 func clear_virtual_source(source_id: StringName = &"virtual") -> void:
 	var source_key := source_id if source_id != &"" else &"virtual"
@@ -330,20 +469,26 @@ func clear_virtual_source(source_id: StringName = &"virtual") -> void:
 		_player_binding_to_action.erase(key)
 
 	for action_id: StringName in affected_actions.keys():
-		var action := _actions.get(action_id) as GFInputActionBase
+		var action := _actions.get(action_id) as GFInputAction
 		if action != null:
 			_refresh_action_state(action_id, action)
 
 	for entry: Dictionary in affected_player_actions.values():
 		var action_id := entry["action_id"] as StringName
-		var action := _actions.get(action_id) as GFInputActionBase
+		var action := _actions.get(action_id) as GFInputAction
 		if action != null:
 			_refresh_player_action_state(int(entry["player_index"]), action_id, action)
 
 
 ## 获取虚拟输入源状态快照。
+## [br]
+## @api public
+## [br]
 ## @param source_id: 虚拟输入源标识。
+## [br]
 ## @return 快照字典。
+## [br]
+## @schema return: Dictionary，包含 source_id 和 actions: Array[Dictionary]，action 条目包含 action_id 与 value。
 func get_virtual_source_snapshot(source_id: StringName = &"virtual") -> Dictionary:
 	var source_key := source_id if source_id != &"" else &"virtual"
 	var prefix := _make_virtual_source_prefix(source_key)
@@ -362,20 +507,30 @@ func get_virtual_source_snapshot(source_id: StringName = &"virtual") -> Dictiona
 
 
 ## 获取动作当前值。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return bool、float、Vector2 或 Vector3，取决于动作值类型。
+## [br]
+## @schema return: Variant，根据动作值类型返回 bool、float、Vector2、Vector3 或 null。
 func get_action_value(action_id: StringName) -> Variant:
 	if _action_values.has(action_id):
 		return _action_values[action_id]
 
-	var action := _actions.get(action_id) as GFInputActionBase
+	var action := _actions.get(action_id) as GFInputAction
 	if action == null:
 		return null
 	return _default_value_for_type(action.value_type)
 
 
 ## 获取动作当前二维向量值。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 二维向量值；三维轴会返回 x/y 分量。
 func get_action_vector(action_id: StringName) -> Vector2:
 	var vector := _calculate_action_vector3(action_id)
@@ -383,42 +538,66 @@ func get_action_vector(action_id: StringName) -> Vector2:
 
 
 ## 获取动作当前三维向量值。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 三维向量值；非三维动作的 z 分量为 0。
 func get_action_vector3(action_id: StringName) -> Vector3:
 	return _calculate_action_vector3(action_id)
 
 
 ## 检查动作是否活跃。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 是否活跃。
 func is_action_active(action_id: StringName) -> bool:
 	return bool(_action_active.get(action_id, false))
 
 
 ## 检查动作是否在当前帧刚刚开始。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 是否刚开始。
 func was_action_just_started(action_id: StringName) -> bool:
 	return bool(_just_started.get(action_id, false))
 
 
 ## 检查动作是否在当前帧刚刚结束。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 是否刚结束。
 func was_action_just_completed(action_id: StringName) -> bool:
 	return bool(_just_completed.get(action_id, false))
 
 
 ## 获取动作最近一次结束前的持续活跃时间。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 持续秒数。
 func get_last_completed_duration(action_id: StringName) -> float:
 	return float(_last_completed_duration.get(action_id, 0.0))
 
 
 ## 消费一次刚开始的动作。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 成功消费返回 true。
 func consume_action(action_id: StringName) -> bool:
 	if not was_action_just_started(action_id):
@@ -428,23 +607,35 @@ func consume_action(action_id: StringName) -> bool:
 
 
 ## 获取指定玩家动作当前值。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return bool、float、Vector2 或 Vector3，取决于动作值类型。
+## [br]
+## @schema return: Variant，根据动作值类型返回 bool、float、Vector2、Vector3 或 null。
 func get_action_value_for_player(player_index: int, action_id: StringName) -> Variant:
 	var key := _make_player_action_key(player_index, action_id)
 	if _player_action_values.has(key):
 		return _player_action_values[key]
 
-	var action := _actions.get(action_id) as GFInputActionBase
+	var action := _actions.get(action_id) as GFInputAction
 	if action == null:
 		return null
 	return _default_value_for_type(action.value_type)
 
 
 ## 获取指定玩家动作当前二维向量值。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 二维向量值；三维轴会返回 x/y 分量。
 func get_action_vector_for_player(player_index: int, action_id: StringName) -> Vector2:
 	var vector := _calculate_player_action_vector3(player_index, action_id)
@@ -452,48 +643,78 @@ func get_action_vector_for_player(player_index: int, action_id: StringName) -> V
 
 
 ## 获取指定玩家动作当前三维向量值。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 三维向量值；非三维动作的 z 分量为 0。
 func get_action_vector3_for_player(player_index: int, action_id: StringName) -> Vector3:
 	return _calculate_player_action_vector3(player_index, action_id)
 
 
 ## 检查指定玩家动作是否活跃。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 是否活跃。
 func is_action_active_for_player(player_index: int, action_id: StringName) -> bool:
 	return bool(_player_action_active.get(_make_player_action_key(player_index, action_id), false))
 
 
 ## 检查指定玩家动作是否在当前帧刚刚开始。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 是否刚开始。
 func was_action_just_started_for_player(player_index: int, action_id: StringName) -> bool:
 	return bool(_player_just_started.get(_make_player_action_key(player_index, action_id), false))
 
 
 ## 检查指定玩家动作是否在当前帧刚刚结束。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 是否刚结束。
 func was_action_just_completed_for_player(player_index: int, action_id: StringName) -> bool:
 	return bool(_player_just_completed.get(_make_player_action_key(player_index, action_id), false))
 
 
 ## 获取指定玩家动作最近一次结束前的持续活跃时间。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 持续秒数。
 func get_last_completed_duration_for_player(player_index: int, action_id: StringName) -> float:
 	return float(_player_last_completed_duration.get(_make_player_action_key(player_index, action_id), 0.0))
 
 
 ## 消费指定玩家的一次刚开始动作。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @return 成功消费返回 true。
 func consume_action_for_player(player_index: int, action_id: StringName) -> bool:
 	var key := _make_player_action_key(player_index, action_id)
@@ -504,9 +725,15 @@ func consume_action_for_player(player_index: int, action_id: StringName) -> bool
 
 
 ## 设置某个绑定的运行时覆盖。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
+## [br]
 ## @param input_event: 新输入事件。
 func set_binding_override(
 	context_id: StringName,
@@ -519,8 +746,13 @@ func set_binding_override(
 
 
 ## 显式解绑某个绑定。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
 func unbind(context_id: StringName, action_id: StringName, binding_index: int) -> void:
 	get_remap_config(true).unbind(context_id, action_id, binding_index)
@@ -528,8 +760,13 @@ func unbind(context_id: StringName, action_id: StringName, binding_index: int) -
 
 
 ## 清除某个绑定覆盖。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
 func clear_binding_override(context_id: StringName, action_id: StringName, binding_index: int) -> void:
 	if _remap_config != null:
@@ -538,20 +775,27 @@ func clear_binding_override(context_id: StringName, action_id: StringName, bindi
 
 
 ## 获取可重绑条目。
+## [br]
+## @api public
+## [br]
 ## @param context_filter: 可选上下文过滤。
+## [br]
 ## @param display_category_filter: 可选显示分类过滤。
+## [br]
 ## @return 条目字典数组。
+## [br]
+## @schema return: Array[Dictionary]，包含 context、context_id、mapping、action、action_id、binding、binding_index、display_name、display_category 和 event 字段。
 func get_remappable_items(
 	context_filter: StringName = &"",
 	display_category_filter: String = ""
 ) -> Array[Dictionary]:
 	var items: Array[Dictionary] = []
-	for context: GFInputContextBase in _get_sorted_contexts():
+	for context: GFInputContext in _get_sorted_contexts():
 		var context_id := context.get_context_id()
 		if context_filter != &"" and context_id != context_filter:
 			continue
 
-		for mapping: GFInputMappingBase in context.mappings:
+		for mapping: GFInputMapping in context.mappings:
 			if mapping == null or mapping.action == null or not mapping.action.remappable:
 				continue
 			if not display_category_filter.is_empty() and mapping.get_display_category() != display_category_filter:
@@ -577,11 +821,16 @@ func get_remappable_items(
 
 
 ## 清空所有动作运行时状态。
+## [br]
+## @api public
 func clear_input_state() -> void:
 	_clear_runtime_state(true)
 
 
 ## 清空指定玩家动作运行时状态。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
 func clear_player_input_state(player_index: int) -> void:
 	_clear_player_runtime_state(player_index, true)
@@ -599,8 +848,8 @@ func _ensure_router() -> void:
 
 	_router = _GFInputRouter.new()
 	_router.name = "GFInputMappingRouter"
-	_router.input_callback = Callable(self, "handle_input_event")
-	_router.focus_lost_callback = Callable(self, "clear_input_state")
+	_router._input_callback = Callable(self, "handle_input_event")
+	_router._focus_lost_callback = Callable(self, "clear_input_state")
 	_router_attach_serial += 1
 	call_deferred("_attach_router_to_root", _router, _router_attach_serial)
 
@@ -637,12 +886,12 @@ func _rebuild_effective_entries() -> void:
 	_action_modifiers.clear()
 	_action_triggers.clear()
 
-	for context: GFInputContextBase in _get_sorted_contexts():
+	for context: GFInputContext in _get_sorted_contexts():
 		var context_id := context.get_context_id()
 		if context_id == &"":
 			continue
 
-		for mapping: GFInputMappingBase in context.mappings:
+		for mapping: GFInputMapping in context.mappings:
 			if mapping == null or mapping.action == null:
 				continue
 
@@ -656,7 +905,7 @@ func _rebuild_effective_entries() -> void:
 				if base_binding == null:
 					continue
 
-				var binding := base_binding.duplicate_binding() as GFInputBindingBase
+				var binding := base_binding.duplicate_binding() as GFInputBinding
 				if binding == null:
 					continue
 				if _remap_config != null and _remap_config.has_binding(context_id, action_id, index):
@@ -686,14 +935,14 @@ func _rebuild_effective_entries() -> void:
 	mappings_changed.emit()
 
 
-func _get_sorted_contexts() -> Array[GFInputContextBase]:
-	var contexts: Array[GFInputContextBase] = []
+func _get_sorted_contexts() -> Array[GFInputContext]:
+	var contexts: Array[GFInputContext] = []
 	for context_variant: Variant in _active_contexts.keys():
-		var context := context_variant as GFInputContextBase
+		var context := context_variant as GFInputContext
 		if context != null:
 			contexts.append(context)
 
-	contexts.sort_custom(func(left: GFInputContextBase, right: GFInputContextBase) -> bool:
+	contexts.sort_custom(func(left: GFInputContext, right: GFInputContext) -> bool:
 		var left_meta := _active_contexts[left] as Dictionary
 		var right_meta := _active_contexts[right] as Dictionary
 		var left_priority := int(left_meta.get("priority", 0))
@@ -707,10 +956,10 @@ func _get_sorted_contexts() -> Array[GFInputContextBase]:
 
 func _apply_entry_event(entry: Dictionary, event: InputEvent, player_index: int) -> bool:
 	var matched := false
-	var action := entry["action"] as GFInputActionBase
+	var action := entry["action"] as GFInputAction
 	var action_id := entry["action_id"] as StringName
 	for binding_info: Dictionary in entry["bindings"]:
-		var binding := binding_info["binding"] as GFInputBindingBase
+		var binding := binding_info["binding"] as GFInputBinding
 		if binding == null or not binding.matches_event(event):
 			continue
 
@@ -736,7 +985,7 @@ func _apply_entry_event(entry: Dictionary, event: InputEvent, player_index: int)
 	return matched
 
 
-func _refresh_action_state(action_id: StringName, action: GFInputActionBase) -> void:
+func _refresh_action_state(action_id: StringName, action: GFInputAction) -> void:
 	var previous_value: Variant = _action_values.get(action_id, _default_value_for_type(action.value_type))
 	var previous_active := bool(_action_active.get(action_id, false))
 	var next_value: Variant = _calculate_action_value(action_id, action.value_type)
@@ -784,7 +1033,7 @@ func _calculate_player_action_vector3(player_index: int, action_id: StringName) 
 	return _apply_mapping_modifiers(action_id, total)
 
 
-func _calculate_action_value(action_id: StringName, value_type: GFInputActionBase.ValueType) -> Variant:
+func _calculate_action_value(action_id: StringName, value_type: GFInputAction.ValueType) -> Variant:
 	var vector := _calculate_action_vector3(action_id)
 	return _calculate_value_from_vector(vector, value_type)
 
@@ -792,49 +1041,49 @@ func _calculate_action_value(action_id: StringName, value_type: GFInputActionBas
 func _calculate_player_action_value(
 	player_index: int,
 	action_id: StringName,
-	value_type: GFInputActionBase.ValueType
+	value_type: GFInputAction.ValueType
 ) -> Variant:
 	var vector := _calculate_player_action_vector3(player_index, action_id)
 	return _calculate_value_from_vector(vector, value_type)
 
 
-func _calculate_value_from_vector(vector: Vector3, value_type: GFInputActionBase.ValueType) -> Variant:
+func _calculate_value_from_vector(vector: Vector3, value_type: GFInputAction.ValueType) -> Variant:
 	match value_type:
-		GFInputActionBase.ValueType.BOOL:
+		GFInputAction.ValueType.BOOL:
 			return vector.length() > 0.0
-		GFInputActionBase.ValueType.AXIS_1D:
+		GFInputAction.ValueType.AXIS_1D:
 			return clampf(vector.x, -1.0, 1.0)
-		GFInputActionBase.ValueType.AXIS_2D:
+		GFInputAction.ValueType.AXIS_2D:
 			return Vector2(vector.x, vector.y)
-		GFInputActionBase.ValueType.AXIS_3D:
+		GFInputAction.ValueType.AXIS_3D:
 			return vector
 		_:
 			return null
 
 
-func _default_value_for_type(value_type: GFInputActionBase.ValueType) -> Variant:
+func _default_value_for_type(value_type: GFInputAction.ValueType) -> Variant:
 	match value_type:
-		GFInputActionBase.ValueType.BOOL:
+		GFInputAction.ValueType.BOOL:
 			return false
-		GFInputActionBase.ValueType.AXIS_1D:
+		GFInputAction.ValueType.AXIS_1D:
 			return 0.0
-		GFInputActionBase.ValueType.AXIS_2D:
+		GFInputAction.ValueType.AXIS_2D:
 			return Vector2.ZERO
-		GFInputActionBase.ValueType.AXIS_3D:
+		GFInputAction.ValueType.AXIS_3D:
 			return Vector3.ZERO
 		_:
 			return null
 
 
-func _is_value_active(value: Variant, action: GFInputActionBase) -> bool:
+func _is_value_active(value: Variant, action: GFInputAction) -> bool:
 	match action.value_type:
-		GFInputActionBase.ValueType.BOOL:
+		GFInputAction.ValueType.BOOL:
 			return bool(value)
-		GFInputActionBase.ValueType.AXIS_1D:
+		GFInputAction.ValueType.AXIS_1D:
 			return absf(float(value)) >= action.activation_threshold
-		GFInputActionBase.ValueType.AXIS_2D:
+		GFInputAction.ValueType.AXIS_2D:
 			return (value as Vector2).length() >= action.activation_threshold
-		GFInputActionBase.ValueType.AXIS_3D:
+		GFInputAction.ValueType.AXIS_3D:
 			return (value as Vector3).length() >= action.activation_threshold
 		_:
 			return false
@@ -893,7 +1142,7 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 	if emit_completed:
 		for action_id: StringName in _action_active.keys():
 			if bool(_action_active[action_id]) and _actions.has(action_id):
-				var action := _actions[action_id] as GFInputActionBase
+				var action := _actions[action_id] as GFInputAction
 				action_completed.emit(action_id, _default_value_for_type(action.value_type))
 		for player_action_key: String in _player_action_active.keys():
 			if not bool(_player_action_active[player_action_key]):
@@ -903,7 +1152,7 @@ func _clear_runtime_state(emit_completed: bool = false) -> void:
 				continue
 			var player_index := int(parts[0])
 			var action_id := StringName(parts[1])
-			var action := _actions.get(action_id) as GFInputActionBase
+			var action := _actions.get(action_id) as GFInputAction
 			if action != null:
 				player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
 
@@ -941,7 +1190,7 @@ func _clear_player_runtime_state(player_index: int, emit_completed: bool = false
 			if not bool(_player_action_active[player_action_key]):
 				continue
 			var action_id := StringName(player_action_key.trim_prefix(prefix))
-			var action := _actions.get(action_id) as GFInputActionBase
+			var action := _actions.get(action_id) as GFInputAction
 			if action != null:
 				player_action_completed.emit(player_index, action_id, _default_value_for_type(action.value_type))
 
@@ -971,7 +1220,7 @@ func _clear_player_runtime_state(player_index: int, emit_completed: bool = false
 			_player_last_completed_duration.erase(key)
 
 	for action_id: StringName in affected_actions.keys():
-		var action := _actions.get(action_id) as GFInputActionBase
+		var action := _actions.get(action_id) as GFInputAction
 		if action != null:
 			_refresh_action_state(action_id, action)
 
@@ -980,7 +1229,7 @@ func _get_effective_event(
 	context_id: StringName,
 	action_id: StringName,
 	binding_index: int,
-	binding: GFInputBindingBase
+	binding: GFInputBinding
 ) -> InputEvent:
 	if _remap_config != null and _remap_config.has_binding(context_id, action_id, binding_index):
 		return _remap_config.get_bound_event_or_null(context_id, action_id, binding_index)
@@ -1022,12 +1271,12 @@ func _get_player_index_from_binding_key(player_binding_key: String) -> int:
 	return int(parts[0]) if parts.size() == 2 else -1
 
 
-func _coerce_virtual_value_to_vector(value: Variant, value_type: GFInputActionBase.ValueType) -> Vector3:
+func _coerce_virtual_value_to_vector(value: Variant, value_type: GFInputAction.ValueType) -> Vector3:
 	if value == null:
 		return Vector3.ZERO
 
 	match value_type:
-		GFInputActionBase.ValueType.BOOL:
+		GFInputAction.ValueType.BOOL:
 			if value is bool:
 				return Vector3(1.0 if bool(value) else 0.0, 0.0, 0.0)
 			if value is Vector2:
@@ -1035,19 +1284,19 @@ func _coerce_virtual_value_to_vector(value: Variant, value_type: GFInputActionBa
 			if value is Vector3:
 				return Vector3(1.0 if (value as Vector3).length() > 0.0 else 0.0, 0.0, 0.0)
 			return Vector3(1.0 if absf(float(value)) > 0.0 else 0.0, 0.0, 0.0)
-		GFInputActionBase.ValueType.AXIS_1D:
+		GFInputAction.ValueType.AXIS_1D:
 			if value is Vector2:
 				return Vector3((value as Vector2).x, 0.0, 0.0)
 			if value is Vector3:
 				return Vector3((value as Vector3).x, 0.0, 0.0)
 			return Vector3(clampf(float(value), -1.0, 1.0), 0.0, 0.0)
-		GFInputActionBase.ValueType.AXIS_2D:
+		GFInputAction.ValueType.AXIS_2D:
 			if value is Vector2:
 				return Vector3((value as Vector2).x, (value as Vector2).y, 0.0)
 			if value is Vector3:
 				return Vector3((value as Vector3).x, (value as Vector3).y, 0.0)
 			return Vector3(clampf(float(value), -1.0, 1.0), 0.0, 0.0)
-		GFInputActionBase.ValueType.AXIS_3D:
+		GFInputAction.ValueType.AXIS_3D:
 			if value is Vector3:
 				return value as Vector3
 			if value is Vector2:
@@ -1087,7 +1336,7 @@ func _make_event_source_key(event: InputEvent) -> String:
 func _refresh_player_action_state(
 	player_index: int,
 	action_id: StringName,
-	action: GFInputActionBase
+	action: GFInputAction
 ) -> void:
 	var key := _make_player_action_key(player_index, action_id)
 	var previous_value: Variant = _player_action_values.get(key, _default_value_for_type(action.value_type))
@@ -1140,7 +1389,7 @@ func _refresh_triggered_action_states(delta: float) -> void:
 		var triggers := _action_triggers.get(action_id, []) as Array
 		if triggers.is_empty():
 			continue
-		var action := _actions.get(action_id) as GFInputActionBase
+		var action := _actions.get(action_id) as GFInputAction
 		if action == null:
 			continue
 		var value: Variant = _action_values.get(action_id, _default_value_for_type(action.value_type))
@@ -1154,7 +1403,7 @@ func _refresh_triggered_action_states(delta: float) -> void:
 			continue
 		var player_index := int(parts[0])
 		var action_id := StringName(parts[1])
-		var action := _actions.get(action_id) as GFInputActionBase
+		var action := _actions.get(action_id) as GFInputAction
 		if action == null:
 			continue
 		var value: Variant = _player_action_values.get(player_key, _default_value_for_type(action.value_type))
@@ -1164,7 +1413,7 @@ func _refresh_triggered_action_states(delta: float) -> void:
 
 func _set_action_active_from_triggers(
 	action_id: StringName,
-	action: GFInputActionBase,
+	action: GFInputAction,
 	value: Variant,
 	raw_active: bool,
 	delta: float
@@ -1186,7 +1435,7 @@ func _set_action_active_from_triggers(
 func _set_player_action_active_from_triggers(
 	player_index: int,
 	action_id: StringName,
-	action: GFInputActionBase,
+	action: GFInputAction,
 	value: Variant,
 	raw_active: bool,
 	delta: float
@@ -1256,7 +1505,7 @@ func _evaluate_triggers(
 
 	var any_ongoing := false
 	for index: int in range(triggers.size()):
-		var trigger := triggers[index] as GFInputTriggerBase
+		var trigger := triggers[index] as GFInputTrigger
 		if trigger == null:
 			continue
 		while states.size() <= index:
@@ -1264,9 +1513,9 @@ func _evaluate_triggers(
 		var state := states[index]
 		trigger.prepare_runtime(action_id, self, player_index, state)
 		var trigger_state: int = trigger.update(raw_active, value, delta, state)
-		if trigger_state == GFInputTriggerBase.TriggerState.INACTIVE:
+		if trigger_state == GFInputTrigger.TriggerState.INACTIVE:
 			return false
-		if trigger_state == GFInputTriggerBase.TriggerState.ONGOING:
+		if trigger_state == GFInputTrigger.TriggerState.ONGOING:
 			any_ongoing = true
 
 	return not any_ongoing
@@ -1293,11 +1542,11 @@ func _reset_all_trigger_states() -> void:
 
 func _apply_mapping_modifiers(action_id: StringName, value: Vector3) -> Vector3:
 	var modifiers := _action_modifiers.get(action_id, []) as Array
-	var action := _actions.get(action_id) as GFInputActionBase
+	var action := _actions.get(action_id) as GFInputAction
 	var result := value
-	for modifier: GFInputModifierBase in modifiers:
+	for modifier: GFInputModifier in modifiers:
 		if modifier != null:
-			if action != null and action.value_type == GFInputActionBase.ValueType.AXIS_3D:
+			if action != null and action.value_type == GFInputAction.ValueType.AXIS_3D:
 				result = modifier.modify_3d(result, null, action)
 			else:
 				var modified := modifier.modify(Vector2(result.x, result.y), null, action)
@@ -1305,9 +1554,9 @@ func _apply_mapping_modifiers(action_id: StringName, value: Vector3) -> Vector3:
 	return result
 
 
-func _duplicate_modifiers(modifiers: Array[GFInputModifierBase]) -> Array[GFInputModifierBase]:
-	var result: Array[GFInputModifierBase] = []
-	for modifier: GFInputModifierBase in modifiers:
+func _duplicate_modifiers(modifiers: Array[GFInputModifier]) -> Array[GFInputModifier]:
+	var result: Array[GFInputModifier] = []
+	for modifier: GFInputModifier in modifiers:
 		if modifier == null:
 			continue
 		var duplicate_modifier := modifier.duplicate_modifier()
@@ -1316,9 +1565,9 @@ func _duplicate_modifiers(modifiers: Array[GFInputModifierBase]) -> Array[GFInpu
 	return result
 
 
-func _duplicate_triggers(triggers: Array[GFInputTriggerBase]) -> Array[GFInputTriggerBase]:
-	var result: Array[GFInputTriggerBase] = []
-	for trigger: GFInputTriggerBase in triggers:
+func _duplicate_triggers(triggers: Array[GFInputTrigger]) -> Array[GFInputTrigger]:
+	var result: Array[GFInputTrigger] = []
+	for trigger: GFInputTrigger in triggers:
 		if trigger == null:
 			continue
 		var duplicate_trigger := trigger.duplicate_trigger()
@@ -1337,18 +1586,18 @@ func _get_input_device_utility() -> GFInputDeviceUtility:
 # --- 内部类 ---
 
 class _GFInputRouter extends Node:
-	var input_callback: Callable
-	var focus_lost_callback: Callable
+	var _input_callback: Callable
+	var _focus_lost_callback: Callable
 
 	func _init() -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 	func _input(event: InputEvent) -> void:
-		if input_callback.is_valid():
-			input_callback.call(event)
+		if _input_callback.is_valid():
+			_input_callback.call(event)
 
 
 	func _notification(what: int) -> void:
-		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and focus_lost_callback.is_valid():
-			focus_lost_callback.call()
+		if what == NOTIFICATION_APPLICATION_FOCUS_OUT and _focus_lost_callback.is_valid():
+			_focus_lost_callback.call()

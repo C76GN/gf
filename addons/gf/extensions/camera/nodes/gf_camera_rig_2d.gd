@@ -2,6 +2,12 @@
 ##
 ## Rig 只计算期望相机位置、旋转和缩放，不直接控制 Camera2D。
 ## 项目可用多个 Rig 表达不同视角，再交给 GFCameraDirector2D 按优先级选择。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFCameraRig2D
 extends Node2D
 
@@ -9,10 +15,16 @@ extends Node2D
 # --- 信号 ---
 
 ## Rig 激活状态变化后发出。
+## [br]
+## @api public
+## [br]
 ## @param active: 当前是否激活。
 signal active_changed(active: bool)
 
 ## Rig 优先级变化后发出。
+## [br]
+## @api public
+## [br]
 ## @param priority: 当前优先级。
 signal priority_changed(priority: int)
 
@@ -20,6 +32,8 @@ signal priority_changed(priority: int)
 # --- 导出变量 ---
 
 ## 是否参与 Director 选择。
+## [br]
+## @api public
 @export var active: bool = true:
 	set(value):
 		if active == value:
@@ -28,6 +42,8 @@ signal priority_changed(priority: int)
 		active_changed.emit(active)
 
 ## 选择优先级。数值越大越优先。
+## [br]
+## @api public
 @export var priority: int = 0:
 	set(value):
 		if priority == value:
@@ -36,30 +52,50 @@ signal priority_changed(priority: int)
 		priority_changed.emit(priority)
 
 ## 可选跟随目标。为空时使用 Rig 自身的全局姿态。
+## [br]
+## @api public
 @export_node_path("Node2D") var target_path: NodePath = NodePath("")
 
 ## 位置偏移。
+## [br]
+## @api public
 @export var offset: Vector2 = Vector2.ZERO
 
 ## 偏移是否跟随目标旋转。
+## [br]
+## @api public
 @export var offset_follows_rotation: bool = false
 
 ## 是否读取目标旋转。
+## [br]
+## @api public
 @export var use_target_rotation: bool = true
 
 ## 额外旋转偏移，单位度。
+## [br]
+## @api public
 @export var rotation_degrees_offset: float = 0.0
 
 ## 期望相机缩放。
+## [br]
+## @api public
 @export var zoom: Vector2 = Vector2.ONE
 
 ## 进入该 Rig 时使用的过渡。为空时使用 Director 默认过渡。
+## [br]
+## @api public
 @export var blend: GFCameraBlend = null
 
 ## 自动加入的分组名。Director 可按该分组收集候选。
+## [br]
+## @api public
 @export var group_name: StringName = &"gf_camera_rig_2d"
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，项目自定义元数据；框架不会读取或改写其中字段。
 @export var metadata: Dictionary = {}
 
 
@@ -78,6 +114,9 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 获取跟随目标。
+## [br]
+## @api public
+## [br]
 ## @return 目标 Node2D；不存在时返回 null。
 func get_target_node() -> Node2D:
 	if target_path.is_empty():
@@ -86,7 +125,12 @@ func get_target_node() -> Node2D:
 
 
 ## 获取当前期望相机姿态。
+## [br]
+## @api public
+## [br]
 ## @return 包含 position、rotation、zoom 和 rig 的字典。
+## [br]
+## @schema return: Dictionary，包含 position: Vector2、rotation: float、zoom: Vector2 与 rig: GFCameraRig2D。
 func get_camera_pose() -> Dictionary:
 	var target := get_target_node()
 	var base_position := global_position
@@ -106,7 +150,9 @@ func get_camera_pose() -> Dictionary:
 
 
 ## 检查 Rig 是否可被选择。
+## [br]
+## @api public
+## [br]
 ## @return 可用时返回 true。
 func is_available() -> bool:
 	return active and is_inside_tree()
-

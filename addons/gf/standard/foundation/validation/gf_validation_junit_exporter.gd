@@ -2,6 +2,12 @@
 ##
 ## 该导出器只负责把通用校验报告转成 CI 友好的文本，不决定测试命名、
 ## 构建失败策略或项目修复流程。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFValidationJUnitExporter
 extends RefCounted
 
@@ -9,16 +15,32 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 导出单个报告。
+## [br]
+## @api public
+## [br]
 ## @param report: 校验报告。
+## [br]
 ## @param options: 可选参数，支持 suite_name、warnings_as_failures、include_passing_case。
+## [br]
+## @schema options: Dictionary JUnit export options.
+## [br]
 ## @return JUnit XML 文本。
 static func export_report(report: GFValidationReport, options: Dictionary = {}) -> String:
 	return export_reports([report], options)
 
 
 ## 导出多个报告。
+## [br]
+## @api public
+## [br]
 ## @param reports: 校验报告数组。
+## [br]
+## @schema reports: Array of GFValidationReport values.
+## [br]
 ## @param options: 可选参数，支持 suite_name、warnings_as_failures、include_passing_case。
+## [br]
+## @schema options: Dictionary JUnit export options.
+## [br]
 ## @return JUnit XML 文本。
 static func export_reports(reports: Array, options: Dictionary = {}) -> String:
 	var suite_name := String(options.get("suite_name", "GF Validation"))

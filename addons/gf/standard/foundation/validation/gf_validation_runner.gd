@@ -2,6 +2,12 @@
 ##
 ## 执行 GFValidationSuite 中的规则，支持直接目标、资源路径和 PackedScene 实例化。
 ## Runner 不调用项目约定方法，只把目标、路径和上下文交给显式注册的规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFValidationRunner
 extends RefCounted
 
@@ -9,39 +15,67 @@ extends RefCounted
 # --- 信号 ---
 
 ## 套件开始执行后发出。
+## [br]
+## @api public
+## [br]
 ## @param suite_id: 套件标识。
 signal validation_started(suite_id: StringName)
 
 ## 单个目标完成校验后发出。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标标识。
+## [br]
 ## @param report: 目标报告。
 signal target_validated(target_id: String, report: GFValidationReport)
 
 ## 套件完成执行后发出。
+## [br]
+## @api public
+## [br]
 ## @param report: 聚合报告。
 signal validation_finished(report: GFValidationReport)
 
 
 # --- 常量 ---
 
+## 校验套件脚本基类。
+## [br]
+## @api public
 const GFValidationSuiteBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_suite.gd")
+
+## 校验规则脚本基类。
+## [br]
+## @api public
 const GFValidationRuleBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_rule.gd")
 
 
 # --- 公共变量 ---
 
 ## 通过路径加载 PackedScene 时是否同时实例化根节点参与 Node 规则校验。
+## [br]
+## @api public
 var validate_scene_instances: bool = true
 
 ## 路径校验时是否释放由 Runner 实例化的场景根节点。
+## [br]
+## @api public
 var free_instantiated_scenes: bool = true
 
 
 # --- 公共方法 ---
 
 ## 执行套件。
+## [br]
+## @api public
+## [br]
 ## @param suite: 校验套件。
+## [br]
 ## @param options: 可选参数，支持 targets、paths、context、treat_warnings_as_errors。
+## [br]
+## @schema options: Dictionary runner options with targets, paths, context, and warning policy.
+## [br]
 ## @return 聚合报告。
 func run_suite(suite: GFValidationSuiteBase, options: Dictionary = {}) -> GFValidationReport:
 	var report := _make_report(suite, options)
@@ -64,9 +98,19 @@ func run_suite(suite: GFValidationSuiteBase, options: Dictionary = {}) -> GFVali
 
 
 ## 校验一组直接目标。
+## [br]
+## @api public
+## [br]
 ## @param targets: 目标数组。
+## [br]
+## @schema targets: Array of validation targets.
+## [br]
 ## @param suite: 可选套件；为空时使用无规则套件。
+## [br]
 ## @param options: 可选参数，支持 context、treat_warnings_as_errors。
+## [br]
+## @schema options: Dictionary runner options with context and warning policy.
+## [br]
 ## @return 聚合报告。
 func run_targets(
 	targets: Array,
@@ -81,9 +125,17 @@ func run_targets(
 
 
 ## 校验一组资源或场景路径。
+## [br]
+## @api public
+## [br]
 ## @param paths: 资源或场景路径列表。
+## [br]
 ## @param suite: 可选套件；为空时使用无规则套件。
+## [br]
 ## @param options: 可选参数，支持 context、treat_warnings_as_errors。
+## [br]
+## @schema options: Dictionary runner options with context and warning policy.
+## [br]
 ## @return 聚合报告。
 func run_paths(
 	paths: PackedStringArray,

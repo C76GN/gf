@@ -1,6 +1,12 @@
 ## GFTagQuery: 通用标签查询资源。
 ##
 ## 使用 all/any/none 三组标签描述条件，可直接匹配标签集合、标签组件或普通数据。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFTagQuery
 extends Resource
 
@@ -13,28 +19,45 @@ const _GF_TAG_SOURCE_ADAPTER_SCRIPT: Script = preload("res://addons/gf/standard/
 # --- 导出变量 ---
 
 ## 必须全部存在的标签。
+## [br]
+## @api public
 @export var all_tags: Array[StringName] = []
 
 ## 至少存在一个的标签；为空时跳过该条件。
+## [br]
+## @api public
 @export var any_tags: Array[StringName] = []
 
 ## 不允许存在的标签。
+## [br]
+## @api public
 @export var none_tags: Array[StringName] = []
 
 ## 是否启用层级匹配。例如查询 `state` 时可匹配 `state.burning`。
+## [br]
+## @api public
 @export var include_child_tags: bool = false
 
 
 # --- 公共方法 ---
 
 ## 检查查询是否为空。
+## [br]
+## @api public
+## [br]
 ## @return 无任何条件时返回 true。
 func is_empty() -> bool:
 	return all_tags.is_empty() and any_tags.is_empty() and none_tags.is_empty()
 
 
 ## 匹配标签源。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant accepted by GFTagSourceAdapter.
+## [br]
 ## @return 满足查询返回 true。
 func matches(source: Variant) -> bool:
 	var report := get_match_report(source)
@@ -42,8 +65,16 @@ func matches(source: Variant) -> bool:
 
 
 ## 获取匹配报告。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant accepted by GFTagSourceAdapter.
+## [br]
 ## @return 包含 ok、missing_all、missing_any、blocked_tags 的报告。
+## [br]
+## @schema return: Dictionary with ok, missing_all, missing_any, blocked_tags, include_child_tags.
 func get_match_report(source: Variant) -> Dictionary:
 	var missing_all: Array[StringName] = []
 	for tag: StringName in all_tags:
@@ -73,10 +104,17 @@ func get_match_report(source: Variant) -> Dictionary:
 
 
 ## 配置查询条件。
+## [br]
+## @api public
+## [br]
 ## @param required_all: 必须全部存在的标签。
+## [br]
 ## @param required_any: 至少存在一个的标签。
+## [br]
 ## @param rejected_none: 不允许存在的标签。
+## [br]
 ## @param hierarchical: 是否启用层级匹配。
+## [br]
 ## @return 当前查询。
 func configure(
 	required_all: Array[StringName] = [],
@@ -92,6 +130,9 @@ func configure(
 
 
 ## 创建同内容拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新查询。
 func duplicate_query() -> GFTagQuery:
 	var query := GFTagQuery.new()
@@ -100,7 +141,12 @@ func duplicate_query() -> GFTagQuery:
 
 
 ## 导出为字典。
+## [br]
+## @api public
+## [br]
 ## @return 查询字典。
+## [br]
+## @schema return: Dictionary serialized tag query.
 func to_dictionary() -> Dictionary:
 	return {
 		"all_tags": all_tags.duplicate(),
@@ -111,7 +157,13 @@ func to_dictionary() -> Dictionary:
 
 
 ## 从字典创建查询。
+## [br]
+## @api public
+## [br]
 ## @param data: 查询字典。
+## [br]
+## @schema data: Dictionary serialized tag query.
+## [br]
 ## @return 新查询。
 static func from_dictionary(data: Dictionary) -> GFTagQuery:
 	var query := GFTagQuery.new()

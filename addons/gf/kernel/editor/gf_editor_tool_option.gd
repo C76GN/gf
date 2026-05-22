@@ -3,6 +3,14 @@
 ## GFEditorToolOption: 编辑器工具选项声明。
 ##
 ## 用通用字段描述工具面板需要的一个选项，不绑定具体 UI 控件或资源类型。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFEditorToolOption
 extends Resource
 
@@ -10,6 +18,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 编辑器工具选项的通用值类型。
+## [br]
+## @api public
 enum ValueType {
 	## 不做类型约束。
 	ANY,
@@ -39,53 +49,93 @@ enum ValueType {
 # --- 导出变量 ---
 
 ## 选项稳定标识。
+## [br]
+## @api public
 @export var option_id: StringName = &""
 
 ## 选项显示名称。
+## [br]
+## @api public
 @export var label: String = ""
 
 ## 选项提示文本。
+## [br]
+## @api public
 @export_multiline var tooltip: String = ""
 
 ## 选项值类型。
+## [br]
+## @api public
 @export var value_type: ValueType = ValueType.ANY
 
 ## 默认值。
+## [br]
+## @api public
+## [br]
+## @schema default_value: Variant default value duplicated when needed.
 @export var default_value: Variant = null
 
 ## 数值最小值。
+## [br]
+## @api public
 @export var min_value: float = 0.0
 
 ## 数值最大值。
+## [br]
+## @api public
 @export var max_value: float = 1.0
 
 ## 数值步长。
+## [br]
+## @api public
 @export var step: float = 0.01
 
 ## 可选项列表。`value_type` 为 OPTION 时用于校验。
+## [br]
+## @api public
+## [br]
+## @schema choices: Array of allowed values for OPTION value_type.
 @export var choices: Array = []
 
 ## 可选元数据，供工具 UI、持久化或项目层扩展使用。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary for caller-defined option metadata.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取稳定选项标识。
+## [br]
+## @api public
+## [br]
 ## @return 选项标识。
 func get_option_id() -> StringName:
 	return option_id
 
 
 ## 检查选项声明是否有效。
+## [br]
+## @api public
+## [br]
 ## @return 有效返回 true。
 func is_valid_definition() -> bool:
 	return option_id != &""
 
 
 ## 规范化输入值。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
+## @schema value: Variant raw option value.
+## [br]
 ## @return 规范化后的值。
+## [br]
+## @schema return: Variant normalized option value.
 func normalize_value(value: Variant) -> Variant:
 	if value == null:
 		return _duplicate_variant(default_value)
@@ -116,7 +166,13 @@ func normalize_value(value: Variant) -> Variant:
 
 
 ## 检查值是否符合选项声明。
+## [br]
+## @api public
+## [br]
 ## @param value: 待检查值。
+## [br]
+## @schema value: Variant option value to validate.
+## [br]
 ## @return 符合声明时返回 true。
 func is_value_valid(value: Variant) -> bool:
 	if value == null:
@@ -149,6 +205,9 @@ func is_value_valid(value: Variant) -> bool:
 
 
 ## 创建同内容拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新选项声明。
 func duplicate_option() -> GFEditorToolOption:
 	var option := GFEditorToolOption.new()
@@ -166,7 +225,12 @@ func duplicate_option() -> GFEditorToolOption:
 
 
 ## 导出选项声明摘要。
+## [br]
+## @api public
+## [br]
 ## @return 选项声明字典。
+## [br]
+## @schema return: Dictionary containing option_id, label, tooltip, value_type, default_value, numeric constraints, choices, and metadata.
 func describe() -> Dictionary:
 	return {
 		"option_id": option_id,

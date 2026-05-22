@@ -1,6 +1,12 @@
 ## GFInputRemapConfig: 输入重映射配置。
 ##
 ## 只保存玩家或项目层覆盖过的输入事件，默认绑定仍来自 GFInputContext。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFInputRemapConfig
 extends Resource
 
@@ -36,18 +42,32 @@ const _SKIPPED_EVENT_PROPERTIES: Dictionary = {
 # --- 导出变量 ---
 
 ## 重绑定输入。结构为 context_id -> action_id -> binding_index -> InputEvent 或 null。
+## [br]
+## @api public
+## [br]
+## @schema remapped_events: Dictionary，按 context_id、action_id、binding_index 分层索引，值为 InputEvent 或表示显式解绑的 null。
 @export var remapped_events: Dictionary = {}
 
 ## 项目自定义数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema custom_data: Dictionary，项目持有的 profile 标签、设备元数据或 UI 状态。
 @export var custom_data: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 设置绑定覆盖。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
+## [br]
 ## @param input_event: 新输入事件；null 表示显式解绑。
 func set_binding(
 	context_id: StringName,
@@ -63,16 +83,26 @@ func set_binding(
 
 
 ## 显式解绑某个绑定。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
 func unbind(context_id: StringName, action_id: StringName, binding_index: int) -> void:
 	set_binding(context_id, action_id, binding_index, null)
 
 
 ## 清除某个覆盖，使其回退到默认绑定。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
 func clear_binding(context_id: StringName, action_id: StringName, binding_index: int) -> void:
 	if not has_binding(context_id, action_id, binding_index):
@@ -88,9 +118,15 @@ func clear_binding(context_id: StringName, action_id: StringName, binding_index:
 
 
 ## 检查是否存在覆盖记录。显式解绑也会返回 true。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
+## [br]
 ## @return 是否存在覆盖。
 func has_binding(context_id: StringName, action_id: StringName, binding_index: int) -> bool:
 	if not remapped_events.has(context_id):
@@ -103,9 +139,15 @@ func has_binding(context_id: StringName, action_id: StringName, binding_index: i
 
 
 ## 获取覆盖输入事件。
+## [br]
+## @api public
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param binding_index: 绑定索引。
+## [br]
 ## @return 覆盖事件；显式解绑或未覆盖时均可能返回 null，应先调用 has_binding() 区分。
 func get_bound_event_or_null(context_id: StringName, action_id: StringName, binding_index: int) -> InputEvent:
 	if not has_binding(context_id, action_id, binding_index):
@@ -116,21 +158,45 @@ func get_bound_event_or_null(context_id: StringName, action_id: StringName, bind
 
 
 ## 设置自定义数据。
+## [br]
+## @api public
+## [br]
 ## @param key: 键。
+## [br]
 ## @param value: 值。
+## [br]
+## @schema key: Variant，项目侧自定义数据键。
+## [br]
+## @schema value: Variant，项目侧自定义数据值。
 func set_custom_data(key: Variant, value: Variant) -> void:
 	custom_data[key] = value
 
 
 ## 获取自定义数据。
+## [br]
+## @api public
+## [br]
 ## @param key: 键。
+## [br]
 ## @param default_value: 默认值。
+## [br]
+## @schema key: Variant，项目侧自定义数据键。
+## [br]
+## @schema default_value: Variant，key 不存在时返回的默认值。
+## [br]
+## @schema return: Variant，自定义数据值或 default_value。
+## [br]
 ## @return 自定义数据。
 func get_custom_data(key: Variant, default_value: Variant = null) -> Variant:
 	return custom_data.get(key, default_value)
 
 
 ## 转换为可写入 JSON/存档的 Dictionary。
+## [br]
+## @api public
+## [br]
+## @schema return: Dictionary，包含 remapped_events 和 custom_data；remapped_events 为 context_id -> action_id -> binding_index -> event record。
+## [br]
 ## @return 重映射配置字典。
 func to_dict() -> Dictionary:
 	var serialized_events: Dictionary = {}
@@ -161,7 +227,12 @@ func to_dict() -> Dictionary:
 
 
 ## 应用由 to_dict() 生成的重映射配置。
+## [br]
+## @api public
+## [br]
 ## @param data: 重映射配置字典。
+## [br]
+## @schema data: Dictionary，包含 remapped_events 和 custom_data。
 func apply_dict(data: Dictionary) -> void:
 	remapped_events.clear()
 	var serialized_events := data.get("remapped_events", {}) as Dictionary
@@ -195,7 +266,13 @@ func apply_dict(data: Dictionary) -> void:
 
 
 ## 从 Dictionary 创建重映射配置。
+## [br]
+## @api public
+## [br]
 ## @param data: 重映射配置字典。
+## [br]
+## @schema data: Dictionary，包含 remapped_events 和 custom_data。
+## [br]
 ## @return 新重映射配置。
 static func from_dict(data: Dictionary) -> GFInputRemapConfig:
 	var config := GFInputRemapConfig.new()
@@ -204,6 +281,9 @@ static func from_dict(data: Dictionary) -> GFInputRemapConfig:
 
 
 ## 复制重映射配置。
+## [br]
+## @api public
+## [br]
 ## @return 深拷贝后的重映射配置。
 func duplicate_config() -> GFInputRemapConfig:
 	return GFInputRemapConfig.from_dict(to_dict())

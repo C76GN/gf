@@ -1,6 +1,12 @@
 ## GFNodeStateMachine: 基于场景树的多状态组状态机。
 ##
 ## 支持直接子 GFNodeState 组成内部状态组，也支持多个 GFNodeStateGroup 并行工作。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFNodeStateMachine
 extends Node
 
@@ -8,21 +14,51 @@ extends Node
 # --- 信号 ---
 
 ## 状态组加入后发出。
+## [br]
+## @api public
+## [br]
+## @param group: 新加入的状态组。
 signal state_group_added(group: GFNodeStateGroup)
 
 ## 状态组移除后发出。
+## [br]
+## @api public
+## [br]
+## @param group: 被移除的状态组。
 signal state_group_removed(group: GFNodeStateGroup)
 
 ## 任意状态组切换状态后发出。
+## [br]
+## @api public
+## [br]
+## @param group: 发生状态切换的状态组。
+## [br]
+## @param old_state: 切换前的状态；没有旧状态时为 null。
+## [br]
+## @param new_state: 切换后的状态；状态组停止时可为 null。
 signal state_changed(group: GFNodeStateGroup, old_state: GFNodeState, new_state: GFNodeState)
 
 ## 任意状态组中的状态处理状态事件后发出。
+## [br]
+## @api public
+## [br]
+## @param group: 处理事件的状态所属状态组。
+## [br]
+## @param event_id: 状态事件标识。
+## [br]
+## @param handler_state: 实际处理事件的状态节点。
+## [br]
+## @param payload: 状态事件载荷。
+## [br]
+## @schema payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。
 signal state_event_handled(group: GFNodeStateGroup, event_id: StringName, handler_state: GFNodeState, payload: Variant)
 
 
 # --- 枚举 ---
 
 ## 节点状态机初始状态启动时机。
+## [br]
+## @api public
 enum StartMode {
 	## 状态机 ready 时启动，适合需要旧版启动顺序的项目。
 	ON_READY,
@@ -35,33 +71,54 @@ enum StartMode {
 
 # --- 常量 ---
 
+## 直接子 GFNodeState 组成的内置状态组名称。
+## [br]
+## @api public
 const INTERNAL_GROUP_NAME: StringName = &"_internal"
+
+## 内部状态组节点使用的元数据键。
+## [br]
+## @api framework_internal
 const META_INTERNAL_GROUP: StringName = &"_gf_node_state_machine_internal_group"
-const GFAutoloadBase = preload("res://addons/gf/kernel/core/gf_autoload.gd")
-const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
-const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
-const GFNodeStateMachineConfigBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_config.gd")
+
+const _GF_AUTOLOAD_BASE = preload("res://addons/gf/kernel/core/gf_autoload.gd")
+const _GF_NODE_CONTEXT_BASE = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const _GF_NODE_STATE_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
+const _GF_NODE_STATE_GROUP_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
 
 
 # --- 导出变量 ---
 
 ## 可选状态机配置资源。为空时继续使用本节点上的兼容导出项。
+## [br]
+## @api public
 @export var config: GFNodeStateMachineConfig = null
 
 ## 内部状态组初始状态名。
+## [br]
+## @api public
 @export var initial_state: StringName = &""
 
 ## 内部状态组初始状态参数。
+## [br]
+## @api public
+## [br]
+## @schema initial_args: 内部状态组初始状态参数 Dictionary；键和值由初始状态的项目逻辑约定。
 @export var initial_args: Dictionary = {}
 
 ## ready 时是否自动从子节点加载状态与状态组。
+## [br]
+## @api public
 @export var reload_on_ready: bool = true
 
 ## 初始状态启动模式。
+## [br]
+## @api public
 @export var start_mode: StartMode = StartMode.AFTER_HOST_READY
 
 ## 运行时重新从子节点加载时，是否尽量恢复各状态组的当前状态。
+## [br]
+## @api public
 @export var preserve_current_state_on_reload: bool = true
 
 
@@ -107,8 +164,14 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 通过路径切换状态。path 可为 "State" 或 "Group/State"。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径或状态路径。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func transition_to(path: StringName, args: Dictionary = {}) -> void:
 	var text := String(path)
 	var parts := text.split("/", false)
@@ -121,9 +184,16 @@ func transition_to(path: StringName, args: Dictionary = {}) -> void:
 
 
 ## 切换指定状态组到指定状态。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
 ## @param state_name: 目标状态名称。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func transition_group_to(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -133,8 +203,14 @@ func transition_group_to(group_name: StringName, state_name: StringName, args: D
 
 
 ## 暂停当前内部状态并叠加进入一个子状态。path 可为 "State" 或 "Group/State"。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径或状态路径。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func push_state(path: StringName, args: Dictionary = {}) -> void:
 	var text := String(path)
 	var parts := text.split("/", false)
@@ -147,9 +223,16 @@ func push_state(path: StringName, args: Dictionary = {}) -> void:
 
 
 ## 暂停指定状态组当前状态并叠加进入一个子状态。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
 ## @param state_name: 目标状态名称。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func push_group_state(group_name: StringName, state_name: StringName, args: Dictionary = {}) -> void:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -162,8 +245,16 @@ func push_group_state(group_name: StringName, state_name: StringName, args: Dict
 
 
 ## 弹出指定状态组的栈式子状态。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
+## [br]
+## @return: 成功恢复上一层状态时返回 true。
 func pop_state(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> bool:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -176,7 +267,12 @@ func pop_state(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = 
 
 
 ## 启动所有已加载状态组的初始状态。若尚未加载状态，则会先从子节点加载。
+## [br]
+## @api public
+## [br]
 ## @param args: 启动时传给初始状态的参数；为空时使用各状态组 initial_args。
+## [br]
+## @schema args: 启动参数 Dictionary；为空时使用各状态组 initial_args。
 func start(args: Dictionary = {}) -> void:
 	if _groups.is_empty():
 		reload_from_children()
@@ -186,8 +282,14 @@ func start(args: Dictionary = {}) -> void:
 
 
 ## 启动指定状态组的初始状态。若尚未加载状态，则会先从子节点加载。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 要启动的状态组名。
+## [br]
 ## @param args: 启动时传给初始状态的参数；为空时使用该状态组 initial_args。
+## [br]
+## @schema args: 启动参数 Dictionary；为空时使用该状态组 initial_args。
 func start_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> void:
 	if _groups.is_empty():
 		reload_from_children()
@@ -201,6 +303,9 @@ func start_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary 
 
 
 ## 添加状态组。
+## [br]
+## @api public
+## [br]
 ## @param group: 所属状态组。
 func add_state_group(group: GFNodeStateGroup) -> void:
 	if not _is_node_state_group(group):
@@ -215,7 +320,7 @@ func add_state_group(group: GFNodeStateGroup) -> void:
 	var changed_callable := _on_group_current_state_changed.bind(group)
 	_group_state_changed_callables[key] = changed_callable
 	_connect_state_group_signals(group, changed_callable)
-	if group is GFNodeStateGroupBase:
+	if group is _GF_NODE_STATE_GROUP_BASE:
 		group.call("initialize", self, _should_start_group_on_initialize())
 	else:
 		group.call("initialize", self)
@@ -223,7 +328,12 @@ func add_state_group(group: GFNodeStateGroup) -> void:
 
 
 ## 移除状态组。
+## [br]
+## @api public
+## [br]
 ## @param group: 所属状态组。
+## [br]
+## @return: 成功移除已注册状态组时返回 true。
 func remove_state_group(group: GFNodeStateGroup) -> bool:
 	if not _is_node_state_group(group):
 		return false
@@ -240,12 +350,21 @@ func remove_state_group(group: GFNodeStateGroup) -> bool:
 
 
 ## 获取状态组。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
+## @return: 注册名对应的状态组；不存在时返回 null。
 func get_state_group(group_name: StringName) -> GFNodeStateGroup:
 	return _groups.get(group_name) as GFNodeStateGroup
 
 
 ## 获取内部状态组当前状态。
+## [br]
+## @api public
+## [br]
+## @return: 内部状态组当前状态；未启动或不存在时返回 null。
 func get_current_state() -> GFNodeState:
 	var group := get_state_group(INTERNAL_GROUP_NAME)
 	if group == null:
@@ -254,8 +373,12 @@ func get_current_state() -> GFNodeState:
 
 
 ## 获取指定状态组当前状态。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
-## @return 当前状态；未找到状态组或未启动时返回 null。
+## [br]
+## @return: 当前状态；未找到状态组或未启动时返回 null。
 func get_current_group_state(group_name: StringName = INTERNAL_GROUP_NAME) -> GFNodeState:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -264,7 +387,12 @@ func get_current_group_state(group_name: StringName = INTERNAL_GROUP_NAME) -> GF
 
 
 ## 获取指定状态组当前状态名。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
+## @return: 当前状态名；未找到状态组或未启动时返回空 StringName。
 func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -> StringName:
 	var group := get_state_group(group_name)
 	if group == null or not group.has_method("get_current_state_name"):
@@ -273,7 +401,14 @@ func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -> Str
 
 
 ## 获取指定状态组状态历史。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
+## @return: 最近进入过的状态名列表。
+## [br]
+## @schema return: 状态历史 Array[StringName]，按进入顺序排列。
 func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -> Array[StringName]:
 	var result: Array[StringName] = []
 	var group := get_state_group(group_name)
@@ -287,7 +422,12 @@ func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -> Array[St
 
 
 ## 获取指定状态组暂停栈深度。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
+## @return: 指定状态组的暂停栈深度；未找到状态组时返回 0。
 func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -> int:
 	var group := get_state_group(group_name)
 	if group == null or not group.has_method("get_stack_depth"):
@@ -296,7 +436,12 @@ func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -> int:
 
 
 ## 判断 path 指向的状态是否为当前状态或暂停栈中的状态。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径或状态路径。
+## [br]
+## @return: 指定状态位于当前状态或暂停栈中时返回 true。
 func is_in_state(path: StringName) -> bool:
 	var text := String(path)
 	var parts := text.split("/", false)
@@ -309,8 +454,14 @@ func is_in_state(path: StringName) -> bool:
 
 
 ## 重启指定状态组当前状态。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 能力组或状态组名称。
+## [br]
 ## @param args: 状态切换时传递的可选参数。
+## [br]
+## @schema args: 状态切换参数 Dictionary；键和值由调用方约定。
 func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -> void:
 	var group := get_state_group(group_name)
 	if group == null:
@@ -323,10 +474,18 @@ func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionar
 
 
 ## 派发状态事件。group_name 为空时会按已注册状态组顺序广播到所有组。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 状态事件标识。
+## [br]
 ## @param payload: 状态事件载荷。
+## [br]
 ## @param group_name: 可选目标状态组名；为空表示所有状态组。
-## @return 有状态处理该事件时返回 true。
+## [br]
+## @schema payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。
+## [br]
+## @return: 有状态处理该事件时返回 true。
 func dispatch_state_event(event_id: StringName, payload: Variant = null, group_name: StringName = &"") -> bool:
 	if group_name != &"":
 		var group := get_state_group(group_name)
@@ -341,7 +500,12 @@ func dispatch_state_event(event_id: StringName, payload: Variant = null, group_n
 
 
 ## 获取节点状态机调试快照。
-## @return 包含所有状态组当前状态、历史、栈深度和黑板副本的字典。
+## [br]
+## @api public
+## [br]
+## @return: 包含所有状态组当前状态、历史、栈深度和黑板副本的字典。
+## [br]
+## @schema return: 调试快照 Dictionary，包含 groups 和 internal_group 字段；groups 的键为状态组名，值为 GFNodeStateGroup.get_state_snapshot() 返回的状态组快照。
 func get_state_snapshot() -> Dictionary:
 	var groups: Dictionary = {}
 	for group_key: Variant in _groups.keys():
@@ -356,15 +520,23 @@ func get_state_snapshot() -> Dictionary:
 
 
 ## 获取当前状态机可用的架构实例。
-## @return 架构实例；状态机未挂入可解析上下文时返回 null。
+## [br]
+## @api public
+## [br]
+## @return: 架构实例；状态机未挂入可解析上下文时返回 null。
 func get_architecture_or_null() -> GFArchitecture:
 	return _get_architecture_or_null()
 
 
 ## 通过当前状态机上下文获取 Model。
+## [br]
+## @api public
+## [br]
 ## @param model_type: 模型脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
-## @return 模型实例。
+## [br]
+## @return: 模型实例；不可用时返回 null。
 func get_model(model_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -373,9 +545,14 @@ func get_model(model_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 通过当前状态机上下文获取 System。
+## [br]
+## @api public
+## [br]
 ## @param system_type: 系统脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
-## @return 系统实例。
+## [br]
+## @return: 系统实例；不可用时返回 null。
 func get_system(system_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -384,9 +561,14 @@ func get_system(system_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 通过当前状态机上下文获取 Utility。
+## [br]
+## @api public
+## [br]
 ## @param utility_type: 工具脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
-## @return 工具实例。
+## [br]
+## @return: 工具实例；不可用时返回 null。
 func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -395,9 +577,14 @@ func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 仅从当前状态机所属架构获取 Model，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param model_type: 模型脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
-## @return 当前架构中的模型实例。
+## [br]
+## @return: 当前架构中的模型实例；不可用时返回 null。
 func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -406,9 +593,14 @@ func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 仅从当前状态机所属架构获取 System，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param system_type: 系统脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
-## @return 当前架构中的系统实例。
+## [br]
+## @return: 当前架构中的系统实例；不可用时返回 null。
 func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -417,9 +609,14 @@ func get_local_system(system_type: Script, require_ready: bool = false) -> Objec
 
 
 ## 仅从当前状态机所属架构获取 Utility，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param utility_type: 工具脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
-## @return 当前架构中的工具实例。
+## [br]
+## @return: 当前架构中的工具实例；不可用时返回 null。
 func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -428,8 +625,14 @@ func get_local_utility(utility_type: Script, require_ready: bool = false) -> Obj
 
 
 ## 向当前状态机上下文发送命令。
+## [br]
+## @api public
+## [br]
 ## @param command: 要发送的命令实例。
-## @return 命令执行结果；无可用架构时返回 null。
+## [br]
+## @return: 命令执行结果；无可用架构时返回 null。
+## [br]
+## @schema return: 命令返回值；具体结构由 GFCommand 实现决定。
 func send_command(command: Object) -> Variant:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -438,8 +641,14 @@ func send_command(command: Object) -> Variant:
 
 
 ## 向当前状态机上下文发送查询。
+## [br]
+## @api public
+## [br]
 ## @param query: 要发送的查询实例。
-## @return 查询结果；无可用架构时返回 null。
+## [br]
+## @return: 查询结果；无可用架构时返回 null。
+## [br]
+## @schema return: 查询返回值；具体结构由 GFQuery 实现决定。
 func send_query(query: Object) -> Variant:
 	var architecture := _get_architecture_or_null()
 	if architecture == null:
@@ -448,6 +657,9 @@ func send_query(query: Object) -> Variant:
 
 
 ## 发送类型事件。
+## [br]
+## @api public
+## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
 	var architecture := _get_architecture_or_null()
@@ -456,8 +668,14 @@ func send_event(event_instance: Object) -> void:
 
 
 ## 发送轻量级 StringName 事件。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param payload: 可选的事件附加数据。
+## [br]
+## @schema payload: 轻量事件载荷；具体结构由 event_id 和项目逻辑约定。
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	var architecture := _get_architecture_or_null()
 	if architecture != null:
@@ -465,9 +683,15 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 
 
 ## 注册带拥有者的类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param event_type: 要监听的脚本类型。
+## [br]
 ## @param callback: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void:
 	var architecture := _get_architecture_or_null()
@@ -477,7 +701,11 @@ func register_event_owned(owner: Object, event_type: Script, callback: Callable,
 
 
 ## 注销类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_type: 要注销的脚本类型。
+## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_event(event_type: Script, callback: Callable) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
@@ -485,9 +713,15 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 
 
 ## 注册带拥有者的可赋值类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param base_event_type: 要监听的基类脚本类型。
+## [br]
 ## @param callback: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event_owned(
 	owner: Object,
@@ -502,7 +736,11 @@ func register_assignable_event_owned(
 
 
 ## 注销可赋值类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param base_event_type: 注册时使用的基类脚本类型。
+## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
@@ -510,8 +748,13 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 
 
 ## 注册带拥有者的轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -> void:
 	var architecture := _get_architecture_or_null()
@@ -521,7 +764,11 @@ func register_simple_event_owned(owner: Object, event_id: StringName, callback: 
 
 
 ## 注销轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
@@ -529,6 +776,9 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 
 
 ## 注销指定拥有者通过状态机事件代理注册过的全部监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 要清理监听器的拥有者。
 func unregister_owner_events(owner: Object) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
@@ -536,13 +786,15 @@ func unregister_owner_events(owner: Object) -> void:
 
 
 ## 从子节点重新加载状态和状态组。
+## [br]
+## @api public
 func reload_from_children() -> void:
 	var should_preserve_state := preserve_current_state_on_reload and not _groups.is_empty()
 	var state_snapshot := _capture_state_snapshot() if should_preserve_state else {}
 	_preserve_reload_state_active = should_preserve_state
 	_is_reloading = true
 	clear_state_groups()
-	_internal_group = GFNodeStateGroupBase.new() as GFNodeStateGroup
+	_internal_group = _GF_NODE_STATE_GROUP_BASE.new() as GFNodeStateGroup
 	_internal_group.name = String(INTERNAL_GROUP_NAME)
 	_internal_group.set_meta(META_INTERNAL_GROUP, true)
 	_internal_group.set("group_name", INTERNAL_GROUP_NAME)
@@ -573,6 +825,9 @@ func reload_from_children() -> void:
 
 
 ## 清空所有状态组。
+## [br]
+## @api public
+## [br]
 ## @param free_groups: 清理状态组时是否释放节点。
 func clear_state_groups(free_groups: bool = false) -> void:
 	var old_internal_group := _internal_group
@@ -607,14 +862,14 @@ func _get_architecture_or_null() -> GFArchitecture:
 		if context_architecture != null:
 			return context_architecture
 
-	return GFAutoloadBase.get_architecture_or_null()
+	return _GF_AUTOLOAD_BASE.get_architecture_or_null()
 
 
-func _find_nearest_context() -> GFNodeContextBase:
+func _find_nearest_context() -> _GF_NODE_CONTEXT_BASE:
 	var current_node: Node = self
 	while current_node != null:
-		if current_node is GFNodeContextBase:
-			return current_node as GFNodeContextBase
+		if current_node is _GF_NODE_CONTEXT_BASE:
+			return current_node as _GF_NODE_CONTEXT_BASE
 		current_node = current_node.get_parent()
 	return null
 
@@ -638,11 +893,11 @@ func _get_tracked_event_architectures() -> Array[GFArchitecture]:
 
 
 func _is_node_state(node: Node) -> bool:
-	return node is GFNodeStateBase
+	return node is _GF_NODE_STATE_BASE
 
 
 func _is_node_state_group(node: Node) -> bool:
-	return node is GFNodeStateGroupBase
+	return node is _GF_NODE_STATE_GROUP_BASE
 
 
 func _connect_state_group_signals(group: GFNodeStateGroup, changed_callable: Callable) -> void:

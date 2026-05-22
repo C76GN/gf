@@ -2,22 +2,32 @@
 ##
 ## Binding 持有桥接资源、根节点和底层 GFSignalConnection，用于在运行时断开、
 ## 检查状态，并把原生信号参数转交给桥接规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFSignalBridgeBinding
 extends RefCounted
 
 
 # --- 常量 ---
 
-const MAX_SIGNAL_ARGUMENTS: int = 16
+const _MAX_SIGNAL_ARGUMENTS: int = 16
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
 
 ## 桥接资源。
+## [br]
+## @api public
 var bridge: GFSignalBridge = null
 
 ## 底层信号连接。
+## [br]
+## @api public
 var connection: GFSignalConnection = null
 
 
@@ -29,8 +39,13 @@ var _root_ref: WeakRef = null
 # --- 公共方法 ---
 
 ## 初始化绑定。
+## [br]
+## @api public
+## [br]
 ## @param new_bridge: 桥接资源。
+## [br]
 ## @param root: 路径解析根节点。
+## [br]
 ## @param new_connection: 底层连接。
 func setup(new_bridge: GFSignalBridge, root: Node, new_connection: GFSignalConnection) -> void:
 	bridge = new_bridge
@@ -39,6 +54,8 @@ func setup(new_bridge: GFSignalBridge, root: Node, new_connection: GFSignalConne
 
 
 ## 断开桥接。
+## [br]
+## @api public
 func disconnect_bridge() -> void:
 	if connection != null:
 		connection.disconnect_signal()
@@ -46,6 +63,9 @@ func disconnect_bridge() -> void:
 
 
 ## 当前绑定是否仍活跃。
+## [br]
+## @api public
+## [br]
 ## @return 活跃时返回 true。
 func is_active() -> bool:
 	return connection != null and connection.is_active() and _get_root() != null
@@ -101,8 +121,8 @@ func _collect_args(root: Node, raw_args: Array) -> Array:
 
 	var argument_count := bridge.source.get_signal_argument_count(root)
 	if argument_count >= 0:
-		if argument_count > MAX_SIGNAL_ARGUMENTS:
-			push_warning("[GFSignalBridgeBinding] 信号桥接当前最多捕获 %d 个参数。" % MAX_SIGNAL_ARGUMENTS)
+		if argument_count > _MAX_SIGNAL_ARGUMENTS:
+			push_warning("[GFSignalBridgeBinding] 信号桥接当前最多捕获 %d 个参数。" % _MAX_SIGNAL_ARGUMENTS)
 		return raw_args.slice(0, mini(argument_count, raw_args.size()))
 	return _trim_trailing_null_args(raw_args)
 

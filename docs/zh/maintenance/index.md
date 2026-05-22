@@ -1,6 +1,6 @@
 # 最佳实践、维护与测试
 
-本页收拢 GF 项目的落地建议、分层边界、扩展使用规则和维护检查流程。
+本页收拢 GF 项目的落地建议、分层边界、扩展使用规则和维护检查流程。公开 API 的可见性、类型分类和文档标签规范见仓库根目录的 `API_SURFACE.md`。
 
 ## 使用类型断言
 
@@ -146,7 +146,7 @@ godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gdir=res://tests/gf_
 
 测试目录按框架层级组织：
 
-- `tests/gf_core/maintenance`：API 注释、GDScript 布局、脚本解析、扩展边界等静态维护检查。
+- `tests/gf_core/maintenance`：API 注释、API Surface Contract、GDScript 布局、脚本解析、扩展边界等静态维护检查。
 - `tests/gf_core/kernel`：内核、生命周期、事件、编辑器基础设施和扩展基础设施。
 - `tests/gf_core/standard`：标准库。
 - `tests/gf_core/extensions`：GF 内置扩展。

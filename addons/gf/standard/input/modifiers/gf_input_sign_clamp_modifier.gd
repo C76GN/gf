@@ -1,6 +1,12 @@
 ## GFInputSignClampModifier: 输入符号方向限制修饰器。
 ##
 ## 用于只保留正向或负向输入分量，也可以把保留的负向分量重新映射为正值。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFInputSignClampModifier
 extends GFInputModifier
 
@@ -8,6 +14,8 @@ extends GFInputModifier
 # --- 枚举 ---
 
 ## 允许通过的符号方向。
+## [br]
+## @api public
 enum AllowedSign {
 	## 只保留大于等于 0 的值。
 	POSITIVE,
@@ -19,27 +27,44 @@ enum AllowedSign {
 # --- 导出变量 ---
 
 ## 允许通过的符号方向。
+## [br]
+## @api public
 @export var allowed_sign: AllowedSign = AllowedSign.POSITIVE
 
 ## 是否处理 X 分量。
+## [br]
+## @api public
 @export var apply_x: bool = true
 
 ## 是否处理 Y 分量。
+## [br]
+## @api public
 @export var apply_y: bool = true
 
 ## 是否处理 Z 分量。
+## [br]
+## @api public
 @export var apply_z: bool = true
 
 ## 是否把保留的负向分量转为正值。
+## [br]
+## @api public
 @export var remap_to_positive: bool = false
 
 
 # --- 公共方法 ---
 
 ## 修改二维输入值。
+## [br]
+## @api public
+## [br]
 ## @param value: 要写入或修改的值。
+## [br]
 ## @param _event: 原始输入事件，默认实现不直接使用。
+## [br]
 ## @param _action: 当前输入动作配置，默认实现不直接使用。
+## [br]
+## @return 符号过滤后的二维输入值。
 func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -> Vector2:
 	return Vector2(
 		_apply_sign(value.x) if apply_x else value.x,
@@ -48,9 +73,16 @@ func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = 
 
 
 ## 修改三维输入值。
+## [br]
+## @api public
+## [br]
 ## @param value: 要写入或修改的值。
+## [br]
 ## @param _event: 原始输入事件，默认实现不直接使用。
+## [br]
 ## @param _action: 当前输入动作配置，默认实现不直接使用。
+## [br]
+## @return 符号过滤后的三维输入值。
 func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -> Vector3:
 	return Vector3(
 		_apply_sign(value.x) if apply_x else value.x,

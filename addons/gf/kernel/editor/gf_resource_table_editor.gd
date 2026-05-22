@@ -3,6 +3,14 @@
 ## GFResourceTableEditor: 通用 Resource 表格编辑控件。
 ##
 ## 提供资源扫描、属性列提取、表格刷新与单元格提交，不绑定具体资源类型或业务数据。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFResourceTableEditor
 extends VBoxContainer
 
@@ -10,30 +18,87 @@ extends VBoxContainer
 # --- 信号 ---
 
 ## 表格选中资源时发出。
+## [br]
+## @api public
+## [br]
+## @param resource: 被选中的资源。
 signal resource_selected(resource: Resource)
 
 ## 单元格值提交后发出。
+## [br]
+## @api public
+## [br]
+## @param resource: 被修改的资源。
+## [br]
+## @param property: 被修改的属性名。
+## [br]
+## @param old_value: 提交前的旧值。
+## [br]
+## @schema old_value: Variant value before commit.
+## [br]
+## @param new_value: 提交后的新值。
+## [br]
+## @schema new_value: Variant value after commit.
 signal cell_value_committed(resource: Resource, property: StringName, old_value: Variant, new_value: Variant)
 
 ## 自动保存资源失败时发出。
+## [br]
+## @api public
+## [br]
+## @param resource: 保存失败的资源。
+## [br]
+## @param path: 资源路径。
+## [br]
+## @param error: Godot 错误码。
 signal resource_save_failed(resource: Resource, path: String, error: Error)
 
 ## 资源列表顺序变化后发出。
+## [br]
+## @api public
+## [br]
+## @param resources: 当前资源列表副本。
+## [br]
+## @schema resources: Array[Resource]
 signal resources_reordered(resources: Array)
 
 ## 插入资源后发出。
+## [br]
+## @api public
+## [br]
+## @param resource: 被插入的资源。
+## [br]
+## @param index: 插入索引。
 signal resource_inserted(resource: Resource, index: int)
 
 ## 移除资源后发出。
+## [br]
+## @api public
+## [br]
+## @param resource: 被移除的资源。
+## [br]
+## @param index: 移除前索引。
 signal resource_removed(resource: Resource, index: int)
 
 ## 搜索过滤条件变化后发出。
+## [br]
+## @api public
+## [br]
+## @param query: 当前搜索文本。
+## [br]
+## @param visible_count: 当前可见资源数量。
 signal resource_filter_changed(query: String, visible_count: int)
 
 
 # --- 常量 ---
 
+## 默认最大扫描深度。
+## [br]
+## @api public
 const DEFAULT_MAX_SCAN_DEPTH: int = 32
+
+## 默认最大扫描资源路径数量。
+## [br]
+## @api public
 const DEFAULT_MAX_RESOURCE_PATHS: int = 10000
 const _OBJECT_PROPERTY_TOOLS: Script = preload("res://addons/gf/kernel/core/gf_object_property_tools.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
@@ -42,15 +107,23 @@ const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_s
 # --- 公共变量 ---
 
 ## 提交单元格后是否自动保存已绑定路径的 Resource。
+## [br]
+## @api public
 var auto_save_committed_resources: bool = false
 
 ## 当前搜索过滤文本。为空时显示全部资源。
+## [br]
+## @api public
 var search_text: String = ""
 
 ## 当前排序属性；为空时不记录排序属性。
+## [br]
+## @api public
 var sort_property: StringName = &""
 
 ## 当前排序方向。
+## [br]
+## @api public
 var sort_ascending: bool = true
 
 
@@ -71,9 +144,16 @@ func _ready() -> void:
 # --- 公共方法 ---
 
 ## 基于资源属性列表构建可编辑列声明。
+## [br]
+## @api public
+## [br]
 ## @param resource: 示例资源。
+## [br]
 ## @param include_read_only: 是否包含只读属性。
+## [br]
 ## @return 列声明列表。
+## [br]
+## @schema return: Array of Dictionary column records with name, type, hint, hint_string, usage, and read_only.
 static func build_export_columns(resource: Resource, include_read_only: bool = false) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if resource == null:
@@ -101,9 +181,17 @@ static func build_export_columns(resource: Resource, include_read_only: bool = f
 
 
 ## 递归扫描资源路径。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 扫描根路径。
+## [br]
 ## @param extensions: 文件扩展名白名单，不包含点号。
+## [br]
 ## @param options: 可选参数，支持 `max_scan_depth` 与 `max_resource_paths`。
+## [br]
+## @schema options: Dictionary with optional max_scan_depth and max_resource_paths.
+## [br]
 ## @return 资源路径列表。
 static func scan_resource_paths(
 	root_path: String = "res://",
@@ -128,8 +216,13 @@ static func scan_resource_paths(
 
 
 ## 从路径列表加载资源。
+## [br]
+## @api public
+## [br]
 ## @param paths: 资源路径列表。
+## [br]
 ## @param script_filter: 可选脚本过滤；只返回附加该脚本或其子类脚本的资源。
+## [br]
 ## @return 资源列表。
 static func load_resources_from_paths(paths: PackedStringArray, script_filter: Script = null) -> Array[Resource]:
 	var result: Array[Resource] = []
@@ -144,8 +237,14 @@ static func load_resources_from_paths(paths: PackedStringArray, script_filter: S
 
 
 ## 加载资源与列声明。
+## [br]
+## @api public
+## [br]
 ## @param resources: Resource 列表。
+## [br]
 ## @param columns: 可选列声明；为空时从第一条资源推导。
+## [br]
+## @schema columns: Array of Dictionary column records.
 func load_resources(resources: Array[Resource], columns: Array[Dictionary] = []) -> void:
 	_resources = resources.duplicate()
 	_columns = columns.duplicate(true)
@@ -155,18 +254,29 @@ func load_resources(resources: Array[Resource], columns: Array[Dictionary] = [])
 
 
 ## 获取当前资源列表拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 资源列表。
 func get_resources() -> Array[Resource]:
 	return _resources.duplicate()
 
 
 ## 获取当前列声明拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 列声明列表。
+## [br]
+## @schema return: Array of Dictionary column records.
 func get_columns() -> Array[Dictionary]:
 	return _columns.duplicate(true)
 
 
 ## 设置搜索过滤文本。
+## [br]
+## @api public
+## [br]
 ## @param query: 搜索文本，会匹配资源标签、路径和当前列值。
 func set_search_text(query: String) -> void:
 	if search_text == query:
@@ -177,26 +287,40 @@ func set_search_text(query: String) -> void:
 
 
 ## 获取当前可见资源行的原始索引。
+## [br]
+## @api public
+## [br]
 ## @return 可见行索引列表。
 func get_visible_row_indices() -> PackedInt32Array:
 	return PackedInt32Array(_visible_row_indices)
 
 
 ## 获取当前可见资源数量。
+## [br]
+## @api public
+## [br]
 ## @return 可见资源数量。
 func get_visible_resource_count() -> int:
 	return _visible_row_indices.size()
 
 
 ## 查找资源在当前列表中的索引。
+## [br]
+## @api public
+## [br]
 ## @param resource: 目标资源。
+## [br]
 ## @return 资源索引；不存在时返回 -1。
 func find_resource_index(resource: Resource) -> int:
 	return _resources.find(resource)
 
 
 ## 按属性或资源标签排序。
+## [br]
+## @api public
+## [br]
 ## @param property: 属性名；为空时按资源标签排序。
+## [br]
 ## @param ascending: 是否升序。
 func sort_by_property(property: StringName = &"", ascending: bool = true) -> void:
 	sort_property = property
@@ -212,8 +336,13 @@ func sort_by_property(property: StringName = &"", ascending: bool = true) -> voi
 
 
 ## 移动资源位置。
+## [br]
+## @api public
+## [br]
 ## @param from_index: 原始索引。
+## [br]
 ## @param to_index: 目标索引。
+## [br]
 ## @return 移动成功返回 true。
 func move_resource(from_index: int, to_index: int) -> bool:
 	if from_index < 0 or from_index >= _resources.size():
@@ -233,8 +362,13 @@ func move_resource(from_index: int, to_index: int) -> bool:
 
 
 ## 插入资源。
+## [br]
+## @api public
+## [br]
 ## @param resource: 要插入的资源。
+## [br]
 ## @param index: 插入索引；越界或负数时追加到末尾。
+## [br]
 ## @return 插入成功返回 true。
 func insert_resource(resource: Resource, index: int = -1) -> bool:
 	if resource == null:
@@ -251,7 +385,11 @@ func insert_resource(resource: Resource, index: int = -1) -> bool:
 
 
 ## 移除资源。
+## [br]
+## @api public
+## [br]
 ## @param row_index: 资源行索引。
+## [br]
 ## @return 被移除的资源；无效索引返回 null。
 func remove_resource(row_index: int) -> Resource:
 	if row_index < 0 or row_index >= _resources.size():
@@ -264,9 +402,15 @@ func remove_resource(row_index: int) -> Resource:
 
 
 ## 复制资源并插入到列表。
+## [br]
+## @api public
+## [br]
 ## @param row_index: 资源行索引。
+## [br]
 ## @param deep: 是否深拷贝子资源。
+## [br]
 ## @param insert_after: 为 true 时插入到当前资源之后，否则插入到当前位置。
+## [br]
 ## @return 复制出的资源；无效索引返回 null。
 func duplicate_resource(row_index: int, deep: bool = false, insert_after: bool = true) -> Resource:
 	if row_index < 0 or row_index >= _resources.size():
@@ -285,9 +429,17 @@ func duplicate_resource(row_index: int, deep: bool = false, insert_after: bool =
 
 
 ## 提交单元格值。
+## [br]
+## @api public
+## [br]
 ## @param row_index: 资源行索引。
+## [br]
 ## @param property: 属性名。
+## [br]
 ## @param new_value: 新值。
+## [br]
+## @schema new_value: Variant value assigned to the resource property.
+## [br]
 ## @return 提交成功返回 true。
 func commit_cell_value(row_index: int, property: StringName, new_value: Variant) -> bool:
 	if row_index < 0 or row_index >= _resources.size() or property == &"":
@@ -310,9 +462,17 @@ func commit_cell_value(row_index: int, property: StringName, new_value: Variant)
 
 
 ## 提交当前可见行的单元格值。
+## [br]
+## @api public
+## [br]
 ## @param visible_row_index: 过滤后的可见行索引。
+## [br]
 ## @param property: 属性名。
+## [br]
 ## @param new_value: 新值。
+## [br]
+## @schema new_value: Variant value assigned to the resource property.
+## [br]
 ## @return 提交成功返回 true。
 func commit_visible_cell_value(visible_row_index: int, property: StringName, new_value: Variant) -> bool:
 	if visible_row_index < 0 or visible_row_index >= _visible_row_indices.size():
@@ -321,6 +481,8 @@ func commit_visible_cell_value(visible_row_index: int, property: StringName, new
 
 
 ## 刷新表格显示。
+## [br]
+## @api public
 func refresh() -> void:
 	_ensure_tree()
 	_rebuild_visible_row_indices()

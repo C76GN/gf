@@ -1,6 +1,12 @@
 ## GFTimedTextTrack: 通用时间段文本轨道。
 ##
 ## 管理一组按时间查询的 `GFTimedTextEntry`，不绑定字幕格式或具体 UI。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFTimedTextTrack
 extends Resource
 
@@ -8,22 +14,39 @@ extends Resource
 # --- 导出变量 ---
 
 ## 轨道标识。
+## [br]
+## @api public
 @export var track_id: StringName = &""
 
 ## 时间段文本条目列表。
+## [br]
+## @api public
 @export var entries: Array[GFTimedTextEntry] = []
 
 ## 可选元数据。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary extension metadata for the timed text track.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 添加时间段文本条目。
+## [br]
+## @api public
+## [br]
 ## @param start_time: 开始时间，单位秒。
+## [br]
 ## @param end_time: 结束时间，单位秒。
+## [br]
 ## @param text: 文本内容。
+## [br]
 ## @param entry_metadata: 条目元数据。
+## [br]
+## @schema entry_metadata: Dictionary metadata copied into the new entry.
+## [br]
 ## @return 新条目。
 func add_entry(
 	start_time: float,
@@ -41,11 +64,15 @@ func add_entry(
 
 
 ## 清空轨道。
+## [br]
+## @api public
 func clear() -> void:
 	entries.clear()
 
 
 ## 按开始时间排序条目。
+## [br]
+## @api public
 func sort_entries() -> void:
 	entries.sort_custom(func(left: GFTimedTextEntry, right: GFTimedTextEntry) -> bool:
 		if is_equal_approx(left.start_time, right.start_time):
@@ -55,7 +82,11 @@ func sort_entries() -> void:
 
 
 ## 获取指定时间的第一条文本条目。
+## [br]
+## @api public
+## [br]
 ## @param time_seconds: 时间，单位秒。
+## [br]
 ## @return 命中的条目；没有命中时返回 null。
 func get_entry_at_time(time_seconds: float) -> GFTimedTextEntry:
 	for entry: GFTimedTextEntry in entries:
@@ -65,8 +96,13 @@ func get_entry_at_time(time_seconds: float) -> GFTimedTextEntry:
 
 
 ## 获取指定时间的文本。
+## [br]
+## @api public
+## [br]
 ## @param time_seconds: 时间，单位秒。
+## [br]
 ## @param default_text: 没有命中时返回的文本。
+## [br]
 ## @return 文本内容。
 func get_text_at_time(time_seconds: float, default_text: String = "") -> String:
 	var entry := get_entry_at_time(time_seconds)
@@ -74,8 +110,13 @@ func get_text_at_time(time_seconds: float, default_text: String = "") -> String:
 
 
 ## 获取与时间范围相交的条目。
+## [br]
+## @api public
+## [br]
 ## @param range_start: 范围开始时间。
+## [br]
 ## @param range_end: 范围结束时间。
+## [br]
 ## @return 条目列表。
 func get_entries_in_range(range_start: float, range_end: float) -> Array[GFTimedTextEntry]:
 	var result: Array[GFTimedTextEntry] = []
@@ -86,6 +127,9 @@ func get_entries_in_range(range_start: float, range_end: float) -> Array[GFTimed
 
 
 ## 获取轨道总时长。
+## [br]
+## @api public
+## [br]
 ## @return 最大结束时间。
 func get_total_duration() -> float:
 	var duration := 0.0
@@ -96,6 +140,9 @@ func get_total_duration() -> float:
 
 
 ## 创建同内容拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新轨道。
 func duplicate_track() -> GFTimedTextTrack:
 	var track := GFTimedTextTrack.new()
@@ -107,7 +154,12 @@ func duplicate_track() -> GFTimedTextTrack:
 
 
 ## 转换为字典。
+## [br]
+## @api public
+## [br]
 ## @return 轨道字典。
+## [br]
+## @schema return: Dictionary serialized timed text track.
 func to_dictionary() -> Dictionary:
 	var entry_data: Array[Dictionary] = []
 	for entry: GFTimedTextEntry in entries:
@@ -121,7 +173,12 @@ func to_dictionary() -> Dictionary:
 
 
 ## 应用字典数据。
+## [br]
+## @api public
+## [br]
 ## @param data: 字典数据。
+## [br]
+## @schema data: Dictionary serialized timed text track.
 func apply_dictionary(data: Dictionary) -> void:
 	track_id = StringName(String(data.get("track_id", track_id)))
 	entries.clear()

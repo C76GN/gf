@@ -192,11 +192,132 @@ func test_slot_inventory_index_and_constraint_report() -> void:
 
 	var base_slots := inventory.get_slots_for_item(&"item_a", { "variant": "base" })
 	var report := inventory.validate_inventory()
+	var index_snapshot := inventory.get_index_debug_snapshot()
+	var stack_count_by_item := index_snapshot["stack_count_by_item"] as Dictionary
+	var slot_indices_by_item := index_snapshot["slot_indices_by_item"] as Dictionary
 
 	assert_eq(base_slots, PackedInt32Array([0, 2]), "索引查询应支持实例数据兼容筛选。")
+	assert_false(index_snapshot.has("items"), "索引调试快照不应使用容易误读的 items 字段。")
+	assert_eq(int(stack_count_by_item["item_a"]), 3, "索引调试快照应明确报告每个物品占用的堆叠数量。")
+	assert_eq(PackedInt32Array(slot_indices_by_item["item_a"]), PackedInt32Array([0, 1, 2]), "索引调试快照应明确报告物品所在槽位。")
 	assert_false(bool(report["ok"]), "违反注册表约束时应返回失败报告。")
 	assert_true(_has_domain_issue_kind(report["issues"] as Array, "stack_amount_exceeds_limit"), "报告应包含单堆叠超限。")
 	assert_true(_has_domain_issue_kind(report["issues"] as Array, "stack_count_exceeds_limit"), "报告应包含堆叠数量超限。")
+
+
+## 验证槽位变化信号携带稳定快照，并能区分空槽和有内容的切换。
+func test_slot_inventory_emits_stable_slot_snapshots_and_occupancy_events() -> void:
+	var inventory := GFSlotInventoryModel.new()
+	inventory.set_slot_count(1)
+	var state_events: Array = []
+	var filled_events: Array = []
+	var emptied_events: Array = []
+	inventory.slot_state_changed.connect(func(slot_index: int, before_stack_data: Dictionary, after_stack_data: Dictionary) -> void:
+		state_events.append({
+			"slot_index": slot_index,
+			"before": before_stack_data.duplicate(true),
+			"after": after_stack_data.duplicate(true),
+		})
+	)
+	inventory.slot_filled.connect(func(slot_index: int, stack_data: Dictionary) -> void:
+		filled_events.append({
+			"slot_index": slot_index,
+			"stack": stack_data.duplicate(true),
+		})
+	)
+	inventory.slot_emptied.connect(func(slot_index: int, previous_stack_data: Dictionary) -> void:
+		emptied_events.append({
+			"slot_index": slot_index,
+			"stack": previous_stack_data.duplicate(true),
+		})
+	)
+
+	inventory.add_item_to_slot(0, &"HealthPotion", 2)
+	inventory.remove_item_from_slot(0, 2)
+
+	assert_eq(state_events.size(), 2, "加入和移除应各产生一次槽位状态变化。")
+	assert_eq(filled_events.size(), 1, "空槽变为有内容时应发出 slot_filled。")
+	assert_eq(emptied_events.size(), 1, "有内容变为空槽时应发出 slot_emptied。")
+	if state_events.size() != 2 or filled_events.size() != 1 or emptied_events.size() != 1:
+		return
+	var first_after := state_events[0]["after"] as Dictionary
+	var second_before := state_events[1]["before"] as Dictionary
+	var second_after := state_events[1]["after"] as Dictionary
+	var filled_stack := filled_events[0]["stack"] as Dictionary
+	var emptied_stack := emptied_events[0]["stack"] as Dictionary
+	assert_eq(state_events[0]["before"], {}, "空槽加入物品前应给出空快照。")
+	assert_eq(String(first_after["item_id"]), "HealthPotion", "加入后的快照应描述新堆叠。")
+	assert_eq(int(first_after["amount"]), 2, "加入后的快照应保留数量。")
+	assert_eq(String(second_before["item_id"]), "HealthPotion", "清空前快照应描述被移除的堆叠。")
+	assert_eq(second_after, {}, "清空后快照应为空字典。")
+	assert_eq(String(filled_stack["item_id"]), "HealthPotion", "slot_filled 应携带新堆叠快照。")
+	assert_eq(String(emptied_stack["item_id"]), "HealthPotion", "slot_emptied 应携带原堆叠快照。")
+
+
+## 验证通知派发中同步排序会被拒绝，避免后续监听器看到被重入改写的数据。
+func test_slot_inventory_rejects_reentrant_sort_during_change_signal() -> void:
+	var inventory := GFSlotInventoryModel.new()
+	inventory.set_slot_count(2)
+	inventory.add_item_to_slot(0, &"HealthPotion", 1)
+	var sort_results: Array = []
+	var listener_snapshots: Array = []
+	inventory.slot_state_changed.connect(func(_slot_index: int, _before_stack_data: Dictionary, _after_stack_data: Dictionary) -> void:
+		sort_results.append(inventory.sort_slots())
+	)
+	inventory.slot_state_changed.connect(func(_slot_index: int, _before_stack_data: Dictionary, after_stack_data: Dictionary) -> void:
+		listener_snapshots.append(after_stack_data.duplicate(true))
+	)
+
+	inventory.remove_item_from_slot(0, 1)
+
+	assert_push_error("[GFSlotInventoryModel] sort_slots 失败：库存变更通知派发中不允许同步修改库存。请使用 call_deferred() 或在当前通知结束后再修改。")
+	assert_eq(sort_results, [false], "通知派发中的同步排序应失败。")
+	assert_eq(listener_snapshots.size(), 1, "后续监听器仍应收到原始变化通知。")
+	if listener_snapshots.size() != 1:
+		return
+	assert_eq(listener_snapshots[0], {}, "后续监听器看到的 after 快照不应被前一个监听器改写。")
+
+
+## 验证需要由信号触发的排序可以延迟到当前通知结束后执行。
+func test_slot_inventory_deferred_sort_after_signal_is_safe() -> void:
+	var inventory := GFSlotInventoryModel.new()
+	inventory.set_slot_count(3)
+	inventory.add_item_to_slot(0, &"z_item", 1)
+	inventory.add_item_to_slot(1, &"a_item", 1)
+	inventory.slot_emptied.connect(func(_slot_index: int, _previous_stack_data: Dictionary) -> void:
+		inventory.call_deferred("sort_slots")
+	)
+
+	inventory.remove_item_from_slot(0, 1)
+	await get_tree().process_frame
+
+	assert_eq(String(inventory.get_stack_data(0).get("item_id", "")), "a_item", "延迟排序应在通知结束后把非空槽位前移。")
+	assert_true(inventory.is_slot_empty(1), "排序后原第二槽位应变为空。")
+
+
+## 验证槽位排序支持调用方传入一次性的比较规则。
+func test_slot_inventory_sort_slots_uses_custom_resolver() -> void:
+	var inventory := GFSlotInventoryModel.new()
+	inventory.set_slot_count(3)
+	inventory.add_item_to_slot(0, &"z_item", 1)
+	inventory.add_item_to_slot(1, &"a_item", 3)
+	inventory.add_item_to_slot(2, &"b_item", 2)
+
+	var changed := inventory.sort_slots(func(left_slot_index: int, left_stack_data: Dictionary, right_slot_index: int, right_stack_data: Dictionary) -> bool:
+		var left_empty := left_stack_data.is_empty()
+		var right_empty := right_stack_data.is_empty()
+		if left_empty != right_empty:
+			return not left_empty
+		var left_amount := int(left_stack_data.get("amount", 0))
+		var right_amount := int(right_stack_data.get("amount", 0))
+		if left_amount != right_amount:
+			return left_amount > right_amount
+		return left_slot_index < right_slot_index
+	)
+
+	assert_true(changed, "自定义比较规则应能改变槽位顺序。")
+	assert_eq(String(inventory.get_stack_data(0).get("item_id", "")), "a_item", "数量最多的堆叠应排到最前。")
+	assert_eq(String(inventory.get_stack_data(1).get("item_id", "")), "b_item", "第二多的堆叠应排在第二位。")
 
 
 ## 验证槽位集合按标签规则挂载物品。

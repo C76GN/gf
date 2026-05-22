@@ -2,6 +2,12 @@
 ##
 ## 使用邻域值序列匹配结果，可用于自动铺砖、地形变体、网格装饰或任意
 ## 基于相邻格子状态的选择逻辑。规则只处理 Variant 值，不绑定 TileSet 语义。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFTileRuleSet
 extends Resource
 
@@ -9,12 +15,22 @@ extends Resource
 # --- 导出变量 ---
 
 ## 规则匹配失败时尝试使用的邻域回退值。
+## [br]
+## @api public
+## [br]
+## @schema fallback_neighbor_value: Variant fallback neighbor value used while resolving rules.
 @export var fallback_neighbor_value: Variant = 0
 
 ## 没有匹配规则时返回的值。
+## [br]
+## @api public
+## [br]
+## @schema default_result: Variant fallback result returned when no rule matches.
 @export var default_result: Variant = null
 
 ## 参与确定性加权选择的默认种子。
+## [br]
+## @api public
 @export var deterministic_seed: int = 0
 
 
@@ -30,8 +46,17 @@ var _rule_count: int = 0
 # --- 公共方法 ---
 
 ## 注册一条邻域规则。
+## [br]
+## @api public
+## [br]
 ## @param neighbor_values: 邻域值序列。
+## [br]
+## @schema neighbor_values: Array ordered neighbor values used as a rule key.
+## [br]
 ## @param result: 匹配结果。
+## [br]
+## @schema result: Variant result returned when the rule matches.
+## [br]
 ## @param weight: 同一邻域下多个结果的权重。
 func register_rule(neighbor_values: Array, result: Variant, weight: float = 1.0) -> void:
 	if neighbor_values.is_empty():
@@ -53,22 +78,37 @@ func register_rule(neighbor_values: Array, result: Variant, weight: float = 1.0)
 
 
 ## 清空全部规则。
+## [br]
+## @api public
 func clear() -> void:
 	_rules = _make_node()
 	_rule_count = 0
 
 
 ## 获取已注册规则数量。
+## [br]
+## @api public
+## [br]
 ## @return 规则数量。
 func get_rule_count() -> int:
 	return _rule_count
 
 
 ## 根据邻域值解析结果。
+## [br]
+## @api public
+## [br]
 ## @param neighbor_values: 邻域值序列。
+## [br]
+## @schema neighbor_values: Array ordered neighbor values used as a rule key.
+## [br]
 ## @param cell: 可选格坐标，用于确定性加权选择。
+## [br]
 ## @param seed: 可选种子；为 0 时使用 deterministic_seed。
+## [br]
 ## @return 匹配结果；没有匹配时返回 default_result。
+## [br]
+## @schema return: Variant matched result or default_result.
 func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, seed: int = 0) -> Variant:
 	if neighbor_values.is_empty():
 		return default_result
@@ -89,7 +129,13 @@ func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, seed: int =
 
 
 ## 检查邻域值是否存在明确规则。
+## [br]
+## @api public
+## [br]
 ## @param neighbor_values: 邻域值序列。
+## [br]
+## @schema neighbor_values: Array ordered neighbor values used as a rule key.
+## [br]
 ## @return 存在规则时返回 true。
 func has_rule(neighbor_values: Array) -> bool:
 	var node := _rules

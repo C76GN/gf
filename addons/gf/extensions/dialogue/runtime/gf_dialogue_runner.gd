@@ -2,6 +2,12 @@
 ##
 ## Runner 只沿 GFDialogueResource 的行、响应、跳转、条件和 mutation 推进，
 ## 并发出结构化事件。显示、输入、存档和业务状态由项目层决定。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFDialogueRunner
 extends RefCounted
 
@@ -9,25 +15,45 @@ extends RefCounted
 # --- 信号 ---
 
 ## 对话开始时发出。
+## [br]
+## @api public
+## [br]
 ## @param resource: 对话资源。
 signal dialogue_started(resource: GFDialogueResource)
 
 ## 到达可展示文本行时发出。
+## [br]
+## @api public
+## [br]
 ## @param line: 当前行。
 signal line_reached(line: GFDialogueLine)
 
 ## 请求执行 mutation 时发出。
+## [br]
+## @api public
+## [br]
 ## @param mutation_id: mutation ID。
+## [br]
 ## @param payload: mutation 载荷。
+## [br]
+## @schema payload: mutation 处理器接收的任意项目载荷；框架只透传。
+## [br]
 ## @param line: 当前行。
 signal mutation_requested(mutation_id: StringName, payload: Variant, line: GFDialogueLine)
 
 ## 对话结束时发出。
+## [br]
+## @api public
+## [br]
 ## @param resource: 对话资源。
 signal dialogue_ended(resource: GFDialogueResource)
 
 ## 推进被阻止时发出。
+## [br]
+## @api public
+## [br]
 ## @param line_id: 被阻止的行 ID。
+## [br]
 ## @param reason: 原因。
 signal line_blocked(line_id: StringName, reason: StringName)
 
@@ -35,9 +61,13 @@ signal line_blocked(line_id: StringName, reason: StringName)
 # --- 公共变量 ---
 
 ## 最多连续推进的非展示行数量，避免错误资源无限循环。
+## [br]
+## @api public
 var max_steps_per_advance: int = 1024
 
 ## 条件不通过且没有 fallback 时，是否尝试跳到默认后继。
+## [br]
+## @api public
 var skip_blocked_lines: bool = true
 
 
@@ -54,16 +84,25 @@ var _architecture_ref: WeakRef = null
 # --- 公共方法 ---
 
 ## 注入架构。通常由 GFArchitecture 创建或注册时自动调用。
+## [br]
+## @api framework_internal
+## [br]
 ## @param architecture: 架构实例。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
 
 
 ## 开始对话。
+## [br]
+## @api public
+## [br]
 ## @param resource: 对话资源。
+## [br]
 ## @param start_line_id: 可选起始行 ID。
+## [br]
 ## @param context: 可选上下文。
-## @return 到达的第一条可展示行；结束或失败时返回 null。
+## [br]
+## @return: 到达的第一条可展示行；结束或失败时返回 null。
 func start(
 	resource: GFDialogueResource,
 	start_line_id: StringName = &"",
@@ -85,8 +124,12 @@ func start(
 
 
 ## 推进对话。
+## [br]
+## @api public
+## [br]
 ## @param response_id: 可选响应 ID；非空时从当前行选择响应后推进。
-## @return 到达的下一条可展示行；结束或失败时返回 null。
+## [br]
+## @return: 到达的下一条可展示行；结束或失败时返回 null。
 func advance(response_id: StringName = &"") -> GFDialogueLine:
 	if not _is_running or _resource == null:
 		return null
@@ -103,13 +146,19 @@ func advance(response_id: StringName = &"") -> GFDialogueLine:
 
 
 ## 选择当前行响应并推进。
+## [br]
+## @api public
+## [br]
 ## @param response_id: 响应 ID。
-## @return 到达的下一条可展示行；结束或失败时返回 null。
+## [br]
+## @return: 到达的下一条可展示行；结束或失败时返回 null。
 func choose_response(response_id: StringName) -> GFDialogueLine:
 	return advance(response_id)
 
 
 ## 结束当前对话。
+## [br]
+## @api public
 func stop() -> void:
 	if not _is_running:
 		return
@@ -117,13 +166,19 @@ func stop() -> void:
 
 
 ## 获取当前行。
-## @return 当前可展示行；没有时返回 null。
+## [br]
+## @api public
+## [br]
+## @return: 当前可展示行；没有时返回 null。
 func get_current_line() -> GFDialogueLine:
 	return _current_line
 
 
 ## 获取当前可用响应。
-## @return 响应列表。
+## [br]
+## @api public
+## [br]
+## @return: 响应列表。
 func get_available_responses() -> Array[GFDialogueResponse]:
 	if _current_line == null:
 		return []
@@ -131,13 +186,21 @@ func get_available_responses() -> Array[GFDialogueResponse]:
 
 
 ## 检查是否正在运行。
-## @return 运行中返回 true。
+## [br]
+## @api public
+## [br]
+## @return: 运行中返回 true。
 func is_running() -> bool:
 	return _is_running
 
 
 ## 获取运行快照。
-## @return 调试快照。
+## [br]
+## @api public
+## [br]
+## @return: 调试快照。
+## [br]
+## @schema return: 包含 is_running、current_line_id、has_resource 和 context_values 字段的 Dictionary。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"is_running": _is_running,

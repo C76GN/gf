@@ -2,6 +2,12 @@
 ##
 ## 按时间把 GFInputRecording 中的动作值写入 GFVirtualInputSource，适合测试、
 ## 复现、教程或 AI 控制桥接。它只回放抽象动作，不模拟具体键鼠或手柄事件。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFInputPlayback
 extends RefCounted
 
@@ -9,47 +15,67 @@ extends RefCounted
 # --- 信号 ---
 
 ## 回放开始。
+## [br]
+## @api public
+## [br]
 ## @param recording: 回放录制。
-signal playback_started(recording: RefCounted)
+signal playback_started(recording: GFInputRecording)
 
 ## 回放停止。
+## [br]
+## @api public
 signal playback_stopped
 
 ## 回放自然完成。
+## [br]
+## @api public
 signal playback_finished
 
 ## 一个录制事件已被应用。
+## [br]
+## @api public
+## [br]
 ## @param event: 事件副本。
+## [br]
+## @schema event: Dictionary，包含 time_seconds、action_id、value、player_index、source_id 和 metadata。
 signal event_applied(event: Dictionary)
-
-
-# --- 常量 ---
-
-const GFInputRecordingBase = preload("res://addons/gf/standard/input/recording/gf_input_recording.gd")
-const GFVirtualInputSourceBase = preload("res://addons/gf/standard/input/sources/gf_virtual_input_source.gd")
 
 
 # --- 公共变量 ---
 
 ## 当前录制。
-var recording: GFInputRecordingBase = null
+## [br]
+## @api public
+var recording: GFInputRecording = null
 
 ## 目标虚拟输入源。
-var source: GFVirtualInputSourceBase = null
+## [br]
+## @api public
+var source: GFVirtualInputSource = null
 
 ## 回放速度倍率。
+## [br]
+## @api public
 var speed: float = 1.0
 
 ## 到达末尾后是否循环。
+## [br]
+## @api public
 var loop: bool = false
 
 ## 为 true 时，事件带 player_index 时会写入对应玩家。
+## [br]
+## @api public
 var respect_recorded_player_index: bool = false
 
 ## 当前是否正在播放。
+## [br]
+## @api public
 var is_playing: bool = false
 
 ## 当前回放时间，单位秒。
+## [br]
+## @api public
 var elapsed_seconds: float = 0.0
 
 
@@ -61,13 +87,19 @@ var _next_event_index: int = 0
 # --- 公共方法 ---
 
 ## 开始回放。
+## [br]
+## @api public
+## [br]
 ## @param next_recording: 要回放的录制。
+## [br]
 ## @param next_source: 目标虚拟输入源。
+## [br]
 ## @param restart: 是否从头开始。
+## [br]
 ## @return 成功开始时返回 true。
 func start(
-	next_recording: GFInputRecordingBase,
-	next_source: GFVirtualInputSourceBase,
+	next_recording: GFInputRecording,
+	next_source: GFVirtualInputSource,
 	restart: bool = true
 ) -> bool:
 	if next_recording == null or next_source == null:
@@ -86,6 +118,9 @@ func start(
 
 
 ## 停止回放。
+## [br]
+## @api public
+## [br]
 ## @param clear_source: 是否清空目标虚拟输入源。
 func stop(clear_source: bool = false) -> void:
 	if clear_source and source != null:
@@ -95,13 +130,19 @@ func stop(clear_source: bool = false) -> void:
 
 
 ## 重置到起点。
+## [br]
+## @api public
 func reset() -> void:
 	elapsed_seconds = 0.0
 	_next_event_index = 0
 
 
 ## 推进回放并应用到期事件。
+## [br]
+## @api public
+## [br]
 ## @param delta: 时间增量，单位秒。
+## [br]
 ## @return 本次应用的事件数量。
 func tick(delta: float) -> int:
 	if not is_playing or recording == null or source == null:
@@ -115,6 +156,9 @@ func tick(delta: float) -> int:
 
 
 ## 跳转到指定时间。
+## [br]
+## @api public
+## [br]
 ## @param time_seconds: 目标时间，单位秒。
 func seek(time_seconds: float) -> void:
 	elapsed_seconds = maxf(time_seconds, 0.0)
@@ -122,12 +166,20 @@ func seek(time_seconds: float) -> void:
 
 
 ## 检查是否已到达末尾。
+## [br]
+## @api public
+## [br]
 ## @return 到达末尾时返回 true。
 func is_finished() -> bool:
 	return recording == null or _next_event_index >= recording.events.size()
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
+## @schema return: Dictionary，包含 is_playing、elapsed_seconds、speed、loop、respect_recorded_player_index、next_event_index、event_count 和 source_id。
+## [br]
 ## @return 调试快照。
 func get_debug_snapshot() -> Dictionary:
 	return {

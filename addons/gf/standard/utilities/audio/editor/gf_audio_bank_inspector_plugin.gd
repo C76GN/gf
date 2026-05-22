@@ -1,20 +1,20 @@
 @tool
 
-## GF Audio Bank Inspector: 在 Inspector 中辅助检查音频集合。
+# GF Audio Bank Inspector: 在 Inspector 中辅助检查音频集合。
 extends EditorInspectorPlugin
 
 
 # --- 常量 ---
 
-const GF_AUDIO_BANK_BASE := preload("res://addons/gf/standard/utilities/audio/gf_audio_bank.gd")
-const GF_AUDIO_BANK_TOOLS := preload("res://addons/gf/standard/utilities/audio/gf_audio_bank_tools.gd")
-const GF_VALIDATION_DIAGNOSTIC_ADAPTER := preload("res://addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd")
+const _GF_AUDIO_BANK_BASE := preload("res://addons/gf/standard/utilities/audio/gf_audio_bank.gd")
+const _GF_AUDIO_BANK_TOOLS := preload("res://addons/gf/standard/utilities/audio/gf_audio_bank_tools.gd")
+const _GF_VALIDATION_DIAGNOSTIC_ADAPTER := preload("res://addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd")
 
 
 # --- Godot 回调方法 ---
 
 func _can_handle(object: Object) -> bool:
-	return object is GF_AUDIO_BANK_BASE
+	return object is _GF_AUDIO_BANK_BASE
 
 
 func _parse_begin(object: Object) -> void:
@@ -47,9 +47,9 @@ func _parse_begin(object: Object) -> void:
 
 	var id_mode_option := OptionButton.new()
 	id_mode_option.tooltip_text = "选择导入后生成 clip_id 的方式。"
-	id_mode_option.add_item("文件名", GF_AUDIO_BANK_TOOLS.ClipIdMode.BASENAME)
-	id_mode_option.add_item("相对路径", GF_AUDIO_BANK_TOOLS.ClipIdMode.RELATIVE_PATH)
-	id_mode_option.add_item("完整路径", GF_AUDIO_BANK_TOOLS.ClipIdMode.FULL_PATH)
+	id_mode_option.add_item("文件名", _GF_AUDIO_BANK_TOOLS.ClipIdMode.BASENAME)
+	id_mode_option.add_item("相对路径", _GF_AUDIO_BANK_TOOLS.ClipIdMode.RELATIVE_PATH)
+	id_mode_option.add_item("完整路径", _GF_AUDIO_BANK_TOOLS.ClipIdMode.FULL_PATH)
 	id_mode_option.select(1)
 	import_options.add_child(id_mode_option)
 
@@ -91,29 +91,18 @@ func _parse_begin(object: Object) -> void:
 	)
 
 
-# --- 私有/辅助方法 ---
+# --- 框架内部方法 ---
 
-func _update_validation_report(label: Label, bank: GFAudioBank) -> void:
-	if label == null or bank == null:
-		return
-
-	var report := GF_AUDIO_BANK_TOOLS.validate_bank_playback(bank, {
-		"check_resource_exists": true,
-		"check_bus_exists": true,
-	})
-	label.text = report.make_summary("GFAudioBank")
-	label.tooltip_text = _format_report_tooltip(report)
-	if report.get_error_count() > 0:
-		label.modulate = Color(1.0, 0.45, 0.35)
-	elif report.get_warning_count() > 0:
-		label.modulate = Color(1.0, 0.78, 0.35)
-	else:
-		label.modulate = Color(0.45, 0.9, 0.55)
-
-
-static func _format_report_tooltip(report: RefCounted) -> String:
+## 将校验报告压缩为 Inspector tooltip 文本。
+## [br]
+## @api framework_internal
+## [br]
+## @param report: GFValidationReport 实例。
+## [br]
+## @return: 适合 Inspector tooltip 展示的短文本。
+static func format_report_tooltip(report: RefCounted) -> String:
 	var lines := PackedStringArray()
-	var diagnostics := GF_VALIDATION_DIAGNOSTIC_ADAPTER.report_to_diagnostics(report)
+	var diagnostics := _GF_VALIDATION_DIAGNOSTIC_ADAPTER.report_to_diagnostics(report)
 	for diagnostic: Dictionary in diagnostics:
 		var kind := String(diagnostic.get("kind", "unknown"))
 		var message := String(diagnostic.get("message", ""))
@@ -122,6 +111,26 @@ static func _format_report_tooltip(report: RefCounted) -> String:
 			lines.append("...")
 			break
 	return "\n".join(lines)
+
+
+# --- 私有/辅助方法 ---
+
+func _update_validation_report(label: Label, bank: GFAudioBank) -> void:
+	if label == null or bank == null:
+		return
+
+	var report := _GF_AUDIO_BANK_TOOLS.validate_bank_playback(bank, {
+		"check_resource_exists": true,
+		"check_bus_exists": true,
+	})
+	label.text = report.make_summary("GFAudioBank")
+	label.tooltip_text = format_report_tooltip(report)
+	if report.get_error_count() > 0:
+		label.modulate = Color(1.0, 0.45, 0.35)
+	elif report.get_warning_count() > 0:
+		label.modulate = Color(1.0, 0.78, 0.35)
+	else:
+		label.modulate = Color(0.45, 0.9, 0.55)
 
 
 func _update_import_report(
@@ -140,13 +149,13 @@ func _update_import_report(
 	if root_path.is_empty():
 		root_path = "res://audio"
 	var options := {
-		"id_mode": id_mode_option.get_selected_id() if id_mode_option != null else GF_AUDIO_BANK_TOOLS.ClipIdMode.RELATIVE_PATH,
+		"id_mode": id_mode_option.get_selected_id() if id_mode_option != null else _GF_AUDIO_BANK_TOOLS.ClipIdMode.RELATIVE_PATH,
 		"base_path": root_path,
 		"overwrite": overwrite_check.button_pressed if overwrite_check != null else false,
 		"include_addons": include_addons_check.button_pressed if include_addons_check != null else false,
 		"bus_name": bus_input.text.strip_edges() if bus_input != null else "",
 	}
-	var report := GF_AUDIO_BANK_TOOLS.sync_bank_from_scan(bank, root_path, options)
+	var report := _GF_AUDIO_BANK_TOOLS.sync_bank_from_scan(bank, root_path, options)
 	bank.emit_changed()
 	label.text = "%s\n扫描: %d, 新增/覆盖: %d, 跳过: %d" % [
 		report.make_summary("GFAudioBank Import"),
@@ -154,7 +163,7 @@ func _update_import_report(
 		int(report.metadata.get("added_count", 0)),
 		int(report.metadata.get("skipped_count", 0)),
 	]
-	label.tooltip_text = _format_report_tooltip(report)
+	label.tooltip_text = format_report_tooltip(report)
 	if report.get_error_count() > 0:
 		label.modulate = Color(1.0, 0.45, 0.35)
 	elif report.get_warning_count() > 0:

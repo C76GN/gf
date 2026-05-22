@@ -1,6 +1,12 @@
 ## GFBlackboardSchema: 通用黑板数据结构声明与校验器。
 ##
 ## 用于为行为树、状态机、任务系统或项目自定义运行时字典提供可复用字段契约。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFBlackboardSchema
 extends Resource
 
@@ -13,34 +19,55 @@ const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT: Script = preload("res://addons/gf
 # --- 导出变量 ---
 
 ## Schema 标识。为空时可由调用方自行决定命名。
+## [br]
+## @api public
 @export var schema_id: StringName = &""
 
 ## 字段声明列表。
+## [br]
+## @api public
 @export var entries: Array[GFBlackboardEntry] = []
 
 ## 是否允许包含 schema 未声明的字段。
+## [br]
+## @api public
 @export var allow_extra_keys: bool = true
 
 ## 是否在校验前按字段声明尝试类型转换。
+## [br]
+## @api public
 @export var coerce_values: bool = false
 
 ## 启用 coerce_values 时，转换失败是否作为校验错误。
+## [br]
+## @api public
 @export var fail_on_coerce_error: bool = true
 
 ## 可选元数据，供编辑器、调试器或项目工具使用。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary metadata for editor, debugger, or project tooling.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取稳定 schema 键。
+## [br]
+## @api public
+## [br]
 ## @return Schema 标识。
 func get_schema_key() -> StringName:
 	return schema_id
 
 
 ## 获取字段声明。
+## [br]
+## @api public
+## [br]
 ## @param entry_key: 字段键。
+## [br]
 ## @return 找到时返回字段声明，否则返回 null。
 func get_entry(entry_key: StringName) -> GFBlackboardEntry:
 	for entry: GFBlackboardEntry in entries:
@@ -50,13 +77,20 @@ func get_entry(entry_key: StringName) -> GFBlackboardEntry:
 
 
 ## 检查字段声明是否存在。
+## [br]
+## @api public
+## [br]
 ## @param entry_key: 字段键。
+## [br]
 ## @return 存在返回 true。
 func has_entry(entry_key: StringName) -> bool:
 	return get_entry(entry_key) != null
 
 
 ## 获取当前 schema 的字段键列表。
+## [br]
+## @api public
+## [br]
 ## @return 排序后的字段键。
 func get_entry_keys() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -68,8 +102,14 @@ func get_entry_keys() -> PackedStringArray:
 
 
 ## 创建默认黑板数据。
+## [br]
+## @api public
+## [br]
 ## @param include_optional: 为 true 时包含非必填字段。
+## [br]
 ## @return 默认数据字典。
+## [br]
+## @schema return: Dictionary default blackboard values.
 func build_defaults(include_optional: bool = true) -> Dictionary:
 	var result: Dictionary = {}
 	for entry: GFBlackboardEntry in entries:
@@ -81,10 +121,20 @@ func build_defaults(include_optional: bool = true) -> Dictionary:
 
 
 ## 为输入数据补齐默认值。
+## [br]
+## @api public
+## [br]
 ## @param values: 输入黑板数据。
+## [br]
 ## @param include_optional: 为 true 时补齐非必填字段。
+## [br]
 ## @param should_coerce: 为 true 时按字段声明转换已有值与默认值。
+## [br]
 ## @return 补齐后的新字典。
+## [br]
+## @schema values: Dictionary source blackboard values.
+## [br]
+## @schema return: Dictionary normalized blackboard values.
 func apply_defaults(values: Dictionary, include_optional: bool = true, should_coerce: bool = true) -> Dictionary:
 	var result := _normalize_keys(values)
 	for entry: GFBlackboardEntry in entries:
@@ -102,9 +152,18 @@ func apply_defaults(values: Dictionary, include_optional: bool = true, should_co
 
 
 ## 按字段声明转换黑板数据。
+## [br]
+## @api public
+## [br]
 ## @param values: 输入黑板数据。
+## [br]
 ## @param include_defaults: 为 true 时同时补默认值。
+## [br]
 ## @return 转换后的新字典。
+## [br]
+## @schema values: Dictionary source blackboard values.
+## [br]
+## @schema return: Dictionary coerced blackboard values.
 func coerce_dictionary(values: Dictionary, include_defaults: bool = true) -> Dictionary:
 	var result := apply_defaults(values, include_defaults, false) if include_defaults else _normalize_keys(values)
 	for entry: GFBlackboardEntry in entries:
@@ -115,8 +174,16 @@ func coerce_dictionary(values: Dictionary, include_defaults: bool = true) -> Dic
 
 
 ## 校验黑板数据。
+## [br]
+## @api public
+## [br]
 ## @param values: 输入黑板数据。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema values: Dictionary source blackboard values.
+## [br]
+## @schema return: Dictionary validation report.
 func validate_values(values: Dictionary) -> Dictionary:
 	var report := _make_report()
 	var working_values := _coerce_values_for_validation(values, report) if coerce_values else _normalize_keys(values)
@@ -157,6 +224,9 @@ func validate_values(values: Dictionary) -> Dictionary:
 
 
 ## 创建同内容拷贝，避免运行时修改污染共享 Resource。
+## [br]
+## @api public
+## [br]
 ## @return 新 schema。
 func duplicate_schema() -> GFBlackboardSchema:
 	var schema := GFBlackboardSchema.new()
@@ -171,7 +241,12 @@ func duplicate_schema() -> GFBlackboardSchema:
 
 
 ## 导出 schema 摘要。
+## [br]
+## @api public
+## [br]
 ## @return schema 字典。
+## [br]
+## @schema return: Dictionary schema description.
 func describe() -> Dictionary:
 	var entry_descriptions: Array[Dictionary] = []
 	for entry: GFBlackboardEntry in entries:

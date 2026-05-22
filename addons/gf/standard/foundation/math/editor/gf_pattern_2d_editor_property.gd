@@ -1,12 +1,12 @@
 @tool
 
-## GFPattern2DEditorProperty: 在 Inspector 中用网格编辑 GFPattern2D.cells。
+# GFPattern2DEditorProperty: 在 Inspector 中用网格编辑 GFPattern2D.cells。
 extends EditorProperty
 
 
 # --- 常量 ---
 
-const GF_PATTERN_2D_BASE := preload("res://addons/gf/standard/foundation/math/gf_pattern_2d.gd")
+const _GF_PATTERN_2D_BASE := preload("res://addons/gf/standard/foundation/math/gf_pattern_2d.gd")
 
 
 # --- 私有变量 ---
@@ -32,7 +32,7 @@ func _init() -> void:
 # --- Godot 回调方法 ---
 
 func _update_property() -> void:
-	var pattern := get_edited_object() as GF_PATTERN_2D_BASE
+	var pattern := get_edited_object() as _GF_PATTERN_2D_BASE
 	if pattern == null:
 		return
 
@@ -72,7 +72,7 @@ func _create_cell_button(cell: Vector2i, cells: Array) -> CheckBox:
 
 
 func _make_next_cells(cell: Vector2i, enabled: bool) -> Array[Vector2i]:
-	var pattern := get_edited_object() as GF_PATTERN_2D_BASE
+	var pattern := get_edited_object() as _GF_PATTERN_2D_BASE
 	var next_cells: Array[Vector2i] = []
 	if pattern == null:
 		return next_cells

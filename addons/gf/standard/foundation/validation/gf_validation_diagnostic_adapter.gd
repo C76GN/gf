@@ -2,23 +2,51 @@
 ##
 ## 只把 `GFValidationIssue`、`GFValidationReport` 或兼容字典转换成纯 Dictionary
 ## 诊断记录，不创建 UI，也不假设具体编辑器控件，便于 Inspector、Dock、CI 和项目工具复用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFValidationDiagnosticAdapter
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 校验问题脚本基类。
+## [br]
+## @api framework_internal
 const GF_VALIDATION_ISSUE_BASE: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd")
+
+## 校验报告脚本基类。
+## [br]
+## @api framework_internal
 const GF_VALIDATION_REPORT_BASE: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+
+## 源码范围脚本基类。
+## [br]
+## @api framework_internal
 const GF_SOURCE_SPAN_BASE: Script = preload("res://addons/gf/standard/foundation/validation/gf_source_span.gd")
 
 
 # --- 公共方法 ---
 
 ## 将单个问题转换成诊断字典。
+## [br]
+## @api public
+## [br]
 ## @param issue: GFValidationIssue 或兼容问题字典。
+## [br]
+## @schema issue: Variant accepting GFValidationIssue or Dictionary issue payload.
+## [br]
 ## @param options: 可选参数，支持 use_path_as_source、include_empty_source_span。
+## [br]
+## @schema options: Dictionary diagnostic conversion options.
+## [br]
 ## @return 诊断字典；输入无效时返回空字典。
+## [br]
+## @schema return: Dictionary editor diagnostic record.
 static func issue_to_diagnostic(issue: Variant, options: Dictionary = {}) -> Dictionary:
 	var issue_data := _issue_to_dict(issue, bool(options.get("include_empty_source_span", false)))
 	if issue_data.is_empty():
@@ -61,9 +89,20 @@ static func issue_to_diagnostic(issue: Variant, options: Dictionary = {}) -> Dic
 
 
 ## 将报告、报告字典或问题数组转换成诊断数组。
+## [br]
+## @api public
+## [br]
 ## @param source: GFValidationReport、报告字典或问题数组。
+## [br]
+## @schema source: Variant accepting GFValidationReport, Dictionary report payload, or Array issues.
+## [br]
 ## @param options: 可选参数，支持 source_path、include_positionless、use_path_as_source。
+## [br]
+## @schema options: Dictionary diagnostic conversion options.
+## [br]
 ## @return 诊断数组。
+## [br]
+## @schema return: Array of Dictionary editor diagnostic records.
 static func report_to_diagnostics(source: Variant, options: Dictionary = {}) -> Array[Dictionary]:
 	var diagnostics: Array[Dictionary] = []
 	var source_filter := String(options.get("source_path", ""))
@@ -81,8 +120,16 @@ static func report_to_diagnostics(source: Variant, options: Dictionary = {}) -> 
 
 
 ## 按源路径分组诊断。
+## [br]
+## @api public
+## [br]
 ## @param diagnostics: 诊断数组。
+## [br]
+## @schema diagnostics: Array of Dictionary editor diagnostic records.
+## [br]
 ## @return source_path -> Array[Dictionary]。
+## [br]
+## @schema return: Dictionary keyed by source_path with diagnostic arrays.
 static func group_by_source(diagnostics: Array[Dictionary]) -> Dictionary:
 	var result: Dictionary = {}
 	for diagnostic: Dictionary in diagnostics:
@@ -94,9 +141,20 @@ static func group_by_source(diagnostics: Array[Dictionary]) -> Dictionary:
 
 
 ## 生成适合行号栏、问题列表或资源面板消费的行记录。
+## [br]
+## @api public
+## [br]
 ## @param diagnostics: 诊断数组。
+## [br]
+## @schema diagnostics: Array of Dictionary editor diagnostic records.
+## [br]
 ## @param options: 可选参数，支持 include_positionless。
+## [br]
+## @schema options: Dictionary line record conversion options.
+## [br]
 ## @return 行记录数组。
+## [br]
+## @schema return: Array of Dictionary line records.
 static func make_line_records(diagnostics: Array[Dictionary], options: Dictionary = {}) -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	var include_positionless := bool(options.get("include_positionless", false))
@@ -120,7 +178,13 @@ static func make_line_records(diagnostics: Array[Dictionary], options: Dictionar
 
 
 ## 生成单条诊断的简短显示文本。
+## [br]
+## @api public
+## [br]
 ## @param diagnostic: 诊断字典。
+## [br]
+## @schema diagnostic: Dictionary editor diagnostic record.
+## [br]
 ## @return 显示文本。
 static func make_display_text(diagnostic: Dictionary) -> String:
 	var message := String(diagnostic.get("message", ""))
@@ -137,7 +201,13 @@ static func make_display_text(diagnostic: Dictionary) -> String:
 
 
 ## 生成单条诊断的工具提示文本。
+## [br]
+## @api public
+## [br]
 ## @param diagnostic: 诊断字典。
+## [br]
+## @schema diagnostic: Dictionary editor diagnostic record.
+## [br]
 ## @return 工具提示文本。
 static func make_tooltip(diagnostic: Dictionary) -> String:
 	var lines := PackedStringArray()

@@ -1,6 +1,12 @@
 ## GFNodeTransform3DSerializer: Node3D Transform 序列化器。
 ##
 ## 以 JSON 友好的标量数组保存 position、rotation 与 scale。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNodeTransform3DSerializer
 extends GFNodeSerializer
 
@@ -24,14 +30,29 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 判断序列化器是否支持指定节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
+## @return 节点是否为 Node3D。
 func supports_node(node: Node) -> bool:
 	return node is Node3D
 
 
 ## 采集节点的可保存状态。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return Node3D transform 载荷。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，可包含 position: Array[float]、rotation: Array[float] 与 scale: Array[float]。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	var node_3d := node as Node3D
 	if node_3d == null:
@@ -41,9 +62,22 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 
 
 ## 将序列化数据应用到节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
-## @param payload: 随事件或交互传递的数据。
+## [br]
+## @param payload: Node3D transform 载荷。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return 应用结果字典。
+## [br]
+## @schema payload: Dictionary，可包含 position: Array[float]、rotation: Array[float] 与 scale: Array[float]。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
 	var node_3d := node as Node3D
 	if node_3d == null:

@@ -2,6 +2,12 @@
 ##
 ## 适合处理货币、税率、经营数值等对“累计误差”敏感、
 ## 但又不需要无限精度十进制库的场景。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFFixedDecimal
 extends RefCounted
 
@@ -9,6 +15,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 缩放或除法时使用的舍入策略。
+## [br]
+## @api public
 enum RoundingMode {
 	## 四舍五入，0.5 始终朝绝对值更大的方向进位。
 	HALF_UP,
@@ -26,6 +34,8 @@ enum RoundingMode {
 # --- 常量 ---
 
 ## 定点数可保留的小数位上限，避免整数缩放时溢出。
+## [br]
+## @api public
 const MAX_DECIMAL_PLACES: int = 18
 
 const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/standard/foundation/numeric/gf_big_number.gd")
@@ -37,9 +47,13 @@ const _MAX_INT_DIGITS: String = "9223372036854775807"
 # --- 公共变量 ---
 
 ## 实际保存的整数值。
+## [br]
+## @api public
 var raw_value: int = 0
 
 ## 小数位数。
+## [br]
+## @api public
 var decimal_places: int = 2
 
 
@@ -53,8 +67,13 @@ func _init(p_raw_value: int = 0, p_decimal_places: int = 2) -> void:
 # --- 公共方法 ---
 
 ## 从 int 构建定点数。
+## [br]
+## @api public
+## [br]
 ## @param value: 原始整数。
+## [br]
 ## @param p_decimal_places: 目标小数位。
+## [br]
 ## @return 定点数实例。
 static func from_int(value: int, p_decimal_places: int = 2) -> GFFixedDecimal:
 	var places := _normalize_decimal_places(p_decimal_places)
@@ -65,9 +84,15 @@ static func from_int(value: int, p_decimal_places: int = 2) -> GFFixedDecimal:
 
 
 ## 从 float 构建定点数。
+## [br]
+## @api public
+## [br]
 ## @param value: 原始浮点数。
+## [br]
 ## @param p_decimal_places: 目标小数位。
+## [br]
 ## @param rounding_mode: 舍入策略。
+## [br]
 ## @return 定点数实例。
 static func from_float(
 	value: float,
@@ -89,9 +114,15 @@ static func from_float(
 
 
 ## 从字符串构建定点数。
+## [br]
+## @api public
+## [br]
 ## @param value: 普通十进制字符串。
+## [br]
 ## @param p_decimal_places: 目标小数位。
+## [br]
 ## @param rounding_mode: 舍入策略。
+## [br]
 ## @return 定点数实例。
 static func from_string(
 	value: String,
@@ -134,32 +165,49 @@ static func from_string(
 
 
 ## 克隆当前定点数。
+## [br]
+## @api public
+## [br]
 ## @return 内容相同的新实例。
 func clone() -> GFFixedDecimal:
 	return GFFixedDecimal.new(raw_value, decimal_places)
 
 
 ## 当前值是否为零。
+## [br]
+## @api public
+## [br]
 ## @return 为零时返回 true。
 func is_zero() -> bool:
 	return raw_value == 0
 
 
 ## 获取绝对值。
+## [br]
+## @api public
+## [br]
 ## @return 新的定点数实例。
 func abs_value() -> GFFixedDecimal:
 	return GFFixedDecimal.new(_abs_int(raw_value), decimal_places)
 
 
 ## 获取相反数。
+## [br]
+## @api public
+## [br]
 ## @return 新的定点数实例。
 func negated() -> GFFixedDecimal:
 	return GFFixedDecimal.new(_checked_multiply(raw_value, -1, "negated"), decimal_places)
 
 
 ## 重设小数位数。
+## [br]
+## @api public
+## [br]
 ## @param target_decimal_places: 目标小数位数。
+## [br]
 ## @param rounding_mode: 降位时的舍入策略。
+## [br]
 ## @return 重设后的定点数实例。
 func rescaled(
 	target_decimal_places: int,
@@ -176,7 +224,11 @@ func rescaled(
 
 
 ## 与另一个定点数比较大小。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个定点数。
+## [br]
 ## @return 大于返回 1，小于返回 -1，相等返回 0。
 func compare_to(other: GFFixedDecimal) -> int:
 	if other == null:
@@ -193,7 +245,11 @@ func compare_to(other: GFFixedDecimal) -> int:
 
 
 ## 与另一个定点数相加。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个定点数。
+## [br]
 ## @return 相加结果。
 func add(other: GFFixedDecimal) -> GFFixedDecimal:
 	if other == null:
@@ -206,7 +262,11 @@ func add(other: GFFixedDecimal) -> GFFixedDecimal:
 
 
 ## 与另一个定点数相减。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个定点数。
+## [br]
 ## @return 相减结果。
 func subtract(other: GFFixedDecimal) -> GFFixedDecimal:
 	if other == null:
@@ -216,9 +276,15 @@ func subtract(other: GFFixedDecimal) -> GFFixedDecimal:
 
 
 ## 与另一个定点数相乘。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个定点数。
+## [br]
 ## @param target_decimal_places: 结果小数位；传 -1 时取两者较大值。
+## [br]
 ## @param rounding_mode: 结果降位时的舍入策略。
+## [br]
 ## @return 相乘结果。
 func multiply(
 	other: GFFixedDecimal,
@@ -240,9 +306,15 @@ func multiply(
 
 
 ## 与另一个定点数相除。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个定点数。
+## [br]
 ## @param target_decimal_places: 结果小数位；传 -1 时取两者较大值。
+## [br]
 ## @param rounding_mode: 除法舍入策略。
+## [br]
 ## @return 相除结果。
 func divide(
 	other: GFFixedDecimal,
@@ -276,19 +348,29 @@ func divide(
 
 
 ## 转换为 float。
+## [br]
+## @api public
+## [br]
 ## @return 浮点值。
 func to_float() -> float:
 	return float(raw_value) / _pow10_float(decimal_places)
 
 
 ## 转换为 GFBigNumber。
+## [br]
+## @api public
+## [br]
 ## @return 对应的大数值对象。
-func to_big_number() -> Object:
+func to_big_number() -> GFBigNumber:
 	return _BIG_NUMBER_SCRIPT.from_string(to_decimal_string(false))
 
 
 ## 转换为普通字符串。
+## [br]
+## @api public
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @return 十进制字符串。
 func to_decimal_string(trim_zeroes: bool = false) -> String:
 	if decimal_places == 0:

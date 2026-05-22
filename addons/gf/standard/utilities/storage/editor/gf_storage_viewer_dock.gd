@@ -3,17 +3,23 @@
 ## GFStorageViewerDock: 开发期本地存档查看面板。
 ##
 ## 用 GFStorageCodec 解码本地存档字节，便于编辑器内排查存档内容与完整性状态。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
 class_name GFStorageViewerDock
 extends VBoxContainer
 
 
 # --- 常量 ---
 
-const SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/standard/utilities/storage/gf_storage_codec.gd"
-const SAVE_VIEWER_FORMAT_JSON: int = 0
-const SAVE_VIEWER_FORMAT_BINARY: int = 1
-const SAVE_VIEWER_LABEL_WIDTH: float = 72.0
-const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _SAVE_VIEWER_CODEC_SCRIPT_PATH: String = "res://addons/gf/standard/utilities/storage/gf_storage_codec.gd"
+const _SAVE_VIEWER_FORMAT_JSON: int = 0
+const _SAVE_VIEWER_FORMAT_BINARY: int = 1
+const _SAVE_VIEWER_LABEL_WIDTH: float = 72.0
+const _GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -33,14 +39,14 @@ var _file_dialog: FileDialog
 
 func _init() -> void:
 	name = "GF Storage Viewer"
-	GFEditorWorkspaceUI.apply_page_root(self)
+	_GFEditorWorkspaceUI.apply_page_root(self)
 	_build_ui()
 
 
 # --- 私有/辅助方法 ---
 
 func _build_ui() -> void:
-	var path_row := GFEditorWorkspaceUI.make_toolbar()
+	var path_row := _GFEditorWorkspaceUI.make_toolbar()
 	add_child(path_row)
 
 	_path_edit = LineEdit.new()
@@ -48,11 +54,11 @@ func _build_ui() -> void:
 	_path_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	path_row.add_child(_path_edit)
 
-	path_row.add_child(GFEditorWorkspaceUI.make_button("...", "选择存档文件。", _on_browse_pressed))
+	path_row.add_child(_GFEditorWorkspaceUI.make_button("...", "选择存档文件。", _on_browse_pressed))
 
 	_format_option = OptionButton.new()
-	_format_option.add_item("JSON", SAVE_VIEWER_FORMAT_JSON)
-	_format_option.add_item("二进制", SAVE_VIEWER_FORMAT_BINARY)
+	_format_option.add_item("JSON", _SAVE_VIEWER_FORMAT_JSON)
+	_format_option.add_item("二进制", _SAVE_VIEWER_FORMAT_BINARY)
 	_format_option.selected = 0
 	add_child(_make_labeled_row("格式", _format_option))
 
@@ -76,16 +82,16 @@ func _build_ui() -> void:
 	_strict_check.button_pressed = true
 	add_child(_strict_check)
 
-	var button_row := GFEditorWorkspaceUI.make_toolbar()
+	var button_row := _GFEditorWorkspaceUI.make_toolbar()
 	add_child(button_row)
 
-	button_row.add_child(GFEditorWorkspaceUI.make_button("加载", "读取并解码当前存档文件。", _on_load_pressed))
-	button_row.add_child(GFEditorWorkspaceUI.make_button("复制", "复制解码后的 JSON。", _on_copy_pressed))
+	button_row.add_child(_GFEditorWorkspaceUI.make_button("加载", "读取并解码当前存档文件。", _on_load_pressed))
+	button_row.add_child(_GFEditorWorkspaceUI.make_button("复制", "复制解码后的 JSON。", _on_copy_pressed))
 
-	_status_label = GFEditorWorkspaceUI.make_summary_label("选择存档文件和匹配的 codec 选项。")
+	_status_label = _GFEditorWorkspaceUI.make_summary_label("选择存档文件和匹配的 codec 选项。")
 	add_child(_status_label)
 
-	_output = GFEditorWorkspaceUI.make_details_output()
+	_output = _GFEditorWorkspaceUI.make_details_output()
 	_output.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	add_child(_output)
 
@@ -102,7 +108,7 @@ func _make_labeled_row(label_text: String, control: Control) -> HBoxContainer:
 
 	var label := Label.new()
 	label.text = label_text
-	label.custom_minimum_size = Vector2(SAVE_VIEWER_LABEL_WIDTH, 0.0)
+	label.custom_minimum_size = Vector2(_SAVE_VIEWER_LABEL_WIDTH, 0.0)
 	row.add_child(label)
 
 	control.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -111,7 +117,7 @@ func _make_labeled_row(label_text: String, control: Control) -> HBoxContainer:
 
 
 func _create_codec() -> Variant:
-	var codec_script := load(SAVE_VIEWER_CODEC_SCRIPT_PATH) as Script
+	var codec_script := load(_SAVE_VIEWER_CODEC_SCRIPT_PATH) as Script
 	if codec_script == null or not codec_script.can_instantiate():
 		return null
 	return codec_script.new()
@@ -124,7 +130,7 @@ func _get_selected_format() -> int:
 func _set_status(message: String, is_error: bool) -> void:
 	if is_instance_valid(_status_label):
 		_status_label.text = message
-		_status_label.modulate = GFEditorWorkspaceUI.ERROR_TEXT_COLOR if is_error else GFEditorWorkspaceUI.OK_TEXT_COLOR
+		_status_label.modulate = _GFEditorWorkspaceUI.ERROR_TEXT_COLOR if is_error else _GFEditorWorkspaceUI.OK_TEXT_COLOR
 	if is_error:
 		push_warning("[GF Storage Viewer] " + message)
 

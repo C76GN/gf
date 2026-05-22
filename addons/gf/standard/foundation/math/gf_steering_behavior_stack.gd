@@ -2,6 +2,12 @@
 ##
 ## 以 blend 或 priority 模式组合 GFSteeringBehaviorResource。它只返回加速度结果，
 ## 不负责移动节点、应用物理或解释项目 AI 状态。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFSteeringBehaviorStack
 extends Resource
 
@@ -9,6 +15,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 行为组合方式。
+## [br]
+## @api public
 enum CompositionMode {
 	## 按权重混合所有行为。
 	BLEND,
@@ -17,35 +25,44 @@ enum CompositionMode {
 }
 
 
-# --- 常量 ---
-
-const GFSteeringBehaviorResourceBase = preload("res://addons/gf/standard/foundation/math/gf_steering_behavior_resource.gd")
-
-
 # --- 导出变量 ---
 
 ## 组合方式。
+## [br]
+## @api public
 @export var mode: CompositionMode = CompositionMode.BLEND
 
 ## 行为列表。
-@export var behaviors: Array[GFSteeringBehaviorResourceBase] = []
+## [br]
+## @api public
+@export var behaviors: Array[GFSteeringBehaviorResource] = []
 
 ## 混合后最大线性加速度；小于 0 时使用 agent 上限。
+## [br]
+## @api public
 @export var max_linear: float = -1.0
 
 ## 混合后最大角加速度；小于 0 时使用 agent 上限。
+## [br]
+## @api public
 @export var max_angular: float = -1.0
 
 ## Priority 模式下判断非零的阈值。
+## [br]
+## @api public
 @export var priority_threshold: float = 0.001
 
 
 # --- 公共方法 ---
 
 ## 添加行为。
+## [br]
+## @api public
+## [br]
 ## @param behavior: 行为资源。
+## [br]
 ## @return 添加成功返回 true。
-func add_behavior(behavior: GFSteeringBehaviorResourceBase) -> bool:
+func add_behavior(behavior: GFSteeringBehaviorResource) -> bool:
 	if behavior == null:
 		return false
 	behaviors.append(behavior)
@@ -53,17 +70,27 @@ func add_behavior(behavior: GFSteeringBehaviorResourceBase) -> bool:
 
 
 ## 检查是否没有有效行为。
+## [br]
+## @api public
+## [br]
 ## @return 没有有效行为时返回 true。
 func is_empty() -> bool:
-	for behavior: GFSteeringBehaviorResourceBase in behaviors:
+	for behavior: GFSteeringBehaviorResource in behaviors:
 		if behavior != null and behavior.enabled:
 			return false
 	return true
 
 
 ## 计算组合后的 steering 加速度。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param context: 传给每个行为的动态上下文。
+## [br]
+## @schema context: Dictionary steering behavior context passed to each behavior.
+## [br]
 ## @return steering 加速度。
 func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAcceleration:
 	if agent == null:
@@ -76,6 +103,9 @@ func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAc
 
 
 ## 创建配置副本。
+## [br]
+## @api public
+## [br]
 ## @return 新行为组合。
 func duplicate_stack() -> Resource:
 	var stack := get_script().new() as Resource
@@ -83,9 +113,9 @@ func duplicate_stack() -> Resource:
 	stack.set("max_linear", max_linear)
 	stack.set("max_angular", max_angular)
 	stack.set("priority_threshold", priority_threshold)
-	var duplicated_behaviors: Array[GFSteeringBehaviorResourceBase] = []
-	for behavior: GFSteeringBehaviorResourceBase in behaviors:
-		duplicated_behaviors.append(behavior.duplicate_behavior() as GFSteeringBehaviorResourceBase if behavior != null else null)
+	var duplicated_behaviors: Array[GFSteeringBehaviorResource] = []
+	for behavior: GFSteeringBehaviorResource in behaviors:
+		duplicated_behaviors.append(behavior.duplicate_behavior() as GFSteeringBehaviorResource if behavior != null else null)
 	stack.set("behaviors", duplicated_behaviors)
 	return stack
 
@@ -95,7 +125,7 @@ func duplicate_stack() -> Resource:
 func _calculate_blend(agent: GFSteeringAgent, context: Dictionary) -> GFSteeringAcceleration:
 	var accelerations: Array[GFSteeringAcceleration] = []
 	var weights: Array[float] = []
-	for behavior: GFSteeringBehaviorResourceBase in behaviors:
+	for behavior: GFSteeringBehaviorResource in behaviors:
 		if behavior == null or not behavior.enabled:
 			continue
 		accelerations.append(behavior.calculate(agent, context))
@@ -109,7 +139,7 @@ func _calculate_blend(agent: GFSteeringAgent, context: Dictionary) -> GFSteering
 
 
 func _calculate_priority(agent: GFSteeringAgent, context: Dictionary) -> GFSteeringAcceleration:
-	for behavior: GFSteeringBehaviorResourceBase in behaviors:
+	for behavior: GFSteeringBehaviorResource in behaviors:
 		if behavior == null or not behavior.enabled:
 			continue
 		var acceleration := behavior.calculate(agent, context)

@@ -2,6 +2,12 @@
 ##
 ## 句柄只包装底层 AudioStreamPlayer 节点的通用生命周期和播放属性，
 ## 不规定音频事件、混音策略或业务含义。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFAudioEmitterHandle
 extends RefCounted
 
@@ -9,11 +15,18 @@ extends RefCounted
 # --- 信号 ---
 
 ## 句柄绑定到底层播放器时发出。
+## [br]
+## @api public
+## [br]
 ## @param handle: 当前句柄。
+## [br]
 ## @param player: 绑定的播放器节点。
 signal player_attached(handle: GFAudioEmitterHandle, player: Node)
 
 ## 句柄主动停止并释放绑定时发出。
+## [br]
+## @api public
+## [br]
 ## @param handle: 当前句柄。
 signal stopped(handle: GFAudioEmitterHandle)
 
@@ -26,9 +39,15 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## 可选通道标识。框架不解释该字段。
+## [br]
+## @api public
 var channel: StringName = &""
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: 句柄元数据 Dictionary；键和值由调用方或后端约定。
 var metadata: Dictionary = {}
 
 
@@ -62,6 +81,9 @@ func _init(
 # --- 公共方法 ---
 
 ## 绑定底层播放器。
+## [br]
+## @api public
+## [br]
 ## @param player: 要绑定的播放器节点。
 func set_player(player: Node) -> void:
 	_player_ref = weakref(player) if player != null else null
@@ -72,13 +94,20 @@ func set_player(player: Node) -> void:
 
 
 ## 设置释放回调。
+## [br]
+## @api public
+## [br]
 ## @param release_callback: 停止完成时调用的释放回调。
 func set_release_callback(release_callback: Callable) -> void:
 	_release_callback = release_callback
 
 
 ## 绑定一个拥有者节点，节点退出树时自动停止当前播放。
+## [br]
+## @api public
+## [br]
 ## @param owner: 生命周期拥有者。
+## [br]
 ## @param fade_seconds: 自动停止时使用的淡出秒数。
 func bind_to_owner(owner: Node, fade_seconds: float = 0.0) -> void:
 	_disconnect_owner_exit()
@@ -93,12 +122,17 @@ func bind_to_owner(owner: Node, fade_seconds: float = 0.0) -> void:
 
 
 ## 取消拥有者生命周期绑定。
+## [br]
+## @api public
 func unbind_owner() -> void:
 	_disconnect_owner_exit()
 
 
 ## 获取底层播放器。
-## @return 播放器节点；不存在或已释放时返回 null。
+## [br]
+## @api public
+## [br]
+## @return: 播放器节点；不存在或已释放时返回 null。
 func get_player() -> Node:
 	if _player_ref == null:
 		return null
@@ -106,25 +140,37 @@ func get_player() -> Node:
 
 
 ## 检查句柄是否仍绑定有效播放器。
-## @return 有效时返回 true。
+## [br]
+## @api public
+## [br]
+## @return: 有效时返回 true。
 func is_valid() -> bool:
 	return get_player() != null
 
 
 ## 检查该句柄是否已经收到停止请求。
-## @return 已请求停止时返回 true。
+## [br]
+## @api public
+## [br]
+## @return: 已请求停止时返回 true。
 func is_stop_requested() -> bool:
 	return _stop_requested
 
 
 ## 检查播放器是否正在播放。
-## @return 正在播放时返回 true。
+## [br]
+## @api public
+## [br]
+## @return: 正在播放时返回 true。
 func is_playing() -> bool:
 	var player := get_player()
 	return player != null and bool(player.get("playing"))
 
 
 ## 停止播放；传入淡出秒数时先淡出再释放。
+## [br]
+## @api public
+## [br]
 ## @param fade_seconds: 淡出秒数。
 func stop(fade_seconds: float = 0.0) -> void:
 	_stop_requested = true
@@ -144,7 +190,11 @@ func stop(fade_seconds: float = 0.0) -> void:
 
 
 ## 淡入淡出到指定音量。
+## [br]
+## @api public
+## [br]
 ## @param volume_db: 目标音量，单位 dB。
+## [br]
 ## @param fade_seconds: 淡入淡出秒数。
 func fade_to(volume_db: float, fade_seconds: float) -> void:
 	var player := get_player()
@@ -160,6 +210,9 @@ func fade_to(volume_db: float, fade_seconds: float) -> void:
 
 
 ## 设置当前音量。
+## [br]
+## @api public
+## [br]
 ## @param volume_db: 音量，单位 dB。
 func set_volume_db(volume_db: float) -> void:
 	var player := get_player()
@@ -168,13 +221,19 @@ func set_volume_db(volume_db: float) -> void:
 
 
 ## 获取当前音量。
-## @return 音量，单位 dB；无播放器时返回 0。
+## [br]
+## @api public
+## [br]
+## @return: 音量，单位 dB；无播放器时返回 0。
 func get_volume_db() -> float:
 	var player := get_player()
 	return float(player.get("volume_db")) if player != null else 0.0
 
 
 ## 设置当前音高。
+## [br]
+## @api public
+## [br]
 ## @param pitch_scale: 音高缩放。
 func set_pitch_scale(pitch_scale: float) -> void:
 	var player := get_player()
@@ -183,14 +242,22 @@ func set_pitch_scale(pitch_scale: float) -> void:
 
 
 ## 获取当前音高。
-## @return 音高缩放；无播放器时返回 1。
+## [br]
+## @api public
+## [br]
+## @return: 音高缩放；无播放器时返回 1。
 func get_pitch_scale() -> float:
 	var player := get_player()
 	return float(player.get("pitch_scale")) if player != null else 1.0
 
 
 ## 获取调试快照。
-## @return 调试快照。
+## [br]
+## @api public
+## [br]
+## @return: 调试快照。
+## [br]
+## @schema return: 调试快照 Dictionary，包含 valid、playing、channel、volume_db、pitch_scale、owner_valid 和 metadata 字段。
 func get_debug_snapshot() -> Dictionary:
 	var player := get_player()
 	return {

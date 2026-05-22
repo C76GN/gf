@@ -3,6 +3,12 @@
 ## 取代原生 print / push_error，提供分级日志（DEBUG → FATAL），
 ## 每条日志同时写入本地按日期命名的日志文件，进入内存环形缓存，
 ## 并通过信号和可插拔 sink 广播结构化日志条目。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFLogUtility
 extends GFUtility
 
@@ -10,23 +16,40 @@ extends GFUtility
 # --- 信号 ---
 
 ## 每次打印日志时发出，供 UI 控制台等消费者捕捉。
+## [br]
+## @api public
+## [br]
 ## @param level: LogLevel 枚举值。
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param message: 日志内容。
 signal log_emitted(level: int, tag: String, message: String)
 
 ## 每次打印日志时发出完整结构化条目。
+## [br]
+## @api public
+## [br]
 ## @param entry: 日志条目副本。
+## [br]
+## @schema entry: Dictionary log entry with timestamp, unix_time, ticks_msec, trace_id, level, level_name, tag, message, context, and text.
 signal log_entry_emitted(entry: Dictionary)
 
 ## 初始化时检测到上次运行未干净关闭后发出。
+## [br]
+## @api public
+## [br]
 ## @param marker: 上次运行留下的标记数据。
+## [br]
+## @schema marker: Dictionary crash marker with trace_id, started_at, and ticks_msec when available.
 signal previous_crash_detected(marker: Dictionary)
 
 
 # --- 枚举 ---
 
 ## 日志等级，数值越大越严重。
+## [br]
+## @api public
 enum LogLevel {
 	## 调试信息
 	DEBUG,
@@ -43,24 +66,17 @@ enum LogLevel {
 
 # --- 常量 ---
 
-const GFLogSink = preload("res://addons/gf/standard/utilities/logging/gf_log_sink.gd")
 const _LOG_DIR: String = "user://logs/"
 const _CRASH_MARKER_PATH: String = _LOG_DIR + "gf_log_running.marker"
 const _MAX_SANITIZE_DEPTH: int = 8
 const _MAX_SANITIZE_STRING_LENGTH: int = 2048
 
-static var _LEVEL_NAMES: PackedStringArray = PackedStringArray([
-	"DEBUG",
-	"INFO",
-	"WARN",
-	"ERROR",
-	"FATAL",
-])
-
 
 # --- 公共变量 ---
 
 ## 最多保留的日志文件数量。
+## [br]
+## @api public
 var max_log_files: int:
 	get:
 		return _max_log_files
@@ -68,15 +84,23 @@ var max_log_files: int:
 		_max_log_files = maxi(value, 1)
 
 ## 日志文件自动 flush 间隔。设为 0 时每条日志都立即 flush。
+## [br]
+## @api public
 var flush_interval_msec: int = 250
 
 ## 是否强制每条日志立即 flush。高可靠日志可开启，默认关闭以减少高频 IO。
+## [br]
+## @api public
 var flush_immediately: bool = false
 
 ## 最小输出等级。低于该等级的日志不会打印、写文件或发信号。
+## [br]
+## @api public
 var min_level: int = LogLevel.DEBUG
 
 ## 内存中最多保留的最近日志条数。设为 0 可关闭内存缓存。
+## [br]
+## @api public
 var max_memory_entries: int:
 	get:
 		return _max_memory_entries
@@ -85,9 +109,13 @@ var max_memory_entries: int:
 		_trim_memory_entries()
 
 ## 是否写入运行中标记，用于下一次启动时判断上次是否未干净关闭。
+## [br]
+## @api public
 var crash_marker_enabled: bool = true
 
 ## 当前日志 trace id。为空时 init() 会生成一个短 id。
+## [br]
+## @api public
 var trace_id: String = ""
 
 
@@ -95,6 +123,13 @@ var trace_id: String = ""
 
 var _max_log_files: int = 10
 var _max_memory_entries: int = 500
+static var _LEVEL_NAMES: PackedStringArray = PackedStringArray([
+	"DEBUG",
+	"INFO",
+	"WARN",
+	"ERROR",
+	"FATAL",
+])
 var _file: FileAccess
 var _log_file_path: String
 var _muted_tags: Dictionary = {}
@@ -110,9 +145,11 @@ var _last_shutdown_was_clean: bool = true
 var _previous_crash_marker: Dictionary = {}
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
 ## 第一阶段初始化：创建日志目录、打开日志文件、清理旧文件。
+## [br]
+## @api public
 func init() -> void:
 	clear_memory_entries()
 	if not DirAccess.dir_exists_absolute(_LOG_DIR):
@@ -151,6 +188,8 @@ func init() -> void:
 
 
 ## 销毁时关闭文件句柄。
+## [br]
+## @api public
 func dispose() -> void:
 	flush_sinks()
 	for sink: GFLogSink in _sinks:
@@ -169,95 +208,166 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 输出 DEBUG 级别日志。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签（如模块名）。
+## [br]
 ## @param msg: 日志内容。
+## [br]
 ## @param context: 结构化上下文字典。
+## [br]
+## @schema context: Dictionary[String, Variant] structured context merged into the log entry.
 func debug(tag: String, msg: String, context: Dictionary = {}) -> void:
 	_log(LogLevel.DEBUG, tag, msg, context)
 
 
 ## 延迟输出 DEBUG 级别日志。只有日志未被过滤时才调用 message_builder。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param message_builder: 延迟构造日志消息的回调。
+## [br]
 ## @param context_builder: 延迟构造结构化上下文的回调。
 func debug_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
 	_log_lazy(LogLevel.DEBUG, tag, message_builder, context_builder)
 
 
 ## 输出 INFO 级别日志。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param msg: 日志内容。
+## [br]
 ## @param context: 结构化上下文字典。
+## [br]
+## @schema context: Dictionary[String, Variant] structured context merged into the log entry.
 func info(tag: String, msg: String, context: Dictionary = {}) -> void:
 	_log(LogLevel.INFO, tag, msg, context)
 
 
 ## 延迟输出 INFO 级别日志。只有日志未被过滤时才调用 message_builder。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param message_builder: 延迟构造日志消息的回调。
+## [br]
 ## @param context_builder: 延迟构造结构化上下文的回调。
 func info_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
 	_log_lazy(LogLevel.INFO, tag, message_builder, context_builder)
 
 
 ## 输出 WARN 级别日志。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param msg: 日志内容。
+## [br]
 ## @param context: 结构化上下文字典。
+## [br]
+## @schema context: Dictionary[String, Variant] structured context merged into the log entry.
 func warn(tag: String, msg: String, context: Dictionary = {}) -> void:
 	_log(LogLevel.WARN, tag, msg, context)
 
 
 ## 延迟输出 WARN 级别日志。只有日志未被过滤时才调用 message_builder。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param message_builder: 延迟构造日志消息的回调。
+## [br]
 ## @param context_builder: 延迟构造结构化上下文的回调。
 func warn_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
 	_log_lazy(LogLevel.WARN, tag, message_builder, context_builder)
 
 
 ## 输出 ERROR 级别日志。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param msg: 日志内容。
+## [br]
 ## @param context: 结构化上下文字典。
+## [br]
+## @schema context: Dictionary[String, Variant] structured context merged into the log entry.
 func error(tag: String, msg: String, context: Dictionary = {}) -> void:
 	_log(LogLevel.ERROR, tag, msg, context)
 
 
 ## 延迟输出 ERROR 级别日志。只有日志未被过滤时才调用 message_builder。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param message_builder: 延迟构造日志消息的回调。
+## [br]
 ## @param context_builder: 延迟构造结构化上下文的回调。
 func error_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
 	_log_lazy(LogLevel.ERROR, tag, message_builder, context_builder)
 
 
 ## 输出 FATAL 级别日志。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param msg: 日志内容。
+## [br]
 ## @param context: 结构化上下文字典。
+## [br]
+## @schema context: Dictionary[String, Variant] structured context merged into the log entry.
 func fatal(tag: String, msg: String, context: Dictionary = {}) -> void:
 	_log(LogLevel.FATAL, tag, msg, context)
 
 
 ## 延迟输出 FATAL 级别日志。只有日志未被过滤时才调用 message_builder。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param message_builder: 延迟构造日志消息的回调。
+## [br]
 ## @param context_builder: 延迟构造结构化上下文的回调。
 func fatal_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -> void:
 	_log_lazy(LogLevel.FATAL, tag, message_builder, context_builder)
 
 
 ## 输出指定等级日志。
+## [br]
+## @api public
+## [br]
 ## @param level: LogLevel 枚举值。
+## [br]
 ## @param tag: 日志标签。
+## [br]
 ## @param msg: 日志内容。
+## [br]
 ## @param context: 结构化上下文字典。
+## [br]
+## @schema context: Dictionary[String, Variant] structured context merged into the log entry.
 func log(level: int, tag: String, msg: String, context: Dictionary = {}) -> void:
 	_log(level, tag, msg, context)
 
 
 ## 设置当前 trace id。
+## [br]
+## @api public
+## [br]
 ## @param value: 新 trace id；为空时会重新生成。
 func set_trace_id(value: String) -> void:
 	trace_id = value if not value.is_empty() else _generate_trace_id()
@@ -266,6 +376,9 @@ func set_trace_id(value: String) -> void:
 
 
 ## 获取当前 trace id。
+## [br]
+## @api public
+## [br]
 ## @return trace id 字符串。
 func get_trace_id() -> String:
 	if trace_id.is_empty():
@@ -274,55 +387,90 @@ func get_trace_id() -> String:
 
 
 ## 设置全局日志上下文字典。每条日志都会合并该字典，单条日志上下文优先级更高。
+## [br]
+## @api public
+## [br]
 ## @param context: 全局上下文字典。
+## [br]
+## @schema context: Dictionary[String, Variant] sanitized global context merged into every log entry.
 func set_global_context(context: Dictionary) -> void:
 	_global_context = _sanitize_log_value(context) as Dictionary
 
 
 ## 设置全局日志上下文提供者。每条日志输出时会调用一次，返回 Dictionary 时参与合并。
+## [br]
+## @api public
+## [br]
 ## @param provider: 上下文提供者，签名为 `func() -> Dictionary`。
 func set_global_context_provider(provider: Callable) -> void:
 	_global_context_provider = provider
 
 
 ## 清空全局日志上下文和上下文提供者。
+## [br]
+## @api public
 func clear_global_context() -> void:
 	_global_context.clear()
 	_global_context_provider = Callable()
 
 
 ## 获取全局日志上下文字典副本。
+## [br]
+## @api public
+## [br]
 ## @return 全局上下文字典副本。
+## [br]
+## @schema return: Dictionary[String, Variant] sanitized global context.
 func get_global_context() -> Dictionary:
 	return _global_context.duplicate(true)
 
 
 ## 获取上次运行是否干净关闭。
+## [br]
+## @api public
+## [br]
 ## @return 没有检测到运行中标记时返回 true。
 func was_previous_shutdown_clean() -> bool:
 	return _last_shutdown_was_clean
 
 
 ## 获取上次未干净关闭时留下的标记数据。
+## [br]
+## @api public
+## [br]
 ## @return crash marker 副本。
+## [br]
+## @schema return: Dictionary crash marker with trace_id, started_at, and ticks_msec when available.
 func get_previous_crash_marker() -> Dictionary:
 	return _previous_crash_marker.duplicate(true)
 
 
 ## 动态设置是否忽略特定标签的日志。
+## [br]
+## @api public
+## [br]
 ## @param tag: 要静音的标签。
+## [br]
 ## @param muted: 是否静音。如果为 true，该 tag 的日志将不再打印及记录。
 func set_tag_muted(tag: String, muted: bool) -> void:
 	_muted_tags[tag] = muted
 
 
 ## 检查指定标签是否被静音。
+## [br]
+## @api public
+## [br]
 ## @param tag: 日志标签。
+## [br]
+## @return 已静音时返回 true。
 func is_tag_muted(tag: String) -> bool:
 	return _muted_tags.get(tag, false)
 
 
 ## 注册日志 sink。
+## [br]
+## @api public
+## [br]
 ## @param sink: 要注册的 sink 实例。
 func add_sink(sink: GFLogSink) -> void:
 	if sink == null or _sinks.has(sink):
@@ -334,7 +482,11 @@ func add_sink(sink: GFLogSink) -> void:
 
 
 ## 注销日志 sink。
+## [br]
+## @api public
+## [br]
 ## @param sink: 要注销的 sink 实例。
+## [br]
 ## @param shutdown: 是否调用 sink.shutdown()。
 func remove_sink(sink: GFLogSink, shutdown: bool = true) -> void:
 	var index := _sinks.find(sink)
@@ -347,6 +499,9 @@ func remove_sink(sink: GFLogSink, shutdown: bool = true) -> void:
 
 
 ## 清空所有日志 sink。
+## [br]
+## @api public
+## [br]
 ## @param shutdown: 是否调用每个 sink 的 shutdown()。
 func clear_sinks(shutdown: bool = true) -> void:
 	if shutdown:
@@ -357,6 +512,9 @@ func clear_sinks(shutdown: bool = true) -> void:
 
 
 ## 获取已注册日志 sink。
+## [br]
+## @api public
+## [br]
 ## @return sink 列表副本。
 func get_sinks() -> Array[GFLogSink]:
 	var result: Array[GFLogSink] = []
@@ -366,6 +524,8 @@ func get_sinks() -> Array[GFLogSink]:
 
 
 ## 刷新所有日志 sink。
+## [br]
+## @api public
 func flush_sinks() -> void:
 	for sink: GFLogSink in _sinks:
 		if sink != null:
@@ -373,8 +533,14 @@ func flush_sinks() -> void:
 
 
 ## 获取最近的内存日志条目。
+## [br]
+## @api public
+## [br]
 ## @param count: 读取数量；小于 0 表示全部。
+## [br]
 ## @return 从旧到新的日志条目数组。
+## [br]
+## @schema return: Array[Dictionary] of log entries from oldest to newest.
 func get_recent_entries(count: int = -1) -> Array[Dictionary]:
 	var size := _memory_entries.size()
 	if count < 0 or count >= size:
@@ -383,9 +549,16 @@ func get_recent_entries(count: int = -1) -> Array[Dictionary]:
 
 
 ## 按偏移读取内存日志条目。
+## [br]
+## @api public
+## [br]
 ## @param offset: 从最旧条目开始的偏移。
+## [br]
 ## @param count: 读取数量；小于 0 表示直到末尾。
+## [br]
 ## @return 从旧到新的日志条目数组。
+## [br]
+## @schema return: Array[Dictionary] of log entries from oldest to newest.
 func get_entries(offset: int = 0, count: int = -1) -> Array[Dictionary]:
 	var safe_offset := clampi(offset, 0, _memory_entries.size())
 	var end := _memory_entries.size() if count < 0 else mini(safe_offset + count, _memory_entries.size())
@@ -398,24 +571,35 @@ func get_entries(offset: int = 0, count: int = -1) -> Array[Dictionary]:
 
 
 ## 获取当前内存日志条目数量。
+## [br]
+## @api public
+## [br]
 ## @return 条目数量。
 func get_memory_entry_count() -> int:
 	return _memory_entries.size()
 
 
 ## 获取因内存上限被丢弃的日志条目数量。
+## [br]
+## @api public
+## [br]
 ## @return 丢弃数量。
 func get_dropped_memory_entry_count() -> int:
 	return _memory_dropped_count
 
 
 ## 获取当前日志文件路径。
+## [br]
+## @api public
+## [br]
 ## @return 日志文件路径。
 func get_log_file_path() -> String:
 	return _log_file_path
 
 
 ## 清空内存日志缓存。
+## [br]
+## @api public
 func clear_memory_entries() -> void:
 	_memory_entries.clear()
 	_memory_head = 0
@@ -423,13 +607,21 @@ func clear_memory_entries() -> void:
 
 
 ## 清洗任意值，使它适合进入结构化日志和 JSON sink。
+## [br]
+## @api public
+## [br]
 ## @param value: 要清洗的值。
+## [br]
+## @schema value: Variant log context value to sanitize.
+## [br]
 ## @return 清洗后的值。
+## [br]
+## @schema return: Variant JSON-compatible value with object metadata, truncated strings, and circular references marked.
 static func sanitize_log_value(value: Variant) -> Variant:
 	return _sanitize_log_value(value, 0, [])
 
 
-# --- 私有方法 ---
+# --- 私有/辅助方法 ---
 
 func _log(level: int, tag: String, msg: String, context: Dictionary = {}) -> void:
 	if not _should_log(level, tag):

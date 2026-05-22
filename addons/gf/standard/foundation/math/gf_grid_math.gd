@@ -3,6 +3,12 @@
 ## 提供一维索引与二维格坐标转换、邻居枚举、泛洪搜索、BFS / A* 路径查找、
 ## Flow Field 生成以及连连看类“两折连线”判断。它不依赖 GFArchitecture，可直接在
 ## Model、System、Controller 或测试中静态调用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFGridMath
 extends RefCounted
 
@@ -27,8 +33,13 @@ const _DIAGONAL_DIRECTIONS: Array[Vector2i] = [
 # --- 公共方法 ---
 
 ## 将二维格坐标转换为一维索引。
+## [br]
+## @api public
+## [br]
 ## @param cell: 二维格坐标。
+## [br]
 ## @param width: 网格宽度。
+## [br]
 ## @return 成功时返回一维索引；宽度无效时返回 -1。
 static func cell_to_index(cell: Vector2i, width: int) -> int:
 	if width <= 0:
@@ -38,8 +49,13 @@ static func cell_to_index(cell: Vector2i, width: int) -> int:
 
 
 ## 将一维索引转换为二维格坐标。
+## [br]
+## @api public
+## [br]
 ## @param index: 一维索引。
+## [br]
 ## @param width: 网格宽度。
+## [br]
 ## @return 成功时返回二维格坐标；参数无效时返回 Vector2i(-1, -1)。
 static func index_to_cell(index: int, width: int) -> Vector2i:
 	if index < 0 or width <= 0:
@@ -49,8 +65,13 @@ static func index_to_cell(index: int, width: int) -> Vector2i:
 
 
 ## 判断格坐标是否位于网格范围内。
+## [br]
+## @api public
+## [br]
 ## @param cell: 二维格坐标。
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @return 在范围内返回 true。
 static func is_in_bounds(cell: Vector2i, grid_size: Vector2i) -> bool:
 	return (
@@ -64,9 +85,15 @@ static func is_in_bounds(cell: Vector2i, grid_size: Vector2i) -> bool:
 
 
 ## 获取指定格子的邻居。
+## [br]
+## @api public
+## [br]
 ## @param cell: 中心格子。
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param include_diagonal: 是否包含四个斜向邻居。
+## [br]
 ## @return 位于网格范围内的邻居列表。
 static func get_neighbors(
 	cell: Vector2i,
@@ -88,10 +115,17 @@ static func get_neighbors(
 
 
 ## 从起点执行泛洪搜索，返回所有满足匹配条件且连通的格子。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param start: 起点格子。
+## [br]
 ## @param is_match: 匹配回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param include_diagonal: 是否允许斜向连通。
+## [br]
 ## @return 连通格子列表。
 static func flood_fill(
 	grid_size: Vector2i,
@@ -126,11 +160,19 @@ static func flood_fill(
 
 
 ## 使用 BFS 查找一条最短路径。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param start: 起点格子。
+## [br]
 ## @param goal: 终点格子。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param allow_diagonal: 是否允许斜向移动。
+## [br]
 ## @return 包含起点与终点的路径；无法到达时返回空数组。
 static func find_path_bfs(
 	grid_size: Vector2i,
@@ -174,13 +216,23 @@ static func find_path_bfs(
 
 
 ## 使用 A* 查找一条低代价路径。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param start: 起点格子。
+## [br]
 ## @param goal: 终点格子。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param allow_diagonal: 是否允许斜向移动。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector2i, to: Vector2i) -> float`；返回负数表示不可通行。
+## [br]
 ## @param heuristic: 启发函数名称，支持 `manhattan`、`chebyshev`、`octile`、`euclidean`。
+## [br]
 ## @return 包含起点与终点的路径；无法到达时返回空数组。
 static func find_path_a_star(
 	grid_size: Vector2i,
@@ -241,12 +293,22 @@ static func find_path_a_star(
 
 
 ## 从一个或多个目标格生成 Flow Field。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param goals: 目标格列表。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param allow_diagonal: 是否允许斜向移动。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector2i, to: Vector2i) -> float`；返回负数表示不可通行。
+## [br]
 ## @return 包含 `costs`、`directions` 和 `goals` 的字典；`directions[cell]` 是下一步方向。
+## [br]
+## @schema return: Dictionary with `costs: Dictionary[Vector2i, float]`, `directions: Dictionary[Vector2i, Vector2i]`, and `goals: Array[Vector2i]`.
 static func build_flow_field(
 	grid_size: Vector2i,
 	goals: Array[Vector2i],
@@ -304,12 +366,21 @@ static func build_flow_field(
 
 
 ## 判断两个格子是否能在指定转折次数内连通。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param start: 起点格子。
+## [br]
 ## @param goal: 终点格子。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`；起点与终点可不通行。
+## [br]
 ## @param max_turns: 最大转折次数，连连看常用值为 2。
+## [br]
 ## @param allow_outer_border: 是否允许路径经过网格外一圈虚拟空格。
+## [br]
 ## @return 可连通时返回 true。
 static func can_connect_with_max_turns(
 	grid_size: Vector2i,

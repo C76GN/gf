@@ -1,6 +1,12 @@
 ## GFTextFitter: 文本尺寸适配器。
 ##
 ## 为常见文本控件提供通用字体大小计算，不接管控件布局、主题或项目文本规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFTextFitter
 extends RefCounted
 
@@ -8,18 +14,29 @@ extends RefCounted
 # --- 常量 ---
 
 ## 默认最小字体尺寸。
+## [br]
+## @api public
 const DEFAULT_MIN_FONT_SIZE: int = 8
 
 ## 默认最大字体尺寸。
+## [br]
+## @api public
 const DEFAULT_MAX_FONT_SIZE: int = 64
 
 
 # --- 公共方法 ---
 
 ## 计算并可选应用常见 Control 的合适字体尺寸。
+## [br]
+## @api public
+## [br]
 ## @param control: 目标文本控件，支持 Label、RichTextLabel、Button、LineEdit 与 TextEdit，也可通过 options.text 适配自定义控件。
+## [br]
 ## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、text、content_insets、use_placeholder。
+## [br]
 ## @return 计算出的字体尺寸；目标无效或无法读取文本时返回 0。
+## [br]
+## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、text、content_insets、use_placeholder。
 static func fit_control(control: Control, options: Dictionary = {}) -> int:
 	if control == null:
 		return 0
@@ -49,9 +66,16 @@ static func fit_control(control: Control, options: Dictionary = {}) -> int:
 
 
 ## 计算并可选应用 Label 的合适字体尺寸。
+## [br]
+## @api public
+## [br]
 ## @param label: 目标 Label。
+## [br]
 ## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name。
+## [br]
 ## @return 计算出的字体尺寸；目标无效时返回 0。
+## [br]
+## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。
 static func fit_label(label: Label, options: Dictionary = {}) -> int:
 	if label == null:
 		return 0
@@ -72,9 +96,16 @@ static func fit_label(label: Label, options: Dictionary = {}) -> int:
 
 
 ## 计算并可选应用 RichTextLabel 的合适字体尺寸。
+## [br]
+## @api public
+## [br]
 ## @param label: 目标 RichTextLabel。
+## [br]
 ## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name。
+## [br]
 ## @return 计算出的字体尺寸；目标无效时返回 0。
+## [br]
+## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。
 static func fit_rich_text_label(label: RichTextLabel, options: Dictionary = {}) -> int:
 	if label == null:
 		return 0
@@ -99,10 +130,18 @@ static func fit_rich_text_label(label: RichTextLabel, options: Dictionary = {}) 
 
 
 ## 测量常见 Control 在指定字体尺寸下的文本占用。
+## [br]
+## @api public
+## [br]
 ## @param control: 目标文本控件。
+## [br]
 ## @param font_size: 字体尺寸。
+## [br]
 ## @param options: fit_control() 使用的设置。
+## [br]
 ## @return 文本尺寸；目标无效或字体缺失时返回 Vector2.ZERO。
+## [br]
+## @schema options: Dictionary，字段同 fit_control() 的 options。
 static func measure_control_text(control: Control, font_size: int, options: Dictionary = {}) -> Vector2:
 	if control == null:
 		return Vector2.ZERO
@@ -117,11 +156,20 @@ static func measure_control_text(control: Control, font_size: int, options: Dict
 
 
 ## 测量 Control 在指定字体尺寸下的文本占用。
+## [br]
+## @api public
+## [br]
 ## @param control: 提供主题字体的控件。
+## [br]
 ## @param text: 待测量文本。
+## [br]
 ## @param font_size: 字体尺寸。
+## [br]
 ## @param options: fit_label() 或 fit_rich_text_label() 使用的设置。
+## [br]
 ## @return 文本尺寸；字体缺失时返回 Vector2.ZERO。
+## [br]
+## @schema options: Dictionary，支持 available_size、fit_width、font_name 和 font。
 static func measure_text(control: Control, text: String, font_size: int, options: Dictionary = {}) -> Vector2:
 	if control == null:
 		return Vector2.ZERO

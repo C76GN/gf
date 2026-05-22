@@ -1,6 +1,12 @@
 ## GFDownloadTask: 通用下载任务描述。
 ##
 ## 只记录下载 URL、目标路径、校验信息和运行状态，不假设下载内容的业务语义。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFDownloadTask
 extends RefCounted
 
@@ -8,6 +14,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 下载任务状态。
+## [br]
+## @api public
 enum Status {
 	## 已加入队列。
 	QUEUED,
@@ -27,66 +35,109 @@ enum Status {
 # --- 公共变量 ---
 
 ## 任务句柄。
+## [br]
+## @api public
 var task_id: int = 0
 
 ## 下载 URL。
+## [br]
+## @api public
 var url: String = ""
 
 ## 最终写入路径。
+## [br]
+## @api public
 var target_path: String = ""
 
 ## 临时文件路径。
+## [br]
+## @api public
 var temp_path: String = ""
 
 ## 分段续传文件路径。
+## [br]
+## @api public
 var segment_path: String = ""
 
 ## HTTP 请求头。
+## [br]
+## @api public
 var headers: PackedStringArray = PackedStringArray()
 
 ## 期望 SHA-256 校验值。为空时不校验。
+## [br]
+## @api public
 var expected_sha256: String = ""
 
 ## 是否允许从临时文件续传。
+## [br]
+## @api public
 var resume: bool = true
 
 ## 目标文件已存在时是否覆盖。
+## [br]
+## @api public
 var overwrite: bool = true
 
 ## 最大重试次数。
+## [br]
+## @api public
 var max_retries: int = 0
 
 ## 已执行重试次数。
+## [br]
+## @api public
 var retry_count: int = 0
 
 ## 每次重试前等待的秒数。
+## [br]
+## @api public
 var retry_delay_seconds: float = 0.0
 
 ## 下次可重试的时间戳，单位毫秒。
+## [br]
+## @api public
 var retry_not_before_msec: int = 0
 
 ## 项目层可附加的任务元数据。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，复制到下载任务中的项目侧元数据。
 var metadata: Dictionary = {}
 
 ## 当前任务状态。
+## [br]
+## @api public
 var status: Status = Status.QUEUED
 
 ## 已接收字节数。
+## [br]
+## @api public
 var received_bytes: int = 0
 
 ## 总字节数；未知时为 -1。
+## [br]
+## @api public
 var total_bytes: int = -1
 
 ## 最近一次 HTTP 响应码。
+## [br]
+## @api public
 var response_code: int = 0
 
 ## 失败或取消原因。
+## [br]
+## @api public
 var error: String = ""
 
 
 # --- 公共方法 ---
 
 ## 创建同内容拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新任务。
 func duplicate_task() -> GFDownloadTask:
 	var task: GFDownloadTask = GFDownloadTask.new()
@@ -113,7 +164,12 @@ func duplicate_task() -> GFDownloadTask:
 
 
 ## 导出任务状态字典。
+## [br]
+## @api public
+## [br]
 ## @return 任务字典。
+## [br]
+## @schema return: Dictionary，包含任务标识、路径、请求头、重试设置、metadata、状态、字节计数、响应码和错误信息。
 func to_dict() -> Dictionary:
 	return {
 		"task_id": task_id,
@@ -140,7 +196,11 @@ func to_dict() -> Dictionary:
 
 
 ## 获取任务状态名称。
+## [br]
+## @api public
+## [br]
 ## @param value: 任务状态。
+## [br]
 ## @return 状态名称。
 static func get_status_name(value: Status) -> String:
 	match value:

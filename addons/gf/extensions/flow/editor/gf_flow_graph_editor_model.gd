@@ -2,13 +2,19 @@
 ##
 ## 将 GFFlowGraph 转换为 GraphEdit、自定义编辑器或项目工具可直接消费的
 ## 节点、端口、连接和校验结构。它只整理数据，不绑定具体 UI 实现。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
 class_name GFFlowGraphEditorModel
 extends RefCounted
 
 
 # --- 常量 ---
 
-const GFGraphLayoutUtilityBase = preload("res://addons/gf/standard/foundation/math/gf_graph_layout_utility.gd")
+const _GF_GRAPH_LAYOUT_UTILITY_SCRIPT: Script = preload("res://addons/gf/standard/foundation/math/gf_graph_layout_utility.gd")
 const _GF_GRAPH_MATH_SCRIPT: Script = preload("res://addons/gf/standard/foundation/math/gf_graph_math.gd")
 const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
@@ -16,17 +22,27 @@ const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT: Script = preload("res://addons/gf
 # --- 公共变量 ---
 
 ## 节点未显式设置尺寸时使用的默认编辑器尺寸。
+## [br]
+## @api public
 var default_node_size: Vector2 = Vector2(220.0, 120.0)
 
 ## 是否把校验失败的连接也写入视图模型。
+## [br]
+## @api public
 var include_invalid_connections: bool = true
 
 
 # --- 公共方法 ---
 
 ## 构建流程图编辑器视图模型。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @return 视图模型字典。
+## [br]
+## @schema return: Dictionary，包含 ok、start_node_id、node_count、connection_count、nodes、node_lookup、connections、groups、metadata、validation。
 func build_view_model(graph: Resource) -> Dictionary:
 	if graph == null:
 		return {
@@ -61,8 +77,14 @@ func build_view_model(graph: Resource) -> Dictionary:
 
 
 ## 构建 FlowGraph 编辑器报告。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @return 编辑器诊断、目录和元数据报告。
+## [br]
+## @schema return: Dictionary，包含 ok、healthy、summary、next_action、validation、catalog 和 editor。
 func build_editor_report(graph: Resource) -> Dictionary:
 	if graph == null:
 		var validation := _make_null_validation_report()
@@ -101,8 +123,14 @@ func build_editor_report(graph: Resource) -> Dictionary:
 
 
 ## 获取编辑器可消费的节点目录，不调用节点/端口脚本方法。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @return 节点目录字典。
+## [br]
+## @schema return: Dictionary，包含 node_count、nodes 和 categories；nodes 为节点目录记录数组。
 func build_editor_catalog(graph: Resource) -> Dictionary:
 	if graph == null:
 		return _make_empty_catalog()
@@ -153,8 +181,14 @@ func build_editor_catalog(graph: Resource) -> Dictionary:
 
 
 ## 校验 FlowGraph 结构，不调用项目节点/端口脚本方法。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @return 校验报告。
+## [br]
+## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和计数字段。
 func validate_graph_for_editor(graph: Resource) -> Dictionary:
 	if graph == null:
 		return _make_null_validation_report()
@@ -218,9 +252,20 @@ func validate_graph_for_editor(graph: Resource) -> Dictionary:
 
 
 ## 校验编辑器元数据。
+## [br]
+## @api public
+## [br]
 ## @param target_metadata: 待校验元数据。
+## [br]
 ## @param schema: 轻量 Schema。
+## [br]
 ## @return 校验报告。
+## [br]
+## @schema target_metadata: Dictionary，待校验的编辑器或项目工具元数据。
+## [br]
+## @schema schema: Dictionary，键为元数据 key，值为包含 required、allow_null、type、class_name、allowed_values 等字段的规则字典。
+## [br]
+## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和计数字段。
 func validate_metadata_for_editor(target_metadata: Dictionary, schema: Dictionary = {}) -> Dictionary:
 	var report := {
 		"ok": true,
@@ -240,11 +285,19 @@ func validate_metadata_for_editor(target_metadata: Dictionary, schema: Dictionar
 
 
 ## 应用单个节点布局。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param node_id: 节点标识。
+## [br]
 ## @param position: 编辑器坐标。
+## [br]
 ## @param size: 编辑器尺寸；Vector2.ZERO 表示使用默认尺寸。
+## [br]
 ## @param collapsed: 是否折叠。
+## [br]
 ## @return 应用成功返回 true。
 func apply_node_layout(
 	graph: GFFlowGraph,
@@ -259,9 +312,16 @@ func apply_node_layout(
 
 
 ## 批量应用节点位置。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param positions: node_id 到 Vector2 的映射。
+## [br]
 ## @return 成功更新的节点数量。
+## [br]
+## @schema positions: Dictionary，键为节点标识，值为 Vector2 编辑器坐标。
 func apply_node_positions(graph: GFFlowGraph, positions: Dictionary) -> int:
 	if graph == null:
 		return 0
@@ -275,9 +335,18 @@ func apply_node_positions(graph: GFFlowGraph, positions: Dictionary) -> int:
 
 
 ## 自动生成并应用节点布局。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param options: 布局选项，透传给 GFGraphLayoutUtility.make_layered_layout()。
+## [br]
 ## @return 布局报告，包含 positions 与 changed_count。
+## [br]
+## @schema options: Dictionary，传给 GFGraphLayoutUtility.make_layered_layout() 的布局选项。
+## [br]
+## @schema return: Dictionary，包含 ok、positions、changed_count，失败时包含 error。
 func auto_layout(graph: GFFlowGraph, options: Dictionary = {}) -> Dictionary:
 	if graph == null:
 		return {
@@ -292,7 +361,7 @@ func auto_layout(graph: GFFlowGraph, options: Dictionary = {}) -> Dictionary:
 		if node != null and node.node_id != &"":
 			node_ids.append(String(node.node_id))
 
-	var positions := GFGraphLayoutUtilityBase.make_layered_layout(node_ids, graph.connections, options)
+	var positions: Dictionary = _GF_GRAPH_LAYOUT_UTILITY_SCRIPT.make_layered_layout(node_ids, graph.connections, options)
 	var changed_count := apply_node_positions(graph, positions)
 	return {
 		"ok": true,
@@ -302,9 +371,16 @@ func auto_layout(graph: GFFlowGraph, options: Dictionary = {}) -> Dictionary:
 
 
 ## 构建节点选择包，用于编辑器复制、剪切或跨工具传递。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param node_ids: 选中的节点标识列表。
+## [br]
 ## @return 选择包字典。
+## [br]
+## @schema return: Dictionary，包含 ok、node_count、connection_count、nodes、connections 和 node_ids。
 func build_selection_package(graph: GFFlowGraph, node_ids: PackedStringArray) -> Dictionary:
 	if graph == null:
 		return _make_edit_report(false, "graph_is_null")
@@ -332,11 +408,24 @@ func build_selection_package(graph: GFFlowGraph, node_ids: PackedStringArray) ->
 
 
 ## 将选择包粘贴到流程图。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param selection_package: build_selection_package() 返回的选择包。
+## [br]
 ## @param offset: 粘贴时叠加到节点编辑器位置的偏移。
+## [br]
 ## @param options: 可选参数，支持 keep_original_ids。
+## [br]
 ## @return 粘贴报告。
+## [br]
+## @schema selection_package: Dictionary，由 build_selection_package() 返回，包含 nodes、connections 和 node_ids。
+## [br]
+## @schema options: Dictionary，可包含 keep_original_ids。
+## [br]
+## @schema return: Dictionary，包含 ok、added_node_ids、added_node_count、added_connection_count、failed_connection_count 和 id_map。
 func paste_selection_package(
 	graph: GFFlowGraph,
 	selection_package: Dictionary,
@@ -412,9 +501,16 @@ func paste_selection_package(
 
 
 ## 从流程图移除一组节点及其相关连接。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param node_ids: 节点标识列表。
+## [br]
 ## @return 移除报告。
+## [br]
+## @schema return: Dictionary，包含 ok、removed_node_ids、removed_node_count 和 connection_count。
 func remove_nodes(graph: GFFlowGraph, node_ids: PackedStringArray) -> Dictionary:
 	if graph == null:
 		return _make_edit_report(false, "graph_is_null")

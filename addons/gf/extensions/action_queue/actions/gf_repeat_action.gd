@@ -2,6 +2,12 @@
 ##
 ## 每轮通过 action_factory 创建一个新的动作对象，避免复用同一个动作实例时
 ## 残留 Tween、Timer 或节点引用状态。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFRepeatAction
 extends GFVisualAction
 
@@ -9,6 +15,8 @@ extends GFVisualAction
 # --- 信号 ---
 
 ## 重复流程结束时发出。
+## [br]
+## @api public
 signal repeat_completed
 
 
@@ -17,18 +25,26 @@ signal repeat_completed
 const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
 
 ## 单帧最多连续执行的瞬时重复次数，避免无限重复的瞬时动作锁住主线程。
+## [br]
+## @api public
 const DEFAULT_MAX_IMMEDIATE_ITERATIONS_PER_FRAME: int = 256
 
 
 # --- 公共变量 ---
 
 ## 动作工厂。每次调用应返回一个动作对象；返回 null 会结束重复。
+## [br]
+## @api public
 var action_factory: Callable
 
 ## 重复次数。0 表示无限重复，直到 cancel()、finish() 或工厂返回 null。
+## [br]
+## @api public
 var repeat_count: int = 1
 
 ## 单帧最多连续执行的瞬时重复次数。小于 1 时按 1 处理。
+## [br]
+## @api public
 var max_immediate_iterations_per_frame: int = DEFAULT_MAX_IMMEDIATE_ITERATIONS_PER_FRAME
 
 
@@ -48,6 +64,13 @@ func _init(p_action_factory: Callable = Callable(), p_repeat_count: int = 1) -> 
 
 # --- 公共方法 ---
 
+## 启动重复执行流程。
+## [br]
+## @api public
+## [br]
+## @return action_factory 有效时返回 repeat_completed Signal；无效时返回 null。
+## [br]
+## @schema return: Variant，返回 repeat_completed Signal 或 null。
 func execute() -> Variant:
 	if not action_factory.is_valid():
 		return null
@@ -57,6 +80,9 @@ func execute() -> Variant:
 	return repeat_completed
 
 
+## 取消重复流程并取消当前动作。
+## [br]
+## @api public
 func cancel() -> void:
 	_execution_serial += 1
 	_paused = false
@@ -65,18 +91,27 @@ func cancel() -> void:
 	_active_action = null
 
 
+## 暂停重复流程和当前动作。
+## [br]
+## @api public
 func pause() -> void:
 	_paused = true
 	if is_instance_valid(_active_action):
 		_ACTION_PROTOCOL.pause(_active_action)
 
 
+## 恢复重复流程和当前动作。
+## [br]
+## @api public
 func resume() -> void:
 	_paused = false
 	if is_instance_valid(_active_action):
 		_ACTION_PROTOCOL.resume(_active_action)
 
 
+## 立即完成重复流程并释放等待者。
+## [br]
+## @api public
 func finish() -> void:
 	_execution_serial += 1
 	_paused = false

@@ -2,38 +2,58 @@
 ##
 ## Recipe 用于把一组通用 Capability 条目批量应用到 receiver。它只描述组合结构，
 ## 不规定实体类型、玩法规则、UI 或存档字段。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFCapabilityRecipe
 extends Resource
 
 
 # --- 常量 ---
 
-const GFCapabilityRecipeEntryBase = preload("res://addons/gf/extensions/capability/recipes/gf_capability_recipe_entry.gd")
 const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
 
 
 # --- 导出变量 ---
 
 ## Recipe 稳定标识。为空时可由项目层按资源路径管理。
+## [br]
+## @api public
 @export var recipe_id: StringName = &""
 
 ## Recipe 展示名，仅供编辑器和项目工具显示。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 能力条目列表。
-@export var entries: Array[GFCapabilityRecipeEntryBase] = []
+## [br]
+## @api public
+@export var entries: Array[GFCapabilityRecipeEntry] = []
 
 ## 应用 Recipe 时附加到 receiver 的能力查询分组。
+## [br]
+## @api public
 @export var groups: Array[StringName] = []
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: 项目自定义元数据 Dictionary；框架保留并复制该字段，但不解释其中键值。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取展示名。
-## @return 展示名。
+## [br]
+## @api public
+## [br]
+## @return: 展示名。
 func get_display_name() -> String:
 	if not display_name.is_empty():
 		return display_name
@@ -45,10 +65,15 @@ func get_display_name() -> String:
 
 
 ## 描述 Recipe。
-## @return Recipe 描述字典。
+## [br]
+## @api public
+## [br]
+## @return: Recipe 描述字典。
+## [br]
+## @schema return: 包含 recipe_id、display_name、entry_count、entries、groups 和 metadata 字段的 Dictionary；entries 为各条目的 describe_entry() 快照数组。
 func describe_recipe() -> Dictionary:
 	var entry_descriptions: Array[Dictionary] = []
-	for entry: GFCapabilityRecipeEntryBase in entries:
+	for entry: GFCapabilityRecipeEntry in entries:
 		if entry != null:
 			entry_descriptions.append(entry.describe_entry())
 
@@ -63,7 +88,12 @@ func describe_recipe() -> Dictionary:
 
 
 ## 校验 Recipe 结构。
-## @return 校验报告。
+## [br]
+## @api public
+## [br]
+## @return: 校验报告。
+## [br]
+## @schema return: GFValidationReport.to_dict() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和 entry_count 等字段。
 func validate_recipe() -> Dictionary:
 	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Capability recipe")
 
@@ -97,7 +127,7 @@ func validate_recipe() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
-func _get_entry_key(entry: GFCapabilityRecipeEntryBase) -> String:
+func _get_entry_key(entry: GFCapabilityRecipeEntry) -> String:
 	if entry == null:
 		return ""
 	if entry.capability_type != null:

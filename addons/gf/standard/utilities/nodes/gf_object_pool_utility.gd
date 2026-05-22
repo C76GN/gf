@@ -10,37 +10,47 @@
 ##   1. 调用 acquire(scene, parent) 从池中取出一个可用节点（或自动实例化）。
 ##   2. 对节点进行配置使用。
 ##   3. 对象生命周期结束后，调用 release(node, scene) 将其归还至池中。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFObjectPoolUtility
 extends GFUtility
 
 
 # --- 常量 ---
 
-## 用于标记节点当前是否被激活使用的 metadata 键。
+# 用于标记节点当前是否被激活使用的 metadata 键。
 const _META_ACTIVE: StringName = &"_gf_pool_active"
 
-## 用于保存节点进入池前的 process_mode。
+# 用于保存节点进入池前的 process_mode。
 const _META_ORIGINAL_PROCESS_MODE: StringName = &"_gf_pool_original_process_mode"
 
-## 用于保存 CanvasItem 进入池前的 visible 状态。
+# 用于保存 CanvasItem 进入池前的 visible 状态。
 const _META_ORIGINAL_VISIBLE: StringName = &"_gf_pool_original_visible"
 
-## 用于保存节点进入池前的 disabled 属性。
+# 用于保存节点进入池前的 disabled 属性。
 const _META_ORIGINAL_DISABLED: StringName = &"_gf_pool_original_disabled"
 
-## 用于追踪节点原始所属的 PackedScene，避免错误 release 污染其他池。
+# 用于追踪节点原始所属的 PackedScene，避免错误 release 污染其他池。
 const _META_SOURCE_SCENE: StringName = &"_gf_pool_source_scene"
 
 ## 节点可选实现：归还对象池前调用，用于清理 Tween、临时信号、运行时状态等。
+## [br]
+## @api public
 const HOOK_ON_RELEASE: StringName = &"on_gf_pool_release"
 
 ## 节点可选实现：从对象池取出并恢复激活后调用，用于重置本次使用状态。
+## [br]
+## @api public
 const HOOK_ON_ACQUIRE: StringName = &"on_gf_pool_acquire"
 
-## 框架内部对象池归还钩子。用于让 GFController 等基础类型同步生命周期。
+# 框架内部对象池归还钩子。用于让 GFController 等基础类型同步生命周期。
 const _HOOK_INTERNAL_ON_RELEASE: StringName = &"_gf_on_object_pool_release"
 
-## 框架内部对象池取出钩子。用于让 GFController 等基础类型同步生命周期。
+# 框架内部对象池取出钩子。用于让 GFController 等基础类型同步生命周期。
 const _HOOK_INTERNAL_ON_ACQUIRE: StringName = &"_gf_on_object_pool_acquire"
 
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
@@ -49,31 +59,39 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## 每个 PackedScene 最多保留的可用节点数量。为 0 时不限制。
+## [br]
+## @api public
 var max_available_per_scene: int = 0
 
 ## 是否递归管理子节点的 process_mode、visible 与 disabled 状态。
+## [br]
+## @api public
 var manage_descendant_active_state: bool = true
 
 ## 是否在 acquire/release/count 等高频操作前立即清理失效节点。
+## [br]
+## @api public
 var prune_invalid_on_each_operation: bool = true
 
 
 # --- 私有变量 ---
 
-## 对象池全量字典。Key 为 PackedScene 资源，Value 为该场景产生的所有节点数组。
-## 仅用于销毁时统一释放。
+# 对象池全量字典。Key 为 PackedScene 资源，Value 为该场景产生的所有节点数组。
+# 仅用于销毁时统一释放。
 var _all_nodes: Dictionary = {}
 
-## 可用对象池字典。Key 为 PackedScene 资源，Value 为当前可用的节点栈。
+# 可用对象池字典。Key 为 PackedScene 资源，Value 为当前可用的节点栈。
 var _available_pools: Dictionary = {}
 var _lifecycle_serial: int = 0
 var _pool_root: Node = null
 var _is_disposed: bool = false
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
 ## 第一阶段初始化：清空内部池字典。
+## [br]
+## @api public
 func init() -> void:
 	_lifecycle_serial += 1
 	_is_disposed = false
@@ -85,6 +103,8 @@ func init() -> void:
 
 
 ## 销毁阶段：释放所有池中的节点。
+## [br]
+## @api public
 func dispose() -> void:
 	_lifecycle_serial += 1
 	_is_disposed = true
@@ -104,8 +124,13 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 从池中获取一个节点实例。若池为空则自动实例化并加入父节点。
+## [br]
+## @api public
+## [br]
 ## @param scene: 要实例化的 PackedScene 资源。
+## [br]
 ## @param parent: 借出的节点将加入或移动到此父节点；释放时会移动到内部池根节点。
+## [br]
 ## @return 可直接使用的节点实例。
 func acquire(scene: PackedScene, parent: Node) -> Node:
 	if _is_disposed:
@@ -154,7 +179,11 @@ func acquire(scene: PackedScene, parent: Node) -> Node:
 
 
 ## 将节点归还到对象池，隐藏它以待下次复用。
+## [br]
+## @api public
+## [br]
 ## @param node: 要归还的节点实例（必须由此工具创建）。
+## [br]
 ## @param scene: 该节点所属的 PackedScene 资源，用于匹配正确的池。
 func release(node: Node, scene: PackedScene) -> void:
 	if _is_disposed:
@@ -195,8 +224,13 @@ func release(node: Node, scene: PackedScene) -> void:
 
 
 ## 预热对象池，预先实例化指定数量的节点以避免首次使用时的卡顿。
+## [br]
+## @api public
+## [br]
 ## @param scene: 要预热的 PackedScene 资源。
+## [br]
 ## @param parent: 预热节点将加入此父节点。
+## [br]
 ## @param count: 预热的数量。
 func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 	if _is_disposed:
@@ -213,9 +247,15 @@ func prewarm(scene: PackedScene, parent: Node, count: int) -> void:
 
 
 ## 分批预热对象池，避免一次性实例化大量节点造成单帧卡顿。
+## [br]
+## @api public
+## [br]
 ## @param scene: 要预热的 PackedScene 资源。
+## [br]
 ## @param parent: 预热节点将加入此父节点。
+## [br]
 ## @param count: 预热的数量。
+## [br]
 ## @param batch_size: 每帧最多实例化数量；小于等于 0 时退化为同步预热。
 func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int = 32) -> void:
 	if _is_disposed:
@@ -247,9 +287,15 @@ func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int
 
 
 ## 按单帧时间预算预热对象池，适合复杂度差异较大的 PackedScene。
+## [br]
+## @api public
+## [br]
 ## @param scene: 要预热的 PackedScene 资源。
+## [br]
 ## @param parent: 预热节点将加入此父节点。
+## [br]
 ## @param count: 预热的数量。
+## [br]
 ## @param msec_budget_per_frame: 每帧实例化预算毫秒数；小于等于 0 时退化为同步预热。
 func prewarm_async_budget(
 	scene: PackedScene,
@@ -297,7 +343,11 @@ func prewarm_async_budget(
 
 
 ## 获取指定场景当前池中可用（未使用）的节点数量。
+## [br]
+## @api public
+## [br]
 ## @param scene: 要查询的 PackedScene 资源。
+## [br]
 ## @return 池中可用节点数量。
 func get_available_count(scene: PackedScene) -> int:
 	if not _available_pools.has(scene):
@@ -313,14 +363,22 @@ func get_available_count(scene: PackedScene) -> int:
 
 
 ## 获取指定场景当前正在使用中的节点数量。
+## [br]
+## @api public
+## [br]
 ## @param scene: 要查询的 PackedScene 资源。
+## [br]
 ## @return 当前激活节点数量。
 func get_active_count(scene: PackedScene) -> int:
 	return get_active_nodes(scene).size()
 
 
 ## 获取指定场景当前正在使用中的节点列表。
+## [br]
+## @api public
+## [br]
 ## @param scene: 要查询的 PackedScene 资源。
+## [br]
 ## @return 当前激活节点数组。
 func get_active_nodes(scene: PackedScene) -> Array[Node]:
 	var result: Array[Node] = []
@@ -336,13 +394,20 @@ func get_active_nodes(scene: PackedScene) -> Array[Node]:
 
 
 ## 主动清理全部池中的失效节点引用。
+## [br]
+## @api public
 func prune_invalid_nodes() -> void:
 	for scene: PackedScene in _all_nodes.keys():
 		_prune_invalid_scene_nodes(scene)
 
 
 ## 获取对象池诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 以资源路径或实例 ID 为键的池状态字典。
+## [br]
+## @schema return: Dictionary[String, Dictionary] keyed by PackedScene resource path or instance id, with total, available, and active counts.
 func get_debug_snapshot() -> Dictionary:
 	prune_invalid_nodes()
 	var snapshot: Dictionary = {}

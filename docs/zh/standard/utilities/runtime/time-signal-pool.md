@@ -114,6 +114,8 @@ pool.prewarm(bullet_scene, get_tree().root, 64)
 await pool.prewarm_async_budget(explosion_scene, get_tree().root, 40, 4.0)
 ```
 
+`prewarm_async_budget()` 会按帧预算让出执行权，因此调用方如果还要等待宿主节点的 `ready` 信号，应先等待 `ready`，或在等待前用 `is_node_ready()` 判断宿主是否已经就绪。Godot 的 `ready` 是一次性信号；长时间预热跨过宿主就绪帧后再 `await host.ready`，后续初始化代码会停在调用方自己的等待语句上，这不是对象池预热卡死。
+
 池化节点可以选择实现两个 hook，让节点自己清理旧状态：
 
 ```gdscript

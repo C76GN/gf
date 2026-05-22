@@ -2,6 +2,12 @@
 ##
 ## 通过 Callable 或子类钩子校验任意对象、资源、节点或数据。规则只负责把问题写入
 ## GFValidationReport，不约定项目脚本方法名，也不内置业务字段语义。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFValidationRule
 extends Resource
 
@@ -9,6 +15,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 规则适用的目标类型。
+## [br]
+## @api public
 enum TargetKind {
 	## 接受任意目标。
 	ANY,
@@ -30,36 +38,60 @@ enum TargetKind {
 # --- 导出变量 ---
 
 ## 规则唯一标识。推荐使用稳定的 snake_case 或点分层级标识。
+## [br]
+## @api public
 @export var rule_id: StringName = &""
 
 ## 面向工具或报告的规则说明。
+## [br]
+## @api public
 @export_multiline var description: String = ""
 
 ## 规则适用的目标类型。
+## [br]
+## @api public
 @export var target_kind: TargetKind = TargetKind.ANY
 
 ## 是否启用该规则。
+## [br]
+## @api public
 @export var enabled: bool = true
 
 ## 当 Callable 或钩子返回 false / 非空字符串时使用的默认严重级别。
+## [br]
+## @api public
 @export var severity: GFValidationIssue.Severity = GFValidationIssue.Severity.ERROR
 
 ## 可选元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary of caller-defined rule metadata.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共变量 ---
 
 ## 可选校验回调，签名为 func(target: Variant, report: GFValidationReport, context: Dictionary) -> Variant。
+## [br]
+## @api public
 var callback: Callable = Callable()
 
 
 # --- 公共方法 ---
 
 ## 配置规则并返回自身。
+## [br]
+## @api public
+## [br]
 ## @param p_rule_id: 规则标识。
+## [br]
 ## @param p_callback: 可选校验回调。
+## [br]
 ## @param options: 可选字段，支持 description、target_kind、enabled、severity、metadata。
+## [br]
+## @schema options: Dictionary rule configuration overrides.
+## [br]
 ## @return 当前规则。
 func configure(
 	p_rule_id: StringName,
@@ -78,8 +110,17 @@ func configure(
 
 
 ## 检查规则是否适用于目标。
+## [br]
+## @api public
+## [br]
 ## @param target: 待校验目标。
+## [br]
+## @schema target: Variant validation target.
+## [br]
 ## @param context: 调用方上下文。
+## [br]
+## @schema context: Dictionary validation context.
+## [br]
 ## @return 适用时返回 true。
 func applies_to(target: Variant, context: Dictionary = {}) -> bool:
 	if not enabled:
@@ -90,8 +131,17 @@ func applies_to(target: Variant, context: Dictionary = {}) -> bool:
 
 
 ## 执行规则并返回报告。
+## [br]
+## @api public
+## [br]
 ## @param target: 待校验目标。
+## [br]
+## @schema target: Variant validation target.
+## [br]
 ## @param context: 调用方上下文。
+## [br]
+## @schema context: Dictionary validation context.
+## [br]
 ## @return 校验报告。
 func validate(target: Variant, context: Dictionary = {}) -> GFValidationReport:
 	var report := GFValidationReport.new(_make_subject(context), {
@@ -112,6 +162,9 @@ func validate(target: Variant, context: Dictionary = {}) -> GFValidationReport:
 
 
 ## 创建当前规则的浅配置副本。
+## [br]
+## @api public
+## [br]
 ## @return 新规则。
 func duplicate_rule() -> GFValidationRule:
 	var rule := GFValidationRule.new()
@@ -125,8 +178,25 @@ func duplicate_rule() -> GFValidationRule:
 	return rule
 
 
-# --- 可重写钩子 ---
+# --- 可重写钩子 / 虚方法 ---
 
+## 执行子类自定义校验逻辑。
+## [br]
+## @api protected
+## [br]
+## @param _target: 待校验目标。
+## [br]
+## @schema _target: Variant validation target.
+## [br]
+## @param _report: 当前规则报告，可直接写入问题。
+## [br]
+## @param _context: 调用方上下文。
+## [br]
+## @schema _context: Dictionary validation context.
+## [br]
+## @return 自定义校验结果；支持 null、GFValidationReport、Dictionary、Array、bool、String 或 StringName。
+## [br]
+## @schema return: Variant validation hook result accepted by _apply_result.
 func _validate(_target: Variant, _report: GFValidationReport, _context: Dictionary) -> Variant:
 	return null
 

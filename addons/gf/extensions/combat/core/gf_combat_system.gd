@@ -2,23 +2,32 @@
 ##
 ## 负责驱动所有注册实体的 Buff 计时、周期触发以及技能 CD 更新。
 ## 继承自 GFSystem，可通过架构的 tick 自动运行。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFCombatSystem
 extends GFSystem
 
 
 # --- 私有变量 ---
 
-## 存储所有当前受系统管理的战斗实体元数据。
-## 格式：{ entity_object: { "buffs": [GFBuff], "skills": [GFSkill] } }
+# 存储所有当前受系统管理的战斗实体元数据。
+# 格式：{ entity_object: { "buffs": [GFBuff], "skills": [GFSkill] } }
 var _entities: Dictionary = {}
 
-## 活跃实体集合。键为实体 ID，值为实体对象。
+# 活跃实体集合。键为实体 ID，值为实体对象。
 var _active_entities: Dictionary = {}
 
 
-# --- GFSystem 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param p_delta: 本帧时间增量（秒）。
 func tick(p_delta: float) -> void:
 	_cleanup_invalid_entities()
@@ -35,6 +44,9 @@ func tick(p_delta: float) -> void:
 		_process_entity(entity, p_delta)
 
 
+## 释放系统持有的实体、Buff 与技能连接。
+## [br]
+## @api public
 func dispose() -> void:
 	for entity in _entities.keys():
 		_remove_entity_record(entity, true)
@@ -46,6 +58,9 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注册战斗实体。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
 func register_entity(p_entity: Object) -> void:
 	if p_entity == null or _entities.has(p_entity):
@@ -59,13 +74,20 @@ func register_entity(p_entity: Object) -> void:
 
 
 ## 注销战斗实体。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
 func unregister_entity(p_entity: Object) -> void:
 	_remove_entity_record(p_entity, true)
 
 
 ## 给实体添加一个 Buff。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param p_buff: Buff 实例。
 func add_buff(p_entity: Object, p_buff: GFBuff) -> void:
 	if p_buff == null or not _entities.has(p_entity):
@@ -92,7 +114,11 @@ func add_buff(p_entity: Object, p_buff: GFBuff) -> void:
 
 
 ## 为实体添加技能。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param p_skill: 技能实例。
 func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 	if p_skill == null or not _entities.has(p_entity):
@@ -115,8 +141,13 @@ func add_skill(p_entity: Object, p_skill: GFSkill) -> void:
 
 
 ## 获取实体上的指定 Buff。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param p_buff_id: Buff 标识。
+## [br]
 ## @return 找到时返回正在系统中生效的 Buff 实例，否则返回 null。
 func get_buff(p_entity: Object, p_buff_id: StringName) -> GFBuff:
 	if not _entities.has(p_entity):
@@ -131,15 +162,24 @@ func get_buff(p_entity: Object, p_buff_id: StringName) -> GFBuff:
 
 
 ## 检查实体上是否存在指定 Buff。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param p_buff_id: Buff 标识。
+## [br]
 ## @return 存在返回 true。
 func has_buff(p_entity: Object, p_buff_id: StringName) -> bool:
 	return get_buff(p_entity, p_buff_id) != null
 
 
 ## 获取实体当前持有的 Buff 列表副本。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @return Buff 实例数组副本；数组本身可安全修改，但元素仍是运行中的 Buff 引用。
 func get_buffs(p_entity: Object) -> Array[GFBuff]:
 	var result: Array[GFBuff] = []
@@ -155,8 +195,13 @@ func get_buffs(p_entity: Object) -> Array[GFBuff]:
 
 
 ## 强制刷新指定 Buff 已挂载修饰器影响到的属性。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param p_buff_id: Buff 标识。
+## [br]
 ## @return 至少刷新了一个属性时返回 true。
 func refresh_buff_modifiers(p_entity: Object, p_buff_id: StringName) -> bool:
 	var buff := get_buff(p_entity, p_buff_id)
@@ -166,8 +211,13 @@ func refresh_buff_modifiers(p_entity: Object, p_buff_id: StringName) -> bool:
 
 
 ## 移除实体上的指定 Buff。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param p_buff_id: Buff 标识。
+## [br]
 ## @return 找到并移除 Buff 时返回 true。
 func remove_buff(p_entity: Object, p_buff_id: StringName) -> bool:
 	if not _entities.has(p_entity):
@@ -185,8 +235,13 @@ func remove_buff(p_entity: Object, p_buff_id: StringName) -> bool:
 
 
 ## 清理实体上的 Buff。predicate 为空时清理全部；否则仅清理返回 true 的 Buff。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param predicate: 可选过滤回调，签名为 `func(buff: GFBuff) -> bool`。
+## [br]
 ## @return 被清理的 Buff 数量。
 func clear_buffs(p_entity: Object, predicate: Callable = Callable()) -> int:
 	if not _entities.has(p_entity):
@@ -211,8 +266,13 @@ func clear_buffs(p_entity: Object, predicate: Callable = Callable()) -> int:
 
 
 ## 移除实体上的指定技能。
+## [br]
+## @api public
+## [br]
 ## @param p_entity: 实体对象。
+## [br]
 ## @param p_skill: 技能实例。
+## [br]
 ## @return 找到并移除技能时返回 true。
 func remove_skill(p_entity: Object, p_skill: GFSkill) -> bool:
 	if p_skill == null or not _entities.has(p_entity):
@@ -232,7 +292,7 @@ func remove_skill(p_entity: Object, p_skill: GFSkill) -> bool:
 
 # --- 私有/辅助方法 ---
 
-## 更新实体的活跃状态。
+# 更新实体的活跃状态。
 func _update_active_status(p_entity: Object) -> void:
 	if not is_instance_valid(p_entity) or not _entities.has(p_entity):
 		_erase_active_entity(p_entity)

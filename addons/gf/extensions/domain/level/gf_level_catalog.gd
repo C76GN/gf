@@ -1,6 +1,12 @@
 ## GFLevelCatalog: 通用关卡目录资源。
 ##
 ## 用于按关卡包和排序值组织 GFLevelEntry，保持目录查询与具体关卡规则解耦。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFLevelCatalog
 extends Resource
 
@@ -8,12 +14,19 @@ extends Resource
 # --- 导出变量 ---
 
 ## 关卡条目列表。
+## [br]
+## @api public
+## [br]
+## @schema entries: Array[GFLevelEntry]，关卡目录条目列表；查询方法会返回条目拷贝。
 @export var entries: Array[GFLevelEntry] = []
 
 
 # --- 公共方法 ---
 
 ## 添加关卡条目。
+## [br]
+## @api public
+## [br]
 ## @param entry: 关卡条目。
 func add_entry(entry: GFLevelEntry) -> void:
 	if entry == null:
@@ -32,15 +45,23 @@ func add_entry(entry: GFLevelEntry) -> void:
 
 
 ## 检查关卡是否存在。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
-## @return 存在时返回 true。
+## [br]
+## @return: 存在时返回 true。
 func has_level(level_id: StringName) -> bool:
 	return get_entry(level_id) != null
 
 
 ## 获取关卡条目。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
-## @return 条目拷贝；不存在时返回 null。
+## [br]
+## @return: 条目拷贝；不存在时返回 null。
 func get_entry(level_id: StringName) -> GFLevelEntry:
 	for entry: GFLevelEntry in entries:
 		if entry != null and entry.get_level_id() == level_id:
@@ -49,8 +70,14 @@ func get_entry(level_id: StringName) -> GFLevelEntry:
 
 
 ## 获取指定关卡扩展中的条目。
+## [br]
+## @api public
+## [br]
 ## @param pack_id: 关卡扩展 ID；为空时返回全部。
-## @return 已排序的条目拷贝数组。
+## [br]
+## @return: 已排序的条目拷贝数组。
+## [br]
+## @schema return: Array[GFLevelEntry]，按 sort_order 与 level_id 排序后的关卡条目拷贝。
 func get_levels(pack_id: StringName = &"") -> Array[GFLevelEntry]:
 	var result: Array[GFLevelEntry] = []
 	for entry: GFLevelEntry in entries:
@@ -65,7 +92,12 @@ func get_levels(pack_id: StringName = &"") -> Array[GFLevelEntry]:
 
 
 ## 获取所有关卡扩展 ID。
-## @return 关卡扩展 ID 数组。
+## [br]
+## @api public
+## [br]
+## @return: 关卡扩展 ID 数组。
+## [br]
+## @schema return: Array[StringName]，已排序的关卡包或章节 ID 列表。
 func get_pack_ids() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for entry: GFLevelEntry in entries:
@@ -78,8 +110,12 @@ func get_pack_ids() -> Array[StringName]:
 
 
 ## 获取同关卡扩展内下一个关卡 ID。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 当前关卡 ID。
-## @return 后续关卡 ID；没有时返回空 StringName。
+## [br]
+## @return: 后续关卡 ID；没有时返回空 StringName。
 func get_next_level_id(level_id: StringName) -> StringName:
 	var entry := get_entry(level_id)
 	if entry == null:
@@ -93,8 +129,12 @@ func get_next_level_id(level_id: StringName) -> StringName:
 
 
 ## 获取同关卡扩展内上一个关卡 ID。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 当前关卡 ID。
-## @return 前序关卡 ID；没有时返回空 StringName。
+## [br]
+## @return: 前序关卡 ID；没有时返回空 StringName。
 func get_previous_level_id(level_id: StringName) -> StringName:
 	var entry := get_entry(level_id)
 	if entry == null:

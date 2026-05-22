@@ -2,6 +2,12 @@
 ##
 ## 统一协调 CPU/IO 线程工作、ResourceLoader 线程加载和主线程应用回调。
 ## 默认只允许纯 Variant 输入数据，避免后台线程直接触碰 Node、Resource 或 Callable。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFBackgroundWorkUtility
 extends GFUtility
 
@@ -9,61 +15,91 @@ extends GFUtility
 # --- 信号 ---
 
 ## 工作进入等待队列时发出。
+## [br]
+## @api public
+## [br]
 ## @param task: 工作记录。
-signal work_queued(task: RefCounted)
+signal work_queued(task: GFBackgroundWorkTask)
 
 ## 工作开始执行时发出。
+## [br]
+## @api public
+## [br]
 ## @param task: 工作记录。
-signal work_started(task: RefCounted)
+signal work_started(task: GFBackgroundWorkTask)
 
 ## 工作进度变化时发出。
+## [br]
+## @api public
+## [br]
 ## @param task: 工作记录。
+## [br]
 ## @param progress: 当前进度。
+## [br]
 ## @param message: 进度说明。
-signal work_progressed(task: RefCounted, progress: float, message: String)
+signal work_progressed(task: GFBackgroundWorkTask, progress: float, message: String)
 
 ## 工作完成时发出。
+## [br]
+## @api public
+## [br]
 ## @param task: 工作记录。
-signal work_completed(task: RefCounted)
+signal work_completed(task: GFBackgroundWorkTask)
 
 ## 工作失败时发出。
+## [br]
+## @api public
+## [br]
 ## @param task: 工作记录。
-signal work_failed(task: RefCounted)
+signal work_failed(task: GFBackgroundWorkTask)
 
 ## 工作取消时发出。
+## [br]
+## @api public
+## [br]
 ## @param task: 工作记录。
-signal work_cancelled(task: RefCounted)
+signal work_cancelled(task: GFBackgroundWorkTask)
 
 ## 工作结果已在主线程应用时发出。
+## [br]
+## @api public
+## [br]
 ## @param task: 工作记录。
-signal work_applied(task: RefCounted)
+signal work_applied(task: GFBackgroundWorkTask)
 
 
 # --- 常量 ---
 
 const _MAX_PAYLOAD_DEPTH: int = 64
-const _GF_BACKGROUND_WORK_TASK_SCRIPT: Script = preload("res://addons/gf/standard/utilities/jobs/gf_background_work_task.gd")
 
 
 # --- 公共变量 ---
 
 ## 同时运行的 CPU/IO 线程任务上限。
+## [br]
+## @api public
 var max_threaded_tasks: int = 2:
 	set(value):
 		max_threaded_tasks = maxi(value, 1)
 		_start_queued_thread_tasks()
 
 ## 单帧最多执行多少个主线程应用回调。
+## [br]
+## @api public
 var max_apply_per_tick: int = 8:
 	set(value):
 		max_apply_per_tick = maxi(value, 1)
 
 ## 单帧主线程应用回调的最大秒数。小于等于 0 时不启用时间预算；启用时每帧仍至少尝试一个应用回调。
+## [br]
+## @api public
 var max_apply_seconds_per_tick: float = 0.0:
 	set(value):
 		max_apply_seconds_per_tick = maxf(value, 0.0)
 
 ## 最多保留多少个终态任务用于调试快照；设为 0 时不保留历史。
+## [br]
+## @api public
 var max_finished_tasks: int = 128:
 	set(value):
 		max_finished_tasks = maxi(value, 0)
@@ -71,6 +107,8 @@ var max_finished_tasks: int = 128:
 
 ## 是否默认允许 Object、Resource、Callable、Signal 或 RID 进入线程 payload。
 ## 仅迁移旧项目或明确自行保证线程安全时才建议开启。
+## [br]
+## @api public
 var allow_object_payloads: bool = false
 
 
@@ -86,14 +124,20 @@ var _finished_tasks: Array = []
 var _paused: bool = false
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化后台工作协调器并启用暂停无关处理。
+## [br]
+## @api public
 func init() -> void:
 	ignore_pause = true
 	clear_all()
 
 
 ## 推进后台工作完成检查与主线程应用。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 为兼容统一 tick 签名而保留的参数。
 func tick(_delta: float = 0.0) -> void:
 	_poll_thread_tasks()
@@ -102,6 +146,9 @@ func tick(_delta: float = 0.0) -> void:
 	_start_queued_thread_tasks()
 
 
+## 取消未完成工作、等待线程结束并清理运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	cancel_all()
 	_wait_for_active_thread_tasks()
@@ -111,66 +158,101 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 提交 CPU 纯数据后台工作。
+## [br]
 ## @param worker: 后台线程回调，签名推荐为 func(input_data: Variant) -> Variant。
+## [br]
 ## @param input_data: 输入数据。默认只允许纯 Variant 容器和值。
+## [br]
 ## @param apply_callback: 主线程应用回调，签名推荐为 func(task: GFBackgroundWorkTask) -> Variant。
+## [br]
 ## @param options: 可选配置，支持 id、priority、metadata、front、allow_object_payloads。
+## [br]
 ## @return 工作记录；参数无效时返回 failed 状态任务。
+## [br]
+## @api public
+## [br]
+## @schema input_data: Variant，复制到工作线程的纯数据载荷；显式允许对象载荷时除外。
+## [br]
+## @schema options: Dictionary，包含 id: StringName/String、priority: int、metadata: Dictionary、front: bool 和 allow_object_payloads: bool。
 func submit_cpu_work(
 	worker: Callable,
 	input_data: Variant = null,
 	apply_callback: Callable = Callable(),
 	options: Dictionary = {}
-) -> RefCounted:
-	return _submit_threaded_work(_GF_BACKGROUND_WORK_TASK_SCRIPT.Kind.CPU, worker, input_data, apply_callback, options)
+) -> GFBackgroundWorkTask:
+	return _submit_threaded_work(GFBackgroundWorkTask.Kind.CPU, worker, input_data, apply_callback, options)
 
 
 ## 提交 IO 纯数据后台工作。
+## [br]
 ## @param worker: 后台线程回调，签名推荐为 func(input_data: Variant) -> Variant。
+## [br]
 ## @param input_data: 输入数据。默认只允许纯 Variant 容器和值。
+## [br]
 ## @param apply_callback: 主线程应用回调，签名推荐为 func(task: GFBackgroundWorkTask) -> Variant。
+## [br]
 ## @param options: 可选配置，支持 id、priority、metadata、front、allow_object_payloads。
+## [br]
 ## @return 工作记录；参数无效时返回 failed 状态任务。
+## [br]
+## @api public
+## [br]
+## @schema input_data: Variant，复制到工作线程的纯数据载荷；显式允许对象载荷时除外。
+## [br]
+## @schema options: Dictionary，包含 id: StringName/String、priority: int、metadata: Dictionary、front: bool 和 allow_object_payloads: bool。
 func submit_io_work(
 	worker: Callable,
 	input_data: Variant = null,
 	apply_callback: Callable = Callable(),
 	options: Dictionary = {}
-) -> RefCounted:
-	return _submit_threaded_work(_GF_BACKGROUND_WORK_TASK_SCRIPT.Kind.IO, worker, input_data, apply_callback, options)
+) -> GFBackgroundWorkTask:
+	return _submit_threaded_work(GFBackgroundWorkTask.Kind.IO, worker, input_data, apply_callback, options)
 
 
 ## 提交 ResourceLoader 后台资源加载。
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @param type_hint: 可选资源类型提示。
+## [br]
 ## @param apply_callback: 主线程应用回调，签名推荐为 func(task: GFBackgroundWorkTask) -> Variant。
+## [br]
 ## @param options: 可选配置，支持 id、priority、metadata。
+## [br]
 ## @return 工作记录；参数无效或请求失败时返回 failed 状态任务。
+## [br]
+## @api public
+## [br]
+## @schema options: Dictionary，包含 id: StringName/String、priority: int 和 metadata: Dictionary。
 func submit_resource_load(
 	path: String,
 	type_hint: String = "",
 	apply_callback: Callable = Callable(),
 	options: Dictionary = {}
-) -> RefCounted:
-	var task: Variant = _create_task(_GF_BACKGROUND_WORK_TASK_SCRIPT.Kind.RESOURCE, Callable(), apply_callback, options)
+) -> GFBackgroundWorkTask:
+	var task: Variant = _create_task(GFBackgroundWorkTask.Kind.RESOURCE, Callable(), apply_callback, options)
 	task.resource_path = path
 	task.resource_type_hint = type_hint
 
 	if path.is_empty():
 		_fail_task(task, "[GFBackgroundWorkUtility] submit_resource_load 失败：资源路径为空。")
-		return task as RefCounted
+		return task as GFBackgroundWorkTask
 
 	if not _register_task(task):
 		_fail_task(task, "[GFBackgroundWorkUtility] submit_resource_load 失败：工作 ID 已存在。")
-		return task as RefCounted
+		return task as GFBackgroundWorkTask
 
 	work_queued.emit(task)
 	_start_resource_task(task)
-	return task as RefCounted
+	return task as GFBackgroundWorkTask
 
 
 ## 取消指定工作。
+## [br]
+## @api public
+## [br]
 ## @param work_id: 工作 ID。
+## [br]
 ## @return 取消成功返回 true。
 func cancel_work(work_id: StringName) -> bool:
 	var task: Variant = get_task(work_id)
@@ -178,12 +260,12 @@ func cancel_work(work_id: StringName) -> bool:
 		return false
 
 	task.cancel_requested = true
-	if task.status == _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.QUEUED:
+	if task.status == GFBackgroundWorkTask.Status.QUEUED:
 		_queued_thread_tasks.erase(task)
 		_cancel_task(task)
 		return true
 
-	if task.status == _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.APPLYING:
+	if task.status == GFBackgroundWorkTask.Status.APPLYING:
 		_apply_queue.erase(task)
 		_cancel_task(task)
 		return true
@@ -192,6 +274,8 @@ func cancel_work(work_id: StringName) -> bool:
 
 
 ## 取消全部未完成工作。
+## [br]
+## @api public
 func cancel_all() -> void:
 	var task_values := _tasks.values()
 	for task_variant: Variant in task_values:
@@ -201,26 +285,39 @@ func cancel_all() -> void:
 
 
 ## 暂停启动新的 CPU/IO 线程工作；已运行和资源加载中的工作会继续推进。
+## [br]
+## @api public
 func pause() -> void:
 	_paused = true
 
 
 ## 恢复启动新的 CPU/IO 线程工作。
+## [br]
+## @api public
 func resume() -> void:
 	_paused = false
 	_start_queued_thread_tasks()
 
 
 ## 检查是否暂停。
+## [br]
+## @api public
+## [br]
 ## @return 暂停时返回 true。
 func is_paused() -> bool:
 	return _paused
 
 
 ## 更新工作进度。
+## [br]
+## @api public
+## [br]
 ## @param work_id: 工作 ID。
+## [br]
 ## @param progress: 当前进度。
+## [br]
 ## @param message: 进度说明。
+## [br]
 ## @return 更新成功返回 true。
 func update_work_progress(work_id: StringName, progress: float, message: String = "") -> bool:
 	var task: Variant = get_task(work_id)
@@ -232,13 +329,19 @@ func update_work_progress(work_id: StringName, progress: float, message: String 
 
 
 ## 获取工作。
+## [br]
+## @api public
+## [br]
 ## @param work_id: 工作 ID。
+## [br]
 ## @return 工作记录；不存在时返回 null。
-func get_task(work_id: StringName) -> RefCounted:
-	return _tasks.get(work_id) as RefCounted
+func get_task(work_id: StringName) -> GFBackgroundWorkTask:
+	return _tasks.get(work_id) as GFBackgroundWorkTask
 
 
 ## 清理已完成的历史工作记录。
+## [br]
+## @api public
 func clear_finished_tasks() -> void:
 	for task: Variant in _finished_tasks:
 		if task != null:
@@ -247,6 +350,8 @@ func clear_finished_tasks() -> void:
 
 
 ## 清空全部工作。调用前应确保不再需要正在执行的线程结果。
+## [br]
+## @api public
 func clear_all() -> void:
 	_work_serial = 0
 	_tasks.clear()
@@ -259,7 +364,12 @@ func clear_all() -> void:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试快照字典。
+## [br]
+## @schema return: Dictionary，包含任务计数、queued_ids、running_thread_ids、resource_paths、apply_ids、finished_ids、暂停状态和 apply 时间预算。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"task_count": _tasks.size(),
@@ -286,26 +396,26 @@ func _submit_threaded_work(
 	input_data: Variant,
 	apply_callback: Callable,
 	options: Dictionary
-) -> RefCounted:
+) -> GFBackgroundWorkTask:
 	var task: Variant = _create_task(kind, worker, apply_callback, options)
 	if not worker.is_valid():
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：worker 无效。")
-		return task as RefCounted
+		return task as GFBackgroundWorkTask
 
 	var allow_payload_objects := allow_object_payloads or bool(options.get("allow_object_payloads", false))
 	if not allow_payload_objects and not _is_thread_payload_safe(input_data):
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：payload 只能包含纯 Variant 数据。")
-		return task as RefCounted
+		return task as GFBackgroundWorkTask
 
 	task.input_data = GFVariantData.duplicate_variant(input_data)
 	if not _register_task(task):
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：工作 ID 已存在。")
-		return task as RefCounted
+		return task as GFBackgroundWorkTask
 
 	_insert_queued_thread_task(task, bool(options.get("front", false)))
 	work_queued.emit(task)
 	_start_queued_thread_tasks()
-	return task as RefCounted
+	return task as GFBackgroundWorkTask
 
 
 func _create_task(
@@ -315,11 +425,11 @@ func _create_task(
 	options: Dictionary
 ) -> Variant:
 	_work_serial += 1
-	var task: Variant = _GF_BACKGROUND_WORK_TASK_SCRIPT.new()
+	var task: Variant = GFBackgroundWorkTask.new()
 	task.kind = kind
 	task.work_id = StringName(str(options.get("id", "")))
 	if task.work_id == &"":
-		task.work_id = StringName("%s:%d" % [_GF_BACKGROUND_WORK_TASK_SCRIPT.kind_name(kind), _work_serial])
+		task.work_id = StringName("%s:%d" % [GFBackgroundWorkTask.kind_name(kind), _work_serial])
 	task.priority = int(options.get("priority", 0))
 	var metadata := options.get("metadata", {}) as Dictionary
 	task.metadata = metadata.duplicate(true) if metadata != null else {}
@@ -342,7 +452,7 @@ func _start_queued_thread_tasks() -> void:
 
 	while _active_thread_tasks.size() < max_threaded_tasks and not _queued_thread_tasks.is_empty():
 		var task: Variant = _queued_thread_tasks.pop_front()
-		if task == null or task.status != _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.QUEUED:
+		if task == null or task.status != GFBackgroundWorkTask.Status.QUEUED:
 			continue
 		if task.cancel_requested:
 			_cancel_task(task)
@@ -373,7 +483,7 @@ func _start_thread_task(task: Variant) -> void:
 		_fail_task(task, "[GFBackgroundWorkUtility] 启动线程失败：%d。" % error)
 		return
 
-	task.status = _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.RUNNING
+	task.status = GFBackgroundWorkTask.Status.RUNNING
 	task.started_msec = Time.get_ticks_msec()
 	_active_thread_tasks[task.work_id] = {
 		"task": task,
@@ -464,7 +574,7 @@ func _start_resource_task(task: Variant) -> void:
 
 
 func _start_task_without_thread(task: Variant) -> void:
-	task.status = _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.RUNNING
+	task.status = GFBackgroundWorkTask.Status.RUNNING
 	task.started_msec = Time.get_ticks_msec()
 	work_started.emit(task)
 
@@ -523,7 +633,7 @@ func _queue_apply_or_complete(task: Variant) -> void:
 		_cancel_task(task)
 		return
 	if task._apply_callback.is_valid():
-		task.status = _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.APPLYING
+		task.status = GFBackgroundWorkTask.Status.APPLYING
 		_apply_queue.append(task)
 		return
 	_complete_task(task)
@@ -562,7 +672,7 @@ func _process_apply_queue() -> void:
 func _complete_task(task: Variant) -> void:
 	if task == null or task.is_finished():
 		return
-	task.status = _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.COMPLETED
+	task.status = GFBackgroundWorkTask.Status.COMPLETED
 	task.progress = 1.0
 	task.finished_msec = Time.get_ticks_msec()
 	_finished_tasks.append(task)
@@ -575,7 +685,7 @@ func _fail_task(task: Variant, error_message: String = "", result: Variant = nul
 		return
 	_queued_thread_tasks.erase(task)
 	_apply_queue.erase(task)
-	task.status = _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.FAILED
+	task.status = GFBackgroundWorkTask.Status.FAILED
 	task.error_message = error_message
 	task.result = result
 	task.finished_msec = Time.get_ticks_msec()
@@ -589,7 +699,7 @@ func _cancel_task(task: Variant) -> void:
 		return
 	_queued_thread_tasks.erase(task)
 	_apply_queue.erase(task)
-	task.status = _GF_BACKGROUND_WORK_TASK_SCRIPT.Status.CANCELLED
+	task.status = GFBackgroundWorkTask.Status.CANCELLED
 	task.finished_msec = Time.get_ticks_msec()
 	_finished_tasks.append(task)
 	_trim_finished_tasks()

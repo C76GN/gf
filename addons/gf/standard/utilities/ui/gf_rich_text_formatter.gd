@@ -2,6 +2,12 @@
 ##
 ## 提供安全转义、Markdown 子集转 BBCode、变量占位符替换和可配置 token 替换。
 ## 该类不加载任何资源，不规定文本来源、语言、本地化、图标集或 UI 展示规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFRichTextFormatter
 extends RefCounted
 
@@ -9,12 +15,18 @@ extends RefCounted
 # --- 常量 ---
 
 ## BBCode 输入模式。
+## [br]
+## @api public
 const MARKUP_BBCODE: StringName = &"bbcode"
 
 ## 普通文本输入模式，会先转义 BBCode 控制字符。
+## [br]
+## @api public
 const MARKUP_PLAIN: StringName = &"plain"
 
 ## Markdown 子集输入模式，会转换为 RichTextLabel BBCode。
+## [br]
+## @api public
 const MARKUP_MARKDOWN: StringName = &"markdown"
 
 const _STRIP_LEFT_BRACKET_PLACEHOLDER: String = "__GF_ESCAPED_LEFT_BRACKET__"
@@ -24,9 +36,16 @@ const _STRIP_RIGHT_BRACKET_PLACEHOLDER: String = "__GF_ESCAPED_RIGHT_BRACKET__"
 # --- 公共方法 ---
 
 ## 格式化文本为 RichTextLabel 可用的 BBCode。
+## [br]
+## @api public
+## [br]
 ## @param text: 原始文本。
+## [br]
 ## @param options: 可选设置，支持 markup、variables、variable_resolver、variable_prefix、variable_suffix、token_resolver、token_prefix、token_suffix。
+## [br]
 ## @return BBCode 文本。
+## [br]
+## @schema options: Dictionary，支持 markup、variables、variable_resolver、variable_prefix、variable_suffix、escape_variable_values、missing_variable_text、token_resolver、token_prefix、token_suffix、escape_token_values。
 static func to_bbcode(text: String, options: Dictionary = {}) -> String:
 	var markup: StringName = StringName(options.get("markup", MARKUP_BBCODE))
 	var result: String = text
@@ -53,7 +72,11 @@ static func to_bbcode(text: String, options: Dictionary = {}) -> String:
 
 
 ## 把常见 Markdown 子集转换为 RichTextLabel BBCode。
+## [br]
+## @api public
+## [br]
 ## @param text: Markdown 文本。
+## [br]
 ## @return BBCode 文本。
 static func markdown_to_bbcode(text: String) -> String:
 	var pattern := (
@@ -85,11 +108,22 @@ static func markdown_to_bbcode(text: String) -> String:
 
 
 ## 替换变量占位符。
+## [br]
+## @api public
+## [br]
 ## @param text: 输入文本。
+## [br]
 ## @param variables: 变量字典。
+## [br]
 ## @param resolver: 可选变量解析回调，签名为 func(name: String) -> Variant。
+## [br]
 ## @param options: 可选设置，支持 variable_prefix、variable_suffix、escape_variable_values、missing_variable_text。
+## [br]
 ## @return 替换后的文本。
+## [br]
+## @schema variables: Dictionary，key 为变量名 String，value 为会转成文本的任意值。
+## [br]
+## @schema options: Dictionary，支持 variable_prefix、variable_suffix、escape_variable_values、missing_variable_text。
 static func replace_variables(
 	text: String,
 	variables: Dictionary = {},
@@ -122,10 +156,18 @@ static func replace_variables(
 
 
 ## 替换可配置 token，例如 `:icon_id:`。
+## [br]
+## @api public
+## [br]
 ## @param text: 输入文本。
+## [br]
 ## @param resolver: token 解析回调，签名为 func(token: String) -> String。
+## [br]
 ## @param options: 可选设置，支持 token_prefix、token_suffix、escape_token_values。
+## [br]
 ## @return 替换后的文本。
+## [br]
+## @schema options: Dictionary，支持 token_prefix、token_suffix、escape_token_values。
 static func replace_tokens(text: String, resolver: Callable, options: Dictionary = {}) -> String:
 	if not resolver.is_valid():
 		return text
@@ -153,7 +195,11 @@ static func replace_tokens(text: String, resolver: Callable, options: Dictionary
 
 
 ## 转义 BBCode 控制字符。
+## [br]
+## @api public
+## [br]
 ## @param text: 输入文本。
+## [br]
 ## @return 可安全嵌入 BBCode 的文本。
 static func escape_bbcode(text: String) -> String:
 	var result := ""
@@ -169,7 +215,11 @@ static func escape_bbcode(text: String) -> String:
 
 
 ## 移除 BBCode 标签。
+## [br]
+## @api public
+## [br]
 ## @param text: 输入文本。
+## [br]
 ## @return 去掉标签后的文本。
 static func strip_bbcode(text: String) -> String:
 	var regex := RegEx.new()

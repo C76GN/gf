@@ -2,6 +2,12 @@
 ##
 ## 聚合用户描述、项目元数据、诊断快照、日志和可扩展分区，并提供 JSON / Markdown 导出与回调提交入口。
 ## 它不绑定任何工单系统、上传服务或反馈 UI。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSupportReportUtility
 extends GFUtility
 
@@ -9,42 +15,81 @@ extends GFUtility
 # --- 信号 ---
 
 ## 报告构建完成后发出。
+## [br]
+## @api public
+## [br]
+## @param report: 已构建的支持报告。
+## [br]
+## @schema report: Dictionary，build_report() 返回结构。
 signal report_built(report: Dictionary)
 
 ## 报告写入文件后发出。
+## [br]
+## @api public
+## [br]
+## @param path: 目标路径。
+## [br]
+## @param error: 写入结果错误码。
 signal report_saved(path: String, error: Error)
 
 ## 报告通过外部回调提交后发出。
+## [br]
+## @api public
+## [br]
+## @param result: 提交结果。
+## [br]
+## @schema result: Dictionary，包含 ok、value、error、metadata，可选 submitted_at_unix。
 signal report_submitted(result: Dictionary)
 
 
 # --- 常量 ---
 
+## 场景节点统计默认最大深度。
+## [br]
+## @api public
 const DEFAULT_SCENE_COUNT_MAX_DEPTH: int = 64
+
+## 场景节点统计默认最大节点数。
+## [br]
+## @api public
 const DEFAULT_SCENE_COUNT_MAX_NODES: int = 10000
 
 
 # --- 公共变量 ---
 
 ## 默认是否包含 GFDiagnosticsUtility 快照。
+## [br]
+## @api public
 var include_diagnostics_by_default: bool = true
 
 ## 默认是否包含场景快照。
+## [br]
+## @api public
 var include_scene_by_default: bool = true
 
 ## 场景节点数量统计默认最大深度。0 表示不限制。
+## [br]
+## @api public
 var default_scene_count_max_depth: int = DEFAULT_SCENE_COUNT_MAX_DEPTH
 
 ## 场景节点数量统计默认最大节点数。0 表示不限制。
+## [br]
+## @api public
 var default_scene_count_max_nodes: int = DEFAULT_SCENE_COUNT_MAX_NODES
 
 ## 默认最近日志数量。
+## [br]
+## @api public
 var default_recent_log_count: int = 50
 
 ## 默认单个附件最大字节数。小于等于 0 表示不限制。
+## [br]
+## @api public
 var default_max_attachment_bytes: int = 2 * 1024 * 1024
 
 ## 默认是否包含当前 Viewport 截图。
+## [br]
+## @api public
 var include_screenshot_by_default: bool = false
 
 
@@ -56,8 +101,11 @@ var _reports_saved_count: int = 0
 var _reports_submitted_count: int = 0
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 释放支持报告工具的运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	_section_providers.clear()
 	_reports_built_count = 0
@@ -68,10 +116,18 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注册自定义报告分区。
+## [br]
+## @api public
+## [br]
 ## @param section_id: 分区标识。
+## [br]
 ## @param provider: 分区回调，建议签名为 func(options: Dictionary) -> Variant。
+## [br]
 ## @param options: 分区元数据，支持 label、metadata。
+## [br]
 ## @return 注册成功返回 true。
+## [br]
+## @schema options: Dictionary，支持 label、metadata。
 func register_section(section_id: StringName, provider: Callable, options: Dictionary = {}) -> bool:
 	if section_id == &"" or not provider.is_valid():
 		return false
@@ -85,20 +141,32 @@ func register_section(section_id: StringName, provider: Callable, options: Dicti
 
 
 ## 注销自定义报告分区。
+## [br]
+## @api public
+## [br]
 ## @param section_id: 分区标识。
 func unregister_section(section_id: StringName) -> void:
 	_section_providers.erase(section_id)
 
 
 ## 检查自定义分区是否存在。
+## [br]
+## @api public
+## [br]
 ## @param section_id: 分区标识。
+## [br]
 ## @return 存在返回 true。
 func has_section(section_id: StringName) -> bool:
 	return _section_providers.has(section_id)
 
 
 ## 获取自定义分区目录。
+## [br]
+## @api public
+## [br]
 ## @return 分区元数据字典。
+## [br]
+## @schema return: Dictionary[StringName, Dictionary]，每个值包含 label 和 metadata。
 func get_section_catalog() -> Dictionary:
 	var result: Dictionary = {}
 	for section_id: StringName in _section_providers.keys():
@@ -111,9 +179,18 @@ func get_section_catalog() -> Dictionary:
 
 
 ## 构建支持报告。
+## [br]
+## @api public
+## [br]
 ## @param description: 用户描述或问题摘要。
+## [br]
 ## @param options: 可选参数，支持 metadata、tags、include_diagnostics、diagnostics_options、include_scene、scene_options、include_sections、section_options、attachments、max_attachment_bytes、include_screenshot、viewport、screenshot_path。
+## [br]
 ## @return 报告字典。
+## [br]
+## @schema options: Dictionary，支持 report_id、metadata、tags、include_diagnostics、diagnostics_options、include_scene、scene_options、include_sections、section_options、attachments、max_attachment_bytes、include_screenshot、viewport、screenshot_path。
+## [br]
+## @schema return: Dictionary，包含 report_id、timestamp_unix、description、metadata、tags、build、runtime、scene、diagnostics、sections、attachments。
 func build_report(description: String = "", options: Dictionary = {}) -> Dictionary:
 	var report_id: String = _variant_to_string(options.get("report_id", null), _make_report_id())
 	var attachments := collect_attachments(options.get("attachments", {}), options)
@@ -154,8 +231,16 @@ func build_report(description: String = "", options: Dictionary = {}) -> Diction
 
 
 ## 采集所有自定义分区。
+## [br]
+## @api public
+## [br]
 ## @param options: 传给每个 provider 的选项。
+## [br]
 ## @return 分区结果字典。
+## [br]
+## @schema options: Dictionary，原样传给各分区 provider。
+## [br]
+## @schema return: Dictionary[StringName, Dictionary]，每个值包含 label、metadata、value、ok、error。
 func collect_sections(options: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = {}
 	for section_id: StringName in _section_providers.keys():
@@ -178,9 +263,20 @@ func collect_sections(options: Dictionary = {}) -> Dictionary:
 
 
 ## 采集并规范化报告附件。
+## [br]
+## @api public
+## [br]
 ## @param attachments: 附件集合。Dictionary 使用键作为附件标识；Array 中的 Dictionary 可提供 id 或 attachment_id。
+## [br]
 ## @param options: 可选参数，支持 max_attachment_bytes。
+## [br]
 ## @return 附件字典。
+## [br]
+## @schema attachments: Variant，支持 Dictionary[StringName, Variant] 或 Array[Dictionary]。
+## [br]
+## @schema options: Dictionary，支持 filename、mime_type、metadata、max_attachment_bytes、save_path。
+## [br]
+## @schema return: Dictionary[StringName, Dictionary]，每个值为规范化附件条目。
 func collect_attachments(attachments: Variant, options: Dictionary = {}) -> Dictionary:
 	var result: Dictionary = {}
 	if attachments is Dictionary:
@@ -199,11 +295,26 @@ func collect_attachments(attachments: Variant, options: Dictionary = {}) -> Dict
 
 
 ## 向已有报告追加附件。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
 ## @param attachment_id: 附件标识。
+## [br]
 ## @param content: 附件内容，可为 PackedByteArray、String 或带 bytes/text/path 字段的 Dictionary。
+## [br]
 ## @param options: 可选参数，支持 filename、mime_type、metadata、max_attachment_bytes、save_path。
+## [br]
 ## @return 规范化附件结果。
+## [br]
+## @schema report: Dictionary，build_report() 返回结构或带 attachments 字段的兼容结构。
+## [br]
+## @schema content: Variant，支持 PackedByteArray、String 或包含 bytes、text、path 字段的 Dictionary。
+## [br]
+## @schema options: Dictionary，支持 filename、mime_type、metadata、max_attachment_bytes、save_path。
+## [br]
+## @schema return: Dictionary，包含 ok、filename、mime_type、size_bytes、encoding、data、metadata，失败时包含 reason。
 func add_attachment_to_report(
 	report: Dictionary,
 	attachment_id: StringName,
@@ -217,17 +328,33 @@ func add_attachment_to_report(
 
 
 ## 将报告导出为 JSON 文本。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
 ## @param indent: JSON 缩进字符串。
+## [br]
 ## @return JSON 文本。
+## [br]
+## @schema report: Dictionary，build_report() 返回结构。
 func export_report_json(report: Dictionary, indent: String = "\t") -> String:
 	return JSON.stringify(report, indent)
 
 
 ## 将报告导出为 Markdown 文本。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
 ## @param options: 可选参数，支持 title、include_metadata、include_diagnostics_summary、include_sections、include_attachments。
+## [br]
 ## @return Markdown 文本。
+## [br]
+## @schema report: Dictionary，build_report() 返回结构。
+## [br]
+## @schema options: Dictionary，支持 title、include_metadata、include_diagnostics_summary、include_sections、include_attachments。
 func export_report_markdown(report: Dictionary, options: Dictionary = {}) -> String:
 	var lines := PackedStringArray()
 	var title := _variant_to_string(options.get("title", "GF Support Report"), "GF Support Report")
@@ -270,9 +397,16 @@ func export_report_markdown(report: Dictionary, options: Dictionary = {}) -> Str
 
 
 ## 保存报告到文件。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
 ## @param path: 目标路径。
+## [br]
 ## @return Godot 错误码。
+## [br]
+## @schema report: Dictionary，build_report() 返回结构。
 func save_report(report: Dictionary, path: String) -> Error:
 	if path.is_empty():
 		report_saved.emit(path, ERR_INVALID_PARAMETER)
@@ -301,19 +435,39 @@ func save_report(report: Dictionary, path: String) -> Error:
 
 
 ## 构建并保存支持报告。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标路径。
+## [br]
 ## @param description: 用户描述或问题摘要。
+## [br]
 ## @param options: 构建选项。
+## [br]
 ## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，build_report() 支持的构建选项。
 func build_and_save_report(path: String, description: String = "", options: Dictionary = {}) -> Error:
 	return save_report(build_report(description, options), path)
 
 
 ## 通过外部回调提交报告。
+## [br]
+## @api public
+## [br]
 ## @param report: 报告字典。
+## [br]
 ## @param transport: 提交回调，签名为 func(report: Dictionary, options: Dictionary) -> Variant。
+## [br]
 ## @param options: 提交选项。
+## [br]
 ## @return 提交结果字典。
+## [br]
+## @schema report: Dictionary，build_report() 返回结构。
+## [br]
+## @schema options: Dictionary，提交回调使用的选项。
+## [br]
+## @schema return: Dictionary，包含 ok、value、error、metadata，可选 submitted_at_unix。
 func submit_report(report: Dictionary, transport: Callable, options: Dictionary = {}) -> Dictionary:
 	var result := {
 		"ok": false,
@@ -336,7 +490,12 @@ func submit_report(report: Dictionary, transport: Callable, options: Dictionary 
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 section_count、reports_built_count、reports_saved_count、reports_submitted_count 和默认配置字段。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"section_count": _section_providers.size(),

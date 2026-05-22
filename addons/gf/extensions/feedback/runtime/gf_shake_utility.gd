@@ -2,6 +2,12 @@
 ##
 ## 管理命名 channel 上的 `GFShakePreset` 播放状态，项目可按需把采样结果应用到
 ## Camera、Node2D、Node3D、Control 或任意自定义表现对象。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFShakeUtility
 extends GFUtility
 
@@ -9,17 +15,29 @@ extends GFUtility
 # --- 信号 ---
 
 ## 反馈播放开始时发出。
+## [br]
+## @api public
+## [br]
 ## @param shake_id: 播放实例 ID。
+## [br]
 ## @param channel: 反馈 channel。
 signal shake_started(shake_id: int, channel: StringName)
 
 ## 反馈播放结束时发出。
+## [br]
+## @api public
+## [br]
 ## @param shake_id: 播放实例 ID。
+## [br]
 ## @param channel: 反馈 channel。
 signal shake_finished(shake_id: int, channel: StringName)
 
 ## 反馈播放被停止时发出。
+## [br]
+## @api public
+## [br]
 ## @param shake_id: 播放实例 ID。
+## [br]
 ## @param channel: 反馈 channel。
 signal shake_stopped(shake_id: int, channel: StringName)
 
@@ -27,6 +45,8 @@ signal shake_stopped(shake_id: int, channel: StringName)
 # --- 枚举 ---
 
 ## 活跃反馈达到上限时的处理方式。
+## [br]
+## @api public
 enum OverflowPolicy {
 	## 跳过新的播放请求。
 	SKIP_NEW,
@@ -38,15 +58,23 @@ enum OverflowPolicy {
 # --- 公共变量 ---
 
 ## 默认 channel。
+## [br]
+## @api public
 var default_channel: StringName = &"default"
 
 ## 最大活跃反馈数量；小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_active_shakes: int = 64
 
 ## 达到上限时的处理方式。
+## [br]
+## @api public
 var overflow_policy: OverflowPolicy = OverflowPolicy.STOP_OLDEST
 
 ## 是否为每次播放随机化相位。
+## [br]
+## @api public
 var randomize_phase: bool = true
 
 
@@ -58,18 +86,27 @@ var _play_order: PackedInt32Array = PackedInt32Array()
 var _rng: RandomNumberGenerator = RandomNumberGenerator.new()
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化反馈运行时状态和随机源。
+## [br]
+## @api public
 func init() -> void:
 	clear()
 	_rng.randomize()
 
 
+## 释放全部反馈播放状态。
+## [br]
+## @api public
 func dispose() -> void:
 	clear()
 
 
 ## 推进反馈播放状态。
+## [br]
+## @api public
+## [br]
 ## @param delta: 本帧时间增量。
 func tick(delta: float) -> void:
 	if _active_shakes.is_empty():
@@ -93,10 +130,19 @@ func tick(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 播放一个反馈预设。
+## [br]
+## @api public
+## [br]
 ## @param channel: 反馈 channel；为空时使用 default_channel。
+## [br]
 ## @param preset: 反馈预设。
+## [br]
 ## @param strength: 播放强度倍率。
+## [br]
 ## @param metadata: 项目自定义元数据。
+## [br]
+## @schema metadata: Dictionary，播放实例自定义元数据，会在 get_shake_info() 快照中复制返回。
+## [br]
 ## @return 播放实例 ID；无法播放时返回 -1。
 func play_shake(
 	channel: StringName,
@@ -127,8 +173,13 @@ func play_shake(
 
 
 ## 停止指定反馈实例。
+## [br]
+## @api public
+## [br]
 ## @param shake_id: 播放实例 ID。
+## [br]
 ## @param emit_stopped: 是否发出停止信号。
+## [br]
 ## @return 成功停止返回 true。
 func stop_shake(shake_id: int, emit_stopped: bool = true) -> bool:
 	if not _active_shakes.has(shake_id):
@@ -146,7 +197,11 @@ func stop_shake(shake_id: int, emit_stopped: bool = true) -> bool:
 
 
 ## 停止指定 channel 上的全部反馈实例。
+## [br]
+## @api public
+## [br]
 ## @param channel: 反馈 channel；为空时使用 default_channel。
+## [br]
 ## @return 停止数量。
 func stop_channel(channel: StringName) -> int:
 	var effective_channel := _resolve_channel(channel)
@@ -160,20 +215,30 @@ func stop_channel(channel: StringName) -> int:
 
 
 ## 清空全部反馈实例。
+## [br]
+## @api public
 func clear() -> void:
 	_active_shakes.clear()
 	_play_order = PackedInt32Array()
 
 
 ## 检查反馈实例是否仍在播放。
+## [br]
+## @api public
+## [br]
 ## @param shake_id: 播放实例 ID。
+## [br]
 ## @return 正在播放返回 true。
 func is_shake_active(shake_id: int) -> bool:
 	return _active_shakes.has(shake_id)
 
 
 ## 获取活跃反馈数量。
+## [br]
+## @api public
+## [br]
 ## @param channel: 可选 channel；为空时统计全部。
+## [br]
 ## @return 活跃反馈数量。
 func get_active_shake_count(channel: StringName = &"") -> int:
 	if channel == &"":
@@ -188,8 +253,14 @@ func get_active_shake_count(channel: StringName = &"") -> int:
 
 
 ## 采样指定 channel 当前的合成反馈。
+## [br]
+## @api public
+## [br]
 ## @param channel: 反馈 channel；为空时使用 default_channel。
+## [br]
 ## @return 合成采样结果。
+## [br]
+## @schema return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。
 func sample_channel(channel: StringName = &"") -> Dictionary:
 	var effective_channel := _resolve_channel(channel)
 	var samples: Array[Dictionary] = []
@@ -209,8 +280,14 @@ func sample_channel(channel: StringName = &"") -> Dictionary:
 
 
 ## 采样多个 channel 当前的合成反馈。
+## [br]
+## @api public
+## [br]
 ## @param channels: 反馈 channel 列表。
+## [br]
 ## @return 合成采样结果。
+## [br]
+## @schema return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。
 func sample_channels(channels: PackedStringArray) -> Dictionary:
 	var samples: Array[Dictionary] = []
 	for channel: String in channels:
@@ -219,8 +296,14 @@ func sample_channels(channels: PackedStringArray) -> Dictionary:
 
 
 ## 获取指定反馈实例的只读快照。
+## [br]
+## @api public
+## [br]
 ## @param shake_id: 播放实例 ID。
+## [br]
 ## @return 播放实例快照。
+## [br]
+## @schema return: Dictionary，包含 id、channel、elapsed_seconds、duration_seconds、strength 与 metadata；实例不存在时为空。
 func get_shake_info(shake_id: int) -> Dictionary:
 	var state := _active_shakes.get(shake_id) as Dictionary
 	if state == null:
@@ -237,7 +320,12 @@ func get_shake_info(shake_id: int) -> Dictionary:
 
 
 ## 获取反馈系统调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试快照。
+## [br]
+## @schema return: Dictionary，包含 active_count、max_active_shakes、channels 与 play_order。
 func get_debug_snapshot() -> Dictionary:
 	var channels: Dictionary = {}
 	for state_variant: Variant in _active_shakes.values():

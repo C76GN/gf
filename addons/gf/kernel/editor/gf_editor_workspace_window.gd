@@ -1,16 +1,39 @@
 @tool
 
-## GF 编辑器独立工作区窗口。
-##
-## 承载由 kernel、standard 和扩展贡献的通用编辑器页面，不绑定具体业务语义。
+# GF 编辑器独立工作区窗口。
+#
+# 承载由 kernel、standard 和扩展贡献的通用编辑器页面，不绑定具体业务语义。
 extends Window
 
 
 # --- 常量 ---
 
+## 默认窗口尺寸。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const DEFAULT_WINDOW_SIZE := Vector2i(1180, 760)
+
+## 最小窗口尺寸。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const MIN_WINDOW_SIZE := Vector2i(900, 560)
+
+## 窗口标题。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const WINDOW_TITLE: String = "GF Workspace"
+
+## 工作区 Dock 控件脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFEditorWorkspaceDockBase = preload("res://addons/gf/kernel/editor/gf_editor_workspace_dock.gd")
 
 
@@ -37,7 +60,14 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 设置工作区页面记录。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param dock_records: 页面记录数组。每条记录至少包含 path，可选 label。
+## [br]
+## @schema dock_records: Array of Dictionary dock page records.
 func setup(dock_records: Array[Dictionary]) -> void:
 	_dock_records = _copy_records(dock_records)
 	if _workspace != null and _workspace.has_method("setup"):
@@ -45,6 +75,10 @@ func setup(dock_records: Array[Dictionary]) -> void:
 
 
 ## 显示工作区窗口。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 func popup_workspace() -> void:
 	if size.x <= 0 or size.y <= 0:
 		size = DEFAULT_WINDOW_SIZE
@@ -60,11 +94,20 @@ func popup_workspace() -> void:
 
 
 ## 隐藏工作区窗口。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 func hide_workspace() -> void:
 	hide()
 
 
 ## 获取工作区页面数量。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 页面数量。
 func get_page_count() -> int:
 	if _workspace != null and _workspace.has_method("get_page_count"):
@@ -73,6 +116,11 @@ func get_page_count() -> int:
 
 
 ## 获取页面标题列表。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 页面标题。
 func get_page_titles() -> PackedStringArray:
 	if _workspace != null and _workspace.has_method("get_page_titles"):
@@ -81,12 +129,22 @@ func get_page_titles() -> PackedStringArray:
 
 
 ## 获取内部工作区控件。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 工作区控件。
 func get_workspace() -> Control:
 	return _workspace
 
 
 ## 设置独立工作区窗口是否保持置顶。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param enabled: 为 true 时窗口保持在其他窗口上方。
 func set_always_on_top_enabled(enabled: bool) -> void:
 	if enabled:
@@ -96,6 +154,12 @@ func set_always_on_top_enabled(enabled: bool) -> void:
 
 
 ## 查询独立工作区窗口是否保持置顶。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
+## @return 保持置顶时返回 true。
 func is_always_on_top_enabled() -> bool:
 	return always_on_top
 

@@ -1,15 +1,15 @@
 @tool
 
-## GFSaveEditorActions: Save 扩展编辑器菜单动作。
+# GFSaveEditorActions: Save 扩展编辑器菜单动作。
 extends RefCounted
 
 
 # --- 常量 ---
 
-const MENU_ACTION_VALIDATE_SAVE_GRAPH: StringName = &"validate_save_graph"
-const DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
-const GF_SAVE_GRAPH_UTILITY_BASE := preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
-const GF_SAVE_SCOPE_BASE := preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
+const _MENU_ACTION_VALIDATE_SAVE_GRAPH: StringName = &"validate_save_graph"
+const _DIAGNOSTIC_DIALOG_MIN_SIZE: Vector2 = Vector2(720.0, 460.0)
+const _GF_SAVE_GRAPH_UTILITY_SCRIPT = preload("res://addons/gf/extensions/save/graph/gf_save_graph_utility.gd")
+const _GF_SAVE_SCOPE_SCRIPT = preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
@@ -19,14 +19,19 @@ var _diagnostic_dialog: AcceptDialog
 var _diagnostic_output: TextEdit
 
 
-# --- 公共方法 ---
+# --- 框架内部方法 ---
 
 ## 获取 Save 扩展贡献的 GF 工具菜单项。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 菜单项记录列表。
+## [br]
+## @schema return: Array[Dictionary]，每项包含 id: StringName、label: String 与 section: String。
 func get_menu_entries() -> Array[Dictionary]:
 	return [
 		{
-			"id": MENU_ACTION_VALIDATE_SAVE_GRAPH,
+			"id": _MENU_ACTION_VALIDATE_SAVE_GRAPH,
 			"label": "校验当前场景 SaveGraph",
 			"section": "诊断",
 		},
@@ -34,14 +39,19 @@ func get_menu_entries() -> Array[Dictionary]:
 
 
 ## 执行 Save 扩展菜单动作。
+## [br]
+## @api framework_internal
+## [br]
 ## @param action_id: 菜单动作 ID。
 func handle_menu_action(action_id: StringName) -> void:
 	match action_id:
-		MENU_ACTION_VALIDATE_SAVE_GRAPH:
+		_MENU_ACTION_VALIDATE_SAVE_GRAPH:
 			_validate_current_scene_save_graph()
 
 
 ## 清理菜单动作持有的 UI。
+## [br]
+## @api framework_internal
 func cleanup() -> void:
 	_cleanup_diagnostic_dialog()
 
@@ -60,7 +70,7 @@ func _validate_current_scene_save_graph() -> void:
 		_show_diagnostic_dialog("GF SaveGraph Health", "当前场景未找到 GFSaveScope。")
 		return
 
-	var utility := GF_SAVE_GRAPH_UTILITY_BASE.new()
+	var utility := _GF_SAVE_GRAPH_UTILITY_SCRIPT.new()
 	var lines := PackedStringArray()
 	lines.append("Scene: %s" % scene_root.scene_file_path)
 	lines.append("Scope count: %d" % scopes.size())
@@ -86,7 +96,7 @@ func _validate_current_scene_save_graph() -> void:
 
 func _collect_save_scopes(node: Node, result: Array[Node]) -> void:
 	var node_script := node.get_script() as Script
-	if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(node_script, GF_SAVE_SCOPE_BASE):
+	if _SCRIPT_TYPE_INSPECTOR.script_extends_or_equals(node_script, _GF_SAVE_SCOPE_SCRIPT):
 		result.append(node)
 
 	for child: Node in node.get_children():
@@ -97,8 +107,8 @@ func _show_diagnostic_dialog(title: String, text: String) -> void:
 	if not is_instance_valid(_diagnostic_dialog):
 		_diagnostic_dialog = AcceptDialog.new()
 		var dialog_min_size := Vector2i(
-			int(DIAGNOSTIC_DIALOG_MIN_SIZE.x),
-			int(DIAGNOSTIC_DIALOG_MIN_SIZE.y)
+			int(_DIAGNOSTIC_DIALOG_MIN_SIZE.x),
+			int(_DIAGNOSTIC_DIALOG_MIN_SIZE.y)
 		)
 		_diagnostic_dialog.min_size = dialog_min_size
 		_diagnostic_output = TextEdit.new()
@@ -112,8 +122,8 @@ func _show_diagnostic_dialog(title: String, text: String) -> void:
 	if is_instance_valid(_diagnostic_output):
 		_diagnostic_output.text = text
 	_diagnostic_dialog.popup_centered(Vector2i(
-		int(DIAGNOSTIC_DIALOG_MIN_SIZE.x),
-		int(DIAGNOSTIC_DIALOG_MIN_SIZE.y)
+		int(_DIAGNOSTIC_DIALOG_MIN_SIZE.x),
+		int(_DIAGNOSTIC_DIALOG_MIN_SIZE.y)
 	))
 
 

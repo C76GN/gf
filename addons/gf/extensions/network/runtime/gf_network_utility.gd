@@ -1,6 +1,12 @@
 ## GFNetworkUtility: 可插拔网络后端运行时。
 ##
 ## 负责把通用 GFNetworkMessage 编码后交给后端发送，并将后端收到的 bytes 解码为消息信号。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFNetworkUtility
 extends GFUtility
 
@@ -8,44 +14,75 @@ extends GFUtility
 # --- 信号 ---
 
 ## 收到消息后发出。
+## [br]
+## @api public
+## [br]
+## @param peer_id: 发送方 peer 标识。
+## [br]
+## @param message: 解码后的网络消息。
 signal message_received(peer_id: int, message: GFNetworkMessage)
 
 ## 消息校验失败后发出。
+## [br]
+## @api public
+## [br]
+## @param peer_id: 关联 peer 标识。
+## [br]
+## @param reason: 拒绝原因。
+## [br]
+## @param details: 校验或解码详情。
+## [br]
+## @schema details: Dictionary，包含 ok、errors 或 error/data 等诊断字段。
 signal message_rejected(peer_id: int, reason: String, details: Dictionary)
 
 ## 后端连接成功后发出。
+## [br]
+## @api public
 signal connected
 
 ## 后端断开后发出。
+## [br]
+## @api public
+## [br]
+## @param reason: 断开原因。
 signal disconnected(reason: String)
 
 ## 远端节点连接后发出。
+## [br]
+## @api public
+## [br]
+## @param peer_id: 远端 peer 标识。
 signal peer_connected(peer_id: int)
 
 ## 远端节点断开后发出。
+## [br]
+## @api public
+## [br]
+## @param peer_id: 远端 peer 标识。
 signal peer_disconnected(peer_id: int)
-
-
-# --- 常量 ---
-
-const GFNetworkChannelBase = preload("res://addons/gf/extensions/network/session/gf_network_channel.gd")
-const GFNetworkMessageValidatorBase = preload("res://addons/gf/extensions/network/messages/gf_network_message_validator.gd")
-const GFNetworkSessionBase = preload("res://addons/gf/extensions/network/session/gf_network_session.gd")
 
 
 # --- 公共变量 ---
 
 ## 当前网络后端。
+## [br]
+## @api public
 var backend: GFNetworkBackend
 
 ## 消息编码器。
+## [br]
+## @api public
 var serializer: GFNetworkSerializer = GFNetworkSerializer.new()
 
 ## 消息校验器。
-var validator: GFNetworkMessageValidatorBase = GFNetworkMessageValidatorBase.new()
+## [br]
+## @api public
+var validator: GFNetworkMessageValidator = GFNetworkMessageValidator.new()
 
 ## 当前会话状态。
-var session: GFNetworkSessionBase = GFNetworkSessionBase.new()
+## [br]
+## @api public
+var session: GFNetworkSession = GFNetworkSession.new()
 
 
 # --- 私有变量 ---
@@ -53,19 +90,28 @@ var session: GFNetworkSessionBase = GFNetworkSessionBase.new()
 var _channels: Dictionary = {}
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 注册网络诊断快照贡献。
+## [br]
+## @api public
 func ready() -> void:
 	_register_diagnostics_contribution()
 
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if backend != null:
 		backend.poll(delta)
 
 
+## 释放后端、通道和诊断贡献。
+## [br]
+## @api public
 func dispose() -> void:
 	_unregister_diagnostics_contribution()
 	_replace_backend(null, "disposed")
@@ -77,6 +123,9 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 设置网络后端。
+## [br]
+## @api public
+## [br]
 ## @param next_backend: 新后端。
 func set_backend(next_backend: GFNetworkBackend) -> void:
 	var close_reason := "backend_replaced" if next_backend != null else "backend_cleared"
@@ -84,27 +133,40 @@ func set_backend(next_backend: GFNetworkBackend) -> void:
 
 
 ## 注册网络通道。
+## [br]
+## @api public
+## [br]
 ## @param channel: 通道资源。
-func register_channel(channel: GFNetworkChannelBase) -> void:
+func register_channel(channel: GFNetworkChannel) -> void:
 	if channel == null or channel.channel_id == &"":
 		return
 	_channels[channel.channel_id] = channel
 
 
 ## 注销网络通道。
+## [br]
+## @api public
+## [br]
 ## @param channel_id: 通道标识。
 func unregister_channel(channel_id: StringName) -> void:
 	_channels.erase(channel_id)
 
 
 ## 获取网络通道。
+## [br]
+## @api public
+## [br]
 ## @param channel_id: 通道标识。
+## [br]
 ## @return 通道资源。
-func get_channel(channel_id: StringName) -> GFNetworkChannelBase:
-	return _channels.get(channel_id) as GFNetworkChannelBase
+func get_channel(channel_id: StringName) -> GFNetworkChannel:
+	return _channels.get(channel_id) as GFNetworkChannel
 
 
 ## 获取已注册通道标识。
+## [br]
+## @api public
+## [br]
 ## @return 排序后的通道标识。
 func get_channel_ids() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -115,13 +177,21 @@ func get_channel_ids() -> PackedStringArray:
 
 
 ## 清空网络通道。
+## [br]
+## @api public
 func clear_channels() -> void:
 	_channels.clear()
 
 
 ## 启动主机。
+## [br]
+## @api public
+## [br]
 ## @param options: 后端选项。
+## [br]
 ## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，传给 session.start_host() 和 backend.host() 的后端选项。
 func host(options: Dictionary = {}) -> Error:
 	if backend == null:
 		return ERR_UNCONFIGURED
@@ -137,9 +207,16 @@ func host(options: Dictionary = {}) -> Error:
 
 
 ## 连接远端。
+## [br]
+## @api public
+## [br]
 ## @param endpoint: 远端地址。
+## [br]
 ## @param options: 后端选项。
+## [br]
 ## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，传给 session.start_client() 和 backend.connect_to_endpoint() 的后端选项。
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 	if backend == null:
 		return ERR_UNCONFIGURED
@@ -153,6 +230,8 @@ func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 
 
 ## 断开连接。
+## [br]
+## @api public
 func disconnect_network() -> void:
 	if backend != null:
 		backend.disconnect_backend()
@@ -161,20 +240,37 @@ func disconnect_network() -> void:
 
 
 ## 发送消息。
+## [br]
+## @api public
+## [br]
 ## @param peer_id: 目标 peer；后端可约定 -1 表示广播。
+## [br]
 ## @param message: 消息载体。
+## [br]
 ## @param options: 后端发送选项。
+## [br]
 ## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，传给 backend.send_bytes() 的发送选项。
 func send_message(peer_id: int, message: GFNetworkMessage, options: Dictionary = {}) -> Error:
 	return _send_message_internal(peer_id, message, options, null)
 
 
 ## 通过指定通道发送消息。
+## [br]
+## @api public
+## [br]
 ## @param peer_id: 目标 peer；后端可约定 -1 表示广播。
+## [br]
 ## @param message: 消息载体。
+## [br]
 ## @param channel_id: 通道标识。
+## [br]
 ## @param options: 后端发送选项覆盖。
+## [br]
 ## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，覆盖 GFNetworkChannel.build_send_options() 的发送选项。
 func send_message_on_channel(
 	peer_id: int,
 	message: GFNetworkMessage,
@@ -189,7 +285,12 @@ func send_message_on_channel(
 
 
 ## 获取网络工具调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 backend_configured、serializer_configured、validator_configured、backend、session、channels、validator。
 func get_debug_snapshot() -> Dictionary:
 	var snapshot := {
 		"backend_configured": backend != null,
@@ -211,7 +312,7 @@ func _send_message_internal(
 	peer_id: int,
 	message: GFNetworkMessage,
 	options: Dictionary,
-	channel: GFNetworkChannelBase
+	channel: GFNetworkChannel
 ) -> Error:
 	if backend == null:
 		return ERR_UNCONFIGURED
@@ -330,19 +431,19 @@ func _on_backend_message_received(peer_id: int, bytes: PackedByteArray) -> void:
 
 func _describe_channels() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
-	for channel: GFNetworkChannelBase in _channels.values():
+	for channel: GFNetworkChannel in _channels.values():
 		if channel != null:
 			result.append(channel.describe())
 	return result
 
 
-func _resolve_inbound_channel(message: GFNetworkMessage) -> GFNetworkChannelBase:
+func _resolve_inbound_channel(message: GFNetworkMessage) -> GFNetworkChannel:
 	if message == null:
 		return null
 	if message.channel_id != &"" and _channels.has(message.channel_id):
-		return _channels[message.channel_id] as GFNetworkChannelBase
+		return _channels[message.channel_id] as GFNetworkChannel
 	if _channels.has(message.message_type):
-		return _channels[message.message_type] as GFNetworkChannelBase
+		return _channels[message.message_type] as GFNetworkChannel
 	return null
 
 

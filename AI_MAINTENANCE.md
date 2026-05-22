@@ -65,7 +65,11 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 新增或修改公开 API 后，检查：
 
 - 变更文件中的 API 注释，尤其是公共函数的 `## @param`。
+- 新增公开类型、公开成员或扩展点时，按 `API_SURFACE.md` 标注 `@api`、`@category`、`@since`、`@param`、`@return` 和必要的 `@schema`。
+- 历史文件未完成规范文档注释迁移时，使用普通注释 `# @api_surface_migration partial` 标记；严格规则全部满足后必须移除该标记。
+- 私有实现细节不要使用 `##`；需要解释实现原因时使用普通 `#`。
 - `tests/gf_core/maintenance/test_api_docs_validation.gd` 的隐含要求：注释参数必须和函数签名双向一致。
+- `tests/gf_core/maintenance/test_api_surface_contract_validation.gd` 固化 API Surface Contract 的正反例，后续迁移 `addons/gf` 时应扩展扫描范围或引入 baseline。
 - 对应文档页面。
 - `docs/zh/changelog.md` 的 `API Changes` 与 `Migration Guide`。
 

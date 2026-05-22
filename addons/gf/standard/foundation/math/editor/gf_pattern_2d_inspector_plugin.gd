@@ -1,19 +1,19 @@
 @tool
 
-## GF Pattern2D Inspector: 为 GFPattern2D 提供网格化 cells 编辑器。
+# GF Pattern2D Inspector: 为 GFPattern2D 提供网格化 cells 编辑器。
 extends EditorInspectorPlugin
 
 
 # --- 常量 ---
 
-const GF_PATTERN_2D_BASE := preload("res://addons/gf/standard/foundation/math/gf_pattern_2d.gd")
-const GF_PATTERN_2D_EDITOR_PROPERTY := preload("res://addons/gf/standard/foundation/math/editor/gf_pattern_2d_editor_property.gd")
+const _GF_PATTERN_2D_BASE := preload("res://addons/gf/standard/foundation/math/gf_pattern_2d.gd")
+const _GF_PATTERN_2D_EDITOR_PROPERTY := preload("res://addons/gf/standard/foundation/math/editor/gf_pattern_2d_editor_property.gd")
 
 
 # --- Godot 回调方法 ---
 
 func _can_handle(object: Object) -> bool:
-	return object is GF_PATTERN_2D_BASE
+	return object is _GF_PATTERN_2D_BASE
 
 
 func _parse_property(
@@ -28,5 +28,5 @@ func _parse_property(
 	if name != "cells":
 		return false
 
-	add_property_editor("cells", GF_PATTERN_2D_EDITOR_PROPERTY.new())
+	add_property_editor("cells", _GF_PATTERN_2D_EDITOR_PROPERTY.new())
 	return true

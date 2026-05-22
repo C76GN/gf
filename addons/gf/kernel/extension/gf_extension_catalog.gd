@@ -2,34 +2,59 @@
 ##
 ## 扫描 `addons/gf/extensions` 下一层扩展目录中的 `gf_extension.json`，
 ## 供编辑器工具或项目侧扩展管理界面使用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/extension
 class_name GFExtensionCatalog
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 扩展 manifest 类型脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/extension
 const GFExtensionManifestBase = preload("res://addons/gf/kernel/extension/gf_extension_manifest.gd")
 
 ## GF 内置可选扩展根目录。
+## [br]
+## @api public
 const EXTENSIONS_PATH: String = "res://addons/gf/extensions"
 
 
 # --- 公共方法 ---
 
 ## 读取 GF 内置可选扩展 manifest。
+## [br]
+## @api public
+## [br]
 ## @return 扩展 manifest 列表。
 static func load_extension_manifests() -> Array[GFExtensionManifest]:
 	return load_manifests_in(EXTENSIONS_PATH)
 
 
 ## 读取所有 GF 内置可选扩展 manifest。
+## [br]
+## @api public
+## [br]
 ## @return 扩展 manifest 列表。
 static func load_all_manifests() -> Array[GFExtensionManifest]:
 	return load_extension_manifests()
 
 
 ## 读取指定根目录下一层扩展目录中的 manifest。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 扩展集合根目录。
+## [br]
 ## @return 扩展 manifest 列表。
 static func load_manifests_in(root_path: String) -> Array[GFExtensionManifest]:
 	var manifests: Array[GFExtensionManifest] = []
@@ -41,7 +66,11 @@ static func load_manifests_in(root_path: String) -> Array[GFExtensionManifest]:
 
 
 ## 获取指定根目录下一层扩展目录中的 manifest 路径。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 扩展集合根目录。
+## [br]
 ## @return manifest 路径列表。
 static func get_manifest_paths(root_path: String) -> Array[String]:
 	var paths: Array[String] = []

@@ -2,6 +2,12 @@
 ##
 ## 负责普通数字、定点小数与大数值对象在 UI 中的显示转换，
 ## 提供完整显示、紧凑缩写、科学计数法、工程计数法与自动模式。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFNumberFormatter
 extends RefCounted
 
@@ -9,6 +15,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 格式化记法。
+## [br]
+## @api public
 enum Notation {
 	## 尽量输出普通十进制表示。
 	FULL,
@@ -23,6 +31,8 @@ enum Notation {
 }
 
 ## 科学计数法输出风格。
+## [br]
+## @api public
 enum ScientificStyle {
 	## 使用小写 e。
 	E_LOWER,
@@ -35,18 +45,18 @@ enum ScientificStyle {
 
 # --- 常量 ---
 
-## 自动模式切换到科学计数法的小数阈值。
+# 自动模式切换到科学计数法的小数阈值。
 const _AUTO_SMALL_SCIENTIFIC_THRESHOLD: int = -4
 
-## 自动模式切换到紧凑缩写的指数阈值。
+# 自动模式切换到紧凑缩写的指数阈值。
 const _AUTO_COMPACT_THRESHOLD: int = 3
 
-## FULL 模式允许的最大普通十进制指数。
+# FULL 模式允许的最大普通十进制指数。
 const _FULL_MAX_EXPONENT: int = 15
 
 const _DECIMAL_STRING_FORMATTER: Script = preload("res://addons/gf/standard/foundation/formatting/gf_decimal_string_formatter.gd")
 
-## FULL 模式允许的最小普通十进制指数。
+# FULL 模式允许的最小普通十进制指数。
 const _FULL_MIN_EXPONENT: int = -6
 
 const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/standard/foundation/numeric/gf_big_number.gd")
@@ -56,6 +66,8 @@ const _FIXED_DECIMAL_SCRIPT: Script = preload("res://addons/gf/standard/foundati
 # --- 公共变量 ---
 
 ## 默认的紧凑缩写后缀表。
+## [br]
+## @api public
 static var DEFAULT_COMPACT_SUFFIXES: PackedStringArray = PackedStringArray([
 	"",
 	"k",
@@ -80,12 +92,23 @@ static var DEFAULT_COMPACT_SUFFIXES: PackedStringArray = PackedStringArray([
 # --- 公共方法 ---
 
 ## 统一入口：按指定记法格式化一个数字值。
+## [br]
+## @api public
+## [br]
 ## @param value: 支持 int/float/String/GFBigNumber/GFFixedDecimal。
+## [br]
+## @schema value: Variant numeric value accepted by the formatter.
+## [br]
 ## @param notation: 目标记法。
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @param use_truncation: 是否使用截断而不是四舍五入。
+## [br]
 ## @param scientific_style: 科学计数法的输出风格。
+## [br]
 ## @return 格式化后的字符串。
 static func format_number(
 	value: Variant,
@@ -131,11 +154,21 @@ static func format_number(
 
 
 ## 输出普通十进制字符串。
+## [br]
+## @api public
+## [br]
 ## @param value: 支持 int/float/String/GFBigNumber/GFFixedDecimal。
+## [br]
+## @schema value: Variant numeric value accepted by the formatter.
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @param use_grouping: 是否为整数部分添加千分位分隔。
+## [br]
 ## @param use_truncation: 是否使用截断而不是四舍五入。
+## [br]
 ## @return 普通十进制字符串。
 static func format_full(
 	value: Variant,
@@ -172,11 +205,21 @@ static func format_full(
 
 
 ## 输出紧凑缩写字符串，如 1.2k / 3.4M。
+## [br]
+## @api public
+## [br]
 ## @param value: 支持 int/float/String/GFBigNumber/GFFixedDecimal。
+## [br]
+## @schema value: Variant numeric value accepted by the formatter.
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @param use_truncation: 是否使用截断而不是四舍五入。
+## [br]
 ## @param suffixes: 自定义后缀表；为空时使用默认值。
+## [br]
 ## @return 紧凑缩写字符串。
 static func format_compact(
 	value: Variant,
@@ -220,12 +263,23 @@ static func format_compact(
 
 
 ## 输出科学计数法或工程计数法字符串。
+## [br]
+## @api public
+## [br]
 ## @param value: 支持 int/float/String/GFBigNumber/GFFixedDecimal。
+## [br]
+## @schema value: Variant numeric value accepted by the formatter.
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @param use_truncation: 是否使用截断而不是四舍五入。
+## [br]
 ## @param style: 输出风格。
+## [br]
 ## @param engineering: 为 true 时输出工程计数法。
+## [br]
 ## @return 科学计数法字符串。
 static func format_scientific(
 	value: Variant,
@@ -267,11 +321,21 @@ static func format_scientific(
 
 
 ## 自动选择最合适的数字记法。
+## [br]
+## @api public
+## [br]
 ## @param value: 支持 int/float/String/GFBigNumber/GFFixedDecimal。
+## [br]
+## @schema value: Variant numeric value accepted by the formatter.
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @param use_truncation: 是否使用截断而不是四舍五入。
+## [br]
 ## @param scientific_style: 科学计数法输出风格。
+## [br]
 ## @return 自动挑选后的字符串。
 static func format_auto(
 	value: Variant,

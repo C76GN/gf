@@ -2,6 +2,12 @@
 ##
 ## 默认实现不处理任何请求。项目或扩展可继承它，把部分音频事件转交给
 ## 外部中间件、平台接口或自定义混音系统；未声明可处理的请求会回退到 Godot 默认播放器。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFAudioBackend
 extends RefCounted
 
@@ -9,6 +15,8 @@ extends RefCounted
 # --- 公共变量 ---
 
 ## 后端能力声明。
+## [br]
+## @api public
 var capabilities: GFAudioBackendCapability = GFAudioBackendCapability.new()
 
 
@@ -19,180 +27,295 @@ var _host_ref: WeakRef = null
 
 # --- 公共方法 ---
 
-## 绑定宿主音频工具。
-## @param host: GFAudioUtility 实例。
-func setup(host: Object) -> void:
-	_host_ref = weakref(host) if host != null else null
-
-
 ## 释放后端状态。
+## [br]
+## @api public
 func dispose() -> void:
 	_host_ref = null
 
 
 ## 获取宿主音频工具。
-## @return 宿主对象；不存在时返回 null。
+## [br]
+## @api public
+## [br]
+## @return: 宿主对象；不存在时返回 null。
 func get_host() -> Object:
 	return _host_ref.get_ref() if _host_ref != null else null
 
 
 ## 获取后端能力声明副本。
-## @return 后端能力声明。
+## [br]
+## @api public
+## [br]
+## @return: 后端能力声明。
 func get_capabilities() -> GFAudioBackendCapability:
 	return capabilities.duplicate_capability() if capabilities != null else GFAudioBackendCapability.new()
 
 
 ## 检查后端是否声明了指定能力。
+## [br]
+## @api public
+## [br]
 ## @param capability_id: 能力标识。
-## @return 支持返回 true。
+## [br]
+## @return: 支持返回 true。
 func has_capability(capability_id: StringName) -> bool:
 	return capabilities != null and capabilities.has_capability(capability_id)
 
 
 ## 判断后端是否可处理指定资源路径。
+## [br]
+## @api public
+## [br]
 ## @param _path: 音频资源路径或后端事件路径。
+## [br]
 ## @param _channel: 通道标识，如 bgm、sfx、ambient。
+## [br]
 ## @param _context: 请求上下文。
-## @return 可处理时返回 true。
+## [br]
+## @schema _context: 请求上下文 Dictionary；键和值由 GFAudioUtility 或具体后端约定。
+## [br]
+## @return: 可处理时返回 true。
 func can_handle_path(_path: String, _channel: StringName, _context: Dictionary = {}) -> bool:
 	return false
 
 
 ## 判断后端是否可处理指定音频片段。
+## [br]
+## @api public
+## [br]
 ## @param _clip: 音频片段配置。
+## [br]
 ## @param _channel: 通道标识，如 bgm、sfx、ambient。
+## [br]
 ## @param _context: 请求上下文。
-## @return 可处理时返回 true。
+## [br]
+## @schema _context: 请求上下文 Dictionary；键和值由 GFAudioUtility 或具体后端约定。
+## [br]
+## @return: 可处理时返回 true。
 func can_handle_clip(_clip: GFAudioClip, _channel: StringName, _context: Dictionary = {}) -> bool:
 	return false
 
 
 ## 播放 BGM 路径。
+## [br]
+## @api public
+## [br]
 ## @param _path: 音频资源路径或后端事件路径。
+## [br]
 ## @param _options: 请求选项。
-## @return 已处理返回 true。
+## [br]
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds、loop 和 metadata。
+## [br]
+## @return: 已处理返回 true。
 func play_bgm_path(_path: String, _options: Dictionary = {}) -> bool:
 	return false
 
 
 ## 播放 BGM Clip。
+## [br]
+## @api public
+## [br]
 ## @param _clip: 音频片段配置。
+## [br]
 ## @param _options: 请求选项。
-## @return 已处理返回 true。
+## [br]
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds、loop 和 metadata。
+## [br]
+## @return: 已处理返回 true。
 func play_bgm_clip(_clip: GFAudioClip, _options: Dictionary = {}) -> bool:
 	return false
 
 
 ## 停止 BGM。
+## [br]
+## @api public
+## [br]
 ## @param _fade_seconds: 淡出秒数。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func stop_bgm(_fade_seconds: float = 0.0) -> bool:
 	return false
 
 
 ## 暂停 BGM。
+## [br]
+## @api public
+## [br]
 ## @param _fade_seconds: 淡出到暂停的秒数。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func pause_bgm(_fade_seconds: float = 0.0) -> bool:
 	return false
 
 
 ## 恢复 BGM。
+## [br]
+## @api public
+## [br]
 ## @param _from_position: 大于等于 0 时从指定秒数恢复。
+## [br]
 ## @param _fade_seconds: 淡入秒数。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func resume_bgm(_from_position: float = -1.0, _fade_seconds: float = 0.0) -> bool:
 	return false
 
 
 ## 跳转当前 BGM 播放位置。
+## [br]
+## @api public
+## [br]
 ## @param _position_seconds: 目标秒数。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func seek_bgm(_position_seconds: float) -> bool:
 	return false
 
 
 ## 获取当前 BGM 播放位置。
-## @return 播放秒数；负数表示后端不处理该查询。
+## [br]
+## @api public
+## [br]
+## @return: 播放秒数；负数表示后端不处理该查询。
 func get_bgm_playback_position() -> float:
 	return -1.0
 
 
 ## 查询 BGM 是否暂停。
-## @return 已暂停返回 true。
+## [br]
+## @api public
+## [br]
+## @return: 已暂停返回 true。
 func is_bgm_paused() -> bool:
 	return false
 
 
 ## 播放环境音路径。
+## [br]
+## @api public
+## [br]
 ## @param _path: 音频资源路径或后端事件路径。
+## [br]
 ## @param _channel: 环境音通道。
+## [br]
 ## @param _options: 请求选项。
-## @return 已处理返回 true。
+## [br]
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds 和 metadata。
+## [br]
+## @return: 已处理返回 true。
 func play_ambient_path(_path: String, _channel: StringName = &"default", _options: Dictionary = {}) -> bool:
 	return false
 
 
 ## 播放环境音 Clip。
+## [br]
+## @api public
+## [br]
 ## @param _clip: 音频片段配置。
+## [br]
 ## @param _channel: 环境音通道。
+## [br]
 ## @param _options: 请求选项。
-## @return 已处理返回 true。
+## [br]
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds 和 metadata。
+## [br]
+## @return: 已处理返回 true。
 func play_ambient_clip(_clip: GFAudioClip, _channel: StringName = &"default", _options: Dictionary = {}) -> bool:
 	return false
 
 
 ## 停止环境音通道。
+## [br]
+## @api public
+## [br]
 ## @param _channel: 环境音通道。
+## [br]
 ## @param _fade_seconds: 淡出秒数。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func stop_ambient(_channel: StringName = &"default", _fade_seconds: float = 0.0) -> bool:
 	return false
 
 
 ## 停止全部环境音。
+## [br]
+## @api public
+## [br]
 ## @param _fade_seconds: 淡出秒数。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func stop_all_ambient(_fade_seconds: float = 0.0) -> bool:
 	return false
 
 
 ## 查询环境音通道是否播放中。
+## [br]
+## @api public
+## [br]
 ## @param _channel: 环境音通道。
-## @return 后端通道正在播放时返回 true。
+## [br]
+## @return: 后端通道正在播放时返回 true。
 func is_ambient_playing(_channel: StringName = &"default") -> bool:
 	return false
 
 
 ## 播放 SFX 路径。
+## [br]
+## @api public
+## [br]
 ## @param _path: 音频资源路径或后端事件路径。
+## [br]
 ## @param _options: 请求选项。
-## @return 控制句柄；未处理返回 null。
+## [br]
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel 和 metadata。
+## [br]
+## @return: 控制句柄；未处理返回 null。
 func play_sfx_path(_path: String, _options: Dictionary = {}) -> GFAudioEmitterHandle:
 	return null
 
 
 ## 播放 SFX Clip。
+## [br]
+## @api public
+## [br]
 ## @param _clip: 音频片段配置。
+## [br]
 ## @param _options: 请求选项。
-## @return 控制句柄；未处理返回 null。
+## [br]
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel 和 metadata。
+## [br]
+## @return: 控制句柄；未处理返回 null。
 func play_sfx_clip(_clip: GFAudioClip, _options: Dictionary = {}) -> GFAudioEmitterHandle:
 	return null
 
 
 ## 停止全部 SFX。
+## [br]
+## @api public
+## [br]
 ## @param _fade_seconds: 淡出秒数。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func stop_all_sfx(_fade_seconds: float = 0.0) -> bool:
 	return false
 
 
 ## 播放空间 SFX Clip。
+## [br]
+## @api public
+## [br]
 ## @param _clip: 音频片段配置。
+## [br]
 ## @param _source: 2D 或 3D 声源节点。
+## [br]
 ## @param _follow_source: 是否跟随声源。
+## [br]
 ## @param _options: 请求选项。
-## @return 控制句柄；未处理返回 null。
+## [br]
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel、follow_source 和 metadata。
+## [br]
+## @return: 控制句柄；未处理返回 null。
 func play_spatial_sfx_clip(
 	_clip: GFAudioClip,
 	_source: Node,
@@ -203,58 +326,109 @@ func play_spatial_sfx_clip(
 
 
 ## 判断后端是否可处理资源化音频事件。
+## [br]
+## @api public
+## [br]
 ## @param _event: 音频事件。
+## [br]
 ## @param _options: 请求选项。
-## @return 可处理时返回 true。
+## [br]
+## @schema _options: 请求选项 Dictionary；键和值由 GFAudioUtility 或具体后端约定。
+## [br]
+## @return: 可处理时返回 true。
 func can_handle_event(_event: GFAudioEvent, _options: Dictionary = {}) -> bool:
 	return false
 
 
 ## 发布资源化音频事件。
+## [br]
+## @api public
+## [br]
 ## @param _event: 音频事件。
+## [br]
 ## @param _options: 请求选项。
-## @return 控制句柄；未处理返回 null。
+## [br]
+## @schema _options: 请求选项 Dictionary；键和值由 GFAudioUtility 或具体后端约定。
+## [br]
+## @return: 控制句柄；未处理返回 null。
 func post_event(_event: GFAudioEvent, _options: Dictionary = {}) -> GFAudioEmitterHandle:
 	return null
 
 
 ## 设置音频参数。
+## [br]
+## @api public
+## [br]
 ## @param _parameter: 参数请求。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func set_parameter(_parameter: GFAudioParameter) -> bool:
 	return false
 
 
 ## 设置音频状态。
+## [br]
+## @api public
+## [br]
 ## @param _state: 状态请求。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func set_state(_state: GFAudioState) -> bool:
 	return false
 
 
 ## 设置音频开关。
+## [br]
+## @api public
+## [br]
 ## @param _switch: 开关请求。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func set_switch(_switch: GFAudioSwitch) -> bool:
 	return false
 
 
 ## 设置总线音量。
+## [br]
+## @api public
+## [br]
 ## @param _bus_name: 总线名或后端通道名。
+## [br]
 ## @param _volume_linear: 线性音量。
-## @return 已处理返回 true。
+## [br]
+## @return: 已处理返回 true。
 func set_bus_volume(_bus_name: String, _volume_linear: float) -> bool:
 	return false
 
 
 ## 获取总线音量。返回负数表示未处理。
+## [br]
+## @api public
+## [br]
 ## @param _bus_name: 总线名或后端通道名。
-## @return 线性音量；负数表示后端不处理该总线。
+## [br]
+## @return: 线性音量；负数表示后端不处理该总线。
 func get_bus_volume(_bus_name: String) -> float:
 	return -1.0
 
 
 ## 获取后端调试快照。
-## @return 调试数据。
+## [br]
+## @api public
+## [br]
+## @return: 调试数据。
+## [br]
+## @schema return: 调试快照 Dictionary；键和值由具体后端约定。
 func get_debug_snapshot() -> Dictionary:
 	return {}
+
+
+# --- 框架内部方法 ---
+
+## 由 GFAudioUtility 调用，绑定宿主音频工具。
+## [br]
+## @api framework_internal
+## [br]
+## @param host: GFAudioUtility 实例。
+func setup(host: Object) -> void:
+	_host_ref = weakref(host) if host != null else null

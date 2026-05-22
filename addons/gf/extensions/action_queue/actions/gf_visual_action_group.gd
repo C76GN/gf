@@ -3,16 +3,22 @@
 ## 继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并等待全部完成）
 ## 或顺序（逐个执行并等待各自完成）两种模式执行。
 ## 子动作可以继承 GFVisualAction，也可以直接实现动作协议方法。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFVisualActionGroup
 extends GFVisualAction
 
 
 # --- 信号 ---
 
-## 内部使用：并行执行全部完成时发出。
+# 内部使用：并行执行全部完成时发出。
 signal _parallel_completed
 
-## 内部使用：顺序执行全部完成时发出。
+# 内部使用：顺序执行全部完成时发出。
 signal _sequence_completed
 
 
@@ -24,10 +30,16 @@ const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queu
 # --- 公共变量 ---
 
 ## 包含的子动作列表。
+## [br]
+## @api public
+## [br]
+## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 var actions: Array[Object] = []
 
 ## 是否并行执行。为 true 时，并行触发所有子动作并等待全部完成；
 ## 为 false 时，按数组顺序依次执行并等待各自完成。
+## [br]
+## @api public
 var is_parallel: bool = true
 
 
@@ -52,6 +64,9 @@ func _init(actions_list: Array = [], parallel: bool = true) -> void:
 # --- 公共方法 ---
 
 ## 添加一个子动作。
+## [br]
+## @api public
+## [br]
 ## @param action: 动作对象。
 func add(action: Object) -> void:
 	if is_instance_valid(action):
@@ -59,7 +74,12 @@ func add(action: Object) -> void:
 
 
 ## 执行动作组逻辑。根据 is_parallel 决定并发还是串行。
+## [br]
+## @api public
+## [br]
 ## @return 需要等待则返回内部完成信号，否则返回 null。
+## [br]
+## @schema return: Variant，动作组为空时返回 null；否则返回内部完成 Signal。
 func execute() -> Variant:
 	if actions.is_empty():
 		return null
@@ -75,6 +95,8 @@ func execute() -> Variant:
 
 
 ## 请求取消当前动作组执行。
+## [br]
+## @api public
 func cancel() -> void:
 	_execution_serial += 1
 	for action: Object in actions:
@@ -83,18 +105,27 @@ func cancel() -> void:
 	_emit_active_completion()
 
 
+## 暂停所有有效子动作。
+## [br]
+## @api public
 func pause() -> void:
 	for action: Object in actions:
 		if is_instance_valid(action):
 			_ACTION_PROTOCOL.pause(action)
 
 
+## 恢复所有有效子动作。
+## [br]
+## @api public
 func resume() -> void:
 	for action: Object in actions:
 		if is_instance_valid(action):
 			_ACTION_PROTOCOL.resume(action)
 
 
+## 立即完成所有有效子动作并释放等待者。
+## [br]
+## @api public
 func finish() -> void:
 	_execution_serial += 1
 	for action: Object in actions:
@@ -103,7 +134,7 @@ func finish() -> void:
 	_emit_active_completion()
 
 
-# --- 私有方法 ---
+# --- 私有/辅助方法 ---
 
 func _run_parallel(current_serial: int) -> Variant:
 	call_deferred("_do_parallel_async", current_serial)

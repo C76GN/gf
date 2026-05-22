@@ -2,6 +2,12 @@
 ##
 ## 为了让框架无缝衔接不同项目的导表工具（JSON、CSV 或自定义流水线），提供统一的读取接口。
 ## 具体项目应该继承此基类，并实现其数据加载和查询逻辑。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFConfigProvider
 extends GFUtility
 
@@ -19,24 +25,43 @@ var _schemas: Dictionary = {}
 # --- 公共方法 ---
 
 ## 根据表名和 ID 获取单条记录。
+## [br]
+## @api public
+## [br]
 ## @param _table_name: 表名。
+## [br]
 ## @param _id: 记录的唯一标识符。
+## [br]
+## @schema _id: Variant，项目配置表使用的记录键，通常为 String、StringName 或 int。
+## [br]
 ## @return 返回对应的记录数据，默认返回 null 并报错。
+## [br]
+## @schema return: Variant，子类通常返回记录 Dictionary 或项目自定义记录对象；未命中时可返回 null。
 func get_record(_table_name: StringName, _id: Variant) -> Variant:
 	push_error("[GFConfigProvider] 子类必须实现 get_record() 方法。")
 	return null
 
 
 ## 根据表名获取整张表的数据。
+## [br]
+## @api public
+## [br]
 ## @param _table_name: 表名。
+## [br]
 ## @return 返回整张表的数据，默认返回 null 并报错。
+## [br]
+## @schema return: Variant，子类通常返回 Array[Dictionary]、Dictionary 或项目自定义表容器；未命中时可返回 null。
 func get_table(_table_name: StringName) -> Variant:
 	push_error("[GFConfigProvider] 子类必须实现 get_table() 方法。")
 	return null
 
 
 ## 注册导表结构声明。
+## [br]
+## @api public
+## [br]
 ## @param schema: 表结构声明。
+## [br]
 ## @return 注册成功返回 true。
 func register_schema(schema: GFConfigTableSchema) -> bool:
 	if schema == null or schema.get_table_key() == &"":
@@ -48,20 +73,31 @@ func register_schema(schema: GFConfigTableSchema) -> bool:
 
 
 ## 注销导表结构声明。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
 func unregister_schema(table_name: StringName) -> void:
 	_schemas.erase(table_name)
 
 
 ## 检查是否注册了导表结构声明。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @return 已注册返回 true。
 func has_schema(table_name: StringName) -> bool:
 	return _schemas.has(table_name)
 
 
 ## 获取导表结构声明。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @return 已注册时返回 schema 拷贝，否则返回 null。
 func get_schema(table_name: StringName) -> GFConfigTableSchema:
 	var schema := _schemas.get(table_name) as GFConfigTableSchema
@@ -69,6 +105,9 @@ func get_schema(table_name: StringName) -> GFConfigTableSchema:
 
 
 ## 获取已注册的导表结构标识。
+## [br]
+## @api public
+## [br]
 ## @return 表名列表。
 func get_schema_ids() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -79,11 +118,26 @@ func get_schema_ids() -> PackedStringArray:
 
 
 ## 使用已注册 schema 校验单条记录。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @param record: 记录字典。
+## [br]
+## @schema record: Dictionary，待校验的配置记录，键为字段名，值为字段数据。
+## [br]
 ## @param row_key: 可选行标识。
+## [br]
+## @schema row_key: Variant，写入校验报告 issue 的行标识。
+## [br]
 ## @param options: 可选校验上下文。
+## [br]
+## @schema options: Dictionary，可包含 source、line、column、row_index、column_index 和 row_locations。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_record(
 	table_name: StringName,
 	record: Dictionary,
@@ -97,10 +151,22 @@ func validate_record(
 
 
 ## 使用已注册 schema 校验整张表。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @param table_data: 可选表数据；为 null 时调用 get_table()。
+## [br]
+## @schema table_data: Variant，支持 Array[Dictionary]、Dictionary 或 null。
+## [br]
 ## @param options: 可选校验上下文。
+## [br]
+## @schema options: Dictionary，可包含 source、line、column、row_index、column_index 和 row_locations。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_table(table_name: StringName, table_data: Variant = null, options: Dictionary = {}) -> Dictionary:
 	var schema := get_schema(table_name)
 	if schema == null:
@@ -113,9 +179,18 @@ func validate_table(table_name: StringName, table_data: Variant = null, options:
 
 
 ## 使用已注册 schema 转换单条记录。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @param record: 记录字典。
+## [br]
+## @schema record: Dictionary，待转换的配置记录，键为字段名，值为字段数据。
+## [br]
 ## @return 转换后的新记录；缺少 schema 时返回记录拷贝。
+## [br]
+## @schema return: Dictionary，转换后的记录副本。
 func coerce_record(table_name: StringName, record: Dictionary) -> Dictionary:
 	var schema := get_schema(table_name)
 	if schema == null:

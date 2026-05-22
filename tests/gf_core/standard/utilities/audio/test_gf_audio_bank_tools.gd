@@ -136,7 +136,7 @@ func test_audio_bank_inspector_tooltip_formats_validation_issue_objects() -> voi
 	bank.set_clip(&"bad", clip)
 
 	var report := GFAudioBankToolsBase.validate_bank_playback(bank)
-	var tooltip := GFAudioBankInspectorPluginBase._format_report_tooltip(report)
+	var tooltip := GFAudioBankInspectorPluginBase.format_report_tooltip(report)
 
 	assert_true(tooltip.contains("unsupported_audio_extension"), "Inspector tooltip 应能读取 GFValidationIssue.kind。")
 	assert_true(tooltip.contains("Audio clip path uses an unsupported extension."), "Inspector tooltip 应能读取 GFValidationIssue.message。")

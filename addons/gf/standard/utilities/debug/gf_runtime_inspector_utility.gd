@@ -2,6 +2,12 @@
 ##
 ## 项目主动注册可调对象和属性后，工具提供快照、读取和受控写入能力。
 ## 它不自动暴露业务对象，也不内置具体 UI 或玩法语义。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFRuntimeInspectorUtility
 extends GFUtility
 
@@ -9,27 +15,47 @@ extends GFUtility
 # --- 信号 ---
 
 ## 目标注册后发出。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
 signal target_registered(target_id: StringName)
 
 ## 目标注销后发出。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
 signal target_unregistered(target_id: StringName)
 
 ## 属性成功写入后发出。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @param property_id: 属性 ID。
+## [br]
 ## @param old_value: 写入前的值。
+## [br]
 ## @param new_value: 写入后的值。
+## [br]
+## @schema old_value: Variant，写入前的属性值。
+## [br]
+## @schema new_value: Variant，写入后的属性值。
 signal property_changed(target_id: StringName, property_id: StringName, old_value: Variant, new_value: Variant)
 
 
 # --- 公共变量 ---
 
 ## 是否允许通过本工具写入值。
+## [br]
+## @api public
 var allow_writes: bool = true
 
 ## 为 true 时，非 debug 构建禁止写入。
+## [br]
+## @api public
 var debug_build_writes_only: bool = true
 
 
@@ -42,6 +68,9 @@ var _attached_overlay_panel_id: StringName = &""
 
 # --- GF 生命周期方法 ---
 
+## 释放 Inspector 注册状态并解除 Overlay 面板。
+## [br]
+## @api public
 func dispose() -> void:
 	detach_from_debug_overlay()
 	clear_targets()
@@ -50,11 +79,22 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注册一个运行时可检查目标。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @param target: 目标对象。
+## [br]
 ## @param properties: 可调属性列表。
+## [br]
 ## @param options: 可选显示参数，支持 label、group、visible。
+## [br]
 ## @return 注册成功返回 true。
+## [br]
+## @schema properties: Array[GFRuntimeTunableProperty]，目标允许检查或写入的属性声明列表。
+## [br]
+## @schema options: Dictionary，支持 label、group 和 visible。
 func register_target(
 	target_id: StringName,
 	target: Object,
@@ -87,7 +127,11 @@ func register_target(
 
 
 ## 注销运行时目标。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @return 找到并移除时返回 true。
 func unregister_target(target_id: StringName) -> bool:
 	if not _targets.has(target_id):
@@ -98,15 +142,24 @@ func unregister_target(target_id: StringName) -> bool:
 
 
 ## 检查目标是否存在且仍有效。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @return 目标存在且对象有效时返回 true。
 func has_target(target_id: StringName) -> bool:
 	return _resolve_target(target_id) != null
 
 
 ## 为目标注册或替换一个可调属性。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @param property: 可调属性声明。
+## [br]
 ## @return 注册成功返回 true。
 func register_property(target_id: StringName, property: GFRuntimeTunableProperty) -> bool:
 	if property == null or property.property_id == &"":
@@ -129,8 +182,13 @@ func register_property(target_id: StringName, property: GFRuntimeTunableProperty
 
 
 ## 移除目标上的可调属性。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @param property_id: 属性 ID。
+## [br]
 ## @return 找到并移除时返回 true。
 func remove_property(target_id: StringName, property_id: StringName) -> bool:
 	var entry := _get_entry(target_id)
@@ -147,7 +205,11 @@ func remove_property(target_id: StringName, property_id: StringName) -> bool:
 
 
 ## 获取目标 ID 列表。
+## [br]
+## @api public
+## [br]
 ## @param include_hidden: 为 true 时包含隐藏目标。
+## [br]
 ## @return 排序后的目标 ID。
 func get_target_ids(include_hidden: bool = false) -> PackedStringArray:
 	var entries := _get_sorted_entries(include_hidden)
@@ -158,9 +220,16 @@ func get_target_ids(include_hidden: bool = false) -> PackedStringArray:
 
 
 ## 读取目标属性当前值。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @param property_id: 属性 ID。
+## [br]
 ## @return 当前值；找不到时返回 null。
+## [br]
+## @schema return: Variant，当前属性值，类型由对应 GFRuntimeTunableProperty 决定。
 func get_property_value(target_id: StringName, property_id: StringName) -> Variant:
 	var target := _resolve_target(target_id)
 	var property := _resolve_property(target_id, property_id)
@@ -170,10 +239,18 @@ func get_property_value(target_id: StringName, property_id: StringName) -> Varia
 
 
 ## 写入目标属性。
+## [br]
+## @api public
+## [br]
 ## @param target_id: 目标 ID。
+## [br]
 ## @param property_id: 属性 ID。
+## [br]
 ## @param value: 请求写入的值。
+## [br]
 ## @return 写入成功返回 true。
+## [br]
+## @schema value: Variant，请求写入的原始值，会由属性 schema 归一化。
 func set_property_value(target_id: StringName, property_id: StringName, value: Variant) -> bool:
 	if not _writes_are_allowed():
 		return false
@@ -191,8 +268,14 @@ func set_property_value(target_id: StringName, property_id: StringName, value: V
 
 
 ## 读取运行时 Inspector 快照。
+## [br]
+## @api public
+## [br]
 ## @param include_hidden: 为 true 时包含隐藏目标和属性。
+## [br]
 ## @return 目标快照数组。
+## [br]
+## @schema return: Array[Dictionary]，每个元素包含 id、label、group、visible、valid 和 properties。
 func get_target_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in _get_sorted_entries(include_hidden):
@@ -201,13 +284,19 @@ func get_target_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 
 
 ## 清空所有目标。
+## [br]
+## @api public
 func clear_targets() -> void:
 	_targets.clear()
 	_target_order_counter = 0
 
 
 ## 将 Inspector 快照作为文本面板注册到 GFDebugOverlayUtility。
+## [br]
+## @api public
+## [br]
 ## @param panel_id: Overlay 面板 ID。
+## [br]
 ## @return 注册成功返回 true。
 func attach_to_debug_overlay(panel_id: StringName = &"gf.runtime_inspector") -> bool:
 	var overlay := get_utility(GFDebugOverlayUtility) as GFDebugOverlayUtility
@@ -221,6 +310,9 @@ func attach_to_debug_overlay(panel_id: StringName = &"gf.runtime_inspector") -> 
 
 
 ## 从 GFDebugOverlayUtility 移除 Inspector 面板。
+## [br]
+## @api public
+## [br]
 ## @param panel_id: Overlay 面板 ID；为空时使用当前附加的面板 ID。
 func detach_from_debug_overlay(panel_id: StringName = &"") -> void:
 	var effective_id := panel_id if panel_id != &"" else _attached_overlay_panel_id
@@ -234,7 +326,12 @@ func detach_from_debug_overlay(panel_id: StringName = &"") -> void:
 
 
 ## 获取诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 当前注册状态。
+## [br]
+## @schema return: Dictionary，包含 target_count、target_ids 和 writes_allowed。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"target_count": _targets.size(),

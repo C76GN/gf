@@ -2,6 +2,12 @@
 ##
 ## 用于等待一组 GFHttpResponse 或手动标记的异步任务完成，并统一汇总结果。
 ## 它不负责调度具体任务，只观察任务何时完成。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFAsyncBatch
 extends RefCounted
 
@@ -9,18 +15,26 @@ extends RefCounted
 # --- 信号 ---
 
 ## 单个条目完成后发出。
+## [br]
+## @api public
+## [br]
 ## @param key: 条目标识。
+## [br]
 ## @param result: 条目结果。
+## [br]
+## @schema key: Variant，调用方持有的条目标识，会作为结果字典的键。
+## [br]
+## @schema result: Variant，已完成条目的结果。
 signal item_completed(key: Variant, result: Variant)
 
 ## 全部条目完成后发出。
+## [br]
+## @api public
+## [br]
 ## @param results: 批处理结果字典。
+## [br]
+## @schema results: Dictionary，将每个被等待的 key 映射到对应完成结果。
 signal completed(results: Dictionary)
-
-
-# --- 常量 ---
-
-const GFHttpResponseBase = preload("res://addons/gf/standard/utilities/io/gf_http_response.gd")
 
 
 # --- 私有变量 ---
@@ -33,9 +47,18 @@ var _watched_responses: Dictionary = {}
 # --- 公共方法 ---
 
 ## 添加一个等待条目。
+## [br]
+## @api public
+## [br]
 ## @param key: 条目标识。
+## [br]
 ## @param metadata: 条目元数据。
+## [br]
 ## @return 是否添加成功。
+## [br]
+## @schema key: Variant，调用方持有的条目标识，会作为结果字典的键。
+## [br]
+## @schema metadata: Dictionary，调用方持有并关联到该条目的元数据。
 func add_item(key: Variant, metadata: Dictionary = {}) -> bool:
 	if _items.has(key):
 		return false
@@ -51,10 +74,17 @@ func add_item(key: Variant, metadata: Dictionary = {}) -> bool:
 
 
 ## 监听 GFHttpResponse。
+## [br]
+## @api public
+## [br]
 ## @param response: 响应对象。
+## [br]
 ## @param key: 条目标识；为空时使用响应 URL。
+## [br]
 ## @return 是否开始监听。
-func watch_response(response: GFHttpResponseBase, key: Variant = null) -> bool:
+## [br]
+## @schema key: Variant，调用方持有的条目标识；为 null 时使用 response.url。
+func watch_response(response: GFHttpResponse, key: Variant = null) -> bool:
 	if response == null:
 		return false
 
@@ -77,9 +107,18 @@ func watch_response(response: GFHttpResponseBase, key: Variant = null) -> bool:
 
 
 ## 手动标记条目完成。
+## [br]
+## @api public
+## [br]
 ## @param key: 条目标识。
+## [br]
 ## @param result: 条目结果。
+## [br]
 ## @return 是否成功标记。
+## [br]
+## @schema key: Variant，调用方持有的条目标识，会作为结果字典的键。
+## [br]
+## @schema result: Variant，已完成条目的结果。
 func mark_completed(key: Variant, result: Variant = null) -> bool:
 	if not _items.has(key):
 		return false
@@ -98,16 +137,28 @@ func mark_completed(key: Variant, result: Variant = null) -> bool:
 
 
 ## 是否所有条目都已完成。
+## [br]
+## @api public
+## [br]
+## @return 所有条目完成时返回 true。
 func is_completed() -> bool:
 	return _completed
 
 
 ## 获取条目数量。
+## [br]
+## @api public
+## [br]
+## @return 当前批处理中的条目数量。
 func get_count() -> int:
 	return _items.size()
 
 
 ## 获取已完成条目数量。
+## [br]
+## @api public
+## [br]
+## @return 已完成条目的数量。
 func get_completed_count() -> int:
 	var count := 0
 	for item_variant: Variant in _items.values():
@@ -118,7 +169,12 @@ func get_completed_count() -> int:
 
 
 ## 获取结果字典。
+## [br]
+## @api public
+## [br]
 ## @return key -> result 的字典副本。
+## [br]
+## @schema return: Dictionary，将每个被等待的 key 映射到对应完成结果或 null。
 func get_results() -> Dictionary:
 	var result: Dictionary = {}
 	for key: Variant in _items.keys():
@@ -128,6 +184,8 @@ func get_results() -> Dictionary:
 
 
 ## 清空批处理。
+## [br]
+## @api public
 func clear() -> void:
 	_disconnect_all_watched_responses()
 	_items.clear()
@@ -135,7 +193,12 @@ func clear() -> void:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 count、completed_count、completed 和 keys。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"count": get_count(),
@@ -165,7 +228,7 @@ func _disconnect_watched_response(key: Variant) -> void:
 	if entry == null or entry.is_empty():
 		return
 
-	var response := entry.get("response") as GFHttpResponseBase
+	var response := entry.get("response") as GFHttpResponse
 	var callback := entry.get("callback", Callable()) as Callable
 	if response != null and callback.is_valid() and response.completed.is_connected(callback):
 		response.completed.disconnect(callback)
@@ -179,6 +242,6 @@ func _disconnect_all_watched_responses() -> void:
 
 # --- 信号处理函数 ---
 
-func _on_response_completed(response: GFHttpResponseBase, key: Variant) -> void:
+func _on_response_completed(response: GFHttpResponse, key: Variant) -> void:
 	_disconnect_watched_response(key)
 	mark_completed(key, response)

@@ -1,30 +1,124 @@
 @tool
 
-## GF 插件 ProjectSettings 注册辅助。
+# GF 插件 ProjectSettings 注册辅助。
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 项目启动 Installer 列表设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const INSTALLERS_SETTING: String = "gf/project/installers"
+
+## 项目启动 Installer 列表默认值。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const INSTALLERS_DEFAULT := []
+
+## Installer 错误是否中断初始化设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const FAIL_ON_INSTALLER_ERROR_SETTING: String = "gf/project/fail_on_installer_error"
+
+## Installer 错误中断初始化默认值。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const FAIL_ON_INSTALLER_ERROR_DEFAULT: bool = true
+
+## Installer 超时设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const INSTALLER_TIMEOUT_SETTING: String = "gf/project/installer_timeout_seconds"
+
+## Installer 超时默认值。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const INSTALLER_TIMEOUT_DEFAULT: float = 0.0
+
+## GF 访问器输出路径设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const ACCESS_OUTPUT_SETTING: String = "gf/codegen/access_output_path"
+
+## GF 访问器输出路径默认值。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_access.gd"
+
+## 项目访问器输出路径设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const PROJECT_ACCESS_OUTPUT_SETTING: String = "gf/codegen/project_access_output_path"
+
+## 项目访问器输出路径默认值。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const PROJECT_ACCESS_OUTPUT_DEFAULT: String = "res://gf/generated/gf_project_access.gd"
+
+## 构建信息导出开关设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const BUILD_INFO_EXPORT_ENABLED_SETTING: String = "gf/build/export/write_git_metadata"
+
+## 构建信息导出后是否恢复设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const BUILD_INFO_EXPORT_RESTORE_SETTING: String = "gf/build/export/restore_previous_settings"
+
+## 构建信息导出后是否保存项目设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const BUILD_INFO_EXPORT_SAVE_SETTING: String = "gf/build/export/save_project_settings"
+
+## 构建信息导出元数据设置。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const BUILD_INFO_EXPORT_METADATA_SETTING: String = "gf/build/export/metadata"
+
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
 # --- 公共方法 ---
 
+## 确保所有 GF ProjectSettings 存在并注册显示信息。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 static func ensure_all() -> void:
 	var should_save := false
 	if _ensure_default(INSTALLERS_SETTING, INSTALLERS_DEFAULT):
@@ -54,10 +148,24 @@ static func ensure_all() -> void:
 		ProjectSettings.save()
 
 
+## 获取 GF 访问器输出路径。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
+## @return GF 访问器输出路径。
 static func get_access_output_path() -> String:
 	return String(ProjectSettings.get_setting(ACCESS_OUTPUT_SETTING, ACCESS_OUTPUT_DEFAULT))
 
 
+## 获取项目访问器输出路径。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
+## @return 项目访问器输出路径。
 static func get_project_access_output_path() -> String:
 	return String(ProjectSettings.get_setting(PROJECT_ACCESS_OUTPUT_SETTING, PROJECT_ACCESS_OUTPUT_DEFAULT))
 

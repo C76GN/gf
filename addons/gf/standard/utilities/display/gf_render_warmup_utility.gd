@@ -2,6 +2,12 @@
 ##
 ## 通过清单或节点树收集 Mesh、Material、Texture 等渲染资源，并按帧预算提前加载和触碰 RID。
 ## 它不决定项目何时预热、预热哪些场景或如何展示加载进度。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFRenderWarmupUtility
 extends GFUtility
 
@@ -9,18 +15,46 @@ extends GFUtility
 # --- 信号 ---
 
 ## 清单加入预热队列时发出。
+## [br]
+## @api public
+## [br]
+## @param queue_id: 预热队列标识。
+## [br]
+## @param manifest_id: 清单标识。
+## [br]
+## @param entry_count: 清单条目数量。
 signal warmup_queued(queue_id: int, manifest_id: StringName, entry_count: int)
 
 ## 单个条目预热完成后发出。
+## [br]
+## @api public
+## [br]
+## @param queue_id: 预热队列标识。
+## [br]
+## @param entry_index: 清单条目索引。
+## [br]
+## @param result: 单个条目的预热结果。
+## [br]
+## @schema result: Dictionary，包含 ok、resource_path、kind、resource_class、touched_count、error、metadata 和 entry_index。
 signal warmup_entry_processed(queue_id: int, entry_index: int, result: Dictionary)
 
 ## 单个清单预热完成后发出。
+## [br]
+## @api public
+## [br]
+## @param queue_id: 预热队列标识。
+## [br]
+## @param summary: 清单预热摘要。
+## [br]
+## @schema summary: Dictionary，包含 queue_id、manifest_id、total_count、processed_count、failed_count、ok、elapsed_seconds、stopped_by_budget、completed_at_unix 和 results。
 signal warmup_completed(queue_id: int, summary: Dictionary)
 
 
 # --- 枚举 ---
 
 ## 预热触碰模式。
+## [br]
+## @api public
 enum TouchMode {
 	## 只加载资源并触碰 RID。
 	RID_ONLY,
@@ -29,26 +63,31 @@ enum TouchMode {
 }
 
 
-# --- 常量 ---
-
-const GFRenderWarmupManifestBase = preload("res://addons/gf/standard/utilities/display/gf_render_warmup_manifest.gd")
-
-
 # --- 公共变量 ---
 
 ## 每次 tick 默认处理的最大条目数。
+## [br]
+## @api public
 var default_entries_per_tick: int = 4
 
 ## 默认预热时间预算，单位秒。小于等于 0 表示不限制。
+## [br]
+## @api public
 var default_max_seconds: float = 0.0
 
 ## 默认触碰模式。
+## [br]
+## @api public
 var default_touch_mode: TouchMode = TouchMode.RID_ONLY
 
 ## 是否保留已加载资源引用，避免预热后立刻被释放。
+## [br]
+## @api public
 var keep_resources_cached: bool = true
 
 ## 从 PackedScene 条目预热时是否实例化场景并扫描其渲染资源。默认关闭以避免触发项目脚本副作用。
+## [br]
+## @api public
 var instantiate_packed_scenes: bool = false
 
 
@@ -62,15 +101,21 @@ var _failed_entry_count: int = 0
 var _temporary_render_nodes: Array[Node] = []
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
 ## 推进预热队列。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 本帧时间增量。
 func tick(_delta: float) -> void:
 	release_temporary_render_nodes()
 	process_queue(default_entries_per_tick)
 
 
+## 清空预热队列、缓存资源和临时渲染节点。
+## [br]
+## @api public
 func dispose() -> void:
 	clear_queue()
 	release_cached_resources()
@@ -82,10 +127,17 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 将预热清单加入队列。
+## [br]
+## @api public
+## [br]
 ## @param manifest: 预热清单。
+## [br]
 ## @param options: 可选参数，支持 entries_per_tick、max_seconds、touch_mode、keep_cached、instantiate_packed_scenes。
+## [br]
 ## @return 队列标识；失败返回 -1。
-func queue_manifest(manifest: GFRenderWarmupManifestBase, options: Dictionary = {}) -> int:
+## [br]
+## @schema options: Dictionary，包含 entries_per_tick、max_seconds、touch_mode、keep_cached、instantiate_packed_scenes、temporary_parent 和 temporary_viewport_size。
+func queue_manifest(manifest: GFRenderWarmupManifest, options: Dictionary = {}) -> int:
 	if manifest == null or manifest.is_empty():
 		return -1
 
@@ -108,10 +160,19 @@ func queue_manifest(manifest: GFRenderWarmupManifestBase, options: Dictionary = 
 
 
 ## 立即预热整个清单。
+## [br]
+## @api public
+## [br]
 ## @param manifest: 预热清单。
+## [br]
 ## @param options: 可选参数，支持 max_seconds、touch_mode、keep_cached、instantiate_packed_scenes。
+## [br]
 ## @return 预热摘要。
-func warmup_manifest_now(manifest: GFRenderWarmupManifestBase, options: Dictionary = {}) -> Dictionary:
+## [br]
+## @schema options: Dictionary，包含 max_seconds、touch_mode、keep_cached、instantiate_packed_scenes、temporary_parent 和 temporary_viewport_size。
+## [br]
+## @schema return: Dictionary，包含 queue_id、manifest_id、total_count、processed_count、failed_count、ok、elapsed_seconds、stopped_by_budget、completed_at_unix 和 results。
+func warmup_manifest_now(manifest: GFRenderWarmupManifest, options: Dictionary = {}) -> Dictionary:
 	if manifest == null:
 		return _make_summary(-1, &"", 0, 0, 0, [], 0.0, false)
 
@@ -149,7 +210,11 @@ func warmup_manifest_now(manifest: GFRenderWarmupManifestBase, options: Dictiona
 
 
 ## 按预算处理队列。
+## [br]
+## @api public
+## [br]
 ## @param max_entries: 最多处理条目数。
+## [br]
 ## @return 实际处理条目数。
 func process_queue(max_entries: int = 1) -> int:
 	if max_entries <= 0:
@@ -188,11 +253,18 @@ func process_queue(max_entries: int = 1) -> int:
 
 
 ## 从节点树收集可预热的渲染资源。
+## [br]
+## @api public
+## [br]
 ## @param root: 根节点。
+## [br]
 ## @param options: 可选参数，支持 manifest_id、include_materials、include_meshes、include_textures。
+## [br]
 ## @return 预热清单。
-func build_manifest_from_tree(root: Node, options: Dictionary = {}) -> GFRenderWarmupManifestBase:
-	var manifest := GFRenderWarmupManifestBase.new()
+## [br]
+## @schema options: Dictionary，包含 manifest_id、include_materials、include_meshes 和 include_textures。
+func build_manifest_from_tree(root: Node, options: Dictionary = {}) -> GFRenderWarmupManifest:
+	var manifest := GFRenderWarmupManifest.new()
 	manifest.manifest_id = StringName(options.get("manifest_id", &""))
 	if root == null:
 		return manifest
@@ -203,11 +275,18 @@ func build_manifest_from_tree(root: Node, options: Dictionary = {}) -> GFRenderW
 
 
 ## 从场景资源收集可预热的渲染资源。
+## [br]
+## @api public
+## [br]
 ## @param scene: 场景资源。
+## [br]
 ## @param options: 可选参数，支持 manifest_id、include_materials、include_meshes、include_textures。
+## [br]
 ## @return 预热清单。
-func build_manifest_from_scene(scene: PackedScene, options: Dictionary = {}) -> GFRenderWarmupManifestBase:
-	var manifest := GFRenderWarmupManifestBase.new()
+## [br]
+## @schema options: Dictionary，包含 manifest_id、include_materials、include_meshes 和 include_textures。
+func build_manifest_from_scene(scene: PackedScene, options: Dictionary = {}) -> GFRenderWarmupManifest:
+	var manifest := GFRenderWarmupManifest.new()
 	manifest.manifest_id = StringName(options.get("manifest_id", &""))
 	if scene == null:
 		return manifest
@@ -222,11 +301,18 @@ func build_manifest_from_scene(scene: PackedScene, options: Dictionary = {}) -> 
 
 
 ## 从场景路径收集可预热的渲染资源。
+## [br]
+## @api public
+## [br]
 ## @param scene_path: 场景资源路径。
+## [br]
 ## @param options: 可选参数，支持 manifest_id、include_materials、include_meshes、include_textures。
+## [br]
 ## @return 预热清单。
-func build_manifest_from_scene_path(scene_path: String, options: Dictionary = {}) -> GFRenderWarmupManifestBase:
-	var manifest := GFRenderWarmupManifestBase.new()
+## [br]
+## @schema options: Dictionary，包含 manifest_id、include_materials、include_meshes 和 include_textures。
+func build_manifest_from_scene_path(scene_path: String, options: Dictionary = {}) -> GFRenderWarmupManifest:
+	var manifest := GFRenderWarmupManifest.new()
 	manifest.manifest_id = StringName(options.get("manifest_id", &""))
 	if scene_path.is_empty() or not ResourceLoader.exists(scene_path, "PackedScene"):
 		return manifest
@@ -236,16 +322,22 @@ func build_manifest_from_scene_path(scene_path: String, options: Dictionary = {}
 
 
 ## 清空尚未处理的预热队列。
+## [br]
+## @api public
 func clear_queue() -> void:
 	_queue.clear()
 
 
 ## 释放预热缓存的资源引用。
+## [br]
+## @api public
 func release_cached_resources() -> void:
 	_cached_resources.clear()
 
 
 ## 释放尚未清理的离屏临时渲染节点。
+## [br]
+## @api public
 func release_temporary_render_nodes() -> void:
 	for node: Node in _temporary_render_nodes:
 		if is_instance_valid(node):
@@ -254,19 +346,30 @@ func release_temporary_render_nodes() -> void:
 
 
 ## 获取预热缓存资源数量。
+## [br]
+## @api public
+## [br]
 ## @return 缓存资源数量。
 func get_cached_resource_count() -> int:
 	return _cached_resources.size()
 
 
 ## 获取待处理队列数量。
+## [br]
+## @api public
+## [br]
 ## @return 队列数量。
 func get_queue_size() -> int:
 	return _queue.size()
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 queue_size、cached_resource_count、processed_entry_count、failed_entry_count、default_entries_per_tick、default_max_seconds、default_touch_mode、keep_resources_cached、instantiate_packed_scenes 和 temporary_render_node_count。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"queue_size": _queue.size(),
@@ -285,7 +388,7 @@ func get_debug_snapshot() -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _process_entry(entry: Dictionary, options: Dictionary) -> Dictionary:
-	var normalized: Dictionary = GFRenderWarmupManifestBase.normalize_entry(entry)
+	var normalized: Dictionary = GFRenderWarmupManifest.normalize_entry(entry)
 	var resource := normalized.get("resource", null) as Resource
 	var resource_path := String(normalized.get("resource_path", ""))
 	if resource == null and not resource_path.is_empty():
@@ -504,7 +607,7 @@ func _make_summary(
 
 func _collect_node_resources(
 	node: Node,
-	manifest: GFRenderWarmupManifestBase,
+	manifest: GFRenderWarmupManifest,
 	seen: Dictionary,
 	options: Dictionary
 ) -> void:
@@ -533,7 +636,7 @@ func _collect_node_resources(
 
 func _collect_mesh_instance_resources(
 	mesh_instance: MeshInstance3D,
-	manifest: GFRenderWarmupManifestBase,
+	manifest: GFRenderWarmupManifest,
 	seen: Dictionary,
 	options: Dictionary
 ) -> void:
@@ -553,7 +656,7 @@ func _collect_mesh_instance_resources(
 
 func _collect_multimesh_instance_resources(
 	multimesh_instance: MultiMeshInstance3D,
-	manifest: GFRenderWarmupManifestBase,
+	manifest: GFRenderWarmupManifest,
 	seen: Dictionary,
 	options: Dictionary
 ) -> void:
@@ -569,7 +672,7 @@ func _collect_multimesh_instance_resources(
 
 func _collect_gpu_particles_resources(
 	particles: GPUParticles3D,
-	manifest: GFRenderWarmupManifestBase,
+	manifest: GFRenderWarmupManifest,
 	seen: Dictionary,
 	options: Dictionary
 ) -> void:
@@ -584,7 +687,7 @@ func _collect_gpu_particles_resources(
 
 
 func _add_resource_once(
-	manifest: GFRenderWarmupManifestBase,
+	manifest: GFRenderWarmupManifest,
 	resource: Resource,
 	kind: StringName,
 	seen: Dictionary

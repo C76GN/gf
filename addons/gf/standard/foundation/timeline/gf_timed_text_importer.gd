@@ -1,6 +1,12 @@
 ## GFTimedTextImporter: 通用时间段文本解析器。
 ##
 ## 提供 SRT、WebVTT 与 LRC 的轻量解析入口，输出 `GFTimedTextTrack`。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFTimedTextImporter
 extends RefCounted
 
@@ -8,9 +14,16 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 解析 SRT 文本。
+## [br]
+## @api public
+## [br]
 ## @param text: SRT 文本。
+## [br]
 ## @param track_id: 可选轨道标识。
+## [br]
 ## @return 解析结果字典，包含 success、track 与 error。
+## [br]
+## @schema return: Dictionary with success: bool, track: GFTimedTextTrack, error: String.
 static func parse_srt(text: String, track_id: StringName = &"") -> Dictionary:
 	var track := GFTimedTextTrack.new()
 	track.track_id = track_id
@@ -34,9 +47,16 @@ static func parse_srt(text: String, track_id: StringName = &"") -> Dictionary:
 
 
 ## 解析 WebVTT 文本。
+## [br]
+## @api public
+## [br]
 ## @param text: WebVTT 文本。
+## [br]
 ## @param track_id: 可选轨道标识。
+## [br]
 ## @return 解析结果字典，包含 success、track 与 error。
+## [br]
+## @schema return: Dictionary with success: bool, track: GFTimedTextTrack, error: String.
 static func parse_vtt(text: String, track_id: StringName = &"") -> Dictionary:
 	var normalized := text.replace("\r\n", "\n").replace("\r", "\n")
 	if normalized.begins_with("WEBVTT"):
@@ -46,10 +66,18 @@ static func parse_vtt(text: String, track_id: StringName = &"") -> Dictionary:
 
 
 ## 解析 LRC 文本。
+## [br]
+## @api public
+## [br]
 ## @param text: LRC 文本。
+## [br]
 ## @param default_duration: 单行没有下一行时使用的默认时长。
+## [br]
 ## @param track_id: 可选轨道标识。
+## [br]
 ## @return 解析结果字典，包含 success、track 与 error。
+## [br]
+## @schema return: Dictionary with success: bool, track: GFTimedTextTrack, error: String.
 static func parse_lrc(
 	text: String,
 	default_duration: float = 2.0,

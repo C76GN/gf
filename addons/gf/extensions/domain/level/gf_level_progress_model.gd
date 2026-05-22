@@ -1,6 +1,12 @@
 ## GFLevelProgressModel: 通用关卡解锁与完成进度模型。
 ##
 ## 只记录关卡是否解锁、是否完成以及项目层自定义结果字典。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class_name GFLevelProgressModel
 extends GFModel
 
@@ -8,21 +14,39 @@ extends GFModel
 # --- 信号 ---
 
 ## 关卡解锁时发出。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
 signal level_unlocked(level_id: StringName)
 
 ## 关卡锁定时发出。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
 signal level_locked(level_id: StringName)
 
 ## 关卡完成时发出。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
+## [br]
 ## @param result: 完成结果。
+## [br]
+## @schema result: Dictionary，项目自定义关卡完成结果副本。
 signal level_completed(level_id: StringName, result: Dictionary)
 
 ## 关卡结果更新时发出。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
+## [br]
 ## @param result: 结果字典。
+## [br]
+## @schema result: Dictionary，项目自定义关卡结果副本。
 signal level_result_updated(level_id: StringName, result: Dictionary)
 
 
@@ -36,6 +60,9 @@ var _level_results: Dictionary = {}
 # --- 公共方法 ---
 
 ## 解锁关卡。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
 func unlock_level(level_id: StringName) -> void:
 	if level_id == &"" or _unlocked_levels.has(level_id):
@@ -46,6 +73,9 @@ func unlock_level(level_id: StringName) -> void:
 
 
 ## 锁定关卡。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
 func lock_level(level_id: StringName) -> void:
 	if not _unlocked_levels.has(level_id):
@@ -56,16 +86,27 @@ func lock_level(level_id: StringName) -> void:
 
 
 ## 检查关卡是否解锁。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
-## @return 已解锁时返回 true。
+## [br]
+## @return: 已解锁时返回 true。
 func is_level_unlocked(level_id: StringName) -> bool:
 	return bool(_unlocked_levels.get(level_id, false))
 
 
 ## 标记关卡完成。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
+## [br]
 ## @param result: 项目层结果数据。
+## [br]
 ## @param merge_result: 是否合并已有结果。
+## [br]
+## @schema result: Dictionary，项目自定义关卡完成结果；merge_result 为 true 时会覆盖同名字段。
 func complete_level(level_id: StringName, result: Dictionary = {}, merge_result: bool = true) -> void:
 	if level_id == &"":
 		return
@@ -77,16 +118,27 @@ func complete_level(level_id: StringName, result: Dictionary = {}, merge_result:
 
 
 ## 检查关卡是否完成。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
-## @return 已完成时返回 true。
+## [br]
+## @return: 已完成时返回 true。
 func is_level_completed(level_id: StringName) -> bool:
 	return bool(_completed_levels.get(level_id, false))
 
 
 ## 设置关卡结果。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
+## [br]
 ## @param result: 结果字典。
+## [br]
 ## @param merge_result: 是否合并已有结果。
+## [br]
+## @schema result: Dictionary，项目自定义关卡结果；merge_result 为 true 时会覆盖同名字段。
 func set_level_result(level_id: StringName, result: Dictionary, merge_result: bool = true) -> void:
 	if level_id == &"":
 		return
@@ -102,8 +154,14 @@ func set_level_result(level_id: StringName, result: Dictionary, merge_result: bo
 
 
 ## 获取关卡结果。
+## [br]
+## @api public
+## [br]
 ## @param level_id: 关卡 ID。
-## @return 结果字典副本。
+## [br]
+## @return: 结果字典副本。
+## [br]
+## @schema return: Dictionary，项目自定义关卡结果副本；不存在时为空字典。
 func get_level_result(level_id: StringName) -> Dictionary:
 	var result_variant: Variant = _level_results.get(level_id, {})
 	if result_variant is Dictionary:
@@ -112,6 +170,8 @@ func get_level_result(level_id: StringName) -> Dictionary:
 
 
 ## 清空所有进度。
+## [br]
+## @api public
 func clear_progress() -> void:
 	_unlocked_levels.clear()
 	_completed_levels.clear()
@@ -119,7 +179,12 @@ func clear_progress() -> void:
 
 
 ## 序列化进度。
-## @return 字典数据。
+## [br]
+## @api public
+## [br]
+## @return: 字典数据。
+## [br]
+## @schema return: Dictionary，包含 unlocked_levels、completed_levels 与 level_results 三个 String 键字典。
 func to_dict() -> Dictionary:
 	return {
 		"unlocked_levels": _stringify_key_dictionary(_unlocked_levels),
@@ -129,7 +194,12 @@ func to_dict() -> Dictionary:
 
 
 ## 反序列化进度。
+## [br]
+## @api public
+## [br]
 ## @param data: 字典数据。
+## [br]
+## @schema data: Dictionary，包含 unlocked_levels、completed_levels 与 level_results 三个可选字典字段。
 func from_dict(data: Dictionary) -> void:
 	_unlocked_levels = _string_name_key_dictionary(data.get("unlocked_levels", {}))
 	_completed_levels = _string_name_key_dictionary(data.get("completed_levels", {}))

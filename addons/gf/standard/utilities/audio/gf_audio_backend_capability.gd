@@ -1,6 +1,12 @@
 ## GFAudioBackendCapability: 音频后端能力声明。
 ##
 ## 用布尔能力与元数据描述一个后端能处理哪些通用音频请求。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFAudioBackendCapability
 extends Resource
 
@@ -8,44 +14,72 @@ extends Resource
 # --- 导出变量 ---
 
 ## 是否支持 BGM。
+## [br]
+## @api public
 @export var supports_bgm: bool = false
 
 ## 是否支持 SFX。
+## [br]
+## @api public
 @export var supports_sfx: bool = false
 
 ## 是否支持环境音。
+## [br]
+## @api public
 @export var supports_ambient: bool = false
 
 ## 是否支持空间音效。
+## [br]
+## @api public
 @export var supports_spatial_sfx: bool = false
 
 ## 是否支持资源化事件。
+## [br]
+## @api public
 @export var supports_events: bool = false
 
 ## 是否支持参数写入。
+## [br]
+## @api public
 @export var supports_parameters: bool = false
 
 ## 是否支持状态写入。
+## [br]
+## @api public
 @export var supports_states: bool = false
 
 ## 是否支持开关写入。
+## [br]
+## @api public
 @export var supports_switches: bool = false
 
 ## 是否支持监听器。
+## [br]
+## @api public
 @export var supports_listeners: bool = false
 
 ## 是否支持异步加载或卸载。
+## [br]
+## @api public
 @export var supports_async_loading: bool = false
 
 ## 可选元数据，供项目层或调试面板展示。
+## [br]
+## @api public
+## [br]
+## @schema metadata: 后端能力元数据 Dictionary；键和值由具体后端或项目工具约定。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 检查能力是否存在。
+## [br]
+## @api public
+## [br]
 ## @param capability_id: 能力标识。
-## @return 支持返回 true。
+## [br]
+## @return: 支持返回 true。
 func has_capability(capability_id: StringName) -> bool:
 	match capability_id:
 		&"bgm":
@@ -73,7 +107,10 @@ func has_capability(capability_id: StringName) -> bool:
 
 
 ## 创建同内容拷贝。
-## @return 新能力声明。
+## [br]
+## @api public
+## [br]
+## @return: 新能力声明。
 func duplicate_capability() -> GFAudioBackendCapability:
 	var capability := GFAudioBackendCapability.new()
 	capability.supports_bgm = supports_bgm
@@ -91,7 +128,12 @@ func duplicate_capability() -> GFAudioBackendCapability:
 
 
 ## 转换为字典。
-## @return 能力字典。
+## [br]
+## @api public
+## [br]
+## @return: 能力字典。
+## [br]
+## @schema return: 能力 Dictionary，包含 bgm、sfx、ambient、spatial_sfx、events、parameters、states、switches、listeners、async_loading 和 metadata 字段。
 func to_dictionary() -> Dictionary:
 	return {
 		"bgm": supports_bgm,

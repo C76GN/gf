@@ -1,4 +1,10 @@
 ## GFBindingLifetimes: 依赖绑定的生命周期枚举。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFBindingLifetimes
 extends RefCounted
 
@@ -6,6 +12,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 绑定实例的生命周期。
+## [br]
+## @api public
 enum Lifetime {
 	## 首次解析后缓存实例，后续解析复用。
 	SINGLETON,

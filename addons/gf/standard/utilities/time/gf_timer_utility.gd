@@ -2,21 +2,30 @@
 ## 通过框架 `tick()` 驱动延时回调，不依赖场景树中的 `Timer` 节点，
 ## 因而可直接受到 `GFTimeUtility` 的时间缩放与暂停控制。适用于在
 ## `GFSystem`、`GFModel` 或其他纯逻辑模块中调度一次性、重复或 owner 绑定任务。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFTimerUtility
 extends GFUtility
 
 
 # --- 私有变量 ---
 
-## 待执行的延时任务列表。每项包含 `id`、`remaining`、`interval`、`repeat_count` 与 `callback` 字段。
+# 待执行的延时任务列表。每项包含 `id`、`remaining`、`interval`、`repeat_count` 与 `callback` 字段。
 var _pending_timers: Array[Dictionary] = []
 var _next_timer_id: int = 1
 var _executing_handles: Dictionary = {}
 var _cancelled_handles: Dictionary = {}
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化定时器队列。
+## [br]
+## @api public
 func init() -> void:
 	_pending_timers.clear()
 	_next_timer_id = 1
@@ -24,6 +33,9 @@ func init() -> void:
 	_cancelled_handles.clear()
 
 
+## 清空定时器队列。
+## [br]
+## @api public
 func dispose() -> void:
 	_pending_timers.clear()
 	_next_timer_id = 1
@@ -32,6 +44,9 @@ func dispose() -> void:
 
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if _pending_timers.is_empty() or delta <= 0.0:
@@ -61,8 +76,13 @@ func tick(delta: float) -> void:
 
 ## 在指定延迟后执行一次回调函数。
 ## 基于框架 `tick()` 推进计时，因此会自动遵循 `GFTimeUtility` 的暂停与缩放结果。
+## [br]
+## @api public
+## [br]
 ## @param delay: 延迟时长，单位为秒。
+## [br]
 ## @param callback: 延迟结束后执行的无参回调函数。
+## [br]
 ## @return 已排队定时器的句柄；无效回调或立即执行时返回 `0`。
 func execute_after(delay: float, callback: Callable) -> int:
 	if not callback.is_valid():
@@ -77,9 +97,15 @@ func execute_after(delay: float, callback: Callable) -> int:
 
 
 ## 在指定延迟后执行一次 owner 绑定回调。owner 释放后任务会自动丢弃。
+## [br]
+## @api public
+## [br]
 ## @param owner: 定时器拥有者。
+## [br]
 ## @param delay: 延迟时长，单位为秒。
+## [br]
 ## @param callback: 延迟结束后执行的无参回调函数。
+## [br]
 ## @return 已排队定时器的句柄；无效输入或立即执行时返回 `0`。
 func execute_after_owned(owner: Object, delay: float, callback: Callable) -> int:
 	if owner == null:
@@ -97,10 +123,17 @@ func execute_after_owned(owner: Object, delay: float, callback: Callable) -> int
 
 
 ## 按固定间隔重复执行回调。
+## [br]
+## @api public
+## [br]
 ## @param interval: 重复间隔，单位为秒。
+## [br]
 ## @param callback: 每次触发时执行的无参回调函数。
+## [br]
 ## @param repeat_count: 触发次数；小于 0 表示无限重复。
+## [br]
 ## @param initial_delay: 首次触发延迟；小于 0 时使用 interval。
+## [br]
 ## @return 已排队定时器的句柄；无效输入时返回 `0`。
 func execute_repeating(
 	interval: float,
@@ -122,11 +155,19 @@ func execute_repeating(
 
 
 ## 按固定间隔重复执行 owner 绑定回调。owner 释放后任务会自动丢弃。
+## [br]
+## @api public
+## [br]
 ## @param owner: 定时器拥有者。
+## [br]
 ## @param interval: 重复间隔，单位为秒。
+## [br]
 ## @param callback: 每次触发时执行的无参回调函数。
+## [br]
 ## @param repeat_count: 触发次数；小于 0 表示无限重复。
+## [br]
 ## @param initial_delay: 首次触发延迟；小于 0 时使用 interval。
+## [br]
 ## @return 已排队定时器的句柄；无效输入时返回 `0`。
 func execute_repeating_owned(
 	owner: Object,
@@ -152,7 +193,11 @@ func execute_repeating_owned(
 
 
 ## 取消一个尚未触发的延时任务。
+## [br]
+## @api public
+## [br]
 ## @param handle: `execute_after()` 返回的定时器句柄。
+## [br]
 ## @return 找到并取消任务时返回 `true`。
 func cancel(handle: int) -> bool:
 	if handle <= 0:
@@ -169,7 +214,11 @@ func cancel(handle: int) -> bool:
 
 
 ## 取消指定 owner 绑定的全部待执行任务。
+## [br]
+## @api public
+## [br]
 ## @param owner: 定时器拥有者。
+## [br]
 ## @return 被取消的任务数量。
 func cancel_owner(owner: Object) -> int:
 	if owner == null:
@@ -186,7 +235,12 @@ func cancel_owner(owner: Object) -> int:
 
 
 ## 获取定时器工具诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 诊断快照字典。
+## [br]
+## @schema return: Dictionary with `pending_count`, `pending_handles`, `owner_bound_count`, `executing_count`, and `next_timer_id`.
 func get_debug_snapshot() -> Dictionary:
 	var handles := PackedInt32Array()
 	var owner_bound_count := 0

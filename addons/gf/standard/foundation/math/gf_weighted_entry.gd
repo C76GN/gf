@@ -1,6 +1,12 @@
 ## GFWeightedEntry: 权重表中的单个候选项。
 ##
 ## 只保存值、权重和可选元数据，不约束 value 的业务类型。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFWeightedEntry
 extends Resource
 
@@ -8,21 +14,41 @@ extends Resource
 # --- 导出变量 ---
 
 ## 被选择后返回的值。
+## [br]
+## @api public
+## [br]
+## @schema value: Variant selected value owned by project code.
 @export var value: Variant = null
 
 ## 权重；小于等于 0 的条目不会被选择。
+## [br]
+## @api public
 @export_range(0.0, 1000000000000.0, 0.001, "or_greater") var weight: float = 1.0
 
 ## 项目层可选元数据，框架不解释其含义。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary extension metadata for the weighted entry.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 配置条目内容。
+## [br]
+## @api public
+## [br]
 ## @param p_value: 被选择后返回的值。
+## [br]
+## @schema p_value: Variant selected value owned by project code.
+## [br]
 ## @param p_weight: 权重；小于等于 0 表示不可被选择。
+## [br]
 ## @param p_metadata: 可选元数据。
+## [br]
+## @schema p_metadata: Dictionary extension metadata for the weighted entry.
+## [br]
 ## @return 当前条目。
 func configure(p_value: Variant, p_weight: float = 1.0, p_metadata: Dictionary = {}) -> GFWeightedEntry:
 	value = p_value
@@ -32,13 +58,20 @@ func configure(p_value: Variant, p_weight: float = 1.0, p_metadata: Dictionary =
 
 
 ## 判断该条目当前是否可被选择。
+## [br]
+## @api public
+## [br]
 ## @return 权重大于 0 时返回 true。
 func is_selectable() -> bool:
 	return weight > 0.0
 
 
 ## 复制当前条目。
+## [br]
+## @api public
+## [br]
 ## @param deep: 是否深拷贝元数据。
+## [br]
 ## @return 新条目实例。
 func duplicate_entry(deep: bool = true) -> GFWeightedEntry:
 	var entry := GFWeightedEntry.new()
@@ -49,7 +82,12 @@ func duplicate_entry(deep: bool = true) -> GFWeightedEntry:
 
 
 ## 导出为通用字典。
+## [br]
+## @api public
+## [br]
 ## @return 包含 `value`、`weight` 与 `metadata` 的字典。
+## [br]
+## @schema return: Dictionary serialized weighted entry.
 func to_dict() -> Dictionary:
 	return {
 		"value": value,
@@ -59,7 +97,13 @@ func to_dict() -> Dictionary:
 
 
 ## 从通用字典创建条目。
+## [br]
+## @api public
+## [br]
 ## @param data: 包含 `value`、`weight` 与 `metadata` 的字典。
+## [br]
+## @schema data: Dictionary serialized weighted entry.
+## [br]
 ## @return 新条目实例。
 static func from_dict(data: Dictionary) -> GFWeightedEntry:
 	var entry := GFWeightedEntry.new()

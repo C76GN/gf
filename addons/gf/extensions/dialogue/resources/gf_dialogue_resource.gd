@@ -2,33 +2,49 @@
 ##
 ## 资源只保存对话行集合、起始行和自定义元数据。导入格式、剧本 DSL、
 ## 本地化表和编辑器 UI 均由项目或独立插件决定。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFDialogueResource
 extends Resource
 
 
 # --- 常量 ---
 
-const GFDialogueLineBase = preload("res://addons/gf/extensions/dialogue/resources/gf_dialogue_line.gd")
-const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
 
 ## 默认起始行 ID。
+## [br]
+## @api public
 @export var start_line_id: StringName = &""
 
 ## 对话行集合。
-@export var lines: Array[GFDialogueLineBase] = []
+## [br]
+## @api public
+@export var lines: Array[GFDialogueLine] = []
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: 项目自定义元数据 Dictionary；框架保留并复制该字段，但不解释其中键值。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 设置或追加对话行。
+## [br]
+## @api public
+## [br]
 ## @param line: 对话行。
-func set_line(line: GFDialogueLineBase) -> void:
+func set_line(line: GFDialogueLine) -> void:
 	if line == null or line.line_id == &"":
 		return
 	for index: int in range(lines.size()):
@@ -41,40 +57,56 @@ func set_line(line: GFDialogueLineBase) -> void:
 
 
 ## 获取对话行。
+## [br]
+## @api public
+## [br]
 ## @param line_id: 行 ID。
-## @return 对话行；不存在时返回 null。
+## [br]
+## @return: 对话行；不存在时返回 null。
 func get_line(line_id: StringName) -> GFDialogueLine:
-	for line: GFDialogueLineBase in lines:
+	for line: GFDialogueLine in lines:
 		if line != null and line.line_id == line_id:
 			return line
 	return null
 
 
 ## 获取起始行。
+## [br]
+## @api public
+## [br]
 ## @param override_line_id: 可选覆盖起点。
-## @return 起始行；不存在时返回 null。
+## [br]
+## @return: 起始行；不存在时返回 null。
 func get_start_line(override_line_id: StringName = &"") -> GFDialogueLine:
 	var resolved_id := override_line_id if override_line_id != &"" else start_line_id
 	if resolved_id != &"":
 		return get_line(resolved_id)
-	for line: GFDialogueLineBase in lines:
+	for line: GFDialogueLine in lines:
 		if line != null:
 			return line
 	return null
 
 
 ## 获取全部行 ID。
-## @return 行 ID 列表。
+## [br]
+## @api public
+## [br]
+## @return: 行 ID 列表。
 func get_line_ids() -> PackedStringArray:
 	var result := PackedStringArray()
-	for line: GFDialogueLineBase in lines:
+	for line: GFDialogueLine in lines:
 		if line != null and line.line_id != &"":
 			result.append(String(line.line_id))
 	return result
 
 
 ## 校验资源结构。
-## @return 兼容 GFValidationReportDictionary 的报告字典。
+## [br]
+## @api public
+## [br]
+## @return: 兼容 GFValidationReportDictionary 的报告字典。
+## [br]
+## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action、error_count、warning_count 和 issue_count 等字段。
 func validate_resource() -> Dictionary:
 	var report := {
 		"subject": "Dialogue resource",
@@ -120,23 +152,31 @@ func validate_resource() -> Dictionary:
 					"Dialogue transition references a missing line."
 				)
 
-	return GFValidationReportDictionaryBase.finalize_report(report, "Dialogue resource", {
+	return _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.finalize_report(report, "Dialogue resource", {
 		"include_issue_count": true,
 		"next_actions": _get_validation_next_actions(),
 	})
 
 
 ## 创建深拷贝。
-## @return 对话资源副本。
+## [br]
+## @api public
+## [br]
+## @return: 对话资源副本。
 func duplicate_dialogue() -> GFDialogueResource:
 	return duplicate(true) as GFDialogueResource
 
 
 ## 转换为字典。
-## @return 资源快照。
+## [br]
+## @api public
+## [br]
+## @return: 资源快照。
+## [br]
+## @schema return: 包含 start_line_id、lines 和 metadata 字段的 Dictionary；lines 为行快照字典数组。
 func to_dictionary() -> Dictionary:
 	var line_data: Array[Dictionary] = []
-	for line: GFDialogueLineBase in lines:
+	for line: GFDialogueLine in lines:
 		if line != null:
 			line_data.append(line.to_dictionary())
 	return {
@@ -154,7 +194,7 @@ func _append_issue(
 	subject: String,
 	message: String
 ) -> void:
-	GFValidationReportDictionaryBase.append_issue(report, "error", kind, message, {
+	_GF_VALIDATION_REPORT_DICTIONARY_SCRIPT.append_issue(report, "error", kind, message, {
 		"subject": subject,
 		"path": subject,
 	})

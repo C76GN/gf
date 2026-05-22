@@ -1,6 +1,12 @@
 ## GFTagSet: 通用标签集合资源。
 ##
 ## 只维护标签到层数的映射，不规定标签命名、业务含义或全局注册表。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFTagSet
 extends Resource
 
@@ -8,13 +14,23 @@ extends Resource
 # --- 导出变量 ---
 
 ## 标签层数字典。键建议使用 StringName，值为正整数层数。
+## [br]
+## @api public
+## [br]
+## @schema tag_counts: Dictionary mapping tag names to positive integer counts.
 @export var tag_counts: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 清空并设置标签集合。
+## [br]
+## @api public
+## [br]
 ## @param source_tags: Array、PackedStringArray 或 Dictionary 标签数据。
+## [br]
+## @schema source_tags: Variant tag source accepted as Array, PackedStringArray, or Dictionary.
+## [br]
 ## @return 当前标签集合。
 func set_tags(source_tags: Variant) -> GFTagSet:
 	clear()
@@ -31,8 +47,13 @@ func set_tags(source_tags: Variant) -> GFTagSet:
 
 
 ## 添加标签层数。
+## [br]
+## @api public
+## [br]
 ## @param tag: 标签名。
+## [br]
 ## @param count: 增加层数。
+## [br]
 ## @return 当前标签集合。
 func add_tag(tag: StringName, count: int = 1) -> GFTagSet:
 	if tag == &"" or count <= 0:
@@ -43,8 +64,13 @@ func add_tag(tag: StringName, count: int = 1) -> GFTagSet:
 
 
 ## 移除标签层数。
+## [br]
+## @api public
+## [br]
 ## @param tag: 标签名。
+## [br]
 ## @param count: 移除层数；-1 表示完全移除。
+## [br]
 ## @return 当前标签集合。
 func remove_tag(tag: StringName, count: int = 1) -> GFTagSet:
 	if tag == &"" or not tag_counts.has(tag):
@@ -64,17 +90,28 @@ func remove_tag(tag: StringName, count: int = 1) -> GFTagSet:
 
 
 ## 检查是否拥有指定标签且层数达到要求。
+## [br]
+## @api public
+## [br]
 ## @param tag: 标签名。
+## [br]
 ## @param minimum_count: 要求的最小层数。
+## [br]
 ## @param include_child_tags: 为 true 时，`state` 可匹配 `state.burning`。
+## [br]
 ## @return 满足要求返回 true。
 func has_tag(tag: StringName, minimum_count: int = 1, include_child_tags: bool = false) -> bool:
 	return get_tag_count(tag, include_child_tags) >= max(1, minimum_count)
 
 
 ## 获取标签层数。
+## [br]
+## @api public
+## [br]
 ## @param tag: 标签名。
+## [br]
 ## @param include_child_tags: 为 true 时合并子标签层数。
+## [br]
 ## @return 标签层数。
 func get_tag_count(tag: StringName, include_child_tags: bool = false) -> int:
 	if tag == &"":
@@ -92,6 +129,9 @@ func get_tag_count(tag: StringName, include_child_tags: bool = false) -> int:
 
 
 ## 获取所有标签名。
+## [br]
+## @api public
+## [br]
 ## @return 排序后的标签名。
 func get_tags() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -103,17 +143,27 @@ func get_tags() -> PackedStringArray:
 
 
 ## 获取标签层数字典副本。
+## [br]
+## @api public
+## [br]
 ## @return 标签层数字典。
+## [br]
+## @schema return: Dictionary mapping tag names to positive integer counts.
 func get_tag_counts() -> Dictionary:
 	return tag_counts.duplicate(true)
 
 
 ## 清空标签集合。
+## [br]
+## @api public
 func clear() -> void:
 	tag_counts.clear()
 
 
 ## 创建同内容拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新标签集合。
 func duplicate_set() -> GFTagSet:
 	var next_set := GFTagSet.new()
@@ -122,7 +172,12 @@ func duplicate_set() -> GFTagSet:
 
 
 ## 导出为字典。
+## [br]
+## @api public
+## [br]
 ## @return 标签集合字典。
+## [br]
+## @schema return: Dictionary serialized tag set.
 func to_dictionary() -> Dictionary:
 	return {
 		"tag_counts": tag_counts.duplicate(true),
@@ -130,7 +185,13 @@ func to_dictionary() -> Dictionary:
 
 
 ## 从字典创建标签集合。
+## [br]
+## @api public
+## [br]
 ## @param data: 标签集合字典。
+## [br]
+## @schema data: Dictionary serialized tag set or tag count map.
+## [br]
 ## @return 新标签集合。
 static func from_dictionary(data: Dictionary) -> GFTagSet:
 	var next_set := GFTagSet.new()

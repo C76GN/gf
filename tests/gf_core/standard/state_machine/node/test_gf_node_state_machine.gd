@@ -222,7 +222,7 @@ func test_editor_inspector_collects_state_names_from_exports() -> void:
 	machine.add_child(idle)
 	machine.add_child(run)
 
-	var states := GFNodeStateMachineInspectorPluginBase._collect_direct_states(machine) as Array[StringName]
+	var states := GFNodeStateMachineInspectorPluginBase.collect_direct_states(machine) as Array[StringName]
 
 	assert_eq(states.size(), 2, "Inspector 应收集直接子状态。")
 	assert_has(states, &"idle", "Inspector 应优先使用导出的 state_name。")

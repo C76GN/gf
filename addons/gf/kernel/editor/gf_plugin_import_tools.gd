@@ -1,11 +1,16 @@
 @tool
 
-## GF 插件导入插件管理辅助。
+# GF 插件导入插件管理辅助。
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
@@ -17,6 +22,11 @@ var _import_plugins: Array[EditorImportPlugin] = []
 # --- 公共方法 ---
 
 ## 注册当前启用扩展声明的 EditorImportPlugin。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
 func setup(plugin: EditorPlugin) -> void:
 	if plugin == null:
@@ -27,6 +37,11 @@ func setup(plugin: EditorPlugin) -> void:
 
 
 ## 注销已注册的 EditorImportPlugin。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
 func cleanup(plugin: EditorPlugin) -> void:
 	if plugin == null:

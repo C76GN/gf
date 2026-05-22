@@ -12,6 +12,12 @@
 ##   _fsm.add_state(&"Idle", IdleState.new(), &"Grounded")
 ##   _fsm.add_state(&"Run", RunState.new(), &"Grounded")
 ##   _fsm.start(&"Idle")
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFStateMachine
 extends RefCounted
 
@@ -19,49 +25,74 @@ extends RefCounted
 # --- 信号 ---
 
 ## 当状态成功切换后发出。
+## [br]
+## @api public
+## [br]
 ## @param from_state: 离开的叶子状态名，初始切换时为空字符串。
+## [br]
 ## @param to_state: 进入的新叶子状态名。
 signal state_changed(from_state: StringName, to_state: StringName)
 
 ## 当状态守卫阻止切换时发出。
+## [br]
+## @api public
+## [br]
 ## @param from_state: 当前叶子状态名。
+## [br]
 ## @param to_state: 请求进入的目标叶子状态名。
+## [br]
 ## @param msg: 状态切换参数。
+## [br]
 ## @param reason: 阻止原因，常见为 exit_guard 或 enter_guard。
+## [br]
+## @schema msg: Dictionary state transition payload.
 signal transition_blocked(from_state: StringName, to_state: StringName, msg: Dictionary, reason: StringName)
 
 ## 当状态事件被某个激活状态处理后发出。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 状态事件标识。
+## [br]
 ## @param handler_state: 处理该事件的状态名。
+## [br]
 ## @param payload: 状态事件载荷。
+## [br]
+## @schema payload: Variant state event payload.
 signal state_event_handled(event_id: StringName, handler_state: StringName, payload: Variant)
 
 
 # --- 公共变量 ---
 
 ## 当前激活的叶子状态注册名。
+## [br]
+## @api public
 var current_state_name: StringName = &""
 
 ## 状态机共享黑板。框架不解释其中字段。
+## [br]
+## @api public
+## [br]
+## @schema blackboard: Dictionary shared state machine data.
 var blackboard: Dictionary = {}
 
 
 # --- 私有变量 ---
 
-## 已注册的所有状态，Key 为 StringName，Value 为 GFState 实例。
+# 已注册的所有状态，Key 为 StringName，Value 为 GFState 实例。
 var _states: Dictionary = {}
 
-## 状态父级索引，Key 为子状态名，Value 为父状态名。
+# 状态父级索引，Key 为子状态名，Value 为父状态名。
 var _state_parents: Dictionary = {}
 
-## 当前激活状态路径，按 root -> leaf 排列。
+# 当前激活状态路径，按 root -> leaf 排列。
 var _active_path: Array[StringName] = []
 
-## 当前激活的叶子状态实例。
+# 当前激活的叶子状态实例。
 var _current_state: GFState = null
 
-## 用于守卫框架依赖访问的上下文对象弱引用。
-## 使用弱引用避免 RefCounted 环状引用。
+# 用于守卫框架依赖访问的上下文对象弱引用。
+# 使用弱引用避免 RefCounted 环状引用。
 var _context_ref: WeakRef = null
 var _event_architecture_refs: Array[WeakRef] = []
 var _transition_serial: int = 0
@@ -72,6 +103,9 @@ var _queued_exit_transition: Dictionary = {}
 # --- Godot 生命周期方法 ---
 
 ## 创建状态机并注入框架上下文。
+## [br]
+## @api public
+## [br]
 ## @param context: 可选上下文对象，用于守卫 get_model/get_system/get_utility 调用。
 func _init(context: Object = null) -> void:
 	_context_ref = weakref(context) if context != null else null
@@ -80,8 +114,13 @@ func _init(context: Object = null) -> void:
 # --- 公共方法 ---
 
 ## 注册一个状态。注册后，状态机会自动注入自身引用。
+## [br]
+## @api public
+## [br]
 ## @param state_name: 用于标识和切换该状态的唯一名称。
+## [br]
 ## @param state: GFState 实例。
+## [br]
 ## @param parent_state_name: 可选父状态名；为空表示根状态。
 func add_state(state_name: StringName, state: GFState, parent_state_name: StringName = &"") -> void:
 	if state_name == &"":
@@ -120,8 +159,13 @@ func add_state(state_name: StringName, state: GFState, parent_state_name: String
 
 
 ## 设置已注册状态的父状态。
+## [br]
+## @api public
+## [br]
 ## @param state_name: 要调整父级的状态名。
+## [br]
 ## @param parent_state_name: 新父状态名；为空表示根状态。
+## [br]
 ## @return 设置成功返回 true。
 func set_state_parent(state_name: StringName, parent_state_name: StringName = &"") -> bool:
 	if not _states.has(state_name):
@@ -139,9 +183,16 @@ func set_state_parent(state_name: StringName, parent_state_name: StringName = &"
 
 
 ## 启动状态机并进入初始状态。
+## [br]
+## @api public
+## [br]
 ## @param initial_state_name: 首个要进入的状态名。
+## [br]
 ## @param msg: 传递给初始状态 enter() 的可选参数字典。
+## [br]
 ## @param emit_changed: 是否发出 state_changed 信号；默认为 true，from_state 为空字符串。
+## [br]
+## @schema msg: Dictionary state transition payload.
 func start(initial_state_name: StringName, msg: Dictionary = {}, emit_changed: bool = true) -> void:
 	if not _states.has(initial_state_name):
 		push_warning("[GFStateMachine] 启动失败，未找到状态：%s" % initial_state_name)
@@ -152,8 +203,14 @@ func start(initial_state_name: StringName, msg: Dictionary = {}, emit_changed: b
 
 
 ## 切换到指定状态。分层状态会按最近公共祖先执行退出/进入链。
+## [br]
+## @api public
+## [br]
 ## @param state_name: 目标状态的注册名。
+## [br]
 ## @param msg: 传递给目标状态 enter() 的可选参数字典。
+## [br]
+## @schema msg: Dictionary state transition payload.
 func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 	if not _states.has(state_name):
 		push_warning("[GFStateMachine] 切换失败，未找到状态：%s" % state_name)
@@ -171,7 +228,11 @@ func change_state(state_name: StringName, msg: Dictionary = {}) -> void:
 
 
 ## 驱动当前状态的 update() 逻辑，应在宿主的 _process() 中调用。
+## [br]
+## @api public
+## [br]
 ## @param delta: 上一帧的时间间隔（秒）。
+## [br]
 ## @param include_ancestors: 为 true 时按 root -> leaf 顺序更新整条激活路径。
 func update(delta: float, include_ancestors: bool = false) -> void:
 	if include_ancestors:
@@ -186,9 +247,16 @@ func update(delta: float, include_ancestors: bool = false) -> void:
 
 
 ## 从当前叶子状态开始向父状态上抛事件，直到某个状态返回 true。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 状态事件标识。
+## [br]
 ## @param payload: 状态事件载荷。
+## [br]
 ## @return 有状态处理该事件时返回 true。
+## [br]
+## @schema payload: Variant state event payload.
 func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool:
 	for index in range(_active_path.size() - 1, -1, -1):
 		var state_name := _active_path[index]
@@ -200,6 +268,8 @@ func dispatch_state_event(event_id: StringName, payload: Variant = null) -> bool
 
 
 ## 停止状态机，按 leaf -> root 顺序调用当前激活路径的 exit() 并清空状态。
+## [br]
+## @api public
 func stop() -> void:
 	_exit_active_path_to(0, &"", {}, false)
 	_active_path.clear()
@@ -208,6 +278,8 @@ func stop() -> void:
 
 
 ## 释放状态机持有的所有引用，避免 RefCounted 环状引用。
+## [br]
+## @api public
 func dispose() -> void:
 	stop()
 
@@ -224,26 +296,40 @@ func dispose() -> void:
 
 
 ## 获取状态实例。
+## [br]
+## @api public
+## [br]
 ## @param state_name: 要查询的状态名。
+## [br]
 ## @return 已注册状态实例；不存在时返回 null。
 func get_state(state_name: StringName) -> GFState:
 	return _states.get(state_name) as GFState
 
 
 ## 获取当前叶子状态实例。
+## [br]
+## @api public
+## [br]
 ## @return 当前叶子状态；未启动时返回 null。
 func get_current_state() -> GFState:
 	return _current_state
 
 
 ## 判断状态是否已注册。
+## [br]
+## @api public
+## [br]
 ## @param state_name: 要查询的状态名。
+## [br]
 ## @return 已注册返回 true。
 func has_state(state_name: StringName) -> bool:
 	return _states.has(state_name)
 
 
 ## 获取已注册状态名列表。
+## [br]
+## @api public
+## [br]
 ## @return 状态名列表副本。
 func get_state_names() -> Array[StringName]:
 	var result: Array[StringName] = []
@@ -253,33 +339,54 @@ func get_state_names() -> Array[StringName]:
 
 
 ## 获取指定状态的父状态名。
+## [br]
+## @api public
+## [br]
 ## @param state_name: 要查询的状态名。
+## [br]
 ## @return 父状态名；没有父级或状态不存在时返回空 StringName。
 func get_parent_state_name(state_name: StringName) -> StringName:
 	return _state_parents.get(state_name, &"") as StringName
 
 
 ## 获取当前激活状态路径，按 root -> leaf 排列。
+## [br]
+## @api public
+## [br]
 ## @return 激活状态路径副本。
 func get_active_state_path() -> Array[StringName]:
 	return _copy_path(_active_path)
 
 
 ## 判断指定状态是否在当前激活路径中。
+## [br]
+## @api public
+## [br]
 ## @param state_name: 要查询的状态名。
+## [br]
 ## @return 处于当前激活路径中返回 true。
 func is_in_state(state_name: StringName) -> bool:
 	return _active_path.has(state_name)
 
 
 ## 获取共享黑板。
+## [br]
+## @api public
+## [br]
 ## @return 状态机黑板字典。
+## [br]
+## @schema return: Dictionary shared blackboard.
 func get_blackboard() -> Dictionary:
 	return blackboard
 
 
 ## 获取状态机调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 包含当前状态、激活路径、父子关系和黑板副本的字典。
+## [br]
+## @schema return: Dictionary with current_state, active_path, states, parents, and blackboard.
 func get_state_snapshot() -> Dictionary:
 	return {
 		"current_state": current_state_name,
@@ -291,7 +398,11 @@ func get_state_snapshot() -> Dictionary:
 
 
 ## 代理获取框架内的 Model 实例。
+## [br]
+## @api public
+## [br]
 ## @param model_type: 模型的脚本类型。
+## [br]
 ## @return 模型实例，若上下文或架构无效则返回 null。
 func get_model(model_type: Script) -> Object:
 	var architecture := _get_available_architecture("Model")
@@ -301,7 +412,11 @@ func get_model(model_type: Script) -> Object:
 
 
 ## 代理获取框架内的 System 实例。
+## [br]
+## @api public
+## [br]
 ## @param system_type: 系统的脚本类型。
+## [br]
 ## @return 系统实例，若上下文或架构无效则返回 null。
 func get_system(system_type: Script) -> Object:
 	var architecture := _get_available_architecture("System")
@@ -311,7 +426,11 @@ func get_system(system_type: Script) -> Object:
 
 
 ## 代理获取框架内的 Utility 实例。
+## [br]
+## @api public
+## [br]
 ## @param utility_type: 工具的脚本类型。
+## [br]
 ## @return 工具实例，若上下文或架构无效则返回 null。
 func get_utility(utility_type: Script) -> Object:
 	var architecture := _get_available_architecture("Utility")
@@ -321,8 +440,14 @@ func get_utility(utility_type: Script) -> Object:
 
 
 ## 代理向框架发送命令。
+## [br]
+## @api public
+## [br]
 ## @param command: 要发送的命令实例。
+## [br]
 ## @return 命令执行结果；上下文或架构无效时返回 null。
+## [br]
+## @schema return: Variant command result, Signal, or null.
 func send_command(command: Object) -> Variant:
 	var architecture := _get_available_architecture("Command")
 	if architecture == null:
@@ -331,8 +456,14 @@ func send_command(command: Object) -> Variant:
 
 
 ## 代理向框架发送查询。
+## [br]
+## @api public
+## [br]
 ## @param query: 要发送的查询实例。
+## [br]
 ## @return 查询结果；上下文或架构无效时返回 null。
+## [br]
+## @schema return: Variant query result or null.
 func send_query(query: Object) -> Variant:
 	var architecture := _get_available_architecture("Query")
 	if architecture == null:
@@ -341,6 +472,9 @@ func send_query(query: Object) -> Variant:
 
 
 ## 代理发送类型事件。
+## [br]
+## @api public
+## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
 	var architecture := _get_available_architecture("Event")
@@ -349,8 +483,14 @@ func send_event(event_instance: Object) -> void:
 
 
 ## 代理发送轻量级 StringName 事件。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param payload: 可选的事件附加数据。
+## [br]
+## @schema payload: Variant event payload.
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	var architecture := _get_available_architecture("Event")
 	if architecture != null:
@@ -358,9 +498,15 @@ func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 
 
 ## 注册带拥有者的类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param event_type: 要监听的脚本类型。
+## [br]
 ## @param callback: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -> void:
 	var architecture := _get_available_architecture("Event")
@@ -370,7 +516,11 @@ func register_event_owned(owner: Object, event_type: Script, callback: Callable,
 
 
 ## 注销类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_type: 要注销的脚本类型。
+## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_event(event_type: Script, callback: Callable) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
@@ -378,9 +528,15 @@ func unregister_event(event_type: Script, callback: Callable) -> void:
 
 
 ## 注册带拥有者的可赋值类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param base_event_type: 要监听的基类脚本类型。
+## [br]
 ## @param callback: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event_owned(
 	owner: Object,
@@ -395,7 +551,11 @@ func register_assignable_event_owned(
 
 
 ## 注销可赋值类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param base_event_type: 注册时使用的基类脚本类型。
+## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_assignable_event(base_event_type: Script, callback: Callable) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
@@ -403,8 +563,13 @@ func unregister_assignable_event(base_event_type: Script, callback: Callable) ->
 
 
 ## 注册带拥有者的轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param callback: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -> void:
 	var architecture := _get_available_architecture("Event")
@@ -414,7 +579,11 @@ func register_simple_event_owned(owner: Object, event_id: StringName, callback: 
 
 
 ## 注销轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param callback: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():
@@ -422,6 +591,9 @@ func unregister_simple_event(event_id: StringName, callback: Callable) -> void:
 
 
 ## 注销指定拥有者通过状态机事件代理注册过的全部监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 要清理监听器的拥有者。
 func unregister_owner_events(owner: Object) -> void:
 	for architecture: GFArchitecture in _get_tracked_event_architectures():

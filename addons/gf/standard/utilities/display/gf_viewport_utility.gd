@@ -2,6 +2,12 @@
 ##
 ## 用于本地多人、调试监视器、小地图或多视角预览等场景。它只管理 Viewport
 ## 容器、相机挂载和后处理材质，不接管玩家、场景切换或输入规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFViewportUtility
 extends GFUtility
 
@@ -9,24 +15,37 @@ extends GFUtility
 # --- 信号 ---
 
 ## 分屏布局创建完成后发出。
+## [br]
+## @api public
+## [br]
 ## @param viewports: 当前 SubViewport 列表副本。
+## [br]
+## @schema viewports: Array，由分屏布局创建的 SubViewport 实例。
 signal split_screen_configured(viewports: Array)
 
 ## 分屏布局被清理后发出。
+## [br]
+## @api public
 signal split_screen_cleared
 
 
 # --- 公共变量 ---
 
 ## 子 viewport 渲染尺寸缩放。1 表示使用配置尺寸。
+## [br]
+## @api public
 var viewport_resolution_scale: float = 1.0:
 	set(value):
 		viewport_resolution_scale = maxf(value, 0.01)
 
 ## 新建 SubViewport 是否禁用 3D。
+## [br]
+## @api public
 var default_disable_3d: bool = false
 
 ## 新建 SubViewport 是否启用透明背景。
+## [br]
+## @api public
 var default_transparent_bg: bool = false
 
 
@@ -42,10 +61,18 @@ var _cameras: Array[Node] = []
 # --- 公共方法 ---
 
 ## 创建 1 到 4 个 SubViewport 的分屏布局。
+## [br]
+## @api public
+## [br]
 ## @param root: 承载布局的 Control。
+## [br]
 ## @param viewport_count: 目标 viewport 数量；小于等于 0 时只清理。
+## [br]
 ## @param options: 可选设置，支持 viewport_size、columns、disable_3d、transparent_bg、stretch。
+## [br]
 ## @return 当前 SubViewport 列表副本。
+## [br]
+## @schema options: Dictionary，包含 viewport_size: Vector2i 或 Vector2、columns: int、disable_3d: bool、transparent_bg: bool 和 stretch: bool。
 func setup_split_screen(root: Control, viewport_count: int, options: Dictionary = {}) -> Array[SubViewport]:
 	clear_split_screen(false)
 	if not is_instance_valid(root) or viewport_count <= 0:
@@ -69,6 +96,9 @@ func setup_split_screen(root: Control, viewport_count: int, options: Dictionary 
 
 
 ## 清理当前分屏布局。
+## [br]
+## @api public
+## [br]
 ## @param free_cameras: 是否连同已挂载相机一起释放。
 func clear_split_screen(free_cameras: bool = false) -> void:
 	for camera: Node in _cameras:
@@ -95,19 +125,29 @@ func clear_split_screen(free_cameras: bool = false) -> void:
 
 
 ## 获取当前 SubViewport 数量。
+## [br]
+## @api public
+## [br]
 ## @return viewport 数量。
 func get_viewport_count() -> int:
 	return _viewports.size()
 
 
 ## 获取当前 SubViewport 列表副本。
+## [br]
+## @api public
+## [br]
 ## @return viewport 列表。
 func get_viewports() -> Array[SubViewport]:
 	return _viewports.duplicate()
 
 
 ## 获取指定索引的 SubViewport。
+## [br]
+## @api public
+## [br]
 ## @param index: viewport 索引。
+## [br]
 ## @return SubViewport；不存在时返回 null。
 func get_viewport(index: int) -> SubViewport:
 	if index < 0 or index >= _viewports.size():
@@ -116,7 +156,11 @@ func get_viewport(index: int) -> SubViewport:
 
 
 ## 获取指定索引的 SubViewportContainer。
+## [br]
+## @api public
+## [br]
 ## @param index: viewport 索引。
+## [br]
 ## @return SubViewportContainer；不存在时返回 null。
 func get_container(index: int) -> SubViewportContainer:
 	if index < 0 or index >= _containers.size():
@@ -125,8 +169,13 @@ func get_container(index: int) -> SubViewportContainer:
 
 
 ## 将相机挂载到指定 SubViewport。
+## [br]
+## @api public
+## [br]
 ## @param index: viewport 索引。
+## [br]
 ## @param camera: Camera2D 或 Camera3D 节点。
+## [br]
 ## @return 挂载成功返回 true。
 func set_viewport_camera(index: int, camera: Node) -> bool:
 	var viewport := get_viewport(index)
@@ -148,8 +197,13 @@ func set_viewport_camera(index: int, camera: Node) -> bool:
 
 
 ## 设置指定 SubViewportContainer 的后处理材质。
+## [br]
+## @api public
+## [br]
 ## @param index: viewport 索引。
+## [br]
 ## @param material: 材质；传 null 可清除。
+## [br]
 ## @return 设置成功返回 true。
 func set_postprocess_material(index: int, material: Material) -> bool:
 	var container := get_container(index)
@@ -160,10 +214,18 @@ func set_postprocess_material(index: int, material: Material) -> bool:
 
 
 ## 从屏幕/Viewport 坐标构建 3D 射线。
+## [br]
+## @api public
+## [br]
 ## @param camera: 用于投射的 Camera3D。
+## [br]
 ## @param screen_position: Viewport 内的屏幕坐标。
+## [br]
 ## @param length: 射线长度。
+## [br]
 ## @return 包含 ok、origin、direction、end 的字典。
+## [br]
+## @schema return: Dictionary，包含 ok: bool、origin: Vector3、direction: Vector3 和 end: Vector3。
 func screen_to_world_ray_3d(
 	camera: Camera3D,
 	screen_position: Vector2,
@@ -188,12 +250,22 @@ func screen_to_world_ray_3d(
 
 
 ## 从屏幕/Viewport 坐标执行 3D 射线检测。
+## [br]
+## @api public
+## [br]
 ## @param camera: 用于投射的 Camera3D。
+## [br]
 ## @param screen_position: Viewport 内的屏幕坐标。
+## [br]
 ## @param collision_mask: 物理碰撞层掩码。
+## [br]
 ## @param length: 射线长度。
+## [br]
 ## @param exclude: 要排除的 RID 列表。
+## [br]
 ## @return 包含射线信息、hit 标记和 result 的字典。
+## [br]
+## @schema return: Dictionary，包含物理射线检测得到的 ok、origin、direction、end、hit 和 result。
 func raycast_from_screen_3d(
 	camera: Camera3D,
 	screen_position: Vector2,
@@ -224,8 +296,13 @@ func raycast_from_screen_3d(
 
 
 ## 将 3D 世界坐标转换为屏幕/Viewport 坐标。
+## [br]
+## @api public
+## [br]
 ## @param camera: 用于投影的 Camera3D。
+## [br]
 ## @param world_position: 3D 世界坐标。
+## [br]
 ## @return 屏幕坐标；camera 无效时返回 INF 坐标。
 func world_to_screen_3d(camera: Camera3D, world_position: Vector3) -> Vector2:
 	if not is_instance_valid(camera):
@@ -234,8 +311,13 @@ func world_to_screen_3d(camera: Camera3D, world_position: Vector3) -> Vector2:
 
 
 ## 将 CanvasItem 所在世界坐标转换为屏幕/Viewport 坐标。
+## [br]
+## @api public
+## [br]
 ## @param canvas_item: 参考 CanvasItem。
+## [br]
 ## @param world_position: 2D 世界坐标。
+## [br]
 ## @return 屏幕坐标。
 func world_to_screen_2d(canvas_item: CanvasItem, world_position: Vector2) -> Vector2:
 	if not is_instance_valid(canvas_item):
@@ -244,8 +326,13 @@ func world_to_screen_2d(canvas_item: CanvasItem, world_position: Vector2) -> Vec
 
 
 ## 将屏幕/Viewport 坐标转换为 CanvasItem 所在世界坐标。
+## [br]
+## @api public
+## [br]
 ## @param canvas_item: 参考 CanvasItem。
+## [br]
 ## @param screen_position: 屏幕坐标。
+## [br]
 ## @return 2D 世界坐标。
 func screen_to_world_2d(canvas_item: CanvasItem, screen_position: Vector2) -> Vector2:
 	if not is_instance_valid(canvas_item):
@@ -254,7 +341,12 @@ func screen_to_world_2d(canvas_item: CanvasItem, screen_position: Vector2) -> Ve
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 viewport_count、container_count、has_root、has_grid 和 resolution_scale。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"viewport_count": _viewports.size(),
@@ -266,6 +358,9 @@ func get_debug_snapshot() -> Dictionary:
 
 
 ## 驱动布局生命周期清理。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 本帧时间增量。
 func tick(_delta: float) -> void:
 	if _root_ref != null and _root_ref.get_ref() == null:

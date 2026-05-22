@@ -2,6 +2,12 @@
 ##
 ## 该工具只协调两个 GFStorageBackend 的字典数据同步、冲突检测和写回策略。
 ## 它不绑定本地/云/平台 SDK，也不替项目定义存档业务结构。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFStorageSyncUtility
 extends GFUtility
 
@@ -9,28 +15,51 @@ extends GFUtility
 # --- 信号 ---
 
 ## 检测到存储冲突后发出。
+## [br]
+## @api public
+## [br]
 ## @param report: 冲突报告。
 signal sync_conflict_detected(report: GFStorageConflictReport)
 
 ## 单个逻辑文件存在未解决冲突时发出。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 逻辑文件名。
+## [br]
 ## @param result: 同步结果字典。
+## [br]
+## @schema result: Dictionary，由 sync_data() 为未解决冲突返回。
 signal sync_conflict_unresolved(file_name: String, result: Dictionary)
 
 ## 单个逻辑文件同步完成后发出。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 逻辑文件名。
+## [br]
 ## @param result: 同步结果字典。
+## [br]
+## @schema result: Dictionary，由 sync_data() 为已完成同步返回。
 signal sync_completed(file_name: String, result: Dictionary)
 
 ## 单个逻辑文件同步失败后发出。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 逻辑文件名。
+## [br]
 ## @param result: 同步结果字典。
+## [br]
+## @schema result: Dictionary，由 sync_data() 为失败同步返回。
 signal sync_failed(file_name: String, result: Dictionary)
 
 
 # --- 枚举 ---
 
 ## 冲突解决策略。
+## [br]
+## @api public
 enum ConflictStrategy {
 	## 按后端元数据中的 revision/timestamp 选择更新的一侧；无法判断时保留冲突。
 	USE_NEWEST,
@@ -45,6 +74,8 @@ enum ConflictStrategy {
 }
 
 ## 同步结果状态。
+## [br]
+## @api public
 enum SyncStatus {
 	## 两端数据已经一致。
 	UNCHANGED,
@@ -64,9 +95,13 @@ enum SyncStatus {
 # --- 公共变量 ---
 
 ## 默认冲突策略。
+## [br]
+## @api public
 var default_conflict_strategy: ConflictStrategy = ConflictStrategy.USE_NEWEST
 
 ## 默认是否把解析出的结果写回后端。关闭后可用于 dry-run。
+## [br]
+## @api public
 var write_resolved_by_default: bool = true
 
 
@@ -80,11 +115,22 @@ var _failed_count: int = 0
 # --- 公共方法 ---
 
 ## 同步一个逻辑文件。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 逻辑文件名。
+## [br]
 ## @param local_backend: 本地或主后端。
+## [br]
 ## @param remote_backend: 远端或副后端。
+## [br]
 ## @param options: 同步选项，支持 strategy、write_resolved、write_to_local、write_to_remote、resolver、revision_keys、timestamp_keys。
+## [br]
 ## @return 同步结果字典。
+## [br]
+## @schema options: Dictionary，包含 strategy: ConflictStrategy、write_resolved: bool、write_to_local: bool、write_to_remote: bool、resolver: Callable、resolution_callback: Callable、revision_keys: Array[String] 和 timestamp_keys: Array[String]。
+## [br]
+## @schema return: Dictionary，包含 ok、file_name、status、status_name、selected_source、written_backends、conflicts、errors、error、data、metadata、local 和 remote。
 func sync_data(
 	file_name: String,
 	local_backend: GFStorageBackend,
@@ -136,11 +182,22 @@ func sync_data(
 
 
 ## 批量同步多个逻辑文件。
+## [br]
+## @api public
+## [br]
 ## @param file_names: 逻辑文件名列表。
+## [br]
 ## @param local_backend: 本地或主后端。
+## [br]
 ## @param remote_backend: 远端或副后端。
+## [br]
 ## @param options: 传给 sync_data() 的同步选项。
+## [br]
 ## @return 批量结果字典。
+## [br]
+## @schema options: Dictionary，支持字段与 sync_data() 相同。
+## [br]
+## @schema return: Dictionary，包含 ok: bool、count: int、results: Array[Dictionary] 和 status_counts: Dictionary。
 func sync_many(
 	file_names: PackedStringArray,
 	local_backend: GFStorageBackend,
@@ -166,7 +223,12 @@ func sync_many(
 
 
 ## 获取同步工具调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试快照字典。
+## [br]
+## @schema return: Dictionary，包含 sync_count、conflict_count、failed_count、default_conflict_strategy 和 write_resolved_by_default。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"sync_count": _sync_count,

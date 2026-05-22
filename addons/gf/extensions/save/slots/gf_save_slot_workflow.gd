@@ -2,34 +2,52 @@
 ##
 ## 负责把槽位索引、逻辑标识、元数据和 UI 卡片摘要串起来。
 ## 不执行具体存取逻辑，也不写死任何游戏业务字段。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFSaveSlotWorkflow
 extends Resource
 
 
 # --- 常量 ---
 
-const GFSaveSlotCardBase = preload("res://addons/gf/extensions/save/slots/gf_save_slot_card.gd")
-const GFSaveSlotMetadataBase = preload("res://addons/gf/extensions/save/slots/gf_save_slot_metadata.gd")
+const _GF_SAVE_SLOT_CARD_SCRIPT: Script = preload("res://addons/gf/extensions/save/slots/gf_save_slot_card.gd")
+const _GF_SAVE_SLOT_METADATA_SCRIPT: Script = preload("res://addons/gf/extensions/save/slots/gf_save_slot_metadata.gd")
 
 
 # --- 导出变量 ---
 
 ## 当前选中槽位索引。默认从 1 开始，贴近常见存档 UI。
+## [br]
+## @api public
 @export var active_slot_index: int = 1
 
 ## 槽位标识模板，支持 {index} 占位符。
+## [br]
+## @api public
 @export var slot_id_template: String = "slot_{index}"
 
 ## 空槽位展示名模板，支持 {index} 占位符。
+## [br]
+## @api public
 @export var empty_display_name_template: String = "Slot {index}"
 
 ## 可替换的元数据资源脚本，项目层可继承 GFSaveSlotMetadata 扩展。
-@export var metadata_script: Script = GFSaveSlotMetadataBase
+## [br]
+## @api public
+@export var metadata_script: Script = _GF_SAVE_SLOT_METADATA_SCRIPT
 
 ## 可替换的卡片资源脚本，项目层可继承 GFSaveSlotCard 扩展。
-@export var card_script: Script = GFSaveSlotCardBase
+## [br]
+## @api public
+@export var card_script: Script = _GF_SAVE_SLOT_CARD_SCRIPT
 
 ## 槽位角色。用于区分 autosave/manual/cloud 等抽象类别。
+## [br]
+## @api public
 @export var slot_role: StringName = &""
 
 
@@ -41,7 +59,11 @@ var _slot_id_overrides: Dictionary = {}
 # --- 公共方法 ---
 
 ## 选择当前槽位。
+## [br]
+## @api public
+## [br]
 ## @param index: 槽位索引。
+## [br]
 ## @return 当前槽位逻辑标识。
 func select_slot_index(index: int) -> StringName:
 	active_slot_index = maxi(index, 0)
@@ -49,7 +71,11 @@ func select_slot_index(index: int) -> StringName:
 
 
 ## 设置指定索引的逻辑标识覆盖。
+## [br]
+## @api public
+## [br]
 ## @param index: 槽位索引。
+## [br]
 ## @param slot_id: 逻辑标识。
 func set_slot_id_override(index: int, slot_id: StringName) -> void:
 	if slot_id == &"":
@@ -59,24 +85,36 @@ func set_slot_id_override(index: int, slot_id: StringName) -> void:
 
 
 ## 清空逻辑标识覆盖。
+## [br]
+## @api public
 func clear_slot_id_overrides() -> void:
 	_slot_id_overrides.clear()
 
 
 ## 获取当前槽位逻辑标识。
+## [br]
+## @api public
+## [br]
 ## @return 槽位标识。
 func get_active_slot_id() -> StringName:
 	return get_slot_id_for_index(active_slot_index)
 
 
 ## 获取当前 GFStorageUtility 整数槽位。
+## [br]
+## @api public
+## [br]
 ## @return 整数槽位。
 func get_active_storage_slot_id() -> int:
 	return active_slot_index
 
 
 ## 获取指定索引的逻辑标识。
+## [br]
+## @api public
+## [br]
 ## @param index: 槽位索引。
+## [br]
 ## @return 槽位标识。
 func get_slot_id_for_index(index: int) -> StringName:
 	if _slot_id_overrides.has(index):
@@ -85,33 +123,52 @@ func get_slot_id_for_index(index: int) -> StringName:
 
 
 ## 获取空槽位展示名。
+## [br]
+## @api public
+## [br]
 ## @param index: 槽位索引。
+## [br]
 ## @return 展示名。
 func get_empty_display_name_for_index(index: int) -> String:
 	return empty_display_name_template.replace("{index}", str(index))
 
 
 ## 构建当前槽位元数据。
+## [br]
+## @api public
+## [br]
 ## @param display_name: 可选展示名。
+## [br]
 ## @param custom_metadata: 自定义元数据。
+## [br]
 ## @return 元数据资源。
+## [br]
+## @schema custom_metadata: Dictionary，会写入 GFSaveSlotMetadata.custom_metadata；slot_role 非空时会额外写入 slot_role。
 func build_active_metadata(
 	display_name: String = "",
 	custom_metadata: Dictionary = {}
-) -> GFSaveSlotMetadataBase:
+) -> GFSaveSlotMetadata:
 	return build_slot_metadata(active_slot_index, display_name, custom_metadata)
 
 
 ## 构建指定槽位元数据。
+## [br]
+## @api public
+## [br]
 ## @param index: 槽位索引。
+## [br]
 ## @param display_name: 可选展示名。
+## [br]
 ## @param custom_metadata: 自定义元数据。
+## [br]
 ## @return 元数据资源。
+## [br]
+## @schema custom_metadata: Dictionary，会写入 GFSaveSlotMetadata.custom_metadata；slot_role 非空时会额外写入 slot_role。
 func build_slot_metadata(
 	index: int,
 	display_name: String = "",
 	custom_metadata: Dictionary = {}
-) -> GFSaveSlotMetadataBase:
+) -> GFSaveSlotMetadata:
 	var metadata := _new_metadata()
 	metadata.slot_id = get_slot_id_for_index(index)
 	metadata.display_name = display_name if not display_name.is_empty() else get_empty_display_name_for_index(index)
@@ -125,9 +182,13 @@ func build_slot_metadata(
 
 
 ## 构建空槽位卡片。
+## [br]
+## @api public
+## [br]
 ## @param index: 槽位索引。
+## [br]
 ## @return 卡片资源。
-func build_empty_card(index: int) -> GFSaveSlotCardBase:
+func build_empty_card(index: int) -> GFSaveSlotCard:
 	var card := _new_card()
 	card.slot_index = index
 	card.slot_id = get_slot_id_for_index(index)
@@ -138,15 +199,23 @@ func build_empty_card(index: int) -> GFSaveSlotCardBase:
 
 
 ## 根据摘要构建槽位卡片。摘要为空时返回空卡片。
+## [br]
+## @api public
+## [br]
 ## @param index: 槽位索引。
+## [br]
 ## @param summary: 槽位摘要。
+## [br]
 ## @param p_active_slot_index: 当前选中索引；小于 0 时使用 active_slot_index。
+## [br]
 ## @return 卡片资源。
+## [br]
+## @schema summary: Dictionary，可包含 slot_index、slot_id、modified_time、is_compatible、compatibility_errors 与 metadata。
 func build_card_for_index(
 	index: int,
 	summary: Dictionary = {},
 	p_active_slot_index: int = -1
-) -> GFSaveSlotCardBase:
+) -> GFSaveSlotCard:
 	if summary.is_empty():
 		return build_empty_card(index)
 
@@ -163,12 +232,21 @@ func build_card_for_index(
 
 
 ## 根据索引和摘要列表构建卡片列表。
+## [br]
+## @api public
+## [br]
 ## @param indices: 槽位索引列表。
+## [br]
 ## @param summaries: 槽位摘要列表。
+## [br]
 ## @return 卡片列表。
-func build_cards_for_indices(indices: Array, summaries: Array = []) -> Array[GFSaveSlotCardBase]:
+## [br]
+## @schema indices: Array，元素为可转换为 int 的槽位索引。
+## [br]
+## @schema summaries: Array，每项为 GFStorageUtility.list_slots() 风格的 Dictionary 摘要。
+func build_cards_for_indices(indices: Array, summaries: Array = []) -> Array[GFSaveSlotCard]:
 	var summary_index := _index_summaries(summaries)
-	var result: Array[GFSaveSlotCardBase] = []
+	var result: Array[GFSaveSlotCard] = []
 	for index_variant: Variant in indices:
 		var index := int(index_variant)
 		var summary := summary_index.get(index, {}) as Dictionary
@@ -177,10 +255,17 @@ func build_cards_for_indices(indices: Array, summaries: Array = []) -> Array[GFS
 
 
 ## 从 GFStorageUtility 读取摘要并构建卡片。
+## [br]
+## @api public
+## [br]
 ## @param storage: 存储工具。
+## [br]
 ## @param indices: 需要展示的槽位索引；为空时使用已有槽位。
+## [br]
 ## @return 卡片列表。
-func build_cards_from_storage(storage: GFStorageUtility, indices: Array = []) -> Array[GFSaveSlotCardBase]:
+## [br]
+## @schema indices: Array，元素为可转换为 int 的槽位索引。
+func build_cards_from_storage(storage: GFStorageUtility, indices: Array = []) -> Array[GFSaveSlotCard]:
 	if storage == null:
 		return []
 
@@ -196,18 +281,18 @@ func build_cards_from_storage(storage: GFStorageUtility, indices: Array = []) ->
 
 # --- 私有/辅助方法 ---
 
-func _new_metadata() -> GFSaveSlotMetadataBase:
-	var metadata: Variant = metadata_script.new() if metadata_script != null else GFSaveSlotMetadataBase.new()
-	if metadata is GFSaveSlotMetadataBase:
-		return metadata as GFSaveSlotMetadataBase
-	return GFSaveSlotMetadataBase.new()
+func _new_metadata() -> GFSaveSlotMetadata:
+	var metadata: Variant = metadata_script.new() if metadata_script != null else GFSaveSlotMetadata.new()
+	if metadata is GFSaveSlotMetadata:
+		return metadata as GFSaveSlotMetadata
+	return GFSaveSlotMetadata.new()
 
 
-func _new_card() -> GFSaveSlotCardBase:
-	var card: Variant = card_script.new() if card_script != null else GFSaveSlotCardBase.new()
-	if card is GFSaveSlotCardBase:
-		return card as GFSaveSlotCardBase
-	return GFSaveSlotCardBase.new()
+func _new_card() -> GFSaveSlotCard:
+	var card: Variant = card_script.new() if card_script != null else GFSaveSlotCard.new()
+	if card is GFSaveSlotCard:
+		return card as GFSaveSlotCard
+	return GFSaveSlotCard.new()
 
 
 func _index_summaries(summaries: Array) -> Dictionary:

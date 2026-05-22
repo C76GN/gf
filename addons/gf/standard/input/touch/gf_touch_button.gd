@@ -3,6 +3,12 @@
 ## GFTouchButton: 通用触屏虚拟按钮节点。
 ##
 ## 可直接发送按下/释放信号，也可映射到 Godot InputMap 动作或虚拟手柄按钮事件。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFTouchButton
 extends Node2D
 
@@ -10,9 +16,13 @@ extends Node2D
 # --- 信号 ---
 
 ## 按钮按下时发出。
+## [br]
+## @api public
 signal button_pressed
 
 ## 按钮释放时发出。
+## [br]
+## @api public
 signal button_released
 
 
@@ -20,18 +30,24 @@ signal button_released
 
 @export_group("Shape")
 ## 按钮半径。
+## [br]
+## @api public
 @export var radius: float = 48.0:
 	set(value):
 		radius = maxf(value, 1.0)
 		queue_redraw()
 
 ## 按钮常态颜色。
+## [br]
+## @api public
 @export var color: Color = Color(1.0, 1.0, 1.0, 0.3):
 	set(value):
 		color = value
 		queue_redraw()
 
 ## 按钮按下颜色。
+## [br]
+## @api public
 @export var pressed_color: Color = Color(1.0, 1.0, 1.0, 0.65):
 	set(value):
 		pressed_color = value
@@ -39,19 +55,29 @@ signal button_released
 
 @export_group("Input")
 ## 是否允许鼠标左键模拟触屏。
+## [br]
+## @api public
 @export var accept_mouse_input: bool = true
 
 ## 映射到 Godot InputMap 的动作名。为空则不映射。
+## [br]
+## @api public
 @export var action_name: StringName = &""
 
 @export_group("Joypad Event")
 ## 是否额外发送虚拟手柄按钮事件。
+## [br]
+## @api public
 @export var emit_joypad_button: bool = false
 
 ## 虚拟手柄设备 ID。建议使用负数以避开真实手柄。
+## [br]
+## @api public
 @export var joypad_device_id: int = -2
 
 ## 对应的手柄按钮。
+## [br]
+## @api public
 @export var joy_button: JoyButton = JOY_BUTTON_A
 
 
@@ -86,12 +112,17 @@ func _draw() -> void:
 # --- 公共方法 ---
 
 ## 检查按钮是否处于按下状态。
+## [br]
+## @api public
+## [br]
 ## @return 是否按下。
 func is_pressed() -> bool:
 	return _pressed
 
 
 ## 手动释放按钮。
+## [br]
+## @api public
 func release() -> void:
 	_active_touch_index = -1
 	_mouse_pressed_inside = false

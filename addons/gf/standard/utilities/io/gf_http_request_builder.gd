@@ -2,12 +2,21 @@
 ##
 ## 负责整理 URL、query、headers、body、timeout 和响应解析策略。
 ## 它只封装 Godot HTTPRequest 的通用流程，不内置任何具体服务、鉴权或业务接口。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFHttpRequestBuilder
 extends RefCounted
 
 
 # --- 枚举 ---
 
+## HTTP 请求方法。
+## [br]
+## @api public
 enum Method {
 	## HTTP GET。
 	GET,
@@ -23,6 +32,9 @@ enum Method {
 	HEAD,
 }
 
+## 响应体解析模式。
+## [br]
+## @api public
 enum ParseMode {
 	## 不解析响应体。
 	NONE,
@@ -32,27 +44,33 @@ enum ParseMode {
 	JSON,
 }
 
-
-# --- 常量 ---
-
-const GFHttpResponseBase = preload("res://addons/gf/standard/utilities/io/gf_http_response.gd")
-
-
 # --- 公共变量 ---
 
 ## 请求 URL。
+## [br]
+## @api public
 var url: String = ""
 
 ## HTTP 方法。
+## [br]
+## @api public
 var method: Method = Method.GET
 
 ## 响应解析模式。
+## [br]
+## @api public
 var parse_mode: ParseMode = ParseMode.TEXT
 
 ## 请求超时时间，单位秒。
+## [br]
+## @api public
 var timeout_seconds: float = 20.0
 
 ## 调用方附加元数据，会复制到 GFHttpResponse。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，复制到 GFHttpResponse 的调用方元数据。
 var metadata: Dictionary = {}
 
 
@@ -66,7 +84,11 @@ var _body_text: String = ""
 # --- 公共方法 ---
 
 ## 设置请求 URL。
+## [br]
+## @api public
+## [br]
 ## @param next_url: 新 URL。
+## [br]
 ## @return 当前构建器。
 func set_url(next_url: String) -> GFHttpRequestBuilder:
 	url = next_url
@@ -74,7 +96,11 @@ func set_url(next_url: String) -> GFHttpRequestBuilder:
 
 
 ## 设置 HTTP 方法。
+## [br]
+## @api public
+## [br]
 ## @param next_method: HTTP 方法枚举。
+## [br]
 ## @return 当前构建器。
 func set_method(next_method: Method) -> GFHttpRequestBuilder:
 	method = next_method
@@ -82,7 +108,11 @@ func set_method(next_method: Method) -> GFHttpRequestBuilder:
 
 
 ## 设置响应解析模式。
+## [br]
+## @api public
+## [br]
 ## @param next_parse_mode: 解析模式。
+## [br]
 ## @return 当前构建器。
 func set_parse_mode(next_parse_mode: ParseMode) -> GFHttpRequestBuilder:
 	parse_mode = next_parse_mode
@@ -90,7 +120,11 @@ func set_parse_mode(next_parse_mode: ParseMode) -> GFHttpRequestBuilder:
 
 
 ## 设置请求超时时间。
+## [br]
+## @api public
+## [br]
 ## @param seconds: 超时秒数。
+## [br]
 ## @return 当前构建器。
 func set_timeout(seconds: float) -> GFHttpRequestBuilder:
 	timeout_seconds = maxf(0.0, seconds)
@@ -98,8 +132,13 @@ func set_timeout(seconds: float) -> GFHttpRequestBuilder:
 
 
 ## 设置或覆盖请求头。
+## [br]
+## @api public
+## [br]
 ## @param key: 请求头名称。
+## [br]
 ## @param value: 请求头值。
+## [br]
 ## @return 当前构建器。
 func set_header(key: String, value: String) -> GFHttpRequestBuilder:
 	if key.strip_edges().is_empty():
@@ -109,7 +148,11 @@ func set_header(key: String, value: String) -> GFHttpRequestBuilder:
 
 
 ## 移除请求头。
+## [br]
+## @api public
+## [br]
 ## @param key: 请求头名称。
+## [br]
 ## @return 当前构建器。
 func remove_header(key: String) -> GFHttpRequestBuilder:
 	_headers.erase(key.strip_edges())
@@ -117,9 +160,16 @@ func remove_header(key: String) -> GFHttpRequestBuilder:
 
 
 ## 添加 query 参数。
+## [br]
+## @api public
+## [br]
 ## @param key: 参数名。
+## [br]
 ## @param value: 参数值。
+## [br]
 ## @return 当前构建器。
+## [br]
+## @schema value: Variant，URI 编码前会转换为文本的查询参数值。
 func add_query_parameter(key: String, value: Variant) -> GFHttpRequestBuilder:
 	if key.strip_edges().is_empty():
 		return self
@@ -131,8 +181,13 @@ func add_query_parameter(key: String, value: Variant) -> GFHttpRequestBuilder:
 
 
 ## 设置文本请求体。
+## [br]
+## @api public
+## [br]
 ## @param text: 请求体文本。
+## [br]
 ## @param content_type: 可选 Content-Type。
+## [br]
 ## @return 当前构建器。
 func set_text_body(text: String, content_type: String = "text/plain; charset=utf-8") -> GFHttpRequestBuilder:
 	_body_text = text
@@ -142,8 +197,14 @@ func set_text_body(text: String, content_type: String = "text/plain; charset=utf
 
 
 ## 设置 JSON 请求体。
+## [br]
+## @api public
+## [br]
 ## @param value: 可被 JSON.stringify() 序列化的数据。
+## [br]
 ## @return 当前构建器。
+## [br]
+## @schema value: Variant，兼容 JSON.stringify 的请求体载荷。
 func set_json_body(value: Variant) -> GFHttpRequestBuilder:
 	_body_text = JSON.stringify(value)
 	set_header("Content-Type", "application/json")
@@ -151,6 +212,9 @@ func set_json_body(value: Variant) -> GFHttpRequestBuilder:
 
 
 ## 构建最终 URL。
+## [br]
+## @api public
+## [br]
 ## @return 拼接 query 后的 URL。
 func build_url() -> String:
 	if _query_parameters.is_empty():
@@ -168,6 +232,9 @@ func build_url() -> String:
 
 
 ## 构建 Godot HTTPRequest 可用的请求头数组。
+## [br]
+## @api public
+## [br]
 ## @return Header 数组。
 func build_headers() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -177,7 +244,12 @@ func build_headers() -> PackedStringArray:
 
 
 ## 构建普通请求字典，适合测试、日志或项目自定义传输层使用。
+## [br]
+## @api public
+## [br]
 ## @return 请求快照。
+## [br]
+## @schema return: Dictionary，包含 url、method、method_name、headers、body、timeout_seconds、parse_mode、parse_mode_name 和 metadata。
 func build_request() -> Dictionary:
 	return {
 		"url": build_url(),
@@ -193,10 +265,14 @@ func build_request() -> Dictionary:
 
 
 ## 使用 HTTPRequest 执行请求。
+## [br]
+## @api public
+## [br]
 ## @param parent: HTTPRequest 节点的父节点；为空时尝试挂到当前 SceneTree root。
+## [br]
 ## @return 响应对象，可监听 completed。
-func execute(parent: Node = null) -> GFHttpResponseBase:
-	var response: GFHttpResponseBase = GFHttpResponseBase.new()
+func execute(parent: Node = null) -> GFHttpResponse:
+	var response: GFHttpResponse = GFHttpResponse.new()
 	response.url = build_url()
 	response.metadata = metadata.duplicate(true)
 
@@ -234,8 +310,14 @@ func execute(parent: Node = null) -> GFHttpResponseBase:
 
 
 ## 按当前 parse_mode 解析响应体。
+## [br]
+## @api public
+## [br]
 ## @param body: 响应 bytes。
+## [br]
 ## @return 解析结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok、text、data 和可选 error。
 func parse_body(body: PackedByteArray) -> Dictionary:
 	var text := body.get_string_from_utf8()
 	match parse_mode:
@@ -277,7 +359,7 @@ func parse_body(body: PackedByteArray) -> Dictionary:
 # --- 私有/辅助方法 ---
 
 func _complete_response(
-	response: GFHttpResponseBase,
+	response: GFHttpResponse,
 	request_node: HTTPRequest,
 	result_code: int,
 	status_code: int,

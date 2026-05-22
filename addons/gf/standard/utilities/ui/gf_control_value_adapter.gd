@@ -1,6 +1,12 @@
 ## GFControlValueAdapter: 常见 Control 节点的值读写适配器。
 ##
 ## 用于表单、设置页和编辑工具中统一读写控件值，不持有状态。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFControlValueAdapter
 extends RefCounted
 
@@ -13,9 +19,18 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共方法 ---
 
 ## 从控件读取值。
+## [br]
+## @api public
+## [br]
 ## @param control: 控件节点。
+## [br]
 ## @param fallback: 不支持读取时返回的值。
+## [br]
+## @schema fallback: Variant，控件无效或不支持读取时返回的回退值。
+## [br]
 ## @return 控件值。
+## [br]
+## @schema return: Variant，控件当前值；无法读取时返回 fallback。
 static func get_value(control: Control, fallback: Variant = null) -> Variant:
 	if control == null:
 		return fallback
@@ -43,8 +58,15 @@ static func get_value(control: Control, fallback: Variant = null) -> Variant:
 
 
 ## 向控件写入值。
+## [br]
+## @api public
+## [br]
 ## @param control: 控件节点。
+## [br]
 ## @param value: 值。
+## [br]
+## @schema value: Variant，要写入控件的值，具体类型取决于控件类型。
+## [br]
 ## @return 成功写入时返回 true。
 static func set_value(control: Control, value: Variant) -> bool:
 	if control == null:
@@ -84,17 +106,29 @@ static func set_value(control: Control, value: Variant) -> bool:
 
 
 ## 连接控件值变化信号。
+## [br]
+## @api public
+## [br]
 ## @param control: 控件节点。
+## [br]
 ## @param callback: 值变化后调用的回调，不接收参数。
+## [br]
 ## @return 成功连接时返回 true。
 static func connect_value_changed(control: Control, callback: Callable) -> bool:
 	return not connect_value_changed_with_handles(control, callback).is_empty()
 
 
 ## 连接控件值变化信号并返回可断开的连接句柄。
+## [br]
+## @api public
+## [br]
 ## @param control: 控件节点。
+## [br]
 ## @param callback: 值变化后调用的回调，不接收参数。
+## [br]
 ## @return 连接句柄数组，可传给 disconnect_value_changed_handles()。
+## [br]
+## @schema return: Array[Dictionary]，每个条目包含 control_ref、signal_name 和 callable。
 static func connect_value_changed_with_handles(control: Control, callback: Callable) -> Array[Dictionary]:
 	var connections: Array[Dictionary] = []
 	if control == null or not callback.is_valid():
@@ -148,7 +182,12 @@ static func connect_value_changed_with_handles(control: Control, callback: Calla
 
 
 ## 断开 connect_value_changed_with_handles() 返回的连接句柄。
+## [br]
+## @api public
+## [br]
 ## @param connections: 连接句柄数组。
+## [br]
+## @schema connections: Array，包含 connect_value_changed_with_handles() 返回的连接句柄 Dictionary。
 static func disconnect_value_changed_handles(connections: Array) -> void:
 	for connection_variant: Variant in connections:
 		var connection := connection_variant as Dictionary

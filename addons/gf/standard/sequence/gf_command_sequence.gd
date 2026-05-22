@@ -2,6 +2,12 @@
 ##
 ## 可运行 `GFSequenceStep`、`GFCommand` 或任何实现 `execute()` / `resolve()`
 ## 的对象。它只负责顺序、等待和架构注入，不规定具体业务语义。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFCommandSequence
 extends RefCounted
 
@@ -9,24 +15,62 @@ extends RefCounted
 # --- 信号 ---
 
 ## 序列开始执行时发出。
+## [br]
+## @api public
 signal sequence_started
 
 ## 步骤开始执行时发出。
+## [br]
+## @api public
+## [br]
+## @param index: 步骤索引。
+## [br]
+## @param step: 步骤对象、命令或 Callable。
+## [br]
+## @schema step: Variant sequence step value.
 signal step_started(index: int, step: Variant)
 
 ## 步骤执行完毕时发出。
+## [br]
+## @api public
+## [br]
+## @param index: 步骤索引。
+## [br]
+## @param step: 步骤对象、命令或 Callable。
+## [br]
+## @schema step: Variant sequence step value.
 signal step_completed(index: int, step: Variant)
 
 ## 步骤报告失败时发出。
+## [br]
+## @api public
+## [br]
+## @param index: 步骤索引。
+## [br]
+## @param step: 步骤对象、命令或 Callable。
+## [br]
+## @param error: 错误消息。
+## [br]
+## @schema step: Variant sequence step value.
 signal step_failed(index: int, step: Variant, error: String)
 
 ## 序列全部执行完成时发出。
+## [br]
+## @api public
 signal sequence_completed
 
 ## 序列因步骤失败而停止时发出。
+## [br]
+## @api public
+## [br]
+## @param report: 运行报告。
+## [br]
+## @schema report: Dictionary run report.
 signal sequence_failed(report: Dictionary)
 
 ## 序列被取消时发出。
+## [br]
+## @api public
 signal sequence_cancelled
 
 
@@ -39,27 +83,47 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## 默认步骤列表。
+## [br]
+## @api public
+## [br]
+## @schema steps: Array of GFSequenceStep, GFCommand, Callable, or objects with execute()/resolve().
 var steps: Array = []
 
 ## 序列上下文。
+## [br]
+## @api public
 var context: GFSequenceContext
 
 ## 当前是否正在执行。
+## [br]
+## @api public
 var is_running: bool = false
 
 ## 等待步骤 Signal 的超时时间（秒）。小于等于 0 时表示不启用超时。
+## [br]
+## @api public
 var signal_timeout_seconds: float = 30.0
 
 ## Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。
+## [br]
+## @api public
 var signal_timeout_respects_time_scale: bool = true
 
 ## 步骤返回失败结果时是否停止后续步骤。
+## [br]
+## @api public
 var stop_on_error: bool = false
 
 ## stop_on_error 生效后，是否对已完成且实现 undo() 的步骤逆序回滚。
+## [br]
+## @api public
 var rollback_on_failure: bool = false
 
 ## 最近一次运行报告。
+## [br]
+## @api public
+## [br]
+## @schema last_run_report: Dictionary run report from the most recent run().
 var last_run_report: Dictionary = {}
 
 
@@ -72,6 +136,15 @@ var _current_step: Variant = null
 
 # --- Godot 生命周期方法 ---
 
+## 创建指令序列。
+## [br]
+## @api public
+## [br]
+## @param p_steps: 初始步骤列表。
+## [br]
+## @param p_context: 初始序列上下文；为空时自动创建。
+## [br]
+## @schema p_steps: Array of GFSequenceStep, GFCommand, Callable, or objects with execute()/resolve().
 func _init(p_steps: Array = [], p_context: GFSequenceContext = null) -> void:
 	steps = p_steps.duplicate()
 	context = p_context if p_context != null else GFSequenceContext.new()
@@ -80,6 +153,9 @@ func _init(p_steps: Array = [], p_context: GFSequenceContext = null) -> void:
 # --- 公共方法 ---
 
 ## 注入架构。通常由 GFArchitecture 创建或注册时自动调用。
+## [br]
+## @api framework_internal
+## [br]
 ## @param architecture: 架构实例。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
@@ -88,7 +164,12 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 
 
 ## 运行序列。
+## [br]
+## @api public
+## [br]
 ## @param p_steps: 可选临时步骤列表；为空时使用 `steps`。
+## [br]
+## @schema p_steps: Array of GFSequenceStep, GFCommand, Callable, or objects with execute()/resolve().
 func run(p_steps: Array = []) -> void:
 	if is_running:
 		push_warning("[GFCommandSequence] 序列正在执行，忽略重复 run()。")
@@ -163,6 +244,8 @@ func run(p_steps: Array = []) -> void:
 
 
 ## 请求取消序列。当前步骤实现取消入口时会先收到取消请求，正在等待的 Signal 会在下一帧取消检查后停止。
+## [br]
+## @api public
 func cancel() -> void:
 	if _cancel_requested:
 		return
@@ -171,8 +254,14 @@ func cancel() -> void:
 
 
 ## 设置等待 Signal 的超时时间，并返回自身以便链式调用。
+## [br]
+## @api public
+## [br]
 ## @param seconds: 超时时间；小于等于 0 时表示不启用超时。
+## [br]
 ## @param respect_time_scale: 是否跟随 GFTimeUtility 的暂停与 time_scale。
+## [br]
+## @return 当前序列。
 func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFCommandSequence:
 	signal_timeout_seconds = maxf(seconds, 0.0)
 	signal_timeout_respects_time_scale = respect_time_scale
@@ -180,8 +269,13 @@ func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -> GFC
 
 
 ## 设置失败处理策略，并返回自身以便链式调用。
+## [br]
+## @api public
+## [br]
 ## @param should_stop_on_error: 是否在失败结果后停止。
+## [br]
 ## @param should_rollback_on_failure: 是否逆序调用已完成步骤 undo()。
+## [br]
 ## @return 当前序列。
 func with_failure_policy(
 	should_stop_on_error: bool = true,

@@ -1,22 +1,21 @@
 @tool
 
-## GF Flow Graph Inspector: 在 Inspector 中辅助检查资源化流程图。
+# GF Flow Graph Inspector: 在 Inspector 中辅助检查资源化流程图。
 extends EditorInspectorPlugin
 
 
 # --- 常量 ---
 
-const FLOW_EXTENSION_ID: String = "gf.flow"
-const GF_FLOW_GRAPH_SCRIPT_PATH: String = "res://addons/gf/extensions/flow/resources/gf_flow_graph.gd"
-const GF_FLOW_GRAPH_EDITOR_MODEL_BASE := preload("res://addons/gf/extensions/flow/editor/gf_flow_graph_editor_model.gd")
-const GF_EXTENSION_SETTINGS_BASE := preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
+const _FLOW_EXTENSION_ID: String = "gf.flow"
+const _GF_FLOW_GRAPH_SCRIPT_PATH: String = "res://addons/gf/extensions/flow/resources/gf_flow_graph.gd"
+const _GF_EXTENSION_SETTINGS_SCRIPT: Script = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
 # --- Godot 回调方法 ---
 
 func _can_handle(object: Object) -> bool:
-	if not GF_EXTENSION_SETTINGS_BASE.is_extension_enabled(FLOW_EXTENSION_ID):
+	if not _GF_EXTENSION_SETTINGS_SCRIPT.is_extension_enabled(_FLOW_EXTENSION_ID):
 		return false
 
 	var resource := object as Resource
@@ -87,7 +86,7 @@ func _populate_start_options(option: OptionButton, graph: Resource) -> void:
 	option.set_item_metadata(0, &"")
 	option.select(0)
 
-	var editor_model: GFFlowGraphEditorModel = GF_FLOW_GRAPH_EDITOR_MODEL_BASE.new()
+	var editor_model := GFFlowGraphEditorModel.new()
 	var catalog := editor_model.build_editor_catalog(graph)
 	var nodes := catalog.get("nodes", []) as Array
 	if nodes == null:
@@ -120,9 +119,9 @@ func _populate_start_options(option: OptionButton, graph: Resource) -> void:
 
 
 func _get_flow_graph_script() -> Script:
-	if not ResourceLoader.exists(GF_FLOW_GRAPH_SCRIPT_PATH):
+	if not ResourceLoader.exists(_GF_FLOW_GRAPH_SCRIPT_PATH):
 		return null
-	return load(GF_FLOW_GRAPH_SCRIPT_PATH) as Script
+	return load(_GF_FLOW_GRAPH_SCRIPT_PATH) as Script
 
 
 func _set_start_node(graph: Resource, node_id: StringName) -> void:
@@ -141,7 +140,7 @@ func _update_summary(label: Label, graph: Resource) -> void:
 	if label == null or graph == null:
 		return
 
-	var editor_model: GFFlowGraphEditorModel = GF_FLOW_GRAPH_EDITOR_MODEL_BASE.new()
+	var editor_model := GFFlowGraphEditorModel.new()
 	var report := editor_model.build_editor_report(graph)
 	var validation := report.get("validation", {}) as Dictionary
 	label.text = "%s\nNext: %s" % [

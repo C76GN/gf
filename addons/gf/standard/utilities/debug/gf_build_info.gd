@@ -2,74 +2,155 @@
 ##
 ## 用统一 Resource 承载项目版本、GF 版本、构建号、提交号和运行平台信息，
 ## 便于诊断、日志、存档元数据或项目自己的版本界面复用。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFBuildInfo
 extends Resource
 
 
 # --- 常量 ---
 
+## 构建标识 ProjectSettings 键。
+## [br]
+## @api public
 const BUILD_ID_SETTING: String = "gf/build/id"
+
+## 提交哈希 ProjectSettings 键。
+## [br]
+## @api public
 const COMMIT_HASH_SETTING: String = "gf/build/commit_hash"
+
+## 分支名 ProjectSettings 键。
+## [br]
+## @api public
 const BRANCH_SETTING: String = "gf/build/branch"
+
+## 标签名 ProjectSettings 键。
+## [br]
+## @api public
 const TAG_SETTING: String = "gf/build/tag"
+
+## 提交数量 ProjectSettings 键。
+## [br]
+## @api public
 const COMMIT_COUNT_SETTING: String = "gf/build/commit_count"
+
+## 工作区 dirty 状态 ProjectSettings 键。
+## [br]
+## @api public
 const IS_DIRTY_SETTING: String = "gf/build/is_dirty"
+
+## 构建 UTC 时间 ProjectSettings 键。
+## [br]
+## @api public
 const TIME_UTC_SETTING: String = "gf/build/time_utc"
+
+## 项目自定义构建元数据 ProjectSettings 键。
+## [br]
+## @api public
 const METADATA_SETTING: String = "gf/build/metadata"
+
+## 项目名称 ProjectSettings 键。
+## [br]
+## @api public
 const PROJECT_NAME_SETTING: String = "application/config/name"
+
+## 项目版本 ProjectSettings 键。
+## [br]
+## @api public
 const PROJECT_VERSION_SETTING: String = "application/config/version"
-const FRAMEWORK_PLUGIN_CONFIG_PATH: String = "res://addons/gf/plugin.cfg"
+
+const _FRAMEWORK_PLUGIN_CONFIG_PATH: String = "res://addons/gf/plugin.cfg"
 
 
 # --- 导出变量 ---
 
 ## 项目名称。
+## [br]
+## @api public
 @export var project_name: String = ""
 
 ## 项目版本。
+## [br]
+## @api public
 @export var project_version: String = ""
 
 ## GF Framework 版本。
+## [br]
+## @api public
 @export var framework_version: String = ""
 
 ## 构建流水线或发行流程写入的构建标识。
+## [br]
+## @api public
 @export var build_id: String = ""
 
 ## 构建对应的提交哈希。
+## [br]
+## @api public
 @export var commit_hash: String = ""
 
 ## 构建对应的分支名。
+## [br]
+## @api public
 @export var branch: String = ""
 
 ## 构建对应的标签名。
+## [br]
+## @api public
 @export var tag: String = ""
 
 ## 构建对应的提交数量或流水线序号。
+## [br]
+## @api public
 @export var commit_count: int = 0
 
 ## 构建来源工作区是否存在未提交改动。
+## [br]
+## @api public
 @export var is_dirty: bool = false
 
 ## 构建时间，建议使用 UTC ISO 文本。
+## [br]
+## @api public
 @export var build_time_utc: String = ""
 
 ## 当前运行的 Godot 引擎版本文本。
+## [br]
+## @api public
 @export var engine_version: String = ""
 
 ## 当前运行平台名称。
+## [br]
+## @api public
 @export var platform_name: String = ""
 
 ## 当前运行扩展是否为 debug build。
+## [br]
+## @api public
 @export var is_debug_build: bool = false
 
 ## 项目自定义构建元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存项目自定义构建元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 转换为 Dictionary。
-## @return 构建信息字典。
+## [br]
+## @api public
+## [br]
+## @return: 构建信息字典。
+## [br]
+## @schema return: Dictionary，包含 project_name、project_version、framework_version、build_id、commit_hash、branch、tag、commit_count、is_dirty、build_time_utc、engine_version、platform_name、is_debug_build 和 metadata 字段。
 func to_dict() -> Dictionary:
 	return {
 		"project_name": project_name,
@@ -90,7 +171,12 @@ func to_dict() -> Dictionary:
 
 
 ## 应用字典数据。
+## [br]
+## @api public
+## [br]
 ## @param data: 构建信息字典。
+## [br]
+## @schema data: Dictionary，可包含 project_name、project_version、framework_version、build_id、commit_hash、branch、tag、commit_count、is_dirty、build_time_utc、engine_version、platform_name、is_debug_build 和 metadata 字段。
 func apply_dict(data: Dictionary) -> void:
 	project_name = String(data.get("project_name", project_name))
 	project_version = String(data.get("project_version", project_version))
@@ -110,7 +196,10 @@ func apply_dict(data: Dictionary) -> void:
 
 
 ## 创建当前运行环境的构建信息。
-## @return 构建信息快照。
+## [br]
+## @api public
+## [br]
+## @return: 构建信息快照。
 static func collect() -> GFBuildInfo:
 	var info := GFBuildInfo.new()
 	info.project_name = _get_project_setting_text(PROJECT_NAME_SETTING)
@@ -132,8 +221,14 @@ static func collect() -> GFBuildInfo:
 
 
 ## 从 Dictionary 创建构建信息。
+## [br]
+## @api public
+## [br]
 ## @param data: 构建信息字典。
-## @return 新构建信息。
+## [br]
+## @return: 新构建信息。
+## [br]
+## @schema data: Dictionary，可包含 GFBuildInfo.to_dict() 输出的字段。
 static func from_dict(data: Dictionary) -> GFBuildInfo:
 	var info := GFBuildInfo.new()
 	info.apply_dict(data)
@@ -141,8 +236,14 @@ static func from_dict(data: Dictionary) -> GFBuildInfo:
 
 
 ## 从当前 Git 工作区收集构建元数据。该方法通常由导出脚本或编辑器工具调用。
+## [br]
+## @api public
+## [br]
 ## @param work_dir: Git 工作区目录；支持 `res://`、`user://` 或原生路径。
-## @return Git 构建元数据。
+## [br]
+## @return: Git 构建元数据。
+## [br]
+## @schema return: Dictionary，包含 commit_hash、branch、tag、commit_count、is_dirty 和 build_time_utc 字段。
 static func collect_git_metadata(work_dir: String = "res://") -> Dictionary:
 	var native_dir := _to_native_path(work_dir)
 	var short_hash := _run_git(native_dir, ["rev-parse", "--short=12", "HEAD"])
@@ -161,10 +262,20 @@ static func collect_git_metadata(work_dir: String = "res://") -> Dictionary:
 
 
 ## 把 Git 构建元数据写入 ProjectSettings，供 collect() 在运行时读取。
+## [br]
+## @api public
+## [br]
 ## @param work_dir: Git 工作区目录；支持 `res://`、`user://` 或原生路径。
+## [br]
 ## @param extra_metadata: 项目自定义构建元数据。
+## [br]
 ## @param save_settings: 是否立即保存 ProjectSettings。
-## @return 写入的构建元数据。
+## [br]
+## @return: 写入的构建元数据。
+## [br]
+## @schema extra_metadata: Dictionary，保存项目自定义构建元数据。
+## [br]
+## @schema return: Dictionary，包含已写入的 Git 构建元数据。
 static func write_git_metadata_to_project_settings(
 	work_dir: String = "res://",
 	extra_metadata: Dictionary = {},
@@ -185,7 +296,10 @@ static func write_git_metadata_to_project_settings(
 
 
 ## 复制构建信息。
-## @return 深拷贝后的构建信息。
+## [br]
+## @api public
+## [br]
+## @return: 深拷贝后的构建信息。
 func duplicate_info() -> GFBuildInfo:
 	return GFBuildInfo.from_dict(to_dict())
 
@@ -200,7 +314,7 @@ static func _get_project_setting_text(path: String) -> String:
 
 static func _read_framework_version() -> String:
 	var config := ConfigFile.new()
-	var error := config.load(FRAMEWORK_PLUGIN_CONFIG_PATH)
+	var error := config.load(_FRAMEWORK_PLUGIN_CONFIG_PATH)
 	if error != OK:
 		return ""
 	return String(config.get_value("plugin", "version", ""))

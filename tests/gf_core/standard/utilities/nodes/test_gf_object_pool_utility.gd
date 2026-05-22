@@ -129,8 +129,9 @@ func test_acquire_returns_valid_node() -> void:
 ## 验证 acquire 后节点的 metadata 被标记为激活状态。
 func test_acquire_node_is_active() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
-	var is_active: bool = node.get_meta(&"_gf_pool_active", false)
-	assert_true(is_active, "acquire 返回的节点 metadata _gf_pool_active 应为 true。")
+
+	assert_eq(_pool.get_active_count(_scene), 1, "acquire 后对象池应报告一个激活节点。")
+	assert_true(_pool.get_active_nodes(_scene).has(node), "acquire 返回的节点应出现在激活节点列表中。")
 
 
 # --- 测试：release ---
@@ -140,8 +141,8 @@ func test_release_marks_node_inactive() -> void:
 	var node: Node = _pool.acquire(_scene, _parent)
 	_pool.release(node, _scene)
 
-	var is_active: bool = node.get_meta(&"_gf_pool_active", false)
-	assert_false(is_active, "release 后节点 metadata _gf_pool_active 应为 false。")
+	assert_eq(_pool.get_active_count(_scene), 0, "release 后对象池不应继续报告激活节点。")
+	assert_eq(_pool.get_available_count(_scene), 1, "release 后节点应进入可用池。")
 
 
 ## 验证 release 后 CanvasItem 会被隐藏并暂停处理，acquire 时恢复。
@@ -227,16 +228,14 @@ func test_prewarmed_controller_events_stay_paused_until_acquire() -> void:
 	var controller_scene := _make_pooled_controller_scene()
 
 	_pool.prewarm(controller_scene, _parent, 1)
-	var controller := (_pool._available_pools[controller_scene] as Array)[0] as PooledEventController
+	assert_eq(_pool.get_available_count(controller_scene), 1, "prewarm 后应有一个可用 Controller。")
 	architecture.send_simple_event(&"pooled_controller_event", "prewarmed")
 
-	assert_eq(controller.payloads, [], "预热但未取出的 Controller 不应接收事件。")
-
 	var acquired := _pool.acquire(controller_scene, _parent) as PooledEventController
+	assert_eq(acquired.payloads, [], "预热但未取出的 Controller 不应接收事件。")
 	architecture.send_simple_event(&"pooled_controller_event", "active")
 
-	assert_eq(acquired, controller, "预热节点应在 acquire 时被复用。")
-	assert_eq(controller.payloads, ["active"], "Controller acquire 后应恢复事件监听。")
+	assert_eq(acquired.payloads, ["active"], "Controller acquire 后应恢复事件监听。")
 
 
 ## 验证对有效池的连续 acquire/release 循环不产生额外实例。
@@ -351,7 +350,7 @@ func test_dispose_detaches_active_and_pooled_nodes_immediately() -> void:
 	var active_node: Node = _pool.acquire(_scene, _parent)
 	var pooled_node: Node = _pool.acquire(_scene, _parent)
 	_pool.release(pooled_node, _scene)
-	var pool_root := _pool._pool_root
+	var pool_root := pooled_node.get_parent()
 
 	_pool.dispose()
 
@@ -449,8 +448,10 @@ func test_acquire_invalid_freed_instance_is_safe() -> void:
 
 	# 如果没有安全类型推断和防崩溃处理，下面这行就会报错
 	var new_node: Node = _pool.acquire(_scene, _parent)
+	var snapshot := _pool.get_debug_snapshot()
+	var key := "PackedScene:%d" % _scene.get_instance_id()
 
 	assert_not_null(new_node, "池内存在非法实例时，acquire 应该平稳度过并返回一个新的有效实例。")
 	assert_true(is_instance_valid(new_node), "新获得的 node 应该是有效的新实例。")
 	assert_ne(new_node, node, "新实例不能是那个被强制 free 的原实例。")
-	assert_eq((_pool._all_nodes[_scene] as Array).size(), 1, "清理无效实例后，全量池中不应继续保留死对象引用。")
+	assert_eq(int((snapshot[key] as Dictionary).get("total")), 1, "清理无效实例后，全量池中不应继续保留死对象引用。")

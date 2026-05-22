@@ -7,16 +7,10 @@ var _quest: TrackingQuestUtility
 
 class TrackingQuestUtility extends GFQuestUtility:
 	var disposed_called: bool = false
-	var triggered_after_dispose: bool = false
 
 	func dispose() -> void:
 		disposed_called = true
 		super.dispose()
-
-	func _on_quest_event_triggered(payload: Variant, event_id: StringName) -> void:
-		if disposed_called:
-			triggered_after_dispose = true
-		super._on_quest_event_triggered(payload, event_id)
 
 
 func before_each() -> void:
@@ -41,12 +35,13 @@ func test_quest_progress() -> void:
 	_quest.start_quest(&"kill_slimes", &"enemy_died", 3)
 
 	_quest.emit_quest_event(&"enemy_died", 1)
-	var q_data: Object = _quest._quests[&"kill_slimes"]
-	assert_eq(q_data.current_count, 1)
+	var q_data := _quest.get_quest_report(&"kill_slimes")
+	assert_eq(int(q_data.get("current_count", -1)), 1)
 	assert_false(_quest.is_quest_completed(&"kill_slimes"))
 
 	_quest.emit_quest_event(&"enemy_died", 2)
-	assert_eq(q_data.current_count, 3)
+	q_data = _quest.get_quest_report(&"kill_slimes")
+	assert_eq(int(q_data.get("current_count", -1)), 3)
 	assert_true(_quest.is_quest_completed(&"kill_slimes"))
 	assert_eq(int(_quest.get_debug_snapshot().get("event_count", -1)), 0, "最后一个任务完成后应注销对应事件监听。")
 
@@ -66,8 +61,8 @@ func test_float_payload_amount_is_rounded() -> void:
 
 	Gf.send_simple_event(&"part_looted", 1.6)
 
-	var q_data: Object = _quest._quests[&"collect_parts"]
-	assert_eq(q_data.current_count, 2, "float 进度载荷应四舍五入为最接近的整数。")
+	var q_data := _quest.get_quest_report(&"collect_parts")
+	assert_eq(int(q_data.get("current_count", -1)), 2, "float 进度载荷应四舍五入为最接近的整数。")
 
 
 func test_negative_payload_amount_is_ignored_by_default() -> void:
@@ -76,8 +71,8 @@ func test_negative_payload_amount_is_ignored_by_default() -> void:
 	Gf.send_simple_event(&"progress_event", 2)
 	Gf.send_simple_event(&"progress_event", -5)
 
-	var q_data: Object = _quest._quests[&"hold_progress"]
-	assert_eq(q_data.current_count, 2, "默认不应允许负数 payload 反向扣减任务进度。")
+	var q_data := _quest.get_quest_report(&"hold_progress")
+	assert_eq(int(q_data.get("current_count", -1)), 2, "默认不应允许负数 payload 反向扣减任务进度。")
 
 
 func test_negative_payload_amount_can_be_enabled() -> void:
@@ -87,8 +82,8 @@ func test_negative_payload_amount_can_be_enabled() -> void:
 	Gf.send_simple_event(&"progress_event", 2)
 	Gf.send_simple_event(&"progress_event", -1)
 
-	var q_data: Object = _quest._quests[&"decay_progress"]
-	assert_eq(q_data.current_count, 1, "显式开启后应允许负数 payload 调整进度。")
+	var q_data := _quest.get_quest_report(&"decay_progress")
+	assert_eq(int(q_data.get("current_count", -1)), 1, "显式开启后应允许负数 payload 调整进度。")
 
 
 func test_negative_progress_percentage_is_clamped_to_documented_range() -> void:
@@ -97,8 +92,8 @@ func test_negative_progress_percentage_is_clamped_to_documented_range() -> void:
 
 	Gf.send_simple_event(&"progress_event", -1)
 
-	var q_data: Object = _quest._quests[&"decay_progress"]
-	assert_eq(q_data.current_count, -1, "原始任务计数仍应允许负数。")
+	var q_data := _quest.get_quest_report(&"decay_progress")
+	assert_eq(int(q_data.get("current_count", 0)), -1, "原始任务计数仍应允许负数。")
 	assert_eq(_quest.get_quest_progress(&"decay_progress"), 0.0, "公开进度百分比应保持在 0..1。")
 
 
@@ -114,8 +109,8 @@ func test_start_quest_rejects_empty_ids() -> void:
 	_quest.start_quest(&"", &"event", 1)
 	_quest.start_quest(&"quest", &"", 1)
 
-	assert_false(_quest._quests.has(&""), "空 quest_id 不应注册任务。")
-	assert_false(_quest._quests.has(&"quest"), "空 target_event 不应注册任务。")
+	assert_eq(_quest.get_quest_report(&""), {}, "空 quest_id 不应注册任务。")
+	assert_eq(_quest.get_quest_report(&"quest"), {}, "空 target_event 不应注册任务。")
 	assert_push_error("[GFQuestUtility] quest_id 和 target_event 不能为空。")
 	assert_push_error("[GFQuestUtility] quest_id 和 target_event 不能为空。")
 
@@ -127,9 +122,9 @@ func test_deep_payload_amount_falls_back_without_recursion_overflow() -> void:
 		payload = { "amount": payload }
 
 	Gf.send_simple_event(&"nested_event", payload)
-	var q_data: Object = _quest._quests[&"nested_payload"]
+	var q_data := _quest.get_quest_report(&"nested_payload")
 
-	assert_eq(q_data.current_count, 1, "嵌套过深的 payload 应回退为默认进度。")
+	assert_eq(int(q_data.get("current_count", -1)), 1, "嵌套过深的 payload 应回退为默认进度。")
 	assert_push_error("[GFQuestUtility] payload.amount 嵌套过深，已回退为默认进度 1。")
 
 
@@ -227,4 +222,4 @@ func test_dispose_unregisters_simple_event_listener() -> void:
 
 	assert_true(_quest.disposed_called, "注销 Utility 时应执行 dispose。")
 	Gf.send_simple_event(&"enemy_died", 1)
-	assert_false(_quest.triggered_after_dispose, "dispose 后不应再收到旧的 simple event 回调。")
+	assert_false(_quest.is_quest_completed(&"cleanup_listener"), "dispose 后旧 simple event 回调不应继续推进任务。")

@@ -1,18 +1,34 @@
 @tool
 
-## GF 插件 AutoLoad 管理辅助。
+# GF 插件 AutoLoad 管理辅助。
 extends RefCounted
 
 
 # --- 常量 ---
 
+## GF AutoLoad 名称。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const AUTOLOAD_NAME: String = "Gf"
+
+## GF AutoLoad 脚本路径。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const AUTOLOAD_PATH: String = "res://addons/gf/kernel/core/gf.gd"
 
 
 # --- 公共方法 ---
 
 ## 确保 GF AutoLoad 已安装。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
 static func ensure(plugin: EditorPlugin) -> void:
 	if plugin == null:
@@ -24,6 +40,11 @@ static func ensure(plugin: EditorPlugin) -> void:
 
 
 ## 移除由 GF 插件安装的 AutoLoad。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
 static func remove(plugin: EditorPlugin) -> void:
 	if plugin == null:

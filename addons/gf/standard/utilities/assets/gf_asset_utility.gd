@@ -2,6 +2,12 @@
 ##
 ## 封装 Godot 的 threaded `ResourceLoader` 请求，
 ## 用于避免大资源同步加载阻塞主线程，并在完成后统一分发回调与维护缓存。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFAssetUtility
 extends GFUtility
 
@@ -9,17 +15,30 @@ extends GFUtility
 # --- 信号 ---
 
 ## 创建资源句柄时发出。
+## [br]
+## @api public
+## [br]
 ## @param handle: 新创建的资源句柄。
 signal asset_handle_acquired(handle: GFAssetHandle)
 
 ## 资源句柄释放时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @param reference_count: 剩余引用数量。
 signal asset_handle_released(path: String, reference_count: int)
 
 ## 资源分组预加载完成时发出。
+## [br]
+## @api public
+## [br]
 ## @param group_id: 分组标识。
+## [br]
 ## @param report: 预加载报告。
+## [br]
+## @schema report: Dictionary with `ok: bool`, `group_id: StringName`, `paths: PackedStringArray`, `failed_paths: PackedStringArray`, `total: int`, and `completed: int`.
 signal asset_group_preloaded(group_id: StringName, report: Dictionary)
 
 
@@ -31,6 +50,8 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## LRU 缓存最大容量；设为 `0` 时表示禁用缓存。
+## [br]
+## @api public
 var max_cache_size: int:
 	get:
 		return _max_cache_size
@@ -47,13 +68,13 @@ var max_cache_size: int:
 
 var _max_cache_size: int = 64
 
-## 正在加载中的请求：`path -> { type_hint: String, callbacks: Array[Callable], cancelled: bool }`。
+# 正在加载中的请求：`path -> { type_hint: String, callbacks: Array[Callable], cancelled: bool }`。
 var _pending: Dictionary = {}
 
-## 资源缓存：`path -> Resource`。
+# 资源缓存：`path -> Resource`。
 var _cache: Dictionary = {}
 
-## LRU 访问序号，数值越大表示越新。
+# LRU 访问序号，数值越大表示越新。
 var _cache_access_order: Dictionary = {}
 var _cache_access_serial: int = 0
 var _pinned_cache_paths: Dictionary = {}
@@ -66,8 +87,11 @@ var _group_paths: Dictionary = {}
 var _group_pin_counts: Dictionary = {}
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化资源加载工具的运行时状态。
+## [br]
+## @api public
 func init() -> void:
 	ignore_pause = true
 	_pending = {}
@@ -84,6 +108,9 @@ func init() -> void:
 	_cache_access_serial = 0
 
 
+## 释放资源加载工具持有的运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	_pending.clear()
 	_cache.clear()
@@ -102,8 +129,13 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 发起异步资源加载。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标资源路径。
+## [br]
 ## @param on_loaded: 加载完成后的回调。
+## [br]
 ## @param type_hint: 可选资源类型提示。
 func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> void:
 	if path.is_empty() or not on_loaded.is_valid():
@@ -150,10 +182,17 @@ func load_async(path: String, on_loaded: Callable, type_hint: String = "") -> vo
 
 
 ## 异步加载资源并在成功后返回所有权句柄。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标资源路径。
+## [br]
 ## @param on_loaded: 加载完成回调，签名为 func(handle: GFAssetHandle)；失败时传入 null。
+## [br]
 ## @param type_hint: 可选资源类型提示。
+## [br]
 ## @param owner: 可选拥有者。若为 Node，会在退出树时自动释放其持有的句柄引用。
+## [br]
 ## @param group_id: 可选资源分组。
 func load_handle_async(
 	path: String,
@@ -182,11 +221,19 @@ func load_handle_async(
 
 
 ## 为已缓存或指定资源创建所有权句柄。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @param owner: 可选拥有者。若为 Node，会在退出树时自动释放其持有的句柄引用。
+## [br]
 ## @param group_id: 可选资源分组。
+## [br]
 ## @param type_hint: 可选资源类型提示。
+## [br]
 ## @param resource_override: 可选资源实例；为空时使用当前缓存。
+## [br]
 ## @return 成功时返回句柄；资源不可用时返回 null。
 func acquire_handle(
 	path: String,
@@ -213,14 +260,18 @@ func acquire_handle(
 	_increment_reference(path, owner, group_id)
 
 	var handle := GFAssetHandle.new()
-	handle._setup(self, path, resource, type_hint, group_id, owner_id)
+	handle.setup_from_utility(self, path, resource, type_hint, group_id, owner_id)
 	_track_handle(handle)
 	asset_handle_acquired.emit(handle)
 	return handle
 
 
 ## 释放资源句柄。
+## [br]
+## @api public
+## [br]
 ## @param handle: 要释放的资源句柄。
+## [br]
 ## @return 释放成功返回 true。
 func release_handle(handle: GFAssetHandle) -> bool:
 	if handle == null or handle.path.is_empty() or handle.is_released():
@@ -228,14 +279,18 @@ func release_handle(handle: GFAssetHandle) -> bool:
 
 	var path := handle.path
 	var remaining := _decrement_reference(path, handle.get_owner_id())
-	handle._release_local()
+	handle.release_local_reference()
 	_prune_handle_refs()
 	asset_handle_released.emit(path, remaining)
 	return true
 
 
 ## 释放指定 owner 持有的所有资源引用。
+## [br]
+## @api public
+## [br]
 ## @param owner: 拥有者对象。
+## [br]
 ## @return 释放的引用数量。
 func release_owner(owner: Object) -> int:
 	if owner == null:
@@ -244,15 +299,24 @@ func release_owner(owner: Object) -> int:
 
 
 ## 获取指定资源路径当前句柄引用数量。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @return 引用数量。
 func get_asset_reference_count(path: String) -> int:
 	return int(_reference_counts.get(path, 0))
 
 
 ## 注册资源路径到分组。
+## [br]
+## @api public
+## [br]
 ## @param group_id: 分组标识。
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @param pin: 是否以分组名义锁定缓存，避免 LRU 淘汰。
 func register_group_path(group_id: StringName, path: String, pin: bool = false) -> void:
 	if group_id == &"" or path.is_empty():
@@ -269,7 +333,11 @@ func register_group_path(group_id: StringName, path: String, pin: bool = false) 
 
 
 ## 获取分组中的资源路径。
+## [br]
+## @api public
+## [br]
 ## @param group_id: 分组标识。
+## [br]
 ## @return 路径列表。
 func get_group_paths(group_id: StringName) -> PackedStringArray:
 	var result := PackedStringArray()
@@ -281,10 +349,20 @@ func get_group_paths(group_id: StringName) -> PackedStringArray:
 
 
 ## 异步预加载资源分组。
+## [br]
+## @api public
+## [br]
 ## @param group_id: 分组标识。
+## [br]
 ## @param entries: 路径字符串，或包含 path/type_hint 字段的字典数组。
+## [br]
+## @schema entries: Array[String|Dictionary] where dictionary entries may contain `path: String` and `type_hint: String`.
+## [br]
 ## @param on_completed: 完成回调，签名为 func(report: Dictionary)。
+## [br]
 ## @param options: 可选参数，支持 pin_cache。
+## [br]
+## @schema options: Dictionary with optional `pin_cache: bool`.
 func preload_group_async(
 	group_id: StringName,
 	entries: Array,
@@ -341,7 +419,11 @@ func preload_group_async(
 
 
 ## 卸载资源分组。
+## [br]
+## @api public
+## [br]
 ## @param group_id: 分组标识。
+## [br]
 ## @param remove_unreferenced_cache: 是否移除没有句柄引用的缓存项。
 func unload_group(group_id: StringName, remove_unreferenced_cache: bool = false) -> void:
 	var paths := _group_paths.get(group_id, {}) as Dictionary
@@ -358,13 +440,20 @@ func unload_group(group_id: StringName, remove_unreferenced_cache: bool = false)
 
 
 ## 驱动异步加载轮询。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 为兼容统一 tick 签名而保留的参数。
 func tick(_delta: float = 0.0) -> void:
 	_poll_pending()
 
 
 ## 获取缓存中的资源。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @return 命中缓存时返回资源，否则返回 `null`。
 func get_cached(path: String) -> Resource:
 	if _cache.has(path):
@@ -375,8 +464,13 @@ func get_cached(path: String) -> Resource:
 
 
 ## 检查指定路径是否正在加载中。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @param type_hint: 可选资源类型提示；为空时只检查路径。
+## [br]
 ## @return 正在加载时返回 `true`。
 func is_loading(path: String, type_hint: String = "") -> bool:
 	if not _pending.has(path):
@@ -391,14 +485,22 @@ func is_loading(path: String, type_hint: String = "") -> bool:
 
 
 ## 检查指定路径是否已缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @return 已缓存时返回 `true`。
 func is_cached(path: String) -> bool:
 	return _cache.has(path)
 
 
 ## 取消指定路径的异步加载请求。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @param type_hint: 可选资源类型提示；为空时取消该路径的当前请求。
 func cancel(path: String, type_hint: String = "") -> void:
 	if not _pending.has(path):
@@ -415,7 +517,11 @@ func cancel(path: String, type_hint: String = "") -> void:
 
 
 ## 手动写入缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @param resource: 要缓存的资源实例。
 func put_cache(path: String, resource: Resource) -> void:
 	if path.is_empty() or resource == null or max_cache_size <= 0:
@@ -427,6 +533,9 @@ func put_cache(path: String, resource: Resource) -> void:
 
 
 ## 手动移除缓存项。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
 func remove_cache(path: String) -> void:
 	_cache.erase(path)
@@ -437,6 +546,8 @@ func remove_cache(path: String) -> void:
 
 
 ## 清空全部缓存。
+## [br]
+## @api public
 func clear_cache() -> void:
 	_cache.clear()
 	_cache_access_order.clear()
@@ -451,12 +562,18 @@ func clear_cache() -> void:
 
 
 ## 获取当前缓存数量。
+## [br]
+## @api public
+## [br]
 ## @return 当前缓存中的资源数。
 func get_cache_count() -> int:
 	return _cache.size()
 
 
 ## 锁定指定缓存路径，使其不参与 LRU 淘汰。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
 func pin_cache(path: String) -> void:
 	if path.is_empty():
@@ -465,6 +582,9 @@ func pin_cache(path: String) -> void:
 
 
 ## 解除指定缓存路径的 LRU 锁定。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
 func unpin_cache(path: String) -> void:
 	if not _pinned_cache_paths.has(path):
@@ -479,14 +599,23 @@ func unpin_cache(path: String) -> void:
 
 
 ## 检查指定缓存路径是否已被锁定。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径。
+## [br]
 ## @return 已锁定返回 true。
 func is_cache_pinned(path: String) -> bool:
 	return int(_pinned_cache_paths.get(path, 0)) > 0
 
 
 ## 获取资源加载工具诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 诊断快照字典。
+## [br]
+## @schema return: Dictionary with cache, pending, pinned, reference count, and group count diagnostic fields.
 func get_debug_snapshot() -> Dictionary:
 	var cached_paths := PackedStringArray()
 	for path: String in _cache.keys():
@@ -644,7 +773,7 @@ func _release_all_handles() -> void:
 	for handle_ref: WeakRef in _handle_refs:
 		var handle := handle_ref.get_ref() as GFAssetHandle
 		if handle != null:
-			handle._release_local()
+			handle.release_local_reference()
 	_handle_refs.clear()
 
 
@@ -654,7 +783,7 @@ func _release_owner_handles(owner_id: int) -> void:
 		if handle == null or handle.is_released():
 			_handle_refs.remove_at(index)
 		elif handle.get_owner_id() == owner_id:
-			handle._release_local()
+			handle.release_local_reference()
 			_handle_refs.remove_at(index)
 
 

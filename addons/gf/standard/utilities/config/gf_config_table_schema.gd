@@ -1,6 +1,12 @@
 ## GFConfigTableSchema: 通用导表结构声明与校验器。
 ##
 ## 用于在导入期或运行时校验表数据结构，保持数据工具链可替换且不绑定业务表。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFConfigTableSchema
 extends Resource
 
@@ -13,48 +19,94 @@ const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/co
 # --- 导出变量 ---
 
 ## 表名。为空时可由调用方自行决定表标识。
+## [br]
+## @api public
 @export var table_name: StringName = &""
 
 ## 记录 ID 字段。为空时不检查记录 ID。
+## [br]
+## @api public
 @export var id_field: StringName = &"id"
 
 ## 字段声明列表。
+## [br]
+## @api public
+## [br]
+## @schema columns: Array[GFConfigTableColumn]，定义当前表允许的字段和字段级校验规则。
 @export var columns: Array[GFConfigTableColumn] = []
 
 ## 是否允许记录包含 schema 未声明的字段。
+## [br]
+## @api public
 @export var allow_extra_fields: bool = true
 
 ## 是否在校验前按字段声明尝试类型转换。
+## [br]
+## @api public
 @export var coerce_values: bool = false
 
 ## 启用 coerce_values 时，转换失败是否作为校验错误。
+## [br]
+## @api public
 @export var fail_on_coerce_error: bool = true
 
 ## 校验整表时是否要求 id_field 唯一。
+## [br]
+## @api public
 @export var require_unique_id: bool = false
 
 ## 可选复合索引声明。唯一索引会参与表级校验。
+## [br]
+## @api public
+## [br]
+## @schema indexes: Array[GFConfigTableIndexDefinition]，定义当前表的复合索引和唯一性约束。
 @export var indexes: Array[GFConfigTableIndexDefinition] = []
 
 ## 可选跨表引用声明。引用目标由 `GFConfigReferenceResolver` 在多表上下文中校验。
+## [br]
+## @api public
+## [br]
+## @schema references: Array[GFConfigTableReference]，定义当前表到其他表的引用关系。
 @export var references: Array[GFConfigTableReference] = []
 
 ## 可选记录级校验规则。规则会在字段结构校验后作用于整条记录。
+## [br]
+## @api public
+## [br]
+## @schema record_validation_rules: Array[GFConfigValidationRule]，包含作用于单条记录的校验规则。
 @export var record_validation_rules: Array[GFConfigValidationRule] = []
 
 ## 可选表级校验规则。规则会在行结构、唯一 ID 和索引校验后作用于整表。
+## [br]
+## @api public
+## [br]
+## @schema table_validation_rules: Array[GFConfigValidationRule]，包含作用于整张表的校验规则。
 @export var table_validation_rules: Array[GFConfigValidationRule] = []
 
 ## 可选元数据，供导入器、编辑器或项目层扩展使用。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存导入器、编辑器或项目层附加到当前 schema 的元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 从记录样本推导通用 schema。
+## [br]
+## @api public
+## [br]
 ## @param inferred_table_name: 推导出的表名。
+## [br]
 ## @param table_data: Array[Dictionary] 或 Dictionary 形式的表数据。
+## [br]
+## @schema table_data: Variant，支持 Array[Dictionary] 或 Dictionary，记录值必须为 Dictionary。
+## [br]
 ## @param options: 可选参数，支持 id_field、required_if_present_in_all_rows、allow_extra_fields、coerce_values。
+## [br]
+## @schema options: Dictionary，可包含 id_field、required_if_present_in_all_rows、allow_extra_fields 和 coerce_values。
+## [br]
 ## @return 推导出的 schema；数据无效时返回空 schema。
 static func infer_from_records(
 	inferred_table_name: StringName,
@@ -100,13 +152,20 @@ static func infer_from_records(
 
 
 ## 获取稳定表键。
+## [br]
+## @api public
+## [br]
 ## @return 表名。
 func get_table_key() -> StringName:
 	return table_name
 
 
 ## 获取字段声明。
+## [br]
+## @api public
+## [br]
 ## @param field_name: 字段名。
+## [br]
 ## @return 找到时返回字段声明，否则返回 null。
 func get_column(field_name: StringName) -> GFConfigTableColumn:
 	for column: GFConfigTableColumn in columns:
@@ -116,14 +175,22 @@ func get_column(field_name: StringName) -> GFConfigTableColumn:
 
 
 ## 检查字段声明是否存在。
+## [br]
+## @api public
+## [br]
 ## @param field_name: 字段名。
+## [br]
 ## @return 存在返回 true。
 func has_column(field_name: StringName) -> bool:
 	return get_column(field_name) != null
 
 
 ## 获取索引声明。
+## [br]
+## @api public
+## [br]
 ## @param index_id: 索引标识。
+## [br]
 ## @return 找到时返回索引声明，否则返回 null。
 func get_index(index_id: StringName) -> GFConfigTableIndexDefinition:
 	for index: GFConfigTableIndexDefinition in indexes:
@@ -133,14 +200,22 @@ func get_index(index_id: StringName) -> GFConfigTableIndexDefinition:
 
 
 ## 检查索引声明是否存在。
+## [br]
+## @api public
+## [br]
 ## @param index_id: 索引标识。
+## [br]
 ## @return 存在返回 true。
 func has_index(index_id: StringName) -> bool:
 	return get_index(index_id) != null
 
 
 ## 获取引用声明。
+## [br]
+## @api public
+## [br]
 ## @param reference_id: 引用标识。
+## [br]
 ## @return 找到时返回引用声明，否则返回 null。
 func get_reference(reference_id: StringName) -> GFConfigTableReference:
 	for reference: GFConfigTableReference in references:
@@ -150,13 +225,20 @@ func get_reference(reference_id: StringName) -> GFConfigTableReference:
 
 
 ## 检查引用声明是否存在。
+## [br]
+## @api public
+## [br]
 ## @param reference_id: 引用标识。
+## [br]
 ## @return 存在返回 true。
 func has_reference(reference_id: StringName) -> bool:
 	return get_reference(reference_id) != null
 
 
 ## 获取当前 schema 的字段名列表。
+## [br]
+## @api public
+## [br]
 ## @return 字段名列表。
 func get_column_names() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -168,8 +250,16 @@ func get_column_names() -> PackedStringArray:
 
 
 ## 校验 schema 自身声明是否完整、一致。
+## [br]
+## @api public
+## [br]
 ## @param options: 可选上下文，支持 source。
+## [br]
+## @schema options: Dictionary，可包含 source、line、column、row_index、column_index 和 row_locations。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_definition(options: Dictionary = {}) -> Dictionary:
 	var report: Dictionary = _make_report(0)
 	_validate_column_definitions(report, options)
@@ -181,10 +271,24 @@ func validate_definition(options: Dictionary = {}) -> Dictionary:
 
 
 ## 校验单条记录。
+## [br]
+## @api public
+## [br]
 ## @param record: 记录字典。
+## [br]
+## @schema record: Dictionary，待校验的配置记录，键为字段名，值为字段数据。
+## [br]
 ## @param row_key: 可选行标识，用于错误报告。
+## [br]
+## @schema row_key: Variant，写入校验报告 issue 的行标识。
+## [br]
 ## @param options: 可选上下文，支持 source、line、row_index、row_locations。
+## [br]
+## @schema options: Dictionary，可包含 source、line、column、row_index、column_index 和 row_locations。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_record(record: Dictionary, row_key: Variant = null, options: Dictionary = {}) -> Dictionary:
 	var report: Dictionary = _make_report(1)
 	var working_record: Dictionary = _coerce_record_for_validation(record, row_key, report, options) if coerce_values else record
@@ -227,9 +331,20 @@ func validate_record(record: Dictionary, row_key: Variant = null, options: Dicti
 
 
 ## 校验整张表。
+## [br]
+## @api public
+## [br]
 ## @param table_data: Array[Dictionary] 或 Dictionary 形式的表数据。
+## [br]
+## @schema table_data: Variant，支持 Array[Dictionary] 或 Dictionary，记录值必须为 Dictionary。
+## [br]
 ## @param options: 可选上下文，支持 source、row_locations。
+## [br]
+## @schema options: Dictionary，可包含 source、line、column、row_index、column_index 和 row_locations。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 func validate_table(table_data: Variant, options: Dictionary = {}) -> Dictionary:
 	var report: Dictionary = _make_report(0)
 	if table_data is Array:
@@ -244,8 +359,16 @@ func validate_table(table_data: Variant, options: Dictionary = {}) -> Dictionary
 
 
 ## 按字段声明转换单条记录。
+## [br]
+## @api public
+## [br]
 ## @param record: 输入记录。
+## [br]
+## @schema record: Dictionary，待转换的配置记录，键为字段名，值为字段数据。
+## [br]
 ## @return 转换后的新记录。
+## [br]
+## @schema return: Dictionary，转换后的记录副本。
 func coerce_record(record: Dictionary) -> Dictionary:
 	var result: Dictionary = record.duplicate(true)
 	for column: GFConfigTableColumn in columns:
@@ -261,8 +384,14 @@ func coerce_record(record: Dictionary) -> Dictionary:
 
 
 ## 创建空记录模板。
+## [br]
+## @api public
+## [br]
 ## @param include_optional: 为 true 时包含非必填字段。
+## [br]
 ## @return 新记录字典。
+## [br]
+## @schema return: Dictionary，键为字段名，值为字段默认值转换后的结果。
 func build_empty_record(include_optional: bool = true) -> Dictionary:
 	var result: Dictionary = {}
 	for column: GFConfigTableColumn in columns:
@@ -274,6 +403,9 @@ func build_empty_record(include_optional: bool = true) -> Dictionary:
 
 
 ## 创建同内容拷贝，避免运行时修改污染共享 Resource。
+## [br]
+## @api public
+## [br]
 ## @return 新 schema。
 func duplicate_schema() -> GFConfigTableSchema:
 	var schema: GFConfigTableSchema = GFConfigTableSchema.new()
@@ -298,7 +430,12 @@ func duplicate_schema() -> GFConfigTableSchema:
 
 
 ## 导出 schema 摘要。
+## [br]
+## @api public
+## [br]
 ## @return schema 字典。
+## [br]
+## @schema return: Dictionary，包含 table_name、id_field、columns、allow_extra_fields、coerce_values、fail_on_coerce_error、require_unique_id、indexes、references、record_validation_rules、table_validation_rules 和 metadata。
 func describe() -> Dictionary:
 	var column_descriptions: Array[Dictionary] = []
 	for column: GFConfigTableColumn in columns:

@@ -2,6 +2,12 @@
 ##
 ## 提供边界判断、邻居枚举、A* 寻路、可达范围和台阶式表面邻居。
 ## 它不依赖 GridMap 或场景节点；可通行、代价和高度规则都由回调注入。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFGrid3DMath
 extends RefCounted
 
@@ -28,8 +34,13 @@ const _SURFACE_DIRECTIONS: Array[Vector3i] = [
 # --- 公共方法 ---
 
 ## 判断格子是否在 3D 网格范围内。
+## [br]
+## @api public
+## [br]
 ## @param cell: 待检测格子。
+## [br]
 ## @param grid_size: 网格尺寸，三个轴都必须大于 0。
+## [br]
 ## @return 在范围内时返回 true。
 static func is_in_bounds(cell: Vector3i, grid_size: Vector3i) -> bool:
 	return (
@@ -46,9 +57,15 @@ static func is_in_bounds(cell: Vector3i, grid_size: Vector3i) -> bool:
 
 
 ## 获取 3D 网格邻居。
+## [br]
+## @api public
+## [br]
 ## @param cell: 中心格子。
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param allow_diagonal: 是否包含 26 邻域；否则只包含 6 个正交邻居。
+## [br]
 ## @return 边界内邻居数组。
 static func get_neighbors(
 	cell: Vector3i,
@@ -65,12 +82,21 @@ static func get_neighbors(
 
 
 ## 获取台阶式表面移动邻居。
+## [br]
+## @api public
+## [br]
 ## @param cell: 当前站立格。
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param is_walkable: 可站立回调，签名为 `func(cell: Vector3i) -> bool`。
+## [br]
 ## @param max_step_up: 单步最多上升高度。
+## [br]
 ## @param max_step_down: 单步最多下降高度。
+## [br]
 ## @param horizontal_directions: 可选水平移动方向；为空时使用 X/Z 四方向。
+## [br]
 ## @return 可站立的相邻表面格。
 static func get_surface_neighbors(
 	cell: Vector3i,
@@ -99,13 +125,23 @@ static func get_surface_neighbors(
 
 
 ## 使用 A* 查找 3D 网格路径。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param start: 起点格子。
+## [br]
 ## @param goal: 终点格子。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector3i) -> bool`。
+## [br]
 ## @param allow_diagonal: 是否允许 26 邻域移动。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector3i, to: Vector3i) -> float`；返回负数表示不可通行。
+## [br]
 ## @param heuristic: 启发函数名称，支持 `manhattan`、`chebyshev`、`euclidean`。
+## [br]
 ## @return 包含起点与终点的路径；无法到达时返回空数组。
 static func find_path_a_star(
 	grid_size: Vector3i,
@@ -164,13 +200,24 @@ static func find_path_a_star(
 
 
 ## 查找指定代价内可达的 3D 网格格子。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param start: 起点格子。
+## [br]
 ## @param max_cost: 最大累计代价。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector3i) -> bool`。
+## [br]
 ## @param allow_diagonal: 是否允许 26 邻域移动。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector3i, to: Vector3i) -> float`；返回负数表示不可通行。
+## [br]
 ## @return 字典，键为可达格子，值为从起点到该格子的最低代价。
+## [br]
+## @schema return: Dictionary mapping reachable Vector3i cells to lowest float costs.
 static func find_reachable(
 	grid_size: Vector3i,
 	start: Vector3i,
@@ -207,14 +254,25 @@ static func find_reachable(
 
 
 ## 使用台阶式表面邻居查找路径。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸。
+## [br]
 ## @param start: 起点站立格。
+## [br]
 ## @param goal: 终点站立格。
+## [br]
 ## @param is_walkable: 可站立回调，签名为 `func(cell: Vector3i) -> bool`。
+## [br]
 ## @param max_step_up: 单步最多上升高度。
+## [br]
 ## @param max_step_down: 单步最多下降高度。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector3i, to: Vector3i) -> float`；返回负数表示不可通行。
+## [br]
 ## @param heuristic: 启发函数名称，支持 `manhattan`、`chebyshev`、`euclidean`。
+## [br]
 ## @return 包含起点与终点的路径；无法到达时返回空数组。
 static func find_surface_path_a_star(
 	grid_size: Vector3i,

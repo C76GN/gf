@@ -1,38 +1,57 @@
 ## GFInputSequenceTrigger: 动作序列触发器。
 ##
 ## 按顺序观察一组前置动作的 just-started 状态，全部完成后当前输入活跃时触发。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFInputSequenceTrigger
 extends GFInputTrigger
 
 
 # --- 常量 ---
 
-const GFInputSequenceBranchBase = preload("res://addons/gf/standard/input/sequences/gf_input_sequence_branch.gd")
-const GFInputSequenceStepBase = preload("res://addons/gf/standard/input/sequences/gf_input_sequence_step.gd")
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 导出变量 ---
 
 ## 当前动作触发前必须依次开始的动作列表。
+## [br]
+## @api public
+## [br]
+## @schema required_action_ids: Array[StringName] of action ids that must start in order before this trigger can fire.
 @export var required_action_ids: Array[StringName] = []
 
 ## 可选输入序列分支。非空时优先使用分支配置，required_action_ids 保持兼容旧资源。
-@export var branches: Array[GFInputSequenceBranchBase] = []
+## [br]
+## @api public
+@export var branches: Array[GFInputSequenceBranch] = []
 
 ## 相邻步骤允许的最大间隔。小于等于 0 表示不限制。
+## [br]
+## @api public
 @export var max_gap_seconds: float = 0.4:
 	set(value):
 		max_gap_seconds = maxf(value, 0.0)
 
 ## 玩家级动作是否只检查同一玩家。
+## [br]
+## @api public
 @export var player_scoped: bool = true
 
 
 # --- 公共方法 ---
 
 ## 重置输入触发器运行时状态。
+## [br]
+## @api public
+## [br]
 ## @param state: 触发器运行时状态字典。
+## [br]
+## @schema state: Dictionary，由输入运行时持有，包含 sequence_index、gap_elapsed、completed 和 branch_states。
 func reset_trigger_state(state: Dictionary) -> void:
 	state.clear()
 	state["sequence_index"] = 0
@@ -42,10 +61,18 @@ func reset_trigger_state(state: Dictionary) -> void:
 
 
 ## 准备输入动作运行时状态。
+## [br]
+## @api public
+## [br]
 ## @param _action_id: 当前输入动作标识，默认实现不直接使用。
+## [br]
 ## @param input_runtime: 输入映射运行时。
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param state: 触发器运行时状态字典。
+## [br]
+## @schema state: Dictionary，由输入运行时持有，包含 input_runtime: Object 和 player_index: int。
 func prepare_runtime(
 	_action_id: StringName,
 	input_runtime: Object,
@@ -57,10 +84,22 @@ func prepare_runtime(
 
 
 ## 更新运行时状态。
+## [br]
+## @api public
+## [br]
 ## @param raw_active: 原始输入是否处于激活状态。
+## [br]
 ## @param _value: 输入值，默认实现不直接使用。
+## [br]
 ## @param delta: 本帧时间增量（秒）。
+## [br]
 ## @param state: 触发器运行时状态字典。
+## [br]
+## @schema _value: Variant，由当前输入映射产生的动作值。
+## [br]
+## @schema state: Dictionary，由输入运行时持有，包含分支进度字段。
+## [br]
+## @return 触发状态。
 func update(raw_active: bool, _value: Variant, delta: float, state: Dictionary) -> TriggerState:
 	var effective_branches := _get_effective_branches()
 	if effective_branches.is_empty():
@@ -76,23 +115,23 @@ func update(raw_active: bool, _value: Variant, delta: float, state: Dictionary) 
 
 # --- 私有/辅助方法 ---
 
-func _get_effective_branches() -> Array[GFInputSequenceBranchBase]:
-	var result: Array[GFInputSequenceBranchBase] = []
-	for branch: GFInputSequenceBranchBase in branches:
+func _get_effective_branches() -> Array[GFInputSequenceBranch]:
+	var result: Array[GFInputSequenceBranch] = []
+	for branch: GFInputSequenceBranch in branches:
 		if branch != null and branch.is_valid_branch():
 			result.append(branch)
 	if not result.is_empty():
 		return result
 	if required_action_ids.is_empty():
 		return result
-	result.append(GFInputSequenceBranchBase.from_action_ids(required_action_ids, max_gap_seconds) as GFInputSequenceBranchBase)
+	result.append(GFInputSequenceBranch.from_action_ids(required_action_ids, max_gap_seconds))
 	return result
 
 
 func _advance_branches(
 	state: Dictionary,
 	delta: float,
-	effective_branches: Array[GFInputSequenceBranchBase]
+	effective_branches: Array[GFInputSequenceBranch]
 ) -> void:
 	var input_runtime := _get_input_runtime(state)
 	if input_runtime == null:
@@ -108,7 +147,7 @@ func _advance_branches(
 
 func _advance_branch(
 	branch_state: Dictionary,
-	branch: GFInputSequenceBranchBase,
+	branch: GFInputSequenceBranch,
 	input_runtime: Object,
 	delta: float,
 	player_index: int
@@ -145,7 +184,7 @@ func _get_input_runtime(state: Dictionary) -> Object:
 
 func _advance_step(
 	branch_state: Dictionary,
-	step: GFInputSequenceStepBase,
+	step: GFInputSequenceStep,
 	input_runtime: Object,
 	delta: float,
 	player_index: int
@@ -199,8 +238,8 @@ func _advance_step(
 
 func _should_reset_for_gap(
 	branch_state: Dictionary,
-	step: GFInputSequenceStepBase,
-	branch: GFInputSequenceBranchBase,
+	step: GFInputSequenceStep,
+	branch: GFInputSequenceBranch,
 	delta: float
 ) -> bool:
 	if int(branch_state.get("sequence_index", 0)) <= 0:
@@ -217,7 +256,7 @@ func _should_reset_for_gap(
 	return gap_elapsed > gap_seconds
 
 
-func _resolve_gap_seconds(step: GFInputSequenceStepBase, branch: GFInputSequenceBranchBase) -> float:
+func _resolve_gap_seconds(step: GFInputSequenceStep, branch: GFInputSequenceBranch) -> float:
 	if step != null and step.max_gap_seconds >= 0.0:
 		return step.max_gap_seconds
 	if branch != null and branch.max_gap_seconds >= 0.0:
@@ -225,11 +264,11 @@ func _resolve_gap_seconds(step: GFInputSequenceStepBase, branch: GFInputSequence
 	return max_gap_seconds
 
 
-func _get_valid_steps(branch: GFInputSequenceBranchBase) -> Array[GFInputSequenceStepBase]:
-	var result: Array[GFInputSequenceStepBase] = []
+func _get_valid_steps(branch: GFInputSequenceBranch) -> Array[GFInputSequenceStep]:
+	var result: Array[GFInputSequenceStep] = []
 	if branch == null:
 		return result
-	for step: GFInputSequenceStepBase in branch.steps:
+	for step: GFInputSequenceStep in branch.steps:
 		if step != null and step.action_id != &"":
 			result.append(step)
 	return result

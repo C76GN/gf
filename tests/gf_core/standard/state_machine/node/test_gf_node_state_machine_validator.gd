@@ -69,7 +69,7 @@ func test_state_machine_inspector_tooltip_formats_validation_issue_objects() -> 
 	machine.add_child(idle_b)
 
 	var report := GFNodeStateMachineValidatorBase.validate_machine(machine)
-	var tooltip := GFNodeStateMachineInspectorPluginBase._format_report_tooltip(report)
+	var tooltip := GFNodeStateMachineInspectorPluginBase.format_report_tooltip(report)
 
 	assert_true(tooltip.contains("duplicate_state_name"), "Inspector tooltip 应能读取 GFValidationIssue.kind。")
 	assert_true(tooltip.contains("State name is duplicated inside the group."), "Inspector tooltip 应能读取 GFValidationIssue.message。")

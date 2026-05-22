@@ -2,35 +2,90 @@
 ##
 ## 负责在 JSON.stringify() 可编码的数据和常见 Godot Variant 类型之间往返转换。
 ## 该类不负责集合复制或默认值合并；这类数据操作由 GFVariantData 提供。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFVariantJsonCodec
 extends RefCounted
 
 
 # --- 常量 ---
 
+## JSON 对象中存放 GF Variant 类型标记的字段名。
+## [br]
+## @api framework_internal
 const JSON_MARKER_KEY: String = "__gf_variant__"
+
+## JSON 类型标记中的版本字段名。
+## [br]
+## @api framework_internal
 const JSON_VERSION_KEY: String = "version"
+
+## JSON 类型标记中的类型字段名。
+## [br]
+## @api framework_internal
 const JSON_TYPE_KEY: String = "type"
+
+## JSON 类型标记中的值字段名。
+## [br]
+## @api framework_internal
 const JSON_VALUE_KEY: String = "value"
+
+## 当前 Variant JSON 标记格式版本。
+## [br]
+## @api framework_internal
 const JSON_SCHEMA_VERSION: int = 1
+
+## JSON Number 可安全表达的最大整数。
+## [br]
+## @api framework_internal
 const JSON_SAFE_INTEGER_MAX: int = 9_007_199_254_740_991
+
+## JSON Number 可安全表达的最小整数。
+## [br]
+## @api framework_internal
 const JSON_SAFE_INTEGER_MIN: int = -9_007_199_254_740_991
 
 
 # --- 公共方法 ---
 
 ## 将 Variant 转为 JSON.stringify() 可安全编码的值。
+## [br]
+## @api public
+## [br]
 ## @param value: 待转换的 Variant。
+## [br]
 ## @param options: 可选项；encode_dictionary_keys 为 true 时会保留非字符串字典键；encode_unsafe_ints 为 false 时不标记超出 JSON 安全范围的整数。
+## [br]
 ## @return JSON 兼容值；Godot 专有类型会带类型标记。
+## [br]
+## @schema value: Variant value to encode.
+## [br]
+## @schema options: Dictionary with encode_dictionary_keys, encode_unsafe_ints, unsupported, and circular_reference options.
+## [br]
+## @schema return: Variant made only from JSON-compatible values and typed marker dictionaries.
 static func variant_to_json_compatible(value: Variant, options: Dictionary = {}) -> Variant:
 	return _variant_to_json_compatible(value, options, [])
 
 
 ## 从 variant_to_json_compatible() 生成的值恢复 Godot Variant。
+## [br]
+## @api public
+## [br]
 ## @param value: JSON.parse_string() 后的值。
+## [br]
 ## @param options: 可选项；decode_typed_markers 为 false 时只递归恢复集合。
+## [br]
 ## @return 恢复后的 Variant。
+## [br]
+## @schema value: Variant parsed from JSON-compatible data.
+## [br]
+## @schema options: Dictionary with decode_typed_markers and key decoding options.
+## [br]
+## @schema return: Variant restored from JSON-compatible data.
 static func json_compatible_to_variant(value: Variant, options: Dictionary = {}) -> Variant:
 	if value is Array:
 		var result_array: Array = []
@@ -52,16 +107,27 @@ static func json_compatible_to_variant(value: Variant, options: Dictionary = {})
 
 
 ## 将 Vector2 转成 JSON 友好的数组。
+## [br]
+## @api public
+## [br]
 ## @param value: 待转换的 Vector2。
+## [br]
 ## @return [x, y] 数组。
 static func vector2_to_array(value: Vector2) -> Array[float]:
 	return [value.x, value.y]
 
 
 ## 从数组读取 Vector2，失败时返回 fallback。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @param fallback: 转换失败时返回的值。
+## [br]
 ## @return Vector2 值。
+## [br]
+## @schema value: Variant expected to be an Array with at least two numeric values.
 static func array_to_vector2(value: Variant, fallback: Vector2 = Vector2.ZERO) -> Vector2:
 	if not (value is Array):
 		return fallback
@@ -73,16 +139,27 @@ static func array_to_vector2(value: Variant, fallback: Vector2 = Vector2.ZERO) -
 
 
 ## 将 Vector3 转成 JSON 友好的数组。
+## [br]
+## @api public
+## [br]
 ## @param value: 待转换的 Vector3。
+## [br]
 ## @return [x, y, z] 数组。
 static func vector3_to_array(value: Vector3) -> Array[float]:
 	return [value.x, value.y, value.z]
 
 
 ## 从数组读取 Vector3，失败时返回 fallback。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @param fallback: 转换失败时返回的值。
+## [br]
 ## @return Vector3 值。
+## [br]
+## @schema value: Variant expected to be an Array with at least three numeric values.
 static func array_to_vector3(value: Variant, fallback: Vector3 = Vector3.ZERO) -> Vector3:
 	if not (value is Array):
 		return fallback
@@ -94,16 +171,27 @@ static func array_to_vector3(value: Variant, fallback: Vector3 = Vector3.ZERO) -
 
 
 ## 将 Color 转成 JSON 友好的数组。
+## [br]
+## @api public
+## [br]
 ## @param value: 待转换的 Color。
+## [br]
 ## @return [r, g, b, a] 数组。
 static func color_to_array(value: Color) -> Array[float]:
 	return [value.r, value.g, value.b, value.a]
 
 
 ## 从数组读取 Color，失败时返回 fallback。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @param fallback: 转换失败时返回的值。
+## [br]
 ## @return Color 值。
+## [br]
+## @schema value: Variant expected to be an Array with at least four numeric values.
 static func array_to_color(value: Variant, fallback: Color = Color.WHITE) -> Color:
 	if not (value is Array):
 		return fallback

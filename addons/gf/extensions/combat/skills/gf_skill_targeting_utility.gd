@@ -2,6 +2,12 @@
 ##
 ## 提供统一的目标筛选流程：先做空间过滤，
 ## 再执行标签过滤、排序与数量截断。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSkillTargetingUtility
 extends GFUtility
 
@@ -9,10 +15,18 @@ extends GFUtility
 # --- 公共方法 ---
 
 ## 执行索敌 pipeline。
+## [br]
+## @api public
+## [br]
 ## @param p_center: 索敌中心点。
+## [br]
 ## @param p_rule: 索敌规则资源。
+## [br]
 ## @param p_available_entities: 候选实体池。
+## [br]
 ## @return 最终筛选出的目标数组。
+## [br]
+## @schema p_available_entities: Array，元素为候选实体 Object；无效实例会被跳过。
 func find_targets(p_center: Vector2, p_rule: GFSkillTargetingRule, p_available_entities: Array) -> Array[Object]:
 	if p_rule == null:
 		return []
@@ -76,7 +90,7 @@ func _is_entity_in_shape(p_entity: Object, p_center: Vector2, p_rule: GFSkillTar
 	return false
 
 
-## 检查实体标签是否符合规则。
+# 检查实体标签是否符合规则。
 func _check_tags(p_entity: Object, p_rule: GFSkillTargetingRule) -> bool:
 	if not p_entity.has_method(&"get_tag_component"):
 		return p_rule.require_tags.is_empty()
@@ -96,7 +110,7 @@ func _check_tags(p_entity: Object, p_rule: GFSkillTargetingRule) -> bool:
 	return true
 
 
-## 对目标列表进行排序。
+# 对目标列表进行排序。
 func _sort_targets(p_targets: Array[Object], p_center: Vector2, p_rule: GFSkillTargetingRule) -> void:
 	match p_rule.sort_rule:
 		GFSkillTargetingRule.SortRule.DISTANCE_CLOSEST:
@@ -119,7 +133,7 @@ func _sort_targets(p_targets: Array[Object], p_center: Vector2, p_rule: GFSkillT
 			p_targets.shuffle()
 
 
-## 获取实体坐标位置。
+# 获取实体坐标位置。
 func _get_entity_position(p_entity: Object) -> Vector2:
 	if "global_position" in p_entity:
 		return p_entity.global_position
@@ -127,7 +141,7 @@ func _get_entity_position(p_entity: Object) -> Vector2:
 	return Vector2.ZERO
 
 
-## 获取实体属性值。
+# 获取实体属性值。
 func _get_entity_attribute_value(p_entity: Object, p_attr_name: StringName) -> float:
 	if p_entity.has_method(&"get_attribute"):
 		var attr := p_entity.call(&"get_attribute", p_attr_name) as GFModifiedAttribute

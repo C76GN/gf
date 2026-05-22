@@ -1,22 +1,81 @@
 @tool
 
-## GF 扩展管理器工作区页面。
-##
-## 展示 `gf_extension.json` 元数据，并把扩展启用状态保存到 ProjectSettings。
+# GF 扩展管理器工作区页面。
+#
+# 展示 `gf_extension.json` 元数据，并把扩展启用状态保存到 ProjectSettings。
 extends VBoxContainer
 
 
 # --- 常量 ---
 
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
+
+## 扩展引用审计脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionUsageAuditBase = preload("res://addons/gf/kernel/extension/gf_extension_usage_audit.gd")
+
+## 工作区 UI 辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+
+## 扩展行最小高度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const EXTENSION_ROW_MIN_HEIGHT: float = 32.0
+
+## 详情区最小高度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const DETAILS_MIN_HEIGHT: float = 160.0
+
+## 启用列宽度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const CHECK_COLUMN_WIDTH: float = 40.0
+
+## 类型列宽度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const KIND_COLUMN_WIDTH: float = 72.0
+
+## 发行版本列宽度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const VERSION_COLUMN_WIDTH: float = 72.0
+
+## 扩展版本列宽度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const EXTENSION_VERSION_COLUMN_WIDTH: float = 72.0
+
+## 状态列宽度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const STATUS_COLUMN_WIDTH: float = 72.0
 
 

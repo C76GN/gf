@@ -1,6 +1,12 @@
 ## GFWaitAction: 动作队列中的通用等待动作。
 ##
 ## 通过 SceneTreeTimer 表达一段时间等待，不携带业务含义。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFWaitAction
 extends GFVisualAction
 
@@ -8,24 +14,36 @@ extends GFVisualAction
 # --- 信号 ---
 
 ## 等待完成时发出。取消后的旧计时器不会触发该信号。
+## [br]
+## @api public
 signal wait_completed
 
 
 # --- 公共变量 ---
 
 ## 等待秒数。
+## [br]
+## @api public
 var seconds: float = 0.0
 
 ## 可选宿主节点。存在时优先从该节点获取 SceneTree。
+## [br]
+## @api public
 var host_node: Node
 
 ## 计时器是否在暂停时继续处理。
+## [br]
+## @api public
 var process_always: bool = true
 
 ## 是否按物理帧处理。
+## [br]
+## @api public
 var process_in_physics: bool = false
 
 ## 是否忽略 Engine.time_scale。
+## [br]
+## @api public
 var ignore_time_scale: bool = false
 
 
@@ -44,6 +62,13 @@ func _init(p_seconds: float = 0.0, p_host_node: Node = null) -> void:
 
 # --- 公共方法 ---
 
+## 启动等待计时器。
+## [br]
+## @api public
+## [br]
+## @return 需要等待时返回 wait_completed Signal；无需等待或无法获取 SceneTree 时返回 null。
+## [br]
+## @schema return: Variant，返回 wait_completed Signal 或 null。
 func execute() -> Variant:
 	if seconds <= 0.0:
 		return null
@@ -58,11 +83,17 @@ func execute() -> Variant:
 	return wait_completed
 
 
+## 取消当前等待。
+## [br]
+## @api public
 func cancel() -> void:
 	_execution_serial += 1
 	_timer = null
 
 
+## 立即完成当前等待并发出 wait_completed。
+## [br]
+## @api public
 func finish() -> void:
 	_execution_serial += 1
 	wait_completed.emit()

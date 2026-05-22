@@ -1,6 +1,12 @@
 ## GFShakePreset: 通用反馈采样预设。
 ##
 ## 描述一段可采样的位移、旋转和缩放偏移，不绑定相机、角色、UI 或业务事件。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFShakePreset
 extends Resource
 
@@ -8,6 +14,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 反馈采样波形。
+## [br]
+## @api public
 enum Waveform {
 	## 正弦波，适合可预期的摆动。
 	SINE,
@@ -20,60 +28,90 @@ enum Waveform {
 }
 
 
-# --- 常量 ---
-
-const GFShakeTrackBase = preload("res://addons/gf/extensions/feedback/resources/gf_shake_track.gd")
-
-
 # --- 导出变量 ---
 
 ## 持续时间，单位秒。
+## [br]
+## @api public
 @export_range(0.0, 60.0, 0.001, "or_greater") var duration_seconds: float = 0.25
 
 ## 采样振幅倍率。
+## [br]
+## @api public
 @export_range(0.0, 1000.0, 0.001, "or_greater") var amplitude: float = 1.0
 
 ## 每秒采样频率。
+## [br]
+## @api public
 @export_range(0.0, 240.0, 0.001, "or_greater") var frequency: float = 24.0
 
 ## 波形类型。
+## [br]
+## @api public
 @export var waveform: Waveform = Waveform.NOISE
 
 ## 位移轴权重。
+## [br]
+## @api public
 @export var position_axis: Vector3 = Vector3.ONE
 
 ## 旋转轴权重，单位度。
+## [br]
+## @api public
 @export var rotation_axis_degrees: Vector3 = Vector3.ZERO
 
 ## 缩放偏移轴权重。返回值是叠加到基础 scale 上的偏移。
+## [br]
+## @api public
 @export var scale_axis: Vector3 = Vector3.ZERO
 
 ## 包络曲线。为空时使用线性衰减；曲线值越高，当前采样越强。
+## [br]
+## @api public
 @export var decay_curve: Curve = null
 
 ## 自定义波形曲线。仅在 waveform 为 CURVE 时使用，曲线值 0.5 表示零偏移。
+## [br]
+## @api public
 @export var wave_curve: Curve = null
 
 ## 确定性采样种子。
+## [br]
+## @api public
 @export var seed: int = 1
 
 ## 可组合反馈轨道。为空时使用兼容的单波形字段。
-@export var tracks: Array[GFShakeTrackBase] = []
+## [br]
+## @api public
+## [br]
+## @schema tracks: Array[GFShakeTrack]，按顺序采样并根据每个轨道 blend_mode 合成。
+@export var tracks: Array[GFShakeTrack] = []
 
 
 # --- 公共方法 ---
 
 ## 获取有效持续时间。
+## [br]
+## @api public
+## [br]
 ## @return 持续时间，最小为 0。
 func get_duration_seconds() -> float:
 	return maxf(duration_seconds, 0.0)
 
 
 ## 按时间采样反馈偏移。
+## [br]
+## @api public
+## [br]
 ## @param elapsed_seconds: 已经过的秒数。
+## [br]
 ## @param strength: 本次播放强度倍率。
+## [br]
 ## @param phase_offset: 相位偏移，用于同一预设多次播放时错开采样。
+## [br]
 ## @return 采样结果字典。
+## [br]
+## @schema return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。
 func sample(elapsed_seconds: float, strength: float = 1.0, phase_offset: float = 0.0) -> Dictionary:
 	var duration := maxf(duration_seconds, 0.0001)
 	var progress := clampf(elapsed_seconds / duration, 0.0, 1.0)
@@ -81,11 +119,20 @@ func sample(elapsed_seconds: float, strength: float = 1.0, phase_offset: float =
 
 
 ## 按归一化进度采样反馈偏移。
+## [br]
+## @api public
+## [br]
 ## @param progress: 归一化进度，范围 0 到 1。
+## [br]
 ## @param elapsed_seconds: 已经过的秒数。
+## [br]
 ## @param strength: 本次播放强度倍率。
+## [br]
 ## @param phase_offset: 相位偏移。
+## [br]
 ## @return 采样结果字典。
+## [br]
+## @schema return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。
 func sample_at_progress(
 	progress: float,
 	elapsed_seconds: float,
@@ -120,9 +167,13 @@ func sample_at_progress(
 
 
 ## 添加反馈轨道。
+## [br]
+## @api public
+## [br]
 ## @param track: 反馈轨道。
+## [br]
 ## @return 添加成功返回 true。
-func add_track(track: GFShakeTrackBase) -> bool:
+func add_track(track: GFShakeTrack) -> bool:
 	if track == null:
 		return false
 	tracks.append(track)
@@ -130,21 +181,31 @@ func add_track(track: GFShakeTrackBase) -> bool:
 
 
 ## 清空反馈轨道。
+## [br]
+## @api public
 func clear_tracks() -> void:
 	tracks.clear()
 
 
 ## 检查是否存在有效轨道。
+## [br]
+## @api public
+## [br]
 ## @return 存在有效轨道返回 true。
 func has_tracks() -> bool:
-	for track: GFShakeTrackBase in tracks:
+	for track: GFShakeTrack in tracks:
 		if track != null and track.enabled:
 			return true
 	return false
 
 
 ## 创建空采样结果。
+## [br]
+## @api public
+## [br]
 ## @return 空采样结果字典。
+## [br]
+## @schema return: Dictionary，包含零值 position、rotation_degrees、scale、intensity 与 progress。
 static func zero_sample() -> Dictionary:
 	return {
 		"position": Vector3.ZERO,
@@ -156,8 +217,16 @@ static func zero_sample() -> Dictionary:
 
 
 ## 合并多个反馈采样。
+## [br]
+## @api public
+## [br]
 ## @param samples: 采样结果数组。
+## [br]
+## @schema samples: Array[Dictionary]，每项包含 position、rotation_degrees、scale、intensity 与 progress。
+## [br]
 ## @return 合并后的采样结果。
+## [br]
+## @schema return: Dictionary，合并后的反馈采样，包含 position、rotation_degrees、scale、intensity 与 progress。
 static func combine_samples(samples: Array[Dictionary]) -> Dictionary:
 	var result := zero_sample()
 	var max_intensity := 0.0
@@ -189,11 +258,11 @@ func _sample_tracks(
 ) -> Dictionary:
 	var result := zero_sample()
 	result["progress"] = progress
-	for track: GFShakeTrackBase in tracks:
+	for track: GFShakeTrack in tracks:
 		if track == null or not track.enabled:
 			continue
 		var track_sample := track.sample(progress, elapsed_seconds, strength, phase_offset)
-		result = GFShakeTrackBase.blend_sample(result, track_sample, track.blend_mode)
+		result = GFShakeTrack.blend_sample(result, track_sample, track.blend_mode)
 	result["progress"] = progress
 	return result
 

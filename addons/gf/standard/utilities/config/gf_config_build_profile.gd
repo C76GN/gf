@@ -2,6 +2,12 @@
 ##
 ## 用 groups 与 tags 描述一组通用过滤条件，可用于导出前裁剪 schema 或记录。
 ## 具体分组名称由项目决定，GF 不内置 client、server 或 editor 语义。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFConfigBuildProfile
 extends Resource
 
@@ -9,41 +15,69 @@ extends Resource
 # --- 导出变量 ---
 
 ## Profile 稳定标识。
+## [br]
+## @api public
 @export var profile_id: StringName = &""
 
 ## 为空时不限制包含分组；非空时 metadata 至少命中一个分组才通过。
+## [br]
+## @api public
 @export var include_groups: PackedStringArray = PackedStringArray()
 
 ## 命中任意排除分组时过滤。
+## [br]
+## @api public
 @export var exclude_groups: PackedStringArray = PackedStringArray()
 
 ## 为空时不限制包含标签；非空时 metadata 至少命中一个标签才通过。
+## [br]
+## @api public
 @export var include_tags: PackedStringArray = PackedStringArray()
 
 ## 命中任意排除标签时过滤。
+## [br]
+## @api public
 @export var exclude_tags: PackedStringArray = PackedStringArray()
 
 ## metadata 缺少 groups/tags 时是否默认保留。
+## [br]
+## @api public
 @export var default_include: bool = true
 
 ## 记录中存放元数据的字段名。
+## [br]
+## @api public
 @export var record_metadata_field: StringName = &"_metadata"
 
 ## metadata 中表示分组的键。
+## [br]
+## @api public
 @export var groups_key: StringName = &"groups"
 
 ## metadata 中表示标签的键。
+## [br]
+## @api public
 @export var tags_key: StringName = &"tags"
 
 ## 可选元数据，供项目工具扩展使用。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存项目工具附加到当前构建 Profile 的元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 判断一份 metadata 是否通过当前 Profile。
+## [br]
+## @api public
+## [br]
 ## @param source_metadata: 待检查元数据。
+## [br]
 ## @return 通过时返回 true。
+## [br]
+## @schema source_metadata: Dictionary，包含可选 groups_key / tags_key 条目，值可为字符串或字符串数组。
 func allows_metadata(source_metadata: Dictionary) -> bool:
 	var groups := _to_packed_string_array(source_metadata.get(groups_key, PackedStringArray()))
 	var tags := _to_packed_string_array(source_metadata.get(tags_key, PackedStringArray()))
@@ -59,7 +93,11 @@ func allows_metadata(source_metadata: Dictionary) -> bool:
 
 
 ## 过滤 schema，返回 schema 副本。
+## [br]
+## @api public
+## [br]
 ## @param schema: 原 schema。
+## [br]
 ## @return 过滤后的 schema；schema 为空时返回 null。
 func filter_schema(schema: GFConfigTableSchema) -> GFConfigTableSchema:
 	if schema == null:
@@ -73,8 +111,16 @@ func filter_schema(schema: GFConfigTableSchema) -> GFConfigTableSchema:
 
 
 ## 过滤表记录。
+## [br]
+## @api public
+## [br]
 ## @param table_data: Array[Dictionary] 或 Dictionary 表。
+## [br]
 ## @return 与输入同形状的过滤结果；输入无效时返回原值副本。
+## [br]
+## @schema table_data: Variant，支持 Array[Dictionary]、Dictionary 表；其他值会按原形复制返回。
+## [br]
+## @schema return: Variant，过滤后的表数据；有效表会保持输入容器形态。
 func filter_records(table_data: Variant) -> Variant:
 	if table_data is Array:
 		var rows: Array[Dictionary] = []
@@ -100,13 +146,21 @@ func filter_records(table_data: Variant) -> Variant:
 
 
 ## 创建同内容拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新 Profile。
 func duplicate_profile() -> GFConfigBuildProfile:
 	return duplicate(true) as GFConfigBuildProfile
 
 
 ## 导出 Profile 摘要。
+## [br]
+## @api public
+## [br]
 ## @return Profile 摘要字典。
+## [br]
+## @schema return: Dictionary，包含 profile_id、分组/标签过滤器、元数据键设置和 metadata。
 func describe() -> Dictionary:
 	return {
 		"profile_id": profile_id,

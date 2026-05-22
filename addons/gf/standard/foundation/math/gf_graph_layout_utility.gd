@@ -2,6 +2,12 @@
 ##
 ## 根据节点标识和连接关系生成编辑器坐标。它只产出布局建议，
 ## 不依赖 GraphEdit、Resource 或具体业务图类型。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFGraphLayoutUtility
 extends RefCounted
 
@@ -9,10 +15,22 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 生成分层布局。
+## [br]
+## @api public
+## [br]
 ## @param node_ids: 节点标识列表。
+## [br]
 ## @param connections: 连接列表，默认读取 from_node_id 与 to_node_id。
+## [br]
+## @schema connections: Array of Dictionary records containing source and target node ids.
+## [br]
 ## @param options: 选项，支持 x_spacing、y_spacing、origin、from_key 与 to_key。
+## [br]
+## @schema options: Dictionary layout options including x_spacing, y_spacing, origin, from_key, and to_key.
+## [br]
 ## @return node_id 字符串到 Vector2 的映射。
+## [br]
+## @schema return: Dictionary mapping node id strings to Vector2 positions.
 static func make_layered_layout(
 	node_ids: PackedStringArray,
 	connections: Array[Dictionary],
@@ -30,9 +48,18 @@ static func make_layered_layout(
 
 
 ## 生成简单网格布局。
+## [br]
+## @api public
+## [br]
 ## @param node_ids: 节点标识列表。
+## [br]
 ## @param options: 选项，支持 columns、x_spacing、y_spacing 与 origin。
+## [br]
+## @schema options: Dictionary layout options including columns, x_spacing, y_spacing, and origin.
+## [br]
 ## @return node_id 字符串到 Vector2 的映射。
+## [br]
+## @schema return: Dictionary mapping node id strings to Vector2 positions.
 static func make_grid_layout(node_ids: PackedStringArray, options: Dictionary = {}) -> Dictionary:
 	var columns := maxi(1, int(options.get("columns", 4)))
 	var origin := options.get("origin", Vector2.ZERO) as Vector2

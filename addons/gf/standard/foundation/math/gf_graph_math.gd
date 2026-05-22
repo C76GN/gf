@@ -2,6 +2,12 @@
 ##
 ## 节点可以是 Vector、StringName、Resource、对象引用或项目自定义值。
 ## 图结构由回调提供，框架只负责遍历、代价累计和路径重建。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFGraphMath
 extends RefCounted
 
@@ -9,43 +15,81 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 使用 Dijkstra 查找一条最低代价路径。
+## [br]
+## @api public
+## [br]
 ## @param start: 起点节点。
+## [br]
+## @schema start: Variant graph node identity.
+## [br]
 ## @param goal: 终点节点。
+## [br]
+## @schema goal: Variant graph node identity.
+## [br]
 ## @param get_neighbors: 邻居回调，签名为 `func(node: Variant) -> Array`。
+## [br]
 ## @param get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -> float`；返回负数表示不可通行。
+## [br]
 ## @return 包含起点与终点的路径；无法到达时返回空数组。
+## [br]
+## @schema return: Array graph node path from start to goal.
 static func find_path_dijkstra(
 	start: Variant,
 	goal: Variant,
 	get_neighbors: Callable,
 	get_step_cost: Callable = Callable()
-) -> Array:
+) -> Array[Variant]:
 	return _find_path(start, goal, get_neighbors, get_step_cost, Callable())
 
 
 ## 使用 A* 查找一条低代价路径。
+## [br]
+## @api public
+## [br]
 ## @param start: 起点节点。
+## [br]
+## @schema start: Variant graph node identity.
+## [br]
 ## @param goal: 终点节点。
+## [br]
+## @schema goal: Variant graph node identity.
+## [br]
 ## @param get_neighbors: 邻居回调，签名为 `func(node: Variant) -> Array`。
+## [br]
 ## @param get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -> float`；返回负数表示不可通行。
+## [br]
 ## @param heuristic: 可选启发回调，签名为 `func(node: Variant, goal: Variant) -> float`。
+## [br]
 ## @return 包含起点与终点的路径；无法到达时返回空数组。
+## [br]
+## @schema return: Array graph node path from start to goal.
 static func find_path_a_star(
 	start: Variant,
 	goal: Variant,
 	get_neighbors: Callable,
 	get_step_cost: Callable = Callable(),
 	heuristic: Callable = Callable()
-) -> Array:
+) -> Array[Variant]:
 	return _find_path(start, goal, get_neighbors, get_step_cost, heuristic)
 
 
 ## 从起点生成距离图。
+## [br]
+## @api public
+## [br]
 ## @param start: 起点节点。
+## [br]
+## @schema start: Variant graph node identity.
+## [br]
 ## @param get_neighbors: 邻居回调，签名为 `func(node: Variant) -> Array`。
+## [br]
 ## @param get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -> float`；返回负数表示不可通行。
+## [br]
 ## @param max_cost: 最大累计代价，超过后停止扩展。
+## [br]
 ## @return 字典，键为可达节点，值为从起点到该节点的最低代价。
+## [br]
+## @schema return: Dictionary mapping reachable graph nodes to lowest float costs.
 static func build_distance_map(
 	start: Variant,
 	get_neighbors: Callable,
@@ -83,11 +127,22 @@ static func build_distance_map(
 
 
 ## 查找指定代价内可达的节点。
+## [br]
+## @api public
+## [br]
 ## @param start: 起点节点。
+## [br]
+## @schema start: Variant graph node identity.
+## [br]
 ## @param max_cost: 最大累计代价。
+## [br]
 ## @param get_neighbors: 邻居回调，签名为 `func(node: Variant) -> Array`。
+## [br]
 ## @param get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -> float`；返回负数表示不可通行。
+## [br]
 ## @return 字典，键为可达节点，值为从起点到该节点的最低代价。
+## [br]
+## @schema return: Dictionary mapping reachable graph nodes to lowest float costs.
 static func find_reachable(
 	start: Variant,
 	max_cost: float,

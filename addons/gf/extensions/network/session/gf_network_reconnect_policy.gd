@@ -1,6 +1,12 @@
 ## GFNetworkReconnectPolicy: 通用重连退避策略。
 ##
 ## 记录重连尝试次数，并按预设延迟序列返回下一次等待时间。它不依赖具体网络后端。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFNetworkReconnectPolicy
 extends RefCounted
 
@@ -8,12 +14,20 @@ extends RefCounted
 # --- 公共变量 ---
 
 ## 重连延迟序列，单位毫秒。
+## [br]
+## @api public
+## [br]
+## @schema delays_msec: Array[int]，按尝试次数索引的重连延迟毫秒数。
 var delays_msec: Array[int] = [500, 1000, 2000, 5000]
 
 ## 最大尝试次数。小于等于 0 表示无限尝试。
+## [br]
+## @api public
 var max_attempts: int = 0
 
 ## 抖动比例。0 表示不抖动，0.2 表示在 ±20% 内随机偏移。
+## [br]
+## @api public
 var jitter_ratio: float = 0.0:
 	set(value):
 		jitter_ratio = clampf(value, 0.0, 1.0)
@@ -34,17 +48,25 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 重置尝试计数。
+## [br]
+## @api public
 func reset() -> void:
 	_attempt_count = 0
 
 
 ## 检查是否还允许继续尝试。
+## [br]
+## @api public
+## [br]
 ## @return 允许返回 true。
 func has_attempts_remaining() -> bool:
 	return max_attempts <= 0 or _attempt_count < max_attempts
 
 
 ## 记录一次失败并返回下一次等待时长。
+## [br]
+## @api public
+## [br]
 ## @return 下一次等待时长；没有尝试空间时返回 -1。
 func get_next_delay_msec() -> int:
 	if not has_attempts_remaining():
@@ -56,11 +78,16 @@ func get_next_delay_msec() -> int:
 
 
 ## 记录一次成功并清空尝试计数。
+## [br]
+## @api public
 func record_success() -> void:
 	reset()
 
 
 ## 获取已经消费的失败尝试次数。
+## [br]
+## @api public
+## [br]
 ## @return 尝试次数。
 func get_attempt_count() -> int:
 	return _attempt_count

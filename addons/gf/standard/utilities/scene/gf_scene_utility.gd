@@ -2,6 +2,12 @@
 ##
 ## 封装原生场景切换，支持带有 `loading scene` 的异步加载、PackedScene
 ## 资源预加载缓存、切换参数、场景历史，并可在切换完成后清理不需要跨场景保留的 `System/Model`。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSceneUtility
 extends GFUtility
 
@@ -9,76 +15,134 @@ extends GFUtility
 # --- 信号 ---
 
 ## 当场景异步加载开始时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
 signal scene_load_started(path: String)
 
 ## 当场景异步加载进度更新时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
+## [br]
 ## @param progress: 当前进度，范围在 `0.0` 到 `1.0` 之间。
 signal scene_load_progress(path: String, progress: float)
 
 ## 当场景异步加载完成时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
+## [br]
 ## @param scene: 已加载完成的场景资源。
 signal scene_load_completed(path: String, scene: PackedScene)
 
 ## 当场景异步加载失败时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
 signal scene_load_failed(path: String)
 
 ## 当场景预加载开始时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
 signal scene_preload_started(path: String)
 
 ## 当场景预加载进度更新时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
+## [br]
 ## @param progress: 当前进度，范围在 `0.0` 到 `1.0` 之间。
 signal scene_preload_progress(path: String, progress: float)
 
 ## 当场景预加载完成并进入缓存时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
+## [br]
 ## @param scene: 已缓存的场景资源。
 signal scene_preload_completed(path: String, scene: PackedScene)
 
 ## 当场景预加载失败时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
 signal scene_preload_failed(path: String)
 
 ## 当场景预加载被取消时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
 signal scene_preload_cancelled(path: String)
 
 ## 当一次场景切换流程开始时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
+## [br]
 ## @param previous_path: 切换前场景路径。
 signal scene_switch_started(path: String, previous_path: String)
 
 ## 当一次场景切换流程完成时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
+## [br]
 ## @param previous_path: 切换前场景路径。
 signal scene_switch_completed(path: String, previous_path: String)
 
 ## 当一次场景切换流程失败时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景路径。
+## [br]
 ## @param previous_path: 切换前场景路径。
+## [br]
 ## @param message: 失败说明。
 signal scene_switch_failed(path: String, previous_path: String, message: String)
 
 ## 当 loading scene 切入后发出。
+## [br]
+## @api public
+## [br]
 ## @param path: loading scene 路径。
 signal loading_scene_shown(path: String)
 
 ## 当 loading scene 准备退出时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: loading scene 路径。
 signal loading_scene_hidden(path: String)
 
 ## 当场景资源写入预加载缓存后发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @param fixed: 是否写入固定缓存。
 signal scene_cache_added(path: String, fixed: bool)
 
 ## 当场景资源从预加载缓存移除后发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @param fixed: 是否来自固定缓存。
 signal scene_cache_removed(path: String, fixed: bool)
 
@@ -86,6 +150,8 @@ signal scene_cache_removed(path: String, fixed: bool)
 # --- 枚举 ---
 
 ## 场景资源在 GFSceneUtility 内部的缓存状态。
+## [br]
+## @api public
 enum SceneResourceState {
 	## 未加载。
 	NOT_LOADED,
@@ -100,8 +166,6 @@ enum SceneResourceState {
 
 # --- 常量 ---
 
-const GFSceneTransitionConfigBase = preload("res://addons/gf/standard/utilities/scene/gf_scene_transition_config.gd")
-const GFScenePreloadMapBase = preload("res://addons/gf/standard/utilities/scene/gf_scene_preload_map.gd")
 const _SCENE_CHANGE_NONE: int = 0
 const _SCENE_CHANGE_LOADING: int = 1
 const _SCENE_CHANGE_TARGET: int = 2
@@ -111,6 +175,8 @@ const _SCENE_CHANGE_RESTORE: int = 3
 # --- 公共变量 ---
 
 ## 最多保留的预加载 PackedScene 数量；设为 `0` 表示禁用预加载缓存。
+## [br]
+## @api public
 var max_preloaded_scene_resources: int:
 	get:
 		return _max_preloaded_scene_resources
@@ -122,38 +188,60 @@ var max_preloaded_scene_resources: int:
 		_evict_preloaded_scenes()
 
 ## 通过 load_scene_async() 加载完成的目标场景是否写入预加载缓存。
+## [br]
+## @api public
 var cache_loaded_scenes: bool = true
 
 ## 可选场景预加载图谱；配置后可按当前场景自动预热相邻场景。
-var scene_preload_map: GFScenePreloadMapBase = null
+## [br]
+## @api public
+var scene_preload_map: GFScenePreloadMap = null
 
 ## 成功切换场景后是否自动按 scene_preload_map 预加载相邻场景。
+## [br]
+## @api public
 var auto_preload_map_neighbors_on_switch: bool = true
 
 ## 自动图谱预加载半径；小于 0 时使用 GFScenePreloadMap.default_radius。
+## [br]
+## @api public
 var scene_preload_map_radius: int = -1:
 	set(value):
 		scene_preload_map_radius = maxi(value, -1)
 
 ## loading scene 可选淡入方法名；目标节点存在该方法时会被调用。
+## [br]
+## @api public
 var loading_screen_fade_in_method: StringName = &"fade_in"
 
 ## loading scene 可选淡出方法名；目标节点存在该方法时会被调用。
+## [br]
+## @api public
 var loading_screen_fade_out_method: StringName = &"fade_out"
 
 ## loading scene 可选进度更新方法名；不存在时会回退到 update_progress。
+## [br]
+## @api public
 var loading_screen_progress_method: StringName = &"set_progress"
 
 ## loading scene 进度更新回退方法名。
+## [br]
+## @api public
 var loading_screen_progress_fallback_method: StringName = &"update_progress"
 
 ## loading scene 可选错误显示方法名；目标节点存在该方法时会被调用并传入错误文本。
+## [br]
+## @api public
 var loading_screen_error_method: StringName = &"show_error"
 
 ## 默认 loading scene 最短保留秒数；单次切换可覆盖。
+## [br]
+## @api public
 var default_transition_minimum_seconds: float = 0.0
 
 ## 最多保留的场景历史数量；设为 0 表示不记录历史。
+## [br]
+## @api public
 var max_scene_history: int:
 	get:
 		return _max_scene_history
@@ -198,13 +286,19 @@ var _pending_scene_change_previous_pause_state: bool = false
 var _pending_previous_history_path: String = ""
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化场景工具的暂停策略。
+## [br]
+## @api public
 func init() -> void:
 	ignore_pause = true
 
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func tick(_delta: float) -> void:
 	_process_pending_scene_change()
@@ -213,6 +307,9 @@ func tick(_delta: float) -> void:
 	_process_pending_scene_change()
 
 
+## 取消待处理场景切换并释放预加载请求、背景参数和缓存。
+## [br]
+## @api public
 func dispose() -> void:
 	_cancel_pending_scene_change()
 	_reset_loading_state()
@@ -224,10 +321,18 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 异步切换场景。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景资源路径。
+## [br]
 ## @param loading_scene_path: 可选的过渡场景路径。
+## [br]
 ## @param params: 本次切换参数；完成后可通过 get_current_scene_params() 读取。
+## [br]
 ## @param minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。
+## [br]
+## @schema params: Dictionary[String, Variant]，切换完成后复制到当前场景参数中的场景切换参数。
 func load_scene_async(
 	path: String,
 	loading_scene_path: String = "",
@@ -274,9 +379,13 @@ func load_scene_async(
 
 
 ## 按资源配置切换场景。
+## [br]
+## @api public
+## [br]
 ## @param config: 场景切换配置。
+## [br]
 ## @return 发起切换的 Godot Error。
-func load_scene_with_transition(config: GFSceneTransitionConfigBase) -> Error:
+func load_scene_with_transition(config: GFSceneTransitionConfig) -> Error:
 	if config == null:
 		push_error("[GFSceneUtility] load_scene_with_transition 失败：config 为空。")
 		scene_load_failed.emit("")
@@ -300,8 +409,13 @@ func load_scene_with_transition(config: GFSceneTransitionConfigBase) -> Error:
 
 
 ## 预加载一个场景资源并放入缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景资源路径。
+## [br]
 ## @param fixed: 为 true 时写入固定缓存，不受 LRU 容量淘汰影响。
+## [br]
 ## @return 发起请求的 Godot Error。
 func preload_scene(path: String, fixed: bool = false) -> Error:
 	var validation_error := _validate_scene_resource_path(path, "preload_scene")
@@ -332,10 +446,18 @@ func preload_scene(path: String, fixed: bool = false) -> Error:
 
 
 ## 后台加载一个场景并记录稍后激活时使用的参数。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景资源路径。
+## [br]
 ## @param params: 激活该场景时传入的参数。
+## [br]
 ## @param fixed: 为 true 时写入固定缓存，不受 LRU 容量淘汰影响。
+## [br]
 ## @return 发起请求的 Godot Error。
+## [br]
+## @schema params: Dictionary[String, Variant]，后台场景激活时复制并应用的参数。
 func begin_background_scene_load(path: String, params: Dictionary = {}, fixed: bool = false) -> Error:
 	var error := preload_scene(path, fixed)
 	if error == OK:
@@ -344,9 +466,15 @@ func begin_background_scene_load(path: String, params: Dictionary = {}, fixed: b
 
 
 ## 激活已经后台加载或正在后台加载的场景。
+## [br]
+## @api public
+## [br]
 ## @param path: 目标场景资源路径。
+## [br]
 ## @param loading_scene_path: 可选的过渡场景路径。
+## [br]
 ## @param minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。
+## [br]
 ## @return 发起切换的 Godot Error。
 func activate_background_scene(
 	path: String,
@@ -376,17 +504,30 @@ func activate_background_scene(
 
 
 ## 获取后台场景记录的参数副本。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 参数副本；没有记录时返回空字典。
+## [br]
+## @schema return: Dictionary[String, Variant]，后台场景参数。
 func get_background_scene_params(path: String) -> Dictionary:
 	var params := _background_scene_params.get(path, {}) as Dictionary
 	return params.duplicate(true) if params != null else {}
 
 
 ## 批量预加载场景资源。
+## [br]
+## @api public
+## [br]
 ## @param paths: 场景路径数组。
+## [br]
 ## @param fixed: 为 true 时全部写入固定缓存。
+## [br]
 ## @return path -> Error 的结果字典。
+## [br]
+## @schema return: Dictionary[String, Error]，以场景路径为键。
 func preload_scenes(paths: PackedStringArray, fixed: bool = false) -> Dictionary:
 	var result: Dictionary = {}
 	for path: String in paths:
@@ -395,11 +536,16 @@ func preload_scenes(paths: PackedStringArray, fixed: bool = false) -> Dictionary
 
 
 ## 配置场景预加载图谱。
+## [br]
+## @api public
+## [br]
 ## @param preload_map: 场景预加载图谱资源；传 null 可关闭图谱预加载。
+## [br]
 ## @param radius: 自动预加载半径；小于 0 时使用图谱默认值。
+## [br]
 ## @param auto_preload_on_switch: 成功切换场景后是否自动预加载相邻场景。
 func configure_scene_preload_map(
-	preload_map: GFScenePreloadMapBase,
+	preload_map: GFScenePreloadMap,
 	radius: int = -1,
 	auto_preload_on_switch: bool = true
 ) -> void:
@@ -409,10 +555,18 @@ func configure_scene_preload_map(
 
 
 ## 获取指定场景的图谱预加载计划。
+## [br]
+## @api public
+## [br]
 ## @param path: 当前场景资源路径。
+## [br]
 ## @param radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。
+## [br]
 ## @param include_fixed: 是否包含固定预加载路径。
+## [br]
 ## @return 预加载计划字典；未配置图谱时 ok 为 false。
+## [br]
+## @schema return: Dictionary，包含 ok、source_path、radius、include_fixed、fixed_paths、temporary_paths 和 errors。
 func get_scene_preload_map_plan(path: String, radius: int = -1, include_fixed: bool = true) -> Dictionary:
 	if scene_preload_map == null:
 		return _make_missing_scene_preload_map_result(path, radius, include_fixed)
@@ -423,10 +577,18 @@ func get_scene_preload_map_plan(path: String, radius: int = -1, include_fixed: b
 
 
 ## 按图谱为指定场景发起预加载。
+## [br]
+## @api public
+## [br]
 ## @param path: 当前场景资源路径。
+## [br]
 ## @param radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。
+## [br]
 ## @param include_fixed: 是否包含固定预加载路径。
+## [br]
 ## @return 预加载结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok、source_path、radius、include_fixed、requested_count、fixed_requested、temporary_requested、results、errors 和 plan。
 func preload_scene_map_for(path: String, radius: int = -1, include_fixed: bool = true) -> Dictionary:
 	if scene_preload_map == null:
 		return _make_missing_scene_preload_map_result(path, radius, include_fixed)
@@ -465,14 +627,24 @@ func preload_scene_map_for(path: String, radius: int = -1, include_fixed: bool =
 
 
 ## 按图谱为当前场景发起预加载。
+## [br]
+## @api public
+## [br]
 ## @param radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。
+## [br]
 ## @param include_fixed: 是否包含固定预加载路径。
+## [br]
 ## @return 预加载结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok、source_path、radius、include_fixed、requested_count、fixed_requested、temporary_requested、results、errors 和 plan。
 func preload_current_scene_map(radius: int = -1, include_fixed: bool = true) -> Dictionary:
 	return preload_scene_map_for(_get_current_scene_path(), radius, include_fixed)
 
 
 ## 取消一个仍在进行中的预加载请求。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
 func cancel_scene_preload(path: String) -> void:
 	if not _preload_requests.has(path):
@@ -484,13 +656,19 @@ func cancel_scene_preload(path: String) -> void:
 
 
 ## 取消全部正在进行中的预加载请求。
+## [br]
+## @api public
 func cancel_all_scene_preloads() -> void:
 	for path: String in _preload_requests.keys():
 		cancel_scene_preload(path)
 
 
 ## 检查场景是否正在预加载。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 正在预加载时返回 true。
 func is_scene_preloading(path: String) -> bool:
 	if not _preload_requests.has(path):
@@ -499,14 +677,22 @@ func is_scene_preloading(path: String) -> bool:
 
 
 ## 检查场景是否已经预加载到缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 已缓存时返回 true。
 func is_scene_preloaded(path: String) -> bool:
 	return _preloaded_scenes.has(path) or _fixed_preloaded_scenes.has(path)
 
 
 ## 获取已预加载的 PackedScene。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 命中缓存时返回 PackedScene，否则返回 null。
 func get_preloaded_scene(path: String) -> PackedScene:
 	var fixed_scene := _fixed_preloaded_scenes.get(path) as PackedScene
@@ -520,8 +706,13 @@ func get_preloaded_scene(path: String) -> PackedScene:
 
 
 ## 手动写入预加载缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @param scene: PackedScene 实例。
+## [br]
 ## @param fixed: 为 true 时写入固定缓存。
 func put_preloaded_scene(path: String, scene: PackedScene, fixed: bool = false) -> void:
 	if path.is_empty() or scene == null:
@@ -545,6 +736,9 @@ func put_preloaded_scene(path: String, scene: PackedScene, fixed: bool = false) 
 
 
 ## 移除一个预加载场景资源。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
 func remove_preloaded_scene(path: String) -> void:
 	var was_fixed := _fixed_preloaded_scenes.has(path)
@@ -560,6 +754,9 @@ func remove_preloaded_scene(path: String) -> void:
 
 
 ## 清空所有预加载场景资源。
+## [br]
+## @api public
+## [br]
 ## @param include_fixed: 为 true 时同时清空固定缓存。
 func clear_preloaded_scenes(include_fixed: bool = true) -> void:
 	var fixed_paths := _get_sorted_string_keys(_fixed_preloaded_scenes)
@@ -581,7 +778,11 @@ func clear_preloaded_scenes(include_fixed: bool = true) -> void:
 
 
 ## 把已缓存场景移动到固定缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 移动成功返回 true。
 func move_preloaded_scene_to_fixed(path: String) -> bool:
 	var scene := get_preloaded_scene(path)
@@ -592,7 +793,11 @@ func move_preloaded_scene_to_fixed(path: String) -> bool:
 
 
 ## 把已缓存场景移动到临时 LRU 缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 移动成功返回 true。
 func move_preloaded_scene_to_temporary(path: String) -> bool:
 	var scene := get_preloaded_scene(path)
@@ -603,13 +808,20 @@ func move_preloaded_scene_to_temporary(path: String) -> bool:
 
 
 ## 检查已缓存场景是否位于固定缓存。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 固定缓存命中时返回 true。
 func is_preloaded_scene_fixed(path: String) -> bool:
 	return _fixed_preloaded_scenes.has(path)
 
 
 ## 获取正在预加载的场景路径列表。
+## [br]
+## @api public
+## [br]
 ## @return 路径列表。
 func get_preloading_scene_paths() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -621,7 +833,12 @@ func get_preloading_scene_paths() -> PackedStringArray:
 
 
 ## 获取场景缓存与加载状态快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试快照字典。
+## [br]
+## @schema return: Dictionary，包含 is_loading、target_path、loading_scene_path、current_scene、loading_progress、transition、preload_cache、scene_preload_map、preloading 和 background。
 func get_scene_cache_debug_snapshot() -> Dictionary:
 	var preloading_paths := get_preloading_scene_paths()
 	return {
@@ -633,6 +850,7 @@ func get_scene_cache_debug_snapshot() -> Dictionary:
 		"previous_scene": _previous_scene_path,
 		"transition": {
 			"minimum_duration_seconds": _active_transition_minimum_seconds,
+			"cache_loaded_scene": _active_load_cache_loaded_scene,
 			"params": _active_transition_params.duplicate(true),
 			"current_params": _current_scene_params.duplicate(true),
 			"history_size": _scene_history.size(),
@@ -663,7 +881,11 @@ func get_scene_cache_debug_snapshot() -> Dictionary:
 
 
 ## 获取场景资源状态。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return SceneResourceState 枚举值。
 func get_scene_resource_state(path: String) -> int:
 	if _is_loading and _target_path == path:
@@ -676,14 +898,23 @@ func get_scene_resource_state(path: String) -> int:
 
 
 ## 获取当前异步加载进度。
+## [br]
+## @api public
+## [br]
 ## @return 当前加载进度，未加载时为 0。
 func get_loading_progress() -> float:
 	return _active_loading_progress
 
 
 ## 获取单个场景资源的缓存与加载信息。
+## [br]
+## @api public
+## [br]
 ## @param path: 场景路径。
+## [br]
 ## @return 场景资源状态字典。
+## [br]
+## @schema return: Dictionary，包含 path、state、is_loading、is_preloading、is_preloaded、is_fixed、progress、cached 和 file_size_bytes。
 func get_scene_resource_info(path: String) -> Dictionary:
 	var request := _preload_requests.get(path, {}) as Dictionary
 	var progress := 0.0
@@ -707,13 +938,23 @@ func get_scene_resource_info(path: String) -> Dictionary:
 
 
 ## 获取当前场景参数副本。
+## [br]
+## @api public
+## [br]
 ## @return 当前场景参数。
+## [br]
+## @schema return: Dictionary[String, Variant]，当前场景参数。
 func get_current_scene_params() -> Dictionary:
 	return _current_scene_params.duplicate(true)
 
 
 ## 获取场景历史副本。
+## [br]
+## @api public
+## [br]
 ## @return 场景历史列表，最新项位于数组末尾。
+## [br]
+## @schema return: Array[Dictionary]，元素包含 path、params 和 timestamp_unix。
 func get_scene_history() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in _scene_history:
@@ -722,12 +963,19 @@ func get_scene_history() -> Array[Dictionary]:
 
 
 ## 清空场景历史。
+## [br]
+## @api public
 func clear_scene_history() -> void:
 	_scene_history.clear()
 
 
 ## 弹出最近一个场景历史项。
+## [br]
+## @api public
+## [br]
 ## @return 历史项；没有历史时返回空字典。
+## [br]
+## @schema return: Dictionary，包含 path、params 和 timestamp_unix；没有记录时为空字典。
 func pop_scene_history() -> Dictionary:
 	if _scene_history.is_empty():
 		return {}
@@ -736,8 +984,13 @@ func pop_scene_history() -> Dictionary:
 
 
 ## 切换到最近一个历史场景。
+## [br]
+## @api public
+## [br]
 ## @param loading_scene_path: 可选 loading scene 路径。
+## [br]
 ## @param minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。
+## [br]
 ## @return 发起切换的 Godot Error。
 func load_previous_scene(loading_scene_path: String = "", minimum_duration_seconds: float = -1.0) -> Error:
 	if _is_loading:
@@ -768,6 +1021,9 @@ func load_previous_scene(loading_scene_path: String = "", minimum_duration_secon
 
 
 ## 标记一个脚本类型为瞬态实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 需要在下次切场景时清理的脚本类型。
 func mark_transient(script_cls: Script) -> void:
 	if not _transient_scripts.has(script_cls):
@@ -775,12 +1031,17 @@ func mark_transient(script_cls: Script) -> void:
 
 
 ## 取消一个脚本类型的瞬态标记。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要取消标记的脚本类型。
 func unmark_transient(script_cls: Script) -> void:
 	_transient_scripts.erase(script_cls)
 
 
 ## 立即清理所有瞬态实例。
+## [br]
+## @api public
 func cleanup_transients() -> void:
 	if _transient_scripts.is_empty():
 		return
@@ -798,6 +1059,93 @@ func cleanup_transients() -> void:
 			arch.unregister_utility(script_cls)
 
 	_transient_scripts.clear()
+
+
+# --- 可重写钩子 / 虚方法 ---
+
+## 判断当前环境是否应使用同步加载作为活动场景加载降级。
+## [br]
+## @api protected
+## [br]
+## @return 需要同步降级时返回 true。
+func _should_load_active_scene_synchronously() -> bool:
+	return DisplayServer.get_name().to_lower() == "headless"
+
+
+## 同步加载 PackedScene 资源。
+## [br]
+## @api protected
+## [br]
+## @param path: 场景资源路径。
+## [br]
+## @return 加载到的 PackedScene；失败时返回 null。
+func _load_packed_scene_synchronously(path: String) -> PackedScene:
+	return ResourceLoader.load(path, "PackedScene") as PackedScene
+
+
+## 获取当前 loading scene 节点。
+## [br]
+## @api protected
+## [br]
+## @return 当前 loading scene 节点；不存在时返回 null。
+func _get_loading_scene_node() -> Node:
+	if not _is_showing_loading_scene:
+		return null
+
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if scene_tree == null:
+		return null
+	return scene_tree.current_scene
+
+
+## 切换到已加载的 PackedScene。
+## [br]
+## @api protected
+## [br]
+## @param scene: 目标 PackedScene。
+## [br]
+## @return 切换成功返回 true。
+func _do_change_scene(scene: PackedScene) -> bool:
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if scene_tree == null:
+		push_error("[GFSceneUtility] 无法获取 SceneTree，场景切换失败。")
+		return false
+
+	var error := scene_tree.change_scene_to_packed(scene)
+	if error != OK:
+		push_error("[GFSceneUtility] 切换到目标场景失败，错误码：%d" % error)
+		return false
+
+	cleanup_transients()
+	return true
+
+
+## 同步切换到场景文件路径。
+## [br]
+## @api protected
+## [br]
+## @param path: 场景资源路径。
+## [br]
+## @return Godot 场景切换结果。
+func _do_change_scene_sync(path: String) -> Error:
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if scene_tree == null:
+		return ERR_UNAVAILABLE
+
+	return scene_tree.change_scene_to_file(path)
+
+
+## 获取当前场景资源路径。
+## [br]
+## @api protected
+## [br]
+## @return 当前场景资源路径；不可用时返回空字符串。
+func _get_current_scene_path() -> String:
+	var scene_tree := Engine.get_main_loop() as SceneTree
+	if scene_tree == null or scene_tree.current_scene == null:
+		return ""
+
+	return scene_tree.current_scene.scene_file_path
 
 
 # --- 私有/辅助方法 ---
@@ -842,10 +1190,6 @@ func _make_scene_preload_map_error(path: String, error: Error, fixed: bool) -> D
 	}
 
 
-func _should_load_active_scene_synchronously() -> bool:
-	return DisplayServer.get_name().to_lower() == "headless"
-
-
 func _load_active_scene_synchronously(path: String) -> void:
 	var scene := _load_packed_scene_synchronously(path)
 	if scene == null:
@@ -856,10 +1200,6 @@ func _load_active_scene_synchronously(path: String) -> void:
 	if _active_load_cache_loaded_scene:
 		put_preloaded_scene(path, scene)
 	_schedule_complete_loading(path, scene)
-
-
-func _load_packed_scene_synchronously(path: String) -> PackedScene:
-	return ResourceLoader.load(path, "PackedScene") as PackedScene
 
 
 func _poll_active_scene_load() -> void:
@@ -1066,16 +1406,6 @@ func _call_loading_scene_error_method(message: String) -> void:
 		loading_scene.call(loading_screen_error_method, message)
 
 
-func _get_loading_scene_node() -> Node:
-	if not _is_showing_loading_scene:
-		return null
-
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	if scene_tree == null:
-		return null
-	return scene_tree.current_scene
-
-
 func _schedule_complete_loading(path: String, scene: PackedScene) -> void:
 	_pending_loaded_path = path
 	_pending_loaded_scene = scene
@@ -1133,31 +1463,6 @@ func _apply_target_scene_change(path: String, scene: PackedScene) -> void:
 		_fail_loading(path, "")
 
 
-func _do_change_scene(scene: PackedScene) -> bool:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	if scene_tree == null:
-		push_error("[GFSceneUtility] 无法获取 SceneTree，场景切换失败。")
-		return false
-
-	var error := scene_tree.change_scene_to_packed(scene)
-	if error != OK:
-		push_error("[GFSceneUtility] 切换到目标场景失败，错误码：%d" % error)
-		return false
-
-	cleanup_transients()
-	return true
-
-
-func _do_change_scene_sync(path: String) -> Error:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	if scene_tree == null:
-		return ERR_UNAVAILABLE
-
-	return scene_tree.change_scene_to_file(path)
-
-
-## 设置全局暂停状态；若未注册 `GFTimeUtility` 则静默跳过。
-## @param p_paused: 目标暂停状态。
 func _set_paused(p_paused: bool) -> void:
 	var arch := _get_architecture_or_null()
 	if arch == null:
@@ -1329,14 +1634,6 @@ func _reset_loading_state() -> void:
 	_pending_previous_history_path = ""
 	_pending_loaded_path = ""
 	_pending_loaded_scene = null
-
-
-func _get_current_scene_path() -> String:
-	var scene_tree := Engine.get_main_loop() as SceneTree
-	if scene_tree == null or scene_tree.current_scene == null:
-		return ""
-
-	return scene_tree.current_scene.scene_file_path
 
 
 func _touch_preloaded_scene(path: String) -> void:

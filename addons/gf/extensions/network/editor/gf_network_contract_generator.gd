@@ -4,25 +4,43 @@
 ##
 ## 生成结果保持为 GDScript 轻量封装，围绕 GFNetworkMessage / GFNetworkUtility
 ## 提供构造、发送、匹配和 payload 读取函数，不绑定任何具体业务协议。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
 class_name GFNetworkContractGenerator
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 默认生成脚本输出目录。
+## [br]
+## @api public
 const DEFAULT_OUTPUT_DIR: String = "res://gf/generated/network"
-const GF_SOURCE_BUILDER_BASE := preload("res://addons/gf/kernel/editor/gf_source_builder.gd")
-const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_SOURCE_BUILDER_SCRIPT: Script = preload("res://addons/gf/kernel/editor/gf_source_builder.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 公共方法 ---
 
 ## 生成单个契约访问器脚本。
+## [br]
+## @api public
+## [br]
 ## @param contract: 网络契约资源。
+## [br]
 ## @param output_path: 输出脚本路径；为空时按 contract_id 推导。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+## [br]
 ## @param options: 可选项，支持 class_name。
+## [br]
 ## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，支持 class_name。
 func generate(
 	contract: GFNetworkContract,
 	output_path: String = "",
@@ -44,11 +62,22 @@ func generate(
 
 
 ## 批量生成多个契约访问器脚本。
+## [br]
+## @api public
+## [br]
 ## @param contract_paths: 契约资源路径列表。
+## [br]
 ## @param output_dir: 输出目录。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会跳过。
+## [br]
 ## @param options: 可选项。
+## [br]
 ## @return 生成报告。
+## [br]
+## @schema options: Dictionary，支持 class_name。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、generated_count、attempted_count、generated、issues、issue_count 和 next_actions。
 func generate_many(
 	contract_paths: PackedStringArray,
 	output_dir: String = DEFAULT_OUTPUT_DIR,
@@ -95,7 +124,7 @@ func generate_many(
 		"generated": generated,
 		"issues": issues,
 	}
-	return GFValidationReportDictionaryBase.finalize_report(report, "Network contract generation", {
+	return _GF_VALIDATION_REPORT_DICTIONARY.finalize_report(report, "Network contract generation", {
 		"include_issue_count": true,
 		"next_actions": _get_generation_next_actions(),
 		"fallback_action": "Review the first network contract generation issue.",
@@ -104,11 +133,18 @@ func generate_many(
 
 
 ## 构建契约访问器源码。测试或项目工具可直接调用该方法。
+## [br]
+## @api public
+## [br]
 ## @param contract: 网络契约资源。
+## [br]
 ## @param options: 可选项，支持 class_name。
+## [br]
 ## @return GDScript 源码。
+## [br]
+## @schema options: Dictionary，支持 class_name。
 func build_source(contract: GFNetworkContract, options: Dictionary = {}) -> String:
-	var builder: GFSourceBuilder = GF_SOURCE_BUILDER_BASE.new()
+	var builder: GFSourceBuilder = _GF_SOURCE_BUILDER_SCRIPT.new()
 	var class_name_value := _resolve_class_name(contract, options)
 	var message_records := _build_message_records(contract)
 
@@ -127,9 +163,15 @@ func build_source(contract: GFNetworkContract, options: Dictionary = {}) -> Stri
 
 
 ## 保存生成源码到指定路径。
+## [br]
+## @api public
+## [br]
 ## @param output_path: 输出脚本路径。
+## [br]
 ## @param source: 源码文本。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+## [br]
 ## @return Godot 错误码。
 func save_source(output_path: String, source: String, overwrite_existing: bool = true) -> Error:
 	if output_path.is_empty():
@@ -619,8 +661,8 @@ func _to_snake_identifier(value: String, fallback: String) -> String:
 
 
 func _to_constant_name(value: String, fallback: String) -> String:
-	var name := _to_snake_identifier(value, fallback).to_upper()
-	return name if not name.is_empty() else fallback
+	var constant_name := _to_snake_identifier(value, fallback).to_upper()
+	return constant_name if not constant_name.is_empty() else fallback
 
 
 func _make_unique_name(base_name: String, used_names: Dictionary) -> String:

@@ -64,18 +64,24 @@ func test_queue_respects_max_size() -> void:
 ## 验证失败批次回灌后仍遵守队列上限。
 func test_failed_flush_requeue_respects_max_size() -> void:
 	_analytics.config.max_queue_size = 2
-	_analytics.track(&"queued_a")
-	_analytics.track(&"queued_b")
-	var failed_batch: Array = [
-		{ "event": "failed_a" },
-		{ "event": "failed_b" },
-	]
+	_analytics.config.batch_size = 2
+	_analytics.transport_callback = func(_payload: Dictionary) -> Dictionary:
+		return { "success": false, "error": "offline" }
+	_analytics.track(&"failed_a")
+	_analytics.track(&"failed_b")
 
-	_analytics._finish_flush({ "success": false, "error": "offline" }, failed_batch)
+	var captured := { "events": [] }
+	_analytics.transport_callback = func(payload: Dictionary) -> Dictionary:
+		captured["events"] = (payload.get("events", []) as Array).duplicate(true)
+		return { "success": true, "accepted": (captured["events"] as Array).size() }
+	_analytics.flush()
 
-	assert_eq(_analytics.get_queue_size(), 2, "失败批次回灌后队列仍不应超过 max_queue_size。")
-	assert_eq(String(_analytics._queue[0].get("event")), "failed_a", "失败批次应保留在队列前端。")
-	assert_eq(String(_analytics._queue[1].get("event")), "failed_b", "失败批次顺序应保持。")
+	var captured_events := captured["events"] as Array
+	assert_eq(captured_events.size(), 2, "失败批次回灌后应能再次被 flush。")
+	if captured_events.size() < 2:
+		return
+	assert_eq(String((captured_events[0] as Dictionary).get("event")), "failed_a", "失败批次应保留在队列前端。")
+	assert_eq(String((captured_events[1] as Dictionary).get("event")), "failed_b", "失败批次顺序应保持。")
 
 
 ## 验证自定义 HTTP Header 会过滤空名和 CR/LF 注入。

@@ -1,6 +1,14 @@
 ## GFAutoload: GF AutoLoad 运行时解析辅助。
 ##
 ## 用于避免框架脚本在首次导入、AutoLoad 尚未注册时直接引用全局 Gf 标识符。
+## [br]
+## @api framework_internal
+## [br]
+## @category internal_helper
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/core
 class_name GFAutoload
 extends RefCounted
 
@@ -8,12 +16,17 @@ extends RefCounted
 # --- 常量 ---
 
 ## GF Framework 注册到场景树根节点下的 AutoLoad 名称。
+## [br]
+## @api framework_internal
 const AUTOLOAD_NAME: StringName = &"Gf"
 
 
 # --- 公共方法 ---
 
 ## 获取 Gf AutoLoad 节点；未注册或场景树不可用时返回 null。
+## [br]
+## @api framework_internal
+## [br]
 ## @return Gf AutoLoad 节点。
 static func get_singleton_or_null() -> Node:
 	var main_loop := Engine.get_main_loop()
@@ -28,6 +41,9 @@ static func get_singleton_or_null() -> Node:
 
 
 ## 检查全局 Gf 是否已经持有架构实例。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 架构存在时返回 true。
 static func has_architecture() -> bool:
 	var singleton := get_singleton_or_null()
@@ -38,6 +54,9 @@ static func has_architecture() -> bool:
 
 ## 获取全局架构实例；AutoLoad 不可用或尚未创建架构时返回 null。
 ## 该方法只表示架构实例存在，不保证架构已经完成 init()/ready()。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 当前全局架构实例。
 static func get_architecture_or_null() -> GFArchitecture:
 	var singleton := get_singleton_or_null()
@@ -51,6 +70,9 @@ static func get_architecture_or_null() -> GFArchitecture:
 
 
 ## 获取已完成初始化的全局架构；AutoLoad 不可用、尚未创建架构或架构未 ready 时返回 null。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 已完成初始化的全局架构实例。
 static func get_ready_architecture_or_null() -> GFArchitecture:
 	var architecture := get_architecture_or_null()
@@ -60,6 +82,9 @@ static func get_ready_architecture_or_null() -> GFArchitecture:
 
 
 ## 获取全局架构实例；不可用时输出明确错误。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 当前全局架构实例。
 static func get_architecture() -> GFArchitecture:
 	var architecture := get_architecture_or_null()
@@ -69,6 +94,9 @@ static func get_architecture() -> GFArchitecture:
 
 
 ## 获取已完成初始化的全局架构；不可用或未 ready 时输出明确错误。
+## [br]
+## @api framework_internal
+## [br]
 ## @return 已完成初始化的全局架构实例。
 static func get_ready_architecture() -> GFArchitecture:
 	var architecture := get_ready_architecture_or_null()

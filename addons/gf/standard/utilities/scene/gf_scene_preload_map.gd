@@ -2,70 +2,100 @@
 ##
 ## 用资源描述场景间的相邻关系，供 GFSceneUtility 或项目层根据当前场景计算预加载计划。
 ## 图谱只关注资源路径和缓存策略，不绑定地图、关卡、菜单或具体业务流。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFScenePreloadMap
 extends Resource
 
 
 # --- 常量 ---
 
-const GFScenePreloadEntryBase = preload("res://addons/gf/standard/utilities/scene/gf_scene_preload_entry.gd")
 const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
 
 
 # --- 导出变量 ---
 
 ## 默认相邻搜索半径；0 表示只使用固定预加载路径。
+## [br]
+## @api public
 @export_range(0, 16, 1, "or_greater") var default_radius: int = 1:
 	set(value):
 		default_radius = maxi(value, 0)
 
 ## 单次计划最多返回的临时相邻场景数量；0 表示不限制。
+## [br]
+## @api public
 @export_range(0, 256, 1, "or_greater") var max_scheduled_scenes: int = 0:
 	set(value):
 		max_scheduled_scenes = maxi(value, 0)
 
 ## 始终参与预加载计划的固定场景路径。
+## [br]
+## @api public
 @export var fixed_scene_paths: PackedStringArray = PackedStringArray()
 
 ## 场景关系条目列表。
-@export var entries: Array[GFScenePreloadEntryBase] = []
+## [br]
+## @api public
+@export var entries: Array[GFScenePreloadEntry] = []
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary[String, Variant]，会复制到预加载计划报告中。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取指定路径对应的条目。
+## [br]
+## @api public
+## [br]
 ## @param scene_path: 场景资源路径。
+## [br]
 ## @return 对应条目；未找到时返回 null。
-func get_entry(scene_path: String) -> GFScenePreloadEntryBase:
+func get_entry(scene_path: String) -> GFScenePreloadEntry:
 	var normalized_path := scene_path.strip_edges()
 	if normalized_path.is_empty():
 		return null
 
-	for entry: GFScenePreloadEntryBase in entries:
+	for entry: GFScenePreloadEntry in entries:
 		if entry != null and entry.get_scene_path() == normalized_path:
 			return entry
 	return null
 
 
 ## 获取去重后的固定预加载路径。
+## [br]
+## @api public
+## [br]
 ## @return 固定预加载路径列表。
 func get_fixed_scene_paths() -> PackedStringArray:
 	var result := PackedStringArray()
 	for raw_path: String in fixed_scene_paths:
 		_append_unique_path(result, raw_path)
-	for entry: GFScenePreloadEntryBase in entries:
+	for entry: GFScenePreloadEntry in entries:
 		if entry != null and entry.fixed:
 			_append_unique_path(result, entry.get_scene_path())
 	return result
 
 
 ## 获取指定场景周围的相邻场景路径。
+## [br]
+## @api public
+## [br]
 ## @param scene_path: 当前场景资源路径。
+## [br]
 ## @param radius: 搜索半径；小于 0 时使用 default_radius。
+## [br]
 ## @param include_source: 是否包含 scene_path 自身。
+## [br]
 ## @return 相邻场景路径列表。
 func get_neighbor_scene_paths(
 	scene_path: String,
@@ -117,10 +147,18 @@ func get_neighbor_scene_paths(
 
 
 ## 获取指定场景的预加载计划。
+## [br]
+## @api public
+## [br]
 ## @param scene_path: 当前场景资源路径。
+## [br]
 ## @param radius: 搜索半径；小于 0 时使用 default_radius。
+## [br]
 ## @param include_fixed: 是否包含固定预加载路径。
+## [br]
 ## @return 预加载计划字典。
+## [br]
+## @schema return: Dictionary，包含 source_path、radius、include_fixed、fixed_paths、temporary_paths、paths 和 metadata。
 func get_preload_plan(
 	scene_path: String,
 	radius: int = -1,
@@ -160,8 +198,16 @@ func get_preload_plan(
 
 
 ## 校验预加载图谱结构。
+## [br]
+## @api public
+## [br]
 ## @param options: 可选参数，支持 check_exists。
+## [br]
+## @schema options: Dictionary，包含 check_exists: bool。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: Dictionary，由 GFValidationReport.to_dict() 生成的校验报告。
 func validate_map(options: Dictionary = {}) -> Dictionary:
 	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Scene preload map")
 	var check_exists := bool(options.get("check_exists", false))

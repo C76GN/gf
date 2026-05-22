@@ -2,29 +2,34 @@
 ##
 ## 只读取输入资源与可选重映射配置，不参与运行时输入分发。适合设置界面、
 ## 编辑器工具或测试在应用重绑定前检查同一输入是否被多个抽象动作占用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFInputConflictAnalyzer
 extends RefCounted
-
-
-# --- 常量 ---
-
-const GFInputBindingBase = preload("res://addons/gf/standard/input/mapping/gf_input_binding.gd")
-const GFInputContextBase = preload("res://addons/gf/standard/input/mapping/gf_input_context.gd")
-const GFInputFormatterBase = preload("res://addons/gf/standard/input/formatting/gf_input_formatter.gd")
-const GFInputMappingBase = preload("res://addons/gf/standard/input/mapping/gf_input_mapping.gd")
-const GFInputRemapConfigBase = preload("res://addons/gf/standard/input/rebinding/gf_input_remap_config.gd")
 
 
 # --- 公共方法 ---
 
 ## 分析单个上下文内的绑定冲突。
+## [br]
+## @api public
+## [br]
 ## @param context: 输入上下文。
+## [br]
 ## @param remap_config: 可选重映射配置。
+## [br]
 ## @param include_non_remappable: 是否包含不可重绑动作或绑定。
+## [br]
+## @schema return: Array，包含冲突 Dictionary 记录，字段包括 context/action/binding id、other_* id、event_text、signature 和 items。
+## [br]
 ## @return 冲突列表。
 static func analyze_context(
-	context: GFInputContextBase,
-	remap_config: GFInputRemapConfigBase = null,
+	context: GFInputContext,
+	remap_config: GFInputRemapConfig = null,
 	include_non_remappable: bool = true
 ) -> Array[Dictionary]:
 	if context == null:
@@ -33,14 +38,25 @@ static func analyze_context(
 
 
 ## 分析多个上下文的绑定冲突。
+## [br]
+## @api public
+## [br]
 ## @param contexts: 输入上下文列表。
+## [br]
 ## @param remap_config: 可选重映射配置。
+## [br]
 ## @param include_cross_context: 是否报告跨上下文冲突。
+## [br]
 ## @param include_non_remappable: 是否包含不可重绑动作或绑定。
+## [br]
+## @schema contexts: Array[GFInputContext] of contexts to analyze.
+## [br]
+## @schema return: Array，包含冲突 Dictionary 记录，字段包括 context/action/binding id、other_* id、event_text、signature 和 items。
+## [br]
 ## @return 冲突列表。
 static func analyze_contexts(
-	contexts: Array,
-	remap_config: GFInputRemapConfigBase = null,
+	contexts: Array[GFInputContext],
+	remap_config: GFInputRemapConfig = null,
 	include_cross_context: bool = false,
 	include_non_remappable: bool = true
 ) -> Array[Dictionary]:
@@ -49,14 +65,25 @@ static func analyze_contexts(
 
 
 ## 构建重绑定诊断报告。
+## [br]
+## @api public
+## [br]
 ## @param contexts: 输入上下文列表。
+## [br]
 ## @param remap_config: 可选重映射配置。
+## [br]
 ## @param include_cross_context: 是否报告跨上下文冲突。
+## [br]
 ## @param include_non_remappable: 是否包含不可重绑动作或绑定。
+## [br]
+## @schema contexts: Array[GFInputContext] of contexts to analyze.
+## [br]
+## @schema return: Dictionary，包含 ok、context_count、item_count、conflict_count、items 和 conflicts。
+## [br]
 ## @return 包含条目与冲突的报告。
 static func build_rebind_report(
-	contexts: Array,
-	remap_config: GFInputRemapConfigBase = null,
+	contexts: Array[GFInputContext],
+	remap_config: GFInputRemapConfig = null,
 	include_cross_context: bool = false,
 	include_non_remappable: bool = true
 ) -> Dictionary:
@@ -73,18 +100,27 @@ static func build_rebind_report(
 
 
 ## 收集上下文中的有效绑定条目。
+## [br]
+## @api public
+## [br]
 ## @param contexts: 输入上下文列表。
+## [br]
 ## @param remap_config: 可选重映射配置。
+## [br]
 ## @param include_non_remappable: 是否包含不可重绑动作或绑定。
+## [br]
+## @schema contexts: Array[GFInputContext] of contexts to inspect.
+## [br]
+## @schema return: Array，包含 item Dictionary 记录，字段包括 context/action/binding id、event、event_text、event_key、signature、device_scope 和 match_device。
+## [br]
 ## @return 绑定条目列表。
 static func collect_binding_items(
-	contexts: Array,
-	remap_config: GFInputRemapConfigBase = null,
+	contexts: Array[GFInputContext],
+	remap_config: GFInputRemapConfig = null,
 	include_non_remappable: bool = true
 ) -> Array[Dictionary]:
 	var items: Array[Dictionary] = []
-	for context_variant: Variant in contexts:
-		var context := context_variant as GFInputContextBase
+	for context: GFInputContext in contexts:
 		if context == null:
 			continue
 		_collect_context_binding_items(context, remap_config, include_non_remappable, items)
@@ -92,8 +128,13 @@ static func collect_binding_items(
 
 
 ## 获取输入事件的稳定签名。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param match_device: 是否把设备 ID 纳入签名。
+## [br]
 ## @return 签名字符串；空事件返回空字符串。
 static func get_event_signature(input_event: InputEvent, match_device: bool = false) -> String:
 	var event_key := _get_event_key(input_event)
@@ -104,10 +145,17 @@ static func get_event_signature(input_event: InputEvent, match_device: bool = fa
 
 
 ## 判断两个输入事件是否会在绑定层互相冲突。
+## [br]
+## @api public
+## [br]
 ## @param left_event: 左侧输入事件。
+## [br]
 ## @param right_event: 右侧输入事件。
+## [br]
 ## @param left_match_device: 左侧是否要求设备精确匹配。
+## [br]
 ## @param right_match_device: 右侧是否要求设备精确匹配。
+## [br]
 ## @return 冲突返回 true。
 static func are_events_equivalent(
 	left_event: InputEvent,
@@ -128,13 +176,13 @@ static func are_events_equivalent(
 # --- 私有/辅助方法 ---
 
 static func _collect_context_binding_items(
-	context: GFInputContextBase,
-	remap_config: GFInputRemapConfigBase,
+	context: GFInputContext,
+	remap_config: GFInputRemapConfig,
 	include_non_remappable: bool,
 	items: Array[Dictionary]
 ) -> void:
 	var context_id := context.get_context_id()
-	for mapping: GFInputMappingBase in context.mappings:
+	for mapping: GFInputMapping in context.mappings:
 		if mapping == null:
 			continue
 		if not include_non_remappable and mapping.action != null and not mapping.action.remappable:
@@ -165,7 +213,7 @@ static func _collect_context_binding_items(
 				"action_name": mapping.get_display_name(),
 				"binding_index": binding_index,
 				"event": event,
-				"event_text": GFInputFormatterBase.input_event_as_text(event),
+				"event_text": GFInputFormatter.input_event_as_text(event),
 				"event_key": event_key,
 				"signature": get_event_signature(event, binding.match_device),
 				"device_scope": _get_device_scope(event, binding.match_device),
@@ -187,10 +235,9 @@ static func _analyze_items(items: Array[Dictionary], include_cross_context: bool
 	return conflicts
 
 
-static func _count_contexts(contexts: Array) -> int:
+static func _count_contexts(contexts: Array[GFInputContext]) -> int:
 	var count := 0
-	for context_variant: Variant in contexts:
-		var context := context_variant as GFInputContextBase
+	for context: GFInputContext in contexts:
 		if context != null:
 			count += 1
 	return count

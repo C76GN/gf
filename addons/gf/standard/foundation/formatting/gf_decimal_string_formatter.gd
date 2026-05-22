@@ -1,6 +1,8 @@
 ## GFDecimalStringFormatter: 小数文本格式化与校验辅助。
 ##
 ## 提供数值显示、定点数和大数共享的舍入、截断、尾零裁剪与数字字符校验逻辑。
+## [br]
+## @api framework_internal
 class_name GFDecimalStringFormatter
 extends RefCounted
 
@@ -8,9 +10,15 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 按小数位数调整浮点值。
+## [br]
+## @api framework_internal
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param use_truncation: 为 true 时截断，否则四舍五入。
+## [br]
 ## @return 调整后的值。
 static func apply_decimal_places(value: float, decimal_places: int, use_truncation: bool) -> float:
 	if decimal_places <= 0:
@@ -28,10 +36,17 @@ static func apply_decimal_places(value: float, decimal_places: int, use_truncati
 
 
 ## 格式化小数值。
+## [br]
+## @api framework_internal
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁剪末尾零。
+## [br]
 ## @param use_truncation: 为 true 时截断，否则四舍五入。
+## [br]
 ## @return 格式化文本。
 static func format_decimal_value(
 	value: float,
@@ -50,7 +65,11 @@ static func format_decimal_value(
 
 
 ## 裁剪小数字符串末尾零。
+## [br]
+## @api framework_internal
+## [br]
 ## @param text: 小数字符串。
+## [br]
 ## @return 裁剪后的文本。
 static func trim_trailing_zeroes(text: String) -> String:
 	var result := text
@@ -67,9 +86,15 @@ static func trim_trailing_zeroes(text: String) -> String:
 
 
 ## 校验小数字符串拆分后的整数和小数部分。
+## [br]
+## @api framework_internal
+## [br]
 ## @param integer_part: 整数部分。
+## [br]
 ## @param fractional_part: 小数部分。
+## [br]
 ## @param has_decimal_point: 原始文本是否包含小数点。
+## [br]
 ## @return 合法返回 true。
 static func is_valid_decimal_parts(
 	integer_part: String,
@@ -86,7 +111,11 @@ static func is_valid_decimal_parts(
 
 
 ## 判断文本是否只包含数字字符。
+## [br]
+## @api framework_internal
+## [br]
 ## @param text: 输入文本。
+## [br]
 ## @return 只包含数字时返回 true。
 static func contains_only_digits(text: String) -> bool:
 	if text.is_empty():

@@ -1,6 +1,12 @@
 ## GFInteractionFlow: 基于 GFInteractionContext 的链式交互辅助对象。
 ##
 ## 保持上下文传递与命令执行的显式类型边界，适合一次性组织交互流程。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFInteractionFlow
 extends RefCounted
 
@@ -8,6 +14,8 @@ extends RefCounted
 # --- 公共变量 ---
 
 ## 当前交互上下文。
+## [br]
+## @api public
 var context: GFInteractionContext
 
 
@@ -25,34 +33,61 @@ func _init(p_context: GFInteractionContext = null) -> void:
 # --- 公共方法 ---
 
 ## 注入当前交互所属架构。
+## [br]
+## @api framework_internal
+## [br]
 ## @param architecture: 用于命令或事件派发的架构实例。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
 
 
 ## 设置交互目标。
+## [br]
+## @api public
+## [br]
 ## @param target: 交互目标对象。
+## [br]
+## @return: 当前交互流程。
 func to(target: Object) -> GFInteractionFlow:
 	context.with_target(target)
 	return self
 
 
 ## 设置交互 payload。
+## [br]
+## @api public
+## [br]
 ## @param payload: 随事件或交互传递的数据。
+## [br]
+## @schema payload: 交互携带的任意项目载荷；框架只透传。
+## [br]
+## @return: 当前交互流程。
 func with_payload(payload: Variant) -> GFInteractionFlow:
 	context.with_payload(payload)
 	return self
 
 
 ## 设置交互分组。
+## [br]
+## @api public
+## [br]
 ## @param group_name: 项目自定义分组名称。
+## [br]
+## @return: 当前交互流程。
 func in_group(group_name: StringName) -> GFInteractionFlow:
 	context.with_group(group_name)
 	return self
 
 
 ## 执行命令。命令可通过 interaction_context 属性或 set_interaction_context(context) 接收上下文。
+## [br]
+## @api public
+## [br]
 ## @param command: 要执行的命令实例。
+## [br]
+## @return: 命令执行结果。
+## [br]
+## @schema return: GFArchitecture.send_command() 或 command.execute() 返回的任意项目结果；缺少命令时返回 null。
 func execute(command: Object) -> Variant:
 	if command == null:
 		return null
@@ -67,6 +102,9 @@ func execute(command: Object) -> Variant:
 
 
 ## 发送事件。事件可通过 interaction_context 属性或 set_interaction_context(context) 接收上下文。
+## [br]
+## @api public
+## [br]
 ## @param event_instance: 要派发的事件实例。
 func send_event(event_instance: Object) -> void:
 	if event_instance == null:

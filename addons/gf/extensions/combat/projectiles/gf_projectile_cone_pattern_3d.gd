@@ -1,6 +1,12 @@
 ## GFProjectileConePattern3D: 3D 水平扇形发射点模式。
 ##
 ## 围绕发射器局部 Y 轴分布 yaw，可叠加固定 pitch，并按变换前向生成点位。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFProjectileConePattern3D
 extends GFProjectileSpawnPattern3D
 
@@ -8,20 +14,41 @@ extends GFProjectileSpawnPattern3D
 # --- 导出变量 ---
 
 ## 默认发射数量。
+## [br]
+## @api public
 @export_range(1, 256, 1) var projectile_count: int = 1
 
 ## 总水平扩散角度（度）。
+## [br]
+## @api public
 @export var yaw_spread_degrees: float = 0.0
 
 ## 额外俯仰角度（度）。
+## [br]
+## @api public
 @export var pitch_degrees: float = 0.0
 
 ## 生成点距离发射器的半径。
+## [br]
+## @api public
 @export var radius: float = 0.0
 
 
-# --- 虚方法（由子类重写） ---
+# --- 可重写钩子 / 虚方法 ---
 
+## 生成 3D 扇形发射变换。
+## [br]
+## @api protected
+## [br]
+## @param emitter: 发射器节点。
+## [br]
+## @param _projectile_context: 本次发射上下文。
+## [br]
+## @param emit_count: 调用方请求的数量；小于等于 0 时使用 projectile_count。
+## [br]
+## @return 全局 Transform3D 列表。
+## [br]
+## @schema _projectile_context: Dictionary，本次发射上下文；当前实现不读取该字典。
 func _get_spawn_transforms(
 	emitter: Node3D,
 	_projectile_context: Dictionary = {},

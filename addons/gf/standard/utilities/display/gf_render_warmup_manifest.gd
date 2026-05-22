@@ -1,6 +1,12 @@
 ## GFRenderWarmupManifest: 通用渲染预热清单。
 ##
 ## 只描述需要提前触碰的渲染相关资源，不绑定具体关卡、材质命名或项目加载流程。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFRenderWarmupManifest
 extends Resource
 
@@ -8,22 +14,41 @@ extends Resource
 # --- 导出变量 ---
 
 ## 清单稳定标识，便于诊断和队列统计。
+## [br]
+## @api public
 @export var manifest_id: StringName = &""
 
 ## 预热条目列表。条目字段为 resource_path、resource、kind、type_hint、metadata。
+## [br]
+## @api public
+## [br]
+## @schema entries: Array[Dictionary]，元素包含 resource_path: String、resource: Resource 或 null、kind: StringName、type_hint: String 和 metadata: Dictionary。
 @export var entries: Array[Dictionary] = []
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary[String, Variant]，会复制到 describe() 结果中。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 添加资源路径条目。
+## [br]
+## @api public
+## [br]
 ## @param resource_path: 资源路径。
+## [br]
 ## @param kind: 资源类别提示。
+## [br]
 ## @param type_hint: ResourceLoader 类型提示。
+## [br]
 ## @param entry_metadata: 条目元数据。
+## [br]
+## @schema entry_metadata: Dictionary[String, Variant]，会复制到 manifest 条目的 metadata。
+## [br]
 ## @return 添加后的条目索引；失败返回 -1。
 func add_resource_path(
 	resource_path: String,
@@ -45,9 +70,17 @@ func add_resource_path(
 
 
 ## 添加已持有的资源条目。
+## [br]
+## @api public
+## [br]
 ## @param resource: 资源实例。
+## [br]
 ## @param kind: 资源类别提示。
+## [br]
 ## @param entry_metadata: 条目元数据。
+## [br]
+## @schema entry_metadata: Dictionary[String, Variant]，会复制到 manifest 条目的 metadata。
+## [br]
 ## @return 添加后的条目索引；失败返回 -1。
 func add_resource(resource: Resource, kind: StringName = &"", entry_metadata: Dictionary = {}) -> int:
 	if resource == null:
@@ -64,7 +97,11 @@ func add_resource(resource: Resource, kind: StringName = &"", entry_metadata: Di
 
 
 ## 合并另一个清单的条目。
+## [br]
+## @api public
+## [br]
 ## @param manifest: 来源清单。
+## [br]
 ## @return 新增条目数量。
 func append_manifest(manifest: GFRenderWarmupManifest) -> int:
 	if manifest == null:
@@ -78,25 +115,41 @@ func append_manifest(manifest: GFRenderWarmupManifest) -> int:
 
 
 ## 清空清单条目。
+## [br]
+## @api public
 func clear() -> void:
 	entries.clear()
 
 
 ## 获取条目数量。
+## [br]
+## @api public
+## [br]
 ## @return 条目数量。
 func get_entry_count() -> int:
 	return entries.size()
 
 
 ## 检查清单是否为空。
+## [br]
+## @api public
+## [br]
 ## @return 为空返回 true。
 func is_empty() -> bool:
 	return entries.is_empty()
 
 
 ## 规范化预热条目字典。
+## [br]
+## @api public
+## [br]
 ## @param entry: 输入条目。
+## [br]
+## @schema entry: Dictionary，包含 resource_path、resource、kind、type_hint 和 metadata 的 manifest 条目。
+## [br]
 ## @return 包含 resource_path、resource、kind、type_hint、metadata 的规范化副本。
+## [br]
+## @schema return: Dictionary，规范化后的 manifest 条目，包含 resource_path、resource、kind、type_hint 和 metadata。
 static func normalize_entry(entry: Dictionary) -> Dictionary:
 	var metadata_value: Variant = entry.get("metadata", {})
 	return {
@@ -109,7 +162,12 @@ static func normalize_entry(entry: Dictionary) -> Dictionary:
 
 
 ## 获取条目副本。
+## [br]
+## @api public
+## [br]
 ## @return 条目数组副本。
+## [br]
+## @schema return: Array[Dictionary]，规范化后的 manifest 条目列表。
 func get_entries() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in entries:
@@ -118,7 +176,12 @@ func get_entries() -> Array[Dictionary]:
 
 
 ## 描述清单。
+## [br]
+## @api public
+## [br]
 ## @return 清单描述字典。
+## [br]
+## @schema return: Dictionary，包含 manifest_id、entry_count、entries 和 metadata。
 func describe() -> Dictionary:
 	var described_entries: Array[Dictionary] = []
 	for entry: Dictionary in entries:

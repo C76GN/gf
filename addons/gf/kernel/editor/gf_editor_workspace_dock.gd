@@ -1,27 +1,116 @@
 @tool
 
-## GFEditorWorkspaceDock: GF 编辑器统一工作区。
-##
-## 把核心、标准库和启用扩展贡献的编辑器页面收束到一个响应式工作区中。
+# GFEditorWorkspaceDock: GF 编辑器统一工作区。
+#
+# 把核心、标准库和启用扩展贡献的编辑器页面收束到一个响应式工作区中。
 extends Control
 
 
 # --- 常量 ---
 
+## 关于弹窗尺寸。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const ABOUT_DIALOG_SIZE := Vector2i(560, 320)
+
+## 联系邮箱。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const CONTACT_EMAIL: String = "cl7o6dgyn@gmail.com"
+
+## 联系 QQ。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const CONTACT_QQ: String = "403150493"
+
+## 联系微信。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const CONTACT_WECHAT: String = "C76_GN"
+
+## 文档地址。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const DOCUMENTATION_URL: String = "https://gf-framework.readthedocs.io/"
+
+## 空工作区提示。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const EMPTY_MESSAGE: String = "没有可用的 GF 编辑器面板。"
+
+## 关于文本最大高度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const ABOUT_TEXT_MAX_HEIGHT: float = 150.0
+
+## Issue 地址。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const ISSUE_URL: String = "https://github.com/C76GN/gf-framework/issues"
+
+## 最新版本 API 地址。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const LATEST_RELEASE_API_URL: String = "https://api.github.com/repos/C76GN/gf-framework/releases/latest"
+
+## 页面按钮最小宽度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const PAGE_BUTTON_MIN_WIDTH: float = 84.0
+
+## 项目主页地址。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const PROJECT_URL: String = "https://github.com/C76GN/gf-framework"
+
+## 发行版页面地址。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const RELEASES_URL: String = "https://github.com/C76GN/gf-framework/releases"
+
+## 版本状态文本最小高度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const VERSION_STATUS_MIN_HEIGHT: float = 24.0
+
+## 工作区折叠最小高度。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const WORKSPACE_COLLAPSED_MIN_HEIGHT: float = 72.0
+
+## 工作区标题。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const WORKSPACE_TITLE: String = "GF Workspace"
 
 
@@ -54,19 +143,36 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 设置工作区页面记录。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param dock_records: Dock 记录数组。每条记录至少包含 path，可选 label。
+## [br]
+## @schema dock_records: Array of Dictionary dock page records.
 func setup(dock_records: Array[Dictionary]) -> void:
 	_dock_records = _copy_records(dock_records)
 	_rebuild_pages()
 
 
 ## 获取工作区页面数量。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 页面数量。
 func get_page_count() -> int:
 	return _tabs.get_child_count() if _tabs != null else 0
 
 
 ## 获取页面标题列表。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 页面标题。
 func get_page_titles() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -78,6 +184,11 @@ func get_page_titles() -> PackedStringArray:
 
 
 ## 获取响应式页面按钮标题列表。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 页面按钮标题。
 func get_page_button_titles() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -87,13 +198,24 @@ func get_page_button_titles() -> PackedStringArray:
 
 
 ## 获取框架介绍弹窗文本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 关于弹窗文本。
 func get_about_text() -> String:
 	return _make_about_text()
 
 
 ## 激活指定页面。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param title: 页面标题。
+## [br]
 ## @return 找到并激活返回 true。
 func select_page(title: String) -> bool:
 	if _tabs == null:
@@ -108,6 +230,10 @@ func select_page(title: String) -> bool:
 
 
 ## 显示 GF Framework 介绍和链接弹窗。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 func show_about_dialog() -> void:
 	_ensure_about_dialog()
 	if is_inside_tree():

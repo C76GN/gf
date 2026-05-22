@@ -1,6 +1,12 @@
 ## GFActionQueueSystem: 逻辑与表现解耦的动作队列系统。
 ## 负责串行或并行消费动作对象，并在等待 Signal 时对发射源失效做防死锁保护。
 ## 动作可继承 `GFVisualAction`，也可直接实现 execute()/can_execute()/cancel() 等同名协议方法。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFActionQueueSystem
 extends GFSystem
 
@@ -8,6 +14,8 @@ extends GFSystem
 # --- 信号 ---
 
 ## 当队列从有内容变为全部执行完毕时发出。
+## [br]
+## @api public
 signal queue_drained
 
 
@@ -19,35 +27,40 @@ const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queu
 # --- 公共变量 ---
 
 ## 是否正在处理队列。
+## [br]
+## @api public
 var is_processing: bool = false
 
 
 # --- 私有变量 ---
 
-## 内部动作队列。
+# 内部动作队列。
 var _queue: Array[Object] = []
 
-## 当前队头索引，避免消费队列时频繁 pop_front() 触发数组搬移。
+# 当前队头索引，避免消费队列时频繁 pop_front() 触发数组搬移。
 var _queue_head_index: int = 0
 
-## 当前处理轮次，用于取消正在等待 Signal 的旧消费协程。
+# 当前处理轮次，用于取消正在等待 Signal 的旧消费协程。
 var _processing_serial: int = 0
 
-## 当前正在执行或等待的动作。
+# 当前正在执行或等待的动作。
 var _current_action: Object = null
 
-## 按名称分流的子队列。
+# 按名称分流的子队列。
 var _named_queues: Dictionary = {}
 
-## 当前队列绑定节点的弱引用。
+# 当前队列绑定节点的弱引用。
 var _linked_node_ref: WeakRef = null
 
-## 动作执行拦截器。
+# 动作执行拦截器。
 var _interceptors: Array[GFActionInterceptor] = []
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化主队列、命名队列和拦截器状态。
+## [br]
+## @api public
 func init() -> void:
 	_processing_serial += 1
 	_queue.clear()
@@ -59,10 +72,16 @@ func init() -> void:
 	is_processing = false
 
 
+## 注册诊断工具快照。
+## [br]
+## @api public
 func ready() -> void:
 	_register_diagnostics_contribution()
 
 
+## 释放当前队列、命名队列和诊断注册。
+## [br]
+## @api public
 func dispose() -> void:
 	_unregister_diagnostics_contribution()
 	clear_queue(true)
@@ -73,6 +92,9 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注入当前队列所属架构，并同步给已注册拦截器。
+## [br]
+## @api framework_internal
+## [br]
 ## @param architecture: 当前架构。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	super.inject_dependencies(architecture)
@@ -81,6 +103,9 @@ func inject_dependencies(architecture: GFArchitecture) -> void:
 
 
 ## 将一个动作加入顺序队列。
+## [br]
+## @api public
+## [br]
 ## @param action: 要处理的动作对象。
 func enqueue(action: Object) -> void:
 	if not is_instance_valid(action):
@@ -91,6 +116,9 @@ func enqueue(action: Object) -> void:
 
 
 ## 将一个动作以显式 fire-and-forget 模式加入队列。
+## [br]
+## @api public
+## [br]
 ## @param action: 要处理的动作对象。
 func enqueue_fire_and_forget(action: Object) -> void:
 	if not is_instance_valid(action):
@@ -101,7 +129,12 @@ func enqueue_fire_and_forget(action: Object) -> void:
 
 
 ## 将一批动作加入队列并并行执行。
+## [br]
+## @api public
+## [br]
 ## @param actions: 要处理的动作对象列表。
+## [br]
+## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 func enqueue_parallel(actions: Array) -> void:
 	if actions.is_empty():
 		return
@@ -112,6 +145,9 @@ func enqueue_parallel(actions: Array) -> void:
 
 
 ## 将一个动作插入队列头部。
+## [br]
+## @api public
+## [br]
 ## @param action: 要处理的动作对象。
 func push_front(action: Object) -> void:
 	if not is_instance_valid(action):
@@ -122,6 +158,9 @@ func push_front(action: Object) -> void:
 
 
 ## 将一个动作以显式 fire-and-forget 模式插入队列头部。
+## [br]
+## @api public
+## [br]
 ## @param action: 要处理的动作对象。
 func push_front_fire_and_forget(action: Object) -> void:
 	if not is_instance_valid(action):
@@ -132,7 +171,12 @@ func push_front_fire_and_forget(action: Object) -> void:
 
 
 ## 将一批并行动作插入队列头部。
+## [br]
+## @api public
+## [br]
 ## @param actions: 要处理的动作对象列表。
+## [br]
+## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 func push_front_parallel(actions: Array) -> void:
 	if actions.is_empty():
 		return
@@ -143,6 +187,9 @@ func push_front_parallel(actions: Array) -> void:
 
 
 ## 清空队列中尚未执行的动作。
+## [br]
+## @api public
+## [br]
 ## @param stop_current: 为 true 时同时取消当前正在等待 Signal 的动作队列消费。
 func clear_queue(stop_current: bool = false) -> void:
 	var was_processing := is_processing
@@ -157,7 +204,12 @@ func clear_queue(stop_current: bool = false) -> void:
 
 
 ## 获取或创建一个命名动作队列。
+## [br]
+## @api public
+## [br]
 ## @param queue_name: 动作队列名称。
+## [br]
+## @return 命名队列；queue_name 为空时返回 null。
 func get_named_queue(queue_name: StringName) -> GFActionQueueSystem:
 	if queue_name == &"":
 		push_error("[GFActionQueueSystem] get_named_queue 失败：queue_name 为空。")
@@ -175,8 +227,14 @@ func get_named_queue(queue_name: StringName) -> GFActionQueueSystem:
 
 
 ## 创建或获取一个绑定到节点生命周期的命名队列。
+## [br]
+## @api public
+## [br]
 ## @param queue_name: 动作队列名称。
+## [br]
 ## @param linked_node: 与队列生命周期绑定的节点。
+## [br]
+## @return 绑定后的命名队列；queue_name 为空时返回 null。
 func get_linked_queue(queue_name: StringName, linked_node: Node) -> GFActionQueueSystem:
 	var queue := get_named_queue(queue_name)
 	if queue == null:
@@ -186,13 +244,20 @@ func get_linked_queue(queue_name: StringName, linked_node: Node) -> GFActionQueu
 
 
 ## 将当前队列绑定到节点生命周期；节点失效后队列会停止并清空。
+## [br]
+## @api public
+## [br]
 ## @param linked_node: 与队列生命周期绑定的节点。
 func bind_to_node(linked_node: Node) -> void:
 	_linked_node_ref = weakref(linked_node) if linked_node != null else null
 
 
 ## 添加动作执行拦截器。
+## [br]
+## @api public
+## [br]
 ## @param interceptor: 拦截器实例。
+## [br]
 ## @return 添加成功返回 true。
 func add_interceptor(interceptor: GFActionInterceptor) -> bool:
 	if interceptor == null:
@@ -207,7 +272,11 @@ func add_interceptor(interceptor: GFActionInterceptor) -> bool:
 
 
 ## 移除动作执行拦截器。
+## [br]
+## @api public
+## [br]
 ## @param interceptor: 拦截器实例。
+## [br]
 ## @return 移除成功返回 true。
 func remove_interceptor(interceptor: GFActionInterceptor) -> bool:
 	if interceptor == null or not _interceptors.has(interceptor):
@@ -217,6 +286,9 @@ func remove_interceptor(interceptor: GFActionInterceptor) -> bool:
 
 
 ## 批量替换动作执行拦截器。
+## [br]
+## @api public
+## [br]
 ## @param interceptors: 新拦截器列表。
 func set_interceptors(interceptors: Array[GFActionInterceptor]) -> void:
 	_interceptors.clear()
@@ -225,11 +297,16 @@ func set_interceptors(interceptors: Array[GFActionInterceptor]) -> void:
 
 
 ## 清空动作执行拦截器。
+## [br]
+## @api public
 func clear_interceptors() -> void:
 	_interceptors.clear()
 
 
 ## 获取动作执行拦截器副本。
+## [br]
+## @api public
+## [br]
 ## @return 拦截器列表副本。
 func get_interceptors() -> Array[GFActionInterceptor]:
 	var result: Array[GFActionInterceptor] = []
@@ -238,7 +315,11 @@ func get_interceptors() -> Array[GFActionInterceptor]:
 
 
 ## 将动作加入指定命名队列。
+## [br]
+## @api public
+## [br]
 ## @param queue_name: 动作队列名称。
+## [br]
 ## @param action: 要处理的动作对象。
 func enqueue_to(queue_name: StringName, action: Object) -> void:
 	var queue := get_named_queue(queue_name)
@@ -247,7 +328,11 @@ func enqueue_to(queue_name: StringName, action: Object) -> void:
 
 
 ## 将动作以 fire-and-forget 模式加入指定命名队列。
+## [br]
+## @api public
+## [br]
 ## @param queue_name: 动作队列名称。
+## [br]
 ## @param action: 要处理的动作对象。
 func enqueue_fire_and_forget_to(queue_name: StringName, action: Object) -> void:
 	var queue := get_named_queue(queue_name)
@@ -256,8 +341,14 @@ func enqueue_fire_and_forget_to(queue_name: StringName, action: Object) -> void:
 
 
 ## 将一批动作加入指定命名队列并行执行。
+## [br]
+## @api public
+## [br]
 ## @param queue_name: 动作队列名称。
+## [br]
 ## @param actions: 要处理的动作对象列表。
+## [br]
+## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 func enqueue_parallel_to(queue_name: StringName, actions: Array) -> void:
 	var queue := get_named_queue(queue_name)
 	if queue != null:
@@ -265,7 +356,11 @@ func enqueue_parallel_to(queue_name: StringName, actions: Array) -> void:
 
 
 ## 将动作插入指定命名队列头部。
+## [br]
+## @api public
+## [br]
 ## @param queue_name: 动作队列名称。
+## [br]
 ## @param action: 要处理的动作对象。
 func push_front_to(queue_name: StringName, action: Object) -> void:
 	var queue := get_named_queue(queue_name)
@@ -274,7 +369,11 @@ func push_front_to(queue_name: StringName, action: Object) -> void:
 
 
 ## 清理指定命名队列。
+## [br]
+## @api public
+## [br]
 ## @param queue_name: 动作队列名称。
+## [br]
 ## @param stop_current: 是否停止当前正在执行的动作。
 func clear_named_queue(queue_name: StringName, stop_current: bool = false) -> void:
 	var queue := _named_queues.get(queue_name) as GFActionQueueSystem
@@ -283,6 +382,9 @@ func clear_named_queue(queue_name: StringName, stop_current: bool = false) -> vo
 
 
 ## 清理所有命名队列。
+## [br]
+## @api public
+## [br]
 ## @param stop_current: 是否停止当前正在执行的动作。
 func clear_all_named_queues(stop_current: bool = false) -> void:
 	for queue: GFActionQueueSystem in _named_queues.values():
@@ -292,6 +394,8 @@ func clear_all_named_queues(stop_current: bool = false) -> void:
 
 
 ## 跳过当前动作并继续消费后续动作。
+## [br]
+## @api public
 func skip_current_action() -> void:
 	_processing_serial += 1
 	_cancel_current_action()
@@ -300,6 +404,9 @@ func skip_current_action() -> void:
 
 
 ## 暂停当前动作。
+## [br]
+## @api public
+## [br]
 ## @return 存在当前动作时返回 true。
 func pause_current_action() -> bool:
 	if not is_instance_valid(_current_action):
@@ -309,6 +416,9 @@ func pause_current_action() -> bool:
 
 
 ## 恢复当前动作。
+## [br]
+## @api public
+## [br]
 ## @return 存在当前动作时返回 true。
 func resume_current_action() -> bool:
 	if not is_instance_valid(_current_action):
@@ -318,6 +428,8 @@ func resume_current_action() -> bool:
 
 
 ## 将当前动作标记为立即完成并继续消费后续动作。
+## [br]
+## @api public
 func finish_current_action() -> void:
 	_processing_serial += 1
 	if is_instance_valid(_current_action):
@@ -328,13 +440,21 @@ func finish_current_action() -> void:
 
 
 ## 获取当前正在执行或等待的动作。
+## [br]
+## @api public
+## [br]
 ## @return 当前动作；没有动作时返回 null。
 func get_current_action() -> Object:
 	return _current_action if is_instance_valid(_current_action) else null
 
 
 ## 获取动作队列诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 诊断快照字典。
+## [br]
+## @schema return: Dictionary，包含 is_processing、queued_count、has_current_action、processing_serial、named_queue_count、named_queues、linked_node_alive 和 interceptor_count。
 func get_debug_snapshot() -> Dictionary:
 	var named_snapshots: Dictionary = {}
 	for queue_name: StringName in _named_queues.keys():
@@ -355,6 +475,9 @@ func get_debug_snapshot() -> Dictionary:
 
 
 ## 驱动命名队列的生命周期清理。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func tick(_delta: float) -> void:
 	if _linked_node_ref != null and _linked_node_ref.get_ref() == null:
@@ -477,7 +600,7 @@ func _sort_interceptors() -> void:
 func _apply_before_interceptors(action: Object) -> GFActionInterceptionResult:
 	var current_action := action
 	for interceptor: GFActionInterceptor in _get_enabled_interceptors():
-		var result := interceptor.before_execute(current_action, self)
+		var result := interceptor._before_execute(current_action, self)
 		result = _normalize_interception_result(result)
 		if result.is_replace():
 			current_action = result.replacement_action
@@ -493,7 +616,7 @@ func _apply_after_interceptors(
 	execute_result: Variant
 ) -> GFActionInterceptionResult:
 	for interceptor: GFActionInterceptor in _get_enabled_interceptors():
-		var result := _normalize_interception_result(interceptor.after_execute(action, self, execute_result))
+		var result := _normalize_interception_result(interceptor._after_execute(action, self, execute_result))
 		if result.is_stop_queue():
 			return result
 	return GFActionInterceptionResult.continue_action()

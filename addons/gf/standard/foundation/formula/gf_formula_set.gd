@@ -2,6 +2,12 @@
 ##
 ## 适合把一组项目公式集中到配置资源里，再由 System 或 Utility
 ## 按 `StringName` 获取并计算。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFFormulaSet
 extends Resource
 
@@ -9,13 +15,21 @@ extends Resource
 # --- 导出变量 ---
 
 ## 公式表。Key 推荐为 StringName，Value 应为 GFFormula。
+## [br]
+## @api public
+## [br]
+## @schema formulas: Dictionary keyed by StringName or String with GFFormula resources.
 @export var formulas: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 注册或替换一个公式。
+## [br]
+## @api public
+## [br]
 ## @param formula_id: 公式标识。
+## [br]
 ## @param formula: 公式资源。
 func set_formula(formula_id: StringName, formula: GFFormula) -> void:
 	if formula_id == &"":
@@ -28,27 +42,44 @@ func set_formula(formula_id: StringName, formula: GFFormula) -> void:
 
 
 ## 获取一个公式。
+## [br]
+## @api public
+## [br]
 ## @param formula_id: 公式标识。
+## [br]
 ## @return 公式资源；不存在时返回 null。
 func get_formula(formula_id: StringName) -> GFFormula:
 	return formulas.get(formula_id) as GFFormula
 
 
 ## 检查是否存在指定公式。
+## [br]
+## @api public
+## [br]
 ## @param formula_id: 公式标识。
+## [br]
 ## @return 存在时返回 true。
 func has_formula(formula_id: StringName) -> bool:
 	return formulas.has(formula_id) and formulas[formula_id] is GFFormula
 
 
 ## 计算指定公式。
+## [br]
+## @api public
+## [br]
 ## @param formula_id: 公式标识。
+## [br]
 ## @param parameter: 公式参数。
+## [br]
 ## @param fallback: 公式不存在时返回的结果。
+## [br]
+## @schema fallback: Variant result returned when formula_id is absent.
+## [br]
 ## @return 公式结果或 fallback。
+## [br]
+## @schema return: Variant formula result or fallback.
 func calculate(formula_id: StringName, parameter: GFFormulaParameter = null, fallback: Variant = null) -> Variant:
 	var formula := get_formula(formula_id)
 	if formula == null:
 		return fallback
 	return formula.calculate(parameter)
-

@@ -3,6 +3,14 @@
 ## GFThumbnailRenderer: 编辑器缩略图渲染辅助节点。
 ##
 ## 使用独立 SubViewport 渲染 Node3D 或 Mesh，供项目自定义编辑器工具复用。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFThumbnailRenderer
 extends Node
 
@@ -10,6 +18,8 @@ extends Node
 # --- 公共变量 ---
 
 ## 请求取消正在进行的 MeshLibrary 批量预览生成。
+## [br]
+## @api public
 var cancel_preview_generation: bool = false
 
 
@@ -41,9 +51,15 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 渲染一个 3D 节点缩略图。
+## [br]
+## @api public
+## [br]
 ## @param source: 要渲染的 3D 节点，会被复制后放入内部 Viewport。
+## [br]
 ## @param size: 输出尺寸。
+## [br]
 ## @param transparent: 是否透明背景。
+## [br]
 ## @return 渲染出的 Image；失败时返回 null。
 func render_node3d(source: Node3D, size: Vector2i = Vector2i(256, 256), transparent: bool = true) -> Image:
 	if source == null:
@@ -65,9 +81,15 @@ func render_node3d(source: Node3D, size: Vector2i = Vector2i(256, 256), transpar
 
 
 ## 渲染一个 3D 节点缩略图纹理。
+## [br]
+## @api public
+## [br]
 ## @param source: 要渲染的 3D 节点。
+## [br]
 ## @param size: 输出尺寸。
+## [br]
 ## @param transparent: 是否透明背景。
+## [br]
 ## @return 渲染出的 ImageTexture；失败时返回 null。
 func render_node3d_texture(
 	source: Node3D,
@@ -81,9 +103,15 @@ func render_node3d_texture(
 
 
 ## 渲染一个 Mesh 缩略图。
+## [br]
+## @api public
+## [br]
 ## @param mesh: 要渲染的 Mesh。
+## [br]
 ## @param size: 输出尺寸。
+## [br]
 ## @param transparent: 是否透明背景。
+## [br]
 ## @return 渲染出的 Image；失败时返回 null。
 func render_mesh(mesh: Mesh, size: Vector2i = Vector2i(256, 256), transparent: bool = true) -> Image:
 	if mesh == null:
@@ -97,9 +125,15 @@ func render_mesh(mesh: Mesh, size: Vector2i = Vector2i(256, 256), transparent: b
 
 
 ## 渲染一个 Mesh 缩略图纹理。
+## [br]
+## @api public
+## [br]
 ## @param mesh: 要渲染的 Mesh。
+## [br]
 ## @param size: 输出尺寸。
+## [br]
 ## @param transparent: 是否透明背景。
+## [br]
 ## @return 渲染出的 ImageTexture；失败时返回 null。
 func render_mesh_texture(
 	mesh: Mesh,
@@ -113,9 +147,15 @@ func render_mesh_texture(
 
 
 ## 为 MeshLibrary 批量生成条目预览。
+## [br]
+## @api public
+## [br]
 ## @param mesh_library: 目标 MeshLibrary。
+## [br]
 ## @param size: 预览尺寸。
+## [br]
 ## @param overwrite_existing: 是否覆盖已有预览。
+## [br]
 ## @return 成功生成的预览数量。
 func render_mesh_library_previews(
 	mesh_library: MeshLibrary,

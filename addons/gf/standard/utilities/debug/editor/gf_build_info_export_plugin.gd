@@ -4,15 +4,36 @@
 ##
 ## 只负责把通用 Git 构建字段写入 ProjectSettings，项目仍可决定是否保存、
 ## 是否恢复旧值以及如何展示这些字段。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
 class_name GFBuildInfoExportPlugin
 extends EditorExportPlugin
 
 
 # --- 常量 ---
 
+## 是否在导出开始时写入 Git 构建元数据的 ProjectSettings 键。
+## [br]
+## @api public
 const ENABLED_SETTING: String = "gf/build/export/write_git_metadata"
+
+## 导出结束后是否恢复旧构建元数据的 ProjectSettings 键。
+## [br]
+## @api public
 const RESTORE_PREVIOUS_SETTING: String = "gf/build/export/restore_previous_settings"
+
+## 写入或恢复后是否立即保存 ProjectSettings 的设置键。
+## [br]
+## @api public
 const SAVE_PROJECT_SETTINGS_SETTING: String = "gf/build/export/save_project_settings"
+
+## 导出时附加到构建信息中的自定义元数据 ProjectSettings 键。
+## [br]
+## @api public
 const EXTRA_METADATA_SETTING: String = "gf/build/export/metadata"
 
 const _BUILD_SETTING_PATHS: Array[String] = [

@@ -1,35 +1,38 @@
 ## GFInputFormatter: 输入事件与绑定的轻量文本格式化工具。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFInputFormatter
 extends RefCounted
 
 
-# --- 常量 ---
+# --- 私有变量 ---
 
-const GFInputBindingBase = preload("res://addons/gf/standard/input/mapping/gf_input_binding.gd")
-const GFInputIconProviderBase = preload("res://addons/gf/standard/input/formatting/gf_input_icon_provider.gd")
-const GFInputDeviceTextProviderBase = preload("res://addons/gf/standard/input/formatting/gf_input_device_text_provider.gd")
-const GFInputMappingBase = preload("res://addons/gf/standard/input/mapping/gf_input_mapping.gd")
-const GFInputRemapConfigBase = preload("res://addons/gf/standard/input/rebinding/gf_input_remap_config.gd")
-const GFInputTextProviderBase = preload("res://addons/gf/standard/input/formatting/gf_input_text_provider.gd")
-
-
-# --- 私有静态变量 ---
-
-static var _text_providers: Array[GFInputTextProviderBase] = []
-static var _icon_providers: Array[GFInputIconProviderBase] = []
+static var _text_providers: Array[GFInputTextProvider] = []
+static var _icon_providers: Array[GFInputIconProvider] = []
 
 
 # --- 公共方法 ---
 
 ## 将 Godot 输入事件格式化为通用文本。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 可选格式化参数。
+## [br]
+## @schema options: Dictionary，可包含 unbound_text 和 provider 特定格式化字段。
+## [br]
 ## @return 可显示文本。
 static func input_event_as_text(input_event: InputEvent, options: Dictionary = {}) -> String:
 	if input_event == null:
 		return String(options.get("unbound_text", "Unbound"))
 
-	for provider: GFInputTextProviderBase in _text_providers:
+	for provider: GFInputTextProvider in _text_providers:
 		if provider == null or not provider.supports_event(input_event, options):
 			continue
 		var provider_text := provider.get_event_text(input_event, options)
@@ -46,10 +49,10 @@ static func input_event_as_text(input_event: InputEvent, options: Dictionary = {
 		return _mouse_button_as_text((input_event as InputEventMouseButton).button_index)
 
 	if input_event is InputEventJoypadButton:
-		return GFInputDeviceTextProviderBase.format_joypad_event(input_event, options)
+		return GFInputDeviceTextProvider.format_joypad_event(input_event, options)
 
 	if input_event is InputEventJoypadMotion:
-		return GFInputDeviceTextProviderBase.format_joypad_event(input_event, options)
+		return GFInputDeviceTextProvider.format_joypad_event(input_event, options)
 
 	if input_event is InputEventScreenTouch:
 		return "Touch"
@@ -58,14 +61,21 @@ static func input_event_as_text(input_event: InputEvent, options: Dictionary = {
 
 
 ## 将 Godot 输入事件格式化为 RichTextLabel BBCode。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 可选格式化参数。
+## [br]
+## @schema options: Dictionary，可包含 unbound_text、icon_size 和 provider 特定富文本字段。
+## [br]
 ## @return BBCode 文本。
 static func input_event_as_rich_text(input_event: InputEvent, options: Dictionary = {}) -> String:
 	if input_event == null:
 		return _escape_bbcode(String(options.get("unbound_text", "Unbound")))
 
-	for provider: GFInputIconProviderBase in _icon_providers:
+	for provider: GFInputIconProvider in _icon_providers:
 		if provider == null or not provider.supports_event(input_event, options):
 			continue
 		var rich_text := provider.get_event_rich_text(input_event, options)
@@ -76,14 +86,21 @@ static func input_event_as_rich_text(input_event: InputEvent, options: Dictionar
 
 
 ## 获取输入事件图标。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 可选格式化参数。
+## [br]
+## @schema options: Dictionary，透传给已注册的图标 provider。
+## [br]
 ## @return 图标资源。
 static func input_event_icon(input_event: InputEvent, options: Dictionary = {}) -> Texture2D:
 	if input_event == null:
 		return null
 
-	for provider: GFInputIconProviderBase in _icon_providers:
+	for provider: GFInputIconProvider in _icon_providers:
 		if provider == null or not provider.supports_event(input_event, options):
 			continue
 		var icon := provider.get_event_icon(input_event, options)
@@ -93,10 +110,17 @@ static func input_event_icon(input_event: InputEvent, options: Dictionary = {}) 
 
 
 ## 将绑定格式化为通用文本。
+## [br]
+## @api public
+## [br]
 ## @param binding: 输入绑定。
+## [br]
 ## @param options: 可选格式化参数。
+## [br]
+## @schema options: Dictionary，可包含 unbound_text 和 provider 特定格式化字段。
+## [br]
 ## @return 可显示文本。
-static func binding_as_text(binding: GFInputBindingBase, options: Dictionary = {}) -> String:
+static func binding_as_text(binding: GFInputBinding, options: Dictionary = {}) -> String:
 	if binding == null:
 		return String(options.get("unbound_text", "Unbound"))
 	if not binding.display_name.is_empty():
@@ -105,10 +129,17 @@ static func binding_as_text(binding: GFInputBindingBase, options: Dictionary = {
 
 
 ## 将绑定格式化为 RichTextLabel BBCode。
+## [br]
+## @api public
+## [br]
 ## @param binding: 输入绑定。
+## [br]
 ## @param options: 可选格式化参数。
+## [br]
+## @schema options: Dictionary，可包含 unbound_text、icon_size 和 provider 特定富文本字段。
+## [br]
 ## @return BBCode 文本。
-static func binding_as_rich_text(binding: GFInputBindingBase, options: Dictionary = {}) -> String:
+static func binding_as_rich_text(binding: GFInputBinding, options: Dictionary = {}) -> String:
 	if binding == null:
 		return _escape_bbcode(String(options.get("unbound_text", "Unbound")))
 	if not binding.display_name.is_empty():
@@ -117,15 +148,24 @@ static func binding_as_rich_text(binding: GFInputBindingBase, options: Dictionar
 
 
 ## 将映射的当前有效绑定格式化为通用文本。
+## [br]
+## @api public
+## [br]
 ## @param mapping: 输入映射。
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param remap_config: 可选重映射配置。
+## [br]
 ## @param options: 可选格式化参数。
+## [br]
+## @schema options: Dictionary，可包含 unbound_text 和 provider 特定格式化字段。
+## [br]
 ## @return 可显示文本。
 static func mapping_as_text(
-	mapping: GFInputMappingBase,
+	mapping: GFInputMapping,
 	context_id: StringName = &"",
-	remap_config: GFInputRemapConfigBase = null,
+	remap_config: GFInputRemapConfig = null,
 	options: Dictionary = {}
 ) -> String:
 	if mapping == null:
@@ -147,15 +187,24 @@ static func mapping_as_text(
 
 
 ## 将映射的当前有效绑定格式化为 RichTextLabel BBCode。
+## [br]
+## @api public
+## [br]
 ## @param mapping: 输入映射。
+## [br]
 ## @param context_id: 上下文标识。
+## [br]
 ## @param remap_config: 可选重映射配置。
+## [br]
 ## @param options: 可选格式化参数。
+## [br]
+## @schema options: Dictionary，可包含 unbound_text、icon_size 和 provider 特定富文本字段。
+## [br]
 ## @return BBCode 文本。
 static func mapping_as_rich_text(
-	mapping: GFInputMappingBase,
+	mapping: GFInputMapping,
 	context_id: StringName = &"",
-	remap_config: GFInputRemapConfigBase = null,
+	remap_config: GFInputRemapConfig = null,
 	options: Dictionary = {}
 ) -> String:
 	if mapping == null:
@@ -177,8 +226,11 @@ static func mapping_as_rich_text(
 
 
 ## 注册文本 provider。
+## [br]
+## @api public
+## [br]
 ## @param provider: 文本 provider。
-static func add_text_provider(provider: GFInputTextProviderBase) -> void:
+static func add_text_provider(provider: GFInputTextProvider) -> void:
 	if provider == null or _text_providers.has(provider):
 		return
 	_text_providers.append(provider)
@@ -186,25 +238,36 @@ static func add_text_provider(provider: GFInputTextProviderBase) -> void:
 
 
 ## 移除文本 provider。
+## [br]
+## @api public
+## [br]
 ## @param provider: 文本 provider。
-static func remove_text_provider(provider: GFInputTextProviderBase) -> void:
+static func remove_text_provider(provider: GFInputTextProvider) -> void:
 	_text_providers.erase(provider)
 
 
 ## 清空文本 provider。
+## [br]
+## @api public
 static func clear_text_providers() -> void:
 	_text_providers.clear()
 
 
 ## 获取已注册文本 provider。
+## [br]
+## @api public
+## [br]
 ## @return provider 列表副本。
-static func get_text_providers() -> Array[GFInputTextProviderBase]:
+static func get_text_providers() -> Array[GFInputTextProvider]:
 	return _text_providers.duplicate()
 
 
 ## 注册图标 provider。
+## [br]
+## @api public
+## [br]
 ## @param provider: 图标 provider。
-static func add_icon_provider(provider: GFInputIconProviderBase) -> void:
+static func add_icon_provider(provider: GFInputIconProvider) -> void:
 	if provider == null or _icon_providers.has(provider):
 		return
 	_icon_providers.append(provider)
@@ -212,32 +275,40 @@ static func add_icon_provider(provider: GFInputIconProviderBase) -> void:
 
 
 ## 移除图标 provider。
+## [br]
+## @api public
+## [br]
 ## @param provider: 图标 provider。
-static func remove_icon_provider(provider: GFInputIconProviderBase) -> void:
+static func remove_icon_provider(provider: GFInputIconProvider) -> void:
 	_icon_providers.erase(provider)
 
 
 ## 清空图标 provider。
+## [br]
+## @api public
 static func clear_icon_providers() -> void:
 	_icon_providers.clear()
 
 
 ## 获取已注册图标 provider。
+## [br]
+## @api public
+## [br]
 ## @return provider 列表副本。
-static func get_icon_providers() -> Array[GFInputIconProviderBase]:
+static func get_icon_providers() -> Array[GFInputIconProvider]:
 	return _icon_providers.duplicate()
 
 
 # --- 私有/辅助方法 ---
 
 static func _sort_text_providers() -> void:
-	_text_providers.sort_custom(func(left: GFInputTextProviderBase, right: GFInputTextProviderBase) -> bool:
+	_text_providers.sort_custom(func(left: GFInputTextProvider, right: GFInputTextProvider) -> bool:
 		return left.get_priority() > right.get_priority()
 	)
 
 
 static func _sort_icon_providers() -> void:
-	_icon_providers.sort_custom(func(left: GFInputIconProviderBase, right: GFInputIconProviderBase) -> bool:
+	_icon_providers.sort_custom(func(left: GFInputIconProvider, right: GFInputIconProvider) -> bool:
 		return left.get_priority() > right.get_priority()
 	)
 

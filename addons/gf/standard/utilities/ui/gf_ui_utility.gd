@@ -2,6 +2,12 @@
 ##
 ## 负责多层级界面的入栈、出栈与异步加载，
 ## 适合 HUD、弹窗和顶层遮罩等需要分层管理的 UI 场景。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFUIUtility
 extends GFUtility
 
@@ -9,37 +15,66 @@ extends GFUtility
 # --- 信号 ---
 
 ## 面板成功进入 UI 栈后发出。
+## [br]
+## @api public
+## [br]
 ## @param panel: 面板实例。
+## [br]
 ## @param layer: 目标层级。
 signal panel_opened(panel: Node, layer: int)
 
 ## 面板离开 UI 栈后发出。
+## [br]
+## @api public
+## [br]
 ## @param panel: 面板实例。
+## [br]
 ## @param layer: 原层级。
 signal panel_closed(panel: Node, layer: int)
 
 ## 指定层级的栈顶面板变化后发出。
+## [br]
+## @api public
+## [br]
 ## @param layer: 发生变化的层级。
+## [br]
 ## @param top_panel: 新栈顶面板；层级为空时为 null。
 signal navigation_changed(layer: int, top_panel: Node)
 
 ## 面板请求被取消或关闭时发出。
+## [br]
+## @api public
+## [br]
 ## @param panel: 请求关闭的面板。
+## [br]
 ## @param layer: 所在层级。
+## [br]
 ## @param reason: 关闭原因。
 signal panel_dismiss_requested(panel: Node, layer: int, reason: String)
 
 ## 异步面板加载请求开始时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param operation: 打开操作，可能为 push 或 replace。
 signal panel_async_load_started(path: String, layer: int, operation: StringName)
 
 ## 异步面板加载请求结束时发出。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param operation: 打开操作，可能为 push 或 replace。
+## [br]
 ## @param status: 结束状态，使用 AsyncPanelLoadStatus。
+## [br]
 ## @param panel: 成功打开的面板；失败或取消时为 null。
 signal panel_async_load_finished(path: String, layer: int, operation: StringName, status: int, panel: Node)
 
@@ -47,6 +82,8 @@ signal panel_async_load_finished(path: String, layer: int, operation: StringName
 # --- 枚举 ---
 
 ## UI 层级，数值越大显示越靠前。
+## [br]
+## @api public
 enum Layer {
 	## 基础信息层，如主界面、血条 HUD 等。
 	HUD = 0,
@@ -57,6 +94,8 @@ enum Layer {
 }
 
 ## 面板交互模式。
+## [br]
+## @api public
 enum PanelMode {
 	## 普通面板。
 	NORMAL,
@@ -65,6 +104,8 @@ enum PanelMode {
 }
 
 ## 异步面板加载结束状态。
+## [br]
+## @api public
 enum AsyncPanelLoadStatus {
 	## 面板已完成加载并进入 UI 栈。
 	OPENED,
@@ -82,45 +123,51 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 
 # --- 私有变量 ---
 
-## 各层级的 CanvasLayer 根节点。
+# 各层级的 CanvasLayer 根节点。
 var _layer_roots: Dictionary = {}
 
-## 各层级的面板栈。
+# 各层级的面板栈。
 var _panel_stacks: Dictionary = {
 	Layer.HUD: [],
 	Layer.POPUP: [],
 	Layer.TOP: [],
 }
 
-## 是否自动隐藏同层级下方的面板。
+# 是否自动隐藏同层级下方的面板。
 var _auto_hide_under: bool = true
 
-## Utility 生命周期标记，防止异步回调落到已销毁实例上。
+# Utility 生命周期标记，防止异步回调落到已销毁实例上。
 var _is_active: bool = false
 
-## 面板实例 id 到策略选项的映射。
+# 面板实例 id 到策略选项的映射。
 var _panel_options: Dictionary = {}
 
-## 面板实例 id 到打开前焦点控件的映射。
+# 面板实例 id 到打开前焦点控件的映射。
 var _previous_focus_by_panel_id: Dictionary = {}
 
-## 每个层级的结构性变更序号，用于阻止迟到异步回调污染新状态。
+# 每个层级的结构性变更序号，用于阻止迟到异步回调污染新状态。
 var _layer_request_serials: Dictionary = {}
 
-## 同一层级、同一路径的异步 push 请求序号，避免连点造成重复面板实例。
+# 同一层级、同一路径的异步 push 请求序号，避免连点造成重复面板实例。
 var _pending_async_push_serials: Dictionary = {}
 
-## 当前仍在等待资源回调的异步面板请求。
+# 当前仍在等待资源回调的异步面板请求。
 var _pending_async_panel_requests: Dictionary = {}
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化 UI 层级根节点并激活管理器。
+## [br]
+## @api public
 func init() -> void:
 	_is_active = true
 	_create_layers()
 
 
+## 释放 UI 层级、面板栈和未完成异步请求。
+## [br]
+## @api public
 func dispose() -> void:
 	_is_active = false
 	_cancel_all_pending_async_panel_requests()
@@ -142,24 +189,40 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 配置 UI 管理器。
+## [br]
+## @api public
+## [br]
 ## @param auto_hide_under: 压入新面板时是否自动隐藏下层面板。
 func configure(auto_hide_under: bool = true) -> void:
 	_auto_hide_under = auto_hide_under
 
 
 ## 异步压入一个面板场景。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
 func push_panel_async(path: String, layer: Layer = Layer.POPUP, config_callback: Callable = Callable()) -> void:
 	push_panel_async_with_options(path, layer, {}, config_callback)
 
 
 ## 异步压入一个带策略选项的面板场景。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param options: 面板策略，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close、metadata。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
+## [br]
+## @schema options: Dictionary，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func push_panel_async_with_options(
 	path: String,
 	layer: Layer = Layer.POPUP,
@@ -207,20 +270,35 @@ func push_panel_async_with_options(
 
 
 ## 同步压入一个面板场景。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
+## [br]
 ## @return 成功时返回面板实例，失败时返回 `null`。
 func push_panel(path: String, layer: Layer = Layer.POPUP, config_callback: Callable = Callable()) -> Node:
 	return push_panel_with_options(path, layer, {}, config_callback)
 
 
 ## 同步压入一个带策略选项的面板场景。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param options: 面板策略，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close、metadata。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
+## [br]
 ## @return 成功时返回面板实例，失败时返回 `null`。
+## [br]
+## @schema options: Dictionary，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func push_panel_with_options(
 	path: String,
 	layer: Layer = Layer.POPUP,
@@ -242,20 +320,35 @@ func push_panel_with_options(
 
 
 ## 同步替换指定层级的面板栈。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
+## [br]
 ## @return 成功时返回面板实例，失败时返回 `null`。
 func replace_layer(path: String, layer: Layer = Layer.POPUP, config_callback: Callable = Callable()) -> Node:
 	return replace_layer_with_options(path, layer, {}, config_callback)
 
 
 ## 同步替换指定层级为带策略选项的面板。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param options: 面板策略，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close、metadata。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
+## [br]
 ## @return 成功时返回面板实例，失败时返回 `null`。
+## [br]
+## @schema options: Dictionary，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func replace_layer_with_options(
 	path: String,
 	layer: Layer = Layer.POPUP,
@@ -278,18 +371,31 @@ func replace_layer_with_options(
 
 
 ## 异步替换指定层级的面板栈。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
 func replace_layer_async(path: String, layer: Layer = Layer.POPUP, config_callback: Callable = Callable()) -> void:
 	replace_layer_async_with_options(path, layer, {}, config_callback)
 
 
 ## 异步替换指定层级为带策略选项的面板。
+## [br]
+## @api public
+## [br]
 ## @param path: 面板场景路径。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param options: 面板策略，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close、metadata。
+## [br]
 ## @param config_callback: 实例化后、入栈前的可选配置回调。
+## [br]
+## @schema options: Dictionary，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func replace_layer_async_with_options(
 	path: String,
 	layer: Layer = Layer.POPUP,
@@ -332,8 +438,13 @@ func replace_layer_async_with_options(
 
 
 ## 压入一个已实例化的面板节点。
+## [br]
+## @api public
+## [br]
 ## @param panel_instance: 面板实例。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param config_callback: 入栈前的可选配置回调。
 func push_panel_instance(
 	panel_instance: Node,
@@ -344,10 +455,18 @@ func push_panel_instance(
 
 
 ## 压入一个已实例化且带策略选项的面板节点。
+## [br]
+## @api public
+## [br]
 ## @param panel_instance: 面板实例。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param options: 面板策略，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close、metadata。
+## [br]
 ## @param config_callback: 入栈前的可选配置回调。
+## [br]
+## @schema options: Dictionary，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func push_panel_instance_with_options(
 	panel_instance: Node,
 	layer: Layer = Layer.POPUP,
@@ -362,8 +481,13 @@ func push_panel_instance_with_options(
 
 
 ## 用已实例化面板替换指定层级的面板栈。
+## [br]
+## @api public
+## [br]
 ## @param panel_instance: 面板实例。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param config_callback: 入栈前的可选配置回调。
 func replace_layer_instance(
 	panel_instance: Node,
@@ -374,10 +498,18 @@ func replace_layer_instance(
 
 
 ## 用已实例化且带策略选项的面板替换指定层级的面板栈。
+## [br]
+## @api public
+## [br]
 ## @param panel_instance: 面板实例。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param options: 面板策略，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close、metadata。
+## [br]
 ## @param config_callback: 入栈前的可选配置回调。
+## [br]
+## @schema options: Dictionary，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func replace_layer_instance_with_options(
 	panel_instance: Node,
 	layer: Layer = Layer.POPUP,
@@ -393,7 +525,11 @@ func replace_layer_instance_with_options(
 
 
 ## 弹出指定层级的顶部面板。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param do_free: 是否在弹出后释放面板。
 func pop_panel(layer: Layer = Layer.POPUP, do_free: bool = true) -> void:
 	_next_layer_request_serial(layer)
@@ -416,9 +552,15 @@ func pop_panel(layer: Layer = Layer.POPUP, do_free: bool = true) -> void:
 
 
 ## 弹出面板直到指定面板成为栈顶。
+## [br]
+## @api public
+## [br]
 ## @param panel: 目标面板实例。
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @param do_free: 是否释放被弹出的面板。
+## [br]
 ## @return 找到目标面板并完成回退时返回 true。
 func pop_to_panel(panel: Node, layer: Layer = Layer.POPUP, do_free: bool = true) -> bool:
 	if not is_instance_valid(panel):
@@ -435,6 +577,9 @@ func pop_to_panel(panel: Node, layer: Layer = Layer.POPUP, do_free: bool = true)
 
 
 ## 清空指定层级的所有面板。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标层级。
 func clear_layer(layer: Layer) -> void:
 	_next_layer_request_serial(layer)
@@ -442,13 +587,19 @@ func clear_layer(layer: Layer) -> void:
 
 
 ## 清空所有层级的所有面板。
+## [br]
+## @api public
 func clear_all() -> void:
 	for layer_idx: int in _panel_stacks.keys():
 		clear_layer(layer_idx as Layer)
 
 
 ## 获取指定层级的顶部面板。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @return 栈顶面板；为空时返回 `null`。
 func get_top_panel(layer: Layer = Layer.POPUP) -> Node:
 	_prune_layer_stack(layer)
@@ -460,7 +611,11 @@ func get_top_panel(layer: Layer = Layer.POPUP) -> Node:
 
 
 ## 获取指定层级当前面板栈的副本。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @return 从底到顶排列的面板列表。
 func get_panel_stack(layer: Layer = Layer.POPUP) -> Array[Node]:
 	_prune_layer_stack(layer)
@@ -474,15 +629,24 @@ func get_panel_stack(layer: Layer = Layer.POPUP) -> Array[Node]:
 
 
 ## 获取指定层级当前面板数量。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @return 面板数量。
 func get_stack_count(layer: Layer = Layer.POPUP) -> int:
 	return get_panel_stack(layer).size()
 
 
 ## 检查面板是否已进入 UI 栈。
+## [br]
+## @api public
+## [br]
 ## @param panel: 面板实例。
+## [br]
 ## @param layer: 指定层级；小于 0 时检查所有层级。
+## [br]
 ## @return 面板已打开时返回 true。
 func is_panel_open(panel: Node, layer: int = -1) -> bool:
 	if not is_instance_valid(panel):
@@ -496,7 +660,12 @@ func is_panel_open(panel: Node, layer: int = -1) -> bool:
 
 
 ## 获取 UI 管理器诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 包含各层级栈数量和栈顶名称的字典。
+## [br]
+## @schema return: Dictionary，包含 active、auto_hide_under、pending_async_panel_count 和 layers；layers 按 Layer 值索引，每项包含 count、top_panel 和 top_modal。
 func get_debug_snapshot() -> Dictionary:
 	var layers: Dictionary = {}
 	for layer_idx: int in _panel_stacks.keys():
@@ -516,15 +685,25 @@ func get_debug_snapshot() -> Dictionary:
 
 
 ## 获取指定层级的 CanvasLayer。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @return 对应的 `CanvasLayer` 实例。
 func get_layer_root(layer: Layer) -> CanvasLayer:
 	return _layer_roots.get(layer) as CanvasLayer
 
 
 ## 设置已打开面板的策略选项。
+## [br]
+## @api public
+## [br]
 ## @param panel: 面板实例。
+## [br]
 ## @param options: 面板策略，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close、metadata。
+## [br]
+## @schema options: Dictionary，支持 mode、modal、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func set_panel_options(panel: Node, options: Dictionary) -> void:
 	if not is_instance_valid(panel):
 		return
@@ -532,8 +711,14 @@ func set_panel_options(panel: Node, options: Dictionary) -> void:
 
 
 ## 获取面板策略选项。
+## [br]
+## @api public
+## [br]
 ## @param panel: 面板实例。
+## [br]
 ## @return 策略选项副本。
+## [br]
+## @schema return: Dictionary，包含 mode、dismiss_on_cancel、focus_on_open、restore_focus_on_close 和 metadata。
 func get_panel_options(panel: Node) -> Dictionary:
 	if not is_instance_valid(panel):
 		return {}
@@ -541,7 +726,11 @@ func get_panel_options(panel: Node) -> Dictionary:
 
 
 ## 判断面板是否按 modal 策略管理。
+## [br]
+## @api public
+## [br]
 ## @param panel: 面板实例。
+## [br]
 ## @return 是 modal 面板时返回 true。
 func is_panel_modal(panel: Node) -> bool:
 	if not is_instance_valid(panel):
@@ -553,7 +742,11 @@ func is_panel_modal(panel: Node) -> bool:
 
 
 ## 检查是否存在打开的 modal 面板。
+## [br]
+## @api public
+## [br]
 ## @param layer: 指定层级；小于 0 时检查所有层级。
+## [br]
 ## @return 存在 modal 面板时返回 true。
 func has_modal_open(layer: int = -1) -> bool:
 	if layer >= 0:
@@ -566,8 +759,13 @@ func has_modal_open(layer: int = -1) -> bool:
 
 
 ## 检查是否存在仍在等待资源回调的异步面板请求。
+## [br]
+## @api public
+## [br]
 ## @param layer: 指定层级；小于 0 时检查所有层级。
+## [br]
 ## @param path: 指定面板路径；为空时不按路径过滤。
+## [br]
 ## @return 存在匹配请求时返回 true。
 func has_pending_async_panel(layer: int = -1, path: String = "") -> bool:
 	for request: Dictionary in _pending_async_panel_requests.values():
@@ -580,8 +778,14 @@ func has_pending_async_panel(layer: int = -1, path: String = "") -> bool:
 
 
 ## 获取仍在等待资源回调的异步面板请求快照。
+## [br]
+## @api public
+## [br]
 ## @param layer: 指定层级；小于 0 时返回所有层级。
+## [br]
 ## @return 请求快照数组，每项包含 path、layer、operation 和 serial。
+## [br]
+## @schema return: Array，元素为 Dictionary，包含 path、layer、operation 和 serial。
 func get_pending_async_panel_requests(layer: int = -1) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for request: Dictionary in _pending_async_panel_requests.values():
@@ -592,7 +796,11 @@ func get_pending_async_panel_requests(layer: int = -1) -> Array[Dictionary]:
 
 
 ## 获取打开的 modal 面板数量。
+## [br]
+## @api public
+## [br]
 ## @param layer: 指定层级；小于 0 时统计所有层级。
+## [br]
 ## @return modal 面板数量。
 func get_modal_count(layer: int = -1) -> int:
 	if layer >= 0:
@@ -605,8 +813,13 @@ func get_modal_count(layer: int = -1) -> int:
 
 
 ## 按顶层优先顺序处理取消请求。
+## [br]
+## @api public
+## [br]
 ## @param layer: 指定层级；小于 0 时从最高层级开始查找。
+## [br]
 ## @param reason: 关闭原因。
+## [br]
 ## @return 找到可取消面板并处理时返回 true。
 func request_dismiss_top(layer: int = -1, reason: String = "cancel") -> bool:
 	if layer >= 0:
@@ -621,7 +834,11 @@ func request_dismiss_top(layer: int = -1, reason: String = "cancel") -> bool:
 
 
 ## 尝试把焦点保持在指定层级栈顶 modal 面板内。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标层级。
+## [br]
 ## @return 发生焦点修正时返回 true。
 func keep_focus_inside_top_modal(layer: Layer = Layer.POPUP) -> bool:
 	var top_panel := get_top_panel(layer)

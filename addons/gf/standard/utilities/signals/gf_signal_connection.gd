@@ -2,27 +2,44 @@
 ##
 ## 连接支持默认参数、过滤、映射、延迟、防抖、节流、次数限制、
 ## 累积转换、一次性触发和 owner 归属清理。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFSignalConnection
 extends RefCounted
 
 
 # --- 枚举 ---
 
+## 链式连接处理步骤类型。
+## [br]
+## @api public
 enum OperationType {
+	## 过滤信号参数。
 	FILTER,
+	## 映射信号参数。
 	MAP,
+	## 延迟处理。
 	DELAY,
+	## 防抖处理。
 	DEBOUNCE,
+	## 节流处理。
 	THROTTLE,
+	## 跳过前若干次触发。
 	SKIP,
+	## 只接收前若干次触发。
 	TAKE,
+	## 累积转换信号参数。
 	SCAN,
 }
 
 
 # --- 常量 ---
 
-const MAX_SIGNAL_ARGUMENTS: int = 16
+const _MAX_SIGNAL_ARGUMENTS: int = 16
 
 
 # --- 私有变量 ---
@@ -60,7 +77,12 @@ func _init(
 # --- 公共方法 ---
 
 ## 增加过滤步骤。predicate 返回 false 时停止本次回调。
+## [br]
+## @api public
+## [br]
 ## @param predicate: 用于过滤信号参数的回调。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func filter(predicate: Callable) -> GFSignalConnection:
 	if predicate.is_valid():
 		_operations.append({
@@ -71,7 +93,12 @@ func filter(predicate: Callable) -> GFSignalConnection:
 
 
 ## 增加映射步骤。mapper 的返回值会替换后续回调参数。
+## [br]
+## @api public
+## [br]
 ## @param mapper: 用于转换信号参数的回调。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func map(mapper: Callable) -> GFSignalConnection:
 	if mapper.is_valid():
 		_operations.append({
@@ -82,7 +109,12 @@ func map(mapper: Callable) -> GFSignalConnection:
 
 
 ## 延迟指定秒数后再继续处理。
+## [br]
+## @api public
+## [br]
 ## @param seconds: 延迟或防抖时间（秒）。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func delay(seconds: float) -> GFSignalConnection:
 	_operations.append({
 		"type": OperationType.DELAY,
@@ -92,7 +124,12 @@ func delay(seconds: float) -> GFSignalConnection:
 
 
 ## 防抖处理。连续触发时只保留静默期后的最后一次。
+## [br]
+## @api public
+## [br]
 ## @param seconds: 延迟或防抖时间（秒）。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func debounce(seconds: float) -> GFSignalConnection:
 	_operations.append({
 		"type": OperationType.DEBOUNCE,
@@ -102,7 +139,12 @@ func debounce(seconds: float) -> GFSignalConnection:
 
 
 ## 节流处理。指定秒数内只允许首次触发继续传递。
+## [br]
+## @api public
+## [br]
 ## @param seconds: 节流时间（秒）。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func throttle(seconds: float) -> GFSignalConnection:
 	_operations.append({
 		"type": OperationType.THROTTLE,
@@ -113,7 +155,12 @@ func throttle(seconds: float) -> GFSignalConnection:
 
 
 ## 跳过前 count 次成功进入该步骤的触发。
+## [br]
+## @api public
+## [br]
 ## @param count: 需要跳过的次数。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func skip(count: int) -> GFSignalConnection:
 	_operations.append({
 		"type": OperationType.SKIP,
@@ -123,7 +170,12 @@ func skip(count: int) -> GFSignalConnection:
 
 
 ## 只允许前 count 次成功进入该步骤的触发继续传递，耗尽后自动断开。
+## [br]
+## @api public
+## [br]
 ## @param count: 允许传递的次数。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func take(count: int) -> GFSignalConnection:
 	_operations.append({
 		"type": OperationType.TAKE,
@@ -133,13 +185,25 @@ func take(count: int) -> GFSignalConnection:
 
 
 ## 只允许第一次成功进入该步骤的触发继续传递，之后自动断开。
+## [br]
+## @api public
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func first() -> GFSignalConnection:
 	return take(1)
 
 
 ## 对信号参数执行累积转换。reducer 第一个参数为当前累积值，后续参数为当前信号参数。
+## [br]
+## @api public
+## [br]
 ## @param accumulator: 初始累积值。
+## [br]
 ## @param reducer: 累积转换回调。
+## [br]
+## @schema accumulator: Variant，传给 reducer 的初始累加器。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func scan(accumulator: Variant, reducer: Callable) -> GFSignalConnection:
 	if reducer.is_valid():
 		_operations.append({
@@ -151,7 +215,14 @@ func scan(accumulator: Variant, reducer: Callable) -> GFSignalConnection:
 
 
 ## 立即用指定参数主动执行一次链式处理。
+## [br]
+## @api public
+## [br]
 ## @param value: 初始参数；Array 会按参数列表传入，Callable 会被调用并使用其返回值。
+## [br]
+## @schema value: Variant，起始值、参数 Array，或返回这两类形态的 Callable。
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func start_with(value: Variant) -> GFSignalConnection:
 	_serial += 1
 	_process_async(_normalize_start_args(value), _serial)
@@ -159,12 +230,20 @@ func start_with(value: Variant) -> GFSignalConnection:
 
 
 ## 设置为一次性连接，首次成功触发后自动断开。
+## [br]
+## @api public
+## [br]
+## @return 当前连接对象，便于继续链式配置。
 func once() -> GFSignalConnection:
 	_is_once = true
 	return self
 
 
 ## 启动连接。
+## [br]
+## @api public
+## [br]
+## @return 当前连接对象。
 func start() -> GFSignalConnection:
 	if _is_connected:
 		return self
@@ -181,6 +260,8 @@ func start() -> GFSignalConnection:
 
 
 ## 主动断开连接。
+## [br]
+## @api public
 func disconnect_signal() -> void:
 	_serial += 1
 	if not _is_connected:
@@ -192,12 +273,21 @@ func disconnect_signal() -> void:
 
 
 ## 当前连接是否仍有效。
+## [br]
+## @api public
+## [br]
+## @return 当前连接仍处于连接状态时返回 true。
 func is_active() -> bool:
 	return _is_connected
 
 
 ## 当前连接是否属于指定 owner。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听或连接的拥有者。
+## [br]
+## @return owner 匹配时返回 true。
 func is_owned_by(owner: Object) -> bool:
 	if owner == null or _owner_ref == null:
 		return false
@@ -205,9 +295,16 @@ func is_owned_by(owner: Object) -> bool:
 
 
 ## 检查连接是否匹配指定 Signal、回调和可选 owner。
+## [br]
+## @api public
+## [br]
 ## @param source_signal: 要连接或断开的 Godot 信号。
+## [br]
 ## @param callback: 操作完成或事件触发时执行的回调。
+## [br]
 ## @param owner: 监听或连接的拥有者。
+## [br]
+## @return Signal、回调和 owner 匹配时返回 true。
 func matches(source_signal: Signal, callback: Callable, owner: Object = null) -> bool:
 	if _source_signal != source_signal:
 		return false
@@ -219,6 +316,10 @@ func matches(source_signal: Signal, callback: Callable, owner: Object = null) ->
 
 
 ## owner、signal 发射源或 callback 目标失效时清理连接。
+## [br]
+## @api public
+## [br]
+## @return 连接已被判定无效并清理时返回 true。
 func prune_if_invalid() -> bool:
 	if not _callback.is_valid():
 		disconnect_signal()
@@ -392,8 +493,8 @@ func _wait_seconds(seconds: float, serial: int) -> void:
 func _collect_args(raw_args: Array) -> Array:
 	var declared_count := _get_source_signal_argument_count()
 	if declared_count >= 0:
-		if declared_count > MAX_SIGNAL_ARGUMENTS:
-			push_warning("[GFSignalConnection] 信号连接当前最多捕获 %d 个参数。" % MAX_SIGNAL_ARGUMENTS)
+		if declared_count > _MAX_SIGNAL_ARGUMENTS:
+			push_warning("[GFSignalConnection] 信号连接当前最多捕获 %d 个参数。" % _MAX_SIGNAL_ARGUMENTS)
 		return raw_args.slice(0, mini(declared_count, raw_args.size()))
 
 	var args: Array = raw_args.duplicate()

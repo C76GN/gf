@@ -3,6 +3,14 @@
 ## GFEditorValueField: 编辑器通用 Variant 值输入控件。
 ##
 ## 根据 Godot 属性信息创建基础输入控件，适合 Inspector、Dock 或批量资源表格复用。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFEditorValueField
 extends HBoxContainer
 
@@ -10,9 +18,21 @@ extends HBoxContainer
 # --- 信号 ---
 
 ## 控件值变化时发出。
+## [br]
+## @api public
+## [br]
+## @param value: 新值。
+## [br]
+## @schema value: Variant editor value read from the active control.
 signal value_changed(value: Variant)
 
 ## Array/Dictionary JSON 输入解析失败时发出。
+## [br]
+## @api public
+## [br]
+## @param text: 用户输入的原始文本。
+## [br]
+## @param error_message: JSON 解析错误说明。
 signal value_parse_failed(text: String, error_message: String)
 
 
@@ -28,8 +48,16 @@ var _is_updating: bool = false
 # --- 公共方法 ---
 
 ## 配置字段输入控件。
+## [br]
+## @api public
+## [br]
 ## @param property_info: Godot 属性信息字典，常用键为 name、type、hint、hint_string。
+## [br]
+## @schema property_info: Godot property info dictionary.
+## [br]
 ## @param value: 初始值。
+## [br]
+## @schema value: Variant initial editor value.
 func configure(property_info: Dictionary, value: Variant = null) -> void:
 	_property_info = property_info.duplicate(true)
 	_value = value
@@ -37,19 +65,32 @@ func configure(property_info: Dictionary, value: Variant = null) -> void:
 
 
 ## 设置当前值。
+## [br]
+## @api public
+## [br]
 ## @param value: 新值。
+## [br]
+## @schema value: Variant value assigned to the editor.
 func set_value(value: Variant) -> void:
 	_value = value
 	_sync_editor_from_value()
 
 
 ## 获取当前值。
+## [br]
+## @api public
+## [br]
 ## @return 当前值。
+## [br]
+## @schema return: Variant value read from the active editor control.
 func get_value() -> Variant:
 	return _read_editor_value()
 
 
 ## 设置控件是否可编辑。
+## [br]
+## @api public
+## [br]
 ## @param editable: 为 true 时允许编辑。
 func set_editable(editable: bool) -> void:
 	_editable = editable
@@ -58,7 +99,12 @@ func set_editable(editable: bool) -> void:
 
 
 ## 获取当前属性信息。
+## [br]
+## @api public
+## [br]
 ## @return 属性信息字典。
+## [br]
+## @schema return: Godot property info dictionary copy.
 func get_property_info() -> Dictionary:
 	return _property_info.duplicate(true)
 

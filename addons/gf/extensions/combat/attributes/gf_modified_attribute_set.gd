@@ -2,6 +2,12 @@
 ##
 ## 用 StringName 管理多个 GFModifiedAttribute，便于角色、装备或能力对象集中维护
 ## 移动速度、攻击、防御等项目自定义数值。它不规定属性含义，也不直接处理 Buff 生命周期。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFModifiedAttributeSet
 extends RefCounted
 
@@ -9,17 +15,29 @@ extends RefCounted
 # --- 信号 ---
 
 ## 属性被定义或替换时发出。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param attribute: 属性实例。
 signal attribute_defined(attribute_id: StringName, attribute: GFModifiedAttribute)
 
 ## 属性被移除时发出。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
 signal attribute_removed(attribute_id: StringName)
 
 ## 属性当前值变化时发出。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param current_value: 当前值。
+## [br]
 ## @param previous_value: 变化前的值。
 signal attribute_changed(attribute_id: StringName, current_value: float, previous_value: float)
 
@@ -32,8 +50,13 @@ var _attributes: Dictionary = {}
 # --- 公共方法 ---
 
 ## 定义或替换属性。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param base_value: 基础值。
+## [br]
 ## @return 新创建的属性；attribute_id 为空时返回 null。
 func define_attribute(attribute_id: StringName, base_value: float = 0.0) -> GFModifiedAttribute:
 	if attribute_id == &"":
@@ -45,8 +68,13 @@ func define_attribute(attribute_id: StringName, base_value: float = 0.0) -> GFMo
 
 
 ## 设置已有属性实例。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param attribute: 属性实例。
+## [br]
 ## @return 设置成功返回 true。
 func set_attribute(attribute_id: StringName, attribute: GFModifiedAttribute) -> bool:
 	if attribute_id == &"" or attribute == null:
@@ -61,29 +89,47 @@ func set_attribute(attribute_id: StringName, attribute: GFModifiedAttribute) -> 
 
 
 ## 批量定义默认属性。
+## [br]
+## @api public
+## [br]
 ## @param defaults: attribute_id -> base_value 字典。
+## [br]
+## @schema defaults: Dictionary，键为属性标识，值为基础数值。
 func define_defaults(defaults: Dictionary) -> void:
 	for attribute_id_variant: Variant in defaults.keys():
 		define_attribute(StringName(attribute_id_variant), float(defaults[attribute_id_variant]))
 
 
 ## 检查属性是否存在。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @return 存在返回 true。
 func has_attribute(attribute_id: StringName) -> bool:
 	return _attributes.has(attribute_id)
 
 
 ## 获取属性实例。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @return 属性实例；不存在时返回 null。
 func get_attribute(attribute_id: StringName) -> GFModifiedAttribute:
 	return _attributes.get(attribute_id) as GFModifiedAttribute
 
 
 ## 获取属性实例，不存在时自动定义。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param base_value: 自动定义时使用的基础值。
+## [br]
 ## @return 属性实例；attribute_id 为空时返回 null。
 func get_or_define_attribute(attribute_id: StringName, base_value: float = 0.0) -> GFModifiedAttribute:
 	var attribute := get_attribute(attribute_id)
@@ -93,7 +139,11 @@ func get_or_define_attribute(attribute_id: StringName, base_value: float = 0.0) 
 
 
 ## 移除属性。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @return 移除成功返回 true。
 func remove_attribute(attribute_id: StringName) -> bool:
 	var attribute := get_attribute(attribute_id)
@@ -107,6 +157,8 @@ func remove_attribute(attribute_id: StringName) -> bool:
 
 
 ## 清空所有属性。
+## [br]
+## @api public
 func clear() -> void:
 	for attribute_id_variant: Variant in _attributes.keys():
 		var attribute_id := StringName(attribute_id_variant)
@@ -116,7 +168,12 @@ func clear() -> void:
 
 
 ## 获取属性 ID 列表。
+## [br]
+## @api public
+## [br]
 ## @return 属性 ID 列表。
+## [br]
+## @schema return: Array[StringName]，元素为属性标识。
 func get_attribute_ids() -> Array[StringName]:
 	var result: Array[StringName] = []
 	for attribute_id_variant: Variant in _attributes.keys():
@@ -125,14 +182,24 @@ func get_attribute_ids() -> Array[StringName]:
 
 
 ## 获取属性字典副本。
+## [br]
+## @api public
+## [br]
 ## @return attribute_id -> GFModifiedAttribute 字典副本。
+## [br]
+## @schema return: Dictionary，键为属性标识，值为 GFModifiedAttribute 实例。
 func get_attributes() -> Dictionary:
 	return _attributes.duplicate()
 
 
 ## 获取属性当前值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param default_value: 属性不存在时返回的默认值。
+## [br]
 ## @return 当前值。
 func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 	var attribute := get_attribute(attribute_id)
@@ -142,8 +209,13 @@ func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 
 
 ## 设置属性基础值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param base_value: 新基础值。
+## [br]
 ## @return 设置成功返回 true。
 func set_base_value(attribute_id: StringName, base_value: float) -> bool:
 	var attribute := get_attribute(attribute_id)
@@ -155,8 +227,13 @@ func set_base_value(attribute_id: StringName, base_value: float) -> bool:
 
 
 ## 获取属性基础值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param default_value: 属性不存在时返回的默认值。
+## [br]
 ## @return 基础值。
 func get_base_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 	var attribute := get_attribute(attribute_id)
@@ -166,9 +243,15 @@ func get_base_value(attribute_id: StringName, default_value: float = 0.0) -> flo
 
 
 ## 添加修饰器。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param modifier: 修饰器实例。
+## [br]
 ## @param define_if_missing: 属性不存在时是否自动定义。
+## [br]
 ## @return 添加成功返回 true。
 func add_modifier(
 	attribute_id: StringName,
@@ -189,8 +272,13 @@ func add_modifier(
 
 
 ## 移除修饰器。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param modifier: 修饰器实例。
+## [br]
 ## @return 属性存在且 modifier 有效时返回 true。
 func remove_modifier(attribute_id: StringName, modifier: GFModifier) -> bool:
 	var attribute := get_attribute(attribute_id)
@@ -202,7 +290,11 @@ func remove_modifier(attribute_id: StringName, modifier: GFModifier) -> bool:
 
 
 ## 按来源移除修饰器；attribute_id 为空时会作用于全部属性。
+## [br]
+## @api public
+## [br]
 ## @param source_id: 来源标识。
+## [br]
 ## @param attribute_id: 可选属性标识。
 func remove_modifiers_by_source(source_id: StringName, attribute_id: StringName = &"") -> void:
 	if attribute_id != &"":
@@ -218,6 +310,9 @@ func remove_modifiers_by_source(source_id: StringName, attribute_id: StringName 
 
 
 ## 强制重算属性；attribute_id 为空时会重算全部属性。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 可选属性标识。
 func force_recalculate(attribute_id: StringName = &"") -> void:
 	if attribute_id != &"":
@@ -233,7 +328,12 @@ func force_recalculate(attribute_id: StringName = &"") -> void:
 
 
 ## 导出基础值快照。修饰器属于运行时状态，不会进入该快照。
+## [br]
+## @api public
+## [br]
 ## @return attribute_id -> base_value 字典。
+## [br]
+## @schema return: Dictionary，键为属性标识，值为基础数值。
 func get_base_value_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
 	for attribute_id_variant: Variant in _attributes.keys():
@@ -245,8 +345,14 @@ func get_base_value_snapshot() -> Dictionary:
 
 
 ## 从基础值快照恢复。
+## [br]
+## @api public
+## [br]
 ## @param snapshot: attribute_id -> base_value 字典。
+## [br]
 ## @param clear_existing: 是否先清空现有属性。
+## [br]
+## @schema snapshot: Dictionary，键为属性标识，值为基础数值。
 func restore_base_value_snapshot(snapshot: Dictionary, clear_existing: bool = false) -> void:
 	if clear_existing:
 		clear()

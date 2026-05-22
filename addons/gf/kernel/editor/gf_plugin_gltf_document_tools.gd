@@ -1,11 +1,16 @@
 @tool
 
-## GF 插件 glTF 文档扩展管理辅助。
+# GF 插件 glTF 文档扩展管理辅助。
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
@@ -17,12 +22,20 @@ var _document_extensions: Array[GLTFDocumentExtension] = []
 # --- 公共方法 ---
 
 ## 注册当前启用扩展声明的 GLTFDocumentExtension。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 func setup() -> void:
 	for extension_path: String in GFExtensionSettingsBase.get_enabled_gltf_document_extension_paths():
 		_register_document_extension(extension_path)
 
 
 ## 注销已注册的 GLTFDocumentExtension。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 func cleanup() -> void:
 	for document_extension: GLTFDocumentExtension in _document_extensions:
 		if document_extension != null:

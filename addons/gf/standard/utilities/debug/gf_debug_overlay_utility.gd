@@ -2,6 +2,12 @@
 ##
 ## 提供 watch / panel 注册、轻量运行时快照和可选调试 GUI。默认只在 debug 构建中创建 GUI。
 ## 发布构建如确实需要显示，必须显式关闭 debug_only 并自行确认可见性与数据脱敏策略。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFDebugOverlayUtility
 extends GFUtility
 
@@ -9,24 +15,38 @@ extends GFUtility
 # --- 公共变量 ---
 
 ## 呼出/隐藏面板的快捷键。默认为 KEY_QUOTELEFT (`~` 键)。
+## [br]
+## @api public
 var toggle_key: Key = KEY_QUOTELEFT
 
 ## 可见时刷新模型反射数据的间隔（秒）。设为 0 时每帧刷新。
+## [br]
+## @api public
 var refresh_interval_seconds: float = 0.25
 
 ## 是否把 GFDiagnosticsUtility 的监控预设合并显示到 Watch 区。
+## [br]
+## @api public
 var include_diagnostics_monitors: bool = true
 
 ## Overlay 默认读取的诊断监控预设。
+## [br]
+## @api public
 var diagnostics_monitor_preset: StringName = &"overlay"
 
 ## 是否在 Overlay 中附加最近日志面板。
+## [br]
+## @api public
 var include_recent_logs: bool = true
 
 ## 最近日志面板读取的日志数量。
+## [br]
+## @api public
 var recent_log_count: int = 12
 
 ## 是否只在 debug 构建中创建 Overlay GUI。发布构建需要显式关闭此项才会创建 GUI。
+## [br]
+## @api public
 var debug_only: bool = true
 
 
@@ -39,33 +59,39 @@ var _panels: Dictionary = {}
 var _panel_order_counter: int = 0
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化调试覆盖层 GUI。
+## [br]
+## @api public
 func init() -> void:
 	if debug_only and not OS.is_debug_build():
 		return
 
 	_overlay_gui = _GFDebugGUI.new()
 	_overlay_gui.name = "GFDebugOverlay"
-	_overlay_gui.toggle_key = toggle_key
-	_overlay_gui.refresh_interval_seconds = refresh_interval_seconds
-	_overlay_gui.architecture_provider = Callable(self, "_get_architecture_or_null")
-	_overlay_gui.watch_snapshot_provider = Callable(self, "get_watch_snapshot")
-	_overlay_gui.panel_snapshot_provider = Callable(self, "get_panel_snapshot")
+	_overlay_gui._toggle_key = toggle_key
+	_overlay_gui._refresh_interval_seconds = refresh_interval_seconds
+	_overlay_gui._architecture_provider = Callable(self, "_get_architecture_or_null")
+	_overlay_gui._watch_snapshot_provider = Callable(self, "get_watch_snapshot")
+	_overlay_gui._panel_snapshot_provider = Callable(self, "get_panel_snapshot")
 	
 	var tree := Engine.get_main_loop() as SceneTree
 	if tree != null:
 		tree.root.call_deferred("add_child", _overlay_gui)
 
 
+## 释放调试覆盖层 GUI 和所有 watch / panel 注册。
+## [br]
+## @api public
 func dispose() -> void:
 	if is_instance_valid(_overlay_gui):
 		_overlay_gui.visible = false
 		_overlay_gui.set_process(false)
 		_overlay_gui.set_process_input(false)
-		_overlay_gui.architecture_provider = Callable()
-		_overlay_gui.watch_snapshot_provider = Callable()
-		_overlay_gui.panel_snapshot_provider = Callable()
+		_overlay_gui._architecture_provider = Callable()
+		_overlay_gui._watch_snapshot_provider = Callable()
+		_overlay_gui._panel_snapshot_provider = Callable()
 		var parent := _overlay_gui.get_parent()
 		if parent != null:
 			parent.remove_child(_overlay_gui)
@@ -78,32 +104,79 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 更新快捷键绑定
+## [br]
+## @api public
+## [br]
 ## @param key: 新的触发按键
 func set_toggle_key(key: Key) -> void:
 	toggle_key = key
 	if is_instance_valid(_overlay_gui):
-		_overlay_gui.toggle_key = key
+		_overlay_gui._toggle_key = key
 
 
 ## 设置可见时的刷新间隔。
+## [br]
+## @api public
+## [br]
 ## @param seconds: 刷新间隔；小于等于 0 时每帧刷新。
 func set_refresh_interval(seconds: float) -> void:
 	refresh_interval_seconds = maxf(seconds, 0.0)
 	if is_instance_valid(_overlay_gui):
-		_overlay_gui.refresh_interval_seconds = refresh_interval_seconds
+		_overlay_gui._refresh_interval_seconds = refresh_interval_seconds
 
 
 ## 设置 Overlay 使用的诊断监控预设。
+## [br]
+## @api public
+## [br]
 ## @param preset_id: 诊断监控预设标识；为空时采集全部可见监控项。
 func set_diagnostics_monitor_preset(preset_id: StringName) -> void:
 	diagnostics_monitor_preset = preset_id
 
 
+## 设置 Overlay GUI 可见性。
+## [br]
+## @api public
+## [br]
+## @param visible: 为 true 时显示 Overlay GUI。
+func set_overlay_visible(visible: bool) -> void:
+	if not is_instance_valid(_overlay_gui):
+		return
+	_overlay_gui.visible = visible
+	if visible:
+		_overlay_gui._refresh_now()
+
+
+## 检查 Overlay GUI 是否可见。
+## [br]
+## @api public
+## [br]
+## @return 可见时返回 true。
+func is_overlay_visible() -> bool:
+	return is_instance_valid(_overlay_gui) and _overlay_gui.visible
+
+
+## 立即刷新 Overlay GUI 文本。
+## [br]
+## @api public
+func refresh_overlay() -> void:
+	if is_instance_valid(_overlay_gui):
+		_overlay_gui._refresh_now()
+
+
 ## 注册一个由回调即时读取的运行时观察值。
+## [br]
+## @api public
+## [br]
 ## @param id: 观察值唯一标识。
+## [br]
 ## @param provider: 无参数回调；Overlay 刷新时调用并显示返回值。
+## [br]
 ## @param options: 可选显示参数，支持 label、group、visible。
+## [br]
 ## @return 注册成功返回 true；id 为空或 provider 无效时返回 false。
+## [br]
+## @schema options: Dictionary，支持 label、group 和 visible。
 func watch_value(id: StringName, provider: Callable, options: Dictionary = {}) -> bool:
 	if id == &"" or not provider.is_valid():
 		return false
@@ -113,10 +186,20 @@ func watch_value(id: StringName, provider: Callable, options: Dictionary = {}) -
 
 
 ## 推送一个由调用方主动更新的运行时观察值。
+## [br]
+## @api public
+## [br]
 ## @param id: 观察值唯一标识。
+## [br]
 ## @param value: 要显示的当前值。
+## [br]
 ## @param options: 可选显示参数，支持 label、group、visible。
+## [br]
 ## @return 注册成功返回 true；id 为空时返回 false。
+## [br]
+## @schema value: Variant，可为任意可显示值。
+## [br]
+## @schema options: Dictionary，支持 label、group 和 visible。
 func push_watch_value(id: StringName, value: Variant, options: Dictionary = {}) -> bool:
 	if id == &"":
 		return false
@@ -126,27 +209,42 @@ func push_watch_value(id: StringName, value: Variant, options: Dictionary = {}) 
 
 
 ## 移除一个运行时观察值。
+## [br]
+## @api public
+## [br]
 ## @param id: 要移除的观察值标识。
 func remove_watch(id: StringName) -> void:
 	_watches.erase(id)
 
 
 ## 清空所有运行时观察值。
+## [br]
+## @api public
 func clear_watches() -> void:
 	_watches.clear()
 	_watch_order_counter = 0
 
 
 ## 检查运行时观察值是否已注册。
+## [br]
+## @api public
+## [br]
 ## @param id: 要检查的观察值标识。
+## [br]
 ## @return 已注册时返回 true。
 func has_watch(id: StringName) -> bool:
 	return _watches.has(id)
 
 
 ## 读取当前运行时观察值快照。
+## [br]
+## @api public
+## [br]
 ## @param include_hidden: 为 true 时同时返回 visible=false 的观察值。
+## [br]
 ## @return 按注册顺序排列的观察值字典数组。
+## [br]
+## @schema return: Array[Dictionary]，每个元素包含 id、label、group、value 和 valid。
 func get_watch_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for id: StringName in _watches:
@@ -178,10 +276,18 @@ func get_watch_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 
 
 ## 注册一个由回调生成内容的 Overlay 面板。
+## [br]
+## @api public
+## [br]
 ## @param panel_id: 面板唯一标识。
+## [br]
 ## @param provider: 无参数回调；返回 String、Dictionary、Array 或其他可转字符串值。
+## [br]
 ## @param options: 可选显示参数，支持 label、group、visible。
+## [br]
 ## @return 注册成功返回 true。
+## [br]
+## @schema options: Dictionary，支持 label、group 和 visible。
 func register_panel(panel_id: StringName, provider: Callable, options: Dictionary = {}) -> bool:
 	if panel_id == &"" or not provider.is_valid():
 		return false
@@ -191,10 +297,18 @@ func register_panel(panel_id: StringName, provider: Callable, options: Dictionar
 
 
 ## 推送一个静态 Overlay 面板文本。
+## [br]
+## @api public
+## [br]
 ## @param panel_id: 面板唯一标识。
+## [br]
 ## @param content: 面板内容。
+## [br]
 ## @param options: 可选显示参数，支持 label、group、visible。
+## [br]
 ## @return 注册成功返回 true。
+## [br]
+## @schema options: Dictionary，支持 label、group 和 visible。
 func push_panel_text(panel_id: StringName, content: String, options: Dictionary = {}) -> bool:
 	if panel_id == &"":
 		return false
@@ -204,27 +318,42 @@ func push_panel_text(panel_id: StringName, content: String, options: Dictionary 
 
 
 ## 移除一个 Overlay 面板。
+## [br]
+## @api public
+## [br]
 ## @param panel_id: 面板唯一标识。
 func remove_panel(panel_id: StringName) -> void:
 	_panels.erase(panel_id)
 
 
 ## 清空 Overlay 面板注册表。
+## [br]
+## @api public
 func clear_panels() -> void:
 	_panels.clear()
 	_panel_order_counter = 0
 
 
 ## 检查 Overlay 面板是否已注册。
+## [br]
+## @api public
+## [br]
 ## @param panel_id: 面板唯一标识。
+## [br]
 ## @return 已注册时返回 true。
 func has_panel(panel_id: StringName) -> bool:
 	return _panels.has(panel_id)
 
 
 ## 读取当前 Overlay 面板快照。
+## [br]
+## @api public
+## [br]
 ## @param include_hidden: 为 true 时同时返回 visible=false 的面板。
+## [br]
 ## @return 面板快照数组。
+## [br]
+## @schema return: Array[Dictionary]，每个元素包含 id、label、group、content 和 valid。
 func get_panel_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	var entries: Array[Dictionary] = []
 	for panel_id: StringName in _panels:
@@ -245,6 +374,37 @@ func get_panel_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	if include_recent_logs:
 		_append_recent_log_panel(snapshot, include_hidden)
 	return snapshot
+
+
+## 获取 Overlay 运行时调试快照。
+## [br]
+## @api public
+## [br]
+## @return 调试快照。
+## [br]
+## @schema return: Dictionary，包含 debug_only、watch_count、panel_count、include_diagnostics_monitors、include_recent_logs、recent_log_count、diagnostics_monitor_preset 和 gui 分区。
+func get_debug_snapshot() -> Dictionary:
+	var gui_created := is_instance_valid(_overlay_gui)
+	return {
+		"debug_only": debug_only,
+		"watch_count": _watches.size(),
+		"panel_count": _panels.size(),
+		"include_diagnostics_monitors": include_diagnostics_monitors,
+		"include_recent_logs": include_recent_logs,
+		"recent_log_count": recent_log_count,
+		"diagnostics_monitor_preset": diagnostics_monitor_preset,
+		"gui": {
+			"created": gui_created,
+			"visible": _overlay_gui.visible if gui_created else false,
+			"processing": _overlay_gui.is_processing() if gui_created else false,
+			"processing_input": _overlay_gui.is_processing_input() if gui_created else false,
+			"has_parent": _overlay_gui.get_parent() != null if gui_created else false,
+			"architecture_provider_valid": _overlay_gui._architecture_provider.is_valid() if gui_created else false,
+			"watch_snapshot_provider_valid": _overlay_gui._watch_snapshot_provider.is_valid() if gui_created else false,
+			"panel_snapshot_provider_valid": _overlay_gui._panel_snapshot_provider.is_valid() if gui_created else false,
+			"text": _overlay_gui._get_rendered_text() if gui_created else "",
+		},
+	}
 
 
 # --- 私有/辅助方法 ---
@@ -458,16 +618,16 @@ func _append_diagnostics_watch_snapshot(snapshot: Array[Dictionary], include_hid
 		})
 
 
-# --- 内部 GUI 类 ---
+# --- 内部类 ---
 
 class _GFDebugGUI extends CanvasLayer:
 	var _container: VBoxContainer
 	var _label: RichTextLabel
-	var toggle_key: Key
-	var refresh_interval_seconds: float = 0.25
-	var architecture_provider: Callable
-	var watch_snapshot_provider: Callable
-	var panel_snapshot_provider: Callable
+	var _toggle_key: Key
+	var _refresh_interval_seconds: float = 0.25
+	var _architecture_provider: Callable
+	var _watch_snapshot_provider: Callable
+	var _panel_snapshot_provider: Callable
 	var _refresh_elapsed: float = 0.25
 	
 	func _init() -> void:
@@ -510,35 +670,43 @@ class _GFDebugGUI extends CanvasLayer:
 
 	func _input(event: InputEvent) -> void:
 		if event is InputEventKey and event.pressed and not event.echo:
-			if event.keycode == toggle_key:
+			if event.keycode == _toggle_key:
 				visible = not visible
 				if visible:
-					_refresh_elapsed = refresh_interval_seconds
+					_refresh_elapsed = _refresh_interval_seconds
 				get_viewport().set_input_as_handled()
 
 
 	func _process(delta: float) -> void:
 		if not visible:
-			_refresh_elapsed = refresh_interval_seconds
+			_refresh_elapsed = _refresh_interval_seconds
 			return
 
-		if refresh_interval_seconds > 0.0:
+		if _refresh_interval_seconds > 0.0:
 			_refresh_elapsed += delta
-			if _refresh_elapsed < refresh_interval_seconds:
+			if _refresh_elapsed < _refresh_interval_seconds:
 				return
 			_refresh_elapsed = 0.0
 
+		_refresh_now()
+
+
+	func _refresh_now() -> void:
 		var text := _build_debug_text()
 		if _label.text != text:
 			_label.text = text
+
+
+	func _get_rendered_text() -> String:
+		return _label.text if _label != null else ""
 
 
 	func _build_debug_text() -> String:
 		var watch_text := _build_watch_text()
 		var panel_text := _build_panel_text()
 		var arch: Object = null
-		if architecture_provider.is_valid():
-			arch = architecture_provider.call()
+		if _architecture_provider.is_valid():
+			arch = _architecture_provider.call()
 		if arch == null:
 			if watch_text.is_empty() and panel_text.is_empty():
 				return "Wait: Architecture is null."
@@ -551,10 +719,10 @@ class _GFDebugGUI extends CanvasLayer:
 
 
 	func _build_watch_text() -> String:
-		if not watch_snapshot_provider.is_valid():
+		if not _watch_snapshot_provider.is_valid():
 			return ""
 
-		var snapshot_result: Variant = watch_snapshot_provider.call()
+		var snapshot_result: Variant = _watch_snapshot_provider.call()
 		if not (snapshot_result is Array):
 			return ""
 
@@ -603,10 +771,10 @@ class _GFDebugGUI extends CanvasLayer:
 
 
 	func _build_panel_text() -> String:
-		if not panel_snapshot_provider.is_valid():
+		if not _panel_snapshot_provider.is_valid():
 			return ""
 
-		var snapshot_result: Variant = panel_snapshot_provider.call()
+		var snapshot_result: Variant = _panel_snapshot_provider.call()
 		if not (snapshot_result is Array):
 			return ""
 

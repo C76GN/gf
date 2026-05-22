@@ -1,13 +1,23 @@
-## GFTypeEventSystem: 基于类型和 StringName 的双轨事件系统内部实现。
+## GFTypeEventSystem: 基于类型和 StringName 的双轨事件系统。
 ##
 ## 轨道一（类型事件）：使用 Script 类型作为键，以对象实例为载体分发事件。
 ## 轨道二（简单事件）：使用 StringName 作为键，以 Variant 为 payload 分发事件。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/core
 class_name GFTypeEventSystem
 
 
 # --- 常量 ---
 
 ## 默认最大事件嵌套派发深度。
+## [br]
+## @api public
 const DEFAULT_MAX_DISPATCH_DEPTH: int = 64
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
@@ -16,14 +26,20 @@ const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_s
 # --- 公共变量 ---
 
 ## 最大事件嵌套派发深度。小于等于 0 时不限制。
+## [br]
+## @api public
 var max_dispatch_depth: int = DEFAULT_MAX_DISPATCH_DEPTH:
 	set(value):
 		max_dispatch_depth = maxi(value, 0)
 
 ## 是否记录事件派发追踪。默认关闭，避免调试数据持有过多运行时引用。
+## [br]
+## @api public
 var trace_enabled: bool = false
 
 ## 最多保留的事件派发追踪条目数。
+## [br]
+## @api public
 var max_trace_entries: int = 64:
 	set(value):
 		max_trace_entries = maxi(value, 0)
@@ -56,9 +72,15 @@ var _dispatch_trace: Array[Dictionary] = []
 # --- 公共方法 (类型事件) ---
 
 ## 注册特定脚本类型的事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_type: 要监听的脚本类型。
+## [br]
 ## @param on_event: 事件发送时执行的回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+## [br]
 ## @param owner: 可选监听拥有者，用于批量注销。
 func register(event_type: Script, on_event: Callable, priority: int = 0, owner: Object = null) -> void:
 	if event_type == null:
@@ -82,7 +104,11 @@ func register(event_type: Script, on_event: Callable, priority: int = 0, owner: 
 
 
 ## 注销特定脚本类型的事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_type: 要注销的脚本类型。
+## [br]
 ## @param on_event: 要移除的回调函数。
 func unregister(event_type: Script, on_event: Callable) -> void:
 	if event_type == null:
@@ -100,9 +126,15 @@ func unregister(event_type: Script, on_event: Callable) -> void:
 
 ## 注册可赋值类型事件监听器。
 ## 监听 base_event_type 时，也会收到继承自该脚本类型的事件实例。
+## [br]
+## @api public
+## [br]
 ## @param base_event_type: 要监听的基类脚本类型。
+## [br]
 ## @param on_event: 事件发送时执行的回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
+## [br]
 ## @param owner: 可选监听拥有者，用于批量注销。
 func register_assignable(base_event_type: Script, on_event: Callable, priority: int = 0, owner: Object = null) -> void:
 	if base_event_type == null:
@@ -126,7 +158,11 @@ func register_assignable(base_event_type: Script, on_event: Callable, priority: 
 
 
 ## 注销可赋值类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param base_event_type: 注册时使用的基类脚本类型。
+## [br]
 ## @param on_event: 要移除的回调函数。
 func unregister_assignable(base_event_type: Script, on_event: Callable) -> void:
 	if base_event_type == null:
@@ -143,6 +179,9 @@ func unregister_assignable(base_event_type: Script, on_event: Callable) -> void:
 
 
 ## 将事件实例发送给其脚本类型的所有注册监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_instance: 要分发的事件实例。
 func send(event_instance: Object) -> void:
 	if event_instance == null:
@@ -177,8 +216,13 @@ func send(event_instance: Object) -> void:
 # --- 公共方法 (简单事件) ---
 
 ## 注册轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param on_event: 回调函数，签名为 func(payload: Variant)。
+## [br]
 ## @param owner: 可选监听拥有者，用于批量注销。
 func register_simple(event_id: StringName, on_event: Callable, owner: Object = null) -> void:
 	if not _validate_simple_event_id(event_id, "register_simple"):
@@ -201,7 +245,11 @@ func register_simple(event_id: StringName, on_event: Callable, owner: Object = n
 
 
 ## 注销轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param on_event: 要移除的回调函数。
 func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 	if not _validate_simple_event_id(event_id, "unregister_simple"):
@@ -218,8 +266,14 @@ func unregister_simple(event_id: StringName, on_event: Callable) -> void:
 
 
 ## 将 payload 发送给指定 StringName 事件的所有注册监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param payload: 传递给监听器的数据，可为任意类型。
+## [br]
+## @schema payload: Variant payload passed unchanged to simple event listeners.
 func send_simple(event_id: StringName, payload: Variant = null) -> void:
 	if not _validate_simple_event_id(event_id, "send_simple"):
 		return
@@ -274,6 +328,9 @@ func send_simple(event_id: StringName, payload: Variant = null) -> void:
 
 
 ## 注销指定拥有者注册过的所有事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听拥有者。
 func unregister_owner(owner: Object) -> void:
 	if owner == null:
@@ -297,7 +354,12 @@ func unregister_owner(owner: Object) -> void:
 
 
 ## 获取事件系统诊断统计。
+## [br]
+## @api public
+## [br]
 ## @return 包含类型事件、可赋值事件和简单事件监听数量的字典。
+## [br]
+## @schema return: Dictionary containing listener counts, pending operation counts, dispatch counters, depth limits, and trace counters.
 func get_debug_stats() -> Dictionary:
 	return {
 		"type_events": _collect_listener_stats(_event_listeners),
@@ -320,7 +382,12 @@ func get_debug_stats() -> Dictionary:
 
 
 ## 获取最近事件派发追踪条目。
+## [br]
+## @api public
+## [br]
 ## @return 从旧到新的追踪条目副本。
+## [br]
+## @schema return: Array of Dictionary trace entries with event, listener, owner, and dispatch metadata.
 func get_dispatch_trace() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entry: Dictionary in _dispatch_trace:
@@ -329,11 +396,15 @@ func get_dispatch_trace() -> Array[Dictionary]:
 
 
 ## 清空事件派发追踪。
+## [br]
+## @api public
 func clear_dispatch_trace() -> void:
 	_dispatch_trace.clear()
 
 
 ## 清空所有已注册的事件监听器（包括类型事件和简单事件）。
+## [br]
+## @api public
 func clear() -> void:
 	_type_track.clear_all()
 	_assignable_type_track.clear_all()
@@ -838,22 +909,62 @@ func _invalidate_type_dispatch_cache() -> void:
 
 # --- 内部类 ---
 
+## EventListenerTrack: 派发期间监听器变更的暂存轨道。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/core
 class EventListenerTrack:
+	## 监听器字典使用的键字段名。
+	## [br]
+	## @api framework_internal
 	var key_field: StringName = &""
+
+	## 已落地的监听器映射。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @schema listeners: Dictionary keyed by Script or StringName, storing ordered listener entry arrays.
 	var listeners: Dictionary = {}
+
+	## 派发期间暂存的监听注册列表。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @schema pending_adds: Array of Dictionary listener registration records.
 	var pending_adds: Array[Dictionary] = []
+
+	## 派发期间暂存的监听注销列表。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @schema pending_removes: Array of Dictionary listener removal records.
 	var pending_removes: Array[Dictionary] = []
+
+	## 派发期间暂存的 owner 注销列表。
+	## [br]
+	## @api framework_internal
 	var pending_owner_removes: Array[int] = []
 
 	func _init(p_key_field: StringName) -> void:
 		key_field = p_key_field
 
 	## 暂存派发中的监听注册。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param key: 监听轨道键。
+	## [br]
+	## @schema key: Script or StringName listener key matching key_field.
+	## [br]
 	## @param on_event: 事件回调。
+	## [br]
 	## @param priority: 类型事件优先级。
+	## [br]
 	## @param owner_ref: 监听 owner 弱引用。
+	## [br]
 	## @param owner_id: 监听 owner 实例 ID。
+	## [br]
 	## @param order: 注册顺序。
 	func queue_add(
 		key: Variant,
@@ -874,7 +985,13 @@ class EventListenerTrack:
 		pending_adds.append(pending)
 
 	## 暂存派发中的监听注销。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param key: 监听轨道键。
+	## [br]
+	## @schema key: Script or StringName listener key matching key_field.
+	## [br]
 	## @param on_event: 要注销的事件回调。
 	func queue_remove(key: Variant, on_event: Callable) -> void:
 		var pending := {
@@ -884,7 +1001,13 @@ class EventListenerTrack:
 		pending_removes.append(pending)
 
 	## 移除同一派发周期内尚未落地的注册。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param key: 监听轨道键。
+	## [br]
+	## @schema key: Script or StringName listener key matching key_field.
+	## [br]
 	## @param on_event: 要移除的事件回调。
 	func remove_pending_add(key: Variant, on_event: Callable) -> void:
 		for i: int in range(pending_adds.size() - 1, -1, -1):
@@ -893,6 +1016,9 @@ class EventListenerTrack:
 				pending_adds.remove_at(i)
 
 	## 移除指定 owner 在同一派发周期内尚未落地的注册。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param owner_id: 监听 owner 实例 ID。
 	func remove_pending_adds_for_owner_id(owner_id: int) -> void:
 		for i: int in range(pending_adds.size() - 1, -1, -1):
@@ -901,8 +1027,16 @@ class EventListenerTrack:
 				pending_adds.remove_at(i)
 
 	## 查询指定监听是否已暂存注销。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param key: 监听轨道键。
+	## [br]
+	## @schema key: Script or StringName listener key matching key_field.
+	## [br]
 	## @param on_event: 要查询的事件回调。
+	## [br]
+	## @return 已暂存注销时返回 true。
 	func has_pending_remove(key: Variant, on_event: Callable) -> bool:
 		for pending: Dictionary in pending_removes:
 			if pending.get(key_field) == key and pending.get("callable") == on_event:
@@ -910,15 +1044,24 @@ class EventListenerTrack:
 		return false
 
 	## 暂存 owner 注销，重复 owner 只记录一次。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param owner_id: 监听 owner 实例 ID。
 	func append_unique_owner_remove(owner_id: int) -> void:
 		if not pending_owner_removes.has(owner_id):
 			pending_owner_removes.append(owner_id)
 
+	## 清空已落地监听器和所有暂存操作。
+	## [br]
+	## @api framework_internal
 	func clear_all() -> void:
 		listeners.clear()
 		clear_pending()
 
+	## 清空所有暂存操作。
+	## [br]
+	## @api framework_internal
 	func clear_pending() -> void:
 		pending_adds.clear()
 		pending_removes.clear()

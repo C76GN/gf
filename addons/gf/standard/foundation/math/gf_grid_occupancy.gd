@@ -2,6 +2,12 @@
 ##
 ## 适合格子移动、战棋、推箱子和解谜类玩法在 System 中跟踪运行时占用。
 ## 它不负责路径查找、碰撞或胜负规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFGridOccupancy
 extends RefCounted
 
@@ -9,24 +15,60 @@ extends RefCounted
 # --- 信号 ---
 
 ## 接收者占用格子时发出。
+## [br]
+## @api public
+## [br]
+## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
+## @param cell: 格子坐标。
 signal cell_occupied(receiver: Variant, cell: Vector2i)
 
 ## 接收者释放格子时发出。
+## [br]
+## @api public
+## [br]
+## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
+## @param cell: 格子坐标。
 signal cell_released(receiver: Variant, cell: Vector2i)
 
 ## 接收者预约格子时发出。
+## [br]
+## @api public
+## [br]
+## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
+## @param cell: 格子坐标。
 signal cell_reserved(receiver: Variant, cell: Vector2i)
 
 ## 接收者释放预约时发出。
+## [br]
+## @api public
+## [br]
+## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
+## @param cell: 格子坐标。
 signal reservation_released(receiver: Variant, cell: Vector2i)
 
 
 # --- 公共变量 ---
 
 ## 网格尺寸。小于等于 0 的维度会让所有格子视为越界。
+## [br]
+## @api public
 var grid_size: Vector2i = Vector2i.ZERO
 
 ## 单格允许的最大占用数量。
+## [br]
+## @api public
 var max_occupants_per_cell: int = 1
 
 
@@ -49,7 +91,11 @@ func _init(p_grid_size: Vector2i = Vector2i.ZERO, p_max_occupants_per_cell: int 
 # --- 公共方法 ---
 
 ## 设置网格参数并清空占用。
+## [br]
+## @api public
+## [br]
 ## @param p_grid_size: 网格尺寸。
+## [br]
 ## @param p_max_occupants_per_cell: 单格最大占用数量。
 func configure(p_grid_size: Vector2i, p_max_occupants_per_cell: int = 1) -> void:
 	grid_size = p_grid_size
@@ -58,15 +104,26 @@ func configure(p_grid_size: Vector2i, p_max_occupants_per_cell: int = 1) -> void
 
 
 ## 检查格子是否在边界内。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 在边界内返回 true。
 func is_in_bounds(cell: Vector2i) -> bool:
 	return GFGridMath.is_in_bounds(cell, grid_size)
 
 
 ## 检查接收者是否可以占用格子。
+## [br]
+## @api public
+## [br]
 ## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 可占用时返回 true。
 func can_occupy(receiver: Variant, cell: Vector2i) -> bool:
 	if not is_in_bounds(cell):
@@ -88,8 +145,15 @@ func can_occupy(receiver: Variant, cell: Vector2i) -> bool:
 
 
 ## 占用格子。接收者若已占用其他格子，会先释放旧格子。
+## [br]
+## @api public
+## [br]
 ## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 成功时返回 true。
 func occupy(receiver: Variant, cell: Vector2i) -> bool:
 	if not can_occupy(receiver, cell):
@@ -116,7 +180,12 @@ func occupy(receiver: Variant, cell: Vector2i) -> bool:
 
 
 ## 释放接收者当前占用。
+## [br]
+## @api public
+## [br]
 ## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
 func release(receiver: Variant) -> void:
 	var receiver_key := _make_receiver_key(receiver)
 	var record := _get_record(_receiver_records, receiver_key)
@@ -135,6 +204,9 @@ func release(receiver: Variant) -> void:
 
 
 ## 释放指定格子的所有占用。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格子坐标。
 func release_cell(cell: Vector2i) -> void:
 	var occupants := _get_occupant_keys(cell).duplicate()
@@ -145,8 +217,15 @@ func release_cell(cell: Vector2i) -> void:
 
 
 ## 预约格子，防止其他接收者抢占。
+## [br]
+## @api public
+## [br]
 ## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 成功时返回 true。
 func reserve_cell(receiver: Variant, cell: Vector2i) -> bool:
 	if not can_occupy(receiver, cell):
@@ -162,7 +241,13 @@ func reserve_cell(receiver: Variant, cell: Vector2i) -> bool:
 
 
 ## 将接收者预约确认成占用。
+## [br]
+## @api public
+## [br]
 ## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
 ## @return 成功时返回 true。
 func confirm_reservation(receiver: Variant) -> bool:
 	var receiver_key := _make_receiver_key(receiver)
@@ -175,7 +260,12 @@ func confirm_reservation(receiver: Variant) -> bool:
 
 
 ## 释放接收者预约。
+## [br]
+## @api public
+## [br]
 ## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
 func release_reservation(receiver: Variant) -> void:
 	var receiver_key := _make_receiver_key(receiver)
 	if not _receiver_reservations.has(receiver_key):
@@ -189,25 +279,39 @@ func release_reservation(receiver: Variant) -> void:
 
 
 ## 检查格子是否有占用。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 有占用时返回 true。
 func is_cell_occupied(cell: Vector2i) -> bool:
 	return not get_cell_occupants(cell).is_empty()
 
 
 ## 检查格子是否被预约。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 被预约时返回 true。
 func is_cell_reserved(cell: Vector2i) -> bool:
 	return _cell_reservations.has(cell)
 
 
 ## 获取格子中的所有接收者。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 接收者数组。
-func get_cell_occupants(cell: Vector2i) -> Array:
+## [br]
+## @schema return: Array receiver values restored from occupancy records.
+func get_cell_occupants(cell: Vector2i) -> Array[Variant]:
 	prune_invalid_receivers()
-	var result: Array = []
+	var result: Array[Variant] = []
 	for receiver_key: String in _get_occupant_keys(cell):
 		var record := _get_record(_receiver_records, receiver_key)
 		if not record.is_empty():
@@ -216,15 +320,27 @@ func get_cell_occupants(cell: Vector2i) -> Array:
 
 
 ## 获取格子中的第一个接收者。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格子坐标。
+## [br]
 ## @return 接收者；不存在时返回 null。
+## [br]
+## @schema return: Variant receiver value restored from the occupancy record.
 func get_cell_occupant(cell: Vector2i) -> Variant:
 	var occupants := get_cell_occupants(cell)
 	return occupants[0] if not occupants.is_empty() else null
 
 
 ## 获取接收者当前占用格。
+## [br]
+## @api public
+## [br]
 ## @param receiver: 接收者。
+## [br]
+## @schema receiver: Variant receiver identity stored by value or weak Object reference.
+## [br]
 ## @return 格子坐标；未占用时返回 Vector2i(-1, -1)。
 func get_receiver_cell(receiver: Variant) -> Vector2i:
 	var receiver_key := _make_receiver_key(receiver)
@@ -238,6 +354,8 @@ func get_receiver_cell(receiver: Variant) -> Vector2i:
 
 
 ## 清理已释放 Object 接收者。
+## [br]
+## @api public
 func prune_invalid_receivers() -> void:
 	var keys_to_release: Array[String] = []
 	for receiver_key: String in _receiver_records.keys():
@@ -259,6 +377,8 @@ func prune_invalid_receivers() -> void:
 
 
 ## 清空占用和预约。
+## [br]
+## @api public
 func clear() -> void:
 	_cell_occupants.clear()
 	_receiver_records.clear()

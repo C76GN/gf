@@ -2,54 +2,85 @@
 ##
 ## 桥接只描述信号来源、目标方法、参数重排和常量参数。它不修改场景结构、
 ## 不解释信号业务含义，也不要求调用方使用特定 UI 或状态机。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFSignalBridge
 extends Resource
-
-
-# --- 常量 ---
-
-const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
 
 ## 桥接 ID，便于调试和项目侧索引。
+## [br]
+## @api public
 @export var bridge_id: StringName = &""
 
 ## 是否启用该桥接。
+## [br]
+## @api public
 @export var enabled: bool = true
 
 ## 信号来源引用。
+## [br]
+## @api public
 @export var source: GFSignalSourceRef = GFSignalSourceRef.new()
 
 ## 调用目标引用。
+## [br]
+## @api public
 @export var target: GFCallableTargetRef = GFCallableTargetRef.new()
 
 ## 要从原始信号参数中抽取的索引。为空时透传全部信号参数。
+## [br]
+## @api public
 @export var argument_indices: PackedInt32Array = PackedInt32Array()
 
 ## 追加到桥接参数末尾的常量参数。
+## [br]
+## @api public
+## [br]
+## @schema constant_args: Array，追加在选中信号参数后的固定参数。
 @export var constant_args: Array = []
 
 ## 是否把桥接上下文字典追加到参数末尾。
+## [br]
+## @api public
 @export var append_context: bool = false
 
 ## 是否只触发一次。
+## [br]
+## @api public
 @export var one_shot: bool = false
 
 ## Godot 信号连接标记。
+## [br]
+## @api public
 @export var connect_flags: int = 0
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，关联到信号桥的项目侧元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 连接桥接。
+## [br]
+## @api public
+## [br]
 ## @param root: 路径解析根节点。
+## [br]
 ## @param owner: 可选连接拥有者。
+## [br]
 ## @param signal_utility: 可选 GFSignalUtility；为空时创建独立连接。
+## [br]
 ## @return 运行中的桥接绑定；失败时返回 null。
 func connect_bridge(
 	root: Node,
@@ -84,9 +115,18 @@ func connect_bridge(
 
 
 ## 直接执行桥接调用。
+## [br]
+## @api public
+## [br]
 ## @param root: 路径解析根节点。
+## [br]
 ## @param signal_args: 原始信号参数。
+## [br]
 ## @return 结构化调用结果。
+## [br]
+## @schema signal_args: Array，来源信号发出的原始参数。
+## [br]
+## @schema return: Dictionary，包含 ok、reason、value、bridge_id 和 args。
 func invoke(root: Node, signal_args: Array = []) -> Dictionary:
 	if not enabled:
 		return _make_result(false, &"disabled", null)
@@ -105,8 +145,16 @@ func invoke(root: Node, signal_args: Array = []) -> Dictionary:
 
 
 ## 构建目标 Callable 参数。
+## [br]
+## @api public
+## [br]
 ## @param signal_args: 原始信号参数。
+## [br]
 ## @return 映射后的参数。
+## [br]
+## @schema signal_args: Array，来源信号发出的原始参数。
+## [br]
+## @schema return: Array，传给目标 Callable 且位于 target.default_args 之前的参数。
 func build_callable_args(signal_args: Array = []) -> Array:
 	var args: Array = []
 	if argument_indices.is_empty():
@@ -121,8 +169,14 @@ func build_callable_args(signal_args: Array = []) -> Array:
 
 
 ## 获取校验报告。
+## [br]
+## @api public
+## [br]
 ## @param root: 路径解析根节点。
+## [br]
 ## @return 兼容 GFValidationReportDictionary 的报告字典。
+## [br]
+## @schema return: GFValidationReportDictionary 兼容 Dictionary，包含 subject、bridge_id、issues、counts、summary 和 next_action。
 func get_validation_report(root: Node) -> Dictionary:
 	var report := {
 		"subject": "Signal bridge",
@@ -150,14 +204,19 @@ func get_validation_report(root: Node) -> Dictionary:
 	if target_is_valid:
 		_validate_callable_argument_count(report, root, signal_argument_count)
 
-	return GFValidationReportDictionaryBase.finalize_report(report, "Signal bridge", {
+	return GFValidationReportDictionary.finalize_report(report, "Signal bridge", {
 		"include_issue_count": true,
 		"next_actions": _get_validation_next_actions(),
 	})
 
 
 ## 转换为调试字典。
+## [br]
+## @api public
+## [br]
 ## @return 桥接快照。
+## [br]
+## @schema return: Dictionary，包含 bridge_id、enabled、source、target、argument_indices、constant_args、append_context、one_shot 和 metadata。
 func to_dictionary() -> Dictionary:
 	return {
 		"bridge_id": bridge_id,
@@ -287,7 +346,7 @@ func _append_validation_issue(
 		"path": path,
 	}
 	issue_fields.merge(fields, true)
-	GFValidationReportDictionaryBase.append_issue(report, "error", kind, message, issue_fields)
+	GFValidationReportDictionary.append_issue(report, "error", kind, message, issue_fields)
 
 
 func _get_validation_next_actions() -> Dictionary:

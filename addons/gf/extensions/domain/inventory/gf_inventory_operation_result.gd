@@ -1,6 +1,12 @@
 ## GFInventoryOperationResult: 通用库存操作结果。
 ##
 ## 描述一次添加、移除、移动或合并操作的接受数量、剩余数量和失败原因。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFInventoryOperationResult
 extends RefCounted
 
@@ -8,41 +14,68 @@ extends RefCounted
 # --- 公共变量 ---
 
 ## 操作是否完全成功。
+## [br]
+## @api public
 var ok: bool = false
 
 ## 物品标识。
+## [br]
+## @api public
 var item_id: StringName = &""
 
 ## 请求处理的数量。
+## [br]
+## @api public
 var requested_amount: int = 0
 
 ## 实际处理的数量。
+## [br]
+## @api public
 var accepted_amount: int = 0
 
 ## 未处理的剩余数量。
+## [br]
+## @api public
 var remaining_amount: int = 0
 
 ## 源槽位。没有源槽位时为 -1。
+## [br]
+## @api public
 var source_slot: int = -1
 
 ## 目标槽位。没有目标槽位时为 -1。
+## [br]
+## @api public
 var target_slot: int = -1
 
 ## 操作结果原因。
+## [br]
+## @api public
 var reason: StringName = &""
 
 ## 项目自定义元数据。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，项目自定义操作结果元数据；GF 会在 to_dict() 中复制输出。
 var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 创建成功结果。
+## [br]
+## @api public
+## [br]
 ## @param result_item_id: 物品标识。
+## [br]
 ## @param amount: 处理数量。
+## [br]
 ## @param result_source_slot: 源槽位。
+## [br]
 ## @param result_target_slot: 目标槽位。
-## @return 操作结果。
+## [br]
+## @return: 操作结果。
 static func success(
 	result_item_id: StringName,
 	amount: int,
@@ -62,13 +95,22 @@ static func success(
 
 
 ## 创建失败或部分成功结果。
+## [br]
+## @api public
+## [br]
 ## @param result_item_id: 物品标识。
+## [br]
 ## @param requested: 请求数量。
+## [br]
 ## @param accepted: 实际处理数量。
+## [br]
 ## @param result_reason: 操作结果原因。
+## [br]
 ## @param result_source_slot: 源槽位。
+## [br]
 ## @param result_target_slot: 目标槽位。
-## @return 操作结果。
+## [br]
+## @return: 操作结果。
 static func partial(
 	result_item_id: StringName,
 	requested: int,
@@ -92,13 +134,21 @@ static func partial(
 
 
 ## 检查操作是否处理了部分数量。
-## @return 有部分处理返回 true。
+## [br]
+## @api public
+## [br]
+## @return: 有部分处理返回 true。
 func is_partial_success() -> bool:
 	return not ok and accepted_amount > 0
 
 
 ## 转换为字典。
-## @return 操作结果字典。
+## [br]
+## @api public
+## [br]
+## @return: 操作结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok、item_id、requested_amount、accepted_amount、remaining_amount、source_slot、target_slot、reason 与 metadata。
 func to_dict() -> Dictionary:
 	return {
 		"ok": ok,

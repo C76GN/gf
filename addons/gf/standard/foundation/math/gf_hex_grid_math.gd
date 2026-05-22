@@ -3,6 +3,12 @@
 ## 提供 offset / cube 坐标转换、邻居枚举、距离、范围、环、直线、视线、
 ## A* 路径查找和 Flow Field 生成。它不依赖 GFArchitecture，可直接在
 ## Model、System、Controller 或测试中静态调用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFHexGridMath
 extends RefCounted
 
@@ -10,6 +16,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## Offset 坐标布局。
+## [br]
+## @api public
 enum OffsetLayout {
 	## 奇数行右偏移，常用于 pointy-top 横向行布局。
 	ODD_R,
@@ -22,6 +30,8 @@ enum OffsetLayout {
 }
 
 ## 像素坐标换算时使用的六边形朝向。
+## [br]
+## @api public
 enum HexOrientation {
 	## 尖顶朝上。
 	POINTY_TOP,
@@ -32,7 +42,14 @@ enum HexOrientation {
 
 # --- 常量 ---
 
+## 根号 3 的缓存值，用于六边形像素坐标换算。
+## [br]
+## @api public
 const SQRT_3: float = 1.7320508075688772
+
+## 默认六边形外接圆半径。
+## [br]
+## @api public
 const DEFAULT_HEX_SIZE: float = 32.0
 
 const _CUBE_DIRECTIONS: Array[Vector3i] = [
@@ -48,8 +65,13 @@ const _CUBE_DIRECTIONS: Array[Vector3i] = [
 # --- 公共方法 ---
 
 ## 判断 offset 坐标是否位于网格范围内。
+## [br]
+## @api public
+## [br]
 ## @param cell: offset 坐标。
+## [br]
 ## @param grid_size: 网格尺寸；任一轴小于 0 时视为无限网格。
+## [br]
 ## @return 在范围内返回 true。
 static func is_in_bounds(cell: Vector2i, grid_size: Vector2i) -> bool:
 	if grid_size.x < 0 or grid_size.y < 0:
@@ -66,8 +88,13 @@ static func is_in_bounds(cell: Vector2i, grid_size: Vector2i) -> bool:
 
 
 ## 将 offset 坐标转换为 cube 坐标。
+## [br]
+## @api public
+## [br]
 ## @param cell: offset 坐标。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @return cube 坐标；满足 x + y + z == 0。
 static func offset_to_cube(cell: Vector2i, layout: OffsetLayout = OffsetLayout.ODD_R) -> Vector3i:
 	var x := 0
@@ -90,8 +117,13 @@ static func offset_to_cube(cell: Vector2i, layout: OffsetLayout = OffsetLayout.O
 
 
 ## 将 cube 坐标转换为 offset 坐标。
+## [br]
+## @api public
+## [br]
 ## @param cube: cube 坐标。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @return offset 坐标。
 static func cube_to_offset(cube: Vector3i, layout: OffsetLayout = OffsetLayout.ODD_R) -> Vector2i:
 	match layout:
@@ -106,7 +138,11 @@ static func cube_to_offset(cube: Vector3i, layout: OffsetLayout = OffsetLayout.O
 
 
 ## 四舍五入浮点 cube 坐标。
+## [br]
+## @api public
+## [br]
 ## @param cube: 浮点 cube 坐标。
+## [br]
 ## @return 最近的整数 cube 坐标；满足 x + y + z == 0。
 static func cube_round(cube: Vector3) -> Vector3i:
 	var rounded_x := roundi(cube.x)
@@ -127,10 +163,17 @@ static func cube_round(cube: Vector3) -> Vector3i:
 
 
 ## 将 offset 坐标转换为像素中心点。
+## [br]
+## @api public
+## [br]
 ## @param cell: offset 坐标。
+## [br]
 ## @param hex_size: 六边形外接圆半径。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @param orientation: 六边形朝向。
+## [br]
 ## @return 像素中心点。
 static func offset_to_pixel(
 	cell: Vector2i,
@@ -142,10 +185,17 @@ static func offset_to_pixel(
 
 
 ## 将像素坐标转换为最近的 offset 坐标。
+## [br]
+## @api public
+## [br]
 ## @param pixel: 像素坐标。
+## [br]
 ## @param hex_size: 六边形外接圆半径。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @param orientation: 六边形朝向。
+## [br]
 ## @return 最近的 offset 坐标。
 static func pixel_to_offset(
 	pixel: Vector2,
@@ -157,9 +207,15 @@ static func pixel_to_offset(
 
 
 ## 将 cube 坐标转换为像素中心点。
+## [br]
+## @api public
+## [br]
 ## @param cube: cube 坐标。
+## [br]
 ## @param hex_size: 六边形外接圆半径。
+## [br]
 ## @param orientation: 六边形朝向。
+## [br]
 ## @return 像素中心点。
 static func cube_to_pixel(
 	cube: Vector3i,
@@ -177,9 +233,15 @@ static func cube_to_pixel(
 
 
 ## 将像素坐标转换为最近的 cube 坐标。
+## [br]
+## @api public
+## [br]
 ## @param pixel: 像素坐标。
+## [br]
 ## @param hex_size: 六边形外接圆半径。
+## [br]
 ## @param orientation: 六边形朝向。
+## [br]
 ## @return 最近的 cube 坐标。
 static func pixel_to_cube(
 	pixel: Vector2,
@@ -201,8 +263,13 @@ static func pixel_to_cube(
 
 
 ## 获取六边形顶点相对坐标。
+## [br]
+## @api public
+## [br]
 ## @param hex_size: 六边形外接圆半径。
+## [br]
 ## @param orientation: 六边形朝向。
+## [br]
 ## @return 顶点数组，按顺时针排列。
 static func get_polygon_points(
 	hex_size: float = DEFAULT_HEX_SIZE,
@@ -217,9 +284,15 @@ static func get_polygon_points(
 
 
 ## 获取指定 offset 坐标的邻居。
+## [br]
+## @api public
+## [br]
 ## @param cell: 中心坐标。
+## [br]
 ## @param grid_size: 网格尺寸；任一轴小于 0 时视为无限网格。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @return 位于网格范围内的邻居列表。
 static func get_neighbors(
 	cell: Vector2i,
@@ -236,9 +309,15 @@ static func get_neighbors(
 
 
 ## 计算两个 offset 坐标之间的六边形距离。
+## [br]
+## @api public
+## [br]
 ## @param from_cell: 起点坐标。
+## [br]
 ## @param to_cell: 终点坐标。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @return 六边形步数距离。
 static func distance(
 	from_cell: Vector2i,
@@ -249,8 +328,13 @@ static func distance(
 
 
 ## 计算两个 cube 坐标之间的六边形距离。
+## [br]
+## @api public
+## [br]
 ## @param from_cube: 起点 cube 坐标。
+## [br]
 ## @param to_cube: 终点 cube 坐标。
+## [br]
 ## @return 六边形步数距离。
 static func cube_distance(from_cube: Vector3i, to_cube: Vector3i) -> int:
 	return int((
@@ -261,10 +345,17 @@ static func cube_distance(from_cube: Vector3i, to_cube: Vector3i) -> int:
 
 
 ## 获取指定半径内的所有 offset 坐标。
+## [br]
+## @api public
+## [br]
 ## @param center: 中心坐标。
+## [br]
 ## @param radius: 半径。
+## [br]
 ## @param grid_size: 网格尺寸；任一轴小于 0 时视为无限网格。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @return 半径内坐标列表，包含中心。
 static func get_range(
 	center: Vector2i,
@@ -289,10 +380,17 @@ static func get_range(
 
 
 ## 获取指定半径的外环坐标。
+## [br]
+## @api public
+## [br]
 ## @param center: 中心坐标。
+## [br]
 ## @param radius: 半径；0 时返回中心。
+## [br]
 ## @param grid_size: 网格尺寸；任一轴小于 0 时视为无限网格。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @return 外环坐标列表。
 static func get_ring(
 	center: Vector2i,
@@ -317,9 +415,15 @@ static func get_ring(
 
 
 ## 获取连接两个 offset 坐标的六边形直线。
+## [br]
+## @api public
+## [br]
 ## @param from_cell: 起点坐标。
+## [br]
 ## @param to_cell: 终点坐标。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @return 坐标列表，包含起点与终点。
 static func get_line(
 	from_cell: Vector2i,
@@ -340,11 +444,19 @@ static func get_line(
 
 
 ## 判断两点之间是否有视线。
+## [br]
+## @api public
+## [br]
 ## @param from_cell: 起点坐标。
+## [br]
 ## @param to_cell: 终点坐标。
+## [br]
 ## @param is_blocking: 阻挡回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @param include_endpoints: 是否检查起点与终点是否阻挡。
+## [br]
 ## @return 没有阻挡时返回 true。
 static func has_line_of_sight(
 	from_cell: Vector2i,
@@ -366,12 +478,21 @@ static func has_line_of_sight(
 
 
 ## 使用 A* 查找一条六边形路径。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸；任一轴小于 0 时视为无限网格。
+## [br]
 ## @param start: 起点坐标。
+## [br]
 ## @param goal: 终点坐标。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector2i, to: Vector2i) -> float`；返回负数表示不可通行。
+## [br]
 ## @return 包含起点与终点的路径；无法到达时返回空数组。
 static func find_path_a_star(
 	grid_size: Vector2i,
@@ -429,12 +550,22 @@ static func find_path_a_star(
 
 
 ## 从一个或多个目标格生成六边形 Flow Field。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸；任一轴小于 0 时视为无限网格。
+## [br]
 ## @param goals: 目标坐标列表。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector2i, to: Vector2i) -> float`；返回负数表示不可通行。
+## [br]
 ## @return 包含 `costs`、`directions` 和 `goals` 的字典；`directions[cell]` 是下一步 offset 方向。
+## [br]
+## @schema return: Dictionary with `costs: Dictionary[Vector2i, float]`, `directions: Dictionary[Vector2i, Vector2i]`, and `goals: Array[Vector2i]`.
 static func build_flow_field(
 	grid_size: Vector2i,
 	goals: Array[Vector2i],
@@ -489,13 +620,24 @@ static func build_flow_field(
 
 
 ## 查找移动代价限制内的可达坐标。
+## [br]
+## @api public
+## [br]
 ## @param grid_size: 网格尺寸；任一轴小于 0 时视为无限网格。
+## [br]
 ## @param start: 起点坐标。
+## [br]
 ## @param max_cost: 最大移动代价。
+## [br]
 ## @param is_walkable: 可通行回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
 ## @param layout: offset 坐标布局。
+## [br]
 ## @param step_cost: 可选代价回调，签名为 `func(from: Vector2i, to: Vector2i) -> float`；返回负数表示不可通行。
+## [br]
 ## @return 字典，key 为可达坐标，value 为从起点到该坐标的最低代价。
+## [br]
+## @schema return: Dictionary[Vector2i, float] mapping each reachable cell to its lowest travel cost from `start`.
 static func find_reachable(
 	grid_size: Vector2i,
 	start: Vector2i,

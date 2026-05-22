@@ -2,6 +2,12 @@
 ##
 ## 该工具只管理拖拽生命周期、落点注册、命中排序和结果包装。
 ## 它不读取输入、不移动节点、不保存业务历史，也不规定具体 UI 或玩法语义。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFDragDropUtility
 extends GFUtility
 
@@ -9,36 +15,65 @@ extends GFUtility
 # --- 信号 ---
 
 ## 拖拽开始时发出。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param drag_type: 拖拽类型。
 signal drag_started(session_id: int, drag_type: StringName)
 
 ## 拖拽位置更新时发出。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param position: 当前位置。
+## [br]
 ## @param delta: 本次位移。
 signal drag_moved(session_id: int, position: Vector2, delta: Vector2)
 
 ## 拖拽成功释放到落点时发出。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param zone_id: 落点 ID。
+## [br]
 ## @param result: 落点返回结果。
+## [br]
+## @schema result: Dictionary，由 drop() 规范化，包含 ok、session_id、zone_id、reason 和可选 value。
 signal drag_dropped(session_id: int, zone_id: StringName, result: Dictionary)
 
 ## 拖拽释放被拒绝时发出。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param reason: 拒绝原因。
 signal drag_drop_rejected(session_id: int, reason: StringName)
 
 ## 拖拽取消时发出。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
 signal drag_cancelled(session_id: int)
 
 ## 落点注册后发出。
+## [br]
+## @api public
+## [br]
 ## @param zone_id: 落点 ID。
 signal drop_zone_registered(zone_id: StringName)
 
 ## 落点注销后发出。
+## [br]
+## @api public
+## [br]
 ## @param zone_id: 落点 ID。
 signal drop_zone_unregistered(zone_id: StringName)
 
@@ -52,6 +87,9 @@ var _zones: Dictionary = {}
 
 # --- GF 生命周期方法 ---
 
+## 释放拖拽工具持有的会话与落点。
+## [br]
+## @api public
 func dispose() -> void:
 	clear_sessions()
 	clear_zones()
@@ -60,7 +98,11 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注册落点。
+## [br]
+## @api public
+## [br]
 ## @param zone: 落点规则。
+## [br]
 ## @return 注册成功返回 true。
 func register_zone(zone: GFDropZone) -> bool:
 	if zone == null or zone.zone_id == &"":
@@ -71,11 +113,20 @@ func register_zone(zone: GFDropZone) -> bool:
 
 
 ## 注册矩形落点。
+## [br]
 ## @param zone_id: 落点 ID。
+## [br]
 ## @param rect: 全局矩形区域。
+## [br]
 ## @param accepted_types: 可接收类型；为空表示不限制。
+## [br]
 ## @param options: 可选参数，支持 priority、enabled、metadata、can_accept、drop。
+## [br]
 ## @return 注册成功时返回落点，否则返回 null。
+## [br]
+## @api public
+## [br]
+## @schema options: Dictionary，透传给 GFDropZone.from_rect()。
 func register_rect_zone(
 	zone_id: StringName,
 	rect: Rect2,
@@ -87,11 +138,20 @@ func register_rect_zone(
 
 
 ## 注册 Control 全局矩形落点。
+## [br]
 ## @param zone_id: 落点 ID。
+## [br]
 ## @param control: 用于读取 get_global_rect() 的 Control。
+## [br]
 ## @param accepted_types: 可接收类型；为空表示不限制。
+## [br]
 ## @param options: 可选参数，支持 priority、enabled、metadata、can_accept、drop。
+## [br]
 ## @return 注册成功时返回落点，否则返回 null。
+## [br]
+## @api public
+## [br]
+## @schema options: Dictionary，透传给 GFDropZone.from_control()。
 func register_control_zone(
 	zone_id: StringName,
 	control: Control,
@@ -103,7 +163,11 @@ func register_control_zone(
 
 
 ## 注销落点。
+## [br]
+## @api public
+## [br]
 ## @param zone_id: 落点 ID。
+## [br]
 ## @return 找到并移除时返回 true。
 func unregister_zone(zone_id: StringName) -> bool:
 	if not _zones.has(zone_id):
@@ -114,13 +178,19 @@ func unregister_zone(zone_id: StringName) -> bool:
 
 
 ## 获取落点。
+## [br]
+## @api public
+## [br]
 ## @param zone_id: 落点 ID。
+## [br]
 ## @return 落点；不存在时返回 null。
 func get_zone(zone_id: StringName) -> GFDropZone:
 	return _zones.get(zone_id, null) as GFDropZone
 
 
 ## 清空落点。
+## [br]
+## @api public
 func clear_zones() -> void:
 	for zone_id: StringName in _zones.keys():
 		drop_zone_unregistered.emit(zone_id)
@@ -128,12 +198,24 @@ func clear_zones() -> void:
 
 
 ## 开始拖拽。
+## [br]
 ## @param drag_type: 拖拽类型。
+## [br]
 ## @param payload: 项目自定义载荷。
+## [br]
 ## @param position: 起始位置。
+## [br]
 ## @param source: 可选来源对象。
+## [br]
 ## @param metadata: 项目自定义元数据。
+## [br]
 ## @return 会话 ID；失败时返回 -1。
+## [br]
+## @api public
+## [br]
+## @schema payload: Variant，透传给 drop zone 的项目侧拖拽载荷。
+## [br]
+## @schema metadata: Dictionary，复制到拖拽会话中的项目侧元数据。
 func start_drag(
 	drag_type: StringName,
 	payload: Variant,
@@ -153,8 +235,13 @@ func start_drag(
 
 
 ## 更新拖拽位置。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param position: 当前位置。
+## [br]
 ## @return 更新成功返回 true。
 func update_drag(session_id: int, position: Vector2) -> bool:
 	var session := get_session(session_id)
@@ -166,9 +253,16 @@ func update_drag(session_id: int, position: Vector2) -> bool:
 
 
 ## 将拖拽释放到当前位置匹配到的最佳落点。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param position: 释放位置。
+## [br]
 ## @return 结构化结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok、session_id、zone_id、reason 和可选 value。
 func drop(session_id: int, position: Vector2) -> Dictionary:
 	var session := get_session(session_id)
 	if session == null:
@@ -192,7 +286,11 @@ func drop(session_id: int, position: Vector2) -> Dictionary:
 
 
 ## 取消拖拽。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @return 找到并取消时返回 true。
 func cancel_drag(session_id: int) -> bool:
 	if not _sessions.has(session_id):
@@ -203,24 +301,38 @@ func cancel_drag(session_id: int) -> bool:
 
 
 ## 获取会话。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @return 会话；不存在时返回 null。
 func get_session(session_id: int) -> GFDragSession:
 	return _sessions.get(session_id, null) as GFDragSession
 
 
 ## 检查会话是否存在。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @return 存在时返回 true。
 func has_active_session(session_id: int) -> bool:
 	return _sessions.has(session_id)
 
 
 ## 获取当前位置命中的落点候选。
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param position: 要检查的位置。
+## [br]
 ## @param only_accepting: 为 true 时只返回当前可接收会话的落点。
+## [br]
 ## @return 按优先级排序的落点列表。
+## [br]
+## @api public
 func get_drop_candidates(
 	session_id: int,
 	position: Vector2,
@@ -245,8 +357,13 @@ func get_drop_candidates(
 
 
 ## 获取当前位置最佳落点。
+## [br]
+## @api public
+## [br]
 ## @param session_id: 会话 ID。
+## [br]
 ## @param position: 要检查的位置。
+## [br]
 ## @return 最佳落点；没有可用落点时返回 null。
 func get_best_drop_zone(session_id: int, position: Vector2) -> GFDropZone:
 	var candidates := get_drop_candidates(session_id, position, true)
@@ -256,6 +373,8 @@ func get_best_drop_zone(session_id: int, position: Vector2) -> GFDropZone:
 
 
 ## 清空拖拽会话。
+## [br]
+## @api public
 func clear_sessions() -> void:
 	for session_id: int in _sessions.keys():
 		drag_cancelled.emit(session_id)
@@ -263,7 +382,12 @@ func clear_sessions() -> void:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 当前拖拽与落点状态。
+## [br]
+## @schema return: Dictionary，包含 active_session_count、zone_count、sessions: Array[Dictionary] 和 zones: Array[Dictionary]。
 func get_debug_snapshot() -> Dictionary:
 	var sessions: Array[Dictionary] = []
 	for session_variant: Variant in _sessions.values():

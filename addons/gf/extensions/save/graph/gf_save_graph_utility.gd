@@ -2,21 +2,28 @@
 ##
 ## 负责遍历 GFSaveScope/GFSaveSource，采集、应用和落盘存档图。具体数据结构
 ## 由 Source、Serializer 或项目继承类决定，Utility 本身不绑定业务字段。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSaveGraphUtility
 extends GFUtility
 
 
 # --- 常量 ---
 
+## 存档图载荷格式标识。
+## [br]
+## @api public
 const FORMAT_ID: String = "gf_save_graph"
+
+## 当前存档图载荷格式版本。
+## [br]
+## @api public
 const FORMAT_VERSION: int = 1
-const GFNodeSerializerRegistryBase = preload("res://addons/gf/extensions/save/serializers/gf_node_serializer_registry.gd")
-const GFSaveEntityFactoryBase = preload("res://addons/gf/extensions/save/core/gf_save_entity_factory.gd")
-const GFSaveIdentityBase = preload("res://addons/gf/extensions/save/core/gf_save_identity.gd")
-const GFSavePipelineContextBase = preload("res://addons/gf/extensions/save/pipeline/gf_save_pipeline_context.gd")
-const GFSavePipelineStepBase = preload("res://addons/gf/extensions/save/pipeline/gf_save_pipeline_step.gd")
-const GFSaveScopeBase = preload("res://addons/gf/extensions/save/core/gf_save_scope.gd")
-const GFSaveSourceBase = preload("res://addons/gf/extensions/save/core/gf_save_source.gd")
+
 const _GF_VALIDATION_REPORT_DICTIONARY_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 const _CREATED_ENTITIES_CONTEXT_KEY: String = "_gf_save_graph_created_entities"
 
@@ -24,10 +31,14 @@ const _CREATED_ENTITIES_CONTEXT_KEY: String = "_gf_save_graph_created_entities"
 # --- 公共变量 ---
 
 ## 节点序列化器注册表。
-var serializer_registry: GFNodeSerializerRegistryBase = GFNodeSerializerRegistryBase.new()
+## [br]
+## @api public
+var serializer_registry: GFNodeSerializerRegistry = GFNodeSerializerRegistry.new()
 
 ## 存档图流程步骤。按数组顺序执行，适合压缩前校验、调试标记、版本适配等通用处理。
-var pipeline_steps: Array[GFSavePipelineStepBase] = []
+## [br]
+## @api public
+var pipeline_steps: Array[GFSavePipelineStep] = []
 
 
 # --- 私有变量 ---
@@ -38,8 +49,11 @@ var _entity_factories: Dictionary = {}
 # --- 公共方法 ---
 
 ## 注册实体工厂。
+## [br]
+## @api public
+## [br]
 ## @param factory: 实体工厂。
-func register_entity_factory(factory: GFSaveEntityFactoryBase) -> void:
+func register_entity_factory(factory: GFSaveEntityFactory) -> void:
 	if factory == null:
 		return
 
@@ -50,54 +64,84 @@ func register_entity_factory(factory: GFSaveEntityFactoryBase) -> void:
 
 
 ## 注销实体工厂。
+## [br]
+## @api public
+## [br]
 ## @param type_key: 实体类型键。
 func unregister_entity_factory(type_key: StringName) -> void:
 	_entity_factories.erase(type_key)
 
 
 ## 清空实体工厂。
+## [br]
+## @api public
 func clear_entity_factories() -> void:
 	_entity_factories.clear()
 
 
 ## 添加存档流程步骤。
+## [br]
+## @api public
+## [br]
 ## @param step: 流程步骤。
-func add_pipeline_step(step: GFSavePipelineStepBase) -> void:
+func add_pipeline_step(step: GFSavePipelineStep) -> void:
 	if step == null or pipeline_steps.has(step):
 		return
 	pipeline_steps.append(step)
 
 
 ## 移除存档流程步骤。
+## [br]
+## @api public
+## [br]
 ## @param step: 流程步骤。
-func remove_pipeline_step(step: GFSavePipelineStepBase) -> void:
+func remove_pipeline_step(step: GFSavePipelineStep) -> void:
 	pipeline_steps.erase(step)
 
 
 ## 清空存档流程步骤。
+## [br]
+## @api public
 func clear_pipeline_steps() -> void:
 	pipeline_steps.clear()
 
 
 ## 创建存档流程上下文。
+## [br]
+## @api public
+## [br]
 ## @param operation: 操作类型。
+## [br]
 ## @param scope: 可选根 Scope。
+## [br]
 ## @param shared: 初始共享数据。
+## [br]
+## @schema shared: Dictionary，流程共享数据，可由步骤写入调试标记、迁移状态或项目自定义键。
+## [br]
 ## @return 新上下文。
 func create_pipeline_context(
 	operation: StringName,
-	scope: GFSaveScopeBase = null,
+	scope: GFSaveScope = null,
 	shared: Dictionary = {}
-) -> GFSavePipelineContextBase:
+) -> GFSavePipelineContext:
 	var root_scope_key := _get_scope_key_for_inspection(scope) if scope != null else &""
-	return GFSavePipelineContextBase.new(operation, root_scope_key, shared)
+	return GFSavePipelineContext.new(operation, root_scope_key, shared)
 
 
 ## 检查 Scope 树的可保存结构。
+## [br]
+## @api public
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
+## @schema context: Dictionary，可包含诊断调用方自定义键，不会被 Utility 写入私有状态。
+## [br]
 ## @return 诊断报告。
-func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionary:
+## [br]
+## @schema return: Dictionary，包含 ok、healthy、scope_key、计数字段、issue_counts_by_kind、summary、next_action、scopes、sources 与 issues。
+func inspect_scope(scope: GFSaveScope, context: Dictionary = {}) -> Dictionary:
 	var report := {
 		"ok": true,
 		"healthy": true,
@@ -126,19 +170,38 @@ func inspect_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictiona
 
 
 ## 构建 Scope 健康报告。
+## [br]
+## @api public
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
+## @schema context: Dictionary，可包含诊断调用方自定义键，不会被 Utility 写入私有状态。
+## [br]
 ## @return 含 summary、next_action 与 issue 统计的诊断报告。
-func build_scope_health_report(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionary:
+## [br]
+## @schema return: Dictionary，结构与 inspect_scope 的返回诊断报告一致。
+func build_scope_health_report(scope: GFSaveScope, context: Dictionary = {}) -> Dictionary:
 	return inspect_scope(scope, context)
 
 
 ## 校验载荷是否能匹配当前 Scope 树。
+## [br]
+## @api public
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param payload: 待校验载荷。
+## [br]
 ## @param strict: 为 true 时把缺失 Source/Scope 视为错误；否则视为警告。
+## [br]
+## @schema payload: Dictionary，存档图载荷，包含 format、format_version、scope、sources、scopes，可选 metadata 与 pipeline_trace。
+## [br]
 ## @return 诊断报告。
-func validate_payload_for_scope(scope: GFSaveScopeBase, payload: Dictionary, strict: bool = false) -> Dictionary:
+## [br]
+## @schema return: Dictionary，包含 ok、healthy、scope_key、checked_source_count、checked_scope_count、missing、issues、summary 与 next_action。
+func validate_payload_for_scope(scope: GFSaveScope, payload: Dictionary, strict: bool = false) -> Dictionary:
 	var report := {
 		"ok": true,
 		"healthy": true,
@@ -173,20 +236,39 @@ func validate_payload_for_scope(scope: GFSaveScopeBase, payload: Dictionary, str
 
 
 ## 构建载荷匹配健康报告。
+## [br]
+## @api public
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param payload: 待校验载荷。
+## [br]
 ## @param strict: 为 true 时把缺失 Source/Scope 视为错误；否则视为警告。
+## [br]
+## @schema payload: Dictionary，存档图载荷，包含 format、format_version、scope、sources、scopes，可选 metadata 与 pipeline_trace。
+## [br]
 ## @return 含 summary、next_action 与 issue 统计的诊断报告。
-func build_payload_health_report(scope: GFSaveScopeBase, payload: Dictionary, strict: bool = false) -> Dictionary:
+## [br]
+## @schema return: Dictionary，结构与 validate_payload_for_scope 的返回诊断报告一致。
+func build_payload_health_report(scope: GFSaveScope, payload: Dictionary, strict: bool = false) -> Dictionary:
 	return validate_payload_for_scope(scope, payload, strict)
 
 
 ## 采集 Scope 存档图。
+## [br]
+## @api public
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
+## @schema context: Dictionary，可包含 pipeline_context、pipeline_shared、include_pipeline_trace、transactional_apply 及项目自定义键。
+## [br]
 ## @return 存档载荷。
-func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionary:
-	if scope == null or not scope.can_save_scope(context):
+## [br]
+## @schema return: Dictionary，存档图载荷，包含 format、format_version、scope、sources、scopes，可选 metadata 与 pipeline_trace。
+func gather_scope(scope: GFSaveScope, context: Dictionary = {}) -> Dictionary:
+	if scope == null or not scope._can_save_scope(context):
 		return {}
 
 	var owns_pipeline_context := not _has_pipeline_context(context)
@@ -197,7 +279,7 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 
 	_run_before_gather_steps(scope, context)
 	pipeline_context.record_event(&"gather_scope_started", scope)
-	scope.before_save(context)
+	scope._before_save(context)
 	var payload := {
 		"format": FORMAT_ID,
 		"format_version": FORMAT_VERSION,
@@ -206,11 +288,11 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 		"scopes": {},
 	}
 
-	for source: GFSaveSourceBase in _get_sources_for_scope(scope):
-		if not source.can_save_source(context):
+	for source: GFSaveSource in _get_sources_for_scope(scope):
+		if not source._can_save_source(context):
 			continue
 
-		source.before_save(context)
+		source._before_save(context)
 		var source_key := _make_scoped_source_key(scope, source)
 		if (payload["sources"] as Dictionary).has(source_key):
 			var duplicate_source_error := "[GFSaveGraphUtility] gather_scope 失败：同一 Scope 内存在重复 Source key：%s" % source_key
@@ -227,14 +309,14 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 		})
 		payload["sources"][source_key] = {
 			"descriptor": descriptor,
-			"data": source.gather_save_data(context, serializer_registry),
+			"data": source._gather_save_data(context, serializer_registry),
 		}
 		pipeline_context.record_event(&"gather_source_finished", scope, source, "", {
 			"source_key": source_key,
 		})
 
-	for child_scope: GFSaveScopeBase in _get_child_scopes(scope):
-		if not child_scope.can_save_scope(context):
+	for child_scope: GFSaveScope in _get_child_scopes(scope):
+		if not child_scope._can_save_scope(context):
 			continue
 		var child_payload := gather_scope(child_scope, context)
 		if child_payload.is_empty():
@@ -256,7 +338,7 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 			return {}
 		payload["scopes"][child_key] = child_payload
 
-	scope.after_save(payload, context)
+	scope._after_save(payload, context)
 	var final_payload := _run_after_gather_steps(scope, payload, context)
 	pipeline_context.record_event(&"gather_scope_finished", scope, null, "", {
 		"source_count": (final_payload.get("sources", {}) as Dictionary).size(),
@@ -270,13 +352,26 @@ func gather_scope(scope: GFSaveScopeBase, context: Dictionary = {}) -> Dictionar
 
 
 ## 应用 Scope 存档图。
+## [br]
+## @api public
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param payload: 存档载荷。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
 ## @param strict: 为 true 时缺失 Source/Scope 会记录错误。
+## [br]
+## @schema payload: Dictionary，存档图载荷，包含 format、format_version、scope、sources、scopes，可选 metadata 与 pipeline_trace。
+## [br]
+## @schema context: Dictionary，可包含 pipeline_context、pipeline_shared、include_pipeline_trace、transactional_apply 及项目自定义键。
+## [br]
 ## @return 结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok、applied、errors、missing，可选 pipeline_trace。
 func apply_scope(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	payload: Dictionary,
 	context: Dictionary = {},
 	strict: bool = false
@@ -285,7 +380,7 @@ func apply_scope(
 		return _make_apply_result(false, 0, ["Scope is null."], [])
 	if payload.is_empty():
 		return _make_apply_result(false, 0, ["Save payload is empty."], [])
-	if not scope.can_load_scope(context):
+	if not scope._can_load_scope(context):
 		return _make_apply_result(true, 0, [], [])
 
 	var owns_pipeline_context := not _has_pipeline_context(context)
@@ -327,7 +422,7 @@ func apply_scope(
 			owns_created_entities
 		)
 
-	scope.before_load(payload, context)
+	scope._before_load(payload, context)
 	var source_index := _index_sources_by_key_for_inspection(scope)
 	var source_keys := source_payloads.keys()
 	source_keys.sort_custom(func(left: Variant, right: Variant) -> bool:
@@ -343,7 +438,7 @@ func apply_scope(
 			continue
 
 		var source_payload := source_payloads[source_key_variant] as Dictionary
-		var source := source_index.get(source_key) as GFSaveSourceBase
+		var source := source_index.get(source_key) as GFSaveSource
 		if source == null:
 			source = _try_create_source_from_payload(scope, source_payload, context)
 			if source != null:
@@ -360,16 +455,16 @@ func apply_scope(
 					"source_key": source_key,
 				}, &"warning")
 			continue
-		if not source.can_load_source(context):
+		if not source._can_load_source(context):
 			continue
 
 		pipeline_context.record_event(&"apply_source_started", scope, source, "", {
 			"source_key": source_key,
 		})
-		var result := source.apply_save_data(source_payload.get("data"), context, serializer_registry)
+		var result := source._apply_save_data(source_payload.get("data"), context, serializer_registry)
 		if bool(result.get("ok", false)):
 			applied += 1
-			source.after_load(source_payload.get("data"), context)
+			source._after_load(source_payload.get("data"), context)
 			pipeline_context.record_event(&"apply_source_finished", scope, source, "", {
 				"source_key": source_key,
 			})
@@ -385,7 +480,7 @@ func apply_scope(
 	var child_scope_index := _index_child_scopes_for_inspection(scope)
 	for child_key_variant: Variant in child_payloads.keys():
 		var child_key := str(child_key_variant)
-		var child_scope := child_scope_index.get(child_key) as GFSaveScopeBase
+		var child_scope := child_scope_index.get(child_key) as GFSaveScope
 		if child_scope == null:
 			missing.append(child_key)
 			if strict:
@@ -413,7 +508,7 @@ func apply_scope(
 		for missing_key: String in child_missing:
 			missing.append("%s/%s" % [child_key, missing_key])
 
-	scope.after_load(payload, context)
+	scope._after_load(payload, context)
 	return _finalize_apply_scope(
 		scope,
 		payload,
@@ -426,14 +521,25 @@ func apply_scope(
 
 
 ## 采集并保存 Scope。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 目标文件名。
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param metadata: 附加元信息。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
+## @schema metadata: Dictionary，写入载荷 metadata 字段的项目元信息。
+## [br]
+## @schema context: Dictionary，可包含 pipeline_context、pipeline_shared、include_pipeline_trace 及项目自定义键。
+## [br]
 ## @return Godot 错误码。
 func save_scope(
 	file_name: String,
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	metadata: Dictionary = {},
 	context: Dictionary = {}
 ) -> Error:
@@ -450,14 +556,25 @@ func save_scope(
 
 
 ## 从文件读取并应用 Scope。
+## [br]
+## @api public
+## [br]
 ## @param file_name: 目标文件名。
+## [br]
 ## @param scope: 根 Scope。
+## [br]
 ## @param context: 调用上下文字典。
+## [br]
 ## @param strict: 为 true 时缺失 Source/Scope 会记录错误。
+## [br]
+## @schema context: Dictionary，可包含 pipeline_context、pipeline_shared、include_pipeline_trace、transactional_apply 及项目自定义键。
+## [br]
 ## @return 结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok、applied、errors、missing，可选 pipeline_trace。
 func load_scope(
 	file_name: String,
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	context: Dictionary = {},
 	strict: bool = false
 ) -> Dictionary:
@@ -516,10 +633,10 @@ func _get_validation_error_messages(report: Dictionary) -> Array[String]:
 	return result
 
 
-func _get_sources_for_scope(scope: GFSaveScopeBase) -> Array[GFSaveSourceBase]:
-	var result: Array[GFSaveSourceBase] = []
+func _get_sources_for_scope(scope: GFSaveScope) -> Array[GFSaveSource]:
+	var result: Array[GFSaveSource] = []
 	_collect_sources(scope, result)
-	result.sort_custom(func(left: GFSaveSourceBase, right: GFSaveSourceBase) -> bool:
+	result.sort_custom(func(left: GFSaveSource, right: GFSaveSource) -> bool:
 		if left.phase != right.phase:
 			return left.phase < right.phase
 		return String(left.get_source_key()) < String(right.get_source_key())
@@ -527,12 +644,12 @@ func _get_sources_for_scope(scope: GFSaveScopeBase) -> Array[GFSaveSourceBase]:
 	return result
 
 
-func _get_sources_for_scope_for_inspection(scope: Node) -> Array[GFSaveSourceBase]:
-	var result: Array[GFSaveSourceBase] = []
+func _get_sources_for_scope_for_inspection(scope: Node) -> Array[GFSaveSource]:
+	var result: Array[GFSaveSource] = []
 	_collect_sources_for_inspection(scope, result)
-	result.sort_custom(func(left: GFSaveSourceBase, right: GFSaveSourceBase) -> bool:
-		var left_phase := _get_int_property(left, &"phase", GFSaveScopeBase.Phase.NORMAL)
-		var right_phase := _get_int_property(right, &"phase", GFSaveScopeBase.Phase.NORMAL)
+	result.sort_custom(func(left: GFSaveSource, right: GFSaveSource) -> bool:
+		var left_phase := _get_int_property(left, &"phase", GFSaveScope.Phase.NORMAL)
+		var right_phase := _get_int_property(right, &"phase", GFSaveScope.Phase.NORMAL)
 		if left_phase != right_phase:
 			return left_phase < right_phase
 		return String(_get_source_key_for_inspection(left)) < String(_get_source_key_for_inspection(right))
@@ -541,7 +658,7 @@ func _get_sources_for_scope_for_inspection(scope: Node) -> Array[GFSaveSourceBas
 
 
 func _inspect_scope_recursive(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	context: Dictionary,
 	report: Dictionary,
 	scope_path: String
@@ -558,11 +675,11 @@ func _inspect_scope_recursive(
 		"path": _get_node_debug_path(scope),
 		"can_save": can_save_scope,
 		"can_load": can_load_scope,
-		"phase": _get_int_property(scope, &"phase", GFSaveScopeBase.Phase.NORMAL),
+		"phase": _get_int_property(scope, &"phase", GFSaveScope.Phase.NORMAL),
 	})
 
 	var source_key_counts: Dictionary = {}
-	for source: GFSaveSourceBase in _get_sources_for_scope_for_inspection(scope):
+	for source: GFSaveSource in _get_sources_for_scope_for_inspection(scope):
 		report["source_count"] = int(report.get("source_count", 0)) + 1
 		var can_save_source := _can_save_source_for_inspection(source, context)
 		var can_load_source := _can_load_source_for_inspection(source, context)
@@ -579,7 +696,7 @@ func _inspect_scope_recursive(
 			"target_path": _get_node_debug_path(target),
 			"can_save": can_save_source,
 			"can_load": can_load_source,
-			"phase": _get_int_property(source, &"phase", GFSaveScopeBase.Phase.NORMAL),
+			"phase": _get_int_property(source, &"phase", GFSaveScope.Phase.NORMAL),
 			"serializer_ids": serializer_ids,
 		})
 
@@ -608,7 +725,7 @@ func _inspect_scope_recursive(
 			_append_diagnostic_issue(report, "error", "duplicate_source_key", str(source_key_variant), _get_node_debug_path(scope), "Duplicate save source key in the same scope.")
 
 	var child_scope_key_counts: Dictionary = {}
-	for child_scope: GFSaveScopeBase in _get_child_scopes_for_inspection(scope):
+	for child_scope: GFSaveScope in _get_child_scopes_for_inspection(scope):
 		var child_key := String(_get_scope_key_for_inspection(child_scope))
 		child_scope_key_counts[child_key] = int(child_scope_key_counts.get(child_key, 0)) + 1
 	for child_key_variant: Variant in child_scope_key_counts.keys():
@@ -616,12 +733,12 @@ func _inspect_scope_recursive(
 		if count > 1:
 			_append_diagnostic_issue(report, "error", "duplicate_scope_key", str(child_key_variant), _get_node_debug_path(scope), "Duplicate child scope key in the same scope.")
 
-	for child_scope: GFSaveScopeBase in _get_child_scopes_for_inspection(scope):
+	for child_scope: GFSaveScope in _get_child_scopes_for_inspection(scope):
 		_inspect_scope_recursive(child_scope, context, report, "%s/%s" % [scope_path, String(_get_scope_key_for_inspection(child_scope))])
 
 
 func _validate_payload_scope_recursive(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	payload: Dictionary,
 	strict: bool,
 	report: Dictionary,
@@ -648,7 +765,7 @@ func _validate_payload_scope_recursive(
 		child_payloads = {}
 	for child_key_variant: Variant in child_payloads.keys():
 		var child_key := str(child_key_variant)
-		var child_scope := child_scope_index.get(child_key) as GFSaveScopeBase
+		var child_scope := child_scope_index.get(child_key) as GFSaveScope
 		if child_scope == null:
 			(report["missing"] as Array).append("%s/%s" % [scope_path, child_key])
 			_append_diagnostic_issue(report, severity, "missing_scope", child_key, _get_node_debug_path(scope), "Payload child scope does not exist in the current scope.")
@@ -661,61 +778,61 @@ func _validate_payload_scope_recursive(
 		_validate_payload_scope_recursive(child_scope, child_payload, strict, report, "%s/%s" % [scope_path, child_key])
 
 
-func _collect_sources(current: Node, result: Array[GFSaveSourceBase]) -> void:
+func _collect_sources(current: Node, result: Array[GFSaveSource]) -> void:
 	for child: Node in current.get_children():
-		if child is GFSaveScopeBase:
+		if child is GFSaveScope:
 			continue
-		if child is GFSaveSourceBase:
-			result.append(child as GFSaveSourceBase)
+		if child is GFSaveSource:
+			result.append(child as GFSaveSource)
 		_collect_sources(child, result)
 
 
-func _collect_sources_for_inspection(current: Node, result: Array[GFSaveSourceBase]) -> void:
+func _collect_sources_for_inspection(current: Node, result: Array[GFSaveSource]) -> void:
 	if current == null:
 		return
 
 	for child: Node in current.get_children():
-		if child is GFSaveScopeBase:
+		if child is GFSaveScope:
 			continue
-		if child is GFSaveSourceBase:
-			result.append(child as GFSaveSourceBase)
+		if child is GFSaveSource:
+			result.append(child as GFSaveSource)
 		_collect_sources_for_inspection(child, result)
 
 
-func _get_child_scopes(scope: GFSaveScopeBase) -> Array[GFSaveScopeBase]:
-	var result: Array[GFSaveScopeBase] = []
+func _get_child_scopes(scope: GFSaveScope) -> Array[GFSaveScope]:
+	var result: Array[GFSaveScope] = []
 	for child: Node in scope.get_children():
-		if child is GFSaveScopeBase:
-			result.append(child as GFSaveScopeBase)
+		if child is GFSaveScope:
+			result.append(child as GFSaveScope)
 	return result
 
 
-func _get_child_scopes_for_inspection(scope: Node) -> Array[GFSaveScopeBase]:
-	var result: Array[GFSaveScopeBase] = []
+func _get_child_scopes_for_inspection(scope: Node) -> Array[GFSaveScope]:
+	var result: Array[GFSaveScope] = []
 	if scope == null:
 		return result
 
 	for child: Node in scope.get_children():
-		if child is GFSaveScopeBase:
-			result.append(child as GFSaveScopeBase)
+		if child is GFSaveScope:
+			result.append(child as GFSaveScope)
 	return result
 
 
 func _index_sources_by_key_for_inspection(scope: Node) -> Dictionary:
 	var result: Dictionary = {}
-	for source: GFSaveSourceBase in _get_sources_for_scope_for_inspection(scope):
+	for source: GFSaveSource in _get_sources_for_scope_for_inspection(scope):
 		result[_make_scoped_source_key_for_inspection(scope, source)] = source
 	return result
 
 
 func _index_child_scopes_for_inspection(scope: Node) -> Dictionary:
 	var result: Dictionary = {}
-	for child_scope: GFSaveScopeBase in _get_child_scopes_for_inspection(scope):
+	for child_scope: GFSaveScope in _get_child_scopes_for_inspection(scope):
 		result[String(_get_scope_key_for_inspection(child_scope))] = child_scope
 	return result
 
 
-func _make_scoped_source_key(scope: GFSaveScopeBase, source: GFSaveSourceBase) -> String:
+func _make_scoped_source_key(scope: GFSaveScope, source: GFSaveSource) -> String:
 	var prefix := scope.get_key_prefix()
 	var key := String(source.get_source_key())
 	if prefix.is_empty():
@@ -875,7 +992,7 @@ func _get_resource_array_property(object: Object, property_name: StringName) -> 
 	return result
 
 
-func _merge_identity_descriptor(source: GFSaveSourceBase, descriptor: Dictionary) -> void:
+func _merge_identity_descriptor(source: GFSaveSource, descriptor: Dictionary) -> void:
 	var identity := _find_identity(source)
 	if identity == null:
 		return
@@ -885,45 +1002,45 @@ func _merge_identity_descriptor(source: GFSaveSourceBase, descriptor: Dictionary
 		descriptor[key] = identity_descriptor[key]
 
 
-func _find_identity(source: GFSaveSourceBase) -> GFSaveIdentityBase:
+func _find_identity(source: GFSaveSource) -> GFSaveIdentity:
 	for child: Node in source.get_children():
-		if child is GFSaveIdentityBase:
-			return child as GFSaveIdentityBase
+		if child is GFSaveIdentity:
+			return child as GFSaveIdentity
 
 	var target := source.get_target_node()
 	if target == null:
 		return null
 	for child: Node in target.get_children():
-		if child is GFSaveIdentityBase:
-			return child as GFSaveIdentityBase
+		if child is GFSaveIdentity:
+			return child as GFSaveIdentity
 	return null
 
 
 func _try_create_source_from_payload(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	source_payload: Dictionary,
 	context: Dictionary
-) -> GFSaveSourceBase:
-	if scope.restore_policy != GFSaveScopeBase.RestorePolicy.ALLOW_FACTORIES:
+) -> GFSaveSource:
+	if scope.restore_policy != GFSaveScope.RestorePolicy.ALLOW_FACTORIES:
 		return null
 
 	var descriptor: Dictionary = source_payload.get("descriptor", {}) as Dictionary
 	var type_key := StringName(descriptor.get("type_key", &""))
-	var factory := _entity_factories.get(type_key) as GFSaveEntityFactoryBase
+	var factory := _entity_factories.get(type_key) as GFSaveEntityFactory
 	if factory == null:
 		return null
 
-	var entity := factory.create_entity(descriptor, context)
+	var entity := factory._create_entity(descriptor, context)
 	if entity == null:
 		return null
 
-	if entity is GFSaveSourceBase:
+	if entity is GFSaveSource:
 		scope.add_child(entity)
 		_track_created_entity(context, entity)
-		factory.after_entity_created(entity, descriptor, context)
+		factory._after_entity_created(entity, descriptor, context)
 		if not is_instance_valid(entity):
 			return null
-		return entity as GFSaveSourceBase
+		return entity as GFSaveSource
 	var source := _find_first_source(entity)
 	if source == null:
 		_free_created_entity(entity)
@@ -931,16 +1048,16 @@ func _try_create_source_from_payload(
 
 	scope.add_child(entity)
 	_track_created_entity(context, entity)
-	factory.after_entity_created(entity, descriptor, context)
+	factory._after_entity_created(entity, descriptor, context)
 	if not is_instance_valid(entity) or not is_instance_valid(source):
 		return null
 	return source
 
 
-func _find_first_source(root: Node) -> GFSaveSourceBase:
+func _find_first_source(root: Node) -> GFSaveSource:
 	for child: Node in root.get_children():
-		if child is GFSaveSourceBase:
-			return child as GFSaveSourceBase
+		if child is GFSaveSource:
+			return child as GFSaveSource
 		var nested := _find_first_source(child)
 		if nested != null:
 			return nested
@@ -953,7 +1070,7 @@ func _source_payload_phase(source_payload_variant: Variant) -> int:
 
 	var source_payload := source_payload_variant as Dictionary
 	var descriptor: Dictionary = source_payload.get("descriptor", {}) as Dictionary
-	return int(descriptor.get("phase", GFSaveScopeBase.Phase.NORMAL))
+	return int(descriptor.get("phase", GFSaveScope.Phase.NORMAL))
 
 
 func _make_apply_result(ok: bool, applied: int, errors: Array[String], missing: Array[String]) -> Dictionary:
@@ -969,7 +1086,7 @@ func _get_payload_dictionary_field(
 	payload: Dictionary,
 	field_name: String,
 	errors: Array[String],
-	pipeline_context: GFSavePipelineContextBase,
+	pipeline_context: GFSavePipelineContext,
 	issue_kind: String
 ) -> Dictionary:
 	var value: Variant = payload.get(field_name, {})
@@ -983,11 +1100,11 @@ func _get_payload_dictionary_field(
 
 
 func _finish_apply_scope(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	payload: Dictionary,
 	result: Dictionary,
 	context: Dictionary,
-	pipeline_context: GFSavePipelineContextBase,
+	pipeline_context: GFSavePipelineContext,
 	owns_pipeline_context: bool
 ) -> Dictionary:
 	var final_result := _run_after_apply_steps(scope, payload, result, context)
@@ -1004,11 +1121,11 @@ func _finish_apply_scope(
 
 
 func _finalize_apply_scope(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	payload: Dictionary,
 	result: Dictionary,
 	context: Dictionary,
-	pipeline_context: GFSavePipelineContextBase,
+	pipeline_context: GFSavePipelineContext,
 	owns_pipeline_context: bool,
 	owns_created_entities: bool
 ) -> Dictionary:
@@ -1062,7 +1179,7 @@ func _free_created_entity(entity: Node) -> void:
 func _ensure_pipeline_context(
 	context: Dictionary,
 	operation: StringName,
-	scope: GFSaveScopeBase
+	scope: GFSaveScope
 ) -> Dictionary:
 	if _has_pipeline_context(context):
 		return context
@@ -1074,64 +1191,64 @@ func _ensure_pipeline_context(
 
 
 func _has_pipeline_context(context: Dictionary) -> bool:
-	return context.get("pipeline_context") is GFSavePipelineContextBase
+	return context.get("pipeline_context") is GFSavePipelineContext
 
 
-func _get_pipeline_context(context: Dictionary) -> GFSavePipelineContextBase:
-	return context.get("pipeline_context") as GFSavePipelineContextBase
+func _get_pipeline_context(context: Dictionary) -> GFSavePipelineContext:
+	return context.get("pipeline_context") as GFSavePipelineContext
 
 
-func _run_before_gather_steps(scope: GFSaveScopeBase, context: Dictionary) -> void:
-	for step: GFSavePipelineStepBase in pipeline_steps:
+func _run_before_gather_steps(scope: GFSaveScope, context: Dictionary) -> void:
+	for step: GFSavePipelineStep in pipeline_steps:
 		if step != null and step.enabled:
 			_record_pipeline_step_event(context, &"before_gather_step", scope, step)
-			step.before_gather_scope(scope, context)
+			step._before_gather_scope(scope, context)
 
 
 func _run_after_gather_steps(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	payload: Dictionary,
 	context: Dictionary
 ) -> Dictionary:
 	var result := payload
-	for step: GFSavePipelineStepBase in pipeline_steps:
+	for step: GFSavePipelineStep in pipeline_steps:
 		if step == null or not step.enabled:
 			continue
 		_record_pipeline_step_event(context, &"after_gather_step", scope, step)
-		var next_payload: Variant = step.after_gather_scope(scope, result, context)
+		var next_payload: Variant = step._after_gather_scope(scope, result, context)
 		if next_payload is Dictionary:
 			result = next_payload as Dictionary
 	return result
 
 
 func _run_before_apply_steps(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	payload: Dictionary,
 	context: Dictionary
 ) -> Dictionary:
 	var result := payload
-	for step: GFSavePipelineStepBase in pipeline_steps:
+	for step: GFSavePipelineStep in pipeline_steps:
 		if step == null or not step.enabled:
 			continue
 		_record_pipeline_step_event(context, &"before_apply_step", scope, step)
-		var next_payload: Variant = step.before_apply_scope(scope, result, context)
+		var next_payload: Variant = step._before_apply_scope(scope, result, context)
 		if next_payload is Dictionary:
 			result = next_payload as Dictionary
 	return result
 
 
 func _run_after_apply_steps(
-	scope: GFSaveScopeBase,
+	scope: GFSaveScope,
 	payload: Dictionary,
 	result: Dictionary,
 	context: Dictionary
 ) -> Dictionary:
 	var final_result := result
-	for step: GFSavePipelineStepBase in pipeline_steps:
+	for step: GFSavePipelineStep in pipeline_steps:
 		if step == null or not step.enabled:
 			continue
 		_record_pipeline_step_event(context, &"after_apply_step", scope, step)
-		var next_result: Variant = step.after_apply_scope(scope, payload, final_result, context)
+		var next_result: Variant = step._after_apply_scope(scope, payload, final_result, context)
 		if next_result is Dictionary:
 			final_result = next_result as Dictionary
 	return final_result
@@ -1140,8 +1257,8 @@ func _run_after_apply_steps(
 func _record_pipeline_step_event(
 	context: Dictionary,
 	stage: StringName,
-	scope: GFSaveScopeBase,
-	step: GFSavePipelineStepBase
+	scope: GFSaveScope,
+	step: GFSavePipelineStep
 ) -> void:
 	var pipeline_context := _get_pipeline_context(context)
 	if pipeline_context == null:
@@ -1156,7 +1273,7 @@ func _get_storage_utility() -> GFStorageUtility:
 	return get_utility(GFStorageUtility) as GFStorageUtility
 
 
-func _get_source_serializer_ids(source: GFSaveSourceBase, target: Node) -> PackedStringArray:
+func _get_source_serializer_ids(source: GFSaveSource, target: Node) -> PackedStringArray:
 	var result := PackedStringArray()
 	if target == null:
 		return result

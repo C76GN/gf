@@ -2,6 +2,12 @@
 ##
 ## 负责事件排队、环境上下文采集、批量 flush 与失败重排。
 ## endpoint 为空时不会访问网络，可作为本地事件汇聚或测试通道使用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFAnalyticsUtility
 extends GFUtility
 
@@ -9,30 +15,64 @@ extends GFUtility
 # --- 信号 ---
 
 ## 事件进入队列时发出。
+## [br]
+## @api public
+## [br]
+## @param event_name: 事件名。
+## [br]
+## @param event_data: 已入队事件数据。
+## [br]
+## @schema event_data: Dictionary with `event`, `client_id`, `session_id`, `timestamp`, `properties`, and optional `context`.
 signal event_tracked(event_name: StringName, event_data: Dictionary)
 
 ## 开始 flush 时发出。
+## [br]
+## @api public
+## [br]
+## @param batch: 本次 flush 的事件批次。
+## [br]
+## @schema batch: Array[Dictionary] of queued analytics events.
 signal flush_started(batch: Array)
 
 ## flush 完成时发出。失败结果也会通过该信号通知。
+## [br]
+## @api public
+## [br]
+## @param result: flush 结果。
+## [br]
+## @schema result: Dictionary with at least `success: bool`; may include `accepted`, `error`, `dry_run`, or transport-specific fields.
 signal flush_completed(result: Dictionary)
 
 ## flush 失败时额外发出。
+## [br]
+## @api public
+## [br]
+## @param result: 失败结果。
+## [br]
+## @schema result: Dictionary with `success: false` and an optional `error` field.
 signal flush_failed(result: Dictionary)
 
 
 # --- 公共变量 ---
 
 ## 当前配置。
+## [br]
+## @api public
 var config: GFAnalyticsConfig = GFAnalyticsConfig.new()
 
 ## 可选载荷构建回调。签名为 func(batch: Array) -> Dictionary。
+## [br]
+## @api public
 var payload_builder: Callable = Callable()
 
 ## 可选自定义传输回调。签名为 func(payload: Dictionary) -> Dictionary。
+## [br]
+## @api public
 var transport_callback: Callable = Callable()
 
 ## 可选响应解析回调。签名为 func(response_code: int, body: PackedByteArray, fallback_accepted: int) -> Dictionary。
+## [br]
+## @api public
 var response_parser: Callable = Callable()
 
 
@@ -51,8 +91,11 @@ var _shutdown_watcher: _GFAnalyticsShutdownWatcher = null
 var _shutdown_watcher_attach_serial: int = 0
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化事件队列、会话 ID 和关闭监听。
+## [br]
+## @api public
 func init() -> void:
 	var should_keep_explicit_client_id := _explicit_client_id and not _client_id.is_empty()
 	ignore_pause = true
@@ -70,6 +113,9 @@ func init() -> void:
 	_ensure_shutdown_watcher()
 
 
+## 释放事件队列、HTTP 节点和关闭监听。
+## [br]
+## @api public
 func dispose() -> void:
 	_shutdown_watcher_attach_serial += 1
 	shutdown(false)
@@ -85,6 +131,9 @@ func dispose() -> void:
 
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	if _shutdown or not config.enabled or config.flush_interval_seconds <= 0.0 or delta <= 0.0:
@@ -98,6 +147,9 @@ func tick(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 替换分析配置。
+## [br]
+## @api public
+## [br]
 ## @param analytics_config: 新配置。
 func configure(analytics_config: GFAnalyticsConfig) -> void:
 	config = analytics_config if analytics_config != null else GFAnalyticsConfig.new()
@@ -109,6 +161,9 @@ func configure(analytics_config: GFAnalyticsConfig) -> void:
 
 
 ## 设置稳定客户端标识。
+## [br]
+## @api public
+## [br]
 ## @param client_id: 客户端标识。
 func identify(client_id: String) -> void:
 	if client_id.is_empty():
@@ -120,8 +175,14 @@ func identify(client_id: String) -> void:
 
 
 ## 记录一个事件。
+## [br]
+## @api public
+## [br]
 ## @param event_name: 事件名。
+## [br]
 ## @param properties: 事件属性。
+## [br]
+## @schema properties: Dictionary[String, Variant] copied into the queued event properties.
 func track(event_name: StringName, properties: Dictionary = {}) -> void:
 	if _shutdown or not config.enabled or event_name == &"":
 		return
@@ -151,6 +212,8 @@ func track(event_name: StringName, properties: Dictionary = {}) -> void:
 
 
 ## 立即上报一批事件。
+## [br]
+## @api public
 func flush() -> void:
 	if _is_flushing or _queue.is_empty():
 		return
@@ -166,6 +229,9 @@ func flush() -> void:
 
 
 ## 停止继续接收事件，并可选 flush 当前队列。
+## [br]
+## @api public
+## [br]
 ## @param flush_remaining: 是否尝试 flush 剩余事件。
 func shutdown(flush_remaining: bool = true) -> void:
 	if _shutdown:
@@ -181,30 +247,46 @@ func shutdown(flush_remaining: bool = true) -> void:
 
 
 ## 获取当前队列长度。
+## [br]
+## @api public
+## [br]
 ## @return 队列长度。
 func get_queue_size() -> int:
 	return _queue.size()
 
 
 ## 获取当前会话标识。
+## [br]
+## @api public
+## [br]
 ## @return 会话标识。
 func get_session_id() -> String:
 	return _session_id
 
 
 ## 获取当前客户端标识。
+## [br]
+## @api public
+## [br]
 ## @return 客户端标识。
 func get_client_id() -> String:
 	return _client_id
 
 
 ## 清空本地事件队列。
+## [br]
+## @api public
 func clear_queue() -> void:
 	_queue.clear()
 
 
 ## 采集通用运行环境上下文。
+## [br]
+## @api public
+## [br]
 ## @return 上下文字典。
+## [br]
+## @schema return: Dictionary with platform, engine, engine_version, screen size, locale, and timezone fields.
 func capture_context() -> Dictionary:
 	var version_info := Engine.get_version_info()
 	var screen_size := DisplayServer.screen_get_size()
@@ -405,7 +487,7 @@ func _ensure_shutdown_watcher() -> void:
 
 	_shutdown_watcher = _GFAnalyticsShutdownWatcher.new()
 	_shutdown_watcher.name = "GFAnalyticsShutdownWatcher"
-	_shutdown_watcher.shutdown_callback = Callable(self, "shutdown")
+	_shutdown_watcher._shutdown_callback = Callable(self, "shutdown")
 	_shutdown_watcher_attach_serial += 1
 	call_deferred("_attach_shutdown_watcher_to_root", _shutdown_watcher, _shutdown_watcher_attach_serial)
 
@@ -442,12 +524,12 @@ func _free_shutdown_watcher(watcher: Node) -> void:
 # --- 内部类 ---
 
 class _GFAnalyticsShutdownWatcher extends Node:
-	var shutdown_callback: Callable
+	var _shutdown_callback: Callable
 
 	func _init() -> void:
 		process_mode = Node.PROCESS_MODE_ALWAYS
 
 
 	func _notification(what: int) -> void:
-		if what == NOTIFICATION_WM_CLOSE_REQUEST and shutdown_callback.is_valid():
-			shutdown_callback.call(true)
+		if what == NOTIFICATION_WM_CLOSE_REQUEST and _shutdown_callback.is_valid():
+			_shutdown_callback.call(true)

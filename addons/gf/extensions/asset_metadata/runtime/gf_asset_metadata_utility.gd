@@ -2,42 +2,66 @@
 ##
 ## 统一管理导入资产元数据在 Object metadata 中的存储键、复制规则和节点树收集流程。
 ## 它不解释任何项目字段；业务语义应由项目代码或项目扩展消费。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFAssetMetadataUtility
 extends GFUtility
 
 
 # --- 常量 ---
 
-const GFAssetMetadataRecordBase = preload("res://addons/gf/extensions/asset_metadata/resources/gf_asset_metadata_record.gd")
-const GFValidationReportBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
-const GFVariantDataBase = preload("res://addons/gf/standard/foundation/variant/gf_variant_data.gd")
-
 ## Object metadata 中保存 GF 资产元数据的默认键。
+## [br]
+## @api public
 const META_ASSET_METADATA: StringName = &"gf_asset_metadata"
 
 ## Object metadata 中保存元数据来源说明的默认键。
+## [br]
+## @api public
 const META_ASSET_METADATA_SOURCE: StringName = &"gf_asset_metadata_source"
 
 
 # --- 公共方法 ---
 
 ## 将任意导入元数据归一为 Dictionary。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入元数据。Dictionary 会深拷贝；其他非 null 值会保存在 value 字段中。
+## [br]
+## @schema value: Variant，Dictionary 会深拷贝；其他非 null 值会保存为 { "value": value }。
+## [br]
 ## @return 归一化后的元数据字典。
+## [br]
+## @schema return: Dictionary，归一化后的资产元数据字段。
 static func normalize_metadata(value: Variant) -> Dictionary:
 	if value == null:
 		return {}
 	if value is Dictionary:
 		return (value as Dictionary).duplicate(true)
 	return {
-		"value": GFVariantDataBase.duplicate_variant(value),
+		"value": GFVariantData.duplicate_variant(value),
 	}
 
 
 ## 写入对象资产元数据。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标 Object。
+## [br]
 ## @param metadata: 结构化元数据。
+## [br]
 ## @param options: 可选项，支持 metadata_key、source_path、subject_path、subject_kind、metadata_source。
+## [br]
+## @schema metadata: Dictionary，要写入 Object metadata 的结构化资产元数据字段。
+## [br]
+## @schema options: Dictionary，可包含 metadata_key、source_path、subject_path、subject_kind 与 metadata_source。
+## [br]
 ## @return 写入后的记录；目标无效时返回 null。
 func write_object_metadata(
 	target: Object,
@@ -59,9 +83,18 @@ func write_object_metadata(
 
 
 ## 读取对象资产元数据。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标 Object。
+## [br]
 ## @param options: 可选项，支持 metadata_key 或 metadata_keys。
+## [br]
+## @schema options: Dictionary，可包含 metadata_key 或 metadata_keys。
+## [br]
 ## @return 元数据字典副本；不存在时返回空字典。
+## [br]
+## @schema return: Dictionary，读取到的结构化资产元数据字段。
 func read_object_metadata(target: Object, options: Dictionary = {}) -> Dictionary:
 	if target == null:
 		return {}
@@ -76,8 +109,15 @@ func read_object_metadata(target: Object, options: Dictionary = {}) -> Dictionar
 
 
 ## 检查对象是否带有资产元数据。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标 Object。
+## [br]
 ## @param options: 可选项，支持 metadata_key 或 metadata_keys。
+## [br]
+## @schema options: Dictionary，可包含 metadata_key 或 metadata_keys。
+## [br]
 ## @return 存在资产元数据时返回 true。
 func has_object_metadata(target: Object, options: Dictionary = {}) -> bool:
 	if target == null:
@@ -89,8 +129,14 @@ func has_object_metadata(target: Object, options: Dictionary = {}) -> bool:
 
 
 ## 清除对象资产元数据。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标 Object。
+## [br]
 ## @param options: 可选项，支持 metadata_key 或 metadata_keys。
+## [br]
+## @schema options: Dictionary，可包含 metadata_key、metadata_keys 与 clear_source。
 func clear_object_metadata(target: Object, options: Dictionary = {}) -> void:
 	if target == null:
 		return
@@ -102,8 +148,15 @@ func clear_object_metadata(target: Object, options: Dictionary = {}) -> void:
 
 
 ## 收集节点树中的资产元数据记录。
+## [br]
+## @api public
+## [br]
 ## @param root: 节点树根节点。
+## [br]
 ## @param options: 可选项，支持 metadata_key、metadata_keys、source_path、subject_kind、max_depth。
+## [br]
+## @schema options: Dictionary，可包含 metadata_key、metadata_keys、source_path、subject_kind 与 max_depth。
+## [br]
 ## @return 资产元数据记录列表。
 func collect_node_tree(root: Node, options: Dictionary = {}) -> Array[GFAssetMetadataRecord]:
 	var records: Array[GFAssetMetadataRecord] = []
@@ -116,9 +169,18 @@ func collect_node_tree(root: Node, options: Dictionary = {}) -> Array[GFAssetMet
 
 
 ## 收集节点树中的资产元数据记录字典。
+## [br]
+## @api public
+## [br]
 ## @param root: 节点树根节点。
+## [br]
 ## @param options: 可选项，支持 metadata_key、metadata_keys、source_path、subject_kind、max_depth。
+## [br]
+## @schema options: Dictionary，可包含 metadata_key、metadata_keys、source_path、subject_kind 与 max_depth。
+## [br]
 ## @return 资产元数据记录字典列表。
+## [br]
+## @schema return: Array[Dictionary]，每一项包含 source_path、subject_path、subject_kind 与 metadata 字段。
 func collect_node_tree_dicts(root: Node, options: Dictionary = {}) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for record: GFAssetMetadataRecord in collect_node_tree(root, options):
@@ -127,11 +189,20 @@ func collect_node_tree_dicts(root: Node, options: Dictionary = {}) -> Array[Dict
 
 
 ## 构建节点树资产元数据报告。
+## [br]
+## @api public
+## [br]
 ## @param root: 节点树根节点。
+## [br]
 ## @param options: 可选项，支持 collect_node_tree() 的参数。
+## [br]
+## @schema options: Dictionary，可包含 metadata_key、metadata_keys、source_path、subject_kind 与 max_depth。
+## [br]
 ## @return 报告字典。
+## [br]
+## @schema return: Dictionary，包含 ok、healthy、summary、next_action、source_path、entry_count、entries 与 issues。
 func build_node_tree_report(root: Node, options: Dictionary = {}) -> Dictionary:
-	var report := GFValidationReportBase.new("Asset metadata") as GFValidationReport
+	var report := GFValidationReport.new("Asset metadata")
 	if root == null:
 		report.add_error(&"missing_root", "Root node is null.")
 		return report.to_dict({}, _get_report_options())
@@ -174,7 +245,7 @@ func _make_record_for_node(
 	if root != node:
 		subject_path = root.get_path_to(node)
 
-	var record := GFAssetMetadataRecordBase.new() as GFAssetMetadataRecord
+	var record := GFAssetMetadataRecord.new()
 	record.configure(
 		_get_source_path(root, options),
 		subject_path,
@@ -189,7 +260,7 @@ func _make_record_for_object(
 	metadata: Dictionary,
 	options: Dictionary
 ) -> GFAssetMetadataRecord:
-	var record := GFAssetMetadataRecordBase.new() as GFAssetMetadataRecord
+	var record := GFAssetMetadataRecord.new()
 	record.configure(
 		String(options.get("source_path", "")),
 		NodePath(String(options.get("subject_path", "."))),

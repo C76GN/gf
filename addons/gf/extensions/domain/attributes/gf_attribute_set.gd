@@ -2,6 +2,12 @@
 ##
 ## 用 StringName 管理一组可保存、可恢复、可限制范围的数值属性。它不规定
 ## 属性含义，生命值、耐久、温度、声望或任意项目数值都由项目层命名和解释。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class_name GFAttributeSet
 extends Resource
 
@@ -9,27 +15,52 @@ extends Resource
 # --- 信号 ---
 
 ## 属性被定义时发出。
+## [br]
+## @api public
+## [br]
+## @param attribute_id: 被定义或替换的属性 ID。
 signal attribute_defined(attribute_id: StringName)
 
 ## 当前值变化时发出。
+## [br]
+## @api public
+## [br]
+## @param attribute_id: 发生变化的属性 ID。
+## [br]
+## @param current_value: 新当前值。
+## [br]
+## @param previous_value: 旧当前值。
 signal attribute_changed(attribute_id: StringName, current_value: float, previous_value: float)
 
 
 # --- 常量 ---
 
-const GFDerivedAttributeRuleBase = preload("res://addons/gf/extensions/domain/attributes/gf_derived_attribute_rule.gd")
-
+## 默认属性最小值。
+## [br]
+## @api public
 const DEFAULT_MIN_VALUE: float = -1.0e20
+
+## 默认属性最大值。
+## [br]
+## @api public
 const DEFAULT_MAX_VALUE: float = 1.0e20
 
 
 # --- 导出变量 ---
 
 ## 属性记录。结构为 attribute_id -> { base, current, min, max, metadata }。
+## [br]
+## @api public
+## [br]
+## @schema attributes: Dictionary，键为 StringName 属性 ID，值为包含 base: float、current: float、min: float、max: float、metadata: Dictionary 的记录。
 @export var attributes: Dictionary = {}
 
 ## 派生属性规则列表。规则只计算属性值，不改变属性命名含义。
-@export var derived_rules: Array[GFDerivedAttributeRuleBase] = []
+## [br]
+## @api public
+## [br]
+## @schema derived_rules: Array[GFDerivedAttributeRule]，按顺序保存的派生属性规则资源。
+@export var derived_rules: Array[GFDerivedAttributeRule] = []
 
 
 # --- 私有变量 ---
@@ -40,12 +71,24 @@ var _suspend_derived_recalculation: bool = false
 # --- 公共方法 ---
 
 ## 定义或替换属性。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param base_value: 基础值。
+## [br]
 ## @param current_value: 当前值；为 null 或 NAN 时使用 base_value。
+## [br]
 ## @param min_value: 最小值。
+## [br]
 ## @param max_value: 最大值。
+## [br]
 ## @param metadata: 项目自定义元数据。
+## [br]
+## @schema current_value: Variant，null 或 NAN 表示使用 base_value，数字值会转换为 float。
+## [br]
+## @schema metadata: Dictionary，项目自定义属性元数据；GF 会深拷贝保存。
 func define_attribute(
 	attribute_id: StringName,
 	base_value: float = 0.0,
@@ -75,13 +118,20 @@ func define_attribute(
 
 
 ## 检查属性是否存在。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
-## @return 存在返回 true。
+## [br]
+## @return: 存在返回 true。
 func has_attribute(attribute_id: StringName) -> bool:
 	return attributes.has(attribute_id)
 
 
 ## 移除属性。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
 func remove_attribute(attribute_id: StringName) -> void:
 	attributes.erase(attribute_id)
@@ -89,14 +139,21 @@ func remove_attribute(attribute_id: StringName) -> void:
 
 
 ## 清空所有属性。
+## [br]
+## @api public
 func clear() -> void:
 	attributes.clear()
 
 
 ## 设置当前值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param value: 新值。
-## @return 成功返回 true。
+## [br]
+## @return: 成功返回 true。
 func set_value(attribute_id: StringName, value: float) -> bool:
 	if not attributes.has(attribute_id):
 		return false
@@ -112,18 +169,29 @@ func set_value(attribute_id: StringName, value: float) -> bool:
 
 
 ## 增减当前值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param delta: 增量。
-## @return 成功返回 true。
+## [br]
+## @return: 成功返回 true。
 func adjust_value(attribute_id: StringName, delta: float) -> bool:
 	return set_value(attribute_id, get_value(attribute_id) + delta)
 
 
 ## 设置基础值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param value: 新基础值。
+## [br]
 ## @param sync_current: 是否同步当前值。
-## @return 成功返回 true。
+## [br]
+## @return: 成功返回 true。
 func set_base_value(attribute_id: StringName, value: float, sync_current: bool = false) -> bool:
 	if not attributes.has(attribute_id):
 		return false
@@ -143,10 +211,16 @@ func set_base_value(attribute_id: StringName, value: float, sync_current: bool =
 
 
 ## 设置属性范围。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param min_value: 最小值。
+## [br]
 ## @param max_value: 最大值。
-## @return 成功返回 true。
+## [br]
+## @return: 成功返回 true。
 func set_limits(attribute_id: StringName, min_value: float, max_value: float) -> bool:
 	if not attributes.has(attribute_id):
 		return false
@@ -177,9 +251,14 @@ func set_limits(attribute_id: StringName, min_value: float, max_value: float) ->
 
 
 ## 获取当前值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param default_value: 默认值。
-## @return 当前值。
+## [br]
+## @return: 当前值。
 func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 	var record := attributes.get(attribute_id) as Dictionary
 	if record == null:
@@ -188,9 +267,14 @@ func get_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 
 
 ## 获取基础值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param default_value: 默认值。
-## @return 基础值。
+## [br]
+## @return: 基础值。
 func get_base_value(attribute_id: StringName, default_value: float = 0.0) -> float:
 	var record := attributes.get(attribute_id) as Dictionary
 	if record == null:
@@ -199,9 +283,14 @@ func get_base_value(attribute_id: StringName, default_value: float = 0.0) -> flo
 
 
 ## 通过 TraitSet 计算属性值。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param trait_set: 特征集合。
-## @return Trait 修饰后的值。
+## [br]
+## @return: Trait 修饰后的值。
 func get_value_with_traits(attribute_id: StringName, trait_set: GFTraitSet) -> float:
 	var value := get_value(attribute_id)
 	if trait_set == null:
@@ -210,8 +299,14 @@ func get_value_with_traits(attribute_id: StringName, trait_set: GFTraitSet) -> f
 
 
 ## 获取属性元数据。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
-## @return 元数据副本。
+## [br]
+## @return: 元数据副本。
+## [br]
+## @schema return: Dictionary，属性的项目自定义 metadata 副本；属性不存在时为空字典。
 func get_metadata(attribute_id: StringName) -> Dictionary:
 	var record := attributes.get(attribute_id) as Dictionary
 	if record == null:
@@ -223,9 +318,16 @@ func get_metadata(attribute_id: StringName) -> Dictionary:
 
 
 ## 设置属性元数据。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 属性标识。
+## [br]
 ## @param metadata: 元数据。
-## @return 成功返回 true。
+## [br]
+## @return: 成功返回 true。
+## [br]
+## @schema metadata: Dictionary，项目自定义属性元数据；GF 会深拷贝保存。
 func set_metadata(attribute_id: StringName, metadata: Dictionary) -> bool:
 	var record := attributes.get(attribute_id) as Dictionary
 	if record == null:
@@ -235,9 +337,13 @@ func set_metadata(attribute_id: StringName, metadata: Dictionary) -> bool:
 
 
 ## 添加或替换派生属性规则。
+## [br]
+## @api public
+## [br]
 ## @param rule: 派生属性规则。
-## @return 成功返回 true。
-func add_derived_rule(rule: GFDerivedAttributeRuleBase) -> bool:
+## [br]
+## @return: 成功返回 true。
+func add_derived_rule(rule: GFDerivedAttributeRule) -> bool:
 	if rule == null or rule.attribute_id == &"":
 		return false
 
@@ -248,8 +354,12 @@ func add_derived_rule(rule: GFDerivedAttributeRuleBase) -> bool:
 
 
 ## 移除指定目标属性的派生规则。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 目标属性 ID。
-## @return 至少移除一个规则时返回 true。
+## [br]
+## @return: 至少移除一个规则时返回 true。
 func remove_derived_rule(attribute_id: StringName) -> bool:
 	var removed := false
 	for index: int in range(derived_rules.size() - 1, -1, -1):
@@ -261,16 +371,23 @@ func remove_derived_rule(attribute_id: StringName) -> bool:
 
 
 ## 获取指定目标属性的派生规则。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 目标属性 ID。
-## @return 派生规则；不存在时返回 null。
-func get_derived_rule(attribute_id: StringName) -> GFDerivedAttributeRuleBase:
-	for rule: GFDerivedAttributeRuleBase in derived_rules:
+## [br]
+## @return: 派生规则；不存在时返回 null。
+func get_derived_rule(attribute_id: StringName) -> GFDerivedAttributeRule:
+	for rule: GFDerivedAttributeRule in derived_rules:
 		if rule != null and rule.attribute_id == attribute_id:
 			return rule
 	return null
 
 
 ## 重新计算派生属性。
+## [br]
+## @api public
+## [br]
 ## @param attribute_id: 目标属性 ID；为空时重算全部规则。
 func recalculate_derived(attribute_id: StringName = &"") -> void:
 	if _suspend_derived_recalculation:
@@ -282,12 +399,17 @@ func recalculate_derived(attribute_id: StringName = &"") -> void:
 			_apply_derived_rule(rule, {})
 		return
 
-	for rule: GFDerivedAttributeRuleBase in derived_rules:
+	for rule: GFDerivedAttributeRule in derived_rules:
 		_apply_derived_rule(rule, {})
 
 
 ## 导出快照。
-## @return 可序列化字典。
+## [br]
+## @api public
+## [br]
+## @return: 可序列化字典。
+## [br]
+## @schema return: Dictionary，键为 String 属性 ID，值为包含 base、current、min、max 与 metadata 的属性记录。
 func get_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
 	for attribute_id_variant: Variant in attributes.keys():
@@ -299,7 +421,12 @@ func get_snapshot() -> Dictionary:
 
 
 ## 从快照恢复。
+## [br]
+## @api public
+## [br]
 ## @param snapshot: 由 get_snapshot() 或 to_dict() 返回的数据。
+## [br]
+## @schema snapshot: Dictionary，键为 String 或 StringName 属性 ID，值为包含 base、current、min、max 与 metadata 的属性记录。
 func restore_snapshot(snapshot: Dictionary) -> void:
 	_suspend_derived_recalculation = true
 	attributes.clear()
@@ -321,13 +448,23 @@ func restore_snapshot(snapshot: Dictionary) -> void:
 
 
 ## 序列化为字典。
-## @return 可序列化字典。
+## [br]
+## @api public
+## [br]
+## @return: 可序列化字典。
+## [br]
+## @schema return: Dictionary，键为 String 属性 ID，值为包含 base、current、min、max 与 metadata 的属性记录。
 func to_dict() -> Dictionary:
 	return get_snapshot()
 
 
 ## 从字典恢复。
+## [br]
+## @api public
+## [br]
 ## @param data: 属性数据。
+## [br]
+## @schema data: Dictionary，键为 String 或 StringName 属性 ID，值为包含 base、current、min、max 与 metadata 的属性记录。
 func from_dict(data: Dictionary) -> void:
 	restore_snapshot(data)
 
@@ -338,12 +475,12 @@ func _recalculate_derived_dependents(source_attribute_id: StringName, visited: D
 	if _suspend_derived_recalculation:
 		return
 
-	for rule: GFDerivedAttributeRuleBase in derived_rules:
+	for rule: GFDerivedAttributeRule in derived_rules:
 		if rule != null and rule.depends_on(source_attribute_id):
 			_apply_derived_rule(rule, visited)
 
 
-func _apply_derived_rule(rule: GFDerivedAttributeRuleBase, visited: Dictionary) -> bool:
+func _apply_derived_rule(rule: GFDerivedAttributeRule, visited: Dictionary) -> bool:
 	if rule == null or rule.attribute_id == &"":
 		return false
 	if bool(visited.get(rule.attribute_id, false)):
@@ -359,7 +496,7 @@ func _apply_derived_rule(rule: GFDerivedAttributeRuleBase, visited: Dictionary) 
 	return changed
 
 
-func _write_derived_value(rule: GFDerivedAttributeRuleBase, value: float) -> bool:
+func _write_derived_value(rule: GFDerivedAttributeRule, value: float) -> bool:
 	if not attributes.has(rule.attribute_id):
 		define_attribute(rule.attribute_id, value, value, rule.min_value, rule.max_value)
 		return true

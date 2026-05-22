@@ -2,6 +2,12 @@
 ##
 ## 用于聚合 `GFValidationIssue`，提供错误/警告统计、健康状态、摘要、下一步建议
 ## 和字典序列化。报告不绑定具体配置、存档、节点或编辑器业务语义。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFValidationReport
 extends RefCounted
 
@@ -14,15 +20,27 @@ const _GF_VALIDATION_ISSUE_SCRIPT: Script = preload("res://addons/gf/standard/fo
 # --- 公共变量 ---
 
 ## 报告主题，例如资源名、模块名或调用方自定义域。
+## [br]
+## @api public
 var subject: String = ""
 
 ## 问题列表。
+## [br]
+## @api public
 var issues: Array[RefCounted] = []
 
 ## 可选元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary of caller-defined report metadata.
 var metadata: Dictionary = {}
 
 ## 额外报告字段。用于保留或附加调用方自己的统计数据。
+## [br]
+## @api public
+## [br]
+## @schema extra_fields: Dictionary of caller-defined serialized report fields.
 var extra_fields: Dictionary = {}
 
 
@@ -36,8 +54,15 @@ func _init(p_subject: String = "", p_metadata: Dictionary = {}) -> void:
 # --- 公共方法 ---
 
 ## 配置报告主题和元数据。
+## [br]
+## @api public
+## [br]
 ## @param p_subject: 报告主题。
+## [br]
 ## @param p_metadata: 可选元数据。
+## [br]
+## @schema p_metadata: Dictionary of caller-defined report metadata.
+## [br]
 ## @return 当前报告。
 func configure(p_subject: String = "", p_metadata: Dictionary = {}) -> RefCounted:
 	subject = p_subject
@@ -46,6 +71,8 @@ func configure(p_subject: String = "", p_metadata: Dictionary = {}) -> RefCounte
 
 
 ## 清空问题与额外字段。
+## [br]
+## @api public
 func clear() -> void:
 	issues.clear()
 	metadata.clear()
@@ -53,7 +80,13 @@ func clear() -> void:
 
 
 ## 添加一个问题。
+## [br]
+## @api public
+## [br]
 ## @param issue: GFValidationIssue 或问题字典。
+## [br]
+## @schema issue: Variant accepting GFValidationIssue or Dictionary issue payload.
+## [br]
 ## @return 添加后的问题；输入无效时返回 null。
 func add_issue(issue: Variant) -> RefCounted:
 	var normalized_issue := _normalize_issue(issue)
@@ -64,11 +97,23 @@ func add_issue(issue: Variant) -> RefCounted:
 
 
 ## 添加信息问题。
+## [br]
+## @api public
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param key: 可选定位键。
+## [br]
+## @schema key: Variant caller-defined location key.
+## [br]
 ## @param path: 可选路径。
+## [br]
 ## @param issue_metadata: 可选元数据。
+## [br]
+## @schema issue_metadata: Dictionary of caller-defined issue metadata.
+## [br]
 ## @return 新问题。
 func add_info(
 	kind: StringName,
@@ -81,11 +126,23 @@ func add_info(
 
 
 ## 添加警告问题。
+## [br]
+## @api public
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param key: 可选定位键。
+## [br]
+## @schema key: Variant caller-defined location key.
+## [br]
 ## @param path: 可选路径。
+## [br]
 ## @param issue_metadata: 可选元数据。
+## [br]
+## @schema issue_metadata: Dictionary of caller-defined issue metadata.
+## [br]
 ## @return 新问题。
 func add_warning(
 	kind: StringName,
@@ -98,11 +155,23 @@ func add_warning(
 
 
 ## 添加错误问题。
+## [br]
+## @api public
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param key: 可选定位键。
+## [br]
+## @schema key: Variant caller-defined location key.
+## [br]
 ## @param path: 可选路径。
+## [br]
 ## @param issue_metadata: 可选元数据。
+## [br]
+## @schema issue_metadata: Dictionary of caller-defined issue metadata.
+## [br]
 ## @return 新问题。
 func add_error(
 	kind: StringName,
@@ -115,13 +184,31 @@ func add_error(
 
 
 ## 添加带源码定位的问题。
+## [br]
+## @api public
+## [br]
 ## @param severity: 严重级别，可传入 Severity、int 或字符串。
+## [br]
+## @schema severity: Variant accepting GFValidationIssue.Severity, int, String, or StringName.
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param source_span: GFSourceSpan 或兼容字典。
+## [br]
+## @schema source_span: Variant accepting GFSourceSpan or Dictionary span payload.
+## [br]
 ## @param key: 可选定位键。
+## [br]
+## @schema key: Variant caller-defined location key.
+## [br]
 ## @param path: 可选路径。
+## [br]
 ## @param issue_metadata: 可选元数据。
+## [br]
+## @schema issue_metadata: Dictionary of caller-defined issue metadata.
+## [br]
 ## @return 新问题。
 func add_source_issue(
 	severity: Variant,
@@ -139,12 +226,27 @@ func add_source_issue(
 
 
 ## 添加带源码定位的信息问题。
+## [br]
+## @api public
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param source_span: GFSourceSpan 或兼容字典。
+## [br]
+## @schema source_span: Variant accepting GFSourceSpan or Dictionary span payload.
+## [br]
 ## @param key: 可选定位键。
+## [br]
+## @schema key: Variant caller-defined location key.
+## [br]
 ## @param path: 可选路径。
+## [br]
 ## @param issue_metadata: 可选元数据。
+## [br]
+## @schema issue_metadata: Dictionary of caller-defined issue metadata.
+## [br]
 ## @return 新问题。
 func add_source_info(
 	kind: StringName,
@@ -158,12 +260,27 @@ func add_source_info(
 
 
 ## 添加带源码定位的警告问题。
+## [br]
+## @api public
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param source_span: GFSourceSpan 或兼容字典。
+## [br]
+## @schema source_span: Variant accepting GFSourceSpan or Dictionary span payload.
+## [br]
 ## @param key: 可选定位键。
+## [br]
+## @schema key: Variant caller-defined location key.
+## [br]
 ## @param path: 可选路径。
+## [br]
 ## @param issue_metadata: 可选元数据。
+## [br]
+## @schema issue_metadata: Dictionary of caller-defined issue metadata.
+## [br]
 ## @return 新问题。
 func add_source_warning(
 	kind: StringName,
@@ -177,12 +294,27 @@ func add_source_warning(
 
 
 ## 添加带源码定位的错误问题。
+## [br]
+## @api public
+## [br]
 ## @param kind: 问题类别。
+## [br]
 ## @param message: 问题说明。
+## [br]
 ## @param source_span: GFSourceSpan 或兼容字典。
+## [br]
+## @schema source_span: Variant accepting GFSourceSpan or Dictionary span payload.
+## [br]
 ## @param key: 可选定位键。
+## [br]
+## @schema key: Variant caller-defined location key.
+## [br]
 ## @param path: 可选路径。
+## [br]
 ## @param issue_metadata: 可选元数据。
+## [br]
+## @schema issue_metadata: Dictionary of caller-defined issue metadata.
+## [br]
 ## @return 新问题。
 func add_source_error(
 	kind: StringName,
@@ -196,8 +328,15 @@ func add_source_error(
 
 
 ## 合并另一个报告或报告字典。
+## [br]
+## @api public
+## [br]
 ## @param source: GFValidationReport 或包含 issues 的字典。
+## [br]
+## @schema source: Variant accepting GFValidationReport or Dictionary report payload.
+## [br]
 ## @param include_metadata: 为 true 时合并源报告 metadata。
+## [br]
 ## @return 当前报告。
 func merge(source: Variant, include_metadata: bool = true) -> RefCounted:
 	if source is RefCounted and (source as RefCounted).get_script() == get_script():
@@ -229,7 +368,12 @@ func merge(source: Variant, include_metadata: bool = true) -> RefCounted:
 
 
 ## 从字典应用报告字段。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
+## @schema data: Dictionary report payload.
 func apply_dict(data: Dictionary) -> void:
 	issues.clear()
 	subject = String(data.get("subject", subject))
@@ -249,9 +393,20 @@ func apply_dict(data: Dictionary) -> void:
 
 
 ## 转换为报告字典。
+## [br]
+## @api public
+## [br]
 ## @param additional_fields: 附加到输出中的调用方字段。
+## [br]
+## @schema additional_fields: Dictionary of caller-defined serialized fields.
+## [br]
 ## @param options: 可选输出控制，支持 include_subject、include_metadata、include_info_count、include_issue_count、include_empty_issue_fields、summary_subject、next_actions、fallback_action、no_action。
+## [br]
+## @schema options: Dictionary controlling report serialization options.
+## [br]
 ## @return 报告字典。
+## [br]
+## @schema return: Dictionary serialized report payload.
 func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
 	var result := extra_fields.duplicate(true)
 	for field_key: Variant in additional_fields.keys():
@@ -296,6 +451,9 @@ func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Di
 
 
 ## 创建当前报告深拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新报告。
 func duplicate_report() -> RefCounted:
 	var report := get_script().new() as RefCounted
@@ -304,6 +462,9 @@ func duplicate_report() -> RefCounted:
 
 
 ## 获取错误数量。
+## [br]
+## @api public
+## [br]
 ## @return 错误数量。
 func get_error_count() -> int:
 	var count := 0
@@ -314,6 +475,9 @@ func get_error_count() -> int:
 
 
 ## 获取警告数量。
+## [br]
+## @api public
+## [br]
 ## @return 警告数量。
 func get_warning_count() -> int:
 	var count := 0
@@ -324,6 +488,9 @@ func get_warning_count() -> int:
 
 
 ## 获取信息数量。
+## [br]
+## @api public
+## [br]
 ## @return 信息数量。
 func get_info_count() -> int:
 	var count := 0
@@ -334,19 +501,30 @@ func get_info_count() -> int:
 
 
 ## 检查报告是否没有错误。
+## [br]
+## @api public
+## [br]
 ## @return 没有错误时返回 true。
 func is_ok() -> bool:
 	return get_error_count() == 0
 
 
 ## 检查报告是否完全健康。
+## [br]
+## @api public
+## [br]
 ## @return 没有错误和警告时返回 true。
 func is_healthy() -> bool:
 	return get_error_count() == 0 and get_warning_count() == 0
 
 
 ## 按问题类别统计数量。
+## [br]
+## @api public
+## [br]
 ## @return 类别计数字典。
+## [br]
+## @schema return: Dictionary keyed by issue kind with integer counts.
 func get_issue_counts_by_kind() -> Dictionary:
 	var result: Dictionary = {}
 	for issue: RefCounted in issues:
@@ -358,7 +536,11 @@ func get_issue_counts_by_kind() -> Dictionary:
 
 
 ## 生成摘要文本。
+## [br]
+## @api public
+## [br]
 ## @param subject_override: 临时覆盖报告主题。
+## [br]
 ## @return 摘要文本。
 func make_summary(subject_override: String = "") -> String:
 	var label := subject_override if not subject_override.is_empty() else subject
@@ -375,9 +557,17 @@ func make_summary(subject_override: String = "") -> String:
 
 
 ## 获取下一步建议。
+## [br]
+## @api public
+## [br]
 ## @param action_map: 按问题类别映射的建议文本。
+## [br]
+## @schema action_map: Dictionary keyed by issue kind with action text values.
+## [br]
 ## @param fallback_action: 存在问题但没有命中映射时返回的建议。
+## [br]
 ## @param no_action: 没有问题时返回的建议。
+## [br]
 ## @return 建议文本。
 func get_next_action(
 	action_map: Dictionary = {},
@@ -398,7 +588,11 @@ func get_next_action(
 
 
 ## 将警告提升为错误。
+## [br]
+## @api public
+## [br]
 ## @param kinds: 为空时提升全部警告；否则只提升匹配类别。
+## [br]
 ## @return 当前报告。
 func promote_warnings_to_errors(kinds: PackedStringArray = PackedStringArray()) -> RefCounted:
 	for issue: RefCounted in issues:
@@ -410,7 +604,13 @@ func promote_warnings_to_errors(kinds: PackedStringArray = PackedStringArray()) 
 
 
 ## 从字典创建报告。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
+## @schema data: Dictionary report payload.
+## [br]
 ## @return 新报告。
 static func from_dict(data: Dictionary) -> RefCounted:
 	var report := (load("res://addons/gf/standard/foundation/validation/gf_validation_report.gd") as Script).new() as RefCounted

@@ -2,6 +2,12 @@
 ##
 ## 按动作类别和标签过滤后，调整动作数值或操作。它不解释动作业务语义，
 ## 只负责把一个 GFCombatAction 转换为另一个 GFCombatAction。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFCombatActionModifier
 extends Resource
 
@@ -9,43 +15,71 @@ extends Resource
 # --- 导出变量 ---
 
 ## 修正器标识。
+## [br]
+## @api public
 @export var modifier_id: StringName = &""
 
 ## 非空时，只匹配这些动作类别。
+## [br]
+## @api public
 @export var accepted_action_kinds: Array[StringName] = []
 
 ## 始终拒绝匹配的动作类别。
+## [br]
+## @api public
 @export var rejected_action_kinds: Array[StringName] = []
 
 ## 非空时，动作必须包含这些标签。
+## [br]
+## @api public
 @export var required_tags: Array[StringName] = []
 
 ## 数值加成。
+## [br]
+## @api public
 @export var amount_add: float = 0.0
 
 ## 数值乘区。
+## [br]
+## @api public
 @export var amount_multiplier: float = 1.0
 
 ## 是否覆盖动作操作。
+## [br]
+## @api public
 @export var override_operation: bool = false
 
 ## 覆盖后的动作操作。
+## [br]
+## @api public
 @export var operation: GFCombatAction.Operation = GFCombatAction.Operation.SUBTRACT
 
 ## 是否覆盖动作类别。
+## [br]
+## @api public
 @export var override_action_kind: bool = false
 
 ## 覆盖后的动作类别。
+## [br]
+## @api public
 @export var action_kind: StringName = &""
 
 ## 修正器元数据。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，项目自定义元数据；应用修正器时复制到动作结果的 modifiers 记录中。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 检查修正器是否匹配动作。
+## [br]
+## @api public
+## [br]
 ## @param action: 原始动作。
+## [br]
 ## @return 匹配时返回 true。
 func matches(action: GFCombatAction) -> bool:
 	if action == null:
@@ -61,7 +95,11 @@ func matches(action: GFCombatAction) -> bool:
 
 
 ## 应用修正器。
+## [br]
+## @api public
+## [br]
 ## @param action: 原始动作。
+## [br]
 ## @return 修正后的动作副本。
 func apply(action: GFCombatAction) -> GFCombatAction:
 	if action == null:
@@ -90,6 +128,9 @@ func apply(action: GFCombatAction) -> GFCombatAction:
 
 
 ## 复制修正器。
+## [br]
+## @api public
+## [br]
 ## @return 新修正器。
 func duplicate_modifier() -> GFCombatActionModifier:
 	var modifier := GFCombatActionModifier.new()

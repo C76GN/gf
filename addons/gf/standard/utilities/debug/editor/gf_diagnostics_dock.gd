@@ -1,20 +1,26 @@
 @tool
 
-## GF 诊断工作区页面。
+## GFDiagnosticsDock: GF 诊断工作区页面。
 ##
 ## 采集通用运行时、性能、监控和场景树诊断快照，供编辑器内只读查看。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+class_name GFDiagnosticsDock
 extends Control
 
 
 # --- 常量 ---
 
-const GFDiagnosticsUtilityBase = preload("res://addons/gf/standard/utilities/debug/gf_diagnostics_utility.gd")
-const GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _EDITOR_WORKSPACE_UI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
 
-var _diagnostics: GFDiagnosticsUtilityBase = null
+var _diagnostics: GFDiagnosticsUtility = null
 var _last_snapshot: Dictionary = {}
 var _preset_option: OptionButton = null
 var _include_scene_tree_check: CheckBox = null
@@ -29,8 +35,8 @@ var _details: TextEdit = null
 
 func _init() -> void:
 	name = "GF Diagnostics"
-	GFEditorWorkspaceUI.apply_page_root(self)
-	_diagnostics = GFDiagnosticsUtilityBase.new()
+	_EDITOR_WORKSPACE_UI.apply_page_root(self)
+	_diagnostics = GFDiagnosticsUtility.new()
 	_diagnostics.init()
 	_build_ui()
 	call_deferred("collect_snapshot")
@@ -45,6 +51,8 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 采集诊断快照。
+## [br]
+## @api public
 func collect_snapshot() -> void:
 	_build_ui()
 	if _diagnostics == null:
@@ -60,9 +68,38 @@ func collect_snapshot() -> void:
 
 
 ## 获取最近一次诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 快照副本。
+## [br]
+## @schema return: Dictionary，包含 GFDiagnosticsUtility.collect_snapshot() 返回的诊断分区。
 func get_last_snapshot() -> Dictionary:
 	return _last_snapshot.duplicate(true)
+
+
+## 获取面板调试快照。
+## [br]
+## @api public
+## [br]
+## @return 面板调试快照。
+## [br]
+## @schema return: Dictionary，包含 last_snapshot、summary_text、details_text 和 ui 分区。
+func get_debug_snapshot() -> Dictionary:
+	_build_ui()
+	return {
+		"last_snapshot": get_last_snapshot(),
+		"summary_text": _summary_label.text if _summary_label != null else "",
+		"details_text": _details.text if _details != null else "",
+		"ui": {
+			"tree_visible": _tree != null and _tree.visible,
+			"empty_visible": _empty_label != null and _empty_label.visible,
+			"empty_text": _empty_label.text if _empty_label != null else "",
+			"include_scene_tree": _include_scene_tree_check != null and _include_scene_tree_check.button_pressed,
+			"include_logs": _include_logs_check == null or _include_logs_check.button_pressed,
+			"selected_preset": _get_selected_preset_id(),
+		},
+	}
 
 
 # --- 私有/辅助方法 ---
@@ -78,10 +115,10 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := GFEditorWorkspaceUI.make_toolbar()
+	var toolbar := _EDITOR_WORKSPACE_UI.make_toolbar()
 	root_box.add_child(toolbar)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("采集", "采集当前诊断快照。", collect_snapshot))
+	toolbar.add_child(_EDITOR_WORKSPACE_UI.make_button("采集", "采集当前诊断快照。", collect_snapshot))
 
 	_preset_option = OptionButton.new()
 	_preset_option.tooltip_text = "选择诊断监控预设。"
@@ -108,12 +145,12 @@ func _build_ui() -> void:
 	_include_logs_check.toggled.connect(_on_option_toggled)
 	toolbar.add_child(_include_logs_check)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("复制快照", "复制当前诊断快照 JSON。", _on_copy_pressed))
+	toolbar.add_child(_EDITOR_WORKSPACE_UI.make_button("复制快照", "复制当前诊断快照 JSON。", _on_copy_pressed))
 
-	_summary_label = GFEditorWorkspaceUI.make_summary_label()
+	_summary_label = _EDITOR_WORKSPACE_UI.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_empty_label = GFEditorWorkspaceUI.make_empty_label()
+	_empty_label = _EDITOR_WORKSPACE_UI.make_empty_label()
 	root_box.add_child(_empty_label)
 
 	var split := HSplitContainer.new()
@@ -134,7 +171,7 @@ func _build_ui() -> void:
 	_tree.item_selected.connect(_on_tree_item_selected)
 	split.add_child(_tree)
 
-	_details = GFEditorWorkspaceUI.make_details_output()
+	_details = _EDITOR_WORKSPACE_UI.make_details_output()
 	_details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	split.add_child(_details)
@@ -155,7 +192,7 @@ func _render_snapshot() -> void:
 	_empty_label.visible = false
 	_tree.visible = true
 	_summary_label.text = _make_snapshot_summary(_last_snapshot)
-	_summary_label.modulate = GFEditorWorkspaceUI.OK_TEXT_COLOR
+	_summary_label.modulate = _EDITOR_WORKSPACE_UI.OK_TEXT_COLOR
 
 	var root_item := _tree.create_item()
 	var keys := PackedStringArray()
@@ -199,7 +236,7 @@ func _render_empty(message: String) -> void:
 	if _empty_label != null:
 		_empty_label.text = message
 		_empty_label.visible = true
-	GFEditorWorkspaceUI.set_status(_summary_label, message, GFEditorWorkspaceUI.WARNING_TEXT_COLOR)
+	_EDITOR_WORKSPACE_UI.set_status(_summary_label, message, _EDITOR_WORKSPACE_UI.WARNING_TEXT_COLOR)
 
 
 func _make_snapshot_summary(snapshot: Dictionary) -> String:
@@ -301,4 +338,4 @@ func _on_copy_pressed() -> void:
 	if _last_snapshot.is_empty():
 		return
 	DisplayServer.clipboard_set(_safe_json(_last_snapshot))
-	GFEditorWorkspaceUI.set_status(_summary_label, "已复制诊断快照。", GFEditorWorkspaceUI.OK_TEXT_COLOR)
+	_EDITOR_WORKSPACE_UI.set_status(_summary_label, "已复制诊断快照。", _EDITOR_WORKSPACE_UI.OK_TEXT_COLOR)

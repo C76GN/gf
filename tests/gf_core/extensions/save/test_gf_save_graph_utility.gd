@@ -16,7 +16,7 @@ const GFNodePropertySerializerBase = preload("res://addons/gf/extensions/save/se
 # --- 辅助类 ---
 
 class MetadataPipelineStep extends GFSavePipelineStep:
-	func after_gather_scope(_scope: GFSaveScope, payload: Dictionary, _context: Dictionary = {}) -> Variant:
+	func _after_gather_scope(_scope: GFSaveScope, payload: Dictionary, _context: Dictionary = {}) -> Variant:
 		payload["pipeline_marker"] = "applied"
 		return payload
 
@@ -27,14 +27,14 @@ class PlainEntityFactory extends GFSaveEntityFactory:
 	func _init() -> void:
 		type_key = &"plain_entity"
 
-	func create_entity(_descriptor: Dictionary, _context: Dictionary = {}) -> Node:
+	func _create_entity(_descriptor: Dictionary, _context: Dictionary = {}) -> Node:
 		created_entity = Node.new()
 		created_entity.name = "PlainEntity"
 		return created_entity
 
 
 class FailingCreatedSource extends GFSaveSource:
-	func apply_save_data(
+	func _apply_save_data(
 		_data: Variant,
 		_context: Dictionary = {},
 		_serializer_registry: GFNodeSerializerRegistry = null
@@ -49,7 +49,7 @@ class FailingSourceFactory extends GFSaveEntityFactory:
 	func _init() -> void:
 		type_key = &"failing_source"
 
-	func create_entity(descriptor: Dictionary, _context: Dictionary = {}) -> Node:
+	func _create_entity(descriptor: Dictionary, _context: Dictionary = {}) -> Node:
 		create_count += 1
 		created_source = FailingCreatedSource.new()
 		created_source.name = String(descriptor.get("source_key", "created_source"))
@@ -63,13 +63,13 @@ class DeletingAfterCreateFactory extends GFSaveEntityFactory:
 	func _init() -> void:
 		type_key = &"deleting_source"
 
-	func create_entity(descriptor: Dictionary, _context: Dictionary = {}) -> Node:
+	func _create_entity(descriptor: Dictionary, _context: Dictionary = {}) -> Node:
 		created_source = GFSaveSourceBase.new()
 		created_source.name = String(descriptor.get("source_key", "deleted_source"))
 		created_source.source_key = StringName(descriptor.get("source_key", &"deleted_source"))
 		return created_source
 
-	func after_entity_created(entity: Node, _descriptor: Dictionary, _context: Dictionary = {}) -> void:
+	func _after_entity_created(entity: Node, _descriptor: Dictionary, _context: Dictionary = {}) -> void:
 		var parent := entity.get_parent()
 		if parent != null:
 			parent.remove_child(entity)
@@ -86,11 +86,11 @@ class MethodTrapSaveScope extends GFSaveScope:
 		get_scope_key_called = true
 		return &"method_scope"
 
-	func can_save_scope(_context: Dictionary = {}) -> bool:
+	func _can_save_scope(_context: Dictionary = {}) -> bool:
 		can_save_scope_called = true
 		return false
 
-	func can_load_scope(_context: Dictionary = {}) -> bool:
+	func _can_load_scope(_context: Dictionary = {}) -> bool:
 		can_load_scope_called = true
 		return false
 
@@ -113,11 +113,11 @@ class MethodTrapSaveSource extends GFSaveSource:
 		get_target_node_called = true
 		return null
 
-	func can_save_source(_context: Dictionary = {}) -> bool:
+	func _can_save_source(_context: Dictionary = {}) -> bool:
 		can_save_source_called = true
 		return false
 
-	func can_load_source(_context: Dictionary = {}) -> bool:
+	func _can_load_source(_context: Dictionary = {}) -> bool:
 		can_load_source_called = true
 		return false
 

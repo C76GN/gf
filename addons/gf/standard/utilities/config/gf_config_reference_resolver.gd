@@ -1,6 +1,12 @@
 ## GFConfigReferenceResolver: 通用导表引用校验与解析工具。
 ##
 ## 在多张表加载后统一检查引用、构建复合索引，并可把记录中的引用解析为目标记录副本。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFConfigReferenceResolver
 extends RefCounted
 
@@ -13,9 +19,18 @@ const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/co
 # --- 公共方法 ---
 
 ## 构建表数据索引。
+## [br]
+## @api public
+## [br]
 ## @param table_data: Array[Dictionary] 或 Dictionary 形式的表数据。
+## [br]
+## @schema table_data: Variant，支持 Array[Dictionary] 或 Dictionary，记录值必须为 Dictionary。
+## [br]
 ## @param field_names: 参与索引的字段名。
+## [br]
 ## @return 索引字典，key 为复合键，value 为记录数组。
+## [br]
+## @schema return: Dictionary，键为复合索引字符串，值为匹配记录副本组成的 Array[Dictionary]。
 static func build_index(table_data: Variant, field_names: PackedStringArray) -> Dictionary:
 	var result: Dictionary = {}
 	for entry: Dictionary in _normalize_rows(table_data):
@@ -30,10 +45,24 @@ static func build_index(table_data: Variant, field_names: PackedStringArray) -> 
 
 
 ## 校验多张表的 schema 与引用关系。
+## [br]
+## @api public
+## [br]
 ## @param tables_by_name: 表名到表数据的字典。
+## [br]
+## @schema tables_by_name: Dictionary，键为表名 StringName，值为 Array[Dictionary] 或 Dictionary 表数据。
+## [br]
 ## @param schemas: schema 列表。
+## [br]
+## @schema schemas: Array[GFConfigTableSchema]，参与校验的表结构声明。
+## [br]
 ## @param options: 可选参数，当前支持 validate_schema。
+## [br]
+## @schema options: Dictionary，可包含 validate_schema。
+## [br]
 ## @return 聚合校验报告字典。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 static func validate_tables(
 	tables_by_name: Dictionary,
 	schemas: Array[GFConfigTableSchema],
@@ -60,11 +89,26 @@ static func validate_tables(
 
 
 ## 解析单条记录的引用目标。
+## [br]
+## @api public
+## [br]
 ## @param record: 来源记录。
+## [br]
+## @schema record: Dictionary，来源配置记录。
+## [br]
 ## @param schema: 来源 schema。
+## [br]
 ## @param tables_by_name: 表名到表数据的字典。
+## [br]
+## @schema tables_by_name: Dictionary，键为表名 StringName，值为 Array[Dictionary] 或 Dictionary 表数据。
+## [br]
 ## @param schemas_by_name: 可选 schema 字典。
+## [br]
+## @schema schemas_by_name: Dictionary，键为表名 StringName，值为 GFConfigTableSchema。
+## [br]
 ## @return 引用 ID 到目标记录副本的字典。
+## [br]
+## @schema return: Dictionary，键为 reference_id，值为解析出的目标记录 Dictionary 副本。
 static func resolve_record_references(
 	record: Dictionary,
 	schema: GFConfigTableSchema,

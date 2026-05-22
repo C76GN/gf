@@ -2,6 +2,12 @@
 ##
 ## 支持 GFTagSet、Array、PackedStringArray、Dictionary 以及具备 has_tag/get_tag_count/get_tags
 ## 方法的对象。它不维护全局标签表，也不规定标签语义。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFTagSourceAdapter
 extends RefCounted
 
@@ -9,10 +15,19 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 检查标签源是否拥有指定标签。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
 ## @param tag: 标签名。
+## [br]
 ## @param minimum_count: 要求的最小层数。
+## [br]
 ## @param include_child_tags: 为 true 时，`state` 可匹配 `state.burning`。
+## [br]
 ## @return 满足要求返回 true。
 static func source_has_tag(
 	source: Variant,
@@ -34,9 +49,17 @@ static func source_has_tag(
 
 
 ## 获取标签源中的标签层数。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
 ## @param tag: 标签名。
+## [br]
 ## @param include_child_tags: 为 true 时合并子标签层数。
+## [br]
 ## @return 标签层数。
 static func get_tag_count(source: Variant, tag: StringName, include_child_tags: bool = false) -> int:
 	if source == null or tag == &"":
@@ -53,7 +76,13 @@ static func get_tag_count(source: Variant, tag: StringName, include_child_tags: 
 
 
 ## 获取标签源中的标签名。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
 ## @return 排序后的标签名。
 static func get_tags(source: Variant) -> PackedStringArray:
 	var result := PackedStringArray()
@@ -79,9 +108,17 @@ static func get_tags(source: Variant) -> PackedStringArray:
 
 
 ## 检查标签源是否包含所有标签。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
 ## @param tags: 需要全部满足的标签。
+## [br]
 ## @param include_child_tags: 是否启用层级匹配。
+## [br]
 ## @return 全部满足返回 true。
 static func matches_all(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -> bool:
 	for tag: StringName in tags:
@@ -91,9 +128,17 @@ static func matches_all(source: Variant, tags: Array[StringName], include_child_
 
 
 ## 检查标签源是否包含任意标签。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
 ## @param tags: 需要满足任意一个的标签；空数组返回 true。
+## [br]
 ## @param include_child_tags: 是否启用层级匹配。
+## [br]
 ## @return 满足任意标签返回 true。
 static func matches_any(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -> bool:
 	if tags.is_empty():
@@ -105,9 +150,17 @@ static func matches_any(source: Variant, tags: Array[StringName], include_child_
 
 
 ## 检查标签源是否不包含任何禁止标签。
+## [br]
+## @api public
+## [br]
 ## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
 ## @param tags: 禁止出现的标签。
+## [br]
 ## @param include_child_tags: 是否启用层级匹配。
+## [br]
 ## @return 未命中禁止标签返回 true。
 static func matches_none(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -> bool:
 	for tag: StringName in tags:

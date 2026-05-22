@@ -2,6 +2,12 @@
 ##
 ## 落点只描述“某个位置是否命中、某个会话是否可接收、接收时如何返回结果”。
 ## 它不移动节点、不修改业务数据，也不规定任何具体 UI 或玩法语义。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class_name GFDropZone
 extends RefCounted
 
@@ -14,36 +20,61 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## 落点 ID。
+## [br]
+## @api public
 var zone_id: StringName = &""
 
 ## 可接收的拖拽类型。为空表示不限制类型。
+## [br]
+## @api public
 var accepted_types: PackedStringArray = PackedStringArray()
 
 ## 匹配优先级。数值越大越优先。
+## [br]
+## @api public
 var priority: int = 0
 
 ## 是否启用。
+## [br]
+## @api public
 var enabled: bool = true
 
 ## 命中检测回调，签名为 func(position: Variant, session: GFDragSession) -> bool。
+## [br]
+## @api public
 var contains_callable: Callable = Callable()
 
 ## 可接收检测回调，签名为 func(session: GFDragSession, zone: GFDropZone) -> bool。
+## [br]
+## @api public
 var can_accept_callable: Callable = Callable()
 
 ## 接收回调，签名为 func(session: GFDragSession, zone: GFDropZone, position: Variant) -> Variant。
+## [br]
+## @api public
 var drop_callable: Callable = Callable()
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，关联到 drop zone 的项目侧元数据。
 var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 检查落点是否包含位置。
+## [br]
+## @api public
+## [br]
 ## @param position: 位置，通常是屏幕或画布坐标。
+## [br]
 ## @param session: 当前拖拽会话。
+## [br]
 ## @return 命中时返回 true。
+## [br]
+## @schema position: Variant，zone contains 回调接受的位置值。
 func contains(position: Variant, session: GFDragSession) -> bool:
 	if not enabled:
 		return false
@@ -53,7 +84,11 @@ func contains(position: Variant, session: GFDragSession) -> bool:
 
 
 ## 检查落点是否接收会话。
+## [br]
+## @api public
+## [br]
 ## @param session: 当前拖拽会话。
+## [br]
 ## @return 可接收时返回 true。
 func can_accept(session: GFDragSession) -> bool:
 	if not enabled or session == null:
@@ -66,9 +101,18 @@ func can_accept(session: GFDragSession) -> bool:
 
 
 ## 执行落点接收回调。
+## [br]
+## @api public
+## [br]
 ## @param session: 当前拖拽会话。
+## [br]
 ## @param position: 释放位置。
+## [br]
 ## @return 回调返回值；未设置回调时返回成功字典。
+## [br]
+## @schema position: Variant release position passed to the drop callback.
+## [br]
+## @schema return: Variant，由 drop 回调返回；Dictionary 会由 GFDragDropUtility 规范化。
 func drop(session: GFDragSession, position: Variant) -> Variant:
 	if drop_callable.is_valid():
 		return drop_callable.call(session, self, position)
@@ -79,7 +123,12 @@ func drop(session: GFDragSession, position: Variant) -> Variant:
 
 
 ## 转换为调试字典。
+## [br]
+## @api public
+## [br]
 ## @return 落点快照。
+## [br]
+## @schema return: Dictionary，包含 zone_id、accepted_types、priority、enabled、回调标记和 metadata。
 func to_dictionary() -> Dictionary:
 	return {
 		"zone_id": zone_id,
@@ -94,11 +143,20 @@ func to_dictionary() -> Dictionary:
 
 
 ## 创建矩形落点。
+## [br]
+## @api public
+## [br]
 ## @param new_zone_id: 落点 ID。
+## [br]
 ## @param rect: 全局矩形区域。
+## [br]
 ## @param new_accepted_types: 可接收类型；为空表示不限制。
+## [br]
 ## @param options: 可选参数，支持 priority、enabled、metadata、can_accept、drop。
+## [br]
 ## @return 新落点。
+## [br]
+## @schema options: Dictionary，包含 priority: int、enabled: bool、metadata: Dictionary、can_accept: Callable 和 drop: Callable。
 static func from_rect(
 	new_zone_id: StringName,
 	rect: Rect2,
@@ -121,11 +179,20 @@ static func from_rect(
 
 
 ## 创建 Control 全局矩形落点。
+## [br]
+## @api public
+## [br]
 ## @param new_zone_id: 落点 ID。
+## [br]
 ## @param control: 用于读取 get_global_rect() 的 Control。
+## [br]
 ## @param new_accepted_types: 可接收类型；为空表示不限制。
+## [br]
 ## @param options: 可选参数，支持 priority、enabled、metadata、can_accept、drop。
+## [br]
 ## @return 新落点。
+## [br]
+## @schema options: Dictionary，包含 priority: int、enabled: bool、metadata: Dictionary、can_accept: Callable 和 drop: Callable。
 static func from_control(
 	new_zone_id: StringName,
 	control: Control,

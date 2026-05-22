@@ -1,24 +1,41 @@
-## GFAsyncWaitSupport: 内部异步等待辅助。
-##
-## 提供 Signal 安全断开和受 GFTimeUtility 影响的超时增量计算，供流程、序列和动作队列复用。
+# GFAsyncWaitSupport: 内部异步等待辅助。
+#
+# 提供 Signal 安全断开和受 GFTimeUtility 影响的超时增量计算，供流程、序列和动作队列复用。
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 单次等待最多捕获的 Signal 参数数量。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/common
 const MAX_CAPTURED_SIGNAL_ARGUMENTS: int = 16
 
 
 # --- 公共方法 ---
 
 ## 安全等待 Signal，并在发射源失效、保护节点离树、取消回调返回 false 或超时时结束等待。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/common
+## [br]
 ## @param result_signal: 要等待的 Signal。
+## [br]
 ## @param should_continue: 可选继续等待检查；返回 false 时停止等待。
+## [br]
 ## @param time_utility: 可选时间工具。
+## [br]
 ## @param timeout_seconds: 超时时间；小于等于 0 时不启用。
+## [br]
 ## @param respect_time_scale: 是否跟随暂停和 time_scale。
+## [br]
 ## @param timeout_warning: 超时时输出的 warning；为空时不输出。
+## [br]
 ## @param guard_node: 可选生命周期保护节点。
+## [br]
 ## @return Signal 正常发出或 tree_exited 保护触发时返回 true。
 static func await_signal_safely(
 	result_signal: Signal,
@@ -43,14 +60,28 @@ static func await_signal_safely(
 
 
 ## 安全等待 Signal，并保留 Signal 发射时携带的参数。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/common
+## [br]
 ## @param result_signal: 要等待的 Signal。
+## [br]
 ## @param should_continue: 可选继续等待检查；返回 false 时停止等待。
+## [br]
 ## @param time_utility: 可选时间工具。
+## [br]
 ## @param timeout_seconds: 超时时间；小于等于 0 时不启用。
+## [br]
 ## @param respect_time_scale: 是否跟随暂停和 time_scale。
+## [br]
 ## @param timeout_warning: 超时时输出的 warning；为空时不输出。
+## [br]
 ## @param guard_node: 可选生命周期保护节点。
+## [br]
 ## @return 包含 completed 与 args 的等待结果。
+## [br]
+## @schema return: Dictionary with completed: bool and args: Array.
 static func await_signal_payload_safely(
 	result_signal: Signal,
 	should_continue: Callable = Callable(),
@@ -73,10 +104,19 @@ static func await_signal_payload_safely(
 
 
 ## 计算超时累计增量。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/common
+## [br]
 ## @param previous_msec: 上一次采样时间。
+## [br]
 ## @param current_msec: 当前采样时间。
+## [br]
 ## @param time_utility: 可选时间工具。
+## [br]
 ## @param respect_time_scale: 是否跟随暂停和 time_scale。
+## [br]
 ## @return 超时增量毫秒。
 static func get_timeout_elapsed_msec(
 	previous_msec: int,
@@ -95,8 +135,15 @@ static func get_timeout_elapsed_msec(
 
 
 ## 创建可忽略 Signal 参数的恢复回调。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/common
+## [br]
 ## @param target_signal: 目标信号。
+## [br]
 ## @param callback: 原始无参恢复回调。
+## [br]
 ## @return 可连接到目标信号的回调。
 static func make_signal_resume_callable(target_signal: Signal, callback: Callable) -> Callable:
 	var argument_count := get_signal_argument_count(target_signal)
@@ -106,7 +153,13 @@ static func make_signal_resume_callable(target_signal: Signal, callback: Callabl
 
 
 ## 获取信号定义中的参数数量。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/common
+## [br]
 ## @param target_signal: 目标信号。
+## [br]
 ## @return 参数数量。
 static func get_signal_argument_count(target_signal: Signal) -> int:
 	if target_signal.is_null():
@@ -125,7 +178,13 @@ static func get_signal_argument_count(target_signal: Signal) -> int:
 
 
 ## 若信号已连接指定回调，则安全断开。
+## [br]
+## @api framework_internal
+## [br]
+## @layer standard/common
+## [br]
 ## @param target_signal: 目标信号。
+## [br]
 ## @param callback: 回调。
 static func disconnect_signal_if_connected(target_signal: Signal, callback: Callable) -> void:
 	if target_signal.is_null():

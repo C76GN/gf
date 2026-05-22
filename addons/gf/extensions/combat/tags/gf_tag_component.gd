@@ -2,6 +2,12 @@
 ## 
 ## 基于 StringName 管理实体的标签及层数（如 &"State.Stun", &"Element.Fire"）。
 ## 标签系统通常用于技能释放前提检查、伤害加成判定等。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFTagComponent
 extends RefCounted
 
@@ -9,21 +15,28 @@ extends RefCounted
 # --- 信号 ---
 
 ## 当标签层数发生变化时发出。
+## [br]
+## @api public
+## [br]
 ## @param tag_name: 标签名。
+## [br]
 ## @param count: 变化后的最终层数。
 signal tag_changed(tag_name: StringName, count: int)
 
 
 # --- 私有变量 ---
 
-## 存储标签名及其对应层数。
 var _tags: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 添加标签。
+## [br]
+## @api public
+## [br]
 ## @param p_tag: 标签名。
+## [br]
 ## @param p_count: 增加的层数。
 func add_tag(p_tag: StringName, p_count: int = 1) -> void:
 	if p_count <= 0:
@@ -35,7 +48,11 @@ func add_tag(p_tag: StringName, p_count: int = 1) -> void:
 
 
 ## 移除标签或减少层数。
+## [br]
+## @api public
+## [br]
 ## @param p_tag: 标签名。
+## [br]
 ## @param p_count: 减少的层数，如果为 -1 则直接完全移除。
 func remove_tag(p_tag: StringName, p_count: int = 1) -> void:
 	if not _tags.has(p_tag):
@@ -62,19 +79,33 @@ func remove_tag(p_tag: StringName, p_count: int = 1) -> void:
 
 
 ## 检查是否拥有指定标签且层数达到要求。
+## [br]
+## @api public
+## [br]
 ## @param p_tag: 标签名。
+## [br]
 ## @param p_min_count: 要求的最小层数。
+## [br]
+## @return: 拥有指定标签且层数不低于要求时返回 true。
 func has_tag(p_tag: StringName, p_min_count: int = 1) -> bool:
 	return _tags.get(p_tag, 0) >= p_min_count
 
 
 ## 获取标签的当前层数。
+## [br]
+## @api public
+## [br]
 ## @param p_tag: 标签名。
+## [br]
+## @return: 当前标签层数；不存在时返回 0。
 func get_tag_count(p_tag: StringName) -> int:
 	return _tags.get(p_tag, 0)
 
 
 ## 获取当前持有的标签名。
+## [br]
+## @api public
+## [br]
 ## @return 排序后的标签名。
 func get_tags() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -86,12 +117,19 @@ func get_tags() -> PackedStringArray:
 
 
 ## 获取标签层数快照。
+## [br]
+## @api public
+## [br]
 ## @return 标签层数字典副本。
+## [br]
+## @schema return: Dictionary，键为标签名，值为当前层数。
 func get_tag_snapshot() -> Dictionary:
 	return _tags.duplicate(true)
 
 
 ## 清空所有标签。
+## [br]
+## @api public
 func clear_all() -> void:
 	var keys := _tags.keys()
 	_tags.clear()

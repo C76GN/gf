@@ -2,6 +2,12 @@
 ##
 ## 描述一个场景与相邻场景的关系，以及该场景是否应进入固定缓存。
 ## 它只表达资源关系，不假设关卡、地图、菜单或玩法语义。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFScenePreloadEntry
 extends Resource
 
@@ -9,27 +15,43 @@ extends Resource
 # --- 导出变量 ---
 
 ## 当前场景资源路径。
+## [br]
+## @api public
 @export_file("*.tscn", "*.scn") var scene_path: String = ""
 
 ## 与当前场景相邻、可能被提前预热的场景资源路径。
+## [br]
+## @api public
 @export var adjacent_scene_paths: PackedStringArray = PackedStringArray()
 
 ## 是否建议将该场景放入固定缓存。
+## [br]
+## @api public
 @export var fixed: bool = false
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary[String, Variant]，会复制到 describe_entry() 结果中。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取规范化后的场景路径。
+## [br]
+## @api public
+## [br]
 ## @return 去除首尾空白后的场景路径。
 func get_scene_path() -> String:
 	return scene_path.strip_edges()
 
 
 ## 获取去重后的相邻场景路径。
+## [br]
+## @api public
+## [br]
 ## @return 相邻场景路径列表。
 func get_adjacent_scene_paths() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -43,7 +65,12 @@ func get_adjacent_scene_paths() -> PackedStringArray:
 
 
 ## 描述当前条目。
+## [br]
+## @api public
+## [br]
 ## @return 条目描述字典。
+## [br]
+## @schema return: Dictionary，包含 scene_path、adjacent_scene_paths、fixed 和 metadata。
 func describe_entry() -> Dictionary:
 	return {
 		"scene_path": get_scene_path(),

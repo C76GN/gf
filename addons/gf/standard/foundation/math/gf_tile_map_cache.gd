@@ -2,6 +2,12 @@
 ##
 ## 用 Vector2i 管理格子字典数据，既可手动写入，也可从 TileMapLayer 采集基础
 ## source/atlas/alternative/terrain 信息。它不规定字段语义，项目可扩展记录内容。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFTileMapCache
 extends Resource
 
@@ -9,13 +15,21 @@ extends Resource
 # --- 导出变量 ---
 
 ## 格子数据，结构为 Vector2i -> Dictionary。
+## [br]
+## @api public
+## [br]
+## @schema cells: Dictionary mapping Vector2i cells to Dictionary cell records.
 @export var cells: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 从 TileMapLayer 更新缓存。
+## [br]
+## @api public
+## [br]
 ## @param layer: 目标 TileMapLayer。
+## [br]
 ## @param target_cells: 要更新的格子；为空时采集 layer.get_used_cells()。
 func update_from_tile_map(layer: TileMapLayer, target_cells: Array[Vector2i] = []) -> void:
 	if layer == null:
@@ -44,28 +58,47 @@ func update_from_tile_map(layer: TileMapLayer, target_cells: Array[Vector2i] = [
 
 
 ## 设置一个格子的字典数据。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格坐标。
+## [br]
 ## @param data: 格子数据。
+## [br]
+## @schema data: Dictionary cell record copied into the cache.
 func set_cell_data(cell: Vector2i, data: Dictionary) -> void:
 	cells[cell] = data.duplicate(true)
 
 
 ## 移除一个格子。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格坐标。
 func erase_cell(cell: Vector2i) -> void:
 	cells.erase(cell)
 
 
 ## 检查格子是否存在。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格坐标。
+## [br]
 ## @return 存在时返回 true。
 func has_cell(cell: Vector2i) -> bool:
 	return cells.has(cell)
 
 
 ## 获取格子数据副本。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格坐标。
+## [br]
 ## @return 格子数据。
+## [br]
+## @schema return: Dictionary cell record copy.
 func get_cell_data(cell: Vector2i) -> Dictionary:
 	var data := cells.get(cell) as Dictionary
 	if data == null:
@@ -74,10 +107,20 @@ func get_cell_data(cell: Vector2i) -> Dictionary:
 
 
 ## 获取格子字段值。
+## [br]
+## @api public
+## [br]
 ## @param cell: 格坐标。
+## [br]
 ## @param key: 字段名。
+## [br]
 ## @param default_value: 默认值。
+## [br]
+## @schema default_value: Variant fallback value returned when the field is missing.
+## [br]
 ## @return 字段值。
+## [br]
+## @schema return: Variant field value or default_value.
 func get_value(cell: Vector2i, key: StringName, default_value: Variant = null) -> Variant:
 	var data := cells.get(cell) as Dictionary
 	if data == null:
@@ -86,13 +129,20 @@ func get_value(cell: Vector2i, key: StringName, default_value: Variant = null) -
 
 
 ## 清空缓存。
+## [br]
+## @api public
 func clear() -> void:
 	cells.clear()
 
 
 ## 和另一个缓存做差分。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个缓存。
+## [br]
 ## @param compare_key: 为空时比较完整字典；否则只比较指定字段。
+## [br]
 ## @return 发生变化的格子列表。
 func diff_cells(other: GFTileMapCache, compare_key: StringName = &"") -> Array[Vector2i]:
 	var result: Array[Vector2i] = []
@@ -111,7 +161,12 @@ func diff_cells(other: GFTileMapCache, compare_key: StringName = &"") -> Array[V
 
 
 ## 序列化为字典。
+## [br]
+## @api public
+## [br]
 ## @return 可保存的字典。
+## [br]
+## @schema return: Dictionary mapping string cell keys to Dictionary cell records.
 func to_dict() -> Dictionary:
 	var result: Dictionary = {}
 	for cell: Vector2i in cells:
@@ -120,7 +175,12 @@ func to_dict() -> Dictionary:
 
 
 ## 从字典恢复。
+## [br]
+## @api public
+## [br]
 ## @param data: to_dict() 生成的数据。
+## [br]
+## @schema data: Dictionary mapping string cell keys to Dictionary cell records.
 func from_dict(data: Dictionary) -> void:
 	cells.clear()
 	for key: Variant in data.keys():

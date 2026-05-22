@@ -81,16 +81,34 @@ func test_fetch_text_writes_and_reuses_cache() -> void:
 	assert_eq(results[1]["content"], "payload", "缓存内容应保持一致。")
 
 
-func test_write_cache_text_commits_without_sidecar_files() -> void:
-	var cache_key := _cache._build_cache_key("https://example.test/text", PackedStringArray(), &"text")
+func test_fetch_text_overwrites_cache_without_sidecar_files() -> void:
+	var cache_key := "stable-cache-key"
+	var url := "https://example.test/text"
+	_cache.cache_key_builder = func(_url: String, _headers: PackedStringArray, _format: StringName) -> String:
+		return cache_key
+	_cache.responses.append({
+		"success": true,
+		"response_code": 200,
+		"content": "first",
+	})
+	_cache.responses.append({
+		"success": true,
+		"response_code": 200,
+		"content": "second",
+	})
 
-	assert_eq(_cache._write_cache_text(cache_key, "first"), OK, "首次缓存写入应成功。")
-	assert_eq(_cache._write_cache_text(cache_key, "second"), OK, "覆盖缓存写入应成功。")
+	_cache.fetch_text(url)
+	await get_tree().process_frame
+	_cache.fetch_text(url, Callable(), -1, true)
+	await get_tree().process_frame
 
-	assert_eq(_cache._read_cache_text(cache_key), "second", "缓存提交后应读取最新内容。")
-	assert_true(FileAccess.file_exists(_cache._get_cache_path(cache_key)), "最终缓存文件应存在。")
-	assert_false(FileAccess.file_exists(_cache._get_cache_temp_path(cache_key)), "提交后不应残留临时文件。")
-	assert_false(FileAccess.file_exists(_cache._get_cache_backup_path(cache_key)), "提交后不应残留备份文件。")
+	var cache_file_name := "%s.cache" % cache_key.md5_text()
+	var cache_file_names := _list_file_names(String(_cache.get_debug_snapshot()["cache_dir_path"]))
+
+	assert_eq(_cache.get_cached_text(url), "second", "缓存提交后应读取最新内容。")
+	assert_true(cache_file_names.has(cache_file_name), "最终缓存文件应存在。")
+	assert_false(cache_file_names.has("%s.tmp" % cache_file_name), "提交后不应残留临时文件。")
+	assert_false(cache_file_names.has("%s.bak" % cache_file_name), "提交后不应残留备份文件。")
 
 
 func test_fetch_json_parses_data() -> void:
@@ -258,3 +276,19 @@ func test_cancel_drops_pending_request_without_callback() -> void:
 	assert_eq(cancelled, 1, "取消 pending 请求应返回取消数量。")
 	assert_eq(results.size(), 1, "被取消的 pending 请求不应触发回调。")
 	assert_eq(results[0]["content"], "a", "未取消的 active 请求应正常完成。")
+
+
+func _list_file_names(dir_path: String) -> PackedStringArray:
+	var result := PackedStringArray()
+	var dir := DirAccess.open(dir_path)
+	if dir == null:
+		return result
+
+	dir.list_dir_begin()
+	var file_name := dir.get_next()
+	while not file_name.is_empty():
+		if not dir.current_is_dir():
+			result.append(file_name)
+		file_name = dir.get_next()
+	dir.list_dir_end()
+	return result

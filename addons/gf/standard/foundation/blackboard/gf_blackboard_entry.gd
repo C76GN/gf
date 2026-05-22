@@ -1,6 +1,12 @@
 ## GFBlackboardEntry: 通用黑板字段声明。
 ##
 ## 只描述字段键、类型、必填性、空值策略和默认值，不绑定行为树、AI 或具体玩法。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFBlackboardEntry
 extends Resource
 
@@ -8,6 +14,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 黑板字段值类型。
+## [br]
+## @api public
 enum ValueType {
 	## 不做类型约束。
 	ANY,
@@ -43,35 +51,60 @@ enum ValueType {
 # --- 导出变量 ---
 
 ## 字段键。
+## [br]
+## @api public
 @export var key: StringName = &""
 
 ## 字段值类型。
+## [br]
+## @api public
 @export var value_type: ValueType = ValueType.ANY
 
 ## 是否必须出现在黑板数据中。
+## [br]
+## @api public
 @export var required: bool = false
 
 ## 是否允许 null 值。
+## [br]
+## @api public
 @export var allow_null: bool = true
 
 ## 默认值。`GFBlackboardSchema.apply_defaults()` 会在缺字段时使用。
+## [br]
+## @api public
+## [br]
+## @schema default_value: Variant default blackboard value.
 @export var default_value: Variant = null
 
 ## 可选元数据，供编辑器、调试器或项目工具使用。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary metadata for editor, debugger, or project tooling.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取稳定字段键。
+## [br]
+## @api public
+## [br]
 ## @return 字段键。
 func get_key() -> StringName:
 	return key
 
 
 ## 检查输入值是否符合字段声明。
+## [br]
+## @api public
+## [br]
 ## @param value: 待检查值。
+## [br]
 ## @return 符合声明时返回 true。
+## [br]
+## @schema value: Variant value to validate.
 func is_value_valid(value: Variant) -> bool:
 	if value == null:
 		return allow_null
@@ -110,15 +143,31 @@ func is_value_valid(value: Variant) -> bool:
 
 
 ## 将输入值转换为字段要求的类型。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @return 转换后的值。
+## [br]
+## @schema value: Variant value to coerce.
+## [br]
+## @schema return: Variant coerced value.
 func coerce_value(value: Variant) -> Variant:
 	return try_coerce_value(value).get("value")
 
 
 ## 尝试转换输入值并返回转换报告。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @return 包含 ok、value、message 的转换报告。
+## [br]
+## @schema value: Variant value to coerce.
+## [br]
+## @schema return: Dictionary with ok, value, and message.
 func try_coerce_value(value: Variant) -> Dictionary:
 	if value == null:
 		return _make_coerce_result(true, null)
@@ -161,6 +210,9 @@ func try_coerce_value(value: Variant) -> Dictionary:
 
 
 ## 创建同内容拷贝，避免运行时修改污染共享 Resource。
+## [br]
+## @api public
+## [br]
 ## @return 新字段声明。
 func duplicate_entry() -> GFBlackboardEntry:
 	var entry := GFBlackboardEntry.new()
@@ -174,7 +226,12 @@ func duplicate_entry() -> GFBlackboardEntry:
 
 
 ## 导出字段声明摘要。
+## [br]
+## @api public
+## [br]
 ## @return 字段声明字典。
+## [br]
+## @schema return: Dictionary entry description.
 func describe() -> Dictionary:
 	return {
 		"key": key,
@@ -188,7 +245,11 @@ func describe() -> Dictionary:
 
 
 ## 将字段类型转换为可读名称。
+## [br]
+## @api public
+## [br]
 ## @param type_id: 字段类型。
+## [br]
 ## @return 类型名称。
 static func value_type_to_name(type_id: ValueType) -> String:
 	match type_id:

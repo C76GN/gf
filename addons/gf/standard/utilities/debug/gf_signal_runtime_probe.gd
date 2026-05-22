@@ -2,6 +2,12 @@
 ##
 ## 以显式 watch 的方式连接节点信号，并把实际发射记录为只读事件快照。
 ## 它不修改被观察节点，不解释业务语义，也不应默认用于生产环境全局采样。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSignalRuntimeProbe
 extends RefCounted
 
@@ -9,36 +15,70 @@ extends RefCounted
 # --- 信号 ---
 
 ## 记录到信号发射事件后发出。
+## [br]
+## @api public
+## [br]
 ## @param event: 发射事件快照。
+## [br]
+## @schema event: Dictionary，包含 timestamp_msec、process_frame、physics_frame、source_instance_id、source_node_path、signal_name、argument_count、arguments 和 connections。
 signal signal_emitted(event: Dictionary)
 
 ## 开始监听一个节点信号后发出。
+## [br]
+## @api public
+## [br]
 ## @param source_path: 信号来源节点路径。
+## [br]
 ## @param signal_name: 信号名称。
 signal signal_watch_started(source_path: String, signal_name: StringName)
 
 ## 停止监听一个节点信号后发出。
+## [br]
+## @api public
+## [br]
 ## @param source_path: 信号来源节点路径。
+## [br]
 ## @param signal_name: 信号名称。
 signal signal_watch_stopped(source_path: String, signal_name: StringName)
 
 
 # --- 常量 ---
 
+## 默认保留的最近信号发射事件数量。
+## [br]
+## @api public
 const DEFAULT_MAX_EVENTS: int = 256
+
 const _MAX_SUPPORTED_ARGUMENT_COUNT: int = 16
+
+## 默认单个信号最多追踪的参数数量。
+## [br]
+## @api public
 const DEFAULT_MAX_ARGUMENT_COUNT: int = _MAX_SUPPORTED_ARGUMENT_COUNT
+
+## 默认递归监听节点树深度上限。
+## [br]
+## @api public
 const DEFAULT_MAX_WATCH_TREE_DEPTH: int = 64
+
+## 默认递归监听节点树数量上限。
+## [br]
+## @api public
 const DEFAULT_MAX_WATCH_TREE_NODES: int = 4096
+
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
 
 
 # --- 公共变量 ---
 
 ## 最多保留的最近事件数量。小于等于 0 表示不保留历史，只发出 signal_emitted。
+## [br]
+## @api public
 var max_events: int = DEFAULT_MAX_EVENTS
 
 ## 单个信号最多支持追踪的参数数量。
+## [br]
+## @api public
 var max_argument_count: int = DEFAULT_MAX_ARGUMENT_COUNT
 
 
@@ -51,9 +91,18 @@ var _events: Array[Dictionary] = []
 # --- 公共方法 ---
 
 ## 监听单个节点的信号。
+## [br]
+## @api public
+## [br]
 ## @param source: 需要观察的节点。
+## [br]
 ## @param options: 选项，支持 include_signals、exclude_signals、include_internal、max_argument_count 与 connect_flags。
+## [br]
 ## @return 监听报告。
+## [br]
+## @schema options: Dictionary，支持 include_signals、exclude_signals、include_internal、max_argument_count 和 connect_flags。
+## [br]
+## @schema return: Dictionary，包含 ok、watched_count、skipped_count 和 errors。
 func watch_node(source: Node, options: Dictionary = {}) -> Dictionary:
 	if source == null:
 		return _make_report(false, 0, 0, ["source_is_null"])
@@ -101,9 +150,18 @@ func watch_node(source: Node, options: Dictionary = {}) -> Dictionary:
 
 
 ## 递归监听节点树。
+## [br]
+## @api public
+## [br]
 ## @param root: 需要观察的根节点。
+## [br]
 ## @param options: 选项，支持 watch_node() 选项以及 recursive、include_internal_nodes、max_node_depth 与 max_nodes。
+## [br]
 ## @return 监听报告。
+## [br]
+## @schema options: Dictionary，支持 watch_node() 选项以及 recursive、include_internal_nodes、max_node_depth 和 max_nodes。
+## [br]
+## @schema return: Dictionary，包含 ok、watched_count、skipped_count 和 errors。
 func watch_tree(root: Node, options: Dictionary = {}) -> Dictionary:
 	if root == null:
 		return _make_report(false, 0, 0, ["root_is_null"])
@@ -130,7 +188,11 @@ func watch_tree(root: Node, options: Dictionary = {}) -> Dictionary:
 
 
 ## 停止监听某个节点。
+## [br]
+## @api public
+## [br]
 ## @param source: 需要停止观察的节点。
+## [br]
 ## @return 断开的信号数量。
 func unwatch_node(source: Node) -> int:
 	if source == null:
@@ -149,6 +211,9 @@ func unwatch_node(source: Node) -> int:
 
 
 ## 停止所有监听。
+## [br]
+## @api public
+## [br]
 ## @return 断开的信号数量。
 func unwatch_all() -> int:
 	var removed_count := 0
@@ -161,12 +226,19 @@ func unwatch_all() -> int:
 
 
 ## 清空最近事件。
+## [br]
+## @api public
 func clear_events() -> void:
 	_events.clear()
 
 
 ## 获取最近事件副本。
+## [br]
+## @api public
+## [br]
 ## @return 事件快照数组。
+## [br]
+## @schema return: Array[Dictionary]，每个元素包含 timestamp_msec、process_frame、physics_frame、source_instance_id、source_node_path、signal_name、argument_count、arguments 和 connections。
 func get_events() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for event: Dictionary in _events:
@@ -175,13 +247,22 @@ func get_events() -> Array[Dictionary]:
 
 
 ## 获取被监听的信号数量。
+## [br]
+## @api public
+## [br]
+## @return 当前有效监听数量。
 func get_watch_count() -> int:
 	_prune_invalid_watches()
 	return _watched.size()
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 watch_count、event_count、max_events、max_argument_count 和 watches。
 func get_debug_snapshot() -> Dictionary:
 	_prune_invalid_watches()
 	return {

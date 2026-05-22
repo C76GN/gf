@@ -98,20 +98,19 @@ func test_watch_tree_reports_node_limit() -> void:
 
 func test_signal_graph_dock_keeps_empty_runtime_page_compact() -> void:
 	var dock: Variant = GF_SIGNAL_GRAPH_DOCK.new()
-	dock._build_ui()
-	dock._render_events()
-	var root_box := dock.get_child(0) as Control
+	var snapshot: Dictionary = dock.get_debug_snapshot()
+	var ui := snapshot["ui"] as Dictionary
 
 	assert_eq(dock.custom_minimum_size, Vector2.ZERO, "Signal Diagnostics 不应设置自定义最小高度。")
-	assert_eq(root_box.anchor_right, 1.0, "Signal Diagnostics 内容应横向铺满父容器。")
-	assert_eq(root_box.anchor_bottom, 1.0, "Signal Diagnostics 内容应纵向跟随父容器。")
-	assert_true(dock._event_empty_state_label.visible, "没有发射记录时应显示紧凑空态说明。")
-	assert_false(dock._event_tree.visible, "没有发射记录时不应显示只有表头的空表格。")
-	assert_eq(dock._persistent_only_check.text, "保存连接", "连接过滤选项应使用面向用户的直观命名。")
-	assert_eq(dock._include_empty_check.text, "未连接信号", "信号过滤选项应说明它显示未连接的信号。")
-	assert_eq(dock._live_check.text, "追踪发射", "发射记录开关应说明它记录信号发射。")
+	assert_eq(float(ui["root_anchor_right"]), 1.0, "Signal Diagnostics 内容应横向铺满父容器。")
+	assert_eq(float(ui["root_anchor_bottom"]), 1.0, "Signal Diagnostics 内容应纵向跟随父容器。")
+	assert_true(bool(ui["event_empty_visible"]), "没有发射记录时应显示紧凑空态说明。")
+	assert_false(bool(ui["event_tree_visible"]), "没有发射记录时不应显示只有表头的空表格。")
+	assert_eq(String(ui["persistent_only_text"]), "保存连接", "连接过滤选项应使用面向用户的直观命名。")
+	assert_eq(String(ui["include_empty_text"]), "未连接信号", "信号过滤选项应说明它显示未连接的信号。")
+	assert_eq(String(ui["live_text"]), "追踪发射", "发射记录开关应说明它记录信号发射。")
 	assert_true(
-		dock._event_empty_state_label.text.contains("追踪发射"),
+		String(ui["event_empty_text"]).contains("追踪发射"),
 		"发射记录空态应说明如何开始记录信号发射。"
 	)
 
@@ -127,8 +126,7 @@ func test_signal_graph_dock_tracks_saved_connection_signals_without_unconnected_
 	add_child(dock)
 	dock.set_graph_source(source)
 
-	dock._live_check.button_pressed = true
-	dock._on_live_toggled(true)
+	dock.set_live_tracking_enabled(true)
 	source.value_changed.emit(7)
 	source.no_args.emit()
 

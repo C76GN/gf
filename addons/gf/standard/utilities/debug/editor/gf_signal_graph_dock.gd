@@ -4,6 +4,12 @@
 ##
 ## 基于 GFSceneSignalAudit 渲染编辑器中保存的信号连接，并可显式开启
 ## GFSignalRuntimeProbe 观察当前场景信号发射。面板只读，不修改场景。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
 class_name GFSignalGraphDock
 extends Control
 
@@ -16,8 +22,7 @@ const _NOISY_UNCONNECTED_SIGNAL_NAMES: Array[StringName] = [
 	&"draw",
 ]
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
-const GFSignalRuntimeProbeBase = preload("res://addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd")
-const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _EDITOR_WORKSPACE_UI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -27,7 +32,7 @@ var _last_graph: Dictionary = {}
 var _last_events: Array[Dictionary] = []
 var _live_watch_count: int = 0
 var _live_signal_names: PackedStringArray = PackedStringArray()
-var _probe: GFSignalRuntimeProbeBase = null
+var _probe: GFSignalRuntimeProbe = null
 var _persistent_only_check: CheckBox = null
 var _include_empty_check: CheckBox = null
 var _live_check: CheckBox = null
@@ -59,6 +64,9 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 设置要查看的根节点。
+## [br]
+## @api public
+## [br]
 ## @param root: 根节点；为空时刷新时会尝试使用当前编辑场景根节点。
 func set_graph_source(root: Node) -> void:
 	_root_ref = weakref(root) if root != null else null
@@ -66,6 +74,9 @@ func set_graph_source(root: Node) -> void:
 
 
 ## 刷新信号图。
+## [br]
+## @api public
+## [br]
 ## @param root: 可选根节点；为空时使用 set_graph_source() 或当前编辑场景根节点。
 func refresh(root: Node = null) -> void:
 	_build_ui()
@@ -89,19 +100,79 @@ func refresh(root: Node = null) -> void:
 	_restart_live_probe_if_enabled()
 
 
+## 设置运行时信号发射追踪开关。
+## [br]
+## @api public
+## [br]
+## @param enabled: 为 true 时追踪当前可见信号；为 false 时停止追踪。
+func set_live_tracking_enabled(enabled: bool) -> void:
+	_build_ui()
+	if _live_check != null:
+		_live_check.set_pressed_no_signal(enabled)
+	if enabled:
+		_start_live_probe()
+	else:
+		_stop_live_probe()
+	_render_events()
+
+
 ## 获取最近一次信号图快照。
+## [br]
+## @api public
+## [br]
 ## @return 信号图字典副本。
+## [br]
+## @schema return: Dictionary，包含 GFSceneSignalAudit.build_signal_graph() 返回的信号图字段。
 func get_last_graph() -> Dictionary:
 	return _last_graph.duplicate(true)
 
 
 ## 获取最近信号发射记录。
+## [br]
+## @api public
+## [br]
 ## @return 发射记录副本。
+## [br]
+## @schema return: Array[Dictionary]，每个元素包含 timestamp_msec、source_node_path、signal_name、arguments 和 connections 等字段。
 func get_recent_events() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for event: Dictionary in _last_events:
 		result.append(event.duplicate(true))
 	return result
+
+
+## 获取面板调试快照。
+## [br]
+## @api public
+## [br]
+## @return 面板调试快照。
+## [br]
+## @schema return: Dictionary，包含 graph、recent_events、live 和 ui 分区，用于编辑器诊断和测试。
+func get_debug_snapshot() -> Dictionary:
+	_build_ui()
+	_render_events()
+	var root_box: Control = (get_child(0) as Control) if get_child_count() > 0 else null
+	return {
+		"graph": get_last_graph(),
+		"recent_events": get_recent_events(),
+		"live": {
+			"enabled": _live_check != null and _live_check.button_pressed,
+			"watch_count": _live_watch_count,
+			"signal_names": _live_signal_names.duplicate(),
+		},
+		"ui": {
+			"custom_minimum_size": custom_minimum_size,
+			"root_anchor_right": root_box.anchor_right if root_box != null else 0.0,
+			"root_anchor_bottom": root_box.anchor_bottom if root_box != null else 0.0,
+			"event_empty_visible": _event_empty_state_label != null and _event_empty_state_label.visible,
+			"event_tree_visible": _event_tree != null and _event_tree.visible,
+			"event_empty_text": _event_empty_state_label.text if _event_empty_state_label != null else "",
+			"persistent_only_text": _persistent_only_check.text if _persistent_only_check != null else "",
+			"include_empty_text": _include_empty_check.text if _include_empty_check != null else "",
+			"live_text": _live_check.text if _live_check != null else "",
+			"details_visible": _details != null and _details.visible,
+		},
+	}
 
 
 # --- 私有/辅助方法 ---
@@ -110,7 +181,7 @@ func _build_ui() -> void:
 	if _tree != null:
 		return
 
-	GFEditorWorkspaceUI.apply_page_root(self)
+	_EDITOR_WORKSPACE_UI.apply_page_root(self)
 
 	var root_box := VBoxContainer.new()
 	root_box.clip_contents = true
@@ -119,10 +190,10 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := GFEditorWorkspaceUI.make_toolbar()
+	var toolbar := _EDITOR_WORKSPACE_UI.make_toolbar()
 	root_box.add_child(toolbar)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "重新读取当前场景信号连接。", refresh))
+	toolbar.add_child(_EDITOR_WORKSPACE_UI.make_button("刷新", "重新读取当前场景信号连接。", refresh))
 
 	_persistent_only_check = CheckBox.new()
 	_persistent_only_check.text = "保存连接"
@@ -143,7 +214,7 @@ func _build_ui() -> void:
 	_live_check.toggled.connect(_on_live_toggled)
 	toolbar.add_child(_live_check)
 
-	_clear_events_button = GFEditorWorkspaceUI.make_button("清空记录", "清空信号发射记录。", _on_clear_events_pressed)
+	_clear_events_button = _EDITOR_WORKSPACE_UI.make_button("清空记录", "清空信号发射记录。", _on_clear_events_pressed)
 	_clear_events_button.disabled = true
 	toolbar.add_child(_clear_events_button)
 
@@ -158,10 +229,10 @@ func _build_ui() -> void:
 	_details_toggle.toggled.connect(_on_details_toggled)
 	toolbar.add_child(_details_toggle)
 
-	_summary_label = GFEditorWorkspaceUI.make_summary_label()
+	_summary_label = _EDITOR_WORKSPACE_UI.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_hint_label = GFEditorWorkspaceUI.make_empty_label()
+	_hint_label = _EDITOR_WORKSPACE_UI.make_empty_label()
 	_hint_label.text = "连接页查看场景保存的信号连接；发射记录页查看开启“追踪发射”后的信号发射。只读。"
 	root_box.add_child(_hint_label)
 
@@ -176,7 +247,7 @@ func _build_ui() -> void:
 	connection_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tabs.add_child(connection_page)
 
-	_empty_state_label = GFEditorWorkspaceUI.make_empty_label()
+	_empty_state_label = _EDITOR_WORKSPACE_UI.make_empty_label()
 	_empty_state_label.text = "打开一个场景，或在场景树中选中节点后点击刷新。"
 	_empty_state_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	_empty_state_label.vertical_alignment = VERTICAL_ALIGNMENT_TOP
@@ -192,7 +263,7 @@ func _build_ui() -> void:
 	event_page.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_tabs.add_child(event_page)
 
-	_event_empty_state_label = GFEditorWorkspaceUI.make_empty_label()
+	_event_empty_state_label = _EDITOR_WORKSPACE_UI.make_empty_label()
 	_event_empty_state_label.text = _get_event_empty_text()
 	event_page.add_child(_event_empty_state_label)
 
@@ -200,7 +271,7 @@ func _build_ui() -> void:
 	_event_tree.item_selected.connect(_on_event_tree_item_selected)
 	event_page.add_child(_event_tree)
 
-	_details = GFEditorWorkspaceUI.make_details_output()
+	_details = _EDITOR_WORKSPACE_UI.make_details_output()
 	_details.visible = false
 	root_box.add_child(_details)
 
@@ -243,7 +314,7 @@ func _render_graph() -> void:
 
 	_tree.clear()
 	if not bool(_last_graph.get("ok", false)):
-		GFEditorWorkspaceUI.set_status(_summary_label, String(_last_graph.get("message", "信号图不可用。")), GFEditorWorkspaceUI.WARNING_TEXT_COLOR)
+		_EDITOR_WORKSPACE_UI.set_status(_summary_label, String(_last_graph.get("message", "信号图不可用。")), _EDITOR_WORKSPACE_UI.WARNING_TEXT_COLOR)
 		_tree.visible = false
 		_empty_state_label.visible = true
 		_empty_state_label.text = "打开一个场景，或在场景树中选中节点后点击刷新。"
@@ -259,7 +330,7 @@ func _render_graph() -> void:
 		connection_total,
 		_last_events.size(),
 	]
-	_summary_label.modulate = GFEditorWorkspaceUI.OK_TEXT_COLOR
+	_summary_label.modulate = _EDITOR_WORKSPACE_UI.OK_TEXT_COLOR
 	_details.text = "选中一条连接、信号或发射记录后查看详情。"
 
 	if connection_total == 0 and signal_total == 0:
@@ -366,7 +437,7 @@ func _start_live_probe() -> void:
 	if _live_signal_names.is_empty():
 		return
 
-	_probe = GFSignalRuntimeProbeBase.new()
+	_probe = GFSignalRuntimeProbe.new()
 	_probe.max_events = _MAX_EVENT_COUNT
 	_probe.signal_emitted.connect(_on_probe_signal_emitted)
 	var report := _probe.watch_tree(target_root, {

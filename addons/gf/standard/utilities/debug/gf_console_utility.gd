@@ -2,6 +2,12 @@
 ##
 ## 提供命令注册、解析与执行能力，并在初始化时构建覆盖全屏的调试 GUI。
 ## 默认通过快捷键呼出，同时会消费 `GFLogUtility` 的日志信号进行彩色输出。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFConsoleUtility
 extends GFUtility
 
@@ -9,6 +15,8 @@ extends GFUtility
 # --- 枚举 ---
 
 ## 控制台命令风险等级。
+## [br]
+## @api public
 enum CommandTier {
 	## 只读观察类命令。
 	OBSERVE,
@@ -21,16 +29,22 @@ enum CommandTier {
 
 # --- 常量 ---
 
-const GFConsoleCommandDefinitionBase = preload("res://addons/gf/standard/utilities/debug/gf_console_command_definition.gd")
+## DANGER 命令的确认参数。
+## [br]
+## @api public
 const DANGER_CONFIRMATION_ARGUMENT: String = "--confirm"
 
 
 # --- 公共变量 ---
 
 ## 呼出或隐藏控制台的快捷键；默认为 `KEY_F1`。
+## [br]
+## @api public
 var toggle_key: Key = KEY_F1
 
 ## 控制台最多保留的输出行数，避免高频日志无限增长。
+## [br]
+## @api public
 var max_output_lines: int = 1000:
 	set(value):
 		max_output_lines = maxi(value, 1)
@@ -38,6 +52,8 @@ var max_output_lines: int = 1000:
 			_console_gui.max_output_lines = max_output_lines
 
 ## 控制台最多保留的历史命令数量。
+## [br]
+## @api public
 var max_history_size: int = 100:
 	set(value):
 		max_history_size = maxi(value, 1)
@@ -45,6 +61,8 @@ var max_history_size: int = 100:
 			_console_gui.max_history_size = max_history_size
 
 ## 控制台背景透明度，范围 0 到 1。
+## [br]
+## @api public
 var background_alpha: float = 0.85:
 	set(value):
 		background_alpha = clampf(value, 0.0, 1.0)
@@ -52,6 +70,8 @@ var background_alpha: float = 0.85:
 			_console_gui.background_alpha = background_alpha
 
 ## 是否使用可拖拽、可缩放的窗口模式。默认 false 保持全屏覆盖。
+## [br]
+## @api public
 var windowed: bool = false:
 	set(value):
 		windowed = value
@@ -59,6 +79,8 @@ var windowed: bool = false:
 			_console_gui.windowed = windowed
 
 ## 窗口模式初始尺寸相对视口比例。
+## [br]
+## @api public
 var initial_window_size_ratio: Vector2 = Vector2(0.72, 0.55):
 	set(value):
 		initial_window_size_ratio = Vector2(
@@ -69,6 +91,8 @@ var initial_window_size_ratio: Vector2 = Vector2(0.72, 0.55):
 			_console_gui.initial_window_size_ratio = initial_window_size_ratio
 
 ## 窗口模式最小尺寸。
+## [br]
+## @api public
 var minimum_window_size: Vector2 = Vector2(360.0, 220.0):
 	set(value):
 		minimum_window_size = Vector2(maxf(value.x, 120.0), maxf(value.y, 80.0))
@@ -76,6 +100,8 @@ var minimum_window_size: Vector2 = Vector2(360.0, 220.0):
 			_console_gui.minimum_window_size = minimum_window_size
 
 ## 是否把控制台放在较高 CanvasLayer 层级。
+## [br]
+## @api public
 var keep_topmost: bool = true:
 	set(value):
 		keep_topmost = value
@@ -83,29 +109,38 @@ var keep_topmost: bool = true:
 			_console_gui.keep_topmost = keep_topmost
 
 ## 是否只在 debug 构建中创建控制台 GUI。发布构建需要显式关闭此项才会创建控制台。
+## [br]
+## @api public
 var debug_only: bool = true
 
 ## 允许执行的最高命令风险等级。
+## [br]
+## @api public
 var max_command_tier: CommandTier = CommandTier.CONTROL
 
 ## 执行 DANGER 命令时是否要求传入 `--confirm` 参数。
+## [br]
+## @api public
 var require_danger_confirmation: bool = true
 
 
 # --- 私有变量 ---
 
-## 已注册命令表。
+# 已注册命令表。
 var _commands: Dictionary = {}
 
-## 控制台 GUI 实例。
+# 控制台 GUI 实例。
 var _console_gui: _GFConsoleGUI
 
-## 当前已连接的日志工具。
+# 当前已连接的日志工具。
 var _connected_log_util: GFLogUtility = null
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化控制台命令表和运行时 GUI。
+## [br]
+## @api public
 func init() -> void:
 	if debug_only and not OS.is_debug_build():
 		return
@@ -137,6 +172,9 @@ func init() -> void:
 		tree.root.call_deferred("add_child", _console_gui)
 
 
+## 连接日志工具信号。
+## [br]
+## @api public
 func ready() -> void:
 	var log_util := get_utility(GFLogUtility) as GFLogUtility
 	if log_util == null or not log_util.has_signal("log_emitted"):
@@ -152,6 +190,9 @@ func ready() -> void:
 	_connected_log_util = log_util
 
 
+## 释放 GUI 并断开日志信号。
+## [br]
+## @api public
 func dispose() -> void:
 	if _connected_log_util != null and _connected_log_util.log_emitted.is_connected(_on_log_emitted):
 		_connected_log_util.log_emitted.disconnect(_on_log_emitted)
@@ -170,10 +211,18 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 注册控制台命令。
+## [br]
+## @api public
+## [br]
 ## @param cmd_name: 指令名称。
+## [br]
 ## @param callback: 指令回调，签名为 `func(args: PackedStringArray) -> void`。
+## [br]
 ## @param description: 指令说明文本。
+## [br]
 ## @param metadata: 项目自定义元数据。
+## [br]
+## @schema metadata: Dictionary，支持 tier 等项目自定义命令元数据。
 func register_command(cmd_name: String, callback: Callable, description: String, metadata: Dictionary = {}) -> void:
 	_commands[cmd_name] = {
 		"callback": callback,
@@ -183,9 +232,13 @@ func register_command(cmd_name: String, callback: Callable, description: String,
 
 
 ## 注册资源化控制台命令。
+## [br]
+## @api public
+## [br]
 ## @param definition: 命令资源定义。
+## [br]
 ## @param callback: 指令回调，签名为 `func(args: PackedStringArray) -> void`。
-func register_command_definition(definition: GFConsoleCommandDefinitionBase, callback: Callable) -> void:
+func register_command_definition(definition: GFConsoleCommandDefinition, callback: Callable) -> void:
 	if definition == null or not callback.is_valid():
 		return
 
@@ -197,12 +250,29 @@ func register_command_definition(definition: GFConsoleCommandDefinitionBase, cal
 
 
 ## 注销控制台命令。
+## [br]
+## @api public
+## [br]
 ## @param cmd_name: 指令名称。
 func unregister_command(cmd_name: String) -> void:
 	_commands.erase(cmd_name)
 
 
+## 检查控制台命令是否已注册。
+## [br]
+## @api public
+## [br]
+## @param cmd_name: 指令名称。
+## [br]
+## @return 已注册返回 true。
+func has_command(cmd_name: String) -> bool:
+	return _commands.has(cmd_name)
+
+
 ## 获取当前已注册命令名称。
+## [br]
+## @api public
+## [br]
 ## @return 排序后的命令名称数组。
 func get_command_names() -> PackedStringArray:
 	var names := PackedStringArray()
@@ -212,8 +282,31 @@ func get_command_names() -> PackedStringArray:
 	return names
 
 
+## 获取控制台命令目录。
+## [br]
+## @api public
+## [br]
+## @return 命令元数据字典。
+## [br]
+## @schema return: Dictionary[String, Dictionary]，每个值包含 description、metadata 和 tier。
+func get_command_catalog() -> Dictionary:
+	var result: Dictionary = {}
+	for cmd_name: String in get_command_names():
+		var entry: Dictionary = _commands[cmd_name]
+		result[cmd_name] = {
+			"description": String(entry.get("description", "")),
+			"metadata": (entry.get("metadata", {}) as Dictionary).duplicate(true),
+			"tier": _get_command_tier(entry),
+		}
+	return result
+
+
 ## 根据前缀获取命令补全候选。
+## [br]
+## @api public
+## [br]
 ## @param prefix: 命令名前缀。
+## [br]
 ## @return 排序后的候选命令名数组。
 func suggest_commands(prefix: String) -> PackedStringArray:
 	var suggestions := PackedStringArray()
@@ -224,9 +317,15 @@ func suggest_commands(prefix: String) -> PackedStringArray:
 
 
 ## 根据字符串相似度获取可能的命令名，用于未知命令诊断。
+## [br]
+## @api public
+## [br]
 ## @param cmd_name: 用户输入的命令名。
+## [br]
 ## @param limit: 最多返回的候选数量。
+## [br]
 ## @param threshold: 最低相似度，范围 0 到 1。
+## [br]
 ## @return 按相似度降序排列的候选命令名。
 func suggest_similar_commands(cmd_name: String, limit: int = 3, threshold: float = 0.5) -> PackedStringArray:
 	if cmd_name.is_empty() or _commands.is_empty() or limit <= 0:
@@ -249,7 +348,11 @@ func suggest_similar_commands(cmd_name: String, limit: int = 3, threshold: float
 
 
 ## 解析并执行一条原始输入。
+## [br]
+## @api public
+## [br]
 ## @param raw_input: 用户输入的完整字符串。
+## [br]
 ## @return 找到并成功执行命令时返回 `true`。
 func execute_command(raw_input: String) -> bool:
 	var trimmed := raw_input.strip_edges()
@@ -286,6 +389,70 @@ func execute_command(raw_input: String) -> bool:
 	var cb: Callable = entry["callback"]
 	cb.call(args)
 	return true
+
+
+## 向控制台输出追加一行 BBCode 文本。
+## [br]
+## @api public
+## [br]
+## @param bbcode_line: 要追加的一行 BBCode 文本。
+func append_output_line(bbcode_line: String) -> void:
+	if is_instance_valid(_console_gui):
+		_console_gui.append_text(bbcode_line)
+
+
+## 向控制台输出追加多行 BBCode 文本。
+## [br]
+## @api public
+## [br]
+## @param bbcode_lines: 要追加的 BBCode 文本行列表。
+func append_output_lines(bbcode_lines: PackedStringArray) -> void:
+	if is_instance_valid(_console_gui):
+		_console_gui.append_lines(bbcode_lines)
+
+
+## 清空控制台输出。
+## [br]
+## @api public
+func clear_output() -> void:
+	if is_instance_valid(_console_gui):
+		_console_gui.clear_output()
+
+
+## 立即刷新待追加的控制台输出。
+## [br]
+## @api public
+func flush_output() -> void:
+	if is_instance_valid(_console_gui):
+		_console_gui.flush_output()
+
+
+## 获取控制台调试快照。
+## [br]
+## @api public
+## [br]
+## @return 控制台命令、GUI 和配置状态。
+## [br]
+## @schema return: Dictionary，包含 command_count、command_names、command_catalog、has_console_gui、gui、配置字段。
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"command_count": _commands.size(),
+		"command_names": get_command_names(),
+		"command_catalog": get_command_catalog(),
+		"has_console_gui": is_instance_valid(_console_gui),
+		"gui": _console_gui.get_debug_snapshot() if is_instance_valid(_console_gui) else {},
+		"toggle_key": toggle_key,
+		"max_output_lines": max_output_lines,
+		"max_history_size": max_history_size,
+		"background_alpha": background_alpha,
+		"windowed": windowed,
+		"initial_window_size_ratio": initial_window_size_ratio,
+		"minimum_window_size": minimum_window_size,
+		"keep_topmost": keep_topmost,
+		"debug_only": debug_only,
+		"max_command_tier": max_command_tier,
+		"require_danger_confirmation": require_danger_confirmation,
+	}
 
 
 # --- 私有/辅助方法 ---
@@ -550,6 +717,11 @@ func _on_log_emitted(level: int, tag: String, message: String) -> void:
 class _GFConsoleGUI extends CanvasLayer:
 	# --- 信号 ---
 
+	## GUI 提交控制台输入时发出。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @param raw_input: 用户提交的原始输入。
 	signal command_submitted(raw_input: String)
 
 
@@ -563,9 +735,19 @@ class _GFConsoleGUI extends CanvasLayer:
 
 	# --- 公共变量 ---
 
+	## 呼出或隐藏控制台的快捷键。
+	## [br]
+	## @api framework_internal
 	var toggle_key: Key
+
+	## 命令名提供回调。
+	## [br]
+	## @api framework_internal
 	var command_name_provider: Callable
 
+	## 控制台最多保留的输出行数。
+	## [br]
+	## @api framework_internal
 	var max_output_lines: int = 1000:
 		set(value):
 			max_output_lines = maxi(value, 1)
@@ -573,21 +755,33 @@ class _GFConsoleGUI extends CanvasLayer:
 			if is_instance_valid(_output):
 				_render_output()
 
+	## 控制台最多保留的历史命令数量。
+	## [br]
+	## @api framework_internal
 	var max_history_size: int = 100:
 		set(value):
 			max_history_size = maxi(value, 1)
 			_trim_command_history()
 
+	## 控制台背景透明度，范围 0 到 1。
+	## [br]
+	## @api framework_internal
 	var background_alpha: float = 0.85:
 		set(value):
 			background_alpha = clampf(value, 0.0, 1.0)
 			_apply_background_alpha()
 
+	## 是否使用可拖拽、可缩放的窗口模式。
+	## [br]
+	## @api framework_internal
 	var windowed: bool = false:
 		set(value):
 			windowed = value
 			_layout_console()
 
+	## 窗口模式初始尺寸相对视口比例。
+	## [br]
+	## @api framework_internal
 	var initial_window_size_ratio: Vector2 = Vector2(0.72, 0.55):
 		set(value):
 			initial_window_size_ratio = Vector2(
@@ -597,11 +791,17 @@ class _GFConsoleGUI extends CanvasLayer:
 			_window_layout_initialized = false
 			_layout_console()
 
+	## 窗口模式最小尺寸。
+	## [br]
+	## @api framework_internal
 	var minimum_window_size: Vector2 = Vector2(360.0, 220.0):
 		set(value):
 			minimum_window_size = Vector2(maxf(value.x, 120.0), maxf(value.y, 80.0))
 			_layout_console()
 
+	## 是否把控制台放在较高 CanvasLayer 层级。
+	## [br]
+	## @api framework_internal
 	var keep_topmost: bool = true:
 		set(value):
 			keep_topmost = value
@@ -736,21 +936,30 @@ class _GFConsoleGUI extends CanvasLayer:
 
 	# --- 公共方法 ---
 
-## 向控制台输出追加一行文本。
-## @param bbcode_line: 要追加的一行 BBCode 文本。
+	## 向控制台输出追加一行文本。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @param bbcode_line: 要追加的一行 BBCode 文本。
 	func append_text(bbcode_line: String) -> void:
 		_pending_lines.append(bbcode_line)
 		_queue_flush()
 
 
-## 向控制台输出追加多行文本。
-## @param bbcode_lines: 要追加的 BBCode 文本行列表。
+	## 向控制台输出追加多行文本。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @param bbcode_lines: 要追加的 BBCode 文本行列表。
 	func append_lines(bbcode_lines: PackedStringArray) -> void:
 		for bbcode_line: String in bbcode_lines:
 			_pending_lines.append(bbcode_line)
 		_queue_flush()
 
 
+	## 清空控制台输出。
+	## [br]
+	## @api framework_internal
 	func clear_output() -> void:
 		_output_lines.clear()
 		_pending_lines.clear()
@@ -758,17 +967,51 @@ class _GFConsoleGUI extends CanvasLayer:
 		_output.clear()
 
 
+	## 立即刷新待追加的控制台输出。
+	## [br]
+	## @api framework_internal
 	func flush_output() -> void:
 		_flush_pending_lines()
 
 
-## 检查日志标签是否被忽略。
-## @param tag: 日志标签。
+	## 检查日志标签是否被忽略。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @param tag: 日志标签。
+	## [br]
+	## @return 被忽略返回 true。
 	func is_tag_ignored(tag: String) -> bool:
 		if _ignored_tags.is_empty():
 			return false
 
 		return _ignored_tags.has(tag)
+
+
+	## 获取 GUI 调试快照。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @return GUI 输出、历史、布局和配置状态。
+	## [br]
+	## @schema return: Dictionary，包含 visible、layer、output_lines、pending_line_count、command_history、background_alpha、windowed、resize_handle_visible、panel_size、panel_background_alpha。
+	func get_debug_snapshot() -> Dictionary:
+		return {
+			"visible": visible,
+			"layer": layer,
+			"output_lines": _output_lines.duplicate(),
+			"pending_line_count": _pending_lines.size(),
+			"command_history": _command_history.duplicate(),
+			"history_index": _history_index,
+			"background_alpha": background_alpha,
+			"windowed": windowed,
+			"resize_handle_visible": _resize_handle.visible if is_instance_valid(_resize_handle) else false,
+			"panel_size": _panel.size if is_instance_valid(_panel) else Vector2.ZERO,
+			"panel_background_alpha": _panel_style.bg_color.a if _panel_style != null else 0.0,
+			"max_output_lines": max_output_lines,
+			"max_history_size": max_history_size,
+			"keep_topmost": keep_topmost,
+		}
 
 
 	# --- 私有/辅助方法 ---

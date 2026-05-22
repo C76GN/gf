@@ -4,25 +4,49 @@
 ##
 ## 生成结果用于减少 `Gf.get_model(Type) as Type` 这类重复样板，
 ## 并为 Model / System / Utility / Command / Query 提供稳定的 IDE 补全入口。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFAccessGenerator
 extends RefCounted
 
 
 # --- 枚举 ---
 
+## 访问器目标类型。
+## [br]
+## @api public
 enum TargetKind {
+	## Model 访问器目标。
 	MODEL,
+	## System 访问器目标。
 	SYSTEM,
+	## Utility 访问器目标。
 	UTILITY,
+	## Command 访问器目标。
 	COMMAND,
+	## Query 访问器目标。
 	QUERY,
+	## Capability 访问器目标。
 	CAPABILITY,
 }
 
 
 # --- 常量 ---
 
+## 默认强类型访问器输出路径。
+## [br]
+## @api public
 const DEFAULT_OUTPUT_PATH: String = "res://gf/generated/gf_access.gd"
+
+## 默认项目常量访问器输出路径。
+## [br]
+## @api public
 const DEFAULT_PROJECT_OUTPUT_PATH: String = "res://gf/generated/gf_project_access.gd"
 const _BASE_MODEL_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_model.gd")
 const _BASE_SYSTEM_SCRIPT: Script = preload("res://addons/gf/kernel/base/gf_system.gd")
@@ -60,8 +84,14 @@ const _KNOWN_GF_PROJECT_SETTINGS: Array[String] = [
 # --- 公共方法 ---
 
 ## 扫描项目 class_name 脚本并生成访问器。
+## [br]
+## @api public
+## [br]
 ## @param output_path: 生成文件输出路径。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+## [br]
+## @return 写入结果错误码。
 func generate(output_path: String = DEFAULT_OUTPUT_PATH, overwrite_existing: bool = true) -> Error:
 	var records := collect_records()
 	var source := build_source(records)
@@ -69,8 +99,14 @@ func generate(output_path: String = DEFAULT_OUTPUT_PATH, overwrite_existing: boo
 
 
 ## 生成项目常量访问器。
+## [br]
+## @api public
+## [br]
 ## @param output_path: 生成文件输出路径。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+## [br]
+## @return 写入结果错误码。
 func generate_project_access(output_path: String = DEFAULT_PROJECT_OUTPUT_PATH, overwrite_existing: bool = true) -> Error:
 	var records := collect_project_records()
 	var source := build_project_source(records)
@@ -78,6 +114,12 @@ func generate_project_access(output_path: String = DEFAULT_PROJECT_OUTPUT_PATH, 
 
 
 ## 收集当前项目中可生成访问器的 GF 类型记录。
+## [br]
+## @api public
+## [br]
+## @return 类型记录列表。
+## [br]
+## @schema return: Array of Dictionary type records with class_name, path, script, kind, and access metadata.
 func collect_records() -> Array[Dictionary]:
 	var records: Array[Dictionary] = []
 	for global_class in ProjectSettings.get_global_class_list():
@@ -106,6 +148,12 @@ func collect_records() -> Array[Dictionary]:
 
 
 ## 收集项目层常量记录，包括命名层、InputMap 动作和 GF ProjectSettings。
+## [br]
+## @api public
+## [br]
+## @return 项目常量记录。
+## [br]
+## @schema return: Dictionary with layers, input_actions, and settings arrays.
 func collect_project_records() -> Dictionary:
 	return {
 		"layers": _collect_layer_records(),
@@ -115,7 +163,14 @@ func collect_project_records() -> Dictionary:
 
 
 ## 根据记录生成访问器源码。测试可直接调用该方法验证输出。
+## [br]
+## @api public
+## [br]
 ## @param records: 生成访问器时使用的类型记录列表。
+## [br]
+## @schema records: Array of Dictionary type records containing class_name, path, and kind.
+## [br]
+## @return GDScript 源码。
 func build_source(records: Array) -> String:
 	var builder := GFSourceBuilder.new()
 	var has_capability_records := _records_include_kind(records, TargetKind.CAPABILITY)
@@ -214,7 +269,14 @@ func build_source(records: Array) -> String:
 
 
 ## 根据项目常量记录生成访问器源码。
+## [br]
+## @api public
+## [br]
 ## @param records: 生成访问器时使用的类型记录列表。
+## [br]
+## @schema records: Dictionary with layers, input_actions, and settings arrays.
+## [br]
+## @return GDScript 源码。
 func build_project_source(records: Dictionary) -> String:
 	var builder := GFSourceBuilder.new()
 	builder.doc("GFProjectAccess: 自动生成的项目常量访问器。")
@@ -230,9 +292,16 @@ func build_project_source(records: Dictionary) -> String:
 
 
 ## 保存生成源码到指定路径。
+## [br]
+## @api public
+## [br]
 ## @param output_path: 生成文件输出路径。
+## [br]
 ## @param source: 源对象或资源。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+## [br]
+## @return 写入结果错误码。
 func save_source(output_path: String, source: String, overwrite_existing: bool = true) -> Error:
 	if output_path.is_empty():
 		push_error("[GFAccessGenerator] 输出路径为空。")

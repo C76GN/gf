@@ -2,6 +2,12 @@
 ##
 ## 将目标节点的指定位置属性缓动到目标值，适合卡牌、棋子、UI 面板等
 ## 常见表现动作。默认等待 Tween 完成后队列才会继续。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFMoveTweenAction
 extends GFVisualAction
 
@@ -9,21 +15,35 @@ extends GFVisualAction
 # --- 公共变量 ---
 
 ## 被移动的目标节点。
+## [br]
+## @api public
 var target: Node
 
 ## 要写入的位置值，通常为 Vector2 或 Vector3。
+## [br]
+## @api public
+## [br]
+## @schema target_position: Variant，可写入 property_name 的目标位置值，通常为 Vector2、Vector3 或 float。
 var target_position: Variant
 
 ## Tween 持续时间。
+## [br]
+## @api public
 var duration: float = 0.2
 
 ## 要缓动的属性名。
+## [br]
+## @api public
 var property_name: NodePath = ^"position"
 
 ## Tween 过渡类型。
+## [br]
+## @api public
 var transition_type: Tween.TransitionType = Tween.TRANS_CUBIC
 
 ## Tween 缓动类型。
+## [br]
+## @api public
 var ease_type: Tween.EaseType = Tween.EASE_OUT
 
 
@@ -48,6 +68,13 @@ func _init(
 
 # --- 公共方法 ---
 
+## 执行移动 Tween。
+## [br]
+## @api public
+## [br]
+## @return 需要等待时返回内部完成 Signal；目标无效、配置无效或瞬时写入时返回 null。
+## [br]
+## @schema return: Variant，返回内部完成 Signal 或 null。
 func execute() -> Variant:
 	if not is_instance_valid(target):
 		return null
@@ -67,21 +94,33 @@ func execute() -> Variant:
 	return _action_completed
 
 
+## 取消当前 Tween 并释放等待者。
+## [br]
+## @api public
 func cancel() -> void:
 	_clear_active_tween()
 	_emit_completed_once()
 
 
+## 暂停当前 Tween。
+## [br]
+## @api public
 func pause() -> void:
 	if is_instance_valid(_active_tween):
 		_active_tween.pause()
 
 
+## 恢复当前 Tween。
+## [br]
+## @api public
 func resume() -> void:
 	if is_instance_valid(_active_tween):
 		_active_tween.play()
 
 
+## 立即推进并完成当前 Tween。
+## [br]
+## @api public
 func finish() -> void:
 	if is_instance_valid(_active_tween):
 		_active_tween.custom_step(INF)
@@ -89,6 +128,11 @@ func finish() -> void:
 	_emit_completed_once()
 
 
+## 获取用于保护等待生命周期的目标节点。
+## [br]
+## @api public
+## [br]
+## @return 有效目标节点；无效时返回 null。
 func get_wait_guard_node() -> Node:
 	return target if is_instance_valid(target) else null
 

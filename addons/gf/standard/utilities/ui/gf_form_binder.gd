@@ -1,6 +1,12 @@
 ## GFFormBinder: 轻量 Control 表单读写绑定器。
 ##
 ## 将 StringName 字段映射到 Control 节点，提供批量 read/write 和变化信号。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFFormBinder
 extends RefCounted
 
@@ -8,8 +14,14 @@ extends RefCounted
 # --- 信号 ---
 
 ## 字段值变化时发出。
+## [br]
+## @api public
+## [br]
 ## @param key: 字段键。
+## [br]
 ## @param value: 当前控件值。
+## [br]
+## @schema value: Variant，当前控件值，类型取决于绑定控件。
 signal field_changed(key: StringName, value: Variant)
 
 
@@ -26,9 +38,16 @@ var _fields: Dictionary = {}
 # --- 公共方法 ---
 
 ## 绑定字段到控件。
+## [br]
+## @api public
+## [br]
 ## @param key: 字段键。
+## [br]
 ## @param control: 控件节点。
+## [br]
 ## @param default_value: 控件失效或读取失败时的默认值。
+## [br]
+## @schema default_value: Variant，控件失效或读取失败时返回的默认值。
 func bind_field(key: StringName, control: Control, default_value: Variant = null) -> void:
 	if key == &"":
 		push_error("[GFFormBinder] bind_field 失败：字段键为空。")
@@ -53,6 +72,9 @@ func bind_field(key: StringName, control: Control, default_value: Variant = null
 
 
 ## 解绑字段。
+## [br]
+## @api public
+## [br]
 ## @param key: 字段键。
 func unbind_field(key: StringName) -> void:
 	if _fields.has(key):
@@ -61,6 +83,8 @@ func unbind_field(key: StringName) -> void:
 
 
 ## 清空所有字段绑定。
+## [br]
+## @api public
 func clear() -> void:
 	var keys := _fields.keys()
 	for key_variant: Variant in keys:
@@ -68,6 +92,9 @@ func clear() -> void:
 
 
 ## 获取绑定字段列表。
+## [br]
+## @api public
+## [br]
 ## @return 字段键数组。
 func get_bound_fields() -> Array[StringName]:
 	var result: Array[StringName] = []
@@ -80,9 +107,18 @@ func get_bound_fields() -> Array[StringName]:
 
 
 ## 读取单个字段值。
+## [br]
+## @api public
+## [br]
 ## @param key: 字段键。
+## [br]
 ## @param fallback: 回退值。
+## [br]
+## @schema fallback: Variant，字段未绑定或控件无法读取时返回的回退值。
+## [br]
 ## @return 字段值。
+## [br]
+## @schema return: Variant，字段当前值；无法读取时返回 fallback。
 func get_field_value(key: StringName, fallback: Variant = null) -> Variant:
 	var control := _get_control(key)
 	if control == null:
@@ -94,8 +130,15 @@ func get_field_value(key: StringName, fallback: Variant = null) -> Variant:
 
 
 ## 写入单个字段值。
+## [br]
+## @api public
+## [br]
 ## @param key: 字段键。
+## [br]
 ## @param value: 字段值。
+## [br]
+## @schema value: Variant，要写入绑定控件的字段值。
+## [br]
 ## @return 成功写入时返回 true。
 func set_field_value(key: StringName, value: Variant) -> bool:
 	var control := _get_control(key)
@@ -105,7 +148,12 @@ func set_field_value(key: StringName, value: Variant) -> bool:
 
 
 ## 读取全部字段值。
+## [br]
+## @api public
+## [br]
 ## @return 字段值字典。
+## [br]
+## @schema return: Dictionary，键为字段 StringName，值为对应控件当前值。
 func read_values() -> Dictionary:
 	var data: Dictionary = {}
 	for key: StringName in get_bound_fields():
@@ -114,7 +162,13 @@ func read_values() -> Dictionary:
 
 
 ## 批量写入字段值。
+## [br]
+## @api public
+## [br]
 ## @param data: 字段值字典。
+## [br]
+## @schema data: Dictionary，键为字段名，值为要写入绑定控件的字段值。
+## [br]
 ## @param ignore_missing_fields: true 时忽略未绑定字段，false 时输出 warning。
 func write_values(data: Dictionary, ignore_missing_fields: bool = true) -> void:
 	for key_variant: Variant in data.keys():

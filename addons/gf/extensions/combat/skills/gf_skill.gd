@@ -2,6 +2,12 @@
 ##
 ## 负责冷却、施放校验与目标解析入口，
 ## 具体技能逻辑通过子类重写 `_on_execute()` 实现。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFSkill
 extends RefCounted
 
@@ -9,6 +15,9 @@ extends RefCounted
 # --- 信号 ---
 
 ## 当技能开始进入冷却时发出。
+## [br]
+## @api public
+## [br]
 ## @param skill: 进入冷却的技能实例。
 signal cooldown_started(skill: GFSkill)
 
@@ -16,24 +25,38 @@ signal cooldown_started(skill: GFSkill)
 # --- 公共变量 ---
 
 ## 技能 ID。
+## [br]
+## @api public
 var id: StringName = &""
 
 ## 最大冷却时间。
+## [br]
+## @api public
 var cooldown_max: float = 0.0
 
 ## 当前剩余冷却时间。
+## [br]
+## @api public
 var cooldown_left: float = 0.0
 
 ## 释放技能所需标签。
+## [br]
+## @api public
 var require_tags: Array[StringName] = []
 
 ## 释放技能时禁止存在的标签。
+## [br]
+## @api public
 var ignore_tags: Array[StringName] = []
 
 ## 技能拥有者。
+## [br]
+## @api public
 var owner: Object = null
 
 ## 技能索敌规则。
+## [br]
+## @api public
 var targeting_rule: GFSkillTargetingRule = null
 
 
@@ -51,6 +74,9 @@ func _init(p_owner: Object = null) -> void:
 # --- 公共方法 ---
 
 ## 更新冷却时间。
+## [br]
+## @api public
+## [br]
 ## @param p_delta: 本次更新经过的时间。
 func update(p_delta: float) -> void:
 	if cooldown_left > 0.0:
@@ -58,12 +84,18 @@ func update(p_delta: float) -> void:
 
 
 ## 注入当前技能执行所在的架构实例。
+## [br]
+## @api framework_internal
+## [br]
 ## @param architecture: 当前架构。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
 
 
 ## 检查技能当前是否允许施放。
+## [br]
+## @api public
+## [br]
 ## @return 可施放时返回 `true`。
 func can_execute() -> bool:
 	if cooldown_left > 0.0:
@@ -92,9 +124,16 @@ func can_execute() -> bool:
 
 
 ## 执行技能。
+## [br]
+## @api public
+## [br]
 ## @param manual_target: 可选的手动目标。
+## [br]
 ## @param cast_center: 可选施法中心；传入 `null` 时回退到施法者位置。
+## [br]
 ## @return 技能实际执行并进入冷却时返回 `true`。
+## [br]
+## @schema cast_center: Variant，可为 null 或 Vector2；为 null 时从 owner.global_position 推导。
 func execute(manual_target: Object = null, cast_center: Variant = null) -> bool:
 	if not can_execute():
 		return false
@@ -141,23 +180,37 @@ func execute(manual_target: Object = null, cast_center: Variant = null) -> bool:
 	return true
 
 
-# --- 虚方法（由子类重写） ---
+# --- 可重写钩子 / 虚方法 ---
 
 ## 自定义施放检查。
+## [br]
+## @api protected
+## [br]
 ## @return 允许施放时返回 `true`。
 func _custom_can_execute() -> bool:
 	return true
 
 
 ## 具体技能逻辑入口。
+## [br]
+## @api protected
+## [br]
 ## @param targets: 经过筛选后的最终目标数组。
+## [br]
+## @schema targets: Array[Object]，经过 targeting_rule 或手动目标校验后的最终目标列表。
 func _on_execute(targets: Array[Object]) -> void:
 	pass
 
 
 ## 可报告成功/失败的技能执行入口。默认调用旧的 `_on_execute()` 钩子并视为成功。
+## [br]
+## @api protected
+## [br]
 ## @param targets: 经过筛选后的最终目标数组。
+## [br]
 ## @return 技能真正生效时返回 `true`。
+## [br]
+## @schema targets: Array[Object]，经过 targeting_rule 或手动目标校验后的最终目标列表。
 func _try_execute(targets: Array[Object]) -> bool:
 	_on_execute(targets)
 	return true

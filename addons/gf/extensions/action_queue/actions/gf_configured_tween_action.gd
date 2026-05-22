@@ -1,6 +1,12 @@
 ## GFConfiguredTweenAction: 由 GFTweenActionConfig 驱动的通用 Tween 动作。
 ##
 ## 允许项目把表现动画拆成 Resource 配置，再交给 GFActionQueueSystem 编排。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFConfiguredTweenAction
 extends GFVisualAction
 
@@ -8,27 +14,32 @@ extends GFVisualAction
 # --- 信号 ---
 
 ## Tween 步骤标记到达后发出。
+## [br]
+## @api public
+## [br]
 ## @param marker_id: 标记标识。
+## [br]
 ## @param step_index: 步骤索引。
+## [br]
 ## @param target: 被缓动目标。
 signal marker_reached(marker_id: StringName, step_index: int, target: Object)
-
-
-# --- 常量 ---
-
-const GFTweenActionConfigBase = preload("res://addons/gf/extensions/action_queue/tween/gf_tween_action_config.gd")
-const GFTweenActionStepBase = preload("res://addons/gf/extensions/action_queue/tween/gf_tween_action_step.gd")
 
 
 # --- 公共变量 ---
 
 ## 被缓动的目标对象。
+## [br]
+## @api public
 var target: Object
 
 ## Tween 配置。
-var config: GFTweenActionConfigBase
+## [br]
+## @api public
+var config: GFTweenActionConfig
 
 ## 可选 Tween 宿主节点。目标不是 Node 时必须提供。
+## [br]
+## @api public
 var host_node: Node
 
 
@@ -42,7 +53,7 @@ var _initial_values: Dictionary = {}
 
 func _init(
 	p_target: Object = null,
-	p_config: GFTweenActionConfigBase = null,
+	p_config: GFTweenActionConfig = null,
 	p_host_node: Node = null
 ) -> void:
 	target = p_target
@@ -52,6 +63,13 @@ func _init(
 
 # --- 公共方法 ---
 
+## 执行配置化 Tween。
+## [br]
+## @api public
+## [br]
+## @return 需要等待时返回内部完成 Signal；配置无效、目标无效或瞬时写入时返回 null。
+## [br]
+## @schema return: Variant，返回内部完成 Signal 或 null。
 func execute() -> Variant:
 	if config == null or config.is_empty() or not is_instance_valid(target):
 		return null
@@ -92,22 +110,34 @@ func execute() -> Variant:
 	return _action_completed
 
 
+## 取消当前 Tween，并按配置恢复初始值。
+## [br]
+## @api public
 func cancel() -> void:
 	_clear_active_tween()
 	_restore_initial_values_on_cancel()
 	_emit_completed_once()
 
 
+## 暂停当前 Tween。
+## [br]
+## @api public
 func pause() -> void:
 	if is_instance_valid(_active_tween):
 		_active_tween.pause()
 
 
+## 恢复当前 Tween。
+## [br]
+## @api public
 func resume() -> void:
 	if is_instance_valid(_active_tween):
 		_active_tween.play()
 
 
+## 立即完成当前 Tween，并按配置恢复初始值。
+## [br]
+## @api public
 func finish() -> void:
 	if is_instance_valid(_active_tween):
 		if config != null and config.loop_count == 0:
@@ -121,6 +151,11 @@ func finish() -> void:
 	_emit_completed_once()
 
 
+## 获取用于保护等待生命周期的 Tween 宿主节点。
+## [br]
+## @api public
+## [br]
+## @return 有效宿主节点；无效时返回 null。
 func get_wait_guard_node() -> Node:
 	var tween_host := _get_tween_host()
 	return tween_host if is_instance_valid(tween_host) else null
@@ -144,7 +179,7 @@ func _clear_active_tween() -> void:
 	_active_tween = null
 
 
-func _append_marker_callback(step: GFTweenActionStepBase, step_index: int) -> void:
+func _append_marker_callback(step: GFTweenActionStep, step_index: int) -> void:
 	if step.marker_id == &"" or not is_instance_valid(_active_tween):
 		return
 	_active_tween.tween_callback(

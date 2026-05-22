@@ -4,6 +4,12 @@
 ##
 ## 面向编辑器工具和构建脚本复用；它只生成 `GFAudioBank` / `GFAudioClip`
 ## 配置，不接管运行时播放策略。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFAudioBankTools
 extends RefCounted
 
@@ -11,6 +17,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 从音频路径生成片段 ID 的方式。
+## [br]
+## @api public
 enum ClipIdMode {
 	## 使用文件名，不包含扩展名。
 	BASENAME,
@@ -23,30 +31,58 @@ enum ClipIdMode {
 
 # --- 常量 ---
 
+## 默认音频扩展名白名单，不包含点号。
+## [br]
+## @api public
 const AUDIO_EXTENSIONS: PackedStringArray = ["wav", "ogg", "mp3", "opus"]
+
+## 默认排除的扫描路径。
+## [br]
+## @api public
 const DEFAULT_EXCLUDED_PATHS: PackedStringArray = ["res://addons"]
+
+## 默认递归扫描深度上限。
+## [br]
+## @api public
 const DEFAULT_MAX_SCAN_DEPTH: int = 32
+
+## 默认单次扫描收集的音频路径数量上限。
+## [br]
+## @api public
 const DEFAULT_MAX_AUDIO_PATHS: int = 10000
-const GFAudioBankBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_bank.gd")
-const GFAudioClipBase = preload("res://addons/gf/standard/utilities/audio/gf_audio_clip.gd")
-const GFValidationReportBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+
+const _GF_AUDIO_BANK_BASE = preload("res://addons/gf/standard/utilities/audio/gf_audio_bank.gd")
+const _GF_AUDIO_CLIP_BASE = preload("res://addons/gf/standard/utilities/audio/gf_audio_clip.gd")
+const _GF_VALIDATION_REPORT_BASE = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
 
 
 # --- 公共方法 ---
 
 ## 判断路径是否指向 GF 默认支持的音频扩展名。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源路径或文件名。
+## [br]
 ## @param extensions: 可选扩展名白名单，不包含点号。
-## @return 是音频路径时返回 true。
+## [br]
+## @return: 是音频路径时返回 true。
 static func is_audio_path(path: String, extensions: PackedStringArray = AUDIO_EXTENSIONS) -> bool:
 	var extension := path.get_extension().to_lower()
 	return not extension.is_empty() and extensions.has(extension)
 
 
 ## 递归扫描音频路径。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 扫描起点，通常是 res:// 下的目录。
+## [br]
 ## @param options: 可选项，支持 recursive、include_addons、excluded_paths、extensions、max_scan_depth 与 max_audio_paths。
-## @return 按字典序排序的音频路径。
+## [br]
+## @return: 按字典序排序的音频路径。
+## [br]
+## @schema options: Dictionary，可包含 recursive、include_addons、excluded_paths、extensions、max_scan_depth 和 max_audio_paths 字段。
 static func scan_audio_paths(root_path: String = "res://", options: Dictionary = {}) -> PackedStringArray:
 	var result := PackedStringArray()
 	var normalized_root := _normalize_dir_path(root_path)
@@ -72,35 +108,57 @@ static func scan_audio_paths(root_path: String = "res://", options: Dictionary =
 
 
 ## 从路径列表创建新的音频集合。
+## [br]
+## @api public
+## [br]
 ## @param paths: 音频资源路径列表。
+## [br]
 ## @param options: 可选项，支持 id_mode、base_path、path_separator、strip_extension、bus_name、volume_db、pitch_scale。
-## @return 新建的音频集合。
+## [br]
+## @return: 新建的音频集合。
+## [br]
+## @schema options: Dictionary，可包含 id_mode、base_path、path_separator、strip_extension、bus_name、volume_db、pitch_scale 和 overwrite 字段。
 static func create_bank_from_paths(paths: PackedStringArray, options: Dictionary = {}) -> GFAudioBank:
-	var bank := GFAudioBankBase.new() as GFAudioBank
+	var bank := _GF_AUDIO_BANK_BASE.new() as GFAudioBank
 	add_paths_to_bank(bank, paths, options.merged({ "overwrite": true }))
 	return bank
 
 
 ## 扫描目录并创建新的音频集合。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 扫描起点，通常是 res://audio。
+## [br]
 ## @param options: 可选项，同时传给 scan_audio_paths() 与 create_bank_from_paths()。
-## @return 新建的音频集合。
+## [br]
+## @return: 新建的音频集合。
+## [br]
+## @schema options: Dictionary，可同时包含扫描选项和片段导入选项。
 static func create_bank_from_scan(root_path: String = "res://", options: Dictionary = {}) -> GFAudioBank:
 	var paths := scan_audio_paths(root_path, options)
 	return create_bank_from_paths(paths, options)
 
 
 ## 将路径列表加入音频集合。
+## [br]
+## @api public
+## [br]
 ## @param bank: 要写入的音频集合。
+## [br]
 ## @param paths: 音频资源路径列表。
+## [br]
 ## @param options: 可选项，支持 id_mode、base_path、path_separator、strip_extension、overwrite、bus_name、volume_db、pitch_scale。
-## @return 导入报告。
+## [br]
+## @return: 导入报告。
+## [br]
+## @schema options: Dictionary，可包含 id_mode、base_path、path_separator、strip_extension、overwrite、bus_name、volume_db 和 pitch_scale 字段。
 static func add_paths_to_bank(
 	bank: GFAudioBank,
 	paths: PackedStringArray,
 	options: Dictionary = {}
 ) -> GFValidationReport:
-	var report := GFValidationReportBase.new("GFAudioBankTools.add_paths_to_bank") as GFValidationReport
+	var report := _GF_VALIDATION_REPORT_BASE.new("GFAudioBankTools.add_paths_to_bank") as GFValidationReport
 	if bank == null:
 		report.add_error(&"missing_audio_bank", "Audio bank is null.")
 		return report
@@ -140,10 +198,18 @@ static func add_paths_to_bank(
 
 
 ## 扫描目录并同步到已有音频集合。
+## [br]
+## @api public
+## [br]
 ## @param bank: 要写入的音频集合。
+## [br]
 ## @param root_path: 扫描起点，通常是 res://audio。
+## [br]
 ## @param options: 可选项，同时传给 scan_audio_paths() 与 add_paths_to_bank()。
-## @return 导入报告。
+## [br]
+## @return: 导入报告。
+## [br]
+## @schema options: Dictionary，可同时包含扫描选项和片段导入选项。
 static func sync_bank_from_scan(
 	bank: GFAudioBank,
 	root_path: String = "res://",
@@ -157,11 +223,18 @@ static func sync_bank_from_scan(
 
 
 ## 校验音频集合是否适合交给 GFAudioUtility 播放。
+## [br]
+## @api public
+## [br]
 ## @param bank: 要校验的音频集合。
+## [br]
 ## @param options: 可选项，支持 check_resource_exists、check_bus_exists、extensions。
-## @return 校验报告。
+## [br]
+## @return: 校验报告。
+## [br]
+## @schema options: Dictionary，可包含 check_resource_exists、check_bus_exists 和 extensions 字段。
 static func validate_bank_playback(bank: GFAudioBank, options: Dictionary = {}) -> GFValidationReport:
-	var report := GFValidationReportBase.new("GFAudioBankPlayback") as GFValidationReport
+	var report := _GF_VALIDATION_REPORT_BASE.new("GFAudioBankPlayback") as GFValidationReport
 	if bank == null:
 		report.add_error(&"missing_audio_bank", "Audio bank is null.")
 		return report
@@ -182,9 +255,16 @@ static func validate_bank_playback(bank: GFAudioBank, options: Dictionary = {}) 
 
 
 ## 按选项从路径生成稳定片段 ID。
+## [br]
+## @api public
+## [br]
 ## @param path: 音频资源路径。
+## [br]
 ## @param options: 可选项，支持 id_mode、base_path、path_separator、strip_extension。
-## @return 片段 ID。
+## [br]
+## @return: 片段 ID。
+## [br]
+## @schema options: Dictionary，可包含 id_mode、base_path、path_separator 和 strip_extension 字段。
 static func make_clip_id(path: String, options: Dictionary = {}) -> StringName:
 	var mode := _resolve_id_mode(options.get("id_mode", ClipIdMode.BASENAME))
 	var id_text := path.replace("\\", "/")
@@ -205,7 +285,7 @@ static func make_clip_id(path: String, options: Dictionary = {}) -> StringName:
 # --- 私有/辅助方法 ---
 
 static func _make_clip(path: String, options: Dictionary) -> GFAudioClip:
-	var clip := GFAudioClipBase.new() as GFAudioClip
+	var clip := _GF_AUDIO_CLIP_BASE.new() as GFAudioClip
 	clip.path = path
 	clip.bus_name = String(options.get("bus_name", ""))
 	clip.volume_db = float(options.get("volume_db", 0.0))

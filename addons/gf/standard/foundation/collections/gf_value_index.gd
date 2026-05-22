@@ -2,6 +2,12 @@
 ##
 ## 为任意 item_id 关联值和字段，并支持按字段快速查询。它只维护索引结构，
 ## 不规定字段含义、业务规则或生命周期。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFValueIndex
 extends RefCounted
 
@@ -9,20 +15,30 @@ extends RefCounted
 # --- 信号 ---
 
 ## 条目写入索引后发出。
+## [br]
+## @api public
+## [br]
 ## @param item_id: 条目标识。
 signal item_indexed(item_id: StringName)
 
 ## 条目从索引移除后发出。
+## [br]
+## @api public
+## [br]
 ## @param item_id: 条目标识。
 signal item_removed(item_id: StringName)
 
 ## 索引清空后发出。
+## [br]
+## @api public
 signal cleared
 
 
 # --- 公共变量 ---
 
 ## 读取或写入值时是否复制 Dictionary / Array。
+## [br]
+## @api public
 var duplicate_values: bool = true
 
 
@@ -35,10 +51,20 @@ var _indexes: Dictionary = {}
 # --- 公共方法 ---
 
 ## 写入或替换一个条目。
+## [br]
+## @api public
+## [br]
 ## @param item_id: 条目标识。
+## [br]
 ## @param value: 条目值。
+## [br]
 ## @param fields: 可索引字段，字段值可为单值、Array 或 PackedStringArray。
+## [br]
 ## @return 写入成功返回 true。
+## [br]
+## @schema value: Variant item value.
+## [br]
+## @schema fields: Dictionary from field id to scalar, Array, or PackedStringArray values.
 func set_item(item_id: StringName, value: Variant, fields: Dictionary = {}) -> bool:
 	if item_id == &"":
 		return false
@@ -55,7 +81,11 @@ func set_item(item_id: StringName, value: Variant, fields: Dictionary = {}) -> b
 
 
 ## 移除条目。
+## [br]
+## @api public
+## [br]
 ## @param item_id: 条目标识。
+## [br]
 ## @return 移除成功返回 true。
 func remove_item(item_id: StringName) -> bool:
 	if not _items.has(item_id):
@@ -71,16 +101,29 @@ func remove_item(item_id: StringName) -> bool:
 
 
 ## 检查条目是否存在。
+## [br]
+## @api public
+## [br]
 ## @param item_id: 条目标识。
+## [br]
 ## @return 存在返回 true。
 func has_item(item_id: StringName) -> bool:
 	return _items.has(item_id)
 
 
 ## 获取条目值。
+## [br]
+## @api public
+## [br]
 ## @param item_id: 条目标识。
+## [br]
 ## @param default_value: 不存在时返回的默认值。
+## [br]
 ## @return 条目值或默认值。
+## [br]
+## @schema default_value: Variant fallback value.
+## [br]
+## @schema return: Variant item value or fallback value.
 func get_item(item_id: StringName, default_value: Variant = null) -> Variant:
 	if not _items.has(item_id):
 		return default_value
@@ -89,8 +132,14 @@ func get_item(item_id: StringName, default_value: Variant = null) -> Variant:
 
 
 ## 获取条目字段。
+## [br]
+## @api public
+## [br]
 ## @param item_id: 条目标识。
+## [br]
 ## @return 字段副本。
+## [br]
+## @schema return: Dictionary indexed field values.
 func get_fields(item_id: StringName) -> Dictionary:
 	if not _items.has(item_id):
 		return {}
@@ -99,9 +148,16 @@ func get_fields(item_id: StringName) -> Dictionary:
 
 
 ## 按单个字段值查询条目标识。
+## [br]
+## @api public
+## [br]
 ## @param field_id: 字段标识。
+## [br]
 ## @param field_value: 字段值。
+## [br]
 ## @return 条目标识列表。
+## [br]
+## @schema field_value: Variant indexed field value.
 func query(field_id: StringName, field_value: Variant) -> PackedStringArray:
 	var result := PackedStringArray()
 	var field_index := _indexes.get(field_id, {}) as Dictionary
@@ -120,9 +176,16 @@ func query(field_id: StringName, field_value: Variant) -> PackedStringArray:
 
 
 ## 按多个字段查询条目标识。
+## [br]
+## @api public
+## [br]
 ## @param criteria: 字段到值的查询条件。
+## [br]
 ## @param match_all: true 表示交集查询，false 表示并集查询。
+## [br]
 ## @return 条目标识列表。
+## [br]
+## @schema criteria: Dictionary from field id to query value.
 func query_many(criteria: Dictionary, match_all: bool = true) -> PackedStringArray:
 	var result_lookup: Dictionary = {}
 	var initialized := false
@@ -144,6 +207,8 @@ func query_many(criteria: Dictionary, match_all: bool = true) -> PackedStringArr
 
 
 ## 清空索引。
+## [br]
+## @api public
 func clear() -> void:
 	_items.clear()
 	_indexes.clear()
@@ -151,19 +216,30 @@ func clear() -> void:
 
 
 ## 获取条目数量。
+## [br]
+## @api public
+## [br]
 ## @return 条目数量。
 func get_item_count() -> int:
 	return _items.size()
 
 
 ## 获取字段索引数量。
+## [br]
+## @api public
+## [br]
 ## @return 字段索引数量。
 func get_index_count() -> int:
 	return _indexes.size()
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary with item_count, index_count, and duplicate_values.
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"item_count": _items.size(),

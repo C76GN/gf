@@ -1,4 +1,10 @@
 ## GFShakeReceiver3D: 将反馈采样应用到 Node3D 的通用接收器。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFShakeReceiver3D
 extends Node
 
@@ -11,30 +17,46 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 导出变量 ---
 
 ## 目标 Node3D 路径；为空时优先使用自身，其次使用父节点。
+## [br]
+## @api public
 @export_node_path("Node3D") var target_path: NodePath = NodePath("")
 
 ## 采样 channel。
+## [br]
+## @api public
 @export var channel: StringName = &"default"
 
 ## 是否应用 position 偏移。
+## [br]
+## @api public
 @export var apply_position: bool = true
 
 ## 是否应用 rotation_degrees 偏移。
+## [br]
+## @api public
 @export var apply_rotation: bool = true
 
 ## 是否应用 scale 偏移。
+## [br]
+## @api public
 @export var apply_scale: bool = false
 
 ## ready 时是否记录基础变换。
+## [br]
+## @api public
 @export var capture_on_ready: bool = true
 
 ## 退出树时是否恢复基础变换。
+## [br]
+## @api public
 @export var restore_on_exit: bool = true
 
 
 # --- 公共变量 ---
 
 ## 可选反馈工具实例；为空时从全局架构查询。
+## [br]
+## @api public
 var utility: GFShakeUtility = null
 
 
@@ -69,12 +91,18 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 设置反馈工具实例。
+## [br]
+## @api public
+## [br]
 ## @param shake_utility: 反馈工具实例。
 func set_utility(shake_utility: GFShakeUtility) -> void:
 	utility = shake_utility
 
 
 ## 获取当前目标节点。
+## [br]
+## @api public
+## [br]
 ## @return 目标 Node3D；不存在时返回 null。
 func get_target() -> Node3D:
 	if _target_ref == null:
@@ -84,6 +112,9 @@ func get_target() -> Node3D:
 
 
 ## 记录当前目标基础变换。
+## [br]
+## @api public
+## [br]
 ## @return 记录成功返回 true。
 func capture_base_transform() -> bool:
 	var target := get_target()
@@ -99,6 +130,9 @@ func capture_base_transform() -> bool:
 
 
 ## 应用当前 channel 采样。
+## [br]
+## @api public
+## [br]
 ## @return 应用成功返回 true。
 func apply_current_sample() -> bool:
 	var target := get_target()
@@ -132,6 +166,9 @@ func apply_current_sample() -> bool:
 
 
 ## 恢复目标基础变换。
+## [br]
+## @api public
+## [br]
 ## @return 恢复成功返回 true。
 func reset_to_base() -> bool:
 	var target := get_target()

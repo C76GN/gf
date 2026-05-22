@@ -1,6 +1,12 @@
 ## GFConfigTableColumn: 导表字段声明。
 ##
 ## 只描述字段名、值类型、必填性、空值策略和默认值，不绑定任何具体业务表。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFConfigTableColumn
 extends Resource
 
@@ -8,6 +14,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 导表字段值类型，用于导入与运行时校验。
+## [br]
+## @api public
 enum ValueType {
 	## 不做类型约束。
 	ANY,
@@ -37,45 +45,84 @@ enum ValueType {
 # --- 导出变量 ---
 
 ## 字段名。建议和导表列名保持一致。
+## [br]
+## @api public
 @export var field_name: StringName = &""
 
 ## 字段值类型。
+## [br]
+## @api public
 @export var value_type: ValueType = ValueType.ANY
 
 ## 是否必须出现在记录中。
+## [br]
+## @api public
 @export var required: bool = false
 
 ## 是否允许 null 值。
+## [br]
+## @api public
 @export var allow_null: bool = true
 
 ## 字段缺省值。`GFConfigTableSchema.coerce_record()` 会在缺字段时使用。
+## [br]
+## @api public
+## [br]
+## @schema default_value: Variant，字段缺失时复制到记录中的默认值。
 @export var default_value: Variant = null
 
 ## 字段级校验规则。只作用于当前字段值，不绑定具体业务枚举。
+## [br]
+## @api public
+## [br]
+## @schema validation_rules: Array，包含作用于当前字段的 GFConfigValidationRule 资源。
 @export var validation_rules: Array[GFConfigValidationRule] = []
 
 ## 可选元数据，供编辑器、导入器或项目层扩展使用。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存编辑器、导入器或项目层附加到当前字段的元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取稳定字段键。
+## [br]
+## @api public
+## [br]
 ## @return 字段名。
 func get_field_key() -> StringName:
 	return field_name
 
 
 ## 将输入值转换为当前列要求的类型。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @return 转换后的值。
+## [br]
+## @schema value: Variant，按 value_type 转换的输入字段值。
+## [br]
+## @schema return: Variant，按当前 value_type 转换后的值。
 func coerce_value(value: Variant) -> Variant:
 	return try_coerce_value(value).get("value")
 
 
 ## 尝试将输入值转换为当前列要求的类型，并返回转换报告。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @return 包含 ok、value 与 message 的转换报告。
+## [br]
+## @schema value: Variant，按 value_type 尝试转换的输入字段值。
+## [br]
+## @schema return: Dictionary，包含 ok、value 和 message 字段。
 func try_coerce_value(value: Variant) -> Dictionary:
 	if value == null:
 		return _make_coerce_result(true, null)
@@ -110,8 +157,14 @@ func try_coerce_value(value: Variant) -> Dictionary:
 
 
 ## 检查输入值是否符合当前列声明。
+## [br]
+## @api public
+## [br]
 ## @param value: 待检查值。
+## [br]
 ## @return 符合声明时返回 true。
+## [br]
+## @schema value: Variant，按 value_type 与 allow_null 检查的字段值。
 func is_value_valid(value: Variant) -> bool:
 	if value == null:
 		return allow_null
@@ -144,6 +197,9 @@ func is_value_valid(value: Variant) -> bool:
 
 
 ## 创建同内容拷贝，避免运行时修改污染共享 Resource。
+## [br]
+## @api public
+## [br]
 ## @return 新字段声明。
 func duplicate_column() -> GFConfigTableColumn:
 	var column: GFConfigTableColumn = GFConfigTableColumn.new()
@@ -159,7 +215,12 @@ func duplicate_column() -> GFConfigTableColumn:
 
 
 ## 导出字段声明摘要。
+## [br]
+## @api public
+## [br]
 ## @return 字段声明字典。
+## [br]
+## @schema return: Dictionary，包含 field_name、value_type、required、allow_null、default_value、validation_rules 和 metadata。
 func describe() -> Dictionary:
 	return {
 		"field_name": field_name,

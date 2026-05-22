@@ -2,6 +2,12 @@
 ##
 ## 根据碰撞命中的 face index 推导 MeshInstance3D surface，并返回基础材质、
 ## 覆盖材质或最终 active material。框架只负责几何到材质的映射，不解释材质语义。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSurfaceUtility
 extends GFUtility
 
@@ -9,6 +15,8 @@ extends GFUtility
 # --- 枚举 ---
 
 ## Mesh surface face count 缓存策略。
+## [br]
+## @api public
 enum CacheMode {
 	## 不读写缓存，每次查询都重新计算。
 	DISABLED,
@@ -22,15 +30,21 @@ enum CacheMode {
 # --- 常量 ---
 
 ## 自动缓存默认容量。
+## [br]
+## @api public
 const DEFAULT_AUTO_CACHE_SIZE: int = 8
 
 
 # --- 公共变量 ---
 
 ## 当前缓存策略。
+## [br]
+## @api public
 var cache_mode: CacheMode = CacheMode.AUTOMATIC
 
 ## 自动缓存容量。小于 1 时会被归一化为 1。
+## [br]
+## @api public
 var auto_cache_size: int = DEFAULT_AUTO_CACHE_SIZE
 
 
@@ -40,8 +54,11 @@ var _surface_face_counts_by_mesh: Dictionary = {}
 var _mesh_cache_order: Array[int] = []
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 释放工具时清空 Mesh surface face count 缓存。
+## [br]
+## @api public
 func dispose() -> void:
 	clear_cache()
 
@@ -49,8 +66,13 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 获取命中表面最终渲染使用的材质。
+## [br]
+## @api public
+## [br]
 ## @param source: MeshInstance3D、CollisionObject3D 或其相邻节点。
+## [br]
 ## @param face_index: RayCast3D.get_collision_face_index() 返回的面索引。
+## [br]
 ## @return 命中材质；无法解析时返回 null。
 func get_active_material(source: Object, face_index: int) -> Material:
 	var mesh_instance := _resolve_mesh_instance(source)
@@ -61,8 +83,13 @@ func get_active_material(source: Object, face_index: int) -> Material:
 
 
 ## 获取 MeshInstance3D surface override 材质。
+## [br]
+## @api public
+## [br]
 ## @param source: MeshInstance3D、CollisionObject3D 或其相邻节点。
+## [br]
 ## @param face_index: RayCast3D.get_collision_face_index() 返回的面索引。
+## [br]
 ## @return 覆盖材质；未设置或无法解析时返回 null。
 func get_surface_override_material(source: Object, face_index: int) -> Material:
 	var mesh_instance := _resolve_mesh_instance(source)
@@ -73,8 +100,13 @@ func get_surface_override_material(source: Object, face_index: int) -> Material:
 
 
 ## 获取 Mesh 资源自身的 surface 材质。
+## [br]
+## @api public
+## [br]
 ## @param source: MeshInstance3D、CollisionObject3D 或其相邻节点。
+## [br]
 ## @param face_index: RayCast3D.get_collision_face_index() 返回的面索引。
+## [br]
 ## @return 基础材质；无法解析时返回 null。
 func get_base_material(source: Object, face_index: int) -> Material:
 	var mesh_instance := _resolve_mesh_instance(source)
@@ -85,8 +117,13 @@ func get_base_material(source: Object, face_index: int) -> Material:
 
 
 ## 获取 face index 所属的 Mesh surface 索引。
+## [br]
+## @api public
+## [br]
 ## @param source: MeshInstance3D、CollisionObject3D 或其相邻节点。
+## [br]
 ## @param face_index: RayCast3D.get_collision_face_index() 返回的面索引。
+## [br]
 ## @return surface 索引；无法解析时返回 -1。
 func get_surface_index(source: Object, face_index: int) -> int:
 	if face_index < 0:
@@ -107,13 +144,19 @@ func get_surface_index(source: Object, face_index: int) -> int:
 
 
 ## 清空 Mesh surface face count 缓存。
+## [br]
+## @api public
 func clear_cache() -> void:
 	_surface_face_counts_by_mesh.clear()
 	_mesh_cache_order.clear()
 
 
 ## 预热指定 Mesh 或 MeshInstance3D 的 surface face count 缓存。
+## [br]
+## @api public
+## [br]
 ## @param source: Mesh、MeshInstance3D、CollisionObject3D 或其相邻节点。
+## [br]
 ## @return 缓存成功返回 true。
 func cache_mesh_surface(source: Object) -> bool:
 	if cache_mode == CacheMode.DISABLED:
@@ -129,7 +172,11 @@ func cache_mesh_surface(source: Object) -> bool:
 
 
 ## 移除指定 Mesh 或 MeshInstance3D 的 surface face count 缓存。
+## [br]
+## @api public
+## [br]
 ## @param source: Mesh、MeshInstance3D、CollisionObject3D 或其相邻节点。
+## [br]
 ## @return 移除成功返回 true。
 func erase_cached_mesh(source: Object) -> bool:
 	var mesh := _resolve_mesh(source)
@@ -144,6 +191,9 @@ func erase_cached_mesh(source: Object) -> bool:
 
 
 ## 设置自动缓存容量。
+## [br]
+## @api public
+## [br]
 ## @param size: 自动缓存容量；小于 1 时按 1 处理。
 func set_auto_cache_size(size: int) -> void:
 	auto_cache_size = maxi(size, 1)
@@ -151,7 +201,12 @@ func set_auto_cache_size(size: int) -> void:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 缓存状态。
+## [br]
+## @schema return: Dictionary，包含 cached_meshes、cache_mode 和 auto_cache_size。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"cached_meshes": _surface_face_counts_by_mesh.size(),

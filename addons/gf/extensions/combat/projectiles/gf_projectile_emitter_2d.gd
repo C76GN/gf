@@ -2,6 +2,12 @@
 ##
 ## 负责按场景目录和生成点模式实例化发射体，并把本次发射上下文交给
 ## 发射体的 launch()。它不解释伤害、阵营、弹药、冷却或特效规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFProjectileEmitter2D
 extends Node2D
 
@@ -9,57 +15,93 @@ extends Node2D
 # --- 信号 ---
 
 ## 发射体已生成。
+## [br]
+## @api public
+## [br]
 ## @param projectile: 生成的发射体节点。
+## [br]
 ## @param projectile_context: 本次发射上下文。
+## [br]
+## @schema projectile_context: Dictionary，本次发射上下文副本，包含默认上下文、调用方上下文和 spawn 信息。
 signal projectile_emitted(projectile: Node, projectile_context: Dictionary)
 
 ## 发射失败时发出。
+## [br]
+## @api public
+## [br]
 ## @param reason: 失败原因。
+## [br]
 ## @param details: 失败细节。
+## [br]
+## @schema details: Dictionary，失败上下文，通常包含 projectile_id、spawn_index 等诊断字段。
 signal projectile_emit_failed(reason: StringName, details: Dictionary)
 
 
 # --- 常量 ---
 
-const GFNodeContextBase = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const _GF_NODE_CONTEXT_SCRIPT: Script = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 
 
 # --- 导出变量 ---
 
 ## 默认发射体场景。未使用目录或目录缺少 ID 时使用。
+## [br]
+## @api public
 @export var projectile_scene: PackedScene = null
 
 ## 可选发射体目录。
+## [br]
+## @api public
 @export var projectile_catalog: GFProjectileCatalog = null
 
 ## 默认目录 ID。
+## [br]
+## @api public
 @export var default_projectile_id: StringName = &""
 
 ## 2D 发射点模式。为空时使用发射器自身全局变换。
+## [br]
+## @api public
 @export var spawn_pattern: GFProjectileSpawnPattern2D = null
 
 ## 默认上下文。每次发射会深拷贝后再合并调用方上下文。
+## [br]
+## @api public
+## [br]
+## @schema default_context: Dictionary，默认发射上下文；每次发射会深拷贝后合并调用方上下文。
 @export var default_context: Dictionary = {}
 
 ## 可选生成父节点路径。为空时优先使用发射器父节点。
+## [br]
+## @api public
 @export_node_path("Node") var spawn_parent_path: NodePath = NodePath("")
 
 ## 是否在生成后调用发射体的 launch(context)。
+## [br]
+## @api public
 @export var launch_after_spawn: bool = true
 
 ## 生成前是否关闭常见发射体的 auto_launch_on_ready，避免进入树时使用空上下文启动。
+## [br]
+## @api public
 @export var disable_auto_launch_before_add: bool = true
 
 ## 是否使用 GFObjectPoolUtility 获取节点。池化场景应把 projectile 的 auto_launch_on_ready 设为 false。
+## [br]
+## @api public
 @export var use_object_pool: bool = false
 
 ## 使用对象池时，是否在 projectile_finished 后自动归还节点。
+## [br]
+## @api public
 @export var release_pooled_projectile_on_finish: bool = true
 
 
 # --- 公共变量 ---
 
 ## 可选对象池工具。为空时会从注入架构或最近的 GFNodeContext 查询。
+## [br]
+## @api public
 var object_pool_utility: GFObjectPoolUtility = null
 
 
@@ -72,15 +114,25 @@ var _architecture_ref: WeakRef = null
 # --- 公共方法 ---
 
 ## 注入当前发射器所属架构。
+## [br]
+## @api framework_internal
+## [br]
 ## @param architecture: 当前架构。
 func inject_dependencies(architecture: GFArchitecture) -> void:
 	_architecture_ref = weakref(architecture) if architecture != null else null
 
 
 ## 发射单个发射体。
+## [br]
+## @api public
+## [br]
 ## @param projectile_context: 本次发射上下文。
+## [br]
 ## @param projectile_id: 可选目录 ID；为空时使用 default_projectile_id。
+## [br]
 ## @return 生成的发射体节点；失败时返回 null。
+## [br]
+## @schema projectile_context: Dictionary，本次发射上下文；会与 default_context 合并后传给发射体。
 func emit_projectile(projectile_context: Dictionary = {}, projectile_id: StringName = &"") -> Node:
 	var projectiles := emit_projectiles(projectile_context, projectile_id, 1)
 	if projectiles.is_empty():
@@ -89,10 +141,18 @@ func emit_projectile(projectile_context: Dictionary = {}, projectile_id: StringN
 
 
 ## 按当前模式发射一批发射体。
+## [br]
+## @api public
+## [br]
 ## @param projectile_context: 本次发射上下文。
+## [br]
 ## @param projectile_id: 可选目录 ID；为空时使用 default_projectile_id。
+## [br]
 ## @param emit_count: 请求生成数量；小于等于 0 时由 spawn_pattern 决定。
+## [br]
 ## @return 成功生成的发射体节点列表。
+## [br]
+## @schema projectile_context: Dictionary，本次发射上下文；会与 default_context 合并后传给每个发射体。
 func emit_projectiles(
 	projectile_context: Dictionary = {},
 	projectile_id: StringName = &"",
@@ -136,7 +196,11 @@ func emit_projectiles(
 
 
 ## 解析当前要使用的发射体场景。
+## [br]
+## @api public
+## [br]
 ## @param projectile_id: 可选目录 ID。
+## [br]
 ## @return 找到时返回 PackedScene，否则返回 null。
 func resolve_projectile_scene(projectile_id: StringName = &"") -> PackedScene:
 	if projectile_catalog != null and projectile_id != &"":
@@ -147,6 +211,9 @@ func resolve_projectile_scene(projectile_id: StringName = &"") -> PackedScene:
 
 
 ## 解析发射体生成父节点。
+## [br]
+## @api public
+## [br]
 ## @return 有效父节点；找不到时返回 null。
 func resolve_spawn_parent() -> Node:
 	if spawn_parent_path != NodePath(""):
@@ -160,8 +227,13 @@ func resolve_spawn_parent() -> Node:
 
 
 ## 预热对象池。
+## [br]
+## @api public
+## [br]
 ## @param count: 预热数量。
+## [br]
 ## @param projectile_id: 可选目录 ID。
+## [br]
 ## @return 预热请求被接受时返回 true。
 func prewarm_projectiles(count: int, projectile_id: StringName = &"") -> bool:
 	if count <= 0:
@@ -267,7 +339,7 @@ func _get_architecture_or_null() -> GFArchitecture:
 func _find_context_architecture() -> GFArchitecture:
 	var current_node: Node = self
 	while current_node != null:
-		if current_node is GFNodeContextBase:
+		if current_node is _GF_NODE_CONTEXT_SCRIPT:
 			var context := current_node as GFNodeContext
 			var architecture := context.get_architecture()
 			if architecture != null:

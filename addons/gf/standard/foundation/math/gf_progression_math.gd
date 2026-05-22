@@ -2,6 +2,12 @@
 ##
 ## 负责价格曲线、收益曲线、里程碑倍率、软上限与分段式离线收益结算。
 ## 它不依赖 GFArchitecture，可直接与 JSON、CSV 或外部工具导出的配置字典配合使用。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFProgressionMath
 extends RefCounted
 
@@ -9,6 +15,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 支持的基础曲线类型。
+## [br]
+## @api public
 enum CurveMode {
 	## 常量曲线。
 	CONSTANT,
@@ -21,19 +29,24 @@ enum CurveMode {
 
 # --- 常量 ---
 
-const _BIG_NUMBER_SCRIPT: Script = preload("res://addons/gf/standard/foundation/numeric/gf_big_number.gd")
-
-## 默认的软上限幂指数。
+# 默认的软上限幂指数。
 const _DEFAULT_SOFT_CAP_POWER: float = 0.5
 
 
 # --- 公共方法 ---
 
 ## 根据配置计算某一级的曲线值。
+## [br]
+## @api public
+## [br]
 ## @param level: 目标等级。
+## [br]
 ## @param curve_config: 支持 `base_value/start_level/mode/per_level/multiplier/phases/overrides`。
+## [br]
+## @schema curve_config: Dictionary with optional `base_value`, `start_level`, `mode`, `per_level`, `multiplier`, `phases`, and `overrides` entries.
+## [br]
 ## @return 对应等级的曲线值。
-static func evaluate_curve(level: int, curve_config: Dictionary) -> Object:
+static func evaluate_curve(level: int, curve_config: Dictionary) -> GFBigNumber:
 	var target_level: int = maxi(level, 0)
 	var override_value: Variant = _find_override_value(target_level, curve_config.get("overrides", {}))
 	if override_value != null:
@@ -47,12 +60,22 @@ static func evaluate_curve(level: int, curve_config: Dictionary) -> Object:
 
 
 ## 为基础值叠加里程碑倍率。
+## [br]
+## @api public
+## [br]
 ## @param value: 基础数值。
+## [br]
+## @schema value: Variant numeric value accepted by GFBigNumber.
+## [br]
 ## @param level: 当前等级。
+## [br]
 ## @param milestones: 里程碑数组；每项支持 `level/multiplier`。
+## [br]
+## @schema milestones: Array[Dictionary] where each entry may contain `level: int` and `multiplier: Variant numeric value`.
+## [br]
 ## @return 叠加后的数值。
-static func apply_milestone_multipliers(value: Variant, level: int, milestones: Array) -> Object:
-	var result: Object = _to_big_number(value)
+static func apply_milestone_multipliers(value: Variant, level: int, milestones: Array) -> GFBigNumber:
+	var result: GFBigNumber = _to_big_number(value)
 	var target_level: int = maxi(level, 0)
 
 	for milestone_variant in milestones:
@@ -71,17 +94,27 @@ static func apply_milestone_multipliers(value: Variant, level: int, milestones: 
 
 
 ## 对一个值应用幂函数型软上限。
+## [br]
+## @api public
+## [br]
 ## @param value: 原始值。
+## [br]
+## @schema value: Variant numeric value accepted by GFBigNumber.
+## [br]
 ## @param soft_cap: 软上限起点。
+## [br]
+## @schema soft_cap: Variant numeric value accepted by GFBigNumber.
+## [br]
 ## @param power: 超出部分的幂指数；0.5 表示平方根衰减。
+## [br]
 ## @return 软上限处理后的数值。
 static func apply_soft_cap(
 	value: Variant,
 	soft_cap: Variant,
 	power: float = _DEFAULT_SOFT_CAP_POWER
-) -> Object:
-	var big_value: Object = _to_big_number(value)
-	var cap_value: Object = _to_big_number(soft_cap)
+) -> GFBigNumber:
+	var big_value: GFBigNumber = _to_big_number(value)
+	var cap_value: GFBigNumber = _to_big_number(soft_cap)
 
 	if power <= 0.0:
 		push_error("[GFProgressionMath] soft cap power 必须大于 0。")
@@ -90,35 +123,47 @@ static func apply_soft_cap(
 	if big_value.compare_to(cap_value) <= 0 or is_equal_approx(power, 1.0):
 		return big_value
 
-	var overflow: Object = big_value.subtract(cap_value)
-	var softened_overflow: Object = overflow.powf(power)
+	var overflow: GFBigNumber = big_value.subtract(cap_value)
+	var softened_overflow: GFBigNumber = overflow.powf(power)
 	return cap_value.add(softened_overflow)
 
 
 ## 计算一段离线时间内的收益。
+## [br]
+## @api public
+## [br]
 ## @param rate_per_second: 基础每秒产出。
+## [br]
+## @schema rate_per_second: Variant numeric value accepted by GFBigNumber.
+## [br]
 ## @param offline_seconds: 离线时长（秒）。
+## [br]
 ## @param options: 支持 `max_seconds/storage_remaining/segments`。
+## [br]
+## @schema options: Dictionary with optional `max_seconds`, `storage_remaining`, and `segments: Array[Dictionary]`.
+## [br]
 ## @return 包含产出与时间统计的字典。
+## [br]
+## @schema return: Dictionary with `produced: GFBigNumber`, `requested_seconds: float`, `settled_seconds: float`, `consumed_seconds: float`, `expired_seconds: float`, `wasted_seconds: float`, and `storage_capped: bool`.
 static func settle_offline_progress(
 	rate_per_second: Variant,
 	offline_seconds: float,
 	options: Dictionary = {}
 ) -> Dictionary:
-	var base_rate: Object = _to_big_number(rate_per_second)
-	var zero_value: Object = _to_big_number(0)
+	var base_rate: GFBigNumber = _to_big_number(rate_per_second)
+	var zero_value: GFBigNumber = _to_big_number(0)
 	var requested_seconds: float = maxf(offline_seconds, 0.0)
 	var settled_seconds: float = requested_seconds
 	if options.has("max_seconds"):
 		settled_seconds = minf(settled_seconds, maxf(_to_float(options.get("max_seconds", 0.0)), 0.0))
 
-	var total_produced: Object = _to_big_number(0)
+	var total_produced: GFBigNumber = _to_big_number(0)
 	var consumed_seconds: float = 0.0
 	var storage_capped: bool = false
 	var segments: Array = options.get("segments", [])
 	var remaining_seconds: float = settled_seconds
 	var has_storage_limit: bool = options.has("storage_remaining")
-	var storage_remaining: Object = null
+	var storage_remaining: GFBigNumber = null
 
 	if has_storage_limit:
 		storage_remaining = _to_big_number(options.get("storage_remaining", 0))
@@ -189,13 +234,13 @@ static func settle_offline_progress(
 
 # --- 私有/辅助方法 ---
 
-static func _evaluate_single_curve(level: int, curve_config: Dictionary) -> Object:
+static func _evaluate_single_curve(level: int, curve_config: Dictionary) -> GFBigNumber:
 	var start_level: int = int(curve_config.get("start_level", 0))
-	var anchor_value: Object = _resolve_anchor_value(curve_config, curve_config, null)
+	var anchor_value: GFBigNumber = _resolve_anchor_value(curve_config, curve_config, null)
 	return _evaluate_phase(level, curve_config, anchor_value, start_level)
 
 
-static func _evaluate_piecewise_curve(level: int, phases: Array, curve_config: Dictionary) -> Object:
+static func _evaluate_piecewise_curve(level: int, phases: Array, curve_config: Dictionary) -> GFBigNumber:
 	var sorted_phases: Array[Dictionary] = _sort_phase_configs(phases)
 	if sorted_phases.is_empty():
 		return _evaluate_single_curve(level, curve_config)
@@ -209,13 +254,13 @@ static func _evaluate_piecewise_curve(level: int, phases: Array, curve_config: D
 			break
 
 	var anchor_level: int = int(sorted_phases[0].get("start_level", 0))
-	var anchor_value: Object = _resolve_anchor_value(sorted_phases[0], curve_config, null)
+	var anchor_value: GFBigNumber = _resolve_anchor_value(sorted_phases[0], curve_config, null)
 	var current_phase: Dictionary = sorted_phases[0]
 
 	for i in range(1, current_index + 1):
 		var next_phase: Dictionary = sorted_phases[i]
 		var next_start: int = int(next_phase.get("start_level", 0))
-		var inherited_value: Object = _evaluate_phase(next_start, current_phase, anchor_value, anchor_level)
+		var inherited_value: GFBigNumber = _evaluate_phase(next_start, current_phase, anchor_value, anchor_level)
 		anchor_value = _resolve_anchor_value(next_phase, curve_config, inherited_value)
 		anchor_level = next_start
 		current_phase = next_phase
@@ -226,9 +271,9 @@ static func _evaluate_piecewise_curve(level: int, phases: Array, curve_config: D
 static func _evaluate_phase(
 	level: int,
 	phase_config: Dictionary,
-	anchor_value: Object,
+	anchor_value: GFBigNumber,
 	anchor_level: int
-) -> Object:
+) -> GFBigNumber:
 	var delta_levels: int = maxi(level - anchor_level, 0)
 	var curve_mode: CurveMode = _parse_curve_mode(phase_config.get("mode", CurveMode.CONSTANT))
 
@@ -237,7 +282,7 @@ static func _evaluate_phase(
 			return anchor_value.clone()
 
 		CurveMode.LINEAR:
-			var per_level: Object = _to_big_number(phase_config.get("per_level", 0))
+			var per_level: GFBigNumber = _to_big_number(phase_config.get("per_level", 0))
 			return anchor_value.add(per_level.multiply(_to_big_number(delta_levels)))
 
 		CurveMode.EXPONENTIAL:
@@ -255,12 +300,12 @@ static func _evaluate_phase(
 
 
 static func _settle_segment(
-	base_rate: Object,
+	base_rate: GFBigNumber,
 	duration_seconds: float,
 	segment: Dictionary,
-	storage_remaining: Variant
+	storage_remaining: GFBigNumber
 ) -> Dictionary:
-	var zero_value: Object = _to_big_number(0)
+	var zero_value: GFBigNumber = _to_big_number(0)
 	if duration_seconds <= 0.0:
 		return {
 			"produced": zero_value,
@@ -268,7 +313,7 @@ static func _settle_segment(
 			"storage_capped": false,
 		}
 
-	var segment_rate: Object = _resolve_segment_rate(base_rate, segment)
+	var segment_rate: GFBigNumber = _resolve_segment_rate(base_rate, segment)
 	if segment_rate.compare_to(zero_value) <= 0:
 		return {
 			"produced": zero_value,
@@ -276,7 +321,7 @@ static func _settle_segment(
 			"storage_capped": false,
 		}
 
-	var produced: Object = segment_rate.multiply(_to_big_number(duration_seconds))
+	var produced: GFBigNumber = segment_rate.multiply(_to_big_number(duration_seconds))
 	var consumed_seconds: float = duration_seconds
 	var storage_capped: bool = false
 
@@ -293,8 +338,8 @@ static func _settle_segment(
 	}
 
 
-static func _resolve_segment_rate(base_rate: Object, segment: Dictionary) -> Object:
-	var rate: Object = base_rate.clone()
+static func _resolve_segment_rate(base_rate: GFBigNumber, segment: Dictionary) -> GFBigNumber:
+	var rate: GFBigNumber = base_rate.clone()
 	if segment.has("rate_per_second"):
 		rate = _to_big_number(segment.get("rate_per_second"))
 
@@ -310,8 +355,8 @@ static func _resolve_segment_rate(base_rate: Object, segment: Dictionary) -> Obj
 static func _resolve_anchor_value(
 	phase_config: Dictionary,
 	curve_config: Dictionary,
-	inherited_value: Variant
-) -> Object:
+	inherited_value: GFBigNumber
+) -> GFBigNumber:
 	if phase_config.has("base_value"):
 		return _to_big_number(phase_config.get("base_value"))
 
@@ -384,12 +429,8 @@ static func _parse_curve_mode(mode_value: Variant) -> CurveMode:
 	return CurveMode.CONSTANT
 
 
-static func _get_big_number_script() -> Script:
-	return _BIG_NUMBER_SCRIPT
-
-
-static func _to_big_number(value: Variant) -> Object:
-	return _get_big_number_script().from_variant(value)
+static func _to_big_number(value: Variant) -> GFBigNumber:
+	return GFBigNumber.from_variant(value)
 
 
 static func _to_float(value: Variant) -> float:

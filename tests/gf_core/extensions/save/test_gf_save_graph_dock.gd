@@ -18,11 +18,11 @@ class MethodTrapSaveScope extends GFSaveScope:
 		get_scope_key_called = true
 		return &"method_scope"
 
-	func can_save_scope(_context: Dictionary = {}) -> bool:
+	func _can_save_scope(_context: Dictionary = {}) -> bool:
 		can_save_scope_called = true
 		return false
 
-	func can_load_scope(_context: Dictionary = {}) -> bool:
+	func _can_load_scope(_context: Dictionary = {}) -> bool:
 		can_load_scope_called = true
 		return false
 

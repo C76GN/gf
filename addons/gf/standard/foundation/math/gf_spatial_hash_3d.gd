@@ -2,6 +2,12 @@
 ##
 ## 适用于大量动态 3D 实体的粗粒度范围查询。它只维护 AABB 索引，
 ## 不负责物理碰撞、可见性或玩法规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSpatialHash3D
 extends RefCounted
 
@@ -9,6 +15,8 @@ extends RefCounted
 # --- 公共变量 ---
 
 ## 单个哈希格子的世界尺寸。
+## [br]
+## @api public
 var cell_size: float:
 	get:
 		return _cell_size
@@ -33,6 +41,9 @@ func _init(p_cell_size: float = 4.0) -> void:
 # --- 公共方法 ---
 
 ## 配置格子尺寸并清空索引。
+## [br]
+## @api public
+## [br]
 ## @param p_cell_size: 单格世界尺寸。
 func configure(p_cell_size: float) -> void:
 	_cell_size = maxf(p_cell_size, 0.0001)
@@ -40,8 +51,15 @@ func configure(p_cell_size: float) -> void:
 
 
 ## 插入实体。
+## [br]
+## @api public
+## [br]
 ## @param entity: 实体标识或 Object。
+## [br]
+## @schema entity: Variant entity identity stored by value or weak Object reference.
+## [br]
 ## @param bounds: 实体 AABB。
+## [br]
 ## @return 成功时返回 true。
 func insert(entity: Variant, bounds: AABB) -> bool:
 	var entity_key := _make_entity_key(entity)
@@ -62,7 +80,12 @@ func insert(entity: Variant, bounds: AABB) -> bool:
 
 
 ## 移除实体。
+## [br]
+## @api public
+## [br]
 ## @param entity: 实体标识或 Object。
+## [br]
+## @schema entity: Variant entity identity stored by value or weak Object reference.
 func remove(entity: Variant) -> void:
 	var entity_key := _make_entity_key(entity)
 	if entity_key.is_empty() or not _entity_records.has(entity_key):
@@ -71,15 +94,28 @@ func remove(entity: Variant) -> void:
 
 
 ## 更新实体 AABB。
+## [br]
+## @api public
+## [br]
 ## @param entity: 实体标识或 Object。
+## [br]
+## @schema entity: Variant entity identity stored by value or weak Object reference.
+## [br]
 ## @param bounds: 新 AABB。
+## [br]
 ## @return 成功时返回 true。
 func update(entity: Variant, bounds: AABB) -> bool:
 	return insert(entity, bounds)
 
 
 ## 检查实体是否存在。
+## [br]
+## @api public
+## [br]
 ## @param entity: 实体标识或 Object。
+## [br]
+## @schema entity: Variant entity identity stored by value or weak Object reference.
+## [br]
 ## @return 存在时返回 true。
 func has_entity(entity: Variant) -> bool:
 	var entity_key := _make_entity_key(entity)
@@ -96,6 +132,9 @@ func has_entity(entity: Variant) -> bool:
 
 
 ## 获取实体数量。
+## [br]
+## @api public
+## [br]
 ## @return 实体数量。
 func get_entity_count() -> int:
 	prune_invalid_entities()
@@ -103,13 +142,19 @@ func get_entity_count() -> int:
 
 
 ## 查询与 AABB 相交的实体。
+## [br]
+## @api public
+## [br]
 ## @param area: 查询 AABB。
+## [br]
 ## @return 实体数组。
-func query_aabb(area: AABB) -> Array:
+## [br]
+## @schema return: Array entity values restored from spatial hash records.
+func query_aabb(area: AABB) -> Array[Variant]:
 	prune_invalid_entities()
 	var normalized_area := _normalize_aabb(area)
 	var candidate_keys := _query_candidate_keys(normalized_area)
-	var result: Array = []
+	var result: Array[Variant] = []
 	for entity_key: String in candidate_keys:
 		var record := _get_record(entity_key)
 		if record.is_empty():
@@ -121,17 +166,24 @@ func query_aabb(area: AABB) -> Array:
 
 
 ## 查询与球体相交的实体。
+## [br]
+## @api public
+## [br]
 ## @param center: 球心。
+## [br]
 ## @param radius: 半径。
+## [br]
 ## @return 实体数组。
-func query_radius(center: Vector3, radius: float) -> Array:
+## [br]
+## @schema return: Array entity values restored from spatial hash records.
+func query_radius(center: Vector3, radius: float) -> Array[Variant]:
 	var safe_radius := maxf(radius, 0.0)
 	var query_bounds := AABB(
 		center - Vector3.ONE * safe_radius,
 		Vector3.ONE * safe_radius * 2.0
 	)
 	var candidates := query_aabb(query_bounds)
-	var result: Array = []
+	var result: Array[Variant] = []
 	var radius_sq := safe_radius * safe_radius
 	for entity: Variant in candidates:
 		var record := _get_record(_make_entity_key(entity))
@@ -149,6 +201,8 @@ func query_radius(center: Vector3, radius: float) -> Array:
 
 
 ## 清理已释放 Object 实体。
+## [br]
+## @api public
 func prune_invalid_entities() -> void:
 	var keys_to_remove: Array[String] = []
 	for entity_key: String in _entity_records.keys():
@@ -160,6 +214,8 @@ func prune_invalid_entities() -> void:
 
 
 ## 清空索引。
+## [br]
+## @api public
 func clear() -> void:
 	_entity_records.clear()
 	_bucket_entities.clear()

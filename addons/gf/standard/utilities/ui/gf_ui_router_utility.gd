@@ -2,6 +2,12 @@
 ##
 ## 作为 GFUIUtility 之上的轻量路由层，负责把稳定 route_id 映射到面板场景、
 ## 打开参数、层级和历史记录，不接管具体页面业务或动画表现。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFUIRouterUtility
 extends GFUtility
 
@@ -9,24 +15,44 @@ extends GFUtility
 # --- 信号 ---
 
 ## 路由打开请求发出时触发。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @param operation: 打开操作。
+## [br]
 ## @param params: 路由参数。
+## [br]
+## @schema params: Dictionary，本次打开路由携带的项目自定义参数。
 signal route_open_requested(route_id: StringName, operation: Operation, params: Dictionary)
 
 ## 路由面板成功打开后触发。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @param panel: 面板实例。
+## [br]
 ## @param operation: 打开操作。
 signal route_opened(route_id: StringName, panel: Node, operation: Operation)
 
 ## 路由打开失败时触发。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @param reason: 失败原因。
 signal route_open_failed(route_id: StringName, reason: String)
 
 ## 路由返回完成时触发。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 被弹出的路由标识。
+## [br]
 ## @param layer: 所在层级。
 signal route_back_completed(route_id: StringName, layer: int)
 
@@ -34,6 +60,8 @@ signal route_back_completed(route_id: StringName, layer: int)
 # --- 枚举 ---
 
 ## 路由打开操作。
+## [br]
+## @api public
 enum Operation {
 	## 压入当前层级栈顶。
 	PUSH,
@@ -50,6 +78,8 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## 路由历史最大保留数量。小于等于 0 表示不保留历史。
+## [br]
+## @api public
 var max_history: int = 64
 
 
@@ -60,14 +90,20 @@ var _ui_utility_ref: WeakRef = null
 var _history: Array[Dictionary] = []
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化路由表、UI 工具引用和历史记录。
+## [br]
+## @api public
 func init() -> void:
 	_routes.clear()
 	_ui_utility_ref = null
 	_history.clear()
 
 
+## 释放路由表、UI 工具引用和历史记录。
+## [br]
+## @api public
 func dispose() -> void:
 	_routes.clear()
 	_ui_utility_ref = null
@@ -77,7 +113,11 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 配置路由表和可选 UI 工具实例。
+## [br]
+## @api public
+## [br]
 ## @param routes: 路由资源列表。
+## [br]
 ## @param ui_utility: 可选 GFUIUtility；为空时从当前架构查找。
 func configure(routes: Array[GFUIRoute] = [], ui_utility: GFUIUtility = null) -> void:
 	_routes.clear()
@@ -87,13 +127,20 @@ func configure(routes: Array[GFUIRoute] = [], ui_utility: GFUIUtility = null) ->
 
 
 ## 设置路由使用的 UI 栈工具。
+## [br]
+## @api public
+## [br]
 ## @param ui_utility: UI 栈工具实例。
 func set_ui_utility(ui_utility: GFUIUtility) -> void:
 	_ui_utility_ref = weakref(ui_utility) if ui_utility != null else null
 
 
 ## 注册一个路由。
+## [br]
+## @api public
+## [br]
 ## @param route: 路由资源。
+## [br]
 ## @return 注册成功返回 true。
 func register_route(route: GFUIRoute) -> bool:
 	if route == null or not route.is_valid_route():
@@ -104,6 +151,9 @@ func register_route(route: GFUIRoute) -> bool:
 
 
 ## 批量注册路由。
+## [br]
+## @api public
+## [br]
 ## @param routes: 路由资源列表。
 func register_routes(routes: Array[GFUIRoute]) -> void:
 	for route: GFUIRoute in routes:
@@ -111,31 +161,47 @@ func register_routes(routes: Array[GFUIRoute]) -> void:
 
 
 ## 注销路由。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
 func unregister_route(route_id: StringName) -> void:
 	_routes.erase(route_id)
 
 
 ## 清空路由表。
+## [br]
+## @api public
 func clear_routes() -> void:
 	_routes.clear()
 
 
 ## 获取路由资源。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @return 路由资源；不存在时返回 null。
 func get_route(route_id: StringName) -> GFUIRoute:
 	return _routes.get(route_id) as GFUIRoute
 
 
 ## 检查路由是否已注册。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @return 已注册返回 true。
 func has_route(route_id: StringName) -> bool:
 	return get_route(route_id) != null
 
 
 ## 获取所有路由标识。
+## [br]
+## @api public
+## [br]
 ## @return 路由标识列表。
 func get_route_ids() -> PackedStringArray:
 	var ids := PackedStringArray()
@@ -146,11 +212,22 @@ func get_route_ids() -> PackedStringArray:
 
 
 ## 压入一个路由面板。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @param params: 路由参数。
+## [br]
 ## @param option_overrides: 面板选项覆盖。
+## [br]
 ## @param config_callback: 面板实例化后、入栈前的额外配置回调。
+## [br]
 ## @return 成功时返回面板实例。
+## [br]
+## @schema params: Dictionary，本次打开路由携带的项目自定义参数。
+## [br]
+## @schema option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。
 func push_route(
 	route_id: StringName,
 	params: Dictionary = {},
@@ -161,11 +238,22 @@ func push_route(
 
 
 ## 替换路由所在层级。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @param params: 路由参数。
+## [br]
 ## @param option_overrides: 面板选项覆盖。
+## [br]
 ## @param config_callback: 面板实例化后、入栈前的额外配置回调。
+## [br]
 ## @return 成功时返回面板实例。
+## [br]
+## @schema params: Dictionary，本次打开路由携带的项目自定义参数。
+## [br]
+## @schema option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。
 func replace_route(
 	route_id: StringName,
 	params: Dictionary = {},
@@ -176,10 +264,20 @@ func replace_route(
 
 
 ## 异步压入一个路由面板。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @param params: 路由参数。
+## [br]
 ## @param option_overrides: 面板选项覆盖。
+## [br]
 ## @param config_callback: 面板实例化后、入栈前的额外配置回调。
+## [br]
+## @schema params: Dictionary，本次打开路由携带的项目自定义参数。
+## [br]
+## @schema option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。
 func push_route_async(
 	route_id: StringName,
 	params: Dictionary = {},
@@ -190,10 +288,20 @@ func push_route_async(
 
 
 ## 异步替换路由所在层级。
+## [br]
+## @api public
+## [br]
 ## @param route_id: 路由标识。
+## [br]
 ## @param params: 路由参数。
+## [br]
 ## @param option_overrides: 面板选项覆盖。
+## [br]
 ## @param config_callback: 面板实例化后、入栈前的额外配置回调。
+## [br]
+## @schema params: Dictionary，本次打开路由携带的项目自定义参数。
+## [br]
+## @schema option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。
 func replace_route_async(
 	route_id: StringName,
 	params: Dictionary = {},
@@ -204,8 +312,13 @@ func replace_route_async(
 
 
 ## 返回上一层路由。
+## [br]
+## @api public
+## [br]
 ## @param layer: 指定层级；小于 0 时使用最近的历史记录。
+## [br]
 ## @param do_free: 是否释放被弹出的面板。
+## [br]
 ## @return 成功返回 true。
 func back(layer: int = -1, do_free: bool = true) -> bool:
 	_prune_history()
@@ -233,7 +346,11 @@ func back(layer: int = -1, do_free: bool = true) -> bool:
 
 
 ## 获取当前路由标识。
+## [br]
+## @api public
+## [br]
 ## @param layer: 指定层级；小于 0 时返回最近路由。
+## [br]
 ## @return 当前路由标识；没有时返回空 StringName。
 func get_current_route_id(layer: int = -1) -> StringName:
 	_prune_history()
@@ -244,7 +361,12 @@ func get_current_route_id(layer: int = -1) -> StringName:
 
 
 ## 获取路由历史副本。
+## [br]
+## @api public
+## [br]
 ## @return 从旧到新的历史条目。
+## [br]
+## @schema return: Array，元素为 Dictionary，包含 route_id、layer、panel、params 和 metadata。
 func get_route_history() -> Array[Dictionary]:
 	_prune_history()
 	var result: Array[Dictionary] = []
@@ -254,12 +376,19 @@ func get_route_history() -> Array[Dictionary]:
 
 
 ## 清空路由历史，不影响已打开面板。
+## [br]
+## @api public
 func clear_history() -> void:
 	_history.clear()
 
 
 ## 获取路由诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 诊断快照。
+## [br]
+## @schema return: Dictionary，包含 route_count、history_count、current_route_id 和 has_ui_utility。
 func get_debug_snapshot() -> Dictionary:
 	_prune_history()
 	return {

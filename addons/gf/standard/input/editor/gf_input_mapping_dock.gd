@@ -1,26 +1,26 @@
 @tool
 
-## GF 输入映射工作区页面。
+## GFInputMappingDock: GF 输入映射工作区页面。
 ##
 ## 读取 GFInputContext 资源，展示动作、绑定与重绑定冲突诊断。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+class_name GFInputMappingDock
 extends Control
 
 
 # --- 常量 ---
 
-const GFInputActionBase = preload("res://addons/gf/standard/input/mapping/gf_input_action.gd")
-const GFInputBindingBase = preload("res://addons/gf/standard/input/mapping/gf_input_binding.gd")
-const GFInputConflictAnalyzerBase = preload("res://addons/gf/standard/input/rebinding/gf_input_conflict_analyzer.gd")
-const GFInputContextBase = preload("res://addons/gf/standard/input/mapping/gf_input_context.gd")
-const GFInputFormatterBase = preload("res://addons/gf/standard/input/formatting/gf_input_formatter.gd")
-const GFInputMappingBase = preload("res://addons/gf/standard/input/mapping/gf_input_mapping.gd")
-const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
-const GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _GFEditorWorkspaceUI = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
 
-var _context: GFInputContextBase = null
+var _context: GFInputContext = null
 var _last_report: Dictionary = {}
 var _path_edit: LineEdit = null
 var _include_non_remappable_check: CheckBox = null
@@ -36,7 +36,7 @@ var _file_dialog: FileDialog = null
 
 func _init() -> void:
 	name = "GF Input Mapping"
-	GFEditorWorkspaceUI.apply_page_root(self)
+	_GFEditorWorkspaceUI.apply_page_root(self)
 	_build_ui()
 	call_deferred("refresh")
 
@@ -44,8 +44,11 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 载入输入上下文资源。
+## [br]
+## @api public
+## [br]
 ## @param context: 输入上下文资源。
-func set_input_context(context: GFInputContextBase) -> void:
+func set_input_context(context: GFInputContext) -> void:
 	_context = context
 	if _path_edit != null and context != null:
 		_path_edit.text = context.resource_path
@@ -53,7 +56,11 @@ func set_input_context(context: GFInputContextBase) -> void:
 
 
 ## 从资源路径载入输入上下文。
+## [br]
+## @api public
+## [br]
 ## @param path: 输入上下文资源路径。
+## [br]
 ## @return Godot 错误码。
 func load_context_path(path: String) -> Error:
 	var normalized_path := path.strip_edges()
@@ -62,7 +69,7 @@ func load_context_path(path: String) -> Error:
 		return ERR_INVALID_PARAMETER
 
 	var resource := ResourceLoader.load(normalized_path)
-	var context := resource as GFInputContextBase
+	var context := resource as GFInputContext
 	if context == null:
 		_context = null
 		_last_report = {}
@@ -77,6 +84,8 @@ func load_context_path(path: String) -> Error:
 
 
 ## 刷新当前上下文诊断。
+## [br]
+## @api public
 func refresh() -> void:
 	_build_ui()
 	if _context == null:
@@ -89,7 +98,12 @@ func refresh() -> void:
 
 
 ## 获取最近一次诊断报告。
+## [br]
+## @api public
+## [br]
 ## @return 诊断报告副本。
+## [br]
+## @schema return: Dictionary，基于当前 GFInputContext 构建的校验报告，包含摘要、问题计数、冲突和后续动作。
 func get_last_report() -> Dictionary:
 	return _last_report.duplicate(true)
 
@@ -107,7 +121,7 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := GFEditorWorkspaceUI.make_toolbar()
+	var toolbar := _GFEditorWorkspaceUI.make_toolbar()
 	root_box.add_child(toolbar)
 
 	_path_edit = LineEdit.new()
@@ -116,9 +130,9 @@ func _build_ui() -> void:
 	_path_edit.text_submitted.connect(_on_path_submitted)
 	toolbar.add_child(_path_edit)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("...", "选择输入上下文资源。", _on_browse_pressed))
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("加载", "载入当前路径中的输入上下文。", _on_load_pressed))
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "重新分析当前输入上下文。", refresh))
+	toolbar.add_child(_GFEditorWorkspaceUI.make_button("...", "选择输入上下文资源。", _on_browse_pressed))
+	toolbar.add_child(_GFEditorWorkspaceUI.make_button("加载", "载入当前路径中的输入上下文。", _on_load_pressed))
+	toolbar.add_child(_GFEditorWorkspaceUI.make_button("刷新", "重新分析当前输入上下文。", refresh))
 
 	_include_non_remappable_check = CheckBox.new()
 	_include_non_remappable_check.text = "包含不可重绑"
@@ -127,12 +141,12 @@ func _build_ui() -> void:
 	_include_non_remappable_check.toggled.connect(_on_option_toggled)
 	toolbar.add_child(_include_non_remappable_check)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("复制报告", "复制当前输入映射诊断 JSON。", _on_copy_pressed))
+	toolbar.add_child(_GFEditorWorkspaceUI.make_button("复制报告", "复制当前输入映射诊断 JSON。", _on_copy_pressed))
 
-	_summary_label = GFEditorWorkspaceUI.make_summary_label()
+	_summary_label = _GFEditorWorkspaceUI.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_empty_label = GFEditorWorkspaceUI.make_empty_label()
+	_empty_label = _GFEditorWorkspaceUI.make_empty_label()
 	root_box.add_child(_empty_label)
 
 	_content_split = HSplitContainer.new()
@@ -154,7 +168,7 @@ func _build_ui() -> void:
 	_tree.item_selected.connect(_on_tree_item_selected)
 	_content_split.add_child(_tree)
 
-	_details = GFEditorWorkspaceUI.make_details_output()
+	_details = _GFEditorWorkspaceUI.make_details_output()
 	_details.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_details.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_content_split.add_child(_details)
@@ -166,12 +180,12 @@ func _build_ui() -> void:
 	add_child(_file_dialog)
 
 
-func _build_report(context: GFInputContextBase) -> Dictionary:
+func _build_report(context: GFInputContext) -> Dictionary:
 	var include_non_remappable := (
 		_include_non_remappable_check == null
 		or _include_non_remappable_check.button_pressed
 	)
-	var report := GFInputConflictAnalyzerBase.build_rebind_report(
+	var report := GFInputConflictAnalyzer.build_rebind_report(
 		[context],
 		null,
 		false,
@@ -205,7 +219,7 @@ func _build_report(context: GFInputContextBase) -> Dictionary:
 		int(report.get("conflict_count", 0)),
 		issues.size(),
 	]
-	return GFValidationReportDictionaryBase.finalize_report(report, "Input mapping", {
+	return GFValidationReportDictionary.finalize_report(report, "Input mapping", {
 		"include_issue_count": true,
 		"next_actions": _get_validation_next_actions(),
 		"fallback_action": "检查输入映射诊断中的第一条问题。",
@@ -213,7 +227,7 @@ func _build_report(context: GFInputContextBase) -> Dictionary:
 	})
 
 
-func _collect_structure_issues(context: GFInputContextBase, issues: Array[Dictionary]) -> void:
+func _collect_structure_issues(context: GFInputContext, issues: Array[Dictionary]) -> void:
 	if context.get_context_id() == &"":
 		issues.append(_make_issue("warning", "empty_context_id", "", "输入上下文缺少稳定 context_id。"))
 
@@ -255,7 +269,7 @@ func _render_context() -> void:
 		resource_summary,
 		String(_last_report.get("next_action", "")),
 	]
-	_summary_label.modulate = GFEditorWorkspaceUI.get_report_color(_last_report)
+	_summary_label.modulate = _GFEditorWorkspaceUI.get_report_color(_last_report)
 
 	var root_item := _tree.create_item()
 	var context_item := _tree.create_item(root_item)
@@ -273,7 +287,7 @@ func _render_context() -> void:
 		var mapping_item := _tree.create_item(root_item)
 		mapping_item.set_text(0, "动作")
 		mapping_item.set_text(1, String(mapping.get_action_id()))
-		mapping_item.set_text(2, GFInputFormatterBase.mapping_as_text(mapping, _context.get_context_id()))
+		mapping_item.set_text(2, GFInputFormatter.mapping_as_text(mapping, _context.get_context_id()))
 		mapping_item.set_text(3, "%s · %s" % [
 			mapping.get_display_name(),
 			_get_value_type_name(mapping.action.value_type) if mapping.action != null else "missing action",
@@ -285,7 +299,7 @@ func _render_context() -> void:
 		_add_issue_item(root_item, issue)
 
 
-func _add_binding_items(parent: TreeItem, mapping: GFInputMappingBase) -> void:
+func _add_binding_items(parent: TreeItem, mapping: GFInputMapping) -> void:
 	for binding_index: int in range(mapping.bindings.size()):
 		var binding := mapping.bindings[binding_index]
 		if binding == null:
@@ -293,7 +307,7 @@ func _add_binding_items(parent: TreeItem, mapping: GFInputMappingBase) -> void:
 		var item := _tree.create_item(parent)
 		item.set_text(0, "绑定")
 		item.set_text(1, "%d" % binding_index)
-		item.set_text(2, GFInputFormatterBase.binding_as_text(binding))
+		item.set_text(2, GFInputFormatter.binding_as_text(binding))
 		item.set_text(3, "%s · deadzone %.2f · scale %.2f" % [
 			_get_value_target_name(binding.value_target),
 			binding.deadzone,
@@ -322,10 +336,10 @@ func _render_empty(status: String, hint: String = "") -> void:
 	if _empty_label != null:
 		_empty_label.text = hint if not hint.is_empty() else status
 		_empty_label.visible = true
-	_set_status(status, GFEditorWorkspaceUI.INFO_TEXT_COLOR)
+	_set_status(status, _GFEditorWorkspaceUI.INFO_TEXT_COLOR)
 
 
-func _make_context_details(context: GFInputContextBase) -> Dictionary:
+func _make_context_details(context: GFInputContext) -> Dictionary:
 	return {
 		"context_id": context.get_context_id(),
 		"display_name": context.get_display_name(),
@@ -334,7 +348,7 @@ func _make_context_details(context: GFInputContextBase) -> Dictionary:
 	}
 
 
-func _make_mapping_details(mapping: GFInputMappingBase, mapping_index: int) -> Dictionary:
+func _make_mapping_details(mapping: GFInputMapping, mapping_index: int) -> Dictionary:
 	return {
 		"index": mapping_index,
 		"action_id": mapping.get_action_id(),
@@ -347,11 +361,11 @@ func _make_mapping_details(mapping: GFInputMappingBase, mapping_index: int) -> D
 	}
 
 
-func _make_binding_details(binding: GFInputBindingBase, binding_index: int) -> Dictionary:
+func _make_binding_details(binding: GFInputBinding, binding_index: int) -> Dictionary:
 	return {
 		"index": binding_index,
-		"text": GFInputFormatterBase.binding_as_text(binding),
-		"input_event": GFInputFormatterBase.input_event_as_text(binding.input_event),
+		"text": GFInputFormatter.binding_as_text(binding),
+		"input_event": GFInputFormatter.input_event_as_text(binding.input_event),
 		"value_target": _get_value_target_name(binding.value_target),
 		"deadzone": binding.deadzone,
 		"scale": binding.scale,
@@ -371,9 +385,9 @@ func _make_issue(severity: String, kind: String, path: String, message: String) 
 	}
 
 
-func _count_bindings(context: GFInputContextBase) -> int:
+func _count_bindings(context: GFInputContext) -> int:
 	var count := 0
-	for mapping: GFInputMappingBase in context.mappings:
+	for mapping: GFInputMapping in context.mappings:
 		if mapping != null:
 			count += mapping.bindings.size()
 	return count
@@ -393,16 +407,16 @@ func _get_validation_next_actions() -> Dictionary:
 
 
 func _set_status(message: String, color: Color) -> void:
-	GFEditorWorkspaceUI.set_status(_summary_label, message, color)
+	_GFEditorWorkspaceUI.set_status(_summary_label, message, color)
 
 
 func _get_value_type_name(value_type: int) -> String:
 	match value_type:
-		GFInputActionBase.ValueType.AXIS_1D:
+		GFInputAction.ValueType.AXIS_1D:
 			return "axis_1d"
-		GFInputActionBase.ValueType.AXIS_2D:
+		GFInputAction.ValueType.AXIS_2D:
 			return "axis_2d"
-		GFInputActionBase.ValueType.AXIS_3D:
+		GFInputAction.ValueType.AXIS_3D:
 			return "axis_3d"
 		_:
 			return "bool"
@@ -410,31 +424,31 @@ func _get_value_type_name(value_type: int) -> String:
 
 func _get_value_target_name(value_target: int) -> String:
 	match value_target:
-		GFInputBindingBase.ValueTarget.BOOL:
+		GFInputBinding.ValueTarget.BOOL:
 			return "bool"
-		GFInputBindingBase.ValueTarget.AXIS_1D_POSITIVE:
+		GFInputBinding.ValueTarget.AXIS_1D_POSITIVE:
 			return "axis_1d_positive"
-		GFInputBindingBase.ValueTarget.AXIS_1D_NEGATIVE:
+		GFInputBinding.ValueTarget.AXIS_1D_NEGATIVE:
 			return "axis_1d_negative"
-		GFInputBindingBase.ValueTarget.AXIS_2D_X_POSITIVE:
+		GFInputBinding.ValueTarget.AXIS_2D_X_POSITIVE:
 			return "axis_2d_x_positive"
-		GFInputBindingBase.ValueTarget.AXIS_2D_X_NEGATIVE:
+		GFInputBinding.ValueTarget.AXIS_2D_X_NEGATIVE:
 			return "axis_2d_x_negative"
-		GFInputBindingBase.ValueTarget.AXIS_2D_Y_POSITIVE:
+		GFInputBinding.ValueTarget.AXIS_2D_Y_POSITIVE:
 			return "axis_2d_y_positive"
-		GFInputBindingBase.ValueTarget.AXIS_2D_Y_NEGATIVE:
+		GFInputBinding.ValueTarget.AXIS_2D_Y_NEGATIVE:
 			return "axis_2d_y_negative"
-		GFInputBindingBase.ValueTarget.AXIS_3D_X_POSITIVE:
+		GFInputBinding.ValueTarget.AXIS_3D_X_POSITIVE:
 			return "axis_3d_x_positive"
-		GFInputBindingBase.ValueTarget.AXIS_3D_X_NEGATIVE:
+		GFInputBinding.ValueTarget.AXIS_3D_X_NEGATIVE:
 			return "axis_3d_x_negative"
-		GFInputBindingBase.ValueTarget.AXIS_3D_Y_POSITIVE:
+		GFInputBinding.ValueTarget.AXIS_3D_Y_POSITIVE:
 			return "axis_3d_y_positive"
-		GFInputBindingBase.ValueTarget.AXIS_3D_Y_NEGATIVE:
+		GFInputBinding.ValueTarget.AXIS_3D_Y_NEGATIVE:
 			return "axis_3d_y_negative"
-		GFInputBindingBase.ValueTarget.AXIS_3D_Z_POSITIVE:
+		GFInputBinding.ValueTarget.AXIS_3D_Z_POSITIVE:
 			return "axis_3d_z_positive"
-		GFInputBindingBase.ValueTarget.AXIS_3D_Z_NEGATIVE:
+		GFInputBinding.ValueTarget.AXIS_3D_Z_NEGATIVE:
 			return "axis_3d_z_negative"
 		_:
 			return "auto"
@@ -461,7 +475,7 @@ func _sanitize_for_display(value: Variant) -> Variant:
 			strings.append(item)
 		return strings
 	if value is InputEvent:
-		return GFInputFormatterBase.input_event_as_text(value)
+		return GFInputFormatter.input_event_as_text(value)
 	if value is Object:
 		return str(value)
 	return value
@@ -505,4 +519,4 @@ func _on_copy_pressed() -> void:
 	if _last_report.is_empty():
 		return
 	DisplayServer.clipboard_set(_safe_json(_last_report))
-	_set_status("已复制输入映射诊断报告。", GFEditorWorkspaceUI.OK_TEXT_COLOR)
+	_set_status("已复制输入映射诊断报告。", _GFEditorWorkspaceUI.OK_TEXT_COLOR)

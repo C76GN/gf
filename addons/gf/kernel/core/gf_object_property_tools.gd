@@ -2,6 +2,14 @@
 ##
 ## 集中处理属性列表查询、属性路径读写、可写性判断和基础类型校验。
 ## 它不负责属性绑定、自动派发、表达式执行或业务字段解释。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/core
 class_name GFObjectPropertyTools
 extends RefCounted
 
@@ -9,9 +17,16 @@ extends RefCounted
 # --- 公共方法 ---
 
 ## 获取对象属性信息列表。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param usage_filter: 属性 usage 过滤掩码；小于 0 时不过滤。
+## [br]
 ## @return 属性信息字典列表副本。
+## [br]
+## @schema return: Array of Godot property info Dictionary values.
 static func get_property_infos(object: Object, usage_filter: int = -1) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	if not is_instance_valid(object):
@@ -25,9 +40,16 @@ static func get_property_infos(object: Object, usage_filter: int = -1) -> Array[
 
 
 ## 获取对象属性信息映射。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param usage_filter: 属性 usage 过滤掩码；小于 0 时不过滤。
+## [br]
 ## @return 以属性名为键的属性信息字典。
+## [br]
+## @schema return: Dictionary[StringName, Dictionary]
 static func get_property_info_map(object: Object, usage_filter: int = -1) -> Dictionary:
 	var result: Dictionary = {}
 	for property_info: Dictionary in get_property_infos(object, usage_filter):
@@ -38,8 +60,13 @@ static func get_property_info_map(object: Object, usage_filter: int = -1) -> Dic
 
 
 ## 获取对象属性名列表。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param usage_filter: 属性 usage 过滤掩码；小于 0 时不过滤。
+## [br]
 ## @return 属性名列表。
 static func get_property_names(object: Object, usage_filter: int = -1) -> PackedStringArray:
 	var result := PackedStringArray()
@@ -51,9 +78,16 @@ static func get_property_names(object: Object, usage_filter: int = -1) -> Packed
 
 
 ## 获取单个属性信息。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param property_name: 属性名。
+## [br]
 ## @return 属性信息字典副本；不存在时返回空字典。
+## [br]
+## @schema return: Godot property info dictionary.
 static func get_property_info(object: Object, property_name: StringName) -> Dictionary:
 	if property_name == &"" or not is_instance_valid(object):
 		return {}
@@ -64,23 +98,39 @@ static func get_property_info(object: Object, property_name: StringName) -> Dict
 
 
 ## 检查对象是否声明了指定属性。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param property_name: 属性名。
+## [br]
 ## @return 属性存在时返回 true。
 static func has_property(object: Object, property_name: StringName) -> bool:
 	return not get_property_info(object, property_name).is_empty()
 
 
 ## 检查对象是否声明了属性路径的根属性。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param property_path: 属性路径。
+## [br]
 ## @return 根属性存在时返回 true。
 static func has_property_path(object: Object, property_path: NodePath) -> bool:
 	return has_property(object, get_root_property_name(property_path))
 
 
 ## 判断属性信息是否可写。
+## [br]
+## @api public
+## [br]
 ## @param property_info: Godot 属性信息字典。
+## [br]
+## @schema property_info: Godot property info dictionary.
+## [br]
 ## @return 未标记为只读时返回 true。
 static func is_property_writable(property_info: Dictionary) -> bool:
 	if property_info.is_empty():
@@ -90,18 +140,33 @@ static func is_property_writable(property_info: Dictionary) -> bool:
 
 
 ## 检查对象属性路径是否可写。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param property_path: 属性路径。
+## [br]
 ## @return 根属性存在且未标记为只读时返回 true。
 static func can_write_property(object: Object, property_path: NodePath) -> bool:
 	return is_property_writable(get_property_info(object, get_root_property_name(property_path)))
 
 
 ## 读取对象属性路径。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param property_path: 属性路径。
+## [br]
 ## @param default_value: 对象、路径或根属性无效时返回的默认值。
+## [br]
+## @schema default_value: Variant fallback returned unchanged when the property cannot be read.
+## [br]
 ## @return 属性值或默认值。
+## [br]
+## @schema return: Variant property value or the supplied default value.
 static func read_property(
 	object: Object,
 	property_path: NodePath,
@@ -115,11 +180,24 @@ static func read_property(
 
 
 ## 写入对象属性路径。
+## [br]
+## @api public
+## [br]
 ## @param object: 目标对象。
+## [br]
 ## @param property_path: 属性路径。
+## [br]
 ## @param value: 请求写入的值。
+## [br]
 ## @param options: 可选项，支持 check_writable、check_type、coerce_value。
+## [br]
+## @schema value: Variant value requested for assignment.
+## [br]
+## @schema options: Dictionary with optional bool keys check_writable, check_type, and coerce_value.
+## [br]
 ## @return 写入结果字典，包含 ok、error、property_name、old_value 与 new_value。
+## [br]
+## @schema return: Dictionary { ok: bool, error: String, property_name: StringName, old_value: Variant, new_value: Variant }.
 static func write_property(
 	object: Object,
 	property_path: NodePath,
@@ -151,8 +229,15 @@ static func write_property(
 
 
 ## 检查值是否可写入指定 Variant 类型。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
+## @schema value: Variant value to compare against the requested Variant.Type.
+## [br]
 ## @param property_type: Variant.Type 常量。
+## [br]
 ## @return 类型兼容时返回 true。
 static func value_matches_property_type(value: Variant, property_type: int) -> bool:
 	if value == null or property_type == TYPE_NIL:
@@ -231,9 +316,18 @@ static func value_matches_property_type(value: Variant, property_type: int) -> b
 
 
 ## 将值转换为指定 Variant 类型的基础兼容形式。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
+## @schema value: Variant value to coerce.
+## [br]
 ## @param property_type: Variant.Type 常量。
+## [br]
 ## @return 转换后的值；不支持转换时返回原值。
+## [br]
+## @schema return: Variant coerced value or original value.
 static func coerce_property_value(value: Variant, property_type: int) -> Variant:
 	match property_type:
 		TYPE_FLOAT:
@@ -251,7 +345,11 @@ static func coerce_property_value(value: Variant, property_type: int) -> Variant
 
 
 ## 获取属性路径的根属性名。
+## [br]
+## @api public
+## [br]
 ## @param property_path: 属性路径。
+## [br]
 ## @return 根属性名；无效路径返回空 StringName。
 static func get_root_property_name(property_path: NodePath) -> StringName:
 	if property_path.is_empty():

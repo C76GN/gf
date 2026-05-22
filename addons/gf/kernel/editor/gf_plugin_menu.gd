@@ -1,6 +1,6 @@
 @tool
 
-## GF 插件工具菜单管理辅助。
+# GF 插件工具菜单管理辅助。
 extends RefCounted
 
 
@@ -12,9 +12,18 @@ var _menu: PopupMenu
 # --- 公共方法 ---
 
 ## 创建并注册 GF 工具菜单。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
+## [br]
 ## @param handler: 处理菜单 ID 的回调。
+## [br]
 ## @param menu_entries: 菜单项记录列表。
+## [br]
+## @schema menu_entries: Array of Dictionary entries with label, id, and optional section.
 func setup(plugin: EditorPlugin, handler: Callable, menu_entries: Array = []) -> void:
 	if plugin == null:
 		return
@@ -25,6 +34,11 @@ func setup(plugin: EditorPlugin, handler: Callable, menu_entries: Array = []) ->
 
 
 ## 移除并释放 GF 工具菜单。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
 func cleanup(plugin: EditorPlugin) -> void:
 	if plugin != null:

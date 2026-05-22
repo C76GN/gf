@@ -1,7 +1,7 @@
-## 架构依赖作用域共享实现。
-##
-## 该脚本供 GFModel、GFSystem、GFUtility、GFCommand 与 GFQuery 复用，
-## 用于保持注入架构、释放状态和全局回退规则一致。
+# 架构依赖作用域共享实现。
+#
+# 该脚本供 GFModel、GFSystem、GFUtility、GFCommand 与 GFQuery 复用，
+# 用于保持注入架构、释放状态和全局回退规则一致。
 extends RefCounted
 
 

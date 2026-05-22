@@ -2,6 +2,12 @@
 ##
 ## 该 sink 只负责把 GFLogUtility 传入的条目序列化为一行一个 JSON 对象，
 ## 不规定采集服务、上传时机或业务字段 schema。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFJsonLineLogSink
 extends GFLogSink
 
@@ -9,18 +15,28 @@ extends GFLogSink
 # --- 导出变量 ---
 
 ## 输出文件路径。留空时会根据 GFLogUtility 当前日志文件派生同名 `.jsonl` 文件。
+## [br]
+## @api public
 @export var file_path: String = ""
 
 ## 是否在写入前移除 `text` 字段，减少重复存储。
+## [br]
+## @api public
 @export var omit_formatted_text: bool = false
 
 ## 文件自动 flush 间隔。设为 0 时每条日志都会立即 flush。
+## [br]
+## @api public
 @export var flush_interval_msec: int = 250
 
 ## 是否强制每条 JSONL 日志立即 flush。
+## [br]
+## @api public
 @export var flush_immediately: bool = false
 
 ## 使用默认派生路径时最多保留的 JSONL 文件数量。
+## [br]
+## @api public
 @export var max_jsonl_files: int = 10:
 	set(value):
 		max_jsonl_files = maxi(value, 1)
@@ -37,6 +53,9 @@ var _uses_default_file_path: bool = false
 # --- 公共方法 ---
 
 ## 初始化 sink 并打开 JSONL 文件。
+## [br]
+## @api public
+## [br]
 ## @param owner: 持有该 sink 的日志工具。
 func init(owner: Object) -> void:
 	_effective_file_path = _resolve_file_path(owner)
@@ -55,7 +74,12 @@ func init(owner: Object) -> void:
 
 
 ## 写入一条结构化日志。
+## [br]
+## @api public
+## [br]
 ## @param entry: 日志条目字典。
+## [br]
+## @schema entry: Dictionary log entry produced by GFLogUtility.
 func write(entry: Dictionary) -> void:
 	if _file == null:
 		return
@@ -69,6 +93,8 @@ func write(entry: Dictionary) -> void:
 
 
 ## 刷新尚未写出的 JSONL 内容。
+## [br]
+## @api public
 func flush() -> void:
 	if _file != null:
 		_file.flush()
@@ -76,6 +102,8 @@ func flush() -> void:
 
 
 ## 关闭文件句柄。
+## [br]
+## @api public
 func shutdown() -> void:
 	if _file != null:
 		_file.flush()
@@ -84,6 +112,9 @@ func shutdown() -> void:
 
 
 ## 获取当前实际输出路径。
+## [br]
+## @api public
+## [br]
 ## @return JSONL 文件路径。
 func get_file_path() -> String:
 	return _effective_file_path

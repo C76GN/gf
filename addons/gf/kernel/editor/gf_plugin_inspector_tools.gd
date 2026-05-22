@@ -1,12 +1,23 @@
 @tool
 
-## GF 插件 Inspector 与导出插件管理辅助。
+# GF 插件 Inspector 与导出插件管理辅助。
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 扩展导出过滤插件脚本路径。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const EXTENSION_EXPORT_PLUGIN_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/extension/gf_extension_export_plugin.gd"
+
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
@@ -23,8 +34,16 @@ var _standard_export_records: Array[Dictionary] = []
 # --- 公共方法 ---
 
 ## 安装 GF Inspector 与导出插件。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
+## [br]
 ## @param standard_records: 组合入口传入的标准库 Inspector 与导出插件记录。
+## [br]
+## @schema standard_records: Dictionary containing inspector_plugin_records and export_plugin_records arrays.
 func setup(plugin: EditorPlugin, standard_records: Dictionary = {}) -> void:
 	if plugin == null:
 		return
@@ -37,6 +56,11 @@ func setup(plugin: EditorPlugin, standard_records: Dictionary = {}) -> void:
 
 
 ## 移除 GF Inspector 与导出插件。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
 func cleanup(plugin: EditorPlugin) -> void:
 	if plugin == null:

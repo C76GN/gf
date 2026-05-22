@@ -1,6 +1,12 @@
 ## GFLinearProjectileMotion: 2D/3D 通用直线发射体移动策略。
 ##
 ## 该策略只处理线性位移，不处理碰撞、伤害、生命周期或目标选择。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFLinearProjectileMotion
 extends GFProjectileMotion
 
@@ -8,23 +14,44 @@ extends GFProjectileMotion
 # --- 导出变量 ---
 
 ## 每秒移动距离。
+## [br]
+## @api public
 @export var speed: float = 0.0
 
 ## 2D 方向。use_local_direction 为 true 时按发射体当前变换转换。
+## [br]
+## @api public
 @export var direction_2d: Vector2 = Vector2.RIGHT
 
 ## 3D 方向。use_local_direction 为 true 时按发射体当前变换转换。
+## [br]
+## @api public
 @export var direction_3d: Vector3 = Vector3.FORWARD
 
 ## 是否把方向视为发射体本地坐标。
+## [br]
+## @api public
 @export var use_local_direction: bool = true
 
 ## 是否归一化方向。
+## [br]
+## @api public
 @export var normalize_direction: bool = true
 
 
-# --- 虚方法（由子类重写） ---
+# --- 可重写钩子 / 虚方法 ---
 
+## 推进直线移动。
+## [br]
+## @api protected
+## [br]
+## @param projectile: 发射体节点。
+## [br]
+## @param delta: 物理帧间隔。
+## [br]
+## @param projectile_context: 本次发射上下文字典。
+## [br]
+## @schema projectile_context: Dictionary，本次发射上下文；会写入 velocity_2d 或 velocity_3d。
 func _step(projectile: Node, delta: float, projectile_context: Dictionary = {}) -> void:
 	if projectile is Node2D:
 		_step_2d(projectile as Node2D, delta, projectile_context)

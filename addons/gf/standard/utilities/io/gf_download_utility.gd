@@ -1,6 +1,12 @@
 ## GFDownloadUtility: 通用文件下载队列。
 ##
 ## 提供顺序下载、临时文件提交、可选续传、SHA-256 校验、暂停、取消和诊断快照。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFDownloadUtility
 extends GFUtility
 
@@ -8,42 +14,94 @@ extends GFUtility
 # --- 信号 ---
 
 ## 下载任务开始时发出。
+## [br]
+## @api public
+## [br]
+## @param task_id: 下载任务句柄。
+## [br]
+## @param task: 下载任务快照。
 signal download_started(task_id: int, task: GFDownloadTask)
 
 ## 下载进度更新时发出。
+## [br]
+## @api public
+## [br]
+## @param task_id: 下载任务句柄。
+## [br]
+## @param received_bytes: 已接收字节数。
+## [br]
+## @param total_bytes: 总字节数；未知时为 -1。
 signal download_progressed(task_id: int, received_bytes: int, total_bytes: int)
 
 ## 下载任务成功完成时发出。
+## [br]
+## @api public
+## [br]
+## @param task_id: 下载任务句柄。
+## [br]
+## @param result: 下载结果字典。
+## [br]
+## @schema result: Dictionary，包含任务字段、success、cancelled 和可选完成元数据。
 signal download_completed(task_id: int, result: Dictionary)
 
 ## 下载任务失败时发出。
+## [br]
+## @api public
+## [br]
+## @param task_id: 下载任务句柄。
+## [br]
+## @param result: 下载结果字典。
+## [br]
+## @schema result: Dictionary，包含任务字段、success、cancelled 和错误详情。
 signal download_failed(task_id: int, result: Dictionary)
 
 ## 下载任务被取消时发出。
+## [br]
+## @api public
+## [br]
+## @param task_id: 下载任务句柄。
+## [br]
+## @param result: 下载结果字典。
+## [br]
+## @schema result: Dictionary，包含任务字段、success、cancelled 和取消详情。
 signal download_cancelled(task_id: int, result: Dictionary)
 
 
 # --- 公共变量 ---
 
 ## HTTP 请求超时时间，单位秒。
+## [br]
+## @api public
 var timeout_seconds: float = 30.0
 
 ## 临时文件后缀。
+## [br]
+## @api public
 var default_temp_suffix: String = ".download"
 
 ## 分段续传临时文件后缀。
+## [br]
+## @api public
 var default_segment_suffix: String = ".segment"
 
 ## 目标文件已存在时默认是否覆盖。
+## [br]
+## @api public
 var overwrite_existing: bool = true
 
 ## 进度信号最小间隔，单位秒。
+## [br]
+## @api public
 var emit_progress_interval_seconds: float = 0.1
 
 ## 默认最大重试次数。
+## [br]
+## @api public
 var default_max_retries: int = 0
 
 ## 默认重试等待秒数。
+## [br]
+## @api public
 var default_retry_delay_seconds: float = 0.0
 
 
@@ -60,8 +118,11 @@ var _callbacks: Dictionary = {}
 var _last_progress_emit_msec: int = 0
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化下载队列运行时状态并启用暂停无关处理。
+## [br]
+## @api public
 func init() -> void:
 	ignore_pause = true
 	_pending_tasks.clear()
@@ -74,6 +135,9 @@ func init() -> void:
 	_last_progress_emit_msec = 0
 
 
+## 取消下载、释放 HTTPRequest 并清理运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	clear_queue(true)
 	if is_instance_valid(_http_request):
@@ -86,6 +150,9 @@ func dispose() -> void:
 
 
 ## 驱动下载进度采样。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 为兼容统一 tick 签名而保留的参数。
 func tick(_delta: float = 0.0) -> void:
 	if _active_task == null:
@@ -107,11 +174,20 @@ func tick(_delta: float = 0.0) -> void:
 # --- 公共方法 ---
 
 ## 将下载任务加入队列。
+## [br]
+## @api public
+## [br]
 ## @param url: 下载 URL。
+## [br]
 ## @param target_path: 最终写入路径。
+## [br]
 ## @param callback: 完成、失败或取消时执行的回调，签名为 func(result: Dictionary)。
+## [br]
 ## @param options: 可选参数，支持 headers、resume、overwrite、expected_sha256、metadata、temp_path、segment_path、max_retries、retry_delay_seconds。
+## [br]
 ## @return 任务句柄；输入无效时返回 0。
+## [br]
+## @schema options: Dictionary，可包含 headers、resume、overwrite、expected_sha256、metadata、temp_path、segment_path、max_retries 和 retry_delay_seconds。
 func enqueue_download(
 	url: String,
 	target_path: String,
@@ -145,8 +221,13 @@ func enqueue_download(
 
 
 ## 取消下载任务。
+## [br]
+## @api public
+## [br]
 ## @param task_id: 任务句柄。
+## [br]
 ## @param delete_temp: 是否删除临时文件。
+## [br]
 ## @return 找到并取消任务时返回 true。
 func cancel(task_id: int, delete_temp: bool = false) -> bool:
 	if task_id <= 0:
@@ -180,6 +261,9 @@ func cancel(task_id: int, delete_temp: bool = false) -> bool:
 
 
 ## 设置下载队列暂停状态。暂停时不会启动新任务，当前任务会保留临时文件并回到队首。
+## [br]
+## @api public
+## [br]
 ## @param value: 是否暂停。
 func set_paused(value: bool) -> void:
 	if _paused == value:
@@ -193,23 +277,34 @@ func set_paused(value: bool) -> void:
 
 
 ## 暂停下载队列。
+## [br]
+## @api public
 func pause() -> void:
 	set_paused(true)
 
 
 ## 恢复下载队列。
+## [br]
+## @api public
 func resume() -> void:
 	set_paused(false)
 
 
 ## 检查下载队列是否暂停。
+## [br]
+## @api public
+## [br]
 ## @return 暂停时返回 true。
 func is_paused() -> bool:
 	return _paused
 
 
 ## 清空等待队列，可选取消当前任务。
+## [br]
+## @api public
+## [br]
 ## @param cancel_active: 是否取消当前任务。
+## [br]
 ## @param delete_temp: 是否删除临时文件。
 func clear_queue(cancel_active: bool = false, delete_temp: bool = false) -> void:
 	for task: GFDownloadTask in _pending_tasks:
@@ -225,12 +320,18 @@ func clear_queue(cancel_active: bool = false, delete_temp: bool = false) -> void
 
 
 ## 获取当前正在下载的任务拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 当前任务；没有任务时返回 null。
 func get_active_task() -> GFDownloadTask:
 	return _active_task.duplicate_task() if _active_task != null else null
 
 
 ## 获取等待队列中的任务 ID。
+## [br]
+## @api public
+## [br]
 ## @return 任务 ID 列表。
 func get_queued_task_ids() -> PackedInt32Array:
 	var result := PackedInt32Array()
@@ -240,14 +341,25 @@ func get_queued_task_ids() -> PackedInt32Array:
 
 
 ## 获取指定任务最近结果。
+## [br]
+## @api public
+## [br]
 ## @param task_id: 任务句柄。
+## [br]
 ## @return 结果字典；不存在时返回空字典。
+## [br]
+## @schema return: Dictionary，包含最新任务结果；没有结果时为空字典。
 func get_result(task_id: int) -> Dictionary:
 	return (_results.get(task_id, {}) as Dictionary).duplicate(true)
 
 
 ## 获取下载工具诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 诊断快照字典。
+## [br]
+## @schema return: Dictionary，包含 paused、queued_count、queued_task_ids、active_task 和 result_count。
 func get_debug_snapshot() -> Dictionary:
 	var queued_ids := PackedInt32Array()
 	for task: GFDownloadTask in _pending_tasks:
@@ -260,6 +372,76 @@ func get_debug_snapshot() -> Dictionary:
 		"active_task": _active_task.to_dict() if _active_task != null else {},
 		"result_count": _results.size(),
 	}
+
+
+# --- 可重写钩子 / 虚方法 ---
+
+## 启动底层 HTTP 下载请求。
+## [br]
+## @api protected
+## [br]
+## @param request_data: 请求数据。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema request_data: Dictionary，包含 task_id、url、headers、download_file 和 resume_offset。
+func _start_http_request(request_data: Dictionary) -> Error:
+	var request := _ensure_http_request()
+	if request == null:
+		return ERR_UNAVAILABLE
+
+	request.timeout = timeout_seconds
+	request.download_file = str(request_data["download_file"])
+	return request.request(
+		str(request_data["url"]),
+		request_data["headers"] as PackedStringArray
+	)
+
+
+## 完成当前活动下载，并根据结果提交、重试或失败任务。
+## [br]
+## @api protected
+## [br]
+## @param success: 底层请求是否成功取得响应体。
+## [br]
+## @param response_code: HTTP 响应码。
+## [br]
+## @param error: 失败原因。
+## [br]
+## @param retryable: 是否允许按任务重试策略重新入队。
+func _complete_active_download(
+	success: bool,
+	response_code: int,
+	error: String = "",
+	retryable: bool = false
+) -> void:
+	if _active_task == null:
+		return
+
+	var task := _active_task
+	var request_data := _active_request_data.duplicate(true)
+	_active_task = null
+	_active_request_data.clear()
+	task.response_code = response_code
+
+	if success:
+		var commit_error := _commit_download_file(task, request_data, response_code)
+		if commit_error == OK:
+			task.status = GFDownloadTask.Status.COMPLETED
+			task.error = ""
+			_finish_task(task, true, false)
+		else:
+			_fail_or_retry_task(task, "Commit failed: %s" % error_string(commit_error), false)
+	else:
+		_fail_or_retry_task(
+			task,
+			error,
+			retryable or _is_retryable_http_failure(response_code),
+			request_data,
+			response_code
+		)
+
+	_try_start_next_download()
 
 
 # --- 私有/辅助方法 ---
@@ -323,19 +505,6 @@ func _build_request_data(task: GFDownloadTask) -> Dictionary:
 	}
 
 
-func _start_http_request(request_data: Dictionary) -> Error:
-	var request := _ensure_http_request()
-	if request == null:
-		return ERR_UNAVAILABLE
-
-	request.timeout = timeout_seconds
-	request.download_file = str(request_data["download_file"])
-	return request.request(
-		str(request_data["url"]),
-		request_data["headers"] as PackedStringArray
-	)
-
-
 func _ensure_http_request() -> HTTPRequest:
 	if is_instance_valid(_http_request):
 		return _http_request
@@ -349,41 +518,6 @@ func _ensure_http_request() -> HTTPRequest:
 	_http_request.request_completed.connect(_on_request_completed)
 	tree.root.add_child(_http_request)
 	return _http_request
-
-
-func _complete_active_download(
-	success: bool,
-	response_code: int,
-	error: String = "",
-	retryable: bool = false
-) -> void:
-	if _active_task == null:
-		return
-
-	var task := _active_task
-	var request_data := _active_request_data.duplicate(true)
-	_active_task = null
-	_active_request_data.clear()
-	task.response_code = response_code
-
-	if success:
-		var commit_error := _commit_download_file(task, request_data, response_code)
-		if commit_error == OK:
-			task.status = GFDownloadTask.Status.COMPLETED
-			task.error = ""
-			_finish_task(task, true, false)
-		else:
-			_fail_or_retry_task(task, "Commit failed: %s" % error_string(commit_error), false)
-	else:
-		_fail_or_retry_task(
-			task,
-			error,
-			retryable or _is_retryable_http_failure(response_code),
-			request_data,
-			response_code
-		)
-
-	_try_start_next_download()
 
 
 func _commit_download_file(task: GFDownloadTask, request_data: Dictionary, response_code: int) -> Error:

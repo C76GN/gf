@@ -1,6 +1,12 @@
 ## GFInputBinding: 把一个 Godot 输入事件映射到动作值贡献。
 ##
 ## 该资源只描述输入来源和数值方向，实际动作归属由 GFInputMapping 决定。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFInputBinding
 extends Resource
 
@@ -8,6 +14,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 输入值贡献目标。
+## [br]
+## @api public
 enum ValueTarget {
 	## 根据动作值类型自动映射；二维/三维轴默认写入 X 分量，需要其他分量时使用显式 AXIS_* 目标。
 	AUTO,
@@ -40,49 +48,64 @@ enum ValueTarget {
 }
 
 
-# --- 常量 ---
-
-const GFInputActionBase = preload("res://addons/gf/standard/input/mapping/gf_input_action.gd")
-const GFInputModifierBase = preload("res://addons/gf/standard/input/modifiers/gf_input_modifier.gd")
-
-
 # --- 导出变量 ---
 
 ## Godot 原生输入事件模板。
+## [br]
+## @api public
 @export var input_event: InputEvent
 
 ## 当前绑定贡献到动作值的方向。
+## [br]
+## @api public
 @export var value_target: ValueTarget = ValueTarget.AUTO
 
 ## 轴输入死区。对按键和按钮输入无影响。
+## [br]
+## @api public
 @export_range(0.0, 1.0, 0.01) var deadzone: float = 0.2
 
 ## 输入贡献缩放。
+## [br]
+## @api public
 @export var scale: float = 1.0
 
 ## 绑定级输入修饰器，按顺序作用于该绑定产生的贡献值。
-@export var modifiers: Array[GFInputModifierBase] = []
+## [br]
+## @api public
+@export var modifiers: Array[GFInputModifier] = []
 
 ## 是否按设备 ID 精确匹配。关闭时同类按键、鼠标按钮或手柄按钮可跨设备匹配。
+## [br]
+## @api public
 @export var match_device: bool = false
 
 ## 是否按触点 index 精确匹配 InputEventScreenTouch。
 ## 默认关闭，表示任意触点都可匹配该绑定。
+## [br]
+## @api public
 @export var match_touch_index: bool = false
 
 ## 覆盖显示名称。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 该绑定是否可被玩家重绑。
+## [br]
+## @api public
 @export var remappable: bool = true
 
 
 # --- 公共方法 ---
 
 ## 创建深拷贝，避免运行时重映射污染原始资源。
+## [br]
+## @api public
+## [br]
 ## @return 新绑定。
-func duplicate_binding() -> Resource:
-	var binding: Variant = (get_script() as Script).new()
+func duplicate_binding() -> GFInputBinding:
+	var binding := (get_script() as Script).new() as GFInputBinding
 	binding.input_event = input_event.duplicate(true) as InputEvent if input_event != null else null
 	binding.value_target = value_target
 	binding.deadzone = deadzone
@@ -92,11 +115,15 @@ func duplicate_binding() -> Resource:
 	binding.match_touch_index = match_touch_index
 	binding.display_name = display_name
 	binding.remappable = remappable
-	return binding as Resource
+	return binding
 
 
 ## 判断当前绑定是否匹配输入事件。
+## [br]
+## @api public
+## [br]
 ## @param event: 运行时输入事件。
+## [br]
 ## @return 是否匹配。
 func matches_event(event: InputEvent) -> bool:
 	if input_event == null or event == null:
@@ -129,13 +156,19 @@ func matches_event(event: InputEvent) -> bool:
 
 
 ## 计算该输入事件对动作值的贡献。
+## [br]
+## @api public
+## [br]
 ## @param event: 运行时输入事件。
+## [br]
 ## @param action_value_type: 动作值类型。
+## [br]
 ## @param deadzone_override: 可选死区覆盖；小于 0 时使用绑定自身 deadzone。
+## [br]
 ## @return 三维向量贡献；布尔与一维轴使用 x 分量，二维轴使用 x/y 分量。
 func get_contribution(
 	event: InputEvent,
-	action_value_type: GFInputActionBase.ValueType,
+	action_value_type: GFInputAction.ValueType,
 	deadzone_override: float = -1.0
 ) -> Vector3:
 	var effective_deadzone := deadzone if deadzone_override < 0.0 else clampf(deadzone_override, 0.0, 1.0)
@@ -179,6 +212,9 @@ func get_contribution(
 
 
 ## 获取显示名称。
+## [br]
+## @api public
+## [br]
 ## @return 显示名称；为空时由输入事件格式化。
 func get_display_name() -> String:
 	if not display_name.is_empty():
@@ -253,16 +289,16 @@ func _get_target_strength(event: InputEvent, raw_value: float, target: ValueTarg
 func _get_auto_contribution(
 	raw_value: float,
 	event: InputEvent,
-	action_value_type: GFInputActionBase.ValueType
+	action_value_type: GFInputAction.ValueType
 ) -> Vector3:
 	match action_value_type:
-		GFInputActionBase.ValueType.BOOL:
+		GFInputAction.ValueType.BOOL:
 			return _apply_modifiers(Vector3(absf(raw_value) * scale, 0.0, 0.0), event, action_value_type)
-		GFInputActionBase.ValueType.AXIS_1D:
+		GFInputAction.ValueType.AXIS_1D:
 			return _apply_modifiers(Vector3(raw_value * scale, 0.0, 0.0), event, action_value_type)
-		GFInputActionBase.ValueType.AXIS_2D:
+		GFInputAction.ValueType.AXIS_2D:
 			return _apply_modifiers(Vector3(raw_value * scale, 0.0, 0.0), event, action_value_type)
-		GFInputActionBase.ValueType.AXIS_3D:
+		GFInputAction.ValueType.AXIS_3D:
 			return _apply_modifiers(Vector3(raw_value * scale, 0.0, 0.0), event, action_value_type)
 		_:
 			return Vector3.ZERO
@@ -271,12 +307,12 @@ func _get_auto_contribution(
 func _apply_modifiers(
 	value: Vector3,
 	event: InputEvent,
-	action_value_type: GFInputActionBase.ValueType
+	action_value_type: GFInputAction.ValueType
 ) -> Vector3:
 	var result := value
-	for modifier: GFInputModifierBase in modifiers:
+	for modifier: GFInputModifier in modifiers:
 		if modifier != null:
-			if action_value_type == GFInputActionBase.ValueType.AXIS_3D:
+			if action_value_type == GFInputAction.ValueType.AXIS_3D:
 				result = modifier.modify_3d(result, event, null)
 			else:
 				var modified := modifier.modify(Vector2(result.x, result.y), event, null)
@@ -284,9 +320,9 @@ func _apply_modifiers(
 	return result
 
 
-func _duplicate_modifiers() -> Array[GFInputModifierBase]:
-	var result: Array[GFInputModifierBase] = []
-	for modifier: GFInputModifierBase in modifiers:
+func _duplicate_modifiers() -> Array[GFInputModifier]:
+	var result: Array[GFInputModifier] = []
+	for modifier: GFInputModifier in modifiers:
 		if modifier == null:
 			continue
 		var duplicate_modifier := modifier.duplicate_modifier()

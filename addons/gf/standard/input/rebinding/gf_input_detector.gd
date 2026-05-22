@@ -1,6 +1,12 @@
 ## GFInputDetector: 检测下一次输入事件的辅助节点。
 ##
 ## 可用于项目自己的改键界面。检测结果只返回 Godot InputEvent，冲突处理由项目层决定。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFInputDetector
 extends Node
 
@@ -8,23 +14,37 @@ extends Node
 # --- 信号 ---
 
 ## 开始检测时发出。
+## [br]
+## @api public
 signal detection_started
 
 ## 检测结束时发出。input_event 为 null 表示取消或超时。
+## [br]
+## @api public
+## [br]
+## @param input_event: 检测到的输入事件；取消或超时时为 null。
 signal input_detected(input_event: InputEvent)
 
 
 # --- 枚举 ---
 
 ## 设备过滤类型。
+## [br]
+## @api public
 enum DeviceType {
+	## 键盘输入。
 	KEYBOARD,
+	## 鼠标输入。
 	MOUSE,
+	## 手柄按钮或轴输入。
 	JOYPAD,
+	## 触屏输入。
 	TOUCH,
 }
 
 ## 检测阶段。
+## [br]
+## @api public
 enum DetectionState {
 	## 未检测。
 	IDLE,
@@ -39,33 +59,46 @@ enum DetectionState {
 }
 
 
-# --- 常量 ---
-
-const GFInputActionBase = preload("res://addons/gf/standard/input/mapping/gf_input_action.gd")
 const _ANY_VALUE_TYPE: int = -1
 
 
 # --- 导出变量 ---
 
 ## 是否忽略键盘 echo 事件。
+## [br]
+## @api public
 @export var ignore_echo: bool = true
 
 ## 轴输入检测阈值。
+## [br]
+## @api public
 @export_range(0.0, 1.0, 0.01) var minimum_axis_amplitude: float = 0.25
 
 ## 正式接收输入前的倒计时。可用于改键界面避开确认按钮本身。
+## [br]
+## @api public
 @export var countdown_seconds: float = 0.0
 
 ## 检测超时时间。小于等于 0 表示不超时。
+## [br]
+## @api public
 @export var timeout_seconds: float = 0.0
 
 ## 取消检测的输入事件列表。
+## [br]
+## @api public
+## [br]
+## @schema abort_events: Array[InputEvent] used to cancel detection or wait for release before accepting input.
 @export var abort_events: Array[InputEvent] = []
 
 ## 开始正式检测前，是否等待 abort_events 中仍按住的输入释放。
+## [br]
+## @api public
 @export var wait_for_clear_before_detection: bool = true
 
 ## 检测到输入后，是否等待该输入释放再发出 input_detected。
+## [br]
+## @api public
 @export var wait_for_clear_after_detection: bool = false
 
 
@@ -146,26 +179,43 @@ func _process(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 开始检测下一次输入。
+## [br]
+## @api public
+## [br]
 ## @param allowed_device_types: 允许的设备类型。空数组表示不限制。
+## [br]
+## @schema allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。
 func begin_detection(allowed_device_types: Array[int] = []) -> void:
 	_begin_detection_internal(_ANY_VALUE_TYPE, allowed_device_types)
 
 
 ## 按动作值类型开始检测下一次输入。
+## [br]
+## @api public
+## [br]
 ## @param value_type: 期望的动作值类型。
+## [br]
 ## @param allowed_device_types: 允许的设备类型。空数组表示不限制。
+## [br]
+## @schema allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。
 func begin_detection_for_value_type(
-	value_type: GFInputActionBase.ValueType,
+	value_type: GFInputAction.ValueType,
 	allowed_device_types: Array[int] = []
 ) -> void:
 	_begin_detection_internal(value_type, allowed_device_types)
 
 
 ## 按动作资源开始检测下一次输入。
+## [br]
+## @api public
+## [br]
 ## @param action: 输入动作资源。
+## [br]
 ## @param allowed_device_types: 允许的设备类型。空数组表示不限制。
+## [br]
+## @schema allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。
 func begin_detection_for_action(
-	action: GFInputActionBase,
+	action: GFInputAction,
 	allowed_device_types: Array[int] = []
 ) -> void:
 	if action == null:
@@ -176,48 +226,79 @@ func begin_detection_for_action(
 
 
 ## 开始检测布尔输入。
+## [br]
+## @api public
+## [br]
 ## @param allowed_device_types: 允许的设备类型。空数组表示不限制。
+## [br]
+## @schema allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。
 func detect_bool(allowed_device_types: Array[int] = []) -> void:
-	begin_detection_for_value_type(GFInputActionBase.ValueType.BOOL, allowed_device_types)
+	begin_detection_for_value_type(GFInputAction.ValueType.BOOL, allowed_device_types)
 
 
 ## 开始检测一维轴输入。
+## [br]
+## @api public
+## [br]
 ## @param allowed_device_types: 允许的设备类型。空数组表示不限制。
+## [br]
+## @schema allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。
 func detect_axis_1d(allowed_device_types: Array[int] = []) -> void:
-	begin_detection_for_value_type(GFInputActionBase.ValueType.AXIS_1D, allowed_device_types)
+	begin_detection_for_value_type(GFInputAction.ValueType.AXIS_1D, allowed_device_types)
 
 
 ## 开始检测二维轴输入。
+## [br]
+## @api public
+## [br]
 ## @param allowed_device_types: 允许的设备类型。空数组表示不限制。
+## [br]
+## @schema allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。
 func detect_axis_2d(allowed_device_types: Array[int] = []) -> void:
-	begin_detection_for_value_type(GFInputActionBase.ValueType.AXIS_2D, allowed_device_types)
+	begin_detection_for_value_type(GFInputAction.ValueType.AXIS_2D, allowed_device_types)
 
 
 ## 开始检测三维轴输入。
+## [br]
+## @api public
+## [br]
 ## @param allowed_device_types: 允许的设备类型。空数组表示不限制。
+## [br]
+## @schema allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。
 func detect_axis_3d(allowed_device_types: Array[int] = []) -> void:
-	begin_detection_for_value_type(GFInputActionBase.ValueType.AXIS_3D, allowed_device_types)
+	begin_detection_for_value_type(GFInputAction.ValueType.AXIS_3D, allowed_device_types)
 
 
 ## 获取正式接收输入前剩余的倒计时秒数。
+## [br]
+## @api public
+## [br]
 ## @return 剩余秒数。
 func get_countdown_remaining() -> float:
 	return _countdown_remaining
 
 
 ## 获取当前检测阶段。
+## [br]
+## @api public
+## [br]
 ## @return 检测阶段。
 func get_detection_state() -> DetectionState:
 	return _state
 
 
 ## 是否已经结束倒计时并正在接收候选输入。
+## [br]
+## @api public
+## [br]
 ## @return 是否可接收输入。
 func is_accepting_input() -> bool:
 	return _state == DetectionState.DETECTING
 
 
 ## 取消检测。
+## [br]
+## @api public
 func cancel_detection() -> void:
 	if _state == DetectionState.IDLE:
 		return
@@ -225,6 +306,9 @@ func cancel_detection() -> void:
 
 
 ## 检查当前是否正在检测。
+## [br]
+## @api public
+## [br]
 ## @return 是否正在检测。
 func is_detecting() -> bool:
 	return _state != DetectionState.IDLE
@@ -337,9 +421,9 @@ func _matches_value_type_filter(event: InputEvent) -> bool:
 		return true
 
 	match _value_type:
-		GFInputActionBase.ValueType.BOOL:
+		GFInputAction.ValueType.BOOL:
 			return _is_bool_event(event)
-		GFInputActionBase.ValueType.AXIS_1D, GFInputActionBase.ValueType.AXIS_2D, GFInputActionBase.ValueType.AXIS_3D:
+		GFInputAction.ValueType.AXIS_1D, GFInputAction.ValueType.AXIS_2D, GFInputAction.ValueType.AXIS_3D:
 			return event is InputEventJoypadMotion
 		_:
 			return true

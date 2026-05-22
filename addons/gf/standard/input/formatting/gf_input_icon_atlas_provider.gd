@@ -2,6 +2,12 @@
 ##
 ## 将 InputEvent 归一化为通用图标键，再通过显式映射或路径模板解析 Texture2D / RichText 图标。
 ## 框架不附带图标资源，也不规定项目的美术风格或平台命名。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFInputIconAtlasProvider
 extends GFInputIconProvider
 
@@ -9,30 +15,52 @@ extends GFInputIconProvider
 # --- 导出变量 ---
 
 ## 图标根目录。路径模板中的 {root} 会使用该值。
+## [br]
+## @api public
 @export var root_path: String = ""
 
 ## 图标风格名。路径模板中的 {style} 会使用该值。
+## [br]
+## @api public
 @export var style: StringName = &"default"
 
 ## 平台名。为空时使用 options.platform 或 fallback_platform。
+## [br]
+## @api public
 @export var platform: StringName = &""
 
 ## 平台回退名。
+## [br]
+## @api public
 @export var fallback_platform: StringName = &"generic"
 
 ## 路径模板。可使用 {root}、{style}、{platform}、{icon}。
+## [br]
+## @api public
 @export var path_pattern: String = "{root}/{style}/{platform}/{icon}.png"
 
 ## 显式路径映射，key 为 get_event_icon_candidates() 产生的图标键。
+## [br]
+## @api public
+## [br]
+## @schema icon_paths: Dictionary，以 StringName 或 String 图标键为键，值为 String Texture2D 资源路径。
 @export var icon_paths: Dictionary = {}
 
 ## 显式纹理映射，key 为 get_event_icon_candidates() 产生的图标键。
+## [br]
+## @api public
+## [br]
+## @schema icon_textures: Dictionary，以 StringName 或 String 图标键为键，值为 Texture2D。
 @export var icon_textures: Dictionary = {}
 
 ## RichText 输出多个图标时使用的分隔文本。
+## [br]
+## @api public
 @export var rich_text_separator: String = " "
 
 ## 是否为带修饰键的键盘事件输出多个图标。
+## [br]
+## @api public
 @export var split_key_modifiers: bool = true
 
 
@@ -44,7 +72,11 @@ var _texture_cache: Dictionary = {}
 # --- 公共方法 ---
 
 ## 设置图标路径映射。
+## [br]
+## @api public
+## [br]
 ## @param icon_key: 图标键。
+## [br]
 ## @param resource_path: Texture2D 资源路径。
 func set_icon_path(icon_key: StringName, resource_path: String) -> void:
 	if icon_key == &"":
@@ -57,7 +89,11 @@ func set_icon_path(icon_key: StringName, resource_path: String) -> void:
 
 
 ## 设置图标纹理映射。
+## [br]
+## @api public
+## [br]
 ## @param icon_key: 图标键。
+## [br]
 ## @param texture: 图标纹理。
 func set_icon_texture(icon_key: StringName, texture: Texture2D) -> void:
 	if icon_key == &"":
@@ -69,13 +105,22 @@ func set_icon_texture(icon_key: StringName, texture: Texture2D) -> void:
 
 
 ## 清空已加载的纹理缓存。
+## [br]
+## @api public
 func clear_cache() -> void:
 	_texture_cache.clear()
 
 
 ## 判断是否支持指定输入事件。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 调用选项。
+## [br]
+## @schema options: Dictionary，可包含 allow_missing_paths、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。
+## [br]
 ## @return 支持返回 true。
 func supports_event(input_event: InputEvent, options: Dictionary = {}) -> bool:
 	if input_event == null:
@@ -86,8 +131,15 @@ func supports_event(input_event: InputEvent, options: Dictionary = {}) -> bool:
 
 
 ## 获取输入事件图标。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 调用选项。
+## [br]
+## @schema options: Dictionary，可包含 allow_missing_paths、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。
+## [br]
 ## @return 图标纹理；不存在时返回 null。
 func get_event_icon(input_event: InputEvent, options: Dictionary = {}) -> Texture2D:
 	if input_event == null:
@@ -113,8 +165,15 @@ func get_event_icon(input_event: InputEvent, options: Dictionary = {}) -> Textur
 
 
 ## 获取输入事件 RichTextLabel BBCode。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 调用选项。
+## [br]
+## @schema options: Dictionary，可包含 allow_missing_paths、icon_size、rich_text_separator、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。
+## [br]
 ## @return BBCode；无法解析时返回空字符串。
 func get_event_rich_text(input_event: InputEvent, options: Dictionary = {}) -> String:
 	if input_event == null:
@@ -135,8 +194,15 @@ func get_event_rich_text(input_event: InputEvent, options: Dictionary = {}) -> S
 
 
 ## 获取输入事件的首选图标路径。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 调用选项。
+## [br]
+## @schema options: Dictionary，可包含 allow_missing_paths、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。
+## [br]
 ## @return 图标路径；无法解析时返回空字符串。
 func get_event_icon_path(input_event: InputEvent, options: Dictionary = {}) -> String:
 	if input_event == null:
@@ -145,8 +211,15 @@ func get_event_icon_path(input_event: InputEvent, options: Dictionary = {}) -> S
 
 
 ## 获取输入事件的首选图标键。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 调用选项。
+## [br]
+## @schema options: Dictionary，可包含 split_key_modifiers 和 include_key_modifier_combo。
+## [br]
 ## @return 图标键；无法解析时返回空 StringName。
 func resolve_event_icon_key(input_event: InputEvent, options: Dictionary = {}) -> StringName:
 	var candidates := get_event_icon_candidates(input_event, options)
@@ -154,8 +227,15 @@ func resolve_event_icon_key(input_event: InputEvent, options: Dictionary = {}) -
 
 
 ## 获取输入事件可能使用的图标键列表。
+## [br]
+## @api public
+## [br]
 ## @param input_event: 输入事件。
+## [br]
 ## @param options: 调用选项。
+## [br]
+## @schema options: Dictionary，可包含 split_key_modifiers 和 include_key_modifier_combo。
+## [br]
 ## @return 图标键列表，按优先级排序。
 func get_event_icon_candidates(input_event: InputEvent, options: Dictionary = {}) -> PackedStringArray:
 	var candidates := PackedStringArray()

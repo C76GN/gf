@@ -3,6 +3,12 @@
 ## GFTouchJoystick: 通用触屏虚拟摇杆节点。
 ##
 ## 可直接发出方向信号，也可选择映射到 Godot InputMap 动作。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFTouchJoystick
 extends Node2D
 
@@ -10,18 +16,28 @@ extends Node2D
 # --- 信号 ---
 
 ## 摇杆方向变化时发出。方向已归一化并应用死区。
+## [br]
+## @api public
+## [br]
+## @param direction: 已归一化并应用死区后的摇杆方向。
 signal direction_changed(direction: Vector2)
 
 ## 摇杆按下时发出。
+## [br]
+## @api public
 signal joystick_pressed
 
 ## 摇杆释放时发出。
+## [br]
+## @api public
 signal joystick_released
 
 
 # --- 枚举 ---
 
 ## 摇杆定位模式。
+## [br]
+## @api public
 enum PositionMode {
 	## 摇杆中心保持在场景中摆放的位置。
 	FIXED,
@@ -34,24 +50,32 @@ enum PositionMode {
 
 @export_group("Shape")
 ## 摇杆半径。
+## [br]
+## @api public
 @export var radius: float = 64.0:
 	set(value):
 		radius = maxf(value, 1.0)
 		queue_redraw()
 
 ## 摇杆手柄半径比例。
+## [br]
+## @api public
 @export_range(2.0, 8.0, 0.1) var knob_radius_ratio: float = 3.0:
 	set(value):
 		knob_radius_ratio = maxf(value, 1.0)
 		queue_redraw()
 
 ## 摇杆颜色。
+## [br]
+## @api public
 @export var color: Color = Color(1.0, 1.0, 1.0, 0.35):
 	set(value):
 		color = value
 		queue_redraw()
 
 ## 是否绘制相对摇杆交互范围。
+## [br]
+## @api public
 @export var draw_interaction_zone: bool = false:
 	set(value):
 		draw_interaction_zone = value
@@ -59,43 +83,65 @@ enum PositionMode {
 
 @export_group("Input")
 ## 输入死区，范围 0 到 1。
+## [br]
+## @api public
 @export_range(0.0, 0.95, 0.01) var deadzone: float = 0.1
 
 ## 摇杆定位模式。
+## [br]
+## @api public
 @export var position_mode: PositionMode = PositionMode.FIXED:
 	set(value):
 		position_mode = value
 		queue_redraw()
 
 ## 相对模式下允许开始触控的交互半径。
+## [br]
+## @api public
 @export var interaction_radius: float = 160.0:
 	set(value):
 		interaction_radius = maxf(value, radius)
 		queue_redraw()
 
 ## 左方向动作名。为空则不映射。
+## [br]
+## @api public
 @export var action_left: StringName = &""
 
 ## 右方向动作名。为空则不映射。
+## [br]
+## @api public
 @export var action_right: StringName = &""
 
 ## 上方向动作名。为空则不映射。
+## [br]
+## @api public
 @export var action_up: StringName = &""
 
 ## 下方向动作名。为空则不映射。
+## [br]
+## @api public
 @export var action_down: StringName = &""
 
 @export_group("Joypad Event")
 ## 是否额外发送虚拟手柄轴事件。
+## [br]
+## @api public
 @export var emit_joypad_motion: bool = false
 
 ## 虚拟手柄设备 ID。建议使用负数以避开真实手柄。
+## [br]
+## @api public
 @export var joypad_device_id: int = -2
 
 ## X 轴对应的手柄轴。
+## [br]
+## @api public
 @export var joy_axis_x: JoyAxis = JOY_AXIS_LEFT_X
 
 ## Y 轴对应的手柄轴。
+## [br]
+## @api public
 @export var joy_axis_y: JoyAxis = JOY_AXIS_LEFT_Y
 
 
@@ -134,12 +180,17 @@ func _draw() -> void:
 # --- 公共方法 ---
 
 ## 获取当前方向。
+## [br]
+## @api public
+## [br]
 ## @return 当前摇杆方向。
 func get_direction() -> Vector2:
 	return _direction
 
 
 ## 手动释放摇杆并清理动作状态。
+## [br]
+## @api public
 func release() -> void:
 	_active_touch_index = -1
 	_set_direction(Vector2.ZERO, Vector2.ZERO)

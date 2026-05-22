@@ -3,12 +3,20 @@
 ## 提供无需编辑器的、以代码方式构建 AI 或通用决策逻辑的轻量方案。
 ## 可以在任何 System 中通过 Runner 来驱动 tick()。核心节点包含
 ## Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFBehaviorTree
 
 
 # --- 枚举 ---
 
 ## 行为树节点的执行状态。
+## [br]
+## @api public
 enum Status {
 	## 节点尚未被 tick。
 	FRESH = -1,
@@ -23,6 +31,8 @@ enum Status {
 }
 
 ## Parallel 节点的完成策略。
+## [br]
+## @api public
 enum ParallelPolicy {
 	## 所有子节点成功才成功，任意子节点失败即失败。
 	REQUIRE_ALL,
@@ -34,8 +44,12 @@ enum ParallelPolicy {
 # --- 公共方法 ---
 
 ## 将状态枚举转换为稳定文本。
+## [br]
+## @api public
+## [br]
 ## @param status: 行为树状态。
-## @return 状态文本。
+## [br]
+## @return: 状态文本。
 static func status_to_string(status: int) -> StringName:
 	match status:
 		Status.FRESH:
@@ -53,8 +67,16 @@ static func status_to_string(status: int) -> StringName:
 
 
 ## 获取节点调试快照。
+## [br]
+## @api public
+## [br]
 ## @param node: 行为树节点。
-## @return 调试快照字典。
+## [br]
+## @return: 调试快照字典。
+## [br]
+## @schema node: GFBehaviorTree.BTNode、null 或提供 get_debug_snapshot() 的对象。
+## [br]
+## @schema return: 包含节点调试状态的 Dictionary；null 节点返回空字典。
 static func build_debug_snapshot(node: Variant) -> Dictionary:
 	return node.get_debug_snapshot() if node != null else {}
 
@@ -62,30 +84,66 @@ static func build_debug_snapshot(node: Variant) -> Dictionary:
 # --- 内部类 ---
 
 ## 行为树所有节点的基类。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class BTNode extends RefCounted:
 	## 节点名称，用于调试。
+	## [br]
+	## @api public
 	var name: String = "BTNode"
+
 	## 可选稳定节点标识。
+	## [br]
+	## @api public
 	var node_id: StringName = &""
+
 	## 最近一次 tick 状态。
+	## [br]
+	## @api public
 	var last_status: int = Status.FRESH
+
 	## 最近一次状态原因。
+	## [br]
+	## @api public
 	var last_reason: StringName = &""
+
 	## 累计 tick 次数。
+	## [br]
+	## @api public
 	var tick_count: int = 0
+
 	## 最近一次 tick 耗时，单位微秒。
+	## [br]
+	## @api public
 	var last_tick_usec: int = 0
+
 	## 调用方附加元数据。
+	## [br]
+	## @api public
+	## [br]
+	## @schema metadata: 项目自定义元数据 Dictionary；键和值由调用方维护。
 	var metadata: Dictionary = {}
 
 	## 执行该节点的逻辑。子类应重写此方法。
+	## [br]
+	## @api public
+	## [br]
 	## @param _blackboard: 运行时共享的数据字典。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema _blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(_blackboard: Dictionary) -> int:
 		return _record_tick(Status.SUCCESS)
 
 
 	## 重置节点内部运行状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		pass
 
@@ -94,12 +152,18 @@ class BTNode extends RefCounted:
 	##
 	## 自定义节点若持有运行态，应重写此方法并复制自身类型；默认返回自身，
 	## 以避免未知子类被错误降级为基础 BTNode。
-	## @return 运行时副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 运行时副本。
 	func duplicate_runtime() -> BTNode:
 		return self
 
 
 	## 清空节点调试状态。
+	## [br]
+	## @api public
+	## [br]
 	## @param recursive: 是否同时清空子节点调试状态。
 	func clear_debug_state(recursive: bool = true) -> void:
 		last_status = Status.FRESH
@@ -113,10 +177,16 @@ class BTNode extends RefCounted:
 
 
 	## 记录节点状态。
+	## [br]
+	## @api public
+	## [br]
 	## @param status: 新状态。
+	## [br]
 	## @param reason: 可选状态原因。
+	## [br]
 	## @param elapsed_usec: 可选耗时。
-	## @return 原状态值，便于子类直接 return。
+	## [br]
+	## @return: 原状态值，便于子类直接 return。
 	func record_status(status: int, reason: StringName = &"", elapsed_usec: int = 0) -> int:
 		last_status = status
 		last_reason = reason
@@ -126,7 +196,12 @@ class BTNode extends RefCounted:
 
 
 	## 获取调试快照。
-	## @return 调试快照字典。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 调试快照字典。
+	## [br]
+	## @schema return: 包含 node_id、name、status、status_text、reason、tick_count、last_tick_usec、child_count、children 和 metadata 字段的 Dictionary；children 为子节点快照数组。
 	func get_debug_snapshot() -> Dictionary:
 		var children: Array[Dictionary] = []
 		for child: BTNode in _get_debug_children():
@@ -171,10 +246,23 @@ class BTNode extends RefCounted:
 ## 行为树黑板作用域。
 ##
 ## 支持父级回退和局部覆盖，可在项目层按需转换为 Dictionary 传给既有节点。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class BlackboardScope extends RefCounted:
 	## 当前作用域值。
+	## [br]
+	## @api public
+	## [br]
+	## @schema values: 当前作用域持有的黑板值 Dictionary；键通常为 StringName，值由项目自定义。
 	var values: Dictionary = {}
+
 	## 可选父级作用域。
+	## [br]
+	## @api public
 	var parent: BlackboardScope = null
 
 	func _init(initial_values: Dictionary = {}, parent_scope: BlackboardScope = null) -> void:
@@ -183,16 +271,31 @@ class BlackboardScope extends RefCounted:
 
 
 	## 设置作用域值。
+	## [br]
+	## @api public
+	## [br]
 	## @param key: 值标识。
+	## [br]
 	## @param value: 值。
+	## [br]
+	## @schema value: 任意可存入黑板的项目值。
 	func set_value(key: StringName, value: Variant) -> void:
 		values[key] = value
 
 
 	## 获取作用域值。
+	## [br]
+	## @api public
+	## [br]
 	## @param key: 值标识。
+	## [br]
 	## @param default_value: 缺失时返回的默认值。
-	## @return 作用域值。
+	## [br]
+	## @return: 作用域值。
+	## [br]
+	## @schema default_value: 缺失时返回的任意项目值。
+	## [br]
+	## @schema return: 找到的黑板值，或传入的 default_value。
 	func get_value(key: StringName, default_value: Variant = null) -> Variant:
 		if values.has(key):
 			return values[key]
@@ -202,14 +305,23 @@ class BlackboardScope extends RefCounted:
 
 
 	## 检查作用域值是否存在。
+	## [br]
+	## @api public
+	## [br]
 	## @param key: 值标识。
-	## @return 存在返回 true。
+	## [br]
+	## @return: 存在返回 true。
 	func has_value(key: StringName) -> bool:
 		return values.has(key) or (parent != null and parent.has_value(key))
 
 
 	## 转换为合并后的字典。
-	## @return 黑板字典。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 黑板字典。
+	## [br]
+	## @schema return: 父级与当前作用域合并后的 Dictionary；当前作用域同名键覆盖父级键。
 	func to_dictionary() -> Dictionary:
 		var result := parent.to_dictionary() if parent != null else {}
 		for key: Variant in values.keys():
@@ -220,6 +332,12 @@ class BlackboardScope extends RefCounted:
 ## 顺序节点 (AND 逻辑)。
 ##
 ## 依次执行子节点，只有全部成功才返回 SUCCESS。遇到 RUNNING 或 FAILURE 则中断并返回对应状态。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Sequence extends BTNode:
 	var _children: Array[BTNode]
 	var _current_child_idx: int = 0
@@ -230,8 +348,14 @@ class Sequence extends BTNode:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		while _current_child_idx < _children.size():
@@ -252,6 +376,8 @@ class Sequence extends BTNode:
 
 
 	## 重置当前子节点索引与所有子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_current_child_idx = 0
 		for child: BTNode in _children:
@@ -260,6 +386,11 @@ class Sequence extends BTNode:
 		super.reset()
 
 
+	## 创建可独立运行的顺序节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Sequence.new(_duplicate_child_nodes(_children))
 		_copy_base_fields_to(copy)
@@ -273,6 +404,12 @@ class Sequence extends BTNode:
 ## 选择节点 (OR 逻辑)。
 ##
 ## 依次执行子节点，直到有一个子节点返回 SUCCESS 或 RUNNING，否则返回 FAILURE。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Selector extends BTNode:
 	var _children: Array[BTNode]
 	var _current_child_idx: int = 0
@@ -283,8 +420,14 @@ class Selector extends BTNode:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		while _current_child_idx < _children.size():
@@ -305,6 +448,8 @@ class Selector extends BTNode:
 
 
 	## 重置当前子节点索引与所有子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_current_child_idx = 0
 		for child: BTNode in _children:
@@ -313,6 +458,11 @@ class Selector extends BTNode:
 		super.reset()
 
 
+	## 创建可独立运行的选择节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Selector.new(_duplicate_child_nodes(_children))
 		_copy_base_fields_to(copy)
@@ -326,9 +476,19 @@ class Selector extends BTNode:
 ## 并行节点。
 ##
 ## 每次 tick 推进全部子节点，并根据 ParallelPolicy 汇总状态。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Parallel extends BTNode:
 	var _children: Array[BTNode]
 	var _child_statuses: Array[int] = []
+
+	## 并行节点完成策略。
+	## [br]
+	## @api public
 	var policy: ParallelPolicy = ParallelPolicy.REQUIRE_ALL
 
 	func _init(
@@ -341,8 +501,14 @@ class Parallel extends BTNode:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _children.is_empty():
@@ -395,6 +561,8 @@ class Parallel extends BTNode:
 
 
 	## 重置所有子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_child_statuses.clear()
 		for child: BTNode in _children:
@@ -403,6 +571,11 @@ class Parallel extends BTNode:
 		super.reset()
 
 
+	## 创建可独立运行的并行节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Parallel.new(_duplicate_child_nodes(_children), policy)
 		_copy_base_fields_to(copy)
@@ -424,8 +597,16 @@ class Parallel extends BTNode:
 ## 随机选择节点。
 ##
 ## 与 Selector 语义一致，但每轮从随机顺序尝试子节点。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class RandomSelector extends BTNode:
 	## 可选随机源；为空时优先使用 blackboard["rng"]，否则退回全局随机。
+	## [br]
+	## @api public
 	var rng: RandomNumberGenerator = null
 
 	var _children: Array[BTNode]
@@ -439,8 +620,14 @@ class RandomSelector extends BTNode:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _active_order.is_empty():
@@ -464,6 +651,8 @@ class RandomSelector extends BTNode:
 
 
 	## 重置当前随机轮次与子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_active_order.clear()
 		_current_child_idx = 0
@@ -473,6 +662,11 @@ class RandomSelector extends BTNode:
 		super.reset()
 
 
+	## 创建可独立运行的随机选择节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := RandomSelector.new(_duplicate_child_nodes(_children), _duplicate_rng(rng))
 		_copy_base_fields_to(copy)
@@ -522,8 +716,16 @@ class RandomSelector extends BTNode:
 ## 随机顺序节点。
 ##
 ## 与 Sequence 语义一致，但每轮从随机顺序尝试子节点。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class RandomSequence extends BTNode:
 	## 可选随机源；为空时优先使用 blackboard["rng"]，否则退回全局随机。
+	## [br]
+	## @api public
 	var rng: RandomNumberGenerator = null
 
 	var _children: Array[BTNode]
@@ -537,8 +739,14 @@ class RandomSequence extends BTNode:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _active_order.is_empty():
@@ -562,6 +770,8 @@ class RandomSequence extends BTNode:
 
 
 	## 重置当前随机轮次与子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_active_order.clear()
 		_current_child_idx = 0
@@ -571,6 +781,11 @@ class RandomSequence extends BTNode:
 		super.reset()
 
 
+	## 创建可独立运行的随机顺序节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := RandomSequence.new(_duplicate_child_nodes(_children), _duplicate_rng(rng))
 		_copy_base_fields_to(copy)
@@ -620,6 +835,12 @@ class RandomSequence extends BTNode:
 ## 动作节点 (叶子节点)。
 ##
 ## 包装一个回调函数执行具体指令。回调需返回 Status 类型。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Action extends BTNode:
 	var _action_func: Callable
 
@@ -629,8 +850,14 @@ class Action extends BTNode:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _action_func.is_valid():
@@ -638,6 +865,11 @@ class Action extends BTNode:
 		return _record_tick(Status.FAILURE, &"invalid_action", started)
 
 
+	## 创建可独立运行的动作节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Action.new(_action_func)
 		_copy_base_fields_to(copy)
@@ -647,6 +879,12 @@ class Action extends BTNode:
 ## 条件检查节点 (叶子节点)。
 ##
 ## 包装一个返回布尔值的回调。true 为 SUCCESS，false 为 FAILURE。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Condition extends BTNode:
 	var _condition_func: Callable
 
@@ -656,8 +894,14 @@ class Condition extends BTNode:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _condition_func.is_valid() and _condition_func.call(blackboard) == true:
@@ -665,6 +909,11 @@ class Condition extends BTNode:
 		return _record_tick(Status.FAILURE, &"condition_false", started)
 
 
+	## 创建可独立运行的条件节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Condition.new(_condition_func)
 		_copy_base_fields_to(copy)
@@ -672,6 +921,12 @@ class Condition extends BTNode:
 
 
 ## 单子节点装饰器基类。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class Decorator extends BTNode:
 	var _child: BTNode
 
@@ -680,20 +935,31 @@ class Decorator extends BTNode:
 
 
 	## 设置被装饰的子节点。
+	## [br]
+	## @api public
+	## [br]
 	## @param child_node: 子节点。
-	## @return 当前装饰器。
+	## [br]
+	## @return: 当前装饰器。
 	func set_child(child_node: BTNode) -> Decorator:
 		_child = child_node
 		return self
 
 
 	## 重置子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		if _child != null:
 			_child.reset()
 		super.reset()
 
 
+	## 创建可独立运行的装饰器副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Decorator.new(_child.duplicate_runtime() if _child != null else null)
 		_copy_base_fields_to(copy)
@@ -710,6 +976,12 @@ class Decorator extends BTNode:
 ## 反转装饰节点。
 ##
 ## 翻转子节点的成功与失败状态。RUNNING 状态保持不变。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Inverter extends Decorator:
 	func _init(child_node: BTNode) -> void:
 		super(child_node)
@@ -717,8 +989,14 @@ class Inverter extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -733,6 +1011,11 @@ class Inverter extends Decorator:
 		return _record_tick(status, &"", started)
 
 
+	## 创建可独立运行的反转装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Inverter.new(_child.duplicate_runtime() if _child != null else null)
 		_copy_base_fields_to(copy)
@@ -742,6 +1025,12 @@ class Inverter extends Decorator:
 ## 总是成功装饰节点。
 ##
 ## 子节点运行中时保持 RUNNING，子节点结束时统一返回 SUCCESS。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class AlwaysSucceed extends Decorator:
 	func _init(child_node: BTNode) -> void:
 		super(child_node)
@@ -749,8 +1038,14 @@ class AlwaysSucceed extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -762,6 +1057,11 @@ class AlwaysSucceed extends Decorator:
 		return _record_tick(Status.SUCCESS, &"", started)
 
 
+	## 创建可独立运行的总是成功装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := AlwaysSucceed.new(_child.duplicate_runtime() if _child != null else null)
 		_copy_base_fields_to(copy)
@@ -771,6 +1071,12 @@ class AlwaysSucceed extends Decorator:
 ## 总是失败装饰节点。
 ##
 ## 子节点运行中时保持 RUNNING，子节点结束时统一返回 FAILURE。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class AlwaysFail extends Decorator:
 	func _init(child_node: BTNode) -> void:
 		super(child_node)
@@ -778,8 +1084,14 @@ class AlwaysFail extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -791,6 +1103,11 @@ class AlwaysFail extends Decorator:
 		return _record_tick(Status.FAILURE, &"", started)
 
 
+	## 创建可独立运行的总是失败装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := AlwaysFail.new(_child.duplicate_runtime() if _child != null else null)
 		_copy_base_fields_to(copy)
@@ -800,10 +1117,21 @@ class AlwaysFail extends Decorator:
 ## 概率装饰节点。
 ##
 ## 每轮按 probability 判定是否允许子节点执行，未命中时返回 FAILURE。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Probability extends Decorator:
 	## 执行概率，范围 0.0 到 1.0。
+	## [br]
+	## @api public
 	var probability: float = 1.0
+
 	## 可选随机源；为空时优先使用 blackboard["rng"]。
+	## [br]
+	## @api public
 	var rng: RandomNumberGenerator = null
 	var _decision_made: bool = false
 	var _allowed_this_run: bool = false
@@ -816,8 +1144,14 @@ class Probability extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -838,12 +1172,19 @@ class Probability extends Decorator:
 
 
 	## 重置当前概率轮次与子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_decision_made = false
 		_allowed_this_run = false
 		super.reset()
 
 
+	## 创建可独立运行的概率装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Probability.new(_child.duplicate_runtime() if _child != null else null, probability, _duplicate_rng(rng))
 		_copy_base_fields_to(copy)
@@ -869,8 +1210,16 @@ class Probability extends Decorator:
 ## 冷却装饰节点。
 ##
 ## 子节点结束后进入冷却期，冷却未结束时返回 FAILURE。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Cooldown extends Decorator:
 	## 冷却秒数。
+	## [br]
+	## @api public
 	var cooldown_seconds: float = 0.0
 	var _last_finish_msec: int = -1
 
@@ -881,8 +1230,14 @@ class Cooldown extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；可提供 time_msec: int，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -897,15 +1252,24 @@ class Cooldown extends Decorator:
 
 
 	## 重置运行状态，保留已经开始的冷却。
+	## [br]
+	## @api public
 	func reset() -> void:
 		super.reset()
 
 
 	## 清空冷却状态。
+	## [br]
+	## @api public
 	func clear_cooldown() -> void:
 		_last_finish_msec = -1
 
 
+	## 创建可独立运行的冷却装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Cooldown.new(_child.duplicate_runtime() if _child != null else null, cooldown_seconds)
 		_copy_base_fields_to(copy)
@@ -919,8 +1283,16 @@ class Cooldown extends Decorator:
 ## 时间限制装饰节点。
 ##
 ## 子节点 RUNNING 持续超过限制时返回 FAILURE 并重置子节点。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class TimeLimit extends Decorator:
 	## 最大运行秒数。
+	## [br]
+	## @api public
 	var limit_seconds: float = 1.0
 	var _started_msec: int = -1
 
@@ -931,8 +1303,14 @@ class TimeLimit extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；可提供 time_msec: int，其余字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -950,11 +1328,18 @@ class TimeLimit extends Decorator:
 
 
 	## 重置计时状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_started_msec = -1
 		super.reset()
 
 
+	## 创建可独立运行的时间限制装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := TimeLimit.new(_child.duplicate_runtime() if _child != null else null, limit_seconds)
 		_copy_base_fields_to(copy)
@@ -964,7 +1349,16 @@ class TimeLimit extends Decorator:
 ## 次数限制装饰节点。
 ##
 ## 子节点最多被 tick 指定次数；超过次数后返回 FAILURE。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Limit extends Decorator:
+	## 最大允许 tick 次数。
+	## [br]
+	## @api public
 	var max_ticks: int = 1
 	var _tick_count: int = 0
 
@@ -975,8 +1369,14 @@ class Limit extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null or max_ticks <= 0:
@@ -989,11 +1389,18 @@ class Limit extends Decorator:
 
 
 	## 重置调用计数与子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_tick_count = 0
 		super.reset()
 
 
+	## 创建可独立运行的次数限制装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Limit.new(_child.duplicate_runtime() if _child != null else null, max_ticks)
 		_copy_base_fields_to(copy)
@@ -1003,7 +1410,16 @@ class Limit extends Decorator:
 ## 重复装饰节点。
 ##
 ## 子节点成功后重复执行，达到 repeat_count 后返回 SUCCESS；repeat_count 为 0 表示无限重复。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class Repeat extends Decorator:
+	## 成功重复次数；0 表示无限重复。
+	## [br]
+	## @api public
 	var repeat_count: int = 1
 	var _success_count: int = 0
 
@@ -1014,8 +1430,14 @@ class Repeat extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -1037,11 +1459,18 @@ class Repeat extends Decorator:
 
 
 	## 重置重复计数与子节点状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		_success_count = 0
 		super.reset()
 
 
+	## 创建可独立运行的重复装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := Repeat.new(_child.duplicate_runtime() if _child != null else null, repeat_count)
 		_copy_base_fields_to(copy)
@@ -1051,6 +1480,12 @@ class Repeat extends Decorator:
 ## 直到成功装饰节点。
 ##
 ## 子节点失败时继续返回 RUNNING，直到子节点成功。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class UntilSuccess extends Decorator:
 	func _init(child_node: BTNode) -> void:
 		super(child_node)
@@ -1058,8 +1493,14 @@ class UntilSuccess extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -1071,6 +1512,11 @@ class UntilSuccess extends Decorator:
 		return _record_tick(Status.RUNNING, &"", started)
 
 
+	## 创建可独立运行的直到成功装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := UntilSuccess.new(_child.duplicate_runtime() if _child != null else null)
 		_copy_base_fields_to(copy)
@@ -1080,6 +1526,12 @@ class UntilSuccess extends Decorator:
 ## 直到失败装饰节点。
 ##
 ## 子节点成功时继续返回 RUNNING，直到子节点失败。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class UntilFail extends Decorator:
 	func _init(child_node: BTNode) -> void:
 		super(child_node)
@@ -1087,8 +1539,14 @@ class UntilFail extends Decorator:
 
 
 	## 推进运行时逻辑。
+	## [br]
+	## @api public
+	## [br]
 	## @param blackboard: 行为树本次 tick 使用的黑板数据。
-	## @return 返回 Status 枚举。
+	## [br]
+	## @return: 返回 Status 枚举。
+	## [br]
+	## @schema blackboard: Dictionary 形式黑板；字段由项目自定义。
 	func tick(blackboard: Dictionary) -> int:
 		var started := Time.get_ticks_usec()
 		if _child == null:
@@ -1100,6 +1558,11 @@ class UntilFail extends Decorator:
 		return _record_tick(Status.RUNNING, &"", started)
 
 
+	## 创建可独立运行的直到失败装饰节点副本。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 复制后的运行时节点。
 	func duplicate_runtime() -> BTNode:
 		var copy := UntilFail.new(_child.duplicate_runtime() if _child != null else null)
 		_copy_base_fields_to(copy)
@@ -1107,11 +1570,23 @@ class UntilFail extends Decorator:
 
 
 ## 行为树的执行入口容器。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class Runner extends RefCounted:
 	## 运行时共享黑板。
+	## [br]
+	## @api public
+	## [br]
+	## @schema blackboard: 传给根节点 tick() 的共享 Dictionary；键和值由项目自定义。
 	var blackboard: Dictionary = {}
 
 	## 是否在构造运行器时复制内置节点运行态，避免多个 Runner 共享同一棵树的进度。
+	## [br]
+	## @api public
 	var duplicates_runtime_tree: bool = true
 
 	var _root_node: BTNode
@@ -1123,7 +1598,10 @@ class Runner extends RefCounted:
 
 	## 驱动行为树运行逻辑。
 	## 通常在 GFSystem 的 tick 中被调用。
-	## @return 返回根节点 Status 枚举。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 返回根节点 Status 枚举。
 	func tick() -> int:
 		if _root_node == null:
 			return Status.FAILURE
@@ -1131,19 +1609,28 @@ class Runner extends RefCounted:
 
 
 	## 重置整棵行为树的运行状态。
+	## [br]
+	## @api public
 	func reset() -> void:
 		if _root_node != null:
 			_root_node.reset()
 
 
 	## 清空整棵行为树的调试状态。
+	## [br]
+	## @api public
 	func clear_debug_state() -> void:
 		if _root_node != null:
 			_root_node.clear_debug_state(true)
 
 
 	## 获取运行器调试快照。
-	## @return 调试快照字典。
+	## [br]
+	## @api public
+	## [br]
+	## @return: 调试快照字典。
+	## [br]
+	## @schema return: 包含 root 和 blackboard_keys 字段的 Dictionary；root 为根节点调试快照，blackboard_keys 为排序后的黑板键列表。
 	func get_debug_snapshot() -> Dictionary:
 		return {
 			"root": _root_node.get_debug_snapshot() if _root_node != null else {},

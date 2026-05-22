@@ -128,7 +128,7 @@ class RewriteInterceptor:
 	func _init(p_order_list: Array) -> void:
 		order_list = p_order_list
 
-	func before_execute(action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+	func _before_execute(action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
 		if action is OrderAction:
 			var order_action := action as OrderAction
 			order_list.append("before:%s" % order_action.label)
@@ -138,7 +138,7 @@ class RewriteInterceptor:
 				return GFActionInterceptionResult.replace_with(OrderAction.new(order_list, "NEW"))
 		return GFActionInterceptionResult.continue_action()
 
-	func after_execute(action: Object, _queue: GFActionQueueSystem, _execute_result: Variant) -> GFActionInterceptionResult:
+	func _after_execute(action: Object, _queue: GFActionQueueSystem, _execute_result: Variant) -> GFActionInterceptionResult:
 		if action is OrderAction:
 			order_list.append("after:%s" % (action as OrderAction).label)
 		return GFActionInterceptionResult.continue_action()
@@ -156,7 +156,7 @@ class PriorityInterceptor:
 		label = p_label
 		priority = p_priority
 
-	func before_execute(_action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+	func _before_execute(_action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
 		order_list.append(label)
 		return GFActionInterceptionResult.continue_action()
 
@@ -165,7 +165,7 @@ class PriorityInterceptor:
 class StopAfterInterceptor:
 	extends GFActionInterceptor
 
-	func after_execute(action: Object, _queue: GFActionQueueSystem, _execute_result: Variant) -> GFActionInterceptionResult:
+	func _after_execute(action: Object, _queue: GFActionQueueSystem, _execute_result: Variant) -> GFActionInterceptionResult:
 		if action is OrderAction and (action as OrderAction).label == "STOP":
 			return GFActionInterceptionResult.stop_queue()
 		if action is ManualSignalAction and (action as ManualSignalAction).label == "STOP":
@@ -181,7 +181,7 @@ class ReplaceWithInjectedInterceptor:
 	func _init(p_replacement: InjectedAction) -> void:
 		replacement = p_replacement
 
-	func before_execute(_action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+	func _before_execute(_action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
 		return GFActionInterceptionResult.replace_with(replacement)
 
 
@@ -190,7 +190,7 @@ class ObserveInjectedReplacementInterceptor:
 
 	var observed_architecture: GFArchitecture = null
 
-	func before_execute(action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
+	func _before_execute(action: Object, _queue: GFActionQueueSystem) -> GFActionInterceptionResult:
 		if action is InjectedAction:
 			observed_architecture = (action as InjectedAction).injected_architecture
 		return GFActionInterceptionResult.continue_action()

@@ -2,6 +2,12 @@
 ##
 ## 收集 2D/3D 线段、矩形、圆、文本等即时调试绘制命令。
 ## Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overlay/Viewport 适配。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFDebugDrawUtility
 extends GFUtility
 
@@ -9,20 +15,32 @@ extends GFUtility
 # --- 信号 ---
 
 ## 绘制命令发生变化时发出。
+## [br]
+## @api public
 signal items_changed
 
 
 # --- 枚举 ---
 
 ## 调试绘制命令类型。
+## [br]
+## @api public
 enum PrimitiveType {
+	## 2D 线段命令。
 	LINE_2D,
+	## 2D 矩形命令。
 	RECT_2D,
+	## 2D 圆形命令。
 	CIRCLE_2D,
+	## 2D 文本命令。
 	TEXT_2D,
+	## 3D 线段命令。
 	LINE_3D,
+	## 3D AABB 盒命令。
 	BOX_3D,
+	## 3D 文本命令。
 	TEXT_3D,
+	## 项目自定义命令。
 	CUSTOM,
 }
 
@@ -30,12 +48,18 @@ enum PrimitiveType {
 # --- 公共变量 ---
 
 ## 是否启用调试绘制。
+## [br]
+## @api public
 var enabled: bool = true
 
 ## 默认生命周期。小于 0 表示永久保留，0 表示等待下一次 tick 后清理。
+## [br]
+## @api public
 var default_lifetime_seconds: float = 0.0
 
 ## 最大命令数量。小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_items: int = 2048
 
 
@@ -46,19 +70,28 @@ var _channels_enabled: Dictionary = {}
 var _next_item_id: int = 1
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化调试绘制缓冲。
+## [br]
+## @api public
 func init() -> void:
 	_items.clear()
 	_channels_enabled.clear()
 	_next_item_id = 1
 
 
+## 释放并清空调试绘制命令。
+## [br]
+## @api public
 func dispose() -> void:
 	clear()
 
 
 ## 推进运行时逻辑。
+## [br]
+## @api public
+## [br]
 ## @param delta: 本帧时间增量（秒）。
 func tick(delta: float) -> void:
 	_expire_items(delta)
@@ -67,12 +100,22 @@ func tick(delta: float) -> void:
 # --- 公共方法 ---
 
 ## 绘制 2D 线段。
+## [br]
+## @api public
+## [br]
 ## @param from: 起点位置。
+## [br]
 ## @param to: 终点位置。
+## [br]
 ## @param color: 绘制颜色。
+## [br]
 ## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
 ## @param channel: 调试绘制频道。
+## [br]
 ## @param width: 绘制线宽。
+## [br]
+## @return 绘制命令 id。
 func draw_line_2d(
 	from: Vector2,
 	to: Vector2,
@@ -93,12 +136,22 @@ func draw_line_2d(
 
 
 ## 绘制 2D 矩形。
+## [br]
+## @api public
+## [br]
 ## @param rect: 矩形区域。
+## [br]
 ## @param color: 绘制颜色。
+## [br]
 ## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
 ## @param channel: 调试绘制频道。
+## [br]
 ## @param filled: 是否填充绘制图形。
+## [br]
 ## @param width: 绘制线宽。
+## [br]
+## @return 绘制命令 id。
 func draw_rect_2d(
 	rect: Rect2,
 	color: Color = Color.WHITE,
@@ -119,13 +172,24 @@ func draw_rect_2d(
 
 
 ## 绘制 2D 圆。
+## [br]
+## @api public
+## [br]
 ## @param center: 要绘制圆形的中心点。
+## [br]
 ## @param radius: 圆形半径。
+## [br]
 ## @param color: 绘制颜色。
+## [br]
 ## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
 ## @param channel: 调试绘制频道。
+## [br]
 ## @param filled: 是否填充绘制图形。
+## [br]
 ## @param width: 绘制线宽。
+## [br]
+## @return 绘制命令 id。
 func draw_circle_2d(
 	center: Vector2,
 	radius: float,
@@ -148,12 +212,22 @@ func draw_circle_2d(
 
 
 ## 绘制 2D 文本。
+## [br]
+## @api public
+## [br]
 ## @param position: 绘制文本的位置。
+## [br]
 ## @param text: 要绘制或输出的文本。
+## [br]
 ## @param color: 绘制颜色。
+## [br]
 ## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
 ## @param channel: 调试绘制频道。
+## [br]
 ## @param font_size: 绘制文本字号。
+## [br]
+## @return 绘制命令 id。
 func draw_text_2d(
 	position: Vector2,
 	text: String,
@@ -174,12 +248,22 @@ func draw_text_2d(
 
 
 ## 绘制 3D 线段。
+## [br]
+## @api public
+## [br]
 ## @param from: 起点位置。
+## [br]
 ## @param to: 终点位置。
+## [br]
 ## @param color: 绘制颜色。
+## [br]
 ## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
 ## @param channel: 调试绘制频道。
+## [br]
 ## @param width: 绘制线宽。
+## [br]
+## @return 绘制命令 id。
 func draw_line_3d(
 	from: Vector3,
 	to: Vector3,
@@ -200,12 +284,22 @@ func draw_line_3d(
 
 
 ## 绘制 3D AABB。
+## [br]
+## @api public
+## [br]
 ## @param box: 要绘制的 3D 包围盒。
+## [br]
 ## @param color: 绘制颜色。
+## [br]
 ## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
 ## @param channel: 调试绘制频道。
+## [br]
 ## @param filled: 是否填充绘制图形。
+## [br]
 ## @param width: 绘制线宽。
+## [br]
+## @return 绘制命令 id。
 func draw_box_3d(
 	box: AABB,
 	color: Color = Color.WHITE,
@@ -226,12 +320,22 @@ func draw_box_3d(
 
 
 ## 绘制 3D 文本。
+## [br]
+## @api public
+## [br]
 ## @param position: 绘制文本的位置。
+## [br]
 ## @param text: 要绘制或输出的文本。
+## [br]
 ## @param color: 绘制颜色。
+## [br]
 ## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
 ## @param channel: 调试绘制频道。
+## [br]
 ## @param font_size: 绘制文本字号。
+## [br]
+## @return 绘制命令 id。
 func draw_text_3d(
 	position: Vector3,
 	text: String,
@@ -252,8 +356,14 @@ func draw_text_3d(
 
 
 ## 推入自定义调试绘制命令。
+## [br]
+## @api public
+## [br]
 ## @param item: 命令字典。
+## [br]
 ## @return 命令 id。
+## [br]
+## @schema item: Dictionary，至少可包含 type、channel、lifetime_seconds 以及项目自定义绘制载荷。
 func push_item(item: Dictionary) -> int:
 	var stored_item := item.duplicate(true)
 	stored_item["id"] = _next_item_id
@@ -270,6 +380,9 @@ func push_item(item: Dictionary) -> int:
 
 
 ## 清理命令。
+## [br]
+## @api public
+## [br]
 ## @param channel: 指定频道；为空时清空全部。
 func clear(channel: StringName = &"") -> void:
 	if channel == &"":
@@ -289,7 +402,11 @@ func clear(channel: StringName = &"") -> void:
 
 
 ## 设置频道启用状态。
+## [br]
+## @api public
+## [br]
 ## @param channel: 频道。
+## [br]
 ## @param channel_enabled: 是否启用。
 func set_channel_enabled(channel: StringName, channel_enabled: bool) -> void:
 	_channels_enabled[channel] = channel_enabled
@@ -297,16 +414,27 @@ func set_channel_enabled(channel: StringName, channel_enabled: bool) -> void:
 
 
 ## 检查频道是否启用。
+## [br]
+## @api public
+## [br]
 ## @param channel: 频道。
+## [br]
 ## @return 启用返回 true。
 func is_channel_enabled(channel: StringName) -> bool:
 	return bool(_channels_enabled.get(channel, true))
 
 
 ## 获取绘制命令。
+## [br]
+## @api public
+## [br]
 ## @param channel: 指定频道；为空时返回全部频道。
+## [br]
 ## @param include_disabled: 是否包含已禁用频道或全局禁用状态下的命令。
+## [br]
 ## @return 命令副本列表。
+## [br]
+## @schema return: Array[Dictionary]，每个元素为调试绘制命令，包含 id、type、channel、created_at_msec、lifetime_seconds、remaining_seconds 和图元载荷。
 func get_items(channel: StringName = &"", include_disabled: bool = false) -> Array[Dictionary]:
 	if not enabled and not include_disabled:
 		return []
@@ -323,14 +451,23 @@ func get_items(channel: StringName = &"", include_disabled: bool = false) -> Arr
 
 
 ## 获取命令数量。
+## [br]
+## @api public
+## [br]
 ## @param channel: 指定频道；为空时返回全部。
+## [br]
 ## @return 数量。
 func get_item_count(channel: StringName = &"") -> int:
 	return get_items(channel, true).size()
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 快照字典。
+## [br]
+## @schema return: Dictionary，包含 enabled、item_count、channels、primitive_types 和 max_items。
 func get_debug_snapshot() -> Dictionary:
 	var channels: Dictionary = {}
 	var primitive_types: Dictionary = {}

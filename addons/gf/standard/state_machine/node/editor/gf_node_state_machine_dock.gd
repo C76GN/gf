@@ -4,16 +4,22 @@
 ##
 ## 面向编辑器展示当前场景中的 GFNodeStateMachine，复用标准校验器输出结构问题，
 ## 不推断项目自己的状态转移、输入或动画语义。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
 class_name GFNodeStateMachineDock
 extends Control
 
 
 # --- 常量 ---
 
-const GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
-const GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
+const _GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
+const _GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
-const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _GF_EDITOR_WORKSPACE_UI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -34,7 +40,7 @@ var _details: TextEdit = null
 
 func _init() -> void:
 	name = "GF State Tools"
-	GFEditorWorkspaceUI.apply_page_root(self)
+	_GF_EDITOR_WORKSPACE_UI.apply_page_root(self)
 	_build_ui()
 	call_deferred("refresh")
 
@@ -42,6 +48,9 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 设置要扫描的场景根节点。
+## [br]
+## @api public
+## [br]
 ## @param root: 场景根节点；为空时刷新会尝试使用当前编辑场景或运行时场景。
 func set_state_machine_source(root: Node) -> void:
 	_root_ref = weakref(root) if root != null else null
@@ -49,6 +58,9 @@ func set_state_machine_source(root: Node) -> void:
 
 
 ## 刷新状态机列表与当前校验报告。
+## [br]
+## @api public
+## [br]
 ## @param root: 可选场景根节点；为空时使用 set_state_machine_source() 或当前场景。
 func refresh(root: Node = null) -> void:
 	_build_ui()
@@ -62,13 +74,21 @@ func refresh(root: Node = null) -> void:
 
 
 ## 获取最近一次校验报告字典。
-## @return 报告字典副本。
+## [br]
+## @api public
+## [br]
+## @return: 报告字典副本。
+## [br]
+## @schema return: 校验报告 Dictionary，包含 ok、summary、next_action、issues、error_count、warning_count 等字段。
 func get_last_report() -> Dictionary:
 	return _last_report.duplicate(true)
 
 
 ## 获取最近一次扫描到的状态机数量。
-## @return 状态机数量。
+## [br]
+## @api public
+## [br]
+## @return: 状态机数量。
 func get_machine_count() -> int:
 	return _machines.size()
 
@@ -86,10 +106,10 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := GFEditorWorkspaceUI.make_toolbar()
+	var toolbar := _GF_EDITOR_WORKSPACE_UI.make_toolbar()
 	root_box.add_child(toolbar)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "扫描当前场景中的 GFNodeStateMachine。", refresh))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI.make_button("刷新", "扫描当前场景中的 GFNodeStateMachine。", refresh))
 
 	_machine_option = OptionButton.new()
 	_machine_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -109,10 +129,10 @@ func _build_ui() -> void:
 	_select_button.pressed.connect(_on_select_pressed)
 	toolbar.add_child(_select_button)
 
-	_summary_label = GFEditorWorkspaceUI.make_summary_label()
+	_summary_label = _GF_EDITOR_WORKSPACE_UI.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_empty_label = GFEditorWorkspaceUI.make_empty_label()
+	_empty_label = _GF_EDITOR_WORKSPACE_UI.make_empty_label()
 	root_box.add_child(_empty_label)
 
 	_tree = Tree.new()
@@ -129,7 +149,7 @@ func _build_ui() -> void:
 	_tree.item_selected.connect(_on_issue_selected)
 	root_box.add_child(_tree)
 
-	_details = GFEditorWorkspaceUI.make_details_output()
+	_details = _GF_EDITOR_WORKSPACE_UI.make_details_output()
 	root_box.add_child(_details)
 
 
@@ -151,7 +171,7 @@ func _resolve_root() -> Node:
 
 
 func _collect_state_machines(node: Node, result: Array[Node]) -> void:
-	if node is GF_NODE_STATE_MACHINE_BASE:
+	if node is _GF_NODE_STATE_MACHINE_BASE:
 		result.append(node)
 
 	for child: Node in node.get_children():
@@ -188,7 +208,7 @@ func _render_selected_machine() -> void:
 	_details.visible = false
 	if _machines.is_empty():
 		_last_report = {}
-		GFEditorWorkspaceUI.set_status(_summary_label, "当前场景没有 GFNodeStateMachine。")
+		_GF_EDITOR_WORKSPACE_UI.set_status(_summary_label, "当前场景没有 GFNodeStateMachine。")
 		_empty_label.text = "打开包含节点状态机的场景后点击刷新。"
 		_empty_label.visible = true
 		_tree.visible = false
@@ -197,12 +217,12 @@ func _render_selected_machine() -> void:
 	var machine := _get_selected_machine()
 	if machine == null:
 		_last_report = {}
-		GFEditorWorkspaceUI.set_status(_summary_label, "当前选择无效。", GFEditorWorkspaceUI.WARNING_TEXT_COLOR)
+		_GF_EDITOR_WORKSPACE_UI.set_status(_summary_label, "当前选择无效。", _GF_EDITOR_WORKSPACE_UI.WARNING_TEXT_COLOR)
 		_empty_label.visible = true
 		_tree.visible = false
 		return
 
-	var report := GF_NODE_STATE_MACHINE_VALIDATOR.validate_machine(machine, _get_validator_options())
+	var report := _GF_NODE_STATE_MACHINE_VALIDATOR.validate_machine(machine, _get_validator_options())
 	_last_report = report.to_dict({}, {
 		"include_metadata": true,
 		"summary_subject": _get_node_path_text(machine),
@@ -211,7 +231,7 @@ func _render_selected_machine() -> void:
 		String(_last_report.get("summary", "")),
 		String(_last_report.get("next_action", "")),
 	]
-	_summary_label.modulate = GFEditorWorkspaceUI.get_report_color(_last_report)
+	_summary_label.modulate = _GF_EDITOR_WORKSPACE_UI.get_report_color(_last_report)
 	_render_issues(_last_report.get("issues", []) as Array)
 
 

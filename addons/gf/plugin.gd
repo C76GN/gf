@@ -2,19 +2,72 @@
 extends EditorPlugin
 
 
-## GF Framework 编辑器插件。
-## 在启用/禁用插件时自动注册/注销 Gf AutoLoad 单例，并装配 GF 编辑器工具。
+# GF Framework 编辑器插件。
+# 在启用/禁用插件时自动注册/注销 Gf AutoLoad 单例，并装配 GF 编辑器工具。
 
 # --- 常量 ---
 
+## AutoLoad 管理辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginAutoload = preload("res://addons/gf/kernel/editor/gf_plugin_autoload.gd")
+
+## ProjectSettings 注册辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginProjectSettings = preload("res://addons/gf/kernel/editor/gf_plugin_project_settings.gd")
+
+## Inspector 与导出插件管理辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginInspectorTools = preload("res://addons/gf/kernel/editor/gf_plugin_inspector_tools.gd")
+
+## 菜单动作管理辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginActions = preload("res://addons/gf/kernel/editor/gf_plugin_actions.gd")
+
+## 工具菜单管理辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginMenu = preload("res://addons/gf/kernel/editor/gf_plugin_menu.gd")
+
+## 工作区窗口管理辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginDockTools = preload("res://addons/gf/kernel/editor/gf_plugin_dock_tools.gd")
+
+## 导入插件管理辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginImportTools = preload("res://addons/gf/kernel/editor/gf_plugin_import_tools.gd")
+
+## glTF 文档扩展管理辅助脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFPluginGltfDocumentTools = preload("res://addons/gf/kernel/editor/gf_plugin_gltf_document_tools.gd")
+
+## 标准库编辑器扩展记录脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer plugin
 const GFStandardEditorExtensions = preload("res://addons/gf/standard/editor/gf_standard_editor_extensions.gd")
 
 

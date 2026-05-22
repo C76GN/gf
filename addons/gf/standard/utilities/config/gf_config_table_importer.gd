@@ -1,6 +1,12 @@
 ## GFConfigTableImporter: 通用导表文本解析与 schema 校验入口。
 ##
 ## 提供 JSON 与 CSV 的轻量解析，适合编辑器工具或 CI 在进入项目 Provider 前做结构检查。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFConfigTableImporter
 extends RefCounted
 
@@ -13,9 +19,18 @@ const _CONFIG_VALIDATION_REPORT = preload("res://addons/gf/standard/utilities/co
 # --- 公共方法 ---
 
 ## 解析 JSON 表文本。
+## [br]
+## @api public
+## [br]
 ## @param text: JSON 文本。
+## [br]
 ## @param options: 可选参数，支持 source。
+## [br]
+## @schema options: Dictionary，可包含 source。
+## [br]
 ## @return 结果字典，包含 success、data、error、error_line 与 source。
+## [br]
+## @schema return: Dictionary，包含 success、data、error、error_line 和 source。
 static func parse_json_table(text: String, options: Dictionary = {}) -> Dictionary:
 	var json := JSON.new()
 	var error := json.parse(text)
@@ -38,9 +53,18 @@ static func parse_json_table(text: String, options: Dictionary = {}) -> Dictiona
 
 
 ## 解析 CSV 表文本。
+## [br]
+## @api public
+## [br]
 ## @param text: CSV 文本。
+## [br]
 ## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers、source。
+## [br]
+## @schema options: Dictionary，可包含 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers 和 source。
+## [br]
 ## @return 结果字典，包含 success、data、row_locations 与 error。
+## [br]
+## @schema return: Dictionary，包含 success、data、row_locations、error、error_line、error_column 和 source。
 static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionary:
 	var delimiter := str(options.get("delimiter", ","))
 	if delimiter.is_empty():
@@ -115,10 +139,20 @@ static func parse_csv_table(text: String, options: Dictionary = {}) -> Dictionar
 
 
 ## 解析并校验 JSON 表文本。
+## [br]
+## @api public
+## [br]
 ## @param text: JSON 文本。
+## [br]
 ## @param schema: 表结构声明。
+## [br]
 ## @param options: 可选参数，支持 source。
+## [br]
+## @schema options: Dictionary，可包含 source。
+## [br]
 ## @return 校验报告；解析失败时返回失败报告。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 static func validate_json_table(text: String, schema: GFConfigTableSchema, options: Dictionary = {}) -> Dictionary:
 	if schema == null:
 		return _make_error_report(&"", "missing_schema", "schema 为空。")
@@ -133,10 +167,20 @@ static func validate_json_table(text: String, schema: GFConfigTableSchema, optio
 
 
 ## 解析并校验 CSV 表文本。
+## [br]
+## @api public
+## [br]
 ## @param text: CSV 文本。
+## [br]
 ## @param schema: 表结构声明。
+## [br]
 ## @param options: 可选参数，支持 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers、source。
+## [br]
+## @schema options: Dictionary，可包含 delimiter、trim_cells、skip_empty_lines、reject_duplicate_headers 和 source。
+## [br]
 ## @return 校验报告；解析失败时返回失败报告。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary。
 static func validate_csv_table(text: String, schema: GFConfigTableSchema, options: Dictionary = {}) -> Dictionary:
 	if schema == null:
 		return _make_error_report(&"", "missing_schema", "schema 为空。")
@@ -152,10 +196,22 @@ static func validate_csv_table(text: String, schema: GFConfigTableSchema, option
 
 
 ## 导出 CSV 表文本。
+## [br]
+## @api public
+## [br]
 ## @param table_data: Array[Dictionary] 或 Dictionary 形式的表数据。
+## [br]
+## @schema table_data: Variant，支持 Array[Dictionary] 或 Dictionary，记录值必须为 Dictionary。
+## [br]
 ## @param schema: 可选 schema；提供时默认按 schema.columns 排列列。
+## [br]
 ## @param options: 可选参数，支持 delimiter、columns、include_header、coerce_values。
+## [br]
+## @schema options: Dictionary，可包含 delimiter、columns、include_header 和 coerce_values。
+## [br]
 ## @return 结果字典，包含 success、text 与 error。
+## [br]
+## @schema return: Dictionary，包含 success、text 和 error。
 static func export_csv_table(
 	table_data: Variant,
 	schema: GFConfigTableSchema = null,

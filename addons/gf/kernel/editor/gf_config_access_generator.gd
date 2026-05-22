@@ -4,26 +4,58 @@
 ##
 ## 生成结果只封装 provider 的 `get_record()` / `get_table()` 调用，
 ## 不规定项目表结构语义，适合需要 IDE 补全和集中表名常量的项目使用。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/editor
 class_name GFConfigAccessGenerator
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 默认生成输出路径。
+## [br]
+## @api public
 const DEFAULT_OUTPUT_PATH: String = "res://gf/generated/gf_config_access.gd"
+
+## 默认生成 class_name。
+## [br]
+## @api public
 const DEFAULT_CLASS_NAME: String = "GFConfigAccess"
+
+## 默认 provider 获取表达式。
+## [br]
+## @api public
 const DEFAULT_PROVIDER_ACCESSOR: String = "null"
 
 
 # --- 公共方法 ---
 
 ## 根据 schema 列表生成访问器并写入文件。
+## [br]
+## @api public
+## [br]
 ## @param schemas: 带有 `table_name` 或 `table_key` 属性的 schema 列表。
+## [br]
+## @schema schemas: Array of Dictionary or Object schemas with table_name/table_key and optional metadata.
+## [br]
 ## @param output_path: 生成文件输出路径。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+## [br]
 ## @param access_class_name: 生成脚本的 class_name。
+## [br]
 ## @param provider_accessor: 无显式 provider 参数时用于获取 provider 的表达式。
+## [br]
 ## @param options: 可选生成选项，支持 method_name_style、constant_prefix、record_method_pattern、table_method_pattern、include_schema_comments。
+## [br]
+## @schema options: Dictionary controlling method_name_style, constant_prefix, record_method_pattern, table_method_pattern, and include_schema_comments.
+## [br]
 ## @return 写入结果错误码。
 func generate(
 	schemas: Array,
@@ -37,10 +69,21 @@ func generate(
 
 
 ## 根据 schema 列表生成访问器源码。
+## [br]
+## @api public
+## [br]
 ## @param schemas: 带有 `table_name` 或 `table_key` 属性的 schema 列表。
+## [br]
+## @schema schemas: Array of Dictionary or Object schemas with table_name/table_key and optional metadata.
+## [br]
 ## @param access_class_name: 生成脚本的 class_name。
+## [br]
 ## @param provider_accessor: 无显式 provider 参数时用于获取 provider 的表达式。
+## [br]
 ## @param options: 可选生成选项。
+## [br]
+## @schema options: Dictionary controlling method_name_style, constant_prefix, record_method_pattern, table_method_pattern, and include_schema_comments.
+## [br]
 ## @return GDScript 源码。
 func build_source(
 	schemas: Array,
@@ -84,9 +127,15 @@ func build_source(
 
 
 ## 保存生成源码到指定路径。
+## [br]
+## @api public
+## [br]
 ## @param output_path: 生成文件输出路径。
+## [br]
 ## @param source: GDScript 源码。
+## [br]
 ## @param overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。
+## [br]
 ## @return 写入结果错误码。
 func save_source(output_path: String, source: String, overwrite_existing: bool = true) -> Error:
 	if output_path.is_empty():

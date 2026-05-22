@@ -2,6 +2,12 @@
 ##
 ## 用于把校验、导入、生成器或编辑器工具中的问题定位到一个稳定的
 ## source_path、line、column 范围。行列约定为 1-based，0 表示未知。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFSourceSpan
 extends RefCounted
 
@@ -14,32 +20,61 @@ const _SCRIPT_PATH: String = "res://addons/gf/standard/foundation/validation/gf_
 # --- 公共变量 ---
 
 ## 源文件或资源路径。
+## [br]
+## @api public
 var source_path: String = ""
 
 ## 起始行号，1-based；0 表示未知。
+## [br]
+## @api public
 var line: int = 0
 
 ## 起始列号，1-based；0 表示未知。
+## [br]
+## @api public
 var column: int = 0
 
 ## 同一行内的跨度长度；0 表示未知。
+## [br]
+## @api public
 var length: int = 0
 
 ## 结束行号，1-based；0 表示未知。
+## [br]
+## @api public
 var end_line: int = 0
 
 ## 结束列号，1-based；0 表示未知。
+## [br]
+## @api public
 var end_column: int = 0
 
 ## 可选源码预览。
+## [br]
+## @api public
 var preview: String = ""
 
 ## 调用方附加元数据。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary caller metadata.
 var metadata: Dictionary = {}
 
 
 # --- Godot 生命周期方法 ---
 
+## 创建源码定位范围。
+## [br]
+## @api public
+## [br]
+## @param p_source_path: 源文件或资源路径。
+## [br]
+## @param p_line: 起始行号，1-based；0 表示未知。
+## [br]
+## @param p_column: 起始列号，1-based；0 表示未知。
+## [br]
+## @param p_length: 同一行内的跨度长度；0 表示未知。
 func _init(
 	p_source_path: String = "",
 	p_line: int = 0,
@@ -55,15 +90,28 @@ func _init(
 # --- 公共方法 ---
 
 ## 配置定位范围。
+## [br]
+## @api public
+## [br]
 ## @param p_source_path: 源文件或资源路径。
+## [br]
 ## @param p_line: 起始行号，1-based；0 表示未知。
+## [br]
 ## @param p_column: 起始列号，1-based；0 表示未知。
+## [br]
 ## @param p_length: 同一行内的跨度长度；0 表示未知。
+## [br]
 ## @param p_end_line: 结束行号，1-based；0 表示未知。
+## [br]
 ## @param p_end_column: 结束列号，1-based；0 表示未知。
+## [br]
 ## @param p_preview: 可选源码预览。
+## [br]
 ## @param p_metadata: 调用方附加元数据。
+## [br]
 ## @return 当前定位范围。
+## [br]
+## @schema p_metadata: Dictionary caller metadata.
 func configure(
 	p_source_path: String = "",
 	p_line: int = 0,
@@ -86,7 +134,12 @@ func configure(
 
 
 ## 从字典应用字段。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。`source` 会作为 `source_path` 的兼容别名读取。
+## [br]
+## @schema data: Dictionary source span fields.
 func apply_dict(data: Dictionary) -> void:
 	source_path = _read_source_path(data, source_path)
 	line = _read_non_negative_int(data, "line", line)
@@ -101,9 +154,16 @@ func apply_dict(data: Dictionary) -> void:
 
 
 ## 转换为字典。
+## [br]
+## @api public
+## [br]
 ## @param include_empty_fields: 为 true 时包含空字段。
+## [br]
 ## @param include_legacy_source_alias: 为 true 时额外写入 `source` 兼容字段。
+## [br]
 ## @return 字典副本。
+## [br]
+## @schema return: Dictionary source span fields.
 func to_dict(include_empty_fields: bool = false, include_legacy_source_alias: bool = false) -> Dictionary:
 	var result: Dictionary = {}
 	if include_empty_fields or not source_path.is_empty():
@@ -128,6 +188,9 @@ func to_dict(include_empty_fields: bool = false, include_legacy_source_alias: bo
 
 
 ## 创建当前定位范围的深拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新定位范围。
 func duplicate_span() -> RefCounted:
 	var span := get_script().new() as RefCounted
@@ -136,24 +199,36 @@ func duplicate_span() -> RefCounted:
 
 
 ## 检查是否没有任何定位信息。
+## [br]
+## @api public
+## [br]
 ## @return 没有路径且没有位置时返回 true。
 func is_empty() -> bool:
 	return source_path.is_empty() and line <= 0 and column <= 0 and length <= 0 and end_line <= 0 and end_column <= 0
 
 
 ## 检查是否有源路径。
+## [br]
+## @api public
+## [br]
 ## @return 有源路径时返回 true。
 func has_source_path() -> bool:
 	return not source_path.is_empty()
 
 
 ## 检查是否有起始行号。
+## [br]
+## @api public
+## [br]
 ## @return 有起始行号时返回 true。
 func has_position() -> bool:
 	return line > 0
 
 
 ## 获取有效结束行。
+## [br]
+## @api public
+## [br]
 ## @return 显式 end_line 或起始行。
 func get_effective_end_line() -> int:
 	if end_line > 0:
@@ -162,6 +237,9 @@ func get_effective_end_line() -> int:
 
 
 ## 获取有效结束列。
+## [br]
+## @api public
+## [br]
 ## @return 显式 end_column，或根据 column 与 length 推导出的列号。
 func get_effective_end_column() -> int:
 	if end_column > 0:
@@ -174,6 +252,9 @@ func get_effective_end_column() -> int:
 
 
 ## 生成人类可读定位文本。
+## [br]
+## @api public
+## [br]
 ## @return 例如 `res://table.csv:4:2`。
 func get_location_text() -> String:
 	var label := source_path
@@ -187,10 +268,20 @@ func get_location_text() -> String:
 
 
 ## 将定位字段写入目标字典。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标字典。
+## [br]
 ## @param include_empty_fields: 为 true 时包含空字段。
+## [br]
 ## @param include_legacy_source_alias: 为 true 时额外写入 `source` 兼容字段。
+## [br]
 ## @return 目标字典。
+## [br]
+## @schema target: Dictionary updated in place.
+## [br]
+## @schema return: Dictionary same instance as target with source span fields.
 func merge_into_dictionary(
 	target: Dictionary,
 	include_empty_fields: bool = false,
@@ -203,8 +294,14 @@ func merge_into_dictionary(
 
 
 ## 从字典创建定位范围。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
 ## @return 新定位范围。
+## [br]
+## @schema data: Dictionary source span fields.
 static func from_dict(data: Dictionary) -> RefCounted:
 	var span := _new_span()
 	span.call("apply_dict", data)
@@ -212,8 +309,14 @@ static func from_dict(data: Dictionary) -> RefCounted:
 
 
 ## 从问题对象或问题字典创建定位范围。
+## [br]
+## @api public
+## [br]
 ## @param issue: GFValidationIssue 或问题字典。
+## [br]
 ## @return 新定位范围。
+## [br]
+## @schema issue: Variant GFValidationIssue-like object or Dictionary.
 static func from_issue(issue: Variant) -> RefCounted:
 	if issue is Dictionary:
 		var data := issue as Dictionary
@@ -230,10 +333,17 @@ static func from_issue(issue: Variant) -> RefCounted:
 
 
 ## 创建定位范围。
+## [br]
+## @api public
+## [br]
 ## @param p_source_path: 源文件或资源路径。
+## [br]
 ## @param p_line: 起始行号，1-based；0 表示未知。
+## [br]
 ## @param p_column: 起始列号，1-based；0 表示未知。
+## [br]
 ## @param p_length: 同一行内的跨度长度；0 表示未知。
+## [br]
 ## @return 新定位范围。
 static func make(
 	p_source_path: String = "",

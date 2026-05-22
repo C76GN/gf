@@ -3,6 +3,12 @@
 ## 管理 BGM 和 SFX 的播放与音量。
 ## 注册 GFObjectPoolUtility 时会复用 AudioStreamPlayer，未注册时使用普通播放器。
 ## 支持通过 GFAssetUtility 异步加载音频资源。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFAudioUtility
 extends GFUtility
 
@@ -10,6 +16,9 @@ extends GFUtility
 # --- 信号 ---
 
 ## 当前 BGM 自然播放结束时发出。
+## [br]
+## @api public
+## [br]
 ## @param history_key: 播放请求记录的 BGM key。
 signal bgm_finished(history_key: String)
 
@@ -17,6 +26,8 @@ signal bgm_finished(history_key: String)
 # --- 枚举 ---
 
 ## SFX 超出并发上限时的处理策略。
+## [br]
+## @api public
 enum SFXOverflowPolicy {
 	## 跳过新的 SFX 请求。
 	SKIP_NEW,
@@ -28,9 +39,13 @@ enum SFXOverflowPolicy {
 # --- 常量 ---
 
 ## 默认 BGM 音频总线名。
+## [br]
+## @api public
 const BGM_BUS_NAME: String = "BGM"
 
 ## 默认 SFX 音频总线名。
+## [br]
+## @api public
 const SFX_BUS_NAME: String = "SFX"
 
 const _FALLBACK_BUS_NAME: String = "Master"
@@ -39,15 +54,23 @@ const _FALLBACK_BUS_NAME: String = "Master"
 # --- 公共变量 ---
 
 ## 同时播放的 SFX 数量上限；小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_sfx_players: int = 32
 
 ## SFX 超出并发上限时采用的处理策略。
+## [br]
+## @api public
 var sfx_overflow_policy: SFXOverflowPolicy = SFXOverflowPolicy.SKIP_NEW
 
 ## 默认 BGM 淡入淡出秒数。单次播放传入负数时使用该值。
+## [br]
+## @api public
 var bgm_crossfade_seconds: float = 0.0
 
 ## BGM 历史记录最大数量。
+## [br]
+## @api public
 var max_bgm_history: int = 16
 
 
@@ -81,8 +104,11 @@ var _audio_bank_mount_token: int = 0
 var _audio_backend: GFAudioBackend = null
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化音频播放器、运行时状态和默认播放根节点。
+## [br]
+## @api public
 func init() -> void:
 	_bgm_request_serial = 0
 	_bgm_fade_serial = 0
@@ -127,6 +153,9 @@ func init() -> void:
 		_root.call_deferred("add_child", _bgm_fade_player)
 
 
+## 释放播放器、后端、环境音和 SFX 运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	_bgm_request_serial += 1
 	_bgm_fade_serial += 1
@@ -155,7 +184,11 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 播放 BGM（背景音乐）
+## [br]
+## @api public
+## [br]
 ## @param path: 音频资源的路径
+## [br]
 ## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
 func play_bgm(path: String, crossfade_seconds: float = -1.0) -> void:
 	play_bgm_with_options(path, {
@@ -164,8 +197,14 @@ func play_bgm(path: String, crossfade_seconds: float = -1.0) -> void:
 
 
 ## 使用选项播放 BGM。
+## [br]
+## @api public
+## [br]
 ## @param path: 音频资源路径或后端事件路径。
+## [br]
 ## @param options: 支持 crossfade_seconds、history_key、loop、bus_name、volume_db 和 pitch_scale。
+## [br]
+## @schema options: Dictionary，可包含 crossfade_seconds、history_key、loop、bus_name、volume_db 和 pitch_scale 字段。
 func play_bgm_with_options(path: String, options: Dictionary = {}) -> void:
 	_bgm_request_serial += 1
 	_bgm_pause_serial += 1
@@ -225,7 +264,11 @@ func play_bgm_with_options(path: String, options: Dictionary = {}) -> void:
 
 
 ## 播放资源化 BGM 配置。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
+## [br]
 ## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
 func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -> void:
 	if clip == null or not clip.has_source():
@@ -291,8 +334,13 @@ func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -> void:
 
 
 ## 从音频集合播放 BGM。
+## [br]
+## @api public
+## [br]
 ## @param bank: 音频集合。
+## [br]
 ## @param clip_id: 片段标识。
+## [br]
 ## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
 func play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName, crossfade_seconds: float = -1.0) -> void:
 	if bank == null:
@@ -302,8 +350,13 @@ func play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName, crossfade_second
 
 
 ## 按事件 ID 播放注册音频集合中的 BGM。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## [br]
 ## @param crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。
 func play_bgm_event(
 	event_id: StringName,
@@ -314,6 +367,9 @@ func play_bgm_event(
 
 
 ## 停止当前 BGM。
+## [br]
+## @api public
+## [br]
 ## @param fade_seconds: 淡出秒数。
 func stop_bgm(fade_seconds: float = 0.0) -> void:
 	if _audio_backend != null:
@@ -327,14 +383,19 @@ func stop_bgm(fade_seconds: float = 0.0) -> void:
 	if is_instance_valid(_bgm_player):
 		_bgm_player.stream_paused = false
 		_stop_player(_bgm_player, fade_seconds)
+		_schedule_bgm_stop_fallback(_bgm_player, _bgm_request_serial, fade_seconds)
 	if is_instance_valid(_bgm_fade_player):
 		_bgm_fade_player.stream_paused = false
 		_bgm_fade_player.stop()
 
 
 ## 暂停当前 BGM。
+## [br]
+## @api public
+## [br]
 ## @param fade_seconds: 淡出到暂停的秒数。
-## @return 成功暂停或后端已处理时返回 true。
+## [br]
+## @return: 成功暂停或后端已处理时返回 true。
 func pause_bgm(fade_seconds: float = 0.0) -> bool:
 	var safe_fade := maxf(fade_seconds, 0.0)
 	_cancel_bgm_crossfade_playback()
@@ -362,9 +423,14 @@ func pause_bgm(fade_seconds: float = 0.0) -> bool:
 
 
 ## 恢复当前 BGM。
+## [br]
+## @api public
+## [br]
 ## @param from_position: 大于等于 0 时从指定秒数恢复。
+## [br]
 ## @param fade_seconds: 淡入秒数。
-## @return 成功恢复或后端已处理时返回 true。
+## [br]
+## @return: 成功恢复或后端已处理时返回 true。
 func resume_bgm(from_position: float = -1.0, fade_seconds: float = 0.0) -> bool:
 	var safe_fade := maxf(fade_seconds, 0.0)
 	var safe_position := maxf(from_position, 0.0)
@@ -397,8 +463,12 @@ func resume_bgm(from_position: float = -1.0, fade_seconds: float = 0.0) -> bool:
 
 
 ## 跳转当前 BGM 播放位置。
+## [br]
+## @api public
+## [br]
 ## @param position_seconds: 目标秒数。
-## @return 成功跳转或后端已处理时返回 true。
+## [br]
+## @return: 成功跳转或后端已处理时返回 true。
 func seek_bgm(position_seconds: float) -> bool:
 	var safe_position := maxf(position_seconds, 0.0)
 	if _audio_backend != null and _audio_backend.seek_bgm(safe_position):
@@ -412,7 +482,10 @@ func seek_bgm(position_seconds: float) -> bool:
 
 
 ## 获取当前 BGM 播放位置。
-## @return 当前播放秒数；无可查询播放器时返回 0。
+## [br]
+## @api public
+## [br]
+## @return: 当前播放秒数；无可查询播放器时返回 0。
 func get_bgm_playback_position() -> float:
 	if _audio_backend != null:
 		var backend_position := _audio_backend.get_bgm_playback_position()
@@ -425,7 +498,10 @@ func get_bgm_playback_position() -> float:
 
 
 ## 查询当前 BGM 是否暂停。
-## @return 暂停时返回 true。
+## [br]
+## @api public
+## [br]
+## @return: 暂停时返回 true。
 func is_bgm_paused() -> bool:
 	if _audio_backend != null and _audio_backend.is_bgm_paused():
 		return true
@@ -435,24 +511,36 @@ func is_bgm_paused() -> bool:
 
 
 ## 获取 BGM 播放历史。
-## @return 从旧到新的历史 key。
+## [br]
+## @api public
+## [br]
+## @return: 从旧到新的历史 key。
 func get_bgm_history() -> PackedStringArray:
 	return PackedStringArray(_bgm_history)
 
 
 ## 获取当前 BGM key。
-## @return 当前 BGM key；无播放时为空。
+## [br]
+## @api public
+## [br]
+## @return: 当前 BGM key；无播放时为空。
 func get_current_bgm_key() -> String:
 	return _current_bgm_key
 
 
 ## 清空 BGM 历史。
+## [br]
+## @api public
 func clear_bgm_history() -> void:
 	_bgm_history = PackedStringArray()
 
 
 ## 注册一个全局音频集合，供事件式播放接口使用。
+## [br]
+## @api public
+## [br]
 ## @param bank_id: 音频集合标识。
+## [br]
 ## @param bank: 音频集合。
 func register_audio_bank(bank_id: StringName, bank: GFAudioBank) -> void:
 	if bank_id == &"":
@@ -467,6 +555,9 @@ func register_audio_bank(bank_id: StringName, bank: GFAudioBank) -> void:
 
 
 ## 移除一个全局音频集合。
+## [br]
+## @api public
+## [br]
 ## @param bank_id: 音频集合标识。
 func unregister_audio_bank(bank_id: StringName) -> void:
 	_audio_bank_base_values.erase(bank_id)
@@ -475,6 +566,8 @@ func unregister_audio_bank(bank_id: StringName) -> void:
 
 
 ## 清空全局音频集合注册表。
+## [br]
+## @api public
 func clear_audio_banks() -> void:
 	_audio_bank_base_values.clear()
 	_audio_bank_mount_stacks.clear()
@@ -482,10 +575,16 @@ func clear_audio_banks() -> void:
 
 
 ## 挂载一个临时音频集合，并返回用于卸载的挂载令牌。
+## [br]
+## @api public
+## [br]
 ## @param bank_id: 音频集合标识。
+## [br]
 ## @param bank: 音频集合。
+## [br]
 ## @param restore_previous_bank: 卸载顶层挂载时是否恢复同 ID 的上一层音频集合。
-## @return 挂载令牌；失败时返回 0。
+## [br]
+## @return: 挂载令牌；失败时返回 0。
 func mount_audio_bank(
 	bank_id: StringName,
 	bank: GFAudioBank,
@@ -517,9 +616,14 @@ func mount_audio_bank(
 
 
 ## 卸载由 mount_audio_bank() 创建的临时音频集合。
+## [br]
+## @api public
+## [br]
 ## @param bank_id: 音频集合标识。
+## [br]
 ## @param mount_token: mount_audio_bank() 返回的挂载令牌。
-## @return 找到并卸载对应挂载时返回 true。
+## [br]
+## @return: 找到并卸载对应挂载时返回 true。
 func unmount_audio_bank(bank_id: StringName, mount_token: int) -> bool:
 	if bank_id == &"" or mount_token <= 0:
 		return false
@@ -548,13 +652,20 @@ func unmount_audio_bank(bank_id: StringName, mount_token: int) -> bool:
 
 
 ## 获取全局音频集合。
+## [br]
+## @api public
+## [br]
 ## @param bank_id: 音频集合标识。
-## @return 音频集合；不存在时返回 null。
+## [br]
+## @return: 音频集合；不存在时返回 null。
 func get_audio_bank(bank_id: StringName) -> GFAudioBank:
 	return _audio_banks.get(bank_id) as GFAudioBank
 
 
 ## 设置可插拔音频后端。传入 null 时恢复默认 Godot 播放路径。
+## [br]
+## @api public
+## [br]
 ## @param backend: 音频后端。
 func set_audio_backend(backend: GFAudioBackend) -> void:
 	if _audio_backend == backend:
@@ -566,21 +677,34 @@ func set_audio_backend(backend: GFAudioBackend) -> void:
 
 
 ## 获取当前音频后端。
-## @return 音频后端；未设置时返回 null。
+## [br]
+## @api public
+## [br]
+## @return: 音频后端；未设置时返回 null。
 func get_audio_backend() -> GFAudioBackend:
 	return _audio_backend
 
 
 ## 清除当前音频后端。
+## [br]
+## @api public
+## [br]
 ## @param dispose_backend: 是否调用后端 dispose()。
 func clear_audio_backend(dispose_backend: bool = true) -> void:
 	_clear_audio_backend(dispose_backend)
 
 
 ## 发布资源化音频事件。
+## [br]
+## @api public
+## [br]
 ## @param event: 音频事件资源。
+## [br]
 ## @param options: 请求选项。
-## @return 控制句柄；不需要或无法返回句柄时返回 null。
+## [br]
+## @return: 控制句柄；不需要或无法返回句柄时返回 null。
+## [br]
+## @schema options: Dictionary，作为事件请求附加选项，会与 GFAudioEvent.to_request_options() 的结果合并。
 func post_audio_event(event: GFAudioEvent, options: Dictionary = {}) -> GFAudioEmitterHandle:
 	if event == null or not event.has_request():
 		return null
@@ -602,29 +726,46 @@ func post_audio_event(event: GFAudioEvent, options: Dictionary = {}) -> GFAudioE
 
 
 ## 写入音频参数。
+## [br]
+## @api public
+## [br]
 ## @param parameter: 参数请求。
-## @return 后端已处理返回 true。
+## [br]
+## @return: 后端已处理返回 true。
 func set_audio_parameter(parameter: GFAudioParameter) -> bool:
 	return _audio_backend != null and _audio_backend.set_parameter(parameter)
 
 
 ## 写入音频状态。
+## [br]
+## @api public
+## [br]
 ## @param state: 状态请求。
-## @return 后端已处理返回 true。
+## [br]
+## @return: 后端已处理返回 true。
 func set_audio_state(state: GFAudioState) -> bool:
 	return _audio_backend != null and _audio_backend.set_state(state)
 
 
 ## 写入音频开关。
+## [br]
+## @api public
+## [br]
 ## @param audio_switch: 开关请求。
-## @return 后端已处理返回 true。
+## [br]
+## @return: 后端已处理返回 true。
 func set_audio_switch(audio_switch: GFAudioSwitch) -> bool:
 	return _audio_backend != null and _audio_backend.set_switch(audio_switch)
 
 
 ## 播放环境音。
+## [br]
+## @api public
+## [br]
 ## @param path: 音频资源路径。
+## [br]
 ## @param channel: 环境音通道。
+## [br]
 ## @param fade_seconds: 淡入秒数。
 func play_ambient(path: String, channel: StringName = &"default", fade_seconds: float = 0.0) -> void:
 	if path.is_empty():
@@ -651,8 +792,13 @@ func play_ambient(path: String, channel: StringName = &"default", fade_seconds: 
 
 
 ## 播放资源化环境音配置。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
+## [br]
 ## @param channel: 环境音通道。
+## [br]
 ## @param fade_seconds: 淡入秒数。
 func play_ambient_clip(
 	clip: GFAudioClip,
@@ -691,9 +837,15 @@ func play_ambient_clip(
 
 
 ## 从音频集合播放环境音。
+## [br]
+## @api public
+## [br]
 ## @param bank: 音频集合。
+## [br]
 ## @param clip_id: 片段标识。
+## [br]
 ## @param channel: 环境音通道。
+## [br]
 ## @param fade_seconds: 淡入秒数。
 func play_ambient_from_bank(
 	bank: GFAudioBank,
@@ -708,9 +860,15 @@ func play_ambient_from_bank(
 
 
 ## 按事件 ID 播放注册音频集合中的环境音。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param channel: 环境音通道。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## [br]
 ## @param fade_seconds: 淡入秒数。
 func play_ambient_event(
 	event_id: StringName,
@@ -722,7 +880,11 @@ func play_ambient_event(
 
 
 ## 停止指定环境音通道。
+## [br]
+## @api public
+## [br]
 ## @param channel: 环境音通道。
+## [br]
 ## @param fade_seconds: 淡出秒数。
 func stop_ambient(channel: StringName = &"default", fade_seconds: float = 0.0) -> void:
 	if _audio_backend != null:
@@ -734,6 +896,9 @@ func stop_ambient(channel: StringName = &"default", fade_seconds: float = 0.0) -
 
 
 ## 停止所有环境音通道。
+## [br]
+## @api public
+## [br]
 ## @param fade_seconds: 淡出秒数。
 func stop_all_ambient(fade_seconds: float = 0.0) -> void:
 	if _audio_backend != null:
@@ -744,8 +909,12 @@ func stop_all_ambient(fade_seconds: float = 0.0) -> void:
 
 
 ## 检查环境音通道是否正在播放。
+## [br]
+## @api public
+## [br]
 ## @param channel: 环境音通道。
-## @return 正在播放时返回 true。
+## [br]
+## @return: 正在播放时返回 true。
 func is_ambient_playing(channel: StringName = &"default") -> bool:
 	if _audio_backend != null and _audio_backend.is_ambient_playing(channel):
 		return true
@@ -754,6 +923,9 @@ func is_ambient_playing(channel: StringName = &"default") -> bool:
 
 
 ## 停止全部普通 SFX 与空间 SFX。
+## [br]
+## @api public
+## [br]
 ## @param fade_seconds: 淡出秒数。
 func stop_all_sfx(fade_seconds: float = 0.0) -> void:
 	var safe_fade := maxf(fade_seconds, 0.0)
@@ -765,14 +937,21 @@ func stop_all_sfx(fade_seconds: float = 0.0) -> void:
 
 
 ## 播放 SFX（音效），自动从池中分配播放器
+## [br]
+## @api public
+## [br]
 ## @param path: 音频资源的路径
 func play_sfx(path: String) -> void:
 	play_sfx_handle(path)
 
 
 ## 播放 SFX 并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param path: 音频资源的路径。
-## @return 控制句柄；路径为空时返回 null。
+## [br]
+## @return: 控制句柄；路径为空时返回 null。
 func play_sfx_handle(path: String) -> GFAudioEmitterHandle:
 	if path.is_empty():
 		return null
@@ -799,14 +978,21 @@ func play_sfx_handle(path: String) -> GFAudioEmitterHandle:
 
 
 ## 播放资源化 SFX 配置。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
 func play_sfx_clip(clip: GFAudioClip) -> void:
 	play_sfx_clip_handle(clip)
 
 
 ## 播放资源化 SFX 配置并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
-## @return 控制句柄；片段无播放来源时返回 null。
+## [br]
+## @return: 控制句柄；片段无播放来源时返回 null。
 func play_sfx_clip_handle(clip: GFAudioClip) -> GFAudioEmitterHandle:
 	if clip == null or not clip.has_source():
 		return null
@@ -847,16 +1033,25 @@ func play_sfx_clip_handle(clip: GFAudioClip) -> GFAudioEmitterHandle:
 
 
 ## 从音频集合播放 SFX。
+## [br]
+## @api public
+## [br]
 ## @param bank: 音频集合。
+## [br]
 ## @param clip_id: 片段标识。
 func play_sfx_from_bank(bank: GFAudioBank, clip_id: StringName) -> void:
 	play_sfx_from_bank_handle(bank, clip_id)
 
 
 ## 从音频集合播放 SFX 并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param bank: 音频集合。
+## [br]
 ## @param clip_id: 片段标识。
-## @return 控制句柄；无法播放时返回 null。
+## [br]
+## @return: 控制句柄；无法播放时返回 null。
 func play_sfx_from_bank_handle(bank: GFAudioBank, clip_id: StringName) -> GFAudioEmitterHandle:
 	if bank == null:
 		return null
@@ -865,26 +1060,42 @@ func play_sfx_from_bank_handle(bank: GFAudioBank, clip_id: StringName) -> GFAudi
 
 
 ## 按事件 ID 播放注册音频集合中的 SFX。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
 func play_sfx_event(event_id: StringName, bank_id: StringName = &"") -> void:
 	play_sfx_event_handle(event_id, bank_id)
 
 
 ## 按事件 ID 播放注册音频集合中的 SFX 并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
-## @return 控制句柄；无法播放时返回 null。
+## [br]
+## @return: 控制句柄；无法播放时返回 null。
 func play_sfx_event_handle(event_id: StringName, bank_id: StringName = &"") -> GFAudioEmitterHandle:
 	return play_sfx_clip_handle(_get_registered_clip(event_id, bank_id))
 
 
 ## 按事件 ID 在 2D 节点位置播放注册音频集合中的 SFX。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param source: 2D 声源节点。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 创建的播放器；无法播放时返回 null。
+## [br]
+## @return: 创建的播放器；无法播放时返回 null。
 func play_sfx_event_2d(
 	event_id: StringName,
 	source: Node2D,
@@ -895,11 +1106,18 @@ func play_sfx_event_2d(
 
 
 ## 按事件 ID 在 2D 节点位置播放注册音频集合中的 SFX，并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param source: 2D 声源节点。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 控制句柄；无法播放时返回 null。
+## [br]
+## @return: 控制句柄；无法播放时返回 null。
 func play_sfx_event_2d_handle(
 	event_id: StringName,
 	source: Node2D,
@@ -910,11 +1128,18 @@ func play_sfx_event_2d_handle(
 
 
 ## 按事件 ID 在 3D 节点位置播放注册音频集合中的 SFX。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param source: 3D 声源节点。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 创建的播放器；无法播放时返回 null。
+## [br]
+## @return: 创建的播放器；无法播放时返回 null。
 func play_sfx_event_3d(
 	event_id: StringName,
 	source: Node3D,
@@ -925,11 +1150,18 @@ func play_sfx_event_3d(
 
 
 ## 按事件 ID 在 3D 节点位置播放注册音频集合中的 SFX，并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param event_id: 音频事件标识。
+## [br]
 ## @param source: 3D 声源节点。
+## [br]
 ## @param bank_id: 音频集合标识；为空时搜索全部注册集合。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 控制句柄；无法播放时返回 null。
+## [br]
+## @return: 控制句柄；无法播放时返回 null。
 func play_sfx_event_3d_handle(
 	event_id: StringName,
 	source: Node3D,
@@ -940,10 +1172,16 @@ func play_sfx_event_3d_handle(
 
 
 ## 在 2D 节点位置播放资源化 SFX 配置。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
+## [br]
 ## @param source: 2D 声源节点。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 创建的播放器；无法播放时返回 null。
+## [br]
+## @return: 创建的播放器；无法播放时返回 null。
 func play_sfx_clip_2d(
 	clip: GFAudioClip,
 	source: Node2D,
@@ -953,10 +1191,16 @@ func play_sfx_clip_2d(
 
 
 ## 在 2D 节点位置播放资源化 SFX 配置，并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
+## [br]
 ## @param source: 2D 声源节点。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 控制句柄；无法播放时返回 null。
+## [br]
+## @return: 控制句柄；无法播放时返回 null。
 func play_sfx_clip_2d_handle(
 	clip: GFAudioClip,
 	source: Node2D,
@@ -978,10 +1222,16 @@ func play_sfx_clip_2d_handle(
 
 
 ## 在 3D 节点位置播放资源化 SFX 配置。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
+## [br]
 ## @param source: 3D 声源节点。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 创建的播放器；无法播放时返回 null。
+## [br]
+## @return: 创建的播放器；无法播放时返回 null。
 func play_sfx_clip_3d(
 	clip: GFAudioClip,
 	source: Node3D,
@@ -991,10 +1241,16 @@ func play_sfx_clip_3d(
 
 
 ## 在 3D 节点位置播放资源化 SFX 配置，并返回控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param clip: 音频片段配置。
+## [br]
 ## @param source: 3D 声源节点。
+## [br]
 ## @param follow_source: 为 true 时播放器会作为 source 子节点跟随移动。
-## @return 控制句柄；无法播放时返回 null。
+## [br]
+## @return: 控制句柄；无法播放时返回 null。
 func play_sfx_clip_3d_handle(
 	clip: GFAudioClip,
 	source: Node3D,
@@ -1016,8 +1272,12 @@ func play_sfx_clip_3d_handle(
 
 
 ## 获取环境音通道的控制句柄。
+## [br]
+## @api public
+## [br]
 ## @param channel: 环境音通道。
-## @return 控制句柄；通道不存在时返回 null。
+## [br]
+## @return: 控制句柄；通道不存在时返回 null。
 func get_ambient_handle(channel: StringName = &"default") -> GFAudioEmitterHandle:
 	var player := _ambient_players.get(channel) as AudioStreamPlayer
 	if not is_instance_valid(player):
@@ -1026,7 +1286,11 @@ func get_ambient_handle(channel: StringName = &"default") -> GFAudioEmitterHandl
 
 
 ## 设置音频总线音量
+## [br]
+## @api public
+## [br]
 ## @param bus_name: 总线名称，如 "Master", "BGM", "SFX"
+## [br]
 ## @param volume_linear: 线性音量 (0.0 到 1.0)
 func set_bus_volume(bus_name: String, volume_linear: float) -> void:
 	if _audio_backend != null and _audio_backend.set_bus_volume(bus_name, volume_linear):
@@ -1046,8 +1310,12 @@ func set_bus_volume(bus_name: String, volume_linear: float) -> void:
 
 
 ## 获取音频总线音量
+## [br]
+## @api public
+## [br]
 ## @param bus_name: 总线名称
-## @return 线性音量 (0.0 到 1.0)
+## [br]
+## @return: 线性音量 (0.0 到 1.0)
 func get_bus_volume(bus_name: String) -> float:
 	if _audio_backend != null:
 		var backend_volume := _audio_backend.get_bus_volume(bus_name)
@@ -1063,7 +1331,12 @@ func get_bus_volume(bus_name: String) -> float:
 
 
 ## 获取音频工具调试快照。
-## @return 调试快照。
+## [br]
+## @api public
+## [br]
+## @return: 调试快照。
+## [br]
+## @schema return: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels 和 audio_bank_count 字段。
 func get_debug_snapshot() -> Dictionary:
 	_prune_inactive_sfx_players()
 	_prune_inactive_spatial_sfx_players()
@@ -1100,7 +1373,7 @@ func get_debug_snapshot() -> Dictionary:
 	}
 
 
-# --- 私有辅助方法 ---
+# --- 私有/辅助方法 ---
 
 func _clear_audio_backend(dispose_backend: bool) -> void:
 	if _audio_backend == null:
@@ -1624,12 +1897,36 @@ func _stop_player(player: AudioStreamPlayer, fade_seconds: float) -> void:
 		player.stop()
 		return
 
-	var tween := _fade_player_volume(player, -80.0, fade_seconds)
-	if tween != null:
-		var finished_callback := func() -> void:
-			if is_instance_valid(player):
-				player.stop()
-		tween.finished.connect(finished_callback, CONNECT_ONE_SHOT)
+	var tween := _create_tween_or_null()
+	if tween == null:
+		player.volume_db = -80.0
+		player.stop()
+		return
+
+	tween.tween_property(player, "volume_db", -80.0, maxf(fade_seconds, 0.0))
+	tween.tween_callback(func() -> void:
+		if is_instance_valid(player):
+			player.stop()
+	)
+
+
+func _schedule_bgm_stop_fallback(player: AudioStreamPlayer, request_serial: int, fade_seconds: float) -> void:
+	if fade_seconds <= 0.0 or not is_instance_valid(player):
+		return
+
+	var tree := Engine.get_main_loop() as SceneTree
+	if tree == null:
+		return
+
+	var timer := tree.create_timer(maxf(fade_seconds, 0.0))
+	timer.timeout.connect(func() -> void:
+		if request_serial != _bgm_request_serial:
+			return
+		if player != _bgm_player:
+			return
+		if is_instance_valid(player):
+			player.stop()
+	)
 
 
 func _fade_player_volume(player: AudioStreamPlayer, volume_db: float, fade_seconds: float) -> Tween:

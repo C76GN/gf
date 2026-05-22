@@ -1,43 +1,72 @@
 ## GFExtensionSettings: GF 扩展启用状态与 ProjectSettings 桥接。
 ##
 ## 负责读取启用扩展 ID、解析扩展依赖、收集启用扩展 Installer，以及提供导出排除开关。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/extension
 class_name GFExtensionSettings
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 扩展 manifest 发现服务脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/extension
 const GFExtensionCatalogBase = preload("res://addons/gf/kernel/extension/gf_extension_catalog.gd")
 
 ## 项目设置：启用的 GF 扩展 ID 列表。
+## [br]
+## @api public
 const ENABLED_EXTENSIONS_SETTING: String = "gf/extensions/enabled"
 
 ## 项目设置：是否自动执行启用扩展 manifest 中声明的 installer_paths。
+## [br]
+## @api public
 const AUTO_INSTALL_ENABLED_INSTALLERS_SETTING: String = "gf/extensions/auto_install_enabled_installers"
 
 ## 项目设置：导出时是否跳过禁用扩展目录。
+## [br]
+## @api public
 const EXPORT_EXCLUDE_DISABLED_SETTING: String = "gf/extensions/export_exclude_disabled"
 
 ## 项目设置：导出审计发现项目仍引用禁用扩展时是否报告为错误。
+## [br]
+## @api public
 const EXPORT_FAIL_ON_DISABLED_REFERENCES_SETTING: String = "gf/extensions/export_fail_on_disabled_references"
 
 ## 默认自动执行启用扩展 Installer。
+## [br]
+## @api public
 const AUTO_INSTALL_ENABLED_INSTALLERS_DEFAULT: bool = true
 
 ## 默认导出时排除禁用扩展。
+## [br]
+## @api public
 const EXPORT_EXCLUDE_DISABLED_DEFAULT: bool = true
 
 ## 默认把禁用扩展引用作为导出错误，避免导出产物缺少被引用的扩展文件。
+## [br]
+## @api public
 const EXPORT_FAIL_ON_DISABLED_REFERENCES_DEFAULT: bool = true
 
 ## 内置依赖 ID。这些不是可启停扩展 manifest，但允许被扩展声明为基础依赖。
+## [br]
+## @api public
 const BUILT_IN_EXTENSION_IDS: Array[String] = [
 	"gf.kernel",
 	"gf.standard",
 ]
 
 
-# --- 私有静态变量 ---
+# --- 私有变量 ---
 
 static var _manifest_cache: Dictionary = {}
 
@@ -45,6 +74,9 @@ static var _manifest_cache: Dictionary = {}
 # --- 公共方法 ---
 
 ## 确保扩展相关 ProjectSettings 存在。
+## [br]
+## @api public
+## [br]
 ## @return 写入了默认值时返回 true。
 static func ensure_defaults() -> bool:
 	var should_save := false
@@ -63,6 +95,8 @@ static func ensure_defaults() -> bool:
 
 
 ## 注册扩展相关 ProjectSettings 显示信息。
+## [br]
+## @api public
 static func register_property_info() -> void:
 	ProjectSettings.add_property_info({
 		"name": ENABLED_EXTENSIONS_SETTING,
@@ -89,6 +123,9 @@ static func register_property_info() -> void:
 
 
 ## 获取默认启用的扩展 ID。
+## [br]
+## @api public
+## [br]
 ## @return 默认启用扩展 ID 列表。
 static func get_default_enabled_extension_ids() -> Array[String]:
 	var ids: Array[String] = []
@@ -99,6 +136,9 @@ static func get_default_enabled_extension_ids() -> Array[String]:
 
 
 ## 获取用户配置的启用扩展 ID。
+## [br]
+## @api public
+## [br]
 ## @return 启用扩展 ID 列表。
 static func get_enabled_extension_ids() -> Array[String]:
 	var raw_value: Variant = ProjectSettings.get_setting(
@@ -109,7 +149,11 @@ static func get_enabled_extension_ids() -> Array[String]:
 
 
 ## 保存启用扩展 ID，可选自动补齐依赖。
+## [br]
+## @api public
+## [br]
 ## @param extension_ids: 要启用的扩展 ID 列表。
+## [br]
 ## @param include_dependencies: 是否自动包含依赖扩展。
 static func set_enabled_extension_ids(extension_ids: Array[String], include_dependencies: bool = true) -> void:
 	var ids := _sorted_unique(extension_ids)
@@ -119,6 +163,9 @@ static func set_enabled_extension_ids(extension_ids: Array[String], include_depe
 
 
 ## 判断是否自动运行启用扩展 Installer。
+## [br]
+## @api public
+## [br]
 ## @return 自动运行时返回 true。
 static func should_auto_install_enabled_installers() -> bool:
 	return bool(ProjectSettings.get_setting(
@@ -128,12 +175,18 @@ static func should_auto_install_enabled_installers() -> bool:
 
 
 ## 设置是否自动运行启用扩展 Installer。
+## [br]
+## @api public
+## [br]
 ## @param enabled: 是否自动运行。
 static func set_auto_install_enabled_installers(enabled: bool) -> void:
 	ProjectSettings.set_setting(AUTO_INSTALL_ENABLED_INSTALLERS_SETTING, enabled)
 
 
 ## 判断导出时是否排除禁用扩展目录。
+## [br]
+## @api public
+## [br]
 ## @return 排除禁用扩展时返回 true。
 static func should_export_exclude_disabled_extensions() -> bool:
 	return bool(ProjectSettings.get_setting(
@@ -143,12 +196,18 @@ static func should_export_exclude_disabled_extensions() -> bool:
 
 
 ## 设置导出时是否排除禁用扩展目录。
+## [br]
+## @api public
+## [br]
 ## @param enabled: 是否排除禁用扩展。
 static func set_export_exclude_disabled_extensions(enabled: bool) -> void:
 	ProjectSettings.set_setting(EXPORT_EXCLUDE_DISABLED_SETTING, enabled)
 
 
 ## 判断导出审计发现禁用扩展引用时是否报告为错误。
+## [br]
+## @api public
+## [br]
 ## @return 报告为错误时返回 true。
 static func should_fail_export_on_disabled_extension_references() -> bool:
 	return bool(ProjectSettings.get_setting(
@@ -158,12 +217,18 @@ static func should_fail_export_on_disabled_extension_references() -> bool:
 
 
 ## 设置导出审计发现禁用扩展引用时是否报告为错误。
+## [br]
+## @api public
+## [br]
 ## @param enabled: 是否报告为错误。
 static func set_fail_export_on_disabled_extension_references(enabled: bool) -> void:
 	ProjectSettings.set_setting(EXPORT_FAIL_ON_DISABLED_REFERENCES_SETTING, enabled)
 
 
 ## 获取所有 manifest。
+## [br]
+## @api public
+## [br]
 ## @return manifest 列表。
 static func get_all_manifests() -> Array[GFExtensionManifest]:
 	var cache_key := "all"
@@ -173,12 +238,18 @@ static func get_all_manifests() -> Array[GFExtensionManifest]:
 
 
 ## 清空 manifest 发现缓存。编辑器或工具在扩展目录发生变化后可主动调用。
+## [br]
+## @api public
 static func clear_manifest_cache() -> void:
 	_manifest_cache.clear()
 
 
 ## 按 ID 获取 manifest。
+## [br]
+## @api public
+## [br]
 ## @param extension_id: 扩展 ID。
+## [br]
 ## @return 找到时返回 manifest，否则返回 null。
 static func get_manifest_by_id(extension_id: String) -> GFExtensionManifest:
 	var normalized_id := extension_id.strip_edges()
@@ -192,15 +263,24 @@ static func get_manifest_by_id(extension_id: String) -> GFExtensionManifest:
 
 
 ## 判断扩展 manifest 是否存在。
+## [br]
+## @api public
+## [br]
 ## @param extension_id: 扩展 ID。
+## [br]
 ## @return 存在 manifest 时返回 true。
 static func has_extension(extension_id: String) -> bool:
 	return get_manifest_by_id(extension_id) != null
 
 
 ## 获取扩展内资源路径。
+## [br]
+## @api public
+## [br]
 ## @param extension_id: 扩展 ID。
+## [br]
 ## @param relative_path: 相对扩展根目录的资源路径；传入 `res://` 或 `user://` 时会原样返回。
+## [br]
 ## @return 扩展资源路径；扩展不存在时返回空字符串。
 static func get_extension_resource_path(
 	extension_id: String,
@@ -219,8 +299,13 @@ static func get_extension_resource_path(
 
 
 ## 判断扩展当前是否启用。
+## [br]
+## @api public
+## [br]
 ## @param extension_id: 扩展 ID。
+## [br]
 ## @param include_dependencies: 是否把依赖补齐后的启用结果纳入判断。
+## [br]
 ## @return 扩展存在且启用时返回 true。
 static func is_extension_enabled(
 	extension_id: String,
@@ -241,9 +326,15 @@ static func is_extension_enabled(
 
 
 ## 加载启用扩展内的脚本资源。
+## [br]
+## @api public
+## [br]
 ## @param extension_id: 扩展 ID。
+## [br]
 ## @param relative_path: 相对扩展根目录的脚本路径；传入 `res://` 或 `user://` 时会原样解析。
+## [br]
 ## @param include_dependencies: 是否把依赖补齐后的启用结果纳入判断。
+## [br]
 ## @return 扩展存在、已启用且脚本可加载时返回 Script，否则返回 null。
 static func load_enabled_extension_script(
 	extension_id: String,
@@ -260,6 +351,9 @@ static func load_enabled_extension_script(
 
 
 ## 获取启用扩展的 manifest。
+## [br]
+## @api public
+## [br]
 ## @return 启用 manifest 列表。
 static func get_enabled_manifests() -> Array[GFExtensionManifest]:
 	var manifests := get_all_manifests()
@@ -274,6 +368,9 @@ static func get_enabled_manifests() -> Array[GFExtensionManifest]:
 
 
 ## 获取禁用扩展的 manifest。
+## [br]
+## @api public
+## [br]
 ## @return 禁用 manifest 列表。
 static func get_disabled_manifests() -> Array[GFExtensionManifest]:
 	var manifests := get_all_manifests()
@@ -286,6 +383,9 @@ static func get_disabled_manifests() -> Array[GFExtensionManifest]:
 
 
 ## 获取启用扩展声明的 Installer 路径。
+## [br]
+## @api public
+## [br]
 ## @return Installer 路径列表。
 static func get_enabled_installer_paths() -> Array[String]:
 	if not should_auto_install_enabled_installers():
@@ -295,50 +395,76 @@ static func get_enabled_installer_paths() -> Array[String]:
 
 
 ## 获取启用扩展声明的编辑器菜单动作路径。
+## [br]
+## @api public
+## [br]
 ## @return 编辑器菜单动作脚本路径列表。
 static func get_enabled_editor_action_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("editor_action_paths")
 
 
 ## 获取启用扩展声明的编辑器工作区页面路径。
+## [br]
+## @api public
+## [br]
 ## @return 编辑器工作区页面脚本路径列表。
 static func get_enabled_editor_dock_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("editor_dock_paths")
 
 
 ## 获取启用扩展声明的 Inspector 扩展路径。
+## [br]
+## @api public
+## [br]
 ## @return EditorInspectorPlugin 脚本路径列表。
 static func get_enabled_editor_inspector_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("editor_inspector_paths")
 
 
 ## 获取启用扩展声明的导入插件路径。
+## [br]
+## @api public
+## [br]
 ## @return EditorImportPlugin 脚本路径列表。
 static func get_enabled_import_plugin_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("import_plugin_paths")
 
 
 ## 获取启用扩展声明的导出插件路径。
+## [br]
+## @api public
+## [br]
 ## @return EditorExportPlugin 脚本路径列表。
 static func get_enabled_export_plugin_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("export_plugin_paths")
 
 
 ## 获取启用扩展声明的 glTF 文档扩展路径。
+## [br]
+## @api public
+## [br]
 ## @return GLTFDocumentExtension 脚本路径列表。
 static func get_enabled_gltf_document_extension_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("gltf_document_extension_paths")
 
 
 ## 获取启用扩展声明的访问器生成扩展路径。
+## [br]
+## @api public
+## [br]
 ## @return GFAccessGenerator 扩展脚本路径列表。
 static func get_enabled_access_generator_extension_paths() -> Array[String]:
 	return _collect_enabled_manifest_paths("access_generator_extension_paths")
 
 
 ## 根据 manifest 依赖关系补齐启用扩展。
+## [br]
+## @api public
+## [br]
 ## @param extension_ids: 原始启用扩展 ID。
+## [br]
 ## @param manifests: 可选 manifest 列表。
+## [br]
 ## @return 补齐依赖后的扩展 ID。
 static func resolve_extension_dependencies(
 	extension_ids: Array[String],
@@ -377,8 +503,14 @@ static func resolve_extension_dependencies(
 
 
 ## 获取 manifest 依赖图诊断。
+## [br]
+## @api public
+## [br]
 ## @param manifests: 可选 manifest 列表；为空时扫描所有 GF 内置扩展。
+## [br]
 ## @return 包含重复 ID、无效 manifest、缺失依赖和循环依赖的诊断字典。
+## [br]
+## @schema return: Dictionary containing ok, extension_count, issue_count, duplicate_ids, invalid_manifests, missing_dependencies, and dependency_cycles.
 static func get_manifest_graph_report(manifests: Array[GFExtensionManifest] = []) -> Dictionary:
 	var source_manifests := manifests
 	if source_manifests.is_empty():
@@ -458,7 +590,12 @@ static func get_manifest_graph_report(manifests: Array[GFExtensionManifest] = []
 
 
 ## 获取启用状态诊断。
+## [br]
+## @api public
+## [br]
 ## @return 诊断字典。
+## [br]
+## @schema return: Dictionary containing configured_ids, resolved_ids, unknown_enabled_ids, graph status, and extension counts.
 static func get_extension_selection_report() -> Dictionary:
 	var manifests := get_all_manifests()
 	var configured_ids := get_enabled_extension_ids()

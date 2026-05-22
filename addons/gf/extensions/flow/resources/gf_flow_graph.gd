@@ -1,6 +1,12 @@
 ## GFFlowGraph: 资源化通用流程图。
 ##
 ## 只维护节点集合与起始节点，不规定具体编辑器表现或业务语义。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFFlowGraph
 extends Resource
 
@@ -14,39 +20,70 @@ const _GF_GRAPH_MATH_SCRIPT: Script = preload("res://addons/gf/standard/foundati
 # --- 导出变量 ---
 
 ## 起始节点标识。
+## [br]
+## @api public
 @export var start_node_id: StringName = &""
 
 ## 流程节点列表。
+## [br]
+## @api public
 @export var nodes: Array[GFFlowNode] = []
 
 ## 节点连接列表。连接结构为 from_node_id/from_port_id/to_node_id/to_port_id/metadata。
+## [br]
+## @api public
+## [br]
+## @schema connections: 连接字典数组；每项包含 from_node_id、from_port_id、to_node_id、to_port_id 和 metadata 字段。
 @export var connections: Array[Dictionary] = []
 
 ## 校验时是否把端口值类型和类名提示不兼容视为错误。
+## [br]
+## @api public
 @export var validate_port_compatibility: bool = true
 
 ## 校验时是否提示从 start_node_id 无法到达的节点。
+## [br]
+## @api public
 @export var warn_unreachable_nodes: bool = true
 
 ## 校验时是否提示图中的循环。
+## [br]
+## @api public
 @export var warn_cycles: bool = true
 
 ## 校验时是否提示没有后继的终端节点。默认关闭，避免把正常结束节点视为问题。
+## [br]
+## @api public
 @export var warn_terminal_nodes: bool = false
 
 ## 编辑器分组数据。结构由编辑器工具解释，运行时不读取。
+## [br]
+## @api public
+## [br]
+## @schema editor_groups: 编辑器分组字典数组；字段由 FlowGraph 编辑器或项目工具解释。
 @export var editor_groups: Array[Dictionary] = []
 
 ## 编辑器或项目工具的附加元数据。
+## [br]
+## @api public
+## [br]
+## @schema editor_metadata: 编辑器或项目工具自定义元数据 Dictionary；运行时不解释其中键值。
 @export var editor_metadata: Dictionary = {}
 
 ## 编辑器或项目工具元数据的轻量 Schema。框架只校验结构，不解释业务含义。
+## [br]
+## @api public
+## [br]
+## @schema metadata_schema: 轻量元数据校验规则 Dictionary；键为元数据 key，值为包含 required、allow_null、type、class_name、allowed_values 等字段的规则字典。
 @export var metadata_schema: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 设置或替换一个节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 流程节点。
 func set_node(node: GFFlowNode) -> void:
 	if node == null or node.node_id == &"":
@@ -60,8 +97,12 @@ func set_node(node: GFFlowNode) -> void:
 
 
 ## 获取节点。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
-## @return 流程节点；不存在时返回 null。
+## [br]
+## @return: 流程节点；不存在时返回 null。
 func get_node(node_id: StringName) -> GFFlowNode:
 	for node: GFFlowNode in nodes:
 		if node != null and node.node_id == node_id:
@@ -70,13 +111,20 @@ func get_node(node_id: StringName) -> GFFlowNode:
 
 
 ## 检查节点是否存在。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
-## @return 存在返回 true。
+## [br]
+## @return: 存在返回 true。
 func has_node(node_id: StringName) -> bool:
 	return get_node(node_id) != null
 
 
 ## 移除节点。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
 func remove_node(node_id: StringName) -> void:
 	for index: int in range(nodes.size() - 1, -1, -1):
@@ -86,12 +134,22 @@ func remove_node(node_id: StringName) -> void:
 
 
 ## 添加节点连接。
+## [br]
+## @api public
+## [br]
 ## @param from_node_id: 来源节点。
+## [br]
 ## @param from_port_id: 来源端口；为空时表示节点级执行连接。
+## [br]
 ## @param to_node_id: 目标节点。
+## [br]
 ## @param to_port_id: 目标端口；为空时表示节点级执行连接。
+## [br]
 ## @param metadata: 项目自定义元数据。
-## @return 添加成功返回 true。
+## [br]
+## @return: 添加成功返回 true。
+## [br]
+## @schema metadata: 连接自定义元数据 Dictionary；框架保留并复制该字段，但不解释其中键值。
 func add_connection(
 	from_node_id: StringName,
 	from_port_id: StringName,
@@ -111,11 +169,18 @@ func add_connection(
 
 
 ## 移除指定节点连接。
+## [br]
+## @api public
+## [br]
 ## @param from_node_id: 连接起点节点标识。
+## [br]
 ## @param from_port_id: 连接起点端口标识。
+## [br]
 ## @param to_node_id: 目标标识。
+## [br]
 ## @param to_port_id: 目标标识。
-## @return 移除成功返回 true。
+## [br]
+## @return: 移除成功返回 true。
 func remove_connection(
 	from_node_id: StringName,
 	from_port_id: StringName,
@@ -130,6 +195,9 @@ func remove_connection(
 
 
 ## 移除与指定节点相关的所有连接。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
 func remove_connections_for_node(node_id: StringName) -> void:
 	for index: int in range(connections.size() - 1, -1, -1):
@@ -139,11 +207,18 @@ func remove_connections_for_node(node_id: StringName) -> void:
 
 
 ## 检查连接是否存在。
+## [br]
+## @api public
+## [br]
 ## @param from_node_id: 连接起点节点标识。
+## [br]
 ## @param from_port_id: 连接起点端口标识。
+## [br]
 ## @param to_node_id: 目标标识。
+## [br]
 ## @param to_port_id: 目标标识。
-## @return 存在返回 true。
+## [br]
+## @return: 存在返回 true。
 func has_connection(
 	from_node_id: StringName,
 	from_port_id: StringName,
@@ -157,9 +232,16 @@ func has_connection(
 
 
 ## 获取从指定节点或端口发出的连接。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
+## [br]
 ## @param port_id: 端口标识；为空时返回该节点所有输出连接。
-## @return 连接副本列表。
+## [br]
+## @return: 连接副本列表。
+## [br]
+## @schema return: 连接字典数组；每项包含 from_node_id、from_port_id、to_node_id、to_port_id 和 metadata 字段。
 func get_connections_from(node_id: StringName, port_id: StringName = &"") -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for connection: Dictionary in connections:
@@ -172,9 +254,16 @@ func get_connections_from(node_id: StringName, port_id: StringName = &"") -> Arr
 
 
 ## 获取指向指定节点或端口的连接。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
+## [br]
 ## @param port_id: 端口标识；为空时返回该节点所有输入连接。
-## @return 连接副本列表。
+## [br]
+## @return: 连接副本列表。
+## [br]
+## @schema return: 连接字典数组；每项包含 from_node_id、from_port_id、to_node_id、to_port_id 和 metadata 字段。
 func get_connections_to(node_id: StringName, port_id: StringName = &"") -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for connection: Dictionary in connections:
@@ -187,9 +276,14 @@ func get_connections_to(node_id: StringName, port_id: StringName = &"") -> Array
 
 
 ## 获取指定节点或端口连接到的目标节点。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
+## [br]
 ## @param port_id: 端口标识；为空时返回该节点所有输出目标。
-## @return 目标节点标识列表。
+## [br]
+## @return: 目标节点标识列表。
 func get_connected_node_ids_from(node_id: StringName, port_id: StringName = &"") -> PackedStringArray:
 	var result := PackedStringArray()
 	for connection: Dictionary in get_connections_from(node_id, port_id):
@@ -201,11 +295,20 @@ func get_connected_node_ids_from(node_id: StringName, port_id: StringName = &"")
 
 
 ## 检查指定连接端口的兼容性。
+## [br]
+## @api public
+## [br]
 ## @param from_node_id: 来源节点。
+## [br]
 ## @param from_port_id: 来源端口。
+## [br]
 ## @param to_node_id: 目标节点。
+## [br]
 ## @param to_port_id: 目标端口。
-## @return 兼容性报告。
+## [br]
+## @return: 兼容性报告。
+## [br]
+## @schema return: 包含 ok、reason、message、from_node_id、from_port_id、to_node_id 和 to_port_id 等字段的 Dictionary。
 func check_connection_compatibility(
 	from_node_id: StringName,
 	from_port_id: StringName,
@@ -237,7 +340,12 @@ func check_connection_compatibility(
 
 
 ## 获取所有连接的兼容性报告。
-## @return 兼容性报告列表。
+## [br]
+## @api public
+## [br]
+## @return: 兼容性报告列表。
+## [br]
+## @schema return: 兼容性报告字典数组；每项结构同 check_connection_compatibility() 返回值。
 func get_connection_compatibility_report() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for connection: Dictionary in connections:
@@ -251,9 +359,14 @@ func get_connection_compatibility_report() -> Array[Dictionary]:
 
 
 ## 设置节点编辑器位置。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
+## [br]
 ## @param position: 编辑器坐标。
-## @return 设置成功返回 true。
+## [br]
+## @return: 设置成功返回 true。
 func set_node_editor_position(node_id: StringName, position: Vector2) -> bool:
 	var node := get_node(node_id)
 	if node == null:
@@ -263,11 +376,18 @@ func set_node_editor_position(node_id: StringName, position: Vector2) -> bool:
 
 
 ## 设置节点编辑器布局。
+## [br]
+## @api public
+## [br]
 ## @param node_id: 节点标识。
+## [br]
 ## @param position: 编辑器坐标。
+## [br]
 ## @param size: 编辑器尺寸；Vector2.ZERO 表示由编辑器自行决定。
+## [br]
 ## @param collapsed: 是否折叠显示。
-## @return 设置成功返回 true。
+## [br]
+## @return: 设置成功返回 true。
 func set_node_editor_layout(
 	node_id: StringName,
 	position: Vector2,
@@ -284,7 +404,12 @@ func set_node_editor_layout(
 
 
 ## 获取编辑器或可视化工具可消费的节点目录。
-## @return 节点目录字典。
+## [br]
+## @api public
+## [br]
+## @return: 节点目录字典。
+## [br]
+## @schema return: 包含 node_count、nodes 和 categories 字段的 Dictionary；nodes 为节点目录条目数组，categories 按分类名分组。
 func get_editor_catalog() -> Dictionary:
 	var node_entries: Array[Dictionary] = []
 	var categories: Dictionary = {}
@@ -323,7 +448,12 @@ func get_editor_catalog() -> Dictionary:
 
 
 ## 描述流程图结构。
-## @return 图描述字典。
+## [br]
+## @api public
+## [br]
+## @return: 图描述字典。
+## [br]
+## @schema return: 包含 start_node_id、node_count、nodes、connection_count、connections、validate_port_compatibility、diagnostics 和 editor 字段的 Dictionary。
 func describe_graph() -> Dictionary:
 	var node_descriptions: Array[Dictionary] = []
 	for node: GFFlowNode in nodes:
@@ -350,8 +480,14 @@ func describe_graph() -> Dictionary:
 
 
 ## 创建可运行的流程图副本。
+## [br]
+## @api public
+## [br]
 ## @param options: 可选参数，支持 clear_runtime_state。
-## @return 流程图副本；复制失败时返回 null。
+## [br]
+## @return: 流程图副本；复制失败时返回 null。
+## [br]
+## @schema options: 可选项 Dictionary；支持 clear_runtime_state: bool。
 func instantiate_graph(options: Dictionary = {}) -> GFFlowGraph:
 	var graph := duplicate(true) as GFFlowGraph
 	if graph != null and bool(options.get("clear_runtime_state", true)):
@@ -360,7 +496,12 @@ func instantiate_graph(options: Dictionary = {}) -> GFFlowGraph:
 
 
 ## 序列化图内节点运行态。
-## @return 运行态快照。
+## [br]
+## @api public
+## [br]
+## @return: 运行态快照。
+## [br]
+## @schema return: 包含 nodes 字段的 Dictionary；nodes 按 node_id 保存节点运行态 Dictionary。
 func serialize_runtime_state() -> Dictionary:
 	var node_states: Dictionary = {}
 	for node: GFFlowNode in nodes:
@@ -375,7 +516,12 @@ func serialize_runtime_state() -> Dictionary:
 
 
 ## 反序列化图内节点运行态。
+## [br]
+## @api public
+## [br]
 ## @param data: 运行态快照。
+## [br]
+## @schema data: serialize_runtime_state() 返回的运行态快照 Dictionary。
 func deserialize_runtime_state(data: Dictionary) -> void:
 	var node_states := data.get("nodes", {}) as Dictionary
 	if node_states == null:
@@ -389,6 +535,8 @@ func deserialize_runtime_state(data: Dictionary) -> void:
 
 
 ## 清空图内所有节点运行态。
+## [br]
+## @api public
 func clear_runtime_state() -> void:
 	for node: GFFlowNode in nodes:
 		if node != null:
@@ -396,9 +544,20 @@ func clear_runtime_state() -> void:
 
 
 ## 校验元数据是否符合轻量 Schema。
+## [br]
+## @api public
+## [br]
 ## @param target_metadata: 待校验元数据。
+## [br]
 ## @param schema: 可选 Schema；为空时使用 metadata_schema。
-## @return 校验报告。
+## [br]
+## @return: 校验报告。
+## [br]
+## @schema target_metadata: 待校验的元数据 Dictionary。
+## [br]
+## @schema schema: 可选轻量 Schema Dictionary；为空时使用 metadata_schema。
+## [br]
+## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action、error_count 和 warning_count 等字段。
 func validate_metadata(target_metadata: Dictionary, schema: Dictionary = {}) -> Dictionary:
 	var active_schema := schema if not schema.is_empty() else metadata_schema
 	var report := {
@@ -419,13 +578,23 @@ func validate_metadata(target_metadata: Dictionary, schema: Dictionary = {}) -> 
 
 
 ## 校验当前图编辑器元数据。
-## @return 校验报告。
+## [br]
+## @api public
+## [br]
+## @return: 校验报告。
+## [br]
+## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action、error_count 和 warning_count 等字段。
 func validate_graph_metadata() -> Dictionary:
 	return validate_metadata(editor_metadata, metadata_schema)
 
 
 ## 校验流程图结构。
-## @return 校验报告。
+## [br]
+## @api public
+## [br]
+## @return: 校验报告。
+## [br]
+## @schema return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、node_count、connection_count、summary、issues 和 next_action 等字段。
 func validate_graph() -> Dictionary:
 	var report := {
 		"ok": true,
@@ -478,7 +647,12 @@ func validate_graph() -> Dictionary:
 
 
 ## 构建面向编辑器和可视化工具的流程图报告。
-## @return 包含校验、目录和编辑器元数据的报告。
+## [br]
+## @api public
+## [br]
+## @return: 包含校验、目录和编辑器元数据的报告。
+## [br]
+## @schema return: 包含 ok、healthy、summary、next_action、validation、catalog 和 editor 字段的 Dictionary。
 func build_editor_report() -> Dictionary:
 	var validation := validate_graph()
 	return {

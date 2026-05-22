@@ -1,21 +1,21 @@
 @tool
 
-## GF Node State Machine Inspector: 在 Inspector 中辅助配置节点状态机。
+# GF Node State Machine Inspector: 在 Inspector 中辅助配置节点状态机。
 extends EditorInspectorPlugin
 
 
 # --- 常量 ---
 
-const GF_NODE_STATE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
-const GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
-const GF_VALIDATION_DIAGNOSTIC_ADAPTER := preload("res://addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd")
+const _GF_NODE_STATE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
+const _GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
+const _GF_NODE_STATE_MACHINE_VALIDATOR := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd")
+const _GF_VALIDATION_DIAGNOSTIC_ADAPTER := preload("res://addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd")
 
 
 # --- Godot 回调方法 ---
 
 func _can_handle(object: Object) -> bool:
-	return object is GF_NODE_STATE_MACHINE_BASE
+	return object is _GF_NODE_STATE_MACHINE_BASE
 
 
 func _parse_begin(object: Object) -> void:
@@ -64,6 +64,46 @@ func _parse_begin(object: Object) -> void:
 	validate_button.pressed.connect(_on_validate_pressed.bind(report_label, target), CONNECT_DEFERRED)
 
 
+# --- 框架内部方法 ---
+
+## 收集状态机直接子节点中的状态名。
+## [br]
+## @api framework_internal
+## [br]
+## @param target: 要扫描的节点状态机。
+## [br]
+## @return: 直接子状态名列表，按显示名排序。
+## [br]
+## @schema return: 元素为 StringName 的状态名列表。
+static func collect_direct_states(target: Node) -> Array[StringName]:
+	var result: Array[StringName] = []
+	for child: Node in target.get_children():
+		if child is _GF_NODE_STATE_BASE:
+			result.append(_get_editor_state_name(child))
+	result.sort()
+	return result
+
+
+## 将校验报告压缩为 Inspector tooltip 文本。
+## [br]
+## @api framework_internal
+## [br]
+## @param report: GFValidationReport 实例。
+## [br]
+## @return: 适合 Inspector tooltip 展示的短文本。
+static func format_report_tooltip(report: RefCounted) -> String:
+	var lines := PackedStringArray()
+	var diagnostics := _GF_VALIDATION_DIAGNOSTIC_ADAPTER.report_to_diagnostics(report)
+	for diagnostic: Dictionary in diagnostics:
+		var kind := String(diagnostic.get("kind", "unknown"))
+		var message := String(diagnostic.get("message", ""))
+		lines.append("%s: %s" % [kind, message])
+		if lines.size() >= 8:
+			lines.append("...")
+			break
+	return "\n".join(lines)
+
+
 # --- 私有/辅助方法 ---
 
 func _populate_initial_state_options(option: OptionButton, target: Node) -> void:
@@ -74,7 +114,7 @@ func _populate_initial_state_options(option: OptionButton, target: Node) -> void
 	option.set_item_metadata(0, &"")
 	option.select(0)
 
-	var states := _collect_direct_states(target)
+	var states := collect_direct_states(target)
 	for i: int in range(states.size()):
 		var state_name := states[i]
 		option.add_item(String(state_name), i + 1)
@@ -87,15 +127,6 @@ func _populate_initial_state_options(option: OptionButton, target: Node) -> void
 		option.add_item("%s（未找到）" % current_initial_state, index)
 		option.set_item_metadata(index, current_initial_state)
 		option.select(index)
-
-
-static func _collect_direct_states(target: Node) -> Array[StringName]:
-	var result: Array[StringName] = []
-	for child: Node in target.get_children():
-		if child is GF_NODE_STATE_BASE:
-			result.append(_get_editor_state_name(child))
-	result.sort()
-	return result
 
 
 static func _get_editor_state_name(state: Node) -> StringName:
@@ -141,28 +172,15 @@ func _update_validation_report(label: Label, target: Node) -> void:
 	if label == null or not is_instance_valid(target):
 		return
 
-	var report := GF_NODE_STATE_MACHINE_VALIDATOR.validate_machine(target as GFNodeStateMachine)
+	var report := _GF_NODE_STATE_MACHINE_VALIDATOR.validate_machine(target as GFNodeStateMachine)
 	label.text = report.make_summary("GFNodeStateMachine")
-	label.tooltip_text = _format_report_tooltip(report)
+	label.tooltip_text = format_report_tooltip(report)
 	if report.get_error_count() > 0:
 		label.modulate = Color(1.0, 0.45, 0.35)
 	elif report.get_warning_count() > 0:
 		label.modulate = Color(1.0, 0.78, 0.35)
 	else:
 		label.modulate = Color(0.45, 0.9, 0.55)
-
-
-static func _format_report_tooltip(report: RefCounted) -> String:
-	var lines := PackedStringArray()
-	var diagnostics := GF_VALIDATION_DIAGNOSTIC_ADAPTER.report_to_diagnostics(report)
-	for diagnostic: Dictionary in diagnostics:
-		var kind := String(diagnostic.get("kind", "unknown"))
-		var message := String(diagnostic.get("message", ""))
-		lines.append("%s: %s" % [kind, message])
-		if lines.size() >= 8:
-			lines.append("...")
-			break
-	return "\n".join(lines)
 
 
 # --- 信号处理函数 ---

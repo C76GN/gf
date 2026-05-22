@@ -2,6 +2,12 @@
 ##
 ## 将目标节点的颜色属性短暂切到指定颜色，再恢复为原始值。
 ## 默认等待 Tween 完成后队列才会继续。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFFlashAction
 extends GFVisualAction
 
@@ -9,15 +15,23 @@ extends GFVisualAction
 # --- 公共变量 ---
 
 ## 需要闪色的目标节点。
+## [br]
+## @api public
 var target: CanvasItem
 
 ## 闪色时写入的颜色。
+## [br]
+## @api public
 var flash_color: Color = Color.WHITE
 
 ## 闪色总时长。
+## [br]
+## @api public
 var duration: float = 0.12
 
 ## 要缓动的颜色属性名。
+## [br]
+## @api public
 var property_name: NodePath = ^"modulate"
 
 
@@ -42,6 +56,13 @@ func _init(
 
 # --- 公共方法 ---
 
+## 执行闪色 Tween。
+## [br]
+## @api public
+## [br]
+## @return 需要等待时返回内部完成 Signal；目标无效、属性无效或瞬时写入时返回 null。
+## [br]
+## @schema return: Variant，返回内部完成 Signal 或 null。
 func execute() -> Variant:
 	if not is_instance_valid(target):
 		return null
@@ -65,11 +86,19 @@ func execute() -> Variant:
 	return _action_completed
 
 
+## 取消当前 Tween 并释放等待者。
+## [br]
+## @api public
 func cancel() -> void:
 	_clear_active_tween()
 	_emit_completed_once()
 
 
+## 获取用于保护等待生命周期的目标节点。
+## [br]
+## @api public
+## [br]
+## @return 有效目标节点；无效时返回 null。
 func get_wait_guard_node() -> Node:
 	return target if is_instance_valid(target) else null
 

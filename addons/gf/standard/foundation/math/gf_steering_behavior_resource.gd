@@ -2,6 +2,12 @@
 ##
 ## 包装 GFSteeringMath 的纯算法，允许项目用 Resource 组合 seek、arrive、avoid 等
 ## 通用行为。动态目标、邻居和路径通过 context 传入，避免把业务对象写死进资源。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFSteeringBehaviorResource
 extends Resource
 
@@ -9,6 +15,8 @@ extends Resource
 # --- 枚举 ---
 
 ## Steering 行为类型。
+## [br]
+## @api public
 enum BehaviorType {
 	## 朝目标位置加速。
 	SEEK,
@@ -40,62 +48,103 @@ enum BehaviorType {
 # --- 导出变量 ---
 
 ## 行为类型。
+## [br]
+## @api public
 @export var behavior_type: BehaviorType = BehaviorType.SEEK
 
 ## 是否启用该行为。
+## [br]
+## @api public
 @export var enabled: bool = true
 
 ## 组合时使用的权重。
+## [br]
+## @api public
 @export var weight: float = 1.0
 
 ## 静态目标位置；context 中的 `target_position` 会覆盖该值。
+## [br]
+## @api public
 @export var target_position: Vector3 = Vector3.ZERO
 
 ## 静态目标朝向；context 中的 `target_orientation` 会覆盖该值。
+## [br]
+## @api public
 @export var target_orientation: float = 0.0
 
 ## 抵达半径。
+## [br]
+## @api public
 @export var arrival_radius: float = 4.0
 
 ## 减速半径。
+## [br]
+## @api public
 @export var slow_radius: float = 64.0
 
 ## 逼近期望时间。
+## [br]
+## @api public
 @export var time_to_target: float = 0.1
 
 ## 角度对齐容差。
+## [br]
+## @api public
 @export var align_tolerance: float = 0.001
 
 ## 开始角速度减速的角度。
+## [br]
+## @api public
 @export var slow_angle: float = 0.5
 
 ## 3D 转向是否使用 x/z 平面。
+## [br]
+## @api public
 @export var use_z_axis: bool = false
 
 ## 目标预测最大秒数。
+## [br]
+## @api public
 @export var max_prediction_seconds: float = 1.0
 
 ## 分离行为距离衰减系数。
+## [br]
+## @api public
 @export var decay_coefficient: float = 1.0
 
 ## 最大影响距离；小于 0 时由算法使用代理半径。
+## [br]
+## @api public
 @export var max_distance: float = -1.0
 
 ## 避让碰撞半径；小于 0 时由算法使用双方半径。
+## [br]
+## @api public
 @export var collision_radius: float = -1.0
 
 ## 避让最小分离距离；小于 0 时由算法使用碰撞半径。
+## [br]
+## @api public
 @export var minimum_separation: float = -1.0
 
 ## 路径跟随前进偏移。
+## [br]
+## @api public
 @export var path_offset: float = 0.0
 
 
 # --- 公共方法 ---
 
 ## 计算 steering 加速度。
+## [br]
+## @api public
+## [br]
 ## @param agent: 代理状态。
+## [br]
 ## @param context: 动态上下文，支持 target_position、target_orientation、target_agent、neighbors、targets、path。
+## [br]
+## @schema context: Dictionary steering behavior context with optional target_position, target_orientation, target_agent, neighbors, targets, and path.
+## [br]
 ## @return steering 加速度。
 func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAcceleration:
 	if not enabled or agent == null:
@@ -155,6 +204,9 @@ func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -> GFSteeringAc
 
 
 ## 创建配置副本。
+## [br]
+## @api public
+## [br]
 ## @return 新行为资源。
 func duplicate_behavior() -> Resource:
 	var behavior := get_script().new() as Resource

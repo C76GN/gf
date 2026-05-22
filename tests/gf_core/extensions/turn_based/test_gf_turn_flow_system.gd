@@ -11,14 +11,14 @@ class RecordingPhase extends GFTurnPhase:
 		phase_id = p_phase_id
 		order = p_order
 
-	func enter(_context: GFTurnContext) -> void:
+	func _enter(_context: GFTurnContext) -> void:
 		order.append("enter:%s" % phase_id)
 
-	func execute(_context: GFTurnContext) -> Variant:
+	func _execute(_context: GFTurnContext) -> Variant:
 		order.append("execute:%s" % phase_id)
 		return null
 
-	func exit(_context: GFTurnContext) -> void:
+	func _exit(_context: GFTurnContext) -> void:
 		order.append("exit:%s" % phase_id)
 
 
@@ -31,14 +31,14 @@ class ManualPhase extends GFTurnPhase:
 		order = p_order
 		auto_finish = false
 
-	func enter(_context: GFTurnContext) -> void:
+	func _enter(_context: GFTurnContext) -> void:
 		order.append("enter")
 
-	func execute(_context: GFTurnContext) -> Variant:
+	func _execute(_context: GFTurnContext) -> Variant:
 		order.append("execute")
 		return completed
 
-	func exit(_context: GFTurnContext) -> void:
+	func _exit(_context: GFTurnContext) -> void:
 		order.append("exit")
 
 
@@ -51,7 +51,7 @@ class RecordingAction extends GFTurnAction:
 		sort_value = p_sort_value
 		order = p_order
 
-	func resolve(_context: GFTurnContext) -> Variant:
+	func _resolve(_context: GFTurnContext) -> Variant:
 		order.append(String(action_id))
 		return null
 
@@ -65,7 +65,7 @@ class ManualAction extends GFTurnAction:
 		action_id = &"manual"
 		order = p_order
 
-	func resolve(_context: GFTurnContext) -> Variant:
+	func _resolve(_context: GFTurnContext) -> Variant:
 		order.append("resolve")
 		return completed
 

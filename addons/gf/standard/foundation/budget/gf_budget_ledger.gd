@@ -2,6 +2,12 @@
 ##
 ## 用于记录一组抽象资源的容量、可用量和消耗结果。
 ## 资源含义由项目决定，框架只提供预算检查、消费、释放和快照。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFBudgetLedger
 extends RefCounted
 
@@ -9,19 +15,33 @@ extends RefCounted
 # --- 信号 ---
 
 ## 资源预算变化后发出。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param available: 当前可用量。
+## [br]
 ## @param capacity: 当前容量。
 signal budget_changed(budget_id: StringName, available: float, capacity: float)
 
 ## 资源消费成功后发出。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param amount: 消费数量。
 signal budget_consumed(budget_id: StringName, amount: float)
 
 ## 资源消费被拒绝后发出。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param amount: 请求数量。
+## [br]
 ## @param reason: 拒绝原因。
 signal budget_rejected(budget_id: StringName, amount: float, reason: String)
 
@@ -34,8 +54,13 @@ var _budgets: Dictionary = {}
 # --- 公共方法 ---
 
 ## 设置预算容量，并可选重置可用量。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param capacity: 容量。
+## [br]
 ## @param reset_available: 是否把可用量重置为容量。
 func set_capacity(budget_id: StringName, capacity: float, reset_available: bool = true) -> void:
 	if budget_id == &"":
@@ -53,7 +78,11 @@ func set_capacity(budget_id: StringName, capacity: float, reset_available: bool 
 
 
 ## 设置当前可用量。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param available: 可用量。
 func set_available(budget_id: StringName, available: float) -> void:
 	if budget_id == &"":
@@ -67,22 +96,38 @@ func set_available(budget_id: StringName, available: float) -> void:
 
 
 ## 获取容量。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
+## @return 容量；不存在时返回 0。
 func get_capacity(budget_id: StringName) -> float:
 	var entry := _budgets.get(budget_id) as Dictionary
 	return float(entry.get("capacity", 0.0)) if entry != null else 0.0
 
 
 ## 获取可用量。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
+## @return 可用量；不存在时返回 0。
 func get_available(budget_id: StringName) -> float:
 	var entry := _budgets.get(budget_id) as Dictionary
 	return float(entry.get("available", 0.0)) if entry != null else 0.0
 
 
 ## 是否有足够预算。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param amount: 请求数量。
+## [br]
+## @return 预算足够时返回 true。
 func can_consume(budget_id: StringName, amount: float) -> bool:
 	if amount < 0.0:
 		return false
@@ -90,10 +135,20 @@ func can_consume(budget_id: StringName, amount: float) -> bool:
 
 
 ## 尝试消费预算。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param amount: 消费数量。
+## [br]
 ## @param metadata: 调用方附加信息。
+## [br]
 ## @return 消费结果字典。
+## [br]
+## @schema metadata: Dictionary copied into the consume result.
+## [br]
+## @schema return: Dictionary with ok, budget_id, amount, reason, available, capacity, and metadata.
 func consume(budget_id: StringName, amount: float, metadata: Dictionary = {}) -> Dictionary:
 	if budget_id == &"":
 		return _make_result(false, budget_id, amount, "empty_budget_id", metadata)
@@ -116,7 +171,11 @@ func consume(budget_id: StringName, amount: float, metadata: Dictionary = {}) ->
 
 
 ## 释放预算，可用量不会超过容量。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识。
+## [br]
 ## @param amount: 释放数量。
 func release(budget_id: StringName, amount: float) -> void:
 	if budget_id == &"" or amount <= 0.0:
@@ -130,6 +189,9 @@ func release(budget_id: StringName, amount: float) -> void:
 
 
 ## 将一个或全部预算重置为容量。
+## [br]
+## @api public
+## [br]
 ## @param budget_id: 预算标识；为空时重置全部。
 func reset(budget_id: StringName = &"") -> void:
 	if budget_id != &"":
@@ -146,12 +208,19 @@ func reset(budget_id: StringName = &"") -> void:
 
 
 ## 清空所有预算。
+## [br]
+## @api public
 func clear() -> void:
 	_budgets.clear()
 
 
 ## 获取预算快照。
+## [br]
+## @api public
+## [br]
 ## @return 预算字典副本。
+## [br]
+## @schema return: Dictionary from budget id to capacity and available values.
 func get_snapshot() -> Dictionary:
 	var result: Dictionary = {}
 	for key: StringName in _budgets.keys():

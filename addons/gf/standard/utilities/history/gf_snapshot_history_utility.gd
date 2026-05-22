@@ -3,6 +3,12 @@
 ## 管理一组有序快照，支持捕获、前后跳转、按 ID 恢复和调试快照。
 ## 默认会使用注入架构的 `get_global_snapshot()` / `restore_global_snapshot()`，
 ## 也可以通过回调接入任意项目自定义状态。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFSnapshotHistoryUtility
 extends GFUtility
 
@@ -10,23 +16,40 @@ extends GFUtility
 # --- 信号 ---
 
 ## 捕获或推入快照后发出。
+## [br]
+## @api public
+## [br]
 ## @param snapshot_id: 快照 ID。
+## [br]
 ## @param metadata: 快照元数据副本。
+## [br]
+## @schema metadata: Dictionary[String, Variant] snapshot metadata copied from capture() or push_snapshot().
 signal snapshot_recorded(snapshot_id: int, metadata: Dictionary)
 
 ## 恢复快照后发出。
+## [br]
+## @api public
+## [br]
 ## @param snapshot_id: 快照 ID。
+## [br]
 ## @param index: 恢复后的当前位置。
 signal snapshot_restored(snapshot_id: int, index: int)
 
 ## 历史内容或当前位置变化后发出。
+## [br]
+## @api public
+## [br]
 ## @param snapshot: 调试快照。
+## [br]
+## @schema snapshot: Dictionary produced by get_debug_snapshot().
 signal history_changed(snapshot: Dictionary)
 
 
 # --- 公共变量 ---
 
 ## 最多保留的快照数量；为 0 时不限制。
+## [br]
+## @api public
 var max_history_size: int:
 	get:
 		return _max_history_size
@@ -36,11 +59,15 @@ var max_history_size: int:
 			_emit_history_changed()
 
 ## 当前快照索引；没有快照时为 -1。
+## [br]
+## @api public
 var current_index: int:
 	get:
 		return _current_index
 
 ## 当前快照数量。
+## [br]
+## @api public
 var snapshot_count: int:
 	get:
 		return _snapshots.size()
@@ -57,8 +84,11 @@ var _restore_callback: Callable = Callable()
 var _restore_command_builder: Callable = Callable()
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 释放快照历史并清理捕获、恢复回调。
+## [br]
+## @api public
 func dispose() -> void:
 	clear()
 	_capture_callback = Callable()
@@ -69,9 +99,16 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 配置快照捕获与恢复回调。
+## [br]
+## @api public
+## [br]
 ## @param capture_callback: 可选捕获回调，签名为 func() -> Variant。
+## [br]
 ## @param restore_callback: 可选恢复回调，签名为 func(data: Variant) -> void。
+## [br]
 ## @param options: 可选设置，支持 max_history_size、restore_command_builder。
+## [br]
+## @schema options: Dictionary with max_history_size: int and restore_command_builder: Callable.
 func configure(
 	capture_callback: Callable = Callable(),
 	restore_callback: Callable = Callable(),
@@ -85,7 +122,13 @@ func configure(
 
 
 ## 捕获当前状态并写入历史。
+## [br]
+## @api public
+## [br]
 ## @param metadata: 快照元数据。
+## [br]
+## @schema metadata: Dictionary[String, Variant] copied into the snapshot record.
+## [br]
 ## @return 快照 ID；捕获失败时返回 0。
 func capture(metadata: Dictionary = {}) -> int:
 	var data := _capture_data()
@@ -95,8 +138,17 @@ func capture(metadata: Dictionary = {}) -> int:
 
 
 ## 推入一份外部快照数据。
+## [br]
+## @api public
+## [br]
 ## @param data: 快照数据。
+## [br]
+## @schema data: Variant snapshot payload; Array and Dictionary values are deep-copied.
+## [br]
 ## @param metadata: 快照元数据。
+## [br]
+## @schema metadata: Dictionary[String, Variant] copied into the snapshot record.
+## [br]
 ## @return 快照 ID。
 func push_snapshot(data: Variant, metadata: Dictionary = {}) -> int:
 	if _current_index < _snapshots.size() - 1:
@@ -114,7 +166,11 @@ func push_snapshot(data: Variant, metadata: Dictionary = {}) -> int:
 
 
 ## 按相对偏移恢复快照。
+## [br]
+## @api public
+## [br]
 ## @param offset: 相对当前位置的偏移，负数向旧快照移动，正数向新快照移动。
+## [br]
 ## @return 成功恢复时返回 true。
 func step(offset: int) -> bool:
 	if offset == 0:
@@ -123,19 +179,29 @@ func step(offset: int) -> bool:
 
 
 ## 恢复到上一份快照。
+## [br]
+## @api public
+## [br]
 ## @return 成功恢复时返回 true。
 func step_back() -> bool:
 	return step(-1)
 
 
 ## 恢复到下一份快照。
+## [br]
+## @api public
+## [br]
 ## @return 成功恢复时返回 true。
 func step_forward() -> bool:
 	return step(1)
 
 
 ## 按索引恢复快照。
+## [br]
+## @api public
+## [br]
 ## @param index: 快照索引。
+## [br]
 ## @return 成功恢复时返回 true。
 func restore_index(index: int) -> bool:
 	if index < 0 or index >= _snapshots.size():
@@ -152,7 +218,11 @@ func restore_index(index: int) -> bool:
 
 
 ## 按快照 ID 恢复快照。
+## [br]
+## @api public
+## [br]
 ## @param snapshot_id: 快照 ID。
+## [br]
 ## @return 成功恢复时返回 true。
 func restore_snapshot_id(snapshot_id: int) -> bool:
 	var index := _find_snapshot_index(snapshot_id)
@@ -162,19 +232,30 @@ func restore_snapshot_id(snapshot_id: int) -> bool:
 
 
 ## 是否可以恢复到上一份快照。
+## [br]
+## @api public
+## [br]
 ## @return 可以后退时返回 true。
 func can_step_back() -> bool:
 	return _current_index > 0
 
 
 ## 是否可以恢复到下一份快照。
+## [br]
+## @api public
+## [br]
 ## @return 可以前进时返回 true。
 func can_step_forward() -> bool:
 	return _current_index >= 0 and _current_index < _snapshots.size() - 1
 
 
 ## 获取当前快照副本。
+## [br]
+## @api public
+## [br]
 ## @return 当前快照记录；没有快照时返回空字典。
+## [br]
+## @schema return: Dictionary with id, created_at_unix, metadata, and data.
 func get_current_snapshot() -> Dictionary:
 	if _current_index < 0 or _current_index >= _snapshots.size():
 		return {}
@@ -182,7 +263,12 @@ func get_current_snapshot() -> Dictionary:
 
 
 ## 获取全部历史副本。
+## [br]
+## @api public
+## [br]
 ## @return 快照记录数组。
+## [br]
+## @schema return: Array[Dictionary] of snapshot records with id, created_at_unix, metadata, and data.
 func get_history() -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for record: Dictionary in _snapshots:
@@ -191,6 +277,8 @@ func get_history() -> Array[Dictionary]:
 
 
 ## 清空历史。
+## [br]
+## @api public
 func clear() -> void:
 	_snapshots.clear()
 	_current_index = -1
@@ -198,7 +286,12 @@ func clear() -> void:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 工具状态字典。
+## [br]
+## @schema return: Dictionary with snapshot_count, current_index, current_snapshot_id, max_history_size, can_step_back, can_step_forward, and ids.
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"snapshot_count": _snapshots.size(),

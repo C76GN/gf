@@ -4,23 +4,27 @@
 ##
 ## 为资源化流程图提供路径加载、GraphEdit 预览/连线、校验摘要、节点/连接清单
 ## 和通用自动布局，不提供业务节点库，也不解释项目自定义元数据。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
 class_name GFFlowGraphDock
 extends Control
 
 
 # --- 常量 ---
 
-const DEFAULT_LAYOUT_OPTIONS: Dictionary = {
+const _DEFAULT_LAYOUT_OPTIONS: Dictionary = {
 	"x_spacing": 280.0,
 	"y_spacing": 160.0,
 }
-const DEFAULT_NODE_COLOR := Color(0.52, 0.68, 0.92)
-const EXECUTION_PORT_COLOR := Color(0.95, 0.78, 0.38)
-const SIDE_PANEL_MIN_WIDTH: float = 320.0
-const DETAIL_MIN_HEIGHT: float = 112.0
-const GF_FLOW_GRAPH_BASE := preload("res://addons/gf/extensions/flow/resources/gf_flow_graph.gd")
-const GF_FLOW_GRAPH_EDITOR_MODEL_BASE := preload("res://addons/gf/extensions/flow/editor/gf_flow_graph_editor_model.gd")
-const GFEditorWorkspaceUI := preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
+const _DEFAULT_NODE_COLOR := Color(0.52, 0.68, 0.92)
+const _EXECUTION_PORT_COLOR := Color(0.95, 0.78, 0.38)
+const _SIDE_PANEL_MIN_WIDTH: float = 320.0
+const _DETAIL_MIN_HEIGHT: float = 112.0
+const _GF_EDITOR_WORKSPACE_UI_SCRIPT: Script = preload("res://addons/gf/kernel/editor/gf_editor_workspace_ui.gd")
 
 
 # --- 私有变量 ---
@@ -45,7 +49,7 @@ var _file_dialog: FileDialog = null
 
 func _init() -> void:
 	name = "GF Flow Tools"
-	GFEditorWorkspaceUI.apply_page_root(self)
+	_GF_EDITOR_WORKSPACE_UI_SCRIPT.apply_page_root(self)
 	_build_ui()
 	refresh()
 
@@ -53,7 +57,11 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 设置当前查看的 FlowGraph。
+## [br]
+## @api public
+## [br]
 ## @param graph: 流程图资源。
+## [br]
 ## @param path: 可选资源路径。
 func set_graph(graph: GFFlowGraph, path: String = "") -> void:
 	_graph = graph
@@ -64,6 +72,9 @@ func set_graph(graph: GFFlowGraph, path: String = "") -> void:
 
 
 ## 设置并加载当前 FlowGraph 资源路径。
+## [br]
+## @api public
+## [br]
 ## @param path: `res://` 资源路径。
 func set_graph_path(path: String) -> void:
 	_graph_path = path.strip_edges()
@@ -74,6 +85,8 @@ func set_graph_path(path: String) -> void:
 
 
 ## 刷新当前 FlowGraph 视图。
+## [br]
+## @api public
 func refresh() -> void:
 	_build_ui()
 	if _graph == null and not _graph_path.is_empty():
@@ -82,7 +95,12 @@ func refresh() -> void:
 
 
 ## 获取最近一次 FlowGraph 视图模型。
+## [br]
+## @api public
+## [br]
 ## @return 视图模型字典副本。
+## [br]
+## @schema return: Dictionary，由 GFFlowGraphEditorModel.build_view_model() 生成的视图模型副本。
 func get_last_view_model() -> Dictionary:
 	return _last_view_model.duplicate(true)
 
@@ -100,7 +118,7 @@ func _build_ui() -> void:
 	add_child(root_box)
 	root_box.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 
-	var toolbar := GFEditorWorkspaceUI.make_toolbar()
+	var toolbar: HBoxContainer = _GF_EDITOR_WORKSPACE_UI_SCRIPT.make_toolbar()
 	root_box.add_child(toolbar)
 
 	_path_edit = LineEdit.new()
@@ -109,15 +127,15 @@ func _build_ui() -> void:
 	_path_edit.text_submitted.connect(_on_path_submitted)
 	toolbar.add_child(_path_edit)
 
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("...", "选择 FlowGraph 资源。", _on_browse_pressed))
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("刷新", "重新加载并校验当前 FlowGraph。", _on_refresh_pressed))
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("自动布局", "按通用分层布局写入节点 editor_position。", _on_auto_layout_pressed))
-	toolbar.add_child(GFEditorWorkspaceUI.make_button("保存", "保存当前 FlowGraph 资源。", _on_save_pressed))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI_SCRIPT.make_button("...", "选择 FlowGraph 资源。", _on_browse_pressed))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI_SCRIPT.make_button("刷新", "重新加载并校验当前 FlowGraph。", _on_refresh_pressed))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI_SCRIPT.make_button("自动布局", "按通用分层布局写入节点 editor_position。", _on_auto_layout_pressed))
+	toolbar.add_child(_GF_EDITOR_WORKSPACE_UI_SCRIPT.make_button("保存", "保存当前 FlowGraph 资源。", _on_save_pressed))
 
-	_summary_label = GFEditorWorkspaceUI.make_summary_label()
+	_summary_label = _GF_EDITOR_WORKSPACE_UI_SCRIPT.make_summary_label()
 	root_box.add_child(_summary_label)
 
-	_empty_label = GFEditorWorkspaceUI.make_empty_label()
+	_empty_label = _GF_EDITOR_WORKSPACE_UI_SCRIPT.make_empty_label()
 	root_box.add_child(_empty_label)
 
 	_content_split = HSplitContainer.new()
@@ -136,7 +154,7 @@ func _build_ui() -> void:
 	_content_split.add_child(_graph_edit)
 
 	var side_panel := VBoxContainer.new()
-	side_panel.custom_minimum_size = Vector2(SIDE_PANEL_MIN_WIDTH, 0.0)
+	side_panel.custom_minimum_size = Vector2(_SIDE_PANEL_MIN_WIDTH, 0.0)
 	side_panel.size_flags_horizontal = Control.SIZE_SHRINK_END
 	side_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_content_split.add_child(side_panel)
@@ -155,7 +173,7 @@ func _build_ui() -> void:
 	_tree.item_selected.connect(_on_item_selected)
 	side_panel.add_child(_tree)
 
-	_details = GFEditorWorkspaceUI.make_details_output(DETAIL_MIN_HEIGHT)
+	_details = _GF_EDITOR_WORKSPACE_UI_SCRIPT.make_details_output(_DETAIL_MIN_HEIGHT)
 	side_panel.add_child(_details)
 
 	_file_dialog = FileDialog.new()
@@ -177,7 +195,7 @@ func _load_graph_from_path() -> void:
 		return
 
 	var resource := load(_graph_path) as Resource
-	_graph = resource as GF_FLOW_GRAPH_BASE
+	_graph = resource as GFFlowGraph
 	if _graph != null and _graph.resource_path.is_empty():
 		_graph.resource_path = _graph_path
 
@@ -191,14 +209,14 @@ func _render_graph() -> void:
 	_clear_graph_canvas()
 	if _graph == null:
 		_last_view_model = {}
-		GFEditorWorkspaceUI.set_status(_summary_label, "未加载 FlowGraph。")
+		_GF_EDITOR_WORKSPACE_UI_SCRIPT.set_status(_summary_label, "未加载 FlowGraph。")
 		_empty_label.text = "输入或选择一个 GFFlowGraph 资源路径后点击刷新。"
 		_empty_label.visible = true
 		_tree.visible = false
 		_content_split.visible = false
 		return
 
-	var editor_model: GFFlowGraphEditorModel = GF_FLOW_GRAPH_EDITOR_MODEL_BASE.new()
+	var editor_model := GFFlowGraphEditorModel.new()
 	_last_view_model = editor_model.build_view_model(_graph)
 	var validation := _last_view_model.get("validation", {}) as Dictionary
 	_summary_label.text = "%s\n节点：%d  连接：%d  下一步：%s" % [
@@ -207,7 +225,7 @@ func _render_graph() -> void:
 		int(_last_view_model.get("connection_count", 0)),
 		String(validation.get("next_action", "")),
 	]
-	_summary_label.modulate = GFEditorWorkspaceUI.get_report_color(validation)
+	_summary_label.modulate = _GF_EDITOR_WORKSPACE_UI_SCRIPT.get_report_color(validation)
 	_content_split.visible = true
 	_graph_edit.visible = true
 	_render_graph_canvas(_last_view_model)
@@ -258,7 +276,7 @@ func _add_execution_slot(graph_node: GraphNode) -> void:
 	row.add_child(_make_slot_label("in", HORIZONTAL_ALIGNMENT_LEFT))
 	row.add_child(_make_slot_label("flow", HORIZONTAL_ALIGNMENT_RIGHT))
 	graph_node.add_child(row)
-	graph_node.set_slot(0, true, 0, EXECUTION_PORT_COLOR, true, 0, EXECUTION_PORT_COLOR)
+	graph_node.set_slot(0, true, 0, _EXECUTION_PORT_COLOR, true, 0, _EXECUTION_PORT_COLOR)
 
 
 func _add_data_port_slots(graph_node: GraphNode, node_entry: Dictionary) -> void:
@@ -309,11 +327,11 @@ func _get_port_label(port_entry: Dictionary) -> String:
 
 func _get_port_color(port_entry: Dictionary) -> Color:
 	if port_entry == null or port_entry.is_empty():
-		return DEFAULT_NODE_COLOR
+		return _DEFAULT_NODE_COLOR
 	var color := port_entry.get("editor_color", Color.TRANSPARENT) as Color
 	if color.a > 0.0:
 		return color
-	return DEFAULT_NODE_COLOR
+	return _DEFAULT_NODE_COLOR
 
 
 func _connect_graph_edit_nodes(connection: Dictionary) -> void:
@@ -494,8 +512,8 @@ func _on_auto_layout_pressed() -> void:
 	if _graph == null:
 		return
 
-	var editor_model: GFFlowGraphEditorModel = GF_FLOW_GRAPH_EDITOR_MODEL_BASE.new()
-	var report := editor_model.auto_layout(_graph, DEFAULT_LAYOUT_OPTIONS)
+	var editor_model := GFFlowGraphEditorModel.new()
+	var report := editor_model.auto_layout(_graph, _DEFAULT_LAYOUT_OPTIONS)
 	refresh()
 	_show_details(report)
 
@@ -586,7 +604,7 @@ func _on_delete_nodes_request(control_names: Array) -> void:
 	if node_ids.is_empty() and _selected_node_id != &"":
 		node_ids.append(String(_selected_node_id))
 
-	var editor_model: GFFlowGraphEditorModel = GF_FLOW_GRAPH_EDITOR_MODEL_BASE.new()
+	var editor_model := GFFlowGraphEditorModel.new()
 	var report := editor_model.remove_nodes(_graph, node_ids)
 	refresh()
 	_show_details(report)

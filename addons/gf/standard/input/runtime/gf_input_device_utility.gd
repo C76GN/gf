@@ -2,6 +2,12 @@
 ##
 ## 负责维护玩家索引与键鼠、手柄、触控、AI 或自定义设备的映射。
 ## 它不消费输入事件，也不规定动作名。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFInputDeviceUtility
 extends GFUtility
 
@@ -9,21 +15,38 @@ extends GFUtility
 # --- 信号 ---
 
 ## 设备映射发生变化时发出。
-signal assignments_changed(assignments: Array)
+## [br]
+## @api public
+## [br]
+## @param assignments: 当前设备映射副本。
+signal assignments_changed(assignments: Array[GFInputDeviceAssignment])
 
 ## 最近产生输入的玩家变化时发出。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
 signal active_player_changed(player_index: int)
 
 ## 最近产生输入的设备变化时发出。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param assignment: 活跃设备映射副本。
+## [br]
 ## @param event: 触发变化的输入事件副本；手动设置时可能为空。
 signal active_device_changed(player_index: int, assignment: GFInputDeviceAssignment, event: InputEvent)
 
 ## 收到项目配置的加入输入时发出。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param assignment: 触发加入请求的设备映射副本。
+## [br]
 ## @param event: 触发加入请求的输入事件副本。
 signal player_join_requested(player_index: int, assignment: GFInputDeviceAssignment, event: InputEvent)
 
@@ -31,34 +54,52 @@ signal player_join_requested(player_index: int, assignment: GFInputDeviceAssignm
 # --- 公共变量 ---
 
 ## 允许的最大本地玩家数。
+## [br]
+## @api public
 var max_players: int = 4:
 	set(value):
 		max_players = maxi(value, 0)
 
 ## 是否为 0 号玩家自动分配键鼠。
+## [br]
+## @api public
 var include_keyboard_mouse: bool = true
 
 ## 是否在移动平台自动添加触控设备。
+## [br]
+## @api public
 var include_touch: bool = true
 
 ## 是否在收到未登记手柄输入时自动分配到空玩家席位。
+## [br]
+## @api public
 var auto_assign_joypads_on_input: bool = true
 
 ## 未登记手柄轴输入需要达到该幅度才会触发自动分配，避免漂移噪声抢占席位。
+## [br]
+## @api public
 var auto_assign_axis_threshold: float = 0.75
 
 ## 已登记手柄轴输入需要达到该幅度才会切换最近活跃玩家。
+## [br]
+## @api public
 var active_player_axis_threshold: float = 0.2:
 	set(value):
 		active_player_axis_threshold = clampf(value, 0.0, 1.0)
 
 ## 可触发本地玩家加入请求的输入事件模板。为空时不启用 join 检测。
+## [br]
+## @api public
 var join_events: Array[InputEvent] = []
 
 ## join 输入来自未登记设备时，是否自动分配到空玩家席位。
+## [br]
+## @api public
 var auto_assign_devices_on_join: bool = true
 
 ## 当前最近活跃玩家索引。
+## [br]
+## @api public
 var active_player_index: int = 0
 
 
@@ -68,14 +109,20 @@ var _assignments: Array[GFInputDeviceAssignment] = []
 var _player_deadzones: Dictionary = {}
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化设备映射并订阅手柄连接变化。
+## [br]
+## @api public
 func init() -> void:
 	refresh_connected_devices()
 	if not Input.joy_connection_changed.is_connected(_on_joy_connection_changed):
 		Input.joy_connection_changed.connect(_on_joy_connection_changed)
 
 
+## 清理设备映射并取消手柄连接变化订阅。
+## [br]
+## @api public
 func dispose() -> void:
 	_assignments.clear()
 	_player_deadzones.clear()
@@ -86,6 +133,8 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 按当前硬件重新生成设备映射。
+## [br]
+## @api public
 func refresh_connected_devices() -> void:
 	_assignments.clear()
 
@@ -116,10 +165,16 @@ func refresh_connected_devices() -> void:
 
 
 ## 创建一个设备映射。
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param device_type: 设备类型。
+## [br]
 ## @param device_id: 设备 ID。
+## [br]
 ## @return 新映射。
+## [br]
+## @api public
 func create_assignment(
 	player_index: int,
 	device_type: GFInputDeviceAssignment.DeviceType,
@@ -133,6 +188,9 @@ func create_assignment(
 
 
 ## 手动设置一个玩家的设备映射。
+## [br]
+## @api public
+## [br]
 ## @param assignment: 设备映射。
 func set_assignment(assignment: GFInputDeviceAssignment) -> void:
 	if assignment == null:
@@ -165,6 +223,9 @@ func set_assignment(assignment: GFInputDeviceAssignment) -> void:
 
 
 ## 移除指定玩家的设备映射。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
 func remove_assignment(player_index: int) -> void:
 	for index: int in range(_assignments.size() - 1, -1, -1):
@@ -175,7 +236,11 @@ func remove_assignment(player_index: int) -> void:
 
 
 ## 获取指定玩家的设备映射。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @return 设备映射；不存在时返回 null。
 func get_assignment(player_index: int) -> GFInputDeviceAssignment:
 	for assignment: GFInputDeviceAssignment in _assignments:
@@ -185,9 +250,14 @@ func get_assignment(player_index: int) -> GFInputDeviceAssignment:
 
 
 ## 根据设备类型和设备 ID 获取玩家索引。
+## [br]
 ## @param device_type: 设备类型。
+## [br]
 ## @param device_id: 设备 ID。
+## [br]
 ## @return 玩家索引；不存在时返回 -1。
+## [br]
+## @api public
 func get_player_for_device(
 	device_type: GFInputDeviceAssignment.DeviceType,
 	device_id: int
@@ -199,7 +269,11 @@ func get_player_for_device(
 
 
 ## 根据输入事件获取玩家索引，不产生自动分配。
+## [br]
+## @api public
+## [br]
 ## @param event: 输入事件。
+## [br]
 ## @return 玩家索引；无法匹配时返回 -1。
 func get_player_for_event(event: InputEvent) -> int:
 	var device_type := _get_event_device_type(event)
@@ -211,7 +285,11 @@ func get_player_for_event(event: InputEvent) -> int:
 
 
 ## 处理输入事件并返回玩家索引。未登记手柄可按配置自动占位。
+## [br]
+## @api public
+## [br]
 ## @param event: 输入事件。
+## [br]
 ## @return 玩家索引；无法匹配时返回 -1。
 func handle_input_event(event: InputEvent) -> int:
 	if event == null:
@@ -238,7 +316,11 @@ func handle_input_event(event: InputEvent) -> int:
 
 
 ## 处理本地玩家加入输入。只有匹配 join_events 的输入会触发。
+## [br]
+## @api public
+## [br]
 ## @param event: 输入事件。
+## [br]
 ## @return 请求加入的玩家索引；未匹配或无可用席位时返回 -1。
 func handle_join_input_event(event: InputEvent) -> int:
 	if event == null or not is_join_input_event(event):
@@ -269,7 +351,11 @@ func handle_join_input_event(event: InputEvent) -> int:
 
 
 ## 检查输入事件是否匹配当前 join_events。
+## [br]
+## @api public
+## [br]
 ## @param event: 输入事件。
+## [br]
 ## @return 是否是加入输入。
 func is_join_input_event(event: InputEvent) -> bool:
 	if event == null:
@@ -282,7 +368,11 @@ func is_join_input_event(event: InputEvent) -> bool:
 
 
 ## 使用常见本地多人加入输入填充 join_events。
+## [br]
+## @api public
+## [br]
 ## @param include_keyboard: 是否加入 Enter / 小键盘 Enter。
+## [br]
 ## @param include_joypad: 是否加入手柄确认 / 开始按钮。
 func configure_default_join_events(include_keyboard: bool = true, include_joypad: bool = true) -> void:
 	join_events.clear()
@@ -295,14 +385,21 @@ func configure_default_join_events(include_keyboard: bool = true, include_joypad
 
 
 ## 清空 join 输入模板。
+## [br]
+## @api public
 func clear_join_events() -> void:
 	join_events.clear()
 
 
 ## 把设备分配给第一个空玩家席位。
+## [br]
 ## @param device_type: 设备类型。
+## [br]
 ## @param device_id: 设备 ID。
+## [br]
 ## @return 分配到的玩家索引；无空位时返回 -1。
+## [br]
+## @api public
 func assign_device_to_next_player(
 	device_type: GFInputDeviceAssignment.DeviceType,
 	device_id: int
@@ -320,6 +417,9 @@ func assign_device_to_next_player(
 
 
 ## 设置最近活跃玩家。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
 func set_active_player(player_index: int) -> void:
 	if player_index < 0:
@@ -328,7 +428,11 @@ func set_active_player(player_index: int) -> void:
 
 
 ## 设置玩家级输入死区。小于 0 表示清除覆盖。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param deadzone: 死区值。
 func set_player_deadzone(player_index: int, deadzone: float) -> void:
 	if player_index < 0:
@@ -340,15 +444,24 @@ func set_player_deadzone(player_index: int, deadzone: float) -> void:
 
 
 ## 获取玩家级输入死区覆盖。
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param fallback: 没有覆盖时返回的值。
+## [br]
 ## @return 死区值。
+## [br]
+## @api public
 func get_player_deadzone(player_index: int, fallback: float = -1.0) -> float:
 	return float(_player_deadzones.get(player_index, fallback))
 
 
 ## 获取玩家设备显示名。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @return 显示名。
 func get_device_name(player_index: int) -> String:
 	var assignment := get_assignment(player_index)
@@ -371,6 +484,9 @@ func get_device_name(player_index: int) -> String:
 
 
 ## 获取当前活跃设备映射。
+## [br]
+## @api public
+## [br]
 ## @return 活跃设备映射副本；不存在时返回 null。
 func get_active_assignment() -> GFInputDeviceAssignment:
 	var assignment := get_assignment(active_player_index)
@@ -378,17 +494,27 @@ func get_active_assignment() -> GFInputDeviceAssignment:
 
 
 ## 获取当前活跃设备显示名。
+## [br]
+## @api public
+## [br]
 ## @return 活跃设备显示名。
 func get_active_device_name() -> String:
 	return get_device_name(active_player_index)
 
 
 ## 启动指定玩家手柄震动。
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @param weak_magnitude: 低频马达强度，范围 0 到 1。
+## [br]
 ## @param strong_magnitude: 高频马达强度，范围 0 到 1。
+## [br]
 ## @param duration_seconds: 持续时间，0 表示由引擎默认处理。
+## [br]
 ## @return 成功转发到手柄设备时返回 true。
+## [br]
+## @api public
 func start_vibration_for_player(
 	player_index: int,
 	weak_magnitude: float,
@@ -411,7 +537,11 @@ func start_vibration_for_player(
 
 
 ## 停止指定玩家手柄震动。
+## [br]
+## @api public
+## [br]
 ## @param player_index: 玩家索引。
+## [br]
 ## @return 成功转发到手柄设备时返回 true。
 func stop_vibration_for_player(player_index: int) -> bool:
 	var assignment := get_assignment(player_index)
@@ -425,6 +555,9 @@ func stop_vibration_for_player(player_index: int) -> bool:
 
 
 ## 获取所有设备映射的拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 映射数组。
 func get_assignments() -> Array[GFInputDeviceAssignment]:
 	var result: Array[GFInputDeviceAssignment] = []
@@ -434,6 +567,8 @@ func get_assignments() -> Array[GFInputDeviceAssignment]:
 
 
 ## 清空所有映射。
+## [br]
+## @api public
 func clear_assignments() -> void:
 	_assignments.clear()
 	assignments_changed.emit(get_assignments())

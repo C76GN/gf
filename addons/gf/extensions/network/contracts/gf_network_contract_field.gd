@@ -2,6 +2,12 @@
 ##
 ## 字段只描述名称、值类型、必填性和默认值，用于生成器、校验器或项目工具，
 ## 不规定消息含义、权限或同步策略。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNetworkContractField
 extends Resource
 
@@ -9,6 +15,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 字段值类型。
+## [br]
+## @api public
 enum ValueType {
 	## 任意 Variant。
 	VARIANT,
@@ -45,45 +53,71 @@ enum ValueType {
 
 # --- 常量 ---
 
-const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
 
 ## 字段稳定名称。
+## [br]
+## @api public
 @export var field_name: StringName = &""
 
 ## 编辑器展示名称。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 字段值类型。
+## [br]
+## @api public
 @export var value_type: ValueType = ValueType.VARIANT
 
 ## 是否为必填字段。
+## [br]
+## @api public
 @export var required: bool = true
 
 ## 是否允许显式 null 值。
+## [br]
+## @api public
 @export var allow_null: bool = false
 
 ## 可选默认值。生成器会尽量把可表达的默认值写入生成函数签名。
+## [br]
+## @api public
+## [br]
+## @schema default_value: Variant，字段默认值；建议使用与 value_type 匹配的可复制值。
 @export var default_value: Variant = null
 
 ## Object / Resource 字段的类名提示，仅用于工具校验。
+## [br]
+## @api public
 @export var class_name_hint: StringName = &""
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存项目自定义字段元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取字段名称。
+## [br]
+## @api public
+## [br]
 ## @return 字段名称。
 func get_field_name() -> StringName:
 	return field_name
 
 
 ## 获取展示名称。
+## [br]
+## @api public
+## [br]
 ## @return 展示名称。
 func get_display_name() -> String:
 	if not display_name.is_empty():
@@ -94,14 +128,27 @@ func get_display_name() -> String:
 
 
 ## 获取默认值副本。
+## [br]
+## @api public
+## [br]
 ## @return 默认值。
+## [br]
+## @schema return: Variant，default_value 的深拷贝或原始标量值。
 func get_default_value() -> Variant:
 	return _duplicate_value(default_value)
 
 
 ## 归一化字段值。
+## [br]
+## @api public
+## [br]
 ## @param value: 输入值。
+## [br]
 ## @return 归一化后的值。
+## [br]
+## @schema value: Variant，待归一化字段值。
+## [br]
+## @schema return: Variant，字段默认值或输入值的安全副本。
 func normalize_value(value: Variant) -> Variant:
 	if value == null and default_value != null:
 		return get_default_value()
@@ -109,7 +156,12 @@ func normalize_value(value: Variant) -> Variant:
 
 
 ## 校验字段定义是否完整。
+## [br]
+## @api public
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。
 func validate_definition() -> Dictionary:
 	var issues: Array[Dictionary] = []
 	if field_name == &"":
@@ -118,8 +170,16 @@ func validate_definition() -> Dictionary:
 
 
 ## 校验字段值是否符合声明类型。
+## [br]
+## @api public
+## [br]
 ## @param value: 字段值。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema value: Variant，待校验字段值。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。
 func validate_value(value: Variant) -> Dictionary:
 	if value == null:
 		if required and not allow_null:
@@ -133,7 +193,12 @@ func validate_value(value: Variant) -> Dictionary:
 
 
 ## 描述字段契约。
+## [br]
+## @api public
+## [br]
 ## @return 描述字典。
+## [br]
+## @schema return: Dictionary，包含 field_name、display_name、value_type、required、allow_null、default_value、class_name_hint、metadata。
 func describe() -> Dictionary:
 	return {
 		"field_name": field_name,
@@ -238,7 +303,7 @@ func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
 		"field_name": field_name,
 		"issues": issues,
 	}
-	return GFValidationReportDictionaryBase.finalize_report(report, "Network contract field", {
+	return _GF_VALIDATION_REPORT_DICTIONARY.finalize_report(report, "Network contract field", {
 		"include_issue_count": true,
 		"next_actions": _get_validation_next_actions(),
 	})

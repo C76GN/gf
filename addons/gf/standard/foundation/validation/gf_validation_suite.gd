@@ -2,74 +2,121 @@
 ##
 ## 保存一组规则与可选资源路径筛选条件。套件只描述“要检查什么”，实际加载、
 ## 实例化和报告聚合由 GFValidationRunner 完成。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFValidationSuite
 extends Resource
 
 
 # --- 常量 ---
 
+## 校验规则脚本基类。
+## [br]
+## @api public
 const GFValidationRuleBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_rule.gd")
 
 ## 默认递归扫描目录深度上限。
+## [br]
+## @api public
 const DEFAULT_MAX_SCAN_DEPTH: int = 32
 
 ## 默认单次路径收集数量上限。
+## [br]
+## @api public
 const DEFAULT_MAX_COLLECTED_PATHS: int = 10_000
 
 
 # --- 导出变量 ---
 
 ## 套件标识。
+## [br]
+## @api public
 @export var suite_id: StringName = &""
 
 ## 套件说明。
+## [br]
+## @api public
 @export_multiline var description: String = ""
 
 ## 是否启用套件。
+## [br]
+## @api public
 @export var enabled: bool = true
 
 ## 是否把警告提升为错误。
+## [br]
+## @api public
 @export var treat_warnings_as_errors: bool = false
 
 ## 校验规则列表。
+## [br]
+## @api public
 @export var rules: Array[GFValidationRuleBase] = []
 
 ## 需要扫描的路径。可以是文件或目录；为空时不自动扫描。
+## [br]
+## @api public
 @export var include_paths: PackedStringArray = PackedStringArray()
 
 ## 需要排除的路径或通配模式。
+## [br]
+## @api public
 @export var exclude_paths: PackedStringArray = PackedStringArray()
 
 ## 资源文件扩展名，不含点号。
+## [br]
+## @api public
 @export var resource_extensions: PackedStringArray = PackedStringArray(["tres", "res"])
 
 ## 场景文件扩展名，不含点号。
+## [br]
+## @api public
 @export var scene_extensions: PackedStringArray = PackedStringArray(["tscn", "scn"])
 
 ## 扫描目录时是否递归。
+## [br]
+## @api public
 @export var recursive: bool = true
 
 ## 扫描目录时是否包含隐藏目录和文件。
+## [br]
+## @api public
 @export var include_hidden: bool = false
 
 ## 递归扫描的最大目录深度。0 表示不限制。
+## [br]
+## @api public
 @export var max_scan_depth: int = DEFAULT_MAX_SCAN_DEPTH:
 	set(value):
 		max_scan_depth = maxi(value, 0)
 
 ## 单次 collect_paths() 最多收集的路径数量。0 表示不限制。
+## [br]
+## @api public
 @export var max_collected_paths: int = DEFAULT_MAX_COLLECTED_PATHS:
 	set(value):
 		max_collected_paths = maxi(value, 0)
 
 ## 可选元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary of caller-defined suite metadata.
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 添加规则。
+## [br]
+## @api public
+## [br]
 ## @param rule: 规则资源。
+## [br]
 ## @return 添加成功返回 true。
 func add_rule(rule: GFValidationRuleBase) -> bool:
 	if rule == null:
@@ -79,7 +126,11 @@ func add_rule(rule: GFValidationRuleBase) -> bool:
 
 
 ## 移除规则。
+## [br]
+## @api public
+## [br]
 ## @param rule: 规则资源。
+## [br]
 ## @return 移除成功返回 true。
 func remove_rule(rule: GFValidationRuleBase) -> bool:
 	var index := rules.find(rule)
@@ -90,6 +141,9 @@ func remove_rule(rule: GFValidationRuleBase) -> bool:
 
 
 ## 获取启用的规则。
+## [br]
+## @api public
+## [br]
 ## @return 规则数组副本。
 func get_enabled_rules() -> Array[GFValidationRuleBase]:
 	var result: Array[GFValidationRuleBase] = []
@@ -102,7 +156,11 @@ func get_enabled_rules() -> Array[GFValidationRuleBase]:
 
 
 ## 检查路径是否会被套件扫描。
+## [br]
+## @api public
+## [br]
 ## @param path: 资源或场景路径。
+## [br]
 ## @return 匹配返回 true。
 func matches_path(path: String) -> bool:
 	if path.is_empty():
@@ -113,6 +171,9 @@ func matches_path(path: String) -> bool:
 
 
 ## 收集 include_paths 中匹配的资源和场景路径。
+## [br]
+## @api public
+## [br]
 ## @return 已排序路径列表。
 func collect_paths() -> PackedStringArray:
 	var result := PackedStringArray()
@@ -129,6 +190,9 @@ func collect_paths() -> PackedStringArray:
 
 
 ## 创建套件配置副本。
+## [br]
+## @api public
+## [br]
 ## @return 新套件。
 func duplicate_suite() -> GFValidationSuite:
 	var suite := GFValidationSuite.new()

@@ -30,8 +30,9 @@ func test_insert_and_query() -> void:
 
 func test_insert_before_init_lazily_rebuilds_root() -> void:
 	var tree := GFQuadTreeUtility.new()
-	tree.setup(Rect2(0, 0, 100, 100), -1, 0)
-	tree._root = null
+	tree.bounds = Rect2(0, 0, 100, 100)
+	tree.max_depth = -1
+	tree.max_entities_per_node = 0
 
 	tree.insert(1, Rect2(10, 10, 5, 5))
 	var result := tree.query_rect(Rect2(0, 0, 20, 20))

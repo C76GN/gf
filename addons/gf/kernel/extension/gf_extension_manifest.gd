@@ -1,6 +1,14 @@
 ## GFExtensionManifest: GF 扩展元数据描述。
 ##
 ## 用于描述 GF 扩展的稳定 ID、版本、依赖、安装入口和编辑器扩展。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/extension
 class_name GFExtensionManifest
 extends RefCounted
 
@@ -8,86 +16,142 @@ extends RefCounted
 # --- 常量 ---
 
 ## GF 扩展 manifest 文件名。
+## [br]
+## @api public
 const FILE_NAME: String = "gf_extension.json"
 
 ## 扩展类型：GF 标准库内置能力。
+## [br]
+## @api public
 const KIND_STANDARD: String = "standard"
 
 ## 扩展类型：GF 可选扩展。
+## [br]
+## @api public
 const KIND_EXTENSION: String = "extension"
 
 
 # --- 公共变量 ---
 
 ## 稳定扩展 ID，推荐格式为反向域名或作者命名空间，例如 `author.extension_name`。
+## [br]
+## @api public
 var id: String = ""
 
 ## 面向用户显示的扩展名。
+## [br]
+## @api public
 var display_name: String = ""
 
 ## 扩展发行版本号。GF 内置扩展必须与当前 GF 发行版本一致。
+## [br]
+## @api public
 var version: String = ""
 
 ## 扩展自身版本号。GF 内置扩展按扩展内公开行为变化独立递增；未声明时回退到 version。
+## [br]
+## @api public
 var extension_version: String = ""
 
 ## 扩展类型，应为 `standard` 或 `extension`。
+## [br]
+## @api public
 var kind: String = KIND_EXTENSION
 
 ## 扩展根目录。
+## [br]
+## @api public
 var root_path: String = ""
 
 ## 简短说明。
+## [br]
+## @api public
 var description: String = ""
 
 ## 依赖的扩展 ID 列表。
+## [br]
+## @api public
 var dependencies: Array[String] = []
 
 ## 可选 GFInstaller 路径列表。需要自动装配运行时模块时使用。
+## [br]
+## @api public
 var installer_paths: Array[String] = []
 
 ## 可选编辑器菜单动作脚本路径列表。
+## [br]
+## @api public
 var editor_action_paths: Array[String] = []
 
 ## 可选编辑器工作区页面脚本路径列表。
+## [br]
+## @api public
 var editor_dock_paths: Array[String] = []
 
 ## 编辑器工作区页面排序。数值越小越靠前。
+## [br]
+## @api public
 var editor_dock_order: int = 1000
 
 ## 编辑器工作区页面短标签。为空时使用扩展显示名。
+## [br]
+## @api public
 var editor_dock_short_label: String = ""
 
 ## 可选 EditorInspectorPlugin 路径列表。需要为扩展内类型提供 Inspector 增强时使用。
+## [br]
+## @api public
 var editor_inspector_paths: Array[String] = []
 
 ## 可选 EditorImportPlugin 路径列表。需要为自定义资源格式提供导入器时使用。
+## [br]
+## @api public
 var import_plugin_paths: Array[String] = []
 
 ## 可选 EditorExportPlugin 路径列表。
+## [br]
+## @api public
 var export_plugin_paths: Array[String] = []
 
 ## 可选 GLTFDocumentExtension 路径列表。用于导入期资产元数据桥接等编辑器能力。
+## [br]
+## @api public
 var gltf_document_extension_paths: Array[String] = []
 
 ## 可选 GFAccessGenerator 扩展脚本路径列表。
+## [br]
+## @api public
 var access_generator_extension_paths: Array[String] = []
 
 ## 便于工具筛选的标签。
+## [br]
+## @api public
 var tags: Array[String] = []
 
 ## 是否在项目首次启用 GF 时默认启用该扩展。
+## [br]
+## @api public
 var enabled_by_default: bool = false
 
 ## manifest 文件路径。
+## [br]
+## @api public
 var source_path: String = ""
 
 # --- 公共方法 ---
 
 ## 从字典创建扩展 manifest。
+## [br]
+## @api public
+## [br]
 ## @param data: manifest 字典。
+## [br]
+## @schema data: Dictionary decoded from gf_extension.json.
+## [br]
 ## @param extension_root_path: 扩展根目录。
+## [br]
 ## @param manifest_source_path: manifest 文件路径。
+## [br]
 ## @return 扩展 manifest 实例。
 static func from_dictionary(
 	data: Dictionary,
@@ -125,7 +189,11 @@ static func from_dictionary(
 
 
 ## 从 JSON 文件读取扩展 manifest。
+## [br]
+## @api public
+## [br]
 ## @param path: `gf_extension.json` 文件路径。
+## [br]
 ## @return 读取成功时返回 manifest；失败时返回 null。
 static func from_json_file(path: String) -> GFExtensionManifest:
 	if path.is_empty():
@@ -145,7 +213,12 @@ static func from_json_file(path: String) -> GFExtensionManifest:
 
 
 ## 转换为字典。
+## [br]
+## @api public
+## [br]
 ## @return manifest 字典副本。
+## [br]
+## @schema return: Dictionary matching the gf_extension.json manifest shape.
 func to_dictionary() -> Dictionary:
 	return {
 		"id": id,
@@ -173,12 +246,18 @@ func to_dictionary() -> Dictionary:
 
 
 ## 检查 manifest 是否满足基本规范。
+## [br]
+## @api public
+## [br]
 ## @return 满足规范时返回 true。
 func is_valid() -> bool:
 	return get_validation_errors().is_empty()
 
 
 ## 获取 manifest 规范错误。
+## [br]
+## @api public
+## [br]
 ## @return 错误消息列表。
 func get_validation_errors() -> Array[String]:
 	var errors: Array[String] = []

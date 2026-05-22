@@ -2,6 +2,12 @@
 ##
 ## 将多轴输入转换为长度值，并按配置写回到指定分量。它只处理向量数值，
 ## 不解释这个幅值代表移动、视角、压力或其他业务含义。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFInputMagnitudeModifier
 extends GFInputModifier
 
@@ -9,27 +15,44 @@ extends GFInputModifier
 # --- 导出变量 ---
 
 ## 输出幅值到 X 分量。
+## [br]
+## @api public
 @export var output_x: bool = true
 
 ## 输出幅值到 Y 分量。
+## [br]
+## @api public
 @export var output_y: bool = false
 
 ## 输出幅值到 Z 分量，仅用于三维输入。
+## [br]
+## @api public
 @export var output_z: bool = false
 
 ## 是否使用绝对值幅值。
+## [br]
+## @api public
 @export var absolute_value: bool = true
 
 ## 非输出分量是否保留原值。
+## [br]
+## @api public
 @export var preserve_unselected_components: bool = false
 
 
 # --- 公共方法 ---
 
 ## 修改二维输入值。
+## [br]
+## @api public
+## [br]
 ## @param value: 要写入或修改的值。
+## [br]
 ## @param _event: 原始输入事件，默认实现不直接使用。
+## [br]
 ## @param _action: 当前输入动作配置，默认实现不直接使用。
+## [br]
+## @return 幅值投影后的二维输入值。
 func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -> Vector2:
 	var magnitude := _get_magnitude_2d(value)
 	return Vector2(
@@ -39,9 +62,16 @@ func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = 
 
 
 ## 修改三维输入值。
+## [br]
+## @api public
+## [br]
 ## @param value: 要写入或修改的值。
+## [br]
 ## @param _event: 原始输入事件，默认实现不直接使用。
+## [br]
 ## @param _action: 当前输入动作配置，默认实现不直接使用。
+## [br]
+## @return 幅值投影后的三维输入值。
 func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -> Vector3:
 	var magnitude := _get_magnitude_3d(value)
 	return Vector3(

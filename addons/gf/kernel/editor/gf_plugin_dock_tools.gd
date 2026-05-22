@@ -1,13 +1,30 @@
 @tool
 
-## GF 插件编辑器工作区窗口管理辅助。
+# GF 插件编辑器工作区窗口管理辅助。
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 扩展管理页面脚本路径。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const EXTENSION_MANAGER_DOCK_SCRIPT_PATH: String = "res://addons/gf/kernel/editor/extension/gf_extension_manager_dock.gd"
+
+## 工作区窗口脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFEditorWorkspaceWindowBase = preload("res://addons/gf/kernel/editor/gf_editor_workspace_window.gd")
+
+## 扩展启用设置脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 const GFExtensionSettingsBase = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
 
 
@@ -20,8 +37,16 @@ var _workspace_window: Window = null
 # --- 公共方法 ---
 
 ## 安装 GF 编辑器工作区窗口入口。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param plugin: 当前 EditorPlugin 实例。
+## [br]
 ## @param standard_dock_records: 组合入口传入的标准库页面记录。
+## [br]
+## @schema standard_dock_records: Array of Dictionary dock page records.
 func setup(plugin: EditorPlugin, standard_dock_records: Array[Dictionary] = []) -> void:
 	if plugin == null:
 		return
@@ -34,6 +59,11 @@ func setup(plugin: EditorPlugin, standard_dock_records: Array[Dictionary] = []) 
 
 
 ## 移除 GF 编辑器工作区窗口入口。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param _plugin: 当前 EditorPlugin 实例。
 func cleanup(_plugin: EditorPlugin) -> void:
 	if is_instance_valid(_workspace_window):
@@ -42,18 +72,34 @@ func cleanup(_plugin: EditorPlugin) -> void:
 
 
 ## 设置由组合入口收集到的标准库页面记录。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @param standard_dock_records: 标准库页面记录。
+## [br]
+## @schema standard_dock_records: Array of Dictionary dock page records.
 func set_standard_dock_records(standard_dock_records: Array[Dictionary]) -> void:
 	_standard_dock_records = _copy_records(standard_dock_records)
 
 
 ## 显示 GF 编辑器工作区。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
 func show_workspace() -> void:
 	if is_instance_valid(_workspace_window) and _workspace_window.has_method("popup_workspace"):
 		_workspace_window.call("popup_workspace")
 
 
 ## 获取当前工作区窗口。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/editor
+## [br]
 ## @return 工作区窗口；未安装时返回 null。
 func get_workspace_window() -> Window:
 	return _workspace_window

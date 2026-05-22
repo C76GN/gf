@@ -1,12 +1,21 @@
 ## GFConfigValidationReport: 配置表校验报告构建工具。
 ##
 ## 统一创建、合并和补全配置表校验报告，保证 schema、导入器、引用解析和补丁合并使用相同问题结构。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFConfigValidationReport
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 从校验上下文复制到单条 issue 的字段名。
+## [br]
+## @api public
 const CONTEXT_FIELDS: Array[String] = [
 	"source",
 	"line",
@@ -20,9 +29,16 @@ const CONTEXT_FIELDS: Array[String] = [
 # --- 公共方法 ---
 
 ## 创建空校验报告。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @param row_count: 记录数量。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary，包含 ok、table_name、row_count、error_count、warning_count 和 issues。
 func make_report(table_name: StringName = &"", row_count: int = 0) -> Dictionary:
 	return {
 		"ok": true,
@@ -35,11 +51,22 @@ func make_report(table_name: StringName = &"", row_count: int = 0) -> Dictionary
 
 
 ## 创建单错误校验报告。
+## [br]
+## @api public
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @param kind: 稳定问题类型。
+## [br]
 ## @param message: 问题描述。
+## [br]
 ## @param context: 可选上下文。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema context: Dictionary，可包含 row_key、field、source、line、column、row_index、column_index 和 rule_id 字段。
+## [br]
+## @schema return: GFConfigValidationReport 兼容 Dictionary，包含一条 error issue。
 func make_error_report(
 	table_name: StringName,
 	kind: String,
@@ -53,14 +80,30 @@ func make_error_report(
 
 
 ## 向报告写入一条问题。
+## [br]
+## @api public
+## [br]
 ## @param report: 目标校验报告。
+## [br]
 ## @param severity: severity 字符串，支持 error 或 warning。
+## [br]
 ## @param kind: 稳定问题类型。
+## [br]
 ## @param table_name: 表名。
+## [br]
 ## @param row_key: 行标识。
+## [br]
 ## @param field_name: 字段名。
+## [br]
 ## @param message: 问题描述。
+## [br]
 ## @param context: 可选上下文。
+## [br]
+## @schema report: GFConfigValidationReport 兼容 Dictionary，会被当前方法修改。
+## [br]
+## @schema row_key: Variant，复制到 issue 中的行标识。
+## [br]
+## @schema context: Dictionary，可包含 source、line、column、row_index、column_index 和 rule_id 字段。
 func add_issue(
 	report: Dictionary,
 	severity: String,
@@ -92,9 +135,18 @@ func add_issue(
 
 
 ## 合并一份校验报告。
+## [br]
+## @api public
+## [br]
 ## @param target: 目标报告。
+## [br]
 ## @param source: 来源报告。
+## [br]
 ## @param include_row_count: 为 true 时累加 row_count。
+## [br]
+## @schema target: GFConfigValidationReport 兼容 Dictionary，会被当前方法修改。
+## [br]
+## @schema source: GFConfigValidationReport 兼容 Dictionary，会复制合并到 target。
 func merge_report(target: Dictionary, source: Dictionary, include_row_count: bool = false) -> void:
 	if include_row_count:
 		target["row_count"] = int(target.get("row_count", 0)) + int(source.get("row_count", 0))
@@ -110,7 +162,12 @@ func merge_report(target: Dictionary, source: Dictionary, include_row_count: boo
 
 
 ## 根据 error_count 补全 ok 字段。
+## [br]
+## @api public
+## [br]
 ## @param report: 校验报告。
+## [br]
+## @schema report: GFConfigValidationReport 兼容 Dictionary，会被当前方法修改。
 func finalize_report(report: Dictionary) -> void:
 	report["ok"] = int(report.get("error_count", 0)) == 0
 

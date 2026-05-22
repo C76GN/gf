@@ -2,6 +2,12 @@
 ##
 ## 把一组 Callable 作为可提交、可回滚的批次执行。它只管理执行顺序、
 ## 结果归一化和回滚栈，不绑定资源、存档、网络或编辑器事务。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFMutationBatch
 extends RefCounted
 
@@ -9,32 +15,57 @@ extends RefCounted
 # --- 信号 ---
 
 ## 操作加入批次后发出。
+## [br]
+## @api public
+## [br]
 ## @param operation_id: 操作标识。
 signal operation_added(operation_id: int)
 
 ## 单个操作提交成功后发出。
+## [br]
+## @api public
+## [br]
 ## @param operation_id: 操作标识。
+## [br]
 ## @param result: 操作结果。
+## [br]
+## @schema result: Dictionary normalized operation result.
 signal operation_committed(operation_id: int, result: Dictionary)
 
 ## 批次提交结束后发出。
+## [br]
+## @api public
+## [br]
 ## @param summary: 提交摘要。
+## [br]
+## @schema summary: Dictionary commit summary.
 signal batch_committed(summary: Dictionary)
 
 ## 已提交操作回滚结束后发出。
+## [br]
+## @api public
+## [br]
 ## @param summary: 回滚摘要。
+## [br]
+## @schema summary: Dictionary rollback summary.
 signal batch_rolled_back(summary: Dictionary)
 
 ## 批次清空后发出。
+## [br]
+## @api public
 signal cleared
 
 
 # --- 公共变量 ---
 
 ## 提交遇到失败时是否停止后续操作。
+## [br]
+## @api public
 var stop_on_error: bool = true
 
 ## 全部提交成功后是否自动清空 committed 栈。
+## [br]
+## @api public
 var auto_clear_committed_on_success: bool = false
 
 
@@ -48,10 +79,18 @@ var _next_operation_id: int = 1
 # --- 公共方法 ---
 
 ## 添加一个批次操作。
+## [br]
+## @api public
+## [br]
 ## @param operation: 提交回调。
+## [br]
 ## @param rollback: 可选回滚回调。
+## [br]
 ## @param metadata: 操作元数据。
+## [br]
 ## @return 操作标识；失败返回 -1。
+## [br]
+## @schema metadata: Dictionary copied into the normalized operation result.
 func add_operation(operation: Callable, rollback: Callable = Callable(), metadata: Dictionary = {}) -> int:
 	if not operation.is_valid():
 		return -1
@@ -69,8 +108,14 @@ func add_operation(operation: Callable, rollback: Callable = Callable(), metadat
 
 
 ## 提交待处理操作。
+## [br]
+## @api public
+## [br]
 ## @param max_operations: 最多提交数量；小于 0 表示处理全部。
+## [br]
 ## @return 提交摘要。
+## [br]
+## @schema return: Dictionary commit summary.
 func commit(max_operations: int = -1) -> Dictionary:
 	var committed_count := 0
 	var failed_count := 0
@@ -100,8 +145,14 @@ func commit(max_operations: int = -1) -> Dictionary:
 
 
 ## 回滚已提交操作。
+## [br]
+## @api public
+## [br]
 ## @param max_operations: 最多回滚数量；小于 0 表示回滚全部。
+## [br]
 ## @return 回滚摘要。
+## [br]
+## @schema return: Dictionary rollback summary.
 func rollback_committed(max_operations: int = -1) -> Dictionary:
 	var rolled_back_count := 0
 	var failed_count := 0
@@ -138,6 +189,8 @@ func rollback_committed(max_operations: int = -1) -> Dictionary:
 
 
 ## 清空批次。
+## [br]
+## @api public
 func clear() -> void:
 	_pending_operations.clear()
 	_committed_operations.clear()
@@ -145,19 +198,30 @@ func clear() -> void:
 
 
 ## 获取待处理操作数量。
+## [br]
+## @api public
+## [br]
 ## @return 待处理操作数量。
 func get_pending_count() -> int:
 	return _pending_operations.size()
 
 
 ## 获取已提交操作数量。
+## [br]
+## @api public
+## [br]
 ## @return 已提交操作数量。
 func get_committed_count() -> int:
 	return _committed_operations.size()
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary with pending_count, committed_count, next_operation_id, and options.
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"pending_count": _pending_operations.size(),

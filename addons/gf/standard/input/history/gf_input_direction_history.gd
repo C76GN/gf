@@ -2,6 +2,12 @@
 ##
 ## 维护动作 ID 到方向向量的按下顺序，适合网格移动、菜单导航或四方向角色控制。
 ## 它不读取 InputMap，也不规定动作命名。
+## [br]
+## @api public
+## [br]
+## @category domain_model
+## [br]
+## @since 3.17.0
 class_name GFInputDirectionHistory
 extends RefCounted
 
@@ -15,7 +21,11 @@ var _history: Array[StringName] = []
 # --- 公共方法 ---
 
 ## 标记一个方向动作被按下。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param direction: 方向。
 func press_action(action_id: StringName, direction: Vector2i) -> void:
 	if action_id == &"" or direction == Vector2i.ZERO:
@@ -26,6 +36,9 @@ func press_action(action_id: StringName, direction: Vector2i) -> void:
 
 
 ## 标记一个方向动作被释放。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
 func release_action(action_id: StringName) -> void:
 	_pressed_actions.erase(action_id)
@@ -33,20 +46,31 @@ func release_action(action_id: StringName) -> void:
 
 
 ## 按方向值生成内部动作标识并标记按下。
+## [br]
+## @api public
+## [br]
 ## @param direction: 方向。
 func press_direction(direction: Vector2i) -> void:
 	press_action(_direction_to_id(direction), direction)
 
 
 ## 按方向值生成内部动作标识并标记释放。
+## [br]
+## @api public
+## [br]
 ## @param direction: 方向。
 func release_direction(direction: Vector2i) -> void:
 	release_action(_direction_to_id(direction))
 
 
 ## 根据 pressed 状态更新动作。
+## [br]
+## @api public
+## [br]
 ## @param action_id: 动作标识。
+## [br]
 ## @param direction: 方向。
+## [br]
 ## @param pressed: 是否按下。
 func update_action(action_id: StringName, direction: Vector2i, pressed: bool) -> void:
 	if pressed:
@@ -56,6 +80,9 @@ func update_action(action_id: StringName, direction: Vector2i, pressed: bool) ->
 
 
 ## 获取当前优先方向。
+## [br]
+## @api public
+## [br]
 ## @return 最近按下且尚未释放的方向；没有时返回 Vector2i.ZERO。
 func get_current_direction() -> Vector2i:
 	if _history.is_empty():
@@ -66,6 +93,9 @@ func get_current_direction() -> Vector2i:
 
 
 ## 获取当前优先动作。
+## [br]
+## @api public
+## [br]
 ## @return 最近按下且尚未释放的动作；没有时返回空 StringName。
 func get_current_action() -> StringName:
 	if _history.is_empty():
@@ -74,12 +104,17 @@ func get_current_action() -> StringName:
 
 
 ## 获取按下历史副本。
+## [br]
+## @api public
+## [br]
 ## @return 动作 ID 列表。
 func get_history() -> Array[StringName]:
 	return _history.duplicate()
 
 
 ## 清空历史。
+## [br]
+## @api public
 func clear() -> void:
 	_pressed_actions.clear()
 	_history.clear()

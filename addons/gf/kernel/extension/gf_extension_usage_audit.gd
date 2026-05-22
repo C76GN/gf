@@ -1,17 +1,44 @@
 ## GFExtensionUsageAudit: 检查禁用扩展是否仍被项目文件直接引用。
+## [br]
+## @api public
+## [br]
+## @category editor_api
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/extension
 class_name GFExtensionUsageAudit
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 默认扫描根目录。
+## [br]
+## @api public
 const DEFAULT_SCAN_ROOTS: Array[String] = ["res://"]
+
+## 默认最大扫描深度。
+## [br]
+## @api public
 const DEFAULT_MAX_SCAN_DEPTH: int = 32
+
+## 默认最大扫描文件数。
+## [br]
+## @api public
 const DEFAULT_MAX_SCANNED_FILES: int = 10000
+
+## 默认忽略的根目录。
+## [br]
+## @api public
 const DEFAULT_IGNORED_ROOTS: Array[String] = [
 	"res://.godot",
 	"res://.git",
 ]
+
+## 作为文本扫描的资源扩展名。
+## [br]
+## @api public
 const TEXT_FILE_EXTENSIONS: Array[String] = [
 	"cfg",
 	"csv",
@@ -29,9 +56,18 @@ const TEXT_FILE_EXTENSIONS: Array[String] = [
 # --- 公共方法 ---
 
 ## 检查一组禁用扩展是否仍被项目文件直接引用。
+## [br]
+## @api public
+## [br]
 ## @param manifests: 要检查的禁用扩展 manifest 列表。
+## [br]
 ## @param options: 可选参数，支持 scan_roots、ignored_roots、max_references_per_extension、max_scan_depth、max_scanned_files。
+## [br]
+## @schema options: Dictionary controlling scan roots, ignored roots, reference limits, depth, and scanned file count.
+## [br]
 ## @return 引用审计报告。
+## [br]
+## @schema return: Dictionary containing ok, extension_count, reference_count, extensions, and references.
 static func audit_disabled_extensions(
 	manifests: Array[GFExtensionManifest],
 	options: Dictionary = {}
@@ -65,9 +101,18 @@ static func audit_disabled_extensions(
 
 
 ## 查找项目文件中对指定扩展根目录的直接路径引用。
+## [br]
+## @api public
+## [br]
 ## @param root_path: 扩展根目录。
+## [br]
 ## @param options: 可选参数，支持 scan_roots、ignored_roots、max_references_per_extension、max_scan_depth、max_scanned_files。
+## [br]
+## @schema options: Dictionary controlling scan roots, ignored roots, reference limits, depth, and scanned file count.
+## [br]
 ## @return 引用列表。
+## [br]
+## @schema return: Array of Dictionary file reference records.
 static func find_references_to_root(root_path: String, options: Dictionary = {}) -> Array[Dictionary]:
 	var normalized_root := root_path.trim_suffix("/")
 	if normalized_root.is_empty():

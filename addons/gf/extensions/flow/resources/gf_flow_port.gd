@@ -2,6 +2,12 @@
 ##
 ## 端口只描述节点对外暴露的输入/输出能力，供编辑器、校验器或项目层
 ## 构建可视化流程使用；运行时如何解释端口数据仍由具体节点决定。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFFlowPort
 extends Resource
 
@@ -9,6 +15,8 @@ extends Resource
 # --- 枚举 ---
 
 ## 端口方向。
+## [br]
+## @api public
 enum Direction {
 	## 输入端口。
 	INPUT,
@@ -17,6 +25,8 @@ enum Direction {
 }
 
 ## 端口值类型提示。
+## [br]
+## @api public
 enum ValueType {
 	## 任意值。
 	ANY,
@@ -42,40 +52,65 @@ enum ValueType {
 # --- 导出变量 ---
 
 ## 端口稳定标识。
+## [br]
+## @api public
 @export var port_id: StringName = &""
 
 ## 显示名称。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 端口方向。
+## [br]
+## @api public
 @export var direction: Direction = Direction.OUTPUT
 
 ## 值类型提示。
+## [br]
+## @api public
 @export var value_type: ValueType = ValueType.ANY
 
 ## 是否允许多条连接。
+## [br]
+## @api public
 @export var allow_multiple: bool = false
 
 ## 编辑器或可视化工具使用的端口颜色。透明色表示由工具自行决定。
+## [br]
+## @api public
 @export var editor_color: Color = Color.TRANSPARENT
 
 ## 更细粒度的值类型提示，例如项目自定义数据结构名。框架不解释该字段。
+## [br]
+## @api public
 @export var type_hint: StringName = &""
 
 ## Object / Resource 端口的类名提示。仅在项目或校验器显式使用时参与兼容性判断。
+## [br]
+## @api public
 @export var class_name_hint: StringName = &""
 
 ## 语义标签列表，供搜索、编辑器过滤或项目工具使用。
+## [br]
+## @api public
 @export var semantic_tags: PackedStringArray = PackedStringArray()
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: 项目自定义元数据 Dictionary；框架保留并复制该字段，但不解释其中键值。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取端口标识。
-## @return 端口标识。
+## [br]
+## @api public
+## [br]
+## @return: 端口标识。
 func get_port_id() -> StringName:
 	if port_id != &"":
 		return port_id
@@ -85,7 +120,10 @@ func get_port_id() -> StringName:
 
 
 ## 获取显示名称。
-## @return 显示名称。
+## [br]
+## @api public
+## [br]
+## @return: 显示名称。
 func get_display_name() -> String:
 	if not display_name.is_empty():
 		return display_name
@@ -97,28 +135,47 @@ func get_display_name() -> String:
 
 
 ## 检查是否包含语义标签。
+## [br]
+## @api public
+## [br]
 ## @param tag: 标签。
-## @return 包含返回 true。
+## [br]
+## @return: 包含返回 true。
 func has_semantic_tag(tag: StringName) -> bool:
 	return semantic_tags.has(String(tag))
 
 
 ## 判断当前端口是否可连接到目标端口。
+## [br]
+## @api public
+## [br]
 ## @param target_port: 目标端口。
-## @return 兼容返回 true。
+## [br]
+## @return: 兼容返回 true。
 func is_compatible_with(target_port: GFFlowPort) -> bool:
 	return bool(_get_compatibility_report(target_port).get("ok", false))
 
 
 ## 获取当前端口连接到目标端口的兼容性报告。
+## [br]
+## @api public
+## [br]
 ## @param target_port: 目标端口。
-## @return 兼容性报告。
+## [br]
+## @return: 兼容性报告。
+## [br]
+## @schema return: 包含 ok、reason、message、source_port_id、source_value_type、target_port_id 和 target_value_type 字段的 Dictionary。
 func get_compatibility_report(target_port: GFFlowPort) -> Dictionary:
 	return _get_compatibility_report(target_port)
 
 
 ## 描述端口。
-## @return 端口描述字典。
+## [br]
+## @api public
+## [br]
+## @return: 端口描述字典。
+## [br]
+## @schema return: 包含 port_id、display_name、direction、value_type、allow_multiple、editor_color、type_hint、class_name_hint、semantic_tags 和 metadata 字段的 Dictionary。
 func describe() -> Dictionary:
 	var effective_port_id := _get_effective_port_id(self)
 	return {

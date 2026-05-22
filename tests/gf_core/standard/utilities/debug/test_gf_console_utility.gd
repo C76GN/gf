@@ -1,10 +1,6 @@
 ## 测试 GFConsoleUtility 的命令注册、执行与日志信号解绑行为。
 extends GutTest
 
-
-const GFConsoleCommandDefinitionBase = preload("res://addons/gf/standard/utilities/debug/gf_console_command_definition.gd")
-
-
 var _console: GFConsoleUtility
 
 
@@ -33,25 +29,23 @@ func test_register_command() -> void:
 		called["count"] += 1
 
 	_console.register_command("test_cmd", cb, "测试指令。")
-	assert_true(_console._commands.has("test_cmd"), "register_command 后应记录到 _commands。")
+	assert_true(_console.has_command("test_cmd"), "register_command 后应记录命令。")
 
 
 func test_builtin_help_registered() -> void:
-	assert_true(_console._commands.has("help"), "init 后应注册内置 help 指令。")
+	assert_true(_console.has_command("help"), "init 后应注册内置 help 指令。")
 
 
 func test_builtin_clear_registered() -> void:
-	assert_true(_console._commands.has("clear"), "init 后应注册内置 clear 指令。")
+	assert_true(_console.has_command("clear"), "init 后应注册内置 clear 指令。")
 
 
 func test_builtin_scene_commands_registered_as_observe() -> void:
-	assert_true(_console._commands.has("scene.tree"), "init 后应注册只读场景树指令。")
-	assert_true(_console._commands.has("scene.node"), "init 后应注册只读节点查看指令。")
-	assert_eq(
-		_console._get_command_tier(_console._commands["scene.tree"]),
-		GFConsoleUtility.CommandTier.OBSERVE,
-		"scene.tree 应是观察级命令。"
-	)
+	var catalog := _console.get_command_catalog()
+
+	assert_true(_console.has_command("scene.tree"), "init 后应注册只读场景树指令。")
+	assert_true(_console.has_command("scene.node"), "init 后应注册只读节点查看指令。")
+	assert_eq(catalog["scene.tree"]["tier"], GFConsoleUtility.CommandTier.OBSERVE, "scene.tree 应是观察级命令。")
 
 
 func test_unregister_command() -> void:
@@ -59,10 +53,10 @@ func test_unregister_command() -> void:
 		pass
 
 	_console.register_command("temp_cmd", cb, "临时指令。")
-	assert_true(_console._commands.has("temp_cmd"), "注册后命令应存在。")
+	assert_true(_console.has_command("temp_cmd"), "注册后命令应存在。")
 
 	_console.unregister_command("temp_cmd")
-	assert_false(_console._commands.has("temp_cmd"), "注销后命令应被移除。")
+	assert_false(_console.has_command("temp_cmd"), "注销后命令应被移除。")
 
 
 func test_get_command_names_returns_sorted_names() -> void:
@@ -157,7 +151,7 @@ func test_danger_command_requires_tier_and_confirmation() -> void:
 
 
 func test_register_command_definition_registers_aliases() -> void:
-	var definition := GFConsoleCommandDefinitionBase.new()
+	var definition := GFConsoleCommandDefinition.new()
 	definition.command_name = "primary"
 	definition.aliases = PackedStringArray(["alias"])
 	var called := { "count": 0 }
@@ -188,25 +182,27 @@ func test_execute_whitespace_only_returns_false() -> void:
 
 func test_console_output_keeps_max_lines() -> void:
 	_console.max_output_lines = 2
-	_console._console_gui.append_text("line-1")
-	_console._console_gui.append_text("line-2")
-	_console._console_gui.append_text("line-3")
-	_console._console_gui.flush_output()
+	_console.append_output_line("line-1")
+	_console.append_output_line("line-2")
+	_console.append_output_line("line-3")
+	_console.flush_output()
+	var output_lines := _get_console_output_lines()
 
-	assert_eq(_console._console_gui._output_lines.size(), 2, "控制台输出应按上限裁剪。")
-	assert_eq(_console._console_gui._output_lines[0], "line-2", "控制台应丢弃最旧输出。")
-	assert_eq(_console._console_gui._output_lines[1], "line-3", "控制台应保留最新输出。")
+	assert_eq(output_lines.size(), 2, "控制台输出应按上限裁剪。")
+	assert_eq(output_lines[0], "line-2", "控制台应丢弃最旧输出。")
+	assert_eq(output_lines[1], "line-3", "控制台应保留最新输出。")
 
 
 func test_console_output_batches_until_flush() -> void:
-	_console._console_gui.append_text("batched")
+	_console.append_output_line("batched")
 
-	assert_eq(_console._console_gui._output_lines.size(), 0, "批量刷新前不应立即重绘输出。")
+	assert_eq(_get_console_output_lines().size(), 0, "批量刷新前不应立即重绘输出。")
 
-	_console._console_gui.flush_output()
+	_console.flush_output()
+	var output_lines := _get_console_output_lines()
 
-	assert_eq(_console._console_gui._output_lines.size(), 1, "flush 后应写入待输出行。")
-	assert_eq(_console._console_gui._output_lines[0], "batched", "flush 后应保留待输出内容。")
+	assert_eq(output_lines.size(), 1, "flush 后应写入待输出行。")
+	assert_eq(output_lines[0], "batched", "flush 后应保留待输出内容。")
 
 
 func test_scene_tree_command_outputs_readonly_summary() -> void:
@@ -220,8 +216,8 @@ func test_scene_tree_command_outputs_readonly_summary() -> void:
 	get_tree().current_scene = root
 
 	assert_true(_console.execute_command("scene.tree 1 10"), "scene.tree 指令应可执行。")
-	_console._console_gui.flush_output()
-	var output := "\n".join(_console._console_gui._output_lines)
+	_console.flush_output()
+	var output := "\n".join(_get_console_output_lines())
 
 	assert_true(output.contains("ConsoleSceneRoot"), "场景树输出应包含当前场景根节点。")
 	assert_true(output.contains("Child"), "场景树输出应包含子节点。")
@@ -241,8 +237,8 @@ func test_scene_node_command_outputs_node_summary() -> void:
 	get_tree().current_scene = root
 
 	assert_true(_console.execute_command("scene.node Target"), "scene.node 指令应可执行。")
-	_console._console_gui.flush_output()
-	var output := "\n".join(_console._console_gui._output_lines)
+	_console.flush_output()
+	var output := "\n".join(_get_console_output_lines())
 
 	assert_true(output.contains("Target"), "节点摘要应包含目标节点路径或名称。")
 	assert_true(output.contains("type:"), "节点摘要应包含类型字段。")
@@ -253,8 +249,8 @@ func test_scene_node_command_outputs_node_summary() -> void:
 
 func test_console_escapes_log_bbcode_and_handles_negative_level() -> void:
 	_console._on_log_emitted(-1, "[tag]", "[b]message[/b]")
-	_console._console_gui.flush_output()
-	var line := String(_console._console_gui._output_lines[0])
+	_console.flush_output()
+	var line := String(_get_console_output_lines()[0])
 
 	assert_true(line.contains("UNKNOWN"), "非法日志等级应显示为 UNKNOWN。")
 	assert_false(line.contains("[b]message[/b]"), "日志正文中的 BBCode 不应被原样注入 RichText。")
@@ -268,39 +264,43 @@ func test_console_history_keeps_max_entries() -> void:
 	_console._console_gui._on_input_submitted("two")
 	_console._console_gui._on_input_submitted("three")
 
-	assert_eq(_console._console_gui._command_history, PackedStringArray(["two", "three"]), "命令历史应按上限裁剪。")
+	assert_eq(_get_console_command_history(), PackedStringArray(["two", "three"]), "命令历史应按上限裁剪。")
 
 
 func test_console_background_alpha_updates_gui() -> void:
 	_console.background_alpha = 0.42
 
+	var gui_snapshot := _get_console_gui_snapshot()
 	assert_almost_eq(_console.background_alpha, 0.42, 0.001, "控制台透明度配置应保存在工具上。")
-	assert_almost_eq(_console._console_gui.background_alpha, 0.42, 0.001, "控制台透明度配置应同步到 GUI。")
-	assert_almost_eq(_console._console_gui._panel_style.bg_color.a, 0.42, 0.001, "GUI 背景样式应立即应用透明度。")
+	assert_almost_eq(float(gui_snapshot["background_alpha"]), 0.42, 0.001, "控制台透明度配置应同步到 GUI。")
+	assert_almost_eq(float(gui_snapshot["panel_background_alpha"]), 0.42, 0.001, "GUI 背景样式应立即应用透明度。")
 
 
 func test_console_background_alpha_is_clamped() -> void:
 	_console.background_alpha = 2.0
 
+	var gui_snapshot := _get_console_gui_snapshot()
 	assert_almost_eq(_console.background_alpha, 1.0, 0.001, "透明度上限应被钳制为 1。")
-	assert_almost_eq(_console._console_gui._panel_style.bg_color.a, 1.0, 0.001, "GUI 样式透明度也应应用钳制结果。")
+	assert_almost_eq(float(gui_snapshot["panel_background_alpha"]), 1.0, 0.001, "GUI 样式透明度也应应用钳制结果。")
 
 
 func test_console_windowed_mode_uses_panel_layout_and_resize_handle() -> void:
 	_console.windowed = true
+	var gui_snapshot := _get_console_gui_snapshot()
 
-	assert_true(_console._console_gui.windowed, "窗口模式配置应同步到 GUI。")
-	assert_true(_console._console_gui._resize_handle.visible, "窗口模式应显示缩放手柄。")
-	assert_gt(_console._console_gui._panel.size.x, 0.0, "窗口模式应给面板设置有效宽度。")
-	assert_gt(_console._console_gui._panel.size.y, 0.0, "窗口模式应给面板设置有效高度。")
+	assert_true(bool(gui_snapshot["windowed"]), "窗口模式配置应同步到 GUI。")
+	assert_true(bool(gui_snapshot["resize_handle_visible"]), "窗口模式应显示缩放手柄。")
+	var panel_size := gui_snapshot["panel_size"] as Vector2
+	assert_gt(panel_size.x, 0.0, "窗口模式应给面板设置有效宽度。")
+	assert_gt(panel_size.y, 0.0, "窗口模式应给面板设置有效高度。")
 
 
 func test_console_keep_topmost_updates_layer() -> void:
 	_console.keep_topmost = false
-	assert_eq(_console._console_gui.layer, 1, "关闭 keep_topmost 后应使用普通层级。")
+	assert_eq(_get_console_gui_snapshot()["layer"], 1, "关闭 keep_topmost 后应使用普通层级。")
 
 	_console.keep_topmost = true
-	assert_eq(_console._console_gui.layer, 150, "开启 keep_topmost 后应使用高层级。")
+	assert_eq(_get_console_gui_snapshot()["layer"], 150, "开启 keep_topmost 后应使用高层级。")
 
 
 func test_console_is_debug_only_by_default() -> void:
@@ -335,3 +335,18 @@ func test_dispose_disconnects_log_signal() -> void:
 
 	arch.unregister_utility(console.get_script() as Script)
 	assert_false(log_util.log_emitted.is_connected(log_callable), "dispose 后应断开日志信号，避免悬挂监听。")
+
+
+func _get_console_gui_snapshot() -> Dictionary:
+	var snapshot := _console.get_debug_snapshot()
+	return snapshot.get("gui", {}) as Dictionary
+
+
+func _get_console_output_lines() -> PackedStringArray:
+	var gui_snapshot := _get_console_gui_snapshot()
+	return gui_snapshot.get("output_lines", PackedStringArray()) as PackedStringArray
+
+
+func _get_console_command_history() -> PackedStringArray:
+	var gui_snapshot := _get_console_gui_snapshot()
+	return gui_snapshot.get("command_history", PackedStringArray()) as PackedStringArray

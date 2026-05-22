@@ -1,10 +1,15 @@
 ## GFBinding: 描述一个工厂绑定的来源、生命周期与依赖注入策略。
+## [br]
+## @api framework_internal
 class_name GFBinding
 extends RefCounted
 
 
 # --- 常量 ---
 
+## 绑定生命周期枚举脚本缓存。
+## [br]
+## @api framework_internal
 const GFBindingLifetimesBase = preload("res://addons/gf/kernel/core/gf_binding_lifetimes.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
@@ -12,12 +17,28 @@ const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_s
 # --- 公共变量 ---
 
 ## 绑定键，通常为脚本类型。
+## [br]
+## @api framework_internal
+## [br]
+## @schema key {
+##   "type": "Variant",
+##   "description": "通常为 Script 类型，也可由内部绑定实现扩展。"
+## }
 var key: Variant
 
 ## 绑定来源，可以是 Callable 工厂或 Object 实例。
+## [br]
+## @api framework_internal
+## [br]
+## @schema provider {
+##   "type": "Variant",
+##   "description": "Callable 工厂或 Object 实例。"
+## }
 var provider: Variant
 
 ## 生命周期策略。
+## [br]
+## @api framework_internal
 var lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT
 
 
@@ -51,7 +72,11 @@ func _init(
 # --- 公共方法 ---
 
 ## 按当前生命周期解析实例。
+## [br]
+## @api framework_internal
+## [br]
 ## @param requesting_architecture: 发起解析的架构。Transient 会优先注入它，Singleton 始终注入拥有该绑定的架构。
+## [br]
 ## @return 解析出的 Object 实例；失败时返回 null。
 func get_instance(requesting_architecture: GFArchitecture = null) -> Object:
 	match lifetime:
@@ -80,6 +105,8 @@ func get_instance(requesting_architecture: GFArchitecture = null) -> Object:
 
 
 ## 清理 Singleton 生命周期缓存的实例引用，并释放框架注入作用域。
+## [br]
+## @api framework_internal
 func clear_cached_instance() -> void:
 	var instance := _cached_instance
 	_cached_instance = null
@@ -90,6 +117,8 @@ func clear_cached_instance() -> void:
 
 
 ## 释放 Singleton 生命周期缓存实例的框架归属。
+## [br]
+## @api framework_internal
 func dispose_cached_instance() -> void:
 	var instance := _cached_instance
 	_cached_instance = null

@@ -2,6 +2,12 @@
 ##
 ## 用于描述配置、资源、节点树、存档载荷或编辑器工具中的单个问题。它只记录
 ## 严重级别、问题类别、定位信息和附加字段，不决定项目如何展示或修复问题。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFValidationIssue
 extends RefCounted
 
@@ -9,6 +15,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 校验问题严重级别。
+## [br]
+## @api public
 enum Severity {
 	## 信息提示，不影响健康状态。
 	INFO,
@@ -27,48 +35,84 @@ const _GF_SOURCE_SPAN_SCRIPT: Script = preload("res://addons/gf/standard/foundat
 # --- 公共变量 ---
 
 ## 严重级别。
+## [br]
+## @api public
 var severity: Severity = Severity.ERROR
 
 ## 通用问题类别。推荐使用稳定的 snake_case 标识。
+## [br]
+## @api public
 var kind: StringName = &""
 
 ## 可选定位键，例如行号、资源 key、节点 key 或调用方自定义标识。
+## [br]
+## @api public
+## [br]
+## @schema key: Variant caller-defined location key.
 var key: Variant = null
 
 ## 可选路径，例如资源路径、节点路径或数据路径。
+## [br]
+## @api public
 var path: String = ""
 
 ## 可选源文件或资源路径。`source` 字典字段会作为兼容别名读取。
+## [br]
+## @api public
 var source_path: String = ""
 
 ## 可选源码起始行号，1-based；0 表示未知。
+## [br]
+## @api public
 var line: int = 0
 
 ## 可选源码起始列号，1-based；0 表示未知。
+## [br]
+## @api public
 var column: int = 0
 
 ## 可选源码范围长度；0 表示未知。
+## [br]
+## @api public
 var length: int = 0
 
 ## 可选源码结束行号，1-based；0 表示未知。
+## [br]
+## @api public
 var end_line: int = 0
 
 ## 可选源码结束列号，1-based；0 表示未知。
+## [br]
+## @api public
 var end_column: int = 0
 
 ## 可选源码预览。
+## [br]
+## @api public
 var preview: String = ""
 
 ## 可选主题，用于标记问题所属对象或报告域。
+## [br]
+## @api public
 var subject: String = ""
 
 ## 面向开发者或工具 UI 的简短说明。
+## [br]
+## @api public
 var message: String = ""
 
 ## 可选元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary caller metadata.
 var metadata: Dictionary = {}
 
 ## 额外上下文字段。用于无损保留已有报告中的自定义字段。
+## [br]
+## @api public
+## [br]
+## @schema extra_fields: Dictionary caller-defined fields preserved during conversion.
 var extra_fields: Dictionary = {}
 
 
@@ -79,6 +123,27 @@ var _source_span_metadata: Dictionary = {}
 
 # --- Godot 生命周期方法 ---
 
+## 创建校验问题条目。
+## [br]
+## @api public
+## [br]
+## @param p_severity: 严重级别，可传入 Severity、int 或字符串。
+## [br]
+## @param p_kind: 问题类别。
+## [br]
+## @param p_message: 问题说明。
+## [br]
+## @param p_key: 可选定位键。
+## [br]
+## @param p_path: 可选路径。
+## [br]
+## @param p_metadata: 可选元数据。
+## [br]
+## @schema p_severity: Variant Severity, int, or string.
+## [br]
+## @schema p_key: Variant caller-defined location key.
+## [br]
+## @schema p_metadata: Dictionary caller metadata.
 func _init(
 	p_severity: Variant = Severity.ERROR,
 	p_kind: StringName = &"",
@@ -98,13 +163,28 @@ func _init(
 # --- 公共方法 ---
 
 ## 配置问题条目并返回自身，便于链式构造。
+## [br]
+## @api public
+## [br]
 ## @param p_severity: 严重级别，可传入 Severity、int 或字符串。
+## [br]
 ## @param p_kind: 问题类别。
+## [br]
 ## @param p_message: 问题说明。
+## [br]
 ## @param p_key: 可选定位键。
+## [br]
 ## @param p_path: 可选路径。
+## [br]
 ## @param p_metadata: 可选元数据。
+## [br]
 ## @return 当前问题条目。
+## [br]
+## @schema p_severity: Variant Severity, int, or string.
+## [br]
+## @schema p_key: Variant caller-defined location key.
+## [br]
+## @schema p_metadata: Dictionary caller metadata.
 func configure(
 	p_severity: Variant,
 	p_kind: StringName,
@@ -123,7 +203,12 @@ func configure(
 
 
 ## 从字典应用字段。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
+## @schema data: Dictionary validation issue fields.
 func apply_dict(data: Dictionary) -> void:
 	if data.get("source_span") is Dictionary:
 		_apply_source_span(data.get("source_span") as Dictionary, true)
@@ -145,8 +230,14 @@ func apply_dict(data: Dictionary) -> void:
 
 
 ## 转换为字典。
+## [br]
+## @api public
+## [br]
 ## @param include_empty_fields: 为 true 时包含空的可选字段。
+## [br]
 ## @return 字典副本。
+## [br]
+## @schema return: Dictionary validation issue fields.
 func to_dict(include_empty_fields: bool = false) -> Dictionary:
 	var result := {
 		"severity": severity_to_string(severity),
@@ -174,6 +265,9 @@ func to_dict(include_empty_fields: bool = false) -> Dictionary:
 
 
 ## 创建当前问题条目的深拷贝。
+## [br]
+## @api public
+## [br]
 ## @return 新问题条目。
 func duplicate_issue() -> RefCounted:
 	var issue := get_script().new() as RefCounted
@@ -182,8 +276,14 @@ func duplicate_issue() -> RefCounted:
 
 
 ## 设置源码定位范围。
+## [br]
+## @api public
+## [br]
 ## @param source_span: GFSourceSpan 或兼容字典。
+## [br]
 ## @return 当前问题条目。
+## [br]
+## @schema source_span: Variant GFSourceSpan-like object or Dictionary.
 func set_source_span(source_span: Variant) -> RefCounted:
 	if source_span is _GF_SOURCE_SPAN_SCRIPT:
 		_apply_source_span((source_span as RefCounted).call("to_dict", true) as Dictionary, true)
@@ -193,6 +293,9 @@ func set_source_span(source_span: Variant) -> RefCounted:
 
 
 ## 获取源码定位范围副本。
+## [br]
+## @api public
+## [br]
 ## @return GFSourceSpan。
 func get_source_span() -> RefCounted:
 	var span := _GF_SOURCE_SPAN_SCRIPT.new() as RefCounted
@@ -201,12 +304,18 @@ func get_source_span() -> RefCounted:
 
 
 ## 检查问题是否有源码行号。
+## [br]
+## @api public
+## [br]
 ## @return 有行号时返回 true。
 func has_source_position() -> bool:
 	return line > 0
 
 
 ## 获取人类可读定位文本。
+## [br]
+## @api public
+## [br]
 ## @return 例如 `res://table.csv:4:2`。
 func get_location_text() -> String:
 	var span := get_source_span()
@@ -214,6 +323,9 @@ func get_location_text() -> String:
 
 
 ## 获取统计用问题类别。
+## [br]
+## @api public
+## [br]
 ## @return 优先返回 kind，最后返回 unknown。
 func get_kind_key() -> String:
 	if kind != &"":
@@ -222,26 +334,41 @@ func get_kind_key() -> String:
 
 
 ## 是否为错误。
+## [br]
+## @api public
+## [br]
 ## @return 严重级别为 ERROR 时返回 true。
 func is_error() -> bool:
 	return severity == Severity.ERROR
 
 
 ## 是否为警告。
+## [br]
+## @api public
+## [br]
 ## @return 严重级别为 WARNING 时返回 true。
 func is_warning() -> bool:
 	return severity == Severity.WARNING
 
 
 ## 是否为信息。
+## [br]
+## @api public
+## [br]
 ## @return 严重级别为 INFO 时返回 true。
 func is_info() -> bool:
 	return severity == Severity.INFO
 
 
 ## 将任意输入归一为 Severity。
+## [br]
+## @api public
+## [br]
 ## @param value: Severity、int 或字符串。
+## [br]
 ## @return 归一后的严重级别。
+## [br]
+## @schema value: Variant Severity, int, string, or null.
 static func normalize_severity(value: Variant) -> Severity:
 	if value == null:
 		return Severity.ERROR
@@ -261,8 +388,14 @@ static func normalize_severity(value: Variant) -> Severity:
 
 
 ## 将严重级别转换为稳定字符串。
+## [br]
+## @api public
+## [br]
 ## @param value: Severity、int 或字符串。
+## [br]
 ## @return info、warning 或 error。
+## [br]
+## @schema value: Variant Severity, int, string, or null.
 static func severity_to_string(value: Variant) -> String:
 	match normalize_severity(value):
 		Severity.INFO:
@@ -274,8 +407,14 @@ static func severity_to_string(value: Variant) -> String:
 
 
 ## 从字典创建问题条目。
+## [br]
+## @api public
+## [br]
 ## @param data: 输入字典。
+## [br]
 ## @return 新问题条目。
+## [br]
+## @schema data: Dictionary validation issue fields.
 static func from_dict(data: Dictionary) -> RefCounted:
 	var issue := (load("res://addons/gf/standard/foundation/validation/gf_validation_issue.gd") as Script).new() as RefCounted
 	issue.call("apply_dict", data)

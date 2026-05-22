@@ -2,33 +2,54 @@
 ##
 ## 契约集合用于集中描述一组 GFNetworkMessage 的 message_type、字段和默认通道，
 ## 方便项目生成强类型辅助代码或在运行前校验消息结构。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNetworkContract
 extends Resource
 
 
 # --- 常量 ---
 
-const GFValidationReportDictionaryBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
+const _GF_VALIDATION_REPORT_DICTIONARY := preload("res://addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd")
 
 
 # --- 导出变量 ---
 
 ## 契约稳定标识。
+## [br]
+## @api public
 @export var contract_id: StringName = &""
 
 ## 编辑器展示名称。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 消息契约列表。
+## [br]
+## @api public
+## [br]
+## @schema messages: Array[GFNetworkContractMessage]，按声明顺序保存消息契约。
 @export var messages: Array[GFNetworkContractMessage] = []
 
 ## 项目自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，保存项目自定义契约元数据。
 @export var metadata: Dictionary = {}
 
 
 # --- 公共方法 ---
 
 ## 获取展示名称。
+## [br]
+## @api public
+## [br]
 ## @return 展示名称。
 func get_display_name() -> String:
 	if not display_name.is_empty():
@@ -39,6 +60,9 @@ func get_display_name() -> String:
 
 
 ## 设置或替换一个消息契约。
+## [br]
+## @api public
+## [br]
 ## @param message_contract: 消息契约。
 func set_message_contract(message_contract: GFNetworkContractMessage) -> void:
 	if message_contract == null or message_contract.message_type == &"":
@@ -52,7 +76,11 @@ func set_message_contract(message_contract: GFNetworkContractMessage) -> void:
 
 
 ## 获取消息契约。
+## [br]
+## @api public
+## [br]
 ## @param message_type: 消息类型。
+## [br]
 ## @return 消息契约；不存在时返回 null。
 func get_message_contract(message_type: StringName) -> GFNetworkContractMessage:
 	for message_contract: GFNetworkContractMessage in messages:
@@ -62,17 +90,31 @@ func get_message_contract(message_type: StringName) -> GFNetworkContractMessage:
 
 
 ## 检查消息契约是否存在。
+## [br]
+## @api public
+## [br]
 ## @param message_type: 消息类型。
+## [br]
 ## @return 存在返回 true。
 func has_message_contract(message_type: StringName) -> bool:
 	return get_message_contract(message_type) != null
 
 
 ## 按消息契约创建 GFNetworkMessage。
+## [br]
+## @api public
+## [br]
 ## @param message_type: 消息类型。
+## [br]
 ## @param values: 字段值字典。
+## [br]
 ## @param options: 可选元信息。
+## [br]
 ## @return 网络消息；契约不存在时返回 null。
+## [br]
+## @schema values: Dictionary[StringName|String, Variant]，字段名到字段值的映射。
+## [br]
+## @schema options: Dictionary，支持 include_defaults、sequence、tick、sender_id、channel_id。
 func make_message(message_type: StringName, values: Dictionary = {}, options: Dictionary = {}) -> GFNetworkMessage:
 	var message_contract := get_message_contract(message_type)
 	if message_contract == null:
@@ -81,8 +123,14 @@ func make_message(message_type: StringName, values: Dictionary = {}, options: Di
 
 
 ## 校验网络消息是否匹配本契约集合。
+## [br]
+## @api public
+## [br]
 ## @param message: 网络消息。
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。
 func validate_message(message: GFNetworkMessage) -> Dictionary:
 	if message == null:
 		return _finalize_report([_make_issue("error", "missing_message", "Network message is null.")])
@@ -94,7 +142,12 @@ func validate_message(message: GFNetworkMessage) -> Dictionary:
 
 
 ## 校验契约定义是否完整。
+## [br]
+## @api public
+## [br]
 ## @return 校验报告字典。
+## [br]
+## @schema return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。
 func validate_contract() -> Dictionary:
 	var issues: Array[Dictionary] = []
 	if contract_id == &"":
@@ -123,7 +176,12 @@ func validate_contract() -> Dictionary:
 
 
 ## 描述契约集合。
+## [br]
+## @api public
+## [br]
 ## @return 描述字典。
+## [br]
+## @schema return: Dictionary，包含 contract_id、display_name、message_count、messages、metadata。
 func describe() -> Dictionary:
 	var message_descriptions: Array[Dictionary] = []
 	for message_contract: GFNetworkContractMessage in messages:
@@ -161,7 +219,7 @@ func _finalize_report(issues: Array[Dictionary]) -> Dictionary:
 		"contract_id": contract_id,
 		"issues": issues,
 	}
-	return GFValidationReportDictionaryBase.finalize_report(report, "Network contract", {
+	return _GF_VALIDATION_REPORT_DICTIONARY.finalize_report(report, "Network contract", {
 		"include_issue_count": true,
 		"next_actions": _get_validation_next_actions(),
 	})

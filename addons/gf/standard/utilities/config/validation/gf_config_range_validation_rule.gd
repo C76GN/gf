@@ -1,6 +1,12 @@
 ## GFConfigRangeValidationRule: 数值范围校验规则。
 ##
 ## 用于声明字段数值上下限。上下限可以单独启用，比较方式可选择是否包含边界。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFConfigRangeValidationRule
 extends GFConfigValidationRule
 
@@ -8,28 +14,45 @@ extends GFConfigValidationRule
 # --- 导出变量 ---
 
 ## 是否检查最小值。
+## [br]
+## @api public
 @export var has_minimum: bool = false
 
 ## 最小值。
+## [br]
+## @api public
 @export var minimum: float = 0.0
 
 ## 最小值是否包含边界。
+## [br]
+## @api public
 @export var inclusive_minimum: bool = true
 
 ## 是否检查最大值。
+## [br]
+## @api public
 @export var has_maximum: bool = false
 
 ## 最大值。
+## [br]
+## @api public
 @export var maximum: float = 0.0
 
 ## 最大值是否包含边界。
+## [br]
+## @api public
 @export var inclusive_maximum: bool = true
 
 
 # --- 公共方法 ---
 
 ## 导出规则摘要。
+## [br]
+## @api public
+## [br]
 ## @return 规则摘要字典。
+## [br]
+## @schema return: Dictionary，包含基础规则字段和数值范围设置。
 func describe() -> Dictionary:
 	var result := super.describe()
 	result["has_minimum"] = has_minimum
@@ -41,12 +64,32 @@ func describe() -> Dictionary:
 	return result
 
 
-# --- 可重写钩子 ---
+# --- 可重写钩子 / 虚方法 ---
 
+## 返回数值范围规则的默认稳定标识。
+## [br]
+## @api protected
+## [br]
+## @return 默认规则标识。
 func _get_default_rule_id() -> StringName:
 	return &"range"
 
 
+## 校验单个数值是否落在允许范围内。
+## [br]
+## @api protected
+## [br]
+## @param value: 待校验值。
+## [br]
+## @param context: 校验上下文。
+## [br]
+## @param report: 当前校验报告。
+## [br]
+## @schema value: Variant，期望为 int 或 float。
+## [br]
+## @schema context: Dictionary，可包含 table_name、row_key、field、source、line 和 column 字段。
+## [br]
+## @schema report: GFConfigValidationReport 兼容 Dictionary，会被当前规则修改。
 func _validate_value(value: Variant, context: Dictionary, report: Dictionary) -> void:
 	if typeof(value) != TYPE_INT and typeof(value) != TYPE_FLOAT:
 		_add_issue(report, context, "range_invalid_type", "范围校验只支持 int 或 float。")

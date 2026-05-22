@@ -1,26 +1,26 @@
 @tool
 
-## GF Capability Inspector: 在 Godot Inspector 中管理节点能力。
+# GF Capability Inspector: 在 Godot Inspector 中管理节点能力。
 extends EditorInspectorPlugin
 
 
 # --- 常量 ---
 
-const META_CAPABILITY_CONTAINER: StringName = &"_gf_capability_container"
-const META_CAPABILITY_ACTIVE: StringName = &"_gf_capability_active"
-const META_ORIGINAL_PROCESS_MODE: StringName = &"_gf_capability_original_process_mode"
-const CAPABILITY_EXTENSION_ID: String = "gf.capability"
-const GF_CAPABILITY_CONTAINER_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_capability_container.gd"
-const GF_NODE_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_node_capability.gd"
-const GF_NODE_2D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_node_2d_capability.gd"
-const GF_NODE_3D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_node_3d_capability.gd"
-const GF_CONTROL_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_control_capability.gd"
-const GF_CAPABILITY_RECIPE_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/recipes/gf_capability_recipe.gd"
-const DEFAULT_MAX_RECIPE_SCAN_DEPTH: int = 32
-const DEFAULT_MAX_RECIPE_CANDIDATES: int = 10000
-const GF_EXTENSION_SETTINGS_BASE := preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
-const GF_EDITOR_TYPE_INDEX_BASE := preload("res://addons/gf/kernel/editor/gf_editor_type_index.gd")
-const _GF_VALIDATION_REPORT_SCRIPT = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+const _META_CAPABILITY_CONTAINER: StringName = &"_gf_capability_container"
+const _META_CAPABILITY_ACTIVE: StringName = &"_gf_capability_active"
+const _META_ORIGINAL_PROCESS_MODE: StringName = &"_gf_capability_original_process_mode"
+const _CAPABILITY_EXTENSION_ID: String = "gf.capability"
+const _GF_CAPABILITY_CONTAINER_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_capability_container.gd"
+const _GF_NODE_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_node_capability.gd"
+const _GF_NODE_2D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_node_2d_capability.gd"
+const _GF_NODE_3D_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_node_3d_capability.gd"
+const _GF_CONTROL_CAPABILITY_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/nodes/gf_control_capability.gd"
+const _GF_CAPABILITY_RECIPE_SCRIPT_PATH: String = "res://addons/gf/extensions/capability/recipes/gf_capability_recipe.gd"
+const _DEFAULT_MAX_RECIPE_SCAN_DEPTH: int = 32
+const _DEFAULT_MAX_RECIPE_CANDIDATES: int = 10000
+const _GF_EXTENSION_SETTINGS_SCRIPT: Script = preload("res://addons/gf/kernel/extension/gf_extension_settings.gd")
+const _GF_EDITOR_TYPE_INDEX_SCRIPT: Script = preload("res://addons/gf/kernel/editor/gf_editor_type_index.gd")
+const _GF_VALIDATION_REPORT_SCRIPT: Script = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
 
@@ -33,7 +33,7 @@ func _can_handle(object: Object) -> bool:
 	var node := object as Node
 	if node == null:
 		return false
-	if bool(node.get_meta(META_CAPABILITY_CONTAINER, false)):
+	if bool(node.get_meta(_META_CAPABILITY_CONTAINER, false)):
 		return false
 
 	var container_script := _get_capability_container_script()
@@ -96,6 +96,57 @@ func _parse_begin(object: Object) -> void:
 	add_custom_control(root)
 
 
+# --- 框架内部方法 ---
+
+## 读取能力节点导出的 required_capabilities，不调用能力脚本方法。
+## [br]
+## @api framework_internal
+## [br]
+## @param capability: 要检查的能力节点。
+## [br]
+## @param report: 可选校验报告对象，用于追加警告。
+## [br]
+## @param script_key: 报告中使用的能力脚本标识。
+## [br]
+## @return 能力依赖的脚本类型列表。
+## [br]
+## @schema report: Variant，可为 null 或提供 add_warning() 方法的 GFValidationReport 实例。
+## [br]
+## @schema return: Array[Script]，元素为能力脚本类型。
+static func collect_required_capability_types(
+	capability: Node,
+	report: Variant,
+	script_key: String
+) -> Array[Script]:
+	if capability == null or not "required_capabilities" in capability:
+		return [] as Array[Script]
+
+	var raw_value: Variant = capability.get("required_capabilities")
+	if raw_value == null:
+		return [] as Array[Script]
+	if not raw_value is Array:
+		if report != null:
+			report.add_warning(
+				&"invalid_required_capabilities",
+				"required_capabilities must be an Array of Script values.",
+				script_key
+			)
+		return [] as Array[Script]
+
+	var result: Array[Script] = []
+	for item: Variant in raw_value:
+		if item is Script and not result.has(item):
+			result.append(item as Script)
+		elif item != null:
+			if report != null:
+				report.add_warning(
+					&"invalid_required_capability_type",
+					"required_capabilities contains a non-Script value.",
+					script_key
+				)
+	return result
+
+
 # --- 私有/辅助方法 ---
 
 func _populate_add_menu(popup: PopupMenu, target: Node) -> void:
@@ -142,7 +193,7 @@ func _collect_node_capability_candidates() -> Array[Dictionary]:
 		return candidates
 
 	var used_paths: Dictionary = {}
-	var type_index: Variant = GF_EDITOR_TYPE_INDEX_BASE.new()
+	var type_index: Variant = _GF_EDITOR_TYPE_INDEX_SCRIPT.new()
 	var base_scripts := _get_node_capability_base_scripts()
 	var excluded_scripts := base_scripts.duplicate()
 
@@ -240,20 +291,20 @@ func _collect_recipe_candidates_recursive(
 
 
 func _can_scan_recipe_deeper(path: String, current_depth: int, scan_state: Dictionary) -> bool:
-	if current_depth < DEFAULT_MAX_RECIPE_SCAN_DEPTH:
+	if current_depth < _DEFAULT_MAX_RECIPE_SCAN_DEPTH:
 		return true
 	if bool(scan_state.get("depth_warning_emitted", false)):
 		return false
 	scan_state["depth_warning_emitted"] = true
 	push_warning("[GFCapabilityInspector] Recipe 扫描已达到最大目录深度 %d，已跳过更深目录：%s。" % [
-		DEFAULT_MAX_RECIPE_SCAN_DEPTH,
+		_DEFAULT_MAX_RECIPE_SCAN_DEPTH,
 		path,
 	])
 	return false
 
 
 func _can_collect_more_recipe_candidates(candidates: Array[Dictionary], _scan_state: Dictionary) -> bool:
-	return candidates.size() < DEFAULT_MAX_RECIPE_CANDIDATES
+	return candidates.size() < _DEFAULT_MAX_RECIPE_CANDIDATES
 
 
 func _make_recipe_scan_state() -> Dictionary:
@@ -267,16 +318,16 @@ func _warn_recipe_candidate_limit(scan_state: Dictionary) -> void:
 	if bool(scan_state.get("count_warning_emitted", false)):
 		return
 	scan_state["count_warning_emitted"] = true
-	push_warning("[GFCapabilityInspector] Recipe 候选已达到最大数量 %d，后续资源已跳过。" % DEFAULT_MAX_RECIPE_CANDIDATES)
+	push_warning("[GFCapabilityInspector] Recipe 候选已达到最大数量 %d，后续资源已跳过。" % _DEFAULT_MAX_RECIPE_CANDIDATES)
 
 
 func _get_node_capability_base_scripts() -> Array[Script]:
 	var result: Array[Script] = []
 	for path: String in [
-		GF_NODE_CAPABILITY_SCRIPT_PATH,
-		GF_NODE_2D_CAPABILITY_SCRIPT_PATH,
-		GF_NODE_3D_CAPABILITY_SCRIPT_PATH,
-		GF_CONTROL_CAPABILITY_SCRIPT_PATH,
+		_GF_NODE_CAPABILITY_SCRIPT_PATH,
+		_GF_NODE_2D_CAPABILITY_SCRIPT_PATH,
+		_GF_NODE_3D_CAPABILITY_SCRIPT_PATH,
+		_GF_CONTROL_CAPABILITY_SCRIPT_PATH,
 	]:
 		var script := _load_script_or_null(path)
 		if script != null:
@@ -285,11 +336,11 @@ func _get_node_capability_base_scripts() -> Array[Script]:
 
 
 func _get_capability_container_script() -> Script:
-	return _load_script_or_null(GF_CAPABILITY_CONTAINER_SCRIPT_PATH)
+	return _load_script_or_null(_GF_CAPABILITY_CONTAINER_SCRIPT_PATH)
 
 
 func _get_capability_recipe_script() -> Script:
-	return _load_script_or_null(GF_CAPABILITY_RECIPE_SCRIPT_PATH)
+	return _load_script_or_null(_GF_CAPABILITY_RECIPE_SCRIPT_PATH)
 
 
 func _load_script_or_null(path: String) -> Script:
@@ -299,7 +350,7 @@ func _load_script_or_null(path: String) -> Script:
 
 
 func _is_capability_extension_enabled() -> bool:
-	return GF_EXTENSION_SETTINGS_BASE.is_extension_enabled(CAPABILITY_EXTENSION_ID)
+	return _GF_EXTENSION_SETTINGS_SCRIPT.is_extension_enabled(_CAPABILITY_EXTENSION_ID)
 
 
 func _resource_extends_script(resource: Resource, base_script: Script) -> bool:
@@ -484,7 +535,7 @@ func _get_or_create_capability_container(target: Node, capability: Node) -> Node
 			return existing
 
 	var container := _create_capability_container_node(target, capability)
-	container.set_meta(META_CAPABILITY_CONTAINER, true)
+	container.set_meta(_META_CAPABILITY_CONTAINER, true)
 	_try_attach_capability_container_script(container)
 	target.add_child(container, true)
 	_set_owner_recursive(container, EditorInterface.get_edited_scene_root())
@@ -543,7 +594,7 @@ func _container_matches_capability(container: Node, capability: Node) -> bool:
 
 
 func _is_capability_container(node: Node) -> bool:
-	if bool(node.get_meta(META_CAPABILITY_CONTAINER, false)):
+	if bool(node.get_meta(_META_CAPABILITY_CONTAINER, false)):
 		return true
 
 	var container_script := _get_capability_container_script()
@@ -603,7 +654,7 @@ func _add_capability_node(target: Node, candidate: Dictionary) -> void:
 
 
 func _apply_recipe_to_target(target: Node, recipe: Resource) -> Dictionary:
-	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Capability recipe editor apply")
+	var report: Variant = _GF_VALIDATION_REPORT_SCRIPT.new("Capability recipe editor apply")
 	var added: Array[Dictionary] = []
 	var skipped: Array[Dictionary] = []
 	if not is_instance_valid(target):
@@ -741,7 +792,7 @@ func _get_recipe_entry_node_name(entry: Resource, node: Node, index: int) -> Str
 
 
 func _build_editor_capability_report(target: Node) -> Dictionary:
-	var report := _GF_VALIDATION_REPORT_SCRIPT.new("Capability inspector")
+	var report: Variant = _GF_VALIDATION_REPORT_SCRIPT.new("Capability inspector")
 	if not is_instance_valid(target):
 		report.add_error(&"invalid_target", "Target node is invalid.")
 		return report.to_dict({}, { "include_subject": false })
@@ -759,7 +810,7 @@ func _build_editor_capability_report(target: Node) -> Dictionary:
 			report.add_warning(&"duplicate_capability", "Target contains duplicate capability scripts.", script_key)
 		seen_scripts[script] = true
 
-		var required_types := _get_required_capability_types(capability, report, script_key)
+		var required_types := collect_required_capability_types(capability, report, script_key)
 		var missing_dependencies: Array[Dictionary] = []
 		for required_type: Script in required_types:
 			if _capability_list_has_script(capabilities, required_type):
@@ -800,40 +851,6 @@ func _build_editor_capability_report(target: Node) -> Dictionary:
 			"fallback_action": "Review the first reported capability editor issue.",
 		}
 	)
-
-
-static func _get_required_capability_types(
-	capability: Node,
-	report: Variant,
-	script_key: String
-) -> Array[Script]:
-	if capability == null or not "required_capabilities" in capability:
-		return [] as Array[Script]
-
-	var raw_value: Variant = capability.get("required_capabilities")
-	if raw_value == null:
-		return [] as Array[Script]
-	if not raw_value is Array:
-		if report != null:
-			report.add_warning(
-				&"invalid_required_capabilities",
-				"required_capabilities must be an Array of Script values.",
-				script_key
-			)
-		return [] as Array[Script]
-
-	var result: Array[Script] = []
-	for item: Variant in raw_value:
-		if item is Script and not result.has(item):
-			result.append(item as Script)
-		elif item != null:
-			if report != null:
-				report.add_warning(
-					&"invalid_required_capability_type",
-					"required_capabilities contains a non-Script value.",
-					script_key
-				)
-	return result
 
 
 func _target_has_capability_script(target: Node, expected_script: Script) -> bool:
@@ -997,15 +1014,15 @@ func _set_owner_recursive(node: Node, owner: Node) -> void:
 func _read_editor_capability_active(capability: Node) -> bool:
 	if "active" in capability:
 		return bool(capability.get("active"))
-	if capability.has_meta(META_CAPABILITY_ACTIVE):
-		return bool(capability.get_meta(META_CAPABILITY_ACTIVE))
+	if capability.has_meta(_META_CAPABILITY_ACTIVE):
+		return bool(capability.get_meta(_META_CAPABILITY_ACTIVE))
 	return true
 
 
 func _set_editor_capability_active(capability: Node, active: bool) -> void:
 	if "active" in capability:
 		capability.set("active", active)
-	capability.set_meta(META_CAPABILITY_ACTIVE, active)
+	capability.set_meta(_META_CAPABILITY_ACTIVE, active)
 	_set_node_tree_active_state(capability, active)
 
 
@@ -1016,11 +1033,11 @@ func _set_node_tree_active_state(node: Node, active: bool) -> void:
 
 
 func _set_node_active_state(node: Node, active: bool) -> void:
-	if not node.has_meta(META_ORIGINAL_PROCESS_MODE):
-		node.set_meta(META_ORIGINAL_PROCESS_MODE, node.process_mode)
+	if not node.has_meta(_META_ORIGINAL_PROCESS_MODE):
+		node.set_meta(_META_ORIGINAL_PROCESS_MODE, node.process_mode)
 
 	if active:
-		node.process_mode = node.get_meta(META_ORIGINAL_PROCESS_MODE)
+		node.process_mode = node.get_meta(_META_ORIGINAL_PROCESS_MODE)
 	else:
 		node.process_mode = Node.PROCESS_MODE_DISABLED
 

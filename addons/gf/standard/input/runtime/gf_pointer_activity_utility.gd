@@ -2,6 +2,12 @@
 ##
 ## 由项目在 _input(event) 中显式转发事件，工具只维护按下、移动、拖拽和空闲状态，
 ## 不消费输入，也不绑定任何具体交互或业务对象。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFPointerActivityUtility
 extends GFUtility
 
@@ -9,69 +15,161 @@ extends GFUtility
 # --- 信号 ---
 
 ## 指针按下时发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param position: 指针位置。
+## [br]
+## @param event: 原始输入事件。
 signal pointer_pressed(pointer_id: int, position: Vector2, event: InputEvent)
 
 ## 指针释放时发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param position: 指针位置。
+## [br]
+## @param event: 原始输入事件。
 signal pointer_released(pointer_id: int, position: Vector2, event: InputEvent)
 
 ## 指针移动时发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param position: 指针位置。
+## [br]
+## @param previous_position: 上一次指针位置。
+## [br]
+## @param event: 原始输入事件。
 signal pointer_moved(pointer_id: int, position: Vector2, previous_position: Vector2, event: InputEvent)
 
 ## 指针从按下状态进入拖拽时发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param start_position: 指针按下位置。
+## [br]
+## @param position: 当前指针位置。
+## [br]
+## @param event: 原始输入事件。
 signal pointer_drag_started(pointer_id: int, start_position: Vector2, position: Vector2, event: InputEvent)
 
 ## 指针拖拽中发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param position: 当前指针位置。
+## [br]
+## @param delta: 本次拖拽位移。
+## [br]
+## @param event: 原始输入事件。
 signal pointer_dragged(pointer_id: int, position: Vector2, delta: Vector2, event: InputEvent)
 
 ## 指针拖拽结束时发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param position: 指针释放位置。
+## [br]
+## @param event: 原始输入事件。
 signal pointer_drag_ended(pointer_id: int, position: Vector2, event: InputEvent)
 
 ## 指针活动超过阈值后进入空闲时发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param position: 最近活动位置。
 signal pointer_idle_started(pointer_id: int, position: Vector2)
 
 ## 指针从空闲恢复活动时发出。
+## [br]
+## @api public
+## [br]
+## @param pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。
+## [br]
+## @param position: 恢复活动位置。
 signal pointer_idle_ended(pointer_id: int, position: Vector2)
 
 
 # --- 公共变量 ---
 
 ## 是否追踪鼠标事件。
+## [br]
+## @api public
 var track_mouse: bool = true
 
 ## 是否追踪触摸事件。
+## [br]
+## @api public
 var track_touch: bool = true
 
 ## 鼠标模式下作为主指针的按钮。
+## [br]
+## @api public
 var mouse_button_index: MouseButton = MOUSE_BUTTON_LEFT
 
 ## 从按下位置移动超过该距离后进入拖拽状态。
+## [br]
+## @api public
 var drag_threshold_pixels: float = 8.0
 
 ## 无活动超过该秒数后进入空闲状态。
+## [br]
+## @api public
 var idle_threshold_seconds: float = 0.5
 
 ## 当前是否有指针按下。
+## [br]
+## @api public
 var is_pointer_pressed: bool = false
 
 ## 当前是否处于拖拽状态。
+## [br]
+## @api public
 var is_pointer_dragging: bool = false
 
 ## 最近一帧是否收到指针活动。
+## [br]
+## @api public
 var is_pointer_moving: bool = false
 
 ## 当前是否处于空闲状态。
+## [br]
+## @api public
 var is_pointer_idle: bool = true
 
 ## 当前活动指针 ID；鼠标为 0，触摸为 InputEventScreenTouch.index。
+## [br]
+## @api public
 var active_pointer_id: int = -1
 
 ## 最近发生活动的指针 ID。
+## [br]
+## @api public
 var last_pointer_id: int = -1
 
 ## 最近按下位置。
+## [br]
+## @api public
 var press_position: Vector2 = Vector2.ZERO
 
 ## 最近指针位置。
+## [br]
+## @api public
 var last_position: Vector2 = Vector2.ZERO
 
 
@@ -83,7 +181,11 @@ var _idle_elapsed_seconds: float = 0.0
 # --- 公共方法 ---
 
 ## 处理一个输入事件。
+## [br]
+## @api public
+## [br]
 ## @param event: 输入事件。
+## [br]
 ## @return 识别为受追踪指针事件时返回 true。
 func handle_input_event(event: InputEvent) -> bool:
 	if event == null:
@@ -100,6 +202,9 @@ func handle_input_event(event: InputEvent) -> bool:
 
 
 ## 推进空闲计时。通常在 tick(delta) 或 _process(delta) 中调用。
+## [br]
+## @api public
+## [br]
 ## @param delta: 秒。
 func tick(delta: float) -> void:
 	var safe_delta := maxf(delta, 0.0)
@@ -115,6 +220,8 @@ func tick(delta: float) -> void:
 
 
 ## 清理所有指针活动状态。
+## [br]
+## @api public
 func reset_activity() -> void:
 	is_pointer_pressed = false
 	is_pointer_dragging = false
@@ -128,7 +235,12 @@ func reset_activity() -> void:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 当前指针状态。
+## [br]
+## @schema return: Dictionary，包含 pointer id、pressed/dragging/moving/idle 标记、位置、idle 计时器和阈值配置。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"active_pointer_id": active_pointer_id,

@@ -2,6 +2,14 @@
 ##
 ## 可选择继承父级架构，或创建带父级回退的 Scoped 架构。
 ## Scoped 架构会在节点退出树时自动 dispose，适合关卡、战斗房间、调试面板等局部模块。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/core
 class_name GFNodeContext
 extends Node
 
@@ -9,10 +17,16 @@ extends Node
 # --- 信号 ---
 
 ## 当上下文架构完成初始化后发出。
+## [br]
+## @api public
+## [br]
 ## @param architecture: 当前上下文使用的架构实例。
 signal context_ready(architecture: GFArchitecture)
 
 ## 当上下文无法继续等待或初始化时发出。
+## [br]
+## @api public
+## [br]
 ## @param reason: 失败原因。
 signal context_failed(reason: String)
 
@@ -20,6 +34,8 @@ signal context_failed(reason: String)
 # --- 枚举 ---
 
 ## 上下文作用域模式。
+## [br]
+## @api public
 enum ScopeMode {
 	## 直接复用最近的父级上下文架构；若不存在则回退到全局 Gf 架构。
 	INHERITED,
@@ -31,27 +47,41 @@ enum ScopeMode {
 # --- 导出变量 ---
 
 ## 当前节点上下文的作用域模式。
+## [br]
+## @api public
 @export var scope_mode: ScopeMode = ScopeMode.SCOPED
 
 ## 是否在进入树后自动初始化 Scoped 架构。
+## [br]
+## @api public
 @export var auto_init: bool = true
 
 ## 是否由该节点驱动 Scoped 架构的 tick 与 physics_tick。
+## [br]
+## @api public
 @export var process_scoped_ticks: bool = true
 
 ## Scoped 架构是否启用严格依赖查询。开启后本地未注册的依赖不会回退父级架构。
+## [br]
+## @api public
 @export var strict_dependency_lookup: bool = false
 
 ## Scoped 架构中单个模块 async_init() 的最长等待时间。小于等于 0 时继承架构默认行为。
+## [br]
+## @api public
 @export var module_async_init_timeout_seconds: float = 0.0
 
 ## 等待父级架构或当前上下文 ready 的超时时间。小于等于 0 时禁用超时。
+## [br]
+## @api public
 @export var context_wait_timeout_seconds: float = 30.0
 
 
 # --- 公共变量 ---
 
 ## 当前上下文使用的架构实例。
+## [br]
+## @api public
 var architecture: GFArchitecture:
 	get:
 		return get_architecture()
@@ -127,30 +157,47 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 安装当前上下文的局部模块。仅在 SCOPED 模式下调用。
+## [br]
+## @api public
+## [br]
 ## @param _architecture_instance: 当前上下文创建的局部架构。
 func install(_architecture_instance: GFArchitecture) -> void:
 	pass
 
 
 ## 使用声明式装配器安装当前上下文的局部模块。仅在 SCOPED 模式下调用。
+## [br]
+## @api public
+## [br]
 ## @param _binder: 当前上下文创建的局部架构装配器。
+## [br]
+## @schema _binder: GFBindBuilder-compatible binder produced by GFArchitecture.create_binder().
 func install_bindings(_binder: Variant) -> void:
 	pass
 
 
 ## 获取当前上下文使用的架构。
+## [br]
+## @api public
+## [br]
 ## @return 架构实例；未找到时返回 null。
 func get_architecture() -> GFArchitecture:
 	return _architecture
 
 
 ## 检查上下文是否已经完成初始化。
+## [br]
+## @api public
+## [br]
 ## @return 已完成初始化返回 true。
 func is_context_ready() -> bool:
 	return _is_context_ready
 
 
 ## 手动初始化当前 Scoped 上下文。适合 auto_init 为 false 时，在 install()/install_bindings() 完成后统一触发初始化与 context_ready/context_failed 信号。
+## [br]
+## @api public
+## [br]
 ## @return 初始化完成的架构；上下文失效或初始化失败时返回 null。
 func initialize_context() -> GFArchitecture:
 	if _architecture == null:
@@ -183,6 +230,9 @@ func initialize_context() -> GFArchitecture:
 
 
 ## 等待上下文架构完成初始化并返回该架构。
+## [br]
+## @api public
+## [br]
 ## @return 当前上下文架构；上下文失效时返回 null。
 func wait_until_ready() -> GFArchitecture:
 	var start_msec := Time.get_ticks_msec()
@@ -207,8 +257,13 @@ func wait_until_ready() -> GFArchitecture:
 
 
 ## 通过当前上下文架构获取 Model。
+## [br]
+## @api public
+## [br]
 ## @param model_type: 模型脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 模型实例。
 func get_model(model_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
@@ -217,8 +272,13 @@ func get_model(model_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 通过当前上下文架构获取 System。
+## [br]
+## @api public
+## [br]
 ## @param system_type: 系统脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 系统实例。
 func get_system(system_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
@@ -227,8 +287,13 @@ func get_system(system_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 通过当前上下文架构获取 Utility。
+## [br]
+## @api public
+## [br]
 ## @param utility_type: 工具脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 工具实例。
 func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
@@ -237,8 +302,13 @@ func get_utility(utility_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 仅从当前上下文架构获取 Model，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param model_type: 模型脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 当前上下文架构中的模型实例。
 func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
@@ -247,8 +317,13 @@ func get_local_model(model_type: Script, require_ready: bool = false) -> Object:
 
 
 ## 仅从当前上下文架构获取 System，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param system_type: 系统脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 当前上下文架构中的系统实例。
 func get_local_system(system_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
@@ -257,8 +332,13 @@ func get_local_system(system_type: Script, require_ready: bool = false) -> Objec
 
 
 ## 仅从当前上下文架构获取 Utility，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param utility_type: 工具脚本类型。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 当前上下文架构中的工具实例。
 func get_local_utility(utility_type: Script, require_ready: bool = false) -> Object:
 	if _architecture == null:
@@ -267,6 +347,9 @@ func get_local_utility(utility_type: Script, require_ready: bool = false) -> Obj
 
 
 ## 向任意对象注入当前上下文架构依赖。
+## [br]
+## @api public
+## [br]
 ## @param instance: 要注册、替换或注入的实例。
 func inject_object(instance: Object) -> void:
 	if _architecture != null:
@@ -274,6 +357,9 @@ func inject_object(instance: Object) -> void:
 
 
 ## 递归向节点树中实现注入 Hook 的节点注入当前上下文架构。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
 func inject_node_tree(node: Node) -> void:
 	if _architecture != null:

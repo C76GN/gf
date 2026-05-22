@@ -2,6 +2,12 @@
 ##
 ## 以对象形式表达 pending、completed、failed、cancelled 等状态，便于请求构建器、
 ## 批处理器和项目侧工具统一观察异步结果。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFHttpResponse
 extends RefCounted
 
@@ -9,12 +15,18 @@ extends RefCounted
 # --- 信号 ---
 
 ## 响应完成、失败或取消时发出。
+## [br]
+## @api public
+## [br]
 ## @param response: 当前响应对象。
 signal completed(response: GFHttpResponse)
 
 
 # --- 枚举 ---
 
+## HTTP 响应句柄状态。
+## [br]
+## @api public
 enum State {
 	## 请求仍在等待完成。
 	PENDING,
@@ -30,58 +42,101 @@ enum State {
 # --- 公共变量 ---
 
 ## 响应状态。
+## [br]
+## @api public
 var state: State = State.PENDING
 
 ## 原始 URL。
+## [br]
+## @api public
 var url: String = ""
 
 ## HTTP 状态码。
+## [br]
+## @api public
 var status_code: int = 0
 
 ## Godot HTTPRequest 结果码。
+## [br]
+## @api public
 var result_code: int = HTTPRequest.RESULT_SUCCESS
 
 ## 响应头。
+## [br]
+## @api public
 var headers: PackedStringArray = PackedStringArray()
 
 ## 响应文本。
+## [br]
+## @api public
 var text: String = ""
 
 ## 响应原始 bytes。
+## [br]
+## @api public
 var body: PackedByteArray = PackedByteArray()
 
 ## 解析后的数据，例如 JSON 结果。
+## [br]
+## @api public
+## [br]
+## @schema data: Variant，解析后的响应载荷，例如 JSON 数据、文本数据或 null。
 var data: Variant = null
 
 ## 错误说明。
+## [br]
+## @api public
 var error: String = ""
 
 ## 调用方附加元数据。
+## [br]
+## @api public
+## [br]
+## @schema metadata: Dictionary，从请求构建器复制的调用方元数据。
 var metadata: Dictionary = {}
 
 ## 取消请求时执行的底层取消回调。
+## [br]
+## @api public
 var cancel_callback: Callable = Callable()
 
 
 # --- 公共方法 ---
 
 ## 请求是否仍在等待。
+## [br]
+## @api public
+## [br]
+## @return 仍在等待时返回 true。
 func is_pending() -> bool:
 	return state == State.PENDING
 
 
 ## 请求是否成功。
+## [br]
+## @api public
+## [br]
+## @return 请求以 2xx HTTP 状态码完成且没有错误时返回 true。
 func is_successful() -> bool:
 	return state == State.COMPLETED and status_code >= 200 and status_code < 300 and error.is_empty()
 
 
 ## 请求是否已结束。
+## [br]
+## @api public
+## [br]
+## @return 请求完成、失败或取消时返回 true。
 func is_finished() -> bool:
 	return state != State.PENDING
 
 
 ## 标记请求成功完成。
+## [br]
+## @api public
+## [br]
 ## @param fields: 需要写入响应对象的字段。
+## [br]
+## @schema fields: Dictionary，可包含 url、status_code、result_code、headers、text、body、data 和 metadata。
 func complete_success(fields: Dictionary = {}) -> void:
 	if is_finished():
 		return
@@ -94,8 +149,14 @@ func complete_success(fields: Dictionary = {}) -> void:
 
 
 ## 标记请求失败。
+## [br]
+## @api public
+## [br]
 ## @param message: 错误说明。
+## [br]
 ## @param fields: 需要写入响应对象的字段。
+## [br]
+## @schema fields: Dictionary，可包含 url、status_code、result_code、headers、text、body、data 和 metadata。
 func complete_failure(message: String, fields: Dictionary = {}) -> void:
 	if is_finished():
 		return
@@ -108,6 +169,9 @@ func complete_failure(message: String, fields: Dictionary = {}) -> void:
 
 
 ## 取消请求。
+## [br]
+## @api public
+## [br]
 ## @param reason: 取消原因。
 func cancel(reason: String = "cancelled") -> void:
 	if is_finished():
@@ -124,7 +188,12 @@ func cancel(reason: String = "cancelled") -> void:
 
 
 ## 转为普通字典。
+## [br]
+## @api public
+## [br]
 ## @return 响应快照。
+## [br]
+## @schema return: Dictionary，包含响应状态、URL、HTTP 状态、解析数据、错误信息和 metadata。
 func to_dictionary() -> Dictionary:
 	return {
 		"state": state,

@@ -4,28 +4,41 @@
 ##
 ## 只检查状态机、状态组和状态资源挂接是否自洽，不执行状态切换，
 ## 也不推断项目业务中的转移规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFNodeStateMachineValidator
 extends RefCounted
 
 
 # --- 常量 ---
 
-const GFNodeStateBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
-const GFNodeStateBehaviorBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_behavior.gd")
-const GFNodeStateConditionBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_condition.gd")
-const GFNodeStateGroupBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
-const GFNodeStateMachineBase = preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
-const GFValidationReportBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
+const _GF_NODE_STATE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
+const _GF_NODE_STATE_BEHAVIOR_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_behavior.gd")
+const _GF_NODE_STATE_CONDITION_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_condition.gd")
+const _GF_NODE_STATE_GROUP_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
+const _GF_NODE_STATE_MACHINE_BASE := preload("res://addons/gf/standard/state_machine/node/gf_node_state_machine.gd")
+const _GF_VALIDATION_REPORT_BASE := preload("res://addons/gf/standard/foundation/validation/gf_validation_report.gd")
 
 
 # --- 公共方法 ---
 
 ## 校验一个节点状态机的直接子状态和显式状态组。
+## [br]
+## @api public
+## [br]
 ## @param machine: 要校验的节点状态机。
+## [br]
 ## @param options: 可选校验选项，支持 check_state_resources、require_initial_state。
-## @return 校验报告。
+## [br]
+## @schema options: 校验选项 Dictionary；支持 check_state_resources: bool 和 require_initial_state: bool。
+## [br]
+## @return: 校验报告。
 static func validate_machine(machine: GFNodeStateMachine, options: Dictionary = {}) -> GFValidationReport:
-	var report := GFValidationReportBase.new("GFNodeStateMachine") as GFValidationReport
+	var report := _GF_VALIDATION_REPORT_BASE.new("GFNodeStateMachine") as GFValidationReport
 	if machine == null:
 		report.add_error(&"missing_state_machine", "State machine is null.")
 		return report
@@ -33,25 +46,25 @@ static func validate_machine(machine: GFNodeStateMachine, options: Dictionary = 
 	var internal_states: Array[GFNodeState] = []
 	var groups: Array[GFNodeStateGroup] = []
 	for child: Node in machine.get_children():
-		if bool(child.get_meta(GFNodeStateMachineBase.META_INTERNAL_GROUP, false)):
+		if bool(child.get_meta(_GF_NODE_STATE_MACHINE_BASE.META_INTERNAL_GROUP, false)):
 			continue
-		if child is GFNodeStateGroupBase:
+		if child is _GF_NODE_STATE_GROUP_BASE:
 			groups.append(child as GFNodeStateGroup)
-		elif child is GFNodeStateBase:
+		elif child is _GF_NODE_STATE_BASE:
 			internal_states.append(child as GFNodeState)
 
 	var group_names: Dictionary = {}
 	if not internal_states.is_empty():
 		_validate_group_shape(
 			report,
-			GFNodeStateMachineBase.INTERNAL_GROUP_NAME,
+			_GF_NODE_STATE_MACHINE_BASE.INTERNAL_GROUP_NAME,
 			internal_states,
 			_get_machine_initial_state(machine),
 			_should_require_machine_initial_state(machine, options),
 			_get_node_path_text(machine),
 			options
 		)
-		group_names[GFNodeStateMachineBase.INTERNAL_GROUP_NAME] = _get_node_path_text(machine)
+		group_names[_GF_NODE_STATE_MACHINE_BASE.INTERNAL_GROUP_NAME] = _get_node_path_text(machine)
 
 	for group: GFNodeStateGroup in groups:
 		var group_name := _get_group_name(group)
@@ -82,11 +95,18 @@ static func validate_machine(machine: GFNodeStateMachine, options: Dictionary = 
 
 
 ## 校验一个节点状态组的直接子状态。
+## [br]
+## @api public
+## [br]
 ## @param group: 要校验的状态组。
+## [br]
 ## @param options: 可选校验选项，支持 check_state_resources、require_initial_state。
-## @return 校验报告。
+## [br]
+## @schema options: 校验选项 Dictionary；支持 check_state_resources: bool 和 require_initial_state: bool。
+## [br]
+## @return: 校验报告。
 static func validate_group(group: GFNodeStateGroup, options: Dictionary = {}) -> GFValidationReport:
-	var report := GFValidationReportBase.new("GFNodeStateGroup") as GFValidationReport
+	var report := _GF_VALIDATION_REPORT_BASE.new("GFNodeStateGroup") as GFValidationReport
 	if group == null:
 		report.add_error(&"missing_state_group", "State group is null.")
 		return report
@@ -105,18 +125,29 @@ static func validate_group(group: GFNodeStateGroup, options: Dictionary = {}) ->
 
 
 ## 校验一组状态名、初始状态和状态资源挂接。
+## [br]
+## @api public
+## [br]
 ## @param states: 要校验的状态列表。
+## [br]
+## @schema states: 元素为 GFNodeState 的状态列表。
+## [br]
 ## @param initial_state: 可选初始状态名。
+## [br]
 ## @param subject: 报告主题。
+## [br]
 ## @param options: 可选校验选项，支持 check_state_resources、require_initial_state。
-## @return 校验报告。
+## [br]
+## @schema options: 校验选项 Dictionary；支持 check_state_resources: bool 和 require_initial_state: bool。
+## [br]
+## @return: 校验报告。
 static func validate_state_list(
 	states: Array[GFNodeState],
 	initial_state: StringName = &"",
 	subject: String = "GFNodeStateList",
 	options: Dictionary = {}
 ) -> GFValidationReport:
-	var report := GFValidationReportBase.new(subject) as GFValidationReport
+	var report := _GF_VALIDATION_REPORT_BASE.new(subject) as GFValidationReport
 	_validate_group_shape(
 		report,
 		StringName(subject),
@@ -329,7 +360,7 @@ static func _track_duplicate_resource_id(
 
 
 static func _has_any_behavior_method(resource: Resource) -> bool:
-	if resource is GFNodeStateBehaviorBase:
+	if resource is _GF_NODE_STATE_BEHAVIOR_BASE:
 		return true
 	return (
 		resource.has_method(&"initialize")
@@ -345,7 +376,7 @@ static func _resource_exposes_required_method(resource: Resource, field_name: St
 	if resource == null:
 		return false
 	if field_name == &"enter_conditions" or field_name == &"exit_conditions":
-		if resource is GFNodeStateConditionBase:
+		if resource is _GF_NODE_STATE_CONDITION_BASE:
 			return true
 	return resource.has_method(required_method)
 
@@ -368,7 +399,7 @@ static func _get_resource_id(resource: Resource, field_name: StringName) -> Stri
 static func _collect_direct_states(parent: Node) -> Array[GFNodeState]:
 	var result: Array[GFNodeState] = []
 	for child: Node in parent.get_children():
-		if child is GFNodeStateBase:
+		if child is _GF_NODE_STATE_BASE:
 			result.append(child as GFNodeState)
 	return result
 
@@ -384,7 +415,7 @@ static func _should_require_machine_initial_state(machine: GFNodeStateMachine, o
 	if options.has("require_initial_state"):
 		return bool(options["require_initial_state"])
 	var start_mode := int(machine.get("start_mode"))
-	return start_mode != GFNodeStateMachineBase.StartMode.MANUAL
+	return start_mode != _GF_NODE_STATE_MACHINE_BASE.StartMode.MANUAL
 
 
 static func _should_require_group_initial_state(group: GFNodeStateGroup, options: Dictionary) -> bool:

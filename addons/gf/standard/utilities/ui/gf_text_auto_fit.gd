@@ -4,6 +4,12 @@
 ##
 ## 挂在文本控件旁边或子节点中，在控件尺寸、场景就绪或语言变化时调用 GFTextFitter。
 ## 它只负责字体尺寸计算和主题覆盖，不接管文本来源、布局策略或项目本地化规则。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFTextAutoFit
 extends Node
 
@@ -11,45 +17,67 @@ extends Node
 # --- 导出变量 ---
 
 ## 目标 Control 路径。为空时使用父节点。
+## [br]
+## @api public
 @export_node_path("Control") var target_path: NodePath
 
 ## 最小字体尺寸。
+## [br]
+## @api public
 @export var min_font_size: int = GFTextFitter.DEFAULT_MIN_FONT_SIZE:
 	set(value):
 		min_font_size = maxi(value, 1)
 		request_refresh()
 
 ## 最大字体尺寸。小于等于 0 时使用控件当前主题字体尺寸。
+## [br]
+## @api public
 @export var max_font_size: int = GFTextFitter.DEFAULT_MAX_FONT_SIZE:
 	set(value):
 		max_font_size = maxi(value, 0)
 		request_refresh()
 
 ## 是否约束宽度。
+## [br]
+## @api public
 @export var fit_width: bool = true:
 	set(value):
 		fit_width = value
 		request_refresh()
 
 ## 是否约束高度。
+## [br]
+## @api public
 @export var fit_height: bool = true:
 	set(value):
 		fit_height = value
 		request_refresh()
 
 ## 是否在进入树并解析目标后立即适配。
+## [br]
+## @api public
 @export var fit_on_ready: bool = true
 
 ## 是否监听目标控件 resized 信号。
+## [br]
+## @api public
 @export var refresh_on_resize: bool = true
 
 ## 是否在收到翻译变更通知时刷新。
+## [br]
+## @api public
 @export var refresh_on_translation_changed: bool = true
 
 ## 是否把刷新合并到 deferred 调用，避免同帧多次尺寸变化造成重复计算。
+## [br]
+## @api public
 @export var deferred_refresh: bool = true
 
 ## 可选额外配置，会合并到 GFTextFitter.fit_control() 的 options。
+## [br]
+## @api public
+## [br]
+## @schema options: Dictionary，字段同 GFTextFitter.fit_control() 的 options；节点会覆盖 min_font_size、max_font_size、fit_width、fit_height 和 apply。
 @export var options: Dictionary = {}
 
 
@@ -83,6 +111,8 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 重新解析并绑定目标控件。
+## [br]
+## @api public
 func rebind_target() -> void:
 	_disconnect_target()
 	_bind_target()
@@ -90,6 +120,8 @@ func rebind_target() -> void:
 
 
 ## 请求刷新文本适配。
+## [br]
+## @api public
 func request_refresh() -> void:
 	if not is_inside_tree():
 		return
@@ -104,6 +136,9 @@ func request_refresh() -> void:
 
 
 ## 立即执行一次文本适配。
+## [br]
+## @api public
+## [br]
 ## @return 计算出的字体尺寸；目标无效时返回 0。
 func refresh() -> int:
 	_refresh_queued = false
@@ -123,6 +158,9 @@ func refresh() -> int:
 
 
 ## 获取当前目标控件。
+## [br]
+## @api public
+## [br]
 ## @return 已绑定的 Control；未绑定时返回 null。
 func get_target() -> Control:
 	if _target == null or not is_instance_valid(_target):

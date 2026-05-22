@@ -2,6 +2,12 @@
 ##
 ## 监听 CollisionObject3D 的 hover、鼠标按钮与滚轮事件，构建通用交互上下文。
 ## 节点只传递位置、法线、按钮、标签和元数据，不解释点击对象的业务含义。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFPointerInteraction3D
 extends Node
 
@@ -9,37 +15,66 @@ extends Node
 # --- 信号 ---
 
 ## 指针进入绑定的 3D 碰撞对象。
+## [br]
+## @api public
+## [br]
 ## @param context: 交互上下文。
 signal pointer_entered(context: GFInteractionContext)
 
 ## 指针离开绑定的 3D 碰撞对象。
+## [br]
+## @api public
+## [br]
 ## @param context: 交互上下文。
 signal pointer_exited(context: GFInteractionContext)
 
 ## 指针按钮按下。
+## [br]
+## @api public
+## [br]
 ## @param context: 交互上下文。
+## [br]
 ## @param event: 原始输入事件。
 signal pointer_pressed(context: GFInteractionContext, event: InputEventMouseButton)
 
 ## 指针按钮释放。
+## [br]
+## @api public
+## [br]
 ## @param context: 交互上下文。
+## [br]
 ## @param event: 原始输入事件。
 signal pointer_released(context: GFInteractionContext, event: InputEventMouseButton)
 
 ## 指针完成一次点击。
+## [br]
+## @api public
+## [br]
 ## @param context: 交互上下文。
+## [br]
 ## @param event: 原始输入事件。
 signal pointer_clicked(context: GFInteractionContext, event: InputEventMouseButton)
 
 ## 指针滚轮事件。
+## [br]
+## @api public
+## [br]
 ## @param context: 交互上下文。
+## [br]
 ## @param event: 原始输入事件。
 signal pointer_wheel(context: GFInteractionContext, event: InputEventMouseButton)
 
 ## 已向接收器发送交互。
+## [br]
+## @api public
+## [br]
 ## @param context: 交互上下文。
+## [br]
 ## @param receiver: 接收对象。
+## [br]
 ## @param report: 结果报告。
+## [br]
+## @schema report: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。
 signal pointer_interaction_sent(context: GFInteractionContext, receiver: Object, report: Dictionary)
 
 
@@ -51,54 +86,92 @@ const _MESSAGE_DISPATCH_SUPPORT: Script = preload("res://addons/gf/standard/comm
 # --- 导出变量 ---
 
 ## 是否启用指针桥接。
+## [br]
+## @api public
 @export var enabled: bool = true
 
 ## 默认交互 ID。
+## [br]
+## @api public
 @export var interaction_id: StringName = &""
 
 ## 默认交互分组。
+## [br]
+## @api public
 @export var group_name: StringName = &""
 
 ## 默认 payload；发送时会深拷贝并附加 pointer_* 字段。
+## [br]
+## @api public
+## [br]
+## @schema payload: 默认交互载荷 Dictionary；发送时会复制并附加 pointer_event、pointer_tags、pointer_metadata 等 pointer_* 字段。
 @export var payload: Dictionary = {}
 
 ## 指针标签。框架不解释标签含义。
+## [br]
+## @api public
 @export var tags: PackedStringArray = PackedStringArray()
 
 ## 自定义元数据。框架不解释该字段。
+## [br]
+## @api public
+## [br]
+## @schema metadata: 指针交互自定义元数据 Dictionary；会写入 payload.pointer_metadata 并复制到结果报告。
 @export var metadata: Dictionary = {}
 
 ## 可选 3D 碰撞对象路径；为空时优先使用父节点。
+## [br]
+## @api public
 @export_node_path("CollisionObject3D") var collision_object_path: NodePath = NodePath("")
 
 ## 可选交互接收器路径；为空时从碰撞对象向父级解析 receive_interaction()。
+## [br]
+## @api public
 @export_node_path("Node") var receiver_path: NodePath = NodePath("")
 
 ## 可选发送者路径；为空时使用当前节点。
+## [br]
+## @api public
 @export_node_path("Node") var sender_path: NodePath = NodePath("")
 
 ## 是否在点击完成时发送交互。
+## [br]
+## @api public
 @export var send_on_clicked: bool = true
 
 ## 是否在按钮按下时发送交互。
+## [br]
+## @api public
 @export var send_on_pressed: bool = false
 
 ## 是否在按钮释放时发送交互。
+## [br]
+## @api public
 @export var send_on_released: bool = false
 
 ## 是否在滚轮事件时发送交互。
+## [br]
+## @api public
 @export var send_on_wheel: bool = false
 
 ## 是否在 hover 进入和离开时发送交互。
+## [br]
+## @api public
 @export var send_on_hover: bool = false
 
 ## 绑定碰撞对象时是否确保 input_ray_pickable 为 true。
+## [br]
+## @api public
 @export var ensure_input_ray_pickable: bool = true
 
 ## hover 时是否临时切换鼠标光标。
+## [br]
+## @api public
 @export var change_cursor_on_hover: bool = false
 
 ## hover 时使用的鼠标光标。
+## [br]
+## @api public
 @export var cursor_shape: Input.CursorShape = Input.CURSOR_ARROW
 
 
@@ -123,6 +196,9 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 绑定 3D 碰撞对象。
+## [br]
+## @api public
+## [br]
 ## @param collision_object: 要监听的碰撞对象。
 func bind_collision_object(collision_object: CollisionObject3D) -> void:
 	_disconnect_collision_object()
@@ -141,7 +217,10 @@ func bind_collision_object(collision_object: CollisionObject3D) -> void:
 
 
 ## 获取当前绑定的 3D 碰撞对象。
-## @return 碰撞对象；不存在时返回 null。
+## [br]
+## @api public
+## [br]
+## @return: 碰撞对象；不存在时返回 null。
 func get_collision_object() -> CollisionObject3D:
 	if _collision_object_ref == null:
 		return null
@@ -149,10 +228,18 @@ func get_collision_object() -> CollisionObject3D:
 
 
 ## 构建指针交互上下文。
+## [br]
+## @api public
+## [br]
 ## @param pointer_event: 指针事件标识。
+## [br]
 ## @param pointer_data: 指针事件数据。
+## [br]
+## @schema pointer_data: 指针事件数据 Dictionary；常见字段包括 pointer_position、pointer_normal、pointer_shape_idx、pointer_camera 和 pointer_input_event。
+## [br]
 ## @param receiver: 可选接收对象；为空时自动解析。
-## @return 交互上下文。
+## [br]
+## @return: 交互上下文。
 func build_context(
 	pointer_event: StringName,
 	pointer_data: Dictionary = {},
@@ -170,10 +257,20 @@ func build_context(
 
 
 ## 发送一次指针交互。
+## [br]
+## @api public
+## [br]
 ## @param pointer_event: 指针事件标识。
+## [br]
 ## @param pointer_data: 指针事件数据。
+## [br]
+## @schema pointer_data: 指针事件数据 Dictionary；常见字段包括 pointer_position、pointer_normal、pointer_shape_idx、pointer_camera 和 pointer_input_event。
+## [br]
 ## @param interaction_id_override: 可选交互 ID 覆盖。
-## @return 统一结果报告。
+## [br]
+## @return: 统一结果报告。
+## [br]
+## @schema return: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。
 func send_pointer_interaction(
 	pointer_event: StringName,
 	pointer_data: Dictionary = {},

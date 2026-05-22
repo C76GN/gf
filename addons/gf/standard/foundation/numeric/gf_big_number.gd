@@ -2,19 +2,25 @@
 ##
 ## 使用科学计数法的尾数 + 指数表示任意量级的数值，
 ## 适合做超出原生 int/float 直观显示范围后的比较、加减乘除与格式化输入。
+## [br]
+## @api public
+## [br]
+## @category value_object
+## [br]
+## @since 3.17.0
 class_name GFBigNumber
 extends RefCounted
 
 
 # --- 常量 ---
 
-## 归一化时判定为零的误差阈值。
+# 归一化时判定为零的误差阈值。
 const _NORMALIZATION_EPSILON: float = 0.000000000001
 
-## 做加减法时，指数差超过该阈值则忽略较小项。
+# 做加减法时，指数差超过该阈值则忽略较小项。
 const _ADDITION_DROP_THRESHOLD: int = 18
 
-## to_plain_string() 默认保留的小数位数。
+# to_plain_string() 默认保留的小数位数。
 const _DEFAULT_PLAIN_DECIMALS: int = 6
 
 const _DECIMAL_STRING_FORMATTER: Script = preload("res://addons/gf/standard/foundation/formatting/gf_decimal_string_formatter.gd")
@@ -23,9 +29,13 @@ const _DECIMAL_STRING_FORMATTER: Script = preload("res://addons/gf/standard/foun
 # --- 公共变量 ---
 
 ## 归一化后的尾数。非零时其绝对值始终落在 [1, 10) 区间内。
+## [br]
+## @api public
 var mantissa: float = 0.0
 
 ## 以 10 为底的指数。
+## [br]
+## @api public
 var exponent: int = 0
 
 
@@ -40,26 +50,40 @@ func _init(p_mantissa: float = 0.0, p_exponent: int = 0) -> void:
 # --- 公共方法 ---
 
 ## 创建一个值为 0 的大数。
+## [br]
+## @api public
+## [br]
 ## @return 零值实例。
 static func zero() -> GFBigNumber:
 	return GFBigNumber.new(0.0, 0)
 
 
 ## 创建一个值为 1 的大数。
+## [br]
+## @api public
+## [br]
 ## @return 一值实例。
 static func one() -> GFBigNumber:
 	return GFBigNumber.new(1.0, 0)
 
 
 ## 从 int 构建大数。
+## [br]
+## @api public
+## [br]
 ## @param value: 原始整数。
+## [br]
 ## @return 归一化后的大数实例。
 static func from_int(value: int) -> GFBigNumber:
 	return GFBigNumber.new(float(value), 0)
 
 
 ## 从 float 构建大数。
+## [br]
+## @api public
+## [br]
 ## @param value: 原始浮点数。
+## [br]
 ## @return 归一化后的大数实例。
 static func from_float(value: float) -> GFBigNumber:
 	if is_nan(value) or is_inf(value):
@@ -70,7 +94,11 @@ static func from_float(value: float) -> GFBigNumber:
 
 
 ## 从字符串构建大数，支持普通写法与科学计数法。
+## [br]
+## @api public
+## [br]
 ## @param value: 原始字符串，如 "12345"、"1.23e8"。
+## [br]
 ## @return 解析后的大数实例。
 static func from_string(value: String) -> GFBigNumber:
 	var trimmed := value.strip_edges().replace("_", "").replace(",", "")
@@ -128,7 +156,13 @@ static func from_string(value: String) -> GFBigNumber:
 
 
 ## 从任意支持的 Variant 构建大数。
+## [br]
+## @api public
+## [br]
 ## @param value: 支持 int/float/String/GFBigNumber/GFFixedDecimal。
+## [br]
+## @schema value: Variant numeric value accepted by GFBigNumber.
+## [br]
 ## @return 对应的大数实例。
 static func from_variant(value: Variant) -> GFBigNumber:
 	if value is GFBigNumber:
@@ -150,37 +184,56 @@ static func from_variant(value: Variant) -> GFBigNumber:
 
 
 ## 克隆当前大数。
+## [br]
+## @api public
+## [br]
 ## @return 内容相同的新实例。
 func clone() -> GFBigNumber:
 	return GFBigNumber.new(mantissa, exponent)
 
 
 ## 当前值是否为零。
+## [br]
+## @api public
+## [br]
 ## @return 为零时返回 true。
 func is_zero() -> bool:
 	return absf(mantissa) <= _NORMALIZATION_EPSILON
 
 
 ## 当前值是否为负数。
+## [br]
+## @api public
+## [br]
 ## @return 为负时返回 true。
 func is_negative() -> bool:
 	return mantissa < 0.0
 
 
 ## 获取绝对值。
+## [br]
+## @api public
+## [br]
 ## @return 新的大数实例。
 func abs_value() -> GFBigNumber:
 	return GFBigNumber.new(absf(mantissa), exponent)
 
 
 ## 获取相反数。
+## [br]
+## @api public
+## [br]
 ## @return 新的大数实例。
 func negated() -> GFBigNumber:
 	return GFBigNumber.new(-mantissa, exponent)
 
 
 ## 比较当前值与另一个大数。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个大数实例。
+## [br]
 ## @return 当前值大于 other 返回 1，小于返回 -1，相等返回 0。
 func compare_to(other: GFBigNumber) -> int:
 	if other == null:
@@ -206,7 +259,11 @@ func compare_to(other: GFBigNumber) -> int:
 
 
 ## 与另一个大数相加。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个大数实例。
+## [br]
 ## @return 相加结果。
 func add(other: GFBigNumber) -> GFBigNumber:
 	if other == null or other.is_zero():
@@ -235,7 +292,11 @@ func add(other: GFBigNumber) -> GFBigNumber:
 
 
 ## 与另一个大数相减。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个大数实例。
+## [br]
 ## @return 相减结果。
 func subtract(other: GFBigNumber) -> GFBigNumber:
 	if other == null:
@@ -245,7 +306,11 @@ func subtract(other: GFBigNumber) -> GFBigNumber:
 
 
 ## 与另一个大数相乘。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个大数实例。
+## [br]
 ## @return 相乘结果。
 func multiply(other: GFBigNumber) -> GFBigNumber:
 	if other == null:
@@ -258,7 +323,11 @@ func multiply(other: GFBigNumber) -> GFBigNumber:
 
 
 ## 与另一个大数相除。
+## [br]
+## @api public
+## [br]
 ## @param other: 另一个大数实例。
+## [br]
 ## @return 相除结果。
 func divide(other: GFBigNumber) -> GFBigNumber:
 	if other == null or other.is_zero():
@@ -272,14 +341,22 @@ func divide(other: GFBigNumber) -> GFBigNumber:
 
 
 ## 将当前大数提升到整数次幂。
+## [br]
+## @api public
+## [br]
 ## @param power: 幂指数。
+## [br]
 ## @return 幂运算结果。
 func powi(power: int) -> GFBigNumber:
 	return powf(float(power))
 
 
 ## 将当前大数提升到浮点次幂。
+## [br]
+## @api public
+## [br]
 ## @param power: 幂指数。
+## [br]
 ## @return 幂运算结果。
 func powf(power: float) -> GFBigNumber:
 	if is_nan(power) or is_inf(power):
@@ -314,6 +391,9 @@ func powf(power: float) -> GFBigNumber:
 
 
 ## 将当前值转换为 float。
+## [br]
+## @api public
+## [br]
 ## @return 可表达时返回浮点值，超出范围时返回 +/-INF。
 func to_float() -> float:
 	if is_zero():
@@ -323,8 +403,13 @@ func to_float() -> float:
 
 
 ## 在量级适中时输出普通十进制字符串，过大时会回退到科学计数法。
+## [br]
+## @api public
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @return 普通字符串表示。
 func to_plain_string(decimal_places: int = _DEFAULT_PLAIN_DECIMALS, trim_zeroes: bool = true) -> String:
 	if is_zero():
@@ -337,9 +422,15 @@ func to_plain_string(decimal_places: int = _DEFAULT_PLAIN_DECIMALS, trim_zeroes:
 
 
 ## 输出科学计数法字符串。
+## [br]
+## @api public
+## [br]
 ## @param decimal_places: 小数位数。
+## [br]
 ## @param trim_zeroes: 是否裁掉尾部 0。
+## [br]
 ## @param use_truncation: 是否使用截断而不是四舍五入。
+## [br]
 ## @return 科学计数法字符串。
 func to_scientific_string(
 	decimal_places: int = 2,

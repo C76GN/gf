@@ -2,6 +2,12 @@
 ##
 ## 监听一组 GFBindableProperty，在任意来源变化时执行回调。可绑定 Node 生命周期，
 ## 适合 Controller 层组合多个 Model 属性，不要求项目引入新的状态模型。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFReactiveEffect
 extends RefCounted
 
@@ -9,7 +15,15 @@ extends RefCounted
 # --- 信号 ---
 
 ## effect 执行后发出。
+## [br]
+## @api public
+## [br]
 ## @param value: 回调返回值。
+## [br]
+## @schema value {
+##   "type": "Variant",
+##   "description": "回调返回值。"
+## }
 signal effect_ran(value: Variant)
 
 
@@ -21,6 +35,8 @@ const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance
 # --- 公共变量 ---
 
 ## 单次 run 中最多补跑的次数，避免回调持续写入来源属性造成死循环。
+## [br]
+## @api public
 var max_reruns_per_run: int = 8
 
 
@@ -38,9 +54,15 @@ var _rerun_requested: bool = false
 # --- Godot 生命周期方法 ---
 
 ## 构造函数。
+## [br]
+## @api public
+## [br]
 ## @param sources: 要监听的 GFBindableProperty 列表。
+## [br]
 ## @param callback: 变化后执行的回调。
+## [br]
 ## @param owner: 可选 Node 生命周期宿主。
+## [br]
 ## @param run_immediately: 是否立即执行一次。
 func _init(
 	sources: Array[GFBindableProperty] = [],
@@ -55,9 +77,15 @@ func _init(
 # --- 公共方法 ---
 
 ## 配置并启动 effect。重复调用会先停止旧绑定。
+## [br]
+## @api public
+## [br]
 ## @param sources: 要监听的 GFBindableProperty 列表。
+## [br]
 ## @param callback: 变化后执行的回调。
+## [br]
 ## @param owner: 可选 Node 生命周期宿主。
+## [br]
 ## @param run_immediately: 是否立即执行一次。
 func configure(
 	sources: Array[GFBindableProperty],
@@ -85,7 +113,15 @@ func configure(
 
 
 ## 手动执行 effect。
+## [br]
+## @api public
+## [br]
 ## @return 回调返回值；回调无效时返回 null。
+## [br]
+## @schema return {
+##   "type": "Variant",
+##   "description": "回调返回值；回调无效时返回 null。"
+## }
 func run() -> Variant:
 	if not _active or not _callback.is_valid():
 		return null
@@ -112,6 +148,8 @@ func run() -> Variant:
 
 
 ## 停止 effect 并断开全部监听。
+## [br]
+## @api public
 func stop() -> void:
 	for connection: Dictionary in _connections:
 		var source := connection.get("source") as GFBindableProperty
@@ -139,17 +177,25 @@ func stop() -> void:
 
 
 ## 释放 effect 持有的监听。
+## [br]
+## @api public
 func dispose() -> void:
 	stop()
 
 
 ## 检查 effect 是否处于激活状态。
+## [br]
+## @api public
+## [br]
 ## @return 激活时返回 true。
 func is_active() -> bool:
 	return _active
 
 
 ## 获取当前监听的属性列表。
+## [br]
+## @api public
+## [br]
 ## @return GFBindableProperty 数组。
 func get_sources() -> Array[GFBindableProperty]:
 	return _sources.duplicate()

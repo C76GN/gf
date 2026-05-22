@@ -2,18 +2,29 @@
 ##
 ## 该后端只实现 GFNetworkBackend 的 bytes 传输边界，不定义房间、同步、
 ## RPC 或任何项目消息语义。需要更复杂协议时可以继续继承 GFNetworkBackend。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFENetNetworkBackend
 extends GFNetworkBackend
 
 
 # --- 常量 ---
 
+## 广播 peer 标识。
+## [br]
+## @api public
 const BROADCAST_PEER_ID: int = -1
 
 
 # --- 公共变量 ---
 
 ## 每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_packets_per_poll: int = 64
 
 
@@ -29,7 +40,14 @@ var _is_server: bool = false
 
 ## 启动 ENet 主机。
 ## 支持 options: port, max_clients, max_channels, in_bandwidth, out_bandwidth。
+## [br]
+## @api public
+## [br]
 ## @param options: 操作选项字典。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，支持 port、max_clients、max_channels、in_bandwidth、out_bandwidth。
 func host(options: Dictionary = {}) -> Error:
 	var port := int(options.get("port", 0))
 	if port <= 0:
@@ -59,8 +77,16 @@ func host(options: Dictionary = {}) -> Error:
 
 ## 连接 ENet 远端。
 ## endpoint 可传 "host:port"，或通过 options.port 传端口。
+## [br]
+## @api public
+## [br]
 ## @param endpoint: 网络连接端点。
+## [br]
 ## @param options: 操作选项字典。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，支持 port、max_channels、in_bandwidth、out_bandwidth。
 func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 	var parsed := _parse_endpoint(endpoint, options)
 	var address := String(parsed.get("address", ""))
@@ -89,15 +115,26 @@ func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -> Error:
 
 
 ## 断开 ENet 连接。
+## [br]
+## @api public
 func disconnect_backend() -> void:
 	_close_peer(true)
 
 
 ## 发送 bytes。
 ## options 支持 reliable, transfer_mode, channel。
+## [br]
+## @api public
+## [br]
 ## @param peer_id: 目标网络 peer 标识。
+## [br]
 ## @param bytes: 要发送的字节数据。
+## [br]
 ## @param options: 操作选项字典。
+## [br]
+## @return Godot 错误码。
+## [br]
+## @schema options: Dictionary，支持 reliable、transfer_mode、channel。
 func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) -> Error:
 	if _peer == null:
 		return ERR_UNCONFIGURED
@@ -113,6 +150,9 @@ func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) 
 
 
 ## 轮询 ENet 事件和收包。
+## [br]
+## @api public
+## [br]
 ## @param _delta: 本帧时间增量（秒），默认实现不直接使用。
 func poll(_delta: float) -> void:
 	if _peer == null:
@@ -133,6 +173,12 @@ func poll(_delta: float) -> void:
 
 
 ## 获取后端调试快照。
+## [br]
+## @api public
+## [br]
+## @return 调试信息字典。
+## [br]
+## @schema return: Dictionary，包含 backend、available、endpoint、is_server、connection_status、connection_status_name、available_packet_count、max_packets_per_poll。
 func get_debug_snapshot() -> Dictionary:
 	var status := MultiplayerPeer.CONNECTION_DISCONNECTED if _peer == null else _peer.get_connection_status()
 	return {

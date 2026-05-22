@@ -66,7 +66,7 @@ func test_execute_after_zero_delay_runs_immediately() -> void:
 	)
 
 	assert_eq(fired["count"], 1, "0 秒延迟应立即执行回调。")
-	assert_true(_timer_util._pending_timers.is_empty(), "立即执行不应加入待执行队列。")
+	assert_eq(int(_timer_util.get_debug_snapshot()["pending_count"]), 0, "立即执行不应加入待执行队列。")
 
 
 func test_execute_after_rejects_invalid_callback() -> void:
@@ -74,7 +74,7 @@ func test_execute_after_rejects_invalid_callback() -> void:
 
 	assert_eq(handle, 0, "无效回调不应返回有效句柄。")
 	assert_push_error("[GFTimerUtility] execute_after 失败：传入的 callback 无效。")
-	assert_true(_timer_util._pending_timers.is_empty(), "无效回调不应加入待执行队列。")
+	assert_eq(int(_timer_util.get_debug_snapshot()["pending_count"]), 0, "无效回调不应加入待执行队列。")
 
 
 func test_multiple_timers_fire_in_registration_order() -> void:

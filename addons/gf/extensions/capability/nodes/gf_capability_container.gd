@@ -2,23 +2,33 @@
 ##
 ## 将该节点作为某个 Node 的子节点后，容器内带脚本的子节点会被注册为父节点的能力。
 ## 需要在当前架构中注册 GFCapabilityUtility。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFCapabilityContainer
 extends Node
 
 
 # --- 常量 ---
 
-const GF_NODE_CONTEXT_BASE = preload("res://addons/gf/kernel/core/gf_node_context.gd")
+const _GF_NODE_CONTEXT_BASE: Script = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 const _INSTANCE_GUARD: Script = preload("res://addons/gf/kernel/core/gf_instance_guard.gd")
-const GF_CAPABILITY_UTILITY_BASE = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
+const _GF_CAPABILITY_UTILITY_BASE: Script = preload("res://addons/gf/extensions/capability/core/gf_capability_utility.gd")
 
 
 # --- 导出变量 ---
 
 ## 是否在进入场景树后自动注册已有子节点。
+## [br]
+## @api public
 @export var auto_register_children: bool = true
 
 ## 是否在子节点顺序变化时自动注册新增子节点。
+## [br]
+## @api public
 @export var watch_child_changes: bool = true
 
 
@@ -52,11 +62,17 @@ func _exit_tree() -> void:
 # --- 公共方法 ---
 
 ## 获取容器服务的能力接收者。
+## [br]
+## @api public
+## [br]
+## @return: 容器的父节点；容器尚未挂载时返回 null。
 func get_receiver() -> Node:
 	return get_parent()
 
 
 ## 立即扫描并注册容器中的子节点能力。
+## [br]
+## @api public
 func register_children_now() -> void:
 	_register_children()
 
@@ -144,14 +160,14 @@ func _get_capability_utility() -> Object:
 	if architecture == null:
 		return null
 
-	return architecture.get_utility(GF_CAPABILITY_UTILITY_BASE)
+	return architecture.get_utility(_GF_CAPABILITY_UTILITY_BASE)
 
 
 func _get_architecture_or_null() -> GFArchitecture:
 	var current_node: Node = self
 	while current_node != null:
-		if current_node is GF_NODE_CONTEXT_BASE:
-			var context := current_node as GF_NODE_CONTEXT_BASE
+		if current_node is _GF_NODE_CONTEXT_BASE:
+			var context := current_node as _GF_NODE_CONTEXT_BASE
 			var context_architecture := context.get_architecture()
 			if context_architecture != null:
 				return context_architecture

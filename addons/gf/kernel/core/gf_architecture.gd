@@ -4,32 +4,90 @@
 ##   阶段一 (init)       ：所有模块执行自身内部变量初始化。
 ##   阶段二 (async_init) ：所有模块串行执行异步初始化（可使用 await）。
 ##   阶段三 (ready)      ：所有模块均已完成 init，可安全进行跨模块依赖获取。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
+## [br]
+## @layer kernel/core
 class_name GFArchitecture
 
 
 # --- 信号 ---
 
 ## 当一次初始化流程完成或被 dispose() 中断后发出。
+## [br]
+## @api public
 signal initialization_finished
 
 ## 当一次初始化流程因为框架级保护失败后发出。
+## [br]
+## @api public
+## [br]
 ## @param reason: 初始化失败原因。
 signal initialization_failed(reason: String)
 
 ## 当项目级 Installer 应用完成或被 dispose() 中断后发出。
+## [br]
+## @api public
 signal project_installers_finished
 
 
 # --- 常量 ---
 
+## 依赖绑定记录脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/core
 const GFBindingBase = preload("res://addons/gf/kernel/core/gf_binding.gd")
+
+## 架构声明式装配器脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/core
 const GFBinderBase = preload("res://addons/gf/kernel/core/gf_binder.gd")
+
+## 工厂绑定生命周期定义脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/core
 const GFBindingLifetimesBase = preload("res://addons/gf/kernel/core/gf_binding_lifetimes.gd")
+
+## 时间提供器基类脚本。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/core
 const GFTimeProviderBase = preload("res://addons/gf/kernel/base/gf_time_provider.gd")
+
+## 声明式依赖聚合 Hook 名称。
+## [br]
+## @api public
 const HOOK_GET_REQUIRED_DEPENDENCIES: StringName = &"get_required_dependencies"
+
+## 声明式 Model 依赖 Hook 名称。
+## [br]
+## @api public
 const HOOK_GET_REQUIRED_MODELS: StringName = &"get_required_models"
+
+## 声明式 System 依赖 Hook 名称。
+## [br]
+## @api public
 const HOOK_GET_REQUIRED_SYSTEMS: StringName = &"get_required_systems"
+
+## 声明式 Utility 依赖 Hook 名称。
+## [br]
+## @api public
 const HOOK_GET_REQUIRED_UTILITIES: StringName = &"get_required_utilities"
+
+## 声明式工厂依赖 Hook 名称。
+## [br]
+## @api public
 const HOOK_GET_REQUIRED_FACTORIES: StringName = &"get_required_factories"
 const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_script_type_inspector.gd")
 
@@ -38,19 +96,27 @@ const _SCRIPT_TYPE_INSPECTOR: Script = preload("res://addons/gf/kernel/core/gf_s
 
 ## 单个模块 async_init() 的最长等待时间。小于等于 0 时不启用超时。
 ## 默认关闭；项目可按自身加载预算显式启用。
+## [br]
+## @api public
 var module_async_init_timeout_seconds: float = 0.0:
 	set(value):
 		module_async_init_timeout_seconds = maxf(value, 0.0)
 
 ## 单个生命周期阶段最多扫描模块注册表的次数，避免模块在生命周期中无限注册新模块。
+## [br]
+## @api public
 var module_lifecycle_max_stage_passes: int = 256:
 	set(value):
 		module_lifecycle_max_stage_passes = maxi(value, 1)
 
 ## 严格依赖查询模式。开启后本架构查询不到本地模块时不会回退父级架构。
+## [br]
+## @api public
 var strict_dependency_lookup: bool = false
 
 ## 最近一次初始化失败原因；没有失败时为空字符串。
+## [br]
+## @api public
 var last_initialization_error: String = ""
 
 
@@ -83,6 +149,11 @@ var _initialization_failed: bool = false
 
 # --- Godot 生命周期方法 ---
 
+## 创建架构容器，可选择指定父级架构作为依赖回退来源。
+## [br]
+## @api public
+## [br]
+## @param parent_architecture: 父级架构；为空时不启用回退。
 func _init(parent_architecture: GFArchitecture = null) -> void:
 	_event_system = GFTypeEventSystem.new()
 	_assign_parent_architecture(parent_architecture, "_init")
@@ -91,31 +162,47 @@ func _init(parent_architecture: GFArchitecture = null) -> void:
 # --- 公共方法 ---
 
 ## 检查架构是否已初始化。
+## [br]
+## @api public
+## [br]
 ## @return 已初始化返回 true，否则返回 false。
 func is_inited() -> bool:
 	return _inited
 
 
 ## 检查最近一次初始化是否因为框架级保护失败。
+## [br]
+## @api public
+## [br]
 ## @return 最近一次初始化失败返回 true。
 func has_initialization_failed() -> bool:
 	return _initialization_failed
 
 
 ## 检查当前架构生命周期是否仍处于可安全继续异步写回的活动状态。
+## [br]
+## @api public
+## [br]
 ## @return 正在初始化或已完成初始化，且未被 dispose() 或失败保护中断时返回 true。
 func is_lifecycle_active() -> bool:
 	return (_is_initializing or _inited) and not _initialization_failed
 
 
 ## 检查指定模块实例是否已经完成 ready 阶段。
+## [br]
+## @api public
+## [br]
 ## @param instance: 由当前架构注册的模块实例。
+## [br]
 ## @return 模块完成 ready 阶段时返回 true。
 func is_module_ready(instance: Object) -> bool:
 	return _is_module_ready_for_lookup(instance)
 
 
 ## 将当前架构标记为初始化失败，并唤醒等待初始化或 Installer 的调用方。
+## [br]
+## @api public
+## [br]
 ## @param reason: 初始化失败原因。
 func fail_initialization(reason: String) -> void:
 	var failure_reason := reason
@@ -125,30 +212,45 @@ func fail_initialization(reason: String) -> void:
 
 
 ## 获取父级架构。Scoped 架构会在本地未找到依赖时回退到父级架构查询。
+## [br]
+## @api public
+## [br]
 ## @return 父级架构实例；未设置时返回 null。
 func get_parent_architecture() -> GFArchitecture:
 	return _parent_architecture
 
 
 ## 设置父级架构。不会接管父级生命周期。
+## [br]
+## @api public
+## [br]
 ## @param parent_architecture: 要作为依赖回退来源的父级架构。
 func set_parent_architecture(parent_architecture: GFArchitecture) -> void:
 	_assign_parent_architecture(parent_architecture, "set_parent_architecture")
 
 
 ## 检查项目级 Installer 是否已经应用到当前架构。
+## [br]
+## @api public
+## [br]
 ## @return 已应用返回 true。
 func has_project_installers_applied() -> bool:
 	return _project_installers_applied
 
 
 ## 检查项目级 Installer 是否正在应用。
+## [br]
+## @api public
+## [br]
 ## @return 正在应用返回 true。
 func is_project_installers_running() -> bool:
 	return _project_installers_running
 
 
 ## 标记项目级 Installer 已开始应用。
+## [br]
+## @api public
+## [br]
 ## @return 成功开始返回 true；已经完成或正在运行时返回 false。
 func begin_project_installers() -> bool:
 	if _project_installers_applied or _project_installers_running:
@@ -163,6 +265,8 @@ func begin_project_installers() -> bool:
 
 
 ## 标记项目级 Installer 已应用。由 Gf 启动入口调用。
+## [br]
+## @api public
 func mark_project_installers_applied() -> void:
 	var was_running := _project_installers_running
 	_project_installers_applied = true
@@ -172,12 +276,19 @@ func mark_project_installers_applied() -> void:
 
 
 ## 标记项目级 Installer 应用完成并唤醒等待方。
+## [br]
+## @api public
 func finish_project_installers() -> void:
 	mark_project_installers_applied()
 
 
 ## 创建一个声明式装配器，便于 Installer 使用 fluent API 注册模块与工厂。
+## [br]
+## @api public
+## [br]
 ## @return 绑定到当前架构的装配器。
+## [br]
+## @schema return: GFBindBuilder-compatible binder owned by this architecture.
 func create_binder() -> Variant:
 	return GFBinderBase.new(self)
 
@@ -186,6 +297,8 @@ func create_binder() -> Variant:
 ## 阶段一：调用所有模块的 init()，用于初始化自身内部变量。
 ## 阶段二：串行 await 所有模块的 async_init()，用于异步资源加载等操作。
 ## 阶段三：调用所有模块的 ready()，此时跨模块依赖获取是安全的。
+## [br]
+## @api public
 func init() -> void:
 	if _inited:
 		return
@@ -219,6 +332,8 @@ func init() -> void:
 
 
 ## 销毁架构及所有注册的组件。
+## [br]
+## @api public
 func dispose() -> void:
 	var was_initializing := _is_initializing
 	_lifecycle_serial += 1
@@ -253,6 +368,9 @@ func dispose() -> void:
 ## 若已注册 GFTimeProvider，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## 设置了 ignore_time_scale 的模块在未暂停时将跳过 time_scale。
+## [br]
+## @api public
+## [br]
 ## @param delta: 距上一帧的时间（秒）。
 func tick(delta: float) -> void:
 	if not _inited:
@@ -275,6 +393,9 @@ func tick(delta: float) -> void:
 ## 若已注册 GFTimeProvider，则自动将 delta 经过时间缩放/暂停处理后再传递给参与 physics_tick 的模块。
 ## 设置了 ignore_pause 的模块在暂停时将接收原始 delta。
 ## 设置了 ignore_time_scale 的模块在未暂停时将跳过 time_scale。
+## [br]
+## @api public
+## [br]
 ## @param delta: 距上一物理帧的时间（秒）。
 func physics_tick(delta: float) -> void:
 	if not _inited:
@@ -295,8 +416,14 @@ func physics_tick(delta: float) -> void:
 
 ## 执行命令实例。支持 await：'await send_command(MyCommand.new())'。
 ## command 缺少 execute() 方法时会输出 warning 并返回 null。
+## [br]
+## @api public
+## [br]
 ## @param command: 要执行的命令实例。
+## [br]
 ## @return 命令 execute() 的返回值；空对象或缺少 execute() 时返回 null。
+## [br]
+## @schema return: Variant command result returned by command.execute().
 func send_command(command: Object) -> Variant:
 	if command == null:
 		push_error("[GFArchitecture] send_command 失败：command 为空。")
@@ -311,8 +438,14 @@ func send_command(command: Object) -> Variant:
 
 ## 执行查询实例并返回结果。
 ## query 缺少 execute() 方法时会输出 warning 并返回 null。
+## [br]
+## @api public
+## [br]
 ## @param query: 要执行的查询实例。
+## [br]
 ## @return 查询 execute() 的返回值；空对象或缺少 execute() 时返回 null。
+## [br]
+## @schema return: Variant query result returned by query.execute().
 func send_query(query: Object) -> Variant:
 	if query == null:
 		push_error("[GFArchitecture] send_query 失败：query 为空。")
@@ -326,6 +459,9 @@ func send_query(query: Object) -> Variant:
 
 
 ## 通过事件系统发送类型事件实例。
+## [br]
+## @api public
+## [br]
 ## @param event_instance: 要分发的事件实例。
 func send_event(event_instance: Object) -> void:
 	if event_instance == null:
@@ -336,8 +472,13 @@ func send_event(event_instance: Object) -> void:
 
 
 ## 为脚本类型注册事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_type: 要监听的脚本类型。
+## [br]
 ## @param on_event: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event(event_type: Script, on_event: Callable, priority: int = 0) -> void:
 	_event_system.register(event_type, on_event, priority)
@@ -345,9 +486,15 @@ func register_event(event_type: Script, on_event: Callable, priority: int = 0) -
 
 ## 为脚本类型注册带拥有者的事件监听器。
 ## 拥有者注销或释放后，可通过 unregister_owner_events() 一次性清理相关监听。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param event_type: 要监听的脚本类型。
+## [br]
 ## @param on_event: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_event_owned(owner: Object, event_type: Script, on_event: Callable, priority: int = 0) -> void:
 	_event_system.register(event_type, on_event, priority, owner)
@@ -355,17 +502,28 @@ func register_event_owned(owner: Object, event_type: Script, on_event: Callable,
 
 ## 为脚本类型注册可赋值事件监听器。
 ## 监听基类事件时，也会收到继承自该脚本类型的事件实例。
+## [br]
+## @api public
+## [br]
 ## @param base_event_type: 要监听的基类脚本类型。
+## [br]
 ## @param on_event: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event(base_event_type: Script, on_event: Callable, priority: int = 0) -> void:
 	_event_system.register_assignable(base_event_type, on_event, priority)
 
 
 ## 为脚本类型注册带拥有者的可赋值事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param base_event_type: 要监听的基类脚本类型。
+## [br]
 ## @param on_event: 回调函数。
+## [br]
 ## @param priority: 回调优先级，数值越大越先执行，默认为 0。
 func register_assignable_event_owned(
 	owner: Object,
@@ -377,63 +535,103 @@ func register_assignable_event_owned(
 
 
 ## 为脚本类型注销事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_type: 要注销的脚本类型。
+## [br]
 ## @param on_event: 要移除的回调函数。
 func unregister_event(event_type: Script, on_event: Callable) -> void:
 	_event_system.unregister(event_type, on_event)
 
 
 ## 注销可赋值类型事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param base_event_type: 注册时使用的基类脚本类型。
+## [br]
 ## @param on_event: 要移除的回调函数。
 func unregister_assignable_event(base_event_type: Script, on_event: Callable) -> void:
 	_event_system.unregister_assignable(base_event_type, on_event)
 
 
 ## 注册轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param on_event: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event(event_id: StringName, on_event: Callable) -> void:
 	_event_system.register_simple(event_id, on_event)
 
 
 ## 注册带拥有者的轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 监听器拥有者。
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param on_event: 回调函数，签名为 func(payload: Variant)。
 func register_simple_event_owned(owner: Object, event_id: StringName, on_event: Callable) -> void:
 	_event_system.register_simple(event_id, on_event, owner)
 
 
 ## 注销轻量级 StringName 事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param on_event: 要移除的回调函数。
 func unregister_simple_event(event_id: StringName, on_event: Callable) -> void:
 	_event_system.unregister_simple(event_id, on_event)
 
 
 ## 注销某个拥有者注册过的所有事件监听器。
+## [br]
+## @api public
+## [br]
 ## @param owner: 要清理监听器的拥有者。
 func unregister_owner_events(owner: Object) -> void:
 	_event_system.unregister_owner(owner)
 
 
 ## 发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。
+## [br]
+## @api public
+## [br]
 ## @param event_id: StringName 事件标识符。
+## [br]
 ## @param payload: 可选的事件附加数据。
+## [br]
+## @schema payload: Variant payload passed unchanged to simple event listeners.
 func send_simple_event(event_id: StringName, payload: Variant = null) -> void:
 	_event_system.send_simple(event_id, payload)
 
 
 ## 获取事件系统诊断统计。
+## [br]
+## @api public
+## [br]
 ## @return 包含各事件轨道监听数量与 pending 操作数量的字典。
+## [br]
+## @schema return: Dictionary produced by GFTypeEventSystem.get_debug_stats().
 func get_event_debug_stats() -> Dictionary:
 	return _event_system.get_debug_stats()
 
 
 ## 配置事件系统调试与保护选项。
+## [br]
+## @api public
+## [br]
 ## @param max_dispatch_depth: 最大嵌套派发深度；小于等于 0 表示不限制。
+## [br]
 ## @param trace_enabled: 是否记录派发追踪。
+## [br]
 ## @param max_trace_entries: 最多保留的追踪条目数。
 func configure_event_debugging(
 	max_dispatch_depth: int = GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH,
@@ -446,20 +644,31 @@ func configure_event_debugging(
 
 
 ## 获取最近事件派发追踪条目。
+## [br]
+## @api public
+## [br]
 ## @return 从旧到新的追踪条目副本。
+## [br]
+## @schema return: Array of Dictionary trace entries with event, listener, owner, and dispatch metadata.
 func get_event_dispatch_trace() -> Array[Dictionary]:
 	return _event_system.get_dispatch_trace()
 
 
 ## 清空事件派发追踪。
+## [br]
+## @api public
 func clear_event_dispatch_trace() -> void:
 	_event_system.clear_dispatch_trace()
 
 
-# --- 注册方法 ---
+# --- 公共方法（注册） ---
 
 ## 注册 System 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 系统的脚本类。
+## [br]
 ## @param instance: 系统实例。
 func register_system(script_cls: Script, instance: Object) -> void:
 	if not _register_module(_system_registry, script_cls, instance):
@@ -471,7 +680,11 @@ func register_system(script_cls: Script, instance: Object) -> void:
 
 
 ## 注册 Model 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 模型的脚本类。
+## [br]
 ## @param instance: 模型实例。
 func register_model(script_cls: Script, instance: Object) -> void:
 	if not _register_module(_model_registry, script_cls, instance):
@@ -482,7 +695,11 @@ func register_model(script_cls: Script, instance: Object) -> void:
 
 
 ## 注册 Utility 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 工具的脚本类。
+## [br]
 ## @param instance: 工具实例。
 func register_utility(script_cls: Script, instance: Object) -> void:
 	if not _register_module(_utility_registry, script_cls, instance):
@@ -496,7 +713,11 @@ func register_utility(script_cls: Script, instance: Object) -> void:
 
 
 ## 替换 System 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 系统的脚本类。
+## [br]
 ## @param instance: 新系统实例。
 func replace_system(script_cls: Script, instance: Object) -> void:
 	if not _validate_registration(script_cls, instance, "System"):
@@ -507,7 +728,11 @@ func replace_system(script_cls: Script, instance: Object) -> void:
 
 
 ## 替换 Model 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 模型的脚本类。
+## [br]
 ## @param instance: 新模型实例。
 func replace_model(script_cls: Script, instance: Object) -> void:
 	if not _validate_registration(script_cls, instance, "Model"):
@@ -518,7 +743,11 @@ func replace_model(script_cls: Script, instance: Object) -> void:
 
 
 ## 替换 Utility 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 工具的脚本类。
+## [br]
 ## @param instance: 新工具实例。
 func replace_utility(script_cls: Script, instance: Object) -> void:
 	if not _validate_registration(script_cls, instance, "Utility"):
@@ -529,8 +758,13 @@ func replace_utility(script_cls: Script, instance: Object) -> void:
 
 
 ## 注册短生命周期对象工厂。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要创建的脚本类型。
+## [br]
 ## @param factory: 返回对象实例的工厂回调。
+## [br]
 ## @param lifetime: 工厂生命周期，默认每次 create_instance() 都创建新对象。
 func register_factory(
 	script_cls: Script,
@@ -554,7 +788,11 @@ func register_factory(
 
 
 ## 注册已有实例作为短生命周期工厂入口。该实例以单例方式返回。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要创建的脚本类型。
+## [br]
 ## @param instance: 要暴露的实例。
 func register_factory_instance(script_cls: Script, instance: Object) -> void:
 	if not _can_mutate_registration_state("register_factory_instance"):
@@ -572,8 +810,13 @@ func register_factory_instance(script_cls: Script, instance: Object) -> void:
 
 
 ## 替换短生命周期对象工厂。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要创建的脚本类型。
+## [br]
 ## @param factory: 新工厂回调。
+## [br]
 ## @param lifetime: 工厂生命周期。
 func replace_factory(
 	script_cls: Script,
@@ -595,7 +838,11 @@ func replace_factory(
 
 
 ## 替换已有实例工厂入口。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要创建的脚本类型。
+## [br]
 ## @param instance: 要暴露的实例。
 func replace_factory_instance(script_cls: Script, instance: Object) -> void:
 	if not _can_mutate_registration_state("replace_factory_instance"):
@@ -611,6 +858,9 @@ func replace_factory_instance(script_cls: Script, instance: Object) -> void:
 
 
 ## 注销短生命周期对象工厂。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要移除的脚本类型。
 func unregister_factory(script_cls: Script) -> void:
 	_clear_factory_binding(script_cls)
@@ -618,7 +868,12 @@ func unregister_factory(script_cls: Script) -> void:
 
 
 ## 检查当前架构或父级架构是否注册了指定工厂。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要查询的脚本类型。
+## [br]
+## @return 工厂存在时返回 true。
 func has_factory(script_cls: Script) -> bool:
 	if script_cls == null:
 		return false
@@ -631,27 +886,42 @@ func has_factory(script_cls: Script) -> bool:
 
 ## 为已注册 System 增加一个额外查询别名。
 ## 适合把具体实现以抽象基类或接口式脚本暴露给调用方。
+## [br]
+## @api public
+## [br]
 ## @param alias_cls: 调用 get_system() 时使用的别名脚本类。
+## [br]
 ## @param target_cls: 已注册 System 的实际脚本类。
 func register_system_alias(alias_cls: Script, target_cls: Script) -> void:
 	_register_module_alias(_system_registry, alias_cls, target_cls)
 
 
 ## 为已注册 Model 增加一个额外查询别名。
+## [br]
+## @api public
+## [br]
 ## @param alias_cls: 调用 get_model() 时使用的别名脚本类。
+## [br]
 ## @param target_cls: 已注册 Model 的实际脚本类。
 func register_model_alias(alias_cls: Script, target_cls: Script) -> void:
 	_register_module_alias(_model_registry, alias_cls, target_cls)
 
 
 ## 为已注册 Utility 增加一个额外查询别名。
+## [br]
+## @api public
+## [br]
 ## @param alias_cls: 调用 get_utility() 时使用的别名脚本类。
+## [br]
 ## @param target_cls: 已注册 Utility 的实际脚本类。
 func register_utility_alias(alias_cls: Script, target_cls: Script) -> void:
 	_register_module_alias(_utility_registry, alias_cls, target_cls)
 
 
 ## 便捷注册 System 实例，自动从实例获取脚本类作为注册键。
+## [br]
+## @api public
+## [br]
 ## @param instance: 系统实例，必须附加有 GDScript 脚本。
 func register_system_instance(instance: Object) -> void:
 	if instance == null:
@@ -665,6 +935,9 @@ func register_system_instance(instance: Object) -> void:
 
 
 ## 便捷注册 Model 实例，自动从实例获取脚本类作为注册键。
+## [br]
+## @api public
+## [br]
 ## @param instance: 模型实例，必须附加有 GDScript 脚本。
 func register_model_instance(instance: Object) -> void:
 	if instance == null:
@@ -678,6 +951,9 @@ func register_model_instance(instance: Object) -> void:
 
 
 ## 便捷注册 Utility 实例，自动从实例获取脚本类作为注册键。
+## [br]
+## @api public
+## [br]
 ## @param instance: 工具实例，必须附加有 GDScript 脚本。
 func register_utility_instance(instance: Object) -> void:
 	if instance == null:
@@ -691,7 +967,11 @@ func register_utility_instance(instance: Object) -> void:
 
 
 ## 便捷注册 System，并同时以 alias_cls 作为额外查询键。
+## [br]
+## @api public
+## [br]
 ## @param instance: System 实例。
+## [br]
 ## @param alias_cls: 额外查询脚本类。
 func register_system_instance_as(instance: Object, alias_cls: Script) -> void:
 	var script := _get_instance_script_or_null(instance, "register_system_instance_as")
@@ -704,7 +984,11 @@ func register_system_instance_as(instance: Object, alias_cls: Script) -> void:
 
 
 ## 便捷注册 Model，并同时以 alias_cls 作为额外查询键。
+## [br]
+## @api public
+## [br]
 ## @param instance: Model 实例。
+## [br]
 ## @param alias_cls: 额外查询脚本类。
 func register_model_instance_as(instance: Object, alias_cls: Script) -> void:
 	var script := _get_instance_script_or_null(instance, "register_model_instance_as")
@@ -717,7 +1001,11 @@ func register_model_instance_as(instance: Object, alias_cls: Script) -> void:
 
 
 ## 便捷注册 Utility，并同时以 alias_cls 作为额外查询键。
+## [br]
+## @api public
+## [br]
 ## @param instance: Utility 实例。
+## [br]
 ## @param alias_cls: 额外查询脚本类。
 func register_utility_instance_as(instance: Object, alias_cls: Script) -> void:
 	var script := _get_instance_script_or_null(instance, "register_utility_instance_as")
@@ -730,6 +1018,9 @@ func register_utility_instance_as(instance: Object, alias_cls: Script) -> void:
 
 
 ## 注销 System 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 系统的脚本类。
 func unregister_system(script_cls: Script) -> void:
 	if _unregister_module(_system_registry, script_cls):
@@ -737,12 +1028,18 @@ func unregister_system(script_cls: Script) -> void:
 
 
 ## 注销 Model 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 模型的脚本类。
 func unregister_model(script_cls: Script) -> void:
 	_unregister_module(_model_registry, script_cls)
 
 
 ## 注销 Utility 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 工具的脚本类。
 func unregister_utility(script_cls: Script) -> void:
 	if _unregister_module(_utility_registry, script_cls):
@@ -750,11 +1047,16 @@ func unregister_utility(script_cls: Script) -> void:
 		_refresh_tick_caches()
 
 
-# --- 获取方法 ---
+# --- 公共方法（获取） ---
 
 ## 通过脚本类获取 System 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 脚本类。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 系统实例，如果未找到则返回 null。
 func get_system(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_system_registry, script_cls)
@@ -768,8 +1070,13 @@ func get_system(script_cls: Script, require_ready: bool = false) -> Object:
 
 
 ## 通过脚本类获取 Model 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 脚本类。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 模型实例，如果未找到则返回 null。
 func get_model(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_model_registry, script_cls)
@@ -783,8 +1090,13 @@ func get_model(script_cls: Script, require_ready: bool = false) -> Object:
 
 
 ## 通过脚本类获取 Utility 实例。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 脚本类。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 工具实例，如果未找到则返回 null。
 func get_utility(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_utility_registry, script_cls)
@@ -798,8 +1110,13 @@ func get_utility(script_cls: Script, require_ready: bool = false) -> Object:
 
 
 ## 仅从当前架构获取 System，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 脚本类。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 当前架构中的系统实例，如果未找到则返回 null。
 func get_local_system(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_system_registry, script_cls)
@@ -807,8 +1124,13 @@ func get_local_system(script_cls: Script, require_ready: bool = false) -> Object
 
 
 ## 仅从当前架构获取 Model，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 脚本类。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 当前架构中的模型实例，如果未找到则返回 null。
 func get_local_model(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_model_registry, script_cls)
@@ -816,8 +1138,13 @@ func get_local_model(script_cls: Script, require_ready: bool = false) -> Object:
 
 
 ## 仅从当前架构获取 Utility，不回退父级架构。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 脚本类。
+## [br]
 ## @param require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。
+## [br]
 ## @return 当前架构中的工具实例，如果未找到则返回 null。
 func get_local_utility(script_cls: Script, require_ready: bool = false) -> Object:
 	var instance := _get_local_registered_instance(_utility_registry, script_cls)
@@ -825,7 +1152,11 @@ func get_local_utility(script_cls: Script, require_ready: bool = false) -> Objec
 
 
 ## 通过已注册工厂创建短生命周期对象。
+## [br]
+## @api public
+## [br]
 ## @param script_cls: 要创建的脚本类型。
+## [br]
 ## @return 新对象实例；没有工厂或工厂返回非对象时返回 null。
 func create_instance(script_cls: Script) -> Object:
 	if script_cls == null:
@@ -836,12 +1167,18 @@ func create_instance(script_cls: Script) -> Object:
 
 
 ## 向任意对象注入当前架构依赖。
+## [br]
+## @api public
+## [br]
 ## @param instance: 需要注入的对象。
 func inject_object(instance: Object) -> void:
 	_inject_dependencies_if_needed(instance)
 
 
 ## 递归向节点树中实现注入 Hook 的节点注入当前架构。
+## [br]
+## @api public
+## [br]
 ## @param node: 节点树根节点。
 func inject_node_tree(node: Node) -> void:
 	if node == null:
@@ -850,11 +1187,16 @@ func inject_node_tree(node: Node) -> void:
 	_inject_node_tree(node)
 
 
-# --- 序列化方法 ---
+# --- 公共方法（序列化） ---
 
 ## 收集所有已注册 Model 的状态快照。
 ## 遍历所有 Model，调用其 to_dict() 方法，以脚本类的全局类名为键汇聚成一个字典。
+## [br]
+## @api public
+## [br]
 ## @return 包含所有 Model 状态的字典，可直接用于 JSON 序列化。
+## [br]
+## @schema return: Dictionary keyed by stable model save key, storing each Model.to_dict() result.
 func get_all_models_state() -> Dictionary:
 	var state: Dictionary = {}
 	for script_cls: Script in _models:
@@ -868,7 +1210,12 @@ func get_all_models_state() -> Dictionary:
 
 
 ## 从状态字典恢复所有已注册 Model 的数据。
+## [br]
+## @api public
+## [br]
 ## @param data: 由 get_all_models_state() 返回的状态字典。
+## [br]
+## @schema data: Dictionary keyed by stable model save key, storing serialized model data.
 func restore_all_models_state(data: Dictionary) -> void:
 	for script_cls: Script in _models:
 		var model := _models[script_cls] as Object
@@ -881,7 +1228,12 @@ func restore_all_models_state(data: Dictionary) -> void:
 
 
 ## 获取整个框架的全局快照，包含所有 Model 状态以及可选命令历史记录。
+## [br]
+## @api public
+## [br]
 ## @return 包含全局快照数据的字典。可直接用于 JSON 序列化。
+## [br]
+## @schema return: Dictionary with models and optional command_history fields.
 func get_global_snapshot() -> Dictionary:
 	var snapshot: Dictionary = {}
 	
@@ -898,7 +1250,13 @@ func get_global_snapshot() -> Dictionary:
 
 ## 从全局快照中恢复整个框架的状态，包含 Model 状态以及可选命令历史记录。
 ## 注意：恢复命令历史需要外部传入 CommandBuilder 进行控制反转，因为它涉及到具体的业务命令类实例化。
+## [br]
+## @api public
+## [br]
 ## @param data: 由 get_global_snapshot() 导出的全局快照字典数据。
+## [br]
+## @schema data: Dictionary produced by get_global_snapshot().
+## [br]
 ## @param command_builder: 【可选】如果需要恢复历史记录，必须传入用于反序列化具体 Command 实例的 Callable。
 func restore_global_snapshot(data: Dictionary, command_builder: Callable = Callable()) -> void:
 	if data.has("models"):
@@ -922,7 +1280,12 @@ func restore_global_snapshot(data: Dictionary, command_builder: Callable = Calla
 
 
 ## 获取架构模块生命周期诊断快照。
+## [br]
+## @api public
+## [br]
 ## @return 包含 Model、System、Utility、Factory、Alias 与 Tick 缓存状态的字典。
+## [br]
+## @schema return: Dictionary containing lifecycle flags, registered module summaries, factory summaries, alias counts, and tick cache counts.
 func get_debug_lifecycle_state() -> Dictionary:
 	return {
 		"inited": _inited,
@@ -947,8 +1310,16 @@ func get_debug_lifecycle_state() -> Dictionary:
 
 ## 获取架构中已注册模块的声明式依赖诊断报告。
 ## 模块可选择实现 get_required_dependencies() 或 get_required_models/systems/utilities/factories()。
+## [br]
+## @api public
+## [br]
 ## @param options: 可选参数，支持 include_parent_lookup 与 include_factories。
+## [br]
+## @schema options: Dictionary with optional bool keys include_parent_lookup and include_factories.
+## [br]
 ## @return 统一诊断报告字典。
+## [br]
+## @schema return: Dictionary dependency diagnostics report with modules, resolved_dependencies, missing_dependencies, issue counts, and next_action.
 func get_dependency_diagnostics(options: Dictionary = {}) -> Dictionary:
 	var include_parent_lookup := bool(options.get("include_parent_lookup", not strict_dependency_lookup))
 	var include_factories := bool(options.get("include_factories", true))
@@ -1008,7 +1379,23 @@ func get_dependency_diagnostics(options: Dictionary = {}) -> Dictionary:
 	)
 
 
-# --- 私有/内部方法 ---
+# --- 可重写钩子 / 虚方法 ---
+
+## 内部初始化回调，子类可重写。
+## [br]
+## @api protected
+func _on_init() -> void:
+	pass
+
+
+## 内部销毁回调，子类可重写。
+## [br]
+## @api protected
+func _on_dispose() -> void:
+	pass
+
+
+# --- 私有/辅助方法 ---
 
 func _collect_registry_dependency_diagnostics(
 	module_kind: String,
@@ -1430,10 +1817,7 @@ func _parent_chain_contains(parent_architecture: GFArchitecture, expected: GFArc
 	return false
 
 
-## 获取经过时间工具缩放后的 delta。若未注册 GFTimeProvider，则返回原始 delta。
-## @param delta: 引擎原始帧间隔时间。
-## @param time_provider: 本帧解析出的时间工具；为空时不缩放。
-## @return 缩放后的 delta。
+# 获取经过时间工具缩放后的 delta。若未注册 GFTimeProvider，则返回原始 delta。
 func _get_scaled_delta(delta: float, time_provider: Object) -> float:
 	if time_provider == null:
 		return delta
@@ -1452,12 +1836,7 @@ func _drive_physics_tick_step(raw_delta: float, scaled_delta: float, time_provid
 	_flush_tick_cache_refresh()
 
 
-## 根据模块的 ignore_pause 设置获取本次 tick 应使用的 delta。
-## @param instance: 被驱动的模块实例。
-## @param raw_delta: 引擎原始 delta。
-## @param scaled_delta: 已经由 GFTimeProvider 处理后的 delta。
-## @param time_provider: 本帧解析出的时间工具；为空时返回原始 delta。
-## @return 模块本次应接收的 delta。
+# 根据模块的 ignore_pause 设置获取本次 tick 应使用的 delta。
 func _get_module_delta(instance: Object, raw_delta: float, scaled_delta: float, time_provider: Object) -> float:
 	if time_provider == null:
 		return raw_delta
@@ -1668,11 +2047,8 @@ func _get_instance_debug_key(instance: Object) -> String:
 	return "Instance:%d" % instance.get_instance_id()
 
 
-## 从脚本类获取用于序列化的稳定字符串键。
-## 优先使用 Model.get_save_key()，其次使用 class_name（全局类名），最后回退到资源路径。
-## @param script_cls: 脚本类。
-## @param model: 可选 Model 实例。
-## @return 用于序列化字典键的字符串。
+# 从脚本类获取用于序列化的稳定字符串键。
+# 优先使用 Model.get_save_key()，其次使用 class_name（全局类名），最后回退到资源路径。
 func _get_model_key(script_cls: Script, model: Object = null) -> String:
 	if model != null and model.has_method("get_save_key"):
 		var raw_save_key: Variant = model.call("get_save_key")
@@ -1688,16 +2064,6 @@ func _get_model_key(script_cls: Script, model: Object = null) -> String:
 		return script_cls.resource_path
 	push_error("[GFArchitecture] 可序列化 Model 缺少稳定标识：请为脚本声明 class_name 或提供可用的资源路径。")
 	return ""
-
-
-## 内部初始化回调，子类可重写。
-func _on_init() -> void:
-	pass
-
-
-## 内部销毁回调，子类可重写。
-func _on_dispose() -> void:
-	pass
 
 
 func _initialize_registered_module(module_registry: ModuleRegistry, instance: Object) -> void:
@@ -2254,22 +2620,50 @@ func _has_assignable_instance(module_registry: ModuleRegistry, script_cls: Scrip
 
 # --- 内部类 ---
 
+## DependencyDiagnosticsReport: 架构依赖诊断报告构建器。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/core
 class DependencyDiagnosticsReport:
 	extends RefCounted
 
+	## 诊断报告主体名称。
+	## [br]
+	## @api framework_internal
 	var subject: String = ""
+
+	## 诊断条目列表。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @schema issues: Array of Dictionary dependency diagnostic entries.
 	var issues: Array[Dictionary] = []
 
 	func _init(p_subject: String = "") -> void:
 		subject = p_subject
 
 	## 添加一个 warning 级别的依赖诊断条目。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param kind: 诊断类型。
+	## [br]
 	## @param message: 面向维护者的诊断说明。
+	## [br]
 	## @param key: 可选的关联键，例如脚本类、别名或设置名。
+	## [br]
+	## @schema key: Variant diagnostic key stored unchanged when present.
+	## [br]
 	## @param path: 可选的关联资源路径。
+	## [br]
 	## @param metadata: 可选的附加诊断数据。
+	## [br]
+	## @schema metadata: Dictionary copied into the metadata field when not empty.
+	## [br]
 	## @return 新增的诊断条目。
+	## [br]
+	## @schema return: Dictionary issue entry appended to issues.
 	func add_warning(
 		kind: StringName,
 		message: String,
@@ -2280,12 +2674,26 @@ class DependencyDiagnosticsReport:
 		return _add_issue("warning", kind, message, key, path, metadata)
 
 	## 添加一个 error 级别的依赖诊断条目。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param kind: 诊断类型。
+	## [br]
 	## @param message: 面向维护者的诊断说明。
+	## [br]
 	## @param key: 可选的关联键，例如脚本类、别名或设置名。
+	## [br]
+	## @schema key: Variant diagnostic key stored unchanged when present.
+	## [br]
 	## @param path: 可选的关联资源路径。
+	## [br]
 	## @param metadata: 可选的附加诊断数据。
+	## [br]
+	## @schema metadata: Dictionary copied into the metadata field when not empty.
+	## [br]
 	## @return 新增的诊断条目。
+	## [br]
+	## @schema return: Dictionary issue entry appended to issues.
 	func add_error(
 		kind: StringName,
 		message: String,
@@ -2296,9 +2704,20 @@ class DependencyDiagnosticsReport:
 		return _add_issue("error", kind, message, key, path, metadata)
 
 	## 汇总诊断条目并转换为可序列化字典。
+	## [br]
+	## @api framework_internal
+	## [br]
 	## @param additional_fields: 合并到结果中的额外字段。
+	## [br]
+	## @schema additional_fields: Dictionary copied into the output before summary fields are added.
+	## [br]
 	## @param options: 可选输出控制项，例如 include_info_count、include_issue_count、next_action。
+	## [br]
+	## @schema options: Dictionary controlling summary fields and next action text.
+	## [br]
 	## @return 诊断报告字典。
+	## [br]
+	## @schema return: Dictionary containing ok, healthy, counts, summary, next_action, and issues.
 	func to_dict(additional_fields: Dictionary = {}, options: Dictionary = {}) -> Dictionary:
 		var result := additional_fields.duplicate(true)
 		var error_count := 0
@@ -2400,10 +2819,36 @@ class DependencyDiagnosticsReport:
 		return bool(options[field_name])
 
 
+## ModuleRegistry: 架构模块注册表。
+## [br]
+## @api framework_internal
+## [br]
+## @layer kernel/core
 class ModuleRegistry:
+	## 注册表显示名称。
+	## [br]
+	## @api framework_internal
 	var label: String = ""
+
+	## 直接注册的模块实例映射。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @schema instances: Dictionary keyed by Script, storing registered module instances.
 	var instances: Dictionary = {}
+
+	## 别名到直接注册脚本的映射。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @schema aliases: Dictionary keyed by alias Script, storing target Script.
 	var aliases: Dictionary = {}
+
+	## 可赋值查询缓存。
+	## [br]
+	## @api framework_internal
+	## [br]
+	## @schema assignable_cache: Dictionary keyed by requested Script, storing resolved registered Script.
 	var assignable_cache: Dictionary = {}
 
 	func _init(p_label: String) -> void:

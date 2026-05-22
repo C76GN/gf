@@ -2,6 +2,12 @@
 ##
 ## 用于把通用节点状态拆成可组合的序列化片段。具体项目可以继承该类，
 ## 在不修改存档图编排逻辑的前提下接入自己的节点状态。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFNodeSerializer
 extends Resource
 
@@ -9,18 +15,27 @@ extends Resource
 # --- 导出变量 ---
 
 ## 序列化器稳定标识。
+## [br]
+## @api public
 @export var serializer_id: StringName = &""
 
 ## 编辑器展示名称。
+## [br]
+## @api public
 @export var display_name: String = ""
 
 ## 可选 Godot 类名过滤。为空时由子类自行判断。
+## [br]
+## @api public
 @export var supported_class_name: String = ""
 
 
 # --- 公共方法 ---
 
 ## 获取序列化器标识。
+## [br]
+## @api public
+## [br]
 ## @return 稳定标识。
 func get_serializer_id() -> StringName:
 	if serializer_id != &"":
@@ -31,7 +46,11 @@ func get_serializer_id() -> StringName:
 
 
 ## 判断当前序列化器是否支持节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 待序列化节点。
+## [br]
 ## @return 支持时返回 true。
 func supports_node(node: Node) -> bool:
 	if node == null:
@@ -42,26 +61,54 @@ func supports_node(node: Node) -> bool:
 
 
 ## 采集节点数据。
+## [br]
+## @api public
+## [br]
 ## @param _node: 待序列化节点。
+## [br]
 ## @param _context: 调用上下文字典。
+## [br]
 ## @return 可写入存档的字典。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；基础实现保留给子类扩展。
+## [br]
+## @schema return: Dictionary，当前序列化器写入存档的字段集合；空字典表示无需保存。
 func gather(_node: Node, _context: Dictionary = {}) -> Dictionary:
 	return {}
 
 
 ## 应用节点数据。
+## [br]
+## @api public
+## [br]
 ## @param _node: 目标节点。
+## [br]
 ## @param _payload: 当前序列化器的数据。
+## [br]
 ## @param _context: 调用上下文字典。
+## [br]
 ## @return 结果字典。
+## [br]
+## @schema _payload: Dictionary，来自 gather() 的当前序列化器数据。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；基础实现保留给子类扩展。
+## [br]
+## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(_node: Node, _payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
 	return make_result(true)
 
 
 ## 构造统一结果。
+## [br]
+## @api public
+## [br]
 ## @param ok: 是否成功。
+## [br]
 ## @param error: 错误描述。
+## [br]
 ## @return 结果字典。
+## [br]
+## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func make_result(ok: bool, error: String = "") -> Dictionary:
 	return {
 		"ok": ok,
@@ -69,28 +116,85 @@ func make_result(ok: bool, error: String = "") -> Dictionary:
 	}
 
 
-# --- 私有/辅助方法 ---
+# --- 可重写钩子 / 虚方法 ---
 
+## 将节点属性复制到序列化载荷。
+## [br]
+## @api protected
+## [br]
+## @param node: 属性来源对象。
+## [br]
+## @param payload: 要写入的载荷字典。
+## [br]
+## @param property_name: 属性名。
+## [br]
+## @schema payload: Dictionary，键为属性名，值为属性当前值。
 func _copy_property_to_payload(node: Object, payload: Dictionary, property_name: String) -> void:
 	if _has_property(node, property_name):
 		payload[property_name] = node.get(property_name)
 
 
+## 批量将节点属性复制到序列化载荷。
+## [br]
+## @api protected
+## [br]
+## @param node: 属性来源对象。
+## [br]
+## @param payload: 要写入的载荷字典。
+## [br]
+## @param property_names: 属性名列表。
+## [br]
+## @schema payload: Dictionary，键为属性名，值为属性当前值。
 func _copy_properties_to_payload(node: Object, payload: Dictionary, property_names: PackedStringArray) -> void:
 	for property_name: String in property_names:
 		_copy_property_to_payload(node, payload, property_name)
 
 
+## 从载荷恢复一个节点属性。
+## [br]
+## @api protected
+## [br]
+## @param node: 目标对象。
+## [br]
+## @param payload: 序列化载荷。
+## [br]
+## @param property_name: 属性名。
+## [br]
+## @schema payload: Dictionary，键为属性名，值为要写回的属性值。
 func _apply_property_from_payload(node: Object, payload: Dictionary, property_name: String) -> void:
 	if payload.has(property_name) and _has_property(node, property_name):
 		node.set(property_name, payload[property_name])
 
 
+## 从载荷批量恢复节点属性。
+## [br]
+## @api protected
+## [br]
+## @param node: 目标对象。
+## [br]
+## @param payload: 序列化载荷。
+## [br]
+## @param property_names: 属性名列表。
+## [br]
+## @schema payload: Dictionary，键为属性名，值为要写回的属性值。
 func _apply_properties_from_payload(node: Object, payload: Dictionary, property_names: PackedStringArray) -> void:
 	for property_name: String in property_names:
 		_apply_property_from_payload(node, payload, property_name)
 
 
+## 按属性规格采集节点状态。
+## [br]
+## @api protected
+## [br]
+## @param node: 属性来源对象。
+## [br]
+## @param specs: 属性规格列表。
+## [br]
+## @return 采集后的载荷字典。
+## [br]
+## @schema specs: Array[Dictionary]，每项可包含 key: String、property: String 与 kind: StringName。
+## [br]
+## @schema return: Dictionary，键为规格 key，值为经过 kind 编码后的属性值。
 func _gather_property_specs(node: Object, specs: Array[Dictionary]) -> Dictionary:
 	var result: Dictionary = {}
 	for spec: Dictionary in specs:
@@ -102,6 +206,19 @@ func _gather_property_specs(node: Object, specs: Array[Dictionary]) -> Dictionar
 	return result
 
 
+## 按属性规格将载荷应用到节点。
+## [br]
+## @api protected
+## [br]
+## @param node: 目标对象。
+## [br]
+## @param payload: 序列化载荷。
+## [br]
+## @param specs: 属性规格列表。
+## [br]
+## @schema payload: Dictionary，键为规格 key，值为要写回的属性值。
+## [br]
+## @schema specs: Array[Dictionary]，每项可包含 key: String、property: String 与 kind: StringName。
 func _apply_property_specs(node: Object, payload: Dictionary, specs: Array[Dictionary]) -> void:
 	for spec: Dictionary in specs:
 		var key := String(spec.get("key", spec.get("property", "")))
@@ -115,6 +232,15 @@ func _apply_property_specs(node: Object, payload: Dictionary, specs: Array[Dicti
 		))
 
 
+## 判断对象是否声明了指定属性。
+## [br]
+## @api protected
+## [br]
+## @param object: 要检查的对象。
+## [br]
+## @param property_name: 属性名。
+## [br]
+## @return 对象属性列表中是否存在该属性。
 func _has_property(object: Object, property_name: String) -> bool:
 	if object == null:
 		return false
@@ -123,6 +249,8 @@ func _has_property(object: Object, property_name: String) -> bool:
 			return true
 	return false
 
+
+# --- 私有/辅助方法 ---
 
 func _matches_supported_class_name(node: Node, type_name: String) -> bool:
 	if type_name.is_empty():

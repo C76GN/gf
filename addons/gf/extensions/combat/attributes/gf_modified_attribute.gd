@@ -3,18 +3,26 @@
 ## 持有基础值并管理多个修饰器 (GFModifier)。
 ## 内部使用公式 (Base + BaseAdd) * (1.0 + PercentAdd) + FinalAdd 进行自动重算。
 ## 对外通过只读的 current_value 暴露响应式结果，方便 UI 绑定。
+## [br]
+## @api public
+## [br]
+## @category runtime_handle
+## [br]
+## @since 3.17.0
 class_name GFModifiedAttribute
 extends RefCounted
 
 
 # --- 常量 ---
 
-const _READ_ONLY_BINDABLE_PROPERTY_SCRIPT := preload("res://addons/gf/kernel/core/gf_read_only_bindable_property.gd")
+const _READ_ONLY_BINDABLE_PROPERTY_SCRIPT: Script = preload("res://addons/gf/kernel/core/gf_read_only_bindable_property.gd")
 
 
 # --- 公共变量 ---
 
 ## 属性的只读响应式当前值。
+## [br]
+## @api public
 var current_value: GFBindableProperty:
 	get:
 		return _current_value_view
@@ -38,6 +46,9 @@ func _init(p_base_value: float = 0.0) -> void:
 # --- 公共方法 ---
 
 ## 设置基础值。
+## [br]
+## @api public
+## [br]
 ## @param p_value: 新的基础值。
 func set_base_value(p_value: float) -> void:
 	if _base_value == p_value:
@@ -47,11 +58,18 @@ func set_base_value(p_value: float) -> void:
 
 
 ## 获取基础值。
+## [br]
+## @api public
+## [br]
+## @return: 当前基础值。
 func get_base_value() -> float:
 	return _base_value
 
 
 ## 添加修饰器。
+## [br]
+## @api public
+## [br]
 ## @param p_modifier: 修饰器实例。
 func add_modifier(p_modifier: GFModifier) -> void:
 	if p_modifier == null:
@@ -62,6 +80,9 @@ func add_modifier(p_modifier: GFModifier) -> void:
 
 
 ## 移除修饰器。
+## [br]
+## @api public
+## [br]
 ## @param p_modifier: 要移除的修饰器实例。
 func remove_modifier(p_modifier: GFModifier) -> void:
 	if p_modifier == null:
@@ -72,6 +93,9 @@ func remove_modifier(p_modifier: GFModifier) -> void:
 
 
 ## 根据 source_id 移除所有匹配的修饰器。
+## [br]
+## @api public
+## [br]
 ## @param p_source_id: 来源标识。
 func remove_modifiers_by_source(p_source_id: StringName) -> void:
 	var to_remove: Array[GFModifier] = []
@@ -89,13 +113,15 @@ func remove_modifiers_by_source(p_source_id: StringName) -> void:
 
 ## 强制执行一次属性重算。
 ## 当外部直接修改了 Modifier 的数值时，可手动调用此方法触发 UI 更新。
+## [br]
+## @api public
 func force_recalculate() -> void:
 	_recalculate()
 
 
-# --- 私有方法 ---
+# --- 私有/辅助方法 ---
 
-## 执行公式重算：(Base + BaseAdd) * (1.0 + PercentAdd) + FinalAdd
+# 执行公式重算：(Base + BaseAdd) * (1.0 + PercentAdd) + FinalAdd
 func _recalculate() -> void:
 	var base_add: float = 0.0
 	var percent_add: float = 0.0

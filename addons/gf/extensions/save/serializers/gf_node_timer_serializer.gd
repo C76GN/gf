@@ -1,6 +1,12 @@
 ## GFNodeTimerSerializer: Timer 通用状态序列化器。
 ##
 ## 保存 Timer 的等待时间、暂停、一次性和当前剩余时间等通用状态。
+## [br]
+## @api public
+## [br]
+## @category resource_definition
+## [br]
+## @since 3.17.0
 class_name GFNodeTimerSerializer
 extends GFNodeSerializer
 
@@ -15,14 +21,29 @@ func _init() -> void:
 # --- 公共方法 ---
 
 ## 判断序列化器是否支持指定节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
+## @return 节点是否为 Timer。
 func supports_node(node: Node) -> bool:
 	return node is Timer
 
 
 ## 采集节点的可保存状态。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return Timer 状态载荷。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，可包含 wait_time、one_shot、autostart、paused、time_left 与 stopped。
 func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 	var timer := node as Timer
 	if timer == null:
@@ -39,9 +60,22 @@ func gather(node: Node, _context: Dictionary = {}) -> Dictionary:
 
 
 ## 将序列化数据应用到节点。
+## [br]
+## @api public
+## [br]
 ## @param node: 目标节点。
-## @param payload: 随事件或交互传递的数据。
+## [br]
+## @param payload: Timer 状态载荷。
+## [br]
 ## @param _context: 操作上下文字典，默认实现不直接使用。
+## [br]
+## @return 应用结果字典。
+## [br]
+## @schema payload: Dictionary，可包含 wait_time、one_shot、autostart、paused、time_left 与 stopped。
+## [br]
+## @schema _context: Dictionary，调用方附加上下文；当前实现不读取。
+## [br]
+## @schema return: Dictionary，包含 ok: bool 与 error: String。
 func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -> Dictionary:
 	var timer := node as Timer
 	if timer == null:

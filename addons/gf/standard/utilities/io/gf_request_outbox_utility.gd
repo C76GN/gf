@@ -2,6 +2,12 @@
 ##
 ## 负责把项目提交的请求描述持久化、按重试策略重放，并通过 transport_callback
 ## 交给项目自己的网络、SDK 或工具链发送。它不内置任何账号、云服务或业务协议。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.17.0
 class_name GFRequestOutboxUtility
 extends GFUtility
 
@@ -9,81 +15,127 @@ extends GFUtility
 # --- 信号 ---
 
 ## 请求成功进入队列。
+## [br]
+## @api public
+## [br]
 ## @param envelope: 请求描述。
-signal request_enqueued(envelope: RefCounted)
+signal request_enqueued(envelope: GFRequestEnvelope)
 
 ## 请求开始重放。
+## [br]
+## @api public
+## [br]
 ## @param envelope: 请求描述。
-signal request_started(envelope: RefCounted)
+signal request_started(envelope: GFRequestEnvelope)
 
 ## 请求成功完成。
+## [br]
+## @api public
+## [br]
 ## @param envelope: 请求描述。
+## [br]
 ## @param result: transport 返回的结果字典。
-signal request_completed(envelope: RefCounted, result: Dictionary)
+## [br]
+## @schema result: Dictionary，由 transport_callback 返回；ok 或 success=true 表示完成。
+signal request_completed(envelope: GFRequestEnvelope, result: Dictionary)
 
 ## 请求失败。
+## [br]
+## @api public
+## [br]
 ## @param envelope: 请求描述。
+## [br]
 ## @param result: transport 返回的结果字典。
-signal request_failed(envelope: RefCounted, result: Dictionary)
+## [br]
+## @schema result: Dictionary，由 transport_callback 返回，包含 error 或 reason 字段。
+signal request_failed(envelope: GFRequestEnvelope, result: Dictionary)
 
 ## 队列快照变化。
+## [br]
+## @api public
+## [br]
 ## @param snapshot: 调试快照。
+## [br]
+## @schema snapshot: Dictionary，由 get_debug_snapshot() 返回的调试快照。
 signal queue_changed(snapshot: Dictionary)
-
-
-# --- 常量 ---
-
-const GFRequestEnvelopeBase = preload("res://addons/gf/standard/utilities/io/gf_request_envelope.gd")
 
 
 # --- 公共变量 ---
 
 ## 队列持久化路径。
+## [br]
+## @api public
 var storage_path: String = "user://gf_request_outbox.json"
 
 ## init() 时是否自动读取持久化队列。
+## [br]
+## @api public
 var auto_load_on_init: bool = true
 
 ## 队列变化后是否自动写入 storage_path。
+## [br]
+## @api public
 var auto_persist: bool = true
 
 ## 最大等待队列长度；小于等于 0 表示不限制。
+## [br]
+## @api public
 var max_queue_size: int = 128
 
 ## 新入队请求默认最大尝试次数；小于等于 0 表示不限制。
+## [br]
+## @api public
 var default_max_attempts: int = 3
 
 ## 重试延迟序列，单位毫秒；超过长度后复用最后一个值。
+## [br]
+## @api public
+## [br]
+## @schema retry_delays_msec: Array，按毫秒记录的重试延迟列表。
 var retry_delays_msec: Array[int] = [500, 1000, 2000, 5000]
 
 ## 请求耗尽尝试次数后是否保留在失败列表中。
+## [br]
+## @api public
 var keep_failed_requests: bool = true
 
 ## 失败列表最多保留数量；小于等于 0 表示不保留。
+## [br]
+## @api public
 var max_failed_requests: int = 32
 
 ## 传输回调，签名为 func(envelope: GFRequestEnvelope) -> Dictionary；也可返回会发出结果值的 Signal。
+## [br]
+## @api public
 var transport_callback: Callable = Callable()
 
 ## 可选重放过滤回调，签名为 func(envelope: GFRequestEnvelope) -> bool。
+## [br]
+## @api public
 var replay_filter: Callable = Callable()
 
 
 # --- 私有变量 ---
 
-var _queue: Array[GFRequestEnvelopeBase] = []
-var _failed_requests: Array[GFRequestEnvelopeBase] = []
+var _queue: Array[GFRequestEnvelope] = []
+var _failed_requests: Array[GFRequestEnvelope] = []
 var _is_replaying: bool = false
 
 
-# --- Godot 生命周期方法 ---
+# --- GF 生命周期方法 ---
 
+## 初始化请求 Outbox，并按配置读取持久化队列。
+## [br]
+## @api public
 func init() -> void:
 	ignore_pause = true
 	if auto_load_on_init:
 		load_queue()
 
 
+## 按配置保存队列并清理运行时状态。
+## [br]
+## @api public
 func dispose() -> void:
 	if auto_persist:
 		save_queue()
@@ -95,28 +147,44 @@ func dispose() -> void:
 # --- 公共方法 ---
 
 ## 创建并入队一个请求。
+## [br]
+## @api public
+## [br]
 ## @param method: HTTPClient.Method 数值。
+## [br]
 ## @param url: 请求目标地址或项目自定义端点。
+## [br]
 ## @param body: 请求载荷。
+## [br]
 ## @param headers: 请求 Header。
+## [br]
 ## @param metadata: 项目自定义元数据。
+## [br]
 ## @return 入队成功时返回请求描述；失败返回 null。
+## [br]
+## @schema body: Dictionary，项目传输层持有的请求载荷。
+## [br]
+## @schema metadata: Dictionary，随请求持久化的项目侧元数据。
 func enqueue_request(
 	method: int,
 	url: String,
 	body: Dictionary = {},
 	headers: PackedStringArray = PackedStringArray(),
 	metadata: Dictionary = {}
-) -> GFRequestEnvelopeBase:
-	var envelope := GFRequestEnvelopeBase.new(method, url, body, headers, metadata)
+) -> GFRequestEnvelope:
+	var envelope := GFRequestEnvelope.new(method, url, body, headers, metadata)
 	envelope.max_attempts = default_max_attempts
 	return envelope if enqueue(envelope) else null
 
 
 ## 入队已有请求描述。
+## [br]
+## @api public
+## [br]
 ## @param envelope: 请求描述。
+## [br]
 ## @return 入队成功返回 true。
-func enqueue(envelope: GFRequestEnvelopeBase) -> bool:
+func enqueue(envelope: GFRequestEnvelope) -> bool:
 	if envelope == null or not envelope.is_valid():
 		return false
 	if max_queue_size > 0 and _queue.size() >= max_queue_size:
@@ -134,8 +202,14 @@ func enqueue(envelope: GFRequestEnvelopeBase) -> bool:
 
 
 ## 重放可尝试的请求。
+## [br]
+## @api public
+## [br]
 ## @param max_count: 最多处理数量；小于等于 0 表示不限制。
+## [br]
 ## @return 重放报告。
+## [br]
+## @schema return: Dictionary，包含 ok、processed、succeeded、failed、skipped、pending、failed_stored 和 reason。
 func replay(max_count: int = 0) -> Dictionary:
 	var report := {
 		"ok": true,
@@ -209,7 +283,11 @@ func replay(max_count: int = 0) -> Dictionary:
 
 
 ## 移除指定请求。
+## [br]
+## @api public
+## [br]
 ## @param request_id: 请求标识。
+## [br]
 ## @return 移除成功返回 true。
 func remove_request(request_id: StringName) -> bool:
 	for index: int in range(_queue.size()):
@@ -221,48 +299,71 @@ func remove_request(request_id: StringName) -> bool:
 
 
 ## 清空等待队列。
+## [br]
+## @api public
 func clear_queue() -> void:
 	_queue.clear()
 	_persist_and_emit_changed()
 
 
 ## 清空失败请求列表。
+## [br]
+## @api public
 func clear_failed_requests() -> void:
 	_failed_requests.clear()
 	_persist_and_emit_changed()
 
 
 ## 获取等待队列长度。
+## [br]
+## @api public
+## [br]
 ## @return 队列长度。
 func get_queue_size() -> int:
 	return _queue.size()
 
 
 ## 获取失败请求数量。
+## [br]
+## @api public
+## [br]
 ## @return 失败请求数量。
 func get_failed_request_count() -> int:
 	return _failed_requests.size()
 
 
 ## 获取等待请求副本。
+## [br]
+## @api public
+## [br]
 ## @return 请求副本数组。
-func get_pending_requests() -> Array[GFRequestEnvelopeBase]:
-	var result: Array[GFRequestEnvelopeBase] = []
-	for envelope: GFRequestEnvelopeBase in _queue:
-		result.append(envelope.duplicate_request() as GFRequestEnvelopeBase)
+## [br]
+## @schema return: Array，当前等待重放的 GFRequestEnvelope 副本。
+func get_pending_requests() -> Array[GFRequestEnvelope]:
+	var result: Array[GFRequestEnvelope] = []
+	for envelope: GFRequestEnvelope in _queue:
+		result.append(envelope.duplicate_request())
 	return result
 
 
 ## 获取失败请求副本。
+## [br]
+## @api public
+## [br]
 ## @return 失败请求副本数组。
-func get_failed_requests() -> Array[GFRequestEnvelopeBase]:
-	var result: Array[GFRequestEnvelopeBase] = []
-	for envelope: GFRequestEnvelopeBase in _failed_requests:
-		result.append(envelope.duplicate_request() as GFRequestEnvelopeBase)
+## [br]
+## @schema return: Array，重试耗尽后保存的 GFRequestEnvelope 副本。
+func get_failed_requests() -> Array[GFRequestEnvelope]:
+	var result: Array[GFRequestEnvelope] = []
+	for envelope: GFRequestEnvelope in _failed_requests:
+		result.append(envelope.duplicate_request())
 	return result
 
 
 ## 保存队列到 storage_path。
+## [br]
+## @api public
+## [br]
 ## @return Godot 错误码。
 func save_queue() -> Error:
 	if storage_path.is_empty():
@@ -286,6 +387,9 @@ func save_queue() -> Error:
 
 
 ## 从 storage_path 读取队列。
+## [br]
+## @api public
+## [br]
 ## @return Godot 错误码。
 func load_queue() -> Error:
 	_queue.clear()
@@ -315,7 +419,12 @@ func load_queue() -> Error:
 
 
 ## 获取调试快照。
+## [br]
+## @api public
+## [br]
 ## @return 调试快照。
+## [br]
+## @schema return: Dictionary，包含存储设置、队列计数、传输可用性和请求 ID 列表。
 func get_debug_snapshot() -> Dictionary:
 	return {
 		"storage_path": storage_path,
@@ -332,7 +441,7 @@ func get_debug_snapshot() -> Dictionary:
 
 # --- 私有/辅助方法 ---
 
-func _can_replay_envelope(envelope: GFRequestEnvelopeBase, now_msec: int) -> bool:
+func _can_replay_envelope(envelope: GFRequestEnvelope, now_msec: int) -> bool:
 	if envelope == null or not envelope.can_attempt(now_msec):
 		return false
 	if replay_filter.is_valid():
@@ -340,7 +449,7 @@ func _can_replay_envelope(envelope: GFRequestEnvelopeBase, now_msec: int) -> boo
 	return true
 
 
-func _call_transport(envelope: GFRequestEnvelopeBase) -> Dictionary:
+func _call_transport(envelope: GFRequestEnvelope) -> Dictionary:
 	var value: Variant = transport_callback.call(envelope)
 	if value is Signal:
 		value = await (value as Signal)
@@ -377,7 +486,7 @@ func _is_success_result(result: Dictionary) -> bool:
 	return false
 
 
-func _find_queue_index(envelope: GFRequestEnvelopeBase) -> int:
+func _find_queue_index(envelope: GFRequestEnvelope) -> int:
 	for index: int in range(_queue.size()):
 		if _queue[index] == envelope:
 			return index
@@ -391,7 +500,7 @@ func _get_retry_delay_msec(attempt_count: int) -> int:
 	return maxi(retry_delays_msec[index], 0)
 
 
-func _store_failed_request(envelope: GFRequestEnvelopeBase) -> void:
+func _store_failed_request(envelope: GFRequestEnvelope) -> void:
 	if not keep_failed_requests or max_failed_requests <= 0:
 		return
 	_failed_requests.append(envelope)
@@ -407,11 +516,11 @@ func _persist_and_emit_changed() -> void:
 
 func _to_storage_dict() -> Dictionary:
 	var pending: Array[Dictionary] = []
-	for envelope: GFRequestEnvelopeBase in _queue:
+	for envelope: GFRequestEnvelope in _queue:
 		pending.append(envelope.to_dict(true))
 
 	var failed: Array[Dictionary] = []
-	for envelope: GFRequestEnvelopeBase in _failed_requests:
+	for envelope: GFRequestEnvelope in _failed_requests:
 		failed.append(envelope.to_dict(true))
 
 	return {
@@ -424,20 +533,20 @@ func _to_storage_dict() -> Dictionary:
 func _apply_storage_dict(data: Dictionary) -> void:
 	for entry_value: Variant in data.get("pending", []):
 		if entry_value is Dictionary:
-			var envelope := GFRequestEnvelopeBase.from_dict(entry_value as Dictionary) as GFRequestEnvelopeBase
+			var envelope := GFRequestEnvelope.from_dict(entry_value as Dictionary)
 			if envelope.is_valid():
 				_queue.append(envelope)
 
 	for entry_value: Variant in data.get("failed", []):
 		if entry_value is Dictionary:
-			var envelope := GFRequestEnvelopeBase.from_dict(entry_value as Dictionary) as GFRequestEnvelopeBase
+			var envelope := GFRequestEnvelope.from_dict(entry_value as Dictionary)
 			if envelope.is_valid():
 				_failed_requests.append(envelope)
 
 
-func _get_request_ids(requests: Array[GFRequestEnvelopeBase]) -> PackedStringArray:
+func _get_request_ids(requests: Array[GFRequestEnvelope]) -> PackedStringArray:
 	var result := PackedStringArray()
-	for envelope: GFRequestEnvelopeBase in requests:
+	for envelope: GFRequestEnvelope in requests:
 		result.append(String(envelope.request_id))
 	return result
 

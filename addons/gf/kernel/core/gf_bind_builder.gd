@@ -1,4 +1,10 @@
 ## GFBindBuilder: 声明式装配链，用于把脚本绑定为模块或短生命周期工厂。
+## [br]
+## @api public
+## [br]
+## @category protocol
+## [br]
+## @since 3.17.0
 class_name GFBindBuilder
 extends RefCounted
 
@@ -6,6 +12,8 @@ extends RefCounted
 # --- 枚举 ---
 
 ## 绑定目标类别。
+## [br]
+## @api framework_internal
 enum TargetKind {
 	MODEL,
 	SYSTEM,
@@ -14,6 +22,8 @@ enum TargetKind {
 }
 
 ## 绑定来源类别。
+## [br]
+## @api framework_internal
 enum SourceKind {
 	SELF,
 	FACTORY,
@@ -23,6 +33,9 @@ enum SourceKind {
 
 # --- 私有变量 ---
 
+## 绑定生命周期枚举脚本缓存。
+## [br]
+## @api framework_internal
 const GFBindingLifetimesBase = preload("res://addons/gf/kernel/core/gf_binding_lifetimes.gd")
 
 var _architecture: GFArchitecture = null
@@ -45,8 +58,17 @@ func _init(architecture: GFArchitecture, target_kind: TargetKind, script_cls: Sc
 # --- 公共方法 ---
 
 ## 使用 Callable 作为绑定来源。
+## [br]
+## @api public
+## [br]
 ## @param factory: 返回 Object 实例的工厂。
+## [br]
 ## @return 当前 Builder，便于继续声明生命周期。
+## [br]
+## @schema return {
+##   "type": "Variant",
+##   "description": "当前 GFBindBuilder 实例。"
+## }
 func from_factory(factory: Callable) -> Variant:
 	_source_kind = SourceKind.FACTORY
 	_factory = factory
@@ -54,8 +76,17 @@ func from_factory(factory: Callable) -> Variant:
 
 
 ## 使用已有实例作为绑定来源。
+## [br]
+## @api public
+## [br]
 ## @param instance: 要注册或暴露的实例。
+## [br]
 ## @return 当前 Builder，便于继续声明生命周期。
+## [br]
+## @schema return {
+##   "type": "Variant",
+##   "description": "当前 GFBindBuilder 实例。"
+## }
 func from_instance(instance: Object) -> Variant:
 	_source_kind = SourceKind.INSTANCE
 	_instance = instance
@@ -63,8 +94,17 @@ func from_instance(instance: Object) -> Variant:
 
 
 ## 额外登记一个查询别名。仅对 Model/System/Utility 有效。
+## [br]
+## @api public
+## [br]
 ## @param alias_cls: 调用 get_* 时使用的抽象脚本类型。
+## [br]
 ## @return 当前 Builder，便于继续声明生命周期。
+## [br]
+## @schema return {
+##   "type": "Variant",
+##   "description": "当前 GFBindBuilder 实例。"
+## }
 func with_alias(alias_cls: Script) -> Variant:
 	if _target_kind == TargetKind.FACTORY:
 		push_warning("[GFBindBuilder] with_alias() 仅对 Model/System/Utility 有效，Factory 绑定会忽略 alias。")
@@ -74,6 +114,8 @@ func with_alias(alias_cls: Script) -> Variant:
 
 
 ## 以单例语义完成绑定。
+## [br]
+## @api public
 func as_singleton() -> void:
 	if _architecture == null:
 		push_error("[GFBindBuilder] 架构为空，无法完成绑定。")
@@ -92,6 +134,8 @@ func as_singleton() -> void:
 
 
 ## 以瞬态语义完成绑定。仅短生命周期工厂支持 transient。
+## [br]
+## @api public
 func as_transient() -> void:
 	if _architecture == null:
 		push_error("[GFBindBuilder] 架构为空，无法完成绑定。")
