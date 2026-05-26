@@ -1,0 +1,242 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFJobQueueUtility" path="addons/gf/standard/utilities/jobs/gf_job_queue_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFJobQueueUtility: 通用任务队列工具。
+提供等待、激活、完成、失败、取消、进度和调试快照能力。
+队列不绑定执行线程或业务语义，具体执行由调用方决定。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="job_enqueued" line="22">
+			<signature>signal job_enqueued(job: GFJob)</signature>
+			<description>任务进入等待队列时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job: 任务记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="job_started" line="29">
+			<signature>signal job_started(job: GFJob)</signature>
+			<description>任务开始执行时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job: 任务记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="job_progressed" line="40">
+			<signature>signal job_progressed(job: GFJob, progress: float, message: String)</signature>
+			<description>任务进度变化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job: 任务记录。</tag>
+				<tag name="param">progress: 当前进度。</tag>
+				<tag name="param">message: 进度说明。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="job_completed" line="47">
+			<signature>signal job_completed(job: GFJob)</signature>
+			<description>任务完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job: 任务记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="job_failed" line="54">
+			<signature>signal job_failed(job: GFJob)</signature>
+			<description>任务失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job: 任务记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="job_cancelled" line="61">
+			<signature>signal job_cancelled(job: GFJob)</signature>
+			<description>任务取消时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job: 任务记录。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="max_completed_jobs" line="69">
+			<signature>var max_completed_jobs: int = 64</signature>
+			<description>保留的完成任务数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_failed_jobs" line="74">
+			<signature>var max_failed_jobs: int = 64</signature>
+			<description>保留的失败任务数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="92">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化任务队列工具并清空运行时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="99">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放任务队列工具持有的运行时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="enqueue" line="122">
+			<signature>func enqueue( queue_name: StringName = &amp;"default", data: Variant = null, metadata: Dictionary = {}, front: bool = false ) -&gt; GFJob:</signature>
+			<description>追加一个等待任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+				<tag name="param">data: 任务输入数据。</tag>
+				<tag name="param">metadata: 项目自定义元数据。</tag>
+				<tag name="param">front: 是否插入到队列头部。</tag>
+				<tag name="return">新任务记录。</tag>
+				<tag name="schema">data: Variant，项目侧任务输入载荷。</tag>
+				<tag name="schema">metadata: Dictionary，复制到新建 GFJob 的元数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="start_next_job" line="154">
+			<signature>func start_next_job(queue_name: StringName = &amp;"default") -&gt; GFJob:</signature>
+			<description>从队列取出下一个等待任务并标记为执行中。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+				<tag name="return">任务记录；没有可执行任务时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="run_next_job" line="180">
+			<signature>func run_next_job(queue_name: StringName, processor: Callable) -&gt; GFJob:</signature>
+			<description>使用回调立即处理下一个等待任务。回调返回 false 或 ok=false 字典时标记失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+				<tag name="param">processor: 任务处理回调。</tag>
+				<tag name="return">被处理的任务；没有可执行任务时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="update_job_progress" line="208">
+			<signature>func update_job_progress(job_id: StringName, progress: float, message: String = "") -&gt; bool:</signature>
+			<description>更新任务进度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job_id: 任务 ID。</tag>
+				<tag name="param">progress: 当前进度。</tag>
+				<tag name="param">message: 进度说明。</tag>
+				<tag name="return">更新成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="complete_job" line="228">
+			<signature>func complete_job(job_id: StringName, result: Variant = null) -&gt; bool:</signature>
+			<description>标记任务完成。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job_id: 任务 ID。</tag>
+				<tag name="param">result: 任务结果。</tag>
+				<tag name="return">完成成功返回 true。</tag>
+				<tag name="schema">result: Variant，项目侧任务结果载荷。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="fail_job" line="255">
+			<signature>func fail_job(job_id: StringName, error_message: String = "", result: Variant = null) -&gt; bool:</signature>
+			<description>标记任务失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job_id: 任务 ID。</tag>
+				<tag name="param">error_message: 错误文本。</tag>
+				<tag name="param">result: 可选失败结果。</tag>
+				<tag name="return">标记成功返回 true。</tag>
+				<tag name="schema">result: Variant，项目侧失败结果载荷。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_job" line="276">
+			<signature>func cancel_job(job_id: StringName) -&gt; bool:</signature>
+			<description>取消任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job_id: 任务 ID。</tag>
+				<tag name="return">取消成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause_queue" line="292">
+			<signature>func pause_queue(queue_name: StringName = &amp;"default") -&gt; void:</signature>
+			<description>暂停指定队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume_queue" line="301">
+			<signature>func resume_queue(queue_name: StringName = &amp;"default") -&gt; void:</signature>
+			<description>恢复指定队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_queue_paused" line="312">
+			<signature>func is_queue_paused(queue_name: StringName = &amp;"default") -&gt; bool:</signature>
+			<description>检查队列是否暂停。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+				<tag name="return">暂停时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_job" line="323">
+			<signature>func get_job(job_id: StringName) -&gt; GFJob:</signature>
+			<description>获取任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job_id: 任务 ID。</tag>
+				<tag name="return">任务记录；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_waiting_jobs" line="334">
+			<signature>func get_waiting_jobs(queue_name: StringName = &amp;"default") -&gt; Array[GFJob]:</signature>
+			<description>获取队列中的等待任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+				<tag name="return">等待任务列表副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_queue" line="346">
+			<signature>func clear_queue(queue_name: StringName = &amp;"default", cancel_jobs: bool = true) -&gt; void:</signature>
+			<description>清空指定队列中的等待任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">queue_name: 队列名。</tag>
+				<tag name="param">cancel_jobs: 是否把等待任务标记为取消。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_all" line="362">
+			<signature>func clear_all() -&gt; void:</signature>
+			<description>清空全部队列与历史任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="378">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照字典。</tag>
+				<tag name="schema">return: Dictionary，包含 job_count、queue_count、completed_count、failed_count，以及以队列名为键的 queues。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

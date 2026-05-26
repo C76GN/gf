@@ -1,0 +1,236 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDownloadUtility" path="addons/gf/standard/utilities/io/gf_download_utility.gd" module="standard" extends="GFUtility" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFDownloadUtility: 通用文件下载队列。
+提供顺序下载、临时文件提交、可选续传、SHA-256 校验、暂停、取消和诊断快照。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="download_started" line="23">
+			<signature>signal download_started(task_id: int, task: GFDownloadTask)</signature>
+			<description>下载任务开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task_id: 下载任务句柄。</tag>
+				<tag name="param">task: 下载任务快照。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="download_progressed" line="34">
+			<signature>signal download_progressed(task_id: int, received_bytes: int, total_bytes: int)</signature>
+			<description>下载进度更新时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task_id: 下载任务句柄。</tag>
+				<tag name="param">received_bytes: 已接收字节数。</tag>
+				<tag name="param">total_bytes: 总字节数；未知时为 -1。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="download_completed" line="45">
+			<signature>signal download_completed(task_id: int, result: Dictionary)</signature>
+			<description>下载任务成功完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task_id: 下载任务句柄。</tag>
+				<tag name="param">result: 下载结果字典。</tag>
+				<tag name="schema">result: Dictionary，包含任务字段、success、cancelled 和可选完成元数据。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="download_failed" line="56">
+			<signature>signal download_failed(task_id: int, result: Dictionary)</signature>
+			<description>下载任务失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task_id: 下载任务句柄。</tag>
+				<tag name="param">result: 下载结果字典。</tag>
+				<tag name="schema">result: Dictionary，包含任务字段、success、cancelled 和错误详情。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="download_cancelled" line="67">
+			<signature>signal download_cancelled(task_id: int, result: Dictionary)</signature>
+			<description>下载任务被取消时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task_id: 下载任务句柄。</tag>
+				<tag name="param">result: 下载结果字典。</tag>
+				<tag name="schema">result: Dictionary，包含任务字段、success、cancelled 和取消详情。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="timeout_seconds" line="75">
+			<signature>var timeout_seconds: float = 30.0</signature>
+			<description>HTTP 请求超时时间，单位秒。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_temp_suffix" line="80">
+			<signature>var default_temp_suffix: String = ".download"</signature>
+			<description>临时文件后缀。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_segment_suffix" line="85">
+			<signature>var default_segment_suffix: String = ".segment"</signature>
+			<description>分段续传临时文件后缀。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="overwrite_existing" line="90">
+			<signature>var overwrite_existing: bool = true</signature>
+			<description>目标文件已存在时默认是否覆盖。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="emit_progress_interval_seconds" line="95">
+			<signature>var emit_progress_interval_seconds: float = 0.1</signature>
+			<description>进度信号最小间隔，单位秒。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_max_retries" line="100">
+			<signature>var default_max_retries: int = 0</signature>
+			<description>默认最大重试次数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_retry_delay_seconds" line="105">
+			<signature>var default_retry_delay_seconds: float = 0.0</signature>
+			<description>默认重试等待秒数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="126">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化下载队列运行时状态并启用暂停无关处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="141">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>取消下载、释放 HTTPRequest 并清理运行时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="157">
+			<signature>func tick(_delta: float = 0.0) -&gt; void:</signature>
+			<description>驱动下载进度采样。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_delta: 为兼容统一 tick 签名而保留的参数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="enqueue_download" line="191">
+			<signature>func enqueue_download( url: String, target_path: String, callback: Callable = Callable(), options: Dictionary = {} ) -&gt; int:</signature>
+			<description>将下载任务加入队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">url: 下载 URL。</tag>
+				<tag name="param">target_path: 最终写入路径。</tag>
+				<tag name="param">callback: 完成、失败或取消时执行的回调，签名为 func(result: Dictionary)。</tag>
+				<tag name="param">options: 可选参数，支持 headers、resume、overwrite、expected_sha256、metadata、temp_path、segment_path、max_retries、retry_delay_seconds。</tag>
+				<tag name="return">任务句柄；输入无效时返回 0。</tag>
+				<tag name="schema">options: Dictionary，可包含 headers、resume、overwrite、expected_sha256、metadata、temp_path、segment_path、max_retries 和 retry_delay_seconds。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel" line="232">
+			<signature>func cancel(task_id: int, delete_temp: bool = false) -&gt; bool:</signature>
+			<description>取消下载任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task_id: 任务句柄。</tag>
+				<tag name="param">delete_temp: 是否删除临时文件。</tag>
+				<tag name="return">找到并取消任务时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_paused" line="268">
+			<signature>func set_paused(value: bool) -&gt; void:</signature>
+			<description>设置下载队列暂停状态。暂停时不会启动新任务，当前任务会保留临时文件并回到队首。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 是否暂停。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause" line="282">
+			<signature>func pause() -&gt; void:</signature>
+			<description>暂停下载队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume" line="289">
+			<signature>func resume() -&gt; void:</signature>
+			<description>恢复下载队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_paused" line="298">
+			<signature>func is_paused() -&gt; bool:</signature>
+			<description>检查下载队列是否暂停。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">暂停时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_queue" line="309">
+			<signature>func clear_queue(cancel_active: bool = false, delete_temp: bool = false) -&gt; void:</signature>
+			<description>清空等待队列，可选取消当前任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cancel_active: 是否取消当前任务。</tag>
+				<tag name="param">delete_temp: 是否删除临时文件。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_active_task" line="327">
+			<signature>func get_active_task() -&gt; GFDownloadTask:</signature>
+			<description>获取当前正在下载的任务拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前任务；没有任务时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_queued_task_ids" line="336">
+			<signature>func get_queued_task_ids() -&gt; PackedInt32Array:</signature>
+			<description>获取等待队列中的任务 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">任务 ID 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_result" line="352">
+			<signature>func get_result(task_id: int) -&gt; Dictionary:</signature>
+			<description>获取指定任务最近结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task_id: 任务句柄。</tag>
+				<tag name="return">结果字典；不存在时返回空字典。</tag>
+				<tag name="schema">return: Dictionary，包含最新任务结果；没有结果时为空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="363">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取下载工具诊断快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">诊断快照字典。</tag>
+				<tag name="schema">return: Dictionary，包含 paused、queued_count、queued_task_ids、active_task 和 result_count。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,23 @@
+# Feedback 反馈采样
+
+Feedback 扩展提供通用反馈采样和可选场景接收器。它只输出 `position`、`rotation_degrees`、`scale` 这类通用偏移，不知道目标是 Camera、角色、Control 还是项目自定义对象。
+
+## 阅读入口
+
+- [反馈采样](shake-sampling.md)：`GFShakePreset`、`GFShakeUtility`、命名 channel、单波形和多轨道采样。
+
+## 使用边界
+
+Feedback 不定义事件来源、视觉对象、音效、动画、表现队列或命中结果。项目可以直接读取采样值并应用到相机、UI、角色、shader 参数或自定义表现系统。
+
+## 接收器与表现队列
+
+`GFShakeReceiver2D` 和 `GFShakeReceiver3D` 是可选场景桥接节点。它们记录目标节点的基础变换，并把某个 channel 的采样叠加到目标上。
+
+接收器按“上一帧已应用偏移”做差量更新，因此目标节点在抖动期间仍可被移动系统、动画或布局逻辑改位置，新的外部变换不会被下一次采样覆盖。`reset_to_base()` 会移除最后一次反馈偏移并更新基准。
+
+如果项目需要把反馈纳入表现队列，应在项目代码、外部扩展或独立插件中把 `GFShakeUtility.play_shake()` 包装成自己的队列动作。
+
+## API Reference
+
+完整类、方法和信号列表见 [Feedback API Reference](../../reference/api/extensions-feedback.md)。

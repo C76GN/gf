@@ -1,0 +1,225 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFPointerActivityUtility" path="addons/gf/standard/input/runtime/gf_pointer_activity_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFPointerActivityUtility: 通用指针活动状态工具。
+由项目在 _input(event) 中显式转发事件，工具只维护按下、移动、拖拽和空闲状态，
+不消费输入，也不绑定任何具体交互或业务对象。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="pointer_pressed" line="26">
+			<signature>signal pointer_pressed(pointer_id: int, position: Vector2, event: InputEvent)</signature>
+			<description>指针按下时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">position: 指针位置。</tag>
+				<tag name="param">event: 原始输入事件。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="pointer_released" line="37">
+			<signature>signal pointer_released(pointer_id: int, position: Vector2, event: InputEvent)</signature>
+			<description>指针释放时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">position: 指针位置。</tag>
+				<tag name="param">event: 原始输入事件。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="pointer_moved" line="50">
+			<signature>signal pointer_moved(pointer_id: int, position: Vector2, previous_position: Vector2, event: InputEvent)</signature>
+			<description>指针移动时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">position: 指针位置。</tag>
+				<tag name="param">previous_position: 上一次指针位置。</tag>
+				<tag name="param">event: 原始输入事件。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="pointer_drag_started" line="63">
+			<signature>signal pointer_drag_started(pointer_id: int, start_position: Vector2, position: Vector2, event: InputEvent)</signature>
+			<description>指针从按下状态进入拖拽时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">start_position: 指针按下位置。</tag>
+				<tag name="param">position: 当前指针位置。</tag>
+				<tag name="param">event: 原始输入事件。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="pointer_dragged" line="76">
+			<signature>signal pointer_dragged(pointer_id: int, position: Vector2, delta: Vector2, event: InputEvent)</signature>
+			<description>指针拖拽中发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">position: 当前指针位置。</tag>
+				<tag name="param">delta: 本次拖拽位移。</tag>
+				<tag name="param">event: 原始输入事件。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="pointer_drag_ended" line="87">
+			<signature>signal pointer_drag_ended(pointer_id: int, position: Vector2, event: InputEvent)</signature>
+			<description>指针拖拽结束时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">position: 指针释放位置。</tag>
+				<tag name="param">event: 原始输入事件。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="pointer_idle_started" line="96">
+			<signature>signal pointer_idle_started(pointer_id: int, position: Vector2)</signature>
+			<description>指针活动超过阈值后进入空闲时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">position: 最近活动位置。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="pointer_idle_ended" line="105">
+			<signature>signal pointer_idle_ended(pointer_id: int, position: Vector2)</signature>
+			<description>指针从空闲恢复活动时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pointer_id: 指针 ID；鼠标为 0，触摸为触点 index。</tag>
+				<tag name="param">position: 恢复活动位置。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="track_mouse" line="113">
+			<signature>var track_mouse: bool = true</signature>
+			<description>是否追踪鼠标事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="track_touch" line="118">
+			<signature>var track_touch: bool = true</signature>
+			<description>是否追踪触摸事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="mouse_button_index" line="123">
+			<signature>var mouse_button_index: MouseButton = MOUSE_BUTTON_LEFT</signature>
+			<description>鼠标模式下作为主指针的按钮。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="drag_threshold_pixels" line="128">
+			<signature>var drag_threshold_pixels: float = 8.0</signature>
+			<description>从按下位置移动超过该距离后进入拖拽状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="idle_threshold_seconds" line="133">
+			<signature>var idle_threshold_seconds: float = 0.5</signature>
+			<description>无活动超过该秒数后进入空闲状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_pointer_pressed" line="138">
+			<signature>var is_pointer_pressed: bool = false</signature>
+			<description>当前是否有指针按下。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_pointer_dragging" line="143">
+			<signature>var is_pointer_dragging: bool = false</signature>
+			<description>当前是否处于拖拽状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_pointer_moving" line="148">
+			<signature>var is_pointer_moving: bool = false</signature>
+			<description>最近一帧是否收到指针活动。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_pointer_idle" line="153">
+			<signature>var is_pointer_idle: bool = true</signature>
+			<description>当前是否处于空闲状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="active_pointer_id" line="158">
+			<signature>var active_pointer_id: int = -1</signature>
+			<description>当前活动指针 ID；鼠标为 0，触摸为 InputEventScreenTouch.index。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="last_pointer_id" line="163">
+			<signature>var last_pointer_id: int = -1</signature>
+			<description>最近发生活动的指针 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="press_position" line="168">
+			<signature>var press_position: Vector2 = Vector2.ZERO</signature>
+			<description>最近按下位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="last_position" line="173">
+			<signature>var last_position: Vector2 = Vector2.ZERO</signature>
+			<description>最近指针位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="handle_input_event" line="190">
+			<signature>func handle_input_event(event: InputEvent) -&gt; bool:</signature>
+			<description>处理一个输入事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event: 输入事件。</tag>
+				<tag name="return">识别为受追踪指针事件时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="209">
+			<signature>func tick(delta: float) -&gt; void:</signature>
+			<description>推进空闲计时。通常在 tick(delta) 或 _process(delta) 中调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 秒。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="reset_activity" line="225">
+			<signature>func reset_activity() -&gt; void:</signature>
+			<description>清理所有指针活动状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="244">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前指针状态。</tag>
+				<tag name="schema">return: Dictionary，包含 pointer id、pressed/dragging/moving/idle 标记、位置、idle 计时器和阈值配置。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

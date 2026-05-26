@@ -1,0 +1,598 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSceneUtility" path="addons/gf/standard/utilities/scene/gf_scene_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSceneUtility: 场景与流程切换管理器。
+封装原生场景切换，支持带有 `loading scene` 的异步加载、PackedScene
+资源预加载缓存、切换参数、场景历史，并可在切换完成后清理不需要跨场景保留的 `System/Model`。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="scene_load_started" line="22">
+			<signature>signal scene_load_started(path: String)</signature>
+			<description>当场景异步加载开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_load_progress" line="31">
+			<signature>signal scene_load_progress(path: String, progress: float)</signature>
+			<description>当场景异步加载进度更新时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+				<tag name="param">progress: 当前进度，范围在 `0.0` 到 `1.0` 之间。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_load_completed" line="40">
+			<signature>signal scene_load_completed(path: String, scene: PackedScene)</signature>
+			<description>当场景异步加载完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+				<tag name="param">scene: 已加载完成的场景资源。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_load_failed" line="47">
+			<signature>signal scene_load_failed(path: String)</signature>
+			<description>当场景异步加载失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_preload_started" line="54">
+			<signature>signal scene_preload_started(path: String)</signature>
+			<description>当场景预加载开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_preload_progress" line="63">
+			<signature>signal scene_preload_progress(path: String, progress: float)</signature>
+			<description>当场景预加载进度更新时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+				<tag name="param">progress: 当前进度，范围在 `0.0` 到 `1.0` 之间。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_preload_completed" line="72">
+			<signature>signal scene_preload_completed(path: String, scene: PackedScene)</signature>
+			<description>当场景预加载完成并进入缓存时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+				<tag name="param">scene: 已缓存的场景资源。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_preload_failed" line="79">
+			<signature>signal scene_preload_failed(path: String)</signature>
+			<description>当场景预加载失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_preload_cancelled" line="86">
+			<signature>signal scene_preload_cancelled(path: String)</signature>
+			<description>当场景预加载被取消时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_switch_started" line="95">
+			<signature>signal scene_switch_started(path: String, previous_path: String)</signature>
+			<description>当一次场景切换流程开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+				<tag name="param">previous_path: 切换前场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_switch_completed" line="104">
+			<signature>signal scene_switch_completed(path: String, previous_path: String)</signature>
+			<description>当一次场景切换流程完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+				<tag name="param">previous_path: 切换前场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_switch_failed" line="115">
+			<signature>signal scene_switch_failed(path: String, previous_path: String, message: String)</signature>
+			<description>当一次场景切换流程失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景路径。</tag>
+				<tag name="param">previous_path: 切换前场景路径。</tag>
+				<tag name="param">message: 失败说明。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="loading_scene_shown" line="122">
+			<signature>signal loading_scene_shown(path: String)</signature>
+			<description>当 loading scene 切入后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: loading scene 路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="loading_scene_hidden" line="129">
+			<signature>signal loading_scene_hidden(path: String)</signature>
+			<description>当 loading scene 准备退出时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: loading scene 路径。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_cache_added" line="138">
+			<signature>signal scene_cache_added(path: String, fixed: bool)</signature>
+			<description>当场景资源写入预加载缓存后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="param">fixed: 是否写入固定缓存。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="scene_cache_removed" line="147">
+			<signature>signal scene_cache_removed(path: String, fixed: bool)</signature>
+			<description>当场景资源从预加载缓存移除后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="param">fixed: 是否来自固定缓存。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="SceneResourceState" line="155">
+			<signature>enum SceneResourceState { ## 未加载。 NOT_LOADED, ## 正在预加载。 PRELOADING, ## 已缓存 PackedScene。 PRELOADED, ## 当前 load_scene_async() 正在等待该资源。 ACTIVE_LOADING, }</signature>
+			<description>场景资源在 GFSceneUtility 内部的缓存状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="max_preloaded_scene_resources" line="180">
+			<signature>var max_preloaded_scene_resources: int:</signature>
+			<description>最多保留的预加载 PackedScene 数量；设为 `0` 表示禁用预加载缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="cache_loaded_scenes" line="193">
+			<signature>var cache_loaded_scenes: bool = true</signature>
+			<description>通过 load_scene_async() 加载完成的目标场景是否写入预加载缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="scene_preload_map" line="198">
+			<signature>var scene_preload_map: GFScenePreloadMap = null</signature>
+			<description>可选场景预加载图谱；配置后可按当前场景自动预热相邻场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_preload_map_neighbors_on_switch" line="203">
+			<signature>var auto_preload_map_neighbors_on_switch: bool = true</signature>
+			<description>成功切换场景后是否自动按 scene_preload_map 预加载相邻场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="scene_preload_map_radius" line="208">
+			<signature>var scene_preload_map_radius: int = -1:</signature>
+			<description>自动图谱预加载半径；小于 0 时使用 GFScenePreloadMap.default_radius。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="loading_screen_fade_in_method" line="215">
+			<signature>var loading_screen_fade_in_method: StringName = &amp;"fade_in"</signature>
+			<description>loading scene 可选淡入方法名；目标节点存在该方法时会被调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="loading_screen_fade_out_method" line="220">
+			<signature>var loading_screen_fade_out_method: StringName = &amp;"fade_out"</signature>
+			<description>loading scene 可选淡出方法名；目标节点存在该方法时会被调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="loading_screen_progress_method" line="225">
+			<signature>var loading_screen_progress_method: StringName = &amp;"set_progress"</signature>
+			<description>loading scene 可选进度更新方法名；不存在时会回退到 update_progress。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="loading_screen_progress_fallback_method" line="230">
+			<signature>var loading_screen_progress_fallback_method: StringName = &amp;"update_progress"</signature>
+			<description>loading scene 进度更新回退方法名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="loading_screen_error_method" line="235">
+			<signature>var loading_screen_error_method: StringName = &amp;"show_error"</signature>
+			<description>loading scene 可选错误显示方法名；目标节点存在该方法时会被调用并传入错误文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_transition_minimum_seconds" line="240">
+			<signature>var default_transition_minimum_seconds: float = 0.0</signature>
+			<description>默认 loading scene 最短保留秒数；单次切换可覆盖。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_scene_history" line="245">
+			<signature>var max_scene_history: int:</signature>
+			<description>最多保留的场景历史数量；设为 0 表示不记录历史。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="294">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化场景工具的暂停策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="303">
+			<signature>func tick(_delta: float) -&gt; void:</signature>
+			<description>推进运行时逻辑。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_delta: 本帧时间增量（秒），默认实现不直接使用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="313">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>取消待处理场景切换并释放预加载请求、背景参数和缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="load_scene_async" line="336">
+			<signature>func load_scene_async( path: String, loading_scene_path: String = "", params: Dictionary = {}, minimum_duration_seconds: float = -1.0 ) -&gt; void:</signature>
+			<description>异步切换场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景资源路径。</tag>
+				<tag name="param">loading_scene_path: 可选的过渡场景路径。</tag>
+				<tag name="param">params: 本次切换参数；完成后可通过 get_current_scene_params() 读取。</tag>
+				<tag name="param">minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。</tag>
+				<tag name="schema">params: Dictionary[String, Variant]，切换完成后复制到当前场景参数中的场景切换参数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="load_scene_with_transition" line="388">
+			<signature>func load_scene_with_transition(config: GFSceneTransitionConfig) -&gt; Error:</signature>
+			<description>按资源配置切换场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">config: 场景切换配置。</tag>
+				<tag name="return">发起切换的 Godot Error。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="preload_scene" line="420">
+			<signature>func preload_scene(path: String, fixed: bool = false) -&gt; Error:</signature>
+			<description>预加载一个场景资源并放入缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景资源路径。</tag>
+				<tag name="param">fixed: 为 true 时写入固定缓存，不受 LRU 容量淘汰影响。</tag>
+				<tag name="return">发起请求的 Godot Error。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="begin_background_scene_load" line="461">
+			<signature>func begin_background_scene_load(path: String, params: Dictionary = {}, fixed: bool = false) -&gt; Error:</signature>
+			<description>后台加载一个场景并记录稍后激活时使用的参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景资源路径。</tag>
+				<tag name="param">params: 激活该场景时传入的参数。</tag>
+				<tag name="param">fixed: 为 true 时写入固定缓存，不受 LRU 容量淘汰影响。</tag>
+				<tag name="return">发起请求的 Godot Error。</tag>
+				<tag name="schema">params: Dictionary[String, Variant]，后台场景激活时复制并应用的参数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="activate_background_scene" line="479">
+			<signature>func activate_background_scene( path: String, loading_scene_path: String = "", minimum_duration_seconds: float = -1.0 ) -&gt; Error:</signature>
+			<description>激活已经后台加载或正在后台加载的场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 目标场景资源路径。</tag>
+				<tag name="param">loading_scene_path: 可选的过渡场景路径。</tag>
+				<tag name="param">minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。</tag>
+				<tag name="return">发起切换的 Godot Error。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_background_scene_params" line="515">
+			<signature>func get_background_scene_params(path: String) -&gt; Dictionary:</signature>
+			<description>获取后台场景记录的参数副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">参数副本；没有记录时返回空字典。</tag>
+				<tag name="schema">return: Dictionary[String, Variant]，后台场景参数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="preload_scenes" line="531">
+			<signature>func preload_scenes(paths: PackedStringArray, fixed: bool = false) -&gt; Dictionary:</signature>
+			<description>批量预加载场景资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">paths: 场景路径数组。</tag>
+				<tag name="param">fixed: 为 true 时全部写入固定缓存。</tag>
+				<tag name="return">path -&gt; Error 的结果字典。</tag>
+				<tag name="schema">return: Dictionary[String, Error]，以场景路径为键。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="configure_scene_preload_map" line="547">
+			<signature>func configure_scene_preload_map( preload_map: GFScenePreloadMap, radius: int = -1, auto_preload_on_switch: bool = true ) -&gt; void:</signature>
+			<description>配置场景预加载图谱。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">preload_map: 场景预加载图谱资源；传 null 可关闭图谱预加载。</tag>
+				<tag name="param">radius: 自动预加载半径；小于 0 时使用图谱默认值。</tag>
+				<tag name="param">auto_preload_on_switch: 成功切换场景后是否自动预加载相邻场景。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_scene_preload_map_plan" line="570">
+			<signature>func get_scene_preload_map_plan(path: String, radius: int = -1, include_fixed: bool = true) -&gt; Dictionary:</signature>
+			<description>获取指定场景的图谱预加载计划。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 当前场景资源路径。</tag>
+				<tag name="param">radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。</tag>
+				<tag name="param">include_fixed: 是否包含固定预加载路径。</tag>
+				<tag name="return">预加载计划字典；未配置图谱时 ok 为 false。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、source_path、radius、include_fixed、fixed_paths、temporary_paths 和 errors。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="preload_scene_map_for" line="592">
+			<signature>func preload_scene_map_for(path: String, radius: int = -1, include_fixed: bool = true) -&gt; Dictionary:</signature>
+			<description>按图谱为指定场景发起预加载。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 当前场景资源路径。</tag>
+				<tag name="param">radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。</tag>
+				<tag name="param">include_fixed: 是否包含固定预加载路径。</tag>
+				<tag name="return">预加载结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、source_path、radius、include_fixed、requested_count、fixed_requested、temporary_requested、results、errors 和 plan。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="preload_current_scene_map" line="640">
+			<signature>func preload_current_scene_map(radius: int = -1, include_fixed: bool = true) -&gt; Dictionary:</signature>
+			<description>按图谱为当前场景发起预加载。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">radius: 搜索半径；小于 0 时使用 scene_preload_map_radius，再小于 0 时使用图谱默认值。</tag>
+				<tag name="param">include_fixed: 是否包含固定预加载路径。</tag>
+				<tag name="return">预加载结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、source_path、radius、include_fixed、requested_count、fixed_requested、temporary_requested、results、errors 和 plan。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_scene_preload" line="649">
+			<signature>func cancel_scene_preload(path: String) -&gt; void:</signature>
+			<description>取消一个仍在进行中的预加载请求。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_all_scene_preloads" line="661">
+			<signature>func cancel_all_scene_preloads() -&gt; void:</signature>
+			<description>取消全部正在进行中的预加载请求。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_scene_preloading" line="673">
+			<signature>func is_scene_preloading(path: String) -&gt; bool:</signature>
+			<description>检查场景是否正在预加载。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">正在预加载时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_scene_preloaded" line="686">
+			<signature>func is_scene_preloaded(path: String) -&gt; bool:</signature>
+			<description>检查场景是否已经预加载到缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">已缓存时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_preloaded_scene" line="697">
+			<signature>func get_preloaded_scene(path: String) -&gt; PackedScene:</signature>
+			<description>获取已预加载的 PackedScene。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">命中缓存时返回 PackedScene，否则返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="put_preloaded_scene" line="717">
+			<signature>func put_preloaded_scene(path: String, scene: PackedScene, fixed: bool = false) -&gt; void:</signature>
+			<description>手动写入预加载缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="param">scene: PackedScene 实例。</tag>
+				<tag name="param">fixed: 为 true 时写入固定缓存。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_preloaded_scene" line="743">
+			<signature>func remove_preloaded_scene(path: String) -&gt; void:</signature>
+			<description>移除一个预加载场景资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_preloaded_scenes" line="761">
+			<signature>func clear_preloaded_scenes(include_fixed: bool = true) -&gt; void:</signature>
+			<description>清空所有预加载场景资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">include_fixed: 为 true 时同时清空固定缓存。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="move_preloaded_scene_to_fixed" line="787">
+			<signature>func move_preloaded_scene_to_fixed(path: String) -&gt; bool:</signature>
+			<description>把已缓存场景移动到固定缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">移动成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="move_preloaded_scene_to_temporary" line="802">
+			<signature>func move_preloaded_scene_to_temporary(path: String) -&gt; bool:</signature>
+			<description>把已缓存场景移动到临时 LRU 缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">移动成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_preloaded_scene_fixed" line="817">
+			<signature>func is_preloaded_scene_fixed(path: String) -&gt; bool:</signature>
+			<description>检查已缓存场景是否位于固定缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">固定缓存命中时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_preloading_scene_paths" line="826">
+			<signature>func get_preloading_scene_paths() -&gt; PackedStringArray:</signature>
+			<description>获取正在预加载的场景路径列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_scene_cache_debug_snapshot" line="842">
+			<signature>func get_scene_cache_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取场景缓存与加载状态快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照字典。</tag>
+				<tag name="schema">return: Dictionary，包含 is_loading、target_path、loading_scene_path、current_scene、loading_progress、transition、preload_cache、scene_preload_map、preloading 和 background。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_scene_resource_state" line="890">
+			<signature>func get_scene_resource_state(path: String) -&gt; int:</signature>
+			<description>获取场景资源状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">SceneResourceState 枚举值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_loading_progress" line="905">
+			<signature>func get_loading_progress() -&gt; float:</signature>
+			<description>获取当前异步加载进度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前加载进度，未加载时为 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_scene_resource_info" line="918">
+			<signature>func get_scene_resource_info(path: String) -&gt; Dictionary:</signature>
+			<description>获取单个场景资源的缓存与加载信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 场景路径。</tag>
+				<tag name="return">场景资源状态字典。</tag>
+				<tag name="schema">return: Dictionary，包含 path、state、is_loading、is_preloading、is_preloaded、is_fixed、progress、cached 和 file_size_bytes。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_current_scene_params" line="947">
+			<signature>func get_current_scene_params() -&gt; Dictionary:</signature>
+			<description>获取当前场景参数副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前场景参数。</tag>
+				<tag name="schema">return: Dictionary[String, Variant]，当前场景参数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_scene_history" line="958">
+			<signature>func get_scene_history() -&gt; Array[Dictionary]:</signature>
+			<description>获取场景历史副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">场景历史列表，最新项位于数组末尾。</tag>
+				<tag name="schema">return: Array[Dictionary]，元素包含 path、params 和 timestamp_unix。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_scene_history" line="968">
+			<signature>func clear_scene_history() -&gt; void:</signature>
+			<description>清空场景历史。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pop_scene_history" line="979">
+			<signature>func pop_scene_history() -&gt; Dictionary:</signature>
+			<description>弹出最近一个场景历史项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">历史项；没有历史时返回空字典。</tag>
+				<tag name="schema">return: Dictionary，包含 path、params 和 timestamp_unix；没有记录时为空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="load_previous_scene" line="995">
+			<signature>func load_previous_scene(loading_scene_path: String = "", minimum_duration_seconds: float = -1.0) -&gt; Error:</signature>
+			<description>切换到最近一个历史场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">loading_scene_path: 可选 loading scene 路径。</tag>
+				<tag name="param">minimum_duration_seconds: loading scene 最短保留秒数；小于 0 时使用默认值。</tag>
+				<tag name="return">发起切换的 Godot Error。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="mark_transient" line="1028">
+			<signature>func mark_transient(script_cls: Script) -&gt; void:</signature>
+			<description>标记一个脚本类型为瞬态实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">script_cls: 需要在下次切场景时清理的脚本类型。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unmark_transient" line="1038">
+			<signature>func unmark_transient(script_cls: Script) -&gt; void:</signature>
+			<description>取消一个脚本类型的瞬态标记。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">script_cls: 要取消标记的脚本类型。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cleanup_transients" line="1045">
+			<signature>func cleanup_transients() -&gt; void:</signature>
+			<description>立即清理所有瞬态实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

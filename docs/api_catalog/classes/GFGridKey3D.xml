@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFGridKey3D" path="addons/gf/standard/foundation/math/gf_grid_key_3d.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFGridKey3D: 3D 网格坐标稳定整数键工具。
+将有限范围内的 Vector3i 格坐标与方向编号打包成非负 int，并提供反解与
+Vector3 位置量化。它只处理坐标编码，不绑定 TileMap、GridMap、渲染或存档格式。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.18.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="COORDINATE_BITS" line="20">
+			<signature>const COORDINATE_BITS: int = 19</signature>
+			<description>每个坐标轴使用的位数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="ORIENTATION_BITS" line="25">
+			<signature>const ORIENTATION_BITS: int = 6</signature>
+			<description>方向编号使用的位数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="COORDINATE_MIN" line="30">
+			<signature>const COORDINATE_MIN: int = -262144</signature>
+			<description>可打包坐标最小值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="COORDINATE_MAX" line="35">
+			<signature>const COORDINATE_MAX: int = 262143</signature>
+			<description>可打包坐标最大值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="ORIENTATION_MIN" line="40">
+			<signature>const ORIENTATION_MIN: int = 0</signature>
+			<description>可打包方向编号最小值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="ORIENTATION_MAX" line="45">
+			<signature>const ORIENTATION_MAX: int = 63</signature>
+			<description>可打包方向编号最大值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="INVALID_KEY" line="50">
+			<signature>const INVALID_KEY: int = -1</signature>
+			<description>无效 key 哨兵值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="can_pack_cell" line="74">
+			<signature>static func can_pack_cell(cell: Vector3i, orientation: int = 0) -&gt; bool:</signature>
+			<description>判断格坐标和方向编号是否能被打包。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 3D 格坐标。</tag>
+				<tag name="param">orientation: 方向编号，范围为 0..63。</tag>
+				<tag name="return">可打包时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pack_cell" line="96">
+			<signature>static func pack_cell(cell: Vector3i, orientation: int = 0) -&gt; int:</signature>
+			<description>将格坐标和方向编号打包成非负整数 key。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 3D 格坐标。</tag>
+				<tag name="param">orientation: 方向编号，范围为 0..63。</tag>
+				<tag name="return">打包后的 key；输入超出范围时返回 INVALID_KEY。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_packed_key_valid" line="115">
+			<signature>static func is_packed_key_valid(key: int) -&gt; bool:</signature>
+			<description>判断整数是否可能是 GFGridKey3D 生成的 key。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 待检测 key。</tag>
+				<tag name="return">在有效整数范围内时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unpack_cell" line="126">
+			<signature>static func unpack_cell(key: int) -&gt; Vector3i:</signature>
+			<description>从 key 反解格坐标。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 打包 key。</tag>
+				<tag name="return">反解出的格坐标；key 无效时返回 Vector3i.ZERO。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unpack_orientation" line="144">
+			<signature>static func unpack_orientation(key: int) -&gt; int:</signature>
+			<description>从 key 反解方向编号。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 打包 key。</tag>
+				<tag name="return">方向编号；key 无效时返回 -1。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unpack_key" line="160">
+			<signature>static func unpack_key(key: int) -&gt; Dictionary:</signature>
+			<description>从 key 反解完整数据字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 打包 key。</tag>
+				<tag name="return">Dictionary，包含 valid、cell 和 orientation。</tag>
+				<tag name="schema">return: Dictionary with valid: bool, cell: Vector3i, and orientation: int.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="position_to_cell" line="180">
+			<signature>static func position_to_cell( position: Vector3, cell_size: Vector3 = Vector3.ONE, origin: Vector3 = Vector3.ZERO ) -&gt; Vector3i:</signature>
+			<description>将世界位置量化为格坐标。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">position: 世界或局部位置。</tag>
+				<tag name="param">cell_size: 单格尺寸，各轴会被限制为正数。</tag>
+				<tag name="param">origin: 量化原点。</tag>
+				<tag name="return">量化后的格坐标。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pack_position" line="206">
+			<signature>static func pack_position( position: Vector3, cell_size: Vector3 = Vector3.ONE, origin: Vector3 = Vector3.ZERO, orientation: int = 0 ) -&gt; int:</signature>
+			<description>将世界位置量化并打包成整数 key。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">position: 世界或局部位置。</tag>
+				<tag name="param">cell_size: 单格尺寸，各轴会被限制为正数。</tag>
+				<tag name="param">origin: 量化原点。</tag>
+				<tag name="param">orientation: 方向编号，范围为 0..63。</tag>
+				<tag name="return">打包后的 key；量化坐标或方向编号超出范围时返回 INVALID_KEY。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFHttpRequestBuilder" path="addons/gf/standard/utilities/io/gf_http_request_builder.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFHttpRequestBuilder: 通用 HTTP 请求构建器。
+负责整理 URL、query、headers、body、timeout 和响应解析策略。
+它只封装 Godot HTTPRequest 的通用流程，不内置任何具体服务、鉴权或业务接口。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="Method" line="20">
+			<signature>enum Method { ## HTTP GET。 GET, ## HTTP POST。 POST, ## HTTP PUT。 PUT, ## HTTP PATCH。 PATCH, ## HTTP DELETE。 DELETE, ## HTTP HEAD。 HEAD, }</signature>
+			<description>HTTP 请求方法。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="enum" name="ParseMode" line="38">
+			<signature>enum ParseMode { ## 不解析响应体。 NONE, ## 按 UTF-8 文本解析。 TEXT, ## 按 JSON 解析。 JSON, }</signature>
+			<description>响应体解析模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="url" line="52">
+			<signature>var url: String = ""</signature>
+			<description>请求 URL。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="method" line="57">
+			<signature>var method: Method = Method.GET</signature>
+			<description>HTTP 方法。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="parse_mode" line="62">
+			<signature>var parse_mode: ParseMode = ParseMode.TEXT</signature>
+			<description>响应解析模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="timeout_seconds" line="67">
+			<signature>var timeout_seconds: float = 20.0</signature>
+			<description>请求超时时间，单位秒。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="74">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>调用方附加元数据，会复制到 GFHttpResponse。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，复制到 GFHttpResponse 的调用方元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_url" line="93">
+			<signature>func set_url(next_url: String) -&gt; GFHttpRequestBuilder:</signature>
+			<description>设置请求 URL。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_url: 新 URL。</tag>
+				<tag name="return">当前构建器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_method" line="105">
+			<signature>func set_method(next_method: Method) -&gt; GFHttpRequestBuilder:</signature>
+			<description>设置 HTTP 方法。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_method: HTTP 方法枚举。</tag>
+				<tag name="return">当前构建器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_parse_mode" line="117">
+			<signature>func set_parse_mode(next_parse_mode: ParseMode) -&gt; GFHttpRequestBuilder:</signature>
+			<description>设置响应解析模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_parse_mode: 解析模式。</tag>
+				<tag name="return">当前构建器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_timeout" line="129">
+			<signature>func set_timeout(seconds: float) -&gt; GFHttpRequestBuilder:</signature>
+			<description>设置请求超时时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">seconds: 超时秒数。</tag>
+				<tag name="return">当前构建器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_header" line="143">
+			<signature>func set_header(key: String, value: String) -&gt; GFHttpRequestBuilder:</signature>
+			<description>设置或覆盖请求头。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 请求头名称。</tag>
+				<tag name="param">value: 请求头值。</tag>
+				<tag name="return">当前构建器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_header" line="157">
+			<signature>func remove_header(key: String) -&gt; GFHttpRequestBuilder:</signature>
+			<description>移除请求头。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 请求头名称。</tag>
+				<tag name="return">当前构建器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_query_parameter" line="173">
+			<signature>func add_query_parameter(key: String, value: Variant) -&gt; GFHttpRequestBuilder:</signature>
+			<description>添加 query 参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 参数名。</tag>
+				<tag name="param">value: 参数值。</tag>
+				<tag name="return">当前构建器。</tag>
+				<tag name="schema">value: Variant，URI 编码前会转换为文本的查询参数值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_text_body" line="192">
+			<signature>func set_text_body(text: String, content_type: String = "text/plain; charset=utf-8") -&gt; GFHttpRequestBuilder:</signature>
+			<description>设置文本请求体。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">text: 请求体文本。</tag>
+				<tag name="param">content_type: 可选 Content-Type。</tag>
+				<tag name="return">当前构建器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_json_body" line="208">
+			<signature>func set_json_body(value: Variant) -&gt; GFHttpRequestBuilder:</signature>
+			<description>设置 JSON 请求体。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 可被 JSON.stringify() 序列化的数据。</tag>
+				<tag name="return">当前构建器。</tag>
+				<tag name="schema">value: Variant，兼容 JSON.stringify 的请求体载荷。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_url" line="219">
+			<signature>func build_url() -&gt; String:</signature>
+			<description>构建最终 URL。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">拼接 query 后的 URL。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_headers" line="239">
+			<signature>func build_headers() -&gt; PackedStringArray:</signature>
+			<description>构建 Godot HTTPRequest 可用的请求头数组。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Header 数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_request" line="253">
+			<signature>func build_request() -&gt; Dictionary:</signature>
+			<description>构建普通请求字典，适合测试、日志或项目自定义传输层使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">请求快照。</tag>
+				<tag name="schema">return: Dictionary，包含 url、method、method_name、headers、body、timeout_seconds、parse_mode、parse_mode_name 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute" line="274">
+			<signature>func execute(parent: Node = null) -&gt; GFHttpResponse:</signature>
+			<description>使用 HTTPRequest 执行请求。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">parent: HTTPRequest 节点的父节点；为空时尝试挂到当前 SceneTree root。</tag>
+				<tag name="return">响应对象，可监听 completed。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="parse_body" line="321">
+			<signature>func parse_body(body: PackedByteArray) -&gt; Dictionary:</signature>
+			<description>按当前 parse_mode 解析响应体。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">body: 响应 bytes。</tag>
+				<tag name="return">解析结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、text、data 和可选 error。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

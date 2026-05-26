@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFValidationReportDictionary" path="addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFValidationReportDictionary: 通用校验报告字典辅助。
+提供字典报告的追加、归一化、统计和严重级别提升工具，便于字典式报告
+接入 `GFValidationIssue` / `GFValidationReport` 使用的标准字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="issue_to_dict" line="37">
+			<signature>static func issue_to_dict(issue: Variant, include_empty_fields: bool = false) -&gt; Dictionary:</signature>
+			<description>将任意问题转换为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">issue: GFValidationIssue 或问题字典。</tag>
+				<tag name="param">include_empty_fields: 为 true 时包含空的可选字段。</tag>
+				<tag name="return">问题字典。</tag>
+				<tag name="schema">issue: Variant accepting GFValidationIssue or Dictionary issue payload.</tag>
+				<tag name="schema">return: Dictionary serialized issue payload.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="report_from_dict" line="61">
+			<signature>static func report_from_dict(data: Dictionary) -&gt; RefCounted:</signature>
+			<description>将报告字典转换为 GFValidationReport。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 输入字典。</tag>
+				<tag name="return">新报告。</tag>
+				<tag name="schema">data: Dictionary report payload.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="append_issue" line="90">
+			<signature>static func append_issue( report: Dictionary, severity: Variant, kind: StringName, message: String, fields: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>向字典报告追加问题。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 目标报告字典。</tag>
+				<tag name="param">severity: 严重级别，可传入 Severity、int 或字符串。</tag>
+				<tag name="param">kind: 问题类别。</tag>
+				<tag name="param">message: 问题说明。</tag>
+				<tag name="param">fields: 附加字段，例如 key、path、row_key、metadata。</tag>
+				<tag name="return">追加的问题字典。</tag>
+				<tag name="schema">report: Dictionary report payload mutated in place.</tag>
+				<tag name="schema">severity: Variant accepting GFValidationIssue.Severity, int, String, or StringName.</tag>
+				<tag name="schema">fields: Dictionary additional issue fields.</tag>
+				<tag name="schema">return: Dictionary appended issue payload.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="append_source_issue" line="139">
+			<signature>static func append_source_issue( report: Dictionary, severity: Variant, kind: StringName, message: String, source_span: Variant, fields: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>向字典报告追加带源码定位的问题。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 目标报告字典。</tag>
+				<tag name="param">severity: 严重级别，可传入 Severity、int 或字符串。</tag>
+				<tag name="param">kind: 问题类别。</tag>
+				<tag name="param">message: 问题说明。</tag>
+				<tag name="param">source_span: GFSourceSpan 或兼容字典。</tag>
+				<tag name="param">fields: 附加字段，例如 key、path、row_key、metadata。</tag>
+				<tag name="return">追加的问题字典。</tag>
+				<tag name="schema">report: Dictionary report payload mutated in place.</tag>
+				<tag name="schema">severity: Variant accepting GFValidationIssue.Severity, int, String, or StringName.</tag>
+				<tag name="schema">source_span: Variant accepting GFSourceSpan or Dictionary span payload.</tag>
+				<tag name="schema">fields: Dictionary additional issue fields.</tag>
+				<tag name="schema">return: Dictionary appended issue payload.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="finalize_report" line="173">
+			<signature>static func finalize_report( report: Dictionary, subject: String = "", options: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>重新计算字典报告的统计字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 目标报告字典。</tag>
+				<tag name="param">subject: 摘要主题；为空时使用 report.subject 或 Validation report。</tag>
+				<tag name="param">options: 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、include_issue_count、warnings_as_errors、promote_warning_kinds。</tag>
+				<tag name="return">同一个报告字典。</tag>
+				<tag name="schema">report: Dictionary report payload mutated in place.</tag>
+				<tag name="schema">options: Dictionary controlling report finalization.</tag>
+				<tag name="schema">return: Dictionary finalized report payload.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_summary" line="235">
+			<signature>static func make_summary(subject: String, error_count: int, warning_count: int) -&gt; String:</signature>
+			<description>生成摘要文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">subject: 摘要主题。</tag>
+				<tag name="param">error_count: 错误数量。</tag>
+				<tag name="param">warning_count: 警告数量。</tag>
+				<tag name="return">摘要文本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_next_action" line="267">
+			<signature>static func get_next_action( report: Dictionary, action_map: Dictionary = {}, fallback_action: String = "Review the first reported issue.", no_action: String = "No action required.", options: Dictionary = {} ) -&gt; String:</signature>
+			<description>获取报告下一步建议。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 报告字典。</tag>
+				<tag name="param">action_map: 按问题类别映射的建议文本。</tag>
+				<tag name="param">fallback_action: 存在问题但未命中映射时返回的建议。</tag>
+				<tag name="param">no_action: 没有问题时返回的建议。</tag>
+				<tag name="param">options: 严重级别计算选项。</tag>
+				<tag name="return">建议文本。</tag>
+				<tag name="schema">report: Dictionary report payload.</tag>
+				<tag name="schema">action_map: Dictionary keyed by issue kind with action text values.</tag>
+				<tag name="schema">options: Dictionary severity evaluation options.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_error_issues" line="300">
+			<signature>static func has_error_issues(report: Dictionary, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>检查报告是否包含错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 报告字典。</tag>
+				<tag name="param">options: 严重级别计算选项。</tag>
+				<tag name="return">存在错误时返回 true。</tag>
+				<tag name="schema">report: Dictionary report payload.</tag>
+				<tag name="schema">options: Dictionary severity evaluation options.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="promote_warnings" line="321">
+			<signature>static func promote_warnings(report: Dictionary, kinds: PackedStringArray = PackedStringArray()) -&gt; Dictionary:</signature>
+			<description>将报告中的警告提升为错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 报告字典。</tag>
+				<tag name="param">kinds: 为空时提升全部警告；否则只提升匹配类别。</tag>
+				<tag name="return">同一个报告字典。</tag>
+				<tag name="schema">report: Dictionary report payload mutated in place.</tag>
+				<tag name="schema">return: Dictionary report payload mutated in place.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

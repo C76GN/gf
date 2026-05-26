@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFModalResult" path="addons/gf/standard/utilities/ui/gf_modal_result.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFModalResult: 通用 modal 交互结果。
+只描述用户选择、附加载荷和调用上下文，不解释业务含义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="STATUS_CONFIRMED" line="19">
+			<signature>const STATUS_CONFIRMED: StringName = &amp;"confirmed"</signature>
+			<description>表示肯定或主要操作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="STATUS_CANCELLED" line="24">
+			<signature>const STATUS_CANCELLED: StringName = &amp;"cancelled"</signature>
+			<description>表示取消、返回或关闭。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="STATUS_DISMISSED" line="29">
+			<signature>const STATUS_DISMISSED: StringName = &amp;"dismissed"</signature>
+			<description>表示中性关闭。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="status" line="37">
+			<signature>var status: StringName = STATUS_DISMISSED</signature>
+			<description>结果状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="action_id" line="42">
+			<signature>var action_id: StringName = &amp;""</signature>
+			<description>触发该结果的动作 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="payload" line="49">
+			<signature>var payload: Variant = null</signature>
+			<description>动作携带的通用载荷。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">payload: Variant，项目自定义动作载荷。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="56">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>结果元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，结果附带的项目侧元数据。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="context" line="63">
+			<signature>var context: Dictionary = {}</signature>
+			<description>打开 modal 时传入的调用上下文。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">context: Dictionary，打开 modal 时传入的调用上下文。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="create" line="89">
+			<signature>static func create( result_status: StringName, result_action_id: StringName = &amp;"", result_payload: Variant = null, result_metadata: Dictionary = {}, result_context: Dictionary = {} ) -&gt; GFModalResult:</signature>
+			<description>创建结果实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result_status: 结果状态。</tag>
+				<tag name="param">result_action_id: 触发动作 ID。</tag>
+				<tag name="param">result_payload: 动作载荷。</tag>
+				<tag name="param">result_metadata: 结果元数据。</tag>
+				<tag name="param">result_context: 调用上下文。</tag>
+				<tag name="return">新结果实例。</tag>
+				<tag name="schema">result_payload: Variant，项目自定义动作载荷。</tag>
+				<tag name="schema">result_metadata: Dictionary，结果附带的项目侧元数据。</tag>
+				<tag name="schema">result_context: Dictionary，打开 modal 时传入的调用上下文。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="112">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>导出为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 status、action_id、payload、metadata 和 context。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

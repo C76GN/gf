@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAudioClip" path="addons/gf/standard/utilities/audio/gf_audio_clip.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAudioClip: 可资源化的音频播放配置。
+支持直接引用 `AudioStream`，也支持提供资源路径交给 `GFAudioUtility`
+按需加载。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="stream" line="25" decorators="@export_file(&quot;*.wav&quot;, &quot;*.ogg&quot;, &quot;*.mp3&quot;, &quot;*.opus&quot;) var path: String = &quot;&quot; @export">
+			<signature>var stream: AudioStream</signature>
+			<description>音频资源路径。`stream` 为空时使用该路径加载。
+音频流资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="bus_name" line="30" decorators="@export">
+			<signature>var bus_name: String = ""</signature>
+			<description>音频总线。为空时由播放方法使用默认 BGM/SFX 总线。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="has_source" line="65">
+			<signature>func has_source() -&gt; bool:</signature>
+			<description>检查该配置是否有可播放来源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">有 stream 或 path 时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resolve_bus" line="76">
+			<signature>func resolve_bus(default_bus: String) -&gt; String:</signature>
+			<description>解析实际总线名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">default_bus: 默认总线。</tag>
+				<tag name="return">实际总线名称。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resolve_pitch" line="89">
+			<signature>func resolve_pitch(rng: RandomNumberGenerator = null) -&gt; float:</signature>
+			<description>解析本次播放使用的实际音高。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">rng: 可选随机数生成器；为空时使用确定性的 pitch_scale。</tag>
+				<tag name="return">实际播放音高。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

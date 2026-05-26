@@ -1,0 +1,146 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFModel" path="addons/gf/kernel/base/gf_model.gd" module="kernel" extends="Object" line="16" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFModel: 数据层抽象基类。
+负责管理应用数据和业务状态。
+子类可以实现 'init'、'async_init'、'ready'、'dispose' 来管理其生命周期。
+三阶段初始化约定：
+- 'init'       阶段：只允许初始化自身内部变量，禁止跨模块获取依赖。
+- 'async_init' 阶段：可使用 await，用于异步资源加载等操作。
+- 'ready'      阶段：架构内所有模块均已完成 'init'，可安全跨模块获取依赖。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="lifecycle_priority" line="30">
+			<signature>var lifecycle_priority: int = 0</signature>
+			<description>生命周期优先级。数值越大越早执行 init/async_init/ready，dispose 时越晚释放。
+默认 0 表示同优先级下按注册顺序执行；只有存在明确依赖顺序时才建议设置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="44">
+			<signature>func init() -&gt; void:</signature>
+			<description>第一阶段初始化。子类可以重写此方法。
+约束：只允许初始化自身内部变量，不得跨模块获取依赖。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="async_init" line="53">
+			<signature>func async_init() -&gt; void:</signature>
+			<description>异步初始化阶段。子类可以重写此方法并在其中使用 await。
+Godot 4 支持在 void 函数内部使用 await，框架的 Gf.init() 会串行且安全地 await 每个模块的 async_init()，不再需要返回 Signal。
+约束：在 init() 之后、ready() 之前执行。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="ready" line="61">
+			<signature>func ready() -&gt; void:</signature>
+			<description>第三阶段初始化。子类可以重写此方法。
+约束：此时所有模块已完成 'init'，可安全跨模块获取依赖。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="68">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>销毁模型。子类可以重写此方法。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_save_key" line="78">
+			<signature>func get_save_key() -&gt; StringName:</signature>
+			<description>获取架构级存档使用的稳定键。
+默认返回空字符串，表示由 GFArchitecture 使用 class_name 或资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">稳定存档键；为空时使用框架默认规则。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="93">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>将此模型的状态序列化为字典，用于存档、状态快照等。
+子类应重写此方法以包含所有需要持久化的字段。
+"type": "Dictionary",
+"additional_properties": true
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">包含模型状态数据的字典。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="108">
+			<signature>func from_dict(_data: Dictionary) -&gt; void:</signature>
+			<description>从字典反序列化并恢复此模型的状态。
+子类应重写此方法以恢复所有相关字段。
+"type": "Dictionary",
+"additional_properties": true
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_data: 包含状态数据的字典（通常来自 to_dict() 的结果）。</tag>
+				<tag name="schema">_data {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_lifecycle_active" line="129">
+			<signature>func is_lifecycle_active() -&gt; bool:</signature>
+			<description>检查所属架构生命周期是否仍可安全继续异步写回。
+async_init() 或其他 await 之后写入状态前建议检查该值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">所属架构仍处于活动生命周期时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_ready_in_architecture" line="139">
+			<signature>func is_ready_in_architecture() -&gt; bool:</signature>
+			<description>检查当前模块是否已经完成 ready 阶段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前模块完成 ready 阶段时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_utility" line="153">
+			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过类型获取 Utility 实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_event" line="165">
+			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
+			<description>向架构发送事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_instance: 要分发的事件实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_simple_event" line="183">
+			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
+			<description>发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。
+"type": "Variant",
+"description": "事件附加数据；由事件消费者约定结构。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">payload: 可选的事件附加数据。</tag>
+				<tag name="schema">payload {</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

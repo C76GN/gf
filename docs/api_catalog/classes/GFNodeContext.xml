@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNodeContext" path="addons/gf/kernel/core/gf_node_context.gd" module="kernel" extends="Node" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNodeContext: 场景树上的局部架构上下文。
+可选择继承父级架构，或创建带父级回退的 Scoped 架构。
+Scoped 架构会在节点退出树时自动 dispose，适合关卡、战斗房间、调试面板等局部模块。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="layer">kernel/core</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="context_ready" line="24">
+			<signature>signal context_ready(architecture: GFArchitecture)</signature>
+			<description>当上下文架构完成初始化后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">architecture: 当前上下文使用的架构实例。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="context_failed" line="31">
+			<signature>signal context_failed(reason: String)</signature>
+			<description>当上下文无法继续等待或初始化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">reason: 失败原因。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="ScopeMode" line="39">
+			<signature>enum ScopeMode { ## 直接复用最近的父级上下文架构；若不存在则回退到全局 Gf 架构。 INHERITED, ## 创建新的局部架构，并将最近的父级或全局架构作为依赖回退来源。 SCOPED, }</signature>
+			<description>上下文作用域模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="scope_mode" line="52" decorators="@export">
+			<signature>var scope_mode: ScopeMode = ScopeMode.SCOPED</signature>
+			<description>当前节点上下文的作用域模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_init" line="57" decorators="@export">
+			<signature>var auto_init: bool = true</signature>
+			<description>是否在进入树后自动初始化 Scoped 架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="process_scoped_ticks" line="62" decorators="@export">
+			<signature>var process_scoped_ticks: bool = true</signature>
+			<description>是否由该节点驱动 Scoped 架构的 tick 与 physics_tick。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="strict_dependency_lookup" line="67" decorators="@export">
+			<signature>var strict_dependency_lookup: bool = false</signature>
+			<description>Scoped 架构是否启用严格依赖查询。开启后本地未注册的依赖不会回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="module_async_init_timeout_seconds" line="72" decorators="@export">
+			<signature>var module_async_init_timeout_seconds: float = 0.0</signature>
+			<description>Scoped 架构中单个模块 async_init() 的最长等待时间。小于等于 0 时继承架构默认行为。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="context_wait_timeout_seconds" line="77" decorators="@export">
+			<signature>var context_wait_timeout_seconds: float = 30.0</signature>
+			<description>等待父级架构或当前上下文 ready 的超时时间。小于等于 0 时禁用超时。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="architecture" line="85">
+			<signature>var architecture: GFArchitecture:</signature>
+			<description>当前上下文使用的架构实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="install" line="164">
+			<signature>func install(_architecture_instance: GFArchitecture) -&gt; void:</signature>
+			<description>安装当前上下文的局部模块。仅在 SCOPED 模式下调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_architecture_instance: 当前上下文创建的局部架构。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="install_bindings" line="175">
+			<signature>func install_bindings(_binder: Variant) -&gt; void:</signature>
+			<description>使用声明式装配器安装当前上下文的局部模块。仅在 SCOPED 模式下调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_binder: 当前上下文创建的局部架构装配器。</tag>
+				<tag name="schema">_binder: GFBindBuilder-compatible binder produced by GFArchitecture.create_binder().</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_architecture" line="184">
+			<signature>func get_architecture() -&gt; GFArchitecture:</signature>
+			<description>获取当前上下文使用的架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">架构实例；未找到时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_context_ready" line="193">
+			<signature>func is_context_ready() -&gt; bool:</signature>
+			<description>检查上下文是否已经完成初始化。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已完成初始化返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="initialize_context" line="202">
+			<signature>func initialize_context() -&gt; GFArchitecture:</signature>
+			<description>手动初始化当前 Scoped 上下文。适合 auto_init 为 false 时，在 install()/install_bindings() 完成后统一触发初始化与 context_ready/context_failed 信号。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">初始化完成的架构；上下文失效或初始化失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="wait_until_ready" line="237">
+			<signature>func wait_until_ready() -&gt; GFArchitecture:</signature>
+			<description>等待上下文架构完成初始化并返回该架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前上下文架构；上下文失效时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_model" line="268">
+			<signature>func get_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过当前上下文架构获取 Model。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">model_type: 模型脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">模型实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_system" line="283">
+			<signature>func get_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过当前上下文架构获取 System。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">system_type: 系统脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">系统实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_utility" line="298">
+			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过当前上下文架构获取 Utility。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_model" line="313">
+			<signature>func get_local_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前上下文架构获取 Model，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">model_type: 模型脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前上下文架构中的模型实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_system" line="328">
+			<signature>func get_local_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前上下文架构获取 System，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">system_type: 系统脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前上下文架构中的系统实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_utility" line="343">
+			<signature>func get_local_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前上下文架构获取 Utility，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前上下文架构中的工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="inject_object" line="354">
+			<signature>func inject_object(instance: Object) -&gt; void:</signature>
+			<description>向任意对象注入当前上下文架构依赖。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">instance: 要注册、替换或注入的实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="inject_node_tree" line="364">
+			<signature>func inject_node_tree(node: Node) -&gt; void:</signature>
+			<description>递归向节点树中实现注入 Hook 的节点注入当前上下文架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node: 目标节点。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

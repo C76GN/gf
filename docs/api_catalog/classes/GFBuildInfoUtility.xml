@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFBuildInfoUtility" path="addons/gf/standard/utilities/debug/gf_build_info_utility.gd" module="standard" extends="GFUtility" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFBuildInfoUtility: 构建信息访问工具。
+在运行时提供稳定的构建信息副本，供诊断、日志、存档元数据或项目 UI 查询。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="build_info" line="19">
+			<signature>var build_info: GFBuildInfo = null</signature>
+			<description>当前构建信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="27">
+			<signature>func init() -&gt; void:</signature>
+			<description>采集当前运行环境的构建信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="refresh" line="38">
+			<signature>func refresh() -&gt; GFBuildInfo:</signature>
+			<description>重新采集当前运行环境的构建信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">更新后的构建信息副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_build_info" line="48">
+			<signature>func set_build_info(info: GFBuildInfo) -&gt; void:</signature>
+			<description>手动设置构建信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">info: 构建信息；为空时会清空当前值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_build_info" line="59">
+			<signature>func get_build_info(copy: bool = true) -&gt; GFBuildInfo:</signature>
+			<description>获取构建信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">copy: 为 true 时返回深拷贝，避免调用方修改内部状态。</tag>
+				<tag name="return">构建信息。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_build_info_dict" line="72">
+			<signature>func get_build_info_dict() -&gt; Dictionary:</signature>
+			<description>获取构建信息字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">构建信息字典。</tag>
+				<tag name="schema">return: Dictionary，包含 GFBuildInfo.to_dict() 输出的字段；无构建信息时为空 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_summary" line="83">
+			<signature>func get_summary() -&gt; String:</signature>
+			<description>获取简短版本摘要。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">构建信息摘要。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="108">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 available、summary 和 info 字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

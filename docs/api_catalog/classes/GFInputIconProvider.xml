@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputIconProvider" path="addons/gf/standard/input/formatting/gf_input_icon_provider.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputIconProvider: 输入图标格式化扩展点。
+项目可继承此资源，把输入事件映射为 Texture2D 或 RichTextLabel BBCode。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="priority" line="19" decorators="@export">
+			<signature>var priority: int = 0</signature>
+			<description>优先级。数值越大越先尝试。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="icon_size" line="24" decorators="@export">
+			<signature>var icon_size: int = 24</signature>
+			<description>BBCode 图标默认尺寸。小于等于 0 时不写尺寸。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_priority" line="34">
+			<signature>func get_priority() -&gt; int:</signature>
+			<description>获取优先级。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">优先级。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="supports_event" line="49">
+			<signature>func supports_event(_input_event: InputEvent, _options: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断是否支持指定输入事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_input_event: 输入事件。</tag>
+				<tag name="param">_options: 调用选项。</tag>
+				<tag name="return">支持返回 true。</tag>
+				<tag name="schema">_options: Dictionary，由 GFInputFormatter 传入，包含 provider 特定图标字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_icon" line="64">
+			<signature>func get_event_icon(_input_event: InputEvent, _options: Dictionary = {}) -&gt; Texture2D:</signature>
+			<description>获取输入事件图标。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_input_event: 输入事件。</tag>
+				<tag name="param">_options: 调用选项。</tag>
+				<tag name="return">图标资源；返回 null 会回退到后续 provider。</tag>
+				<tag name="schema">_options: Dictionary，由 GFInputFormatter 传入，包含 provider 特定图标字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_rich_text" line="79">
+			<signature>func get_event_rich_text(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
+			<description>获取输入事件 RichTextLabel BBCode。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">BBCode；返回空字符串会回退到文本格式化。</tag>
+				<tag name="schema">options: Dictionary，可包含 icon_size 和 provider 特定富文本字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

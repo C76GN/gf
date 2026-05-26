@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAudioBackend" path="addons/gf/standard/utilities/audio/gf_audio_backend.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAudioBackend: GFAudioUtility 的可插拔音频后端协议。
+默认实现不处理任何请求。项目或扩展可继承它，把部分音频事件转交给
+外部中间件、平台接口或自定义混音系统；未声明可处理的请求会回退到 Godot 默认播放器。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="capabilities" line="20">
+			<signature>var capabilities: GFAudioBackendCapability = GFAudioBackendCapability.new()</signature>
+			<description>后端能力声明。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="dispose" line="33">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放后端状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_host" line="42">
+			<signature>func get_host() -&gt; Object:</signature>
+			<description>获取宿主音频工具。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">宿主对象；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_capabilities" line="51">
+			<signature>func get_capabilities() -&gt; GFAudioBackendCapability:</signature>
+			<description>获取后端能力声明副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">后端能力声明。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_capability" line="62">
+			<signature>func has_capability(capability_id: StringName) -&gt; bool:</signature>
+			<description>检查后端是否声明了指定能力。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">capability_id: 能力标识。</tag>
+				<tag name="return">支持返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_handle_path" line="79">
+			<signature>func can_handle_path(_path: String, _channel: StringName, _context: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断后端是否可处理指定资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_path: 音频资源路径或后端事件路径。</tag>
+				<tag name="param">_channel: 通道标识，如 bgm、sfx、ambient。</tag>
+				<tag name="param">_context: 请求上下文。</tag>
+				<tag name="return">可处理时返回 true。</tag>
+				<tag name="schema">_context: 请求上下文 Dictionary；键和值由 GFAudioUtility 或具体后端约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_handle_clip" line="96">
+			<signature>func can_handle_clip(_clip: GFAudioClip, _channel: StringName, _context: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断后端是否可处理指定音频片段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_clip: 音频片段配置。</tag>
+				<tag name="param">_channel: 通道标识，如 bgm、sfx、ambient。</tag>
+				<tag name="param">_context: 请求上下文。</tag>
+				<tag name="return">可处理时返回 true。</tag>
+				<tag name="schema">_context: 请求上下文 Dictionary；键和值由 GFAudioUtility 或具体后端约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_bgm_path" line="111">
+			<signature>func play_bgm_path(_path: String, _options: Dictionary = {}) -&gt; bool:</signature>
+			<description>播放 BGM 路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_path: 音频资源路径或后端事件路径。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds、loop 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_bgm_clip" line="126">
+			<signature>func play_bgm_clip(_clip: GFAudioClip, _options: Dictionary = {}) -&gt; bool:</signature>
+			<description>播放 BGM Clip。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_clip: 音频片段配置。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds、loop 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_bgm" line="137">
+			<signature>func stop_bgm(_fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>停止 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_fade_seconds: 淡出秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause_bgm" line="148">
+			<signature>func pause_bgm(_fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>暂停 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_fade_seconds: 淡出到暂停的秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume_bgm" line="161">
+			<signature>func resume_bgm(_from_position: float = -1.0, _fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>恢复 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_from_position: 大于等于 0 时从指定秒数恢复。</tag>
+				<tag name="param">_fade_seconds: 淡入秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="seek_bgm" line="172">
+			<signature>func seek_bgm(_position_seconds: float) -&gt; bool:</signature>
+			<description>跳转当前 BGM 播放位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_position_seconds: 目标秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bgm_playback_position" line="181">
+			<signature>func get_bgm_playback_position() -&gt; float:</signature>
+			<description>获取当前 BGM 播放位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">播放秒数；负数表示后端不处理该查询。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_bgm_paused" line="190">
+			<signature>func is_bgm_paused() -&gt; bool:</signature>
+			<description>查询 BGM 是否暂停。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已暂停返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_ambient_path" line="207">
+			<signature>func play_ambient_path(_path: String, _channel: StringName = &amp;"default", _options: Dictionary = {}) -&gt; bool:</signature>
+			<description>播放环境音路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_path: 音频资源路径或后端事件路径。</tag>
+				<tag name="param">_channel: 环境音通道。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_ambient_clip" line="224">
+			<signature>func play_ambient_clip(_clip: GFAudioClip, _channel: StringName = &amp;"default", _options: Dictionary = {}) -&gt; bool:</signature>
+			<description>播放环境音 Clip。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_clip: 音频片段配置。</tag>
+				<tag name="param">_channel: 环境音通道。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、fade_seconds 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_ambient" line="237">
+			<signature>func stop_ambient(_channel: StringName = &amp;"default", _fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>停止环境音通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_channel: 环境音通道。</tag>
+				<tag name="param">_fade_seconds: 淡出秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_all_ambient" line="248">
+			<signature>func stop_all_ambient(_fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>停止全部环境音。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_fade_seconds: 淡出秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_ambient_playing" line="259">
+			<signature>func is_ambient_playing(_channel: StringName = &amp;"default") -&gt; bool:</signature>
+			<description>查询环境音通道是否播放中。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_channel: 环境音通道。</tag>
+				<tag name="return">后端通道正在播放时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_path" line="274">
+			<signature>func play_sfx_path(_path: String, _options: Dictionary = {}) -&gt; GFAudioEmitterHandle:</signature>
+			<description>播放 SFX 路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_path: 音频资源路径或后端事件路径。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">控制句柄；未处理返回 null。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_clip" line="289">
+			<signature>func play_sfx_clip(_clip: GFAudioClip, _options: Dictionary = {}) -&gt; GFAudioEmitterHandle:</signature>
+			<description>播放 SFX Clip。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_clip: 音频片段配置。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">控制句柄；未处理返回 null。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_all_sfx" line="300">
+			<signature>func stop_all_sfx(_fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>停止全部 SFX。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_fade_seconds: 淡出秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_spatial_sfx_clip" line="319">
+			<signature>func play_spatial_sfx_clip( _clip: GFAudioClip, _source: Node, _follow_source: bool = false, _options: Dictionary = {} ) -&gt; GFAudioEmitterHandle:</signature>
+			<description>播放空间 SFX Clip。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_clip: 音频片段配置。</tag>
+				<tag name="param">_source: 2D 或 3D 声源节点。</tag>
+				<tag name="param">_follow_source: 是否跟随声源。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">控制句柄；未处理返回 null。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel、follow_source 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_handle_event" line="339">
+			<signature>func can_handle_event(_event: GFAudioEvent, _options: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断后端是否可处理资源化音频事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_event: 音频事件。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">可处理时返回 true。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；键和值由 GFAudioUtility 或具体后端约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="post_event" line="354">
+			<signature>func post_event(_event: GFAudioEvent, _options: Dictionary = {}) -&gt; GFAudioEmitterHandle:</signature>
+			<description>发布资源化音频事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_event: 音频事件。</tag>
+				<tag name="param">_options: 请求选项。</tag>
+				<tag name="return">控制句柄；未处理返回 null。</tag>
+				<tag name="schema">_options: 请求选项 Dictionary；键和值由 GFAudioUtility 或具体后端约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_parameter" line="365">
+			<signature>func set_parameter(_parameter: GFAudioParameter) -&gt; bool:</signature>
+			<description>设置音频参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_parameter: 参数请求。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_state" line="376">
+			<signature>func set_state(_state: GFAudioState) -&gt; bool:</signature>
+			<description>设置音频状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_state: 状态请求。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_switch" line="387">
+			<signature>func set_switch(_switch: GFAudioSwitch) -&gt; bool:</signature>
+			<description>设置音频开关。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_switch: 开关请求。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bus_volume" line="400">
+			<signature>func set_bus_volume(_bus_name: String, _volume_linear: float) -&gt; bool:</signature>
+			<description>设置总线音量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_bus_name: 总线名或后端通道名。</tag>
+				<tag name="param">_volume_linear: 线性音量。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bus_volume" line="411">
+			<signature>func get_bus_volume(_bus_name: String) -&gt; float:</signature>
+			<description>获取总线音量。返回负数表示未处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_bus_name: 总线名或后端通道名。</tag>
+				<tag name="return">线性音量；负数表示后端不处理该总线。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="422">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取后端调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试数据。</tag>
+				<tag name="schema">return: 调试快照 Dictionary；键和值由具体后端约定。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

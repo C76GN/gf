@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFGraphMath" path="addons/gf/standard/foundation/math/gf_graph_math.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFGraphMath: 面向任意节点类型的纯图搜索算法。
+节点可以是 Vector、StringName、Resource、对象引用或项目自定义值。
+图结构由回调提供，框架只负责遍历、代价累计和路径重建。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="find_path_dijkstra" line="36">
+			<signature>static func find_path_dijkstra( start: Variant, goal: Variant, get_neighbors: Callable, get_step_cost: Callable = Callable() ) -&gt; Array[Variant]:</signature>
+			<description>使用 Dijkstra 查找一条最低代价路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">start: 起点节点。</tag>
+				<tag name="param">goal: 终点节点。</tag>
+				<tag name="param">get_neighbors: 邻居回调，签名为 `func(node: Variant) -&gt; Array`。</tag>
+				<tag name="param">get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -&gt; float`；返回负数表示不可通行。</tag>
+				<tag name="return">包含起点与终点的路径；无法到达时返回空数组。</tag>
+				<tag name="schema">start: Variant graph node identity.</tag>
+				<tag name="schema">goal: Variant graph node identity.</tag>
+				<tag name="schema">return: Array graph node path from start to goal.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="find_path_a_star" line="66">
+			<signature>static func find_path_a_star( start: Variant, goal: Variant, get_neighbors: Callable, get_step_cost: Callable = Callable(), heuristic: Callable = Callable() ) -&gt; Array[Variant]:</signature>
+			<description>使用 A* 查找一条低代价路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">start: 起点节点。</tag>
+				<tag name="param">goal: 终点节点。</tag>
+				<tag name="param">get_neighbors: 邻居回调，签名为 `func(node: Variant) -&gt; Array`。</tag>
+				<tag name="param">get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -&gt; float`；返回负数表示不可通行。</tag>
+				<tag name="param">heuristic: 可选启发回调，签名为 `func(node: Variant, goal: Variant) -&gt; float`。</tag>
+				<tag name="return">包含起点与终点的路径；无法到达时返回空数组。</tag>
+				<tag name="schema">start: Variant graph node identity.</tag>
+				<tag name="schema">goal: Variant graph node identity.</tag>
+				<tag name="schema">return: Array graph node path from start to goal.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_distance_map" line="93">
+			<signature>static func build_distance_map( start: Variant, get_neighbors: Callable, get_step_cost: Callable = Callable(), max_cost: float = INF ) -&gt; Dictionary:</signature>
+			<description>从起点生成距离图。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">start: 起点节点。</tag>
+				<tag name="param">get_neighbors: 邻居回调，签名为 `func(node: Variant) -&gt; Array`。</tag>
+				<tag name="param">get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -&gt; float`；返回负数表示不可通行。</tag>
+				<tag name="param">max_cost: 最大累计代价，超过后停止扩展。</tag>
+				<tag name="return">字典，键为可达节点，值为从起点到该节点的最低代价。</tag>
+				<tag name="schema">start: Variant graph node identity.</tag>
+				<tag name="schema">return: Dictionary mapping reachable graph nodes to lowest float costs.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="find_reachable" line="146">
+			<signature>static func find_reachable( start: Variant, max_cost: float, get_neighbors: Callable, get_step_cost: Callable = Callable() ) -&gt; Dictionary:</signature>
+			<description>查找指定代价内可达的节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">start: 起点节点。</tag>
+				<tag name="param">max_cost: 最大累计代价。</tag>
+				<tag name="param">get_neighbors: 邻居回调，签名为 `func(node: Variant) -&gt; Array`。</tag>
+				<tag name="param">get_step_cost: 可选代价回调，签名为 `func(from: Variant, to: Variant) -&gt; float`；返回负数表示不可通行。</tag>
+				<tag name="return">字典，键为可达节点，值为从起点到该节点的最低代价。</tag>
+				<tag name="schema">start: Variant graph node identity.</tag>
+				<tag name="schema">return: Dictionary mapping reachable graph nodes to lowest float costs.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

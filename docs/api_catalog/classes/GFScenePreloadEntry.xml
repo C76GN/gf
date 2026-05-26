@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFScenePreloadEntry" path="addons/gf/standard/utilities/scene/gf_scene_preload_entry.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFScenePreloadEntry: 场景预加载图谱中的单个节点。
+描述一个场景与相邻场景的关系，以及该场景是否应进入固定缓存。
+它只表达资源关系，不假设关卡、地图、菜单或玩法语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="adjacent_scene_paths" line="25" decorators="@export_file(&quot;*.tscn&quot;, &quot;*.scn&quot;) var scene_path: String = &quot;&quot; @export">
+			<signature>var adjacent_scene_paths: PackedStringArray = PackedStringArray()</signature>
+			<description>当前场景资源路径。
+与当前场景相邻、可能被提前预热的场景资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="fixed" line="30" decorators="@export">
+			<signature>var fixed: bool = false</signature>
+			<description>是否建议将该场景放入固定缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="37" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary[String, Variant]，会复制到 describe_entry() 结果中。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_scene_path" line="47">
+			<signature>func get_scene_path() -&gt; String:</signature>
+			<description>获取规范化后的场景路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">去除首尾空白后的场景路径。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_adjacent_scene_paths" line="56">
+			<signature>func get_adjacent_scene_paths() -&gt; PackedStringArray:</signature>
+			<description>获取去重后的相邻场景路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">相邻场景路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_entry" line="74">
+			<signature>func describe_entry() -&gt; Dictionary:</signature>
+			<description>描述当前条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">条目描述字典。</tag>
+				<tag name="schema">return: Dictionary，包含 scene_path、adjacent_scene_paths、fixed 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

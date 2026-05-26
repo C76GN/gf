@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFConfigTableIndexDefinition" path="addons/gf/standard/utilities/config/gf_config_table_index_definition.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFConfigTableIndexDefinition: 导表索引声明。
+描述一组字段如何组成查询键或唯一键，不绑定任何具体业务表。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="index_id" line="19" decorators="@export">
+			<signature>var index_id: StringName = &amp;""</signature>
+			<description>索引稳定标识。为空时会根据字段名生成。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="field_names" line="24" decorators="@export">
+			<signature>var field_names: PackedStringArray = PackedStringArray()</signature>
+			<description>参与索引的字段名，顺序会影响复合键。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="unique" line="29" decorators="@export">
+			<signature>var unique: bool = false</signature>
+			<description>为 true 时校验表数据中该复合键唯一。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_null_values" line="34" decorators="@export">
+			<signature>var allow_null_values: bool = true</signature>
+			<description>是否允许索引键中出现 null 值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="41" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>可选元数据，供导入器、编辑器或项目层扩展使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存导入器、编辑器或项目层附加到当前索引的元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_index_id" line="51">
+			<signature>func get_index_id() -&gt; StringName:</signature>
+			<description>获取稳定索引标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">索引标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_valid_definition" line="62">
+			<signature>func is_valid_definition() -&gt; bool:</signature>
+			<description>检查索引声明是否有效。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">有效返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_key" line="75">
+			<signature>func make_key(record: Dictionary) -&gt; String:</signature>
+			<description>根据记录构建索引键。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">record: 记录数据。</tag>
+				<tag name="return">索引键；字段缺失或 null 不允许时返回空字符串。</tag>
+				<tag name="schema">record: Dictionary，用于构建索引键的配置记录。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_index" line="93">
+			<signature>func duplicate_index() -&gt; GFConfigTableIndexDefinition:</signature>
+			<description>创建同内容拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新索引声明。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe" line="110">
+			<signature>func describe() -&gt; Dictionary:</signature>
+			<description>导出索引声明摘要。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">索引声明字典。</tag>
+				<tag name="schema">return: Dictionary，包含 index_id、field_names、unique、allow_null_values 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

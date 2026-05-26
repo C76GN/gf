@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFValidationSuite" path="addons/gf/standard/foundation/validation/gf_validation_suite.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFValidationSuite: 通用校验套件资源。
+保存一组规则与可选资源路径筛选条件。套件只描述“要检查什么”，实际加载、
+实例化和报告聚合由 GFValidationRunner 完成。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="GFValidationRuleBase" line="20">
+			<signature>const GFValidationRuleBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_rule.gd")</signature>
+			<description>校验规则脚本基类。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH" line="25">
+			<signature>const DEFAULT_MAX_SCAN_DEPTH: int = 32</signature>
+			<description>默认递归扫描目录深度上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_COLLECTED_PATHS" line="30">
+			<signature>const DEFAULT_MAX_COLLECTED_PATHS: int = 10_000</signature>
+			<description>默认单次路径收集数量上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="suite_id" line="38" decorators="@export">
+			<signature>var suite_id: StringName = &amp;""</signature>
+			<description>套件标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enabled" line="48" decorators="@export_multiline var description: String = &quot;&quot; @export">
+			<signature>var enabled: bool = true</signature>
+			<description>套件说明。
+是否启用套件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="treat_warnings_as_errors" line="53" decorators="@export">
+			<signature>var treat_warnings_as_errors: bool = false</signature>
+			<description>是否把警告提升为错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rules" line="58" decorators="@export">
+			<signature>var rules: Array[GFValidationRuleBase] = []</signature>
+			<description>校验规则列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_paths" line="63" decorators="@export">
+			<signature>var include_paths: PackedStringArray = PackedStringArray()</signature>
+			<description>需要扫描的路径。可以是文件或目录；为空时不自动扫描。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="exclude_paths" line="68" decorators="@export">
+			<signature>var exclude_paths: PackedStringArray = PackedStringArray()</signature>
+			<description>需要排除的路径或通配模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="resource_extensions" line="73" decorators="@export">
+			<signature>var resource_extensions: PackedStringArray = PackedStringArray(["tres", "res"])</signature>
+			<description>资源文件扩展名，不含点号。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="scene_extensions" line="78" decorators="@export">
+			<signature>var scene_extensions: PackedStringArray = PackedStringArray(["tscn", "scn"])</signature>
+			<description>场景文件扩展名，不含点号。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="recursive" line="83" decorators="@export">
+			<signature>var recursive: bool = true</signature>
+			<description>扫描目录时是否递归。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_hidden" line="88" decorators="@export">
+			<signature>var include_hidden: bool = false</signature>
+			<description>扫描目录时是否包含隐藏目录和文件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_scan_depth" line="93" decorators="@export">
+			<signature>var max_scan_depth: int = DEFAULT_MAX_SCAN_DEPTH:</signature>
+			<description>递归扫描的最大目录深度。0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_collected_paths" line="100" decorators="@export">
+			<signature>var max_collected_paths: int = DEFAULT_MAX_COLLECTED_PATHS:</signature>
+			<description>单次 collect_paths() 最多收集的路径数量。0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="109" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>可选元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary of caller-defined suite metadata.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="add_rule" line="121">
+			<signature>func add_rule(rule: GFValidationRuleBase) -&gt; bool:</signature>
+			<description>添加规则。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">rule: 规则资源。</tag>
+				<tag name="return">添加成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_rule" line="135">
+			<signature>func remove_rule(rule: GFValidationRuleBase) -&gt; bool:</signature>
+			<description>移除规则。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">rule: 规则资源。</tag>
+				<tag name="return">移除成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_rules" line="148">
+			<signature>func get_enabled_rules() -&gt; Array[GFValidationRuleBase]:</signature>
+			<description>获取启用的规则。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">规则数组副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="matches_path" line="165">
+			<signature>func matches_path(path: String) -&gt; bool:</signature>
+			<description>检查路径是否会被套件扫描。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源或场景路径。</tag>
+				<tag name="return">匹配返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_paths" line="178">
+			<signature>func collect_paths() -&gt; PackedStringArray:</signature>
+			<description>收集 include_paths 中匹配的资源和场景路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已排序路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_suite" line="197">
+			<signature>func duplicate_suite() -&gt; GFValidationSuite:</signature>
+			<description>创建套件配置副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新套件。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

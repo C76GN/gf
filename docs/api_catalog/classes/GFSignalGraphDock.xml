@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSignalGraphDock" path="addons/gf/standard/utilities/debug/editor/gf_signal_graph_dock.gd" module="standard" extends="Control" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSignalGraphDock: 当前场景信号连接与发射记录查看面板。
+基于 GFSceneSignalAudit 渲染编辑器中保存的信号连接，并可显式开启
+GFSignalRuntimeProbe 观察当前场景信号发射。面板只读，不修改场景。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="set_graph_source" line="71">
+			<signature>func set_graph_source(root: Node) -&gt; void:</signature>
+			<description>设置要查看的根节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 根节点；为空时刷新时会尝试使用当前编辑场景根节点。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="refresh" line="81">
+			<signature>func refresh(root: Node = null) -&gt; void:</signature>
+			<description>刷新信号图。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 可选根节点；为空时使用 set_graph_source() 或当前编辑场景根节点。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_live_tracking_enabled" line="108">
+			<signature>func set_live_tracking_enabled(enabled: bool) -&gt; void:</signature>
+			<description>设置运行时信号发射追踪开关。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">enabled: 为 true 时追踪当前可见信号；为 false 时停止追踪。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_last_graph" line="126">
+			<signature>func get_last_graph() -&gt; Dictionary:</signature>
+			<description>获取最近一次信号图快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">信号图字典副本。</tag>
+				<tag name="schema">return: Dictionary，包含 GFSceneSignalAudit.build_signal_graph() 返回的信号图字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_recent_events" line="137">
+			<signature>func get_recent_events() -&gt; Array[Dictionary]:</signature>
+			<description>获取最近信号发射记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">发射记录副本。</tag>
+				<tag name="schema">return: Array[Dictionary]，每个元素包含 timestamp_msec、source_node_path、signal_name、arguments 和 connections 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="151">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取面板调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">面板调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 graph、recent_events、live 和 ui 分区，用于编辑器诊断和测试。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

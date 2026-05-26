@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCombatPayloads" path="addons/gf/extensions/combat/core/gf_combat_payloads.gd" module="extensions/combat" extends="Node" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFCombatPayloads: 存放战斗相关的事件载体类。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">event_contract</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods />
+	<innerClasses>
+		<class name="GFBuffAppliedPayload" fullName="GFCombatPayloads.GFBuffAppliedPayload" extends="GFPayload" line="21">
+			<description>Buff 已应用事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="category">event_contract</tag>
+				<tag name="since">3.17.0</tag>
+			</tags>
+			<signals />
+			<enums />
+			<constants />
+			<properties>
+				<member kind="property" name="target" line="25">
+					<signature>var target: Object</signature>
+					<description>目标对象。</description>
+					<tags>
+						<tag name="api">public</tag>
+					</tags>
+				</member>
+				<member kind="property" name="buff" line="30">
+					<signature>var buff: GFBuff</signature>
+					<description>已应用的 Buff 实例。</description>
+					<tags>
+						<tag name="api">public</tag>
+					</tags>
+				</member>
+			</properties>
+			<methods />
+		</class>
+		<class name="GFBuffRefreshedPayload" fullName="GFCombatPayloads.GFBuffRefreshedPayload" extends="GFPayload" line="44">
+			<description>Buff 已变动/刷新事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="category">event_contract</tag>
+				<tag name="since">3.17.0</tag>
+			</tags>
+			<signals />
+			<enums />
+			<constants />
+			<properties>
+				<member kind="property" name="target" line="48">
+					<signature>var target: Object</signature>
+					<description>目标对象。</description>
+					<tags>
+						<tag name="api">public</tag>
+					</tags>
+				</member>
+				<member kind="property" name="buff" line="53">
+					<signature>var buff: GFBuff</signature>
+					<description>已刷新的 Buff 实例。</description>
+					<tags>
+						<tag name="api">public</tag>
+					</tags>
+				</member>
+			</properties>
+			<methods />
+		</class>
+		<class name="GFBuffRemovedPayload" fullName="GFCombatPayloads.GFBuffRemovedPayload" extends="GFPayload" line="67">
+			<description>Buff 已移除事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="category">event_contract</tag>
+				<tag name="since">3.17.0</tag>
+			</tags>
+			<signals />
+			<enums />
+			<constants />
+			<properties>
+				<member kind="property" name="target" line="71">
+					<signature>var target: Object</signature>
+					<description>目标对象。</description>
+					<tags>
+						<tag name="api">public</tag>
+					</tags>
+				</member>
+				<member kind="property" name="buff_id" line="76">
+					<signature>var buff_id: StringName</signature>
+					<description>被移除的 Buff ID。</description>
+					<tags>
+						<tag name="api">public</tag>
+					</tags>
+				</member>
+			</properties>
+			<methods />
+		</class>
+	</innerClasses>
+</class>

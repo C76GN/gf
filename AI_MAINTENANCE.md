@@ -29,7 +29,7 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 - GF 内置扩展之间不能通过其他内置扩展的路径、扩展 ID、`class_name`、动态脚本加载、动态扩展探测或隐藏协议形成软协作。跨扩展组合属于项目 Installer 或 `addons/gf` 外的独立插件，不能写回 GF 内置扩展。
 - `kernel/editor` 可以承载通用菜单、文件对话框和模板生成器，但不能硬编码 `standard` 或可选扩展的具体模板类型、基类或扩展 ID；标准库模板由 `gf_standard_editor_extensions.gd` 注入，可选扩展模板由扩展自己的 `editor_action_paths` 注入。
 - 根插件 `addons/gf/plugin.gd` 是组合入口，可以收集标准库编辑器增强并传给 `kernel/editor` 辅助脚本；这个例外不允许扩散到 `addons/gf/kernel/**`。
-- 移动层级边界时，同步更新源码路径、测试、正式文档、`docs/zh/changelog.md` 和 API 摘要；不要留下重复路径副本造成重复 `class_name` 或 UID 冲突。
+- 移动层级边界时，同步更新源码路径、测试、正式文档、`docs/zh/changelog.md`、API Catalog 和 API Reference；不要留下重复路径副本造成重复 `class_name` 或 UID 冲突。
 - 修改层级依赖后，必须运行 `tests/gf_core/maintenance/test_layer_boundary_validation.gd`，确保 `kernel` 不引用 `standard` / GF 内置扩展具体类型、`kernel` 不硬编码内置扩展 ID、`standard` 不引用扩展路径、扩展 ID 或扩展内类名，并确保 GF 内置扩展保持原子化、只依赖 `gf.kernel` 与 `gf.standard`。
 - 重命名、移动或移除公开脚本后，必须运行 `tests/gf_core/maintenance/test_gdscript_parse_validation.gd`，确认已移除公开类名没有残留、公开 `class_name` 没有重复、`.gd.uid` 没有孤儿文件或 UID 冲突。
 
@@ -83,10 +83,11 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 只改文档时，检查：
 
 - `docs/zh/index.md` 与 `mkdocs.yml`：新增、删除、重命名页面或调整阅读顺序时更新。
+- `docs/api_catalog/**` 与 `docs/zh/reference/api/**`：生成物只能通过 `tools/generate_api_reference.py` 更新，不手写。
 - `README.md` 与 `README.zh.md`：根目录概览、文档索引或项目定位过期时同步更新，保持同一章节顺序和信息粒度。
 - `addons/gf/README.md`：安装扩展内说明需要与根目录概览保持一致时更新。
 - `docs/wiki/**`：只保留 GitHub Wiki 入口、侧栏和页脚；正式正文只能维护在 Read the Docs 源文件 `docs/zh/**` 中。
-- 新增、删除或重命名 `docs/zh/**/*.md` 时，运行 `tests/gf_core/maintenance/test_docs_structure_validation.gd` 和 `python -m mkdocs build --strict`，确认页面已进入导航且链接有效。
+- 新增、删除或重命名 `docs/zh/**/*.md` 时，运行 `tests/gf_core/maintenance/test_docs_structure_validation.gd`、`python tools\check_docs_quality.py --strict` 和 `python -m mkdocs build --strict`，确认页面已进入导航、页面形态可维护且链接有效。公开 API 变化后还要运行 `python tools\generate_api_reference.py --check`。
 - 修改 `docs/wiki/**` 时，同样运行 `tests/gf_core/maintenance/test_docs_structure_validation.gd`，确认旧 Wiki 没有重新变成正文副本。
 
 仅修错字或改善措辞时，不需要为 changelog 添加条目，除非改动影响发布说明或迁移指导。
@@ -168,10 +169,33 @@ godot --headless --path . -s res://addons/gut/gut_cmdln.gd -gtest=res://tests/gf
 
 MkDocs 页面拆分约定：
 
-- `docs/zh` 的文件目录必须和 Read the Docs 导航保持一致，顶层只保留 `index.md`、`faq.md`、`changelog.md` 以及 `overview/`、`kernel/`、`standard/`、`extensions/`、`editor/`、`maintenance/` 等语义目录。
+- `docs/zh` 的文件目录必须和 Read the Docs 导航保持一致，顶层只保留 `index.md`、`faq.md`、`changelog.md` 以及 `overview/`、`kernel/`、`standard/`、`extensions/`、`editor/`、`reference/` 等语义目录。
 - 每个语义目录的 `index.md` 作为本组导读，只放定位、入口和边界，不再承载大量具体 API 说明。
+- 导航中的嵌套专题组必须对应一个真实目录，并用该目录的 `index.md` 作为“总览”。例如 `standard/utilities/io/assets-jobs-warmup/index.md` 承载“资源加载、下载、任务队列与预热”总览，子页放在同一目录下；不要把同组子页平铺在父目录中。
 - 具体能力放入所属层级下的语义子目录或子页，例如 `standard/utilities/io/storage-snapshot.md`；新增专题时优先追加同组子页，不要把无关能力重新塞回一个长页面。
 - 中英文本地化时，`docs/zh` 与未来 `docs/en` 应保持相同目录 slug、子页 slug 和导航层级；翻译标题可以不同，但页面职责和内容边界必须一致。
+
+正式 API Reference 生成命令：
+
+```powershell
+python tools\generate_api_reference.py
+```
+
+校验当前 XML Catalog 和 Markdown Reference 是否与源码一致：
+
+```powershell
+python tools\generate_api_reference.py --check
+```
+
+该检查同时确认 XML Catalog 与源码一致、Markdown Reference 与生成器一致，并验证 Catalog 中的公开类和成员都出现在对应 Reference 页面中。
+
+校验手写文档页面长度、段落长度、H1 数量、代码块语言标注、页面粒度、顶层扩展入口模板和公开正文中的维护流程泄漏：
+
+```powershell
+python tools\check_docs_quality.py --strict
+```
+
+生成链路固定为 `addons/gf/**/*.gd` 中的 API 注释 -> `docs/api_catalog/index.xml` 与 `docs/api_catalog/classes/*.xml` -> `docs/zh/reference/api/*.md`。`docs/api_catalog` 是结构化中间层，可用于 schema 校验、翻译和多格式输出；不做反向写回源码，不允许手写 Markdown Reference，也不允许从 Catalog 覆盖源码签名或业务代码。
 
 旧 GitHub Wiki 维护约定：
 
@@ -202,7 +226,7 @@ python tools\generate_ai_api.py --source addons\gf --output ai_analysis\generate
 python tools\generate_ai_api.py --source addons\gf --output ai_analysis\generated_api --check
 ```
 
-同时校验正式文档是否覆盖所有公开 `class_name`：
+旧 AI 摘要脚本仍保留 class name 入口覆盖检查：
 
 ```powershell
 python tools\generate_ai_api.py --source addons\gf --output ai_analysis\generated_api --check --check-wiki-coverage
@@ -213,7 +237,7 @@ python tools\generate_ai_api.py --source addons\gf --output ai_analysis\generate
 - 生成结果默认放在 `ai_analysis/generated_api/`，该目录被 Git 忽略，不提交。
 - 生成脚本 `tools/generate_ai_api.py` 是维护工具，可以提交。
 - 如果 `--check` 失败，先重新生成，再继续文档维护。
-- `--check-wiki-coverage` 会递归扫描 `docs/zh/**/*.md` 并排除 `changelog.md`，要求每个公开 `class_name` 至少在正式功能页中出现一次；它只证明有入口，不证明描述已经足够准确。
+- `--check-wiki-coverage` 会递归扫描 `docs/zh/**/*.md` 并排除 `changelog.md`，要求每个公开 `class_name` 至少在正式功能页中出现一次；它只证明有入口，不证明描述已经足够准确。正式 API Reference 的类和成员覆盖以 `tools/generate_api_reference.py --check` 为准。
 - 先读 `ai_analysis/generated_api/index.md`，确认模块分组和类路径。
 - 查具体模块时读 `ai_analysis/generated_api/modules/*.md`。
 - 需要结构化检索时读 `ai_analysis/generated_api/api.json`。

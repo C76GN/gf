@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFBinder" path="addons/gf/kernel/core/gf_binder.gd" module="kernel" extends="RefCounted" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFBinder: 面向 Installer 的声明式装配入口。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="bind_model" line="45">
+			<signature>func bind_model(script_cls: Script) -&gt; Variant:</signature>
+			<description>声明一个 Model 绑定。
+"type": "Variant",
+"description": "GFBindBuilder 实例。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">script_cls: Model 脚本类型。</tag>
+				<tag name="return">绑定构建器。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="bind_system" line="61">
+			<signature>func bind_system(script_cls: Script) -&gt; Variant:</signature>
+			<description>声明一个 System 绑定。
+"type": "Variant",
+"description": "GFBindBuilder 实例。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">script_cls: System 脚本类型。</tag>
+				<tag name="return">绑定构建器。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="bind_utility" line="77">
+			<signature>func bind_utility(script_cls: Script) -&gt; Variant:</signature>
+			<description>声明一个 Utility 绑定。
+"type": "Variant",
+"description": "GFBindBuilder 实例。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">script_cls: Utility 脚本类型。</tag>
+				<tag name="return">绑定构建器。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="bind_factory" line="93">
+			<signature>func bind_factory(script_cls: Script) -&gt; Variant:</signature>
+			<description>声明一个短生命周期对象工厂绑定。
+"type": "Variant",
+"description": "GFBindBuilder 实例。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">script_cls: 要创建的脚本类型。</tag>
+				<tag name="return">绑定构建器。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

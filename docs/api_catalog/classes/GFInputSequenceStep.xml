@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputSequenceStep" path="addons/gf/standard/input/sequences/gf_input_sequence_step.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputSequenceStep: 输入序列中的单个抽象动作步骤。
+步骤只描述动作 ID、间隔和按住/释放条件，不绑定具体按键或业务语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="action_id" line="19" decorators="@export">
+			<signature>var action_id: StringName = &amp;""</signature>
+			<description>需要匹配的抽象动作 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_gap_seconds" line="24" decorators="@export">
+			<signature>var max_gap_seconds: float = -1.0:</signature>
+			<description>从上一完成步骤到本步骤开始允许的最大间隔。小于 0 表示使用分支或触发器默认值，0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="min_hold_seconds" line="31" decorators="@export">
+			<signature>var min_hold_seconds: float = 0.0:</signature>
+			<description>动作需要保持活跃的最短时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="trigger_on_release" line="38" decorators="@export">
+			<signature>var trigger_on_release: bool = false</signature>
+			<description>是否在动作释放时完成本步骤。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="duplicate_step" line="48">
+			<signature>func duplicate_step() -&gt; GFInputSequenceStep:</signature>
+			<description>创建当前步骤的深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">步骤副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_action_id" line="59">
+			<signature>static func from_action_id(p_action_id: StringName) -&gt; GFInputSequenceStep:</signature>
+			<description>创建只包含动作 ID 的步骤。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_action_id: 动作 ID。</tag>
+				<tag name="return">新步骤。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

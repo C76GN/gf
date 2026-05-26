@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkFieldSerializer" path="addons/gf/extensions/network/serialization/gf_network_field_serializer.gd" module="extensions/network" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkFieldSerializer: 网络状态字段编码器。
+将常见 Godot 值归一化为可序列化 Variant。它只处理字段值的形态转换，
+不规定同步方向、可靠性、预测、回滚或冲突解决策略。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="ValueType" line="20">
+			<signature>enum ValueType { ## 保持原始 Variant。 VARIANT, ## 布尔值。 BOOL, ## 整数。 INT, ## 浮点数。 FLOAT, ## 字符串。 STRING, ## StringName，编码时使用 String。 STRING_NAME, ## Vector2，编码为两个数值。 VECTOR2, ## Vector3，编码为三个数值。 VECTOR3, ## Vector2i，编码为两个整数。 VECTOR2I, ## Vector3i，编码为三个整数。 VECTOR3I, ## Color，编码为四个数值。 COLOR, }</signature>
+			<description>字段值类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="value_type" line="51" decorators="@export">
+			<signature>var value_type: ValueType = ValueType.VARIANT</signature>
+			<description>字段值类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="clamp_enabled" line="61" decorators="@export_range(-1, 8, 1) var quantize_decimals: int = -1 @export">
+			<signature>var clamp_enabled: bool = false</signature>
+			<description>浮点量化小数位；小于 0 表示不量化。
+是否夹取数值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="min_value" line="66" decorators="@export">
+			<signature>var min_value: float = 0.0</signature>
+			<description>数值夹取下限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_value" line="71" decorators="@export">
+			<signature>var max_value: float = 1.0</signature>
+			<description>数值夹取上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="serialize_value" line="87">
+			<signature>func serialize_value(value: Variant) -&gt; Variant:</signature>
+			<description>编码字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 原始值。</tag>
+				<tag name="return">可序列化值。</tag>
+				<tag name="schema">value: Variant，原始字段值。</tag>
+				<tag name="schema">return: Variant，可序列化字段值；向量和颜色会编码为 Array。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_value" line="124">
+			<signature>func deserialize_value(value: Variant) -&gt; Variant:</signature>
+			<description>解码字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 编码值。</tag>
+				<tag name="return">解码后的值。</tag>
+				<tag name="schema">value: Variant，serialize_value() 产生的编码值或兼容输入。</tag>
+				<tag name="schema">return: Variant，按 value_type 解码后的字段值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_serializer" line="155">
+			<signature>func duplicate_serializer() -&gt; GFNetworkFieldSerializer:</signature>
+			<description>复制编码器配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新编码器。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

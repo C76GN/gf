@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFProjectileLifetimePolicy" path="addons/gf/extensions/combat/projectiles/gf_projectile_lifetime_policy.gd" module="extensions/combat" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFProjectileLifetimePolicy: 发射体生命周期策略。
+默认支持按时间和距离结束。项目可继承后叠加自定义结束条件。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="max_seconds" line="19" decorators="@export">
+			<signature>var max_seconds: float = 0.0</signature>
+			<description>最长存活时间。小于等于 0 表示不按时间结束。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_distance" line="24" decorators="@export">
+			<signature>var max_distance: float = 0.0</signature>
+			<description>最远移动距离。小于等于 0 表示不按距离结束。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_impacts" line="29" decorators="@export">
+			<signature>var max_impacts: int = 0</signature>
+			<description>最大成功命中次数。小于等于 0 表示不按命中次数结束。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="setup" line="43">
+			<signature>func setup(projectile: Node, projectile_context: Dictionary = {}) -&gt; void:</signature>
+			<description>发射体启动时调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">projectile: 发射体节点。</tag>
+				<tag name="param">projectile_context: 本次发射的上下文字典。</tag>
+				<tag name="schema">projectile_context: Dictionary，本次发射上下文；会写入初始位置和 impact_count。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="should_finish" line="68">
+			<signature>func should_finish(projectile: Node, elapsed_seconds: float, projectile_context: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断发射体是否应结束。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">projectile: 发射体节点。</tag>
+				<tag name="param">elapsed_seconds: 本次发射已经运行的秒数。</tag>
+				<tag name="param">projectile_context: 本次发射的上下文字典。</tag>
+				<tag name="return">应结束时返回 true。</tag>
+				<tag name="schema">projectile_context: Dictionary，本次发射上下文；用于读取初始位置和 impact_count。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

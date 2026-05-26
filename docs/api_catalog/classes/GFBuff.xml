@@ -1,0 +1,182 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFBuff" path="addons/gf/extensions/combat/attributes/gf_buff.gd" module="extensions/combat" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFBuff: 状态效果基类。
+管理 Buff 的生命周期、层数以及对属性/标签的影响。
+在 GFCombatSystem 的 tick 中驱动 update。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="StackMode" line="20">
+			<signature>enum StackMode { ## 只刷新持续时间，不改变层数。 REFRESH_ONLY, ## 刷新持续时间，并在 max_stacks 允许时增加层数。 ADD_STACK, ## 忽略重复添加，不刷新持续时间或层数。 IGNORE, }</signature>
+			<description>重复添加同 ID Buff 时的层数策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="enum" name="DurationRefreshPolicy" line="32">
+			<signature>enum DurationRefreshPolicy { ## 保持当前剩余时间。 KEEP_CURRENT, ## 使用新的持续时间重置剩余时间。 RESET_TO_NEW_DURATION, ## 将新的持续时间追加到当前剩余时间。 EXTEND_BY_NEW_DURATION, ## 保留当前剩余时间与新持续时间中较长者。 KEEP_LONGER_REMAINING, }</signature>
+			<description>重复添加同 ID Buff 时的持续时间刷新策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="id" line="49">
+			<signature>var id: StringName = &amp;""</signature>
+			<description>Buff 的唯一标识名（通常用于排斥逻辑）。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="duration" line="54">
+			<signature>var duration: float = 0.0</signature>
+			<description>Buff 的总持续时间（秒）。如果为 -1 则视为永久 Buff。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="time_left" line="59">
+			<signature>var time_left: float = 0.0</signature>
+			<description>当前剩余剩余时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="stacks" line="64">
+			<signature>var stacks: int = 1</signature>
+			<description>当前层数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_stacks" line="69">
+			<signature>var max_stacks: int = 1</signature>
+			<description>最大层数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="stack_mode" line="74">
+			<signature>var stack_mode: StackMode = StackMode.ADD_STACK</signature>
+			<description>重复添加同 ID Buff 时的层数策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="duration_refresh_policy" line="79">
+			<signature>var duration_refresh_policy: DurationRefreshPolicy = DurationRefreshPolicy.RESET_TO_NEW_DURATION</signature>
+			<description>重复添加同 ID Buff 时的持续时间刷新策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="tick_interval_seconds" line="84">
+			<signature>var tick_interval_seconds: float = 0.0</signature>
+			<description>周期 Tick 间隔。小于等于 0 时保持每帧调用 on_tick() 的旧行为。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_periodic_ticks_per_update" line="89">
+			<signature>var max_periodic_ticks_per_update: int = 8</signature>
+			<description>单次 update 允许补偿触发的最大周期 Tick 次数。小于等于 0 时不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="remove_on_expire" line="94">
+			<signature>var remove_on_expire: bool = true</signature>
+			<description>持续时间耗尽时是否由 CombatSystem 移除。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="modifiers" line="99">
+			<signature>var modifiers: Array[GFModifier] = []</signature>
+			<description>Buff 携带的属性修饰器列表。应用时会自动挂载到宿主的 Attribute 上。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="tags" line="104">
+			<signature>var tags: Array[StringName] = []</signature>
+			<description>Buff 携带的标签列表。应用时会自动挂载到宿主的 TagComponent 上。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="owner" line="109">
+			<signature>var owner: Object = null</signature>
+			<description>Buff 的拥有者（通常是一个持有 Combat 数据的 Object）。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="setup" line="128">
+			<signature>func setup(p_id: StringName, p_duration: float, p_owner: Object) -&gt; void:</signature>
+			<description>初始化 Buff，由系统或工厂调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_id: Buff 标识。</tag>
+				<tag name="param">p_duration: Buff 持续时间（秒）。</tag>
+				<tag name="param">p_owner: Buff 所属对象。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="on_apply" line="139">
+			<signature>func on_apply() -&gt; void:</signature>
+			<description>当 Buff 首次应用时触发。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="on_remove" line="146">
+			<signature>func on_remove() -&gt; void:</signature>
+			<description>当 Buff 被移除时触发。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="on_refresh" line="155">
+			<signature>func on_refresh(p_new_duration: float) -&gt; void:</signature>
+			<description>当 Buff 层数增加时触发（通常用于刷新持续时间）。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_new_duration: 刷新后的持续时间（秒）。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="refresh_from" line="169">
+			<signature>func refresh_from(source_buff: GFBuff) -&gt; void:</signature>
+			<description>使用同 ID 的新 Buff 刷新当前运行中实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source_buff: 本次尝试添加的新 Buff。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="on_tick" line="180">
+			<signature>func on_tick(_p_delta: float) -&gt; void:</signature>
+			<description>周期性触发逻辑。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_p_delta: 帧间隔。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="update" line="191">
+			<signature>func update(p_delta: float) -&gt; bool:</signature>
+			<description>内部状态更新流程。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_delta: 帧间隔。</tag>
+				<tag name="return">如果 Buff 已耗尽生命周期需要被移除，则返回 true。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

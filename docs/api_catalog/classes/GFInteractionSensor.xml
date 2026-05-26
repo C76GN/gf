@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInteractionSensor" path="addons/gf/extensions/interaction/nodes/gf_interaction_sensor.gd" module="extensions/interaction" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInteractionSensor: 通用交互发送节点。
+负责构建 GFInteractionContext，并把交互请求发送给具备 receive_interaction()
+方法的接收对象。发送者、目标、payload 和分组均保持通用，不绑定具体玩法。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="interaction_sent" line="28">
+			<signature>signal interaction_sent(context: GFInteractionContext, receiver: Object, report: Dictionary)</signature>
+			<description>交互已发送。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 交互上下文。</tag>
+				<tag name="param">receiver: 接收对象。</tag>
+				<tag name="param">report: 结果报告。</tag>
+				<tag name="schema">report: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="interaction_accepted" line="41">
+			<signature>signal interaction_accepted(context: GFInteractionContext, receiver: Object, report: Dictionary)</signature>
+			<description>交互被接收对象接受。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 交互上下文。</tag>
+				<tag name="param">receiver: 接收对象。</tag>
+				<tag name="param">report: 结果报告。</tag>
+				<tag name="schema">report: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="interaction_rejected" line="54">
+			<signature>signal interaction_rejected(context: GFInteractionContext, receiver: Object, report: Dictionary)</signature>
+			<description>交互被接收对象拒绝或发送失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 交互上下文。</tag>
+				<tag name="param">receiver: 接收对象。</tag>
+				<tag name="param">report: 结果报告。</tag>
+				<tag name="schema">report: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="enabled" line="67" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否允许发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="interaction_id" line="72" decorators="@export">
+			<signature>var interaction_id: StringName = &amp;""</signature>
+			<description>默认交互 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="group_name" line="77" decorators="@export">
+			<signature>var group_name: StringName = &amp;""</signature>
+			<description>默认交互分组。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="payload" line="84" decorators="@export">
+			<signature>var payload: Dictionary = {}</signature>
+			<description>默认 payload；发送时会深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">payload: 默认交互载荷 Dictionary；发送时会复制，项目可定义其中键值。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="91" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>发送器自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: 发送器自定义元数据 Dictionary；框架会复制到结果报告，但不解释其中键值。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="build_context" line="114">
+			<signature>func build_context( target: Object = null, payload_override: Variant = null, group_override: StringName = &amp;"" ) -&gt; GFInteractionContext:</signature>
+			<description>构建交互上下文。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 交互目标。</tag>
+				<tag name="param">payload_override: 覆盖 payload；为 null 时使用节点默认 payload。</tag>
+				<tag name="param">group_override: 覆盖分组；为空时使用节点默认分组。</tag>
+				<tag name="return">交互上下文。</tag>
+				<tag name="schema">payload_override: 覆盖默认 payload 的任意项目载荷；为 null 时复制节点默认 payload。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_to" line="140">
+			<signature>func send_to( receiver: Object, payload_override: Variant = null, interaction_id_override: StringName = &amp;"" ) -&gt; Dictionary:</signature>
+			<description>向指定接收对象发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">receiver: 接收对象。</tag>
+				<tag name="param">payload_override: 覆盖 payload；为 null 时使用节点默认 payload。</tag>
+				<tag name="param">interaction_id_override: 覆盖交互 ID；为空时使用节点默认交互 ID。</tag>
+				<tag name="return">统一结果报告。</tag>
+				<tag name="schema">payload_override: 覆盖默认 payload 的任意项目载荷；为 null 时复制节点默认 payload。</tag>
+				<tag name="schema">return: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_to_path" line="179">
+			<signature>func send_to_path( receiver_path: NodePath, payload_override: Variant = null, interaction_id_override: StringName = &amp;"" ) -&gt; Dictionary:</signature>
+			<description>向指定节点路径发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">receiver_path: 接收节点路径。</tag>
+				<tag name="param">payload_override: 覆盖 payload；为 null 时使用节点默认 payload。</tag>
+				<tag name="param">interaction_id_override: 覆盖交互 ID；为空时使用节点默认交互 ID。</tag>
+				<tag name="return">统一结果报告。</tag>
+				<tag name="schema">payload_override: 覆盖默认 payload 的任意项目载荷；为 null 时复制节点默认 payload。</tag>
+				<tag name="schema">return: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="broadcast_to_group" line="199">
+			<signature>func broadcast_to_group(target_group_name: StringName = &amp;"", max_count: int = 0) -&gt; Array[Dictionary]:</signature>
+			<description>向场景树分组中的接收对象广播交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target_group_name: 目标分组；为空时使用节点默认分组。</tag>
+				<tag name="param">max_count: 最多发送数量；小于等于 0 表示不限制。</tag>
+				<tag name="return">结果报告列表。</tag>
+				<tag name="schema">return: 交互结果报告字典数组；每项包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_to_raycast_2d" line="231">
+			<signature>func send_to_raycast_2d( raycast: RayCast2D, payload_override: Variant = null, interaction_id_override: StringName = &amp;"" ) -&gt; Dictionary:</signature>
+			<description>向 RayCast2D 当前命中的接收对象发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">raycast: RayCast2D 节点。</tag>
+				<tag name="param">payload_override: 覆盖 payload；为 null 时使用节点默认 payload。</tag>
+				<tag name="param">interaction_id_override: 覆盖交互 ID；为空时使用节点默认交互 ID。</tag>
+				<tag name="return">统一结果报告。</tag>
+				<tag name="schema">payload_override: 覆盖默认 payload 的任意项目载荷；为 null 时复制节点默认 payload。</tag>
+				<tag name="schema">return: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_to_raycast_3d" line="260">
+			<signature>func send_to_raycast_3d( raycast: RayCast3D, payload_override: Variant = null, interaction_id_override: StringName = &amp;"" ) -&gt; Dictionary:</signature>
+			<description>向 RayCast3D 当前命中的接收对象发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">raycast: RayCast3D 节点。</tag>
+				<tag name="param">payload_override: 覆盖 payload；为 null 时使用节点默认 payload。</tag>
+				<tag name="param">interaction_id_override: 覆盖交互 ID；为空时使用节点默认交互 ID。</tag>
+				<tag name="return">统一结果报告。</tag>
+				<tag name="schema">payload_override: 覆盖默认 payload 的任意项目载荷；为 null 时复制节点默认 payload。</tag>
+				<tag name="schema">return: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="broadcast_to_area_2d" line="291">
+			<signature>func broadcast_to_area_2d( area: Area2D, max_count: int = 0, payload_override: Variant = null, interaction_id_override: StringName = &amp;"" ) -&gt; Array[Dictionary]:</signature>
+			<description>向 Area2D 当前重叠的接收对象批量发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">area: Area2D 节点。</tag>
+				<tag name="param">max_count: 最多发送数量；小于等于 0 表示不限制。</tag>
+				<tag name="param">payload_override: 覆盖 payload；为 null 时使用节点默认 payload。</tag>
+				<tag name="param">interaction_id_override: 覆盖交互 ID；为空时使用节点默认交互 ID。</tag>
+				<tag name="return">结果报告列表。</tag>
+				<tag name="schema">payload_override: 覆盖默认 payload 的任意项目载荷；为 null 时复制节点默认 payload。</tag>
+				<tag name="schema">return: 交互结果报告字典数组；每项包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="broadcast_to_area_3d" line="333">
+			<signature>func broadcast_to_area_3d( area: Area3D, max_count: int = 0, payload_override: Variant = null, interaction_id_override: StringName = &amp;"" ) -&gt; Array[Dictionary]:</signature>
+			<description>向 Area3D 当前重叠的接收对象批量发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">area: Area3D 节点。</tag>
+				<tag name="param">max_count: 最多发送数量；小于等于 0 表示不限制。</tag>
+				<tag name="param">payload_override: 覆盖 payload；为 null 时使用节点默认 payload。</tag>
+				<tag name="param">interaction_id_override: 覆盖交互 ID；为空时使用节点默认交互 ID。</tag>
+				<tag name="return">结果报告列表。</tag>
+				<tag name="schema">payload_override: 覆盖默认 payload 的任意项目载荷；为 null 时复制节点默认 payload。</tag>
+				<tag name="schema">return: 交互结果报告字典数组；每项包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

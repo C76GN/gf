@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTileMetadataLayer" path="addons/gf/standard/foundation/math/gf_tile_metadata_layer.gd" module="standard" extends="GFTileMapCache" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTileMetadataLayer: 通用格子元数据层。
+在 Vector2i 格坐标上维护任意键值元数据，可服务于编辑器画刷、运行时标记、
+规则查询或导出流程。它只管理数据结构，不绑定 TileSet、TileMapLayer 或项目业务语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="schema" line="22" decorators="@export">
+			<signature>var schema: Dictionary = {}</signature>
+			<description>可选字段 schema。框架不解释 schema 内容，项目可用于编辑器 UI、校验或导出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">schema: Dictionary mapping metadata field names to project-defined field metadata.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_cell_value" line="38">
+			<signature>func set_cell_value(cell: Vector2i, key: StringName, value: Variant) -&gt; void:</signature>
+			<description>设置格子字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 格坐标。</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="param">value: 字段值。</tag>
+				<tag name="schema">value: Variant metadata field value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_cell_data" line="55">
+			<signature>func get_cell_data(cell: Vector2i) -&gt; Dictionary:</signature>
+			<description>获取格子数据副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 格坐标。</tag>
+				<tag name="return">格子数据。</tag>
+				<tag name="schema">return: Dictionary metadata record stored on the cell.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_cell_value" line="77">
+			<signature>func get_cell_value(cell: Vector2i, key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>获取格子字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 格坐标。</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="param">default_value: 默认值。</tag>
+				<tag name="return">字段值。</tag>
+				<tag name="schema">default_value: Variant fallback value returned when the field is missing.</tag>
+				<tag name="schema">return: Variant metadata field value or default_value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="merge_cell_data" line="93">
+			<signature>func merge_cell_data(cell: Vector2i, data: Dictionary, overwrite: bool = true) -&gt; void:</signature>
+			<description>合并格子数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 格坐标。</tag>
+				<tag name="param">data: 要合并的数据。</tag>
+				<tag name="param">overwrite: 为 false 时不覆盖已有字段。</tag>
+				<tag name="schema">data: Dictionary metadata fields merged into the cell.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_cell_key" line="110">
+			<signature>func erase_cell_key(cell: Vector2i, key: StringName) -&gt; bool:</signature>
+			<description>移除格子字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 格坐标。</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="return">成功移除返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_cell_key" line="136">
+			<signature>func has_cell_key(cell: Vector2i, key: StringName) -&gt; bool:</signature>
+			<description>检查格子字段是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 格坐标。</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="return">存在时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="paint_cells" line="156">
+			<signature>func paint_cells(target_cells: Array[Vector2i], key: StringName, value: Variant) -&gt; int:</signature>
+			<description>批量为格子绘制同一个字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target_cells: 目标格子。</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="param">value: 字段值。</tag>
+				<tag name="return">实际写入的格子数量。</tag>
+				<tag name="schema">value: Variant metadata field value painted into target cells.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_cells_key" line="175">
+			<signature>func erase_cells_key(target_cells: Array[Vector2i], key: StringName) -&gt; int:</signature>
+			<description>批量移除格子字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target_cells: 目标格子。</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="return">实际移除的字段数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_cells_with_value" line="194">
+			<signature>func get_cells_with_value(key: StringName, value: Variant) -&gt; Array[Vector2i]:</signature>
+			<description>查找拥有指定字段值的格子。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="param">value: 目标值。</tag>
+				<tag name="return">匹配格子列表。</tag>
+				<tag name="schema">value: Variant metadata field value to match.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_schema_entry" line="212">
+			<signature>func set_schema_entry(key: StringName, metadata: Dictionary) -&gt; void:</signature>
+			<description>设置 schema 字段元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="param">metadata: 字段元数据。</tag>
+				<tag name="schema">metadata: Dictionary project-defined schema metadata for a field.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_schema_entry" line="227">
+			<signature>func get_schema_entry(key: StringName) -&gt; Dictionary:</signature>
+			<description>获取 schema 字段元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="return">schema 元数据副本。</tag>
+				<tag name="schema">return: Dictionary project-defined schema metadata for a field.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_schema_entry" line="237">
+			<signature>func erase_schema_entry(key: StringName) -&gt; void:</signature>
+			<description>移除 schema 字段元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_tile_map_cache" line="246">
+			<signature>func to_tile_map_cache() -&gt; GFTileMapCache:</signature>
+			<description>转换为基础 TileMap 缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">缓存副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_tile_map_cache" line="262">
+			<signature>func from_tile_map_cache(cache: GFTileMapCache, merge: bool = false) -&gt; void:</signature>
+			<description>从基础 TileMap 缓存复制数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cache: 源缓存。</tag>
+				<tag name="param">merge: 为 true 时合并到现有数据，否则先清空。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

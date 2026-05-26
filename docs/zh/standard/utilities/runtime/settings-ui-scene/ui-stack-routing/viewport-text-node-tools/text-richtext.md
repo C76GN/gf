@@ -1,0 +1,44 @@
+# 文本适配与富文本
+
+如果项目需要让按钮、计数器、局部标签或富文本在固定区域内自动选择字体大小，可以使用 `GFTextFitter`。它是纯静态辅助类，不需要注册到架构，也不会修改布局规则；默认只把计算出的字体尺寸写入目标控件的 theme override。
+
+```gdscript
+GFTextFitter.fit_label(%TitleLabel, {
+	"min_font_size": 12,
+	"max_font_size": 32,
+	"available_size": Vector2(220, 48),
+})
+
+GFTextFitter.fit_rich_text_label(%CostText, {
+	"fit_height": true,
+})
+
+GFTextFitter.fit_control(%ApplyButton, {
+	"min_font_size": 10,
+	"max_font_size": 28,
+})
+```
+
+`fit_control()` 会按常见 Godot 控件推导文本、主题字体名和内容边距，支持 `Button`、`LineEdit`、`TextEdit`、`Label` 和 `RichTextLabel`；无法识别的自定义控件可以通过 `options.text`、`font_name`、`font_size_name` 和 `content_insets` 显式提供信息。
+
+需要随控件 resize 或语言变化自动刷新时，把 `GFTextAutoFit` 挂到目标控件下，或用 `target_path` 指向目标 Control。`GFTextFitter` / `GFTextAutoFit` 只处理通用文本尺寸适配；换行策略、截断、省略号、本地化长词拆分和具体 UI 视觉仍应由项目自己的控件或主题决定。
+
+## 富文本格式化
+
+如果项目需要把玩家输入、配置文本、调试日志或本地化片段安全写入 `RichTextLabel`，可以使用 `GFRichTextFormatter`。它是纯静态辅助类，不注册架构、不加载资源，也不规定文本来源或图标集。
+
+```gdscript
+var bbcode := GFRichTextFormatter.to_bbcode("Hello {{name}} :confirm:", {
+	"markup": GFRichTextFormatter.MARKUP_PLAIN,
+	"variables": {
+		"name": player_name,
+	},
+	"token_resolver": func(token: String) -> String:
+		return "[img]res://ui/icons/%s.png[/img]" % token,
+})
+%RichTextLabel.text = bbcode
+```
+
+`MARKUP_PLAIN` 会转义所有 BBCode 控制字符；`MARKUP_MARKDOWN` 只转换粗体、斜体、删除线、行内 code、链接和图片这组常见子集，其余文本仍会转义；`MARKUP_BBCODE` 则保留项目已经构造好的 BBCode。
+
+`replace_variables()` 默认转义变量值，适合用户文本、本地化参数和外部数据；`replace_tokens()` 默认允许 resolver 返回 `[img]...[/img]` 这类项目生成的 BBCode，但只会处理由字母、数字、下划线、短横线和点组成的安全 token。复杂排版、逐字播放、语言分词、图标资源存在性检查和 UI 交互仍应留在项目层。

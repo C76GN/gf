@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFUIRoute" path="addons/gf/standard/utilities/ui/gf_ui_route.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFUIRoute: UI 路由资源描述。
+只描述路由标识、面板场景、目标层级和默认打开选项，不规定页面业务、
+动画实现或面板通信方式。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="route_id" line="20" decorators="@export">
+			<signature>var route_id: StringName = &amp;""</signature>
+			<description>路由稳定标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="layer" line="30" decorators="@export_file(&quot;*.tscn&quot;) var scene_path: String = &quot;&quot; @export">
+			<signature>var layer: int = GFUIUtility.Layer.POPUP</signature>
+			<description>面板场景路径。
+目标 UI 层级。默认使用 GFUIUtility.POPUP。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_options" line="37" decorators="@export">
+			<signature>var default_options: Dictionary = {}</signature>
+			<description>默认面板选项，会传给 GFUIUtility。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">default_options: Dictionary，字段同 GFUIUtility 打开面板 options，例如 metadata、config_callback、modal、allow_cancel_dismiss。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="44" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>路由元数据。框架只透传，不解释字段含义。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，由项目定义的路由元数据；build_options() 会追加 route_id 和 route_params。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_route_id" line="54">
+			<signature>func get_route_id() -&gt; StringName:</signature>
+			<description>获取稳定路由标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">路由标识；未显式设置时尝试使用资源路径。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_valid_route" line="67">
+			<signature>func is_valid_route() -&gt; bool:</signature>
+			<description>检查路由是否具备可打开的基本信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">路由有效时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_options" line="86">
+			<signature>func build_options(params: Dictionary = {}, option_overrides: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>合并默认选项、覆盖选项和路由参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">params: 本次打开路由携带的参数。</tag>
+				<tag name="param">option_overrides: 本次打开路由的选项覆盖。</tag>
+				<tag name="return">合并后的 GFUIUtility 选项。</tag>
+				<tag name="schema">params: Dictionary，由项目定义的路由参数，会复制到 metadata.route_params。</tag>
+				<tag name="schema">option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖 default_options。</tag>
+				<tag name="schema">return: Dictionary，合并后的面板打开 options，至少包含 metadata.route_id，可能包含 metadata.route_params。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

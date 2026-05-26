@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFJobWorker" path="addons/gf/standard/utilities/jobs/gf_job_worker.gd" module="standard" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFJobWorker: 通用任务队列消费节点。
+从 `GFJobQueueUtility` 中按批次取出等待任务，并交给项目提供的 Callable 处理。
+Worker 只管理执行节奏和完成/失败写回，不规定任务数据结构或业务语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="worker_started" line="20">
+			<signature>signal worker_started</signature>
+			<description>Worker 开始运行时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="worker_stopped" line="25">
+			<signature>signal worker_stopped</signature>
+			<description>Worker 停止运行时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="job_processed" line="32">
+			<signature>signal job_processed(job: GFJob)</signature>
+			<description>任务处理完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job: 被处理的任务。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="worker_idle" line="37">
+			<signature>signal worker_idle</signature>
+			<description>没有可处理任务时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="queue_name" line="50" decorators="@export">
+			<signature>var queue_name: StringName = &amp;"default"</signature>
+			<description>消费的队列名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_start" line="60" decorators="@export_range(1, 1024, 1, &quot;or_greater&quot;) var batch_size: int = 1 @export">
+			<signature>var auto_start: bool = true</signature>
+			<description>每次处理的最大任务数量。
+ready 后是否自动开始。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="process_in_physics" line="65" decorators="@export">
+			<signature>var process_in_physics: bool = false</signature>
+			<description>是否在 physics process 中消费任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="process_while_paused" line="70" decorators="@export">
+			<signature>var process_while_paused: bool = false</signature>
+			<description>SceneTree 暂停时是否继续处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="signal_timeout_seconds" line="75" decorators="@export">
+			<signature>var signal_timeout_seconds: float = 30.0</signature>
+			<description>等待异步任务处理器 Signal 的最长秒数。小于等于 0 时不启用超时。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="signal_timeout_respects_time_scale" line="80" decorators="@export">
+			<signature>var signal_timeout_respects_time_scale: bool = true</signature>
+			<description>Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="queue_utility" line="88">
+			<signature>var queue_utility: GFJobQueueUtility = null</signature>
+			<description>可选任务队列工具实例；为空时从全局架构查询。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="processor" line="93">
+			<signature>var processor: Callable = Callable()</signature>
+			<description>任务处理器，签名推荐为 `func(job: GFJob) -&gt; Variant`。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_queue_utility" line="127">
+			<signature>func set_queue_utility(utility: GFJobQueueUtility) -&gt; void:</signature>
+			<description>设置任务队列工具实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility: 任务队列工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_processor" line="136">
+			<signature>func set_processor(job_processor: Callable) -&gt; void:</signature>
+			<description>设置任务处理器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">job_processor: 任务处理器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="start" line="143">
+			<signature>func start() -&gt; void:</signature>
+			<description>开始消费任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop" line="153">
+			<signature>func stop() -&gt; void:</signature>
+			<description>停止消费任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_running" line="165">
+			<signature>func is_running() -&gt; bool:</signature>
+			<description>检查 Worker 是否正在运行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">正在运行返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="process_next_job" line="174">
+			<signature>func process_next_job() -&gt; GFJob:</signature>
+			<description>处理一个任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">被处理的任务；没有任务或不可处理时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="process_batch" line="204">
+			<signature>func process_batch() -&gt; int:</signature>
+			<description>按 batch_size 处理一批任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">实际处理数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="230">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取 Worker 调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 running、processing、queue_name、batch_size、has_processor 和 has_queue_utility。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

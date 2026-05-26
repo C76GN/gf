@@ -1,29 +1,29 @@
 # FAQ
 
-## 为什么文档目录按 overview、kernel、standard、extensions 划分？
+## GF 是游戏框架还是一组工具类？
 
-GF 3.0.0 的源码边界已经稳定为 `kernel <- standard <- extensions`，文档目录也按同一套分层组织。这样维护者从文件树就能判断页面所属层级，Read the Docs 左侧导航和仓库目录也保持一致。
+GF 是面向 Godot 项目的轻量架构框架。它提供启动装配、模块生命周期、事件、命令、查询、数据绑定、标准库工具和可选扩展，目标是让项目代码有稳定的分层和组合方式，而不是只提供零散 helper。
 
-## 什么时候放进 kernel？
+## GF 会替代 Godot 的节点和场景系统吗？
 
-只有框架启动、生命周期、注册、注入、事件、绑定、扩展基础设施、核心编辑器扩展点，以及 `kernel` 必须识别的最小协议才放进 `kernel`。如果某个能力只是通用实现，而不是框架启动契约，应继续放在 `standard` 或 `extensions`。
+不会。GF 负责架构层、数据流和通用能力边界；Godot 的节点、场景、资源、信号、物理和渲染仍然是项目的主要运行环境。通常做法是让 GF 的 Model/System 保存状态和流程，让 Controller、节点脚本或场景资源负责具体表现。
 
-## 什么时候放进 standard？
+## 什么时候使用 kernel、standard 或 extensions？
 
-足够稳定、通用、默认随框架理解的能力放进 `standard`。例如 foundation、输入体系、状态机、命令序列、资源、存储、时间、日志、诊断、音频等。`standard` 可以依赖 `kernel`，但不能探测或硬绑定 GF 内置扩展。
+`kernel` 只承载框架启动、生命周期、注册、依赖、事件、命令、查询、绑定和扩展基础设施。`standard` 放稳定通用能力，例如 Foundation、输入、状态机、资源、存储、时间、日志、诊断和音频。`extensions` 放可选通用能力，例如 Capability、Save、Combat、Network、Flow、Domain、BehaviorTree、Camera 和 Dialogue。
 
-## 什么时候放进 extensions？
+## 我需要启用所有 GF 内置扩展吗？
 
-通用但不是所有项目都需要的能力放进 `extensions`，例如 Capability、Interaction、Combat、ActionQueue、Network、Save、Flow、Domain、BehaviorTree 等。GF 内置扩展只依赖 `kernel` 和稳定的 `standard`，并保持原子化；如果项目需要组合多个 GF 内置扩展，应放在项目 Installer 或 `addons/gf` 外的独立插件中。
+不需要。GF 内置扩展按能力拆分，可以按项目需要启用。扩展之间保持原子化，不把其他扩展当作隐藏依赖；如果项目需要把多个扩展组合成完整玩法，应在项目 Installer 或项目自己的插件中完成组合。
 
-## 为什么 GF 内置扩展不互相依赖？
+## 项目代码应该放进 `addons/gf` 吗？
 
-GF 内置扩展是 GF 随框架发布的最小可选能力单元。如果 GF 内置扩展彼此依赖或软探测，扩展边界会逐渐变成隐藏组合图，禁用、导出排除和测试都会越来越难控。GF 因此把 GF 内置扩展固定为原子层，把组合自由留给项目或独立插件。
+不应该。`addons/gf` 是框架源码目录，项目自己的 Model、System、Controller、资源、场景和扩展组合应放在项目目录或独立插件中。这样升级 GF 时不会混入项目业务代码，也能保持框架测试和发布边界清晰。
 
-## 为什么 standard 不能弱探测 GF 内置扩展？
+## 找具体类、属性、信号和方法签名时看哪里？
 
-弱探测会让“可选扩展”变成事实上的隐藏依赖。3.0.0 的规则是：如果扩展能力需要出现在标准库诊断、Overlay 或工具快照里，由扩展侧依赖标准库的通用注册入口主动贡献；标准库本身不写扩展 ID、扩展路径或扩展内类型名。
+先读对应指南页理解职责边界和典型组合方式，再查 [API Reference](reference/api/index.md)。API Reference 由源码 API 注释生成，覆盖公开类、属性、信号、枚举、常量和方法签名。
 
-## GitHub Wiki 还维护正文吗？
+## API Reference 是手写的吗？
 
-不维护。旧 Wiki 只保留 Home、Sidebar 和 Footer 入口，正式正文统一维护在 Read the Docs 源文件 `docs/zh/**` 中，避免 Wiki 和 Read the Docs 双写分叉。
+不是。生成链路是 `addons/gf/**/*.gd` 源码 API 注释 -> `docs/api_catalog` XML Catalog -> `docs/zh/reference/api` Markdown 页面。正文指南负责解释概念和工作流，API Reference 负责提供可检索的 API 清单。

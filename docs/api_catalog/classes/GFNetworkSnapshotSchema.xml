@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkSnapshotSchema" path="addons/gf/extensions/network/snapshot/gf_network_snapshot_schema.gd" module="extensions/network" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkSnapshotSchema: 网络快照字段编码表。
+用字段级编码器转换快照 state，适合项目在自己的同步、回放或存储流程中
+统一压缩、量化和恢复状态字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="include_unregistered_fields" line="20" decorators="@export">
+			<signature>var include_unregistered_fields: bool = true</signature>
+			<description>未注册字段是否原样保留。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="field_serializers" line="27" decorators="@export">
+			<signature>var field_serializers: Dictionary = {}</signature>
+			<description>字段编码器表。Key 推荐使用 StringName 或 String，Value 为 GFNetworkFieldSerializer。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">field_serializers: Dictionary[StringName|String, GFNetworkFieldSerializer]，字段名到字段编码器的映射。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_field_serializer" line="39">
+			<signature>func set_field_serializer(field_name: StringName, serializer: GFNetworkFieldSerializer) -&gt; void:</signature>
+			<description>设置字段编码器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">field_name: 字段名。</tag>
+				<tag name="param">serializer: 字段编码器；为空时移除。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_field_serializer" line="54">
+			<signature>func remove_field_serializer(field_name: StringName) -&gt; void:</signature>
+			<description>移除字段编码器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">field_name: 字段名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_field_serializer" line="66">
+			<signature>func get_field_serializer(field_name: StringName) -&gt; GFNetworkFieldSerializer:</signature>
+			<description>获取字段编码器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">field_name: 字段名。</tag>
+				<tag name="return">字段编码器；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_field_serializer" line="82">
+			<signature>func has_field_serializer(field_name: StringName) -&gt; bool:</signature>
+			<description>检查字段是否注册了编码器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">field_name: 字段名。</tag>
+				<tag name="return">已注册时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_registered_fields" line="91">
+			<signature>func get_registered_fields() -&gt; PackedStringArray:</signature>
+			<description>获取已注册字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">字段名列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="encode_state" line="118">
+			<signature>func encode_state(state: Dictionary) -&gt; Dictionary:</signature>
+			<description>编码状态字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 原始状态。</tag>
+				<tag name="return">编码后的状态。</tag>
+				<tag name="schema">state: Dictionary[StringName|String, Variant]，原始快照状态字段。</tag>
+				<tag name="schema">return: Dictionary[StringName|String, Variant]，编码后的状态字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="decode_state" line="148">
+			<signature>func decode_state(encoded_state: Dictionary) -&gt; Dictionary:</signature>
+			<description>解码状态字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">encoded_state: 编码后的状态。</tag>
+				<tag name="return">解码后的状态。</tag>
+				<tag name="schema">encoded_state: Dictionary[StringName|String, Variant]，编码后的状态字段。</tag>
+				<tag name="schema">return: Dictionary[StringName|String, Variant]，解码后的状态字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="encode_snapshot" line="176">
+			<signature>func encode_snapshot(snapshot: GFNetworkSnapshot) -&gt; Dictionary:</signature>
+			<description>编码快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">snapshot: 原始快照。</tag>
+				<tag name="return">快照字典；snapshot 为空时返回空字典。</tag>
+				<tag name="schema">return: Dictionary，GFNetworkSnapshot.to_dict() 结构，其中 state 已按字段编码器转换。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="decode_snapshot" line="194">
+			<signature>func decode_snapshot(data: Dictionary) -&gt; GFNetworkSnapshot:</signature>
+			<description>解码快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: encode_snapshot() 或 GFNetworkSnapshot.to_dict() 形式的字典。</tag>
+				<tag name="return">解码后的快照。</tag>
+				<tag name="schema">data: Dictionary，encode_snapshot() 或 GFNetworkSnapshot.to_dict() 结构。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_schema" line="206">
+			<signature>func duplicate_schema() -&gt; GFNetworkSnapshotSchema:</signature>
+			<description>复制 Schema 配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新 Schema。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

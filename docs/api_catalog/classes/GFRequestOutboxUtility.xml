@@ -1,0 +1,266 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFRequestOutboxUtility" path="addons/gf/standard/utilities/io/gf_request_outbox_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFRequestOutboxUtility: 通用离线请求队列。
+负责把项目提交的请求描述持久化、按重试策略重放，并通过 transport_callback
+交给项目自己的网络、SDK 或工具链发送。它不内置任何账号、云服务或业务协议。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="request_enqueued" line="22">
+			<signature>signal request_enqueued(envelope: GFRequestEnvelope)</signature>
+			<description>请求成功进入队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">envelope: 请求描述。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="request_started" line="29">
+			<signature>signal request_started(envelope: GFRequestEnvelope)</signature>
+			<description>请求开始重放。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">envelope: 请求描述。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="request_completed" line="40">
+			<signature>signal request_completed(envelope: GFRequestEnvelope, result: Dictionary)</signature>
+			<description>请求成功完成。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">envelope: 请求描述。</tag>
+				<tag name="param">result: transport 返回的结果字典。</tag>
+				<tag name="schema">result: Dictionary，由 transport_callback 返回；ok 或 success=true 表示完成。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="request_failed" line="51">
+			<signature>signal request_failed(envelope: GFRequestEnvelope, result: Dictionary)</signature>
+			<description>请求失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">envelope: 请求描述。</tag>
+				<tag name="param">result: transport 返回的结果字典。</tag>
+				<tag name="schema">result: Dictionary，由 transport_callback 返回，包含 error 或 reason 字段。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="queue_changed" line="60">
+			<signature>signal queue_changed(snapshot: Dictionary)</signature>
+			<description>队列快照变化。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">snapshot: 调试快照。</tag>
+				<tag name="schema">snapshot: Dictionary，由 get_debug_snapshot() 返回的调试快照。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="storage_path" line="68">
+			<signature>var storage_path: String = "user://gf_request_outbox.json"</signature>
+			<description>队列持久化路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_load_on_init" line="73">
+			<signature>var auto_load_on_init: bool = true</signature>
+			<description>init() 时是否自动读取持久化队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_persist" line="78">
+			<signature>var auto_persist: bool = true</signature>
+			<description>队列变化后是否自动写入 storage_path。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_queue_size" line="83">
+			<signature>var max_queue_size: int = 128</signature>
+			<description>最大等待队列长度；小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_max_attempts" line="88">
+			<signature>var default_max_attempts: int = 3</signature>
+			<description>新入队请求默认最大尝试次数；小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="retry_delays_msec" line="95">
+			<signature>var retry_delays_msec: Array[int] = [500, 1000, 2000, 5000]</signature>
+			<description>重试延迟序列，单位毫秒；超过长度后复用最后一个值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">retry_delays_msec: Array，按毫秒记录的重试延迟列表。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="keep_failed_requests" line="100">
+			<signature>var keep_failed_requests: bool = true</signature>
+			<description>请求耗尽尝试次数后是否保留在失败列表中。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_failed_requests" line="105">
+			<signature>var max_failed_requests: int = 32</signature>
+			<description>失败列表最多保留数量；小于等于 0 表示不保留。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="transport_callback" line="110">
+			<signature>var transport_callback: Callable = Callable()</signature>
+			<description>传输回调，签名为 func(envelope: GFRequestEnvelope) -&gt; Dictionary；也可返回会发出结果值的 Signal。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="replay_filter" line="115">
+			<signature>var replay_filter: Callable = Callable()</signature>
+			<description>可选重放过滤回调，签名为 func(envelope: GFRequestEnvelope) -&gt; bool。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="130">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化请求 Outbox，并按配置读取持久化队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="139">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>按配置保存队列并清理运行时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="enqueue_request" line="168">
+			<signature>func enqueue_request( method: int, url: String, body: Dictionary = {}, headers: PackedStringArray = PackedStringArray(), metadata: Dictionary = {} ) -&gt; GFRequestEnvelope:</signature>
+			<description>创建并入队一个请求。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">method: HTTPClient.Method 数值。</tag>
+				<tag name="param">url: 请求目标地址或项目自定义端点。</tag>
+				<tag name="param">body: 请求载荷。</tag>
+				<tag name="param">headers: 请求 Header。</tag>
+				<tag name="param">metadata: 项目自定义元数据。</tag>
+				<tag name="return">入队成功时返回请求描述；失败返回 null。</tag>
+				<tag name="schema">body: Dictionary，项目传输层持有的请求载荷。</tag>
+				<tag name="schema">metadata: Dictionary，随请求持久化的项目侧元数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="enqueue" line="187">
+			<signature>func enqueue(envelope: GFRequestEnvelope) -&gt; bool:</signature>
+			<description>入队已有请求描述。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">envelope: 请求描述。</tag>
+				<tag name="return">入队成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="replay" line="213">
+			<signature>func replay(max_count: int = 0) -&gt; Dictionary:</signature>
+			<description>重放可尝试的请求。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">max_count: 最多处理数量；小于等于 0 表示不限制。</tag>
+				<tag name="return">重放报告。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、processed、succeeded、failed、skipped、pending、failed_stored 和 reason。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_request" line="292">
+			<signature>func remove_request(request_id: StringName) -&gt; bool:</signature>
+			<description>移除指定请求。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">request_id: 请求标识。</tag>
+				<tag name="return">移除成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_queue" line="304">
+			<signature>func clear_queue() -&gt; void:</signature>
+			<description>清空等待队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_failed_requests" line="312">
+			<signature>func clear_failed_requests() -&gt; void:</signature>
+			<description>清空失败请求列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_queue_size" line="322">
+			<signature>func get_queue_size() -&gt; int:</signature>
+			<description>获取等待队列长度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">队列长度。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_failed_request_count" line="331">
+			<signature>func get_failed_request_count() -&gt; int:</signature>
+			<description>获取失败请求数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">失败请求数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_pending_requests" line="342">
+			<signature>func get_pending_requests() -&gt; Array[GFRequestEnvelope]:</signature>
+			<description>获取等待请求副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">请求副本数组。</tag>
+				<tag name="schema">return: Array，当前等待重放的 GFRequestEnvelope 副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_failed_requests" line="356">
+			<signature>func get_failed_requests() -&gt; Array[GFRequestEnvelope]:</signature>
+			<description>获取失败请求副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">失败请求副本数组。</tag>
+				<tag name="schema">return: Array，重试耗尽后保存的 GFRequestEnvelope 副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="save_queue" line="368">
+			<signature>func save_queue() -&gt; Error:</signature>
+			<description>保存队列到 storage_path。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Godot 错误码。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="load_queue" line="394">
+			<signature>func load_queue() -&gt; Error:</signature>
+			<description>从 storage_path 读取队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Godot 错误码。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="428">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含存储设置、队列计数、传输可用性和请求 ID 列表。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

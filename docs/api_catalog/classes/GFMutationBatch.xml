@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFMutationBatch" path="addons/gf/standard/foundation/collections/gf_mutation_batch.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFMutationBatch: 通用变更批次。
+把一组 Callable 作为可提交、可回滚的批次执行。它只管理执行顺序、
+结果归一化和回滚栈，不绑定资源、存档、网络或编辑器事务。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="operation_added" line="22">
+			<signature>signal operation_added(operation_id: int)</signature>
+			<description>操作加入批次后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">operation_id: 操作标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="operation_committed" line="33">
+			<signature>signal operation_committed(operation_id: int, result: Dictionary)</signature>
+			<description>单个操作提交成功后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">operation_id: 操作标识。</tag>
+				<tag name="param">result: 操作结果。</tag>
+				<tag name="schema">result: Dictionary normalized operation result.</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="batch_committed" line="42">
+			<signature>signal batch_committed(summary: Dictionary)</signature>
+			<description>批次提交结束后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">summary: 提交摘要。</tag>
+				<tag name="schema">summary: Dictionary commit summary.</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="batch_rolled_back" line="51">
+			<signature>signal batch_rolled_back(summary: Dictionary)</signature>
+			<description>已提交操作回滚结束后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">summary: 回滚摘要。</tag>
+				<tag name="schema">summary: Dictionary rollback summary.</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="cleared" line="56">
+			<signature>signal cleared</signature>
+			<description>批次清空后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="stop_on_error" line="64">
+			<signature>var stop_on_error: bool = true</signature>
+			<description>提交遇到失败时是否停止后续操作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_clear_committed_on_success" line="69">
+			<signature>var auto_clear_committed_on_success: bool = false</signature>
+			<description>全部提交成功后是否自动清空 committed 栈。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="add_operation" line="94">
+			<signature>func add_operation(operation: Callable, rollback: Callable = Callable(), metadata: Dictionary = {}) -&gt; int:</signature>
+			<description>添加一个批次操作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">operation: 提交回调。</tag>
+				<tag name="param">rollback: 可选回滚回调。</tag>
+				<tag name="param">metadata: 操作元数据。</tag>
+				<tag name="return">操作标识；失败返回 -1。</tag>
+				<tag name="schema">metadata: Dictionary copied into the normalized operation result.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="commit" line="119">
+			<signature>func commit(max_operations: int = -1) -&gt; Dictionary:</signature>
+			<description>提交待处理操作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">max_operations: 最多提交数量；小于 0 表示处理全部。</tag>
+				<tag name="return">提交摘要。</tag>
+				<tag name="schema">return: Dictionary commit summary.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="rollback_committed" line="156">
+			<signature>func rollback_committed(max_operations: int = -1) -&gt; Dictionary:</signature>
+			<description>回滚已提交操作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">max_operations: 最多回滚数量；小于 0 表示回滚全部。</tag>
+				<tag name="return">回滚摘要。</tag>
+				<tag name="schema">return: Dictionary rollback summary.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="194">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空批次。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_pending_count" line="205">
+			<signature>func get_pending_count() -&gt; int:</signature>
+			<description>获取待处理操作数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">待处理操作数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_committed_count" line="214">
+			<signature>func get_committed_count() -&gt; int:</signature>
+			<description>获取已提交操作数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已提交操作数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="225">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试信息字典。</tag>
+				<tag name="schema">return: Dictionary with pending_count, committed_count, next_operation_id, and options.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

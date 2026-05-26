@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkContractGenerator" path="addons/gf/extensions/network/editor/gf_network_contract_generator.gd" module="extensions/network" extends="RefCounted" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkContractGenerator: 根据 GFNetworkContract 生成强类型消息辅助脚本。
+生成结果保持为 GDScript 轻量封装，围绕 GFNetworkMessage / GFNetworkUtility
+提供构造、发送、匹配和 payload 读取函数，不绑定任何具体业务协议。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="DEFAULT_OUTPUT_DIR" line="22">
+			<signature>const DEFAULT_OUTPUT_DIR: String = "res://gf/generated/network"</signature>
+			<description>默认生成脚本输出目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="generate" line="44">
+			<signature>func generate( contract: GFNetworkContract, output_path: String = "", overwrite_existing: bool = true, options: Dictionary = {} ) -&gt; Error:</signature>
+			<description>生成单个契约访问器脚本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">contract: 网络契约资源。</tag>
+				<tag name="param">output_path: 输出脚本路径；为空时按 contract_id 推导。</tag>
+				<tag name="param">overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。</tag>
+				<tag name="param">options: 可选项，支持 class_name。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">options: Dictionary，支持 class_name。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="generate_many" line="81">
+			<signature>func generate_many( contract_paths: PackedStringArray, output_dir: String = DEFAULT_OUTPUT_DIR, overwrite_existing: bool = true, options: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>批量生成多个契约访问器脚本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">contract_paths: 契约资源路径列表。</tag>
+				<tag name="param">output_dir: 输出目录。</tag>
+				<tag name="param">overwrite_existing: 为 false 时目标已存在会跳过。</tag>
+				<tag name="param">options: 可选项。</tag>
+				<tag name="return">生成报告。</tag>
+				<tag name="schema">options: Dictionary，支持 class_name。</tag>
+				<tag name="schema">return: Dictionary，GFValidationReportDictionary 格式，包含 ok、generated_count、attempted_count、generated、issues、issue_count 和 next_actions。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_source" line="146">
+			<signature>func build_source(contract: GFNetworkContract, options: Dictionary = {}) -&gt; String:</signature>
+			<description>构建契约访问器源码。测试或项目工具可直接调用该方法。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">contract: 网络契约资源。</tag>
+				<tag name="param">options: 可选项，支持 class_name。</tag>
+				<tag name="return">GDScript 源码。</tag>
+				<tag name="schema">options: Dictionary，支持 class_name。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="save_source" line="176">
+			<signature>func save_source(output_path: String, source: String, overwrite_existing: bool = true) -&gt; Error:</signature>
+			<description>保存生成源码到指定路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">output_path: 输出脚本路径。</tag>
+				<tag name="param">source: 源码文本。</tag>
+				<tag name="param">overwrite_existing: 为 false 时目标已存在会返回 ERR_ALREADY_EXISTS。</tag>
+				<tag name="return">Godot 错误码。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

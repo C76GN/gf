@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFRepeatAction" path="addons/gf/extensions/action_queue/actions/gf_repeat_action.gd" module="extensions/action_queue" extends="GFVisualAction" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFRepeatAction: 按工厂重复创建并执行队列动作。
+每轮通过 action_factory 创建一个新的动作对象，避免复用同一个动作实例时
+残留 Tween、Timer 或节点引用状态。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="repeat_completed" line="20">
+			<signature>signal repeat_completed</signature>
+			<description>重复流程结束时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants>
+		<member kind="const" name="DEFAULT_MAX_IMMEDIATE_ITERATIONS_PER_FRAME" line="30">
+			<signature>const DEFAULT_MAX_IMMEDIATE_ITERATIONS_PER_FRAME: int = 256</signature>
+			<description>单帧最多连续执行的瞬时重复次数，避免无限重复的瞬时动作锁住主线程。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="action_factory" line="38">
+			<signature>var action_factory: Callable</signature>
+			<description>动作工厂。每次调用应返回一个动作对象；返回 null 会结束重复。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="repeat_count" line="43">
+			<signature>var repeat_count: int = 1</signature>
+			<description>重复次数。0 表示无限重复，直到 cancel()、finish() 或工厂返回 null。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_immediate_iterations_per_frame" line="48">
+			<signature>var max_immediate_iterations_per_frame: int = DEFAULT_MAX_IMMEDIATE_ITERATIONS_PER_FRAME</signature>
+			<description>单帧最多连续执行的瞬时重复次数。小于 1 时按 1 处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="execute" line="74">
+			<signature>func execute() -&gt; Variant:</signature>
+			<description>启动重复执行流程。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">action_factory 有效时返回 repeat_completed Signal；无效时返回 null。</tag>
+				<tag name="schema">return: Variant，返回 repeat_completed Signal 或 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel" line="86">
+			<signature>func cancel() -&gt; void:</signature>
+			<description>取消重复流程并取消当前动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause" line="97">
+			<signature>func pause() -&gt; void:</signature>
+			<description>暂停重复流程和当前动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume" line="106">
+			<signature>func resume() -&gt; void:</signature>
+			<description>恢复重复流程和当前动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="finish" line="115">
+			<signature>func finish() -&gt; void:</signature>
+			<description>立即完成重复流程并释放等待者。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSourceBuilder" path="addons/gf/kernel/editor/gf_source_builder.gd" module="kernel" extends="RefCounted" line="15" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSourceBuilder: 编辑器代码生成用的轻量源码构建器。
+用于集中处理生成脚本时的缩进、空行、section 与文档注释格式，
+避免各个 generator 直接拼接 `PackedStringArray` 时出现格式漂移。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="layer">kernel/editor</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="line" line="34">
+			<signature>func line(text: String = "") -&gt; GFSourceBuilder:</signature>
+			<description>添加一行源码。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">text: 行内容；空字符串会生成空行且不添加缩进。</tag>
+				<tag name="return">当前构建器，便于链式调用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="doc" line="49">
+			<signature>func doc(text: String = "") -&gt; GFSourceBuilder:</signature>
+			<description>添加文档注释行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">text: 注释内容；空字符串会生成 `##`。</tag>
+				<tag name="return">当前构建器，便于链式调用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="section" line="62">
+			<signature>func section(title: String) -&gt; GFSourceBuilder:</signature>
+			<description>添加规范 section 标题，并在其后添加一个空行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">title: section 标题。</tag>
+				<tag name="return">当前构建器，便于链式调用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="blank" line="73">
+			<signature>func blank(count: int = 1) -&gt; GFSourceBuilder:</signature>
+			<description>添加空行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">count: 空行数量，小于等于 0 时不产生输出。</tag>
+				<tag name="return">当前构建器，便于链式调用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="indent" line="84">
+			<signature>func indent() -&gt; GFSourceBuilder:</signature>
+			<description>增加后续行的缩进层级。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前构建器，便于链式调用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dedent" line="96">
+			<signature>func dedent(count: int = 1) -&gt; GFSourceBuilder:</signature>
+			<description>减少后续行的缩进层级。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">count: 要减少的层级数，小于等于 0 时不改变缩进。</tag>
+				<tag name="return">当前构建器，便于链式调用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="106">
+			<signature>func clear() -&gt; GFSourceBuilder:</signature>
+			<description>清空已构建内容并重置缩进。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前构建器，便于链式调用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build" line="117">
+			<signature>func build() -&gt; String:</signature>
+			<description>生成最终源码字符串；非空源码末尾会包含换行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">完整源码文本。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

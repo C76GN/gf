@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAssetMetadataUtility" path="addons/gf/extensions/asset_metadata/runtime/gf_asset_metadata_utility.gd" module="extensions/asset_metadata" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAssetMetadataUtility: 资产元数据收集与查询工具。
+统一管理导入资产元数据在 Object metadata 中的存储键、复制规则和节点树收集流程。
+它不解释任何项目字段；业务语义应由项目代码或项目扩展消费。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="META_ASSET_METADATA" line="20">
+			<signature>const META_ASSET_METADATA: StringName = &amp;"gf_asset_metadata"</signature>
+			<description>Object metadata 中保存 GF 资产元数据的默认键。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="META_ASSET_METADATA_SOURCE" line="25">
+			<signature>const META_ASSET_METADATA_SOURCE: StringName = &amp;"gf_asset_metadata_source"</signature>
+			<description>Object metadata 中保存元数据来源说明的默认键。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="normalize_metadata" line="41">
+			<signature>static func normalize_metadata(value: Variant) -&gt; Dictionary:</signature>
+			<description>将任意导入元数据归一为 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 输入元数据。Dictionary 会深拷贝；其他非 null 值会保存在 value 字段中。</tag>
+				<tag name="return">归一化后的元数据字典。</tag>
+				<tag name="schema">value: Variant，Dictionary 会深拷贝；其他非 null 值会保存为 { "value": value }。</tag>
+				<tag name="schema">return: Dictionary，归一化后的资产元数据字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="write_object_metadata" line="66">
+			<signature>func write_object_metadata( target: Object, metadata: Dictionary, options: Dictionary = {} ) -&gt; GFAssetMetadataRecord:</signature>
+			<description>写入对象资产元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标 Object。</tag>
+				<tag name="param">metadata: 结构化元数据。</tag>
+				<tag name="param">options: 可选项，支持 metadata_key、source_path、subject_path、subject_kind、metadata_source。</tag>
+				<tag name="return">写入后的记录；目标无效时返回 null。</tag>
+				<tag name="schema">metadata: Dictionary，要写入 Object metadata 的结构化资产元数据字段。</tag>
+				<tag name="schema">options: Dictionary，可包含 metadata_key、source_path、subject_path、subject_kind 与 metadata_source。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="read_object_metadata" line="98">
+			<signature>func read_object_metadata(target: Object, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>读取对象资产元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标 Object。</tag>
+				<tag name="param">options: 可选项，支持 metadata_key 或 metadata_keys。</tag>
+				<tag name="return">元数据字典副本；不存在时返回空字典。</tag>
+				<tag name="schema">options: Dictionary，可包含 metadata_key 或 metadata_keys。</tag>
+				<tag name="schema">return: Dictionary，读取到的结构化资产元数据字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_object_metadata" line="122">
+			<signature>func has_object_metadata(target: Object, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>检查对象是否带有资产元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标 Object。</tag>
+				<tag name="param">options: 可选项，支持 metadata_key 或 metadata_keys。</tag>
+				<tag name="return">存在资产元数据时返回 true。</tag>
+				<tag name="schema">options: Dictionary，可包含 metadata_key 或 metadata_keys。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_object_metadata" line="140">
+			<signature>func clear_object_metadata(target: Object, options: Dictionary = {}) -&gt; void:</signature>
+			<description>清除对象资产元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标 Object。</tag>
+				<tag name="param">options: 可选项，支持 metadata_key 或 metadata_keys。</tag>
+				<tag name="schema">options: Dictionary，可包含 metadata_key、metadata_keys 与 clear_source。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_node_tree" line="161">
+			<signature>func collect_node_tree(root: Node, options: Dictionary = {}) -&gt; Array[GFAssetMetadataRecord]:</signature>
+			<description>收集节点树中的资产元数据记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 节点树根节点。</tag>
+				<tag name="param">options: 可选项，支持 metadata_key、metadata_keys、source_path、subject_kind、max_depth。</tag>
+				<tag name="return">资产元数据记录列表。</tag>
+				<tag name="schema">options: Dictionary，可包含 metadata_key、metadata_keys、source_path、subject_kind 与 max_depth。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_node_tree_dicts" line="184">
+			<signature>func collect_node_tree_dicts(root: Node, options: Dictionary = {}) -&gt; Array[Dictionary]:</signature>
+			<description>收集节点树中的资产元数据记录字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 节点树根节点。</tag>
+				<tag name="param">options: 可选项，支持 metadata_key、metadata_keys、source_path、subject_kind、max_depth。</tag>
+				<tag name="return">资产元数据记录字典列表。</tag>
+				<tag name="schema">options: Dictionary，可包含 metadata_key、metadata_keys、source_path、subject_kind 与 max_depth。</tag>
+				<tag name="schema">return: Array[Dictionary]，每一项包含 source_path、subject_path、subject_kind 与 metadata 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_node_tree_report" line="204">
+			<signature>func build_node_tree_report(root: Node, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>构建节点树资产元数据报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 节点树根节点。</tag>
+				<tag name="param">options: 可选项，支持 collect_node_tree() 的参数。</tag>
+				<tag name="return">报告字典。</tag>
+				<tag name="schema">options: Dictionary，可包含 metadata_key、metadata_keys、source_path、subject_kind 与 max_depth。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、healthy、summary、next_action、source_path、entry_count、entries 与 issues。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFConfigResourcePathValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_resource_path_validation_rule.gd" module="standard" extends="GFConfigValidationRule" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFConfigResourcePathValidationRule: Godot 资源路径校验规则。
+用于检查配置字段中的 `res://` 路径是否存在，并可按扩展名限制资源类型。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="allow_empty" line="19" decorators="@export">
+			<signature>var allow_empty: bool = true</signature>
+			<description>空字符串是否直接视为通过。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="require_resource_prefix" line="24" decorators="@export">
+			<signature>var require_resource_prefix: bool = true</signature>
+			<description>是否要求路径以 res:// 开头。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allowed_extensions" line="29" decorators="@export">
+			<signature>var allowed_extensions: PackedStringArray = PackedStringArray()</signature>
+			<description>允许的扩展名。为空时不限制扩展名，可写 png 或 .png。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="use_resource_loader" line="34" decorators="@export">
+			<signature>var use_resource_loader: bool = true</signature>
+			<description>是否使用 ResourceLoader.exists() 检查导入资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="use_file_access_fallback" line="39" decorators="@export">
+			<signature>var use_file_access_fallback: bool = true</signature>
+			<description>ResourceLoader 检查失败时是否再用 FileAccess.file_exists() 检查原始文件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="describe" line="51">
+			<signature>func describe() -&gt; Dictionary:</signature>
+			<description>导出规则摘要。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">规则摘要字典。</tag>
+				<tag name="schema">return: Dictionary，包含基础规则字段和资源路径校验设置。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

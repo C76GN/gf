@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFormulaSet" path="addons/gf/standard/foundation/formula/gf_formula_set.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFormulaSet: 按键管理资源化公式的轻量集合。
+适合把一组项目公式集中到配置资源里，再由 System 或 Utility
+按 `StringName` 获取并计算。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="formulas" line="22" decorators="@export">
+			<signature>var formulas: Dictionary = {}</signature>
+			<description>公式表。Key 推荐为 StringName，Value 应为 GFFormula。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">formulas: Dictionary keyed by StringName or String with GFFormula resources.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_formula" line="34">
+			<signature>func set_formula(formula_id: StringName, formula: GFFormula) -&gt; void:</signature>
+			<description>注册或替换一个公式。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">formula_id: 公式标识。</tag>
+				<tag name="param">formula: 公式资源。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_formula" line="51">
+			<signature>func get_formula(formula_id: StringName) -&gt; GFFormula:</signature>
+			<description>获取一个公式。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">formula_id: 公式标识。</tag>
+				<tag name="return">公式资源；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_formula" line="62">
+			<signature>func has_formula(formula_id: StringName) -&gt; bool:</signature>
+			<description>检查是否存在指定公式。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">formula_id: 公式标识。</tag>
+				<tag name="return">存在时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="calculate" line="81">
+			<signature>func calculate(formula_id: StringName, parameter: GFFormulaParameter = null, fallback: Variant = null) -&gt; Variant:</signature>
+			<description>计算指定公式。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">formula_id: 公式标识。</tag>
+				<tag name="param">parameter: 公式参数。</tag>
+				<tag name="param">fallback: 公式不存在时返回的结果。</tag>
+				<tag name="return">公式结果或 fallback。</tag>
+				<tag name="schema">fallback: Variant result returned when formula_id is absent.</tag>
+				<tag name="schema">return: Variant formula result or fallback.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

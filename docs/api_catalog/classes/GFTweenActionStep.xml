@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTweenActionStep" path="addons/gf/extensions/action_queue/tween/gf_tween_action_step.gd" module="extensions/action_queue" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTweenActionStep: 配置化 Tween 属性步骤。
+描述一个目标对象属性如何缓动，不绑定具体节点或业务动作。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="property_name" line="19" decorators="@export">
+			<signature>var property_name: NodePath = ^"position"</signature>
+			<description>要缓动的属性路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="target_value" line="26" decorators="@export">
+			<signature>var target_value: Variant = null</signature>
+			<description>目标值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">target_value: Variant，可写入 property_name 的目标值；相对步骤中会与当前值相加。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="duration" line="31" decorators="@export">
+			<signature>var duration: float = 0.2</signature>
+			<description>步骤持续时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="delay" line="36" decorators="@export">
+			<signature>var delay: float = 0.0</signature>
+			<description>步骤延迟。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="as_relative" line="41" decorators="@export">
+			<signature>var as_relative: bool = false</signature>
+			<description>是否相对当前值偏移。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="parallel" line="46" decorators="@export">
+			<signature>var parallel: bool = false</signature>
+			<description>是否与前一个步骤并行。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="transition_type" line="51" decorators="@export">
+			<signature>var transition_type: Tween.TransitionType = Tween.TRANS_CUBIC</signature>
+			<description>Tween 过渡类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="ease_type" line="56" decorators="@export">
+			<signature>var ease_type: Tween.EaseType = Tween.EASE_OUT</signature>
+			<description>Tween 缓动类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="marker_id" line="61" decorators="@export">
+			<signature>var marker_id: StringName = &amp;""</signature>
+			<description>可选步骤标记。非空时 GFConfiguredTweenAction 会在步骤结束后发出 marker_reached。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="append_to_tween" line="79">
+			<signature>func append_to_tween(tween: Tween, target: Object, duration_scale: float = 1.0) -&gt; Variant:</signature>
+			<description>追加到 Tween。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tween: 目标 Tween。</tag>
+				<tag name="param">target: 目标对象。</tag>
+				<tag name="param">duration_scale: 时长缩放。</tag>
+				<tag name="return">创建的 Tweener。</tag>
+				<tag name="schema">return: Variant，成功时为 PropertyTweener；无效时为 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_instant" line="107">
+			<signature>func apply_instant(target: Object) -&gt; void:</signature>
+			<description>立即应用步骤目标值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标对象。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_step" line="123">
+			<signature>func duplicate_step() -&gt; GFTweenActionStep:</signature>
+			<description>创建深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新步骤。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_apply_to" line="144">
+			<signature>func can_apply_to(target: Object) -&gt; bool:</signature>
+			<description>检查目标对象是否能应用当前步骤。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标对象。</tag>
+				<tag name="return">可应用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_validation_error" line="155">
+			<signature>func get_validation_error(target: Object) -&gt; String:</signature>
+			<description>获取当前步骤对目标对象的校验错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标对象。</tag>
+				<tag name="return">校验通过时返回空字符串。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="capture_initial_value" line="180">
+			<signature>func capture_initial_value(target: Object) -&gt; Variant:</signature>
+			<description>捕获当前属性值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标对象。</tag>
+				<tag name="return">属性值；步骤无效时返回 null。</tag>
+				<tag name="schema">return: Variant，目标属性的深拷贝值；步骤无效时为 null。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

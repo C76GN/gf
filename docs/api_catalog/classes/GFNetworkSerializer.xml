@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkSerializer" path="addons/gf/extensions/network/serialization/gf_network_serializer.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkSerializer: 通用网络消息编码器。
+提供 Variant 二进制与 JSON 两种编码方式，供不同网络后端复用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="Format" line="19">
+			<signature>enum Format { ## Godot Variant 二进制编码。 BINARY, ## UTF-8 JSON 编码。 JSON, }</signature>
+			<description>消息编码格式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="format" line="32">
+			<signature>var format: Format = Format.BINARY</signature>
+			<description>默认编码格式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="use_typed_json_codec" line="37">
+			<signature>var use_typed_json_codec: bool = false</signature>
+			<description>JSON 格式下是否使用 GFVariantJsonCodec 的类型化 Godot Variant 编码。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="json_codec_options" line="44">
+			<signature>var json_codec_options: Dictionary = {}</signature>
+			<description>传给 GFVariantJsonCodec JSON codec 的可选配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">json_codec_options: Dictionary，传给 GFVariantJsonCodec 的 JSON 编码/解码选项。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="serialize_message" line="56">
+			<signature>func serialize_message(message: GFNetworkMessage) -&gt; PackedByteArray:</signature>
+			<description>编码消息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message: 消息载体。</tag>
+				<tag name="return">字节数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_message" line="69">
+			<signature>func deserialize_message(bytes: PackedByteArray) -&gt; GFNetworkMessage:</signature>
+			<description>解码消息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bytes: 源 bytes。</tag>
+				<tag name="return">消息载体；失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_message_result" line="85">
+			<signature>func deserialize_message_result(bytes: PackedByteArray) -&gt; Dictionary:</signature>
+			<description>解码消息并返回结果字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bytes: 源 bytes。</tag>
+				<tag name="return">包含 ok、data、error 的结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、data、error；data 为 GFNetworkMessage 或空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="serialize_dictionary" line="108">
+			<signature>func serialize_dictionary(data: Dictionary) -&gt; PackedByteArray:</signature>
+			<description>编码字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 字典。</tag>
+				<tag name="return">字节数组。</tag>
+				<tag name="schema">data: Dictionary，待编码的消息或项目自定义字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_dictionary_result" line="126">
+			<signature>func deserialize_dictionary_result(bytes: PackedByteArray) -&gt; Dictionary:</signature>
+			<description>解码字典并返回结果字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bytes: 源 bytes。</tag>
+				<tag name="return">包含 ok、data、error 的结果字典；合法空字典会返回 ok=true。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、data、error；data 为解码后的 Dictionary。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAsyncBatch" path="addons/gf/standard/utilities/io/gf_async_batch.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAsyncBatch: 通用异步结果批处理器。
+用于等待一组 GFHttpResponse 或手动标记的异步任务完成，并统一汇总结果。
+它不负责调度具体任务，只观察任务何时完成。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="item_completed" line="28">
+			<signature>signal item_completed(key: Variant, result: Variant)</signature>
+			<description>单个条目完成后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 条目标识。</tag>
+				<tag name="param">result: 条目结果。</tag>
+				<tag name="schema">key: Variant，调用方持有的条目标识，会作为结果字典的键。</tag>
+				<tag name="schema">result: Variant，已完成条目的结果。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="completed" line="37">
+			<signature>signal completed(results: Dictionary)</signature>
+			<description>全部条目完成后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">results: 批处理结果字典。</tag>
+				<tag name="schema">results: Dictionary，将每个被等待的 key 映射到对应完成结果。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="add_item" line="62">
+			<signature>func add_item(key: Variant, metadata: Dictionary = {}) -&gt; bool:</signature>
+			<description>添加一个等待条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 条目标识。</tag>
+				<tag name="param">metadata: 条目元数据。</tag>
+				<tag name="return">是否添加成功。</tag>
+				<tag name="schema">key: Variant，调用方持有的条目标识，会作为结果字典的键。</tag>
+				<tag name="schema">metadata: Dictionary，调用方持有并关联到该条目的元数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="watch_response" line="87">
+			<signature>func watch_response(response: GFHttpResponse, key: Variant = null) -&gt; bool:</signature>
+			<description>监听 GFHttpResponse。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">response: 响应对象。</tag>
+				<tag name="param">key: 条目标识；为空时使用响应 URL。</tag>
+				<tag name="return">是否开始监听。</tag>
+				<tag name="schema">key: Variant，调用方持有的条目标识；为 null 时使用 response.url。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="mark_completed" line="122">
+			<signature>func mark_completed(key: Variant, result: Variant = null) -&gt; bool:</signature>
+			<description>手动标记条目完成。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 条目标识。</tag>
+				<tag name="param">result: 条目结果。</tag>
+				<tag name="return">是否成功标记。</tag>
+				<tag name="schema">key: Variant，调用方持有的条目标识，会作为结果字典的键。</tag>
+				<tag name="schema">result: Variant，已完成条目的结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_completed" line="144">
+			<signature>func is_completed() -&gt; bool:</signature>
+			<description>是否所有条目都已完成。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">所有条目完成时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_count" line="153">
+			<signature>func get_count() -&gt; int:</signature>
+			<description>获取条目数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前批处理中的条目数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_completed_count" line="162">
+			<signature>func get_completed_count() -&gt; int:</signature>
+			<description>获取已完成条目数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已完成条目的数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_results" line="178">
+			<signature>func get_results() -&gt; Dictionary:</signature>
+			<description>获取结果字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">key -&gt; result 的字典副本。</tag>
+				<tag name="schema">return: Dictionary，将每个被等待的 key 映射到对应完成结果或 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="189">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空批处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="202">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试信息字典。</tag>
+				<tag name="schema">return: Dictionary，包含 count、completed_count、completed 和 keys。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

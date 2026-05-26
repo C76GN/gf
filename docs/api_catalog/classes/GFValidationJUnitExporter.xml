@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFValidationJUnitExporter" path="addons/gf/standard/foundation/validation/gf_validation_junit_exporter.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFValidationJUnitExporter: 将 GFValidationReport 导出为 JUnit XML。
+该导出器只负责把通用校验报告转成 CI 友好的文本，不决定测试命名、
+构建失败策略或项目修复流程。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="export_report" line="28">
+			<signature>static func export_report(report: GFValidationReport, options: Dictionary = {}) -&gt; String:</signature>
+			<description>导出单个报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 校验报告。</tag>
+				<tag name="param">options: 可选参数，支持 suite_name、warnings_as_failures、include_passing_case。</tag>
+				<tag name="return">JUnit XML 文本。</tag>
+				<tag name="schema">options: Dictionary JUnit export options.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="export_reports" line="45">
+			<signature>static func export_reports(reports: Array, options: Dictionary = {}) -&gt; String:</signature>
+			<description>导出多个报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">reports: 校验报告数组。</tag>
+				<tag name="param">options: 可选参数，支持 suite_name、warnings_as_failures、include_passing_case。</tag>
+				<tag name="return">JUnit XML 文本。</tag>
+				<tag name="schema">reports: Array of GFValidationReport values.</tag>
+				<tag name="schema">options: Dictionary JUnit export options.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

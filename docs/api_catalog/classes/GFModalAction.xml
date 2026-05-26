@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFModalAction" path="addons/gf/standard/utilities/ui/gf_modal_action.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFModalAction: 通用 modal 动作声明。
+描述一个可由 UI 渲染的操作，不绑定具体按钮样式、业务命令或页面类型。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="action_id" line="19" decorators="@export">
+			<signature>var action_id: StringName = &amp;"ok"</signature>
+			<description>动作 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="label" line="24" decorators="@export">
+			<signature>var label: String = "OK"</signature>
+			<description>显示文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="result_status" line="29" decorators="@export">
+			<signature>var result_status: StringName = GFModalResult.STATUS_CONFIRMED</signature>
+			<description>触发动作后产生的结果状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="payload" line="36" decorators="@export">
+			<signature>var payload: Variant = null</signature>
+			<description>动作携带的通用载荷。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">payload: Variant，项目自定义动作载荷，会复制到 GFModalResult。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="grab_focus" line="41" decorators="@export">
+			<signature>var grab_focus: bool = false</signature>
+			<description>是否作为默认聚焦动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="close_on_pressed" line="46" decorators="@export">
+			<signature>var close_on_pressed: bool = true</signature>
+			<description>触发后是否关闭 modal。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="53" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>可选元数据，供项目层或自定义 modal 面板解释。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，项目层或自定义 modal 面板解释的动作元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="make_result" line="67">
+			<signature>func make_result(context: Dictionary = {}) -&gt; GFModalResult:</signature>
+			<description>创建该动作对应的结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 打开 modal 时传入的调用上下文。</tag>
+				<tag name="return">结果实例。</tag>
+				<tag name="schema">context: Dictionary，打开 modal 时传入并复制到结果中的调用上下文。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_action" line="82">
+			<signature>func duplicate_action() -&gt; GFModalAction:</signature>
+			<description>创建同内容拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新动作声明。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

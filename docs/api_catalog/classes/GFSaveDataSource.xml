@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSaveDataSource" path="addons/gf/extensions/save/core/gf_save_data_source.gd" module="extensions/save" extends="GFSaveSource" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSaveDataSource: 通用对象数据源适配器。
+将 Resource、目标 Node 或目标属性上的对象按 Dictionary 载荷接入 SaveGraph。
+适合已有 Model、Resource 或数据持有对象复用 to_dict()/from_dict() 等通用协议，
+不要求项目为每份纯数据状态额外编写 GFSaveSource 子类。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.18.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="data" line="21" decorators="@export">
+			<signature>var data: Resource = null</signature>
+			<description>直接保存的数据对象。设置后优先于 target_node_path 和 provider_property。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="provider_property" line="26" decorators="@export">
+			<signature>var provider_property: StringName = &amp;""</signature>
+			<description>目标节点上的数据对象属性。留空时使用目标节点自身作为数据对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="gather_method" line="31" decorators="@export">
+			<signature>var gather_method: StringName = &amp;"to_dict"</signature>
+			<description>采集载荷时调用的数据对象方法。方法必须返回 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="apply_method" line="36" decorators="@export">
+			<signature>var apply_method: StringName = &amp;"from_dict"</signature>
+			<description>应用载荷时调用的数据对象方法。方法接收 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="duplicate_payload" line="41" decorators="@export">
+			<signature>var duplicate_payload: bool = true</signature>
+			<description>是否复制传入/传出的 Dictionary，避免流程外部误改同一个引用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_data_provider" line="51">
+			<signature>func get_data_provider() -&gt; Object:</signature>
+			<description>获取当前数据对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">数据对象；无法解析时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_data_provider" line="76">
+			<signature>func describe_data_provider() -&gt; Dictionary:</signature>
+			<description>构造数据对象诊断描述。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">诊断字典。</tag>
+				<tag name="schema">return: Dictionary，包含 valid、reason、source_key、provider_location、provider_property、provider_class、provider_script、gather_method、apply_method、has_gather_method、has_apply_method 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_source" line="149">
+			<signature>func describe_source(scope: Node = null) -&gt; Dictionary:</signature>
+			<description>构造 Source 描述。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">scope: 当前 Scope。</tag>
+				<tag name="return">描述字典。</tag>
+				<tag name="schema">return: Dictionary，包含父类描述字段，并追加 kind 与 data_provider 诊断字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

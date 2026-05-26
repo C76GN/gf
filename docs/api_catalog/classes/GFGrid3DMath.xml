@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFGrid3DMath" path="addons/gf/standard/foundation/math/gf_grid_3d_math.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFGrid3DMath: 3D 整数网格的纯算法工具。
+提供边界判断、邻居枚举、A* 寻路、可达范围和台阶式表面邻居。
+它不依赖 GridMap 或场景节点；可通行、代价和高度规则都由回调注入。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="is_in_bounds" line="45">
+			<signature>static func is_in_bounds(cell: Vector3i, grid_size: Vector3i) -&gt; bool:</signature>
+			<description>判断格子是否在 3D 网格范围内。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 待检测格子。</tag>
+				<tag name="param">grid_size: 网格尺寸，三个轴都必须大于 0。</tag>
+				<tag name="return">在范围内时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_neighbors" line="70">
+			<signature>static func get_neighbors( cell: Vector3i, grid_size: Vector3i, allow_diagonal: bool = false ) -&gt; Array[Vector3i]:</signature>
+			<description>获取 3D 网格邻居。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 中心格子。</tag>
+				<tag name="param">grid_size: 网格尺寸。</tag>
+				<tag name="param">allow_diagonal: 是否包含 26 邻域；否则只包含 6 个正交邻居。</tag>
+				<tag name="return">边界内邻居数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_surface_neighbors" line="101">
+			<signature>static func get_surface_neighbors( cell: Vector3i, grid_size: Vector3i, is_walkable: Callable, max_step_up: int = 1, max_step_down: int = 1, horizontal_directions: Array[Vector3i] = [] ) -&gt; Array[Vector3i]:</signature>
+			<description>获取台阶式表面移动邻居。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cell: 当前站立格。</tag>
+				<tag name="param">grid_size: 网格尺寸。</tag>
+				<tag name="param">is_walkable: 可站立回调，签名为 `func(cell: Vector3i) -&gt; bool`。</tag>
+				<tag name="param">max_step_up: 单步最多上升高度。</tag>
+				<tag name="param">max_step_down: 单步最多下降高度。</tag>
+				<tag name="param">horizontal_directions: 可选水平移动方向；为空时使用 X/Z 四方向。</tag>
+				<tag name="return">可站立的相邻表面格。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="find_path_a_star" line="146">
+			<signature>static func find_path_a_star( grid_size: Vector3i, start: Vector3i, goal: Vector3i, is_walkable: Callable, allow_diagonal: bool = false, step_cost: Callable = Callable(), heuristic: StringName = &amp;"manhattan" ) -&gt; Array[Vector3i]:</signature>
+			<description>使用 A* 查找 3D 网格路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">grid_size: 网格尺寸。</tag>
+				<tag name="param">start: 起点格子。</tag>
+				<tag name="param">goal: 终点格子。</tag>
+				<tag name="param">is_walkable: 可通行回调，签名为 `func(cell: Vector3i) -&gt; bool`。</tag>
+				<tag name="param">allow_diagonal: 是否允许 26 邻域移动。</tag>
+				<tag name="param">step_cost: 可选代价回调，签名为 `func(from: Vector3i, to: Vector3i) -&gt; float`；返回负数表示不可通行。</tag>
+				<tag name="param">heuristic: 启发函数名称，支持 `manhattan`、`chebyshev`、`euclidean`。</tag>
+				<tag name="return">包含起点与终点的路径；无法到达时返回空数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="find_reachable" line="221">
+			<signature>static func find_reachable( grid_size: Vector3i, start: Vector3i, max_cost: float, is_walkable: Callable, allow_diagonal: bool = false, step_cost: Callable = Callable() ) -&gt; Dictionary:</signature>
+			<description>查找指定代价内可达的 3D 网格格子。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">grid_size: 网格尺寸。</tag>
+				<tag name="param">start: 起点格子。</tag>
+				<tag name="param">max_cost: 最大累计代价。</tag>
+				<tag name="param">is_walkable: 可通行回调，签名为 `func(cell: Vector3i) -&gt; bool`。</tag>
+				<tag name="param">allow_diagonal: 是否允许 26 邻域移动。</tag>
+				<tag name="param">step_cost: 可选代价回调，签名为 `func(from: Vector3i, to: Vector3i) -&gt; float`；返回负数表示不可通行。</tag>
+				<tag name="return">字典，键为可达格子，值为从起点到该格子的最低代价。</tag>
+				<tag name="schema">return: Dictionary mapping reachable Vector3i cells to lowest float costs.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="find_surface_path_a_star" line="277">
+			<signature>static func find_surface_path_a_star( grid_size: Vector3i, start: Vector3i, goal: Vector3i, is_walkable: Callable, max_step_up: int = 1, max_step_down: int = 1, step_cost: Callable = Callable(), heuristic: StringName = &amp;"manhattan" ) -&gt; Array[Vector3i]:</signature>
+			<description>使用台阶式表面邻居查找路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">grid_size: 网格尺寸。</tag>
+				<tag name="param">start: 起点站立格。</tag>
+				<tag name="param">goal: 终点站立格。</tag>
+				<tag name="param">is_walkable: 可站立回调，签名为 `func(cell: Vector3i) -&gt; bool`。</tag>
+				<tag name="param">max_step_up: 单步最多上升高度。</tag>
+				<tag name="param">max_step_down: 单步最多下降高度。</tag>
+				<tag name="param">step_cost: 可选代价回调，签名为 `func(from: Vector3i, to: Vector3i) -&gt; float`；返回负数表示不可通行。</tag>
+				<tag name="param">heuristic: 启发函数名称，支持 `manhattan`、`chebyshev`、`euclidean`。</tag>
+				<tag name="return">包含起点与终点的路径；无法到达时返回空数组。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

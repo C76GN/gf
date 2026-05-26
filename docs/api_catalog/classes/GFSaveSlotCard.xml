@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSaveSlotCard" path="addons/gf/extensions/save/slots/gf_save_slot_card.gd" module="extensions/save" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSaveSlotCard: 通用存档槽展示卡片数据。
+作为 UI 和存档系统之间的轻量 DTO，不规定具体界面布局或业务字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="slot_index" line="19" decorators="@export">
+			<signature>var slot_index: int = -1</signature>
+			<description>整数槽位索引。文件名/云端 key 场景可保持为 -1。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="slot_id" line="24" decorators="@export">
+			<signature>var slot_id: StringName = &amp;""</signature>
+			<description>逻辑槽位标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="29" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_empty" line="39" decorators="@export_multiline var description: String = &quot;&quot; @export">
+			<signature>var is_empty: bool = true</signature>
+			<description>展示描述。
+是否为空槽位。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_active" line="44" decorators="@export">
+			<signature>var is_active: bool = false</signature>
+			<description>是否为当前选中槽位。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_compatible" line="49" decorators="@export">
+			<signature>var is_compatible: bool = true</signature>
+			<description>是否兼容当前项目版本或数据结构。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="modified_time" line="54" decorators="@export">
+			<signature>var modified_time: int = 0</signature>
+			<description>最近修改时间戳。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="61" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>原始元数据副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，通常来自 GFSaveSlotMetadata.to_dict() 或 GFStorageUtility.list_slots() 的 metadata 字段。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="compatibility_errors" line="66" decorators="@export">
+			<signature>var compatibility_errors: PackedStringArray = PackedStringArray()</signature>
+			<description>兼容性问题列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure_from_slot_summary" line="84">
+			<signature>func configure_from_slot_summary( summary: Dictionary, fallback_slot_id: StringName = &amp;"", active_slot_index: int = -1 ) -&gt; GFSaveSlotCard:</signature>
+			<description>从 GFStorageUtility.list_slots() 风格的摘要配置卡片。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">summary: 槽位摘要。</tag>
+				<tag name="param">fallback_slot_id: 摘要缺少 slot_id 时的兜底标识。</tag>
+				<tag name="param">active_slot_index: 当前选中槽位索引。</tag>
+				<tag name="return">当前卡片。</tag>
+				<tag name="schema">summary: Dictionary，可包含 slot_index、slot_id、modified_time、is_compatible、compatibility_errors 与 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="110">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转换为 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">卡片字典。</tag>
+				<tag name="schema">return: Dictionary，包含 slot_index、slot_id、display_name、description、is_empty、is_active、is_compatible、modified_time、metadata 与 compatibility_errors。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_status_text" line="130">
+			<signature>func get_status_text() -&gt; String:</signature>
+			<description>获取通用状态文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">状态文本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_slot_summary" line="153">
+			<signature>static func from_slot_summary( summary: Dictionary, fallback_slot_id: StringName = &amp;"", active_slot_index: int = -1 ) -&gt; GFSaveSlotCard:</signature>
+			<description>从摘要创建卡片。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">summary: 槽位摘要。</tag>
+				<tag name="param">fallback_slot_id: 兜底标识。</tag>
+				<tag name="param">active_slot_index: 当前选中槽位索引。</tag>
+				<tag name="return">新卡片。</tag>
+				<tag name="schema">summary: Dictionary，可包含 slot_index、slot_id、modified_time、is_compatible、compatibility_errors 与 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

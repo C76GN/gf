@@ -1,0 +1,249 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDragDropUtility" path="addons/gf/standard/input/drag_drop/gf_drag_drop_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFDragDropUtility: 通用拖拽会话与落点匹配工具。
+该工具只管理拖拽生命周期、落点注册、命中排序和结果包装。
+它不读取输入、不移动节点、不保存业务历史，也不规定具体 UI 或玩法语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="drag_started" line="24">
+			<signature>signal drag_started(session_id: int, drag_type: StringName)</signature>
+			<description>拖拽开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">drag_type: 拖拽类型。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="drag_moved" line="35">
+			<signature>signal drag_moved(session_id: int, position: Vector2, delta: Vector2)</signature>
+			<description>拖拽位置更新时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">position: 当前位置。</tag>
+				<tag name="param">delta: 本次位移。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="drag_dropped" line="48">
+			<signature>signal drag_dropped(session_id: int, zone_id: StringName, result: Dictionary)</signature>
+			<description>拖拽成功释放到落点时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">zone_id: 落点 ID。</tag>
+				<tag name="param">result: 落点返回结果。</tag>
+				<tag name="schema">result: Dictionary，由 drop() 规范化，包含 ok、session_id、zone_id、reason 和可选 value。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="drag_drop_rejected" line="57">
+			<signature>signal drag_drop_rejected(session_id: int, reason: StringName)</signature>
+			<description>拖拽释放被拒绝时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">reason: 拒绝原因。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="drag_cancelled" line="64">
+			<signature>signal drag_cancelled(session_id: int)</signature>
+			<description>拖拽取消时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="drop_zone_registered" line="71">
+			<signature>signal drop_zone_registered(zone_id: StringName)</signature>
+			<description>落点注册后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">zone_id: 落点 ID。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="drop_zone_unregistered" line="78">
+			<signature>signal drop_zone_unregistered(zone_id: StringName)</signature>
+			<description>落点注销后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">zone_id: 落点 ID。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="dispose" line="93">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放拖拽工具持有的会话与落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_zone" line="107">
+			<signature>func register_zone(zone: GFDropZone) -&gt; bool:</signature>
+			<description>注册落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">zone: 落点规则。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_rect_zone" line="130">
+			<signature>func register_rect_zone( zone_id: StringName, rect: Rect2, accepted_types: PackedStringArray = PackedStringArray(), options: Dictionary = {} ) -&gt; GFDropZone:</signature>
+			<description>注册矩形落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">zone_id: 落点 ID。</tag>
+				<tag name="param">rect: 全局矩形区域。</tag>
+				<tag name="param">accepted_types: 可接收类型；为空表示不限制。</tag>
+				<tag name="param">options: 可选参数，支持 priority、enabled、metadata、can_accept、drop。</tag>
+				<tag name="return">注册成功时返回落点，否则返回 null。</tag>
+				<tag name="schema">options: Dictionary，透传给 GFDropZone.from_rect()。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_control_zone" line="155">
+			<signature>func register_control_zone( zone_id: StringName, control: Control, accepted_types: PackedStringArray = PackedStringArray(), options: Dictionary = {} ) -&gt; GFDropZone:</signature>
+			<description>注册 Control 全局矩形落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">zone_id: 落点 ID。</tag>
+				<tag name="param">control: 用于读取 get_global_rect() 的 Control。</tag>
+				<tag name="param">accepted_types: 可接收类型；为空表示不限制。</tag>
+				<tag name="param">options: 可选参数，支持 priority、enabled、metadata、can_accept、drop。</tag>
+				<tag name="return">注册成功时返回落点，否则返回 null。</tag>
+				<tag name="schema">options: Dictionary，透传给 GFDropZone.from_control()。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_zone" line="172">
+			<signature>func unregister_zone(zone_id: StringName) -&gt; bool:</signature>
+			<description>注销落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">zone_id: 落点 ID。</tag>
+				<tag name="return">找到并移除时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_zone" line="187">
+			<signature>func get_zone(zone_id: StringName) -&gt; GFDropZone:</signature>
+			<description>获取落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">zone_id: 落点 ID。</tag>
+				<tag name="return">落点；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_zones" line="194">
+			<signature>func clear_zones() -&gt; void:</signature>
+			<description>清空落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="start_drag" line="219">
+			<signature>func start_drag( drag_type: StringName, payload: Variant, position: Vector2, source: Object = null, metadata: Dictionary = {} ) -&gt; int:</signature>
+			<description>开始拖拽。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">drag_type: 拖拽类型。</tag>
+				<tag name="param">payload: 项目自定义载荷。</tag>
+				<tag name="param">position: 起始位置。</tag>
+				<tag name="param">source: 可选来源对象。</tag>
+				<tag name="param">metadata: 项目自定义元数据。</tag>
+				<tag name="return">会话 ID；失败时返回 -1。</tag>
+				<tag name="schema">payload: Variant，透传给 drop zone 的项目侧拖拽载荷。</tag>
+				<tag name="schema">metadata: Dictionary，复制到拖拽会话中的项目侧元数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="update_drag" line="246">
+			<signature>func update_drag(session_id: int, position: Vector2) -&gt; bool:</signature>
+			<description>更新拖拽位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">position: 当前位置。</tag>
+				<tag name="return">更新成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="drop" line="266">
+			<signature>func drop(session_id: int, position: Vector2) -&gt; Dictionary:</signature>
+			<description>将拖拽释放到当前位置匹配到的最佳落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">position: 释放位置。</tag>
+				<tag name="return">结构化结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、session_id、zone_id、reason 和可选 value。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_drag" line="295">
+			<signature>func cancel_drag(session_id: int) -&gt; bool:</signature>
+			<description>取消拖拽。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="return">找到并取消时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_session" line="310">
+			<signature>func get_session(session_id: int) -&gt; GFDragSession:</signature>
+			<description>获取会话。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="return">会话；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_active_session" line="321">
+			<signature>func has_active_session(session_id: int) -&gt; bool:</signature>
+			<description>检查会话是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="return">存在时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_drop_candidates" line="336">
+			<signature>func get_drop_candidates( session_id: int, position: Vector2, only_accepting: bool = true ) -&gt; Array[GFDropZone]:</signature>
+			<description>获取当前位置命中的落点候选。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">position: 要检查的位置。</tag>
+				<tag name="param">only_accepting: 为 true 时只返回当前可接收会话的落点。</tag>
+				<tag name="return">按优先级排序的落点列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_best_drop_zone" line="368">
+			<signature>func get_best_drop_zone(session_id: int, position: Vector2) -&gt; GFDropZone:</signature>
+			<description>获取当前位置最佳落点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">session_id: 会话 ID。</tag>
+				<tag name="param">position: 要检查的位置。</tag>
+				<tag name="return">最佳落点；没有可用落点时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_sessions" line="378">
+			<signature>func clear_sessions() -&gt; void:</signature>
+			<description>清空拖拽会话。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="391">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前拖拽与落点状态。</tag>
+				<tag name="schema">return: Dictionary，包含 active_session_count、zone_count、sessions: Array[Dictionary] 和 zones: Array[Dictionary]。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCommand" path="addons/gf/kernel/base/gf_command.gd" module="kernel" extends="Object" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFCommand: 命令抽象基类。
+子类必须实现 'execute' 方法来定义命令逻辑。
+'execute' 可返回 null（同步命令）或一个 Signal（异步命令）。
+调用方可使用 'await send_command(MyCommand.new())' 等待异步命令完成。
+提供对 Model、System、Utility 的访问以及发送命令和事件的能力。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="execute" line="47">
+			<signature>func execute() -&gt; Variant:</signature>
+			<description>执行命令逻辑。子类必须重写此方法。
+"type": "Variant",
+"description": "同步命令返回 null；异步命令可返回 Signal。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">同步命令返回 null；异步命令可返回一个 Signal 供外部 await。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_lifecycle_active" line="56">
+			<signature>func is_lifecycle_active() -&gt; bool:</signature>
+			<description>检查命令所属架构生命周期是否仍可安全继续异步写回。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">所属架构仍处于活动生命周期时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_model" line="70">
+			<signature>func get_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过类型获取 Model 实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">model_type: 模型的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">模型实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_system" line="86">
+			<signature>func get_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过类型获取 System 实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">system_type: 系统的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">系统实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_utility" line="102">
+			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过类型获取 Utility 实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_command" line="121">
+			<signature>func send_command(command: Object) -&gt; Variant:</signature>
+			<description>向架构发送命令。支持 await：'await send_command(MyCommand.new())'。
+"type": "Variant",
+"description": "命令执行结果；异步命令可返回 Signal。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command: 要发送的命令实例。</tag>
+				<tag name="return">命令的执行结果（null 或 Signal）。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_event" line="133">
+			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
+			<description>向架构发送类型事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_instance: 要分发的事件实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_simple_event" line="151">
+			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
+			<description>发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。
+"type": "Variant",
+"description": "事件附加数据；由事件消费者约定结构。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">payload: 可选的事件附加数据。</tag>
+				<tag name="schema">payload {</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

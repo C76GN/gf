@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDragSession" path="addons/gf/standard/input/drag_drop/gf_drag_session.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFDragSession: 通用拖拽会话数据。
+描述一次拖拽从开始到释放的稳定上下文，不绑定具体 UI、背包、棋盘、
+关卡编辑器或任何业务对象。项目可把任意 payload 放入会话，再由落点规则解释。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="session_id" line="20">
+			<signature>var session_id: int = -1</signature>
+			<description>会话 ID，由 GFDragDropUtility 分配。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="drag_type" line="25">
+			<signature>var drag_type: StringName = &amp;""</signature>
+			<description>拖拽类型。落点可用它做通用接收过滤。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="payload" line="32">
+			<signature>var payload: Variant = null</signature>
+			<description>项目自定义载荷。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">payload: Variant，透传给 drop zone 的项目侧拖拽载荷。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="start_position" line="37">
+			<signature>var start_position: Vector2 = Vector2.ZERO</signature>
+			<description>起始位置，通常是屏幕或画布坐标。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="current_position" line="42">
+			<signature>var current_position: Vector2 = Vector2.ZERO</signature>
+			<description>当前指针位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="previous_position" line="47">
+			<signature>var previous_position: Vector2 = Vector2.ZERO</signature>
+			<description>上一次位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="54">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架只负责复制和透传。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，复制到拖拽会话中的项目侧元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="setup" line="83">
+			<signature>func setup( new_session_id: int, new_drag_type: StringName, new_payload: Variant, position: Vector2, source: Object = null, new_metadata: Dictionary = {} ) -&gt; void:</signature>
+			<description>初始化会话。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">new_session_id: 会话 ID。</tag>
+				<tag name="param">new_drag_type: 拖拽类型。</tag>
+				<tag name="param">new_payload: 项目自定义载荷。</tag>
+				<tag name="param">position: 起始位置。</tag>
+				<tag name="param">source: 可选来源对象。</tag>
+				<tag name="param">new_metadata: 项目自定义元数据。</tag>
+				<tag name="schema">new_payload: Variant，透传给 drop zone 的项目侧拖拽载荷。</tag>
+				<tag name="schema">new_metadata: Dictionary，复制到拖拽会话中的项目侧元数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="update_position" line="106">
+			<signature>func update_position(position: Vector2) -&gt; void:</signature>
+			<description>更新当前拖拽位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">position: 新位置。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_delta" line="116">
+			<signature>func get_delta() -&gt; Vector2:</signature>
+			<description>获取本次更新的位移。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前和上一次位置的差值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_source" line="125">
+			<signature>func get_source() -&gt; Object:</signature>
+			<description>获取来源对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">来源仍有效时返回对象，否则返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary" line="139">
+			<signature>func to_dictionary() -&gt; Dictionary:</signature>
+			<description>转换为调试字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">会话快照。</tag>
+				<tag name="schema">return: Dictionary，包含 session_id、drag_type、start_position、current_position、previous_position、delta、has_source 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

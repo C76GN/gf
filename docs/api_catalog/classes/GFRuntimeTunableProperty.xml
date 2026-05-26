@@ -1,0 +1,221 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFRuntimeTunableProperty" path="addons/gf/standard/utilities/debug/gf_runtime_tunable_property.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFRuntimeTunableProperty: 运行时可调属性声明。
+用显式 schema 描述一个目标对象上允许被运行时工具读取或写入的属性。
+它不自动扫描业务对象，也不决定具体调参界面。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="ValueKind" line="20">
+			<signature>enum ValueKind { ## 不转换类型。 ANY, ## 布尔值。 BOOL, ## 整数。 INT, ## 浮点数。 FLOAT, ## 字符串。 STRING, ## StringName。 STRING_NAME, ## Vector2。 VECTOR2, ## Vector3。 VECTOR3, ## Color。 COLOR, }</signature>
+			<description>运行时值类型约束。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="property_id" line="52" decorators="@export">
+			<signature>var property_id: StringName = &amp;""</signature>
+			<description>属性 ID，在同一目标内必须唯一。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="label" line="57" decorators="@export">
+			<signature>var label: String = ""</signature>
+			<description>展示标签；为空时使用 property_id。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="group" line="62" decorators="@export">
+			<signature>var group: String = "Runtime"</signature>
+			<description>展示分组。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="property_name" line="67" decorators="@export">
+			<signature>var property_name: NodePath = NodePath("")</signature>
+			<description>目标对象上的属性路径。使用 getter/setter 回调时可为空。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="value_kind" line="72" decorators="@export">
+			<signature>var value_kind: ValueKind = ValueKind.ANY</signature>
+			<description>值类型约束。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="read_only" line="77" decorators="@export">
+			<signature>var read_only: bool = false</signature>
+			<description>是否只读。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="visible" line="82" decorators="@export">
+			<signature>var visible: bool = true</signature>
+			<description>是否默认出现在快照中。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="has_min_value" line="87" decorators="@export">
+			<signature>var has_min_value: bool = false</signature>
+			<description>是否启用最小值限制，仅对 int/float 生效。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="min_value" line="92" decorators="@export">
+			<signature>var min_value: float = 0.0</signature>
+			<description>最小值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="has_max_value" line="97" decorators="@export">
+			<signature>var has_max_value: bool = false</signature>
+			<description>是否启用最大值限制，仅对 int/float 生效。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_value" line="102" decorators="@export">
+			<signature>var max_value: float = 0.0</signature>
+			<description>最大值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="step" line="107" decorators="@export">
+			<signature>var step: float = 1.0</signature>
+			<description>建议步长，仅供 UI 使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="options" line="114" decorators="@export">
+			<signature>var options: Array = []</signature>
+			<description>可选值列表。非空时写入值必须归一到列表内。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">options: Array，保存允许写入的候选值。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="121" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存项目自定义属性元数据。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="getter" line="129">
+			<signature>var getter: Callable</signature>
+			<description>可选读取回调，签名为 `func(target: Object, property: GFRuntimeTunableProperty) -&gt; Variant`。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="setter" line="134">
+			<signature>var setter: Callable</signature>
+			<description>可选写入回调，签名为 `func(target: Object, property: GFRuntimeTunableProperty, value: Variant) -&gt; void`。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="validator" line="139">
+			<signature>var validator: Callable</signature>
+			<description>可选校验回调，签名为 `func(target: Object, property: GFRuntimeTunableProperty, value: Variant) -&gt; bool`。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="setup" line="167">
+			<signature>func setup( p_property_id: StringName, p_property_name: NodePath = NodePath(""), p_value_kind: ValueKind = ValueKind.ANY ) -&gt; GFRuntimeTunableProperty:</signature>
+			<description>设置基础字段并返回自身，便于代码构造 schema。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_property_id: 属性 ID。</tag>
+				<tag name="param">p_property_name: 目标属性路径。</tag>
+				<tag name="param">p_value_kind: 值类型约束。</tag>
+				<tag name="return">当前属性声明。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="with_range" line="189">
+			<signature>func with_range(p_min_value: float, p_max_value: float, p_step: float = 1.0) -&gt; GFRuntimeTunableProperty:</signature>
+			<description>设置数值范围并返回自身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_min_value: 最小值。</tag>
+				<tag name="param">p_max_value: 最大值。</tag>
+				<tag name="param">p_step: 建议步长。</tag>
+				<tag name="return">当前属性声明。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="with_options" line="207">
+			<signature>func with_options(p_options: Array) -&gt; GFRuntimeTunableProperty:</signature>
+			<description>设置可选值列表并返回自身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_options: 可选值列表。</tag>
+				<tag name="return">当前属性声明。</tag>
+				<tag name="schema">p_options: Array，保存允许写入的候选值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="read_value" line="221">
+			<signature>func read_value(target: Object) -&gt; Variant:</signature>
+			<description>读取目标对象当前值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标对象。</tag>
+				<tag name="return">当前值；无法读取时返回 null。</tag>
+				<tag name="schema">return: Variant，类型由 value_kind 和实际目标属性决定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="write_value" line="240">
+			<signature>func write_value(target: Object, value: Variant) -&gt; bool:</signature>
+			<description>写入目标对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标对象。</tag>
+				<tag name="param">value: 请求写入的值。</tag>
+				<tag name="return">写入成功返回 true。</tag>
+				<tag name="schema">value: Variant，请求写入的原始值，会按 value_kind 和范围配置归一化。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="normalize_value" line="267">
+			<signature>func normalize_value(value: Variant) -&gt; Variant:</signature>
+			<description>根据 schema 归一化写入值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 输入值。</tag>
+				<tag name="return">归一化后的值。</tag>
+				<tag name="schema">value: Variant，输入值。</tag>
+				<tag name="schema">return: Variant，归一化后的值，类型由 value_kind 决定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_schema" line="301">
+			<signature>func to_schema() -&gt; Dictionary:</signature>
+			<description>生成可序列化 schema 快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">schema 字典。</tag>
+				<tag name="schema">return: Dictionary，包含 property_id、label、group、property_name、value_kind、read_only、visible、has_min_value、min_value、has_max_value、max_value、step、options 和 metadata 字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

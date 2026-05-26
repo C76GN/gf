@@ -1,0 +1,15 @@
+# 3D 指针桥接
+
+3D 鼠标或指针点击可使用 `GFPointerInteraction3D` 作为场景桥接节点。它监听绑定的 `CollisionObject3D.input_event`、`mouse_entered` 和 `mouse_exited`，把 hover、press、release、click、wheel 转为 `GFInteractionContext`。
+
+payload 中包含 `pointer_position`、`pointer_normal`、`pointer_shape_idx`、`pointer_button_index`、`pointer_tags` 和 `pointer_metadata` 等通用字段。
+
+```gdscript
+var pointer := GFPointerInteraction3D.new()
+pointer.interaction_id = &"inspect"
+pointer.payload = { "source": "mouse" }
+pointer.receiver_path = NodePath("../InteractionReceiver")
+static_body.add_child(pointer)
+```
+
+默认只在 click 完成时发送交互；`send_on_pressed`、`send_on_released`、`send_on_wheel` 和 `send_on_hover` 可按需开启。桥接节点不会替项目判断距离、可见性、焦点、阵营、物品权限或点击后的效果，只负责把 Godot 3D 指针事件转换为 GF 通用交互上下文。

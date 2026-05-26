@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkSnapshot" path="addons/gf/extensions/network/snapshot/gf_network_snapshot.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkSnapshot: 通用网络状态快照。
+保存 tick、peer_id、纯字典状态和元数据，可用于同步、回放、插值或项目自定义差量流程。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="tick" line="19">
+			<signature>var tick: int = 0</signature>
+			<description>快照所属 tick。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="peer_id" line="24">
+			<signature>var peer_id: int = -1</signature>
+			<description>快照来源 peer；-1 表示未指定。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="state" line="31">
+			<signature>var state: Dictionary = {}</signature>
+			<description>快照状态字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">state: Dictionary[StringName|String, Variant]，保存项目自定义同步状态。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="38">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存项目自定义快照元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="to_dict" line="64">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">快照字典。</tag>
+				<tag name="schema">return: Dictionary，包含 tick、peer_id、state、metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="80">
+			<signature>func from_dict(data: Dictionary) -&gt; void:</signature>
+			<description>从字典恢复。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 快照字典。</tag>
+				<tag name="schema">data: Dictionary，包含 tick、peer_id、state、metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_snapshot" line="94">
+			<signature>func duplicate_snapshot() -&gt; GFNetworkSnapshot:</signature>
+			<description>复制快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新快照。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_value" line="105">
+			<signature>func has_value(key: StringName) -&gt; bool:</signature>
+			<description>检查状态字段是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_value" line="122">
+			<signature>func get_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取状态字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="param">default_value: 缺失时返回的默认值。</tag>
+				<tag name="return">字段值。</tag>
+				<tag name="schema">default_value: Variant，状态字段缺失时返回的默认值。</tag>
+				<tag name="schema">return: Variant，字段值或 default_value。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_value" line="137">
+			<signature>func set_value(key: StringName, value: Variant) -&gt; void:</signature>
+			<description>设置状态字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+				<tag name="param">value: 字段值。</tag>
+				<tag name="schema">value: Variant，字段值，会通过 GFVariantData.duplicate_variant() 复制后保存。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_value" line="146">
+			<signature>func erase_value(key: StringName) -&gt; void:</signature>
+			<description>删除状态字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_delta_to" line="160">
+			<signature>func make_delta_to(target: GFNetworkSnapshot) -&gt; Dictionary:</signature>
+			<description>生成当前快照到目标快照的浅层差量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标快照。</tag>
+				<tag name="return">差量字典。</tag>
+				<tag name="schema">return: Dictionary，成功时包含 ok、from_tick、to_tick、peer_id、set、erase、metadata；失败时包含 ok、error。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_delta" line="195">
+			<signature>func apply_delta(delta: Dictionary) -&gt; GFNetworkSnapshot:</signature>
+			<description>应用浅层差量并返回新快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: make_delta_to() 生成的差量字典。</tag>
+				<tag name="return">新快照。</tag>
+				<tag name="schema">delta: Dictionary，make_delta_to() 返回的差量结构。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_message" line="228">
+			<signature>func make_message(message_type: StringName = &amp;"snapshot", channel_id: StringName = &amp;"") -&gt; GFNetworkMessage:</signature>
+			<description>打包为网络消息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message_type: 消息类型。</tag>
+				<tag name="param">channel_id: 逻辑通道标识。</tag>
+				<tag name="return">网络消息。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

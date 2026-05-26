@@ -1,0 +1,184 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFHurtBox2D" path="addons/gf/extensions/combat/hit_detection/gf_hurt_box_2d.gd" module="extensions/combat" extends="Area2D" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFHurtBox2D: 2D 通用命中接收区域。
+节点只过滤和接收 GFCombatHitContext，不直接修改生命、属性或 Buff。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="hit_validating" line="25">
+			<signature>signal hit_validating(context: GFCombatHitContext, report: Dictionary)</signature>
+			<description>命中进入自定义校验阶段时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 命中上下文。</tag>
+				<tag name="param">report: 当前结果报告副本。</tag>
+				<tag name="schema">report: Dictionary，当前命中接收报告，包含 ok、hit_id、receiver、reason、message 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="hit_received" line="36">
+			<signature>signal hit_received(context: GFCombatHitContext, report: Dictionary)</signature>
+			<description>命中被接受时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 命中上下文。</tag>
+				<tag name="param">report: 结果报告。</tag>
+				<tag name="schema">report: Dictionary，统一命中接收报告，包含 ok、hit_id、receiver、reason、message 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="hit_rejected" line="47">
+			<signature>signal hit_rejected(context: GFCombatHitContext, report: Dictionary)</signature>
+			<description>命中被拒绝时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 命中上下文。</tag>
+				<tag name="param">report: 结果报告。</tag>
+				<tag name="schema">report: Dictionary，统一命中接收报告，包含 ok、hit_id、receiver、reason、message 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="enabled_changed" line="54">
+			<signature>signal enabled_changed(enabled: bool)</signature>
+			<description>启用状态变化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">enabled: 当前是否允许接收命中。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="enabled" line="68" decorators="@export">
+			<signature>var enabled: bool = true:</signature>
+			<description>是否允许接收命中。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="accepted_hit_ids" line="78" decorators="@export">
+			<signature>var accepted_hit_ids: Array[StringName] = []</signature>
+			<description>非空时，只接受这些命中 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rejected_hit_ids" line="83" decorators="@export">
+			<signature>var rejected_hit_ids: Array[StringName] = []</signature>
+			<description>始终拒绝的命中 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="90" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>接收器自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，接收器自定义命中元数据；会进入命中接收报告。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="collision_shape_config" line="100" decorators="@export_node_path(&quot;Node&quot;) var receiver_path: NodePath = NodePath(&quot;&quot;) @export">
+			<signature>var collision_shape_config: GFHitCollisionShapeConfig2D = null:</signature>
+			<description>可选业务接收节点路径；为空时由当前 HurtBox 直接接收。
+可选碰撞形状配置。设置后可自动生成或更新 CollisionShape2D 子节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="collision_shape_configs" line="111" decorators="@export">
+			<signature>var collision_shape_configs: Array[GFHitCollisionShapeConfig2D] = []:</signature>
+			<description>可选碰撞形状配置列表。非空时可自动生成或更新多个 CollisionShape2D 子节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_apply_collision_shape_config" line="122" decorators="@export">
+			<signature>var auto_apply_collision_shape_config: bool = true</signature>
+			<description>是否在进入场景树或配置变化时自动应用碰撞形状配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="validation_callback" line="131">
+			<signature>var validation_callback: Callable = Callable()</signature>
+			<description>自定义校验回调，建议签名为 func(context: GFCombatHitContext, report: Dictionary) -&gt; Variant。
+返回 bool 可直接决定是否接受；返回 Dictionary 可覆盖 ok、reason、metadata 等报告字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="apply_collision_shape_config" line="159">
+			<signature>func apply_collision_shape_config(config: GFHitCollisionShapeConfig2D = null) -&gt; CollisionShape2D:</signature>
+			<description>应用碰撞形状配置，创建或更新框架管理的 CollisionShape2D 子节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">config: 可选配置；为空时使用 collision_shape_config。</tag>
+				<tag name="return">创建或更新的 CollisionShape2D；配置无效时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_collision_shape_configs" line="172">
+			<signature>func apply_collision_shape_configs(configs: Array[GFHitCollisionShapeConfig2D] = []) -&gt; Array[CollisionShape2D]:</signature>
+			<description>应用碰撞形状配置列表，创建或更新框架管理的多个 CollisionShape2D 子节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">configs: 可选配置列表；为空时使用 collision_shape_configs。</tag>
+				<tag name="return">创建或更新的 CollisionShape2D 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_generated_collision_shape" line="183">
+			<signature>func get_generated_collision_shape() -&gt; CollisionShape2D:</signature>
+			<description>获取框架管理的 CollisionShape2D 子节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">存在则返回 CollisionShape2D，否则返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_generated_collision_shapes" line="192">
+			<signature>func get_generated_collision_shapes() -&gt; Array[CollisionShape2D]:</signature>
+			<description>获取框架管理的 CollisionShape2D 子节点列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已生成的 CollisionShape2D 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_generated_collision_shape" line="204">
+			<signature>func clear_generated_collision_shape() -&gt; void:</signature>
+			<description>移除框架管理的 CollisionShape2D 子节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_generated_collision_shapes" line="211">
+			<signature>func clear_generated_collision_shapes() -&gt; void:</signature>
+			<description>移除框架管理的全部 CollisionShape2D 子节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_receive_hit" line="224">
+			<signature>func can_receive_hit(p_hit_id: StringName = &amp;"") -&gt; bool:</signature>
+			<description>检查指定命中 ID 是否可被当前接收器接受。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_hit_id: 命中 ID。</tag>
+				<tag name="return">可接受时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="receive_hit" line="242">
+			<signature>func receive_hit(context: GFCombatHitContext) -&gt; Dictionary:</signature>
+			<description>接收一次命中。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 命中上下文。</tag>
+				<tag name="return">统一结果报告。</tag>
+				<tag name="schema">return: Dictionary，统一命中接收报告，包含 ok、hit_id、receiver、reason、message 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

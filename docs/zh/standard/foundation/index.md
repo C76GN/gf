@@ -1,40 +1,23 @@
 # Foundation 基础能力
 
-Standard Foundation 放置纯算法、纯数据结构、轻量格式化和通用诊断结构。它不参与 `GFArchitecture` 生命周期，也不承担项目业务规则。
+Standard Foundation 收纳纯算法、纯数据结构、轻量格式化和通用诊断对象。这里的类型不参与 `GFArchitecture` 生命周期，不持有场景树状态，也不解释项目玩法规则。
+
+Foundation 适合被 `standard`、GF 内置扩展、外部扩展和项目代码共同复用。它的价值是稳定、低依赖、可测试，而不是提供运行时服务。
 
 ## 阅读入口
 
-- [Foundation 数值、成长与权重](scalars.md)：大数、定点数、格式化、成长曲线和权重表。
-- [Foundation 网格、路径与空间索引](grid-spatial.md)：网格、Hex、图、Pattern2D、TileMap、转向、空间哈希。
-- [Foundation 标签、公式、预算、集合、序列化与结果报告](data-validation.md)：标签、黑板、预算账本、值索引、变更批次、公式、Variant、校验报告和结果字典。
+- [数值、成长与权重](scalars/index.md)：大数、定点数、数字格式化、成长曲线和权重表。
+- [网格、路径与空间索引](grid-spatial/index.md)：规则网格、Hex、图搜索、3D 整数格、Pattern2D、Steering、TileMap 缓存和空间哈希。
+- [数据流程与校验](data-validation/index.md)：标签、黑板、预算、集合、公式、Variant、校验报告和轻量结果字典。
 
-## 为什么要单独分层
+## 使用边界
 
-这些类型常被多个模块同时使用，但它们不应该依赖运行时容器、场景树或可选扩展。把它们放在 `standard/foundation` 可以避免 `kernel` 膨胀，也能避免各个 Utility 重复实现基础能力。
+- 适合放入 Foundation 的能力应当没有生命周期，不需要注册到 `GFArchitecture`。
+- Foundation 类型不应持有场景节点、文件句柄、网络请求、线程任务或异步状态。
+- 类型表达的应是稳定通用概念，例如数值、坐标、索引、查询条件、校验结果或纯数据转换。
+- 需要 `tick()`、缓存、异步加载、ProjectSettings、文件系统或全局状态时，优先放到 [Utilities](../utilities/index.md)。
+- 需要扩展启用状态、Installer、扩展资源或可选运行时系统时，放到对应 [Extensions](../../extensions/index.md) 或项目自己的插件。
 
-## 当前目录结构
+## API Reference
 
-```text
-addons/gf/standard/foundation/
-  math/          # 数值、网格、图、公式、空间索引
-  tags/          # 标签集合、标签查询、标签源适配
-  blackboard/    # 黑板 Schema 与条目描述
-  budget/        # 通用资源预算账本
-  collections/   # 值索引与变更批次
-  data/          # Variant 复制、JSON 编码、结果字典
-  timeline/      # 时间段文本轨道与轻量解析
-  validation/    # 统一校验问题与报告
-```
-
-## 放什么进 Foundation
-
-- 没有生命周期，不需要注册到 `GFArchitecture`。
-- 不持有场景节点、文件句柄、网络请求或异步状态。
-- 可以被 `standard`、GF 内置扩展、外部扩展和项目代码安全复用。
-- 表达的是稳定通用概念，而不是某个项目的业务规则。
-
-## 使用约定
-
-- 需要 `tick()`、缓存、异步加载、ProjectSettings 或全局状态时，优先放到 `standard/utilities`。
-- 需要扩展启用状态、Installer 或扩展内场景资源时，放到对应 `extensions` 或外部扩展。
-- 新增基础件时，应同步补充对应子页和 `docs/zh/changelog.md`。
+完整类、方法和信号列表见 [Standard API Reference](../../reference/api/standard.md)。

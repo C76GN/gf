@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkChannel" path="addons/gf/extensions/network/session/gf_network_channel.gd" module="extensions/network" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkChannel: 网络发送通道描述。
+描述一类消息的传输偏好，例如通道编号、可靠性和包体上限。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="channel_id" line="19" decorators="@export">
+			<signature>var channel_id: StringName = &amp;""</signature>
+			<description>通道稳定标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="24" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>编辑器展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="reliable" line="34" decorators="@export_range(0, 255, 1) var transfer_channel: int = 0 @export">
+			<signature>var reliable: bool = true</signature>
+			<description>后端传输通道编号。
+默认是否可靠传输。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_packet_size" line="39" decorators="@export">
+			<signature>var max_packet_size: int = 0</signature>
+			<description>最大包体大小。小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="46" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存项目自定义通道元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_display_name" line="56">
+			<signature>func get_display_name() -&gt; String:</signature>
+			<description>获取展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">展示名称。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_send_options" line="75">
+			<signature>func build_send_options(overrides: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>构建后端发送选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">overrides: 项目层额外发送选项。</tag>
+				<tag name="return">后端选项字典。</tag>
+				<tag name="schema">overrides: Dictionary，项目层发送选项；channel 和 reliable 缺失时由通道默认值补齐。</tag>
+				<tag name="schema">return: Dictionary，后端发送选项，至少包含 channel 和 reliable。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe" line="91">
+			<signature>func describe() -&gt; Dictionary:</signature>
+			<description>描述通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">描述字典。</tag>
+				<tag name="schema">return: Dictionary，包含 channel_id、display_name、transfer_channel、reliable、max_packet_size、metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

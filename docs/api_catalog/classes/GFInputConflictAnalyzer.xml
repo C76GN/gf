@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputConflictAnalyzer" path="addons/gf/standard/input/rebinding/gf_input_conflict_analyzer.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputConflictAnalyzer: 输入上下文冲突分析工具。
+只读取输入资源与可选重映射配置，不参与运行时输入分发。适合设置界面、
+编辑器工具或测试在应用重绑定前检查同一输入是否被多个抽象动作占用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="analyze_context" line="30">
+			<signature>static func analyze_context( context: GFInputContext, remap_config: GFInputRemapConfig = null, include_non_remappable: bool = true ) -&gt; Array[Dictionary]:</signature>
+			<description>分析单个上下文内的绑定冲突。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 输入上下文。</tag>
+				<tag name="param">remap_config: 可选重映射配置。</tag>
+				<tag name="param">include_non_remappable: 是否包含不可重绑动作或绑定。</tag>
+				<tag name="return">冲突列表。</tag>
+				<tag name="schema">return: Array，包含冲突 Dictionary 记录，字段包括 context/action/binding id、other_* id、event_text、signature 和 items。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="analyze_contexts" line="57">
+			<signature>static func analyze_contexts( contexts: Array[GFInputContext], remap_config: GFInputRemapConfig = null, include_cross_context: bool = false, include_non_remappable: bool = true ) -&gt; Array[Dictionary]:</signature>
+			<description>分析多个上下文的绑定冲突。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">contexts: 输入上下文列表。</tag>
+				<tag name="param">remap_config: 可选重映射配置。</tag>
+				<tag name="param">include_cross_context: 是否报告跨上下文冲突。</tag>
+				<tag name="param">include_non_remappable: 是否包含不可重绑动作或绑定。</tag>
+				<tag name="return">冲突列表。</tag>
+				<tag name="schema">contexts: Array[GFInputContext] of contexts to analyze.</tag>
+				<tag name="schema">return: Array，包含冲突 Dictionary 记录，字段包括 context/action/binding id、other_* id、event_text、signature 和 items。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_rebind_report" line="84">
+			<signature>static func build_rebind_report( contexts: Array[GFInputContext], remap_config: GFInputRemapConfig = null, include_cross_context: bool = false, include_non_remappable: bool = true ) -&gt; Dictionary:</signature>
+			<description>构建重绑定诊断报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">contexts: 输入上下文列表。</tag>
+				<tag name="param">remap_config: 可选重映射配置。</tag>
+				<tag name="param">include_cross_context: 是否报告跨上下文冲突。</tag>
+				<tag name="param">include_non_remappable: 是否包含不可重绑动作或绑定。</tag>
+				<tag name="return">包含条目与冲突的报告。</tag>
+				<tag name="schema">contexts: Array[GFInputContext] of contexts to analyze.</tag>
+				<tag name="schema">return: Dictionary，包含 ok、context_count、item_count、conflict_count、items 和 conflicts。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_binding_items" line="117">
+			<signature>static func collect_binding_items( contexts: Array[GFInputContext], remap_config: GFInputRemapConfig = null, include_non_remappable: bool = true ) -&gt; Array[Dictionary]:</signature>
+			<description>收集上下文中的有效绑定条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">contexts: 输入上下文列表。</tag>
+				<tag name="param">remap_config: 可选重映射配置。</tag>
+				<tag name="param">include_non_remappable: 是否包含不可重绑动作或绑定。</tag>
+				<tag name="return">绑定条目列表。</tag>
+				<tag name="schema">contexts: Array[GFInputContext] of contexts to inspect.</tag>
+				<tag name="schema">return: Array，包含 item Dictionary 记录，字段包括 context/action/binding id、event、event_text、event_key、signature、device_scope 和 match_device。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_signature" line="139">
+			<signature>static func get_event_signature(input_event: InputEvent, match_device: bool = false) -&gt; String:</signature>
+			<description>获取输入事件的稳定签名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">match_device: 是否把设备 ID 纳入签名。</tag>
+				<tag name="return">签名字符串；空事件返回空字符串。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="are_events_equivalent" line="160">
+			<signature>static func are_events_equivalent( left_event: InputEvent, right_event: InputEvent, left_match_device: bool = false, right_match_device: bool = false ) -&gt; bool:</signature>
+			<description>判断两个输入事件是否会在绑定层互相冲突。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">left_event: 左侧输入事件。</tag>
+				<tag name="param">right_event: 右侧输入事件。</tag>
+				<tag name="param">left_match_device: 左侧是否要求设备精确匹配。</tag>
+				<tag name="param">right_match_device: 右侧是否要求设备精确匹配。</tag>
+				<tag name="return">冲突返回 true。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

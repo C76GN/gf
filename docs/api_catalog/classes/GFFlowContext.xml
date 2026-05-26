@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFlowContext" path="addons/gf/extensions/flow/runtime/gf_flow_context.gd" module="extensions/flow" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFlowContext: 通用流程图执行上下文。
+用于在流程节点之间共享数据，并提供可选的 GFArchitecture 访问入口。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="values" line="21">
+			<signature>var values: Dictionary = {}</signature>
+			<description>共享数据表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">values: 流程执行期间共享的项目自定义 Dictionary；键通常为 StringName，值由项目决定。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="next_node_ids" line="26">
+			<signature>var next_node_ids: PackedStringArray = PackedStringArray()</signature>
+			<description>下一个节点覆盖。流程节点可写入该列表动态控制分支。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="has_next_node_override" line="31">
+			<signature>var has_next_node_override: bool = false</signature>
+			<description>是否显式覆盖了下一个节点。允许节点用空列表表达“停止继续推进”。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_architecture" line="55">
+			<signature>func set_architecture(architecture: GFArchitecture) -&gt; void:</signature>
+			<description>设置上下文所属架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">architecture: 架构实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_architecture" line="64">
+			<signature>func get_architecture() -&gt; GFArchitecture:</signature>
+			<description>获取上下文所属架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">架构实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_value" line="83">
+			<signature>func set_value(key: StringName, value: Variant) -&gt; GFFlowContext:</signature>
+			<description>写入共享值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">value: 值。</tag>
+				<tag name="return">当前上下文，便于链式构造。</tag>
+				<tag name="schema">value: 要写入 values 的任意项目值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_value" line="101">
+			<signature>func get_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取共享值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">default_value: 默认值。</tag>
+				<tag name="return">共享值或默认值。</tag>
+				<tag name="schema">default_value: key 缺失时返回的任意默认值。</tag>
+				<tag name="schema">return: values 中的项目值，或传入的 default_value。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_next_nodes" line="110">
+			<signature>func set_next_nodes(node_ids: PackedStringArray) -&gt; void:</signature>
+			<description>覆盖当前节点执行后的下一个节点列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node_ids: 节点标识列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_next_nodes_override" line="120">
+			<signature>func has_next_nodes_override() -&gt; bool:</signature>
+			<description>检查当前节点是否显式覆盖了后继节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已覆盖返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_next_nodes" line="127">
+			<signature>func clear_next_nodes() -&gt; void:</signature>
+			<description>清空下一个节点覆盖。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_condition_handler" line="141">
+			<signature>func register_condition_handler(condition_id: StringName, handler: Callable) -&gt; bool:</signature>
+			<description>注册条件查询处理器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">condition_id: 条件标识。</tag>
+				<tag name="param">handler: 查询回调，建议签名为 func(condition_id: StringName, payload: Variant, context: GFFlowContext) -&gt; Variant。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_condition_handler" line="153">
+			<signature>func unregister_condition_handler(condition_id: StringName) -&gt; void:</signature>
+			<description>注销条件查询处理器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">condition_id: 条件标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_condition_handler" line="164">
+			<signature>func has_condition_handler(condition_id: StringName) -&gt; bool:</signature>
+			<description>检查条件查询处理器是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">condition_id: 条件标识。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_condition_handlers" line="171">
+			<signature>func clear_condition_handlers() -&gt; void:</signature>
+			<description>清空所有条件查询处理器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="query_condition" line="192">
+			<signature>func query_condition( condition_id: StringName, payload: Variant = null, default_value: Variant = false ) -&gt; Dictionary:</signature>
+			<description>查询条件值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">condition_id: 条件标识。</tag>
+				<tag name="param">payload: 调用方传入的载荷。</tag>
+				<tag name="param">default_value: 缺失处理器或处理器未返回值时使用的默认值。</tag>
+				<tag name="return">统一条件查询结果。</tag>
+				<tag name="schema">payload: 条件处理器接收的任意项目载荷；框架只透传。</tag>
+				<tag name="schema">default_value: 缺失处理器或处理器未返回值时使用的任意默认值。</tag>
+				<tag name="schema">return: 包含 ok、condition_id、value、reason 和 metadata 字段的 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_node_runtime_value" line="221">
+			<signature>func set_node_runtime_value(node_id: StringName, key: StringName, value: Variant) -&gt; void:</signature>
+			<description>写入指定流程节点的运行态值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node_id: 节点标识。</tag>
+				<tag name="param">key: 运行态键。</tag>
+				<tag name="param">value: 运行态值。</tag>
+				<tag name="schema">value: 要写入指定节点运行态的任意项目值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_node_runtime_value" line="245">
+			<signature>func get_node_runtime_value(node_id: StringName, key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取指定流程节点的运行态值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node_id: 节点标识。</tag>
+				<tag name="param">key: 运行态键。</tag>
+				<tag name="param">default_value: 缺失时返回的默认值。</tag>
+				<tag name="return">运行态值或默认值。</tag>
+				<tag name="schema">default_value: 运行态缺失时返回的任意默认值。</tag>
+				<tag name="schema">return: 节点运行态中的项目值，或传入的 default_value。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_node_runtime_state" line="257">
+			<signature>func clear_node_runtime_state(node_id: StringName = &amp;"") -&gt; void:</signature>
+			<description>清空节点运行态。node_id 为空时清空全部节点运行态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node_id: 节点标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="serialize_runtime_state" line="271">
+			<signature>func serialize_runtime_state() -&gt; Dictionary:</signature>
+			<description>序列化上下文持有的节点运行态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">运行态快照。</tag>
+				<tag name="schema">return: 包含 nodes 字段的 Dictionary；nodes 按 node_id 保存节点运行态 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_runtime_state" line="284">
+			<signature>func deserialize_runtime_state(data: Dictionary) -&gt; void:</signature>
+			<description>反序列化节点运行态到当前上下文。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 运行态快照。</tag>
+				<tag name="schema">data: serialize_runtime_state() 返回的运行态 Dictionary。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

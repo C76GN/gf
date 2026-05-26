@@ -1,0 +1,105 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNodeStateBehavior" path="addons/gf/standard/state_machine/node/gf_node_state_behavior.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNodeStateBehavior: 节点状态的可复用生命周期行为资源。
+行为资源可挂到 GFNodeState 上复用进入、退出、暂停、恢复和事件处理逻辑。
+它不替代状态脚本；状态脚本仍负责业务状态的主要控制权。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="behavior_id" line="20" decorators="@export">
+			<signature>var behavior_id: StringName = &amp;""</signature>
+			<description>行为标识，便于调试或项目工具识别。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enabled" line="25" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否启用该行为。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="32" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: 项目自定义元数据 Dictionary；键和值由项目侧约定。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="initialize" line="42">
+			<signature>func initialize(state: GFNodeState) -&gt; void:</signature>
+			<description>初始化行为。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 行为所属状态。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="enter" line="58">
+			<signature>func enter(state: GFNodeState, previous_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>状态进入后调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 行为所属状态。</tag>
+				<tag name="param">previous_state: 来源状态名。</tag>
+				<tag name="param">args: 状态切换参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="exit" line="74">
+			<signature>func exit(state: GFNodeState, next_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>状态退出前调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 行为所属状态。</tag>
+				<tag name="param">next_state: 目标状态名。</tag>
+				<tag name="param">args: 状态切换参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause" line="90">
+			<signature>func pause(state: GFNodeState, next_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>状态被栈式子状态覆盖时调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 行为所属状态。</tag>
+				<tag name="param">next_state: 目标状态名。</tag>
+				<tag name="param">args: 状态切换参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume" line="106">
+			<signature>func resume(state: GFNodeState, previous_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>状态从栈式子状态恢复后调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 行为所属状态。</tag>
+				<tag name="param">previous_state: 来源状态名。</tag>
+				<tag name="param">args: 状态切换参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="handle_state_event" line="124">
+			<signature>func handle_state_event(state: GFNodeState, event_id: StringName, payload: Variant = null) -&gt; bool:</signature>
+			<description>处理状态事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 行为所属状态。</tag>
+				<tag name="param">event_id: 状态事件标识。</tag>
+				<tag name="param">payload: 状态事件载荷。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">payload: 状态事件载荷；具体类型由 event_id 和项目约定决定。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

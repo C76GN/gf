@@ -1,0 +1,188 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAnalyticsUtility" path="addons/gf/standard/utilities/analytics/gf_analytics_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAnalyticsUtility: 通用事件分析与批量上报工具。
+负责事件排队、环境上下文采集、批量 flush 与失败重排。
+endpoint 为空时不会访问网络，可作为本地事件汇聚或测试通道使用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="event_tracked" line="26">
+			<signature>signal event_tracked(event_name: StringName, event_data: Dictionary)</signature>
+			<description>事件进入队列时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_name: 事件名。</tag>
+				<tag name="param">event_data: 已入队事件数据。</tag>
+				<tag name="schema">event_data: Dictionary with `event`, `client_id`, `session_id`, `timestamp`, `properties`, and optional `context`.</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="flush_started" line="35">
+			<signature>signal flush_started(batch: Array)</signature>
+			<description>开始 flush 时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">batch: 本次 flush 的事件批次。</tag>
+				<tag name="schema">batch: Array[Dictionary] of queued analytics events.</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="flush_completed" line="44">
+			<signature>signal flush_completed(result: Dictionary)</signature>
+			<description>flush 完成时发出。失败结果也会通过该信号通知。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: flush 结果。</tag>
+				<tag name="schema">result: Dictionary with at least `success: bool`; may include `accepted`, `error`, `dry_run`, or transport-specific fields.</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="flush_failed" line="53">
+			<signature>signal flush_failed(result: Dictionary)</signature>
+			<description>flush 失败时额外发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: 失败结果。</tag>
+				<tag name="schema">result: Dictionary with `success: false` and an optional `error` field.</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="config" line="61">
+			<signature>var config: GFAnalyticsConfig = GFAnalyticsConfig.new()</signature>
+			<description>当前配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="payload_builder" line="66">
+			<signature>var payload_builder: Callable = Callable()</signature>
+			<description>可选载荷构建回调。签名为 func(batch: Array) -&gt; Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="transport_callback" line="71">
+			<signature>var transport_callback: Callable = Callable()</signature>
+			<description>可选自定义传输回调。签名为 func(payload: Dictionary) -&gt; Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="response_parser" line="76">
+			<signature>var response_parser: Callable = Callable()</signature>
+			<description>可选响应解析回调。签名为 func(response_code: int, body: PackedByteArray, fallback_accepted: int) -&gt; Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="99">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化事件队列、会话 ID 和关闭监听。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="119">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放事件队列、HTTP 节点和关闭监听。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="138">
+			<signature>func tick(delta: float) -&gt; void:</signature>
+			<description>推进运行时逻辑。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 本帧时间增量（秒）。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="configure" line="154">
+			<signature>func configure(analytics_config: GFAnalyticsConfig) -&gt; void:</signature>
+			<description>替换分析配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">analytics_config: 新配置。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="identify" line="168">
+			<signature>func identify(client_id: String) -&gt; void:</signature>
+			<description>设置稳定客户端标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">client_id: 客户端标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="track" line="186">
+			<signature>func track(event_name: StringName, properties: Dictionary = {}) -&gt; void:</signature>
+			<description>记录一个事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_name: 事件名。</tag>
+				<tag name="param">properties: 事件属性。</tag>
+				<tag name="schema">properties: Dictionary[String, Variant] copied into the queued event properties.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="flush" line="217">
+			<signature>func flush() -&gt; void:</signature>
+			<description>立即上报一批事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="shutdown" line="236">
+			<signature>func shutdown(flush_remaining: bool = true) -&gt; void:</signature>
+			<description>停止继续接收事件，并可选 flush 当前队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">flush_remaining: 是否尝试 flush 剩余事件。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_queue_size" line="254">
+			<signature>func get_queue_size() -&gt; int:</signature>
+			<description>获取当前队列长度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">队列长度。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_session_id" line="263">
+			<signature>func get_session_id() -&gt; String:</signature>
+			<description>获取当前会话标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">会话标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_client_id" line="272">
+			<signature>func get_client_id() -&gt; String:</signature>
+			<description>获取当前客户端标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">客户端标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_queue" line="279">
+			<signature>func clear_queue() -&gt; void:</signature>
+			<description>清空本地事件队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="capture_context" line="290">
+			<signature>func capture_context() -&gt; Dictionary:</signature>
+			<description>采集通用运行环境上下文。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">上下文字典。</tag>
+				<tag name="schema">return: Dictionary with platform, engine, engine_version, screen size, locale, and timezone fields.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

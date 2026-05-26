@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSavePipelineContext" path="addons/gf/extensions/save/pipeline/gf_save_pipeline_context.gd" module="extensions/save" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSavePipelineContext: 存档图流程上下文。
+在一次 gather/apply 操作中收集通用事件、警告、错误与共享数据。
+上下文通过调用者传入的 context 字典传播，不要求存档载荷写死任何字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="operation" line="20">
+			<signature>var operation: StringName = &amp;""</signature>
+			<description>当前操作类型，如 gather 或 apply。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="root_scope_key" line="25">
+			<signature>var root_scope_key: StringName = &amp;""</signature>
+			<description>根作用域键。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="shared" line="32">
+			<signature>var shared: Dictionary = {}</signature>
+			<description>流程共享数据。项目层可写入自己的临时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">shared: Dictionary，一次流程中的临时共享字段，不会自动写入存档载荷。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="events" line="37">
+			<signature>var events: Array[GFSavePipelineEvent] = []</signature>
+			<description>流程事件列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="warnings" line="42">
+			<signature>var warnings: PackedStringArray = PackedStringArray()</signature>
+			<description>通用警告信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="errors" line="47">
+			<signature>var errors: PackedStringArray = PackedStringArray()</signature>
+			<description>通用错误信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="started_at_msec" line="52">
+			<signature>var started_at_msec: int = 0</signature>
+			<description>开始时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="finished_at_msec" line="57">
+			<signature>var finished_at_msec: int = 0</signature>
+			<description>结束时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="begin_operation" line="85">
+			<signature>func begin_operation( p_operation: StringName, p_root_scope_key: StringName = &amp;"", p_shared: Dictionary = {} ) -&gt; GFSavePipelineContext:</signature>
+			<description>开始一次流程操作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_operation: 操作类型。</tag>
+				<tag name="param">p_root_scope_key: 根作用域键。</tag>
+				<tag name="param">p_shared: 初始共享数据。</tag>
+				<tag name="return">当前上下文。</tag>
+				<tag name="schema">p_shared: Dictionary，一次流程中的临时共享字段，不会自动写入存档载荷。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="record_event" line="120">
+			<signature>func record_event( stage: StringName, scope: Object = null, source: Object = null, message: String = "", payload: Dictionary = {}, severity: StringName = &amp;"info" ) -&gt; GFSavePipelineEvent:</signature>
+			<description>记录流程事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">stage: 阶段标识。</tag>
+				<tag name="param">scope: 可选 Scope。</tag>
+				<tag name="param">source: 可选 Source。</tag>
+				<tag name="param">message: 调试消息。</tag>
+				<tag name="param">payload: 附加载荷。</tag>
+				<tag name="param">severity: 严重级别。</tag>
+				<tag name="return">新事件。</tag>
+				<tag name="schema">payload: Dictionary，项目或流程步骤附加的诊断字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_warning" line="142">
+			<signature>func add_warning(message: String, payload: Dictionary = {}) -&gt; void:</signature>
+			<description>记录警告并同步生成 warning 事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message: 警告内容。</tag>
+				<tag name="param">payload: 附加载荷。</tag>
+				<tag name="schema">payload: Dictionary，项目或流程步骤附加的诊断字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_error" line="156">
+			<signature>func add_error(message: String, payload: Dictionary = {}) -&gt; void:</signature>
+			<description>记录错误并同步生成 error 事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message: 错误内容。</tag>
+				<tag name="param">payload: 附加载荷。</tag>
+				<tag name="schema">payload: Dictionary，项目或流程步骤附加的诊断字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="finish" line="164">
+			<signature>func finish() -&gt; void:</signature>
+			<description>标记流程结束。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_finished" line="173">
+			<signature>func is_finished() -&gt; bool:</signature>
+			<description>当前流程是否已结束。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已结束返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_elapsed_msec" line="182">
+			<signature>func get_elapsed_msec() -&gt; int:</signature>
+			<description>获取耗时毫秒。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">耗时。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="196">
+			<signature>func to_dict(include_events: bool = true) -&gt; Dictionary:</signature>
+			<description>转换为 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">include_events: 是否包含事件列表。</tag>
+				<tag name="return">上下文字典。</tag>
+				<tag name="schema">return: Dictionary，包含 operation、root_scope_key、shared、warnings、errors、started_at_msec、finished_at_msec、elapsed_msec、event_count；include_events 为 true 时包含 events: Array[Dictionary]。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

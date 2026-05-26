@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFixedDecimal" path="addons/gf/standard/foundation/numeric/gf_fixed_decimal.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFixedDecimal: 基于整数缩放的定点小数值对象。
+适合处理货币、税率、经营数值等对“累计误差”敏感、
+但又不需要无限精度十进制库的场景。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="RoundingMode" line="20">
+			<signature>enum RoundingMode { ## 四舍五入，0.5 始终朝绝对值更大的方向进位。 HALF_UP, ## 银行家舍入，0.5 时向最近的偶数靠拢。 HALF_EVEN, ## 向负无穷方向取整。 FLOOR, ## 向正无穷方向取整。 CEIL, ## 直接截断，朝 0 逼近。 TRUNCATE, }</signature>
+			<description>缩放或除法时使用的舍入策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants>
+		<member kind="const" name="MAX_DECIMAL_PLACES" line="39">
+			<signature>const MAX_DECIMAL_PLACES: int = 18</signature>
+			<description>定点数可保留的小数位上限，避免整数缩放时溢出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="raw_value" line="52">
+			<signature>var raw_value: int = 0</signature>
+			<description>实际保存的整数值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="decimal_places" line="57">
+			<signature>var decimal_places: int = 2</signature>
+			<description>小数位数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="from_int" line="78">
+			<signature>static func from_int(value: int, p_decimal_places: int = 2) -&gt; GFFixedDecimal:</signature>
+			<description>从 int 构建定点数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 原始整数。</tag>
+				<tag name="param">p_decimal_places: 目标小数位。</tag>
+				<tag name="return">定点数实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_float" line="97">
+			<signature>static func from_float( value: float, p_decimal_places: int = 2, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
+			<description>从 float 构建定点数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 原始浮点数。</tag>
+				<tag name="param">p_decimal_places: 目标小数位。</tag>
+				<tag name="param">rounding_mode: 舍入策略。</tag>
+				<tag name="return">定点数实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_string" line="127">
+			<signature>static func from_string( value: String, p_decimal_places: int = 2, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
+			<description>从字符串构建定点数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 普通十进制字符串。</tag>
+				<tag name="param">p_decimal_places: 目标小数位。</tag>
+				<tag name="param">rounding_mode: 舍入策略。</tag>
+				<tag name="return">定点数实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clone" line="172">
+			<signature>func clone() -&gt; GFFixedDecimal:</signature>
+			<description>克隆当前定点数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">内容相同的新实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_zero" line="181">
+			<signature>func is_zero() -&gt; bool:</signature>
+			<description>当前值是否为零。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">为零时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="abs_value" line="190">
+			<signature>func abs_value() -&gt; GFFixedDecimal:</signature>
+			<description>获取绝对值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新的定点数实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="negated" line="199">
+			<signature>func negated() -&gt; GFFixedDecimal:</signature>
+			<description>获取相反数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新的定点数实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="rescaled" line="212">
+			<signature>func rescaled( target_decimal_places: int, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
+			<description>重设小数位数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target_decimal_places: 目标小数位数。</tag>
+				<tag name="param">rounding_mode: 降位时的舍入策略。</tag>
+				<tag name="return">重设后的定点数实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="compare_to" line="233">
+			<signature>func compare_to(other: GFFixedDecimal) -&gt; int:</signature>
+			<description>与另一个定点数比较大小。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">other: 另一个定点数。</tag>
+				<tag name="return">大于返回 1，小于返回 -1，相等返回 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add" line="254">
+			<signature>func add(other: GFFixedDecimal) -&gt; GFFixedDecimal:</signature>
+			<description>与另一个定点数相加。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">other: 另一个定点数。</tag>
+				<tag name="return">相加结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="subtract" line="271">
+			<signature>func subtract(other: GFFixedDecimal) -&gt; GFFixedDecimal:</signature>
+			<description>与另一个定点数相减。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">other: 另一个定点数。</tag>
+				<tag name="return">相减结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="multiply" line="289">
+			<signature>func multiply( other: GFFixedDecimal, target_decimal_places: int = -1, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
+			<description>与另一个定点数相乘。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">other: 另一个定点数。</tag>
+				<tag name="param">target_decimal_places: 结果小数位；传 -1 时取两者较大值。</tag>
+				<tag name="param">rounding_mode: 结果降位时的舍入策略。</tag>
+				<tag name="return">相乘结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="divide" line="319">
+			<signature>func divide( other: GFFixedDecimal, target_decimal_places: int = -1, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
+			<description>与另一个定点数相除。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">other: 另一个定点数。</tag>
+				<tag name="param">target_decimal_places: 结果小数位；传 -1 时取两者较大值。</tag>
+				<tag name="param">rounding_mode: 除法舍入策略。</tag>
+				<tag name="return">相除结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_float" line="355">
+			<signature>func to_float() -&gt; float:</signature>
+			<description>转换为 float。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">浮点值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_big_number" line="364">
+			<signature>func to_big_number() -&gt; GFBigNumber:</signature>
+			<description>转换为 GFBigNumber。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">对应的大数值对象。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_decimal_string" line="375">
+			<signature>func to_decimal_string(trim_zeroes: bool = false) -&gt; String:</signature>
+			<description>转换为普通字符串。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">trim_zeroes: 是否裁掉尾部 0。</tag>
+				<tag name="return">十进制字符串。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

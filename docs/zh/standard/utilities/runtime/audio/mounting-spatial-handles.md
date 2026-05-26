@@ -1,0 +1,39 @@
+# Bank 挂载、空间音效与句柄
+
+注册 `GFAudioBank` 后，可以按稳定事件 ID 播放 BGM、环境音和 SFX。场景或 UI 也可以临时挂载一组音频事件，并在退出时恢复或卸载。
+
+## Bank 挂载
+
+`register_audio_bank()` 后可用 `play_bgm_event()`、`play_ambient_event()`、`play_sfx_event()` 按稳定事件 ID 播放。
+
+场景或 UI 想临时拥有一组音频事件时，可使用 `GFAudioBankMounter` 在 ready/exit 时自动注册、恢复或卸载 bank。同一 `bank_id` 的多个挂载由 `GFAudioUtility` 按栈管理，场景或 UI 交错退出时，较早退出的下层挂载不会覆盖仍处于顶层的 bank。
+
+需要手动控制同类逻辑时，可使用 `mount_audio_bank()` / `unmount_audio_bank()`。
+
+## 播放句柄
+
+需要主动停止、淡出或读取本次 SFX/空间音效状态时，使用 `play_sfx_handle()`、`play_sfx_clip_handle()`、`play_sfx_event_handle()` 或 2D/3D 对应 handle 方法取得 `GFAudioEmitterHandle`。
+
+```gdscript
+var clip := GFAudioClip.new()
+clip.stream = preload("res://audio/sfx/confirm.wav")
+
+var handle := audio.play_sfx_clip_handle(clip)
+if handle != null:
+	handle.bind_to_owner(self)
+	handle.fade_to(-10.0, 0.2)
+	handle.stop(0.1)
+```
+
+环境音通道可用 `get_ambient_handle(channel)` 获取当前播放器句柄。句柄只管理底层播放器的停止、淡出、音量、音高和可选 owner 生命周期绑定，不替项目决定混音快照、声音优先级或业务生命周期。
+
+## 空间音效
+
+```gdscript
+var source_2d := $AudioAnchor as Node2D
+audio.play_sfx_clip_2d(clip, source_2d, true) # 需要跟随声源时启用 follow_source
+```
+
+`play_sfx_clip_2d()` / `play_sfx_clip_3d()` 和对应 event 方法默认只在当前位置创建空间播放器；传入 `follow_source = true` 时，播放器会挂到声源节点下并随声源移动。
+
+复杂混音、音频快照、距离规则、碰撞触发和平台音频权限仍属于项目层。

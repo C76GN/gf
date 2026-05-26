@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFThumbnailRenderer" path="addons/gf/kernel/editor/gf_thumbnail_renderer.gd" module="kernel" extends="Node" line="14" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFThumbnailRenderer: 编辑器缩略图渲染辅助节点。
+使用独立 SubViewport 渲染 Node3D 或 Mesh，供项目自定义编辑器工具复用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="layer">kernel/editor</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="cancel_preview_generation" line="23">
+			<signature>var cancel_preview_generation: bool = false</signature>
+			<description>请求取消正在进行的 MeshLibrary 批量预览生成。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="render_node3d" line="64">
+			<signature>func render_node3d(source: Node3D, size: Vector2i = Vector2i(256, 256), transparent: bool = true) -&gt; Image:</signature>
+			<description>渲染一个 3D 节点缩略图。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 要渲染的 3D 节点，会被复制后放入内部 Viewport。</tag>
+				<tag name="param">size: 输出尺寸。</tag>
+				<tag name="param">transparent: 是否透明背景。</tag>
+				<tag name="return">渲染出的 Image；失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="render_node3d_texture" line="94">
+			<signature>func render_node3d_texture( source: Node3D, size: Vector2i = Vector2i(256, 256), transparent: bool = true ) -&gt; ImageTexture:</signature>
+			<description>渲染一个 3D 节点缩略图纹理。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 要渲染的 3D 节点。</tag>
+				<tag name="param">size: 输出尺寸。</tag>
+				<tag name="param">transparent: 是否透明背景。</tag>
+				<tag name="return">渲染出的 ImageTexture；失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="render_mesh" line="116">
+			<signature>func render_mesh(mesh: Mesh, size: Vector2i = Vector2i(256, 256), transparent: bool = true) -&gt; Image:</signature>
+			<description>渲染一个 Mesh 缩略图。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">mesh: 要渲染的 Mesh。</tag>
+				<tag name="param">size: 输出尺寸。</tag>
+				<tag name="param">transparent: 是否透明背景。</tag>
+				<tag name="return">渲染出的 Image；失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="render_mesh_texture" line="138">
+			<signature>func render_mesh_texture( mesh: Mesh, size: Vector2i = Vector2i(256, 256), transparent: bool = true ) -&gt; ImageTexture:</signature>
+			<description>渲染一个 Mesh 缩略图纹理。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">mesh: 要渲染的 Mesh。</tag>
+				<tag name="param">size: 输出尺寸。</tag>
+				<tag name="param">transparent: 是否透明背景。</tag>
+				<tag name="return">渲染出的 ImageTexture；失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="render_mesh_library_previews" line="160">
+			<signature>func render_mesh_library_previews( mesh_library: MeshLibrary, size: Vector2i = Vector2i(128, 128), overwrite_existing: bool = true ) -&gt; int:</signature>
+			<description>为 MeshLibrary 批量生成条目预览。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">mesh_library: 目标 MeshLibrary。</tag>
+				<tag name="param">size: 预览尺寸。</tag>
+				<tag name="param">overwrite_existing: 是否覆盖已有预览。</tag>
+				<tag name="return">成功生成的预览数量。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

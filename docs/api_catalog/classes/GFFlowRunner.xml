@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFlowRunner" path="addons/gf/extensions/flow/runtime/gf_flow_runner.gd" module="extensions/flow" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFlowRunner: 通用流程图执行器。
+按节点后继关系执行 GFFlowGraph，支持 Signal 等待、取消和简单循环保护。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="flow_started" line="21">
+			<signature>signal flow_started(graph: GFFlowGraph)</signature>
+			<description>流程开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="node_started" line="30">
+			<signature>signal node_started(node_id: StringName, node: GFFlowNode)</signature>
+			<description>节点开始执行时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node_id: 节点 ID。</tag>
+				<tag name="param">node: 节点资源。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="node_completed" line="39">
+			<signature>signal node_completed(node_id: StringName, node: GFFlowNode)</signature>
+			<description>节点完成执行时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node_id: 节点 ID。</tag>
+				<tag name="param">node: 节点资源。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="flow_completed" line="44">
+			<signature>signal flow_completed</signature>
+			<description>流程完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="flow_cancelled" line="49">
+			<signature>signal flow_cancelled</signature>
+			<description>流程取消时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="is_running" line="62">
+			<signature>var is_running: bool = false</signature>
+			<description>当前是否正在执行。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_executed_nodes" line="67">
+			<signature>var max_executed_nodes: int = 1024</signature>
+			<description>最多执行节点数量，避免循环图无限运行。小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="signal_timeout_seconds" line="72">
+			<signature>var signal_timeout_seconds: float = 30.0</signature>
+			<description>Signal 等待超时时间。小于等于 0 表示不启用超时。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="signal_timeout_respects_time_scale" line="77">
+			<signature>var signal_timeout_respects_time_scale: bool = true</signature>
+			<description>Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="isolate_graph_runtime_state" line="82">
+			<signature>var isolate_graph_runtime_state: bool = true</signature>
+			<description>运行时是否把节点 runtime_state 隔离到 GFFlowContext，避免污染共享图资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="run" line="109">
+			<signature>func run(graph: GFFlowGraph, context: GFFlowContext = null) -&gt; void:</signature>
+			<description>运行流程图。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="param">context: 可选上下文。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel" line="143">
+			<signature>func cancel() -&gt; void:</signature>
+			<description>请求取消流程。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="with_signal_timeout" line="156">
+			<signature>func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -&gt; GFFlowRunner:</signature>
+			<description>设置 Signal 等待超时时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">seconds: 秒数；小于等于 0 时表示不启用超时。</tag>
+				<tag name="param">respect_time_scale: 是否跟随 GFTimeUtility 的暂停与 time_scale。</tag>
+				<tag name="return">当前执行器。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

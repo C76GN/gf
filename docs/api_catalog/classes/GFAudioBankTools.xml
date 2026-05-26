@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAudioBankTools" path="addons/gf/standard/utilities/audio/gf_audio_bank_tools.gd" module="standard" extends="RefCounted" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAudioBankTools: 音频集合扫描、导入和校验辅助。
+面向编辑器工具和构建脚本复用；它只生成 `GFAudioBank` / `GFAudioClip`
+配置，不接管运行时播放策略。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="ClipIdMode" line="22">
+			<signature>enum ClipIdMode { ## 使用文件名，不包含扩展名。 BASENAME, ## 使用相对 base_path 的路径，不包含扩展名。 RELATIVE_PATH, ## 使用完整资源路径，不包含扩展名。 FULL_PATH, }</signature>
+			<description>从音频路径生成片段 ID 的方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants>
+		<member kind="const" name="AUDIO_EXTENSIONS" line="37">
+			<signature>const AUDIO_EXTENSIONS: PackedStringArray = ["wav", "ogg", "mp3", "opus"]</signature>
+			<description>默认音频扩展名白名单，不包含点号。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_EXCLUDED_PATHS" line="42">
+			<signature>const DEFAULT_EXCLUDED_PATHS: PackedStringArray = ["res://addons"]</signature>
+			<description>默认排除的扫描路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH" line="47">
+			<signature>const DEFAULT_MAX_SCAN_DEPTH: int = 32</signature>
+			<description>默认递归扫描深度上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_AUDIO_PATHS" line="52">
+			<signature>const DEFAULT_MAX_AUDIO_PATHS: int = 10000</signature>
+			<description>默认单次扫描收集的音频路径数量上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="is_audio_path" line="70">
+			<signature>static func is_audio_path(path: String, extensions: PackedStringArray = AUDIO_EXTENSIONS) -&gt; bool:</signature>
+			<description>判断路径是否指向 GF 默认支持的音频扩展名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源路径或文件名。</tag>
+				<tag name="param">extensions: 可选扩展名白名单，不包含点号。</tag>
+				<tag name="return">是音频路径时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="scan_audio_paths" line="86">
+			<signature>static func scan_audio_paths(root_path: String = "res://", options: Dictionary = {}) -&gt; PackedStringArray:</signature>
+			<description>递归扫描音频路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root_path: 扫描起点，通常是 res:// 下的目录。</tag>
+				<tag name="param">options: 可选项，支持 recursive、include_addons、excluded_paths、extensions、max_scan_depth 与 max_audio_paths。</tag>
+				<tag name="return">按字典序排序的音频路径。</tag>
+				<tag name="schema">options: Dictionary，可包含 recursive、include_addons、excluded_paths、extensions、max_scan_depth 和 max_audio_paths 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="create_bank_from_paths" line="121">
+			<signature>static func create_bank_from_paths(paths: PackedStringArray, options: Dictionary = {}) -&gt; GFAudioBank:</signature>
+			<description>从路径列表创建新的音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">paths: 音频资源路径列表。</tag>
+				<tag name="param">options: 可选项，支持 id_mode、base_path、path_separator、strip_extension、bus_name、volume_db、pitch_scale。</tag>
+				<tag name="return">新建的音频集合。</tag>
+				<tag name="schema">options: Dictionary，可包含 id_mode、base_path、path_separator、strip_extension、bus_name、volume_db、pitch_scale 和 overwrite 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="create_bank_from_scan" line="138">
+			<signature>static func create_bank_from_scan(root_path: String = "res://", options: Dictionary = {}) -&gt; GFAudioBank:</signature>
+			<description>扫描目录并创建新的音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root_path: 扫描起点，通常是 res://audio。</tag>
+				<tag name="param">options: 可选项，同时传给 scan_audio_paths() 与 create_bank_from_paths()。</tag>
+				<tag name="return">新建的音频集合。</tag>
+				<tag name="schema">options: Dictionary，可同时包含扫描选项和片段导入选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_paths_to_bank" line="156">
+			<signature>static func add_paths_to_bank( bank: GFAudioBank, paths: PackedStringArray, options: Dictionary = {} ) -&gt; GFValidationReport:</signature>
+			<description>将路径列表加入音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank: 要写入的音频集合。</tag>
+				<tag name="param">paths: 音频资源路径列表。</tag>
+				<tag name="param">options: 可选项，支持 id_mode、base_path、path_separator、strip_extension、overwrite、bus_name、volume_db、pitch_scale。</tag>
+				<tag name="return">导入报告。</tag>
+				<tag name="schema">options: Dictionary，可包含 id_mode、base_path、path_separator、strip_extension、overwrite、bus_name、volume_db 和 pitch_scale 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sync_bank_from_scan" line="213">
+			<signature>static func sync_bank_from_scan( bank: GFAudioBank, root_path: String = "res://", options: Dictionary = {} ) -&gt; GFValidationReport:</signature>
+			<description>扫描目录并同步到已有音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank: 要写入的音频集合。</tag>
+				<tag name="param">root_path: 扫描起点，通常是 res://audio。</tag>
+				<tag name="param">options: 可选项，同时传给 scan_audio_paths() 与 add_paths_to_bank()。</tag>
+				<tag name="return">导入报告。</tag>
+				<tag name="schema">options: Dictionary，可同时包含扫描选项和片段导入选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_bank_playback" line="236">
+			<signature>static func validate_bank_playback(bank: GFAudioBank, options: Dictionary = {}) -&gt; GFValidationReport:</signature>
+			<description>校验音频集合是否适合交给 GFAudioUtility 播放。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank: 要校验的音频集合。</tag>
+				<tag name="param">options: 可选项，支持 check_resource_exists、check_bus_exists、extensions。</tag>
+				<tag name="return">校验报告。</tag>
+				<tag name="schema">options: Dictionary，可包含 check_resource_exists、check_bus_exists 和 extensions 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_clip_id" line="268">
+			<signature>static func make_clip_id(path: String, options: Dictionary = {}) -&gt; StringName:</signature>
+			<description>按选项从路径生成稳定片段 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 音频资源路径。</tag>
+				<tag name="param">options: 可选项，支持 id_mode、base_path、path_separator、strip_extension。</tag>
+				<tag name="return">片段 ID。</tag>
+				<tag name="schema">options: Dictionary，可包含 id_mode、base_path、path_separator 和 strip_extension 字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

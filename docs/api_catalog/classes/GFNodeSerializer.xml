@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNodeSerializer" path="addons/gf/extensions/save/serializers/gf_node_serializer.gd" module="extensions/save" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNodeSerializer: 节点序列化器基类。
+用于把通用节点状态拆成可组合的序列化片段。具体项目可以继承该类，
+在不修改存档图编排逻辑的前提下接入自己的节点状态。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="serializer_id" line="20" decorators="@export">
+			<signature>var serializer_id: StringName = &amp;""</signature>
+			<description>序列化器稳定标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="25" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>编辑器展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supported_class_name" line="30" decorators="@export">
+			<signature>var supported_class_name: String = ""</signature>
+			<description>可选 Godot 类名过滤。为空时由子类自行判断。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_serializer_id" line="40">
+			<signature>func get_serializer_id() -&gt; StringName:</signature>
+			<description>获取序列化器标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">稳定标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="supports_node" line="55">
+			<signature>func supports_node(node: Node) -&gt; bool:</signature>
+			<description>判断当前序列化器是否支持节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node: 待序列化节点。</tag>
+				<tag name="return">支持时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="gather" line="76">
+			<signature>func gather(_node: Node, _context: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>采集节点数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_node: 待序列化节点。</tag>
+				<tag name="param">_context: 调用上下文字典。</tag>
+				<tag name="return">可写入存档的字典。</tag>
+				<tag name="schema">_context: Dictionary，调用方附加上下文；基础实现保留给子类扩展。</tag>
+				<tag name="schema">return: Dictionary，当前序列化器写入存档的字段集合；空字典表示无需保存。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply" line="97">
+			<signature>func apply(_node: Node, _payload: Dictionary, _context: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>应用节点数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_node: 目标节点。</tag>
+				<tag name="param">_payload: 当前序列化器的数据。</tag>
+				<tag name="param">_context: 调用上下文字典。</tag>
+				<tag name="return">结果字典。</tag>
+				<tag name="schema">_payload: Dictionary，来自 gather() 的当前序列化器数据。</tag>
+				<tag name="schema">_context: Dictionary，调用方附加上下文；基础实现保留给子类扩展。</tag>
+				<tag name="schema">return: Dictionary，包含 ok: bool 与 error: String。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_result" line="112">
+			<signature>func make_result(ok: bool, error: String = "") -&gt; Dictionary:</signature>
+			<description>构造统一结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">ok: 是否成功。</tag>
+				<tag name="param">error: 错误描述。</tag>
+				<tag name="return">结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok: bool 与 error: String。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

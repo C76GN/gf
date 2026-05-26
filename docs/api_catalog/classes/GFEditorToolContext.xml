@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFEditorToolContext" path="addons/gf/kernel/editor/gf_editor_tool_context.gd" module="kernel" extends="RefCounted" line="15" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFEditorToolContext: 编辑器交互工具上下文。
+用于在工具、动作和命令之间传递 EditorPlugin、UndoRedo、选中节点和额外元数据。
+该对象只保存通用编辑器上下文，不假设具体工具会编辑哪类资源。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="layer">kernel/editor</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="plugin" line="34">
+			<signature>var plugin: EditorPlugin = null</signature>
+			<description>当前 EditorPlugin。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="undo_manager" line="39">
+			<signature>var undo_manager: Object = null</signature>
+			<description>UndoRedo 管理器或兼容对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="edited_scene_root" line="44">
+			<signature>var edited_scene_root: Node = null</signature>
+			<description>当前编辑场景根节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="selected_nodes" line="49">
+			<signature>var selected_nodes: Array[Node] = []</signature>
+			<description>当前选中节点快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="56">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>调用方附加元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary for caller-defined editor tool context metadata.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="from_plugin" line="72">
+			<signature>static func from_plugin(editor_plugin: EditorPlugin, extra_metadata: Dictionary = {}) -&gt; GFEditorToolContext:</signature>
+			<description>从 EditorPlugin 构建上下文。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">editor_plugin: 当前编辑器插件。</tag>
+				<tag name="param">extra_metadata: 额外元数据。</tag>
+				<tag name="return">新上下文。</tag>
+				<tag name="schema">extra_metadata: Dictionary copied into metadata.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="commit_command" line="95">
+			<signature>func commit_command(command: GFEditorCommandBase, use_undo: bool = true) -&gt; Error:</signature>
+			<description>提交一个命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command: 需要执行或写入 UndoRedo 的命令。</tag>
+				<tag name="param">use_undo: 为 true 且存在 undo_manager 时写入 UndoRedo。</tag>
+				<tag name="return">Godot 错误码。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_selected_nodes" line="108">
+			<signature>func get_selected_nodes() -&gt; Array[Node]:</signature>
+			<description>获取选中节点副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">选中节点数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary" line="119">
+			<signature>func to_dictionary() -&gt; Dictionary:</signature>
+			<description>获取上下文字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">普通字典快照。</tag>
+				<tag name="schema">return: Dictionary containing plugin, undo_manager, edited_scene_root, selected_nodes, and metadata.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

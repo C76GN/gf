@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFValidationRunner" path="addons/gf/standard/foundation/validation/gf_validation_runner.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFValidationRunner: 通用校验套件执行器。
+执行 GFValidationSuite 中的规则，支持直接目标、资源路径和 PackedScene 实例化。
+Runner 不调用项目约定方法，只把目标、路径和上下文交给显式注册的规则。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="validation_started" line="22">
+			<signature>signal validation_started(suite_id: StringName)</signature>
+			<description>套件开始执行后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">suite_id: 套件标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="target_validated" line="31">
+			<signature>signal target_validated(target_id: String, report: GFValidationReport)</signature>
+			<description>单个目标完成校验后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target_id: 目标标识。</tag>
+				<tag name="param">report: 目标报告。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="validation_finished" line="38">
+			<signature>signal validation_finished(report: GFValidationReport)</signature>
+			<description>套件完成执行后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 聚合报告。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants>
+		<member kind="const" name="GFValidationSuiteBase" line="46">
+			<signature>const GFValidationSuiteBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_suite.gd")</signature>
+			<description>校验套件脚本基类。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="GFValidationRuleBase" line="51">
+			<signature>const GFValidationRuleBase = preload("res://addons/gf/standard/foundation/validation/gf_validation_rule.gd")</signature>
+			<description>校验规则脚本基类。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="validate_scene_instances" line="59">
+			<signature>var validate_scene_instances: bool = true</signature>
+			<description>通过路径加载 PackedScene 时是否同时实例化根节点参与 Node 规则校验。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="free_instantiated_scenes" line="64">
+			<signature>var free_instantiated_scenes: bool = true</signature>
+			<description>路径校验时是否释放由 Runner 实例化的场景根节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="run_suite" line="80">
+			<signature>func run_suite(suite: GFValidationSuiteBase, options: Dictionary = {}) -&gt; GFValidationReport:</signature>
+			<description>执行套件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">suite: 校验套件。</tag>
+				<tag name="param">options: 可选参数，支持 targets、paths、context、treat_warnings_as_errors。</tag>
+				<tag name="return">聚合报告。</tag>
+				<tag name="schema">options: Dictionary runner options with targets, paths, context, and warning policy.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="run_targets" line="115">
+			<signature>func run_targets( targets: Array, suite: GFValidationSuiteBase = null, options: Dictionary = {} ) -&gt; GFValidationReport:</signature>
+			<description>校验一组直接目标。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">targets: 目标数组。</tag>
+				<tag name="param">suite: 可选套件；为空时使用无规则套件。</tag>
+				<tag name="param">options: 可选参数，支持 context、treat_warnings_as_errors。</tag>
+				<tag name="return">聚合报告。</tag>
+				<tag name="schema">targets: Array of validation targets.</tag>
+				<tag name="schema">options: Dictionary runner options with context and warning policy.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="run_paths" line="140">
+			<signature>func run_paths( paths: PackedStringArray, suite: GFValidationSuiteBase = null, options: Dictionary = {} ) -&gt; GFValidationReport:</signature>
+			<description>校验一组资源或场景路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">paths: 资源或场景路径列表。</tag>
+				<tag name="param">suite: 可选套件；为空时使用无规则套件。</tag>
+				<tag name="param">options: 可选参数，支持 context、treat_warnings_as_errors。</tag>
+				<tag name="return">聚合报告。</tag>
+				<tag name="schema">options: Dictionary runner options with context and warning policy.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

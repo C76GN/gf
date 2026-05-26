@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkBackend" path="addons/gf/extensions/network/backends/gf_network_backend.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkBackend: 网络后端抽象基类。
+后端负责具体传输协议，框架层只依赖该统一接口与信号。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="connected" line="19">
+			<signature>signal connected</signature>
+			<description>连接成功后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="disconnected" line="26">
+			<signature>signal disconnected(reason: String)</signature>
+			<description>断开连接后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">reason: 断开原因。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="peer_connected" line="33">
+			<signature>signal peer_connected(peer_id: int)</signature>
+			<description>远端节点连接后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 远端 peer 标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="peer_disconnected" line="40">
+			<signature>signal peer_disconnected(peer_id: int)</signature>
+			<description>远端节点断开后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 远端 peer 标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="message_received" line="49">
+			<signature>signal message_received(peer_id: int, bytes: PackedByteArray)</signature>
+			<description>收到原始消息 bytes 后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 远端 peer 标识。</tag>
+				<tag name="param">bytes: 原始消息 bytes。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="host" line="63">
+			<signature>func host(_options: Dictionary = {}) -&gt; Error:</signature>
+			<description>启动主机。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_options: 后端自定义选项。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">_options: Dictionary，后端自定义启动选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="connect_to_endpoint" line="78">
+			<signature>func connect_to_endpoint(_endpoint: String, _options: Dictionary = {}) -&gt; Error:</signature>
+			<description>连接远端。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_endpoint: 远端地址。</tag>
+				<tag name="param">_options: 后端自定义选项。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">_options: Dictionary，后端自定义连接选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="disconnect_backend" line="85">
+			<signature>func disconnect_backend() -&gt; void:</signature>
+			<description>断开连接。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_bytes" line="102">
+			<signature>func send_bytes(_peer_id: int, _bytes: PackedByteArray, _options: Dictionary = {}) -&gt; Error:</signature>
+			<description>发送 bytes。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_peer_id: 目标 peer；后端可约定 -1 表示广播。</tag>
+				<tag name="param">_bytes: 消息 bytes。</tag>
+				<tag name="param">_options: 后端自定义发送选项。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">_options: Dictionary，后端自定义发送选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="poll" line="111">
+			<signature>func poll(_delta: float) -&gt; void:</signature>
+			<description>后端轮询入口。需要轮询的后端可重写。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_delta: 帧间隔。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="122">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取后端调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试信息字典。</tag>
+				<tag name="schema">return: Dictionary，包含 backend、available 以及后端自定义状态字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

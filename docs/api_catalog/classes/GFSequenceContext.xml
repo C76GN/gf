@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSequenceContext" path="addons/gf/standard/sequence/gf_sequence_context.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSequenceContext: 指令序列执行上下文。
+用于在一组序列步骤之间传递共享数据，并为步骤提供架构访问入口。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="values" line="21">
+			<signature>var values: Dictionary = {}</signature>
+			<description>共享数据表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">values: Dictionary shared by sequence steps.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_architecture" line="52">
+			<signature>func set_architecture(architecture: GFArchitecture) -&gt; void:</signature>
+			<description>设置上下文所属架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">architecture: 架构实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_architecture" line="61">
+			<signature>func get_architecture() -&gt; GFArchitecture:</signature>
+			<description>获取上下文所属架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">架构实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_value" line="80">
+			<signature>func set_value(key: StringName, value: Variant) -&gt; GFSequenceContext:</signature>
+			<description>写入共享值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">value: 值。</tag>
+				<tag name="return">当前上下文，便于链式构造。</tag>
+				<tag name="schema">value: Variant value stored in the sequence context.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_value" line="98">
+			<signature>func get_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取共享值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">default_value: 默认值。</tag>
+				<tag name="return">共享值或默认值。</tag>
+				<tag name="schema">default_value: Variant fallback value.</tag>
+				<tag name="schema">return: Variant stored value or fallback value.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

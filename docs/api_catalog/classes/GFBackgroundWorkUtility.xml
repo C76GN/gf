@@ -1,0 +1,258 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFBackgroundWorkUtility" path="addons/gf/standard/utilities/jobs/gf_background_work_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFBackgroundWorkUtility: 纯数据后台工作协调器。
+统一协调 CPU/IO 线程工作、ResourceLoader 线程加载和主线程应用回调。
+默认只允许纯 Variant 输入数据，避免后台线程直接触碰 Node、Resource 或 Callable。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="work_queued" line="22">
+			<signature>signal work_queued(task: GFBackgroundWorkTask)</signature>
+			<description>工作进入等待队列时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task: 工作记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="work_started" line="29">
+			<signature>signal work_started(task: GFBackgroundWorkTask)</signature>
+			<description>工作开始执行时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task: 工作记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="work_progressed" line="40">
+			<signature>signal work_progressed(task: GFBackgroundWorkTask, progress: float, message: String)</signature>
+			<description>工作进度变化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task: 工作记录。</tag>
+				<tag name="param">progress: 当前进度。</tag>
+				<tag name="param">message: 进度说明。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="work_completed" line="47">
+			<signature>signal work_completed(task: GFBackgroundWorkTask)</signature>
+			<description>工作完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task: 工作记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="work_failed" line="54">
+			<signature>signal work_failed(task: GFBackgroundWorkTask)</signature>
+			<description>工作失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task: 工作记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="work_cancelled" line="61">
+			<signature>signal work_cancelled(task: GFBackgroundWorkTask)</signature>
+			<description>工作取消时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task: 工作记录。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="work_applied" line="68">
+			<signature>signal work_applied(task: GFBackgroundWorkTask)</signature>
+			<description>工作结果已在主线程应用时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">task: 工作记录。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="max_threaded_tasks" line="81">
+			<signature>var max_threaded_tasks: int = 2:</signature>
+			<description>同时运行的 CPU/IO 线程任务上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_apply_per_tick" line="89">
+			<signature>var max_apply_per_tick: int = 8:</signature>
+			<description>单帧最多执行多少个主线程应用回调。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_apply_seconds_per_tick" line="96">
+			<signature>var max_apply_seconds_per_tick: float = 0.0:</signature>
+			<description>单帧主线程应用回调的最大秒数。小于等于 0 时不启用时间预算；启用时每帧仍至少尝试一个应用回调。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_finished_tasks" line="103">
+			<signature>var max_finished_tasks: int = 128:</signature>
+			<description>最多保留多少个终态任务用于调试快照；设为 0 时不保留历史。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_object_payloads" line="112">
+			<signature>var allow_object_payloads: bool = false</signature>
+			<description>是否默认允许 Object、Resource、Callable、Signal 或 RID 进入线程 payload。
+仅迁移旧项目或明确自行保证线程安全时才建议开启。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="132">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化后台工作协调器并启用暂停无关处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="142">
+			<signature>func tick(_delta: float = 0.0) -&gt; void:</signature>
+			<description>推进后台工作完成检查与主线程应用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_delta: 为兼容统一 tick 签名而保留的参数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="152">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>取消未完成工作、等待线程结束并清理运行时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="submit_cpu_work" line="177">
+			<signature>func submit_cpu_work( worker: Callable, input_data: Variant = null, apply_callback: Callable = Callable(), options: Dictionary = {} ) -&gt; GFBackgroundWorkTask:</signature>
+			<description>提交 CPU 纯数据后台工作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">worker: 后台线程回调，签名推荐为 func(input_data: Variant) -&gt; Variant。</tag>
+				<tag name="param">input_data: 输入数据。默认只允许纯 Variant 容器和值。</tag>
+				<tag name="param">apply_callback: 主线程应用回调，签名推荐为 func(task: GFBackgroundWorkTask) -&gt; Variant。</tag>
+				<tag name="param">options: 可选配置，支持 id、priority、metadata、front、allow_object_payloads。</tag>
+				<tag name="return">工作记录；参数无效时返回 failed 状态任务。</tag>
+				<tag name="schema">input_data: Variant，复制到工作线程的纯数据载荷；显式允许对象载荷时除外。</tag>
+				<tag name="schema">options: Dictionary，包含 id: StringName/String、priority: int、metadata: Dictionary、front: bool 和 allow_object_payloads: bool。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="submit_io_work" line="203">
+			<signature>func submit_io_work( worker: Callable, input_data: Variant = null, apply_callback: Callable = Callable(), options: Dictionary = {} ) -&gt; GFBackgroundWorkTask:</signature>
+			<description>提交 IO 纯数据后台工作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">worker: 后台线程回调，签名推荐为 func(input_data: Variant) -&gt; Variant。</tag>
+				<tag name="param">input_data: 输入数据。默认只允许纯 Variant 容器和值。</tag>
+				<tag name="param">apply_callback: 主线程应用回调，签名推荐为 func(task: GFBackgroundWorkTask) -&gt; Variant。</tag>
+				<tag name="param">options: 可选配置，支持 id、priority、metadata、front、allow_object_payloads。</tag>
+				<tag name="return">工作记录；参数无效时返回 failed 状态任务。</tag>
+				<tag name="schema">input_data: Variant，复制到工作线程的纯数据载荷；显式允许对象载荷时除外。</tag>
+				<tag name="schema">options: Dictionary，包含 id: StringName/String、priority: int、metadata: Dictionary、front: bool 和 allow_object_payloads: bool。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="submit_resource_load" line="227">
+			<signature>func submit_resource_load( path: String, type_hint: String = "", apply_callback: Callable = Callable(), options: Dictionary = {} ) -&gt; GFBackgroundWorkTask:</signature>
+			<description>提交 ResourceLoader 后台资源加载。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源路径。</tag>
+				<tag name="param">type_hint: 可选资源类型提示。</tag>
+				<tag name="param">apply_callback: 主线程应用回调，签名推荐为 func(task: GFBackgroundWorkTask) -&gt; Variant。</tag>
+				<tag name="param">options: 可选配置，支持 id、priority、metadata。</tag>
+				<tag name="return">工作记录；参数无效或请求失败时返回 failed 状态任务。</tag>
+				<tag name="schema">options: Dictionary，包含 id: StringName/String、priority: int 和 metadata: Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_work" line="257">
+			<signature>func cancel_work(work_id: StringName) -&gt; bool:</signature>
+			<description>取消指定工作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">work_id: 工作 ID。</tag>
+				<tag name="return">取消成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_all" line="279">
+			<signature>func cancel_all() -&gt; void:</signature>
+			<description>取消全部未完成工作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause" line="290">
+			<signature>func pause() -&gt; void:</signature>
+			<description>暂停启动新的 CPU/IO 线程工作；已运行和资源加载中的工作会继续推进。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume" line="297">
+			<signature>func resume() -&gt; void:</signature>
+			<description>恢复启动新的 CPU/IO 线程工作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_paused" line="307">
+			<signature>func is_paused() -&gt; bool:</signature>
+			<description>检查是否暂停。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">暂停时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="update_work_progress" line="322">
+			<signature>func update_work_progress(work_id: StringName, progress: float, message: String = "") -&gt; bool:</signature>
+			<description>更新工作进度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">work_id: 工作 ID。</tag>
+				<tag name="param">progress: 当前进度。</tag>
+				<tag name="param">message: 进度说明。</tag>
+				<tag name="return">更新成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_task" line="338">
+			<signature>func get_task(work_id: StringName) -&gt; GFBackgroundWorkTask:</signature>
+			<description>获取工作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">work_id: 工作 ID。</tag>
+				<tag name="return">工作记录；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_finished_tasks" line="345">
+			<signature>func clear_finished_tasks() -&gt; void:</signature>
+			<description>清理已完成的历史工作记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_all" line="355">
+			<signature>func clear_all() -&gt; void:</signature>
+			<description>清空全部工作。调用前应确保不再需要正在执行的线程结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="373">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照字典。</tag>
+				<tag name="schema">return: Dictionary，包含任务计数、queued_ids、running_thread_ids、resource_paths、apply_ids、finished_ids、暂停状态和 apply 时间预算。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

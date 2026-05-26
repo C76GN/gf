@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputRemapConfig" path="addons/gf/standard/input/rebinding/gf_input_remap_config.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputRemapConfig: 输入重映射配置。
+只保存玩家或项目层覆盖过的输入事件，默认绑定仍来自 GFInputContext。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="remapped_events" line="49" decorators="@export">
+			<signature>var remapped_events: Dictionary = {}</signature>
+			<description>重绑定输入。结构为 context_id -&gt; action_id -&gt; binding_index -&gt; InputEvent 或 null。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">remapped_events: Dictionary，按 context_id、action_id、binding_index 分层索引，值为 InputEvent 或表示显式解绑的 null。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="custom_data" line="56" decorators="@export">
+			<signature>var custom_data: Dictionary = {}</signature>
+			<description>项目自定义数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">custom_data: Dictionary，项目持有的 profile 标签、设备元数据或 UI 状态。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_binding" line="72">
+			<signature>func set_binding( context_id: StringName, action_id: StringName, binding_index: int, input_event: InputEvent ) -&gt; void:</signature>
+			<description>设置绑定覆盖。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context_id: 上下文标识。</tag>
+				<tag name="param">action_id: 动作标识。</tag>
+				<tag name="param">binding_index: 绑定索引。</tag>
+				<tag name="param">input_event: 新输入事件；null 表示显式解绑。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unbind" line="94">
+			<signature>func unbind(context_id: StringName, action_id: StringName, binding_index: int) -&gt; void:</signature>
+			<description>显式解绑某个绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context_id: 上下文标识。</tag>
+				<tag name="param">action_id: 动作标识。</tag>
+				<tag name="param">binding_index: 绑定索引。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_binding" line="107">
+			<signature>func clear_binding(context_id: StringName, action_id: StringName, binding_index: int) -&gt; void:</signature>
+			<description>清除某个覆盖，使其回退到默认绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context_id: 上下文标识。</tag>
+				<tag name="param">action_id: 动作标识。</tag>
+				<tag name="param">binding_index: 绑定索引。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_binding" line="131">
+			<signature>func has_binding(context_id: StringName, action_id: StringName, binding_index: int) -&gt; bool:</signature>
+			<description>检查是否存在覆盖记录。显式解绑也会返回 true。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context_id: 上下文标识。</tag>
+				<tag name="param">action_id: 动作标识。</tag>
+				<tag name="param">binding_index: 绑定索引。</tag>
+				<tag name="return">是否存在覆盖。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bound_event_or_null" line="152">
+			<signature>func get_bound_event_or_null(context_id: StringName, action_id: StringName, binding_index: int) -&gt; InputEvent:</signature>
+			<description>获取覆盖输入事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context_id: 上下文标识。</tag>
+				<tag name="param">action_id: 动作标识。</tag>
+				<tag name="param">binding_index: 绑定索引。</tag>
+				<tag name="return">覆盖事件；显式解绑或未覆盖时均可能返回 null，应先调用 has_binding() 区分。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_custom_data" line="171">
+			<signature>func set_custom_data(key: Variant, value: Variant) -&gt; void:</signature>
+			<description>设置自定义数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">value: 值。</tag>
+				<tag name="schema">key: Variant，项目侧自定义数据键。</tag>
+				<tag name="schema">value: Variant，项目侧自定义数据值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_custom_data" line="190">
+			<signature>func get_custom_data(key: Variant, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>获取自定义数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">default_value: 默认值。</tag>
+				<tag name="return">自定义数据。</tag>
+				<tag name="schema">key: Variant，项目侧自定义数据键。</tag>
+				<tag name="schema">default_value: Variant，key 不存在时返回的默认值。</tag>
+				<tag name="schema">return: Variant，自定义数据值或 default_value。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="201">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转换为可写入 JSON/存档的 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">重映射配置字典。</tag>
+				<tag name="schema">return: Dictionary，包含 remapped_events 和 custom_data；remapped_events 为 context_id -&gt; action_id -&gt; binding_index -&gt; event record。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_dict" line="236">
+			<signature>func apply_dict(data: Dictionary) -&gt; void:</signature>
+			<description>应用由 to_dict() 生成的重映射配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 重映射配置字典。</tag>
+				<tag name="schema">data: Dictionary，包含 remapped_events 和 custom_data。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="277">
+			<signature>static func from_dict(data: Dictionary) -&gt; GFInputRemapConfig:</signature>
+			<description>从 Dictionary 创建重映射配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 重映射配置字典。</tag>
+				<tag name="return">新重映射配置。</tag>
+				<tag name="schema">data: Dictionary，包含 remapped_events 和 custom_data。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_config" line="288">
+			<signature>func duplicate_config() -&gt; GFInputRemapConfig:</signature>
+			<description>复制重映射配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">深拷贝后的重映射配置。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

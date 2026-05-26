@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFormulaParameter" path="addons/gf/standard/foundation/formula/gf_formula_parameter.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFormulaParameter: 通用公式运行时参数容器。
+用于把施放者、目标、上下文对象和临时数值传给资源化公式。
+它不规定任何业务字段，项目可通过 `set_value()` 写入自己的参数。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="source" line="20">
+			<signature>var source: Object = null</signature>
+			<description>公式发起者，例如攻击者、购买者、升级主体等。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="target" line="25">
+			<signature>var target: Object = null</signature>
+			<description>公式目标，例如受击者、被购买对象、被升级对象等。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="context" line="30">
+			<signature>var context: Object = null</signature>
+			<description>可选上下文对象，通常是系统、规则宿主或临时流程上下文。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="values" line="37">
+			<signature>var values: Dictionary = {}</signature>
+			<description>额外参数表。Key 推荐使用 StringName。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">values: Dictionary keyed by StringName or String with caller-defined formula values.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_value" line="67">
+			<signature>func set_value(key: StringName, value: Variant) -&gt; GFFormulaParameter:</signature>
+			<description>写入一个参数值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 参数键。</tag>
+				<tag name="param">value: 参数值。</tag>
+				<tag name="return">当前参数容器，便于链式构造。</tag>
+				<tag name="schema">value: Variant caller-defined formula value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_value" line="85">
+			<signature>func get_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取一个参数值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 参数键。</tag>
+				<tag name="param">default_value: 参数不存在时返回的默认值。</tag>
+				<tag name="return">参数值或默认值。</tag>
+				<tag name="schema">default_value: Variant fallback value returned when key is absent.</tag>
+				<tag name="schema">return: Variant formula value or fallback.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_value" line="96">
+			<signature>func has_value(key: StringName) -&gt; bool:</signature>
+			<description>检查是否存在指定参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 参数键。</tag>
+				<tag name="return">存在时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_parameter" line="105">
+			<signature>func duplicate_parameter() -&gt; GFFormulaParameter:</signature>
+			<description>创建当前参数容器的深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新的参数容器实例。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

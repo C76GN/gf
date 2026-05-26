@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFConfigProvider" path="addons/gf/standard/utilities/config/gf_config_provider.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFConfigProvider: 通用的静态导表数据适配器基类。
+为了让框架无缝衔接不同项目的导表工具（JSON、CSV 或自定义流水线），提供统一的读取接口。
+具体项目应该继承此基类，并实现其数据加载和查询逻辑。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="get_record" line="40">
+			<signature>func get_record(_table_name: StringName, _id: Variant) -&gt; Variant:</signature>
+			<description>根据表名和 ID 获取单条记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_table_name: 表名。</tag>
+				<tag name="param">_id: 记录的唯一标识符。</tag>
+				<tag name="return">返回对应的记录数据，默认返回 null 并报错。</tag>
+				<tag name="schema">_id: Variant，项目配置表使用的记录键，通常为 String、StringName 或 int。</tag>
+				<tag name="schema">return: Variant，子类通常返回记录 Dictionary 或项目自定义记录对象；未命中时可返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_table" line="54">
+			<signature>func get_table(_table_name: StringName) -&gt; Variant:</signature>
+			<description>根据表名获取整张表的数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_table_name: 表名。</tag>
+				<tag name="return">返回整张表的数据，默认返回 null 并报错。</tag>
+				<tag name="schema">return: Variant，子类通常返回 Array[Dictionary]、Dictionary 或项目自定义表容器；未命中时可返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_schema" line="66">
+			<signature>func register_schema(schema: GFConfigTableSchema) -&gt; bool:</signature>
+			<description>注册导表结构声明。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">schema: 表结构声明。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_schema" line="80">
+			<signature>func unregister_schema(table_name: StringName) -&gt; void:</signature>
+			<description>注销导表结构声明。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_schema" line="91">
+			<signature>func has_schema(table_name: StringName) -&gt; bool:</signature>
+			<description>检查是否注册了导表结构声明。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="return">已注册返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_schema" line="102">
+			<signature>func get_schema(table_name: StringName) -&gt; GFConfigTableSchema:</signature>
+			<description>获取导表结构声明。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="return">已注册时返回 schema 拷贝，否则返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_schema_ids" line="112">
+			<signature>func get_schema_ids() -&gt; PackedStringArray:</signature>
+			<description>获取已注册的导表结构标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">表名列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_record" line="141">
+			<signature>func validate_record( table_name: StringName, record: Dictionary, row_key: Variant = null, options: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>使用已注册 schema 校验单条记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="param">record: 记录字典。</tag>
+				<tag name="param">row_key: 可选行标识。</tag>
+				<tag name="param">options: 可选校验上下文。</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">record: Dictionary，待校验的配置记录，键为字段名，值为字段数据。</tag>
+				<tag name="schema">row_key: Variant，写入校验报告 issue 的行标识。</tag>
+				<tag name="schema">options: Dictionary，可包含 source、line、column、row_index、column_index 和 row_locations。</tag>
+				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_table" line="170">
+			<signature>func validate_table(table_name: StringName, table_data: Variant = null, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>使用已注册 schema 校验整张表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="param">table_data: 可选表数据；为 null 时调用 get_table()。</tag>
+				<tag name="param">options: 可选校验上下文。</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">table_data: Variant，支持 Array[Dictionary]、Dictionary 或 null。</tag>
+				<tag name="schema">options: Dictionary，可包含 source、line、column、row_index、column_index 和 row_locations。</tag>
+				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="coerce_record" line="194">
+			<signature>func coerce_record(table_name: StringName, record: Dictionary) -&gt; Dictionary:</signature>
+			<description>使用已注册 schema 转换单条记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="param">record: 记录字典。</tag>
+				<tag name="return">转换后的新记录；缺少 schema 时返回记录拷贝。</tag>
+				<tag name="schema">record: Dictionary，待转换的配置记录，键为字段名，值为字段数据。</tag>
+				<tag name="schema">return: Dictionary，转换后的记录副本。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

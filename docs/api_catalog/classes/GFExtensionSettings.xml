@@ -1,0 +1,336 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFExtensionSettings" path="addons/gf/kernel/extension/gf_extension_settings.gd" module="kernel" extends="RefCounted" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFExtensionSettings: GF 扩展启用状态与 ProjectSettings 桥接。
+负责读取启用扩展 ID、解析扩展依赖、收集启用扩展 Installer，以及提供导出排除开关。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="layer">kernel/extension</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="ENABLED_EXTENSIONS_SETTING" line="28">
+			<signature>const ENABLED_EXTENSIONS_SETTING: String = "gf/extensions/enabled"</signature>
+			<description>项目设置：启用的 GF 扩展 ID 列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="AUTO_INSTALL_ENABLED_INSTALLERS_SETTING" line="33">
+			<signature>const AUTO_INSTALL_ENABLED_INSTALLERS_SETTING: String = "gf/extensions/auto_install_enabled_installers"</signature>
+			<description>项目设置：是否自动执行启用扩展 manifest 中声明的 installer_paths。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="EXPORT_EXCLUDE_DISABLED_SETTING" line="38">
+			<signature>const EXPORT_EXCLUDE_DISABLED_SETTING: String = "gf/extensions/export_exclude_disabled"</signature>
+			<description>项目设置：导出时是否跳过禁用扩展目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="EXPORT_FAIL_ON_DISABLED_REFERENCES_SETTING" line="43">
+			<signature>const EXPORT_FAIL_ON_DISABLED_REFERENCES_SETTING: String = "gf/extensions/export_fail_on_disabled_references"</signature>
+			<description>项目设置：导出审计发现项目仍引用禁用扩展时是否报告为错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="AUTO_INSTALL_ENABLED_INSTALLERS_DEFAULT" line="48">
+			<signature>const AUTO_INSTALL_ENABLED_INSTALLERS_DEFAULT: bool = true</signature>
+			<description>默认自动执行启用扩展 Installer。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="EXPORT_EXCLUDE_DISABLED_DEFAULT" line="53">
+			<signature>const EXPORT_EXCLUDE_DISABLED_DEFAULT: bool = true</signature>
+			<description>默认导出时排除禁用扩展。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="EXPORT_FAIL_ON_DISABLED_REFERENCES_DEFAULT" line="58">
+			<signature>const EXPORT_FAIL_ON_DISABLED_REFERENCES_DEFAULT: bool = true</signature>
+			<description>默认把禁用扩展引用作为导出错误，避免导出产物缺少被引用的扩展文件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="BUILT_IN_EXTENSION_IDS" line="63">
+			<signature>const BUILT_IN_EXTENSION_IDS: Array[String] = [</signature>
+			<description>内置依赖 ID。这些不是可启停扩展 manifest，但允许被扩展声明为基础依赖。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="ensure_defaults" line="81">
+			<signature>static func ensure_defaults() -&gt; bool:</signature>
+			<description>确保扩展相关 ProjectSettings 存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">写入了默认值时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_property_info" line="100">
+			<signature>static func register_property_info() -&gt; void:</signature>
+			<description>注册扩展相关 ProjectSettings 显示信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_default_enabled_extension_ids" line="130">
+			<signature>static func get_default_enabled_extension_ids() -&gt; Array[String]:</signature>
+			<description>获取默认启用的扩展 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">默认启用扩展 ID 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_extension_ids" line="143">
+			<signature>static func get_enabled_extension_ids() -&gt; Array[String]:</signature>
+			<description>获取用户配置的启用扩展 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">启用扩展 ID 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_enabled_extension_ids" line="158">
+			<signature>static func set_enabled_extension_ids(extension_ids: Array[String], include_dependencies: bool = true) -&gt; void:</signature>
+			<description>保存启用扩展 ID，可选自动补齐依赖。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">extension_ids: 要启用的扩展 ID 列表。</tag>
+				<tag name="param">include_dependencies: 是否自动包含依赖扩展。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="should_auto_install_enabled_installers" line="170">
+			<signature>static func should_auto_install_enabled_installers() -&gt; bool:</signature>
+			<description>判断是否自动运行启用扩展 Installer。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">自动运行时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_auto_install_enabled_installers" line="182">
+			<signature>static func set_auto_install_enabled_installers(enabled: bool) -&gt; void:</signature>
+			<description>设置是否自动运行启用扩展 Installer。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">enabled: 是否自动运行。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="should_export_exclude_disabled_extensions" line="191">
+			<signature>static func should_export_exclude_disabled_extensions() -&gt; bool:</signature>
+			<description>判断导出时是否排除禁用扩展目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">排除禁用扩展时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_export_exclude_disabled_extensions" line="203">
+			<signature>static func set_export_exclude_disabled_extensions(enabled: bool) -&gt; void:</signature>
+			<description>设置导出时是否排除禁用扩展目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">enabled: 是否排除禁用扩展。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="should_fail_export_on_disabled_extension_references" line="212">
+			<signature>static func should_fail_export_on_disabled_extension_references() -&gt; bool:</signature>
+			<description>判断导出审计发现禁用扩展引用时是否报告为错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">报告为错误时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_fail_export_on_disabled_extension_references" line="224">
+			<signature>static func set_fail_export_on_disabled_extension_references(enabled: bool) -&gt; void:</signature>
+			<description>设置导出审计发现禁用扩展引用时是否报告为错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">enabled: 是否报告为错误。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_all_manifests" line="233">
+			<signature>static func get_all_manifests() -&gt; Array[GFExtensionManifest]:</signature>
+			<description>获取所有 manifest。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">manifest 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_manifest_cache" line="243">
+			<signature>static func clear_manifest_cache() -&gt; void:</signature>
+			<description>清空 manifest 发现缓存。编辑器或工具在扩展目录发生变化后可主动调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_manifest_by_id" line="254">
+			<signature>static func get_manifest_by_id(extension_id: String) -&gt; GFExtensionManifest:</signature>
+			<description>按 ID 获取 manifest。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">extension_id: 扩展 ID。</tag>
+				<tag name="return">找到时返回 manifest，否则返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_extension" line="272">
+			<signature>static func has_extension(extension_id: String) -&gt; bool:</signature>
+			<description>判断扩展 manifest 是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">extension_id: 扩展 ID。</tag>
+				<tag name="return">存在 manifest 时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_extension_resource_path" line="285">
+			<signature>static func get_extension_resource_path( extension_id: String, relative_path: String = "" ) -&gt; String:</signature>
+			<description>获取扩展内资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">extension_id: 扩展 ID。</tag>
+				<tag name="param">relative_path: 相对扩展根目录的资源路径；传入 `res://` 或 `user://` 时会原样返回。</tag>
+				<tag name="return">扩展资源路径；扩展不存在时返回空字符串。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_extension_enabled" line="310">
+			<signature>static func is_extension_enabled( extension_id: String, include_dependencies: bool = true ) -&gt; bool:</signature>
+			<description>判断扩展当前是否启用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">extension_id: 扩展 ID。</tag>
+				<tag name="param">include_dependencies: 是否把依赖补齐后的启用结果纳入判断。</tag>
+				<tag name="return">扩展存在且启用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="load_enabled_extension_script" line="339">
+			<signature>static func load_enabled_extension_script( extension_id: String, relative_path: String, include_dependencies: bool = true ) -&gt; Script:</signature>
+			<description>加载启用扩展内的脚本资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">extension_id: 扩展 ID。</tag>
+				<tag name="param">relative_path: 相对扩展根目录的脚本路径；传入 `res://` 或 `user://` 时会原样解析。</tag>
+				<tag name="param">include_dependencies: 是否把依赖补齐后的启用结果纳入判断。</tag>
+				<tag name="return">扩展存在、已启用且脚本可加载时返回 Script，否则返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_manifests" line="358">
+			<signature>static func get_enabled_manifests() -&gt; Array[GFExtensionManifest]:</signature>
+			<description>获取启用扩展的 manifest。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">启用 manifest 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_disabled_manifests" line="375">
+			<signature>static func get_disabled_manifests() -&gt; Array[GFExtensionManifest]:</signature>
+			<description>获取禁用扩展的 manifest。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">禁用 manifest 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_installer_paths" line="390">
+			<signature>static func get_enabled_installer_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的 Installer 路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Installer 路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_editor_action_paths" line="402">
+			<signature>static func get_enabled_editor_action_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的编辑器菜单动作路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">编辑器菜单动作脚本路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_editor_dock_paths" line="411">
+			<signature>static func get_enabled_editor_dock_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的编辑器工作区页面路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">编辑器工作区页面脚本路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_editor_inspector_paths" line="420">
+			<signature>static func get_enabled_editor_inspector_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的 Inspector 扩展路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">EditorInspectorPlugin 脚本路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_import_plugin_paths" line="429">
+			<signature>static func get_enabled_import_plugin_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的导入插件路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">EditorImportPlugin 脚本路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_export_plugin_paths" line="438">
+			<signature>static func get_enabled_export_plugin_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的导出插件路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">EditorExportPlugin 脚本路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_gltf_document_extension_paths" line="447">
+			<signature>static func get_enabled_gltf_document_extension_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的 glTF 文档扩展路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">GLTFDocumentExtension 脚本路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_enabled_access_generator_extension_paths" line="456">
+			<signature>static func get_enabled_access_generator_extension_paths() -&gt; Array[String]:</signature>
+			<description>获取启用扩展声明的访问器生成扩展路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">GFAccessGenerator 扩展脚本路径列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resolve_extension_dependencies" line="469">
+			<signature>static func resolve_extension_dependencies( extension_ids: Array[String], manifests: Array[GFExtensionManifest] = [] ) -&gt; Array[String]:</signature>
+			<description>根据 manifest 依赖关系补齐启用扩展。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">extension_ids: 原始启用扩展 ID。</tag>
+				<tag name="param">manifests: 可选 manifest 列表。</tag>
+				<tag name="return">补齐依赖后的扩展 ID。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_manifest_graph_report" line="514">
+			<signature>static func get_manifest_graph_report(manifests: Array[GFExtensionManifest] = []) -&gt; Dictionary:</signature>
+			<description>获取 manifest 依赖图诊断。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">manifests: 可选 manifest 列表；为空时扫描所有 GF 内置扩展。</tag>
+				<tag name="return">包含重复 ID、无效 manifest、缺失依赖和循环依赖的诊断字典。</tag>
+				<tag name="schema">return: Dictionary containing ok, extension_count, issue_count, duplicate_ids, invalid_manifests, missing_dependencies, and dependency_cycles.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_extension_selection_report" line="599">
+			<signature>static func get_extension_selection_report() -&gt; Dictionary:</signature>
+			<description>获取启用状态诊断。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">诊断字典。</tag>
+				<tag name="schema">return: Dictionary containing configured_ids, resolved_ids, unknown_enabled_ids, graph status, and extension counts.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

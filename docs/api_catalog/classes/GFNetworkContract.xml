@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkContract" path="addons/gf/extensions/network/contracts/gf_network_contract.gd" module="extensions/network" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkContract: 网络消息契约集合。
+契约集合用于集中描述一组 GFNetworkMessage 的 message_type、字段和默认通道，
+方便项目生成强类型辅助代码或在运行前校验消息结构。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="contract_id" line="25" decorators="@export">
+			<signature>var contract_id: StringName = &amp;""</signature>
+			<description>契约稳定标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="30" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>编辑器展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="messages" line="37" decorators="@export">
+			<signature>var messages: Array[GFNetworkContractMessage] = []</signature>
+			<description>消息契约列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">messages: Array[GFNetworkContractMessage]，按声明顺序保存消息契约。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="44" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存项目自定义契约元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_display_name" line="54">
+			<signature>func get_display_name() -&gt; String:</signature>
+			<description>获取展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">展示名称。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_message_contract" line="67">
+			<signature>func set_message_contract(message_contract: GFNetworkContractMessage) -&gt; void:</signature>
+			<description>设置或替换一个消息契约。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message_contract: 消息契约。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_message_contract" line="85">
+			<signature>func get_message_contract(message_type: StringName) -&gt; GFNetworkContractMessage:</signature>
+			<description>获取消息契约。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message_type: 消息类型。</tag>
+				<tag name="return">消息契约；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_message_contract" line="99">
+			<signature>func has_message_contract(message_type: StringName) -&gt; bool:</signature>
+			<description>检查消息契约是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message_type: 消息类型。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_message" line="118">
+			<signature>func make_message(message_type: StringName, values: Dictionary = {}, options: Dictionary = {}) -&gt; GFNetworkMessage:</signature>
+			<description>按消息契约创建 GFNetworkMessage。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message_type: 消息类型。</tag>
+				<tag name="param">values: 字段值字典。</tag>
+				<tag name="param">options: 可选元信息。</tag>
+				<tag name="return">网络消息；契约不存在时返回 null。</tag>
+				<tag name="schema">values: Dictionary[StringName|String, Variant]，字段名到字段值的映射。</tag>
+				<tag name="schema">options: Dictionary，支持 include_defaults、sequence、tick、sender_id、channel_id。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_message" line="134">
+			<signature>func validate_message(message: GFNetworkMessage) -&gt; Dictionary:</signature>
+			<description>校验网络消息是否匹配本契约集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">message: 网络消息。</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_contract" line="151">
+			<signature>func validate_contract() -&gt; Dictionary:</signature>
+			<description>校验契约定义是否完整。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe" line="185">
+			<signature>func describe() -&gt; Dictionary:</signature>
+			<description>描述契约集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">描述字典。</tag>
+				<tag name="schema">return: Dictionary，包含 contract_id、display_name、message_count、messages、metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

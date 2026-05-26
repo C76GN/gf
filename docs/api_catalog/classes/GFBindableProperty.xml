@@ -1,0 +1,210 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFBindableProperty" path="addons/gf/kernel/core/gf_bindable_property.gd" module="kernel" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFBindableProperty: 响应式数据绑定属性容器。
+封装一个 Variant 值，当值发生变化时自动发出 value_changed 信号。
+可用于 Controller 直接监听 Model 数据变化，无需通过事件总线中转。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="value_changed" line="34">
+			<signature>signal value_changed(old_value: Variant, new_value: Variant)</signature>
+			<description>当属性值被设置为不同的新值时发出。
+"type": "Variant",
+"description": "变化前的旧值。"
+}
+"type": "Variant",
+"description": "变化后的新值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">old_value: 变化前的旧值。</tag>
+				<tag name="param">new_value: 变化后的新值。</tag>
+				<tag name="schema">old_value {</tag>
+				<tag name="schema">new_value {</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="value" line="52">
+			<signature>var value: Variant:</signature>
+			<description>当前属性值。设置该属性等价于调用 `set_value()`。
+"type": "Variant",
+"description": "当前属性值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">value {</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_value" line="94">
+			<signature>func get_value() -&gt; Variant:</signature>
+			<description>获取当前属性值。
+"type": "Variant",
+"description": "当前存储的值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前存储的值。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_value" line="108">
+			<signature>func set_value(new_value: Variant) -&gt; void:</signature>
+			<description>设置属性值。仅当新值与旧值不同时，才会更新并发出 value_changed 信号。
+"type": "Variant",
+"description": "要设置的新值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">new_value: 要设置的新值。</tag>
+				<tag name="schema">new_value {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="force_emit" line="120">
+			<signature>func force_emit() -&gt; void:</signature>
+			<description>强制发出 value_changed 信号。
+适合在 Array、Dictionary 或 Object 发生原地变更后，由业务层显式通知监听者。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="mutate" line="131">
+			<signature>func mutate(mutator: Callable) -&gt; bool:</signature>
+			<description>通过回调修改当前值并强制广播。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">mutator: 修改当前值的回调。</tag>
+				<tag name="return">回调有效时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="append_to_array" line="151">
+			<signature>func append_to_array(item: Variant) -&gt; bool:</signature>
+			<description>向当前 Array 追加一个元素。
+"type": "Variant",
+"description": "要追加的元素。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item: 要追加的元素。</tag>
+				<tag name="return">成功返回 true。</tag>
+				<tag name="schema">item {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="append_array" line="172">
+			<signature>func append_array(items: Array) -&gt; bool:</signature>
+			<description>向当前 Array 追加多个元素。
+"type": "Array",
+"description": "要追加的元素列表。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">items: 要追加的元素列表。</tag>
+				<tag name="return">成功返回 true。</tag>
+				<tag name="schema">items {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_from_array" line="193">
+			<signature>func erase_from_array(item: Variant) -&gt; bool:</signature>
+			<description>从当前 Array 删除一个元素。
+"type": "Variant",
+"description": "要删除的元素。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item: 要删除的元素。</tag>
+				<tag name="return">成功返回 true。</tag>
+				<tag name="schema">item {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_dictionary_value" line="223">
+			<signature>func set_dictionary_value(key: Variant, new_value: Variant) -&gt; bool:</signature>
+			<description>设置当前 Dictionary 的一个键值。
+"type": "Variant",
+"description": "Dictionary 键。"
+}
+"type": "Variant",
+"description": "Dictionary 新值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">new_value: 新值。</tag>
+				<tag name="return">成功返回 true。</tag>
+				<tag name="schema">key {</tag>
+				<tag name="schema">new_value {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_dictionary_key" line="244">
+			<signature>func erase_dictionary_key(key: Variant) -&gt; bool:</signature>
+			<description>从当前 Dictionary 删除一个键。
+"type": "Variant",
+"description": "Dictionary 键。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="return">成功返回 true。</tag>
+				<tag name="schema">key {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_collection" line="260">
+			<signature>func clear_collection() -&gt; bool:</signature>
+			<description>清空当前 Array 或 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unbind" line="290">
+			<signature>func unbind(node: Variant, callable: Callable) -&gt; void:</signature>
+			<description>断开指定 Node 与 Callable 的绑定关系。
+"type": "Variant",
+"description": "绑定生命周期的 Node；已失效对象会触发失效绑定清理。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node: 绑定生命周期的节点；已失效对象会触发失效绑定清理。</tag>
+				<tag name="param">callable: 要解绑的回调函数。</tag>
+				<tag name="schema">node {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unbind_all" line="304">
+			<signature>func unbind_all() -&gt; void:</signature>
+			<description>断开所有由 bind_to() 创建的 Node 生命周期绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unbind_all_node_bindings" line="311">
+			<signature>func unbind_all_node_bindings() -&gt; void:</signature>
+			<description>断开所有由 bind_to() 创建的 Node 生命周期绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="disconnect_all_subscribers" line="329">
+			<signature>func disconnect_all_subscribers() -&gt; void:</signature>
+			<description>断开 value_changed 信号上的所有订阅者，并清理 bind_to() 创建的 Node 生命周期绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="bind_to" line="351">
+			<signature>func bind_to(node: Node, callable: Callable) -&gt; void:</signature>
+			<description>绑定信号到一个 Node 的 Callable。当该 Node 退出场景树时，自动断开连接。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node: 监听生命周期的节点。</tag>
+				<tag name="param">callable: 绑定的回调函数。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

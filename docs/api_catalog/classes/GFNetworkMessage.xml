@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkMessage" path="addons/gf/extensions/network/messages/gf_network_message.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkMessage: 通用网络消息载体。
+只描述传输元信息和字典载荷，不绑定具体协议、后端或业务消息类型。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="message_type" line="19">
+			<signature>var message_type: StringName = &amp;""</signature>
+			<description>消息类型标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="sequence" line="24">
+			<signature>var sequence: int = 0</signature>
+			<description>发送端自增序号。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="tick" line="29">
+			<signature>var tick: int = 0</signature>
+			<description>逻辑 tick 或帧号。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="sender_id" line="34">
+			<signature>var sender_id: int = -1</signature>
+			<description>发送者标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="channel_id" line="39">
+			<signature>var channel_id: StringName = &amp;""</signature>
+			<description>逻辑网络通道标识。为空时入站侧可按 message_type 匹配同名通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="payload" line="46">
+			<signature>var payload: Dictionary = {}</signature>
+			<description>消息载荷。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">payload: Dictionary[StringName|String, Variant]，保存消息业务载荷。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="to_dict" line="76">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转为可序列化字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">字典载荷。</tag>
+				<tag name="schema">return: Dictionary，包含 type、sequence、tick、sender_id、channel_id、payload。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="94">
+			<signature>func from_dict(data: Dictionary) -&gt; void:</signature>
+			<description>从字典恢复。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 字典载荷。</tag>
+				<tag name="schema">data: Dictionary，包含 type、sequence、tick、sender_id、channel_id、payload。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

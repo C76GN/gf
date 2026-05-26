@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputTrigger" path="addons/gf/standard/input/triggers/gf_input_trigger.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputTrigger: 输入动作触发器基类。
+触发器只决定“原始输入活跃后何时视为动作活跃”，不修改输入值。运行时状态由
+GFInputMappingUtility 传入的 Dictionary 保存，因此同一资源可被多个上下文复用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="TriggerState" line="20">
+			<signature>enum TriggerState { ## 输入未达到触发条件。 INACTIVE, ## 输入正在等待触发条件，例如长按计时中。 ONGOING, ## 输入已满足触发条件。 TRIGGERED, }</signature>
+			<description>触发器本次更新后的动作状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="reset_trigger_state" line="39">
+			<signature>func reset_trigger_state(state: Dictionary) -&gt; void:</signature>
+			<description>重置运行时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 由调用方保存的状态字典。</tag>
+				<tag name="schema">state: Dictionary，由输入运行时为当前 trigger 实例持有。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="prepare_runtime" line="56">
+			<signature>func prepare_runtime( _action_id: StringName, _input_runtime: Object, _player_index: int, _state: Dictionary ) -&gt; void:</signature>
+			<description>更新前注入运行时上下文。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_action_id: 当前动作标识。</tag>
+				<tag name="param">_input_runtime: 输入映射运行时。</tag>
+				<tag name="param">_player_index: 玩家索引；全局动作传 -1。</tag>
+				<tag name="param">_state: 该触发器的运行时状态。</tag>
+				<tag name="schema">_state: Dictionary，由输入运行时为当前 trigger 实例持有。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="update" line="82">
+			<signature>func update(raw_active: bool, _value: Variant, _delta: float, _state: Dictionary) -&gt; TriggerState:</signature>
+			<description>更新触发器状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">raw_active: 原始输入是否活跃。</tag>
+				<tag name="param">_value: 当前动作值。</tag>
+				<tag name="param">_delta: 本次更新经过的秒数；事件驱动刷新时可能为 0。</tag>
+				<tag name="param">_state: 该触发器的运行时状态。</tag>
+				<tag name="return">触发状态。</tag>
+				<tag name="schema">_value: Variant，由当前输入映射产生的动作值。</tag>
+				<tag name="schema">_state: Dictionary，由输入运行时为当前 trigger 实例持有。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_trigger" line="91">
+			<signature>func duplicate_trigger() -&gt; GFInputTrigger:</signature>
+			<description>创建运行时副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">触发器副本。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

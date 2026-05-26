@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFConfigRegexValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_regex_validation_rule.gd" module="standard" extends="GFConfigValidationRule" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFConfigRegexValidationRule: 字符串正则校验规则。
+用于检查字符串字段是否匹配给定表达式，可选择部分匹配或完整匹配。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="pattern" line="19" decorators="@export">
+			<signature>var pattern: String = ""</signature>
+			<description>正则表达式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="require_full_match" line="24" decorators="@export">
+			<signature>var require_full_match: bool = false</signature>
+			<description>是否要求整个字符串都匹配。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_empty" line="29" decorators="@export">
+			<signature>var allow_empty: bool = true</signature>
+			<description>空字符串是否直接视为通过。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="describe" line="41">
+			<signature>func describe() -&gt; Dictionary:</signature>
+			<description>导出规则摘要。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">规则摘要字典。</tag>
+				<tag name="schema">return: Dictionary，包含基础规则字段、pattern、require_full_match 和 allow_empty。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

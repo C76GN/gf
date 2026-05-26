@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAssetHandle" path="addons/gf/standard/utilities/assets/gf_asset_handle.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAssetHandle: GFAssetUtility 创建的资源所有权句柄。
+句柄只表达“某个调用方正在持有某个资源路径”，不规定资源业务语义。
+调用 release() 会把引用归还给 GFAssetUtility；句柄释放前，对应缓存路径不会被 LRU 淘汰。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="path" line="20">
+			<signature>var path: String = ""</signature>
+			<description>资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="type_hint" line="25">
+			<signature>var type_hint: String = ""</signature>
+			<description>请求时使用的类型提示。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="group_id" line="30">
+			<signature>var group_id: StringName = &amp;""</signature>
+			<description>可选资源分组。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="resource" line="35">
+			<signature>var resource: Resource = null</signature>
+			<description>资源实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_resource" line="52">
+			<signature>func get_resource() -&gt; Resource:</signature>
+			<description>获取资源实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">资源实例；句柄已释放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_owner_id" line="61">
+			<signature>func get_owner_id() -&gt; int:</signature>
+			<description>获取拥有者实例 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">拥有者实例 ID；未绑定 owner 时为 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_released" line="70">
+			<signature>func is_released() -&gt; bool:</signature>
+			<description>检查句柄是否已释放。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已释放返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_valid" line="79">
+			<signature>func is_valid() -&gt; bool:</signature>
+			<description>检查句柄当前是否仍能访问资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">可访问资源返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="release" line="88">
+			<signature>func release() -&gt; bool:</signature>
+			<description>释放句柄持有的资源引用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">成功释放返回 true。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

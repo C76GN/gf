@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFEquipmentSlot" path="addons/gf/extensions/domain/equipment/gf_equipment_slot.gd" module="extensions/domain" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFEquipmentSlot: 通用装备/挂载槽位。
+槽位只记录可接受标签和已挂载 item_id，不规定装备类型。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="slot_id" line="19" decorators="@export">
+			<signature>var slot_id: StringName = &amp;""</signature>
+			<description>槽位 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="item_id" line="24" decorators="@export">
+			<signature>var item_id: StringName = &amp;""</signature>
+			<description>当前挂载的物品 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="accepted_tags" line="31" decorators="@export">
+			<signature>var accepted_tags: Array[StringName] = []</signature>
+			<description>接受的物品标签。为空表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">accepted_tags: Array[StringName]，槽位接受的物品标签；为空时不限制。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="require_all_tags" line="36" decorators="@export">
+			<signature>var require_all_tags: bool = false</signature>
+			<description>是否要求物品同时拥有全部 accepted_tags。false 表示拥有任一标签即可。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="43" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，项目自定义槽位元数据；GF 不读取或改写其中字段。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="can_accept" line="57">
+			<signature>func can_accept(item_tags: Array[StringName]) -&gt; bool:</signature>
+			<description>检查标签是否可被槽位接受。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_tags: 物品标签。</tag>
+				<tag name="return">可接受时返回 true。</tag>
+				<tag name="schema">item_tags: Array[StringName]，当前物品拥有的标签列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="equip" line="84">
+			<signature>func equip(p_item_id: StringName, item_tags: Array[StringName] = []) -&gt; bool:</signature>
+			<description>挂载物品。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_item_id: 物品 ID。</tag>
+				<tag name="param">item_tags: 物品标签。</tag>
+				<tag name="return">成功时返回 true。</tag>
+				<tag name="schema">item_tags: Array[StringName]，当前物品拥有的标签列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unequip" line="94">
+			<signature>func unequip() -&gt; void:</signature>
+			<description>清空槽位。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

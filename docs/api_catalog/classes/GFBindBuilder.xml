@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFBindBuilder" path="addons/gf/kernel/core/gf_bind_builder.gd" module="kernel" extends="RefCounted" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFBindBuilder: 声明式装配链，用于把脚本绑定为模块或短生命周期工厂。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="from_factory" line="72">
+			<signature>func from_factory(factory: Callable) -&gt; Variant:</signature>
+			<description>使用 Callable 作为绑定来源。
+"type": "Variant",
+"description": "当前 GFBindBuilder 实例。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">factory: 返回 Object 实例的工厂。</tag>
+				<tag name="return">当前 Builder，便于继续声明生命周期。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_instance" line="90">
+			<signature>func from_instance(instance: Object) -&gt; Variant:</signature>
+			<description>使用已有实例作为绑定来源。
+"type": "Variant",
+"description": "当前 GFBindBuilder 实例。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">instance: 要注册或暴露的实例。</tag>
+				<tag name="return">当前 Builder，便于继续声明生命周期。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="with_alias" line="108">
+			<signature>func with_alias(alias_cls: Script) -&gt; Variant:</signature>
+			<description>额外登记一个查询别名。仅对 Model/System/Utility 有效。
+"type": "Variant",
+"description": "当前 GFBindBuilder 实例。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">alias_cls: 调用 get_* 时使用的抽象脚本类型。</tag>
+				<tag name="return">当前 Builder，便于继续声明生命周期。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="as_singleton" line="119">
+			<signature>func as_singleton() -&gt; void:</signature>
+			<description>以单例语义完成绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="as_transient" line="139">
+			<signature>func as_transient() -&gt; void:</signature>
+			<description>以瞬态语义完成绑定。仅短生命周期工厂支持 transient。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

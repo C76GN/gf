@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCommandHistoryUtility" path="addons/gf/standard/utilities/history/gf_command_history_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFCommandHistoryUtility: 可撤销命令历史管理器。
+负责维护 `GFUndoableCommand` 的撤销栈与重做栈，
+并提供同步/异步重放与历史序列化能力。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="max_history_size" line="25">
+			<signature>var max_history_size: int:</signature>
+			<description>撤销栈的最大容量；为 0 时表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="undo_count" line="35">
+			<signature>var undo_count: int:</signature>
+			<description>当前撤销栈深度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="redo_count" line="42">
+			<signature>var redo_count: int:</signature>
+			<description>当前重做栈深度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="async_timeout_seconds" line="49">
+			<signature>var async_timeout_seconds: float = 30.0</signature>
+			<description>异步命令等待超时时间（秒）。小于等于 0 时表示不启用超时。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="is_processing_async" line="54">
+			<signature>var is_processing_async: bool:</signature>
+			<description>当前是否正在等待一条异步命令完成。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="79">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化命令历史并清空撤销、重做栈。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="89">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放命令历史并取消等待中的异步历史操作。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="record" line="103">
+			<signature>func record(cmd: GFUndoableCommand) -&gt; void:</signature>
+			<description>记录一条已经执行完成的命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cmd: 已执行的命令实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute_command" line="123">
+			<signature>func execute_command(cmd: GFUndoableCommand) -&gt; Variant:</signature>
+			<description>执行命令并自动记录到撤销栈。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cmd: 要执行的命令实例。</tag>
+				<tag name="return">`execute()` 的原始返回值；异步命令可由调用方自行 `await`。</tag>
+				<tag name="schema">return: Variant returned by GFUndoableCommand.execute(), including null or Signal.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="undo_last" line="152">
+			<signature>func undo_last() -&gt; bool:</signature>
+			<description>撤销最后一条命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">成功撤销时返回 `true`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="undo_last_async" line="173">
+			<signature>func undo_last_async() -&gt; bool:</signature>
+			<description>异步撤销最后一条命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">成功撤销时返回 `true`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="redo" line="200">
+			<signature>func redo() -&gt; bool:</signature>
+			<description>重做最近被撤销的命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">成功重做时返回 `true`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="redo_async" line="221">
+			<signature>func redo_async() -&gt; bool:</signature>
+			<description>异步重做最近被撤销的命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">成功重做时返回 `true`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="246">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空所有历史记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_undo" line="260">
+			<signature>func can_undo() -&gt; bool:</signature>
+			<description>检查当前是否允许撤销。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">有可撤销命令时返回 `true`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_redo" line="269">
+			<signature>func can_redo() -&gt; bool:</signature>
+			<description>检查当前是否允许重做。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">有可重做命令时返回 `true`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_undo_history" line="278">
+			<signature>func get_undo_history() -&gt; Array[GFUndoableCommand]:</signature>
+			<description>获取撤销栈副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">撤销历史的浅拷贝。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_redo_history" line="287">
+			<signature>func get_redo_history() -&gt; Array[GFUndoableCommand]:</signature>
+			<description>获取重做栈副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">重做历史的浅拷贝。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="serialize_history" line="298">
+			<signature>func serialize_history() -&gt; Array[Dictionary]:</signature>
+			<description>将撤销栈序列化为纯数据数组。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">适合持久化的历史数据。</tag>
+				<tag name="schema">return: Array[Dictionary] serialized command snapshots produced by command serialize() or get_snapshot().</tag>
+			</tags>
+		</member>
+		<member kind="method" name="serialize_full_history" line="310">
+			<signature>func serialize_full_history() -&gt; Dictionary:</signature>
+			<description>将完整命令历史序列化为纯数据字典。
+包含 `undo` 与 `redo` 两个栈，可用于全量运行时快照恢复。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">适合持久化的完整历史数据。</tag>
+				<tag name="schema">return: Dictionary with undo and redo Array[Dictionary] stacks.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_history" line="326">
+			<signature>func deserialize_history(data_array: Array, command_builder: Callable) -&gt; void:</signature>
+			<description>通过构造器从纯数据恢复撤销栈。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data_array: 历史数据数组。</tag>
+				<tag name="param">command_builder: 负责反序列化命令实例的构造器。</tag>
+				<tag name="schema">data_array: Array[Dictionary] serialized command snapshots produced by serialize_history().</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_full_history" line="355">
+			<signature>func deserialize_full_history(data: Dictionary, command_builder: Callable) -&gt; void:</signature>
+			<description>通过构造器从完整历史数据恢复撤销栈与重做栈。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 由 `serialize_full_history()` 生成的字典数据。</tag>
+				<tag name="param">command_builder: 负责反序列化命令实例的构造器。</tag>
+				<tag name="schema">data: Dictionary with undo and redo Array[Dictionary] stacks.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCapabilityRecipe" path="addons/gf/extensions/capability/recipes/gf_capability_recipe.gd" module="extensions/capability" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFCapabilityRecipe: 可复用的能力组合资源。
+Recipe 用于把一组通用 Capability 条目批量应用到 receiver。它只描述组合结构，
+不规定实体类型、玩法规则、UI 或存档字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="recipe_id" line="25" decorators="@export">
+			<signature>var recipe_id: StringName = &amp;""</signature>
+			<description>Recipe 稳定标识。为空时可由项目层按资源路径管理。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="30" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>Recipe 展示名，仅供编辑器和项目工具显示。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="entries" line="35" decorators="@export">
+			<signature>var entries: Array[GFCapabilityRecipeEntry] = []</signature>
+			<description>能力条目列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="groups" line="40" decorators="@export">
+			<signature>var groups: Array[StringName] = []</signature>
+			<description>应用 Recipe 时附加到 receiver 的能力查询分组。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="47" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: 项目自定义元数据 Dictionary；框架保留并复制该字段，但不解释其中键值。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_display_name" line="57">
+			<signature>func get_display_name() -&gt; String:</signature>
+			<description>获取展示名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">展示名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_recipe" line="74">
+			<signature>func describe_recipe() -&gt; Dictionary:</signature>
+			<description>描述 Recipe。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Recipe 描述字典。</tag>
+				<tag name="schema">return: 包含 recipe_id、display_name、entry_count、entries、groups 和 metadata 字段的 Dictionary；entries 为各条目的 describe_entry() 快照数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_recipe" line="97">
+			<signature>func validate_recipe() -&gt; Dictionary:</signature>
+			<description>校验 Recipe 结构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">校验报告。</tag>
+				<tag name="schema">return: GFValidationReport.to_dict() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和 entry_count 等字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

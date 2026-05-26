@@ -4,11 +4,11 @@
 
 ## 阅读入口
 
-- [事件系统](events.md)：Simple Event、Type Event、监听器所有权、派发时序和最佳实践。
-- [命令、查询与规则](commands-queries-rules.md)：`GFCommand`、`GFQuery`、`GFRule`、工厂注入和跨模块调用。
-- [命令历史与撤销重做](command-history.md)：`GFCommandHistoryUtility` 的执行历史、序列化、恢复和异步撤销。
+- [事件系统](events/index.md)：Simple Event、Type Event、监听器所有权、派发时序和诊断。
+- [命令、查询与规则](commands-queries-rules/index.md)：`GFCommand`、`GFQuery`、`GFRule`、工厂注入和跨模块调用。
+- [命令历史与撤销重做](command-history/index.md)：`GFCommandHistoryUtility` 的执行历史、序列化、恢复和异步撤销。
 
-## 选择建议
+## 使用边界
 
 - 想通知多个模块“某件事发生了”，优先读事件系统。
 - 想表达一次明确写操作，使用 `GFCommand`。

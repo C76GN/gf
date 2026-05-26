@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFProjectileCatalog" path="addons/gf/extensions/combat/projectiles/gf_projectile_catalog.gd" module="extensions/combat" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFProjectileCatalog: 发射体场景目录。
+用稳定 ID 管理 PackedScene，供发射器、技能或项目自己的生成流程复用。
+目录不规定发射体的伤害、阵营、消耗或命中特效。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="entries" line="25" decorators="@export">
+			<signature>var entries: Array[GFProjectileCatalogEntry] = []</signature>
+			<description>发射体场景条目列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_scene" line="37">
+			<signature>func set_scene(projectile_id: StringName, scene: PackedScene) -&gt; void:</signature>
+			<description>设置或替换一个发射体场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">projectile_id: 发射体 ID。</tag>
+				<tag name="param">scene: 发射体场景；为 null 时移除该 ID。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_scene" line="59">
+			<signature>func get_scene(projectile_id: StringName) -&gt; PackedScene:</signature>
+			<description>获取指定 ID 的发射体场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">projectile_id: 发射体 ID。</tag>
+				<tag name="return">找到时返回 PackedScene，否则返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_scene" line="73">
+			<signature>func remove_scene(projectile_id: StringName) -&gt; bool:</signature>
+			<description>移除指定 ID 的发射体场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">projectile_id: 发射体 ID。</tag>
+				<tag name="return">移除成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_scene" line="89">
+			<signature>func has_scene(projectile_id: StringName) -&gt; bool:</signature>
+			<description>检查指定 ID 是否存在有效场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">projectile_id: 发射体 ID。</tag>
+				<tag name="return">存在有效场景时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_projectile_ids" line="98">
+			<signature>func get_projectile_ids() -&gt; PackedStringArray:</signature>
+			<description>获取所有有效发射体 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">按字典序排序的 ID 数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="prune_invalid_entries" line="112">
+			<signature>func prune_invalid_entries() -&gt; int:</signature>
+			<description>清理空条目、空 ID 或空场景。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">被清理的条目数量。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

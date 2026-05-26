@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTouchJoystick" path="addons/gf/standard/input/touch/gf_touch_joystick.gd" module="standard" extends="Node2D" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTouchJoystick: 通用触屏虚拟摇杆节点。
+可直接发出方向信号，也可选择映射到 Godot InputMap 动作。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="direction_changed" line="23">
+			<signature>signal direction_changed(direction: Vector2)</signature>
+			<description>摇杆方向变化时发出。方向已归一化并应用死区。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">direction: 已归一化并应用死区后的摇杆方向。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="joystick_pressed" line="28">
+			<signature>signal joystick_pressed</signature>
+			<description>摇杆按下时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="joystick_released" line="33">
+			<signature>signal joystick_released</signature>
+			<description>摇杆释放时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="PositionMode" line="41">
+			<signature>enum PositionMode { ## 摇杆中心保持在场景中摆放的位置。 FIXED, ## 初次触摸时摇杆中心移动到触点，释放后回到原位置。 RELATIVE, }</signature>
+			<description>摇杆定位模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="radius" line="55" decorators="@export_group(&quot;Shape&quot;) @export">
+			<signature>var radius: float = 64.0:</signature>
+			<description>摇杆半径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="color" line="71" decorators="@export_range(2.0, 8.0, 0.1) var knob_radius_ratio: float = 3.0: @export">
+			<signature>var color: Color = Color(1.0, 1.0, 1.0, 0.35):</signature>
+			<description>摇杆手柄半径比例。
+摇杆颜色。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="draw_interaction_zone" line="79" decorators="@export">
+			<signature>var draw_interaction_zone: bool = false:</signature>
+			<description>是否绘制相对摇杆交互范围。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="position_mode" line="93" decorators="@export_group(&quot;Input&quot;) @export_range(0.0, 0.95, 0.01) var deadzone: float = 0.1 @export">
+			<signature>var position_mode: PositionMode = PositionMode.FIXED:</signature>
+			<description>输入死区，范围 0 到 1。
+摇杆定位模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="interaction_radius" line="101" decorators="@export">
+			<signature>var interaction_radius: float = 160.0:</signature>
+			<description>相对模式下允许开始触控的交互半径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="action_left" line="109" decorators="@export">
+			<signature>var action_left: StringName = &amp;""</signature>
+			<description>左方向动作名。为空则不映射。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="action_right" line="114" decorators="@export">
+			<signature>var action_right: StringName = &amp;""</signature>
+			<description>右方向动作名。为空则不映射。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="action_up" line="119" decorators="@export">
+			<signature>var action_up: StringName = &amp;""</signature>
+			<description>上方向动作名。为空则不映射。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="action_down" line="124" decorators="@export">
+			<signature>var action_down: StringName = &amp;""</signature>
+			<description>下方向动作名。为空则不映射。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="emit_joypad_motion" line="130" decorators="@export_group(&quot;Joypad Event&quot;) @export">
+			<signature>var emit_joypad_motion: bool = false</signature>
+			<description>是否额外发送虚拟手柄轴事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="joypad_device_id" line="135" decorators="@export">
+			<signature>var joypad_device_id: int = -2</signature>
+			<description>虚拟手柄设备 ID。建议使用负数以避开真实手柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="joy_axis_x" line="140" decorators="@export">
+			<signature>var joy_axis_x: JoyAxis = JOY_AXIS_LEFT_X</signature>
+			<description>X 轴对应的手柄轴。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="joy_axis_y" line="145" decorators="@export">
+			<signature>var joy_axis_y: JoyAxis = JOY_AXIS_LEFT_Y</signature>
+			<description>Y 轴对应的手柄轴。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_direction" line="187">
+			<signature>func get_direction() -&gt; Vector2:</signature>
+			<description>获取当前方向。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前摇杆方向。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="release" line="194">
+			<signature>func release() -&gt; void:</signature>
+			<description>手动释放摇杆并清理动作状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

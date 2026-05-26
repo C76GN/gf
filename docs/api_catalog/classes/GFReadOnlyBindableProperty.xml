@@ -1,0 +1,117 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFReadOnlyBindableProperty" path="addons/gf/kernel/core/gf_read_only_bindable_property.gd" module="kernel" extends="GFBindableProperty" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFReadOnlyBindableProperty: 只读响应式属性视图。
+复用 `GFBindableProperty` 的读取、信号和生命周期绑定能力，
+但阻止外部直接调用 `set_value()` 修改底层值。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="set_value" line="48">
+			<signature>func set_value(_new_value: Variant) -&gt; void:</signature>
+			<description>只读视图不允许外部直接写入值。
+"type": "Variant",
+"description": "调用方尝试写入的新值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_new_value: 调用方尝试写入的新值。</tag>
+				<tag name="schema">_new_value {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="mutate" line="59">
+			<signature>func mutate(_mutator: Callable) -&gt; bool:</signature>
+			<description>只读视图不允许外部原地修改值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_mutator: 调用方尝试执行的修改回调。</tag>
+				<tag name="return">始终返回 false。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="append_to_array" line="76">
+			<signature>func append_to_array(_item: Variant) -&gt; bool:</signature>
+			<description>只读视图不允许外部向数组追加元素。
+"type": "Variant",
+"description": "调用方尝试追加的元素。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_item: 调用方尝试追加的元素。</tag>
+				<tag name="return">始终返回 false。</tag>
+				<tag name="schema">_item {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="append_array" line="93">
+			<signature>func append_array(_items: Array) -&gt; bool:</signature>
+			<description>只读视图不允许外部向数组追加元素列表。
+"type": "Array",
+"description": "调用方尝试追加的元素列表。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_items: 调用方尝试追加的元素列表。</tag>
+				<tag name="return">始终返回 false。</tag>
+				<tag name="schema">_items {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_from_array" line="110">
+			<signature>func erase_from_array(_item: Variant) -&gt; bool:</signature>
+			<description>只读视图不允许外部从数组删除元素。
+"type": "Variant",
+"description": "调用方尝试删除的元素。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_item: 调用方尝试删除的元素。</tag>
+				<tag name="return">始终返回 false。</tag>
+				<tag name="schema">_item {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_dictionary_value" line="134">
+			<signature>func set_dictionary_value(_key: Variant, _new_value: Variant) -&gt; bool:</signature>
+			<description>只读视图不允许外部设置字典键值。
+"type": "Variant",
+"description": "调用方尝试设置的键。"
+}
+"type": "Variant",
+"description": "调用方尝试设置的新值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_key: 调用方尝试设置的键。</tag>
+				<tag name="param">_new_value: 调用方尝试设置的新值。</tag>
+				<tag name="return">始终返回 false。</tag>
+				<tag name="schema">_key {</tag>
+				<tag name="schema">_new_value {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="erase_dictionary_key" line="151">
+			<signature>func erase_dictionary_key(_key: Variant) -&gt; bool:</signature>
+			<description>只读视图不允许外部删除字典键。
+"type": "Variant",
+"description": "调用方尝试删除的键。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_key: 调用方尝试删除的键。</tag>
+				<tag name="return">始终返回 false。</tag>
+				<tag name="schema">_key {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_collection" line="161">
+			<signature>func clear_collection() -&gt; bool:</signature>
+			<description>只读视图不允许外部清空集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">始终返回 false。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

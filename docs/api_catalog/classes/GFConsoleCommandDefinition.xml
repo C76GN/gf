@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFConsoleCommandDefinition" path="addons/gf/standard/utilities/debug/gf_console_command_definition.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFConsoleCommandDefinition: 控制台命令资源定义。
+只保存命令名称、别名、描述和元数据，执行逻辑仍由注册时传入的 Callable 提供。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="command_name" line="19" decorators="@export">
+			<signature>var command_name: String = ""</signature>
+			<description>主命令名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="aliases" line="24" decorators="@export">
+			<signature>var aliases: PackedStringArray = PackedStringArray()</signature>
+			<description>命令别名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="description" line="29" decorators="@export">
+			<signature>var description: String = ""</signature>
+			<description>命令描述。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="36" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存项目自定义命令元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_all_names" line="46">
+			<signature>func get_all_names() -&gt; PackedStringArray:</signature>
+			<description>获取所有命令名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">主命令和别名。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

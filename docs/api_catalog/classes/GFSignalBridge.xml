@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSignalBridge" path="addons/gf/standard/utilities/signals/bridge/gf_signal_bridge.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSignalBridge: 声明式信号到 Callable 的桥接资源。
+桥接只描述信号来源、目标方法、参数重排和常量参数。它不修改场景结构、
+不解释信号业务含义，也不要求调用方使用特定 UI 或状态机。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="bridge_id" line="20" decorators="@export">
+			<signature>var bridge_id: StringName = &amp;""</signature>
+			<description>桥接 ID，便于调试和项目侧索引。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enabled" line="25" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否启用该桥接。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="source" line="30" decorators="@export">
+			<signature>var source: GFSignalSourceRef = GFSignalSourceRef.new()</signature>
+			<description>信号来源引用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="target" line="35" decorators="@export">
+			<signature>var target: GFCallableTargetRef = GFCallableTargetRef.new()</signature>
+			<description>调用目标引用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="argument_indices" line="40" decorators="@export">
+			<signature>var argument_indices: PackedInt32Array = PackedInt32Array()</signature>
+			<description>要从原始信号参数中抽取的索引。为空时透传全部信号参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="constant_args" line="47" decorators="@export">
+			<signature>var constant_args: Array = []</signature>
+			<description>追加到桥接参数末尾的常量参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">constant_args: Array，追加在选中信号参数后的固定参数。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="append_context" line="52" decorators="@export">
+			<signature>var append_context: bool = false</signature>
+			<description>是否把桥接上下文字典追加到参数末尾。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="one_shot" line="57" decorators="@export">
+			<signature>var one_shot: bool = false</signature>
+			<description>是否只触发一次。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="connect_flags" line="62" decorators="@export">
+			<signature>var connect_flags: int = 0</signature>
+			<description>Godot 信号连接标记。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="69" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，关联到信号桥的项目侧元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="connect_bridge" line="85">
+			<signature>func connect_bridge( root: Node, owner: Object = null, signal_utility: GFSignalUtility = null ) -&gt; GFSignalBridgeBinding:</signature>
+			<description>连接桥接。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 路径解析根节点。</tag>
+				<tag name="param">owner: 可选连接拥有者。</tag>
+				<tag name="param">signal_utility: 可选 GFSignalUtility；为空时创建独立连接。</tag>
+				<tag name="return">运行中的桥接绑定；失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="invoke" line="130">
+			<signature>func invoke(root: Node, signal_args: Array = []) -&gt; Dictionary:</signature>
+			<description>直接执行桥接调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 路径解析根节点。</tag>
+				<tag name="param">signal_args: 原始信号参数。</tag>
+				<tag name="return">结构化调用结果。</tag>
+				<tag name="schema">signal_args: Array，来源信号发出的原始参数。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、reason、value、bridge_id 和 args。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_callable_args" line="158">
+			<signature>func build_callable_args(signal_args: Array = []) -&gt; Array:</signature>
+			<description>构建目标 Callable 参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">signal_args: 原始信号参数。</tag>
+				<tag name="return">映射后的参数。</tag>
+				<tag name="schema">signal_args: Array，来源信号发出的原始参数。</tag>
+				<tag name="schema">return: Array，传给目标 Callable 且位于 target.default_args 之前的参数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_validation_report" line="180">
+			<signature>func get_validation_report(root: Node) -&gt; Dictionary:</signature>
+			<description>获取校验报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 路径解析根节点。</tag>
+				<tag name="return">兼容 GFValidationReportDictionary 的报告字典。</tag>
+				<tag name="schema">return: GFValidationReportDictionary 兼容 Dictionary，包含 subject、bridge_id、issues、counts、summary 和 next_action。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary" line="220">
+			<signature>func to_dictionary() -&gt; Dictionary:</signature>
+			<description>转换为调试字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">桥接快照。</tag>
+				<tag name="schema">return: Dictionary，包含 bridge_id、enabled、source、target、argument_indices、constant_args、append_context、one_shot 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

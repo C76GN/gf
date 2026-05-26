@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFlowGraphEditorModel" path="addons/gf/extensions/flow/editor/gf_flow_graph_editor_model.gd" module="extensions/flow" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFlowGraphEditorModel: FlowGraph 编辑器视图模型构建器。
+将 GFFlowGraph 转换为 GraphEdit、自定义编辑器或项目工具可直接消费的
+节点、端口、连接和校验结构。它只整理数据，不绑定具体 UI 实现。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="default_node_size" line="27">
+			<signature>var default_node_size: Vector2 = Vector2(220.0, 120.0)</signature>
+			<description>节点未显式设置尺寸时使用的默认编辑器尺寸。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_invalid_connections" line="32">
+			<signature>var include_invalid_connections: bool = true</signature>
+			<description>是否把校验失败的连接也写入视图模型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="build_view_model" line="46">
+			<signature>func build_view_model(graph: Resource) -&gt; Dictionary:</signature>
+			<description>构建流程图编辑器视图模型。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="return">视图模型字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、start_node_id、node_count、connection_count、nodes、node_lookup、connections、groups、metadata、validation。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_editor_report" line="88">
+			<signature>func build_editor_report(graph: Resource) -&gt; Dictionary:</signature>
+			<description>构建 FlowGraph 编辑器报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="return">编辑器诊断、目录和元数据报告。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、healthy、summary、next_action、validation、catalog 和 editor。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_editor_catalog" line="134">
+			<signature>func build_editor_catalog(graph: Resource) -&gt; Dictionary:</signature>
+			<description>获取编辑器可消费的节点目录，不调用节点/端口脚本方法。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="return">节点目录字典。</tag>
+				<tag name="schema">return: Dictionary，包含 node_count、nodes 和 categories；nodes 为节点目录记录数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_graph_for_editor" line="192">
+			<signature>func validate_graph_for_editor(graph: Resource) -&gt; Dictionary:</signature>
+			<description>校验 FlowGraph 结构，不调用项目节点/端口脚本方法。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="return">校验报告。</tag>
+				<tag name="schema">return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和计数字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_metadata_for_editor" line="269">
+			<signature>func validate_metadata_for_editor(target_metadata: Dictionary, schema: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>校验编辑器元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target_metadata: 待校验元数据。</tag>
+				<tag name="param">schema: 轻量 Schema。</tag>
+				<tag name="return">校验报告。</tag>
+				<tag name="schema">target_metadata: Dictionary，待校验的编辑器或项目工具元数据。</tag>
+				<tag name="schema">schema: Dictionary，键为元数据 key，值为包含 required、allow_null、type、class_name、allowed_values 等字段的规则字典。</tag>
+				<tag name="schema">return: GFValidationReportDictionary.finalize_report() 生成的 Dictionary，包含 ok、healthy、summary、issues、next_action 和计数字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_node_layout" line="302">
+			<signature>func apply_node_layout( graph: GFFlowGraph, node_id: StringName, position: Vector2, size: Vector2 = Vector2.ZERO, collapsed: bool = false ) -&gt; bool:</signature>
+			<description>应用单个节点布局。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="param">node_id: 节点标识。</tag>
+				<tag name="param">position: 编辑器坐标。</tag>
+				<tag name="param">size: 编辑器尺寸；Vector2.ZERO 表示使用默认尺寸。</tag>
+				<tag name="param">collapsed: 是否折叠。</tag>
+				<tag name="return">应用成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_node_positions" line="325">
+			<signature>func apply_node_positions(graph: GFFlowGraph, positions: Dictionary) -&gt; int:</signature>
+			<description>批量应用节点位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="param">positions: node_id 到 Vector2 的映射。</tag>
+				<tag name="return">成功更新的节点数量。</tag>
+				<tag name="schema">positions: Dictionary，键为节点标识，值为 Vector2 编辑器坐标。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="auto_layout" line="350">
+			<signature>func auto_layout(graph: GFFlowGraph, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>自动生成并应用节点布局。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="param">options: 布局选项，透传给 GFGraphLayoutUtility.make_layered_layout()。</tag>
+				<tag name="return">布局报告，包含 positions 与 changed_count。</tag>
+				<tag name="schema">options: Dictionary，传给 GFGraphLayoutUtility.make_layered_layout() 的布局选项。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、positions、changed_count，失败时包含 error。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="build_selection_package" line="384">
+			<signature>func build_selection_package(graph: GFFlowGraph, node_ids: PackedStringArray) -&gt; Dictionary:</signature>
+			<description>构建节点选择包，用于编辑器复制、剪切或跨工具传递。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="param">node_ids: 选中的节点标识列表。</tag>
+				<tag name="return">选择包字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、node_count、connection_count、nodes、connections 和 node_ids。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="paste_selection_package" line="429">
+			<signature>func paste_selection_package( graph: GFFlowGraph, selection_package: Dictionary, offset: Vector2 = Vector2.ZERO, options: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>将选择包粘贴到流程图。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="param">selection_package: build_selection_package() 返回的选择包。</tag>
+				<tag name="param">offset: 粘贴时叠加到节点编辑器位置的偏移。</tag>
+				<tag name="param">options: 可选参数，支持 keep_original_ids。</tag>
+				<tag name="return">粘贴报告。</tag>
+				<tag name="schema">selection_package: Dictionary，由 build_selection_package() 返回，包含 nodes、connections 和 node_ids。</tag>
+				<tag name="schema">options: Dictionary，可包含 keep_original_ids。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、added_node_ids、added_node_count、added_connection_count、failed_connection_count 和 id_map。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_nodes" line="514">
+			<signature>func remove_nodes(graph: GFFlowGraph, node_ids: PackedStringArray) -&gt; Dictionary:</signature>
+			<description>从流程图移除一组节点及其相关连接。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">graph: 流程图资源。</tag>
+				<tag name="param">node_ids: 节点标识列表。</tag>
+				<tag name="return">移除报告。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、removed_node_ids、removed_node_count 和 connection_count。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

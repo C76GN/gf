@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInteractionReceiver" path="addons/gf/extensions/interaction/nodes/gf_interaction_receiver.gd" module="extensions/interaction" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInteractionReceiver: 通用交互接收节点。
+用 GFInteractionContext 接收任意交互请求，并提供启用状态、交互 ID 过滤、
+自定义校验回调和统一结果报告。节点不解释任何业务语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="interaction_validating" line="26">
+			<signature>signal interaction_validating(context: GFInteractionContext, report: Dictionary)</signature>
+			<description>交互进入自定义校验阶段时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 交互上下文。</tag>
+				<tag name="param">report: 当前结果报告副本。</tag>
+				<tag name="schema">report: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="interaction_received" line="37">
+			<signature>signal interaction_received(context: GFInteractionContext, report: Dictionary)</signature>
+			<description>交互被接受时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 交互上下文。</tag>
+				<tag name="param">report: 结果报告。</tag>
+				<tag name="schema">report: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="interaction_rejected" line="48">
+			<signature>signal interaction_rejected(context: GFInteractionContext, report: Dictionary)</signature>
+			<description>交互被拒绝时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 交互上下文。</tag>
+				<tag name="param">report: 结果报告。</tag>
+				<tag name="schema">report: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="enabled" line="61" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否允许接收交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="accepted_interaction_ids" line="66" decorators="@export">
+			<signature>var accepted_interaction_ids: Array[StringName] = []</signature>
+			<description>非空时，只接受这些交互 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rejected_interaction_ids" line="71" decorators="@export">
+			<signature>var rejected_interaction_ids: Array[StringName] = []</signature>
+			<description>始终拒绝的交互 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="78" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>接收器自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: 接收器自定义元数据 Dictionary；框架会复制到结果报告，但不解释其中键值。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="validation_callback" line="92">
+			<signature>var validation_callback: Callable = Callable()</signature>
+			<description>自定义校验回调，建议签名为 func(context: GFInteractionContext, report: Dictionary) -&gt; Variant。
+返回 bool 可直接决定是否接受；返回 Dictionary 可覆盖 ok、reason、metadata 等报告字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="can_receive_interaction" line="104">
+			<signature>func can_receive_interaction(interaction_id: StringName = &amp;"") -&gt; bool:</signature>
+			<description>检查指定交互 ID 是否可被当前接收器接受。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">interaction_id: 交互 ID。</tag>
+				<tag name="return">可接受时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="receive_interaction" line="129">
+			<signature>func receive_interaction(context: GFInteractionContext, interaction_id: StringName = &amp;"") -&gt; Dictionary:</signature>
+			<description>接收一次交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 交互上下文。</tag>
+				<tag name="param">interaction_id: 交互 ID。</tag>
+				<tag name="return">统一结果报告。</tag>
+				<tag name="schema">return: 交互结果报告 Dictionary，包含 ok、interaction_id、receiver、reason、message 和 metadata 等字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

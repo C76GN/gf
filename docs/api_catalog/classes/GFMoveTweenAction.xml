@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFMoveTweenAction" path="addons/gf/extensions/action_queue/actions/gf_move_tween_action.gd" module="extensions/action_queue" extends="GFVisualAction" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFMoveTweenAction: 通用节点移动 Tween 动作。
+将目标节点的指定位置属性缓动到目标值，适合卡牌、棋子、UI 面板等
+常见表现动作。默认等待 Tween 完成后队列才会继续。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="target" line="20">
+			<signature>var target: Node</signature>
+			<description>被移动的目标节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="target_position" line="27">
+			<signature>var target_position: Variant</signature>
+			<description>要写入的位置值，通常为 Vector2 或 Vector3。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">target_position: Variant，可写入 property_name 的目标位置值，通常为 Vector2、Vector3 或 float。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="duration" line="32">
+			<signature>var duration: float = 0.2</signature>
+			<description>Tween 持续时间。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="property_name" line="37">
+			<signature>var property_name: NodePath = ^"position"</signature>
+			<description>要缓动的属性名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="transition_type" line="42">
+			<signature>var transition_type: Tween.TransitionType = Tween.TRANS_CUBIC</signature>
+			<description>Tween 过渡类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="ease_type" line="47">
+			<signature>var ease_type: Tween.EaseType = Tween.EASE_OUT</signature>
+			<description>Tween 缓动类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="execute" line="78">
+			<signature>func execute() -&gt; Variant:</signature>
+			<description>执行移动 Tween。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">需要等待时返回内部完成 Signal；目标无效、配置无效或瞬时写入时返回 null。</tag>
+				<tag name="schema">return: Variant，返回内部完成 Signal 或 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel" line="100">
+			<signature>func cancel() -&gt; void:</signature>
+			<description>取消当前 Tween 并释放等待者。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause" line="108">
+			<signature>func pause() -&gt; void:</signature>
+			<description>暂停当前 Tween。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume" line="116">
+			<signature>func resume() -&gt; void:</signature>
+			<description>恢复当前 Tween。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="finish" line="124">
+			<signature>func finish() -&gt; void:</signature>
+			<description>立即推进并完成当前 Tween。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_wait_guard_node" line="136">
+			<signature>func get_wait_guard_node() -&gt; Node:</signature>
+			<description>获取用于保护等待生命周期的目标节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">有效目标节点；无效时返回 null。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

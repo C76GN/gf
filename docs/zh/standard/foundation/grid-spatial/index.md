@@ -1,0 +1,16 @@
+# Foundation 网格、路径与空间索引
+
+本组页面覆盖网格、格子选择、图搜索、寻路、TileMap 辅助、转向和空间索引等通用算法。所有能力都属于 Foundation：不注册到 `GFArchitecture`，不绑定场景树，也不解释项目业务语义。
+
+## 阅读入口
+
+- [2D 网格、生成管线与 Hex 网格](grid-2d-hex/index.md)：`GFGridMath`、`GFGridSelection2D`、`GFGridGenerationStep2D`、`GFGridGenerationPipeline2D` 与 `GFHexGridMath`。
+- [图搜索、布局与 3D 网格](graph-layout-3d/index.md)：`GFGraphMath`、`GFGraphLayoutUtility`、`GFGrid3DMath`、`GFGridKey3D` 与 `GFGridPlaneMapper3D`。
+- [Pattern2D 与 Steering](patterns-steering/index.md)：`GFPattern2D`、`GFSteeringAgent`、`GFSteeringMath` 和资源化 steering 组合。
+- [占用、TileMap 缓存、规则表与空间哈希](occupancy-tile-spatial/index.md)：`GFGridOccupancy`、`GFTileMapCache`、`GFTileRuleSet` 与 `GFSpatialHash3D`。
+
+## 使用边界
+
+- Foundation 只提供纯算法、纯数据结构和通用资源，不访问运行时容器。
+- 通行、代价、阵营、地形、目标选择、碰撞和渲染都由项目层回调或系统解释。
+- 需要持有运行时状态、异步加载、ProjectSettings 或场景节点时，应放入 `standard/utilities`、扩展或项目代码。

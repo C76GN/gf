@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAudioBackendCapability" path="addons/gf/standard/utilities/audio/gf_audio_backend_capability.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAudioBackendCapability: 音频后端能力声明。
+用布尔能力与元数据描述一个后端能处理哪些通用音频请求。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="supports_bgm" line="19" decorators="@export">
+			<signature>var supports_bgm: bool = false</signature>
+			<description>是否支持 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_sfx" line="24" decorators="@export">
+			<signature>var supports_sfx: bool = false</signature>
+			<description>是否支持 SFX。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_ambient" line="29" decorators="@export">
+			<signature>var supports_ambient: bool = false</signature>
+			<description>是否支持环境音。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_spatial_sfx" line="34" decorators="@export">
+			<signature>var supports_spatial_sfx: bool = false</signature>
+			<description>是否支持空间音效。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_events" line="39" decorators="@export">
+			<signature>var supports_events: bool = false</signature>
+			<description>是否支持资源化事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_parameters" line="44" decorators="@export">
+			<signature>var supports_parameters: bool = false</signature>
+			<description>是否支持参数写入。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_states" line="49" decorators="@export">
+			<signature>var supports_states: bool = false</signature>
+			<description>是否支持状态写入。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_switches" line="54" decorators="@export">
+			<signature>var supports_switches: bool = false</signature>
+			<description>是否支持开关写入。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_listeners" line="59" decorators="@export">
+			<signature>var supports_listeners: bool = false</signature>
+			<description>是否支持监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="supports_async_loading" line="64" decorators="@export">
+			<signature>var supports_async_loading: bool = false</signature>
+			<description>是否支持异步加载或卸载。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="71" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>可选元数据，供项目层或调试面板展示。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: 后端能力元数据 Dictionary；键和值由具体后端或项目工具约定。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="has_capability" line="83">
+			<signature>func has_capability(capability_id: StringName) -&gt; bool:</signature>
+			<description>检查能力是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">capability_id: 能力标识。</tag>
+				<tag name="return">支持返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_capability" line="114">
+			<signature>func duplicate_capability() -&gt; GFAudioBackendCapability:</signature>
+			<description>创建同内容拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新能力声明。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary" line="137">
+			<signature>func to_dictionary() -&gt; Dictionary:</signature>
+			<description>转换为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">能力字典。</tag>
+				<tag name="schema">return: 能力 Dictionary，包含 bgm、sfx、ambient、spatial_sfx、events、parameters、states、switches、listeners、async_loading 和 metadata 字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

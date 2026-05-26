@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSaveSource" path="addons/gf/extensions/save/core/gf_save_source.gd" module="extensions/save" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSaveSource: 存档图数据源节点。
+Source 是存档图的最小数据入口。项目可继承并重写 gather/apply，
+也可配置节点序列化器保存通用节点属性。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="source_key" line="20" decorators="@export">
+			<signature>var source_key: StringName = &amp;""</signature>
+			<description>Source 稳定标识。留空时回退到节点名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="target_node_path" line="25" decorators="@export">
+			<signature>var target_node_path: NodePath</signature>
+			<description>目标节点路径。留空时默认序列化父节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enabled" line="30" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否启用该 Source。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="save_enabled" line="35" decorators="@export">
+			<signature>var save_enabled: bool = true</signature>
+			<description>是否参与保存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="load_enabled" line="40" decorators="@export">
+			<signature>var load_enabled: bool = true</signature>
+			<description>是否参与加载。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="phase" line="45" decorators="@export">
+			<signature>var phase: int = GFSaveScope.Phase.NORMAL</signature>
+			<description>执行阶段。数值越小越早执行。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="serializers" line="50" decorators="@export">
+			<signature>var serializers: Array[GFNodeSerializer] = []</signature>
+			<description>Source 局部序列化器。为空时可使用注册表中的默认序列化器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="use_registry_serializers" line="55" decorators="@export">
+			<signature>var use_registry_serializers: bool = false</signature>
+			<description>是否在未配置局部序列化器时使用注册表默认序列化器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="descriptor_extra" line="62" decorators="@export">
+			<signature>var descriptor_extra: Dictionary = {}</signature>
+			<description>附加描述字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">descriptor_extra: Dictionary，会合并进 describe_source() 返回值的项目自定义描述字段。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_source_key" line="72">
+			<signature>func get_source_key() -&gt; StringName:</signature>
+			<description>获取 Source 稳定标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">来源键。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_target_node" line="83">
+			<signature>func get_target_node() -&gt; Node:</signature>
+			<description>获取目标节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">目标节点；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_source" line="98">
+			<signature>func describe_source(scope: Node = null) -&gt; Dictionary:</signature>
+			<description>构造 Source 描述。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">scope: 当前 Scope。</tag>
+				<tag name="return">描述字典。</tag>
+				<tag name="schema">return: Dictionary，包含 descriptor_extra、source_key、phase，并在可用时包含 node_path。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_result" line="118">
+			<signature>func make_result(ok: bool, error: String = "") -&gt; Dictionary:</signature>
+			<description>构造统一结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">ok: 是否成功。</tag>
+				<tag name="param">error: 错误描述。</tag>
+				<tag name="return">结果字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok: bool 与 error: String。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

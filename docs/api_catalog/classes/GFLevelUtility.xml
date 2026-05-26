@@ -1,0 +1,275 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFLevelUtility" path="addons/gf/extensions/domain/level/gf_level_utility.gd" module="extensions/domain" extends="GFUtility" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFLevelUtility: 关卡流程管理工具。
+负责统一关卡数据读取、开始、重开、胜利和失败信号派发。
+默认通过 GFConfigProvider 读取静态关卡表，并可在重开关卡时清理
+命令历史与外部显式注册的运行时残留。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="level_started" line="29">
+			<signature>signal level_started(level_id: Variant, level_data: Dictionary)</signature>
+			<description>当关卡开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="param">level_data: 当前关卡数据。</tag>
+				<tag name="schema">level_id: Variant，项目传入的关卡 ID，通常为 StringName 或 String。</tag>
+				<tag name="schema">level_data: Dictionary，当前关卡数据副本。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="level_restarted" line="42">
+			<signature>signal level_restarted(level_id: Variant, level_data: Dictionary)</signature>
+			<description>当关卡重开时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="param">level_data: 当前关卡数据。</tag>
+				<tag name="schema">level_id: Variant，项目传入的关卡 ID，通常为 StringName 或 String。</tag>
+				<tag name="schema">level_data: Dictionary，当前关卡数据副本。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="level_won" line="51">
+			<signature>signal level_won(level_id: Variant)</signature>
+			<description>当关卡胜利时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="schema">level_id: Variant，项目传入的关卡 ID，通常为 StringName 或 String。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="level_lost" line="60">
+			<signature>signal level_lost(level_id: Variant)</signature>
+			<description>当关卡失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="schema">level_id: Variant，项目传入的关卡 ID，通常为 StringName 或 String。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="level_table_name" line="68">
+			<signature>var level_table_name: StringName = &amp;"levels"</signature>
+			<description>默认关卡配置表名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="current_level_id" line="75">
+			<signature>var current_level_id: Variant = null</signature>
+			<description>当前关卡 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">current_level_id: Variant，项目传入的当前关卡 ID；未启动关卡时为 null。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="current_level_data" line="82">
+			<signature>var current_level_data: Dictionary = {}</signature>
+			<description>当前关卡数据副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">current_level_data: Dictionary，当前关卡数据副本；来源可以是配置表、目录条目或外部覆盖。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="catalog" line="87">
+			<signature>var catalog: GFLevelCatalog = null</signature>
+			<description>可选关卡目录资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="fail_on_missing_level_data" line="92">
+			<signature>var fail_on_missing_level_data: bool = false</signature>
+			<description>为 true 时，找不到关卡数据会拒绝启动或重开当前关卡。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure" line="130">
+			<signature>func configure(table_name: StringName = &amp;"levels") -&gt; void:</signature>
+			<description>配置关卡数据表名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 用于 GFConfigProvider.get_record() 的表名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_catalog" line="139">
+			<signature>func set_catalog(level_catalog: GFLevelCatalog) -&gt; void:</signature>
+			<description>设置关卡目录资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_catalog: 关卡目录。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_catalog" line="148">
+			<signature>func get_catalog() -&gt; GFLevelCatalog:</signature>
+			<description>获取关卡目录资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">关卡目录；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_level_entry" line="159">
+			<signature>func get_level_entry(level_id: StringName) -&gt; GFLevelEntry:</signature>
+			<description>获取目录中的关卡条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="return">关卡条目；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_catalog_levels" line="174">
+			<signature>func get_catalog_levels(pack_id: StringName = &amp;"") -&gt; Array[GFLevelEntry]:</signature>
+			<description>获取目录中的关卡列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">pack_id: 可选关卡扩展 ID；为空时返回全部。</tag>
+				<tag name="return">关卡条目数组。</tag>
+				<tag name="schema">return: Array[GFLevelEntry]，目录返回的已排序关卡条目拷贝。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="load_level_data" line="191">
+			<signature>func load_level_data(level_id: Variant) -&gt; Dictionary:</signature>
+			<description>读取关卡数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="return">关卡数据副本，找不到时返回空字典。</tag>
+				<tag name="schema">level_id: Variant，项目传入的关卡 ID，通常为 StringName 或 String。</tag>
+				<tag name="schema">return: Dictionary，当前关卡数据副本；找不到数据时为空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="start_level" line="231">
+			<signature>func start_level(level_id: Variant, level_data_override: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>开始指定关卡。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="param">level_data_override: 可选的外部数据覆盖；为空时从配置表读取。</tag>
+				<tag name="return">当前关卡数据副本。</tag>
+				<tag name="schema">level_id: Variant，项目传入的关卡 ID，通常为 StringName 或 String。</tag>
+				<tag name="schema">level_data_override: Dictionary，项目提供的关卡数据覆盖；非空时优先使用。</tag>
+				<tag name="schema">return: Dictionary，启动后的当前关卡数据副本；失败时为空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="restart_level" line="254">
+			<signature>func restart_level(clear_runtime: bool = true) -&gt; Dictionary:</signature>
+			<description>重开当前关卡，并清理常见运行时队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clear_runtime: 是否清理命令历史与表现队列。</tag>
+				<tag name="return">当前关卡数据副本。</tag>
+				<tag name="schema">return: Dictionary，重开后的当前关卡数据副本；失败时为空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="win_current_level" line="274">
+			<signature>func win_current_level() -&gt; void:</signature>
+			<description>标记当前关卡胜利。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="complete_current_level" line="292">
+			<signature>func complete_current_level( result: Dictionary = {}, unlock_next: bool = true, emit_win_signal: bool = true ) -&gt; void:</signature>
+			<description>完成当前关卡并可选更新通用进度模型与后续解锁。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: 项目层结果数据。</tag>
+				<tag name="param">unlock_next: 是否解锁目录中的后续关卡。</tag>
+				<tag name="param">emit_win_signal: 是否发出 level_won。</tag>
+				<tag name="schema">result: Dictionary，项目自定义关卡完成结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="lose_current_level" line="317">
+			<signature>func lose_current_level() -&gt; void:</signature>
+			<description>标记当前关卡失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_level_runtime" line="327">
+			<signature>func clear_level_runtime() -&gt; void:</signature>
+			<description>清理常见关卡运行时残留。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_runtime_cleanup" line="347">
+			<signature>func register_runtime_cleanup(cleanup_id: StringName, callback: Callable) -&gt; bool:</signature>
+			<description>注册关卡运行时清理回调。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cleanup_id: 清理项唯一标识。</tag>
+				<tag name="param">callback: 无参数清理回调。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_runtime_cleanup" line="359">
+			<signature>func unregister_runtime_cleanup(cleanup_id: StringName) -&gt; void:</signature>
+			<description>注销关卡运行时清理回调。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cleanup_id: 清理项唯一标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_runtime_cleanup" line="370">
+			<signature>func has_runtime_cleanup(cleanup_id: StringName) -&gt; bool:</signature>
+			<description>检查关卡运行时清理回调是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">cleanup_id: 清理项唯一标识。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_runtime_cleanup_ids" line="379">
+			<signature>func get_runtime_cleanup_ids() -&gt; PackedStringArray:</signature>
+			<description>获取已注册清理项标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">排序后的清理项标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_current_level" line="390">
+			<signature>func clear_current_level() -&gt; void:</signature>
+			<description>清除当前关卡记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="start_next_level" line="403">
+			<signature>func start_next_level() -&gt; Dictionary:</signature>
+			<description>启动目录中的下一个关卡。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">下一个关卡数据；没有后续关卡时返回空字典。</tag>
+				<tag name="schema">return: Dictionary，下一个关卡数据副本；没有后续关卡时为空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unlock_level" line="419">
+			<signature>func unlock_level(level_id: StringName) -&gt; void:</signature>
+			<description>解锁关卡进度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_level_unlocked" line="432">
+			<signature>func is_level_unlocked(level_id: StringName) -&gt; bool:</signature>
+			<description>检查关卡是否已解锁。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level_id: 关卡 ID。</tag>
+				<tag name="return">已解锁时返回 true；未注册进度模型时返回 true。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

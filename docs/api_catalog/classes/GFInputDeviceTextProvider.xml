@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputDeviceTextProvider" path="addons/gf/standard/input/formatting/gf_input_device_text_provider.gd" module="standard" extends="GFInputTextProvider" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputDeviceTextProvider: 通用手柄输入文本 provider。
+以抽象方位和轴名称描述 Joypad 输入，项目可通过字典覆盖为任意设备、平台或本地化文本。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="button_labels" line="57" decorators="@export">
+			<signature>var button_labels: Dictionary = _DEFAULT_BUTTON_LABELS</signature>
+			<description>Joypad 按钮标签表，Key 为 JoyButton int。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">button_labels: Dictionary，以 JoyButton int 或枚举值为键，值为 String 显示标签。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="axis_labels" line="64" decorators="@export">
+			<signature>var axis_labels: Dictionary = _DEFAULT_AXIS_LABELS</signature>
+			<description>Joypad 轴标签表，Key 为 JoyAxis int。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">axis_labels: Dictionary，以 JoyAxis int 或枚举值为键，值为 String 显示标签。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="axis_positive_suffix" line="69" decorators="@export">
+			<signature>var axis_positive_suffix: String = "+"</signature>
+			<description>正向轴后缀。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="axis_negative_suffix" line="74" decorators="@export">
+			<signature>var axis_negative_suffix: String = "-"</signature>
+			<description>负向轴后缀。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="create_standard" line="91">
+			<signature>static func create_standard(provider_priority: int = 0) -&gt; GFInputDeviceTextProvider:</signature>
+			<description>创建标准手柄文本 provider。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">provider_priority: provider 优先级。</tag>
+				<tag name="return">文本 provider。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="format_joypad_event" line="108">
+			<signature>static func format_joypad_event(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
+			<description>使用标准标签格式化 Joypad 输入事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 可选格式化参数。</tag>
+				<tag name="return">文本；非 Joypad 事件返回空字符串。</tag>
+				<tag name="schema">options: Dictionary，可包含 joypad_button_labels、joypad_axis_labels、joypad_axis_deadzone、joypad_axis_positive_suffix 和 joypad_axis_negative_suffix。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="supports_event" line="124">
+			<signature>func supports_event(input_event: InputEvent, _options: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断是否支持指定输入事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">_options: 调用选项。</tag>
+				<tag name="return">支持返回 true。</tag>
+				<tag name="schema">_options: Dictionary，为 provider 接口兼容性接收的选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_text" line="139">
+			<signature>func get_event_text(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
+			<description>获取输入事件文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">文本；不支持时返回空字符串。</tag>
+				<tag name="schema">options: Dictionary，可包含 joypad_button_labels、joypad_axis_labels、joypad_axis_deadzone、joypad_axis_positive_suffix 和 joypad_axis_negative_suffix。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

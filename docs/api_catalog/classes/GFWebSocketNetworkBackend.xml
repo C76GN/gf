@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFWebSocketNetworkBackend" path="addons/gf/extensions/network/backends/gf_websocket_network_backend.gd" module="extensions/network" extends="GFNetworkBackend" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFWebSocketNetworkBackend: 基于 Godot WebSocketPeer 的网络后端。
+只实现 GFNetworkBackend 的 bytes 传输边界，适合浏览器、原生客户端或工具链
+之间复用同一套 GFNetworkMessage 序列化流程。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="Mode" line="20">
+			<signature>enum Mode { ## 未连接。 DISCONNECTED, ## 作为服务器监听 TCP 并接受 WebSocket 握手。 SERVER, ## 作为客户端连接远端 WebSocket 地址。 CLIENT, }</signature>
+			<description>WebSocket 后端运行模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants>
+		<member kind="const" name="BROADCAST_PEER_ID" line="35">
+			<signature>const BROADCAST_PEER_ID: int = -1</signature>
+			<description>广播 peer 标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="SERVER_PEER_ID" line="40">
+			<signature>const SERVER_PEER_ID: int = 1</signature>
+			<description>客户端视角下远端服务器的 peer 标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="max_accepts_per_poll" line="48">
+			<signature>var max_accepts_per_poll: int = 16</signature>
+			<description>每次 poll 最多接受的 TCP 连接数量。小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_packets_per_peer_per_poll" line="53">
+			<signature>var max_packets_per_peer_per_poll: int = 64</signature>
+			<description>每个 peer 每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="host" line="81">
+			<signature>func host(options: Dictionary = {}) -&gt; Error:</signature>
+			<description>启动 WebSocket 主机。
+支持 options: port, bind_address, supported_protocols。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 操作选项字典。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">options: Dictionary，支持 port、bind_address、address、supported_protocols、inbound_buffer_size、outbound_buffer_size、max_queued_packets、no_delay。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="connect_to_endpoint" line="114">
+			<signature>func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -&gt; Error:</signature>
+			<description>连接 WebSocket 远端。
+endpoint 应为 ws:// 或 wss:// URL。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">endpoint: WebSocket 地址。</tag>
+				<tag name="param">options: 操作选项字典，支持 tls_options、supported_protocols。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">options: Dictionary，支持 tls_options、supported_protocols、inbound_buffer_size、outbound_buffer_size、max_queued_packets、no_delay。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="disconnect_backend" line="136">
+			<signature>func disconnect_backend() -&gt; void:</signature>
+			<description>断开 WebSocket 连接。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_bytes" line="153">
+			<signature>func send_bytes(peer_id: int, bytes: PackedByteArray, _options: Dictionary = {}) -&gt; Error:</signature>
+			<description>发送 bytes。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 目标 peer；服务器模式下 -1 表示广播，客户端模式下可传 1 或 -1。</tag>
+				<tag name="param">bytes: 要发送的字节数据。</tag>
+				<tag name="param">_options: 操作选项字典。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">_options: Dictionary，保留给后端自定义发送选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="poll" line="172">
+			<signature>func poll(_delta: float) -&gt; void:</signature>
+			<description>轮询 WebSocket 连接、握手和收包。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_delta: 本帧时间增量（秒），默认实现不直接使用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="187">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取后端调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试信息字典。</tag>
+				<tag name="schema">return: Dictionary，包含 backend、available、mode、mode_name、endpoint、peer_count、open_peer_count、client_state、max_accepts_per_poll、max_packets_per_peer_per_poll。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

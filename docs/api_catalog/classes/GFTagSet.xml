@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTagSet" path="addons/gf/standard/foundation/tags/gf_tag_set.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTagSet: 通用标签集合资源。
+只维护标签到层数的映射，不规定标签命名、业务含义或全局注册表。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="tag_counts" line="21" decorators="@export">
+			<signature>var tag_counts: Dictionary = {}</signature>
+			<description>标签层数字典。键建议使用 StringName，值为正整数层数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">tag_counts: Dictionary mapping tag names to positive integer counts.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_tags" line="35">
+			<signature>func set_tags(source_tags: Variant) -&gt; GFTagSet:</signature>
+			<description>清空并设置标签集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source_tags: Array、PackedStringArray 或 Dictionary 标签数据。</tag>
+				<tag name="return">当前标签集合。</tag>
+				<tag name="schema">source_tags: Variant tag source accepted as Array, PackedStringArray, or Dictionary.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_tag" line="58">
+			<signature>func add_tag(tag: StringName, count: int = 1) -&gt; GFTagSet:</signature>
+			<description>添加标签层数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tag: 标签名。</tag>
+				<tag name="param">count: 增加层数。</tag>
+				<tag name="return">当前标签集合。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_tag" line="75">
+			<signature>func remove_tag(tag: StringName, count: int = 1) -&gt; GFTagSet:</signature>
+			<description>移除标签层数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tag: 标签名。</tag>
+				<tag name="param">count: 移除层数；-1 表示完全移除。</tag>
+				<tag name="return">当前标签集合。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_tag" line="103">
+			<signature>func has_tag(tag: StringName, minimum_count: int = 1, include_child_tags: bool = false) -&gt; bool:</signature>
+			<description>检查是否拥有指定标签且层数达到要求。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tag: 标签名。</tag>
+				<tag name="param">minimum_count: 要求的最小层数。</tag>
+				<tag name="param">include_child_tags: 为 true 时，`state` 可匹配 `state.burning`。</tag>
+				<tag name="return">满足要求返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_tag_count" line="116">
+			<signature>func get_tag_count(tag: StringName, include_child_tags: bool = false) -&gt; int:</signature>
+			<description>获取标签层数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tag: 标签名。</tag>
+				<tag name="param">include_child_tags: 为 true 时合并子标签层数。</tag>
+				<tag name="return">标签层数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_tags" line="136">
+			<signature>func get_tags() -&gt; PackedStringArray:</signature>
+			<description>获取所有标签名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">排序后的标签名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_tag_counts" line="152">
+			<signature>func get_tag_counts() -&gt; Dictionary:</signature>
+			<description>获取标签层数字典副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">标签层数字典。</tag>
+				<tag name="schema">return: Dictionary mapping tag names to positive integer counts.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="159">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空标签集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_set" line="168">
+			<signature>func duplicate_set() -&gt; GFTagSet:</signature>
+			<description>创建同内容拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新标签集合。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary" line="181">
+			<signature>func to_dictionary() -&gt; Dictionary:</signature>
+			<description>导出为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">标签集合字典。</tag>
+				<tag name="schema">return: Dictionary serialized tag set.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dictionary" line="196">
+			<signature>static func from_dictionary(data: Dictionary) -&gt; GFTagSet:</signature>
+			<description>从字典创建标签集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 标签集合字典。</tag>
+				<tag name="return">新标签集合。</tag>
+				<tag name="schema">data: Dictionary serialized tag set or tag count map.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

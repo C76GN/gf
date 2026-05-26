@@ -8,6 +8,7 @@ GF Framework is a lightweight game architecture framework for Godot 4. It separa
 
 - Official docs: [Read the Docs](https://gf-framework.readthedocs.io/)
 - Chinese docs source: [`docs/zh`](docs/zh)
+- Generated API Reference source: [`docs/api_catalog`](docs/api_catalog)
 - Changelog: [`docs/zh/changelog.md`](docs/zh/changelog.md)
 - Maintenance rules: [`AI_MAINTENANCE.md`](AI_MAINTENANCE.md)
 
@@ -106,9 +107,13 @@ Maintenance checks live under [`tests/gf_core/maintenance`](tests/gf_core/mainte
 
 ```powershell
 python -m pip install -r docs\requirements.txt
+python tools\generate_api_reference.py --check
+python tools\check_docs_quality.py --strict
 python -m mkdocs serve
 python -m mkdocs build --strict
 ```
+
+`generate_api_reference.py --check` verifies the XML catalog, generated Markdown pages, and class/member coverage for the API Reference.
 
 ## License
 

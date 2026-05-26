@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFVariantJsonCodec" path="addons/gf/standard/foundation/variant/gf_variant_json_codec.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFVariantJsonCodec: Godot Variant 的 JSON 兼容编码器。
+负责在 JSON.stringify() 可编码的数据和常见 Godot Variant 类型之间往返转换。
+该类不负责集合复制或默认值合并；这类数据操作由 GFVariantData 提供。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="variant_to_json_compatible" line="70">
+			<signature>static func variant_to_json_compatible(value: Variant, options: Dictionary = {}) -&gt; Variant:</signature>
+			<description>将 Variant 转为 JSON.stringify() 可安全编码的值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待转换的 Variant。</tag>
+				<tag name="param">options: 可选项；encode_dictionary_keys 为 true 时会保留非字符串字典键；encode_unsafe_ints 为 false 时不标记超出 JSON 安全范围的整数。</tag>
+				<tag name="return">JSON 兼容值；Godot 专有类型会带类型标记。</tag>
+				<tag name="schema">value: Variant value to encode.</tag>
+				<tag name="schema">options: Dictionary with encode_dictionary_keys, encode_unsafe_ints, unsupported, and circular_reference options.</tag>
+				<tag name="schema">return: Variant made only from JSON-compatible values and typed marker dictionaries.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="json_compatible_to_variant" line="89">
+			<signature>static func json_compatible_to_variant(value: Variant, options: Dictionary = {}) -&gt; Variant:</signature>
+			<description>从 variant_to_json_compatible() 生成的值恢复 Godot Variant。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: JSON.parse_string() 后的值。</tag>
+				<tag name="param">options: 可选项；decode_typed_markers 为 false 时只递归恢复集合。</tag>
+				<tag name="return">恢复后的 Variant。</tag>
+				<tag name="schema">value: Variant parsed from JSON-compatible data.</tag>
+				<tag name="schema">options: Dictionary with decode_typed_markers and key decoding options.</tag>
+				<tag name="schema">return: Variant restored from JSON-compatible data.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="vector2_to_array" line="116">
+			<signature>static func vector2_to_array(value: Vector2) -&gt; Array[float]:</signature>
+			<description>将 Vector2 转成 JSON 友好的数组。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待转换的 Vector2。</tag>
+				<tag name="return">[x, y] 数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="array_to_vector2" line="131">
+			<signature>static func array_to_vector2(value: Variant, fallback: Vector2 = Vector2.ZERO) -&gt; Vector2:</signature>
+			<description>从数组读取 Vector2，失败时返回 fallback。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 输入值。</tag>
+				<tag name="param">fallback: 转换失败时返回的值。</tag>
+				<tag name="return">Vector2 值。</tag>
+				<tag name="schema">value: Variant expected to be an Array with at least two numeric values.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="vector3_to_array" line="148">
+			<signature>static func vector3_to_array(value: Vector3) -&gt; Array[float]:</signature>
+			<description>将 Vector3 转成 JSON 友好的数组。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待转换的 Vector3。</tag>
+				<tag name="return">[x, y, z] 数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="array_to_vector3" line="163">
+			<signature>static func array_to_vector3(value: Variant, fallback: Vector3 = Vector3.ZERO) -&gt; Vector3:</signature>
+			<description>从数组读取 Vector3，失败时返回 fallback。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 输入值。</tag>
+				<tag name="param">fallback: 转换失败时返回的值。</tag>
+				<tag name="return">Vector3 值。</tag>
+				<tag name="schema">value: Variant expected to be an Array with at least three numeric values.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="color_to_array" line="180">
+			<signature>static func color_to_array(value: Color) -&gt; Array[float]:</signature>
+			<description>将 Color 转成 JSON 友好的数组。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待转换的 Color。</tag>
+				<tag name="return">[r, g, b, a] 数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="array_to_color" line="195">
+			<signature>static func array_to_color(value: Variant, fallback: Color = Color.WHITE) -&gt; Color:</signature>
+			<description>从数组读取 Color，失败时返回 fallback。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 输入值。</tag>
+				<tag name="param">fallback: 转换失败时返回的值。</tag>
+				<tag name="return">Color 值。</tag>
+				<tag name="schema">value: Variant expected to be an Array with at least four numeric values.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

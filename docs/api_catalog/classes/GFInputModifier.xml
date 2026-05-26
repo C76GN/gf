@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputModifier" path="addons/gf/standard/input/modifiers/gf_input_modifier.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputModifier: 输入值修饰器基类。
+修饰器只处理输入值转换，不决定动作是否触发。可挂在 GFInputBinding 或
+GFInputMapping 上，用于死区、缩放、归一化、范围映射等通用处理。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="modify" line="28">
+			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
+			<description>修饰输入贡献值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 当前二维贡献值；布尔与一维轴使用 x 分量。</tag>
+				<tag name="param">_event: 产生该贡献的原生输入事件，可能为 null。</tag>
+				<tag name="param">_action: 当前输入动作。</tag>
+				<tag name="return">修饰后的贡献值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="modify_3d" line="44">
+			<signature>func modify_3d(value: Vector3, event: InputEvent = null, action: GFInputAction = null) -&gt; Vector3:</signature>
+			<description>修饰三维输入贡献值。
+默认复用二维修饰逻辑处理 X/Y，并保留 Z 分量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 当前三维贡献值。</tag>
+				<tag name="param">event: 产生该贡献的原生输入事件，可能为 null。</tag>
+				<tag name="param">action: 当前输入动作。</tag>
+				<tag name="return">修饰后的三维贡献值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_modifier" line="54">
+			<signature>func duplicate_modifier() -&gt; GFInputModifier:</signature>
+			<description>创建运行时副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">修饰器副本。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

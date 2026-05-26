@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSaveSlotMetadata" path="addons/gf/extensions/save/slots/gf_save_slot_metadata.gd" module="extensions/save" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSaveSlotMetadata: 通用存档槽元数据。
+只描述槽位、版本、时间、标签和项目自定义字典，不绑定任何具体游戏业务字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="slot_id" line="19" decorators="@export">
+			<signature>var slot_id: StringName = &amp;""</signature>
+			<description>槽位逻辑标识。可由项目映射到整数槽、文件名或云端 key。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="24" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="schema_id" line="34" decorators="@export_multiline var description: String = &quot;&quot; @export">
+			<signature>var schema_id: StringName = &amp;""</signature>
+			<description>展示描述。
+存档数据结构标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="app_version" line="44" decorators="@export_range(1, 999999, 1) var schema_version: int = 1 @export">
+			<signature>var app_version: String = ""</signature>
+			<description>存档数据结构版本。
+项目版本号。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="created_at_unix" line="49" decorators="@export">
+			<signature>var created_at_unix: int = 0</signature>
+			<description>创建时间戳。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="updated_at_unix" line="54" decorators="@export">
+			<signature>var updated_at_unix: int = 0</signature>
+			<description>更新时间戳。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="elapsed_seconds" line="59" decorators="@export">
+			<signature>var elapsed_seconds: float = 0.0</signature>
+			<description>通用游玩时长或业务耗时。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="tags" line="64" decorators="@export">
+			<signature>var tags: PackedStringArray = PackedStringArray()</signature>
+			<description>通用标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="custom_metadata" line="71" decorators="@export">
+			<signature>var custom_metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">custom_metadata: Dictionary，可包含项目自定义展示、兼容性或索引字段。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="to_dict" line="85">
+			<signature>func to_dict(include_empty: bool = true) -&gt; Dictionary:</signature>
+			<description>转换为 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">include_empty: 是否包含空值。</tag>
+				<tag name="return">元数据字典。</tag>
+				<tag name="schema">return: Dictionary，可包含 slot_id、display_name、description、schema_id、schema_version、app_version、created_at_unix、updated_at_unix、elapsed_seconds、tags 与 custom_metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_patch_dict" line="115">
+			<signature>func to_patch_dict() -&gt; Dictionary:</signature>
+			<description>转换为只包含非空值的补丁字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">补丁字典。</tag>
+				<tag name="schema">return: Dictionary，字段同 to_dict()，但会省略空值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_dict" line="126">
+			<signature>func apply_dict(data: Dictionary) -&gt; void:</signature>
+			<description>应用字典数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 元数据字典。</tag>
+				<tag name="schema">data: Dictionary，可包含 slot_id、display_name、description、schema_id、schema_version、app_version、created_at_unix、updated_at_unix、elapsed_seconds、tags 与 custom_metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_metadata" line="157">
+			<signature>func duplicate_metadata() -&gt; GFSaveSlotMetadata:</signature>
+			<description>创建深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新元数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_display_name" line="168">
+			<signature>func get_display_name(fallback: String = "") -&gt; String:</signature>
+			<description>获取展示名称，允许调用方提供兜底文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">fallback: 兜底文本。</tag>
+				<tag name="return">展示名称。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_metadata" line="181">
+			<signature>func validate_metadata() -&gt; Dictionary:</signature>
+			<description>校验元数据的通用结构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">诊断报告。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、healthy、issues、issue_count、warning_count、error_count、summary 与 next_actions 等校验报告字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="214">
+			<signature>static func from_dict(data: Dictionary) -&gt; GFSaveSlotMetadata:</signature>
+			<description>从 Dictionary 创建元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 元数据字典。</tag>
+				<tag name="return">新元数据。</tag>
+				<tag name="schema">data: Dictionary，字段同 to_dict() 返回值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_values" line="233">
+			<signature>static func from_values( p_slot_id: StringName, p_display_name: String = "", p_custom_metadata: Dictionary = {} ) -&gt; GFSaveSlotMetadata:</signature>
+			<description>使用常用字段创建元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_slot_id: 槽位标识。</tag>
+				<tag name="param">p_display_name: 展示名称。</tag>
+				<tag name="param">p_custom_metadata: 自定义元数据。</tag>
+				<tag name="return">新元数据。</tag>
+				<tag name="schema">p_custom_metadata: Dictionary，可包含项目自定义展示、兼容性或索引字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

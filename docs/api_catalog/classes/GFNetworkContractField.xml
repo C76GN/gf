@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkContractField" path="addons/gf/extensions/network/contracts/gf_network_contract_field.gd" module="extensions/network" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkContractField: 网络契约中的单个 payload 字段。
+字段只描述名称、值类型、必填性和默认值，用于生成器、校验器或项目工具，
+不规定消息含义、权限或同步策略。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="ValueType" line="20">
+			<signature>enum ValueType { ## 任意 Variant。 VARIANT, ## 布尔值。 BOOL, ## 整数。 INT, ## 浮点数。 FLOAT, ## 字符串。 STRING, ## StringName。 STRING_NAME, ## Vector2。 VECTOR2, ## Vector3。 VECTOR3, ## Vector2i。 VECTOR2I, ## Vector3i。 VECTOR3I, ## Color。 COLOR, ## Dictionary。 DICTIONARY, ## Array。 ARRAY, ## NodePath。 NODE_PATH, ## Object 或 Resource。 OBJECT, }</signature>
+			<description>字段值类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="field_name" line="64" decorators="@export">
+			<signature>var field_name: StringName = &amp;""</signature>
+			<description>字段稳定名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="69" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>编辑器展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="value_type" line="74" decorators="@export">
+			<signature>var value_type: ValueType = ValueType.VARIANT</signature>
+			<description>字段值类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="required" line="79" decorators="@export">
+			<signature>var required: bool = true</signature>
+			<description>是否为必填字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_null" line="84" decorators="@export">
+			<signature>var allow_null: bool = false</signature>
+			<description>是否允许显式 null 值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_value" line="91" decorators="@export">
+			<signature>var default_value: Variant = null</signature>
+			<description>可选默认值。生成器会尽量把可表达的默认值写入生成函数签名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">default_value: Variant，字段默认值；建议使用与 value_type 匹配的可复制值。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="class_name_hint" line="96" decorators="@export">
+			<signature>var class_name_hint: StringName = &amp;""</signature>
+			<description>Object / Resource 字段的类名提示，仅用于工具校验。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="103" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存项目自定义字段元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_field_name" line="113">
+			<signature>func get_field_name() -&gt; StringName:</signature>
+			<description>获取字段名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">字段名称。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_display_name" line="122">
+			<signature>func get_display_name() -&gt; String:</signature>
+			<description>获取展示名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">展示名称。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_default_value" line="137">
+			<signature>func get_default_value() -&gt; Variant:</signature>
+			<description>获取默认值副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">默认值。</tag>
+				<tag name="schema">return: Variant，default_value 的深拷贝或原始标量值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="normalize_value" line="152">
+			<signature>func normalize_value(value: Variant) -&gt; Variant:</signature>
+			<description>归一化字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 输入值。</tag>
+				<tag name="return">归一化后的值。</tag>
+				<tag name="schema">value: Variant，待归一化字段值。</tag>
+				<tag name="schema">return: Variant，字段默认值或输入值的安全副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_definition" line="165">
+			<signature>func validate_definition() -&gt; Dictionary:</signature>
+			<description>校验字段定义是否完整。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate_value" line="183">
+			<signature>func validate_value(value: Variant) -&gt; Dictionary:</signature>
+			<description>校验字段值是否符合声明类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 字段值。</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">value: Variant，待校验字段值。</tag>
+				<tag name="schema">return: Dictionary，GFValidationReportDictionary 格式，包含 ok、issues、issue_count 和 next_actions。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe" line="202">
+			<signature>func describe() -&gt; Dictionary:</signature>
+			<description>描述字段契约。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">描述字典。</tag>
+				<tag name="schema">return: Dictionary，包含 field_name、display_name、value_type、required、allow_null、default_value、class_name_hint、metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTurnContext" path="addons/gf/extensions/turn_based/runtime/gf_turn_context.gd" module="extensions/turn_based" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTurnContext: 通用回合流程上下文。
+只记录参与者、行动、轮次和元数据，不假设生命值、阵营、技能等业务概念。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">domain_model</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="actors" line="19">
+			<signature>var actors: Array[Object] = []</signature>
+			<description>当前流程参与者。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="actions" line="24">
+			<signature>var actions: Array[GFTurnAction] = []</signature>
+			<description>当前待处理行动。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="current_actor" line="29">
+			<signature>var current_actor: Object = null</signature>
+			<description>当前行动主体。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="turn_index" line="34">
+			<signature>var turn_index: int = 0</signature>
+			<description>当前回合索引。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="round_index" line="39">
+			<signature>var round_index: int = 0</signature>
+			<description>当前轮次索引。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="46">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>自定义元数据，框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary[String, Variant] project-defined turn flow metadata.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="add_actor" line="56">
+			<signature>func add_actor(actor: Object) -&gt; void:</signature>
+			<description>添加参与者。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">actor: 参与者对象。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_actor" line="67">
+			<signature>func remove_actor(actor: Object) -&gt; void:</signature>
+			<description>移除参与者。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">actor: 参与者对象。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_actions" line="76">
+			<signature>func clear_actions() -&gt; void:</signature>
+			<description>清空运行时行动。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_actor_value" line="97">
+			<signature>func get_actor_value(actor: Object, key: StringName, fallback: Variant = null) -&gt; Variant:</signature>
+			<description>从参与者读取排序或判定值。
+优先调用 `get_turn_value(key, fallback)`，其次读取对象属性。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">actor: 参与者对象。</tag>
+				<tag name="param">key: 值键。</tag>
+				<tag name="param">fallback: 读取失败时的兜底值。</tag>
+				<tag name="return">读取到的值。</tag>
+				<tag name="schema">fallback: Variant returned when no actor value can be read.</tag>
+				<tag name="schema">return: Variant read from get_turn_value(), object property access, or fallback.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

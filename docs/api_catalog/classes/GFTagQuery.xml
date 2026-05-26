@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTagQuery" path="addons/gf/standard/foundation/tags/gf_tag_query.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTagQuery: 通用标签查询资源。
+使用 all/any/none 三组标签描述条件，可直接匹配标签集合、标签组件或普通数据。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="all_tags" line="24" decorators="@export">
+			<signature>var all_tags: Array[StringName] = []</signature>
+			<description>必须全部存在的标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="any_tags" line="29" decorators="@export">
+			<signature>var any_tags: Array[StringName] = []</signature>
+			<description>至少存在一个的标签；为空时跳过该条件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="none_tags" line="34" decorators="@export">
+			<signature>var none_tags: Array[StringName] = []</signature>
+			<description>不允许存在的标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_child_tags" line="39" decorators="@export">
+			<signature>var include_child_tags: bool = false</signature>
+			<description>是否启用层级匹配。例如查询 `state` 时可匹配 `state.burning`。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="is_empty" line="49">
+			<signature>func is_empty() -&gt; bool:</signature>
+			<description>检查查询是否为空。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">无任何条件时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="matches" line="62">
+			<signature>func matches(source: Variant) -&gt; bool:</signature>
+			<description>匹配标签源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="return">满足查询返回 true。</tag>
+				<tag name="schema">source: Variant accepted by GFTagSourceAdapter.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_match_report" line="78">
+			<signature>func get_match_report(source: Variant) -&gt; Dictionary:</signature>
+			<description>获取匹配报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="return">包含 ok、missing_all、missing_any、blocked_tags 的报告。</tag>
+				<tag name="schema">source: Variant accepted by GFTagSourceAdapter.</tag>
+				<tag name="schema">return: Dictionary with ok, missing_all, missing_any, blocked_tags, include_child_tags.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="configure" line="119">
+			<signature>func configure( required_all: Array[StringName] = [], required_any: Array[StringName] = [], rejected_none: Array[StringName] = [], hierarchical: bool = false ) -&gt; GFTagQuery:</signature>
+			<description>配置查询条件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">required_all: 必须全部存在的标签。</tag>
+				<tag name="param">required_any: 至少存在一个的标签。</tag>
+				<tag name="param">rejected_none: 不允许存在的标签。</tag>
+				<tag name="param">hierarchical: 是否启用层级匹配。</tag>
+				<tag name="return">当前查询。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_query" line="137">
+			<signature>func duplicate_query() -&gt; GFTagQuery:</signature>
+			<description>创建同内容拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新查询。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary" line="150">
+			<signature>func to_dictionary() -&gt; Dictionary:</signature>
+			<description>导出为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">查询字典。</tag>
+				<tag name="schema">return: Dictionary serialized tag query.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dictionary" line="168">
+			<signature>static func from_dictionary(data: Dictionary) -&gt; GFTagQuery:</signature>
+			<description>从字典创建查询。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 查询字典。</tag>
+				<tag name="return">新查询。</tag>
+				<tag name="schema">data: Dictionary serialized tag query.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

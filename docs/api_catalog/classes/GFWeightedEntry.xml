@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFWeightedEntry" path="addons/gf/standard/foundation/math/gf_weighted_entry.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFWeightedEntry: 权重表中的单个候选项。
+只保存值、权重和可选元数据，不约束 value 的业务类型。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="value" line="21" decorators="@export">
+			<signature>var value: Variant = null</signature>
+			<description>被选择后返回的值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">value: Variant selected value owned by project code.</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="33" decorators="@export_range(0.0, 1000000000000.0, 0.001, &quot;or_greater&quot;) var weight: float = 1.0 @export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>权重；小于等于 0 的条目不会被选择。
+项目层可选元数据，框架不解释其含义。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary extension metadata for the weighted entry.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure" line="53">
+			<signature>func configure(p_value: Variant, p_weight: float = 1.0, p_metadata: Dictionary = {}) -&gt; GFWeightedEntry:</signature>
+			<description>配置条目内容。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_value: 被选择后返回的值。</tag>
+				<tag name="param">p_weight: 权重；小于等于 0 表示不可被选择。</tag>
+				<tag name="param">p_metadata: 可选元数据。</tag>
+				<tag name="return">当前条目。</tag>
+				<tag name="schema">p_value: Variant selected value owned by project code.</tag>
+				<tag name="schema">p_metadata: Dictionary extension metadata for the weighted entry.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_selectable" line="65">
+			<signature>func is_selectable() -&gt; bool:</signature>
+			<description>判断该条目当前是否可被选择。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">权重大于 0 时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_entry" line="76">
+			<signature>func duplicate_entry(deep: bool = true) -&gt; GFWeightedEntry:</signature>
+			<description>复制当前条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">deep: 是否深拷贝元数据。</tag>
+				<tag name="return">新条目实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="91">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>导出为通用字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">包含 `value`、`weight` 与 `metadata` 的字典。</tag>
+				<tag name="schema">return: Dictionary serialized weighted entry.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="108">
+			<signature>static func from_dict(data: Dictionary) -&gt; GFWeightedEntry:</signature>
+			<description>从通用字典创建条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 包含 `value`、`weight` 与 `metadata` 的字典。</tag>
+				<tag name="return">新条目实例。</tag>
+				<tag name="schema">data: Dictionary serialized weighted entry.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

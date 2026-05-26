@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInventoryModel" path="addons/gf/extensions/domain/inventory/gf_inventory_model.gd" module="extensions/domain" extends="GFModel" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInventoryModel: 通用可序列化库存模型。
+只管理 item_id、数量和元数据，不假设道具类型、品质、装备等业务概念。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">domain_model</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="add_item" line="32">
+			<signature>func add_item(item_id: StringName, amount: int = 1, metadata: Dictionary = {}) -&gt; void:</signature>
+			<description>添加物品数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 物品 ID。</tag>
+				<tag name="param">amount: 增加数量。</tag>
+				<tag name="param">metadata: 可选元数据；首次加入时保存。</tag>
+				<tag name="schema">metadata: Dictionary，首次加入物品时保存的项目自定义元数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_item" line="52">
+			<signature>func remove_item(item_id: StringName, amount: int = 1) -&gt; bool:</signature>
+			<description>移除物品数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 物品 ID。</tag>
+				<tag name="param">amount: 移除数量。</tag>
+				<tag name="return">成功移除完整数量时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_item_amount" line="77">
+			<signature>func set_item_amount(item_id: StringName, amount: int) -&gt; void:</signature>
+			<description>设置物品数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 物品 ID。</tag>
+				<tag name="param">amount: 新数量；小于等于 0 时移除。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_item_amount" line="98">
+			<signature>func get_item_amount(item_id: StringName) -&gt; int:</signature>
+			<description>获取物品数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 物品 ID。</tag>
+				<tag name="return">数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_item" line="113">
+			<signature>func has_item(item_id: StringName, amount: int = 1) -&gt; bool:</signature>
+			<description>检查是否拥有足够数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 物品 ID。</tag>
+				<tag name="param">amount: 需要数量。</tag>
+				<tag name="return">足够时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_item_metadata" line="126">
+			<signature>func get_item_metadata(item_id: StringName) -&gt; Dictionary:</signature>
+			<description>获取物品元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 物品 ID。</tag>
+				<tag name="return">元数据副本。</tag>
+				<tag name="schema">return: Dictionary，物品项目自定义元数据副本；不存在时为空字典。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_items" line="139">
+			<signature>func get_items() -&gt; Dictionary:</signature>
+			<description>获取库存快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">库存字典副本。</tag>
+				<tag name="schema">return: Dictionary，键为 StringName 物品 ID，值为包含 amount 与 metadata 的堆叠记录。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="146">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空库存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="157">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>序列化库存状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">可写入存档的字典。</tag>
+				<tag name="schema">return: Dictionary，包含 items 字典；items 键为 String 物品 ID，值为 amount 与 metadata 记录。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="171">
+			<signature>func from_dict(data: Dictionary) -&gt; void:</signature>
+			<description>从字典恢复库存状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 序列化数据。</tag>
+				<tag name="schema">data: Dictionary，包含 items 字典；items 键为 String 物品 ID，值为 amount 与 metadata 记录。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

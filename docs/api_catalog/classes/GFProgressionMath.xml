@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFProgressionMath" path="addons/gf/standard/foundation/math/gf_progression_math.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFProgressionMath: 挂机与模拟经营项目的纯进度曲线数学工具。
+负责价格曲线、收益曲线、里程碑倍率、软上限与分段式离线收益结算。
+它不依赖 GFArchitecture，可直接与 JSON、CSV 或外部工具导出的配置字典配合使用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="CurveMode" line="20">
+			<signature>enum CurveMode { ## 常量曲线。 CONSTANT, ## 线性曲线。 LINEAR, ## 指数曲线。 EXPONENTIAL, }</signature>
+			<description>支持的基础曲线类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="evaluate_curve" line="49">
+			<signature>static func evaluate_curve(level: int, curve_config: Dictionary) -&gt; GFBigNumber:</signature>
+			<description>根据配置计算某一级的曲线值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">level: 目标等级。</tag>
+				<tag name="param">curve_config: 支持 `base_value/start_level/mode/per_level/multiplier/phases/overrides`。</tag>
+				<tag name="return">对应等级的曲线值。</tag>
+				<tag name="schema">curve_config: Dictionary with optional `base_value`, `start_level`, `mode`, `per_level`, `multiplier`, `phases`, and `overrides` entries.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_milestone_multipliers" line="77">
+			<signature>static func apply_milestone_multipliers(value: Variant, level: int, milestones: Array) -&gt; GFBigNumber:</signature>
+			<description>为基础值叠加里程碑倍率。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 基础数值。</tag>
+				<tag name="param">level: 当前等级。</tag>
+				<tag name="param">milestones: 里程碑数组；每项支持 `level/multiplier`。</tag>
+				<tag name="return">叠加后的数值。</tag>
+				<tag name="schema">value: Variant numeric value accepted by GFBigNumber.</tag>
+				<tag name="schema">milestones: Array[Dictionary] where each entry may contain `level: int` and `multiplier: Variant numeric value`.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_soft_cap" line="111">
+			<signature>static func apply_soft_cap( value: Variant, soft_cap: Variant, power: float = _DEFAULT_SOFT_CAP_POWER ) -&gt; GFBigNumber:</signature>
+			<description>对一个值应用幂函数型软上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 原始值。</tag>
+				<tag name="param">soft_cap: 软上限起点。</tag>
+				<tag name="param">power: 超出部分的幂指数；0.5 表示平方根衰减。</tag>
+				<tag name="return">软上限处理后的数值。</tag>
+				<tag name="schema">value: Variant numeric value accepted by GFBigNumber.</tag>
+				<tag name="schema">soft_cap: Variant numeric value accepted by GFBigNumber.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="settle_offline_progress" line="148">
+			<signature>static func settle_offline_progress( rate_per_second: Variant, offline_seconds: float, options: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>计算一段离线时间内的收益。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">rate_per_second: 基础每秒产出。</tag>
+				<tag name="param">offline_seconds: 离线时长（秒）。</tag>
+				<tag name="param">options: 支持 `max_seconds/storage_remaining/segments`。</tag>
+				<tag name="return">包含产出与时间统计的字典。</tag>
+				<tag name="schema">rate_per_second: Variant numeric value accepted by GFBigNumber.</tag>
+				<tag name="schema">options: Dictionary with optional `max_seconds`, `storage_remaining`, and `segments: Array[Dictionary]`.</tag>
+				<tag name="schema">return: Dictionary with `produced: GFBigNumber`, `requested_seconds: float`, `settled_seconds: float`, `consumed_seconds: float`, `expired_seconds: float`, `wasted_seconds: float`, and `storage_capped: bool`.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

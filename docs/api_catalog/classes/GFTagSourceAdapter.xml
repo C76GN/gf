@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTagSourceAdapter" path="addons/gf/standard/foundation/tags/gf_tag_source_adapter.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTagSourceAdapter: 通用标签源适配器。
+支持 GFTagSet、Array、PackedStringArray、Dictionary 以及具备 has_tag/get_tag_count/get_tags
+方法的对象。它不维护全局标签表，也不规定标签语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="source_has_tag" line="32">
+			<signature>static func source_has_tag( source: Variant, tag: StringName, minimum_count: int = 1, include_child_tags: bool = false ) -&gt; bool:</signature>
+			<description>检查标签源是否拥有指定标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="param">tag: 标签名。</tag>
+				<tag name="param">minimum_count: 要求的最小层数。</tag>
+				<tag name="param">include_child_tags: 为 true 时，`state` 可匹配 `state.burning`。</tag>
+				<tag name="return">满足要求返回 true。</tag>
+				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_tag_count" line="64">
+			<signature>static func get_tag_count(source: Variant, tag: StringName, include_child_tags: bool = false) -&gt; int:</signature>
+			<description>获取标签源中的标签层数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="param">tag: 标签名。</tag>
+				<tag name="param">include_child_tags: 为 true 时合并子标签层数。</tag>
+				<tag name="return">标签层数。</tag>
+				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_tags" line="87">
+			<signature>static func get_tags(source: Variant) -&gt; PackedStringArray:</signature>
+			<description>获取标签源中的标签名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="return">排序后的标签名。</tag>
+				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="matches_all" line="123">
+			<signature>static func matches_all(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -&gt; bool:</signature>
+			<description>检查标签源是否包含所有标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="param">tags: 需要全部满足的标签。</tag>
+				<tag name="param">include_child_tags: 是否启用层级匹配。</tag>
+				<tag name="return">全部满足返回 true。</tag>
+				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="matches_any" line="143">
+			<signature>static func matches_any(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -&gt; bool:</signature>
+			<description>检查标签源是否包含任意标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="param">tags: 需要满足任意一个的标签；空数组返回 true。</tag>
+				<tag name="param">include_child_tags: 是否启用层级匹配。</tag>
+				<tag name="return">满足任意标签返回 true。</tag>
+				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="matches_none" line="165">
+			<signature>static func matches_none(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -&gt; bool:</signature>
+			<description>检查标签源是否不包含任何禁止标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source: 标签源。</tag>
+				<tag name="param">tags: 禁止出现的标签。</tag>
+				<tag name="param">include_child_tags: 是否启用层级匹配。</tag>
+				<tag name="return">未命中禁止标签返回 true。</tag>
+				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

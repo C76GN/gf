@@ -19,7 +19,7 @@ const DOCS_TOP_LEVEL_DIRECTORIES := [
 	"standard",
 	"extensions",
 	"editor",
-	"maintenance",
+	"reference",
 ]
 
 

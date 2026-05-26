@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFEditorValueField" path="addons/gf/kernel/editor/gf_editor_value_field.gd" module="kernel" extends="HBoxContainer" line="14" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFEditorValueField: 编辑器通用 Variant 值输入控件。
+根据 Godot 属性信息创建基础输入控件，适合 Inspector、Dock 或批量资源表格复用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="layer">kernel/editor</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="value_changed" line="27">
+			<signature>signal value_changed(value: Variant)</signature>
+			<description>控件值变化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 新值。</tag>
+				<tag name="schema">value: Variant editor value read from the active control.</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="value_parse_failed" line="36">
+			<signature>signal value_parse_failed(text: String, error_message: String)</signature>
+			<description>Array/Dictionary JSON 输入解析失败时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">text: 用户输入的原始文本。</tag>
+				<tag name="param">error_message: JSON 解析错误说明。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="configure" line="61">
+			<signature>func configure(property_info: Dictionary, value: Variant = null) -&gt; void:</signature>
+			<description>配置字段输入控件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">property_info: Godot 属性信息字典，常用键为 name、type、hint、hint_string。</tag>
+				<tag name="param">value: 初始值。</tag>
+				<tag name="schema">property_info: Godot property info dictionary.</tag>
+				<tag name="schema">value: Variant initial editor value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_value" line="74">
+			<signature>func set_value(value: Variant) -&gt; void:</signature>
+			<description>设置当前值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 新值。</tag>
+				<tag name="schema">value: Variant value assigned to the editor.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_value" line="86">
+			<signature>func get_value() -&gt; Variant:</signature>
+			<description>获取当前值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前值。</tag>
+				<tag name="schema">return: Variant value read from the active editor control.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_editable" line="95">
+			<signature>func set_editable(editable: bool) -&gt; void:</signature>
+			<description>设置控件是否可编辑。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">editable: 为 true 时允许编辑。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_property_info" line="108">
+			<signature>func get_property_info() -&gt; Dictionary:</signature>
+			<description>获取当前属性信息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">属性信息字典。</tag>
+				<tag name="schema">return: Godot property info dictionary copy.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

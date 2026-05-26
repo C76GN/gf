@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDebugOverlayUtility" path="addons/gf/standard/utilities/debug/gf_debug_overlay_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFDebugOverlayUtility: 开发期运行时观察覆盖层。
+提供 watch / panel 注册、轻量运行时快照和可选调试 GUI。默认只在 debug 构建中创建 GUI。
+发布构建如确实需要显示，必须显式关闭 debug_only 并自行确认可见性与数据脱敏策略。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="toggle_key" line="20">
+			<signature>var toggle_key: Key = KEY_QUOTELEFT</signature>
+			<description>呼出/隐藏面板的快捷键。默认为 KEY_QUOTELEFT (`~` 键)。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="refresh_interval_seconds" line="25">
+			<signature>var refresh_interval_seconds: float = 0.25</signature>
+			<description>可见时刷新模型反射数据的间隔（秒）。设为 0 时每帧刷新。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_diagnostics_monitors" line="30">
+			<signature>var include_diagnostics_monitors: bool = true</signature>
+			<description>是否把 GFDiagnosticsUtility 的监控预设合并显示到 Watch 区。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="diagnostics_monitor_preset" line="35">
+			<signature>var diagnostics_monitor_preset: StringName = &amp;"overlay"</signature>
+			<description>Overlay 默认读取的诊断监控预设。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_recent_logs" line="40">
+			<signature>var include_recent_logs: bool = true</signature>
+			<description>是否在 Overlay 中附加最近日志面板。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="recent_log_count" line="45">
+			<signature>var recent_log_count: int = 12</signature>
+			<description>最近日志面板读取的日志数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="debug_only" line="50">
+			<signature>var debug_only: bool = true</signature>
+			<description>是否只在 debug 构建中创建 Overlay GUI。发布构建需要显式关闭此项才会创建 GUI。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="67">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化调试覆盖层 GUI。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="87">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放调试覆盖层 GUI 和所有 watch / panel 注册。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_toggle_key" line="111">
+			<signature>func set_toggle_key(key: Key) -&gt; void:</signature>
+			<description>更新快捷键绑定</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 新的触发按键</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_refresh_interval" line="122">
+			<signature>func set_refresh_interval(seconds: float) -&gt; void:</signature>
+			<description>设置可见时的刷新间隔。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">seconds: 刷新间隔；小于等于 0 时每帧刷新。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_diagnostics_monitor_preset" line="133">
+			<signature>func set_diagnostics_monitor_preset(preset_id: StringName) -&gt; void:</signature>
+			<description>设置 Overlay 使用的诊断监控预设。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">preset_id: 诊断监控预设标识；为空时采集全部可见监控项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_overlay_visible" line="142">
+			<signature>func set_overlay_visible(visible: bool) -&gt; void:</signature>
+			<description>设置 Overlay GUI 可见性。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">visible: 为 true 时显示 Overlay GUI。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_overlay_visible" line="155">
+			<signature>func is_overlay_visible() -&gt; bool:</signature>
+			<description>检查 Overlay GUI 是否可见。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">可见时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="refresh_overlay" line="162">
+			<signature>func refresh_overlay() -&gt; void:</signature>
+			<description>立即刷新 Overlay GUI 文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="watch_value" line="180">
+			<signature>func watch_value(id: StringName, provider: Callable, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>注册一个由回调即时读取的运行时观察值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">id: 观察值唯一标识。</tag>
+				<tag name="param">provider: 无参数回调；Overlay 刷新时调用并显示返回值。</tag>
+				<tag name="param">options: 可选显示参数，支持 label、group、visible。</tag>
+				<tag name="return">注册成功返回 true；id 为空或 provider 无效时返回 false。</tag>
+				<tag name="schema">options: Dictionary，支持 label、group 和 visible。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="push_watch_value" line="203">
+			<signature>func push_watch_value(id: StringName, value: Variant, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>推送一个由调用方主动更新的运行时观察值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">id: 观察值唯一标识。</tag>
+				<tag name="param">value: 要显示的当前值。</tag>
+				<tag name="param">options: 可选显示参数，支持 label、group、visible。</tag>
+				<tag name="return">注册成功返回 true；id 为空时返回 false。</tag>
+				<tag name="schema">value: Variant，可为任意可显示值。</tag>
+				<tag name="schema">options: Dictionary，支持 label、group 和 visible。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_watch" line="216">
+			<signature>func remove_watch(id: StringName) -&gt; void:</signature>
+			<description>移除一个运行时观察值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">id: 要移除的观察值标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_watches" line="223">
+			<signature>func clear_watches() -&gt; void:</signature>
+			<description>清空所有运行时观察值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_watch" line="235">
+			<signature>func has_watch(id: StringName) -&gt; bool:</signature>
+			<description>检查运行时观察值是否已注册。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">id: 要检查的观察值标识。</tag>
+				<tag name="return">已注册时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_watch_snapshot" line="248">
+			<signature>func get_watch_snapshot(include_hidden: bool = false) -&gt; Array[Dictionary]:</signature>
+			<description>读取当前运行时观察值快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">include_hidden: 为 true 时同时返回 visible=false 的观察值。</tag>
+				<tag name="return">按注册顺序排列的观察值字典数组。</tag>
+				<tag name="schema">return: Array[Dictionary]，每个元素包含 id、label、group、value 和 valid。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_panel" line="291">
+			<signature>func register_panel(panel_id: StringName, provider: Callable, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>注册一个由回调生成内容的 Overlay 面板。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">panel_id: 面板唯一标识。</tag>
+				<tag name="param">provider: 无参数回调；返回 String、Dictionary、Array 或其他可转字符串值。</tag>
+				<tag name="param">options: 可选显示参数，支持 label、group、visible。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+				<tag name="schema">options: Dictionary，支持 label、group 和 visible。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="push_panel_text" line="312">
+			<signature>func push_panel_text(panel_id: StringName, content: String, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>推送一个静态 Overlay 面板文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">panel_id: 面板唯一标识。</tag>
+				<tag name="param">content: 面板内容。</tag>
+				<tag name="param">options: 可选显示参数，支持 label、group、visible。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+				<tag name="schema">options: Dictionary，支持 label、group 和 visible。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_panel" line="325">
+			<signature>func remove_panel(panel_id: StringName) -&gt; void:</signature>
+			<description>移除一个 Overlay 面板。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">panel_id: 面板唯一标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_panels" line="332">
+			<signature>func clear_panels() -&gt; void:</signature>
+			<description>清空 Overlay 面板注册表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_panel" line="344">
+			<signature>func has_panel(panel_id: StringName) -&gt; bool:</signature>
+			<description>检查 Overlay 面板是否已注册。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">panel_id: 面板唯一标识。</tag>
+				<tag name="return">已注册时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_panel_snapshot" line="357">
+			<signature>func get_panel_snapshot(include_hidden: bool = false) -&gt; Array[Dictionary]:</signature>
+			<description>读取当前 Overlay 面板快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">include_hidden: 为 true 时同时返回 visible=false 的面板。</tag>
+				<tag name="return">面板快照数组。</tag>
+				<tag name="schema">return: Array[Dictionary]，每个元素包含 id、label、group、content 和 valid。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="386">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取 Overlay 运行时调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 debug_only、watch_count、panel_count、include_diagnostics_monitors、include_recent_logs、recent_log_count、diagnostics_monitor_preset 和 gui 分区。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

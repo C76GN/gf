@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputDetector" path="addons/gf/standard/input/rebinding/gf_input_detector.gd" module="standard" extends="Node" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputDetector: 检测下一次输入事件的辅助节点。
+可用于项目自己的改键界面。检测结果只返回 Godot InputEvent，冲突处理由项目层决定。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="detection_started" line="19">
+			<signature>signal detection_started</signature>
+			<description>开始检测时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="input_detected" line="26">
+			<signature>signal input_detected(input_event: InputEvent)</signature>
+			<description>检测结束时发出。input_event 为 null 表示取消或超时。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 检测到的输入事件；取消或超时时为 null。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="DeviceType" line="34">
+			<signature>enum DeviceType { ## 键盘输入。 KEYBOARD, ## 鼠标输入。 MOUSE, ## 手柄按钮或轴输入。 JOYPAD, ## 触屏输入。 TOUCH, }</signature>
+			<description>设备过滤类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="enum" name="DetectionState" line="48">
+			<signature>enum DetectionState { ## 未检测。 IDLE, ## 倒计时中。 COUNTDOWN, ## 等待取消输入释放。 PRE_CLEAR, ## 正在接收候选输入。 DETECTING, ## 等待检测到的输入释放。 POST_CLEAR, }</signature>
+			<description>检测阶段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="ignore_echo" line="70" decorators="@export">
+			<signature>var ignore_echo: bool = true</signature>
+			<description>是否忽略键盘 echo 事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="countdown_seconds" line="80" decorators="@export_range(0.0, 1.0, 0.01) var minimum_axis_amplitude: float = 0.25 @export">
+			<signature>var countdown_seconds: float = 0.0</signature>
+			<description>轴输入检测阈值。
+正式接收输入前的倒计时。可用于改键界面避开确认按钮本身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="timeout_seconds" line="85" decorators="@export">
+			<signature>var timeout_seconds: float = 0.0</signature>
+			<description>检测超时时间。小于等于 0 表示不超时。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="abort_events" line="92" decorators="@export">
+			<signature>var abort_events: Array[InputEvent] = []</signature>
+			<description>取消检测的输入事件列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">abort_events: Array[InputEvent] used to cancel detection or wait for release before accepting input.</tag>
+			</tags>
+		</member>
+		<member kind="property" name="wait_for_clear_before_detection" line="97" decorators="@export">
+			<signature>var wait_for_clear_before_detection: bool = true</signature>
+			<description>开始正式检测前，是否等待 abort_events 中仍按住的输入释放。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="wait_for_clear_after_detection" line="102" decorators="@export">
+			<signature>var wait_for_clear_after_detection: bool = false</signature>
+			<description>检测到输入后，是否等待该输入释放再发出 input_detected。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="begin_detection" line="188">
+			<signature>func begin_detection(allowed_device_types: Array[int] = []) -&gt; void:</signature>
+			<description>开始检测下一次输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">allowed_device_types: 允许的设备类型。空数组表示不限制。</tag>
+				<tag name="schema">allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="begin_detection_for_value_type" line="201">
+			<signature>func begin_detection_for_value_type( value_type: GFInputAction.ValueType, allowed_device_types: Array[int] = [] ) -&gt; void:</signature>
+			<description>按动作值类型开始检测下一次输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value_type: 期望的动作值类型。</tag>
+				<tag name="param">allowed_device_types: 允许的设备类型。空数组表示不限制。</tag>
+				<tag name="schema">allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="begin_detection_for_action" line="217">
+			<signature>func begin_detection_for_action( action: GFInputAction, allowed_device_types: Array[int] = [] ) -&gt; void:</signature>
+			<description>按动作资源开始检测下一次输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">action: 输入动作资源。</tag>
+				<tag name="param">allowed_device_types: 允许的设备类型。空数组表示不限制。</tag>
+				<tag name="schema">allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="detect_bool" line="235">
+			<signature>func detect_bool(allowed_device_types: Array[int] = []) -&gt; void:</signature>
+			<description>开始检测布尔输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">allowed_device_types: 允许的设备类型。空数组表示不限制。</tag>
+				<tag name="schema">allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="detect_axis_1d" line="246">
+			<signature>func detect_axis_1d(allowed_device_types: Array[int] = []) -&gt; void:</signature>
+			<description>开始检测一维轴输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">allowed_device_types: 允许的设备类型。空数组表示不限制。</tag>
+				<tag name="schema">allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="detect_axis_2d" line="257">
+			<signature>func detect_axis_2d(allowed_device_types: Array[int] = []) -&gt; void:</signature>
+			<description>开始检测二维轴输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">allowed_device_types: 允许的设备类型。空数组表示不限制。</tag>
+				<tag name="schema">allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="detect_axis_3d" line="268">
+			<signature>func detect_axis_3d(allowed_device_types: Array[int] = []) -&gt; void:</signature>
+			<description>开始检测三维轴输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">allowed_device_types: 允许的设备类型。空数组表示不限制。</tag>
+				<tag name="schema">allowed_device_types: Array[int]，包含 DeviceType 枚举值；为空表示不过滤设备。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_countdown_remaining" line="277">
+			<signature>func get_countdown_remaining() -&gt; float:</signature>
+			<description>获取正式接收输入前剩余的倒计时秒数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">剩余秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_detection_state" line="286">
+			<signature>func get_detection_state() -&gt; DetectionState:</signature>
+			<description>获取当前检测阶段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">检测阶段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_accepting_input" line="295">
+			<signature>func is_accepting_input() -&gt; bool:</signature>
+			<description>是否已经结束倒计时并正在接收候选输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">是否可接收输入。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_detection" line="302">
+			<signature>func cancel_detection() -&gt; void:</signature>
+			<description>取消检测。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_detecting" line="313">
+			<signature>func is_detecting() -&gt; bool:</signature>
+			<description>检查当前是否正在检测。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">是否正在检测。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNodeState" path="addons/gf/standard/state_machine/node/gf_node_state.gd" module="standard" extends="Node" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNodeState: 基于场景树的状态节点。
+适合需要直接访问动画、碰撞、输入或子节点的状态逻辑。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="requested_transition" line="27">
+			<signature>signal requested_transition(group_name: StringName, state_name: StringName, args: Dictionary)</signature>
+			<description>状态请求切换时发出，由所属状态组或状态机处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">group_name: 目标状态组名。</tag>
+				<tag name="param">state_name: 目标状态名。</tag>
+				<tag name="param">args: 状态切换参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="state_name" line="43" decorators="@export">
+			<signature>var state_name: StringName = &amp;""</signature>
+			<description>状态注册名。为空时使用节点名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enter_conditions" line="51" decorators="@export_group(&quot;Resource Hooks&quot;) @export">
+			<signature>var enter_conditions: Array[Resource] = []</signature>
+			<description>进入状态前需要全部通过的条件资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">enter_conditions: 元素为 GFNodeStateCondition 或兼容 evaluate() 入口的 Resource 列表。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="exit_conditions" line="58" decorators="@export">
+			<signature>var exit_conditions: Array[Resource] = []</signature>
+			<description>离开状态前需要全部通过的条件资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">exit_conditions: 元素为 GFNodeStateCondition 或兼容 evaluate() 入口的 Resource 列表。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="behaviors" line="65" decorators="@export">
+			<signature>var behaviors: Array[Resource] = []</signature>
+			<description>进入、退出、暂停、恢复和事件处理时调用的可复用行为资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">behaviors: 元素为 GFNodeStateBehavior 或兼容状态生命周期入口的 Resource 列表。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="host" line="75">
+			<signature>var host: Node:</signature>
+			<description>状态机宿主节点。通常是 GFNodeStateMachine 的父节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_machine" line="106">
+			<signature>func get_machine() -&gt; Object:</signature>
+			<description>获取所属状态机。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">所属 GFNodeStateMachine；尚未挂入状态组时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_group" line="117">
+			<signature>func get_group() -&gt; Object:</signature>
+			<description>获取所属状态组。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">所属 GFNodeStateGroup；尚未挂入状态组时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_host" line="128">
+			<signature>func get_host() -&gt; Node:</signature>
+			<description>获取状态机宿主节点。若无状态机，则退回到状态组父节点或当前父节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">状态机宿主节点；不可用时返回当前父节点或 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_state_name" line="145">
+			<signature>func get_state_name() -&gt; StringName:</signature>
+			<description>获取实际注册名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">非空 state_name，或节点名称转换出的 StringName。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="enter" line="160">
+			<signature>func enter(previous_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>进入状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">previous_state: 上一个状态名称。</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="exit" line="175">
+			<signature>func exit(next_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>离开状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_state: 下一个状态名称。</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause" line="191">
+			<signature>func pause(next_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>进入栈式子状态时暂停当前状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_state: 下一个状态名称。</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume" line="206">
+			<signature>func resume(previous_state: StringName = &amp;"", args: Dictionary = {}) -&gt; void:</signature>
+			<description>弹出栈式子状态后恢复当前状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">previous_state: 上一个状态名称。</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="transition_to" line="221">
+			<signature>func transition_to(path: StringName, args: Dictionary = {}) -&gt; void:</signature>
+			<description>请求切换状态。path 可为 "State" 或 "Group/State"。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源路径或状态路径。</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="initialize" line="239">
+			<signature>func initialize() -&gt; void:</signature>
+			<description>状态初始化 Hook。状态加入状态组时调用一次。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_enter" line="255">
+			<signature>func can_enter(previous_state: StringName = &amp;"", args: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断是否允许进入状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">previous_state: 来源状态名。</tag>
+				<tag name="param">args: 切换参数。</tag>
+				<tag name="return">允许进入返回 true。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_exit" line="272">
+			<signature>func can_exit(next_state: StringName = &amp;"", args: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断是否允许离开状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_state: 目标状态名。</tag>
+				<tag name="param">args: 切换参数。</tag>
+				<tag name="return">允许离开返回 true。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_blackboard" line="285">
+			<signature>func get_blackboard() -&gt; Dictionary:</signature>
+			<description>获取状态组共享黑板。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">黑板字典；没有状态组时返回空字典。</tag>
+				<tag name="schema">return: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="handle_state_event" line="303">
+			<signature>func handle_state_event(event_id: StringName, payload: Variant = null) -&gt; bool:</signature>
+			<description>处理状态事件。返回 false 时事件会继续交给同组的暂停栈状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 状态事件标识。</tag>
+				<tag name="param">payload: 状态事件载荷。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_architecture_or_null" line="314">
+			<signature>func get_architecture_or_null() -&gt; GFArchitecture:</signature>
+			<description>获取当前状态可用的架构实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">架构实例；状态未挂入可解析上下文时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_model" line="327">
+			<signature>func get_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过当前状态上下文获取 Model。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">model_type: 模型脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">模型实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_system" line="343">
+			<signature>func get_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过当前状态上下文获取 System。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">system_type: 系统脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">系统实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_utility" line="359">
+			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过当前状态上下文获取 Utility。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">工具实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_model" line="375">
+			<signature>func get_local_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前状态所属架构获取 Model，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">model_type: 模型脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前架构中的模型实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_system" line="391">
+			<signature>func get_local_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前状态所属架构获取 System，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">system_type: 系统脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前架构中的系统实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_utility" line="407">
+			<signature>func get_local_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前状态所属架构获取 Utility，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前架构中的工具实例；不可用时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_command" line="423">
+			<signature>func send_command(command: Object) -&gt; Variant:</signature>
+			<description>向当前状态上下文发送命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command: 要发送的命令实例。</tag>
+				<tag name="return">命令执行结果；无可用架构时返回 null。</tag>
+				<tag name="schema">return: 命令返回值；具体结构由 GFCommand 实现决定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_query" line="439">
+			<signature>func send_query(query: Object) -&gt; Variant:</signature>
+			<description>向当前状态上下文发送查询。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">query: 要发送的查询实例。</tag>
+				<tag name="return">查询结果；无可用架构时返回 null。</tag>
+				<tag name="schema">return: 查询返回值；具体结构由 GFQuery 实现决定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_event" line="451">
+			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
+			<description>发送类型事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_instance: 要分发的事件实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_simple_event" line="466">
+			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
+			<description>发送轻量级 StringName 事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">payload: 可选的事件附加数据。</tag>
+				<tag name="schema">payload: 轻量事件载荷；具体结构由 event_id 和项目逻辑约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_event" line="481">
+			<signature>func register_event(event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
+			<description>注册类型事件监听器，默认以当前状态作为 owner。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_type: 要监听的脚本类型。</tag>
+				<tag name="param">callback: 回调函数。</tag>
+				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_event" line="495">
+			<signature>func unregister_event(event_type: Script, callback: Callable) -&gt; void:</signature>
+			<description>注销类型事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_type: 要注销的脚本类型。</tag>
+				<tag name="param">callback: 要移除的回调函数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_assignable_event" line="509">
+			<signature>func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
+			<description>注册可赋值类型事件监听器，默认以当前状态作为 owner。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">base_event_type: 要监听的基类脚本类型。</tag>
+				<tag name="param">callback: 回调函数。</tag>
+				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_assignable_event" line="523">
+			<signature>func unregister_assignable_event(base_event_type: Script, callback: Callable) -&gt; void:</signature>
+			<description>注销可赋值类型事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">base_event_type: 注册时使用的基类脚本类型。</tag>
+				<tag name="param">callback: 要移除的回调函数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_simple_event" line="535">
+			<signature>func register_simple_event(event_id: StringName, callback: Callable) -&gt; void:</signature>
+			<description>注册轻量级 StringName 事件监听器，默认以当前状态作为 owner。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">callback: 回调函数，签名为 func(payload: Variant)。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_simple_event" line="549">
+			<signature>func unregister_simple_event(event_id: StringName, callback: Callable) -&gt; void:</signature>
+			<description>注销轻量级 StringName 事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">callback: 要移除的回调函数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_owner_events" line="557">
+			<signature>func unregister_owner_events() -&gt; void:</signature>
+			<description>注销当前状态通过事件代理注册过的全部监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

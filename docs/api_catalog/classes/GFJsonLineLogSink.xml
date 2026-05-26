@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFJsonLineLogSink" path="addons/gf/standard/utilities/logging/gf_json_line_log_sink.gd" module="standard" extends="GFLogSink" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFJsonLineLogSink: 把结构化日志条目写入 JSON Lines 文件。
+该 sink 只负责把 GFLogUtility 传入的条目序列化为一行一个 JSON 对象，
+不规定采集服务、上传时机或业务字段 schema。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="file_path" line="20" decorators="@export">
+			<signature>var file_path: String = ""</signature>
+			<description>输出文件路径。留空时会根据 GFLogUtility 当前日志文件派生同名 `.jsonl` 文件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="omit_formatted_text" line="25" decorators="@export">
+			<signature>var omit_formatted_text: bool = false</signature>
+			<description>是否在写入前移除 `text` 字段，减少重复存储。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="flush_interval_msec" line="30" decorators="@export">
+			<signature>var flush_interval_msec: int = 250</signature>
+			<description>文件自动 flush 间隔。设为 0 时每条日志都会立即 flush。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="flush_immediately" line="35" decorators="@export">
+			<signature>var flush_immediately: bool = false</signature>
+			<description>是否强制每条 JSONL 日志立即 flush。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_jsonl_files" line="40" decorators="@export">
+			<signature>var max_jsonl_files: int = 10:</signature>
+			<description>使用默认派生路径时最多保留的 JSONL 文件数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="60">
+			<signature>func init(owner: Object) -&gt; void:</signature>
+			<description>初始化 sink 并打开 JSONL 文件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">owner: 持有该 sink 的日志工具。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="write" line="83">
+			<signature>func write(entry: Dictionary) -&gt; void:</signature>
+			<description>写入一条结构化日志。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">entry: 日志条目字典。</tag>
+				<tag name="schema">entry: Dictionary log entry produced by GFLogUtility.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="flush" line="98">
+			<signature>func flush() -&gt; void:</signature>
+			<description>刷新尚未写出的 JSONL 内容。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="shutdown" line="107">
+			<signature>func shutdown() -&gt; void:</signature>
+			<description>关闭文件句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_file_path" line="119">
+			<signature>func get_file_path() -&gt; String:</signature>
+			<description>获取当前实际输出路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">JSONL 文件路径。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNodeStateMachineConfig" path="addons/gf/standard/state_machine/node/gf_node_state_machine_config.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNodeStateMachineConfig: 节点状态机可复用配置资源。
+适合把初始状态、历史容量和栈深度等通用运行策略做成资源复用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="initial_state" line="19" decorators="@export">
+			<signature>var initial_state: StringName = &amp;""</signature>
+			<description>内部状态组初始状态名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="initial_args" line="26" decorators="@export">
+			<signature>var initial_args: Dictionary = {}</signature>
+			<description>内部状态组初始状态参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">initial_args: 初始状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods />
+	<innerClasses />
+</class>

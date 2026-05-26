@@ -1,0 +1,175 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputIconAtlasProvider" path="addons/gf/standard/input/formatting/gf_input_icon_atlas_provider.gd" module="standard" extends="GFInputIconProvider" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputIconAtlasProvider: 可配置输入图标图集 Provider。
+将 InputEvent 归一化为通用图标键，再通过显式映射或路径模板解析 Texture2D / RichText 图标。
+框架不附带图标资源，也不规定项目的美术风格或平台命名。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="root_path" line="20" decorators="@export">
+			<signature>var root_path: String = ""</signature>
+			<description>图标根目录。路径模板中的 {root} 会使用该值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="style" line="25" decorators="@export">
+			<signature>var style: StringName = &amp;"default"</signature>
+			<description>图标风格名。路径模板中的 {style} 会使用该值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="platform" line="30" decorators="@export">
+			<signature>var platform: StringName = &amp;""</signature>
+			<description>平台名。为空时使用 options.platform 或 fallback_platform。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="fallback_platform" line="35" decorators="@export">
+			<signature>var fallback_platform: StringName = &amp;"generic"</signature>
+			<description>平台回退名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="path_pattern" line="40" decorators="@export">
+			<signature>var path_pattern: String = "{root}/{style}/{platform}/{icon}.png"</signature>
+			<description>路径模板。可使用 {root}、{style}、{platform}、{icon}。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="icon_paths" line="47" decorators="@export">
+			<signature>var icon_paths: Dictionary = {}</signature>
+			<description>显式路径映射，key 为 get_event_icon_candidates() 产生的图标键。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">icon_paths: Dictionary，以 StringName 或 String 图标键为键，值为 String Texture2D 资源路径。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="icon_textures" line="54" decorators="@export">
+			<signature>var icon_textures: Dictionary = {}</signature>
+			<description>显式纹理映射，key 为 get_event_icon_candidates() 产生的图标键。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">icon_textures: Dictionary，以 StringName 或 String 图标键为键，值为 Texture2D。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rich_text_separator" line="59" decorators="@export">
+			<signature>var rich_text_separator: String = " "</signature>
+			<description>RichText 输出多个图标时使用的分隔文本。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="split_key_modifiers" line="64" decorators="@export">
+			<signature>var split_key_modifiers: bool = true</signature>
+			<description>是否为带修饰键的键盘事件输出多个图标。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_icon_path" line="81">
+			<signature>func set_icon_path(icon_key: StringName, resource_path: String) -&gt; void:</signature>
+			<description>设置图标路径映射。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">icon_key: 图标键。</tag>
+				<tag name="param">resource_path: Texture2D 资源路径。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_icon_texture" line="98">
+			<signature>func set_icon_texture(icon_key: StringName, texture: Texture2D) -&gt; void:</signature>
+			<description>设置图标纹理映射。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">icon_key: 图标键。</tag>
+				<tag name="param">texture: 图标纹理。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_cache" line="110">
+			<signature>func clear_cache() -&gt; void:</signature>
+			<description>清空已加载的纹理缓存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="supports_event" line="125">
+			<signature>func supports_event(input_event: InputEvent, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>判断是否支持指定输入事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">支持返回 true。</tag>
+				<tag name="schema">options: Dictionary，可包含 allow_missing_paths、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_icon" line="144">
+			<signature>func get_event_icon(input_event: InputEvent, options: Dictionary = {}) -&gt; Texture2D:</signature>
+			<description>获取输入事件图标。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">图标纹理；不存在时返回 null。</tag>
+				<tag name="schema">options: Dictionary，可包含 allow_missing_paths、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_rich_text" line="178">
+			<signature>func get_event_rich_text(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
+			<description>获取输入事件 RichTextLabel BBCode。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">BBCode；无法解析时返回空字符串。</tag>
+				<tag name="schema">options: Dictionary，可包含 allow_missing_paths、icon_size、rich_text_separator、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_icon_path" line="207">
+			<signature>func get_event_icon_path(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
+			<description>获取输入事件的首选图标路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">图标路径；无法解析时返回空字符串。</tag>
+				<tag name="schema">options: Dictionary，可包含 allow_missing_paths、root_path、style、platform、path_pattern、split_key_modifiers 和 include_key_modifier_combo。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resolve_event_icon_key" line="224">
+			<signature>func resolve_event_icon_key(input_event: InputEvent, options: Dictionary = {}) -&gt; StringName:</signature>
+			<description>获取输入事件的首选图标键。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">图标键；无法解析时返回空 StringName。</tag>
+				<tag name="schema">options: Dictionary，可包含 split_key_modifiers 和 include_key_modifier_combo。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_icon_candidates" line="240">
+			<signature>func get_event_icon_candidates(input_event: InputEvent, options: Dictionary = {}) -&gt; PackedStringArray:</signature>
+			<description>获取输入事件可能使用的图标键列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">input_event: 输入事件。</tag>
+				<tag name="param">options: 调用选项。</tag>
+				<tag name="return">图标键列表，按优先级排序。</tag>
+				<tag name="schema">options: Dictionary，可包含 split_key_modifiers 和 include_key_modifier_combo。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

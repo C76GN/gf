@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFConfigValidationReport" path="addons/gf/standard/utilities/config/gf_config_validation_report.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFConfigValidationReport: 配置表校验报告构建工具。
+统一创建、合并和补全配置表校验报告，保证 schema、导入器、引用解析和补丁合并使用相同问题结构。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="CONTEXT_FIELDS" line="19">
+			<signature>const CONTEXT_FIELDS: Array[String] = [</signature>
+			<description>从校验上下文复制到单条 issue 的字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="make_report" line="42">
+			<signature>func make_report(table_name: StringName = &amp;"", row_count: int = 0) -&gt; Dictionary:</signature>
+			<description>创建空校验报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="param">row_count: 记录数量。</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary，包含 ok、table_name、row_count、error_count、warning_count 和 issues。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_error_report" line="70">
+			<signature>func make_error_report( table_name: StringName, kind: String, message: String, context: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>创建单错误校验报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="param">kind: 稳定问题类型。</tag>
+				<tag name="param">message: 问题描述。</tag>
+				<tag name="param">context: 可选上下文。</tag>
+				<tag name="return">校验报告字典。</tag>
+				<tag name="schema">context: Dictionary，可包含 row_key、field、source、line、column、row_index、column_index 和 rule_id 字段。</tag>
+				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary，包含一条 error issue。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_issue" line="107">
+			<signature>func add_issue( report: Dictionary, severity: String, kind: String, table_name: StringName, row_key: Variant, field_name: StringName, message: String, context: Dictionary = {} ) -&gt; void:</signature>
+			<description>向报告写入一条问题。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 目标校验报告。</tag>
+				<tag name="param">severity: severity 字符串，支持 error 或 warning。</tag>
+				<tag name="param">kind: 稳定问题类型。</tag>
+				<tag name="param">table_name: 表名。</tag>
+				<tag name="param">row_key: 行标识。</tag>
+				<tag name="param">field_name: 字段名。</tag>
+				<tag name="param">message: 问题描述。</tag>
+				<tag name="param">context: 可选上下文。</tag>
+				<tag name="schema">report: GFConfigValidationReport 兼容 Dictionary，会被当前方法修改。</tag>
+				<tag name="schema">row_key: Variant，复制到 issue 中的行标识。</tag>
+				<tag name="schema">context: Dictionary，可包含 source、line、column、row_index、column_index 和 rule_id 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="merge_report" line="150">
+			<signature>func merge_report(target: Dictionary, source: Dictionary, include_row_count: bool = false) -&gt; void:</signature>
+			<description>合并一份校验报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 目标报告。</tag>
+				<tag name="param">source: 来源报告。</tag>
+				<tag name="param">include_row_count: 为 true 时累加 row_count。</tag>
+				<tag name="schema">target: GFConfigValidationReport 兼容 Dictionary，会被当前方法修改。</tag>
+				<tag name="schema">source: GFConfigValidationReport 兼容 Dictionary，会复制合并到 target。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="finalize_report" line="171">
+			<signature>func finalize_report(report: Dictionary) -&gt; void:</signature>
+			<description>根据 error_count 补全 ok 字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">report: 校验报告。</tag>
+				<tag name="schema">report: GFConfigValidationReport 兼容 Dictionary，会被当前方法修改。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

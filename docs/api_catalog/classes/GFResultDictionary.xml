@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFResultDictionary" path="addons/gf/standard/foundation/validation/gf_result_dictionary.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFResultDictionary: 通用结果字典常量与轻量工厂。
+用于统一 `ok`、`data`、`metadata`、`error` 等常见结果字典字段，
+便于运行时服务和底层模块逐步收敛返回结构，同时保持字典兼容。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="KEY_OK" line="20">
+			<signature>const KEY_OK: String = "ok"</signature>
+			<description>操作是否成功字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_DATA" line="25">
+			<signature>const KEY_DATA: String = "data"</signature>
+			<description>结果数据字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_METADATA" line="30">
+			<signature>const KEY_METADATA: String = "metadata"</signature>
+			<description>元数据字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_ERROR" line="35">
+			<signature>const KEY_ERROR: String = "error"</signature>
+			<description>单个错误字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_ERRORS" line="40">
+			<signature>const KEY_ERRORS: String = "errors"</signature>
+			<description>多个错误字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_INTEGRITY_VALID" line="45">
+			<signature>const KEY_INTEGRITY_VALID: String = "integrity_valid"</signature>
+			<description>完整性校验结果字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="make" line="63">
+			<signature>static func make(ok: bool, fields: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>创建结果字典，并写入 ok 字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">ok: 操作是否成功。</tag>
+				<tag name="param">fields: 需要合并到结果中的附加字段。</tag>
+				<tag name="return">新结果字典。</tag>
+				<tag name="schema">fields: Dictionary fields copied into the result.</tag>
+				<tag name="schema">return: Dictionary with ok plus caller-provided fields.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_success" line="80">
+			<signature>static func make_success(fields: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>创建成功结果字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">fields: 需要合并到结果中的附加字段。</tag>
+				<tag name="return">新结果字典。</tag>
+				<tag name="schema">fields: Dictionary fields copied into the result.</tag>
+				<tag name="schema">return: Dictionary with ok set to true plus caller-provided fields.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_failure" line="97">
+			<signature>static func make_failure(error: String = "", fields: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>创建失败结果字典，并写入 error 字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">error: 错误说明。</tag>
+				<tag name="param">fields: 需要合并到结果中的附加字段。</tag>
+				<tag name="return">新结果字典。</tag>
+				<tag name="schema">fields: Dictionary fields copied into the result.</tag>
+				<tag name="schema">return: Dictionary with ok set to false, error, and caller-provided fields.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

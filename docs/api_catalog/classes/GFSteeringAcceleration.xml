@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSteeringAcceleration" path="addons/gf/standard/foundation/math/gf_steering_acceleration.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSteeringAcceleration: steering 计算输出的线性与角加速度。
+作为纯数据对象在多个 steering 行为之间传递，不绑定节点或物理体。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="linear" line="19">
+			<signature>var linear: Vector3 = Vector3.ZERO</signature>
+			<description>线性加速度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="angular" line="24">
+			<signature>var angular: float = 0.0</signature>
+			<description>角加速度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="clear" line="41">
+			<signature>func clear() -&gt; GFSteeringAcceleration:</signature>
+			<description>清零加速度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_values" line="56">
+			<signature>func set_values( linear_acceleration: Vector3, angular_acceleration: float = 0.0 ) -&gt; GFSteeringAcceleration:</signature>
+			<description>写入加速度值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">linear_acceleration: 线性加速度。</tag>
+				<tag name="param">angular_acceleration: 角加速度。</tag>
+				<tag name="return">当前实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_scaled" line="74">
+			<signature>func add_scaled(other: GFSteeringAcceleration, weight: float = 1.0) -&gt; GFSteeringAcceleration:</signature>
+			<description>按权重叠加另一个加速度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">other: 另一个加速度。</tag>
+				<tag name="param">weight: 权重。</tag>
+				<tag name="return">当前实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clamp_to" line="91">
+			<signature>func clamp_to(max_linear: float = -1.0, max_angular: float = -1.0) -&gt; GFSteeringAcceleration:</signature>
+			<description>按上限裁剪加速度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">max_linear: 最大线性加速度；小于 0 时不限制。</tag>
+				<tag name="param">max_angular: 最大角加速度；小于 0 时不限制。</tag>
+				<tag name="return">当前实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_zero" line="106">
+			<signature>func is_zero(threshold: float = 0.001) -&gt; bool:</signature>
+			<description>判断加速度是否接近零。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">threshold: 零阈值。</tag>
+				<tag name="return">接近零返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_acceleration" line="115">
+			<signature>func duplicate_acceleration() -&gt; GFSteeringAcceleration:</signature>
+			<description>创建深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新加速度对象。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDiagnosticsUtility" path="addons/gf/standard/utilities/debug/gf_diagnostics_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFDiagnosticsUtility: 运行时诊断聚合工具。
+提供架构生命周期、事件系统、性能、日志和外部贡献诊断的统一快照。
+诊断命令、监控项和快照分区通过 Callable 注册，框架只负责调度和包装结果，不解释项目业务数据。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="snapshot_collected" line="24">
+			<signature>signal snapshot_collected(snapshot: Dictionary)</signature>
+			<description>采集快照后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">snapshot: 刚采集到的诊断快照。</tag>
+				<tag name="schema">snapshot: Dictionary，包含 collect_snapshot() 返回的顶层诊断分区。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="diagnostic_command_executed" line="35">
+			<signature>signal diagnostic_command_executed(command_name: StringName, result: Dictionary)</signature>
+			<description>执行诊断命令后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 已执行的诊断命令名。</tag>
+				<tag name="param">result: 命令执行结果。</tag>
+				<tag name="schema">result: Dictionary，包含 ok、value、error、metadata 等字段。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="monitor_sampled" line="46">
+			<signature>signal monitor_sampled(monitor_id: StringName, sample: Dictionary)</signature>
+			<description>采样诊断监控项后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">monitor_id: 监控项标识。</tag>
+				<tag name="param">sample: 采样结果。</tag>
+				<tag name="schema">sample: Dictionary，包含 id、label、group、value、valid、error、metadata 和 sampled_at_unix。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="CommandTier" line="54">
+			<signature>enum CommandTier { ## 只读取状态。 OBSERVE, ## 修改调试输入或临时过滤条件。 INPUT, ## 控制运行时行为。 CONTROL, ## 可能破坏状态、存档或远端连接。 DANGER, }</signature>
+			<description>诊断命令风险等级。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="include_performance_monitors" line="71">
+			<signature>var include_performance_monitors: bool = true</signature>
+			<description>是否采集 Godot Performance 监视器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_recent_log_count" line="76">
+			<signature>var default_recent_log_count: int = 20</signature>
+			<description>快照中默认包含的最近日志数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_command_tier" line="81">
+			<signature>var max_command_tier: CommandTier = CommandTier.OBSERVE</signature>
+			<description>当前允许执行的最高命令等级。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="require_auth_token" line="86">
+			<signature>var require_auth_token: bool = false</signature>
+			<description>是否要求命令参数提供 auth_token 或 _auth_token。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auth_token" line="91">
+			<signature>var auth_token: String = ""</signature>
+			<description>诊断命令认证 token。为空时无法通过认证。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_danger_commands" line="96">
+			<signature>var allow_danger_commands: bool = false</signature>
+			<description>是否允许执行 DANGER 等级命令。即使 max_command_tier 足够，也需要显式开启。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="encode_command_results_for_json" line="101">
+			<signature>var encode_command_results_for_json: bool = false</signature>
+			<description>是否把诊断命令结果转换为 JSON 兼容 Variant。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_scene_tree_max_depth" line="106">
+			<signature>var default_scene_tree_max_depth: int = 4</signature>
+			<description>场景树快照默认递归深度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_scene_tree_max_nodes" line="111">
+			<signature>var default_scene_tree_max_nodes: int = 128</signature>
+			<description>场景树快照默认最多采集节点数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="132">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化内置诊断命令和监控项。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="ready" line="146">
+			<signature>func ready() -&gt; void:</signature>
+			<description>绑定控制台诊断命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="153">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放诊断注册表并解绑控制台命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_command" line="184">
+			<signature>func register_command( command_name: StringName, callback: Callable, description: String = "", tier: CommandTier = CommandTier.OBSERVE, options: Dictionary = {} ) -&gt; void:</signature>
+			<description>注册诊断命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+				<tag name="param">callback: 回调，签名建议为 func(args: Dictionary) -&gt; Variant。</tag>
+				<tag name="param">description: 描述文本。</tag>
+				<tag name="param">tier: 命令风险等级。</tag>
+				<tag name="param">options: 可选元数据，支持 parameters、metadata、enabled。</tag>
+				<tag name="schema">options: Dictionary，支持 parameters、metadata 和 enabled。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_command" line="209">
+			<signature>func unregister_command(command_name: StringName) -&gt; void:</signature>
+			<description>注销诊断命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_command" line="221">
+			<signature>func has_command(command_name: StringName) -&gt; bool:</signature>
+			<description>检查诊断命令是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_command_parameter_schema" line="236">
+			<signature>func set_command_parameter_schema(command_name: StringName, parameters: Variant) -&gt; bool:</signature>
+			<description>设置诊断命令参数 schema。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+				<tag name="param">parameters: 参数 schema，可为数组或按参数名索引的字典。</tag>
+				<tag name="return">设置成功返回 true。</tag>
+				<tag name="schema">parameters: Variant，支持 Array[Dictionary] 或 Dictionary 形式的参数 schema。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_command_enabled" line="253">
+			<signature>func set_command_enabled(command_name: StringName, enabled: bool) -&gt; bool:</signature>
+			<description>设置诊断命令是否启用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+				<tag name="param">enabled: 是否启用。</tag>
+				<tag name="return">命令存在时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_all_commands_enabled" line="272">
+			<signature>func set_all_commands_enabled( enabled: bool, command_names: PackedStringArray = PackedStringArray() ) -&gt; int:</signature>
+			<description>批量设置命令是否启用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">enabled: 是否启用。</tag>
+				<tag name="param">command_names: 指定命令；为空时作用于全部已注册命令。</tag>
+				<tag name="return">实际处理的命令数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_command_enabled" line="295">
+			<signature>func is_command_enabled(command_name: StringName) -&gt; bool:</signature>
+			<description>检查命令是否启用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+				<tag name="return">命令存在且启用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_command_descriptions" line="306">
+			<signature>func get_command_descriptions() -&gt; Dictionary:</signature>
+			<description>获取诊断命令描述。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">命令名到描述的字典。</tag>
+				<tag name="schema">return: Dictionary[StringName, String]，以命令名为键。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_command_catalog" line="321">
+			<signature>func get_command_catalog() -&gt; Dictionary:</signature>
+			<description>获取诊断命令目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">命令名到命令元数据的字典。</tag>
+				<tag name="schema">return: Dictionary[StringName, Dictionary]，每个值包含 description、tier、tier_name、enabled、parameters 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_monitor" line="350">
+			<signature>func register_monitor(monitor_id: StringName, provider: Callable, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>注册诊断监控项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">monitor_id: 监控项唯一标识。</tag>
+				<tag name="param">provider: 无参数采样回调。</tag>
+				<tag name="param">options: 可选元数据，支持 label、group、visible、metadata、min_interval_seconds。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+				<tag name="schema">options: Dictionary，支持 label、group、visible、metadata 和 min_interval_seconds。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_monitor" line="375">
+			<signature>func unregister_monitor(monitor_id: StringName) -&gt; void:</signature>
+			<description>注销诊断监控项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">monitor_id: 监控项唯一标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_monitor" line="391">
+			<signature>func has_monitor(monitor_id: StringName) -&gt; bool:</signature>
+			<description>检查诊断监控项是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">monitor_id: 监控项唯一标识。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_monitor_catalog" line="402">
+			<signature>func get_monitor_catalog() -&gt; Dictionary:</signature>
+			<description>获取诊断监控项目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">监控项元数据字典。</tag>
+				<tag name="schema">return: Dictionary[StringName, Dictionary]，每个值包含 label、group、visible、metadata 和 min_interval_seconds。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_monitor_preset" line="429">
+			<signature>func register_monitor_preset( preset_id: StringName, monitor_ids: PackedStringArray, options: Dictionary = {} ) -&gt; bool:</signature>
+			<description>注册诊断监控预设。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">preset_id: 预设唯一标识。</tag>
+				<tag name="param">monitor_ids: 预设包含的监控项标识。</tag>
+				<tag name="param">options: 可选元数据，支持 label、metadata。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+				<tag name="schema">options: Dictionary，支持 label 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_monitor_to_preset" line="454">
+			<signature>func add_monitor_to_preset(preset_id: StringName, monitor_id: StringName) -&gt; bool:</signature>
+			<description>将一个监控项追加到已有预设；预设不存在时会创建。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">preset_id: 预设唯一标识。</tag>
+				<tag name="param">monitor_id: 监控项唯一标识。</tag>
+				<tag name="return">追加成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_monitor_preset" line="473">
+			<signature>func unregister_monitor_preset(preset_id: StringName) -&gt; void:</signature>
+			<description>注销诊断监控预设。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">preset_id: 预设唯一标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_monitor_preset" line="484">
+			<signature>func has_monitor_preset(preset_id: StringName) -&gt; bool:</signature>
+			<description>检查诊断监控预设是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">preset_id: 预设唯一标识。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_monitor_preset_ids" line="493">
+			<signature>func get_monitor_preset_ids() -&gt; PackedStringArray:</signature>
+			<description>获取诊断监控预设列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">预设标识列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_snapshot_section_provider" line="510">
+			<signature>func register_snapshot_section_provider(section_id: StringName, provider: Callable) -&gt; bool:</signature>
+			<description>注册快照分区 provider。用于扩展或项目把自己的诊断数据贡献到 collect_snapshot() 顶层字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">section_id: 快照顶层字段名。</tag>
+				<tag name="param">provider: 无参数采样回调，建议返回 Dictionary。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_snapshot_section_provider" line="522">
+			<signature>func unregister_snapshot_section_provider(section_id: StringName) -&gt; void:</signature>
+			<description>注销快照分区 provider。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">section_id: 快照顶层字段名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_snapshot_section_provider" line="533">
+			<signature>func has_snapshot_section_provider(section_id: StringName) -&gt; bool:</signature>
+			<description>检查快照分区 provider 是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">section_id: 快照顶层字段名。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_tool_snapshot_provider" line="546">
+			<signature>func register_tool_snapshot_provider(tool_id: StringName, provider: Callable) -&gt; bool:</signature>
+			<description>注册工具快照 provider。用于扩展或项目把 get_debug_snapshot() 风格数据贡献到 tools 字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tool_id: tools 内部字段名。</tag>
+				<tag name="param">provider: 无参数采样回调，建议返回 Dictionary。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_tool_snapshot_provider" line="558">
+			<signature>func unregister_tool_snapshot_provider(tool_id: StringName) -&gt; void:</signature>
+			<description>注销工具快照 provider。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tool_id: tools 内部字段名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_tool_snapshot_provider" line="569">
+			<signature>func has_tool_snapshot_provider(tool_id: StringName) -&gt; bool:</signature>
+			<description>检查工具快照 provider 是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">tool_id: tools 内部字段名。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_monitor_snapshot" line="584">
+			<signature>func collect_monitor_snapshot( monitor_ids: PackedStringArray = PackedStringArray(), include_hidden: bool = false ) -&gt; Dictionary:</signature>
+			<description>采集诊断监控快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">monitor_ids: 指定监控项；为空时采集全部可见监控项。</tag>
+				<tag name="param">include_hidden: 为 true 时包含 visible=false 的监控项。</tag>
+				<tag name="return">监控快照字典。</tag>
+				<tag name="schema">return: Dictionary，包含 timestamp_unix、monitor_count 和 monitors。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_monitor_preset" line="623">
+			<signature>func collect_monitor_preset(preset_id: StringName, include_hidden: bool = false) -&gt; Dictionary:</signature>
+			<description>按预设采集诊断监控快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">preset_id: 预设唯一标识。</tag>
+				<tag name="param">include_hidden: 为 true 时包含 visible=false 的监控项。</tag>
+				<tag name="return">监控快照字典。</tag>
+				<tag name="schema">return: Dictionary，包含 collect_monitor_snapshot() 字段以及 preset_id、preset_label、preset_metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="export_monitor_snapshot" line="647">
+			<signature>func export_monitor_snapshot(snapshot: Dictionary, format: StringName = &amp;"json") -&gt; String:</signature>
+			<description>导出诊断监控快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">snapshot: collect_monitor_snapshot() 或 collect_monitor_preset() 返回值。</tag>
+				<tag name="param">format: 导出格式，支持 json、text、csv。</tag>
+				<tag name="return">导出文本。</tag>
+				<tag name="schema">snapshot: Dictionary，collect_monitor_snapshot() 或 collect_monitor_preset() 返回结构。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_auth_token" line="664">
+			<signature>func set_auth_token(token: String, required: bool = true) -&gt; void:</signature>
+			<description>设置诊断认证 token。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">token: token 文本。</tag>
+				<tag name="param">required: 是否立即启用 token 校验。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute_command" line="682">
+			<signature>func execute_command(command_name: StringName, args: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>执行诊断命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+				<tag name="param">args: 命令参数。</tag>
+				<tag name="return">统一结果字典。</tag>
+				<tag name="schema">args: Dictionary，命令参数；可包含 auth_token 以及该命令 parameter_schema 定义的字段。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、value、error、metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute_command_json_safe" line="751">
+			<signature>func execute_command_json_safe(command_name: StringName, args: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>执行诊断命令并返回 JSON 兼容结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command_name: 命令名。</tag>
+				<tag name="param">args: 命令参数。</tag>
+				<tag name="return">JSON 兼容结果字典。</tag>
+				<tag name="schema">args: Dictionary，命令参数；可包含 auth_token 以及该命令 parameter_schema 定义的字段。</tag>
+				<tag name="schema">return: Dictionary，包含 JSON 兼容的 ok、value、error、metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="command_result_to_json_compatible" line="770">
+			<signature>func command_result_to_json_compatible(result: Dictionary, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>将命令结果转换为 JSON 兼容字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: execute_command() 返回的结果。</tag>
+				<tag name="param">options: 传给 GFVariantJsonCodec.variant_to_json_compatible() 的选项。</tag>
+				<tag name="return">JSON 兼容结果字典。</tag>
+				<tag name="schema">result: Dictionary，execute_command() 返回结构。</tag>
+				<tag name="schema">options: Dictionary，传给 GFVariantJsonCodec.variant_to_json_compatible() 的编码选项。</tag>
+				<tag name="schema">return: Dictionary，JSON 兼容命令结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_snapshot" line="785">
+			<signature>func collect_snapshot(options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>采集运行时诊断快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选参数，支持 recent_log_count、include_recent_logs、include_scene_tree、scene_tree_options、include_signal_graph、signal_graph_options。</tag>
+				<tag name="return">快照字典。</tag>
+				<tag name="schema">options: Dictionary，支持 recent_log_count、include_recent_logs、include_scene_tree、scene_tree_options、include_signal_graph、signal_graph_options、include_monitors、monitor_preset、monitor_ids、include_hidden_monitors。</tag>
+				<tag name="schema">return: Dictionary，包含 timestamp_unix、engine、build、architecture、event_system、performance、logs、network、tools，可选 scene_tree、signal_graph、monitors 和注册分区。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_performance_snapshot" line="851">
+			<signature>func collect_performance_snapshot() -&gt; Dictionary:</signature>
+			<description>采集性能监视器快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">性能数据字典。</tag>
+				<tag name="schema">return: Dictionary，包含 fps、process_time、physics_process_time、static_memory、object_count、node_count、resource_count。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_log_snapshot" line="874">
+			<signature>func collect_log_snapshot(recent_log_count: int = 20, include_recent_logs: bool = true) -&gt; Dictionary:</signature>
+			<description>采集日志缓存快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">recent_log_count: 最近日志数量。</tag>
+				<tag name="param">include_recent_logs: 是否包含日志条目。</tag>
+				<tag name="return">日志数据字典。</tag>
+				<tag name="schema">return: Dictionary，包含 available、memory_count、dropped_count、recent。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_scene_tree_snapshot" line="905">
+			<signature>func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>采集只读场景树快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 可选根节点；为空时优先使用当前场景，再回退到 Viewport root。</tag>
+				<tag name="param">options: 可选参数，支持 max_depth、max_nodes、include_groups、include_owner_path、include_script_path、include_internal。</tag>
+				<tag name="return">场景树快照字典。</tag>
+				<tag name="schema">options: Dictionary，支持 max_depth、max_nodes、include_groups、include_owner_path、include_script_path、include_internal、root_path、prefer_current_scene。</tag>
+				<tag name="schema">return: Dictionary，包含 available、node_count、truncated、root_path、root。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_signal_graph_snapshot" line="954">
+			<signature>func collect_signal_graph_snapshot(root: Node = null, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>采集只读信号连接图快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root: 可选根节点；为空时优先使用当前场景，再回退到 Viewport root。</tag>
+				<tag name="param">options: 可选参数，支持 include_internal、persistent_only、include_empty_signals、include_external_targets、include_index。</tag>
+				<tag name="return">信号图快照字典。</tag>
+				<tag name="schema">options: Dictionary，支持 include_internal、persistent_only、include_empty_signals、include_external_targets、include_index、root_path、prefer_current_scene。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、root_path、node_count、signal_count、connection_count、nodes、signals、connections，可选 index。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

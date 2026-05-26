@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFProjectileBurstPattern2D" path="addons/gf/extensions/combat/projectiles/gf_projectile_burst_pattern_2d.gd" module="extensions/combat" extends="GFProjectileSpawnPattern2D" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFProjectileBurstPattern2D: 2D 扇形/环形发射点模式。
+通过数量、角度和半径生成一组通用发射变换，适合散射、圆环、扇形或单点发射。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="spread_degrees" line="24" decorators="@export_range(1, 256, 1) var projectile_count: int = 1 @export">
+			<signature>var spread_degrees: float = 0.0</signature>
+			<description>默认发射数量。
+总扩散角度（度）。数量大于 1 时在该范围内均匀分布。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="center_angle_degrees" line="29" decorators="@export">
+			<signature>var center_angle_degrees: float = 0.0</signature>
+			<description>相对发射器朝向的中心角度（度）。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="radius" line="34" decorators="@export">
+			<signature>var radius: float = 0.0</signature>
+			<description>生成点距离发射器的半径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rotate_to_direction" line="39" decorators="@export">
+			<signature>var rotate_to_direction: bool = true</signature>
+			<description>生成变换是否朝向对应发射方向。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_emitter_rotation" line="44" decorators="@export">
+			<signature>var include_emitter_rotation: bool = true</signature>
+			<description>是否把发射器自身旋转计入方向。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods />
+	<innerClasses />
+</class>

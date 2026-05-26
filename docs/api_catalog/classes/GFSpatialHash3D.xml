@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSpatialHash3D" path="addons/gf/standard/foundation/math/gf_spatial_hash_3d.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSpatialHash3D: 纯逻辑 3D 空间哈希。
+适用于大量动态 3D 实体的粗粒度范围查询。它只维护 AABB 索引，
+不负责物理碰撞、可见性或玩法规则。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="cell_size" line="20">
+			<signature>var cell_size: float:</signature>
+			<description>单个哈希格子的世界尺寸。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure" line="48">
+			<signature>func configure(p_cell_size: float) -&gt; void:</signature>
+			<description>配置格子尺寸并清空索引。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_cell_size: 单格世界尺寸。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="insert" line="64">
+			<signature>func insert(entity: Variant, bounds: AABB) -&gt; bool:</signature>
+			<description>插入实体。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">entity: 实体标识或 Object。</tag>
+				<tag name="param">bounds: 实体 AABB。</tag>
+				<tag name="return">成功时返回 true。</tag>
+				<tag name="schema">entity: Variant entity identity stored by value or weak Object reference.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove" line="89">
+			<signature>func remove(entity: Variant) -&gt; void:</signature>
+			<description>移除实体。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">entity: 实体标识或 Object。</tag>
+				<tag name="schema">entity: Variant entity identity stored by value or weak Object reference.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="update" line="107">
+			<signature>func update(entity: Variant, bounds: AABB) -&gt; bool:</signature>
+			<description>更新实体 AABB。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">entity: 实体标识或 Object。</tag>
+				<tag name="param">bounds: 新 AABB。</tag>
+				<tag name="return">成功时返回 true。</tag>
+				<tag name="schema">entity: Variant entity identity stored by value or weak Object reference.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_entity" line="120">
+			<signature>func has_entity(entity: Variant) -&gt; bool:</signature>
+			<description>检查实体是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">entity: 实体标识或 Object。</tag>
+				<tag name="return">存在时返回 true。</tag>
+				<tag name="schema">entity: Variant entity identity stored by value or weak Object reference.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_entity_count" line="139">
+			<signature>func get_entity_count() -&gt; int:</signature>
+			<description>获取实体数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">实体数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="query_aabb" line="153">
+			<signature>func query_aabb(area: AABB) -&gt; Array[Variant]:</signature>
+			<description>查询与 AABB 相交的实体。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">area: 查询 AABB。</tag>
+				<tag name="return">实体数组。</tag>
+				<tag name="schema">return: Array entity values restored from spatial hash records.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="query_radius" line="179">
+			<signature>func query_radius(center: Vector3, radius: float) -&gt; Array[Variant]:</signature>
+			<description>查询与球体相交的实体。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">center: 球心。</tag>
+				<tag name="param">radius: 半径。</tag>
+				<tag name="return">实体数组。</tag>
+				<tag name="schema">return: Array entity values restored from spatial hash records.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="prune_invalid_entities" line="206">
+			<signature>func prune_invalid_entities() -&gt; void:</signature>
+			<description>清理已释放 Object 实体。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="219">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空索引。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

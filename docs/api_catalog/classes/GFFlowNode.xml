@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFlowNode" path="addons/gf/extensions/flow/resources/gf_flow_node.gd" module="extensions/flow" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFlowNode: 通用流程图节点基类。
+节点只描述执行入口和默认后继节点。具体条件、命令、等待逻辑由项目继承实现。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="node_id" line="19" decorators="@export">
+			<signature>var node_id: StringName = &amp;""</signature>
+			<description>节点稳定标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="24" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>节点显示名；为空时回退到 node_id。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="category" line="29" decorators="@export">
+			<signature>var category: StringName = &amp;""</signature>
+			<description>节点分类，仅供编辑器、搜索或项目工具使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="next_node_ids" line="34" decorators="@export">
+			<signature>var next_node_ids: PackedStringArray = PackedStringArray()</signature>
+			<description>默认后继节点列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="wait_for_result" line="39" decorators="@export">
+			<signature>var wait_for_result: bool = true</signature>
+			<description>返回 Signal 时是否等待。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="input_ports" line="44" decorators="@export">
+			<signature>var input_ports: Array[GFFlowPort] = []</signature>
+			<description>输入端口描述。仅用于编辑器、校验和项目层数据连接。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="output_ports" line="49" decorators="@export">
+			<signature>var output_ports: Array[GFFlowPort] = []</signature>
+			<description>输出端口描述。仅用于编辑器、校验和项目层数据连接。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="56" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: 项目自定义元数据 Dictionary；框架保留并复制该字段，但不解释其中键值。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_position" line="61" decorators="@export">
+			<signature>var editor_position: Vector2 = Vector2.ZERO</signature>
+			<description>编辑器中的节点位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_size" line="66" decorators="@export">
+			<signature>var editor_size: Vector2 = Vector2.ZERO</signature>
+			<description>编辑器中的节点尺寸；为 ZERO 时表示由编辑器自行决定。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_collapsed" line="71" decorators="@export">
+			<signature>var editor_collapsed: bool = false</signature>
+			<description>编辑器中是否折叠显示。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="runtime_state" line="81">
+			<signature>var runtime_state: Dictionary = {}</signature>
+			<description>节点运行态数据。默认不导出，项目可通过序列化接口自行存档或迁移。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">runtime_state: 项目自定义运行态 Dictionary；键和值由节点实现维护。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="execute" line="95">
+			<signature>func execute(_context: GFFlowContext) -&gt; Variant:</signature>
+			<description>执行节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_context: 流程上下文。</tag>
+				<tag name="return">可返回 null 或 Signal。</tag>
+				<tag name="schema">return: null、Signal 或项目节点实现约定的结果值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_next_nodes" line="106">
+			<signature>func get_next_nodes(context: GFFlowContext) -&gt; PackedStringArray:</signature>
+			<description>获取执行完成后的后继节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">context: 流程上下文。</tag>
+				<tag name="return">后继节点标识列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_display_name" line="117">
+			<signature>func get_display_name() -&gt; String:</signature>
+			<description>获取节点显示名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">显示名。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_input_ports" line="130">
+			<signature>func get_input_ports() -&gt; Array[GFFlowPort]:</signature>
+			<description>获取输入端口。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">输入端口数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_output_ports" line="139">
+			<signature>func get_output_ports() -&gt; Array[GFFlowPort]:</signature>
+			<description>获取输出端口。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">输出端口数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_input_port" line="150">
+			<signature>func get_input_port(port_id: StringName) -&gt; GFFlowPort:</signature>
+			<description>按端口标识查找输入端口。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">port_id: 端口标识。</tag>
+				<tag name="return">输入端口；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_output_port" line="161">
+			<signature>func get_output_port(port_id: StringName) -&gt; GFFlowPort:</signature>
+			<description>按端口标识查找输出端口。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">port_id: 端口标识。</tag>
+				<tag name="return">输出端口；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_ports" line="172">
+			<signature>func describe_ports() -&gt; Dictionary:</signature>
+			<description>描述节点端口。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">端口描述字典。</tag>
+				<tag name="schema">return: 包含 inputs 和 outputs 字段的 Dictionary；每个字段为端口描述数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_editor" line="186">
+			<signature>func describe_editor() -&gt; Dictionary:</signature>
+			<description>描述节点编辑器元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">编辑器元数据字典。</tag>
+				<tag name="schema">return: 包含 display_name、category、position、size 和 collapsed 字段的 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_node" line="203">
+			<signature>func describe_node() -&gt; Dictionary:</signature>
+			<description>描述节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">节点描述字典。</tag>
+				<tag name="schema">return: 包含 node_id、display_name、category、next_node_ids、wait_for_result、ports、editor 和 metadata 字段的 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_runtime_value" line="225">
+			<signature>func set_runtime_value(key: StringName, value: Variant) -&gt; void:</signature>
+			<description>写入节点运行态值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">value: 值。</tag>
+				<tag name="schema">value: 任意可写入 runtime_state 的项目值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_runtime_value" line="244">
+			<signature>func get_runtime_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取节点运行态值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 键。</tag>
+				<tag name="param">default_value: 默认值。</tag>
+				<tag name="return">运行态值或默认值。</tag>
+				<tag name="schema">default_value: 缺失时返回的任意项目值。</tag>
+				<tag name="schema">return: 找到的运行态值，或传入的 default_value。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_runtime_state" line="251">
+			<signature>func clear_runtime_state() -&gt; void:</signature>
+			<description>清空节点运行态数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="serialize_runtime_state" line="262">
+			<signature>func serialize_runtime_state() -&gt; Dictionary:</signature>
+			<description>序列化节点运行态数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">运行态数据副本。</tag>
+				<tag name="schema">return: runtime_state 的深拷贝 Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="deserialize_runtime_state" line="273">
+			<signature>func deserialize_runtime_state(data: Dictionary) -&gt; void:</signature>
+			<description>反序列化节点运行态数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 运行态数据。</tag>
+				<tag name="schema">data: serialize_runtime_state() 返回的运行态 Dictionary。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

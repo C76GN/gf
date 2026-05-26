@@ -1,0 +1,147 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDialogueRunner" path="addons/gf/extensions/dialogue/runtime/gf_dialogue_runner.gd" module="extensions/dialogue" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFDialogueRunner: 通用对话资源执行器。
+Runner 只沿 GFDialogueResource 的行、响应、跳转、条件和 mutation 推进，
+并发出结构化事件。显示、输入、存档和业务状态由项目层决定。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="dialogue_started" line="22">
+			<signature>signal dialogue_started(resource: GFDialogueResource)</signature>
+			<description>对话开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">resource: 对话资源。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="line_reached" line="29">
+			<signature>signal line_reached(line: GFDialogueLine)</signature>
+			<description>到达可展示文本行时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">line: 当前行。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="mutation_requested" line="42">
+			<signature>signal mutation_requested(mutation_id: StringName, payload: Variant, line: GFDialogueLine)</signature>
+			<description>请求执行 mutation 时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">mutation_id: mutation ID。</tag>
+				<tag name="param">payload: mutation 载荷。</tag>
+				<tag name="param">line: 当前行。</tag>
+				<tag name="schema">payload: mutation 处理器接收的任意项目载荷；框架只透传。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="dialogue_ended" line="49">
+			<signature>signal dialogue_ended(resource: GFDialogueResource)</signature>
+			<description>对话结束时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">resource: 对话资源。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="line_blocked" line="58">
+			<signature>signal line_blocked(line_id: StringName, reason: StringName)</signature>
+			<description>推进被阻止时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">line_id: 被阻止的行 ID。</tag>
+				<tag name="param">reason: 原因。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="max_steps_per_advance" line="66">
+			<signature>var max_steps_per_advance: int = 1024</signature>
+			<description>最多连续推进的非展示行数量，避免错误资源无限循环。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="skip_blocked_lines" line="71">
+			<signature>var skip_blocked_lines: bool = true</signature>
+			<description>条件不通过且没有 fallback 时，是否尝试跳到默认后继。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="start" line="106">
+			<signature>func start( resource: GFDialogueResource, start_line_id: StringName = &amp;"", context: GFDialogueContext = null ) -&gt; GFDialogueLine:</signature>
+			<description>开始对话。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">resource: 对话资源。</tag>
+				<tag name="param">start_line_id: 可选起始行 ID。</tag>
+				<tag name="param">context: 可选上下文。</tag>
+				<tag name="return">到达的第一条可展示行；结束或失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="advance" line="133">
+			<signature>func advance(response_id: StringName = &amp;"") -&gt; GFDialogueLine:</signature>
+			<description>推进对话。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">response_id: 可选响应 ID；非空时从当前行选择响应后推进。</tag>
+				<tag name="return">到达的下一条可展示行；结束或失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="choose_response" line="155">
+			<signature>func choose_response(response_id: StringName) -&gt; GFDialogueLine:</signature>
+			<description>选择当前行响应并推进。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">response_id: 响应 ID。</tag>
+				<tag name="return">到达的下一条可展示行；结束或失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop" line="162">
+			<signature>func stop() -&gt; void:</signature>
+			<description>结束当前对话。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_current_line" line="173">
+			<signature>func get_current_line() -&gt; GFDialogueLine:</signature>
+			<description>获取当前行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前可展示行；没有时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_available_responses" line="182">
+			<signature>func get_available_responses() -&gt; Array[GFDialogueResponse]:</signature>
+			<description>获取当前可用响应。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">响应列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_running" line="193">
+			<signature>func is_running() -&gt; bool:</signature>
+			<description>检查是否正在运行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">运行中返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="204">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取运行快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: 包含 is_running、current_line_id、has_resource 和 context_values 字段的 Dictionary。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

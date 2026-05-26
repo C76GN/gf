@@ -1,0 +1,53 @@
+# Variant 深拷贝与 JSON 转换
+
+通用 Variant 基础件分为两个明确职责：`GFVariantData` 负责深拷贝、默认值合并和 Resource 可选复制；`GFVariantJsonCodec` 负责 JSON 友好的 Godot 类型转换。
+
+它们都不依赖 `GFArchitecture`，适合存档、配置、校验报告、网络消息、命中上下文等需要复制集合但保留标量语义，或把 Godot 值转成纯数据的地方。
+
+## 深拷贝与默认值
+
+```gdscript
+var payload := {
+	"stats": {
+		"hp": 10,
+	},
+}
+var copy := GFVariantData.duplicate_variant(payload) as Dictionary
+
+var settings := {
+	"audio": {
+		"volume": 0.8,
+	},
+}
+GFVariantData.deep_merge_defaults(settings, {
+	"audio": {
+		"mute": false,
+	},
+	"language": "zh",
+})
+```
+
+`GFVariantData.duplicate_variant()` 默认只深拷贝 `Dictionary` 和 `Array`，其他值保持原样返回；如果值中包含 `Object` 或 `Resource`，仍是引用语义。需要复制资源值时，可显式传入 `duplicate_variant(value, true, true)`。
+
+## JSON 兼容转换
+
+```gdscript
+var saved_position := GFVariantJsonCodec.vector2_to_array(Vector2(12.0, 4.0))
+var position := GFVariantJsonCodec.array_to_vector2(saved_position)
+
+var json_payload := GFVariantJsonCodec.variant_to_json_compatible({
+	"position": Vector3(1.0, 2.0, 3.0),
+	"tags": PackedStringArray(["state.ready"]),
+})
+var restored := GFVariantJsonCodec.json_compatible_to_variant(
+	JSON.parse_string(JSON.stringify(json_payload))
+) as Dictionary
+```
+
+`GFVariantJsonCodec.variant_to_json_compatible()` 会为 `Vector2/3/4`、整数向量、`Color`、`Rect2`、`Transform2D/3D`、`Basis`、`Quaternion`、`AABB`、`Plane`、`NodePath`、`StringName` 和常见 PackedArray 写入专用 `__gf_variant__` 类型标记，再由 `json_compatible_to_variant()` 恢复。
+
+## 使用边界
+
+普通整数在 JSON 安全范围内仍保持数字；超出 JSON 安全范围的 64 位整数会自动写成 `Int64` 类型标记，避免 Godot JSON 往返后丢失精度。只有 `__gf_variant__` 标记是字典唯一字段时才会被解码为 Godot 类型，因此普通业务字典里的 `type`、`value`、`_gf_type` 等字段会按普通数据保留。
+
+默认普通 Dictionary 仍使用字符串键；如果确实需要保留非字符串键，可传 `{ "encode_dictionary_keys": true }`。JSON codec 遇到不支持的对象默认写成 `null`；需要持久化对象时，应在项目层先转换成资源路径、ID 或纯数据字典。

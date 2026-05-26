@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFTimerUtility" path="addons/gf/standard/utilities/time/gf_timer_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFTimerUtility: 纯代码驱动的全局定时器工具。
+通过框架 `tick()` 驱动延时回调，不依赖场景树中的 `Timer` 节点，
+因而可直接受到 `GFTimeUtility` 的时间缩放与暂停控制。适用于在
+`GFSystem`、`GFModel` 或其他纯逻辑模块中调度一次性、重复或 owner 绑定任务。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="init" line="29">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化定时器队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="39">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>清空定时器队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="51">
+			<signature>func tick(delta: float) -&gt; void:</signature>
+			<description>推进运行时逻辑。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 本帧时间增量（秒）。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute_after" line="87">
+			<signature>func execute_after(delay: float, callback: Callable) -&gt; int:</signature>
+			<description>在指定延迟后执行一次回调函数。
+基于框架 `tick()` 推进计时，因此会自动遵循 `GFTimeUtility` 的暂停与缩放结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delay: 延迟时长，单位为秒。</tag>
+				<tag name="param">callback: 延迟结束后执行的无参回调函数。</tag>
+				<tag name="return">已排队定时器的句柄；无效回调或立即执行时返回 `0`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute_after_owned" line="110">
+			<signature>func execute_after_owned(owner: Object, delay: float, callback: Callable) -&gt; int:</signature>
+			<description>在指定延迟后执行一次 owner 绑定回调。owner 释放后任务会自动丢弃。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">owner: 定时器拥有者。</tag>
+				<tag name="param">delay: 延迟时长，单位为秒。</tag>
+				<tag name="param">callback: 延迟结束后执行的无参回调函数。</tag>
+				<tag name="return">已排队定时器的句柄；无效输入或立即执行时返回 `0`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute_repeating" line="138">
+			<signature>func execute_repeating( interval: float, callback: Callable, repeat_count: int = -1, initial_delay: float = -1.0 ) -&gt; int:</signature>
+			<description>按固定间隔重复执行回调。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">interval: 重复间隔，单位为秒。</tag>
+				<tag name="param">callback: 每次触发时执行的无参回调函数。</tag>
+				<tag name="param">repeat_count: 触发次数；小于 0 表示无限重复。</tag>
+				<tag name="param">initial_delay: 首次触发延迟；小于 0 时使用 interval。</tag>
+				<tag name="return">已排队定时器的句柄；无效输入时返回 `0`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="execute_repeating_owned" line="172">
+			<signature>func execute_repeating_owned( owner: Object, interval: float, callback: Callable, repeat_count: int = -1, initial_delay: float = -1.0 ) -&gt; int:</signature>
+			<description>按固定间隔重复执行 owner 绑定回调。owner 释放后任务会自动丢弃。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">owner: 定时器拥有者。</tag>
+				<tag name="param">interval: 重复间隔，单位为秒。</tag>
+				<tag name="param">callback: 每次触发时执行的无参回调函数。</tag>
+				<tag name="param">repeat_count: 触发次数；小于 0 表示无限重复。</tag>
+				<tag name="param">initial_delay: 首次触发延迟；小于 0 时使用 interval。</tag>
+				<tag name="return">已排队定时器的句柄；无效输入时返回 `0`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel" line="202">
+			<signature>func cancel(handle: int) -&gt; bool:</signature>
+			<description>取消一个尚未触发的延时任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">handle: `execute_after()` 返回的定时器句柄。</tag>
+				<tag name="return">找到并取消任务时返回 `true`。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_owner" line="223">
+			<signature>func cancel_owner(owner: Object) -&gt; int:</signature>
+			<description>取消指定 owner 绑定的全部待执行任务。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">owner: 定时器拥有者。</tag>
+				<tag name="return">被取消的任务数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="244">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取定时器工具诊断快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">诊断快照字典。</tag>
+				<tag name="schema">return: Dictionary with `pending_count`, `pending_handles`, `owner_bound_count`, `executing_count`, and `next_timer_id`.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,50 @@
+# Kernel 全局快照与内核基础设施
+
+这一页说明 `GFArchitecture` 的全局快照能力，以及 Kernel 中可复用的脚本类型检查、对象属性访问和时间提供者协议。
+
+## `GFArchitecture` 全局状态快照
+
+`GFArchitecture` 提供了全局状态快照入口，用于收集所有已注册 `GFModel` 的 `to_dict()` 结果，并在存在实现命令历史序列化方法的 Utility 时附带命令历史：
+
+```gdscript
+var global_snapshot: Dictionary = Gf.architecture.get_global_snapshot()
+
+Gf.architecture.restore_global_snapshot(global_snapshot, func(data):
+	# 将命令历史中的字典恢复为项目自己的 Command 实例。
+	pass
+)
+```
+
+快照只负责框架层状态聚合。`Model` 的字段如何序列化、命令字典如何恢复成具体实例、以及最终写入哪个存档文件，仍由项目层决定。
+
+## 内核基础设施
+
+### `GFScriptTypeInspector`
+
+GDScript 脚本类型关系辅助，用于判断一个脚本是否等于或继承另一个脚本，并可读取从自身到根脚本的继承链。它适合编辑器索引、类型注册、能力查询和项目自己的轻量反射工具复用；它只处理 GDScript `Script` 继承关系，不替代 Godot 的节点类 `is_class()` 判断。
+
+```gdscript
+if GFScriptTypeInspector.script_extends_or_equals(player_script, GFController):
+	print("This script is a GF controller.")
+
+var chain := GFScriptTypeInspector.get_inheritance_chain(player_script)
+```
+
+### `GFObjectPropertyTools`
+
+Godot `Object` 属性访问辅助，用于集中查询 `get_property_list()` 元信息、读取/写入 `NodePath` 属性路径、判断只读属性，并在写入前做基础 `Variant.Type` 校验和少量安全转换。它适合框架级编辑器工具、调试工具和通用序列化器复用同一套属性边界判断。
+
+```gdscript
+if GFObjectPropertyTools.can_write_property(node, ^"position:x"):
+	var result := GFObjectPropertyTools.write_property(node, ^"position:x", 120.0)
+	if not result["ok"]:
+		push_warning(result["error"])
+```
+
+`GFObjectPropertyTools` 只处理 Godot 属性机制本身，不做属性绑定、自动派发、表达式执行、转换管线或业务字段解释。需要长期监听属性变化、把属性映射到玩法数据，或定义复杂编辑器表单时，应在项目自己的模块或更高层工具中组合它，而不是把这些语义写入内核。
+
+### `GFTimeProvider`
+
+`GFTimeProvider` 是 `GFArchitecture.tick()` / `physics_tick()` 识别的时间控制协议。标准库的 `GFTimeUtility` 继承该协议来提供全局暂停、时间缩放和物理子步；项目也可以实现自己的时间提供者，只要继承 `GFTimeProvider` 并注册为 Utility。
+
+局部 `GFArchitecture` 未注册自己的 `GFTimeProvider` 时，会在非严格依赖查询模式下动态回退到父级架构的时间提供者。父级后续注册、替换或注销时间提供者时，子架构下一帧会按当前父级状态重新解析，不需要重新初始化局部上下文。

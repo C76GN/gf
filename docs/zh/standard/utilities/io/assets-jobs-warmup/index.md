@@ -1,0 +1,15 @@
+# 资源加载、下载、任务队列与预热总览
+
+这一组 Utility 覆盖资源生命周期、文件下载、任务队列、后台纯数据工作和渲染资源预热等 IO 与后台工作流程。它们提供通用状态、队列和诊断边界，不规定项目资源包、导入流水线、加载界面或业务对象生命周期。
+
+## 阅读入口
+
+- [异步资源加载与缓存](asset-utility/index.md)：`GFAssetUtility`、并发加载合并、LRU 缓存、pin、资源句柄和资源分组。
+- [通用文件下载队列](download-utility.md)：`GFDownloadUtility`、临时文件提交、续传、校验、暂停、取消和重试。
+- [通用任务队列](job-queue.md)：`GFJobQueueUtility`、`GFJob`、队列状态、同步处理器和 `GFJobWorker`。
+- [后台工作协调器](background-work.md)：`GFBackgroundWorkUtility`、纯数据线程任务、资源线程加载和主线程应用回调。
+- [渲染资源预热](render-warmup.md)：`GFRenderWarmupManifest`、`GFRenderWarmupUtility`、渲染资源扫描、分帧预算和临时渲染节点。
+
+## 使用边界
+
+资源实例化、加载界面、导入规则、线程任务内容、业务对象创建和预热时机由项目层决定。需要场景切换时使用 `GFSceneUtility`；需要轻量远程文本或 JSON TTL 缓存时使用 `GFRemoteCacheUtility`；需要离线请求重放时使用 `GFRequestOutboxUtility`。

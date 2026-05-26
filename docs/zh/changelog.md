@@ -22,33 +22,46 @@
 
 ---
 
-## [3.18.0] - 2026-05-26
+## [3.18.1] - 2026-05-27
 
-**版本概述**：新增一组保持框架抽象边界的基础设施能力，重点补强 3D 网格/表面映射、通用 SaveGraph 数据源和可组合标签条件；这些能力只提供纯算法、Resource 契约或通用适配，不绑定具体玩法、TileMap、渲染、碰撞或业务语义。
+**版本概述**：重构正式文档体系，新增结构化 API Catalog 与生成式 API Reference，并把文档形态、链接、渲染语法和公开 API 覆盖纳入自动校验。本版本不改变运行时公开 API。
 
 ### 🚀 新增特性 (Added)
 
-- 新增 `GFRegionMap3D`，提供 `Vector3i` 格子到三维区域的通用数据映射、脏区域追踪、区域快照和格子范围到区域键查询，适合大地图局部保存、编辑器批处理和运行时 3D 格子缓存，不绑定 TileMap、渲染、碰撞或项目规则。
-- 新增 `GFGridKey3D`，提供有限范围内 `Vector3i` 格坐标、`Vector3` 位置量化和方向编号的稳定整数 key packing，减少项目侧重复字符串 key 与临时 hash。
-- 新增 `GFGridPlaneMapper3D`，提供 axis-aligned 3D 表面到局部 2D 邻域坐标的映射与采样，便于复用 `GFTileRuleSet` 等 2D 邻域规则而不绑定具体瓦片或地图语义。
-- 新增 `GFSaveDataSource`，让 Resource、目标 Node 或目标属性上的通用数据对象通过 `to_dict()` / `from_dict()` 风格协议接入 SaveGraph，减少项目为纯数据状态重复编写 `GFSaveSource` 子类。
-- 新增 `GFTagExpression`，在 `GFTagQuery` 之上提供可嵌套 all/any/none 标签表达式与匹配报告，便于技能条件、AI 感知、配置过滤和编辑器筛选复用复杂标签规则。
+- 新增 `tools/generate_api_reference.py`，从 `addons/gf/**/*.gd` 的 API 注释生成 `docs/api_catalog` XML Catalog，再生成 `docs/zh/reference/api` Markdown Reference。
+- 新增 API Reference 覆盖校验，确认 XML Catalog 中的公开类和公开成员都能在对应 Reference 页面找到。
+- 新增 `tools/check_docs_quality.py`，用于检查手写文档的页面长度、段落长度、H1、代码块语言、页面粒度、入口模板、本地链接、Mermaid 渲染语法、维护流程泄漏和长正文结构。
+- 新增维护者资料区，集中维护发布、文档治理、页面粒度和编辑器维护规则，避免维护流程混入用户正文。
+
+### 🔄 机制更改 (Changed)
+
+- 重组中文文档目录，使 `overview`、`kernel`、`standard`、`extensions`、`editor`、`reference` 的文件目录与 MkDocs 导航严格对应。
+- 将大型组合页拆成稳定语义目录和子页，同时增加页面粒度边界，避免继续把同一组内容拆成碎片页。
+- 重写 Standard 与 Extensions 入口页，使正文以职责、阅读入口和使用边界为主，API 清单改由生成式 Reference 承担。
+- 更新 README、维护说明、MkDocs 导航和 Release 工作流，使发布构建校验 API Reference 与手写文档质量。
+
+### 🐛 Bug 修复 (Fixed)
+
+- 修复 Mermaid 内容只显示源码、不渲染图表的问题。
+- 修复 API Reference 生成器未覆盖公开内部类的问题，例如 `GFBehaviorTree.BTNode` 与 `GFCombatPayloads.GFBuffAppliedPayload`。
+- 修复 `@return:` 标签解析，确保返回值说明进入 XML Catalog 和 Markdown Reference。
+- 移除公开正文中的治理性说明、目录定位说明和维护流程残留。
 
 ### 🔌 API 变动说明 (API Changes)
 
-- 新增公开 API：`GFRegionMap3D`、`GFGridKey3D`、`GFGridPlaneMapper3D`、`GFSaveDataSource`、`GFTagExpression`。
-- `gf.save` 内置扩展的 `extension_version` 从 `2.1.0` 升至 `2.2.0`，表示新增向后兼容的 SaveGraph 数据源能力。
-- 本版本不移除或重命名既有公开 API。
+- 本版本不新增、移除或重命名运行时公开 API。
+- 所有 GF 内置扩展仅同步 `version` 到 `3.18.1`；`extension_version` 不变。
 
 ### 📘 升级指南 (Migration Guide)
 
-- 本版本为向后兼容新增能力，现有项目无需迁移。
-- 需要为纯数据 Resource、Node 或属性接入 SaveGraph 时，可以优先评估 `GFSaveDataSource`，避免为简单状态对象重复编写专用 `GFSaveSource` 子类。
-- 需要在 3D 地面、墙面或天花板上复用 2D 邻域规则时，可以使用 `GFGridPlaneMapper3D` 将 3D 表面邻域映射为局部 2D offset。
+- 现有项目无需修改运行时代码。
+- 文档入口调整为 Read the Docs 导航和 [API Reference](reference/api/index.md)；旧组合页的内容已移动到对应语义目录。
+- 维护者更新 API 注释后应运行 `python tools\generate_api_reference.py`，提交前运行 `python tools\generate_api_reference.py --check` 与 `python tools\check_docs_quality.py --strict`。
 
 ### 📁 核心受影响文件 (Affected Files)
 
-- 标准库基础能力：`addons/gf/standard/foundation/math/gf_region_map_3d.gd`、`addons/gf/standard/foundation/math/gf_grid_key_3d.gd`、`addons/gf/standard/foundation/math/gf_grid_plane_mapper_3d.gd`、`addons/gf/standard/foundation/tags/gf_tag_expression.gd`。
-- Save 扩展：`addons/gf/extensions/save/core/gf_save_data_source.gd`、`addons/gf/extensions/save/gf_extension.json`。
-- 测试与文档：`tests/gf_core/standard/foundation/math/**`、`tests/gf_core/standard/foundation/tags/**`、`tests/gf_core/extensions/save/**`、`docs/zh/standard/foundation/grid-spatial.md`、`docs/zh/standard/foundation/data-validation.md`、`docs/zh/extensions/save-graph/index.md`。
+- 文档生成与质量门禁：`tools/generate_api_reference.py`、`tools/check_docs_quality.py`、`.github/workflows/release.yml`。
+- 生成物：`docs/api_catalog/**`、`docs/zh/reference/api/**`。
+- 正式文档：中文文档源、维护者资料区、`mkdocs.yml`。
+- 维护测试与入口：`tests/gf_core/maintenance/test_docs_structure_validation.gd`、`README.md`、`README.zh.md`、AI 维护指南。
 - 发布元数据：`addons/gf/plugin.cfg`、`addons/gf/extensions/*/gf_extension.json`、`ASSET_LIBRARY.md`。

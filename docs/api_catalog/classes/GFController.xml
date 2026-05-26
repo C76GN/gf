@@ -1,0 +1,254 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFController" path="addons/gf/kernel/base/gf_controller.gd" module="kernel" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFController: 连接 UI/输入与架构的控制器基类。
+提供访问架构的便捷代理。这里不缓存 Model/System/Utility 引用，
+以避免架构切换或模块注销后保留过期对象。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="host_node_path" line="33" decorators="@export">
+			<signature>var host_node_path: NodePath = NodePath("..")</signature>
+			<description>Controller 控制的宿主节点路径。默认指向父节点。
+当 Controller 不是宿主节点的直接子节点时，可在 Inspector 中改为目标节点路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="host" line="41">
+			<signature>var host: Node:</signature>
+			<description>Controller 控制的宿主节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_architecture" line="72">
+			<signature>func get_architecture() -&gt; GFArchitecture:</signature>
+			<description>获取当前 Controller 所属的架构。
+优先沿场景树向上寻找 GFNodeContext；若未找到，则回退到全局 Gf 架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前可用的架构实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_architecture_or_null" line="84">
+			<signature>func get_architecture_or_null() -&gt; GFArchitecture:</signature>
+			<description>获取当前 Controller 所属的架构，找不到时返回 null 且不触发全局错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前可用的架构实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="wait_for_context_ready" line="94">
+			<signature>func wait_for_context_ready() -&gt; GFArchitecture:</signature>
+			<description>等待最近的 GFNodeContext 完成初始化并返回可用架构。
+若当前节点不在上下文子树下，则直接返回全局架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前 Controller 可用的架构实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_host" line="109">
+			<signature>func get_host() -&gt; Node:</signature>
+			<description>获取当前 Controller 控制的宿主节点。
+默认返回父节点。若宿主不是父节点，可通过 host_node_path 指定。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前宿主节点；路径为空或目标不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_host" line="120">
+			<signature>func has_host() -&gt; bool:</signature>
+			<description>判断当前 Controller 是否能解析到有效宿主节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">能解析到宿主节点时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_host_as" line="138">
+			<signature>func get_host_as(host_type: Variant) -&gt; Node:</signature>
+			<description>获取指定类型的宿主节点。
+可传入项目脚本类型或 Godot 原生类型。
+"type": "Variant",
+"description": "Script、ClassDB 原生类型或 null。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">host_type: 宿主节点类型。</tag>
+				<tag name="return">匹配类型的宿主节点；未找到或类型不匹配时返回 null。</tag>
+				<tag name="schema">host_type {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_model" line="158">
+			<signature>func get_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过类型获取 Model 实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">model_type: 模型的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">模型实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_system" line="174">
+			<signature>func get_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过类型获取 System 实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">system_type: 系统的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">系统实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_utility" line="190">
+			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>通过类型获取 Utility 实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_model" line="206">
+			<signature>func get_local_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前 Controller 所属架构获取 Model，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">model_type: 模型的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前架构中的模型实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_system" line="222">
+			<signature>func get_local_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前 Controller 所属架构获取 System，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">system_type: 系统的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前架构中的系统实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_local_utility" line="238">
+			<signature>func get_local_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
+			<description>仅从当前 Controller 所属架构获取 Utility，不回退父级架构。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility_type: 工具的脚本类型。</tag>
+				<tag name="param">require_ready: 为 true 时，仅返回已完成 ready 阶段的实例。</tag>
+				<tag name="return">当前架构中的工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_command" line="259">
+			<signature>func send_command(command: Object) -&gt; Variant:</signature>
+			<description>向架构发送命令。支持 await：'await send_command(MyCommand.new())'。
+"type": "Variant",
+"description": "命令执行结果；异步命令可返回 Signal。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">command: 要发送的命令实例。</tag>
+				<tag name="return">命令的执行结果（null 或 Signal）。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_query" line="278">
+			<signature>func send_query(query: Object) -&gt; Variant:</signature>
+			<description>执行查询并返回结果。
+"type": "Variant",
+"description": "查询结果；具体类型由查询对象定义。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">query: 要执行的查询实例。</tag>
+				<tag name="return">查询结果。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_event" line="296">
+			<signature>func register_event(event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
+			<description>注册类型事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_type: 要监听的脚本类型。</tag>
+				<tag name="param">callback: 回调函数。</tag>
+				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_event" line="313">
+			<signature>func unregister_event(event_type: Script, callback: Callable) -&gt; void:</signature>
+			<description>注销类型事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_type: 要注销的脚本类型。</tag>
+				<tag name="param">callback: 要移除的回调函数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_assignable_event" line="330">
+			<signature>func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
+			<description>注册可赋值类型事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">base_event_type: 要监听的基类脚本类型。</tag>
+				<tag name="param">callback: 回调函数。</tag>
+				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_assignable_event" line="347">
+			<signature>func unregister_assignable_event(base_event_type: Script, callback: Callable) -&gt; void:</signature>
+			<description>注销可赋值类型事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">base_event_type: 注册时使用的基类脚本类型。</tag>
+				<tag name="param">callback: 要移除的回调函数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_event" line="360">
+			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
+			<description>通过事件系统发送类型事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_instance: 要分发的事件实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_simple_event" line="373">
+			<signature>func register_simple_event(event_id: StringName, callback: Callable) -&gt; void:</signature>
+			<description>注册轻量级 StringName 事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">callback: 回调函数，签名为 func(payload: Variant)。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_simple_event" line="390">
+			<signature>func unregister_simple_event(event_id: StringName, callback: Callable) -&gt; void:</signature>
+			<description>注销轻量级 StringName 事件监听器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">callback: 要移除的回调函数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_simple_event" line="410">
+			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
+			<description>发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。
+"type": "Variant",
+"description": "事件附加数据；由事件消费者约定结构。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: StringName 事件标识符。</tag>
+				<tag name="param">payload: 可选的事件附加数据。</tag>
+				<tag name="schema">payload {</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

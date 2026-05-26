@@ -1,0 +1,609 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAudioUtility" path="addons/gf/standard/utilities/audio/gf_audio_utility.gd" module="standard" extends="GFUtility" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAudioUtility: 全局音频管理器。
+管理 BGM 和 SFX 的播放与音量。
+注册 GFObjectPoolUtility 时会复用 AudioStreamPlayer，未注册时使用普通播放器。
+支持通过 GFAssetUtility 异步加载音频资源。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="bgm_finished" line="23">
+			<signature>signal bgm_finished(history_key: String)</signature>
+			<description>当前 BGM 自然播放结束时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">history_key: 播放请求记录的 BGM key。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="SFXOverflowPolicy" line="31">
+			<signature>enum SFXOverflowPolicy { ## 跳过新的 SFX 请求。 SKIP_NEW, ## 停止最早播放的 SFX，并播放新的请求。 STOP_OLDEST, }</signature>
+			<description>SFX 超出并发上限时的处理策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants>
+		<member kind="const" name="BGM_BUS_NAME" line="44">
+			<signature>const BGM_BUS_NAME: String = "BGM"</signature>
+			<description>默认 BGM 音频总线名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="SFX_BUS_NAME" line="49">
+			<signature>const SFX_BUS_NAME: String = "SFX"</signature>
+			<description>默认 SFX 音频总线名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="max_sfx_players" line="59">
+			<signature>var max_sfx_players: int = 32</signature>
+			<description>同时播放的 SFX 数量上限；小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="sfx_overflow_policy" line="64">
+			<signature>var sfx_overflow_policy: SFXOverflowPolicy = SFXOverflowPolicy.SKIP_NEW</signature>
+			<description>SFX 超出并发上限时采用的处理策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="bgm_crossfade_seconds" line="69">
+			<signature>var bgm_crossfade_seconds: float = 0.0</signature>
+			<description>默认 BGM 淡入淡出秒数。单次播放传入负数时使用该值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_bgm_history" line="74">
+			<signature>var max_bgm_history: int = 16</signature>
+			<description>BGM 历史记录最大数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="112">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化音频播放器、运行时状态和默认播放根节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="159">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放播放器、后端、环境音和 SFX 运行时状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_bgm" line="193">
+			<signature>func play_bgm(path: String, crossfade_seconds: float = -1.0) -&gt; void:</signature>
+			<description>播放 BGM（背景音乐）</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 音频资源的路径</tag>
+				<tag name="param">crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_bgm_with_options" line="208">
+			<signature>func play_bgm_with_options(path: String, options: Dictionary = {}) -&gt; void:</signature>
+			<description>使用选项播放 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 音频资源路径或后端事件路径。</tag>
+				<tag name="param">options: 支持 crossfade_seconds、history_key、loop、bus_name、volume_db 和 pitch_scale。</tag>
+				<tag name="schema">options: Dictionary，可包含 crossfade_seconds、history_key、loop、bus_name、volume_db 和 pitch_scale 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_bgm_clip" line="273">
+			<signature>func play_bgm_clip(clip: GFAudioClip, crossfade_seconds: float = -1.0) -&gt; void:</signature>
+			<description>播放资源化 BGM 配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+				<tag name="param">crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_bgm_from_bank" line="345">
+			<signature>func play_bgm_from_bank(bank: GFAudioBank, clip_id: StringName, crossfade_seconds: float = -1.0) -&gt; void:</signature>
+			<description>从音频集合播放 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank: 音频集合。</tag>
+				<tag name="param">clip_id: 片段标识。</tag>
+				<tag name="param">crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_bgm_event" line="361">
+			<signature>func play_bgm_event( event_id: StringName, bank_id: StringName = &amp;"", crossfade_seconds: float = -1.0 ) -&gt; void:</signature>
+			<description>按事件 ID 播放注册音频集合中的 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+				<tag name="param">crossfade_seconds: 淡入淡出秒数；小于 0 时使用默认值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_bgm" line="374">
+			<signature>func stop_bgm(fade_seconds: float = 0.0) -&gt; void:</signature>
+			<description>停止当前 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">fade_seconds: 淡出秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pause_bgm" line="399">
+			<signature>func pause_bgm(fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>暂停当前 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">fade_seconds: 淡出到暂停的秒数。</tag>
+				<tag name="return">成功暂停或后端已处理时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="resume_bgm" line="434">
+			<signature>func resume_bgm(from_position: float = -1.0, fade_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>恢复当前 BGM。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">from_position: 大于等于 0 时从指定秒数恢复。</tag>
+				<tag name="param">fade_seconds: 淡入秒数。</tag>
+				<tag name="return">成功恢复或后端已处理时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="seek_bgm" line="472">
+			<signature>func seek_bgm(position_seconds: float) -&gt; bool:</signature>
+			<description>跳转当前 BGM 播放位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">position_seconds: 目标秒数。</tag>
+				<tag name="return">成功跳转或后端已处理时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bgm_playback_position" line="489">
+			<signature>func get_bgm_playback_position() -&gt; float:</signature>
+			<description>获取当前 BGM 播放位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前播放秒数；无可查询播放器时返回 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_bgm_paused" line="505">
+			<signature>func is_bgm_paused() -&gt; bool:</signature>
+			<description>查询当前 BGM 是否暂停。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">暂停时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bgm_history" line="518">
+			<signature>func get_bgm_history() -&gt; PackedStringArray:</signature>
+			<description>获取 BGM 播放历史。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">从旧到新的历史 key。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_current_bgm_key" line="527">
+			<signature>func get_current_bgm_key() -&gt; String:</signature>
+			<description>获取当前 BGM key。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前 BGM key；无播放时为空。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_bgm_history" line="534">
+			<signature>func clear_bgm_history() -&gt; void:</signature>
+			<description>清空 BGM 历史。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_audio_bank" line="545">
+			<signature>func register_audio_bank(bank_id: StringName, bank: GFAudioBank) -&gt; void:</signature>
+			<description>注册一个全局音频集合，供事件式播放接口使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank_id: 音频集合标识。</tag>
+				<tag name="param">bank: 音频集合。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_audio_bank" line="562">
+			<signature>func unregister_audio_bank(bank_id: StringName) -&gt; void:</signature>
+			<description>移除一个全局音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank_id: 音频集合标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_audio_banks" line="571">
+			<signature>func clear_audio_banks() -&gt; void:</signature>
+			<description>清空全局音频集合注册表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="mount_audio_bank" line="588">
+			<signature>func mount_audio_bank( bank_id: StringName, bank: GFAudioBank, restore_previous_bank: bool = true ) -&gt; int:</signature>
+			<description>挂载一个临时音频集合，并返回用于卸载的挂载令牌。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank_id: 音频集合标识。</tag>
+				<tag name="param">bank: 音频集合。</tag>
+				<tag name="param">restore_previous_bank: 卸载顶层挂载时是否恢复同 ID 的上一层音频集合。</tag>
+				<tag name="return">挂载令牌；失败时返回 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unmount_audio_bank" line="627">
+			<signature>func unmount_audio_bank(bank_id: StringName, mount_token: int) -&gt; bool:</signature>
+			<description>卸载由 mount_audio_bank() 创建的临时音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank_id: 音频集合标识。</tag>
+				<tag name="param">mount_token: mount_audio_bank() 返回的挂载令牌。</tag>
+				<tag name="return">找到并卸载对应挂载时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_audio_bank" line="661">
+			<signature>func get_audio_bank(bank_id: StringName) -&gt; GFAudioBank:</signature>
+			<description>获取全局音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank_id: 音频集合标识。</tag>
+				<tag name="return">音频集合；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_audio_backend" line="670">
+			<signature>func set_audio_backend(backend: GFAudioBackend) -&gt; void:</signature>
+			<description>设置可插拔音频后端。传入 null 时恢复默认 Godot 播放路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">backend: 音频后端。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_audio_backend" line="684">
+			<signature>func get_audio_backend() -&gt; GFAudioBackend:</signature>
+			<description>获取当前音频后端。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">音频后端；未设置时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_audio_backend" line="693">
+			<signature>func clear_audio_backend(dispose_backend: bool = true) -&gt; void:</signature>
+			<description>清除当前音频后端。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">dispose_backend: 是否调用后端 dispose()。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="post_audio_event" line="708">
+			<signature>func post_audio_event(event: GFAudioEvent, options: Dictionary = {}) -&gt; GFAudioEmitterHandle:</signature>
+			<description>发布资源化音频事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event: 音频事件资源。</tag>
+				<tag name="param">options: 请求选项。</tag>
+				<tag name="return">控制句柄；不需要或无法返回句柄时返回 null。</tag>
+				<tag name="schema">options: Dictionary，作为事件请求附加选项，会与 GFAudioEvent.to_request_options() 的结果合并。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_audio_parameter" line="735">
+			<signature>func set_audio_parameter(parameter: GFAudioParameter) -&gt; bool:</signature>
+			<description>写入音频参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">parameter: 参数请求。</tag>
+				<tag name="return">后端已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_audio_state" line="746">
+			<signature>func set_audio_state(state: GFAudioState) -&gt; bool:</signature>
+			<description>写入音频状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 状态请求。</tag>
+				<tag name="return">后端已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_audio_switch" line="757">
+			<signature>func set_audio_switch(audio_switch: GFAudioSwitch) -&gt; bool:</signature>
+			<description>写入音频开关。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">audio_switch: 开关请求。</tag>
+				<tag name="return">后端已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_ambient" line="770">
+			<signature>func play_ambient(path: String, channel: StringName = &amp;"default", fade_seconds: float = 0.0) -&gt; void:</signature>
+			<description>播放环境音。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 音频资源路径。</tag>
+				<tag name="param">channel: 环境音通道。</tag>
+				<tag name="param">fade_seconds: 淡入秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_ambient_clip" line="803">
+			<signature>func play_ambient_clip( clip: GFAudioClip, channel: StringName = &amp;"default", fade_seconds: float = 0.0 ) -&gt; void:</signature>
+			<description>播放资源化环境音配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+				<tag name="param">channel: 环境音通道。</tag>
+				<tag name="param">fade_seconds: 淡入秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_ambient_from_bank" line="850">
+			<signature>func play_ambient_from_bank( bank: GFAudioBank, clip_id: StringName, channel: StringName = &amp;"default", fade_seconds: float = 0.0 ) -&gt; void:</signature>
+			<description>从音频集合播放环境音。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank: 音频集合。</tag>
+				<tag name="param">clip_id: 片段标识。</tag>
+				<tag name="param">channel: 环境音通道。</tag>
+				<tag name="param">fade_seconds: 淡入秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_ambient_event" line="873">
+			<signature>func play_ambient_event( event_id: StringName, channel: StringName = &amp;"default", bank_id: StringName = &amp;"", fade_seconds: float = 0.0 ) -&gt; void:</signature>
+			<description>按事件 ID 播放注册音频集合中的环境音。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">channel: 环境音通道。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+				<tag name="param">fade_seconds: 淡入秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_ambient" line="889">
+			<signature>func stop_ambient(channel: StringName = &amp;"default", fade_seconds: float = 0.0) -&gt; void:</signature>
+			<description>停止指定环境音通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 环境音通道。</tag>
+				<tag name="param">fade_seconds: 淡出秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_all_ambient" line="903">
+			<signature>func stop_all_ambient(fade_seconds: float = 0.0) -&gt; void:</signature>
+			<description>停止所有环境音通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">fade_seconds: 淡出秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_ambient_playing" line="918">
+			<signature>func is_ambient_playing(channel: StringName = &amp;"default") -&gt; bool:</signature>
+			<description>检查环境音通道是否正在播放。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 环境音通道。</tag>
+				<tag name="return">正在播放时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_all_sfx" line="930">
+			<signature>func stop_all_sfx(fade_seconds: float = 0.0) -&gt; void:</signature>
+			<description>停止全部普通 SFX 与空间 SFX。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">fade_seconds: 淡出秒数。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx" line="944">
+			<signature>func play_sfx(path: String) -&gt; void:</signature>
+			<description>播放 SFX（音效），自动从池中分配播放器</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 音频资源的路径</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_handle" line="955">
+			<signature>func play_sfx_handle(path: String) -&gt; GFAudioEmitterHandle:</signature>
+			<description>播放 SFX 并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 音频资源的路径。</tag>
+				<tag name="return">控制句柄；路径为空时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_clip" line="985">
+			<signature>func play_sfx_clip(clip: GFAudioClip) -&gt; void:</signature>
+			<description>播放资源化 SFX 配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_clip_handle" line="996">
+			<signature>func play_sfx_clip_handle(clip: GFAudioClip) -&gt; GFAudioEmitterHandle:</signature>
+			<description>播放资源化 SFX 配置并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+				<tag name="return">控制句柄；片段无播放来源时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_from_bank" line="1042">
+			<signature>func play_sfx_from_bank(bank: GFAudioBank, clip_id: StringName) -&gt; void:</signature>
+			<description>从音频集合播放 SFX。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank: 音频集合。</tag>
+				<tag name="param">clip_id: 片段标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_from_bank_handle" line="1055">
+			<signature>func play_sfx_from_bank_handle(bank: GFAudioBank, clip_id: StringName) -&gt; GFAudioEmitterHandle:</signature>
+			<description>从音频集合播放 SFX 并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank: 音频集合。</tag>
+				<tag name="param">clip_id: 片段标识。</tag>
+				<tag name="return">控制句柄；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_event" line="1069">
+			<signature>func play_sfx_event(event_id: StringName, bank_id: StringName = &amp;"") -&gt; void:</signature>
+			<description>按事件 ID 播放注册音频集合中的 SFX。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_event_handle" line="1082">
+			<signature>func play_sfx_event_handle(event_id: StringName, bank_id: StringName = &amp;"") -&gt; GFAudioEmitterHandle:</signature>
+			<description>按事件 ID 播放注册音频集合中的 SFX 并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+				<tag name="return">控制句柄；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_event_2d" line="1099">
+			<signature>func play_sfx_event_2d( event_id: StringName, source: Node2D, bank_id: StringName = &amp;"", follow_source: bool = false ) -&gt; AudioStreamPlayer2D:</signature>
+			<description>按事件 ID 在 2D 节点位置播放注册音频集合中的 SFX。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">source: 2D 声源节点。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">创建的播放器；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_event_2d_handle" line="1121">
+			<signature>func play_sfx_event_2d_handle( event_id: StringName, source: Node2D, bank_id: StringName = &amp;"", follow_source: bool = false ) -&gt; GFAudioEmitterHandle:</signature>
+			<description>按事件 ID 在 2D 节点位置播放注册音频集合中的 SFX，并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">source: 2D 声源节点。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">控制句柄；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_event_3d" line="1143">
+			<signature>func play_sfx_event_3d( event_id: StringName, source: Node3D, bank_id: StringName = &amp;"", follow_source: bool = false ) -&gt; AudioStreamPlayer3D:</signature>
+			<description>按事件 ID 在 3D 节点位置播放注册音频集合中的 SFX。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">source: 3D 声源节点。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">创建的播放器；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_event_3d_handle" line="1165">
+			<signature>func play_sfx_event_3d_handle( event_id: StringName, source: Node3D, bank_id: StringName = &amp;"", follow_source: bool = false ) -&gt; GFAudioEmitterHandle:</signature>
+			<description>按事件 ID 在 3D 节点位置播放注册音频集合中的 SFX，并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 音频事件标识。</tag>
+				<tag name="param">source: 3D 声源节点。</tag>
+				<tag name="param">bank_id: 音频集合标识；为空时搜索全部注册集合。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">控制句柄；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_clip_2d" line="1185">
+			<signature>func play_sfx_clip_2d( clip: GFAudioClip, source: Node2D, follow_source: bool = false ) -&gt; AudioStreamPlayer2D:</signature>
+			<description>在 2D 节点位置播放资源化 SFX 配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+				<tag name="param">source: 2D 声源节点。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">创建的播放器；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_clip_2d_handle" line="1204">
+			<signature>func play_sfx_clip_2d_handle( clip: GFAudioClip, source: Node2D, follow_source: bool = false ) -&gt; GFAudioEmitterHandle:</signature>
+			<description>在 2D 节点位置播放资源化 SFX 配置，并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+				<tag name="param">source: 2D 声源节点。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">控制句柄；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_clip_3d" line="1235">
+			<signature>func play_sfx_clip_3d( clip: GFAudioClip, source: Node3D, follow_source: bool = false ) -&gt; AudioStreamPlayer3D:</signature>
+			<description>在 3D 节点位置播放资源化 SFX 配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+				<tag name="param">source: 3D 声源节点。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">创建的播放器；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_sfx_clip_3d_handle" line="1254">
+			<signature>func play_sfx_clip_3d_handle( clip: GFAudioClip, source: Node3D, follow_source: bool = false ) -&gt; GFAudioEmitterHandle:</signature>
+			<description>在 3D 节点位置播放资源化 SFX 配置，并返回控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">clip: 音频片段配置。</tag>
+				<tag name="param">source: 3D 声源节点。</tag>
+				<tag name="param">follow_source: 为 true 时播放器会作为 source 子节点跟随移动。</tag>
+				<tag name="return">控制句柄；无法播放时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_ambient_handle" line="1281">
+			<signature>func get_ambient_handle(channel: StringName = &amp;"default") -&gt; GFAudioEmitterHandle:</signature>
+			<description>获取环境音通道的控制句柄。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 环境音通道。</tag>
+				<tag name="return">控制句柄；通道不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bus_volume" line="1295">
+			<signature>func set_bus_volume(bus_name: String, volume_linear: float) -&gt; void:</signature>
+			<description>设置音频总线音量</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称，如 "Master", "BGM", "SFX"</tag>
+				<tag name="param">volume_linear: 线性音量 (0.0 到 1.0)</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bus_volume" line="1319">
+			<signature>func get_bus_volume(bus_name: String) -&gt; float:</signature>
+			<description>获取音频总线音量</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称</tag>
+				<tag name="return">线性音量 (0.0 到 1.0)</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="1340">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取音频工具调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels 和 audio_bank_count 字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

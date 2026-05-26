@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCombatGauge" path="addons/gf/extensions/combat/attributes/gf_combat_gauge.gd" module="extensions/combat" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFCombatGauge: 通用可变数值槽。
+用 GFCombatAction 驱动一个带上下限的数值。它可表示生命、护盾、能量、
+耐久或任意项目自定义资源，但框架不绑定这些业务语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="value_changed" line="24">
+			<signature>signal value_changed(previous_value: float, current_value: float)</signature>
+			<description>数值变化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">previous_value: 旧值。</tag>
+				<tag name="param">current_value: 新值。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="action_validating" line="35">
+			<signature>signal action_validating(action: GFCombatAction, report: Dictionary)</signature>
+			<description>动作进入自定义校验阶段时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">action: 已经应用修正器的动作副本。</tag>
+				<tag name="param">report: 当前校验报告。</tag>
+				<tag name="schema">report: Dictionary，包含 ok、reason 和 metadata，可由监听者调整。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="action_applied" line="42">
+			<signature>signal action_applied(result: GFCombatActionResult)</signature>
+			<description>动作成功应用时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: 应用结果。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="action_rejected" line="49">
+			<signature>signal action_rejected(result: GFCombatActionResult)</signature>
+			<description>动作被拒绝时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: 拒绝结果。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="minimum_reached" line="56">
+			<signature>signal minimum_reached(current_value: float)</signature>
+			<description>数值到达下限时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">current_value: 当前值。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="maximum_reached" line="63">
+			<signature>signal maximum_reached(current_value: float)</signature>
+			<description>数值到达上限时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">current_value: 当前值。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="min_value" line="71" decorators="@export">
+			<signature>var min_value: float = 0.0</signature>
+			<description>数值下限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_value" line="76" decorators="@export">
+			<signature>var max_value: float = 100.0</signature>
+			<description>数值上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="current_value" line="81" decorators="@export">
+			<signature>var current_value: float = 100.0</signature>
+			<description>当前数值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="accepted_action_kinds" line="86" decorators="@export">
+			<signature>var accepted_action_kinds: Array[StringName] = []</signature>
+			<description>非空时，只接受这些动作类别。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rejected_action_kinds" line="91" decorators="@export">
+			<signature>var rejected_action_kinds: Array[StringName] = []</signature>
+			<description>始终拒绝的动作类别。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="modifiers" line="96" decorators="@export">
+			<signature>var modifiers: Array[GFCombatActionModifier] = []</signature>
+			<description>动作修正器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="103" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，项目自定义数值槽元数据；默认进入动作校验报告。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="validation_callback" line="112">
+			<signature>var validation_callback: Callable = Callable()</signature>
+			<description>自定义校验回调，建议签名为 func(action: GFCombatAction, report: Dictionary) -&gt; Variant。
+返回 bool 可直接决定是否接受；返回 Dictionary 可覆盖 ok、reason、metadata 等报告字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure" line="132">
+			<signature>func configure(p_min_value: float, p_max_value: float, p_current_value: float) -&gt; void:</signature>
+			<description>配置数值槽。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_min_value: 数值下限。</tag>
+				<tag name="param">p_max_value: 数值上限。</tag>
+				<tag name="param">p_current_value: 当前数值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_value" line="143">
+			<signature>func set_value(value: float) -&gt; void:</signature>
+			<description>设置当前数值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 新数值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bounds" line="160">
+			<signature>func set_bounds(p_min_value: float, p_max_value: float) -&gt; void:</signature>
+			<description>设置上下限并夹取当前值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_min_value: 数值下限。</tag>
+				<tag name="param">p_max_value: 数值上限。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_ratio" line="171">
+			<signature>func get_ratio() -&gt; float:</signature>
+			<description>获取 0 到 1 的当前比例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前比例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_receive_action_kind" line="186">
+			<signature>func can_receive_action_kind(action_kind: StringName) -&gt; bool:</signature>
+			<description>检查动作类别是否可被当前数值槽接收。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">action_kind: 动作类别。</tag>
+				<tag name="return">可接收时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_modifier" line="197">
+			<signature>func add_modifier(modifier: GFCombatActionModifier) -&gt; void:</signature>
+			<description>添加动作修正器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">modifier: 修正器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_modifier" line="208">
+			<signature>func remove_modifier(modifier: GFCombatActionModifier) -&gt; void:</signature>
+			<description>移除动作修正器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">modifier: 修正器。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_modifiers" line="215">
+			<signature>func clear_modifiers() -&gt; void:</signature>
+			<description>清空动作修正器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_action" line="226">
+			<signature>func apply_action(action: GFCombatAction) -&gt; GFCombatActionResult:</signature>
+			<description>应用动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">action: 原始动作。</tag>
+				<tag name="return">应用结果。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

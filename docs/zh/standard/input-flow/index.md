@@ -1,10 +1,23 @@
 # 输入、流程与玩法支撑
 
-本组文档覆盖标准库中的输入映射、状态机、指令序列、撤销历史和轻量空间查询。关卡、任务和行为树已经收敛到 GF 内置扩展页面。
+本组文档覆盖标准库中的输入映射、状态机、命令序列、撤销历史和轻量空间查询。这些能力提供通用流程原语，不定义任务、关卡、战斗、行为树、存档或项目玩法规则。
+
+输入与流程支撑通常位于项目业务系统和 Godot 节点之间：项目决定语义，GF 提供状态切换、输入解释、命令组合和查询结构。
 
 ## 阅读入口
 
-- [纯代码状态机与节点状态机](state-machines.md)：`GFStateMachine` 与 `GFNodeStateMachine`。
-- [撤销历史与指令序列](command-sequence.md)：`GFUndoableCommand`、`GFCommandHistoryUtility`、`GFCommandSequence`。
-- [输入映射与手感辅助](input-assist.md)：输入动作、玩家设备、输入缓冲、连击和方向辅助。
-- [逻辑空间查询与相关扩展](spatial-query.md)：逻辑四叉树和 GF 内置扩展跳转。
+- [状态机](state-machines/index.md)：纯代码状态机、节点状态机、状态 Hook、条件资源、行为资源和结构校验。
+- [命令序列与撤销历史](command-sequence/index.md)：可撤销命令、命令历史、异步撤销约束和命令序列执行。
+- [输入映射与手感辅助](input-assist/index.md)：输入动作、上下文、设备席位、缓冲、修饰器、触发器、录制回放、改键和触屏控件。
+- [逻辑空间查询](spatial-query.md)：逻辑四叉树和与 GF 内置扩展空间能力的边界。
+
+## 使用边界
+
+- 状态机只表达状态切换和进入/退出过程，不替代任务系统、行为树或战斗结算。
+- 输入工具只把 Godot 输入事件归一化为项目可读取的动作、方向和设备状态，不规定角色控制、菜单导航或技能释放规则。
+- 命令序列和撤销历史只管理操作执行、回滚和组合顺序，不直接保存项目长期状态。
+- 需要领域模型时，使用 [Domain](../../extensions/domain/index.md) 或项目代码；需要战斗、行为树、存档或网络时，使用对应 GF 内置扩展或项目插件。
+
+## API Reference
+
+完整类、方法和信号列表见 [Standard API Reference](../../reference/api/standard.md)。

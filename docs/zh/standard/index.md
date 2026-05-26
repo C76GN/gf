@@ -10,9 +10,13 @@
 - [Utilities 工具总览](utilities/index.md)：需要生命周期、缓存、异步、全局状态或跨模块服务的通用工具。
 - [输入、流程与玩法支撑](input-flow/index.md)：输入映射、状态机、命令序列、输入辅助和逻辑空间查询。
 
-## 放置边界
+## 使用边界
 
 - 纯算法、纯数据、无生命周期的基础件优先放入 `standard/foundation`。
 - 需要注册到 `GFArchitecture`、持有缓存或管理异步任务的能力优先放入 `standard/utilities`。
 - 输入、状态机、命令序列和项目常见流程支撑放入 `standard/input-flow`。
 - Combat、Save、Network、Capability、Interaction、BehaviorTree 等可选能力放入 [Extensions](../extensions/index.md)。
+
+## API Reference
+
+完整类、方法和信号列表见 [Standard API Reference](../reference/api/standard.md)。

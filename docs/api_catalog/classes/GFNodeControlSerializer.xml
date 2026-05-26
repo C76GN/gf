@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNodeControlSerializer" path="addons/gf/extensions/save/serializers/gf_node_control_serializer.gd" module="extensions/save" extends="GFNodeSerializer" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNodeControlSerializer: Control 通用布局状态序列化器。
+保存 Control 的锚点、偏移、尺寸和交互开关，适合简单 UI 状态恢复。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="supports_node" line="49">
+			<signature>func supports_node(node: Node) -&gt; bool:</signature>
+			<description>判断序列化器是否支持指定节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node: 目标节点。</tag>
+				<tag name="return">节点是否为 Control。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="gather" line="66">
+			<signature>func gather(node: Node, _context: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>采集节点的可保存状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node: 目标节点。</tag>
+				<tag name="param">_context: 操作上下文字典，默认实现不直接使用。</tag>
+				<tag name="return">Control 布局状态载荷。</tag>
+				<tag name="schema">_context: Dictionary，调用方附加上下文；当前实现不读取。</tag>
+				<tag name="schema">return: Dictionary，可包含 anchor_*、offset_*、pivot_offset、rotation、scale、mouse_filter 与 focus_mode。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply" line="91">
+			<signature>func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>将序列化数据应用到节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">node: 目标节点。</tag>
+				<tag name="param">payload: Control 布局状态载荷。</tag>
+				<tag name="param">_context: 操作上下文字典，默认实现不直接使用。</tag>
+				<tag name="return">应用结果字典。</tag>
+				<tag name="schema">payload: Dictionary，可包含 anchor_*、offset_*、pivot_offset、rotation、scale、mouse_filter 与 focus_mode。</tag>
+				<tag name="schema">_context: Dictionary，调用方附加上下文；当前实现不读取。</tag>
+				<tag name="schema">return: Dictionary，包含 ok: bool 与 error: String。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,157 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFValueIndex" path="addons/gf/standard/foundation/collections/gf_value_index.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFValueIndex: 通用值索引。
+为任意 item_id 关联值和字段，并支持按字段快速查询。它只维护索引结构，
+不规定字段含义、业务规则或生命周期。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="item_indexed" line="22">
+			<signature>signal item_indexed(item_id: StringName)</signature>
+			<description>条目写入索引后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 条目标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="item_removed" line="29">
+			<signature>signal item_removed(item_id: StringName)</signature>
+			<description>条目从索引移除后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 条目标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="cleared" line="34">
+			<signature>signal cleared</signature>
+			<description>索引清空后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="duplicate_values" line="42">
+			<signature>var duplicate_values: bool = true</signature>
+			<description>读取或写入值时是否复制 Dictionary / Array。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_item" line="68">
+			<signature>func set_item(item_id: StringName, value: Variant, fields: Dictionary = {}) -&gt; bool:</signature>
+			<description>写入或替换一个条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 条目标识。</tag>
+				<tag name="param">value: 条目值。</tag>
+				<tag name="param">fields: 可索引字段，字段值可为单值、Array 或 PackedStringArray。</tag>
+				<tag name="return">写入成功返回 true。</tag>
+				<tag name="schema">value: Variant item value.</tag>
+				<tag name="schema">fields: Dictionary from field id to scalar, Array, or PackedStringArray values.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_item" line="90">
+			<signature>func remove_item(item_id: StringName) -&gt; bool:</signature>
+			<description>移除条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 条目标识。</tag>
+				<tag name="return">移除成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_item" line="110">
+			<signature>func has_item(item_id: StringName) -&gt; bool:</signature>
+			<description>检查条目是否存在。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 条目标识。</tag>
+				<tag name="return">存在返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_item" line="127">
+			<signature>func get_item(item_id: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>获取条目值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 条目标识。</tag>
+				<tag name="param">default_value: 不存在时返回的默认值。</tag>
+				<tag name="return">条目值或默认值。</tag>
+				<tag name="schema">default_value: Variant fallback value.</tag>
+				<tag name="schema">return: Variant item value or fallback value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_fields" line="143">
+			<signature>func get_fields(item_id: StringName) -&gt; Dictionary:</signature>
+			<description>获取条目字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 条目标识。</tag>
+				<tag name="return">字段副本。</tag>
+				<tag name="schema">return: Dictionary indexed field values.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="query" line="161">
+			<signature>func query(field_id: StringName, field_value: Variant) -&gt; PackedStringArray:</signature>
+			<description>按单个字段值查询条目标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">field_id: 字段标识。</tag>
+				<tag name="param">field_value: 字段值。</tag>
+				<tag name="return">条目标识列表。</tag>
+				<tag name="schema">field_value: Variant indexed field value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="query_many" line="189">
+			<signature>func query_many(criteria: Dictionary, match_all: bool = true) -&gt; PackedStringArray:</signature>
+			<description>按多个字段查询条目标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">criteria: 字段到值的查询条件。</tag>
+				<tag name="param">match_all: true 表示交集查询，false 表示并集查询。</tag>
+				<tag name="return">条目标识列表。</tag>
+				<tag name="schema">criteria: Dictionary from field id to query value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="212">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空索引。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_item_count" line="223">
+			<signature>func get_item_count() -&gt; int:</signature>
+			<description>获取条目数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">条目数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_index_count" line="232">
+			<signature>func get_index_count() -&gt; int:</signature>
+			<description>获取字段索引数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">字段索引数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="243">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试信息字典。</tag>
+				<tag name="schema">return: Dictionary with item_count, index_count, and duplicate_values.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

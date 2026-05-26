@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInputCurveModifier" path="addons/gf/standard/input/modifiers/gf_input_curve_modifier.gd" module="standard" extends="GFInputModifier" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFInputCurveModifier: 输入曲线修饰器。
+对输入分量按 Curve 重新采样，适合摇杆灵敏度、扳机响应和虚拟指针速度曲线。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="curve" line="19" decorators="@export">
+			<signature>var curve: Curve = null</signature>
+			<description>输入曲线。采样区间为 0..1。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="preserve_sign" line="24" decorators="@export">
+			<signature>var preserve_sign: bool = true</signature>
+			<description>是否保留输入符号，只用绝对值采样曲线。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="apply_x" line="29" decorators="@export">
+			<signature>var apply_x: bool = true</signature>
+			<description>是否处理 X 分量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="apply_y" line="34" decorators="@export">
+			<signature>var apply_y: bool = true</signature>
+			<description>是否处理 Y 分量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="apply_z" line="39" decorators="@export">
+			<signature>var apply_z: bool = true</signature>
+			<description>是否处理 Z 分量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="modify" line="55">
+			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
+			<description>修改二维输入值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 要写入或修改的值。</tag>
+				<tag name="param">_event: 原始输入事件，默认实现不直接使用。</tag>
+				<tag name="param">_action: 当前输入动作配置，默认实现不直接使用。</tag>
+				<tag name="return">按曲线采样后的二维输入值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="modify_3d" line="73">
+			<signature>func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector3:</signature>
+			<description>修改三维输入值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 要写入或修改的值。</tag>
+				<tag name="param">_event: 原始输入事件，默认实现不直接使用。</tag>
+				<tag name="param">_action: 当前输入动作配置，默认实现不直接使用。</tag>
+				<tag name="return">按曲线采样后的三维输入值。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

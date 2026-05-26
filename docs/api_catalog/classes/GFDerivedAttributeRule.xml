@@ -1,0 +1,135 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDerivedAttributeRule" path="addons/gf/extensions/domain/attributes/gf_derived_attribute_rule.gd" module="extensions/domain" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFDerivedAttributeRule: 通用派生属性规则。
+通过权重或自定义回调从 GFAttributeSet 的其他属性计算目标属性，不规定属性业务含义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="DEFAULT_MIN_VALUE" line="19">
+			<signature>const DEFAULT_MIN_VALUE: float = -1.0e20</signature>
+			<description>默认规则最小值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_VALUE" line="24">
+			<signature>const DEFAULT_MAX_VALUE: float = 1.0e20</signature>
+			<description>默认规则最大值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="attribute_id" line="32" decorators="@export">
+			<signature>var attribute_id: StringName = &amp;""</signature>
+			<description>被写入的目标属性 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="source_attribute_ids" line="39" decorators="@export">
+			<signature>var source_attribute_ids: Array[StringName] = []</signature>
+			<description>参与计算的来源属性 ID。为空时使用 source_weights 的键。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">source_attribute_ids: Array[StringName]，参与当前派生规则计算的来源属性 ID 列表。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="source_weights" line="46" decorators="@export">
+			<signature>var source_weights: Dictionary = {}</signature>
+			<description>来源属性权重，键为属性 ID，值为数字权重。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">source_weights: Dictionary，键为 StringName 或 String 属性 ID，值为 float 权重。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="flat_bonus" line="51" decorators="@export">
+			<signature>var flat_bonus: float = 0.0</signature>
+			<description>固定加值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="min_value" line="56" decorators="@export">
+			<signature>var min_value: float = DEFAULT_MIN_VALUE</signature>
+			<description>规则级最小值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_value" line="61" decorators="@export">
+			<signature>var max_value: float = DEFAULT_MAX_VALUE</signature>
+			<description>规则级最大值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="sync_base_value" line="66" decorators="@export">
+			<signature>var sync_base_value: bool = false</signature>
+			<description>是否同步写入目标属性的 base 值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="compute_callback" line="74">
+			<signature>var compute_callback: Callable = Callable()</signature>
+			<description>自定义计算回调，建议签名为 func(attribute_set: GFAttributeSet, rule: GFDerivedAttributeRule) -&gt; Variant。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="calculate" line="86">
+			<signature>func calculate(attribute_set: Object) -&gt; float:</signature>
+			<description>计算派生属性值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">attribute_set: 属性集合。</tag>
+				<tag name="return">计算后的数值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_source_attribute_ids" line="110">
+			<signature>func get_source_attribute_ids() -&gt; Array[StringName]:</signature>
+			<description>获取来源属性 ID 列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">来源属性 ID 副本。</tag>
+				<tag name="schema">return: Array[StringName]，当前规则实际使用的来源属性 ID 列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_source_weight" line="127">
+			<signature>func get_source_weight(source_attribute_id: StringName) -&gt; float:</signature>
+			<description>获取来源属性权重。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source_attribute_id: 来源属性 ID。</tag>
+				<tag name="return">权重；未配置时返回 1。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="depends_on" line="138">
+			<signature>func depends_on(source_attribute_id: StringName) -&gt; bool:</signature>
+			<description>判断是否依赖指定属性。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">source_attribute_id: 来源属性 ID。</tag>
+				<tag name="return">依赖返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_rule" line="147">
+			<signature>func duplicate_rule() -&gt; GFDerivedAttributeRule:</signature>
+			<description>创建当前规则的深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">规则副本。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

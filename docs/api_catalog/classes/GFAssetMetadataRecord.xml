@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAssetMetadataRecord" path="addons/gf/extensions/asset_metadata/resources/gf_asset_metadata_record.gd" module="extensions/asset_metadata" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAssetMetadataRecord: 资产元数据记录。
+记录某个导入资产、节点或资源片段上的结构化元数据，不解释字段业务含义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="source_path" line="19" decorators="@export">
+			<signature>var source_path: String = ""</signature>
+			<description>元数据来源资产路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="subject_path" line="24" decorators="@export">
+			<signature>var subject_path: NodePath = NodePath(".")</signature>
+			<description>元数据所属对象相对路径。节点树中通常是相对根节点的 NodePath。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="subject_kind" line="29" decorators="@export">
+			<signature>var subject_kind: StringName = &amp;""</signature>
+			<description>元数据所属对象类别，例如 node、resource 或 asset。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="36" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>结构化元数据。框架只复制和查询，不解释业务字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存导入资产、节点或资源片段的项目自定义元数据字段。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure" line="56">
+			<signature>func configure( p_source_path: String = "", p_subject_path: NodePath = NodePath("."), p_subject_kind: StringName = &amp;"", p_metadata: Dictionary = {} ) -&gt; GFAssetMetadataRecord:</signature>
+			<description>配置记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_source_path: 来源资产路径。</tag>
+				<tag name="param">p_subject_path: 所属对象路径。</tag>
+				<tag name="param">p_subject_kind: 所属对象类别。</tag>
+				<tag name="param">p_metadata: 结构化元数据。</tag>
+				<tag name="return">当前记录。</tag>
+				<tag name="schema">p_metadata: Dictionary，保存导入资产、节点或资源片段的项目自定义元数据字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_empty" line="74">
+			<signature>func is_empty() -&gt; bool:</signature>
+			<description>检查记录是否没有元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">没有元数据时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_value" line="85">
+			<signature>func has_value(key: StringName) -&gt; bool:</signature>
+			<description>检查元数据键是否存在。StringName 与 String 形式会被同时识别。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 元数据键。</tag>
+				<tag name="return">存在时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_value" line="102">
+			<signature>func get_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取元数据值并返回安全副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 元数据键。</tag>
+				<tag name="param">default_value: 缺失时返回的默认值。</tag>
+				<tag name="return">元数据值副本或默认值。</tag>
+				<tag name="schema">default_value: Variant，缺失时返回的调用方默认值，会按 GFVariantData 规则复制。</tag>
+				<tag name="schema">return: Variant，元数据值副本；缺失时为 default_value 的安全副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict" line="119">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转换为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">记录字典副本。</tag>
+				<tag name="schema">return: Dictionary，包含 source_path、subject_path、subject_kind 与 metadata 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_dict" line="135">
+			<signature>func apply_dict(data: Dictionary) -&gt; void:</signature>
+			<description>从字典应用字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 输入字典。</tag>
+				<tag name="schema">data: Dictionary，可包含 source_path、subject_path、subject_kind 与 metadata 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_record" line="148">
+			<signature>func duplicate_record() -&gt; GFAssetMetadataRecord:</signature>
+			<description>创建记录深拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新记录。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict" line="163">
+			<signature>static func from_dict(data: Dictionary) -&gt; GFAssetMetadataRecord:</signature>
+			<description>从字典创建记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 输入字典。</tag>
+				<tag name="return">新记录。</tag>
+				<tag name="schema">data: Dictionary，可包含 source_path、subject_path、subject_kind 与 metadata 字段。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCameraDirector2D" path="addons/gf/extensions/camera/nodes/gf_camera_director_2d.gd" module="extensions/camera" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFCameraDirector2D: 通用 2D 相机编排节点。
+Director 从显式路径或分组中收集 GFCameraRig2D，按优先级选择当前 Rig，
+并把过渡后的姿态应用到 Camera2D。它不规定目标含义、输入来源或业务流程。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="active_rig_changed" line="24">
+			<signature>signal active_rig_changed(previous_rig: GFCameraRig2D, new_rig: GFCameraRig2D)</signature>
+			<description>当前 Rig 变化后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">previous_rig: 上一个 Rig。</tag>
+				<tag name="param">new_rig: 新 Rig。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="camera_pose_applied" line="31">
+			<signature>signal camera_pose_applied(rig: GFCameraRig2D)</signature>
+			<description>相机姿态应用后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">rig: 当前 Rig。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="UpdateMode" line="39">
+			<signature>enum UpdateMode { ## 在 _process 中更新。 IDLE, ## 在 _physics_process 中更新。 PHYSICS, ## 只在 process_camera() 被显式调用时更新。 MANUAL, }</signature>
+			<description>Director 自动更新模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="rig_paths" line="61" decorators="@export_node_path(&quot;Camera2D&quot;) var camera_path: NodePath = NodePath(&quot;&quot;) @export">
+			<signature>var rig_paths: Array[NodePath] = []</signature>
+			<description>要控制的 Camera2D。
+显式候选 Rig 路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+				<tag name="schema">rig_paths: Array[NodePath]，按顺序保存显式候选 GFCameraRig2D 节点路径。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="collect_group_rigs" line="66" decorators="@export">
+			<signature>var collect_group_rigs: bool = true</signature>
+			<description>是否按分组收集候选 Rig。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rig_group_name" line="71" decorators="@export">
+			<signature>var rig_group_name: StringName = &amp;"gf_camera_rig_2d"</signature>
+			<description>候选 Rig 分组名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="update_mode" line="76" decorators="@export">
+			<signature>var update_mode: UpdateMode = UpdateMode.IDLE</signature>
+			<description>自动更新模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="default_blend" line="81" decorators="@export">
+			<signature>var default_blend: GFCameraBlend = GFCameraBlend.new()</signature>
+			<description>默认过渡资源。Rig 没有设置 blend 时使用它。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="keep_camera_when_no_rig" line="86" decorators="@export">
+			<signature>var keep_camera_when_no_rig: bool = true</signature>
+			<description>没有 Rig 时是否保持相机当前姿态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_camera" line="117">
+			<signature>func get_camera() -&gt; Camera2D:</signature>
+			<description>获取当前相机。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Camera2D；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_active_rig" line="128">
+			<signature>func get_active_rig() -&gt; GFCameraRig2D:</signature>
+			<description>获取当前激活 Rig。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前 Rig；没有时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="collect_candidate_rigs" line="139">
+			<signature>func collect_candidate_rigs() -&gt; Array[GFCameraRig2D]:</signature>
+			<description>收集候选 Rig。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">候选 Rig 列表。</tag>
+				<tag name="schema">return: Array[GFCameraRig2D]，已去重并按优先级排序的候选 Rig。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="refresh_active_rig" line="160">
+			<signature>func refresh_active_rig(force_snap: bool = false) -&gt; GFCameraRig2D:</signature>
+			<description>刷新当前激活 Rig。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">force_snap: 为 true 时立即切到新 Rig。</tag>
+				<tag name="return">当前 Rig。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_active_rig" line="179">
+			<signature>func set_active_rig(rig: GFCameraRig2D, force_snap: bool = false) -&gt; bool:</signature>
+			<description>显式设置当前 Rig。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">rig: 新 Rig；可为 null。</tag>
+				<tag name="param">force_snap: 为 true 时立即切换。</tag>
+				<tag name="return">设置成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="process_camera" line="198">
+			<signature>func process_camera(delta: float) -&gt; bool:</signature>
+			<description>推进并应用相机姿态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 秒。</tag>
+				<tag name="return">成功应用时返回 true。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

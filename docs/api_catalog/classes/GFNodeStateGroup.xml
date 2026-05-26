@@ -1,0 +1,310 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNodeStateGroup" path="addons/gf/standard/state_machine/node/gf_node_state_group.gd" module="standard" extends="Node" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNodeStateGroup: 管理一组互斥激活的节点状态。
+一个状态组内同一时间只有一个 GFNodeState 处于启用状态。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="state_added" line="21">
+			<signature>signal state_added(state: GFNodeState)</signature>
+			<description>状态加入组后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 新加入的状态节点。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="state_removed" line="28">
+			<signature>signal state_removed(state: GFNodeState)</signature>
+			<description>状态从组中移除后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 被移除的状态节点。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="current_state_changed" line="37">
+			<signature>signal current_state_changed(old_state: GFNodeState, new_state: GFNodeState)</signature>
+			<description>当前状态切换后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">old_state: 切换前的状态；没有旧状态时为 null。</tag>
+				<tag name="param">new_state: 切换后的状态；状态组停止时可为 null。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="transition_blocked" line="52">
+			<signature>signal transition_blocked(from_state: GFNodeState, to_state_name: StringName, args: Dictionary, reason: String)</signature>
+			<description>状态切换被守卫阻止后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">from_state: 发起切换时的当前状态；没有当前状态时为 null。</tag>
+				<tag name="param">to_state_name: 被阻止的目标状态名。</tag>
+				<tag name="param">args: 状态切换参数。</tag>
+				<tag name="param">reason: 阻止原因，通常为 "exit_guard" 或 "enter_guard"。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="requested_transition" line="65">
+			<signature>signal requested_transition(group_name: StringName, state_name: StringName, args: Dictionary)</signature>
+			<description>子状态请求跨组切换时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">group_name: 目标状态组名。</tag>
+				<tag name="param">state_name: 目标状态名。</tag>
+				<tag name="param">args: 状态切换参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="state_event_handled" line="78">
+			<signature>signal state_event_handled(event_id: StringName, handler_state: GFNodeState, payload: Variant)</signature>
+			<description>当前状态或暂停栈状态处理状态事件后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 状态事件标识。</tag>
+				<tag name="param">handler_state: 实际处理事件的状态节点。</tag>
+				<tag name="param">payload: 状态事件载荷。</tag>
+				<tag name="schema">payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="group_name" line="91" decorators="@export">
+			<signature>var group_name: StringName = &amp;""</signature>
+			<description>状态组注册名。为空时使用节点名称。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="initial_state" line="96" decorators="@export">
+			<signature>var initial_state: StringName = &amp;""</signature>
+			<description>初始状态名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="initial_args" line="103" decorators="@export">
+			<signature>var initial_args: Dictionary = {}</signature>
+			<description>初始状态参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">initial_args: 初始状态参数 Dictionary；键和值由初始状态的项目逻辑约定。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="reload_states_on_ready" line="108" decorators="@export">
+			<signature>var reload_states_on_ready: bool = true</signature>
+			<description>ready 时是否自动从子节点加载状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="auto_start" line="113" decorators="@export">
+			<signature>var auto_start: bool = true</signature>
+			<description>初始化后是否自动进入 initial_state。关闭后可通过 start() 手动启动。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="blackboard" line="130" decorators="@export_range(1, 256, 1) var history_max_size: int = 32 @export_range(1, 64, 1) var max_stack_depth: int = 8 @export">
+			<signature>var blackboard: Dictionary = {}</signature>
+			<description>每个状态组保留的历史状态名数量。
+push_state 可叠加的最大栈深度。
+状态组共享黑板。框架不解释其中字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+				<tag name="schema">blackboard: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_group_name" line="176">
+			<signature>func get_group_name() -&gt; StringName:</signature>
+			<description>获取状态组注册名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">非空 group_name，或节点名称转换出的 StringName。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="transition_to" line="191">
+			<signature>func transition_to(next_state_name: StringName, args: Dictionary = {}) -&gt; void:</signature>
+			<description>切换到指定状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_state_name: 要切换到的目标状态名称。</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="push_state" line="269">
+			<signature>func push_state(next_state_name: StringName, args: Dictionary = {}) -&gt; void:</signature>
+			<description>暂停当前状态并叠加进入一个子状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_state_name: 要切换到的目标状态名称。</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="pop_state" line="316">
+			<signature>func pop_state(args: Dictionary = {}) -&gt; bool:</signature>
+			<description>退出当前子状态并恢复上一层状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="return">成功恢复上一层状态时返回 true。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_state" line="387">
+			<signature>func add_state(state: GFNodeState) -&gt; void:</signature>
+			<description>添加状态节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 状态节点。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_state" line="412">
+			<signature>func remove_state(state: GFNodeState) -&gt; bool:</signature>
+			<description>移除状态节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">state: 状态节点。</tag>
+				<tag name="return">成功移除已注册状态时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_state" line="440">
+			<signature>func get_state(query_state_name: StringName) -&gt; GFNodeState:</signature>
+			<description>获取状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">query_state_name: 目标名称。</tag>
+				<tag name="return">注册名对应的状态节点；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_current_state" line="449">
+			<signature>func get_current_state() -&gt; GFNodeState:</signature>
+			<description>获取当前状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前激活状态；未启动或已停止时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_current_state_name" line="458">
+			<signature>func get_current_state_name() -&gt; StringName:</signature>
+			<description>获取当前状态名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前激活状态名；未启动或已停止时返回空 StringName。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_state_history" line="471">
+			<signature>func get_state_history() -&gt; Array[StringName]:</signature>
+			<description>获取状态切换历史。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">最近进入过的状态名列表。</tag>
+				<tag name="schema">return: 状态历史 Array[StringName]，按进入顺序排列。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_stack_depth" line="483">
+			<signature>func get_stack_depth() -&gt; int:</signature>
+			<description>获取当前暂停栈深度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前暂停栈深度。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_blackboard" line="494">
+			<signature>func get_blackboard() -&gt; Dictionary:</signature>
+			<description>获取状态组共享黑板。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">黑板字典。</tag>
+				<tag name="schema">return: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定，调用方可直接修改。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispatch_state_event" line="509">
+			<signature>func dispatch_state_event(event_id: StringName, payload: Variant = null) -&gt; bool:</signature>
+			<description>从当前状态开始向暂停栈上抛状态事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_id: 状态事件标识。</tag>
+				<tag name="param">payload: 状态事件载荷。</tag>
+				<tag name="return">有状态处理该事件时返回 true。</tag>
+				<tag name="schema">payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_in_state" line="525">
+			<signature>func is_in_state(query_state_name: StringName) -&gt; bool:</signature>
+			<description>判断指定状态是否为当前状态或暂停栈中的状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">query_state_name: 目标名称。</tag>
+				<tag name="return">指定状态位于当前状态或暂停栈中时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="restart" line="543">
+			<signature>func restart(args: Dictionary = {}) -&gt; void:</signature>
+			<description>重启当前状态；若当前没有状态，则尝试进入初始状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">args: 状态切换时传递的可选参数。</tag>
+				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="start" line="558">
+			<signature>func start(args: Dictionary = {}) -&gt; void:</signature>
+			<description>进入初始状态。若已有当前状态则保持不变。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">args: 启动时传给初始状态的参数；为空时使用 initial_args。</tag>
+				<tag name="schema">args: 启动参数 Dictionary；为空时使用 initial_args。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop" line="568">
+			<signature>func stop() -&gt; void:</signature>
+			<description>停止当前激活状态，但保留已注册状态节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_states" line="584">
+			<signature>func get_states() -&gt; Array[GFNodeState]:</signature>
+			<description>获取所有状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已注册状态节点列表。</tag>
+				<tag name="schema">return: 已注册 GFNodeState 节点数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_state_snapshot" line="598">
+			<signature>func get_state_snapshot() -&gt; Dictionary:</signature>
+			<description>获取状态组调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">包含当前状态、暂停栈、历史、注册状态和黑板副本的字典。</tag>
+				<tag name="schema">return: 调试快照 Dictionary，包含 group_name、current_state、stack、history、states 和 blackboard 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_states" line="614">
+			<signature>func clear_states(free_states: bool = false) -&gt; void:</signature>
+			<description>清空状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">free_states: 为 true 时同时释放已移除的状态节点。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="reload_states_from_children" line="632">
+			<signature>func reload_states_from_children() -&gt; void:</signature>
+			<description>从子节点重新加载状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

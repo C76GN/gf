@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFEditorCommand" path="addons/gf/kernel/editor/gf_editor_command.gd" module="kernel" extends="RefCounted" line="15" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFEditorCommand: 可撤销编辑器操作的通用基类。
+用于把编辑器 UI、快捷键或交互工具产生的修改收敛成可执行、可撤销的命令。
+命令只描述操作协议，不绑定具体资源、节点类型或业务含义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">editor_api</tag>
+		<tag name="layer">kernel/editor</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="command_name" line="24">
+			<signature>var command_name: String = "GF Editor Command"</signature>
+			<description>命令显示名称，会作为 UndoRedo action 名称使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="31">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>调用方可附加的上下文数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary for caller-defined command metadata.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="execute" line="46">
+			<signature>func execute() -&gt; Error:</signature>
+			<description>执行命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Godot 错误码。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="revert" line="61">
+			<signature>func revert() -&gt; Error:</signature>
+			<description>撤销命令。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">Godot 错误码。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_to_undo_manager" line="80">
+			<signature>func add_to_undo_manager(undo_manager: Object, execute_immediately: bool = true) -&gt; Error:</signature>
+			<description>将命令写入 Godot 编辑器 UndoRedo 管理器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">undo_manager: EditorUndoRedoManager 或兼容对象。</tag>
+				<tag name="param">execute_immediately: 提交 action 时是否立即执行 do 方法。</tag>
+				<tag name="return">Godot 错误码。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_executed" line="108">
+			<signature>func is_executed() -&gt; bool:</signature>
+			<description>当前命令是否已执行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已执行时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_execute" line="117">
+			<signature>func can_execute() -&gt; bool:</signature>
+			<description>命令当前是否允许执行。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">允许执行时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_revert_before_execute" line="126">
+			<signature>func can_revert_before_execute() -&gt; bool:</signature>
+			<description>未执行时是否仍允许调用 revert()。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">未执行时允许撤销返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="137">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试信息字典。</tag>
+				<tag name="schema">return: Dictionary containing command_name, executed, and metadata.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

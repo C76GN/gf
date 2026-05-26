@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFFormBinder" path="addons/gf/standard/utilities/ui/gf_form_binder.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFFormBinder: 轻量 Control 表单读写绑定器。
+将 StringName 字段映射到 Control 节点，提供批量 read/write 和变化信号。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="field_changed" line="25">
+			<signature>signal field_changed(key: StringName, value: Variant)</signature>
+			<description>字段值变化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段键。</tag>
+				<tag name="param">value: 当前控件值。</tag>
+				<tag name="schema">value: Variant，当前控件值，类型取决于绑定控件。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="bind_field" line="51">
+			<signature>func bind_field(key: StringName, control: Control, default_value: Variant = null) -&gt; void:</signature>
+			<description>绑定字段到控件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段键。</tag>
+				<tag name="param">control: 控件节点。</tag>
+				<tag name="param">default_value: 控件失效或读取失败时的默认值。</tag>
+				<tag name="schema">default_value: Variant，控件失效或读取失败时返回的默认值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unbind_field" line="79">
+			<signature>func unbind_field(key: StringName) -&gt; void:</signature>
+			<description>解绑字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段键。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="88">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空所有字段绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bound_fields" line="99">
+			<signature>func get_bound_fields() -&gt; Array[StringName]:</signature>
+			<description>获取绑定字段列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">字段键数组。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_field_value" line="122">
+			<signature>func get_field_value(key: StringName, fallback: Variant = null) -&gt; Variant:</signature>
+			<description>读取单个字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段键。</tag>
+				<tag name="param">fallback: 回退值。</tag>
+				<tag name="return">字段值。</tag>
+				<tag name="schema">fallback: Variant，字段未绑定或控件无法读取时返回的回退值。</tag>
+				<tag name="schema">return: Variant，字段当前值；无法读取时返回 fallback。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_field_value" line="143">
+			<signature>func set_field_value(key: StringName, value: Variant) -&gt; bool:</signature>
+			<description>写入单个字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">key: 字段键。</tag>
+				<tag name="param">value: 字段值。</tag>
+				<tag name="return">成功写入时返回 true。</tag>
+				<tag name="schema">value: Variant，要写入绑定控件的字段值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="read_values" line="157">
+			<signature>func read_values() -&gt; Dictionary:</signature>
+			<description>读取全部字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">字段值字典。</tag>
+				<tag name="schema">return: Dictionary，键为字段 StringName，值为对应控件当前值。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="write_values" line="173">
+			<signature>func write_values(data: Dictionary, ignore_missing_fields: bool = true) -&gt; void:</signature>
+			<description>批量写入字段值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 字段值字典。</tag>
+				<tag name="param">ignore_missing_fields: true 时忽略未绑定字段，false 时输出 warning。</tag>
+				<tag name="schema">data: Dictionary，键为字段名，值为要写入绑定控件的字段值。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

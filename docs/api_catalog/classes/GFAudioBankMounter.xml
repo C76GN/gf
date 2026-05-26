@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAudioBankMounter" path="addons/gf/standard/utilities/audio/gf_audio_bank_mounter.gd" module="standard" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFAudioBankMounter: 场景生命周期驱动的音频集合挂载节点。
+进入树时把 `GFAudioBank` 注册到 `GFAudioUtility`，退出树时按需恢复或卸载，
+让场景、UI 或模块可以拥有自己的音频事件集合而不写全局业务逻辑。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="bank_mounted" line="22">
+			<signature>signal bank_mounted(bank_id: StringName)</signature>
+			<description>音频集合挂载完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank_id: 音频集合标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="bank_unmounted" line="29">
+			<signature>signal bank_unmounted(bank_id: StringName)</signature>
+			<description>音频集合卸载完成时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bank_id: 音频集合标识。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="bank_id" line="37" decorators="@export">
+			<signature>var bank_id: StringName = &amp;""</signature>
+			<description>音频集合标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="bank" line="42" decorators="@export">
+			<signature>var bank: GFAudioBank = null</signature>
+			<description>音频集合资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="mount_on_ready" line="47" decorators="@export">
+			<signature>var mount_on_ready: bool = true</signature>
+			<description>ready 后是否自动挂载。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="unmount_on_exit" line="52" decorators="@export">
+			<signature>var unmount_on_exit: bool = true</signature>
+			<description>退出树时是否自动卸载。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="restore_previous_bank" line="57" decorators="@export">
+			<signature>var restore_previous_bank: bool = true</signature>
+			<description>卸载时是否恢复同 ID 的旧音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="audio_utility" line="65">
+			<signature>var audio_utility: GFAudioUtility = null</signature>
+			<description>可选音频工具实例；为空时从全局架构查询。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="set_audio_utility" line="93">
+			<signature>func set_audio_utility(utility: GFAudioUtility) -&gt; void:</signature>
+			<description>设置音频工具实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility: 音频工具实例。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="mount" line="102">
+			<signature>func mount() -&gt; bool:</signature>
+			<description>挂载音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">挂载成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unmount" line="129">
+			<signature>func unmount() -&gt; bool:</signature>
+			<description>卸载音频集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">卸载成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_mounted" line="149">
+			<signature>func is_mounted() -&gt; bool:</signature>
+			<description>检查音频集合是否已挂载。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">已挂载返回 true。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

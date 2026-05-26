@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFValidationRule" path="addons/gf/standard/foundation/validation/gf_validation_rule.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFValidationRule: 通用校验规则资源。
+通过 Callable 或子类钩子校验任意对象、资源、节点或数据。规则只负责把问题写入
+GFValidationReport，不约定项目脚本方法名，也不内置业务字段语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="TargetKind" line="20">
+			<signature>enum TargetKind { ## 接受任意目标。 ANY, ## 接受 Node。 NODE, ## 接受 Resource。 RESOURCE, ## 接受 PackedScene。 PACKED_SCENE, ## 接受 Dictionary。 DICTIONARY, ## 接受 Array。 ARRAY, ## 接受 Object。 OBJECT, }</signature>
+			<description>规则适用的目标类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="rule_id" line="43" decorators="@export">
+			<signature>var rule_id: StringName = &amp;""</signature>
+			<description>规则唯一标识。推荐使用稳定的 snake_case 或点分层级标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="target_kind" line="53" decorators="@export_multiline var description: String = &quot;&quot; @export">
+			<signature>var target_kind: TargetKind = TargetKind.ANY</signature>
+			<description>面向工具或报告的规则说明。
+规则适用的目标类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enabled" line="58" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否启用该规则。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="severity" line="63" decorators="@export">
+			<signature>var severity: GFValidationIssue.Severity = GFValidationIssue.Severity.ERROR</signature>
+			<description>当 Callable 或钩子返回 false / 非空字符串时使用的默认严重级别。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="70" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>可选元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary of caller-defined rule metadata.</tag>
+			</tags>
+		</member>
+		<member kind="property" name="callback" line="78">
+			<signature>var callback: Callable = Callable()</signature>
+			<description>可选校验回调，签名为 func(target: Variant, report: GFValidationReport, context: Dictionary) -&gt; Variant。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure" line="96">
+			<signature>func configure( p_rule_id: StringName, p_callback: Callable = Callable(), options: Dictionary = {} ) -&gt; GFValidationRule:</signature>
+			<description>配置规则并返回自身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_rule_id: 规则标识。</tag>
+				<tag name="param">p_callback: 可选校验回调。</tag>
+				<tag name="param">options: 可选字段，支持 description、target_kind、enabled、severity、metadata。</tag>
+				<tag name="return">当前规则。</tag>
+				<tag name="schema">options: Dictionary rule configuration overrides.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="applies_to" line="125">
+			<signature>func applies_to(target: Variant, context: Dictionary = {}) -&gt; bool:</signature>
+			<description>检查规则是否适用于目标。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 待校验目标。</tag>
+				<tag name="param">context: 调用方上下文。</tag>
+				<tag name="return">适用时返回 true。</tag>
+				<tag name="schema">target: Variant validation target.</tag>
+				<tag name="schema">context: Dictionary validation context.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="validate" line="146">
+			<signature>func validate(target: Variant, context: Dictionary = {}) -&gt; GFValidationReport:</signature>
+			<description>执行规则并返回报告。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 待校验目标。</tag>
+				<tag name="param">context: 调用方上下文。</tag>
+				<tag name="return">校验报告。</tag>
+				<tag name="schema">target: Variant validation target.</tag>
+				<tag name="schema">context: Dictionary validation context.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_rule" line="169">
+			<signature>func duplicate_rule() -&gt; GFValidationRule:</signature>
+			<description>创建当前规则的浅配置副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新规则。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

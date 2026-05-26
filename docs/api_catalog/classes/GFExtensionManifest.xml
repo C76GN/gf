@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFExtensionManifest" path="addons/gf/kernel/extension/gf_extension_manifest.gd" module="kernel" extends="RefCounted" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFExtensionManifest: GF 扩展元数据描述。
+用于描述 GF 扩展的稳定 ID、版本、依赖、安装入口和编辑器扩展。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="layer">kernel/extension</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="FILE_NAME" line="21">
+			<signature>const FILE_NAME: String = "gf_extension.json"</signature>
+			<description>GF 扩展 manifest 文件名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KIND_STANDARD" line="26">
+			<signature>const KIND_STANDARD: String = "standard"</signature>
+			<description>扩展类型：GF 标准库内置能力。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KIND_EXTENSION" line="31">
+			<signature>const KIND_EXTENSION: String = "extension"</signature>
+			<description>扩展类型：GF 可选扩展。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="id" line="39">
+			<signature>var id: String = ""</signature>
+			<description>稳定扩展 ID，推荐格式为反向域名或作者命名空间，例如 `author.extension_name`。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="display_name" line="44">
+			<signature>var display_name: String = ""</signature>
+			<description>面向用户显示的扩展名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="version" line="49">
+			<signature>var version: String = ""</signature>
+			<description>扩展发行版本号。GF 内置扩展必须与当前 GF 发行版本一致。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="extension_version" line="54">
+			<signature>var extension_version: String = ""</signature>
+			<description>扩展自身版本号。GF 内置扩展按扩展内公开行为变化独立递增；未声明时回退到 version。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="kind" line="59">
+			<signature>var kind: String = KIND_EXTENSION</signature>
+			<description>扩展类型，应为 `standard` 或 `extension`。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="root_path" line="64">
+			<signature>var root_path: String = ""</signature>
+			<description>扩展根目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="description" line="69">
+			<signature>var description: String = ""</signature>
+			<description>简短说明。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="dependencies" line="74">
+			<signature>var dependencies: Array[String] = []</signature>
+			<description>依赖的扩展 ID 列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="installer_paths" line="79">
+			<signature>var installer_paths: Array[String] = []</signature>
+			<description>可选 GFInstaller 路径列表。需要自动装配运行时模块时使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_action_paths" line="84">
+			<signature>var editor_action_paths: Array[String] = []</signature>
+			<description>可选编辑器菜单动作脚本路径列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_dock_paths" line="89">
+			<signature>var editor_dock_paths: Array[String] = []</signature>
+			<description>可选编辑器工作区页面脚本路径列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_dock_order" line="94">
+			<signature>var editor_dock_order: int = 1000</signature>
+			<description>编辑器工作区页面排序。数值越小越靠前。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_dock_short_label" line="99">
+			<signature>var editor_dock_short_label: String = ""</signature>
+			<description>编辑器工作区页面短标签。为空时使用扩展显示名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="editor_inspector_paths" line="104">
+			<signature>var editor_inspector_paths: Array[String] = []</signature>
+			<description>可选 EditorInspectorPlugin 路径列表。需要为扩展内类型提供 Inspector 增强时使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="import_plugin_paths" line="109">
+			<signature>var import_plugin_paths: Array[String] = []</signature>
+			<description>可选 EditorImportPlugin 路径列表。需要为自定义资源格式提供导入器时使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="export_plugin_paths" line="114">
+			<signature>var export_plugin_paths: Array[String] = []</signature>
+			<description>可选 EditorExportPlugin 路径列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="gltf_document_extension_paths" line="119">
+			<signature>var gltf_document_extension_paths: Array[String] = []</signature>
+			<description>可选 GLTFDocumentExtension 路径列表。用于导入期资产元数据桥接等编辑器能力。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="access_generator_extension_paths" line="124">
+			<signature>var access_generator_extension_paths: Array[String] = []</signature>
+			<description>可选 GFAccessGenerator 扩展脚本路径列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="tags" line="129">
+			<signature>var tags: Array[String] = []</signature>
+			<description>便于工具筛选的标签。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enabled_by_default" line="134">
+			<signature>var enabled_by_default: bool = false</signature>
+			<description>是否在项目首次启用 GF 时默认启用该扩展。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="source_path" line="139">
+			<signature>var source_path: String = ""</signature>
+			<description>manifest 文件路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="from_dictionary" line="156">
+			<signature>static func from_dictionary( data: Dictionary, extension_root_path: String = "", manifest_source_path: String = "" ) -&gt; GFExtensionManifest:</signature>
+			<description>从字典创建扩展 manifest。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: manifest 字典。</tag>
+				<tag name="param">extension_root_path: 扩展根目录。</tag>
+				<tag name="param">manifest_source_path: manifest 文件路径。</tag>
+				<tag name="return">扩展 manifest 实例。</tag>
+				<tag name="schema">data: Dictionary decoded from gf_extension.json.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_json_file" line="198">
+			<signature>static func from_json_file(path: String) -&gt; GFExtensionManifest:</signature>
+			<description>从 JSON 文件读取扩展 manifest。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: `gf_extension.json` 文件路径。</tag>
+				<tag name="return">读取成功时返回 manifest；失败时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary" line="222">
+			<signature>func to_dictionary() -&gt; Dictionary:</signature>
+			<description>转换为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">manifest 字典副本。</tag>
+				<tag name="schema">return: Dictionary matching the gf_extension.json manifest shape.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_valid" line="253">
+			<signature>func is_valid() -&gt; bool:</signature>
+			<description>检查 manifest 是否满足基本规范。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">满足规范时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_validation_errors" line="262">
+			<signature>func get_validation_errors() -&gt; Array[String]:</signature>
+			<description>获取 manifest 规范错误。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">错误消息列表。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

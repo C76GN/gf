@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSteeringBehaviorStack" path="addons/gf/standard/foundation/math/gf_steering_behavior_stack.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSteeringBehaviorStack: 资源化 steering 行为组合。
+以 blend 或 priority 模式组合 GFSteeringBehaviorResource。它只返回加速度结果，
+不负责移动节点、应用物理或解释项目 AI 状态。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="CompositionMode" line="20">
+			<signature>enum CompositionMode { ## 按权重混合所有行为。 BLEND, ## 选择第一个超过阈值的行为。 PRIORITY, }</signature>
+			<description>行为组合方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="mode" line="33" decorators="@export">
+			<signature>var mode: CompositionMode = CompositionMode.BLEND</signature>
+			<description>组合方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="behaviors" line="38" decorators="@export">
+			<signature>var behaviors: Array[GFSteeringBehaviorResource] = []</signature>
+			<description>行为列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_linear" line="43" decorators="@export">
+			<signature>var max_linear: float = -1.0</signature>
+			<description>混合后最大线性加速度；小于 0 时使用 agent 上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_angular" line="48" decorators="@export">
+			<signature>var max_angular: float = -1.0</signature>
+			<description>混合后最大角加速度；小于 0 时使用 agent 上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="priority_threshold" line="53" decorators="@export">
+			<signature>var priority_threshold: float = 0.001</signature>
+			<description>Priority 模式下判断非零的阈值。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="add_behavior" line="65">
+			<signature>func add_behavior(behavior: GFSteeringBehaviorResource) -&gt; bool:</signature>
+			<description>添加行为。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">behavior: 行为资源。</tag>
+				<tag name="return">添加成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_empty" line="77">
+			<signature>func is_empty() -&gt; bool:</signature>
+			<description>检查是否没有有效行为。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">没有有效行为时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="calculate" line="95">
+			<signature>func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -&gt; GFSteeringAcceleration:</signature>
+			<description>计算组合后的 steering 加速度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">agent: 代理状态。</tag>
+				<tag name="param">context: 传给每个行为的动态上下文。</tag>
+				<tag name="return">steering 加速度。</tag>
+				<tag name="schema">context: Dictionary steering behavior context passed to each behavior.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_stack" line="110">
+			<signature>func duplicate_stack() -&gt; Resource:</signature>
+			<description>创建配置副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新行为组合。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

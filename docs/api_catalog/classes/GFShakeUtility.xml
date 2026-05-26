@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFShakeUtility" path="addons/gf/extensions/feedback/runtime/gf_shake_utility.gd" module="extensions/feedback" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFShakeUtility: 通用反馈播放与采样工具。
+管理命名 channel 上的 `GFShakePreset` 播放状态，项目可按需把采样结果应用到
+Camera、Node2D、Node3D、Control 或任意自定义表现对象。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="shake_started" line="24">
+			<signature>signal shake_started(shake_id: int, channel: StringName)</signature>
+			<description>反馈播放开始时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">shake_id: 播放实例 ID。</tag>
+				<tag name="param">channel: 反馈 channel。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="shake_finished" line="33">
+			<signature>signal shake_finished(shake_id: int, channel: StringName)</signature>
+			<description>反馈播放结束时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">shake_id: 播放实例 ID。</tag>
+				<tag name="param">channel: 反馈 channel。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="shake_stopped" line="42">
+			<signature>signal shake_stopped(shake_id: int, channel: StringName)</signature>
+			<description>反馈播放被停止时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">shake_id: 播放实例 ID。</tag>
+				<tag name="param">channel: 反馈 channel。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums>
+		<member kind="enum" name="OverflowPolicy" line="50">
+			<signature>enum OverflowPolicy { ## 跳过新的播放请求。 SKIP_NEW, ## 停止最早的播放实例。 STOP_OLDEST, }</signature>
+			<description>活跃反馈达到上限时的处理方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="default_channel" line="63">
+			<signature>var default_channel: StringName = &amp;"default"</signature>
+			<description>默认 channel。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_active_shakes" line="68">
+			<signature>var max_active_shakes: int = 64</signature>
+			<description>最大活跃反馈数量；小于等于 0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="overflow_policy" line="73">
+			<signature>var overflow_policy: OverflowPolicy = OverflowPolicy.STOP_OLDEST</signature>
+			<description>达到上限时的处理方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="randomize_phase" line="78">
+			<signature>var randomize_phase: bool = true</signature>
+			<description>是否为每次播放随机化相位。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="init" line="94">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化反馈运行时状态和随机源。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="102">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放全部反馈播放状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="111">
+			<signature>func tick(delta: float) -&gt; void:</signature>
+			<description>推进反馈播放状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 本帧时间增量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play_shake" line="147">
+			<signature>func play_shake( channel: StringName, preset: GFShakePreset, strength: float = 1.0, metadata: Dictionary = {} ) -&gt; int:</signature>
+			<description>播放一个反馈预设。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 反馈 channel；为空时使用 default_channel。</tag>
+				<tag name="param">preset: 反馈预设。</tag>
+				<tag name="param">strength: 播放强度倍率。</tag>
+				<tag name="param">metadata: 项目自定义元数据。</tag>
+				<tag name="return">播放实例 ID；无法播放时返回 -1。</tag>
+				<tag name="schema">metadata: Dictionary，播放实例自定义元数据，会在 get_shake_info() 快照中复制返回。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_shake" line="184">
+			<signature>func stop_shake(shake_id: int, emit_stopped: bool = true) -&gt; bool:</signature>
+			<description>停止指定反馈实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">shake_id: 播放实例 ID。</tag>
+				<tag name="param">emit_stopped: 是否发出停止信号。</tag>
+				<tag name="return">成功停止返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_channel" line="206">
+			<signature>func stop_channel(channel: StringName) -&gt; int:</signature>
+			<description>停止指定 channel 上的全部反馈实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 反馈 channel；为空时使用 default_channel。</tag>
+				<tag name="return">停止数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="220">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空全部反馈实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_shake_active" line="232">
+			<signature>func is_shake_active(shake_id: int) -&gt; bool:</signature>
+			<description>检查反馈实例是否仍在播放。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">shake_id: 播放实例 ID。</tag>
+				<tag name="return">正在播放返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_active_shake_count" line="243">
+			<signature>func get_active_shake_count(channel: StringName = &amp;"") -&gt; int:</signature>
+			<description>获取活跃反馈数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 可选 channel；为空时统计全部。</tag>
+				<tag name="return">活跃反馈数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sample_channel" line="264">
+			<signature>func sample_channel(channel: StringName = &amp;"") -&gt; Dictionary:</signature>
+			<description>采样指定 channel 当前的合成反馈。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 反馈 channel；为空时使用 default_channel。</tag>
+				<tag name="return">合成采样结果。</tag>
+				<tag name="schema">return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sample_channels" line="291">
+			<signature>func sample_channels(channels: PackedStringArray) -&gt; Dictionary:</signature>
+			<description>采样多个 channel 当前的合成反馈。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channels: 反馈 channel 列表。</tag>
+				<tag name="return">合成采样结果。</tag>
+				<tag name="schema">return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_shake_info" line="307">
+			<signature>func get_shake_info(shake_id: int) -&gt; Dictionary:</signature>
+			<description>获取指定反馈实例的只读快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">shake_id: 播放实例 ID。</tag>
+				<tag name="return">播放实例快照。</tag>
+				<tag name="schema">return: Dictionary，包含 id、channel、elapsed_seconds、duration_seconds、strength 与 metadata；实例不存在时为空。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="329">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取反馈系统调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 active_count、max_active_shakes、channels 与 play_order。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

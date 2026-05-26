@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFNetworkUtility" path="addons/gf/extensions/network/runtime/gf_network_utility.gd" module="extensions/network" extends="GFUtility" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFNetworkUtility: 可插拔网络后端运行时。
+负责把通用 GFNetworkMessage 编码后交给后端发送，并将后端收到的 bytes 解码为消息信号。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="message_received" line="23">
+			<signature>signal message_received(peer_id: int, message: GFNetworkMessage)</signature>
+			<description>收到消息后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 发送方 peer 标识。</tag>
+				<tag name="param">message: 解码后的网络消息。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="message_rejected" line="36">
+			<signature>signal message_rejected(peer_id: int, reason: String, details: Dictionary)</signature>
+			<description>消息校验失败后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 关联 peer 标识。</tag>
+				<tag name="param">reason: 拒绝原因。</tag>
+				<tag name="param">details: 校验或解码详情。</tag>
+				<tag name="schema">details: Dictionary，包含 ok、errors 或 error/data 等诊断字段。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="connected" line="41">
+			<signature>signal connected</signature>
+			<description>后端连接成功后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="disconnected" line="48">
+			<signature>signal disconnected(reason: String)</signature>
+			<description>后端断开后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">reason: 断开原因。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="peer_connected" line="55">
+			<signature>signal peer_connected(peer_id: int)</signature>
+			<description>远端节点连接后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 远端 peer 标识。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="peer_disconnected" line="62">
+			<signature>signal peer_disconnected(peer_id: int)</signature>
+			<description>远端节点断开后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 远端 peer 标识。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="backend" line="70">
+			<signature>var backend: GFNetworkBackend</signature>
+			<description>当前网络后端。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="serializer" line="75">
+			<signature>var serializer: GFNetworkSerializer = GFNetworkSerializer.new()</signature>
+			<description>消息编码器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="validator" line="80">
+			<signature>var validator: GFNetworkMessageValidator = GFNetworkMessageValidator.new()</signature>
+			<description>消息校验器。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="session" line="85">
+			<signature>var session: GFNetworkSession = GFNetworkSession.new()</signature>
+			<description>当前会话状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="ready" line="98">
+			<signature>func ready() -&gt; void:</signature>
+			<description>注册网络诊断快照贡献。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick" line="107">
+			<signature>func tick(delta: float) -&gt; void:</signature>
+			<description>推进运行时逻辑。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 本帧时间增量（秒）。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="115">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放后端、通道和诊断贡献。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_backend" line="130">
+			<signature>func set_backend(next_backend: GFNetworkBackend) -&gt; void:</signature>
+			<description>设置网络后端。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">next_backend: 新后端。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_channel" line="140">
+			<signature>func register_channel(channel: GFNetworkChannel) -&gt; void:</signature>
+			<description>注册网络通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel: 通道资源。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unregister_channel" line="151">
+			<signature>func unregister_channel(channel_id: StringName) -&gt; void:</signature>
+			<description>注销网络通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel_id: 通道标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_channel" line="162">
+			<signature>func get_channel(channel_id: StringName) -&gt; GFNetworkChannel:</signature>
+			<description>获取网络通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">channel_id: 通道标识。</tag>
+				<tag name="return">通道资源。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_channel_ids" line="171">
+			<signature>func get_channel_ids() -&gt; PackedStringArray:</signature>
+			<description>获取已注册通道标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">排序后的通道标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_channels" line="182">
+			<signature>func clear_channels() -&gt; void:</signature>
+			<description>清空网络通道。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="host" line="195">
+			<signature>func host(options: Dictionary = {}) -&gt; Error:</signature>
+			<description>启动主机。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 后端选项。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">options: Dictionary，传给 session.start_host() 和 backend.host() 的后端选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="connect_to_endpoint" line="220">
+			<signature>func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -&gt; Error:</signature>
+			<description>连接远端。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">endpoint: 远端地址。</tag>
+				<tag name="param">options: 后端选项。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">options: Dictionary，传给 session.start_client() 和 backend.connect_to_endpoint() 的后端选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="disconnect_network" line="235">
+			<signature>func disconnect_network() -&gt; void:</signature>
+			<description>断开连接。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_message" line="255">
+			<signature>func send_message(peer_id: int, message: GFNetworkMessage, options: Dictionary = {}) -&gt; Error:</signature>
+			<description>发送消息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 目标 peer；后端可约定 -1 表示广播。</tag>
+				<tag name="param">message: 消息载体。</tag>
+				<tag name="param">options: 后端发送选项。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">options: Dictionary，传给 backend.send_bytes() 的发送选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="send_message_on_channel" line="274">
+			<signature>func send_message_on_channel( peer_id: int, message: GFNetworkMessage, channel_id: StringName, options: Dictionary = {} ) -&gt; Error:</signature>
+			<description>通过指定通道发送消息。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">peer_id: 目标 peer；后端可约定 -1 表示广播。</tag>
+				<tag name="param">message: 消息载体。</tag>
+				<tag name="param">channel_id: 通道标识。</tag>
+				<tag name="param">options: 后端发送选项覆盖。</tag>
+				<tag name="return">Godot 错误码。</tag>
+				<tag name="schema">options: Dictionary，覆盖 GFNetworkChannel.build_send_options() 的发送选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot" line="294">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取网络工具调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试信息字典。</tag>
+				<tag name="schema">return: Dictionary，包含 backend_configured、serializer_configured、validator_configured、backend、session、channels、validator。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

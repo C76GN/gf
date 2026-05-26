@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFReactiveEffect" path="addons/gf/kernel/core/gf_reactive_effect.gd" module="kernel" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFReactiveEffect: GFBindableProperty 的轻量响应式副作用。
+监听一组 GFBindableProperty，在任意来源变化时执行回调。可绑定 Node 生命周期，
+适合 Controller 层组合多个 Model 属性，不要求项目引入新的状态模型。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="effect_ran" line="27">
+			<signature>signal effect_ran(value: Variant)</signature>
+			<description>effect 执行后发出。
+"type": "Variant",
+"description": "回调返回值。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 回调返回值。</tag>
+				<tag name="schema">value {</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="max_reruns_per_run" line="40">
+			<signature>var max_reruns_per_run: int = 8</signature>
+			<description>单次 run 中最多补跑的次数，避免回调持续写入来源属性造成死循环。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure" line="90">
+			<signature>func configure( sources: Array[GFBindableProperty], callback: Callable, owner: Node = null, run_immediately: bool = true ) -&gt; void:</signature>
+			<description>配置并启动 effect。重复调用会先停止旧绑定。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">sources: 要监听的 GFBindableProperty 列表。</tag>
+				<tag name="param">callback: 变化后执行的回调。</tag>
+				<tag name="param">owner: 可选 Node 生命周期宿主。</tag>
+				<tag name="param">run_immediately: 是否立即执行一次。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="run" line="125">
+			<signature>func run() -&gt; Variant:</signature>
+			<description>手动执行 effect。
+"type": "Variant",
+"description": "回调返回值；回调无效时返回 null。"
+}</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">回调返回值；回调无效时返回 null。</tag>
+				<tag name="schema">return {</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop" line="153">
+			<signature>func stop() -&gt; void:</signature>
+			<description>停止 effect 并断开全部监听。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose" line="182">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放 effect 持有的监听。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_active" line="191">
+			<signature>func is_active() -&gt; bool:</signature>
+			<description>检查 effect 是否处于激活状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">激活时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_sources" line="200">
+			<signature>func get_sources() -&gt; Array[GFBindableProperty]:</signature>
+			<description>获取当前监听的属性列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">GFBindableProperty 数组。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

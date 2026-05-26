@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFConfigTableMergePolicy" path="addons/gf/standard/utilities/config/gf_config_table_merge_policy.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFConfigTableMergePolicy: 配置表补丁合并策略。
+描述如何识别记录、覆盖记录和处理删除标记。它只定义通用合并规则，
+不绑定热更、模组、DLC 或任意项目业务语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="UpdateMode" line="20">
+			<signature>enum UpdateMode { ## patch 记录整体替换 base 记录。 REPLACE_RECORD, ## patch 记录与 base 记录按字段合并，嵌套 Dictionary 递归合并。 MERGE_FIELDS, }</signature>
+			<description>记录更新方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="key_fields" line="33" decorators="@export">
+			<signature>var key_fields: PackedStringArray = PackedStringArray(["id"])</signature>
+			<description>用于生成记录键的字段。为空时 Dictionary 表会优先使用外层 key。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="update_mode" line="38" decorators="@export">
+			<signature>var update_mode: UpdateMode = UpdateMode.MERGE_FIELDS</signature>
+			<description>更新已有记录时采用的合并方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_insert" line="43" decorators="@export">
+			<signature>var allow_insert: bool = true</signature>
+			<description>是否允许 patch 插入新记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_update" line="48" decorators="@export">
+			<signature>var allow_update: bool = true</signature>
+			<description>是否允许 patch 更新已有记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="allow_delete" line="53" decorators="@export">
+			<signature>var allow_delete: bool = true</signature>
+			<description>是否允许 patch 删除已有记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="delete_marker_field" line="58" decorators="@export">
+			<signature>var delete_marker_field: StringName = &amp;"_delete"</signature>
+			<description>删除标记字段。为空时不启用删除标记。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="delete_marker_value" line="65" decorators="@export">
+			<signature>var delete_marker_value: Variant = true</signature>
+			<description>删除标记需要匹配的值。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">delete_marker_value: Variant，与删除标记字段比较的目标值。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="preserve_base_order" line="70" decorators="@export">
+			<signature>var preserve_base_order: bool = true</signature>
+			<description>Array 表输出时是否保留 base 原有顺序，并把新增记录追加到末尾。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="77" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>可选元数据，供项目工具扩展使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，保存项目层附加到当前合并策略的元数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="is_delete_record" line="91">
+			<signature>func is_delete_record(record: Dictionary) -&gt; bool:</signature>
+			<description>检查记录是否带有删除标记。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">record: 记录。</tag>
+				<tag name="return">带有删除标记时返回 true。</tag>
+				<tag name="schema">record: Dictionary，用于检查删除标记字段的配置记录。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_record_key" line="110">
+			<signature>func make_record_key(record: Dictionary, outer_key: Variant = null) -&gt; String:</signature>
+			<description>根据记录生成稳定合并键。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">record: 记录。</tag>
+				<tag name="param">outer_key: Dictionary 表外层 key。</tag>
+				<tag name="return">合并键，字段缺失时返回空字符串。</tag>
+				<tag name="schema">record: Dictionary，用于构建合并键的配置记录。</tag>
+				<tag name="schema">outer_key: Variant，key_fields 为空时用于构建合并键的外层 key。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="merge_record" line="140">
+			<signature>func merge_record(base_record: Dictionary, patch_record: Dictionary) -&gt; Dictionary:</signature>
+			<description>合并两条记录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">base_record: 原始记录。</tag>
+				<tag name="param">patch_record: 补丁记录。</tag>
+				<tag name="return">合并后的记录。</tag>
+				<tag name="schema">base_record: Dictionary，原始记录。</tag>
+				<tag name="schema">patch_record: Dictionary，补丁记录。</tag>
+				<tag name="schema">return: Dictionary，合并后的记录。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_policy" line="151">
+			<signature>func duplicate_policy() -&gt; GFConfigTableMergePolicy:</signature>
+			<description>创建同内容拷贝。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新合并策略。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe" line="162">
+			<signature>func describe() -&gt; Dictionary:</signature>
+			<description>导出策略摘要。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">策略摘要字典。</tag>
+				<tag name="schema">return: Dictionary，包含 key_fields、update_mode、权限开关、删除标记设置、preserve_base_order 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

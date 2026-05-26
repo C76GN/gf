@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSaveScope" path="addons/gf/extensions/save/core/gf_save_scope.gd" module="extensions/save" extends="Node" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFSaveScope: 存档图作用域节点。
+Scope 定义一次保存/加载的边界。它可嵌套组织子 Scope，但不假设具体业务结构。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="RestorePolicy" line="19">
+			<signature>enum RestorePolicy { ## 只把数据应用到已存在的 Source。 APPLY_ONLY_EXISTING, ## 允许 GFSaveGraphUtility 使用注册的工厂补建实体。 ALLOW_FACTORIES, }</signature>
+			<description>恢复未知实体时的处理策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="enum" name="Phase" line="29">
+			<signature>enum Phase { ## 早期执行。 EARLY, ## 普通执行。 NORMAL, ## 后期执行。 LATE, }</signature>
+			<description>Scope/Source 执行阶段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="scope_key" line="44" decorators="@export">
+			<signature>var scope_key: StringName = &amp;""</signature>
+			<description>Scope 稳定标识。留空时回退到节点名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="key_namespace" line="49" decorators="@export">
+			<signature>var key_namespace: StringName = &amp;""</signature>
+			<description>可选键命名空间。用于多处复用同名子结构时隔离 source key。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="enabled" line="54" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否启用该 Scope。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="save_enabled" line="59" decorators="@export">
+			<signature>var save_enabled: bool = true</signature>
+			<description>是否参与保存。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="load_enabled" line="64" decorators="@export">
+			<signature>var load_enabled: bool = true</signature>
+			<description>是否参与加载。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="phase" line="69" decorators="@export">
+			<signature>var phase: Phase = Phase.NORMAL</signature>
+			<description>执行阶段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="restore_policy" line="74" decorators="@export">
+			<signature>var restore_policy: RestorePolicy = RestorePolicy.APPLY_ONLY_EXISTING</signature>
+			<description>恢复策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_scope_key" line="84">
+			<signature>func get_scope_key() -&gt; StringName:</signature>
+			<description>获取 Scope 稳定标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">作用域键。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_key_prefix" line="95">
+			<signature>func get_key_prefix() -&gt; String:</signature>
+			<description>获取来源键前缀。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">前缀字符串。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="describe_scope" line="106">
+			<signature>func describe_scope() -&gt; Dictionary:</signature>
+			<description>返回当前 Scope 的通用描述。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">描述字典。</tag>
+				<tag name="schema">return: Dictionary，包含 scope_key、key_namespace、phase 与 restore_policy。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

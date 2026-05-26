@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFActionInterceptionResult" path="addons/gf/extensions/action_queue/core/gf_action_interception_result.gd" module="extensions/action_queue" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFActionInterceptionResult: 动作队列拦截器的处理结果。
+用于在动作执行前后表达继续、跳过、替换或停止队列等通用决策。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="Decision" line="19">
+			<signature>enum Decision { ## 继续当前动作。 CONTINUE, ## 跳过当前动作并继续后续队列。 SKIP, ## 用 replacement_action 替换当前动作。 REPLACE, ## 停止并清空当前队列。 STOP_QUEUE, }</signature>
+			<description>拦截器决策类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="decision" line="36">
+			<signature>var decision: Decision = Decision.CONTINUE</signature>
+			<description>当前决策。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="replacement_action" line="41">
+			<signature>var replacement_action: Object = null</signature>
+			<description>替换动作，仅在 decision 为 REPLACE 时使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" line="48">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>调用方自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，由项目或拦截器定义的附加诊断数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="is_continue" line="70">
+			<signature>func is_continue() -&gt; bool:</signature>
+			<description>判断结果是否表示继续当前动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">继续时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_skip" line="79">
+			<signature>func is_skip() -&gt; bool:</signature>
+			<description>判断结果是否表示跳过当前动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">跳过时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_replace" line="88">
+			<signature>func is_replace() -&gt; bool:</signature>
+			<description>判断结果是否表示替换当前动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">替换时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_stop_queue" line="97">
+			<signature>func is_stop_queue() -&gt; bool:</signature>
+			<description>判断结果是否表示停止队列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">停止时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="continue_action" line="110">
+			<signature>static func continue_action(p_metadata: Dictionary = {}) -&gt; GFActionInterceptionResult:</signature>
+			<description>创建继续结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_metadata: 可选元数据。</tag>
+				<tag name="return">继续结果。</tag>
+				<tag name="schema">p_metadata: Dictionary，由项目或拦截器定义的附加诊断数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="skip_action" line="123">
+			<signature>static func skip_action(p_metadata: Dictionary = {}) -&gt; GFActionInterceptionResult:</signature>
+			<description>创建跳过结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_metadata: 可选元数据。</tag>
+				<tag name="return">跳过结果。</tag>
+				<tag name="schema">p_metadata: Dictionary，由项目或拦截器定义的附加诊断数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="replace_with" line="138">
+			<signature>static func replace_with( action: Object, p_metadata: Dictionary = {} ) -&gt; GFActionInterceptionResult:</signature>
+			<description>创建替换结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">action: 替换动作。</tag>
+				<tag name="param">p_metadata: 可选元数据。</tag>
+				<tag name="return">替换结果。</tag>
+				<tag name="schema">p_metadata: Dictionary，由项目或拦截器定义的附加诊断数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="stop_queue" line="156">
+			<signature>static func stop_queue(p_metadata: Dictionary = {}) -&gt; GFActionInterceptionResult:</signature>
+			<description>创建停止队列结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_metadata: 可选元数据。</tag>
+				<tag name="return">停止队列结果。</tag>
+				<tag name="schema">p_metadata: Dictionary，由项目或拦截器定义的附加诊断数据。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

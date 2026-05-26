@@ -1,0 +1,141 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFBudgetLedger" path="addons/gf/standard/foundation/budget/gf_budget_ledger.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+	<description>GFBudgetLedger: 通用资源预算账本。
+用于记录一组抽象资源的容量、可用量和消耗结果。
+资源含义由项目决定，框架只提供预算检查、消费、释放和快照。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.17.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="budget_changed" line="26">
+			<signature>signal budget_changed(budget_id: StringName, available: float, capacity: float)</signature>
+			<description>资源预算变化后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">available: 当前可用量。</tag>
+				<tag name="param">capacity: 当前容量。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="budget_consumed" line="35">
+			<signature>signal budget_consumed(budget_id: StringName, amount: float)</signature>
+			<description>资源消费成功后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">amount: 消费数量。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="budget_rejected" line="46">
+			<signature>signal budget_rejected(budget_id: StringName, amount: float, reason: String)</signature>
+			<description>资源消费被拒绝后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">amount: 请求数量。</tag>
+				<tag name="param">reason: 拒绝原因。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="set_capacity" line="65">
+			<signature>func set_capacity(budget_id: StringName, capacity: float, reset_available: bool = true) -&gt; void:</signature>
+			<description>设置预算容量，并可选重置可用量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">capacity: 容量。</tag>
+				<tag name="param">reset_available: 是否把可用量重置为容量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_available" line="87">
+			<signature>func set_available(budget_id: StringName, available: float) -&gt; void:</signature>
+			<description>设置当前可用量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">available: 可用量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_capacity" line="105">
+			<signature>func get_capacity(budget_id: StringName) -&gt; float:</signature>
+			<description>获取容量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="return">容量；不存在时返回 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_available" line="117">
+			<signature>func get_available(budget_id: StringName) -&gt; float:</signature>
+			<description>获取可用量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="return">可用量；不存在时返回 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_consume" line="131">
+			<signature>func can_consume(budget_id: StringName, amount: float) -&gt; bool:</signature>
+			<description>是否有足够预算。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">amount: 请求数量。</tag>
+				<tag name="return">预算足够时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="consume" line="152">
+			<signature>func consume(budget_id: StringName, amount: float, metadata: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>尝试消费预算。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">amount: 消费数量。</tag>
+				<tag name="param">metadata: 调用方附加信息。</tag>
+				<tag name="return">消费结果字典。</tag>
+				<tag name="schema">metadata: Dictionary copied into the consume result.</tag>
+				<tag name="schema">return: Dictionary with ok, budget_id, amount, reason, available, capacity, and metadata.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="release" line="180">
+			<signature>func release(budget_id: StringName, amount: float) -&gt; void:</signature>
+			<description>释放预算，可用量不会超过容量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识。</tag>
+				<tag name="param">amount: 释放数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="reset" line="196">
+			<signature>func reset(budget_id: StringName = &amp;"") -&gt; void:</signature>
+			<description>将一个或全部预算重置为容量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">budget_id: 预算标识；为空时重置全部。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear" line="213">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空所有预算。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_snapshot" line="224">
+			<signature>func get_snapshot() -&gt; Dictionary:</signature>
+			<description>获取预算快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">预算字典副本。</tag>
+				<tag name="schema">return: Dictionary from budget id to capacity and available values.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>
