@@ -22,57 +22,33 @@
 
 ---
 
-## [3.17.0] - 2026-05-22
+## [3.18.0] - 2026-05-26
 
-**版本概述**：完成 GF Framework 全量 API Surface 严格规范迁移，把 `addons/gf` 的公开 API、protected 扩展点、框架内部 API、层内部 API 与私有实现边界整理为可查阅、可测试、可维护的发布契约；同步补齐 Godot 文档渲染换行、结构化 schema、版本标记与发布元数据。
+**版本概述**：新增一组保持框架抽象边界的基础设施能力，重点补强 3D 网格/表面映射、通用 SaveGraph 数据源和可组合标签条件；这些能力只提供纯算法、Resource 契约或通用适配，不绑定具体玩法、TileMap、渲染、碰撞或业务语义。
 
 ### 🚀 新增特性 (Added)
 
-- 新增 `API_SURFACE.md`，正式定义 `@api public`、`@api protected`、`@api framework_internal`、`@api layer_internal`、`@category`、`@schema`、canonical section 顺序、私有成员静默规则与迁移标记规则。
-- 新增 API Surface 契约维护测试与正例夹具，覆盖公开类文档、公开成员文档、protected hook section、结构化类型 schema、Godot `[br]` 文档换行、占位 `@since 1.0.0` 禁止项以及迁移标记归零检查。
-- 新增或稳定化多个公开诊断入口与 debug snapshot，让测试和项目诊断可以读取公开契约，而不是直接依赖 `_queue`、`_rng`、`_pending_timers`、对象池内部字典、四叉树 `_root` 等私有状态。
-- `GFSlotInventoryModel` 新增 `slot_state_changed`、`slot_filled`、`slot_emptied` 信号，新增 `sort_slots()` 公开排序入口与 protected `_should_sort_slot_before()` 扩展点，便于项目以稳定契约实现槽位整理规则。
-
-### 🔄 机制更改 (Changed)
-
-- `addons/gf` 已完成全量 API Surface 迁移：所有公开类补齐 `@api public`、`@category` 与 `@since 3.17.0`，公开成员补齐 `##` 文档与 `@api public`，结构化 `Dictionary`、`Array`、`Variant` 与嵌套数据补齐 `@schema`。
-- 所有可覆写但不适合作为普通调用入口的 `_` 方法集中到 `# --- 可重写钩子 / 虚方法 ---`，并标记为 `@api protected`；真正私有的变量和方法收敛为无 `##`、无 `@api private` 的实现细节。
-- Godot 文档注释中的机器标签统一使用 `## [br]` 分隔，使编辑器悬浮文档中的 `@api`、`@param`、`@return`、`@schema` 等标签逐行显示，避免挤在同一段里。
-- 公开签名不再暴露 preload 别名，改用真实 `class_name` 类型；内部 helper 类型和 preload 常量不再被误当作公开 API。
-- `CODING_STYLE.md`、`AI_MAINTENANCE.md` 与维护文档补充 API Surface Contract、section 布局、`@onready` 适用范围、私有成员文档约束、迁移标记策略、changelog 同步规则与发布版本同步规则。
-- `GFSlotInventoryModel` 现在会批量收集一次库存变更中的槽位、物品与整体变化通知，在派发期间拒绝同步重入修改，避免监听器回调中的排序或移动污染后续通知上下文。
-- `GFSlotInventoryModel.get_index_debug_snapshot()` 的索引字段由旧 `items` 调整为 `stack_count_by_item` 与 `slot_indices_by_item`，避免把物品计数与槽位索引混淆。
-- 对象池异步预热文档补充 Godot `ready` 一次性信号的时序说明，提醒调用方先等待宿主就绪或检查 `is_node_ready()` 再执行跨帧预热。
-
-### ⚠️ 废弃与移除 (Deprecated/Removed)
-
-- 移除 `addons/gf` 内全部 `# @api_surface_migration partial` 标记；当前迁移债务基线归零。
-- 移除 GF 源码和 API 示例中的占位 `@since 1.0.0`，本轮发布后的严格 API Surface 起点统一记录为 `3.17.0`。
-- 移除公开 API 对 preload 类型别名的依赖，后续项目代码应以 `class_name` 类型作为公开签名参照。
+- 新增 `GFRegionMap3D`，提供 `Vector3i` 格子到三维区域的通用数据映射、脏区域追踪、区域快照和格子范围到区域键查询，适合大地图局部保存、编辑器批处理和运行时 3D 格子缓存，不绑定 TileMap、渲染、碰撞或项目规则。
+- 新增 `GFGridKey3D`，提供有限范围内 `Vector3i` 格坐标、`Vector3` 位置量化和方向编号的稳定整数 key packing，减少项目侧重复字符串 key 与临时 hash。
+- 新增 `GFGridPlaneMapper3D`，提供 axis-aligned 3D 表面到局部 2D 邻域坐标的映射与采样，便于复用 `GFTileRuleSet` 等 2D 邻域规则而不绑定具体瓦片或地图语义。
+- 新增 `GFSaveDataSource`，让 Resource、目标 Node 或目标属性上的通用数据对象通过 `to_dict()` / `from_dict()` 风格协议接入 SaveGraph，减少项目为纯数据状态重复编写 `GFSaveSource` 子类。
+- 新增 `GFTagExpression`，在 `GFTagQuery` 之上提供可嵌套 all/any/none 标签表达式与匹配报告，便于技能条件、AI 感知、配置过滤和编辑器筛选复用复杂标签规则。
 
 ### 🔌 API 变动说明 (API Changes)
 
-- `GFTurnPhase.enter()`、`GFTurnPhase.execute()`、`GFTurnPhase.exit()` 规范化为 protected 扩展点 `_enter()`、`_execute()`、`_exit()`，由 `GFTurnFlowSystem` 调用。
-- `GFTurnAction.resolve()` 规范化为 protected 扩展点 `_resolve()`，由 `GFTurnFlowSystem.resolve_actions()` 调用。
-- `GFSceneUtility` 的公开签名改用 `GFSceneTransitionConfig` 与 `GFScenePreloadMap`；`GFRenderWarmupUtility` 的公开签名改用 `GFRenderWarmupManifest`；`GFSteeringBehaviorStack.add_behavior()` 改用 `GFSteeringBehaviorResource`。
-- `GFProgressionMath.evaluate_curve()`、`apply_milestone_multipliers()`、`apply_soft_cap()` 与 `GFBigNumber.to_big_number()` 的返回类型收窄为 `GFBigNumber`。
-- `GFGridOccupancy.get_cell_occupants()`、`GFSpatialHash3D.query_aabb()` 与 `GFSpatialHash3D.query_radius()` 的返回类型补为 `Array[Variant]`。
-- `GFSlotInventoryModel.get_index_debug_snapshot()` 不再返回 `items` 字段，改为返回 `stack_count_by_item` 与 `slot_indices_by_item`。
+- 新增公开 API：`GFRegionMap3D`、`GFGridKey3D`、`GFGridPlaneMapper3D`、`GFSaveDataSource`、`GFTagExpression`。
+- `gf.save` 内置扩展的 `extension_version` 从 `2.1.0` 升至 `2.2.0`，表示新增向后兼容的 SaveGraph 数据源能力。
+- 本版本不移除或重命名既有公开 API。
 
 ### 📘 升级指南 (Migration Guide)
 
-- 继承 `GFTurnPhase` 的项目阶段类需要把 `enter(context)`、`execute(context)`、`exit(context)` 重命名为 `_enter(context)`、`_execute(context)`、`_exit(context)`。
-- 继承 `GFTurnAction` 的项目行动类需要把 `resolve(context)` 重命名为 `_resolve(context)`。
-- 对 `GFSceneUtility`、`GFRenderWarmupUtility`、`GFSteeringBehaviorStack` 等类型做静态类型标注时，应改用公开 `class_name` 类型，不要依赖内部 preload 常量名。
-- 依赖 `GFProgressionMath` 或 `GFBigNumber.to_big_number()` 返回 `Object` 的项目代码，应改按 `GFBigNumber` 处理。
-- 项目测试不要再读取 GF 私有状态；优先改用公开 getter、debug snapshot、protected hook 或稳定行为断言。
-- 监听 `GFSlotInventoryModel` 的槽位、物品或库存变化信号时，不要在同步回调里继续调用 `sort_slots()`、`swap_slots()`、`move_between_slots()`、`add_item()`、`remove_item()` 等修改接口；需要由信号触发整理时，使用 `call_deferred("sort_slots")` 或等待当前通知结束后再修改。
-- 读取槽位库存索引调试信息的代码应把旧 `index.items[item_id]` 改为 `index.stack_count_by_item[item_id]`；需要槽位编号时读取 `index.slot_indices_by_item[item_id]`。
-- 新增公开 API 文档时，应在 `@api`、`@category`、`@since`、`@param`、`@return`、`@schema` 等机器标签前使用 `## [br]`，保证 Godot 编辑器渲染结果可读。
+- 本版本为向后兼容新增能力，现有项目无需迁移。
+- 需要为纯数据 Resource、Node 或属性接入 SaveGraph 时，可以优先评估 `GFSaveDataSource`，避免为简单状态对象重复编写专用 `GFSaveSource` 子类。
+- 需要在 3D 地面、墙面或天花板上复用 2D 邻域规则时，可以使用 `GFGridPlaneMapper3D` 将 3D 表面邻域映射为局部 2D offset。
 
 ### 📁 核心受影响文件 (Affected Files)
 
-- API Surface 规范与维护测试：`API_SURFACE.md`、`CODING_STYLE.md`、`AI_MAINTENANCE.md`、`docs/zh/maintenance/index.md`、`tests/gf_core/fixtures/api_surface/**`、`tests/gf_core/maintenance/test_api_surface_contract_validation.gd`、`tests/gf_core/maintenance/test_gdscript_layout_validation.gd`。
-- 全量严格迁移源码：`addons/gf/kernel/**`、`addons/gf/standard/**`、`addons/gf/extensions/**`、`addons/gf/plugin.gd`。
-- 公开契约测试调整：`tests/gf_core/extensions/**`、`tests/gf_core/standard/**` 中依赖公开状态、公开 snapshot 或稳定诊断入口的测试。
+- 标准库基础能力：`addons/gf/standard/foundation/math/gf_region_map_3d.gd`、`addons/gf/standard/foundation/math/gf_grid_key_3d.gd`、`addons/gf/standard/foundation/math/gf_grid_plane_mapper_3d.gd`、`addons/gf/standard/foundation/tags/gf_tag_expression.gd`。
+- Save 扩展：`addons/gf/extensions/save/core/gf_save_data_source.gd`、`addons/gf/extensions/save/gf_extension.json`。
+- 测试与文档：`tests/gf_core/standard/foundation/math/**`、`tests/gf_core/standard/foundation/tags/**`、`tests/gf_core/extensions/save/**`、`docs/zh/standard/foundation/grid-spatial.md`、`docs/zh/standard/foundation/data-validation.md`、`docs/zh/extensions/save-graph/index.md`。
 - 发布元数据：`addons/gf/plugin.cfg`、`addons/gf/extensions/*/gf_extension.json`、`ASSET_LIBRARY.md`。

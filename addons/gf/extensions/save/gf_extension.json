@@ -1,10 +1,10 @@
 {
   "id": "gf.save",
   "display_name": "GF Save",
-  "version": "3.17.0",
-  "extension_version": "2.1.0",
+  "version": "3.18.0",
+  "extension_version": "2.2.0",
   "kind": "extension",
-  "description": "Save graph composition, node serializers, save pipelines, scopes, sources, and slot workflows.",
+  "description": "Save graph composition, node serializers, generic data sources, save pipelines, scopes, sources, and slot workflows.",
   "dependencies": ["gf.kernel", "gf.standard"],
   "installer_paths": [
     "res://addons/gf/extensions/save/extension.gd"

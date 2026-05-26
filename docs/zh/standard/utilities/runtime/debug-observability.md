@@ -315,7 +315,7 @@ diagnostics.set_command_enabled(&"runtime.limit", false)
 
 `collect_signal_graph_snapshot()` 与内置命令 `diagnostics.signals` 会对当前场景根或传入根节点生成只读信号图；`collect_snapshot({ "include_signal_graph": true })` 可把它合并进完整诊断快照。它不会连接、断开或触发信号，只读取节点、信号和连接摘要。
 
-诊断监控项适合给 Overlay、编辑器面板或远程调试工具提供稳定采样入口。内置预设包括 `minimal`、`performance`、`architecture`、`tools` 与 `overlay`；`GF Workspace > Diagnostics` 页面可直接采集这些预设、通用性能数据、工具快照和可选场景树摘要，便于开发期只读排查。项目也可以注册自己的轻量 provider，并按预设导出 JSON、文本或 CSV：
+诊断监控项适合给 Overlay、编辑器面板或远程调试工具提供稳定采样入口。内置预设包括 `minimal`、`performance`、`architecture`、`tools` 与 `overlay`；编辑器中的 `GFDiagnosticsDock` 渲染 `GF Workspace > Diagnostics` 页面，可直接采集这些预设、通用性能数据、工具快照和可选场景树摘要，便于开发期只读排查。项目也可以注册自己的轻量 provider，并按预设导出 JSON、文本或 CSV：
 
 ```gdscript
 var enemy_count_provider := func() -> int:

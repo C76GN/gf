@@ -2,9 +2,9 @@
 
 这些 Foundation 能力用于标签查询、公式规则、值索引、变更批次、Variant 处理、校验报告和结果字典等通用数据流程。
 
-## `GFTagSet` / `GFTagQuery` / `GFTagSourceAdapter`
+## `GFTagSet` / `GFTagQuery` / `GFTagExpression` / `GFTagSourceAdapter`
 
-这组三个类提供 Foundation 级标签查询原语，适合在技能条件、AI 感知、配置校验、编辑器过滤或任意项目对象上复用。它们只处理 `StringName` 标签、层数和 all/any/none 查询，不维护全局标签表，也不规定标签命名语义。
+这组类提供 Foundation 级标签查询原语，适合在技能条件、AI 感知、配置校验、编辑器过滤或任意项目对象上复用。它们只处理 `StringName` 标签、层数、all/any/none 查询和可嵌套表达式，不维护全局标签表，也不规定标签命名语义。
 
 ```gdscript
 var tags := GFTagSet.new()
@@ -19,6 +19,21 @@ query.include_child_tags = true
 
 if query.matches(tags):
 	# 项目层自行决定匹配后的行为。
+	pass
+```
+
+需要表达更复杂的组合条件时，用 `GFTagExpression` 组合多个 `GFTagQuery`：
+
+```gdscript
+var burning_enemy := GFTagExpression.from_query(
+	GFTagQuery.new().configure([&"team.enemy", &"state.burning"])
+)
+var boss := GFTagExpression.from_query(
+	GFTagQuery.new().configure([&"rank.boss"])
+)
+
+var target_rule := GFTagExpression.new().configure_any([burning_enemy, boss])
+if target_rule.matches(tags):
 	pass
 ```
 
@@ -258,6 +273,8 @@ GFValidationReportDictionary.finalize_report(legacy_report, "Config table")
 ```
 
 `finalize_report()` 会把 `issues` 中的字典问题归一化为标准问题字典，并回写 `severity`、`kind`、`message`、定位字段和附加字段。旧的 `code` / `type` 不再作为问题类别别名读取，也不会继续透出；需要稳定问题标识时请显式写入 `kind`。
+
+复杂数据结构如果需要输出质量审计报告，也应优先复用这套格式：用 `extra_fields` 或字典报告的自定义字段携带 `stats`、`quality_score`、`checked_count` 等统计，用 `issues` 表达可定位的问题。这样编辑器、导入器、CI 和项目工具仍能共享 `ok`、`healthy`、`error_count`、`warning_count`、`summary` 与 `next_action`，而不是为每个数据结构重新定义报告字段。
 
 推荐把 `kind` 设计成稳定、抽象的 snake_case 标识，把具体修复策略放在调用方传入的 `next_actions` 映射中。这样框架层只负责报告结构和统计，不把项目业务规则写死进基础件。
 

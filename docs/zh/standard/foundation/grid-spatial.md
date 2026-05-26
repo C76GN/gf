@@ -202,6 +202,35 @@ var surface_path := GFGrid3DMath.find_surface_path_a_star(
 
 表面路径只提供“从当前站立格向水平邻列寻找可站立高度”的机制。是否需要脚底实体、头顶空间、坡度、跳跃、体型半径或动画状态，应继续由项目自己的移动系统和碰撞系统负责。
 
+`GFGridKey3D` 用有限范围 bit packing 把 `Vector3i` 格坐标和 0..63 的方向编号打包成稳定非负整数 key，避免项目层重复拼接字符串 key 或混用临时 hash。默认坐标范围为 `-262144..262143`，超出范围会返回 `INVALID_KEY`，调用方可以按项目地图规模选择是否使用它：
+
+```gdscript
+var key := GFGridKey3D.pack_cell(Vector3i(-12, 4, 18), 3)
+if key != GFGridKey3D.INVALID_KEY:
+	var cell := GFGridKey3D.unpack_cell(key)
+	var orientation := GFGridKey3D.unpack_orientation(key)
+
+var position_key := GFGridKey3D.pack_position(
+	unit_position,
+	Vector3(2.0, 1.0, 2.0),
+	Vector3.ZERO,
+	facing_index
+)
+```
+
+`GFGridPlaneMapper3D` 用 axis-aligned 法线把 3D 表面映射为局部 2D 坐标。它可以让 `GFTileRuleSet` 这类 2D 邻域规则复用在地面、墙面或天花板格子上；GF 只负责坐标映射和回调采样，不解释面上的瓦片、墙体、建造或体素含义：
+
+```gdscript
+var sampled := GFGridPlaneMapper3D.sample_neighbor_values(
+	Vector3i(8, 2, 8),
+	Vector3i(0, 1, 0),
+	func(cell: Vector3i) -> Variant:
+		return surface_values.get(cell, 0)
+)
+
+var result := rules.resolve(sampled)
+```
+
 
 ## `GFPattern2D`
 
@@ -340,6 +369,21 @@ for region_key in regions.get_dirty_region_keys():
 	var snapshot := regions.get_region_snapshot(region_key)
 	# 项目层自行决定如何保存或刷新该区域。
 	pass
+```
+
+`GFRegionMap3D` 提供同一概念的三维版本，使用 `Vector3i` 格坐标与三维区域键。它只管理数据与脏区域，不绑定 TileMap、渲染、碰撞或项目规则：
+
+```gdscript
+var regions_3d := GFRegionMap3D.new()
+regions_3d.region_size = Vector3i(16, 16, 16)
+regions_3d.set_cell(Vector3i(33, 2, -1), { "state": &"occupied" })
+
+var touched_regions := regions_3d.get_region_keys_for_cell_bounds(
+	Vector3i(30, 0, -4),
+	Vector3i(40, 8, 4)
+)
+var dirty_regions_3d := regions_3d.get_dirty_region_keys()
+regions_3d.clear_dirty()
 ```
 
 
