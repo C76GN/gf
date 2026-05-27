@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFFlowGraphDock" path="addons/gf/extensions/flow/editor/gf_flow_graph_dock.gd" module="extensions/flow" extends="Control" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFFlowGraphDock" path="addons/gf/extensions/flow/editor/gf_flow_graph_dock.gd" module="extensions/flow" extends="Control" classDigest="5c1e972dfbeba9aad888ef0a1232cf499a06686b45bcb42eb8fde8a3f42e2022">
 	<description>GFFlowGraphDock: FlowGraph 图形化编辑与结构检查工作区页面。
 为资源化流程图提供路径加载、GraphEdit 预览/连线、校验摘要、节点/连接清单
 和通用自动布局，不提供业务节点库，也不解释项目自定义元数据。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="set_graph" line="66">
+		<member kind="method" name="set_graph">
 			<signature>func set_graph(graph: GFFlowGraph, path: String = "") -&gt; void:</signature>
 			<description>设置当前查看的 FlowGraph。</description>
 			<tags>
@@ -22,7 +22,7 @@
 				<tag name="param">path: 可选资源路径。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_graph_path" line="79">
+		<member kind="method" name="set_graph_path">
 			<signature>func set_graph_path(path: String) -&gt; void:</signature>
 			<description>设置并加载当前 FlowGraph 资源路径。</description>
 			<tags>
@@ -30,14 +30,14 @@
 				<tag name="param">path: `res://` 资源路径。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="refresh" line="90">
+		<member kind="method" name="refresh">
 			<signature>func refresh() -&gt; void:</signature>
 			<description>刷新当前 FlowGraph 视图。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_last_view_model" line="104">
+		<member kind="method" name="get_last_view_model">
 			<signature>func get_last_view_model() -&gt; Dictionary:</signature>
 			<description>获取最近一次 FlowGraph 视图模型。</description>
 			<tags>

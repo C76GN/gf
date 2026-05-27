@@ -22,46 +22,63 @@
 
 ---
 
-## [3.18.1] - 2026-05-27
+## [3.19.0] - 2026-05-27
 
-**版本概述**：重构正式文档体系，新增结构化 API Catalog 与生成式 API Reference，并把文档形态、链接、渲染语法和公开 API 覆盖纳入自动校验。本版本不改变运行时公开 API。
+**版本概述**：新增无状态 UUID、2D 曲线折线辅助和可选空间音效设置资源，用于统一框架内通用字符串标识、几何路径处理与空间 SFX 播放参数。
 
 ### 🚀 新增特性 (Added)
 
-- 新增 `tools/generate_api_reference.py`，从 `addons/gf/**/*.gd` 的 API 注释生成 `docs/api_catalog` XML Catalog，再生成 `docs/zh/reference/api` Markdown Reference。
-- 新增 API Reference 覆盖校验，确认 XML Catalog 中的公开类和公开成员都能在对应 Reference 页面找到。
-- 新增 `tools/check_docs_quality.py`，用于检查手写文档的页面长度、段落长度、H1、代码块语言、页面粒度、入口模板、本地链接、Mermaid 渲染语法、维护流程泄漏和长正文结构。
-- 新增维护者资料区，集中维护发布、文档治理、页面粒度和编辑器维护规则，避免维护流程混入用户正文。
+- 新增 `GFUuid`，提供 UUID v4、UUID v7 生成和 canonical UUID 校验。
+- 新增 `GFCurve2DMath`，提供折线长度、归一化采样、点距简化，以及闭合矩形和椭圆 `Curve2D` 生成/复用写入。
+- 新增 `GFAudioSpatialSettings`，可挂到 `GFAudioClip.spatial_settings`，为 2D/3D 空间 SFX 配置距离衰减、区域、复音、播放类型、3D 发射角、滤波和多普勒参数。
+- `GFValidationReportDictionary` 新增通用问题指纹与报告过滤能力，方便项目工具、导入器和 CI 复用同一份报告格式实现忽略项与基线。
 
 ### 🔄 机制更改 (Changed)
 
-- 重组中文文档目录，使 `overview`、`kernel`、`standard`、`extensions`、`editor`、`reference` 的文件目录与 MkDocs 导航严格对应。
-- 将大型组合页拆成稳定语义目录和子页，同时增加页面粒度边界，避免继续把同一组内容拆成碎片页。
-- 重写 Standard 与 Extensions 入口页，使正文以职责、阅读入口和使用边界为主，API 清单改由生成式 Reference 承担。
-- 更新 README、维护说明、MkDocs 导航和 Release 工作流，使发布构建校验 API Reference 与手写文档质量。
+- `tools/generate_api_reference.py` 生成的 class XML 改用单类 `classDigest`，全局 `sourceDigest` 仅保留在 Catalog 索引中，且正式 Catalog 不再记录源码行号，减少后续单类 API 变更或纯位置变化造成的生成文件噪声。
+- `tools/generate_api_reference.py` 与 `tools/generate_ai_api.py` 现在能正确解析 `@export_range(...) var`、`@export_file(...) var`、`@export_node_path(...) var` 等 Godot 装饰导出变量，避免 API Reference 漏掉公开属性。
+- `tools/generate_api_reference.py` 与 `tools/generate_ai_api.py` 改为复用 `tools/gdscript_api_parser.py`，让正式 API Reference 和 AI API 摘要保持同一套 GDScript 声明与 API 注释解析规则。
+- `GFAnalyticsUtility` 内部生成 client/session id 时改用 `GFUuid.generate_v4()`，收敛重复私有实现。
+- `GFAudioUtility` 播放空间 SFX 时会读取 `GFAudioClip.spatial_settings`，为空时保持 Godot 播放器默认空间参数。
 
 ### 🐛 Bug 修复 (Fixed)
 
-- 修复 Mermaid 内容只显示源码、不渲染图表的问题。
-- 修复 API Reference 生成器未覆盖公开内部类的问题，例如 `GFBehaviorTree.BTNode` 与 `GFCombatPayloads.GFBuffAppliedPayload`。
-- 修复 `@return:` 标签解析，确保返回值说明进入 XML Catalog 和 Markdown Reference。
-- 移除公开正文中的治理性说明、目录定位说明和维护流程残留。
+- 修复 3D 空间 SFX 播放器在进入场景树前写入 `global_position` 时触发 Godot `!is_inside_tree()` 错误的问题。
 
 ### 🔌 API 变动说明 (API Changes)
 
-- 本版本不新增、移除或重命名运行时公开 API。
-- 所有 GF 内置扩展仅同步 `version` 到 `3.18.1`；`extension_version` 不变。
+- 新增公开类 `GFUuid`。
+- 新增公开类 `GFCurve2DMath`。
+- 新增公开类 `GFAudioSpatialSettings`。
+- `GFAudioClip` 新增公开字段 `spatial_settings`。
+- `GFValidationReportDictionary` 新增 `make_issue_fingerprint()` 与 `filter_issues()`。
+- 所有 GF 内置扩展仅同步 `version` 到 `3.19.0`；`extension_version` 不变。
 
 ### 📘 升级指南 (Migration Guide)
 
-- 现有项目无需修改运行时代码。
-- 文档入口调整为 Read the Docs 导航和 [API Reference](reference/api/index.md)；旧组合页的内容已移动到对应语义目录。
-- 维护者更新 API 注释后应运行 `python tools\generate_api_reference.py`，提交前运行 `python tools\generate_api_reference.py --check` 与 `python tools\check_docs_quality.py --strict`。
+- 现有项目无需修改；需要生成通用字符串标识时可直接使用 `GFUuid`，需要处理通用 2D 折线或基础闭合曲线时可使用 `GFCurve2DMath`。
+- 现有音频片段默认行为不变；只有显式设置 `GFAudioClip.spatial_settings` 的空间 SFX 会应用新参数。
 
 ### 📁 核心受影响文件 (Affected Files)
 
-- 文档生成与质量门禁：`tools/generate_api_reference.py`、`tools/check_docs_quality.py`、`.github/workflows/release.yml`。
-- 生成物：`docs/api_catalog/**`、`docs/zh/reference/api/**`。
-- 正式文档：中文文档源、维护者资料区、`mkdocs.yml`。
-- 维护测试与入口：`tests/gf_core/maintenance/test_docs_structure_validation.gd`、`README.md`、`README.zh.md`、AI 维护指南。
-- 发布元数据：`addons/gf/plugin.cfg`、`addons/gf/extensions/*/gf_extension.json`、`ASSET_LIBRARY.md`。
+- `addons/gf/standard/foundation/identity/gf_uuid.gd`
+- `addons/gf/standard/foundation/math/gf_curve_2d_math.gd`
+- `addons/gf/standard/utilities/analytics/gf_analytics_utility.gd`
+- `addons/gf/standard/utilities/audio/gf_audio_clip.gd`
+- `addons/gf/standard/utilities/audio/gf_audio_spatial_settings.gd`
+- `addons/gf/standard/utilities/audio/gf_audio_utility.gd`
+- `addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd`
+- `tools/generate_api_reference.py`
+- `tools/generate_ai_api.py`
+- `tools/gdscript_api_parser.py`
+- `tests/gf_core/standard/foundation/identity/test_gf_uuid.gd`
+- `tests/gf_core/standard/foundation/math/test_gf_curve_2d_math.gd`
+- `tests/gf_core/standard/foundation/validation/test_gf_validation_report_dictionary.gd`
+- `tests/gf_core/standard/utilities/audio/test_gf_audio_utility.gd`
+- `docs/zh/standard/foundation/data-validation/identity/index.md`
+- `docs/zh/standard/foundation/grid-spatial/curve-2d.md`
+- `docs/zh/standard/foundation/data-validation/validation-reporting/reports-diagnostics/dictionary-reports.md`
+- `docs/zh/standard/utilities/runtime/audio/**`
+- `addons/gf/plugin.cfg`
+- `addons/gf/extensions/*/gf_extension.json`
+- `ASSET_LIBRARY.md`

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSequenceStep" path="addons/gf/standard/sequence/gf_sequence_step.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSequenceStep" path="addons/gf/standard/sequence/gf_sequence_step.gd" module="standard" extends="Resource" classDigest="a9eda40479a94a181281135e151162642037236daec708f39b2fdc0ab399a7cd">
 	<description>GFSequenceStep: 可资源化的序列步骤基类。
 子类重写 `execute()` 返回 `Signal` 时，`GFCommandSequence`
 默认会等待该信号完成；也可以关闭 `wait_for_result` 让步骤异步旁路。</description>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="step_id" line="20" decorators="@export">
+		<member kind="property" name="step_id" decorators="@export">
 			<signature>var step_id: StringName = &amp;""</signature>
 			<description>步骤标识，便于调试和序列编辑器显示。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="wait_for_result" line="25" decorators="@export">
+		<member kind="property" name="wait_for_result" decorators="@export">
 			<signature>var wait_for_result: bool = true</signature>
 			<description>是否等待 `execute()` 返回的 Signal。</description>
 			<tags>
@@ -28,7 +28,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="execute" line="39">
+		<member kind="method" name="execute">
 			<signature>func execute(_context: GFSequenceContext) -&gt; Variant:</signature>
 			<description>执行步骤。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="schema">return: Variant, null or Signal.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="48">
+		<member kind="method" name="cancel">
 			<signature>func cancel(_context: GFSequenceContext) -&gt; void:</signature>
 			<description>请求取消步骤。</description>
 			<tags>

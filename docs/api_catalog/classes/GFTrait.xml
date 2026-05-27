@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTrait" path="addons/gf/extensions/domain/traits/gf_trait.gd" module="extensions/domain" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTrait" path="addons/gf/extensions/domain/traits/gf_trait.gd" module="extensions/domain" extends="Resource" classDigest="912ec64df2849bcb3996fa4dd7cfda60518ed4a5ac004b916e286e249562e748">
 	<description>GFTrait: 通用被动特征数据。
 用于描述“某个来源对某个目标键产生的数值或标记影响”。
 它不限定属性、伤害、装备等业务语义。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="CombineMode" line="20">
+		<member kind="enum" name="CombineMode">
 			<signature>enum CombineMode { ## 与当前值相加。 ADD,  ## 与当前值相乘。 MULTIPLY,  ## 直接覆盖当前值。 SET,  ## 取当前值与特征值中的较大值。 MAX,  ## 取当前值与特征值中的较小值。 MIN, }</signature>
 			<description>数值合并方式。</description>
 			<tags>
@@ -20,49 +20,49 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="trait_id" line="43" decorators="@export">
+		<member kind="property" name="trait_id" decorators="@export">
 			<signature>var trait_id: StringName = &amp;""</signature>
 			<description>特征标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target_id" line="48" decorators="@export">
+		<member kind="property" name="target_id" decorators="@export">
 			<signature>var target_id: StringName = &amp;""</signature>
 			<description>目标键，例如属性名、规则名或项目自定义键。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="category" line="53" decorators="@export">
+		<member kind="property" name="category" decorators="@export">
 			<signature>var category: StringName = &amp;""</signature>
 			<description>可选分类，用于过滤不同规则域。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="value" line="58" decorators="@export">
+		<member kind="property" name="value" decorators="@export">
 			<signature>var value: float = 0.0</signature>
 			<description>数值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="combine_mode" line="63" decorators="@export">
+		<member kind="property" name="combine_mode" decorators="@export">
 			<signature>var combine_mode: CombineMode = CombineMode.ADD</signature>
 			<description>合并方式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="priority" line="68" decorators="@export">
+		<member kind="property" name="priority" decorators="@export">
 			<signature>var priority: int = 0</signature>
 			<description>排序优先级，值越小越先应用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="75" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>自定义元数据。</description>
 			<tags>
@@ -72,7 +72,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="apply_number" line="87">
+		<member kind="method" name="apply_number">
 			<signature>func apply_number(current_value: float) -&gt; float:</signature>
 			<description>将当前特征应用到数值上。</description>
 			<tags>

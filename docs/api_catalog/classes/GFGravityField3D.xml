@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFGravityField3D" path="addons/gf/extensions/physics/nodes/gf_gravity_field_3d.gd" module="extensions/physics" extends="Node3D" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFGravityField3D" path="addons/gf/extensions/physics/nodes/gf_gravity_field_3d.gd" module="extensions/physics" extends="Node3D" classDigest="054b97438dff4d706badc167593156285534d6c5a1323c9592931896168456af">
 	<description>GFGravityField3D: 通用 3D 重力/加速度场。
 提供点重力、远离中心和固定方向三种方向模式，以及常量、线性、平方反比
 和曲线衰减。项目可继承并重写方向或强度计算以实现更复杂的场。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="field_changed" line="20">
+		<member kind="signal" name="field_changed">
 			<signature>signal field_changed</signature>
 			<description>力场参数变化时发出。</description>
 			<tags>
@@ -18,14 +18,14 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="DirectionMode" line="28">
+		<member kind="enum" name="DirectionMode">
 			<signature>enum DirectionMode { ## 朝向力场节点原点。 TOWARD_ORIGIN, ## 远离力场节点原点。 AWAY_FROM_ORIGIN, ## 使用固定方向。 CONSTANT_DIRECTION, }</signature>
 			<description>力场方向模式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="enum" name="FalloffMode" line="40">
+		<member kind="enum" name="FalloffMode">
 			<signature>enum FalloffMode { ## 半径内保持恒定强度。 CONSTANT, ## 从中心到半径边缘线性衰减。 LINEAR, ## 按平方反比衰减。 INVERSE_SQUARE, ## 使用 Curve 采样衰减；横轴为距离占半径比例。 CURVE, }</signature>
 			<description>强度衰减模式。</description>
 			<tags>
@@ -35,56 +35,56 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="enabled" line="57" decorators="@export">
+		<member kind="property" name="enabled" decorators="@export">
 			<signature>var enabled: bool = true:</signature>
 			<description>是否启用力场。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="acceleration" line="65" decorators="@export">
+		<member kind="property" name="acceleration" decorators="@export">
 			<signature>var acceleration: float = 9.8:</signature>
 			<description>基础加速度强度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="radius" line="73" decorators="@export">
+		<member kind="property" name="radius" decorators="@export">
 			<signature>var radius: float = 0.0:</signature>
 			<description>影响半径；小于等于 0 表示无限范围。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="min_distance" line="81" decorators="@export">
+		<member kind="property" name="min_distance" decorators="@export">
 			<signature>var min_distance: float = 1.0:</signature>
 			<description>平方反比模式下用于避免近距离发散的最小距离。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="direction_mode" line="89" decorators="@export">
+		<member kind="property" name="direction_mode" decorators="@export">
 			<signature>var direction_mode: DirectionMode = DirectionMode.TOWARD_ORIGIN:</signature>
 			<description>方向模式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="constant_direction" line="97" decorators="@export">
+		<member kind="property" name="constant_direction" decorators="@export">
 			<signature>var constant_direction: Vector3 = Vector3.DOWN:</signature>
 			<description>固定方向模式使用的方向。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="falloff_mode" line="105" decorators="@export">
+		<member kind="property" name="falloff_mode" decorators="@export">
 			<signature>var falloff_mode: FalloffMode = FalloffMode.CONSTANT:</signature>
 			<description>强度衰减模式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="falloff_curve" line="113" decorators="@export">
+		<member kind="property" name="falloff_curve" decorators="@export">
 			<signature>var falloff_curve: Curve = null:</signature>
 			<description>曲线衰减模式使用的 Curve。采样值会乘以 acceleration。</description>
 			<tags>
@@ -93,7 +93,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_acceleration_at" line="138">
+		<member kind="method" name="get_acceleration_at">
 			<signature>func get_acceleration_at(world_position: Vector3) -&gt; Vector3:</signature>
 			<description>获取指定世界坐标处的加速度向量。</description>
 			<tags>
@@ -102,7 +102,7 @@
 				<tag name="return">加速度向量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_strength_at_distance" line="160">
+		<member kind="method" name="get_strength_at_distance">
 			<signature>func get_strength_at_distance(distance: float) -&gt; float:</signature>
 			<description>获取指定距离处的力场强度。</description>
 			<tags>

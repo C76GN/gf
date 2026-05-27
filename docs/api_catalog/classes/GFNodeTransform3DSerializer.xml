@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeTransform3DSerializer" path="addons/gf/extensions/save/serializers/gf_node_transform_3d_serializer.gd" module="extensions/save" extends="GFNodeSerializer" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeTransform3DSerializer" path="addons/gf/extensions/save/serializers/gf_node_transform_3d_serializer.gd" module="extensions/save" extends="GFNodeSerializer" classDigest="a3894ccfcb4606d2a028e52bcc4eece972abc4e1984c2c1cbb22f3f9dd3be9a4">
 	<description>GFNodeTransform3DSerializer: Node3D Transform 序列化器。
 以 JSON 友好的标量数组保存 position、rotation 与 scale。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="supports_node" line="39">
+		<member kind="method" name="supports_node">
 			<signature>func supports_node(node: Node) -&gt; bool:</signature>
 			<description>判断序列化器是否支持指定节点。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="return">节点是否为 Node3D。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="gather" line="56">
+		<member kind="method" name="gather">
 			<signature>func gather(node: Node, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集节点的可保存状态。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">return: Dictionary，可包含 position: Array[float]、rotation: Array[float] 与 scale: Array[float]。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply" line="81">
+		<member kind="method" name="apply">
 			<signature>func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>将序列化数据应用到节点。</description>
 			<tags>

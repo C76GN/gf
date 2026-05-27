@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTagSourceAdapter" path="addons/gf/standard/foundation/tags/gf_tag_source_adapter.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTagSourceAdapter" path="addons/gf/standard/foundation/tags/gf_tag_source_adapter.gd" module="standard" extends="RefCounted" classDigest="67df2dd2218ba04f60748d33207e6e9b3b14fe734a37e1914e51d371b8b08e8b">
 	<description>GFTagSourceAdapter: 通用标签源适配器。
 支持 GFTagSet、Array、PackedStringArray、Dictionary 以及具备 has_tag/get_tag_count/get_tags
 方法的对象。它不维护全局标签表，也不规定标签语义。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="source_has_tag" line="32">
+		<member kind="method" name="source_has_tag">
 			<signature>static func source_has_tag( source: Variant, tag: StringName, minimum_count: int = 1, include_child_tags: bool = false ) -&gt; bool:</signature>
 			<description>检查标签源是否拥有指定标签。</description>
 			<tags>
@@ -26,7 +26,7 @@
 				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_tag_count" line="64">
+		<member kind="method" name="get_tag_count">
 			<signature>static func get_tag_count(source: Variant, tag: StringName, include_child_tags: bool = false) -&gt; int:</signature>
 			<description>获取标签源中的标签层数。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_tags" line="87">
+		<member kind="method" name="get_tags">
 			<signature>static func get_tags(source: Variant) -&gt; PackedStringArray:</signature>
 			<description>获取标签源中的标签名。</description>
 			<tags>
@@ -48,7 +48,7 @@
 				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="matches_all" line="123">
+		<member kind="method" name="matches_all">
 			<signature>static func matches_all(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -&gt; bool:</signature>
 			<description>检查标签源是否包含所有标签。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="matches_any" line="143">
+		<member kind="method" name="matches_any">
 			<signature>static func matches_any(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -&gt; bool:</signature>
 			<description>检查标签源是否包含任意标签。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="schema">source: Variant tag source accepted by the adapter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="matches_none" line="165">
+		<member kind="method" name="matches_none">
 			<signature>static func matches_none(source: Variant, tags: Array[StringName], include_child_tags: bool = false) -&gt; bool:</signature>
 			<description>检查标签源是否不包含任何禁止标签。</description>
 			<tags>

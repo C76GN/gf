@@ -1,6 +1,6 @@
 # Bank 播放
 
-`GFAudioClip` 可描述 stream/path、bus、音量、基础 pitch、候选权重和本次播放 pitch 随机范围。`GFAudioBank` 的同一 ID 可保存单个片段或多个候选，并支持用 `fallback_separator` 做分层事件 ID 回退。
+`GFAudioClip` 可描述 stream/path、bus、音量、基础 pitch、候选权重、本次播放 pitch 随机范围和可选空间播放设置。`GFAudioBank` 的同一 ID 可保存单个片段或多个候选，并支持用 `fallback_separator` 做分层事件 ID 回退。
 
 ```gdscript
 var clip := GFAudioClip.new()

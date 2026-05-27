@@ -1,6 +1,9 @@
 extends GutTest
 
 
+const GFAudioSpatialSettingsBase := preload("res://addons/gf/standard/utilities/audio/gf_audio_spatial_settings.gd")
+
+
 var _audio: GFAudioUtility
 var _pool: GFObjectPoolUtility
 
@@ -58,6 +61,11 @@ class MockAudioBackend:
 	var posted_events: PackedStringArray = PackedStringArray()
 	var parameter_values: Dictionary = {}
 	var last_bgm_options: Dictionary = {}
+	var handle_spatial_sfx_clips: bool = false
+	var spatial_sfx_clip_count: int = 0
+	var last_spatial_source: Node = null
+	var last_spatial_follow_source: bool = false
+	var last_spatial_sfx_options: Dictionary = {}
 	var pause_bgm_fade: float = -1.0
 	var resume_bgm_position: float = -1.0
 	var resume_bgm_fade: float = -1.0
@@ -84,6 +92,9 @@ class MockAudioBackend:
 		if channel == &"bgm":
 			return handle_bgm_paths and path.begins_with("event://")
 		return channel == &"sfx" and path.begins_with("event://")
+
+	func can_handle_clip(_clip: GFAudioClip, channel: StringName, context: Dictionary = {}) -> bool:
+		return handle_spatial_sfx_clips and channel == &"spatial_sfx" and context.has("source")
 
 	func play_bgm_path(path: String, options: Dictionary = {}) -> bool:
 		played_bgm_paths.append(path)
@@ -115,6 +126,18 @@ class MockAudioBackend:
 	func play_sfx_path(path: String, options: Dictionary = {}) -> GFAudioEmitterHandle:
 		played_sfx_paths.append(path)
 		return GFAudioEmitterHandle.new(null, Callable(), &"backend", options)
+
+	func play_spatial_sfx_clip(
+		_clip: GFAudioClip,
+		source: Node,
+		follow_source: bool = false,
+		options: Dictionary = {}
+	) -> GFAudioEmitterHandle:
+		spatial_sfx_clip_count += 1
+		last_spatial_source = source
+		last_spatial_follow_source = follow_source
+		last_spatial_sfx_options = options.duplicate(true)
+		return GFAudioEmitterHandle.new(null, Callable(), &"spatial_sfx", options)
 
 	func stop_all_sfx(fade_seconds: float = 0.0) -> bool:
 		stop_all_sfx_fade = fade_seconds
@@ -167,6 +190,15 @@ func after_each() -> void:
 		arch.dispose()
 		await Gf.set_architecture(GFArchitecture.new())
 	await get_tree().process_frame
+
+
+func _make_sampleable_stream() -> AudioStreamWAV:
+	var stream := AudioStreamWAV.new()
+	stream.format = AudioStreamWAV.FORMAT_16_BITS
+	stream.mix_rate = 44100
+	stream.stereo = false
+	stream.data = PackedByteArray([0, 0, 0, 0])
+	return stream
 
 
 func test_play_bgm() -> void:
@@ -525,6 +557,28 @@ func test_audio_backend_can_handle_selected_requests() -> void:
 	assert_true(backend.disposed, "清理后端时应调用 dispose。")
 
 
+func test_audio_backend_receives_spatial_settings_context() -> void:
+	var backend := MockAudioBackend.new()
+	backend.handle_spatial_sfx_clips = true
+	_audio.set_audio_backend(backend)
+	var source := Node2D.new()
+	add_child_autofree(source)
+	var settings := GFAudioSpatialSettingsBase.new()
+	var clip := GFAudioClip.new()
+	clip.stream = AudioStreamGenerator.new()
+	clip.spatial_settings = settings
+
+	var handle := _audio.play_sfx_clip_2d_handle(clip, source, true)
+
+	assert_not_null(handle, "后端可处理时空间 SFX 应返回后端句柄。")
+	assert_eq(backend.spatial_sfx_clip_count, 1, "空间 SFX 应交给后端处理。")
+	assert_same(backend.last_spatial_source, source, "空间 SFX 声源应传给后端。")
+	assert_true(backend.last_spatial_follow_source, "follow_source 应传给后端。")
+	assert_eq(String(backend.last_spatial_sfx_options["space"]), "2d", "空间维度应保留在后端选项中。")
+	assert_same(backend.last_spatial_sfx_options["source"], source, "空间上下文应包含声源。")
+	assert_same(backend.last_spatial_sfx_options["spatial_settings"], settings, "空间设置资源应传给后端。")
+
+
 func test_audio_backend_capabilities_events_and_parameters() -> void:
 	var backend := MockAudioBackend.new()
 	_audio.set_audio_backend(backend)
@@ -574,6 +628,33 @@ func test_play_sfx_clip_2d_creates_spatial_player() -> void:
 		player.queue_free()
 
 
+func test_play_sfx_clip_2d_applies_spatial_settings() -> void:
+	var source := Node2D.new()
+	add_child_autofree(source)
+	var settings := GFAudioSpatialSettingsBase.new()
+	settings.max_polyphony = 3
+	settings.panning_strength = 0.5
+	settings.area_mask_2d = 5
+	settings.playback_type = 2
+	settings.max_distance_2d = 512.0
+	settings.attenuation_2d = 2.0
+	var clip := GFAudioClip.new()
+	clip.stream = _make_sampleable_stream()
+	clip.spatial_settings = settings
+
+	var player := _audio.play_sfx_clip_2d(clip, source)
+
+	assert_not_null(player, "2D 空间 SFX 应创建播放器。")
+	assert_eq(player.max_polyphony, 3, "2D 空间设置应应用 max_polyphony。")
+	assert_almost_eq(player.panning_strength, 0.5, 0.001, "2D 空间设置应应用 panning_strength。")
+	assert_eq(player.area_mask, 5, "2D 空间设置应应用 area_mask。")
+	assert_eq(player.playback_type, 2, "2D 空间设置应应用 playback_type。")
+	assert_almost_eq(player.max_distance, 512.0, 0.001, "2D 空间设置应应用 max_distance。")
+	assert_almost_eq(player.attenuation, 2.0, 0.001, "2D 空间设置应应用 attenuation。")
+	if is_instance_valid(player):
+		player.queue_free()
+
+
 func test_play_sfx_clip_2d_can_follow_source() -> void:
 	var source := Node2D.new()
 	source.global_position = Vector2(10.0, 20.0)
@@ -589,6 +670,49 @@ func test_play_sfx_clip_2d_can_follow_source() -> void:
 	assert_eq(player.position, Vector2.ZERO, "跟随模式下播放器应使用本地零偏移。")
 	source.global_position = Vector2(32.0, 48.0)
 	assert_eq(player.global_position, source.global_position, "声源移动后播放器应跟随全局位置。")
+
+
+func test_play_sfx_clip_3d_applies_spatial_settings() -> void:
+	var source := Node3D.new()
+	add_child_autofree(source)
+	var settings := GFAudioSpatialSettingsBase.new()
+	settings.max_polyphony = 4
+	settings.panning_strength = 0.25
+	settings.area_mask_3d = 7
+	settings.playback_type = 1
+	settings.attenuation_model_3d = 2
+	settings.unit_size_3d = 4.0
+	settings.max_db_3d = 1.5
+	settings.max_distance_3d = 30.0
+	settings.emission_angle_enabled_3d = true
+	settings.emission_angle_degrees_3d = 30.0
+	settings.emission_angle_filter_attenuation_db_3d = -10.0
+	settings.attenuation_filter_cutoff_hz_3d = 1000.0
+	settings.attenuation_filter_db_3d = -12.0
+	settings.doppler_tracking_3d = 2
+	var clip := GFAudioClip.new()
+	clip.stream = AudioStreamGenerator.new()
+	clip.spatial_settings = settings
+
+	var player := _audio.play_sfx_clip_3d(clip, source)
+
+	assert_not_null(player, "3D 空间 SFX 应创建播放器。")
+	assert_eq(player.max_polyphony, 4, "3D 空间设置应应用 max_polyphony。")
+	assert_almost_eq(player.panning_strength, 0.25, 0.001, "3D 空间设置应应用 panning_strength。")
+	assert_eq(player.area_mask, 7, "3D 空间设置应应用 area_mask。")
+	assert_eq(player.playback_type, 1, "3D 空间设置应应用 playback_type。")
+	assert_eq(player.attenuation_model, 2, "3D 空间设置应应用 attenuation_model。")
+	assert_almost_eq(player.unit_size, 4.0, 0.001, "3D 空间设置应应用 unit_size。")
+	assert_almost_eq(player.max_db, 1.5, 0.001, "3D 空间设置应应用 max_db。")
+	assert_almost_eq(player.max_distance, 30.0, 0.001, "3D 空间设置应应用 max_distance。")
+	assert_true(player.emission_angle_enabled, "3D 空间设置应应用 emission_angle_enabled。")
+	assert_almost_eq(player.emission_angle_degrees, 30.0, 0.001, "3D 空间设置应应用 emission_angle_degrees。")
+	assert_almost_eq(player.emission_angle_filter_attenuation_db, -10.0, 0.001, "3D 空间设置应应用 emission 过滤衰减。")
+	assert_almost_eq(player.attenuation_filter_cutoff_hz, 1000.0, 0.001, "3D 空间设置应应用滤波截止频率。")
+	assert_almost_eq(player.attenuation_filter_db, -12.0, 0.001, "3D 空间设置应应用滤波衰减。")
+	assert_eq(player.doppler_tracking, 2, "3D 空间设置应应用 doppler_tracking。")
+	if is_instance_valid(player):
+		player.queue_free()
 
 
 func test_stop_all_sfx_releases_normal_and_spatial_players() -> void:

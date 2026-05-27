@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFLevelCatalog" path="addons/gf/extensions/domain/level/gf_level_catalog.gd" module="extensions/domain" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFLevelCatalog" path="addons/gf/extensions/domain/level/gf_level_catalog.gd" module="extensions/domain" extends="Resource" classDigest="67e2167d1f590321527cdd0536d94881b74fae532fd9c2cbbc6f9f360edf9145">
 	<description>GFLevelCatalog: 通用关卡目录资源。
 用于按关卡包和排序值组织 GFLevelEntry，保持目录查询与具体关卡规则解耦。</description>
 	<tags>
@@ -11,7 +11,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="entries" line="21" decorators="@export">
+		<member kind="property" name="entries" decorators="@export">
 			<signature>var entries: Array[GFLevelEntry] = []</signature>
 			<description>关卡条目列表。</description>
 			<tags>
@@ -21,7 +21,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="add_entry" line="31">
+		<member kind="method" name="add_entry">
 			<signature>func add_entry(entry: GFLevelEntry) -&gt; void:</signature>
 			<description>添加关卡条目。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="param">entry: 关卡条目。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_level" line="54">
+		<member kind="method" name="has_level">
 			<signature>func has_level(level_id: StringName) -&gt; bool:</signature>
 			<description>检查关卡是否存在。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="return">存在时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entry" line="65">
+		<member kind="method" name="get_entry">
 			<signature>func get_entry(level_id: StringName) -&gt; GFLevelEntry:</signature>
 			<description>获取关卡条目。</description>
 			<tags>
@@ -47,7 +47,7 @@
 				<tag name="return">条目拷贝；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_levels" line="81">
+		<member kind="method" name="get_levels">
 			<signature>func get_levels(pack_id: StringName = &amp;"") -&gt; Array[GFLevelEntry]:</signature>
 			<description>获取指定关卡扩展中的条目。</description>
 			<tags>
@@ -57,7 +57,7 @@
 				<tag name="schema">return: Array[GFLevelEntry]，按 sort_order 与 level_id 排序后的关卡条目拷贝。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_pack_ids" line="101">
+		<member kind="method" name="get_pack_ids">
 			<signature>func get_pack_ids() -&gt; Array[StringName]:</signature>
 			<description>获取所有关卡扩展 ID。</description>
 			<tags>
@@ -66,7 +66,7 @@
 				<tag name="schema">return: Array[StringName]，已排序的关卡包或章节 ID 列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_next_level_id" line="119">
+		<member kind="method" name="get_next_level_id">
 			<signature>func get_next_level_id(level_id: StringName) -&gt; StringName:</signature>
 			<description>获取同关卡扩展内下一个关卡 ID。</description>
 			<tags>
@@ -75,7 +75,7 @@
 				<tag name="return">后续关卡 ID；没有时返回空 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_previous_level_id" line="138">
+		<member kind="method" name="get_previous_level_id">
 			<signature>func get_previous_level_id(level_id: StringName) -&gt; StringName:</signature>
 			<description>获取同关卡扩展内上一个关卡 ID。</description>
 			<tags>

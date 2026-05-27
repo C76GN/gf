@@ -147,6 +147,7 @@ nav:
               - 权重表: standard/foundation/scalars/weighted-table.md
           - 网格、路径与空间索引:
               - 总览: standard/foundation/grid-spatial/index.md
+              - 2D 曲线与折线: standard/foundation/grid-spatial/curve-2d.md
               - 2D 网格、生成管线与 Hex 网格:
                   - 总览: standard/foundation/grid-spatial/grid-2d-hex/index.md
                   - 规则 2D 网格: standard/foundation/grid-spatial/grid-2d-hex/grid-math.md
@@ -195,6 +196,7 @@ nav:
                   - 总览: standard/foundation/data-validation/formula-variant/index.md
                   - 资源化公式: standard/foundation/data-validation/formula-variant/formulas.md
                   - Variant 深拷贝与 JSON 转换: standard/foundation/data-validation/formula-variant/variant-data-json.md
+              - 通用标识: standard/foundation/data-validation/identity/index.md
               - 校验报告与结果字典:
                   - 总览: standard/foundation/data-validation/validation-reporting/index.md
                   - 校验报告与诊断:

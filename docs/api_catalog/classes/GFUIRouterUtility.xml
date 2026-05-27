@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFUIRouterUtility" path="addons/gf/standard/utilities/ui/gf_ui_router_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFUIRouterUtility" path="addons/gf/standard/utilities/ui/gf_ui_router_utility.gd" module="standard" extends="GFUtility" classDigest="21be178041c158b5add40b7c34960d3420a89fd7b007cd04fb9c3fa604d94107">
 	<description>GFUIRouterUtility: 基于路由 ID 的 UI 导航工具。
 作为 GFUIUtility 之上的轻量路由层，负责把稳定 route_id 映射到面板场景、
 打开参数、层级和历史记录，不接管具体页面业务或动画表现。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="route_open_requested" line="28">
+		<member kind="signal" name="route_open_requested">
 			<signature>signal route_open_requested(route_id: StringName, operation: Operation, params: Dictionary)</signature>
 			<description>路由打开请求发出时触发。</description>
 			<tags>
@@ -20,7 +20,7 @@
 				<tag name="schema">params: Dictionary，本次打开路由携带的项目自定义参数。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="route_opened" line="39">
+		<member kind="signal" name="route_opened">
 			<signature>signal route_opened(route_id: StringName, panel: Node, operation: Operation)</signature>
 			<description>路由面板成功打开后触发。</description>
 			<tags>
@@ -30,7 +30,7 @@
 				<tag name="param">operation: 打开操作。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="route_open_failed" line="48">
+		<member kind="signal" name="route_open_failed">
 			<signature>signal route_open_failed(route_id: StringName, reason: String)</signature>
 			<description>路由打开失败时触发。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="param">reason: 失败原因。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="route_back_completed" line="57">
+		<member kind="signal" name="route_back_completed">
 			<signature>signal route_back_completed(route_id: StringName, layer: int)</signature>
 			<description>路由返回完成时触发。</description>
 			<tags>
@@ -50,7 +50,7 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="Operation" line="65">
+		<member kind="enum" name="Operation">
 			<signature>enum Operation { ## 压入当前层级栈顶。 PUSH, ## 替换当前层级栈。 REPLACE, }</signature>
 			<description>路由打开操作。</description>
 			<tags>
@@ -60,7 +60,7 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="max_history" line="83">
+		<member kind="property" name="max_history">
 			<signature>var max_history: int = 64</signature>
 			<description>路由历史最大保留数量。小于等于 0 表示不保留历史。</description>
 			<tags>
@@ -69,21 +69,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="98">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化路由表、UI 工具引用和历史记录。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="107">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放路由表、UI 工具引用和历史记录。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="configure" line="122">
+		<member kind="method" name="configure">
 			<signature>func configure(routes: Array[GFUIRoute] = [], ui_utility: GFUIUtility = null) -&gt; void:</signature>
 			<description>配置路由表和可选 UI 工具实例。</description>
 			<tags>
@@ -92,7 +92,7 @@
 				<tag name="param">ui_utility: 可选 GFUIUtility；为空时从当前架构查找。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_ui_utility" line="134">
+		<member kind="method" name="set_ui_utility">
 			<signature>func set_ui_utility(ui_utility: GFUIUtility) -&gt; void:</signature>
 			<description>设置路由使用的 UI 栈工具。</description>
 			<tags>
@@ -100,7 +100,7 @@
 				<tag name="param">ui_utility: UI 栈工具实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_route" line="145">
+		<member kind="method" name="register_route">
 			<signature>func register_route(route: GFUIRoute) -&gt; bool:</signature>
 			<description>注册一个路由。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="return">注册成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_routes" line="158">
+		<member kind="method" name="register_routes">
 			<signature>func register_routes(routes: Array[GFUIRoute]) -&gt; void:</signature>
 			<description>批量注册路由。</description>
 			<tags>
@@ -117,7 +117,7 @@
 				<tag name="param">routes: 路由资源列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_route" line="168">
+		<member kind="method" name="unregister_route">
 			<signature>func unregister_route(route_id: StringName) -&gt; void:</signature>
 			<description>注销路由。</description>
 			<tags>
@@ -125,14 +125,14 @@
 				<tag name="param">route_id: 路由标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_routes" line="175">
+		<member kind="method" name="clear_routes">
 			<signature>func clear_routes() -&gt; void:</signature>
 			<description>清空路由表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_route" line="186">
+		<member kind="method" name="get_route">
 			<signature>func get_route(route_id: StringName) -&gt; GFUIRoute:</signature>
 			<description>获取路由资源。</description>
 			<tags>
@@ -141,7 +141,7 @@
 				<tag name="return">路由资源；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_route" line="197">
+		<member kind="method" name="has_route">
 			<signature>func has_route(route_id: StringName) -&gt; bool:</signature>
 			<description>检查路由是否已注册。</description>
 			<tags>
@@ -150,7 +150,7 @@
 				<tag name="return">已注册返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_route_ids" line="206">
+		<member kind="method" name="get_route_ids">
 			<signature>func get_route_ids() -&gt; PackedStringArray:</signature>
 			<description>获取所有路由标识。</description>
 			<tags>
@@ -158,7 +158,7 @@
 				<tag name="return">路由标识列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_route" line="231">
+		<member kind="method" name="push_route">
 			<signature>func push_route( route_id: StringName, params: Dictionary = {}, option_overrides: Dictionary = {}, config_callback: Callable = Callable() ) -&gt; Node:</signature>
 			<description>压入一个路由面板。</description>
 			<tags>
@@ -172,7 +172,7 @@
 				<tag name="schema">option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_route" line="257">
+		<member kind="method" name="replace_route">
 			<signature>func replace_route( route_id: StringName, params: Dictionary = {}, option_overrides: Dictionary = {}, config_callback: Callable = Callable() ) -&gt; Node:</signature>
 			<description>替换路由所在层级。</description>
 			<tags>
@@ -186,7 +186,7 @@
 				<tag name="schema">option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_route_async" line="281">
+		<member kind="method" name="push_route_async">
 			<signature>func push_route_async( route_id: StringName, params: Dictionary = {}, option_overrides: Dictionary = {}, config_callback: Callable = Callable() ) -&gt; void:</signature>
 			<description>异步压入一个路由面板。</description>
 			<tags>
@@ -199,7 +199,7 @@
 				<tag name="schema">option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_route_async" line="305">
+		<member kind="method" name="replace_route_async">
 			<signature>func replace_route_async( route_id: StringName, params: Dictionary = {}, option_overrides: Dictionary = {}, config_callback: Callable = Callable() ) -&gt; void:</signature>
 			<description>异步替换路由所在层级。</description>
 			<tags>
@@ -212,7 +212,7 @@
 				<tag name="schema">option_overrides: Dictionary，字段同 GFUIUtility 打开面板 options，会覆盖路由 default_options。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="back" line="323">
+		<member kind="method" name="back">
 			<signature>func back(layer: int = -1, do_free: bool = true) -&gt; bool:</signature>
 			<description>返回上一层路由。</description>
 			<tags>
@@ -222,7 +222,7 @@
 				<tag name="return">成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_route_id" line="355">
+		<member kind="method" name="get_current_route_id">
 			<signature>func get_current_route_id(layer: int = -1) -&gt; StringName:</signature>
 			<description>获取当前路由标识。</description>
 			<tags>
@@ -231,7 +231,7 @@
 				<tag name="return">当前路由标识；没有时返回空 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_route_history" line="370">
+		<member kind="method" name="get_route_history">
 			<signature>func get_route_history() -&gt; Array[Dictionary]:</signature>
 			<description>获取路由历史副本。</description>
 			<tags>
@@ -240,14 +240,14 @@
 				<tag name="schema">return: Array，元素为 Dictionary，包含 route_id、layer、panel、params 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_history" line="381">
+		<member kind="method" name="clear_history">
 			<signature>func clear_history() -&gt; void:</signature>
 			<description>清空路由历史，不影响已打开面板。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="392">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取路由诊断快照。</description>
 			<tags>

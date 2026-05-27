@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFModalConfig" path="addons/gf/standard/utilities/ui/gf_modal_config.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFModalConfig" path="addons/gf/standard/utilities/ui/gf_modal_config.gd" module="standard" extends="Resource" classDigest="34547b6e9625bc9e468c2cfb0b91a79b386c54f09bb36462754701e9f99e0b88">
 	<description>GFModalConfig: 通用 modal 配置。
 用 Resource 描述标题、正文、动作和交互策略，使项目自定义 modal 面板
 可以共享同一套打开与结果协议。</description>
@@ -12,52 +12,57 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="title" line="20" decorators="@export">
+		<member kind="property" name="title" decorators="@export">
 			<signature>var title: String = ""</signature>
 			<description>标题文本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="actions" line="32" decorators="@export_multiline var message: String = &quot;&quot; @export">
-			<signature>var actions: Array[GFModalAction] = []</signature>
-			<description>正文文本。
-动作列表。为空时默认生成一个确认动作。</description>
+		<member kind="property" name="message" decorators="@export_multiline">
+			<signature>var message: String = ""</signature>
+			<description>正文文本。</description>
 			<tags>
 				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="actions" decorators="@export">
+			<signature>var actions: Array[GFModalAction] = []</signature>
+			<description>动作列表。为空时默认生成一个确认动作。</description>
+			<tags>
 				<tag name="api">public</tag>
 				<tag name="schema">actions: Array[GFModalAction]，modal 可渲染的动作声明列表。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="dismiss_on_backdrop" line="37" decorators="@export">
+		<member kind="property" name="dismiss_on_backdrop" decorators="@export">
 			<signature>var dismiss_on_backdrop: bool = false</signature>
 			<description>点击背景是否按取消处理。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="dismiss_on_cancel" line="42" decorators="@export">
+		<member kind="property" name="dismiss_on_cancel" decorators="@export">
 			<signature>var dismiss_on_cancel: bool = true</signature>
 			<description>取消请求是否关闭 modal。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_focus" line="47" decorators="@export">
+		<member kind="property" name="auto_focus" decorators="@export">
 			<signature>var auto_focus: bool = true</signature>
 			<description>打开时是否自动聚焦动作按钮。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="restore_focus_on_close" line="52" decorators="@export">
+		<member kind="property" name="restore_focus_on_close" decorators="@export">
 			<signature>var restore_focus_on_close: bool = true</signature>
 			<description>关闭后是否恢复打开前焦点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="59" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据，供项目层或自定义面板解释。</description>
 			<tags>
@@ -67,7 +72,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_actions_or_default" line="69">
+		<member kind="method" name="get_actions_or_default">
 			<signature>func get_actions_or_default() -&gt; Array[GFModalAction]:</signature>
 			<description>获取可用动作列表；配置为空时返回默认确认动作。</description>
 			<tags>
@@ -75,7 +80,7 @@
 				<tag name="return">动作列表副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_action" line="89">
+		<member kind="method" name="get_action">
 			<signature>func get_action(action_id: StringName) -&gt; GFModalAction:</signature>
 			<description>查找指定动作。</description>
 			<tags>
@@ -84,7 +89,7 @@
 				<tag name="return">找到时返回动作副本，否则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_config" line="101">
+		<member kind="method" name="duplicate_config">
 			<signature>func duplicate_config() -&gt; GFModalConfig:</signature>
 			<description>创建同内容拷贝。</description>
 			<tags>

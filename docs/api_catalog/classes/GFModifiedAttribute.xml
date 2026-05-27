@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFModifiedAttribute" path="addons/gf/extensions/combat/attributes/gf_modified_attribute.gd" module="extensions/combat" extends="RefCounted" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFModifiedAttribute" path="addons/gf/extensions/combat/attributes/gf_modified_attribute.gd" module="extensions/combat" extends="RefCounted" classDigest="7fee79228fcec1d9d5eab6dee27d95554039748715125c10afb4053525d7bba8">
 	<description>GFModifiedAttribute: 带修饰器公式的响应式属性。
 持有基础值并管理多个修饰器 (GFModifier)。
 内部使用公式 (Base + BaseAdd) * (1.0 + PercentAdd) + FinalAdd 进行自动重算。
@@ -13,7 +13,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="current_value" line="26">
+		<member kind="property" name="current_value">
 			<signature>var current_value: GFBindableProperty:</signature>
 			<description>属性的只读响应式当前值。</description>
 			<tags>
@@ -22,7 +22,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_base_value" line="53">
+		<member kind="method" name="set_base_value">
 			<signature>func set_base_value(p_value: float) -&gt; void:</signature>
 			<description>设置基础值。</description>
 			<tags>
@@ -30,7 +30,7 @@
 				<tag name="param">p_value: 新的基础值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_base_value" line="65">
+		<member kind="method" name="get_base_value">
 			<signature>func get_base_value() -&gt; float:</signature>
 			<description>获取基础值。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="return">当前基础值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_modifier" line="74">
+		<member kind="method" name="add_modifier">
 			<signature>func add_modifier(p_modifier: GFModifier) -&gt; void:</signature>
 			<description>添加修饰器。</description>
 			<tags>
@@ -46,7 +46,7 @@
 				<tag name="param">p_modifier: 修饰器实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_modifier" line="87">
+		<member kind="method" name="remove_modifier">
 			<signature>func remove_modifier(p_modifier: GFModifier) -&gt; void:</signature>
 			<description>移除修饰器。</description>
 			<tags>
@@ -54,7 +54,7 @@
 				<tag name="param">p_modifier: 要移除的修饰器实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_modifiers_by_source" line="100">
+		<member kind="method" name="remove_modifiers_by_source">
 			<signature>func remove_modifiers_by_source(p_source_id: StringName) -&gt; void:</signature>
 			<description>根据 source_id 移除所有匹配的修饰器。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="param">p_source_id: 来源标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="force_recalculate" line="118">
+		<member kind="method" name="force_recalculate">
 			<signature>func force_recalculate() -&gt; void:</signature>
 			<description>强制执行一次属性重算。
 当外部直接修改了 Modifier 的数值时，可手动调用此方法触发 UI 更新。</description>

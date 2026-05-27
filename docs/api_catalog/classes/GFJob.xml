@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFJob" path="addons/gf/standard/utilities/jobs/gf_job.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFJob" path="addons/gf/standard/utilities/jobs/gf_job.gd" module="standard" extends="RefCounted" classDigest="a4207c3d5e672aa79b2a55b2360cd1ad9be38bf64c516ef2c11125db32833a20">
 	<description>GFJob: 通用异步/分帧任务记录。
 只保存任务状态、进度、输入数据、结果和错误文本，不绑定具体业务。</description>
 	<tags>
@@ -9,7 +9,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Status" line="19">
+		<member kind="enum" name="Status">
 			<signature>enum Status { ## 已入队，尚未开始执行。 WAITING, ## 正在执行。 ACTIVE, ## 已成功完成。 COMPLETED, ## 已失败。 FAILED, ## 已取消。 CANCELLED, }</signature>
 			<description>任务生命周期状态。</description>
 			<tags>
@@ -19,28 +19,28 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="job_id" line="38">
+		<member kind="property" name="job_id">
 			<signature>var job_id: StringName = &amp;""</signature>
 			<description>任务 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="queue_name" line="43">
+		<member kind="property" name="queue_name">
 			<signature>var queue_name: StringName = &amp;"default"</signature>
 			<description>队列名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="status" line="48">
+		<member kind="property" name="status">
 			<signature>var status: Status = Status.WAITING</signature>
 			<description>当前状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="data" line="55">
+		<member kind="property" name="data">
 			<signature>var data: Variant = null</signature>
 			<description>任务输入数据。框架不解释该字段。</description>
 			<tags>
@@ -48,7 +48,7 @@
 				<tag name="schema">data: Variant，项目侧任务输入载荷。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="result" line="62">
+		<member kind="property" name="result">
 			<signature>var result: Variant = null</signature>
 			<description>任务结果。框架不解释该字段。</description>
 			<tags>
@@ -56,21 +56,21 @@
 				<tag name="schema">result: Variant，项目侧任务结果载荷。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="error_message" line="67">
+		<member kind="property" name="error_message">
 			<signature>var error_message: String = ""</signature>
 			<description>错误文本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="progress" line="72">
+		<member kind="property" name="progress">
 			<signature>var progress: float = 0.0</signature>
 			<description>进度，范围建议为 0.0 到 1.0。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="79">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -78,21 +78,21 @@
 				<tag name="schema">metadata: Dictionary，复制到任务中的项目侧元数据。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="created_msec" line="84">
+		<member kind="property" name="created_msec">
 			<signature>var created_msec: int = 0</signature>
 			<description>创建时间。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="started_msec" line="89">
+		<member kind="property" name="started_msec">
 			<signature>var started_msec: int = 0</signature>
 			<description>开始时间。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="finished_msec" line="94">
+		<member kind="property" name="finished_msec">
 			<signature>var finished_msec: int = 0</signature>
 			<description>结束时间。</description>
 			<tags>
@@ -101,7 +101,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_finished" line="104">
+		<member kind="method" name="is_finished">
 			<signature>func is_finished() -&gt; bool:</signature>
 			<description>当前任务是否已经进入终态。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="return">已完成、失败或取消时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="115">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转换为 Dictionary。</description>
 			<tags>
@@ -118,7 +118,7 @@
 				<tag name="schema">return: Dictionary，包含 job_id、queue_name、status、status_name、progress、error_message、metadata、时间戳和 has_result。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="status_name" line="138">
+		<member kind="method" name="status_name">
 			<signature>static func status_name(value: Status) -&gt; String:</signature>
 			<description>获取状态名称。</description>
 			<tags>

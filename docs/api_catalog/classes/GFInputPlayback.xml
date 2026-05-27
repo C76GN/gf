@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputPlayback" path="addons/gf/standard/input/recording/gf_input_playback.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputPlayback" path="addons/gf/standard/input/recording/gf_input_playback.gd" module="standard" extends="RefCounted" classDigest="a225fe94e71459c0f1fbccbd369b98d1d7994538936cdc920255488fcae1f110">
 	<description>GFInputPlayback: 抽象输入录制回放器。
 按时间把 GFInputRecording 中的动作值写入 GFVirtualInputSource，适合测试、
 复现、教程或 AI 控制桥接。它只回放抽象动作，不模拟具体键鼠或手柄事件。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="playback_started" line="22">
+		<member kind="signal" name="playback_started">
 			<signature>signal playback_started(recording: GFInputRecording)</signature>
 			<description>回放开始。</description>
 			<tags>
@@ -17,21 +17,21 @@
 				<tag name="param">recording: 回放录制。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="playback_stopped" line="27">
+		<member kind="signal" name="playback_stopped">
 			<signature>signal playback_stopped</signature>
 			<description>回放停止。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="playback_finished" line="32">
+		<member kind="signal" name="playback_finished">
 			<signature>signal playback_finished</signature>
 			<description>回放自然完成。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="event_applied" line="41">
+		<member kind="signal" name="event_applied">
 			<signature>signal event_applied(event: Dictionary)</signature>
 			<description>一个录制事件已被应用。</description>
 			<tags>
@@ -44,49 +44,49 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="recording" line="49">
+		<member kind="property" name="recording">
 			<signature>var recording: GFInputRecording = null</signature>
 			<description>当前录制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="source" line="54">
+		<member kind="property" name="source">
 			<signature>var source: GFVirtualInputSource = null</signature>
 			<description>目标虚拟输入源。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="speed" line="59">
+		<member kind="property" name="speed">
 			<signature>var speed: float = 1.0</signature>
 			<description>回放速度倍率。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="loop" line="64">
+		<member kind="property" name="loop">
 			<signature>var loop: bool = false</signature>
 			<description>到达末尾后是否循环。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="respect_recorded_player_index" line="69">
+		<member kind="property" name="respect_recorded_player_index">
 			<signature>var respect_recorded_player_index: bool = false</signature>
 			<description>为 true 时，事件带 player_index 时会写入对应玩家。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_playing" line="74">
+		<member kind="property" name="is_playing">
 			<signature>var is_playing: bool = false</signature>
 			<description>当前是否正在播放。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="elapsed_seconds" line="79">
+		<member kind="property" name="elapsed_seconds">
 			<signature>var elapsed_seconds: float = 0.0</signature>
 			<description>当前回放时间，单位秒。</description>
 			<tags>
@@ -95,7 +95,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="start" line="100">
+		<member kind="method" name="start">
 			<signature>func start( next_recording: GFInputRecording, next_source: GFVirtualInputSource, restart: bool = true ) -&gt; bool:</signature>
 			<description>开始回放。</description>
 			<tags>
@@ -106,7 +106,7 @@
 				<tag name="return">成功开始时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="stop" line="125">
+		<member kind="method" name="stop">
 			<signature>func stop(clear_source: bool = false) -&gt; void:</signature>
 			<description>停止回放。</description>
 			<tags>
@@ -114,14 +114,14 @@
 				<tag name="param">clear_source: 是否清空目标虚拟输入源。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset" line="135">
+		<member kind="method" name="reset">
 			<signature>func reset() -&gt; void:</signature>
 			<description>重置到起点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="147">
+		<member kind="method" name="tick">
 			<signature>func tick(delta: float) -&gt; int:</signature>
 			<description>推进回放并应用到期事件。</description>
 			<tags>
@@ -130,7 +130,7 @@
 				<tag name="return">本次应用的事件数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="seek" line="163">
+		<member kind="method" name="seek">
 			<signature>func seek(time_seconds: float) -&gt; void:</signature>
 			<description>跳转到指定时间。</description>
 			<tags>
@@ -138,7 +138,7 @@
 				<tag name="param">time_seconds: 目标时间，单位秒。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_finished" line="173">
+		<member kind="method" name="is_finished">
 			<signature>func is_finished() -&gt; bool:</signature>
 			<description>检查是否已到达末尾。</description>
 			<tags>
@@ -146,7 +146,7 @@
 				<tag name="return">到达末尾时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="184">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

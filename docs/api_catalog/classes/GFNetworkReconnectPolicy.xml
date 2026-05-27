@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkReconnectPolicy" path="addons/gf/extensions/network/session/gf_network_reconnect_policy.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNetworkReconnectPolicy" path="addons/gf/extensions/network/session/gf_network_reconnect_policy.gd" module="extensions/network" extends="RefCounted" classDigest="a421e2b4c5f2b7e19081f9525b5841e1316f24009ac6b2dbde14f330fa4224d0">
 	<description>GFNetworkReconnectPolicy: 通用重连退避策略。
 记录重连尝试次数，并按预设延迟序列返回下一次等待时间。它不依赖具体网络后端。</description>
 	<tags>
@@ -11,7 +11,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="delays_msec" line="21">
+		<member kind="property" name="delays_msec">
 			<signature>var delays_msec: Array[int] = [500, 1000, 2000, 5000]</signature>
 			<description>重连延迟序列，单位毫秒。</description>
 			<tags>
@@ -19,14 +19,14 @@
 				<tag name="schema">delays_msec: Array[int]，按尝试次数索引的重连延迟毫秒数。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_attempts" line="26">
+		<member kind="property" name="max_attempts">
 			<signature>var max_attempts: int = 0</signature>
 			<description>最大尝试次数。小于等于 0 表示无限尝试。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="jitter_ratio" line="31">
+		<member kind="property" name="jitter_ratio">
 			<signature>var jitter_ratio: float = 0.0:</signature>
 			<description>抖动比例。0 表示不抖动，0.2 表示在 ±20% 内随机偏移。</description>
 			<tags>
@@ -35,14 +35,14 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="reset" line="53">
+		<member kind="method" name="reset">
 			<signature>func reset() -&gt; void:</signature>
 			<description>重置尝试计数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_attempts_remaining" line="62">
+		<member kind="method" name="has_attempts_remaining">
 			<signature>func has_attempts_remaining() -&gt; bool:</signature>
 			<description>检查是否还允许继续尝试。</description>
 			<tags>
@@ -50,7 +50,7 @@
 				<tag name="return">允许返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_next_delay_msec" line="71">
+		<member kind="method" name="get_next_delay_msec">
 			<signature>func get_next_delay_msec() -&gt; int:</signature>
 			<description>记录一次失败并返回下一次等待时长。</description>
 			<tags>
@@ -58,14 +58,14 @@
 				<tag name="return">下一次等待时长；没有尝试空间时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="record_success" line="83">
+		<member kind="method" name="record_success">
 			<signature>func record_success() -&gt; void:</signature>
 			<description>记录一次成功并清空尝试计数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_attempt_count" line="92">
+		<member kind="method" name="get_attempt_count">
 			<signature>func get_attempt_count() -&gt; int:</signature>
 			<description>获取已经消费的失败尝试次数。</description>
 			<tags>

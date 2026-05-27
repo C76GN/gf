@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTimeProvider" path="addons/gf/kernel/base/gf_time_provider.gd" module="kernel" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTimeProvider" path="addons/gf/kernel/base/gf_time_provider.gd" module="kernel" extends="GFUtility" classDigest="2452fd28890d6b3fd64185fb685c23ff646ec85e44f69fb230bd40c293d20227">
 	<description>GFTimeProvider: 架构 tick 时间缩放协议。
 该基类只定义 `GFArchitecture` 需要理解的时间控制契约。
 具体时间工具可以继承它来提供暂停、缩放和物理子步能力。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="get_scaled_delta" line="24">
+		<member kind="method" name="get_scaled_delta">
 			<signature>func get_scaled_delta(delta: float) -&gt; float:</signature>
 			<description>获取普通 tick 使用的 delta。</description>
 			<tags>
@@ -22,7 +22,7 @@
 				<tag name="return">模块应接收的 delta。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_physics_scaled_delta_steps" line="35">
+		<member kind="method" name="get_physics_scaled_delta_steps">
 			<signature>func get_physics_scaled_delta_steps(delta: float) -&gt; Array[float]:</signature>
 			<description>获取 physics_tick 使用的 delta 子步数组。</description>
 			<tags>
@@ -31,7 +31,7 @@
 				<tag name="return">模块应依次接收的 physics delta。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="should_substep_physics" line="46">
+		<member kind="method" name="should_substep_physics">
 			<signature>func should_substep_physics(delta: float) -&gt; bool:</signature>
 			<description>判断当前物理帧是否需要拆分为多个子步。</description>
 			<tags>
@@ -40,7 +40,7 @@
 				<tag name="return">需要拆分时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_time_paused" line="55">
+		<member kind="method" name="is_time_paused">
 			<signature>func is_time_paused() -&gt; bool:</signature>
 			<description>检查当前时间提供者是否处于全局暂停状态。</description>
 			<tags>

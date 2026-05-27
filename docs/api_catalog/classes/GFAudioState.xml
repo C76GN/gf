@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioState" path="addons/gf/standard/utilities/audio/gf_audio_state.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioState" path="addons/gf/standard/utilities/audio/gf_audio_state.gd" module="standard" extends="Resource" classDigest="537c4de653ea07d3f9a3358828aa4d4d3e69bf4e6544e162e0d2d81cff848e23">
 	<description>GFAudioState: 通用音频状态请求。
 表示一个状态组和值，不解释其具体混音或播放含义。</description>
 	<tags>
@@ -11,21 +11,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="group_id" line="19" decorators="@export">
+		<member kind="property" name="group_id" decorators="@export">
 			<signature>var group_id: StringName = &amp;""</signature>
 			<description>状态组标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="state_id" line="24" decorators="@export">
+		<member kind="property" name="state_id" decorators="@export">
 			<signature>var state_id: StringName = &amp;""</signature>
 			<description>状态值标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="31" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据。</description>
 			<tags>
@@ -35,7 +35,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="to_dictionary" line="43">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为请求字典。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCameraBlend" path="addons/gf/extensions/camera/resources/gf_camera_blend.gd" module="extensions/camera" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCameraBlend" path="addons/gf/extensions/camera/resources/gf_camera_blend.gd" module="extensions/camera" extends="Resource" classDigest="0656206c0dda9b874313dcb1e611c5ca7855aa1018d991fd68eedd69b701550f">
 	<description>GFCameraBlend: 通用相机过渡资源。
 描述两个相机姿态之间的时间和缓动方式，不绑定具体相机节点、
 目标选择规则、反馈效果或场景业务。</description>
@@ -12,16 +12,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="transition_type" line="25" decorators="@export_range(0.0, 60.0, 0.001, &quot;or_greater&quot;) var duration_seconds: float = 0.35 @export">
-			<signature>var transition_type: Tween.TransitionType = Tween.TRANS_SINE</signature>
-			<description>过渡持续时间，单位秒。小于等于 0 时表示立即切换。
-Tween 过渡类型。</description>
+		<member kind="property" name="duration_seconds" decorators="@export_range(0.0, 60.0, 0.001, &quot;or_greater&quot;)">
+			<signature>var duration_seconds: float = 0.35</signature>
+			<description>过渡持续时间，单位秒。小于等于 0 时表示立即切换。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="ease_type" line="30" decorators="@export">
+		<member kind="property" name="transition_type" decorators="@export">
+			<signature>var transition_type: Tween.TransitionType = Tween.TRANS_SINE</signature>
+			<description>Tween 过渡类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="ease_type" decorators="@export">
 			<signature>var ease_type: Tween.EaseType = Tween.EASE_IN_OUT</signature>
 			<description>Tween 缓动类型。</description>
 			<tags>
@@ -30,7 +35,7 @@ Tween 过渡类型。</description>
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_instant" line="40">
+		<member kind="method" name="is_instant">
 			<signature>func is_instant() -&gt; bool:</signature>
 			<description>是否为立即切换。</description>
 			<tags>
@@ -38,7 +43,7 @@ Tween 过渡类型。</description>
 				<tag name="return">持续时间小于等于 0 时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="sample_weight" line="51">
+		<member kind="method" name="sample_weight">
 			<signature>func sample_weight(elapsed_seconds: float) -&gt; float:</signature>
 			<description>按已过时间采样 0..1 权重。</description>
 			<tags>
@@ -47,7 +52,7 @@ Tween 过渡类型。</description>
 				<tag name="return">缓动后的权重。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_blend" line="70">
+		<member kind="method" name="duplicate_blend">
 			<signature>func duplicate_blend() -&gt; GFCameraBlend:</signature>
 			<description>创建深拷贝。</description>
 			<tags>

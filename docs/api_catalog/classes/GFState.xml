@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFState" path="addons/gf/standard/state_machine/pure/gf_state.gd" module="standard" extends="RefCounted" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFState" path="addons/gf/standard/state_machine/pure/gf_state.gd" module="standard" extends="RefCounted" classDigest="b385b1b25ca36e415aa73c7a61672f76236fadb6f3a6580e084e13010ff4e96f">
 	<description>GFState: 纯代码状态机的状态抽象基类。
 继承自 RefCounted，不依赖 Node 树，可在任何逻辑层使用。
 通过持有对所属 GFStateMachine 的弱引用，间接访问框架的
@@ -15,7 +15,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="enter" line="54">
+		<member kind="method" name="enter">
 			<signature>func enter(_msg: Dictionary = {}) -&gt; void:</signature>
 			<description>进入此状态时调用。子类可重写以执行进入逻辑（如初始化动画）。</description>
 			<tags>
@@ -24,7 +24,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">_msg: Dictionary state transition payload.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="update" line="63">
+		<member kind="method" name="update">
 			<signature>func update(_delta: float) -&gt; void:</signature>
 			<description>每帧更新时调用，用于处理持续性逻辑（如计时、轮询）。</description>
 			<tags>
@@ -32,14 +32,14 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">_delta: 上一帧的时间间隔（秒）。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="exit" line="70">
+		<member kind="method" name="exit">
 			<signature>func exit() -&gt; void:</signature>
 			<description>退出此状态时调用。子类可重写以执行清理逻辑（如停止动画）。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state_name" line="79">
+		<member kind="method" name="get_state_name">
 			<signature>func get_state_name() -&gt; StringName:</signature>
 			<description>获取该状态在状态机中的注册名。</description>
 			<tags>
@@ -47,7 +47,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="return">注册名；未加入状态机时为空 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_enter" line="94">
+		<member kind="method" name="can_enter">
 			<signature>func can_enter(_previous_state: StringName = &amp;"", _msg: Dictionary = {}) -&gt; bool:</signature>
 			<description>判断是否允许进入状态。用于 GFStateMachine 分层切换守卫。</description>
 			<tags>
@@ -58,7 +58,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">_msg: Dictionary state transition payload.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_exit" line="109">
+		<member kind="method" name="can_exit">
 			<signature>func can_exit(_next_state: StringName = &amp;"", _msg: Dictionary = {}) -&gt; bool:</signature>
 			<description>判断是否允许离开状态。用于 GFStateMachine 分层切换守卫。</description>
 			<tags>
@@ -69,7 +69,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">_msg: Dictionary state transition payload.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="handle_state_event" line="124">
+		<member kind="method" name="handle_state_event">
 			<signature>func handle_state_event(_event_id: StringName, _payload: Variant = null) -&gt; bool:</signature>
 			<description>处理状态事件。返回 false 时事件会继续向父状态上抛。</description>
 			<tags>
@@ -80,7 +80,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">_payload: Variant state event payload.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_model" line="135">
+		<member kind="method" name="get_model">
 			<signature>func get_model(model_type: Script) -&gt; Object:</signature>
 			<description>获取框架内的 Model 实例（委托给所属状态机）。</description>
 			<tags>
@@ -89,7 +89,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="return">模型实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_system" line="149">
+		<member kind="method" name="get_system">
 			<signature>func get_system(system_type: Script) -&gt; Object:</signature>
 			<description>获取框架内的 System 实例（委托给所属状态机）。</description>
 			<tags>
@@ -98,7 +98,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="return">系统实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_utility" line="163">
+		<member kind="method" name="get_utility">
 			<signature>func get_utility(utility_type: Script) -&gt; Object:</signature>
 			<description>获取框架内的 Utility 实例（委托给所属状态机）。</description>
 			<tags>
@@ -107,7 +107,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="return">工具实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_command" line="179">
+		<member kind="method" name="send_command">
 			<signature>func send_command(command: Object) -&gt; Variant:</signature>
 			<description>向框架发送命令（委托给所属状态机）。</description>
 			<tags>
@@ -117,7 +117,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">return: Variant command result, Signal, or null.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_query" line="195">
+		<member kind="method" name="send_query">
 			<signature>func send_query(query: Object) -&gt; Variant:</signature>
 			<description>向框架发送查询（委托给所属状态机）。</description>
 			<tags>
@@ -127,7 +127,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">return: Variant query result or null.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_event" line="207">
+		<member kind="method" name="send_event">
 			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
 			<description>发送类型事件（委托给所属状态机）。</description>
 			<tags>
@@ -135,7 +135,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">event_instance: 要分发的事件实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_simple_event" line="222">
+		<member kind="method" name="send_simple_event">
 			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
 			<description>发送轻量级 StringName 事件（委托给所属状态机）。</description>
 			<tags>
@@ -145,7 +145,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">payload: Variant event payload.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_event" line="237">
+		<member kind="method" name="register_event">
 			<signature>func register_event(event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
 			<description>注册类型事件监听器，默认以当前状态作为 owner。</description>
 			<tags>
@@ -155,7 +155,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_event" line="250">
+		<member kind="method" name="unregister_event">
 			<signature>func unregister_event(event_type: Script, callback: Callable) -&gt; void:</signature>
 			<description>注销类型事件监听器。</description>
 			<tags>
@@ -164,7 +164,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">callback: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_assignable_event" line="265">
+		<member kind="method" name="register_assignable_event">
 			<signature>func register_assignable_event(base_event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
 			<description>注册可赋值类型事件监听器，默认以当前状态作为 owner。</description>
 			<tags>
@@ -174,7 +174,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_assignable_event" line="278">
+		<member kind="method" name="unregister_assignable_event">
 			<signature>func unregister_assignable_event(base_event_type: Script, callback: Callable) -&gt; void:</signature>
 			<description>注销可赋值类型事件监听器。</description>
 			<tags>
@@ -183,7 +183,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">callback: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_simple_event" line="291">
+		<member kind="method" name="register_simple_event">
 			<signature>func register_simple_event(event_id: StringName, callback: Callable) -&gt; void:</signature>
 			<description>注册轻量级 StringName 事件监听器，默认以当前状态作为 owner。</description>
 			<tags>
@@ -192,7 +192,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">callback: 回调函数，签名为 func(payload: Variant)。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_simple_event" line="304">
+		<member kind="method" name="unregister_simple_event">
 			<signature>func unregister_simple_event(event_id: StringName, callback: Callable) -&gt; void:</signature>
 			<description>注销轻量级 StringName 事件监听器。</description>
 			<tags>
@@ -201,14 +201,14 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="param">callback: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_owner_events" line="313">
+		<member kind="method" name="unregister_owner_events">
 			<signature>func unregister_owner_events() -&gt; void:</signature>
 			<description>注销当前状态通过事件代理注册过的全部监听器。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="change_state" line="328">
+		<member kind="method" name="change_state">
 			<signature>func change_state(state_name: StringName, msg: Dictionary = {}) -&gt; void:</signature>
 			<description>请求状态机切换到指定状态。</description>
 			<tags>
@@ -218,7 +218,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">msg: Dictionary state transition payload.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispatch_state_event" line="345">
+		<member kind="method" name="dispatch_state_event">
 			<signature>func dispatch_state_event(event_id: StringName, payload: Variant = null) -&gt; bool:</signature>
 			<description>从所属状态机派发状态事件。</description>
 			<tags>
@@ -229,7 +229,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="schema">payload: Variant state event payload.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_parent_state_name" line="357">
+		<member kind="method" name="get_parent_state_name">
 			<signature>func get_parent_state_name() -&gt; StringName:</signature>
 			<description>获取当前状态在所属状态机中的父状态名。</description>
 			<tags>
@@ -237,7 +237,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="return">父状态名；未绑定状态机或没有父级时返回空 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_in_state" line="371">
+		<member kind="method" name="is_in_state">
 			<signature>func is_in_state(state_name: StringName) -&gt; bool:</signature>
 			<description>判断指定状态是否在所属状态机当前激活路径中。</description>
 			<tags>
@@ -246,7 +246,7 @@ Model、System、Utility 层，实现状态与框架的解耦。
 				<tag name="return">处于激活路径中返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_blackboard" line="385">
+		<member kind="method" name="get_blackboard">
 			<signature>func get_blackboard() -&gt; Dictionary:</signature>
 			<description>获取所属状态机共享黑板。</description>
 			<tags>

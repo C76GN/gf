@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFExtensionUsageAudit" path="addons/gf/kernel/extension/gf_extension_usage_audit.gd" module="kernel" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFExtensionUsageAudit" path="addons/gf/kernel/extension/gf_extension_usage_audit.gd" module="kernel" extends="RefCounted" classDigest="929b91b810f0a071d640b731e84a679e576604a1c8f8ae1dbd63ae606ac1b87b">
 	<description>GFExtensionUsageAudit: 检查禁用扩展是否仍被项目文件直接引用。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -10,35 +10,35 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_SCAN_ROOTS" line="19">
+		<member kind="const" name="DEFAULT_SCAN_ROOTS">
 			<signature>const DEFAULT_SCAN_ROOTS: Array[String] = ["res://"]</signature>
 			<description>默认扫描根目录。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH" line="24">
+		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH">
 			<signature>const DEFAULT_MAX_SCAN_DEPTH: int = 32</signature>
 			<description>默认最大扫描深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_SCANNED_FILES" line="29">
+		<member kind="const" name="DEFAULT_MAX_SCANNED_FILES">
 			<signature>const DEFAULT_MAX_SCANNED_FILES: int = 10000</signature>
 			<description>默认最大扫描文件数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_IGNORED_ROOTS" line="34">
+		<member kind="const" name="DEFAULT_IGNORED_ROOTS">
 			<signature>const DEFAULT_IGNORED_ROOTS: Array[String] = [</signature>
 			<description>默认忽略的根目录。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="TEXT_FILE_EXTENSIONS" line="42">
+		<member kind="const" name="TEXT_FILE_EXTENSIONS">
 			<signature>const TEXT_FILE_EXTENSIONS: Array[String] = [</signature>
 			<description>作为文本扫描的资源扩展名。</description>
 			<tags>
@@ -48,7 +48,7 @@
 	</constants>
 	<properties />
 	<methods>
-		<member kind="method" name="audit_disabled_extensions" line="71">
+		<member kind="method" name="audit_disabled_extensions">
 			<signature>static func audit_disabled_extensions( manifests: Array[GFExtensionManifest], options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>检查一组禁用扩展是否仍被项目文件直接引用。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="schema">return: Dictionary containing ok, extension_count, reference_count, extensions, and references.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="find_references_to_root" line="116">
+		<member kind="method" name="find_references_to_root">
 			<signature>static func find_references_to_root(root_path: String, options: Dictionary = {}) -&gt; Array[Dictionary]:</signature>
 			<description>查找项目文件中对指定扩展根目录的直接路径引用。</description>
 			<tags>

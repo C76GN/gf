@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkSession" path="addons/gf/extensions/network/session/gf_network_session.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNetworkSession" path="addons/gf/extensions/network/session/gf_network_session.gd" module="extensions/network" extends="RefCounted" classDigest="088888ee572d2ed472d1ed137f7b9721acc29417dba419269bd170c6c096d730">
 	<description>GFNetworkSession: 网络会话状态快照。
 记录当前网络工具的主机/客户端意图与连接状态，不绑定房间、账号或匹配逻辑。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="session_started" line="23">
+		<member kind="signal" name="session_started">
 			<signature>signal session_started(mode: int, endpoint: String)</signature>
 			<description>会话开始时发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">endpoint: 会话端点。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="session_connected" line="30">
+		<member kind="signal" name="session_connected">
 			<signature>signal session_connected(local_peer_id: int)</signature>
 			<description>会话连接成功时发出。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="param">local_peer_id: 本地 peer 标识。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="session_closed" line="37">
+		<member kind="signal" name="session_closed">
 			<signature>signal session_closed(reason: String)</signature>
 			<description>会话关闭时发出。</description>
 			<tags>
@@ -35,7 +35,7 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="Mode" line="45">
+		<member kind="enum" name="Mode">
 			<signature>enum Mode { ## 无活动会话。 NONE, ## 主机会话。 HOST, ## 客户端会话。 CLIENT, }</signature>
 			<description>会话模式。</description>
 			<tags>
@@ -45,56 +45,56 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="mode" line="60">
+		<member kind="property" name="mode">
 			<signature>var mode: Mode = Mode.NONE</signature>
 			<description>当前模式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="endpoint" line="65">
+		<member kind="property" name="endpoint">
 			<signature>var endpoint: String = ""</signature>
 			<description>会话端点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="local_peer_id" line="70">
+		<member kind="property" name="local_peer_id">
 			<signature>var local_peer_id: int = -1</signature>
 			<description>本地 peer 标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_peers" line="75">
+		<member kind="property" name="max_peers">
 			<signature>var max_peers: int = 0</signature>
 			<description>最大远端数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_active" line="80">
+		<member kind="property" name="is_active">
 			<signature>var is_active: bool = false</signature>
 			<description>会话是否已经启动。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_connected" line="85">
+		<member kind="property" name="is_connected">
 			<signature>var is_connected: bool = false</signature>
 			<description>后端是否已报告连接成功。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="started_at_unix" line="90">
+		<member kind="property" name="started_at_unix">
 			<signature>var started_at_unix: float = 0.0</signature>
 			<description>启动时间。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="97">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。</description>
 			<tags>
@@ -104,7 +104,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="start_host" line="109">
+		<member kind="method" name="start_host">
 			<signature>func start_host(options: Dictionary = {}) -&gt; void:</signature>
 			<description>标记主机会话已开始。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">options: Dictionary，支持 endpoint、port、max_clients、max_peers、local_peer_id、metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start_client" line="130">
+		<member kind="method" name="start_client">
 			<signature>func start_client(next_endpoint: String, options: Dictionary = {}) -&gt; void:</signature>
 			<description>标记客户端会话已开始。</description>
 			<tags>
@@ -123,7 +123,7 @@
 				<tag name="schema">options: Dictionary，支持 max_peers、local_peer_id、metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mark_connected" line="147">
+		<member kind="method" name="mark_connected">
 			<signature>func mark_connected(next_local_peer_id: int = -1) -&gt; void:</signature>
 			<description>标记后端已经连接。</description>
 			<tags>
@@ -131,7 +131,7 @@
 				<tag name="param">next_local_peer_id: 本地 peer；小于 0 时保留原值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="close" line="159">
+		<member kind="method" name="close">
 			<signature>func close(reason: String = "closed") -&gt; void:</signature>
 			<description>关闭会话。</description>
 			<tags>
@@ -139,7 +139,7 @@
 				<tag name="param">reason: 关闭原因。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="181">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

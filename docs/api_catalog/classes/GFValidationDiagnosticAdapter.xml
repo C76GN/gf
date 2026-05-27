@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFValidationDiagnosticAdapter" path="addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFValidationDiagnosticAdapter" path="addons/gf/standard/foundation/validation/gf_validation_diagnostic_adapter.gd" module="standard" extends="RefCounted" classDigest="923fcd084ca16e2312948704f1d022b854021da86cfb8e2b205b1c3871bcd870">
 	<description>GFValidationDiagnosticAdapter: 校验报告到编辑器诊断数据的适配器。
 只把 `GFValidationIssue`、`GFValidationReport` 或兼容字典转换成纯 Dictionary
 诊断记录，不创建 UI，也不假设具体编辑器控件，便于 Inspector、Dock、CI 和项目工具复用。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="issue_to_diagnostic" line="50">
+		<member kind="method" name="issue_to_diagnostic">
 			<signature>static func issue_to_diagnostic(issue: Variant, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>将单个问题转换成诊断字典。</description>
 			<tags>
@@ -26,7 +26,7 @@
 				<tag name="schema">return: Dictionary editor diagnostic record.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="report_to_diagnostics" line="106">
+		<member kind="method" name="report_to_diagnostics">
 			<signature>static func report_to_diagnostics(source: Variant, options: Dictionary = {}) -&gt; Array[Dictionary]:</signature>
 			<description>将报告、报告字典或问题数组转换成诊断数组。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="schema">return: Array of Dictionary editor diagnostic records.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="group_by_source" line="133">
+		<member kind="method" name="group_by_source">
 			<signature>static func group_by_source(diagnostics: Array[Dictionary]) -&gt; Dictionary:</signature>
 			<description>按源路径分组诊断。</description>
 			<tags>
@@ -50,7 +50,7 @@
 				<tag name="schema">return: Dictionary keyed by source_path with diagnostic arrays.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="make_line_records" line="158">
+		<member kind="method" name="make_line_records">
 			<signature>static func make_line_records(diagnostics: Array[Dictionary], options: Dictionary = {}) -&gt; Array[Dictionary]:</signature>
 			<description>生成适合行号栏、问题列表或资源面板消费的行记录。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="schema">return: Array of Dictionary line records.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="make_display_text" line="189">
+		<member kind="method" name="make_display_text">
 			<signature>static func make_display_text(diagnostic: Dictionary) -&gt; String:</signature>
 			<description>生成单条诊断的简短显示文本。</description>
 			<tags>
@@ -73,7 +73,7 @@
 				<tag name="schema">diagnostic: Dictionary editor diagnostic record.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="make_tooltip" line="212">
+		<member kind="method" name="make_tooltip">
 			<signature>static func make_tooltip(diagnostic: Dictionary) -&gt; String:</signature>
 			<description>生成单条诊断的工具提示文本。</description>
 			<tags>

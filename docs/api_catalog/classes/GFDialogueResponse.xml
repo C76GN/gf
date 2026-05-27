@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDialogueResponse" path="addons/gf/extensions/dialogue/resources/gf_dialogue_response.gd" module="extensions/dialogue" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDialogueResponse" path="addons/gf/extensions/dialogue/resources/gf_dialogue_response.gd" module="extensions/dialogue" extends="Resource" classDigest="961538104e1248d8b60ecb89a6fd688545f4687aebe580506fa16d08785e24d8">
 	<description>GFDialogueResponse: 通用对话响应选项。
 响应只描述玩家或系统可选择的一条后继路径，不决定 UI 样式、
 输入方式、角色关系或业务副作用。</description>
@@ -12,30 +12,35 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="response_id" line="20" decorators="@export">
+		<member kind="property" name="response_id" decorators="@export">
 			<signature>var response_id: StringName = &amp;""</signature>
 			<description>响应 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="next_line_id" line="30" decorators="@export_multiline var text: String = &quot;&quot; @export">
-			<signature>var next_line_id: StringName = &amp;""</signature>
-			<description>响应文本或项目自定义文本键。
-选择后跳转到的行 ID。为空时使用当前行的默认后继。</description>
+		<member kind="property" name="text" decorators="@export_multiline">
+			<signature>var text: String = ""</signature>
+			<description>响应文本或项目自定义文本键。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="condition_id" line="35" decorators="@export">
+		<member kind="property" name="next_line_id" decorators="@export">
+			<signature>var next_line_id: StringName = &amp;""</signature>
+			<description>选择后跳转到的行 ID。为空时使用当前行的默认后继。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="condition_id" decorators="@export">
 			<signature>var condition_id: StringName = &amp;""</signature>
 			<description>条件 ID。为空表示不需要条件判断。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="condition_payload" line="42" decorators="@export">
+		<member kind="property" name="condition_payload" decorators="@export">
 			<signature>var condition_payload: Variant = null</signature>
 			<description>条件载荷。框架只透传给上下文处理器。</description>
 			<tags>
@@ -43,14 +48,14 @@
 				<tag name="schema">condition_payload: 条件处理器接收的任意项目载荷；框架只透传，不解释其中结构。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="mutation_id" line="47" decorators="@export">
+		<member kind="property" name="mutation_id" decorators="@export">
 			<signature>var mutation_id: StringName = &amp;""</signature>
 			<description>选择该响应时请求执行的通用 mutation ID。为空表示无副作用请求。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="mutation_payload" line="54" decorators="@export">
+		<member kind="property" name="mutation_payload" decorators="@export">
 			<signature>var mutation_payload: Variant = null</signature>
 			<description>mutation 载荷。框架只透传给上下文处理器。</description>
 			<tags>
@@ -58,14 +63,14 @@
 				<tag name="schema">mutation_payload: mutation 处理器接收的任意项目载荷；框架只透传，不解释其中结构。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="tags" line="59" decorators="@export">
+		<member kind="property" name="tags" decorators="@export">
 			<signature>var tags: PackedStringArray = PackedStringArray()</signature>
 			<description>语义标签。框架不解释标签含义。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="66" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -75,7 +80,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_available" line="78">
+		<member kind="method" name="is_available">
 			<signature>func is_available(context: GFDialogueContext) -&gt; bool:</signature>
 			<description>检查响应是否可用。</description>
 			<tags>
@@ -84,7 +89,7 @@
 				<tag name="return">可用时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_response" line="91">
+		<member kind="method" name="duplicate_response">
 			<signature>func duplicate_response() -&gt; GFDialogueResponse:</signature>
 			<description>创建深拷贝。</description>
 			<tags>
@@ -92,7 +97,7 @@
 				<tag name="return">响应副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dictionary" line="102">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为字典。</description>
 			<tags>

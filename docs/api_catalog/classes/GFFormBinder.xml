@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFFormBinder" path="addons/gf/standard/utilities/ui/gf_form_binder.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFFormBinder" path="addons/gf/standard/utilities/ui/gf_form_binder.gd" module="standard" extends="RefCounted" classDigest="1940865ba2009f2cab7edf4591f7de84c5853ecc3af5e0ae50e7b9465d8c878c">
 	<description>GFFormBinder: 轻量 Control 表单读写绑定器。
 将 StringName 字段映射到 Control 节点，提供批量 read/write 和变化信号。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="field_changed" line="25">
+		<member kind="signal" name="field_changed">
 			<signature>signal field_changed(key: StringName, value: Variant)</signature>
 			<description>字段值变化时发出。</description>
 			<tags>
@@ -23,7 +23,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="bind_field" line="51">
+		<member kind="method" name="bind_field">
 			<signature>func bind_field(key: StringName, control: Control, default_value: Variant = null) -&gt; void:</signature>
 			<description>绑定字段到控件。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="schema">default_value: Variant，控件失效或读取失败时返回的默认值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unbind_field" line="79">
+		<member kind="method" name="unbind_field">
 			<signature>func unbind_field(key: StringName) -&gt; void:</signature>
 			<description>解绑字段。</description>
 			<tags>
@@ -42,14 +42,14 @@
 				<tag name="param">key: 字段键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="88">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空所有字段绑定。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_bound_fields" line="99">
+		<member kind="method" name="get_bound_fields">
 			<signature>func get_bound_fields() -&gt; Array[StringName]:</signature>
 			<description>获取绑定字段列表。</description>
 			<tags>
@@ -57,7 +57,7 @@
 				<tag name="return">字段键数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_field_value" line="122">
+		<member kind="method" name="get_field_value">
 			<signature>func get_field_value(key: StringName, fallback: Variant = null) -&gt; Variant:</signature>
 			<description>读取单个字段值。</description>
 			<tags>
@@ -69,7 +69,7 @@
 				<tag name="schema">return: Variant，字段当前值；无法读取时返回 fallback。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_field_value" line="143">
+		<member kind="method" name="set_field_value">
 			<signature>func set_field_value(key: StringName, value: Variant) -&gt; bool:</signature>
 			<description>写入单个字段值。</description>
 			<tags>
@@ -80,7 +80,7 @@
 				<tag name="schema">value: Variant，要写入绑定控件的字段值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="read_values" line="157">
+		<member kind="method" name="read_values">
 			<signature>func read_values() -&gt; Dictionary:</signature>
 			<description>读取全部字段值。</description>
 			<tags>
@@ -89,7 +89,7 @@
 				<tag name="schema">return: Dictionary，键为字段 StringName，值为对应控件当前值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="write_values" line="173">
+		<member kind="method" name="write_values">
 			<signature>func write_values(data: Dictionary, ignore_missing_fields: bool = true) -&gt; void:</signature>
 			<description>批量写入字段值。</description>
 			<tags>

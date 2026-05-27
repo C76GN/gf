@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFFixedTickClock" path="addons/gf/extensions/network/simulation/gf_fixed_tick_clock.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFFixedTickClock" path="addons/gf/extensions/network/simulation/gf_fixed_tick_clock.gd" module="extensions/network" extends="RefCounted" classDigest="1086cc11c87472b97b169f9f3833911648c63d7f9bd326af6cc81589ee074718">
 	<description>GFFixedTickClock: 固定步长 tick 时钟。
 用于网络同步、重放、确定性逻辑或任意固定频率调度；它只计算 tick 推进，不执行项目规则。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="ticks_advanced" line="25">
+		<member kind="signal" name="ticks_advanced">
 			<signature>signal ticks_advanced(previous_tick: int, current_tick: int, step_count: int)</signature>
 			<description>tick 推进后发出。</description>
 			<tags>
@@ -18,7 +18,7 @@
 				<tag name="param">step_count: 本轮推进 tick 数。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="tick_loop_started" line="36">
+		<member kind="signal" name="tick_loop_started">
 			<signature>signal tick_loop_started(previous_tick: int, target_tick: int, step_count: int)</signature>
 			<description>固定 tick 循环开始时发出。</description>
 			<tags>
@@ -28,7 +28,7 @@
 				<tag name="param">step_count: 本轮要处理的 tick 数。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="tick_started" line="45">
+		<member kind="signal" name="tick_started">
 			<signature>signal tick_started(tick: int, tick_seconds: float)</signature>
 			<description>单个固定 tick 开始时发出。</description>
 			<tags>
@@ -37,7 +37,7 @@
 				<tag name="param">tick_seconds: 单个 tick 的秒数。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="tick_finished" line="54">
+		<member kind="signal" name="tick_finished">
 			<signature>signal tick_finished(tick: int, tick_seconds: float)</signature>
 			<description>单个固定 tick 结束时发出。</description>
 			<tags>
@@ -46,7 +46,7 @@
 				<tag name="param">tick_seconds: 单个 tick 的秒数。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="tick_loop_finished" line="65">
+		<member kind="signal" name="tick_loop_finished">
 			<signature>signal tick_loop_finished(previous_tick: int, current_tick: int, step_count: int)</signature>
 			<description>固定 tick 循环结束时发出。</description>
 			<tags>
@@ -56,7 +56,7 @@
 				<tag name="param">step_count: 本轮实际处理的 tick 数。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="tick_budget_exhausted" line="76">
+		<member kind="signal" name="tick_budget_exhausted">
 			<signature>signal tick_budget_exhausted(available_steps: int, processed_steps: int, remaining_seconds: float)</signature>
 			<description>由于单次预算限制而未处理所有可用 tick 时发出。</description>
 			<tags>
@@ -70,35 +70,35 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="tick_rate" line="84">
+		<member kind="property" name="tick_rate">
 			<signature>var tick_rate: float = 30.0</signature>
 			<description>每秒 tick 数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="current_tick" line="89">
+		<member kind="property" name="current_tick">
 			<signature>var current_tick: int = 0</signature>
 			<description>当前 tick。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="accumulator_seconds" line="94">
+		<member kind="property" name="accumulator_seconds">
 			<signature>var accumulator_seconds: float = 0.0</signature>
 			<description>累积但尚未消费的时间。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_steps_per_update" line="99">
+		<member kind="property" name="max_steps_per_update">
 			<signature>var max_steps_per_update: int = 8</signature>
 			<description>单次 advance() 最多推进的 tick 数；小于等于 0 表示不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="drop_excess_time_on_budget_hit" line="104">
+		<member kind="property" name="drop_excess_time_on_budget_hit">
 			<signature>var drop_excess_time_on_budget_hit: bool = true</signature>
 			<description>达到单次预算上限时是否丢弃过量累积时间，避免长时间追帧。</description>
 			<tags>
@@ -107,7 +107,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="configure" line="123">
+		<member kind="method" name="configure">
 			<signature>func configure(p_tick_rate: float, p_max_steps_per_update: int = -1) -&gt; void:</signature>
 			<description>配置时钟。</description>
 			<tags>
@@ -116,7 +116,7 @@
 				<tag name="param">p_max_steps_per_update: 单次 advance() 最大步数；小于 0 表示保留原值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset" line="134">
+		<member kind="method" name="reset">
 			<signature>func reset(start_tick: int = 0) -&gt; void:</signature>
 			<description>重置时钟。</description>
 			<tags>
@@ -124,7 +124,7 @@
 				<tag name="param">start_tick: 起始 tick。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="advance" line="146">
+		<member kind="method" name="advance">
 			<signature>func advance(delta_seconds: float) -&gt; int:</signature>
 			<description>推进时钟并返回应执行的固定步数。</description>
 			<tags>
@@ -133,7 +133,7 @@
 				<tag name="return">应执行的固定 tick 数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="step_once" line="181">
+		<member kind="method" name="step_once">
 			<signature>func step_once() -&gt; int:</signature>
 			<description>手动推进一个 tick。</description>
 			<tags>
@@ -141,7 +141,7 @@
 				<tag name="return">推进后的当前 tick。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_tick_seconds" line="193">
+		<member kind="method" name="get_tick_seconds">
 			<signature>func get_tick_seconds() -&gt; float:</signature>
 			<description>获取单个 tick 的秒数。</description>
 			<tags>
@@ -149,7 +149,7 @@
 				<tag name="return">tick 秒数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_interpolation_alpha" line="202">
+		<member kind="method" name="get_interpolation_alpha">
 			<signature>func get_interpolation_alpha() -&gt; float:</signature>
 			<description>获取插值 alpha。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="return">0 到 1 的累积时间比例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_tick_factor" line="211">
+		<member kind="method" name="get_tick_factor">
 			<signature>func get_tick_factor() -&gt; float:</signature>
 			<description>获取当前 tick 插值比例。</description>
 			<tags>
@@ -165,7 +165,7 @@
 				<tag name="return">0 到 1 的累积时间比例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_lag_seconds" line="220">
+		<member kind="method" name="get_lag_seconds">
 			<signature>func get_lag_seconds() -&gt; float:</signature>
 			<description>获取当前累积延迟秒数。</description>
 			<tags>
@@ -173,7 +173,7 @@
 				<tag name="return">累积但尚未消费的时间。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="231">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转为字典。</description>
 			<tags>
@@ -182,7 +182,7 @@
 				<tag name="schema">return: Dictionary，包含 tick_rate、current_tick、accumulator_seconds、max_steps_per_update、drop_excess_time_on_budget_hit。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="248">
+		<member kind="method" name="from_dict">
 			<signature>func from_dict(data: Dictionary) -&gt; void:</signature>
 			<description>从字典恢复。</description>
 			<tags>
@@ -191,7 +191,7 @@
 				<tag name="schema">data: Dictionary，包含 tick_rate、current_tick、accumulator_seconds、max_steps_per_update、drop_excess_time_on_budget_hit。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="263">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFStorageUtility" path="addons/gf/standard/utilities/storage/gf_storage_utility.gd" module="standard" extends="GFUtility" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFStorageUtility" path="addons/gf/standard/utilities/storage/gf_storage_utility.gd" module="standard" extends="GFUtility" classDigest="77e8e8293825eb1329681b4c983cad25a68a923bc4251f1eba998bb1f334907d">
 	<description>GFStorageUtility: 基于 `user://` 的轻量存档系统。
 支持槽位存档、元数据分离读取、`Resource` 存取，
 以及可配置 codec、完整性校验、版本迁移和简单混淆，适合通用本地持久化场景。
@@ -10,7 +10,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="data_integrity_failed" line="25">
+		<member kind="signal" name="data_integrity_failed">
 			<signature>signal data_integrity_failed(file_name: String, error: String)</signature>
 			<description>解码数据失败或发现完整性校验失败后发出。</description>
 			<tags>
@@ -19,7 +19,7 @@
 				<tag name="param">error: 错误描述。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="data_migrated" line="36">
+		<member kind="signal" name="data_migrated">
 			<signature>signal data_migrated(file_name: String, from_version: int, to_version: int)</signature>
 			<description>数据版本迁移后发出。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="param">to_version: 目标版本。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="save_completed" line="45">
+		<member kind="signal" name="save_completed">
 			<signature>signal save_completed(file_name: String, error: Error)</signature>
 			<description>异步保存完成后发出。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="param">error: Godot 的 Error 结果码。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="load_completed" line="56">
+		<member kind="signal" name="load_completed">
 			<signature>signal load_completed(file_name: String, result: Dictionary)</signature>
 			<description>异步读取完成后发出。</description>
 			<tags>
@@ -51,14 +51,14 @@
 	</signals>
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_MAX_LIST_DEPTH" line="68">
+		<member kind="const" name="DEFAULT_MAX_LIST_DEPTH">
 			<signature>const DEFAULT_MAX_LIST_DEPTH: int = 32</signature>
 			<description>递归枚举文件时默认允许进入的最大目录深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_LISTED_FILES" line="73">
+		<member kind="const" name="DEFAULT_MAX_LISTED_FILES">
 			<signature>const DEFAULT_MAX_LISTED_FILES: int = 10000</signature>
 			<description>单次文件枚举默认最多返回的文件数量。</description>
 			<tags>
@@ -67,119 +67,119 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="encrypt_key" line="81">
+		<member kind="property" name="encrypt_key">
 			<signature>var encrypt_key: int = 42</signature>
 			<description>用于简单 XOR + Base64 混淆的密钥；为 `0` 时直接保存明文 JSON。该字段不是安全加密密钥。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="save_dir_name" line="86">
+		<member kind="property" name="save_dir_name">
 			<signature>var save_dir_name: String = "saves"</signature>
 			<description>保存子目录名；为空时直接写入 `user://`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="codec" line="91">
+		<member kind="property" name="codec">
 			<signature>var codec: GFStorageCodec = GFStorageCodec.new()</signature>
 			<description>存档 codec。为 null 时会自动创建默认 GFStorageCodec。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="file_format" line="96">
+		<member kind="property" name="file_format">
 			<signature>var file_format: GFStorageCodec.Format = GFStorageCodec.Format.JSON</signature>
 			<description>数据序列化格式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_compression" line="101">
+		<member kind="property" name="use_compression">
 			<signature>var use_compression: bool = false</signature>
 			<description>是否压缩存档载荷。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="allow_legacy_plain_json_fallback" line="106">
+		<member kind="property" name="allow_legacy_plain_json_fallback">
 			<signature>var allow_legacy_plain_json_fallback: bool = false</signature>
 			<description>解码失败时是否尝试按旧版未压缩、未混淆 JSON 读取原始 bytes。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="normalize_json_numbers" line="111">
+		<member kind="property" name="normalize_json_numbers">
 			<signature>var normalize_json_numbers: bool = false</signature>
 			<description>JSON 读取时是否把接近整数的 float 归一为 int。Binary 格式不受影响。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_integrity_checksum" line="116">
+		<member kind="property" name="use_integrity_checksum">
 			<signature>var use_integrity_checksum: bool = false</signature>
 			<description>是否写入并校验 SHA-256 完整性校验。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="strict_integrity" line="121">
+		<member kind="property" name="strict_integrity">
 			<signature>var strict_integrity: bool = true</signature>
 			<description>完整性校验失败时是否拒绝读取。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="require_integrity_checksum" line="126">
+		<member kind="property" name="require_integrity_checksum">
 			<signature>var require_integrity_checksum: bool = true</signature>
 			<description>启用完整性校验时，是否要求载荷必须包含 `_meta.checksum`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="include_storage_metadata" line="131">
+		<member kind="property" name="include_storage_metadata">
 			<signature>var include_storage_metadata: bool = false</signature>
 			<description>是否写入 `_meta.version`、`_meta.timestamp` 等通用元信息。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="allow_absolute_paths" line="136">
+		<member kind="property" name="allow_absolute_paths">
 			<signature>var allow_absolute_paths: bool = false</signature>
 			<description>是否允许传入绝对路径。关闭后绝对路径会被收敛到存档目录下的同名文件。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="create_directories_for_nested_paths" line="141">
+		<member kind="property" name="create_directories_for_nested_paths">
 			<signature>var create_directories_for_nested_paths: bool = true</signature>
 			<description>写入嵌套相对路径时是否自动创建目录。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_async_thread_count" line="146">
+		<member kind="property" name="max_async_thread_count">
 			<signature>var max_async_thread_count: int = 4:</signature>
 			<description>同时运行的异步存取线程数量。小于 1 时会被钳制为 1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="save_version" line="153">
+		<member kind="property" name="save_version">
 			<signature>var save_version: int = 1:</signature>
 			<description>当前存档数据版本。小于 1 会被钳制为 1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="strict_schema_migrations" line="160">
+		<member kind="property" name="strict_schema_migrations">
 			<signature>var strict_schema_migrations: bool = false</signature>
 			<description>为 true 时，读取旧版本存档必须存在完整迁移链，不能仅更新 `_meta.version`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_values_for_new_keys" line="167">
+		<member kind="property" name="default_values_for_new_keys">
 			<signature>var default_values_for_new_keys: Dictionary = {}</signature>
 			<description>读取旧版本数据时需要补齐的新字段默认值。</description>
 			<tags>
@@ -187,7 +187,7 @@
 				<tag name="schema">default_values_for_new_keys: Dictionary，包含迁移旧存档时合并进去的新字段默认值。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="last_load_result" line="174">
+		<member kind="property" name="last_load_result">
 			<signature>var last_load_result: Dictionary = {}</signature>
 			<description>迁移后的最近一次读取结果，包含 ok、data、metadata、integrity_valid、error。</description>
 			<tags>
@@ -197,21 +197,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="199">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化存储目录和内部帮助器。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="210">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>等待并清理异步存取任务。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="219">
+		<member kind="method" name="tick">
 			<signature>func tick(_delta: float = 0.0) -&gt; void:</signature>
 			<description>驱动异步存档任务完成检查。</description>
 			<tags>
@@ -219,7 +219,7 @@
 				<tag name="param">_delta: 本帧时间增量（秒），默认实现不直接使用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_resource" line="234">
+		<member kind="method" name="save_resource">
 			<signature>func save_resource(file_name: String, resource: Resource) -&gt; Error:</signature>
 			<description>保存一个 `Resource` 文件。</description>
 			<tags>
@@ -229,7 +229,7 @@
 				<tag name="return">Godot 的 `Error` 结果码。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_resource" line="252">
+		<member kind="method" name="load_resource">
 			<signature>func load_resource(file_name: String, type_hint: String = "") -&gt; Resource:</signature>
 			<description>读取一个 `Resource` 文件。</description>
 			<tags>
@@ -239,7 +239,7 @@
 				<tag name="return">读取到的资源实例；不存在时返回 `null`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="ensure_directory" line="269">
+		<member kind="method" name="ensure_directory">
 			<signature>func ensure_directory(directory_name: String = "") -&gt; Error:</signature>
 			<description>确保存储相对目录存在。</description>
 			<tags>
@@ -248,7 +248,7 @@
 				<tag name="return">Godot 的 `Error` 结果码。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="list_files" line="297">
+		<member kind="method" name="list_files">
 			<signature>func list_files( directory_name: String = "", extension_filter: String = "", recursive: bool = false, options: Dictionary = {} ) -&gt; PackedStringArray:</signature>
 			<description>枚举指定存储目录下的文件。</description>
 			<tags>
@@ -261,7 +261,7 @@
 				<tag name="schema">options: Dictionary，包含 max_scan_depth: int 和 max_file_count: int。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="delete_file" line="333">
+		<member kind="method" name="delete_file">
 			<signature>func delete_file(file_name: String) -&gt; Error:</signature>
 			<description>删除一个存储文件。</description>
 			<tags>
@@ -270,7 +270,7 @@
 				<tag name="return">Godot 的 `Error` 结果码；文件不存在时返回 `ERR_FILE_NOT_FOUND`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_slot" line="361">
+		<member kind="method" name="save_slot">
 			<signature>func save_slot(slot_id: int, data: Dictionary, metadata: Dictionary = {}) -&gt; Error:</signature>
 			<description>保存一个槽位存档。</description>
 			<tags>
@@ -283,7 +283,7 @@
 				<tag name="schema">metadata: Dictionary，作为存档槽展示元数据保存。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_slot" line="396">
+		<member kind="method" name="load_slot">
 			<signature>func load_slot(slot_id: int) -&gt; Dictionary:</signature>
 			<description>读取槽位核心数据。</description>
 			<tags>
@@ -293,7 +293,7 @@
 				<tag name="schema">return: Dictionary，作为存档槽主要数据保存的载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_slot_result" line="414">
+		<member kind="method" name="load_slot_result">
 			<signature>func load_slot_result(slot_id: int) -&gt; Dictionary:</signature>
 			<description>读取槽位核心数据并返回 codec 结果。</description>
 			<tags>
@@ -303,7 +303,7 @@
 				<tag name="schema">return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_slot_meta" line="428">
+		<member kind="method" name="load_slot_meta">
 			<signature>func load_slot_meta(slot_id: int) -&gt; Dictionary:</signature>
 			<description>读取槽位元数据。</description>
 			<tags>
@@ -313,7 +313,7 @@
 				<tag name="schema">return: Dictionary，作为存档槽展示元数据保存。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_slot_meta_result" line="446">
+		<member kind="method" name="load_slot_meta_result">
 			<signature>func load_slot_meta_result(slot_id: int) -&gt; Dictionary:</signature>
 			<description>读取槽位元数据并返回 codec 结果。</description>
 			<tags>
@@ -323,7 +323,7 @@
 				<tag name="schema">return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_slot" line="458">
+		<member kind="method" name="has_slot">
 			<signature>func has_slot(slot_id: int) -&gt; bool:</signature>
 			<description>检查槽位是否存在有效存档。</description>
 			<tags>
@@ -332,7 +332,7 @@
 				<tag name="return">核心数据与元数据文件都存在时返回 `true`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="list_slots" line="479">
+		<member kind="method" name="list_slots">
 			<signature>func list_slots() -&gt; Array[Dictionary]:</signature>
 			<description>枚举所有有效槽位。</description>
 			<tags>
@@ -341,7 +341,7 @@
 				<tag name="schema">return: Array，包含 slot_id: int、metadata: Dictionary 和 modified_time: int 的 Dictionary 条目。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="delete_slot" line="514">
+		<member kind="method" name="delete_slot">
 			<signature>func delete_slot(slot_id: int) -&gt; void:</signature>
 			<description>删除指定槽位的数据与元数据。</description>
 			<tags>
@@ -349,7 +349,7 @@
 				<tag name="param">slot_id: 槽位 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_data" line="541">
+		<member kind="method" name="save_data">
 			<signature>func save_data(file_name: String, data: Dictionary) -&gt; Error:</signature>
 			<description>保存纯字典数据。</description>
 			<tags>
@@ -360,7 +360,7 @@
 				<tag name="schema">data: Dictionary，要序列化并保存的数据载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_data" line="566">
+		<member kind="method" name="load_data">
 			<signature>func load_data(file_name: String) -&gt; Dictionary:</signature>
 			<description>读取纯字典数据。</description>
 			<tags>
@@ -370,7 +370,7 @@
 				<tag name="schema">return: Dictionary，从存储读取的数据载荷；读取失败时为空字典。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_data_result" line="583">
+		<member kind="method" name="load_data_result">
 			<signature>func load_data_result(file_name: String) -&gt; Dictionary:</signature>
 			<description>读取纯字典数据并返回 codec 结果。</description>
 			<tags>
@@ -380,7 +380,7 @@
 				<tag name="schema">return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_data_async" line="599">
+		<member kind="method" name="save_data_async">
 			<signature>func save_data_async(file_name: String, data: Dictionary) -&gt; Error:</signature>
 			<description>在线程中异步保存纯字典数据。完成后从主线程发出 save_completed。</description>
 			<tags>
@@ -391,7 +391,7 @@
 				<tag name="schema">data: Dictionary，要序列化并保存的数据载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_data_async" line="623">
+		<member kind="method" name="load_data_async">
 			<signature>func load_data_async(file_name: String) -&gt; Error:</signature>
 			<description>在线程中异步读取纯字典数据。完成后从主线程发出 load_completed。</description>
 			<tags>
@@ -400,7 +400,7 @@
 				<tag name="return">启动线程的 Error 结果码。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="wait_for_async_tasks" line="644">
+		<member kind="method" name="wait_for_async_tasks">
 			<signature>func wait_for_async_tasks() -&gt; void:</signature>
 			<description>等待已经入队和正在执行的异步纯数据任务全部完成。
 需要在同一路径上混合同步与异步读写时，可先调用该方法收敛顺序。</description>
@@ -408,7 +408,7 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="migrate_data" line="680">
+		<member kind="method" name="migrate_data">
 			<signature>func migrate_data(data: Dictionary, _from_version: int, _to_version: int) -&gt; Dictionary:</signature>
 			<description>迁移存档数据。项目可继承 GFStorageUtility 并重写该方法。</description>
 			<tags>
@@ -421,7 +421,7 @@
 				<tag name="schema">return: Dictionary，应用已注册迁移和默认值后的数据载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_migration" line="698">
+		<member kind="method" name="register_migration">
 			<signature>func register_migration(from_version: int, to_version: int, callback: Callable) -&gt; bool:</signature>
 			<description>注册一个版本迁移步骤。</description>
 			<tags>
@@ -432,7 +432,7 @@
 				<tag name="return">注册成功时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_migration" line="718">
+		<member kind="method" name="unregister_migration">
 			<signature>func unregister_migration(from_version: int, to_version: int) -&gt; void:</signature>
 			<description>注销一个版本迁移步骤。</description>
 			<tags>
@@ -441,14 +441,14 @@
 				<tag name="param">to_version: 目标版本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_migrations" line="725">
+		<member kind="method" name="clear_migrations">
 			<signature>func clear_migrations() -&gt; void:</signature>
 			<description>清空所有注册的版本迁移步骤。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_registered_migrations" line="736">
+		<member kind="method" name="get_registered_migrations">
 			<signature>func get_registered_migrations() -&gt; Array[Dictionary]:</signature>
 			<description>获取已注册迁移步骤。</description>
 			<tags>

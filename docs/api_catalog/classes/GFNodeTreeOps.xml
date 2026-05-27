@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeTreeOps" path="addons/gf/standard/utilities/nodes/gf_node_tree_ops.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeTreeOps" path="addons/gf/standard/utilities/nodes/gf_node_tree_ops.gd" module="standard" extends="RefCounted" classDigest="3ab32236aa8d9825030d1de8b0e169566e489cddb771fe533113d96544e3cf42">
 	<description>GFNodeTreeOps: 通用节点树操作集合。
 提供安全添加、重挂、替换、遍历、类型查找和 owner 传播等节点树基础操作。
 该工具只处理 Godot Node 结构，不绑定具体玩法、UI 或场景业务。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="add_child_with_owner" line="30">
+		<member kind="method" name="add_child_with_owner">
 			<signature>static func add_child_with_owner( parent: Node, child: Node, owner: Node = null, force_readable_name: bool = false ) -&gt; bool:</signature>
 			<description>把子节点添加到父节点，并按场景编辑规则设置 owner。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="return">添加成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reparent_node" line="59">
+		<member kind="method" name="reparent_node">
 			<signature>static func reparent_node( node: Node, new_parent: Node, keep_global_transform: bool = true, owner: Node = null ) -&gt; bool:</signature>
 			<description>把节点移动到新父节点下。</description>
 			<tags>
@@ -37,7 +37,7 @@
 				<tag name="return">移动成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_child" line="99">
+		<member kind="method" name="replace_child">
 			<signature>static func replace_child( parent: Node, old_child: Node, new_child: Node, keep_global_transform: bool = true, free_old_child: bool = false, owner: Node = null ) -&gt; bool:</signature>
 			<description>用新子节点替换父节点下的旧子节点。</description>
 			<tags>
@@ -51,7 +51,7 @@
 				<tag name="return">替换成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="find_first_parent_of_type" line="137">
+		<member kind="method" name="find_first_parent_of_type">
 			<signature>static func find_first_parent_of_type( node: Node, parent_type: Variant, include_self: bool = false ) -&gt; Node:</signature>
 			<description>向上查找第一个匹配类型的父级节点。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="schema">parent_type: Variant type filter accepted by is_instance_of(), native class name, GDScript class_name, or script resource path.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="find_first_child_of_type" line="169">
+		<member kind="method" name="find_first_child_of_type">
 			<signature>static func find_first_child_of_type( parent: Node, child_type: Variant, recursive: bool = false, include_internal: bool = false, include_parent: bool = false ) -&gt; Node:</signature>
 			<description>向下查找第一个匹配类型的子节点。</description>
 			<tags>
@@ -77,7 +77,7 @@
 				<tag name="schema">child_type: Variant type filter accepted by is_instance_of(), native class name, GDScript class_name, or script resource path.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_node_tree" line="206">
+		<member kind="method" name="collect_node_tree">
 			<signature>static func collect_node_tree( root: Node, type_filter: Variant = null, include_root: bool = true, include_internal: bool = false ) -&gt; Array[Node]:</signature>
 			<description>收集节点树中的节点。</description>
 			<tags>
@@ -90,7 +90,7 @@
 				<tag name="schema">type_filter: Variant type filter accepted by is_instance_of(), native class name, GDScript class_name, script resource path, or null for all nodes.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_owner_recursive" line="228">
+		<member kind="method" name="set_owner_recursive">
 			<signature>static func set_owner_recursive(node: Node, owner: Node) -&gt; void:</signature>
 			<description>递归设置节点树 owner。</description>
 			<tags>
@@ -99,7 +99,7 @@
 				<tag name="param">owner: 目标 owner；必须是节点树中被设置节点的祖先。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="free_children" line="246">
+		<member kind="method" name="free_children">
 			<signature>static func free_children(parent: Node, include_internal: bool = false) -&gt; int:</signature>
 			<description>从父节点移除并 queue_free() 父节点下的全部子节点。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFEditorActionDefinition" path="addons/gf/kernel/editor/gf_editor_action_definition.gd" module="kernel" extends="RefCounted" line="15" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFEditorActionDefinition" path="addons/gf/kernel/editor/gf_editor_action_definition.gd" module="kernel" extends="RefCounted" classDigest="324a94ac4f349a93211684ae22c2c252bbb3b9b80041efa3e05a16ce492fd9de">
 	<description>GFEditorActionDefinition: 编辑器动作声明。
 把菜单、按钮、快捷键或面板入口与命令工厂解耦。动作只负责描述入口和创建命令，
 具体执行、撤销和业务含义由调用方或命令实现决定。</description>
@@ -13,42 +13,42 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="action_id" line="34">
+		<member kind="property" name="action_id">
 			<signature>var action_id: StringName = &amp;""</signature>
 			<description>动作稳定标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="label" line="39">
+		<member kind="property" name="label">
 			<signature>var label: String = ""</signature>
 			<description>动作显示名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="tooltip" line="44">
+		<member kind="property" name="tooltip">
 			<signature>var tooltip: String = ""</signature>
 			<description>动作提示文本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="shortcut_text" line="49">
+		<member kind="property" name="shortcut_text">
 			<signature>var shortcut_text: String = ""</signature>
 			<description>快捷键说明文本，由具体 UI 决定是否展示。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="command_factory" line="54">
+		<member kind="property" name="command_factory">
 			<signature>var command_factory: Callable = Callable()</signature>
 			<description>命令工厂。推荐签名为 `func(context: Dictionary) -&gt; GFEditorCommand`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="61">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>动作元数据。</description>
 			<tags>
@@ -58,7 +58,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="create_command" line="75">
+		<member kind="method" name="create_command">
 			<signature>func create_command(context: Dictionary = {}) -&gt; GFEditorCommandBase:</signature>
 			<description>根据上下文创建命令。</description>
 			<tags>
@@ -68,7 +68,7 @@
 				<tag name="schema">context: Dictionary editor context passed to command_factory.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="invoke" line="94">
+		<member kind="method" name="invoke">
 			<signature>func invoke(context: Dictionary = {}, undo_manager: Object = null) -&gt; Error:</signature>
 			<description>执行动作并可选接入 UndoRedo。</description>
 			<tags>
@@ -79,7 +79,7 @@
 				<tag name="schema">context: Dictionary editor context passed to create_command().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_available" line="113">
+		<member kind="method" name="is_available">
 			<signature>func is_available(context: Dictionary = {}) -&gt; bool:</signature>
 			<description>动作是否具备可调用命令工厂。</description>
 			<tags>
@@ -89,7 +89,7 @@
 				<tag name="schema">context: Dictionary editor context passed to create_command().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="127">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取动作快照。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVariantJsonCodec" path="addons/gf/standard/foundation/variant/gf_variant_json_codec.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFVariantJsonCodec" path="addons/gf/standard/foundation/variant/gf_variant_json_codec.gd" module="standard" extends="RefCounted" classDigest="76d79604feb6826f66140991c9ebe5896a1bd35c256959c4fd976cb7e3b3d653">
 	<description>GFVariantJsonCodec: Godot Variant 的 JSON 兼容编码器。
 负责在 JSON.stringify() 可编码的数据和常见 Godot Variant 类型之间往返转换。
 该类不负责集合复制或默认值合并；这类数据操作由 GFVariantData 提供。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="variant_to_json_compatible" line="70">
+		<member kind="method" name="variant_to_json_compatible">
 			<signature>static func variant_to_json_compatible(value: Variant, options: Dictionary = {}) -&gt; Variant:</signature>
 			<description>将 Variant 转为 JSON.stringify() 可安全编码的值。</description>
 			<tags>
@@ -26,7 +26,7 @@
 				<tag name="schema">return: Variant made only from JSON-compatible values and typed marker dictionaries.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="json_compatible_to_variant" line="89">
+		<member kind="method" name="json_compatible_to_variant">
 			<signature>static func json_compatible_to_variant(value: Variant, options: Dictionary = {}) -&gt; Variant:</signature>
 			<description>从 variant_to_json_compatible() 生成的值恢复 Godot Variant。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="schema">return: Variant restored from JSON-compatible data.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="vector2_to_array" line="116">
+		<member kind="method" name="vector2_to_array">
 			<signature>static func vector2_to_array(value: Vector2) -&gt; Array[float]:</signature>
 			<description>将 Vector2 转成 JSON 友好的数组。</description>
 			<tags>
@@ -48,7 +48,7 @@
 				<tag name="return">[x, y] 数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="array_to_vector2" line="131">
+		<member kind="method" name="array_to_vector2">
 			<signature>static func array_to_vector2(value: Variant, fallback: Vector2 = Vector2.ZERO) -&gt; Vector2:</signature>
 			<description>从数组读取 Vector2，失败时返回 fallback。</description>
 			<tags>
@@ -59,7 +59,7 @@
 				<tag name="schema">value: Variant expected to be an Array with at least two numeric values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="vector3_to_array" line="148">
+		<member kind="method" name="vector3_to_array">
 			<signature>static func vector3_to_array(value: Vector3) -&gt; Array[float]:</signature>
 			<description>将 Vector3 转成 JSON 友好的数组。</description>
 			<tags>
@@ -68,7 +68,7 @@
 				<tag name="return">[x, y, z] 数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="array_to_vector3" line="163">
+		<member kind="method" name="array_to_vector3">
 			<signature>static func array_to_vector3(value: Variant, fallback: Vector3 = Vector3.ZERO) -&gt; Vector3:</signature>
 			<description>从数组读取 Vector3，失败时返回 fallback。</description>
 			<tags>
@@ -79,7 +79,7 @@
 				<tag name="schema">value: Variant expected to be an Array with at least three numeric values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="color_to_array" line="180">
+		<member kind="method" name="color_to_array">
 			<signature>static func color_to_array(value: Color) -&gt; Array[float]:</signature>
 			<description>将 Color 转成 JSON 友好的数组。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="return">[r, g, b, a] 数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="array_to_color" line="195">
+		<member kind="method" name="array_to_color">
 			<signature>static func array_to_color(value: Variant, fallback: Color = Color.WHITE) -&gt; Color:</signature>
 			<description>从数组读取 Color，失败时返回 fallback。</description>
 			<tags>

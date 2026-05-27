@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCommandSequence" path="addons/gf/standard/sequence/gf_command_sequence.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCommandSequence" path="addons/gf/standard/sequence/gf_command_sequence.gd" module="standard" extends="RefCounted" classDigest="3fce480a1e64fc2f697e40757511ccbd0a1bb7483c8a391459fa91e533a40a99">
 	<description>GFCommandSequence: 通用顺序指令执行器。
 可运行 `GFSequenceStep`、`GFCommand` 或任何实现 `execute()` / `resolve()`
 的对象。它只负责顺序、等待和架构注入，不规定具体业务语义。</description>
@@ -9,14 +9,14 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="sequence_started" line="20">
+		<member kind="signal" name="sequence_started">
 			<signature>signal sequence_started</signature>
 			<description>序列开始执行时发出。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="step_started" line="31">
+		<member kind="signal" name="step_started">
 			<signature>signal step_started(index: int, step: Variant)</signature>
 			<description>步骤开始执行时发出。</description>
 			<tags>
@@ -26,7 +26,7 @@
 				<tag name="schema">step: Variant sequence step value.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="step_completed" line="42">
+		<member kind="signal" name="step_completed">
 			<signature>signal step_completed(index: int, step: Variant)</signature>
 			<description>步骤执行完毕时发出。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="schema">step: Variant sequence step value.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="step_failed" line="55">
+		<member kind="signal" name="step_failed">
 			<signature>signal step_failed(index: int, step: Variant, error: String)</signature>
 			<description>步骤报告失败时发出。</description>
 			<tags>
@@ -47,14 +47,14 @@
 				<tag name="schema">step: Variant sequence step value.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="sequence_completed" line="60">
+		<member kind="signal" name="sequence_completed">
 			<signature>signal sequence_completed</signature>
 			<description>序列全部执行完成时发出。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="sequence_failed" line="69">
+		<member kind="signal" name="sequence_failed">
 			<signature>signal sequence_failed(report: Dictionary)</signature>
 			<description>序列因步骤失败而停止时发出。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="schema">report: Dictionary run report.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="sequence_cancelled" line="74">
+		<member kind="signal" name="sequence_cancelled">
 			<signature>signal sequence_cancelled</signature>
 			<description>序列被取消时发出。</description>
 			<tags>
@@ -74,7 +74,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="steps" line="90">
+		<member kind="property" name="steps">
 			<signature>var steps: Array = []</signature>
 			<description>默认步骤列表。</description>
 			<tags>
@@ -82,49 +82,49 @@
 				<tag name="schema">steps: Array of GFSequenceStep, GFCommand, Callable, or objects with execute()/resolve().</tag>
 			</tags>
 		</member>
-		<member kind="property" name="context" line="95">
+		<member kind="property" name="context">
 			<signature>var context: GFSequenceContext</signature>
 			<description>序列上下文。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_running" line="100">
+		<member kind="property" name="is_running">
 			<signature>var is_running: bool = false</signature>
 			<description>当前是否正在执行。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="signal_timeout_seconds" line="105">
+		<member kind="property" name="signal_timeout_seconds">
 			<signature>var signal_timeout_seconds: float = 30.0</signature>
 			<description>等待步骤 Signal 的超时时间（秒）。小于等于 0 时表示不启用超时。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="signal_timeout_respects_time_scale" line="110">
+		<member kind="property" name="signal_timeout_respects_time_scale">
 			<signature>var signal_timeout_respects_time_scale: bool = true</signature>
 			<description>Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="stop_on_error" line="115">
+		<member kind="property" name="stop_on_error">
 			<signature>var stop_on_error: bool = false</signature>
 			<description>步骤返回失败结果时是否停止后续步骤。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="rollback_on_failure" line="120">
+		<member kind="property" name="rollback_on_failure">
 			<signature>var rollback_on_failure: bool = false</signature>
 			<description>stop_on_error 生效后，是否对已完成且实现 undo() 的步骤逆序回滚。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="last_run_report" line="127">
+		<member kind="property" name="last_run_report">
 			<signature>var last_run_report: Dictionary = {}</signature>
 			<description>最近一次运行报告。</description>
 			<tags>
@@ -134,7 +134,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="run" line="173">
+		<member kind="method" name="run">
 			<signature>func run(p_steps: Array = []) -&gt; void:</signature>
 			<description>运行序列。</description>
 			<tags>
@@ -143,14 +143,14 @@
 				<tag name="schema">p_steps: Array of GFSequenceStep, GFCommand, Callable, or objects with execute()/resolve().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="249">
+		<member kind="method" name="cancel">
 			<signature>func cancel() -&gt; void:</signature>
 			<description>请求取消序列。当前步骤实现取消入口时会先收到取消请求，正在等待的 Signal 会在下一帧取消检查后停止。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_signal_timeout" line="265">
+		<member kind="method" name="with_signal_timeout">
 			<signature>func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -&gt; GFCommandSequence:</signature>
 			<description>设置等待 Signal 的超时时间，并返回自身以便链式调用。</description>
 			<tags>
@@ -160,7 +160,7 @@
 				<tag name="return">当前序列。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_failure_policy" line="280">
+		<member kind="method" name="with_failure_policy">
 			<signature>func with_failure_policy( should_stop_on_error: bool = true, should_rollback_on_failure: bool = false ) -&gt; GFCommandSequence:</signature>
 			<description>设置失败处理策略，并返回自身以便链式调用。</description>
 			<tags>

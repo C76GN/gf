@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFQuestUtility" path="addons/gf/extensions/domain/quest/gf_quest_utility.gd" module="extensions/domain" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFQuestUtility" path="addons/gf/extensions/domain/quest/gf_quest_utility.gd" module="extensions/domain" extends="GFUtility" classDigest="970383865bf5ef9ffbdbd9d5ecaef78b3b35ac274c2c9ab816edac71d28ba9b2">
 	<description>GFQuestUtility: 轻量级任务进度监听系统。
 基于 `simple event` 将业务事件映射为任务进度累积，
 适合用于成就、收集与击杀类目标的低成本跟踪。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="quest_started" line="22">
+		<member kind="signal" name="quest_started">
 			<signature>signal quest_started(quest_id: StringName)</signature>
 			<description>当任务开始监听时发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">quest_id: 任务 ID。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="quest_available" line="29">
+		<member kind="signal" name="quest_available">
 			<signature>signal quest_available(quest_id: StringName)</signature>
 			<description>当任务进入可接取状态时发出。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="param">quest_id: 任务 ID。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="quest_acceptance_blocked" line="38">
+		<member kind="signal" name="quest_acceptance_blocked">
 			<signature>signal quest_acceptance_blocked(quest_id: StringName, reason: String)</signature>
 			<description>当任务接取条件拒绝时发出。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="param">reason: 拒绝原因。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="quest_progressed" line="49">
+		<member kind="signal" name="quest_progressed">
 			<signature>signal quest_progressed(quest_id: StringName, current: int, target: int)</signature>
 			<description>当任务进度变化时发出。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="param">target: 目标进度。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="quest_completed" line="56">
+		<member kind="signal" name="quest_completed">
 			<signature>signal quest_completed(quest_id: StringName)</signature>
 			<description>当任务完成时发出。</description>
 			<tags>
@@ -52,7 +52,7 @@
 				<tag name="param">quest_id: 完成的任务 ID。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="quest_completion_blocked" line="65">
+		<member kind="signal" name="quest_completion_blocked">
 			<signature>signal quest_completion_blocked(quest_id: StringName, reason: String)</signature>
 			<description>当任务完成条件被阻塞器拒绝时发出。</description>
 			<tags>
@@ -61,7 +61,7 @@
 				<tag name="param">reason: 阻塞原因。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="quest_cancelled" line="72">
+		<member kind="signal" name="quest_cancelled">
 			<signature>signal quest_cancelled(quest_id: StringName)</signature>
 			<description>当任务取消时发出。</description>
 			<tags>
@@ -69,7 +69,7 @@
 				<tag name="param">quest_id: 任务 ID。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="quest_failed" line="79">
+		<member kind="signal" name="quest_failed">
 			<signature>signal quest_failed(quest_id: StringName)</signature>
 			<description>当任务失败时发出。</description>
 			<tags>
@@ -80,35 +80,35 @@
 	</signals>
 	<enums />
 	<constants>
-		<member kind="const" name="STATUS_AVAILABLE" line="87">
+		<member kind="const" name="STATUS_AVAILABLE">
 			<signature>const STATUS_AVAILABLE: StringName = &amp;"available"</signature>
 			<description>任务已定义、可接取但尚未开始监听。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="STATUS_ACTIVE" line="92">
+		<member kind="const" name="STATUS_ACTIVE">
 			<signature>const STATUS_ACTIVE: StringName = &amp;"active"</signature>
 			<description>任务正在监听事件并累计进度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="STATUS_COMPLETED" line="97">
+		<member kind="const" name="STATUS_COMPLETED">
 			<signature>const STATUS_COMPLETED: StringName = &amp;"completed"</signature>
 			<description>任务已完成。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="STATUS_CANCELLED" line="102">
+		<member kind="const" name="STATUS_CANCELLED">
 			<signature>const STATUS_CANCELLED: StringName = &amp;"cancelled"</signature>
 			<description>任务已取消。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="STATUS_FAILED" line="107">
+		<member kind="const" name="STATUS_FAILED">
 			<signature>const STATUS_FAILED: StringName = &amp;"failed"</signature>
 			<description>任务已失败。</description>
 			<tags>
@@ -117,7 +117,7 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="allow_negative_progress" line="115">
+		<member kind="property" name="allow_negative_progress">
 			<signature>var allow_negative_progress: bool = false</signature>
 			<description>是否允许事件传入负数进度。默认关闭，避免任务进度被异常 payload 反向扣减。</description>
 			<tags>
@@ -126,7 +126,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="start_quest" line="161">
+		<member kind="method" name="start_quest">
 			<signature>func start_quest(quest_id: StringName, target_event: StringName, target_count: int = 1) -&gt; void:</signature>
 			<description>开始监听一个任务。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="param">target_count: 完成任务所需的累计次数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="define_quest" line="197">
+		<member kind="method" name="define_quest">
 			<signature>func define_quest( quest_id: StringName, target_event: StringName, target_count: int = 1, metadata: Dictionary = {} ) -&gt; void:</signature>
 			<description>定义一个可接取任务，但暂不开始监听事件。</description>
 			<tags>
@@ -148,7 +148,7 @@
 				<tag name="schema">metadata: Dictionary，项目自定义任务元数据；GF 会复制保存并在任务报告中透传。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="accept_quest" line="223">
+		<member kind="method" name="accept_quest">
 			<signature>func accept_quest(quest_id: StringName) -&gt; bool:</signature>
 			<description>接取一个已定义任务，并开始监听事件。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="return">接取成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="complete_quest" line="254">
+		<member kind="method" name="complete_quest">
 			<signature>func complete_quest(quest_id: StringName) -&gt; bool:</signature>
 			<description>手动完成一个任务。</description>
 			<tags>
@@ -166,7 +166,7 @@
 				<tag name="return">完成成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel_quest" line="268">
+		<member kind="method" name="cancel_quest">
 			<signature>func cancel_quest(quest_id: StringName) -&gt; bool:</signature>
 			<description>取消一个任务。</description>
 			<tags>
@@ -175,7 +175,7 @@
 				<tag name="return">取消成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="fail_quest" line="287">
+		<member kind="method" name="fail_quest">
 			<signature>func fail_quest(quest_id: StringName, reason: String = "") -&gt; bool:</signature>
 			<description>标记任务失败。</description>
 			<tags>
@@ -185,7 +185,7 @@
 				<tag name="return">标记成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_acceptance_condition" line="307">
+		<member kind="method" name="add_acceptance_condition">
 			<signature>func add_acceptance_condition(quest_id: StringName, condition: Callable) -&gt; void:</signature>
 			<description>添加接取条件。条件返回 false 或包含 ok=false 的 Dictionary 时阻止接取。</description>
 			<tags>
@@ -194,7 +194,7 @@
 				<tag name="param">condition: 条件回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_acceptance_conditions" line="321">
+		<member kind="method" name="clear_acceptance_conditions">
 			<signature>func clear_acceptance_conditions(quest_id: StringName) -&gt; void:</signature>
 			<description>清空任务接取条件。</description>
 			<tags>
@@ -202,7 +202,7 @@
 				<tag name="param">quest_id: 任务 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_completion_blocker" line="334">
+		<member kind="method" name="add_completion_blocker">
 			<signature>func add_completion_blocker(quest_id: StringName, blocker: Callable) -&gt; void:</signature>
 			<description>添加完成阻塞器。阻塞器返回 false 或包含 ok=false 的 Dictionary 时阻止完成。</description>
 			<tags>
@@ -211,7 +211,7 @@
 				<tag name="param">blocker: 阻塞器回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_completion_blockers" line="348">
+		<member kind="method" name="clear_completion_blockers">
 			<signature>func clear_completion_blockers(quest_id: StringName) -&gt; void:</signature>
 			<description>清空任务完成阻塞器。</description>
 			<tags>
@@ -219,7 +219,7 @@
 				<tag name="param">quest_id: 任务 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_quest_parent" line="363">
+		<member kind="method" name="set_quest_parent">
 			<signature>func set_quest_parent(quest_id: StringName, parent_quest_id: StringName) -&gt; bool:</signature>
 			<description>设置任务父级关系。</description>
 			<tags>
@@ -229,7 +229,7 @@
 				<tag name="return">设置成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_quest_parent" line="386">
+		<member kind="method" name="clear_quest_parent">
 			<signature>func clear_quest_parent(quest_id: StringName) -&gt; void:</signature>
 			<description>清除任务父级关系。</description>
 			<tags>
@@ -237,7 +237,7 @@
 				<tag name="param">quest_id: 任务 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_child_quests" line="399">
+		<member kind="method" name="get_child_quests">
 			<signature>func get_child_quests(quest_id: StringName) -&gt; PackedStringArray:</signature>
 			<description>获取任务的直接子任务 ID。</description>
 			<tags>
@@ -246,7 +246,7 @@
 				<tag name="return">子任务 ID 列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_quest_tree_report" line="413">
+		<member kind="method" name="get_quest_tree_report">
 			<signature>func get_quest_tree_report(root_quest_id: StringName) -&gt; Dictionary:</signature>
 			<description>获取任务树报告。</description>
 			<tags>
@@ -256,7 +256,7 @@
 				<tag name="schema">return: Dictionary，包含任务报告字段、children: Array[Dictionary]、total_count、completed_count 与 aggregate_progress。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="emit_quest_event" line="427">
+		<member kind="method" name="emit_quest_event">
 			<signature>func emit_quest_event(event_id: StringName, amount: int = 1) -&gt; void:</signature>
 			<description>手动触发一次任务事件。</description>
 			<tags>
@@ -265,7 +265,7 @@
 				<tag name="param">amount: 本次增加的进度值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_quest_completed" line="442">
+		<member kind="method" name="is_quest_completed">
 			<signature>func is_quest_completed(quest_id: StringName) -&gt; bool:</signature>
 			<description>查询任务是否已经完成。</description>
 			<tags>
@@ -274,7 +274,7 @@
 				<tag name="return">已完成时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_quest_progress" line="457">
+		<member kind="method" name="get_quest_progress">
 			<signature>func get_quest_progress(quest_id: StringName) -&gt; float:</signature>
 			<description>获取任务进度百分比。</description>
 			<tags>
@@ -283,7 +283,7 @@
 				<tag name="return">范围在 0.0 到 1.0 之间的进度值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_quest_status" line="475">
+		<member kind="method" name="get_quest_status">
 			<signature>func get_quest_status(quest_id: StringName) -&gt; StringName:</signature>
 			<description>获取任务状态。</description>
 			<tags>
@@ -292,7 +292,7 @@
 				<tag name="return">状态文本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_quests_by_status" line="487">
+		<member kind="method" name="get_quests_by_status">
 			<signature>func get_quests_by_status(status: StringName) -&gt; PackedStringArray:</signature>
 			<description>获取指定状态的任务 ID。</description>
 			<tags>
@@ -301,7 +301,7 @@
 				<tag name="return">任务 ID 列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_quest_report" line="506">
+		<member kind="method" name="get_quest_report">
 			<signature>func get_quest_report(quest_id: StringName) -&gt; Dictionary:</signature>
 			<description>获取任务报告。</description>
 			<tags>
@@ -311,7 +311,7 @@
 				<tag name="schema">return: Dictionary，包含 quest_id、event_id、target_count、current_count、is_completed、status、parent_id、child_ids、metadata、acceptance_condition_count 与 completion_blocker_count。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="520">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取任务系统调试快照。</description>
 			<tags>

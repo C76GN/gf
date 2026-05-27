@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateMachine" path="addons/gf/standard/state_machine/node/gf_node_state_machine.gd" module="standard" extends="Node" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeStateMachine" path="addons/gf/standard/state_machine/node/gf_node_state_machine.gd" module="standard" extends="Node" classDigest="79d4a520814649449e7ff3eba065ed9b2c8311a4a9448fe211b19cf7d4e1be4d">
 	<description>GFNodeStateMachine: 基于场景树的多状态组状态机。
 支持直接子 GFNodeState 组成内部状态组，也支持多个 GFNodeStateGroup 并行工作。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="state_group_added" line="21">
+		<member kind="signal" name="state_group_added">
 			<signature>signal state_group_added(group: GFNodeStateGroup)</signature>
 			<description>状态组加入后发出。</description>
 			<tags>
@@ -16,7 +16,7 @@
 				<tag name="param">group: 新加入的状态组。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="state_group_removed" line="28">
+		<member kind="signal" name="state_group_removed">
 			<signature>signal state_group_removed(group: GFNodeStateGroup)</signature>
 			<description>状态组移除后发出。</description>
 			<tags>
@@ -24,7 +24,7 @@
 				<tag name="param">group: 被移除的状态组。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="state_changed" line="39">
+		<member kind="signal" name="state_changed">
 			<signature>signal state_changed(group: GFNodeStateGroup, old_state: GFNodeState, new_state: GFNodeState)</signature>
 			<description>任意状态组切换状态后发出。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="param">new_state: 切换后的状态；状态组停止时可为 null。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="state_event_handled" line="54">
+		<member kind="signal" name="state_event_handled">
 			<signature>signal state_event_handled(group: GFNodeStateGroup, event_id: StringName, handler_state: GFNodeState, payload: Variant)</signature>
 			<description>任意状态组中的状态处理状态事件后发出。</description>
 			<tags>
@@ -48,7 +48,7 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="StartMode" line="62">
+		<member kind="enum" name="StartMode">
 			<signature>enum StartMode { ## 状态机 ready 时启动，适合需要旧版启动顺序的项目。 ON_READY, ## 等待宿主节点 ready 后启动。 AFTER_HOST_READY, ## 只加载状态，不自动启动；由外部调用 start()。 MANUAL, }</signature>
 			<description>节点状态机初始状态启动时机。</description>
 			<tags>
@@ -57,7 +57,7 @@
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="INTERNAL_GROUP_NAME" line="77">
+		<member kind="const" name="INTERNAL_GROUP_NAME">
 			<signature>const INTERNAL_GROUP_NAME: StringName = &amp;"_internal"</signature>
 			<description>直接子 GFNodeState 组成的内置状态组名称。</description>
 			<tags>
@@ -66,21 +66,21 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="config" line="95" decorators="@export">
+		<member kind="property" name="config" decorators="@export">
 			<signature>var config: GFNodeStateMachineConfig = null</signature>
 			<description>可选状态机配置资源。为空时继续使用本节点上的兼容导出项。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="initial_state" line="100" decorators="@export">
+		<member kind="property" name="initial_state" decorators="@export">
 			<signature>var initial_state: StringName = &amp;""</signature>
 			<description>内部状态组初始状态名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="initial_args" line="107" decorators="@export">
+		<member kind="property" name="initial_args" decorators="@export">
 			<signature>var initial_args: Dictionary = {}</signature>
 			<description>内部状态组初始状态参数。</description>
 			<tags>
@@ -88,21 +88,21 @@
 				<tag name="schema">initial_args: 内部状态组初始状态参数 Dictionary；键和值由初始状态的项目逻辑约定。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="reload_on_ready" line="112" decorators="@export">
+		<member kind="property" name="reload_on_ready" decorators="@export">
 			<signature>var reload_on_ready: bool = true</signature>
 			<description>ready 时是否自动从子节点加载状态与状态组。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="start_mode" line="117" decorators="@export">
+		<member kind="property" name="start_mode" decorators="@export">
 			<signature>var start_mode: StartMode = StartMode.AFTER_HOST_READY</signature>
 			<description>初始状态启动模式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="preserve_current_state_on_reload" line="122" decorators="@export">
+		<member kind="property" name="preserve_current_state_on_reload" decorators="@export">
 			<signature>var preserve_current_state_on_reload: bool = true</signature>
 			<description>运行时重新从子节点加载时，是否尽量恢复各状态组的当前状态。</description>
 			<tags>
@@ -111,7 +111,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="transition_to" line="175">
+		<member kind="method" name="transition_to">
 			<signature>func transition_to(path: StringName, args: Dictionary = {}) -&gt; void:</signature>
 			<description>通过路径切换状态。path 可为 "State" 或 "Group/State"。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="transition_group_to" line="197">
+		<member kind="method" name="transition_group_to">
 			<signature>func transition_group_to(group_name: StringName, state_name: StringName, args: Dictionary = {}) -&gt; void:</signature>
 			<description>切换指定状态组到指定状态。</description>
 			<tags>
@@ -132,7 +132,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_state" line="214">
+		<member kind="method" name="push_state">
 			<signature>func push_state(path: StringName, args: Dictionary = {}) -&gt; void:</signature>
 			<description>暂停当前内部状态并叠加进入一个子状态。path 可为 "State" 或 "Group/State"。</description>
 			<tags>
@@ -142,7 +142,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_group_state" line="236">
+		<member kind="method" name="push_group_state">
 			<signature>func push_group_state(group_name: StringName, state_name: StringName, args: Dictionary = {}) -&gt; void:</signature>
 			<description>暂停指定状态组当前状态并叠加进入一个子状态。</description>
 			<tags>
@@ -153,7 +153,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pop_state" line="258">
+		<member kind="method" name="pop_state">
 			<signature>func pop_state(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -&gt; bool:</signature>
 			<description>弹出指定状态组的栈式子状态。</description>
 			<tags>
@@ -164,7 +164,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start" line="276">
+		<member kind="method" name="start">
 			<signature>func start(args: Dictionary = {}) -&gt; void:</signature>
 			<description>启动所有已加载状态组的初始状态。若尚未加载状态，则会先从子节点加载。</description>
 			<tags>
@@ -173,7 +173,7 @@
 				<tag name="schema">args: 启动参数 Dictionary；为空时使用各状态组 initial_args。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start_group" line="293">
+		<member kind="method" name="start_group">
 			<signature>func start_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -&gt; void:</signature>
 			<description>启动指定状态组的初始状态。若尚未加载状态，则会先从子节点加载。</description>
 			<tags>
@@ -183,7 +183,7 @@
 				<tag name="schema">args: 启动参数 Dictionary；为空时使用该状态组 initial_args。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_state_group" line="310">
+		<member kind="method" name="add_state_group">
 			<signature>func add_state_group(group: GFNodeStateGroup) -&gt; void:</signature>
 			<description>添加状态组。</description>
 			<tags>
@@ -191,7 +191,7 @@
 				<tag name="param">group: 所属状态组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_state_group" line="337">
+		<member kind="method" name="remove_state_group">
 			<signature>func remove_state_group(group: GFNodeStateGroup) -&gt; bool:</signature>
 			<description>移除状态组。</description>
 			<tags>
@@ -200,7 +200,7 @@
 				<tag name="return">成功移除已注册状态组时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state_group" line="359">
+		<member kind="method" name="get_state_group">
 			<signature>func get_state_group(group_name: StringName) -&gt; GFNodeStateGroup:</signature>
 			<description>获取状态组。</description>
 			<tags>
@@ -209,7 +209,7 @@
 				<tag name="return">注册名对应的状态组；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_state" line="368">
+		<member kind="method" name="get_current_state">
 			<signature>func get_current_state() -&gt; GFNodeState:</signature>
 			<description>获取内部状态组当前状态。</description>
 			<tags>
@@ -217,7 +217,7 @@
 				<tag name="return">内部状态组当前状态；未启动或不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_group_state" line="382">
+		<member kind="method" name="get_current_group_state">
 			<signature>func get_current_group_state(group_name: StringName = INTERNAL_GROUP_NAME) -&gt; GFNodeState:</signature>
 			<description>获取指定状态组当前状态。</description>
 			<tags>
@@ -226,7 +226,7 @@
 				<tag name="return">当前状态；未找到状态组或未启动时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_state_name" line="396">
+		<member kind="method" name="get_current_state_name">
 			<signature>func get_current_state_name(group_name: StringName = INTERNAL_GROUP_NAME) -&gt; StringName:</signature>
 			<description>获取指定状态组当前状态名。</description>
 			<tags>
@@ -235,7 +235,7 @@
 				<tag name="return">当前状态名；未找到状态组或未启动时返回空 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state_history" line="412">
+		<member kind="method" name="get_state_history">
 			<signature>func get_state_history(group_name: StringName = INTERNAL_GROUP_NAME) -&gt; Array[StringName]:</signature>
 			<description>获取指定状态组状态历史。</description>
 			<tags>
@@ -245,7 +245,7 @@
 				<tag name="schema">return: 状态历史 Array[StringName]，按进入顺序排列。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_stack_depth" line="431">
+		<member kind="method" name="get_stack_depth">
 			<signature>func get_stack_depth(group_name: StringName = INTERNAL_GROUP_NAME) -&gt; int:</signature>
 			<description>获取指定状态组暂停栈深度。</description>
 			<tags>
@@ -254,7 +254,7 @@
 				<tag name="return">指定状态组的暂停栈深度；未找到状态组时返回 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_in_state" line="445">
+		<member kind="method" name="is_in_state">
 			<signature>func is_in_state(path: StringName) -&gt; bool:</signature>
 			<description>判断 path 指向的状态是否为当前状态或暂停栈中的状态。</description>
 			<tags>
@@ -263,7 +263,7 @@
 				<tag name="return">指定状态位于当前状态或暂停栈中时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="restart_group" line="465">
+		<member kind="method" name="restart_group">
 			<signature>func restart_group(group_name: StringName = INTERNAL_GROUP_NAME, args: Dictionary = {}) -&gt; void:</signature>
 			<description>重启指定状态组当前状态。</description>
 			<tags>
@@ -273,7 +273,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispatch_state_event" line="489">
+		<member kind="method" name="dispatch_state_event">
 			<signature>func dispatch_state_event(event_id: StringName, payload: Variant = null, group_name: StringName = &amp;"") -&gt; bool:</signature>
 			<description>派发状态事件。group_name 为空时会按已注册状态组顺序广播到所有组。</description>
 			<tags>
@@ -285,7 +285,7 @@
 				<tag name="schema">payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state_snapshot" line="509">
+		<member kind="method" name="get_state_snapshot">
 			<signature>func get_state_snapshot() -&gt; Dictionary:</signature>
 			<description>获取节点状态机调试快照。</description>
 			<tags>
@@ -294,7 +294,7 @@
 				<tag name="schema">return: 调试快照 Dictionary，包含 groups 和 internal_group 字段；groups 的键为状态组名，值为 GFNodeStateGroup.get_state_snapshot() 返回的状态组快照。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_architecture_or_null" line="527">
+		<member kind="method" name="get_architecture_or_null">
 			<signature>func get_architecture_or_null() -&gt; GFArchitecture:</signature>
 			<description>获取当前状态机可用的架构实例。</description>
 			<tags>
@@ -302,7 +302,7 @@
 				<tag name="return">架构实例；状态机未挂入可解析上下文时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_model" line="540">
+		<member kind="method" name="get_model">
 			<signature>func get_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过当前状态机上下文获取 Model。</description>
 			<tags>
@@ -312,7 +312,7 @@
 				<tag name="return">模型实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_system" line="556">
+		<member kind="method" name="get_system">
 			<signature>func get_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过当前状态机上下文获取 System。</description>
 			<tags>
@@ -322,7 +322,7 @@
 				<tag name="return">系统实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_utility" line="572">
+		<member kind="method" name="get_utility">
 			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过当前状态机上下文获取 Utility。</description>
 			<tags>
@@ -332,7 +332,7 @@
 				<tag name="return">工具实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_local_model" line="588">
+		<member kind="method" name="get_local_model">
 			<signature>func get_local_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>仅从当前状态机所属架构获取 Model，不回退父级架构。</description>
 			<tags>
@@ -342,7 +342,7 @@
 				<tag name="return">当前架构中的模型实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_local_system" line="604">
+		<member kind="method" name="get_local_system">
 			<signature>func get_local_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>仅从当前状态机所属架构获取 System，不回退父级架构。</description>
 			<tags>
@@ -352,7 +352,7 @@
 				<tag name="return">当前架构中的系统实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_local_utility" line="620">
+		<member kind="method" name="get_local_utility">
 			<signature>func get_local_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>仅从当前状态机所属架构获取 Utility，不回退父级架构。</description>
 			<tags>
@@ -362,7 +362,7 @@
 				<tag name="return">当前架构中的工具实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_command" line="636">
+		<member kind="method" name="send_command">
 			<signature>func send_command(command: Object) -&gt; Variant:</signature>
 			<description>向当前状态机上下文发送命令。</description>
 			<tags>
@@ -372,7 +372,7 @@
 				<tag name="schema">return: 命令返回值；具体结构由 GFCommand 实现决定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_query" line="652">
+		<member kind="method" name="send_query">
 			<signature>func send_query(query: Object) -&gt; Variant:</signature>
 			<description>向当前状态机上下文发送查询。</description>
 			<tags>
@@ -382,7 +382,7 @@
 				<tag name="schema">return: 查询返回值；具体结构由 GFQuery 实现决定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_event" line="664">
+		<member kind="method" name="send_event">
 			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
 			<description>发送类型事件。</description>
 			<tags>
@@ -390,7 +390,7 @@
 				<tag name="param">event_instance: 要分发的事件实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_simple_event" line="679">
+		<member kind="method" name="send_simple_event">
 			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
 			<description>发送轻量级 StringName 事件。</description>
 			<tags>
@@ -400,7 +400,7 @@
 				<tag name="schema">payload: 轻量事件载荷；具体结构由 event_id 和项目逻辑约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_event_owned" line="696">
+		<member kind="method" name="register_event_owned">
 			<signature>func register_event_owned(owner: Object, event_type: Script, callback: Callable, priority: int = 0) -&gt; void:</signature>
 			<description>注册带拥有者的类型事件监听器。</description>
 			<tags>
@@ -411,7 +411,7 @@
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_event" line="710">
+		<member kind="method" name="unregister_event">
 			<signature>func unregister_event(event_type: Script, callback: Callable) -&gt; void:</signature>
 			<description>注销类型事件监听器。</description>
 			<tags>
@@ -420,7 +420,7 @@
 				<tag name="param">callback: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_assignable_event_owned" line="726">
+		<member kind="method" name="register_assignable_event_owned">
 			<signature>func register_assignable_event_owned( owner: Object, base_event_type: Script, callback: Callable, priority: int = 0 ) -&gt; void:</signature>
 			<description>注册带拥有者的可赋值类型事件监听器。</description>
 			<tags>
@@ -431,7 +431,7 @@
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_assignable_event" line="745">
+		<member kind="method" name="unregister_assignable_event">
 			<signature>func unregister_assignable_event(base_event_type: Script, callback: Callable) -&gt; void:</signature>
 			<description>注销可赋值类型事件监听器。</description>
 			<tags>
@@ -440,7 +440,7 @@
 				<tag name="param">callback: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_simple_event_owned" line="759">
+		<member kind="method" name="register_simple_event_owned">
 			<signature>func register_simple_event_owned(owner: Object, event_id: StringName, callback: Callable) -&gt; void:</signature>
 			<description>注册带拥有者的轻量级 StringName 事件监听器。</description>
 			<tags>
@@ -450,7 +450,7 @@
 				<tag name="param">callback: 回调函数，签名为 func(payload: Variant)。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_simple_event" line="773">
+		<member kind="method" name="unregister_simple_event">
 			<signature>func unregister_simple_event(event_id: StringName, callback: Callable) -&gt; void:</signature>
 			<description>注销轻量级 StringName 事件监听器。</description>
 			<tags>
@@ -459,7 +459,7 @@
 				<tag name="param">callback: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_owner_events" line="783">
+		<member kind="method" name="unregister_owner_events">
 			<signature>func unregister_owner_events(owner: Object) -&gt; void:</signature>
 			<description>注销指定拥有者通过状态机事件代理注册过的全部监听器。</description>
 			<tags>
@@ -467,14 +467,14 @@
 				<tag name="param">owner: 要清理监听器的拥有者。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reload_from_children" line="791">
+		<member kind="method" name="reload_from_children">
 			<signature>func reload_from_children() -&gt; void:</signature>
 			<description>从子节点重新加载状态和状态组。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_state_groups" line="832">
+		<member kind="method" name="clear_state_groups">
 			<signature>func clear_state_groups(free_groups: bool = false) -&gt; void:</signature>
 			<description>清空所有状态组。</description>
 			<tags>

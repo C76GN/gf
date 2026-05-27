@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDebugDrawUtility" path="addons/gf/standard/utilities/debug/gf_debug_draw_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDebugDrawUtility" path="addons/gf/standard/utilities/debug/gf_debug_draw_utility.gd" module="standard" extends="GFUtility" classDigest="edda0c8079c6e3c8aaab5fe693005670ae364176821cd8fad0633ff605acd3bc">
 	<description>GFDebugDrawUtility: 通用调试绘制命令缓冲。
 收集 2D/3D 线段、矩形、圆、文本等即时调试绘制命令。
 Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overlay/Viewport 适配。</description>
@@ -9,7 +9,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="items_changed" line="20">
+		<member kind="signal" name="items_changed">
 			<signature>signal items_changed</signature>
 			<description>绘制命令发生变化时发出。</description>
 			<tags>
@@ -18,7 +18,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="PrimitiveType" line="28">
+		<member kind="enum" name="PrimitiveType">
 			<signature>enum PrimitiveType { ## 2D 线段命令。 LINE_2D, ## 2D 矩形命令。 RECT_2D, ## 2D 圆形命令。 CIRCLE_2D, ## 2D 文本命令。 TEXT_2D, ## 3D 线段命令。 LINE_3D, ## 3D AABB 盒命令。 BOX_3D, ## 3D 文本命令。 TEXT_3D, ## 项目自定义命令。 CUSTOM, }</signature>
 			<description>调试绘制命令类型。</description>
 			<tags>
@@ -28,21 +28,21 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="enabled" line="53">
+		<member kind="property" name="enabled">
 			<signature>var enabled: bool = true</signature>
 			<description>是否启用调试绘制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_lifetime_seconds" line="58">
+		<member kind="property" name="default_lifetime_seconds">
 			<signature>var default_lifetime_seconds: float = 0.0</signature>
 			<description>默认生命周期。小于 0 表示永久保留，0 表示等待下一次 tick 后清理。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_items" line="63">
+		<member kind="property" name="max_items">
 			<signature>var max_items: int = 2048</signature>
 			<description>最大命令数量。小于等于 0 表示不限制。</description>
 			<tags>
@@ -51,21 +51,21 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="78">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化调试绘制缓冲。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="87">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放并清空调试绘制命令。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="96">
+		<member kind="method" name="tick">
 			<signature>func tick(delta: float) -&gt; void:</signature>
 			<description>推进运行时逻辑。</description>
 			<tags>
@@ -73,7 +73,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="param">delta: 本帧时间增量（秒）。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="draw_line_2d" line="119">
+		<member kind="method" name="draw_line_2d">
 			<signature>func draw_line_2d( from: Vector2, to: Vector2, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", width: float = 1.0 ) -&gt; int:</signature>
 			<description>绘制 2D 线段。</description>
 			<tags>
@@ -87,7 +87,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="draw_rect_2d" line="155">
+		<member kind="method" name="draw_rect_2d">
 			<signature>func draw_rect_2d( rect: Rect2, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", filled: bool = false, width: float = 1.0 ) -&gt; int:</signature>
 			<description>绘制 2D 矩形。</description>
 			<tags>
@@ -101,7 +101,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="draw_circle_2d" line="193">
+		<member kind="method" name="draw_circle_2d">
 			<signature>func draw_circle_2d( center: Vector2, radius: float, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", filled: bool = false, width: float = 1.0 ) -&gt; int:</signature>
 			<description>绘制 2D 圆。</description>
 			<tags>
@@ -116,7 +116,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="draw_text_2d" line="231">
+		<member kind="method" name="draw_text_2d">
 			<signature>func draw_text_2d( position: Vector2, text: String, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", font_size: int = 16 ) -&gt; int:</signature>
 			<description>绘制 2D 文本。</description>
 			<tags>
@@ -130,7 +130,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="draw_line_3d" line="267">
+		<member kind="method" name="draw_line_3d">
 			<signature>func draw_line_3d( from: Vector3, to: Vector3, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", width: float = 1.0 ) -&gt; int:</signature>
 			<description>绘制 3D 线段。</description>
 			<tags>
@@ -144,7 +144,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="draw_box_3d" line="303">
+		<member kind="method" name="draw_box_3d">
 			<signature>func draw_box_3d( box: AABB, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", filled: bool = false, width: float = 1.0 ) -&gt; int:</signature>
 			<description>绘制 3D AABB。</description>
 			<tags>
@@ -158,7 +158,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="draw_text_3d" line="339">
+		<member kind="method" name="draw_text_3d">
 			<signature>func draw_text_3d( position: Vector3, text: String, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", font_size: int = 16 ) -&gt; int:</signature>
 			<description>绘制 3D 文本。</description>
 			<tags>
@@ -172,7 +172,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_item" line="367">
+		<member kind="method" name="push_item">
 			<signature>func push_item(item: Dictionary) -&gt; int:</signature>
 			<description>推入自定义调试绘制命令。</description>
 			<tags>
@@ -182,7 +182,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="schema">item: Dictionary，至少可包含 type、channel、lifetime_seconds 以及项目自定义绘制载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="387">
+		<member kind="method" name="clear">
 			<signature>func clear(channel: StringName = &amp;"") -&gt; void:</signature>
 			<description>清理命令。</description>
 			<tags>
@@ -190,7 +190,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="param">channel: 指定频道；为空时清空全部。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_channel_enabled" line="411">
+		<member kind="method" name="set_channel_enabled">
 			<signature>func set_channel_enabled(channel: StringName, channel_enabled: bool) -&gt; void:</signature>
 			<description>设置频道启用状态。</description>
 			<tags>
@@ -199,7 +199,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="param">channel_enabled: 是否启用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_channel_enabled" line="423">
+		<member kind="method" name="is_channel_enabled">
 			<signature>func is_channel_enabled(channel: StringName) -&gt; bool:</signature>
 			<description>检查频道是否启用。</description>
 			<tags>
@@ -208,7 +208,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">启用返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_items" line="438">
+		<member kind="method" name="get_items">
 			<signature>func get_items(channel: StringName = &amp;"", include_disabled: bool = false) -&gt; Array[Dictionary]:</signature>
 			<description>获取绘制命令。</description>
 			<tags>
@@ -219,7 +219,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="schema">return: Array[Dictionary]，每个元素为调试绘制命令，包含 id、type、channel、created_at_msec、lifetime_seconds、remaining_seconds 和图元载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_item_count" line="460">
+		<member kind="method" name="get_item_count">
 			<signature>func get_item_count(channel: StringName = &amp;"") -&gt; int:</signature>
 			<description>获取命令数量。</description>
 			<tags>
@@ -228,7 +228,7 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="471">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

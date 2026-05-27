@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFModifier" path="addons/gf/extensions/combat/attributes/gf_modifier.gd" module="extensions/combat" extends="RefCounted" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFModifier" path="addons/gf/extensions/combat/attributes/gf_modifier.gd" module="extensions/combat" extends="RefCounted" classDigest="123b42aa9447ca1bc5d8d2c7429194bc858f77357d9d2e0a38b7f2f5413ce2cf">
 	<description>GFModifier: 属性修饰器数据类。
 定义了如何修改一个通用属性（如加值、乘值）。
 `attribute_id` 表示目标属性，`source_id` 表示来源，避免把“改谁”和“从哪来”混在一起。
@@ -11,7 +11,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Type" line="21">
+		<member kind="enum" name="Type">
 			<signature>enum Type { ## 基础加值。 BASE_ADD, ## 百分比乘区。 PERCENT_ADD, ## 最终加值。 FINAL_ADD, }</signature>
 			<description>修饰器计算类型。</description>
 			<tags>
@@ -21,28 +21,28 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="type" line="36">
+		<member kind="property" name="type">
 			<signature>var type: Type = Type.BASE_ADD</signature>
 			<description>修饰器类型。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="value" line="41">
+		<member kind="property" name="value">
 			<signature>var value: float = 0.0</signature>
 			<description>修饰器的数值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="attribute_id" line="46">
+		<member kind="property" name="attribute_id">
 			<signature>var attribute_id: StringName = &amp;""</signature>
 			<description>目标属性标识，例如 &amp;"ATK"、&amp;"HP"。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="source_id" line="51">
+		<member kind="property" name="source_id">
 			<signature>var source_id: StringName = &amp;""</signature>
 			<description>来源标识，例如 Buff ID、装备 ID 或被动技能 ID，用于查找和移除。</description>
 			<tags>
@@ -51,7 +51,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="create_base_add" line="81">
+		<member kind="method" name="create_base_add">
 			<signature>static func create_base_add( p_value: float, p_attribute_id: StringName = &amp;"", p_source_id: StringName = &amp;"" ) -&gt; GFModifier:</signature>
 			<description>静态工厂方法：创建基础加值修饰器。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="return">新修饰器。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="create_percent_add" line="100">
+		<member kind="method" name="create_percent_add">
 			<signature>static func create_percent_add( p_value: float, p_attribute_id: StringName = &amp;"", p_source_id: StringName = &amp;"" ) -&gt; GFModifier:</signature>
 			<description>静态工厂方法：创建百分比加值修饰器。</description>
 			<tags>
@@ -73,7 +73,7 @@
 				<tag name="return">新修饰器。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="create_final_add" line="119">
+		<member kind="method" name="create_final_add">
 			<signature>static func create_final_add( p_value: float, p_attribute_id: StringName = &amp;"", p_source_id: StringName = &amp;"" ) -&gt; GFModifier:</signature>
 			<description>静态工厂方法：创建最终加值修饰器。</description>
 			<tags>

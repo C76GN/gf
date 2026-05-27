@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInteractions" path="addons/gf/extensions/interaction/runtime/gf_interactions.gd" module="extensions/interaction" extends="RefCounted" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInteractions" path="addons/gf/extensions/interaction/runtime/gf_interactions.gd" module="extensions/interaction" extends="RefCounted" classDigest="a62771e3aa26a1f7b47c527c4bd73977f4a14a21990697caa8d6b6c7cc46057c">
 	<description>GFInteractions: 创建交互上下文与链式交互流程的静态入口。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -11,7 +11,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="with_sender" line="23">
+		<member kind="method" name="with_sender">
 			<signature>static func with_sender(sender: Object, architecture: GFArchitecture = null) -&gt; GFInteractionFlow:</signature>
 			<description>创建以 sender 为发起者的交互流程。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="return">新交互流程。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="between" line="45">
+		<member kind="method" name="between">
 			<signature>static func between( sender: Object, target: Object, payload: Variant = null, group_name: StringName = &amp;"" ) -&gt; GFInteractionContext:</signature>
 			<description>创建一次 sender 到 target 的交互上下文。</description>
 			<tags>

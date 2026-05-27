@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDiagnosticsUtility" path="addons/gf/standard/utilities/debug/gf_diagnostics_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDiagnosticsUtility" path="addons/gf/standard/utilities/debug/gf_diagnostics_utility.gd" module="standard" extends="GFUtility" classDigest="38e5e73efaf598c99c256132b4aade0d3b4e2c6348568cadd3d82cb0225c74f7">
 	<description>GFDiagnosticsUtility: 运行时诊断聚合工具。
 提供架构生命周期、事件系统、性能、日志和外部贡献诊断的统一快照。
 诊断命令、监控项和快照分区通过 Callable 注册，框架只负责调度和包装结果，不解释项目业务数据。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="snapshot_collected" line="24">
+		<member kind="signal" name="snapshot_collected">
 			<signature>signal snapshot_collected(snapshot: Dictionary)</signature>
 			<description>采集快照后发出。</description>
 			<tags>
@@ -18,7 +18,7 @@
 				<tag name="schema">snapshot: Dictionary，包含 collect_snapshot() 返回的顶层诊断分区。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="diagnostic_command_executed" line="35">
+		<member kind="signal" name="diagnostic_command_executed">
 			<signature>signal diagnostic_command_executed(command_name: StringName, result: Dictionary)</signature>
 			<description>执行诊断命令后发出。</description>
 			<tags>
@@ -28,7 +28,7 @@
 				<tag name="schema">result: Dictionary，包含 ok、value、error、metadata 等字段。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="monitor_sampled" line="46">
+		<member kind="signal" name="monitor_sampled">
 			<signature>signal monitor_sampled(monitor_id: StringName, sample: Dictionary)</signature>
 			<description>采样诊断监控项后发出。</description>
 			<tags>
@@ -40,7 +40,7 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="CommandTier" line="54">
+		<member kind="enum" name="CommandTier">
 			<signature>enum CommandTier { ## 只读取状态。 OBSERVE, ## 修改调试输入或临时过滤条件。 INPUT, ## 控制运行时行为。 CONTROL, ## 可能破坏状态、存档或远端连接。 DANGER, }</signature>
 			<description>诊断命令风险等级。</description>
 			<tags>
@@ -50,63 +50,63 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="include_performance_monitors" line="71">
+		<member kind="property" name="include_performance_monitors">
 			<signature>var include_performance_monitors: bool = true</signature>
 			<description>是否采集 Godot Performance 监视器。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_recent_log_count" line="76">
+		<member kind="property" name="default_recent_log_count">
 			<signature>var default_recent_log_count: int = 20</signature>
 			<description>快照中默认包含的最近日志数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_command_tier" line="81">
+		<member kind="property" name="max_command_tier">
 			<signature>var max_command_tier: CommandTier = CommandTier.OBSERVE</signature>
 			<description>当前允许执行的最高命令等级。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="require_auth_token" line="86">
+		<member kind="property" name="require_auth_token">
 			<signature>var require_auth_token: bool = false</signature>
 			<description>是否要求命令参数提供 auth_token 或 _auth_token。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auth_token" line="91">
+		<member kind="property" name="auth_token">
 			<signature>var auth_token: String = ""</signature>
 			<description>诊断命令认证 token。为空时无法通过认证。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="allow_danger_commands" line="96">
+		<member kind="property" name="allow_danger_commands">
 			<signature>var allow_danger_commands: bool = false</signature>
 			<description>是否允许执行 DANGER 等级命令。即使 max_command_tier 足够，也需要显式开启。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="encode_command_results_for_json" line="101">
+		<member kind="property" name="encode_command_results_for_json">
 			<signature>var encode_command_results_for_json: bool = false</signature>
 			<description>是否把诊断命令结果转换为 JSON 兼容 Variant。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_scene_tree_max_depth" line="106">
+		<member kind="property" name="default_scene_tree_max_depth">
 			<signature>var default_scene_tree_max_depth: int = 4</signature>
 			<description>场景树快照默认递归深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_scene_tree_max_nodes" line="111">
+		<member kind="property" name="default_scene_tree_max_nodes">
 			<signature>var default_scene_tree_max_nodes: int = 128</signature>
 			<description>场景树快照默认最多采集节点数。</description>
 			<tags>
@@ -115,28 +115,28 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="132">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化内置诊断命令和监控项。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="ready" line="146">
+		<member kind="method" name="ready">
 			<signature>func ready() -&gt; void:</signature>
 			<description>绑定控制台诊断命令。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="153">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放诊断注册表并解绑控制台命令。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_command" line="184">
+		<member kind="method" name="register_command">
 			<signature>func register_command( command_name: StringName, callback: Callable, description: String = "", tier: CommandTier = CommandTier.OBSERVE, options: Dictionary = {} ) -&gt; void:</signature>
 			<description>注册诊断命令。</description>
 			<tags>
@@ -149,7 +149,7 @@
 				<tag name="schema">options: Dictionary，支持 parameters、metadata 和 enabled。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_command" line="209">
+		<member kind="method" name="unregister_command">
 			<signature>func unregister_command(command_name: StringName) -&gt; void:</signature>
 			<description>注销诊断命令。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="param">command_name: 命令名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_command" line="221">
+		<member kind="method" name="has_command">
 			<signature>func has_command(command_name: StringName) -&gt; bool:</signature>
 			<description>检查诊断命令是否存在。</description>
 			<tags>
@@ -166,7 +166,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_command_parameter_schema" line="236">
+		<member kind="method" name="set_command_parameter_schema">
 			<signature>func set_command_parameter_schema(command_name: StringName, parameters: Variant) -&gt; bool:</signature>
 			<description>设置诊断命令参数 schema。</description>
 			<tags>
@@ -177,7 +177,7 @@
 				<tag name="schema">parameters: Variant，支持 Array[Dictionary] 或 Dictionary 形式的参数 schema。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_command_enabled" line="253">
+		<member kind="method" name="set_command_enabled">
 			<signature>func set_command_enabled(command_name: StringName, enabled: bool) -&gt; bool:</signature>
 			<description>设置诊断命令是否启用。</description>
 			<tags>
@@ -187,7 +187,7 @@
 				<tag name="return">命令存在时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_all_commands_enabled" line="272">
+		<member kind="method" name="set_all_commands_enabled">
 			<signature>func set_all_commands_enabled( enabled: bool, command_names: PackedStringArray = PackedStringArray() ) -&gt; int:</signature>
 			<description>批量设置命令是否启用。</description>
 			<tags>
@@ -197,7 +197,7 @@
 				<tag name="return">实际处理的命令数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_command_enabled" line="295">
+		<member kind="method" name="is_command_enabled">
 			<signature>func is_command_enabled(command_name: StringName) -&gt; bool:</signature>
 			<description>检查命令是否启用。</description>
 			<tags>
@@ -206,7 +206,7 @@
 				<tag name="return">命令存在且启用时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_command_descriptions" line="306">
+		<member kind="method" name="get_command_descriptions">
 			<signature>func get_command_descriptions() -&gt; Dictionary:</signature>
 			<description>获取诊断命令描述。</description>
 			<tags>
@@ -215,7 +215,7 @@
 				<tag name="schema">return: Dictionary[StringName, String]，以命令名为键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_command_catalog" line="321">
+		<member kind="method" name="get_command_catalog">
 			<signature>func get_command_catalog() -&gt; Dictionary:</signature>
 			<description>获取诊断命令目录。</description>
 			<tags>
@@ -224,7 +224,7 @@
 				<tag name="schema">return: Dictionary[StringName, Dictionary]，每个值包含 description、tier、tier_name、enabled、parameters 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_monitor" line="350">
+		<member kind="method" name="register_monitor">
 			<signature>func register_monitor(monitor_id: StringName, provider: Callable, options: Dictionary = {}) -&gt; bool:</signature>
 			<description>注册诊断监控项。</description>
 			<tags>
@@ -236,7 +236,7 @@
 				<tag name="schema">options: Dictionary，支持 label、group、visible、metadata 和 min_interval_seconds。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_monitor" line="375">
+		<member kind="method" name="unregister_monitor">
 			<signature>func unregister_monitor(monitor_id: StringName) -&gt; void:</signature>
 			<description>注销诊断监控项。</description>
 			<tags>
@@ -244,7 +244,7 @@
 				<tag name="param">monitor_id: 监控项唯一标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_monitor" line="391">
+		<member kind="method" name="has_monitor">
 			<signature>func has_monitor(monitor_id: StringName) -&gt; bool:</signature>
 			<description>检查诊断监控项是否存在。</description>
 			<tags>
@@ -253,7 +253,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_monitor_catalog" line="402">
+		<member kind="method" name="get_monitor_catalog">
 			<signature>func get_monitor_catalog() -&gt; Dictionary:</signature>
 			<description>获取诊断监控项目录。</description>
 			<tags>
@@ -262,7 +262,7 @@
 				<tag name="schema">return: Dictionary[StringName, Dictionary]，每个值包含 label、group、visible、metadata 和 min_interval_seconds。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_monitor_preset" line="429">
+		<member kind="method" name="register_monitor_preset">
 			<signature>func register_monitor_preset( preset_id: StringName, monitor_ids: PackedStringArray, options: Dictionary = {} ) -&gt; bool:</signature>
 			<description>注册诊断监控预设。</description>
 			<tags>
@@ -274,7 +274,7 @@
 				<tag name="schema">options: Dictionary，支持 label 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_monitor_to_preset" line="454">
+		<member kind="method" name="add_monitor_to_preset">
 			<signature>func add_monitor_to_preset(preset_id: StringName, monitor_id: StringName) -&gt; bool:</signature>
 			<description>将一个监控项追加到已有预设；预设不存在时会创建。</description>
 			<tags>
@@ -284,7 +284,7 @@
 				<tag name="return">追加成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_monitor_preset" line="473">
+		<member kind="method" name="unregister_monitor_preset">
 			<signature>func unregister_monitor_preset(preset_id: StringName) -&gt; void:</signature>
 			<description>注销诊断监控预设。</description>
 			<tags>
@@ -292,7 +292,7 @@
 				<tag name="param">preset_id: 预设唯一标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_monitor_preset" line="484">
+		<member kind="method" name="has_monitor_preset">
 			<signature>func has_monitor_preset(preset_id: StringName) -&gt; bool:</signature>
 			<description>检查诊断监控预设是否存在。</description>
 			<tags>
@@ -301,7 +301,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_monitor_preset_ids" line="493">
+		<member kind="method" name="get_monitor_preset_ids">
 			<signature>func get_monitor_preset_ids() -&gt; PackedStringArray:</signature>
 			<description>获取诊断监控预设列表。</description>
 			<tags>
@@ -309,7 +309,7 @@
 				<tag name="return">预设标识列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_snapshot_section_provider" line="510">
+		<member kind="method" name="register_snapshot_section_provider">
 			<signature>func register_snapshot_section_provider(section_id: StringName, provider: Callable) -&gt; bool:</signature>
 			<description>注册快照分区 provider。用于扩展或项目把自己的诊断数据贡献到 collect_snapshot() 顶层字段。</description>
 			<tags>
@@ -319,7 +319,7 @@
 				<tag name="return">注册成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_snapshot_section_provider" line="522">
+		<member kind="method" name="unregister_snapshot_section_provider">
 			<signature>func unregister_snapshot_section_provider(section_id: StringName) -&gt; void:</signature>
 			<description>注销快照分区 provider。</description>
 			<tags>
@@ -327,7 +327,7 @@
 				<tag name="param">section_id: 快照顶层字段名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_snapshot_section_provider" line="533">
+		<member kind="method" name="has_snapshot_section_provider">
 			<signature>func has_snapshot_section_provider(section_id: StringName) -&gt; bool:</signature>
 			<description>检查快照分区 provider 是否存在。</description>
 			<tags>
@@ -336,7 +336,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_tool_snapshot_provider" line="546">
+		<member kind="method" name="register_tool_snapshot_provider">
 			<signature>func register_tool_snapshot_provider(tool_id: StringName, provider: Callable) -&gt; bool:</signature>
 			<description>注册工具快照 provider。用于扩展或项目把 get_debug_snapshot() 风格数据贡献到 tools 字段。</description>
 			<tags>
@@ -346,7 +346,7 @@
 				<tag name="return">注册成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_tool_snapshot_provider" line="558">
+		<member kind="method" name="unregister_tool_snapshot_provider">
 			<signature>func unregister_tool_snapshot_provider(tool_id: StringName) -&gt; void:</signature>
 			<description>注销工具快照 provider。</description>
 			<tags>
@@ -354,7 +354,7 @@
 				<tag name="param">tool_id: tools 内部字段名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_tool_snapshot_provider" line="569">
+		<member kind="method" name="has_tool_snapshot_provider">
 			<signature>func has_tool_snapshot_provider(tool_id: StringName) -&gt; bool:</signature>
 			<description>检查工具快照 provider 是否存在。</description>
 			<tags>
@@ -363,7 +363,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_monitor_snapshot" line="584">
+		<member kind="method" name="collect_monitor_snapshot">
 			<signature>func collect_monitor_snapshot( monitor_ids: PackedStringArray = PackedStringArray(), include_hidden: bool = false ) -&gt; Dictionary:</signature>
 			<description>采集诊断监控快照。</description>
 			<tags>
@@ -374,7 +374,7 @@
 				<tag name="schema">return: Dictionary，包含 timestamp_unix、monitor_count 和 monitors。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_monitor_preset" line="623">
+		<member kind="method" name="collect_monitor_preset">
 			<signature>func collect_monitor_preset(preset_id: StringName, include_hidden: bool = false) -&gt; Dictionary:</signature>
 			<description>按预设采集诊断监控快照。</description>
 			<tags>
@@ -385,7 +385,7 @@
 				<tag name="schema">return: Dictionary，包含 collect_monitor_snapshot() 字段以及 preset_id、preset_label、preset_metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="export_monitor_snapshot" line="647">
+		<member kind="method" name="export_monitor_snapshot">
 			<signature>func export_monitor_snapshot(snapshot: Dictionary, format: StringName = &amp;"json") -&gt; String:</signature>
 			<description>导出诊断监控快照。</description>
 			<tags>
@@ -396,7 +396,7 @@
 				<tag name="schema">snapshot: Dictionary，collect_monitor_snapshot() 或 collect_monitor_preset() 返回结构。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_auth_token" line="664">
+		<member kind="method" name="set_auth_token">
 			<signature>func set_auth_token(token: String, required: bool = true) -&gt; void:</signature>
 			<description>设置诊断认证 token。</description>
 			<tags>
@@ -405,7 +405,7 @@
 				<tag name="param">required: 是否立即启用 token 校验。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="execute_command" line="682">
+		<member kind="method" name="execute_command">
 			<signature>func execute_command(command_name: StringName, args: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>执行诊断命令。</description>
 			<tags>
@@ -417,7 +417,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、value、error、metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="execute_command_json_safe" line="751">
+		<member kind="method" name="execute_command_json_safe">
 			<signature>func execute_command_json_safe(command_name: StringName, args: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>执行诊断命令并返回 JSON 兼容结果。</description>
 			<tags>
@@ -429,7 +429,7 @@
 				<tag name="schema">return: Dictionary，包含 JSON 兼容的 ok、value、error、metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="command_result_to_json_compatible" line="770">
+		<member kind="method" name="command_result_to_json_compatible">
 			<signature>func command_result_to_json_compatible(result: Dictionary, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>将命令结果转换为 JSON 兼容字典。</description>
 			<tags>
@@ -442,7 +442,7 @@
 				<tag name="schema">return: Dictionary，JSON 兼容命令结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_snapshot" line="785">
+		<member kind="method" name="collect_snapshot">
 			<signature>func collect_snapshot(options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集运行时诊断快照。</description>
 			<tags>
@@ -453,7 +453,7 @@
 				<tag name="schema">return: Dictionary，包含 timestamp_unix、engine、build、architecture、event_system、performance、logs、network、tools，可选 scene_tree、signal_graph、monitors 和注册分区。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_performance_snapshot" line="851">
+		<member kind="method" name="collect_performance_snapshot">
 			<signature>func collect_performance_snapshot() -&gt; Dictionary:</signature>
 			<description>采集性能监视器快照。</description>
 			<tags>
@@ -462,7 +462,7 @@
 				<tag name="schema">return: Dictionary，包含 fps、process_time、physics_process_time、static_memory、object_count、node_count、resource_count。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_log_snapshot" line="874">
+		<member kind="method" name="collect_log_snapshot">
 			<signature>func collect_log_snapshot(recent_log_count: int = 20, include_recent_logs: bool = true) -&gt; Dictionary:</signature>
 			<description>采集日志缓存快照。</description>
 			<tags>
@@ -473,7 +473,7 @@
 				<tag name="schema">return: Dictionary，包含 available、memory_count、dropped_count、recent。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_scene_tree_snapshot" line="905">
+		<member kind="method" name="collect_scene_tree_snapshot">
 			<signature>func collect_scene_tree_snapshot(root: Node = null, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集只读场景树快照。</description>
 			<tags>
@@ -485,7 +485,7 @@
 				<tag name="schema">return: Dictionary，包含 available、node_count、truncated、root_path、root。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_signal_graph_snapshot" line="954">
+		<member kind="method" name="collect_signal_graph_snapshot">
 			<signature>func collect_signal_graph_snapshot(root: Node = null, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集只读信号连接图快照。</description>
 			<tags>

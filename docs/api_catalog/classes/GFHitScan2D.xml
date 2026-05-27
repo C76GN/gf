@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFHitScan2D" path="addons/gf/extensions/combat/hit_detection/gf_hit_scan_2d.gd" module="extensions/combat" extends="RayCast2D" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFHitScan2D" path="addons/gf/extensions/combat/hit_detection/gf_hit_scan_2d.gd" module="extensions/combat" extends="RayCast2D" classDigest="44f3eecb332c84601fac8aa24716b754ae8a00dfecd0d6d900f5ebb79422605b">
 	<description>GFHitScan2D: 2D 通用射线命中发送器。
 基于 RayCast2D 构建 GFCombatHitContext 并发送给具备 receive_hit() 的接收对象。
 它不规定伤害、穿透、命中特效或任何业务规则。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="scan_hit" line="28">
+		<member kind="signal" name="scan_hit">
 			<signature>signal scan_hit(context: GFCombatHitContext, receiver: Object, report: Dictionary)</signature>
 			<description>扫描命中对象后发出。</description>
 			<tags>
@@ -20,7 +20,7 @@
 				<tag name="schema">report: Dictionary，统一扫描命中结果，包含 ok、hit_id、receiver、reason、message 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="scan_missed" line="37">
+		<member kind="signal" name="scan_missed">
 			<signature>signal scan_missed(report: Dictionary)</signature>
 			<description>扫描没有命中可发送对象时发出。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="schema">report: Dictionary，扫描未命中报告，包含 ok、reason 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="hit_accepted" line="50">
+		<member kind="signal" name="hit_accepted">
 			<signature>signal hit_accepted(context: GFCombatHitContext, receiver: Object, report: Dictionary)</signature>
 			<description>命中被接收对象接受。</description>
 			<tags>
@@ -40,7 +40,7 @@
 				<tag name="schema">report: Dictionary，统一扫描命中结果，包含 ok、hit_id、receiver、reason、message 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="hit_rejected" line="63">
+		<member kind="signal" name="hit_rejected">
 			<signature>signal hit_rejected(context: GFCombatHitContext, receiver: Object, report: Dictionary)</signature>
 			<description>命中被接收对象拒绝或发送失败。</description>
 			<tags>
@@ -55,28 +55,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="hit_enabled" line="76" decorators="@export">
+		<member kind="property" name="hit_enabled" decorators="@export">
 			<signature>var hit_enabled: bool = true</signature>
 			<description>是否允许发送命中。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="force_update_before_scan" line="81" decorators="@export">
+		<member kind="property" name="force_update_before_scan" decorators="@export">
 			<signature>var force_update_before_scan: bool = true</signature>
 			<description>扫描前是否强制刷新射线。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="hit_id" line="86" decorators="@export">
+		<member kind="property" name="hit_id" decorators="@export">
 			<signature>var hit_id: StringName = &amp;""</signature>
 			<description>默认命中 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="93" decorators="@export">
+		<member kind="property" name="payload" decorators="@export">
 			<signature>var payload: Dictionary = {}</signature>
 			<description>默认 payload；发送时会深拷贝。</description>
 			<tags>
@@ -84,21 +84,21 @@
 				<tag name="schema">payload: Dictionary，默认命中载荷；框架只复制并透传。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="magnitude" line="98" decorators="@export">
+		<member kind="property" name="magnitude" decorators="@export">
 			<signature>var magnitude: float = 0.0</signature>
 			<description>通用强度值。框架不解释该字段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="tags" line="103" decorators="@export">
+		<member kind="property" name="tags" decorators="@export">
 			<signature>var tags: Array[StringName] = []</signature>
 			<description>命中标签。框架不解释该字段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="110" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>发送器自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -106,9 +106,16 @@
 				<tag name="schema">metadata: Dictionary，发送器自定义扫描命中元数据；会进入命中上下文和结果报告。</tag>
 			</tags>
 		</member>
+		<member kind="property" name="sender_path" decorators="@export_node_path(&quot;Node&quot;)">
+			<signature>var sender_path: NodePath = NodePath("")</signature>
+			<description>可选发送者路径；为空时使用当前节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="build_hit_context" line="133">
+		<member kind="method" name="build_hit_context">
 			<signature>func build_hit_context( target: Object = null, payload_override: Variant = null, hit_id_override: StringName = &amp;"" ) -&gt; GFCombatHitContext:</signature>
 			<description>构建命中上下文。</description>
 			<tags>
@@ -120,7 +127,7 @@
 				<tag name="schema">payload_override: Variant，可为 null、Dictionary 或项目自定义命中载荷；为 null 时使用节点默认 payload。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="scan" line="162">
+		<member kind="method" name="scan">
 			<signature>func scan(payload_override: Variant = null, hit_id_override: StringName = &amp;"") -&gt; Dictionary:</signature>
 			<description>执行一次射线扫描并尝试发送命中。</description>
 			<tags>

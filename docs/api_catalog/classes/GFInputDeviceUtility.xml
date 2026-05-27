@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputDeviceUtility" path="addons/gf/standard/input/runtime/gf_input_device_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputDeviceUtility" path="addons/gf/standard/input/runtime/gf_input_device_utility.gd" module="standard" extends="GFUtility" classDigest="126c7d2aefbab9d93b95a82f1cb3d470037301e4ce70babaa85594db412f2548">
 	<description>GFInputDeviceUtility: 本地玩家输入设备分配工具。
 负责维护玩家索引与键鼠、手柄、触控、AI 或自定义设备的映射。
 它不消费输入事件，也不规定动作名。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="assignments_changed" line="22">
+		<member kind="signal" name="assignments_changed">
 			<signature>signal assignments_changed(assignments: Array[GFInputDeviceAssignment])</signature>
 			<description>设备映射发生变化时发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">assignments: 当前设备映射副本。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="active_player_changed" line="29">
+		<member kind="signal" name="active_player_changed">
 			<signature>signal active_player_changed(player_index: int)</signature>
 			<description>最近产生输入的玩家变化时发出。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="param">player_index: 玩家索引。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="active_device_changed" line="40">
+		<member kind="signal" name="active_device_changed">
 			<signature>signal active_device_changed(player_index: int, assignment: GFInputDeviceAssignment, event: InputEvent)</signature>
 			<description>最近产生输入的设备变化时发出。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="param">event: 触发变化的输入事件副本；手动设置时可能为空。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="player_join_requested" line="51">
+		<member kind="signal" name="player_join_requested">
 			<signature>signal player_join_requested(player_index: int, assignment: GFInputDeviceAssignment, event: InputEvent)</signature>
 			<description>收到项目配置的加入输入时发出。</description>
 			<tags>
@@ -49,63 +49,63 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="max_players" line="59">
+		<member kind="property" name="max_players">
 			<signature>var max_players: int = 4:</signature>
 			<description>允许的最大本地玩家数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="include_keyboard_mouse" line="66">
+		<member kind="property" name="include_keyboard_mouse">
 			<signature>var include_keyboard_mouse: bool = true</signature>
 			<description>是否为 0 号玩家自动分配键鼠。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="include_touch" line="71">
+		<member kind="property" name="include_touch">
 			<signature>var include_touch: bool = true</signature>
 			<description>是否在移动平台自动添加触控设备。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_assign_joypads_on_input" line="76">
+		<member kind="property" name="auto_assign_joypads_on_input">
 			<signature>var auto_assign_joypads_on_input: bool = true</signature>
 			<description>是否在收到未登记手柄输入时自动分配到空玩家席位。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_assign_axis_threshold" line="81">
+		<member kind="property" name="auto_assign_axis_threshold">
 			<signature>var auto_assign_axis_threshold: float = 0.75</signature>
 			<description>未登记手柄轴输入需要达到该幅度才会触发自动分配，避免漂移噪声抢占席位。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="active_player_axis_threshold" line="86">
+		<member kind="property" name="active_player_axis_threshold">
 			<signature>var active_player_axis_threshold: float = 0.2:</signature>
 			<description>已登记手柄轴输入需要达到该幅度才会切换最近活跃玩家。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="join_events" line="93">
+		<member kind="property" name="join_events">
 			<signature>var join_events: Array[InputEvent] = []</signature>
 			<description>可触发本地玩家加入请求的输入事件模板。为空时不启用 join 检测。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_assign_devices_on_join" line="98">
+		<member kind="property" name="auto_assign_devices_on_join">
 			<signature>var auto_assign_devices_on_join: bool = true</signature>
 			<description>join 输入来自未登记设备时，是否自动分配到空玩家席位。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="active_player_index" line="103">
+		<member kind="property" name="active_player_index">
 			<signature>var active_player_index: int = 0</signature>
 			<description>当前最近活跃玩家索引。</description>
 			<tags>
@@ -114,28 +114,28 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="117">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化设备映射并订阅手柄连接变化。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="126">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>清理设备映射并取消手柄连接变化订阅。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="refresh_connected_devices" line="138">
+		<member kind="method" name="refresh_connected_devices">
 			<signature>func refresh_connected_devices() -&gt; void:</signature>
 			<description>按当前硬件重新生成设备映射。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="create_assignment" line="178">
+		<member kind="method" name="create_assignment">
 			<signature>func create_assignment( player_index: int, device_type: GFInputDeviceAssignment.DeviceType, device_id: int ) -&gt; GFInputDeviceAssignment:</signature>
 			<description>创建一个设备映射。</description>
 			<tags>
@@ -146,7 +146,7 @@
 				<tag name="return">新映射。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_assignment" line="195">
+		<member kind="method" name="set_assignment">
 			<signature>func set_assignment(assignment: GFInputDeviceAssignment) -&gt; void:</signature>
 			<description>手动设置一个玩家的设备映射。</description>
 			<tags>
@@ -154,7 +154,7 @@
 				<tag name="param">assignment: 设备映射。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_assignment" line="230">
+		<member kind="method" name="remove_assignment">
 			<signature>func remove_assignment(player_index: int) -&gt; void:</signature>
 			<description>移除指定玩家的设备映射。</description>
 			<tags>
@@ -162,7 +162,7 @@
 				<tag name="param">player_index: 玩家索引。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_assignment" line="245">
+		<member kind="method" name="get_assignment">
 			<signature>func get_assignment(player_index: int) -&gt; GFInputDeviceAssignment:</signature>
 			<description>获取指定玩家的设备映射。</description>
 			<tags>
@@ -171,7 +171,7 @@
 				<tag name="return">设备映射；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_player_for_device" line="261">
+		<member kind="method" name="get_player_for_device">
 			<signature>func get_player_for_device( device_type: GFInputDeviceAssignment.DeviceType, device_id: int ) -&gt; int:</signature>
 			<description>根据设备类型和设备 ID 获取玩家索引。</description>
 			<tags>
@@ -181,7 +181,7 @@
 				<tag name="return">玩家索引；不存在时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_player_for_event" line="278">
+		<member kind="method" name="get_player_for_event">
 			<signature>func get_player_for_event(event: InputEvent) -&gt; int:</signature>
 			<description>根据输入事件获取玩家索引，不产生自动分配。</description>
 			<tags>
@@ -190,7 +190,7 @@
 				<tag name="return">玩家索引；无法匹配时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="handle_input_event" line="294">
+		<member kind="method" name="handle_input_event">
 			<signature>func handle_input_event(event: InputEvent) -&gt; int:</signature>
 			<description>处理输入事件并返回玩家索引。未登记手柄可按配置自动占位。</description>
 			<tags>
@@ -199,7 +199,7 @@
 				<tag name="return">玩家索引；无法匹配时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="handle_join_input_event" line="325">
+		<member kind="method" name="handle_join_input_event">
 			<signature>func handle_join_input_event(event: InputEvent) -&gt; int:</signature>
 			<description>处理本地玩家加入输入。只有匹配 join_events 的输入会触发。</description>
 			<tags>
@@ -208,7 +208,7 @@
 				<tag name="return">请求加入的玩家索引；未匹配或无可用席位时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_join_input_event" line="360">
+		<member kind="method" name="is_join_input_event">
 			<signature>func is_join_input_event(event: InputEvent) -&gt; bool:</signature>
 			<description>检查输入事件是否匹配当前 join_events。</description>
 			<tags>
@@ -217,7 +217,7 @@
 				<tag name="return">是否是加入输入。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="configure_default_join_events" line="377">
+		<member kind="method" name="configure_default_join_events">
 			<signature>func configure_default_join_events(include_keyboard: bool = true, include_joypad: bool = true) -&gt; void:</signature>
 			<description>使用常见本地多人加入输入填充 join_events。</description>
 			<tags>
@@ -226,14 +226,14 @@
 				<tag name="param">include_joypad: 是否加入手柄确认 / 开始按钮。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_join_events" line="390">
+		<member kind="method" name="clear_join_events">
 			<signature>func clear_join_events() -&gt; void:</signature>
 			<description>清空 join 输入模板。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="assign_device_to_next_player" line="403">
+		<member kind="method" name="assign_device_to_next_player">
 			<signature>func assign_device_to_next_player( device_type: GFInputDeviceAssignment.DeviceType, device_id: int ) -&gt; int:</signature>
 			<description>把设备分配给第一个空玩家席位。</description>
 			<tags>
@@ -243,7 +243,7 @@
 				<tag name="return">分配到的玩家索引；无空位时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_active_player" line="424">
+		<member kind="method" name="set_active_player">
 			<signature>func set_active_player(player_index: int) -&gt; void:</signature>
 			<description>设置最近活跃玩家。</description>
 			<tags>
@@ -251,7 +251,7 @@
 				<tag name="param">player_index: 玩家索引。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_player_deadzone" line="437">
+		<member kind="method" name="set_player_deadzone">
 			<signature>func set_player_deadzone(player_index: int, deadzone: float) -&gt; void:</signature>
 			<description>设置玩家级输入死区。小于 0 表示清除覆盖。</description>
 			<tags>
@@ -260,7 +260,7 @@
 				<tag name="param">deadzone: 死区值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_player_deadzone" line="455">
+		<member kind="method" name="get_player_deadzone">
 			<signature>func get_player_deadzone(player_index: int, fallback: float = -1.0) -&gt; float:</signature>
 			<description>获取玩家级输入死区覆盖。</description>
 			<tags>
@@ -270,7 +270,7 @@
 				<tag name="return">死区值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_device_name" line="466">
+		<member kind="method" name="get_device_name">
 			<signature>func get_device_name(player_index: int) -&gt; String:</signature>
 			<description>获取玩家设备显示名。</description>
 			<tags>
@@ -279,7 +279,7 @@
 				<tag name="return">显示名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_assignment" line="491">
+		<member kind="method" name="get_active_assignment">
 			<signature>func get_active_assignment() -&gt; GFInputDeviceAssignment:</signature>
 			<description>获取当前活跃设备映射。</description>
 			<tags>
@@ -287,7 +287,7 @@
 				<tag name="return">活跃设备映射副本；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_device_name" line="501">
+		<member kind="method" name="get_active_device_name">
 			<signature>func get_active_device_name() -&gt; String:</signature>
 			<description>获取当前活跃设备显示名。</description>
 			<tags>
@@ -295,7 +295,7 @@
 				<tag name="return">活跃设备显示名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start_vibration_for_player" line="518">
+		<member kind="method" name="start_vibration_for_player">
 			<signature>func start_vibration_for_player( player_index: int, weak_magnitude: float, strong_magnitude: float, duration_seconds: float = 0.0 ) -&gt; bool:</signature>
 			<description>启动指定玩家手柄震动。</description>
 			<tags>
@@ -307,7 +307,7 @@
 				<tag name="return">成功转发到手柄设备时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="stop_vibration_for_player" line="546">
+		<member kind="method" name="stop_vibration_for_player">
 			<signature>func stop_vibration_for_player(player_index: int) -&gt; bool:</signature>
 			<description>停止指定玩家手柄震动。</description>
 			<tags>
@@ -316,7 +316,7 @@
 				<tag name="return">成功转发到手柄设备时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_assignments" line="562">
+		<member kind="method" name="get_assignments">
 			<signature>func get_assignments() -&gt; Array[GFInputDeviceAssignment]:</signature>
 			<description>获取所有设备映射的拷贝。</description>
 			<tags>
@@ -324,7 +324,7 @@
 				<tag name="return">映射数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_assignments" line="572">
+		<member kind="method" name="clear_assignments">
 			<signature>func clear_assignments() -&gt; void:</signature>
 			<description>清空所有映射。</description>
 			<tags>

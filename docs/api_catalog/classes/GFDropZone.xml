@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDropZone" path="addons/gf/standard/input/drag_drop/gf_drop_zone.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDropZone" path="addons/gf/standard/input/drag_drop/gf_drop_zone.gd" module="standard" extends="RefCounted" classDigest="9a6847f4c75e484fc46733ccc781096c1bca5cff85fcaca71007d3e148eeb998">
 	<description>GFDropZone: 通用拖拽落点规则。
 落点只描述“某个位置是否命中、某个会话是否可接收、接收时如何返回结果”。
 它不移动节点、不修改业务数据，也不规定任何具体 UI 或玩法语义。</description>
@@ -12,56 +12,56 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="zone_id" line="25">
+		<member kind="property" name="zone_id">
 			<signature>var zone_id: StringName = &amp;""</signature>
 			<description>落点 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="accepted_types" line="30">
+		<member kind="property" name="accepted_types">
 			<signature>var accepted_types: PackedStringArray = PackedStringArray()</signature>
 			<description>可接收的拖拽类型。为空表示不限制类型。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="priority" line="35">
+		<member kind="property" name="priority">
 			<signature>var priority: int = 0</signature>
 			<description>匹配优先级。数值越大越优先。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="enabled" line="40">
+		<member kind="property" name="enabled">
 			<signature>var enabled: bool = true</signature>
 			<description>是否启用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="contains_callable" line="45">
+		<member kind="property" name="contains_callable">
 			<signature>var contains_callable: Callable = Callable()</signature>
 			<description>命中检测回调，签名为 func(position: Variant, session: GFDragSession) -&gt; bool。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="can_accept_callable" line="50">
+		<member kind="property" name="can_accept_callable">
 			<signature>var can_accept_callable: Callable = Callable()</signature>
 			<description>可接收检测回调，签名为 func(session: GFDragSession, zone: GFDropZone) -&gt; bool。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="drop_callable" line="55">
+		<member kind="property" name="drop_callable">
 			<signature>var drop_callable: Callable = Callable()</signature>
 			<description>接收回调，签名为 func(session: GFDragSession, zone: GFDropZone, position: Variant) -&gt; Variant。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="62">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -71,7 +71,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="contains" line="78">
+		<member kind="method" name="contains">
 			<signature>func contains(position: Variant, session: GFDragSession) -&gt; bool:</signature>
 			<description>检查落点是否包含位置。</description>
 			<tags>
@@ -82,7 +82,7 @@
 				<tag name="schema">position: Variant，zone contains 回调接受的位置值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_accept" line="93">
+		<member kind="method" name="can_accept">
 			<signature>func can_accept(session: GFDragSession) -&gt; bool:</signature>
 			<description>检查落点是否接收会话。</description>
 			<tags>
@@ -91,7 +91,7 @@
 				<tag name="return">可接收时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="drop" line="116">
+		<member kind="method" name="drop">
 			<signature>func drop(session: GFDragSession, position: Variant) -&gt; Variant:</signature>
 			<description>执行落点接收回调。</description>
 			<tags>
@@ -103,7 +103,7 @@
 				<tag name="schema">return: Variant，由 drop 回调返回；Dictionary 会由 GFDragDropUtility 规范化。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dictionary" line="132">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为调试字典。</description>
 			<tags>
@@ -112,7 +112,7 @@
 				<tag name="schema">return: Dictionary，包含 zone_id、accepted_types、priority、enabled、回调标记和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_rect" line="160">
+		<member kind="method" name="from_rect">
 			<signature>static func from_rect( new_zone_id: StringName, rect: Rect2, new_accepted_types: PackedStringArray = PackedStringArray(), options: Dictionary = {} ) -&gt; GFDropZone:</signature>
 			<description>创建矩形落点。</description>
 			<tags>
@@ -125,7 +125,7 @@
 				<tag name="schema">options: Dictionary，包含 priority: int、enabled: bool、metadata: Dictionary、can_accept: Callable 和 drop: Callable。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_control" line="196">
+		<member kind="method" name="from_control">
 			<signature>static func from_control( new_zone_id: StringName, control: Control, new_accepted_types: PackedStringArray = PackedStringArray(), options: Dictionary = {} ) -&gt; GFDropZone:</signature>
 			<description>创建 Control 全局矩形落点。</description>
 			<tags>

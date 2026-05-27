@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTagExpression" path="addons/gf/standard/foundation/tags/gf_tag_expression.gd" module="standard" extends="Resource" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTagExpression" path="addons/gf/standard/foundation/tags/gf_tag_expression.gd" module="standard" extends="Resource" classDigest="112f51b65bdb08c78dbe665b13c641a28a734fd34591974af769399cef1f0ba4">
 	<description>GFTagExpression: 可嵌套标签查询表达式资源。
 在 GFTagQuery 的 all/any/none 单层查询之上提供组合表达式，适合描述
 “任意一组条件成立”“全部子条件成立”或“没有子条件成立”等通用标签规则。
@@ -11,7 +11,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Operator" line="21">
+		<member kind="enum" name="Operator">
 			<signature>enum Operator { ## 使用 query 作为叶子查询。 QUERY, ## 全部子表达式都满足。 ALL, ## 任意子表达式满足。 ANY, ## 没有子表达式满足。 NONE, }</signature>
 			<description>表达式运算类型。</description>
 			<tags>
@@ -21,21 +21,21 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="operator" line="43" decorators="@export">
+		<member kind="property" name="operator" decorators="@export">
 			<signature>var operator: Operator = Operator.QUERY</signature>
 			<description>当前表达式运算类型。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="query" line="48" decorators="@export">
+		<member kind="property" name="query" decorators="@export">
 			<signature>var query: GFTagQuery = null</signature>
 			<description>叶子标签查询。operator 为 QUERY 时使用；为空时视为无条件通过。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="expressions" line="55" decorators="@export">
+		<member kind="property" name="expressions" decorators="@export">
 			<signature>var expressions: Array[GFTagExpression] = []</signature>
 			<description>子表达式列表。operator 为 ALL、ANY 或 NONE 时使用。</description>
 			<tags>
@@ -45,7 +45,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_empty" line="65">
+		<member kind="method" name="is_empty">
 			<signature>func is_empty() -&gt; bool:</signature>
 			<description>检查表达式是否为空。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="return">无叶子查询且无子表达式时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="matches" line="80">
+		<member kind="method" name="matches">
 			<signature>func matches(source: Variant) -&gt; bool:</signature>
 			<description>匹配标签源。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="schema">source: Variant accepted by GFTagSourceAdapter through GFTagQuery.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_match_report" line="96">
+		<member kind="method" name="get_match_report">
 			<signature>func get_match_report(source: Variant) -&gt; Dictionary:</signature>
 			<description>获取匹配报告。</description>
 			<tags>
@@ -74,7 +74,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、operator、query_report、child_reports、matched_indices、failed_indices、reason 等字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="configure_query" line="107">
+		<member kind="method" name="configure_query">
 			<signature>func configure_query(tag_query: GFTagQuery) -&gt; GFTagExpression:</signature>
 			<description>配置为叶子查询表达式。</description>
 			<tags>
@@ -83,7 +83,7 @@
 				<tag name="return">当前表达式。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="configure_all" line="123">
+		<member kind="method" name="configure_all">
 			<signature>func configure_all(child_expressions: Array[GFTagExpression]) -&gt; GFTagExpression:</signature>
 			<description>配置为全部子表达式都满足。</description>
 			<tags>
@@ -93,7 +93,7 @@
 				<tag name="schema">child_expressions: Array[GFTagExpression]，null 项会在匹配时按失败处理。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="configure_any" line="139">
+		<member kind="method" name="configure_any">
 			<signature>func configure_any(child_expressions: Array[GFTagExpression]) -&gt; GFTagExpression:</signature>
 			<description>配置为任意子表达式满足。</description>
 			<tags>
@@ -103,7 +103,7 @@
 				<tag name="schema">child_expressions: Array[GFTagExpression]，null 项会在匹配时按失败处理。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="configure_none" line="155">
+		<member kind="method" name="configure_none">
 			<signature>func configure_none(child_expressions: Array[GFTagExpression]) -&gt; GFTagExpression:</signature>
 			<description>配置为没有子表达式满足。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">child_expressions: Array[GFTagExpression]，null 项会在匹配时按失败处理。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_expression" line="167">
+		<member kind="method" name="duplicate_expression">
 			<signature>func duplicate_expression() -&gt; GFTagExpression:</signature>
 			<description>创建同内容拷贝。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="return">新表达式。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dictionary" line="183">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>导出为字典。</description>
 			<tags>
@@ -130,7 +130,7 @@
 				<tag name="schema">return: Dictionary serialized tag expression.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dictionary" line="205">
+		<member kind="method" name="from_dictionary">
 			<signature>static func from_dictionary(data: Dictionary) -&gt; GFTagExpression:</signature>
 			<description>从字典创建表达式。</description>
 			<tags>
@@ -140,7 +140,7 @@
 				<tag name="schema">data: Dictionary serialized tag expression.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_query" line="226">
+		<member kind="method" name="from_query">
 			<signature>static func from_query(tag_query: GFTagQuery) -&gt; GFTagExpression:</signature>
 			<description>以查询资源创建叶子表达式。</description>
 			<tags>

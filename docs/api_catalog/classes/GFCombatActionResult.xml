@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCombatActionResult" path="addons/gf/extensions/combat/actions/gf_combat_action_result.gd" module="extensions/combat" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCombatActionResult" path="addons/gf/extensions/combat/actions/gf_combat_action_result.gd" module="extensions/combat" extends="RefCounted" classDigest="9c5f446ea70b3e8ad574a220453e0959cb6c6196e49bb8eced51213d9fe129b7">
 	<description>GFCombatActionResult: 通用战斗动作应用结果。
 保存动作是否被接受、原始动作、最终动作、数值变化和元数据，
 方便项目统一记录日志、派发事件或驱动反馈。</description>
@@ -12,49 +12,49 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="ok" line="20">
+		<member kind="property" name="ok">
 			<signature>var ok: bool = false</signature>
 			<description>是否成功应用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="reason" line="25">
+		<member kind="property" name="reason">
 			<signature>var reason: StringName = &amp;""</signature>
 			<description>结果原因。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="original_action" line="30">
+		<member kind="property" name="original_action">
 			<signature>var original_action: GFCombatAction = null</signature>
 			<description>原始动作副本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="action" line="35">
+		<member kind="property" name="action">
 			<signature>var action: GFCombatAction = null</signature>
 			<description>最终动作副本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="previous_value" line="40">
+		<member kind="property" name="previous_value">
 			<signature>var previous_value: float = 0.0</signature>
 			<description>应用前数值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="current_value" line="45">
+		<member kind="property" name="current_value">
 			<signature>var current_value: float = 0.0</signature>
 			<description>应用后数值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="52">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。</description>
 			<tags>
@@ -64,7 +64,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="make_success" line="74">
+		<member kind="method" name="make_success">
 			<signature>static func make_success( p_original_action: GFCombatAction, p_action: GFCombatAction, p_previous_value: float, p_current_value: float, p_metadata: Dictionary = {} ) -&gt; GFCombatActionResult:</signature>
 			<description>创建成功结果。</description>
 			<tags>
@@ -78,7 +78,7 @@
 				<tag name="schema">p_metadata: Dictionary，项目自定义结果元数据；框架只复制并透传。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="make_failure" line="107">
+		<member kind="method" name="make_failure">
 			<signature>static func make_failure( p_reason: StringName, p_original_action: GFCombatAction = null, p_previous_value: float = 0.0, p_metadata: Dictionary = {} ) -&gt; GFCombatActionResult:</signature>
 			<description>创建失败结果。</description>
 			<tags>
@@ -91,7 +91,7 @@
 				<tag name="schema">p_metadata: Dictionary，项目自定义结果元数据；框架只复制并透传。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="131">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转为字典。</description>
 			<tags>

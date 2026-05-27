@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFStorageCodec" path="addons/gf/standard/utilities/storage/gf_storage_codec.gd" module="standard" extends="Resource" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFStorageCodec" path="addons/gf/standard/utilities/storage/gf_storage_codec.gd" module="standard" extends="Resource" classDigest="1a9fc0d488f7473d74437f31e031767c3631ded6cc31dc0f5e87aa5b64510df7">
 	<description>GFStorageCodec: 通用存档字典编码与解码策略。
 负责字典序列化、可选压缩、完整性校验和轻量混淆。
 它不负责路径、槽位、事务提交或云同步。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Format" line="22">
+		<member kind="enum" name="Format">
 			<signature>enum Format { ## 稳定排序后的 JSON 文本。 JSON, ## Godot Variant 二进制格式。 BINARY, }</signature>
 			<description>存档载荷序列化格式。</description>
 			<tags>
@@ -19,56 +19,56 @@
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="META_KEY" line="35">
+		<member kind="const" name="META_KEY">
 			<signature>const META_KEY: String = "_meta"</signature>
 			<description>存储元信息字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="VERSION_KEY" line="40">
+		<member kind="const" name="VERSION_KEY">
 			<signature>const VERSION_KEY: String = "version"</signature>
 			<description>存储版本字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="TIMESTAMP_KEY" line="45">
+		<member kind="const" name="TIMESTAMP_KEY">
 			<signature>const TIMESTAMP_KEY: String = "timestamp"</signature>
 			<description>存储时间戳字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="CHECKSUM_KEY" line="50">
+		<member kind="const" name="CHECKSUM_KEY">
 			<signature>const CHECKSUM_KEY: String = "checksum"</signature>
 			<description>存储完整性校验字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="FORMAT_KEY" line="55">
+		<member kind="const" name="FORMAT_KEY">
 			<signature>const FORMAT_KEY: String = "format"</signature>
 			<description>存储编码格式字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="COMPRESSION_KEY" line="60">
+		<member kind="const" name="COMPRESSION_KEY">
 			<signature>const COMPRESSION_KEY: String = "compression"</signature>
 			<description>存储压缩方式字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="ENVELOPE_KEY" line="65">
+		<member kind="const" name="ENVELOPE_KEY">
 			<signature>const ENVELOPE_KEY: String = "__gf_storage_envelope"</signature>
 			<description>当用户数据自身包含 `_meta` 时，外层包裹使用的标记字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="ENVELOPE_DATA_KEY" line="70">
+		<member kind="const" name="ENVELOPE_DATA_KEY">
 			<signature>const ENVELOPE_DATA_KEY: String = "data"</signature>
 			<description>存储 envelope 内原始用户数据的字段名。</description>
 			<tags>
@@ -77,77 +77,77 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="format" line="80" decorators="@export">
+		<member kind="property" name="format" decorators="@export">
 			<signature>var format: Format = Format.JSON</signature>
 			<description>默认序列化格式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_compression" line="85" decorators="@export">
+		<member kind="property" name="use_compression" decorators="@export">
 			<signature>var use_compression: bool = false</signature>
 			<description>是否压缩载荷。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_integrity_checksum" line="90" decorators="@export">
+		<member kind="property" name="use_integrity_checksum" decorators="@export">
 			<signature>var use_integrity_checksum: bool = false</signature>
 			<description>是否在 `_meta.checksum` 中写入 SHA-256 完整性校验。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="strict_integrity" line="95" decorators="@export">
+		<member kind="property" name="strict_integrity" decorators="@export">
 			<signature>var strict_integrity: bool = true</signature>
 			<description>校验失败时是否拒绝读取。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="require_integrity_checksum" line="100" decorators="@export">
+		<member kind="property" name="require_integrity_checksum" decorators="@export">
 			<signature>var require_integrity_checksum: bool = true</signature>
 			<description>启用完整性校验时，是否要求载荷必须包含 `_meta.checksum`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="include_metadata" line="105" decorators="@export">
+		<member kind="property" name="include_metadata" decorators="@export">
 			<signature>var include_metadata: bool = false</signature>
 			<description>是否写入 `_meta.version` 和 `_meta.timestamp`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="version" line="110" decorators="@export">
+		<member kind="property" name="version" decorators="@export">
 			<signature>var version: int = 1:</signature>
 			<description>当前数据版本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="obfuscation_key" line="117" decorators="@export">
+		<member kind="property" name="obfuscation_key" decorators="@export">
 			<signature>var obfuscation_key: int = 0</signature>
 			<description>轻量 XOR 混淆密钥；为 0 时写入原始 bytes。该字段不提供安全加密能力。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_decompressed_bytes" line="122" decorators="@export">
+		<member kind="property" name="max_decompressed_bytes" decorators="@export">
 			<signature>var max_decompressed_bytes: int = 64 * 1024 * 1024</signature>
 			<description>解压时允许的最大输出字节数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="allow_legacy_plain_json_fallback" line="127" decorators="@export">
+		<member kind="property" name="allow_legacy_plain_json_fallback" decorators="@export">
 			<signature>var allow_legacy_plain_json_fallback: bool = false</signature>
 			<description>解码失败时是否尝试按旧版未压缩、未混淆 JSON 读取原始 bytes。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="normalize_json_numbers" line="132" decorators="@export">
+		<member kind="property" name="normalize_json_numbers" decorators="@export">
 			<signature>var normalize_json_numbers: bool = false</signature>
 			<description>JSON 解码时是否把接近整数的 float 归一为 int。Binary 格式不受影响。</description>
 			<tags>
@@ -156,7 +156,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="encode" line="150">
+		<member kind="method" name="encode">
 			<signature>func encode(data: Dictionary, options: Dictionary = {}) -&gt; PackedByteArray:</signature>
 			<description>将字典编码为可写入文件的 bytes。</description>
 			<tags>
@@ -168,7 +168,7 @@
 				<tag name="schema">options: Dictionary，可包含 format、use_compression、obfuscation_key、use_integrity_checksum、include_metadata、version 和 max_decompressed_bytes。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="decode" line="183">
+		<member kind="method" name="decode">
 			<signature>func decode(bytes: PackedByteArray, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>从 bytes 解码字典。</description>
 			<tags>
@@ -180,7 +180,7 @@
 				<tag name="schema">return: Dictionary，包含 ok: bool、data: Dictionary、metadata: Dictionary、integrity_valid: bool 和 error: String。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="serialize_dictionary" line="256">
+		<member kind="method" name="serialize_dictionary">
 			<signature>func serialize_dictionary(data: Dictionary, p_format: Format = Format.JSON) -&gt; PackedByteArray:</signature>
 			<description>序列化字典。JSON 格式会递归排序字典键。</description>
 			<tags>
@@ -191,7 +191,7 @@
 				<tag name="schema">data: Dictionary，要序列化的数据载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="deserialize_dictionary" line="271">
+		<member kind="method" name="deserialize_dictionary">
 			<signature>func deserialize_dictionary(bytes: PackedByteArray, p_format: Format = Format.JSON) -&gt; Dictionary:</signature>
 			<description>反序列化字典。</description>
 			<tags>
@@ -202,7 +202,7 @@
 				<tag name="schema">return: Dictionary，从字节解析出的数据；解析失败时为空字典。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="calculate_checksum" line="287">
+		<member kind="method" name="calculate_checksum">
 			<signature>func calculate_checksum(data: Dictionary, p_format: Format = Format.JSON) -&gt; String:</signature>
 			<description>计算当前数据按指定格式序列化后的 SHA-256。
 JSON 格式会在 checksum 输入中规范化整数字面量，避免不同 Godot 版本解析 JSON 数字类型导致误判损坏。</description>
@@ -214,7 +214,7 @@ JSON 格式会在 checksum 输入中规范化整数字面量，避免不同 Godo
 				<tag name="schema">data: Dictionary，用作校验和输入的数据载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="verify_integrity" line="307">
+		<member kind="method" name="verify_integrity">
 			<signature>func verify_integrity(data: Dictionary, p_format: Format = Format.JSON) -&gt; bool:</signature>
 			<description>校验 `_meta.checksum`。</description>
 			<tags>
@@ -225,7 +225,7 @@ JSON 格式会在 checksum 输入中规范化整数字面量，避免不同 Godo
 				<tag name="schema">data: Dictionary，包含可选 `_meta.checksum` 的数据载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_metadata" line="335">
+		<member kind="method" name="get_metadata">
 			<signature>func get_metadata(data: Dictionary) -&gt; Dictionary:</signature>
 			<description>获取存档元信息副本。</description>
 			<tags>
@@ -236,7 +236,7 @@ JSON 格式会在 checksum 输入中规范化整数字面量，避免不同 Godo
 				<tag name="schema">return: Dictionary，从 `_meta` 复制出的元数据；不存在元数据时为空字典。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_integrity_checksum" line="351">
+		<member kind="method" name="has_integrity_checksum">
 			<signature>func has_integrity_checksum(data: Dictionary) -&gt; bool:</signature>
 			<description>判断字典是否包含完整性 checksum。</description>
 			<tags>

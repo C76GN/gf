@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeRangeSerializer" path="addons/gf/extensions/save/serializers/gf_node_range_serializer.gd" module="extensions/save" extends="GFNodeSerializer" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeRangeSerializer" path="addons/gf/extensions/save/serializers/gf_node_range_serializer.gd" module="extensions/save" extends="GFNodeSerializer" classDigest="32005d2876c7c00804e63fdb8ffaf1ff70e36ca178d03ecc5bc5c459c505fa06">
 	<description>GFNodeRangeSerializer: Range 通用数值状态序列化器。
 保存滑条、进度条等 Range 派生控件的通用数值参数。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="supports_node" line="44">
+		<member kind="method" name="supports_node">
 			<signature>func supports_node(node: Node) -&gt; bool:</signature>
 			<description>判断序列化器是否支持指定节点。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="return">节点是否为 Range。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="gather" line="61">
+		<member kind="method" name="gather">
 			<signature>func gather(node: Node, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集节点的可保存状态。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">return: Dictionary，可包含 min_value、max_value、step、page、rounded、allow_greater、allow_lesser 与 value。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply" line="86">
+		<member kind="method" name="apply">
 			<signature>func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>将序列化数据应用到节点。</description>
 			<tags>

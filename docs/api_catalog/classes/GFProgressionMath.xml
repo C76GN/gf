@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFProgressionMath" path="addons/gf/standard/foundation/math/gf_progression_math.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFProgressionMath" path="addons/gf/standard/foundation/math/gf_progression_math.gd" module="standard" extends="RefCounted" classDigest="b3ba4aab752515716ec2700a49d2fab30641f38a693a2c33d49cc3ebc825c4cb">
 	<description>GFProgressionMath: 挂机与模拟经营项目的纯进度曲线数学工具。
 负责价格曲线、收益曲线、里程碑倍率、软上限与分段式离线收益结算。
 它不依赖 GFArchitecture，可直接与 JSON、CSV 或外部工具导出的配置字典配合使用。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="CurveMode" line="20">
+		<member kind="enum" name="CurveMode">
 			<signature>enum CurveMode { ## 常量曲线。 CONSTANT, ## 线性曲线。 LINEAR, ## 指数曲线。 EXPONENTIAL, }</signature>
 			<description>支持的基础曲线类型。</description>
 			<tags>
@@ -21,7 +21,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="evaluate_curve" line="49">
+		<member kind="method" name="evaluate_curve">
 			<signature>static func evaluate_curve(level: int, curve_config: Dictionary) -&gt; GFBigNumber:</signature>
 			<description>根据配置计算某一级的曲线值。</description>
 			<tags>
@@ -32,7 +32,7 @@
 				<tag name="schema">curve_config: Dictionary with optional `base_value`, `start_level`, `mode`, `per_level`, `multiplier`, `phases`, and `overrides` entries.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_milestone_multipliers" line="77">
+		<member kind="method" name="apply_milestone_multipliers">
 			<signature>static func apply_milestone_multipliers(value: Variant, level: int, milestones: Array) -&gt; GFBigNumber:</signature>
 			<description>为基础值叠加里程碑倍率。</description>
 			<tags>
@@ -45,7 +45,7 @@
 				<tag name="schema">milestones: Array[Dictionary] where each entry may contain `level: int` and `multiplier: Variant numeric value`.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_soft_cap" line="111">
+		<member kind="method" name="apply_soft_cap">
 			<signature>static func apply_soft_cap( value: Variant, soft_cap: Variant, power: float = _DEFAULT_SOFT_CAP_POWER ) -&gt; GFBigNumber:</signature>
 			<description>对一个值应用幂函数型软上限。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="schema">soft_cap: Variant numeric value accepted by GFBigNumber.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="settle_offline_progress" line="148">
+		<member kind="method" name="settle_offline_progress">
 			<signature>static func settle_offline_progress( rate_per_second: Variant, offline_seconds: float, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>计算一段离线时间内的收益。</description>
 			<tags>

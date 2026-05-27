@@ -34,6 +34,36 @@ enum Waveform { ## 正弦波，适合可预期的摆动。 SINE, ## 逐步随机
 
 ### Properties
 
+#### `duration_seconds`
+
+- API: `public`
+
+```gdscript
+var duration_seconds: float = 0.25
+```
+
+持续时间，单位秒。
+
+#### `amplitude`
+
+- API: `public`
+
+```gdscript
+var amplitude: float = 1.0
+```
+
+采样振幅倍率。
+
+#### `frequency`
+
+- API: `public`
+
+```gdscript
+var frequency: float = 24.0
+```
+
+每秒采样频率。
+
 #### `waveform`
 
 - API: `public`
@@ -42,7 +72,7 @@ enum Waveform { ## 正弦波，适合可预期的摆动。 SINE, ## 逐步随机
 var waveform: Waveform = Waveform.NOISE
 ```
 
-持续时间，单位秒。 采样振幅倍率。 每秒采样频率。 波形类型。
+波形类型。
 
 #### `position_axis`
 
@@ -272,6 +302,16 @@ GFShakeReceiver2D: 将反馈采样应用到 Node2D 的通用接收器。
 
 ### Properties
 
+#### `target_path`
+
+- API: `public`
+
+```gdscript
+var target_path: NodePath = NodePath("")
+```
+
+目标 Node2D 路径；为空时优先使用自身，其次使用父节点。
+
 #### `channel`
 
 - API: `public`
@@ -280,7 +320,7 @@ GFShakeReceiver2D: 将反馈采样应用到 Node2D 的通用接收器。
 var channel: StringName = &"default"
 ```
 
-目标 Node2D 路径；为空时优先使用自身，其次使用父节点。 采样 channel。
+采样 channel。
 
 #### `apply_position`
 
@@ -420,6 +460,16 @@ GFShakeReceiver3D: 将反馈采样应用到 Node3D 的通用接收器。
 
 ### Properties
 
+#### `target_path`
+
+- API: `public`
+
+```gdscript
+var target_path: NodePath = NodePath("")
+```
+
+目标 Node3D 路径；为空时优先使用自身，其次使用父节点。
+
 #### `channel`
 
 - API: `public`
@@ -428,7 +478,7 @@ GFShakeReceiver3D: 将反馈采样应用到 Node3D 的通用接收器。
 var channel: StringName = &"default"
 ```
 
-目标 Node3D 路径；为空时优先使用自身，其次使用父节点。 采样 channel。
+采样 channel。
 
 #### `apply_position`
 
@@ -620,6 +670,46 @@ var waveform: Waveform = Waveform.NOISE
 
 轨道采样波形。
 
+#### `start_progress`
+
+- API: `public`
+
+```gdscript
+var start_progress: float = 0.0
+```
+
+轨道开始进度，范围 0 到 1。
+
+#### `end_progress`
+
+- API: `public`
+
+```gdscript
+var end_progress: float = 1.0
+```
+
+轨道结束进度，范围 0 到 1。
+
+#### `amplitude`
+
+- API: `public`
+
+```gdscript
+var amplitude: float = 1.0
+```
+
+轨道振幅倍率。
+
+#### `frequency`
+
+- API: `public`
+
+```gdscript
+var frequency: float = 24.0
+```
+
+每秒采样频率。
+
 #### `position_axis`
 
 - API: `public`
@@ -628,7 +718,7 @@ var waveform: Waveform = Waveform.NOISE
 var position_axis: Vector3 = Vector3.ONE
 ```
 
-轨道开始进度，范围 0 到 1。 轨道结束进度，范围 0 到 1。 轨道振幅倍率。 每秒采样频率。 位移轴权重。
+位移轴权重。
 
 #### `rotation_axis_degrees`
 

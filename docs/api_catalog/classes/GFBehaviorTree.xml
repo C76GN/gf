@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBehaviorTree" path="addons/gf/extensions/behavior_tree/runtime/gf_behavior_tree.gd" module="extensions/behavior_tree" extends="Object" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFBehaviorTree" path="addons/gf/extensions/behavior_tree/runtime/gf_behavior_tree.gd" module="extensions/behavior_tree" extends="Object" classDigest="4d07a9265553ebe293bcc9c43085ecfe7b37259042804a9b0f891b71c2babd1e">
 	<description>GFBehaviorTree: 轻量级、纯代码的行为树实现。
 提供无需编辑器的、以代码方式构建 AI 或通用决策逻辑的轻量方案。
 可以在任何 System 中通过 Runner 来驱动 tick()。核心节点包含
@@ -11,14 +11,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Status" line="20">
+		<member kind="enum" name="Status">
 			<signature>enum Status { ## 节点尚未被 tick。 FRESH = -1, ## 节点本次执行成功。 SUCCESS = 0, ## 节点本次执行失败。 FAILURE = 1, ## 节点仍在运行，需要后续 tick 继续推进。 RUNNING = 2, ## 节点被外部中止。 ABORTED = 3, }</signature>
 			<description>行为树节点的执行状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="enum" name="ParallelPolicy" line="36">
+		<member kind="enum" name="ParallelPolicy">
 			<signature>enum ParallelPolicy { ## 所有子节点成功才成功，任意子节点失败即失败。 REQUIRE_ALL, ## 任意子节点成功即成功，所有子节点失败才失败。 REQUIRE_ONE, }</signature>
 			<description>Parallel 节点的完成策略。</description>
 			<tags>
@@ -29,7 +29,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="status_to_string" line="53">
+		<member kind="method" name="status_to_string">
 			<signature>static func status_to_string(status: int) -&gt; StringName:</signature>
 			<description>将状态枚举转换为稳定文本。</description>
 			<tags>
@@ -38,7 +38,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				<tag name="return">状态文本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_debug_snapshot" line="80">
+		<member kind="method" name="build_debug_snapshot">
 			<signature>static func build_debug_snapshot(node: Variant) -&gt; Dictionary:</signature>
 			<description>获取节点调试快照。</description>
 			<tags>
@@ -51,7 +51,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 		</member>
 	</methods>
 	<innerClasses>
-		<class name="Action" fullName="GFBehaviorTree.Action" extends="BTNode" line="844">
+		<class name="Action" fullName="GFBehaviorTree.Action" extends="BTNode">
 			<description>动作节点 (叶子节点)。
 包装一个回调函数执行具体指令。回调需返回 Status 类型。</description>
 			<tags>
@@ -64,7 +64,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="861">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -74,7 +74,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="873">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的动作节点副本。</description>
 					<tags>
@@ -84,7 +84,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="AlwaysFail" fullName="GFBehaviorTree.AlwaysFail" extends="Decorator" line="1080">
+		<class name="AlwaysFail" fullName="GFBehaviorTree.AlwaysFail" extends="Decorator">
 			<description>总是失败装饰节点。
 子节点运行中时保持 RUNNING，子节点结束时统一返回 FAILURE。</description>
 			<tags>
@@ -97,7 +97,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="1095">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -107,7 +107,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1111">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的总是失败装饰节点副本。</description>
 					<tags>
@@ -117,7 +117,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="AlwaysSucceed" fullName="GFBehaviorTree.AlwaysSucceed" extends="Decorator" line="1034">
+		<class name="AlwaysSucceed" fullName="GFBehaviorTree.AlwaysSucceed" extends="Decorator">
 			<description>总是成功装饰节点。
 子节点运行中时保持 RUNNING，子节点结束时统一返回 SUCCESS。</description>
 			<tags>
@@ -130,7 +130,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="1049">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -140,7 +140,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1065">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的总是成功装饰节点副本。</description>
 					<tags>
@@ -150,7 +150,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="BTNode" fullName="GFBehaviorTree.BTNode" extends="RefCounted" line="93">
+		<class name="BTNode" fullName="GFBehaviorTree.BTNode" extends="RefCounted">
 			<description>行为树所有节点的基类。</description>
 			<tags>
 				<tag name="api">public</tag>
@@ -161,49 +161,49 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="name" line="97">
+				<member kind="property" name="name">
 					<signature>var name: String = "BTNode"</signature>
 					<description>节点名称，用于调试。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="property" name="node_id" line="102">
+				<member kind="property" name="node_id">
 					<signature>var node_id: StringName = &amp;""</signature>
 					<description>可选稳定节点标识。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="property" name="last_status" line="107">
+				<member kind="property" name="last_status">
 					<signature>var last_status: int = Status.FRESH</signature>
 					<description>最近一次 tick 状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="property" name="last_reason" line="112">
+				<member kind="property" name="last_reason">
 					<signature>var last_reason: StringName = &amp;""</signature>
 					<description>最近一次状态原因。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="property" name="tick_count" line="117">
+				<member kind="property" name="tick_count">
 					<signature>var tick_count: int = 0</signature>
 					<description>累计 tick 次数。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="property" name="last_tick_usec" line="122">
+				<member kind="property" name="last_tick_usec">
 					<signature>var last_tick_usec: int = 0</signature>
 					<description>最近一次 tick 耗时，单位微秒。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="property" name="metadata" line="129">
+				<member kind="property" name="metadata">
 					<signature>var metadata: Dictionary = {}</signature>
 					<description>调用方附加元数据。</description>
 					<tags>
@@ -213,7 +213,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="140">
+				<member kind="method" name="tick">
 					<signature>func tick(_blackboard: Dictionary) -&gt; int:</signature>
 					<description>执行该节点的逻辑。子类应重写此方法。</description>
 					<tags>
@@ -223,14 +223,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">_blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="147">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置节点内部运行状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="159">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建一份可独立运行的节点副本，不复制调试计数和正在运行的内部状态。
 自定义节点若持有运行态，应重写此方法并复制自身类型；默认返回自身，
@@ -240,7 +240,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="return">运行时副本。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="clear_debug_state" line="168">
+				<member kind="method" name="clear_debug_state">
 					<signature>func clear_debug_state(recursive: bool = true) -&gt; void:</signature>
 					<description>清空节点调试状态。</description>
 					<tags>
@@ -248,7 +248,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="param">recursive: 是否同时清空子节点调试状态。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="record_status" line="190">
+				<member kind="method" name="record_status">
 					<signature>func record_status(status: int, reason: StringName = &amp;"", elapsed_usec: int = 0) -&gt; int:</signature>
 					<description>记录节点状态。</description>
 					<tags>
@@ -259,7 +259,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="return">原状态值，便于子类直接 return。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="get_debug_snapshot" line="205">
+				<member kind="method" name="get_debug_snapshot">
 					<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 					<description>获取调试快照。</description>
 					<tags>
@@ -270,7 +270,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="BlackboardScope" fullName="GFBehaviorTree.BlackboardScope" extends="RefCounted" line="255">
+		<class name="BlackboardScope" fullName="GFBehaviorTree.BlackboardScope" extends="RefCounted">
 			<description>行为树黑板作用域。
 支持父级回退和局部覆盖，可在项目层按需转换为 Dictionary 传给既有节点。</description>
 			<tags>
@@ -282,7 +282,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="values" line="261">
+				<member kind="property" name="values">
 					<signature>var values: Dictionary = {}</signature>
 					<description>当前作用域值。</description>
 					<tags>
@@ -290,7 +290,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">values: 当前作用域持有的黑板值 Dictionary；键通常为 StringName，值由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="property" name="parent" line="266">
+				<member kind="property" name="parent">
 					<signature>var parent: BlackboardScope = null</signature>
 					<description>可选父级作用域。</description>
 					<tags>
@@ -299,7 +299,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="set_value" line="282">
+				<member kind="method" name="set_value">
 					<signature>func set_value(key: StringName, value: Variant) -&gt; void:</signature>
 					<description>设置作用域值。</description>
 					<tags>
@@ -309,7 +309,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">value: 任意可存入黑板的项目值。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="get_value" line="299">
+				<member kind="method" name="get_value">
 					<signature>func get_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
 					<description>获取作用域值。</description>
 					<tags>
@@ -321,7 +321,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">return: 找到的黑板值，或传入的 default_value。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="has_value" line="314">
+				<member kind="method" name="has_value">
 					<signature>func has_value(key: StringName) -&gt; bool:</signature>
 					<description>检查作用域值是否存在。</description>
 					<tags>
@@ -330,7 +330,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="return">存在返回 true。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="to_dictionary" line="325">
+				<member kind="method" name="to_dictionary">
 					<signature>func to_dictionary() -&gt; Dictionary:</signature>
 					<description>转换为合并后的字典。</description>
 					<tags>
@@ -341,7 +341,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Condition" fullName="GFBehaviorTree.Condition" extends="BTNode" line="888">
+		<class name="Condition" fullName="GFBehaviorTree.Condition" extends="BTNode">
 			<description>条件检查节点 (叶子节点)。
 包装一个返回布尔值的回调。true 为 SUCCESS，false 为 FAILURE。</description>
 			<tags>
@@ -354,7 +354,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="905">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -364,7 +364,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="917">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的条件节点副本。</description>
 					<tags>
@@ -374,7 +374,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Cooldown" fullName="GFBehaviorTree.Cooldown" extends="Decorator" line="1219">
+		<class name="Cooldown" fullName="GFBehaviorTree.Cooldown" extends="Decorator">
 			<description>冷却装饰节点。
 子节点结束后进入冷却期，冷却未结束时返回 FAILURE。</description>
 			<tags>
@@ -386,7 +386,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="cooldown_seconds" line="1223">
+				<member kind="property" name="cooldown_seconds">
 					<signature>var cooldown_seconds: float = 0.0</signature>
 					<description>冷却秒数。</description>
 					<tags>
@@ -395,7 +395,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="1241">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -405,21 +405,21 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；可提供 time_msec: int，其余字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="1257">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置运行状态，保留已经开始的冷却。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="clear_cooldown" line="1264">
+				<member kind="method" name="clear_cooldown">
 					<signature>func clear_cooldown() -&gt; void:</signature>
 					<description>清空冷却状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1273">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的冷却装饰节点副本。</description>
 					<tags>
@@ -429,7 +429,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Decorator" fullName="GFBehaviorTree.Decorator" extends="BTNode" line="930">
+		<class name="Decorator" fullName="GFBehaviorTree.Decorator" extends="BTNode">
 			<description>单子节点装饰器基类。</description>
 			<tags>
 				<tag name="api">public</tag>
@@ -441,7 +441,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="set_child" line="944">
+				<member kind="method" name="set_child">
 					<signature>func set_child(child_node: BTNode) -&gt; Decorator:</signature>
 					<description>设置被装饰的子节点。</description>
 					<tags>
@@ -450,14 +450,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="return">当前装饰器。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="952">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="963">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的装饰器副本。</description>
 					<tags>
@@ -467,7 +467,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Inverter" fullName="GFBehaviorTree.Inverter" extends="Decorator" line="985">
+		<class name="Inverter" fullName="GFBehaviorTree.Inverter" extends="Decorator">
 			<description>反转装饰节点。
 翻转子节点的成功与失败状态。RUNNING 状态保持不变。</description>
 			<tags>
@@ -480,7 +480,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="1000">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -490,7 +490,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1019">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的反转装饰节点副本。</description>
 					<tags>
@@ -500,7 +500,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Limit" fullName="GFBehaviorTree.Limit" extends="Decorator" line="1358">
+		<class name="Limit" fullName="GFBehaviorTree.Limit" extends="Decorator">
 			<description>次数限制装饰节点。
 子节点最多被 tick 指定次数；超过次数后返回 FAILURE。</description>
 			<tags>
@@ -512,7 +512,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="max_ticks" line="1362">
+				<member kind="property" name="max_ticks">
 					<signature>var max_ticks: int = 1</signature>
 					<description>最大允许 tick 次数。</description>
 					<tags>
@@ -521,7 +521,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="1380">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -531,14 +531,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="1394">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置调用计数与子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1404">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的次数限制装饰节点副本。</description>
 					<tags>
@@ -548,7 +548,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Parallel" fullName="GFBehaviorTree.Parallel" extends="BTNode" line="485">
+		<class name="Parallel" fullName="GFBehaviorTree.Parallel" extends="BTNode">
 			<description>并行节点。
 每次 tick 推进全部子节点，并根据 ParallelPolicy 汇总状态。</description>
 			<tags>
@@ -560,7 +560,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="policy" line="492">
+				<member kind="property" name="policy">
 					<signature>var policy: ParallelPolicy = ParallelPolicy.REQUIRE_ALL</signature>
 					<description>并行节点完成策略。</description>
 					<tags>
@@ -569,7 +569,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="512">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -579,14 +579,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="566">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置所有子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="579">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的并行节点副本。</description>
 					<tags>
@@ -596,7 +596,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Probability" fullName="GFBehaviorTree.Probability" extends="Decorator" line="1126">
+		<class name="Probability" fullName="GFBehaviorTree.Probability" extends="Decorator">
 			<description>概率装饰节点。
 每轮按 probability 判定是否允许子节点执行，未命中时返回 FAILURE。</description>
 			<tags>
@@ -608,14 +608,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="probability" line="1130">
+				<member kind="property" name="probability">
 					<signature>var probability: float = 1.0</signature>
 					<description>执行概率，范围 0.0 到 1.0。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="property" name="rng" line="1135">
+				<member kind="property" name="rng">
 					<signature>var rng: RandomNumberGenerator = null</signature>
 					<description>可选随机源；为空时优先使用 blackboard["rng"]。</description>
 					<tags>
@@ -624,7 +624,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="1155">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -634,14 +634,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="1177">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置当前概率轮次与子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1188">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的概率装饰节点副本。</description>
 					<tags>
@@ -651,7 +651,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="RandomSelector" fullName="GFBehaviorTree.RandomSelector" extends="BTNode" line="606">
+		<class name="RandomSelector" fullName="GFBehaviorTree.RandomSelector" extends="BTNode">
 			<description>随机选择节点。
 与 Selector 语义一致，但每轮从随机顺序尝试子节点。</description>
 			<tags>
@@ -663,7 +663,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="rng" line="610">
+				<member kind="property" name="rng">
 					<signature>var rng: RandomNumberGenerator = null</signature>
 					<description>可选随机源；为空时优先使用 blackboard["rng"]，否则退回全局随机。</description>
 					<tags>
@@ -672,7 +672,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="631">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -682,14 +682,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="656">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置当前随机轮次与子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="670">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的随机选择节点副本。</description>
 					<tags>
@@ -699,7 +699,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="RandomSequence" fullName="GFBehaviorTree.RandomSequence" extends="BTNode" line="725">
+		<class name="RandomSequence" fullName="GFBehaviorTree.RandomSequence" extends="BTNode">
 			<description>随机顺序节点。
 与 Sequence 语义一致，但每轮从随机顺序尝试子节点。</description>
 			<tags>
@@ -711,7 +711,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="rng" line="729">
+				<member kind="property" name="rng">
 					<signature>var rng: RandomNumberGenerator = null</signature>
 					<description>可选随机源；为空时优先使用 blackboard["rng"]，否则退回全局随机。</description>
 					<tags>
@@ -720,7 +720,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="750">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -730,14 +730,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；可提供 rng: RandomNumberGenerator，其余字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="775">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置当前随机轮次与子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="789">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的随机顺序节点副本。</description>
 					<tags>
@@ -747,7 +747,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Repeat" fullName="GFBehaviorTree.Repeat" extends="Decorator" line="1419">
+		<class name="Repeat" fullName="GFBehaviorTree.Repeat" extends="Decorator">
 			<description>重复装饰节点。
 子节点成功后重复执行，达到 repeat_count 后返回 SUCCESS；repeat_count 为 0 表示无限重复。</description>
 			<tags>
@@ -759,7 +759,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="repeat_count" line="1423">
+				<member kind="property" name="repeat_count">
 					<signature>var repeat_count: int = 1</signature>
 					<description>成功重复次数；0 表示无限重复。</description>
 					<tags>
@@ -768,7 +768,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="1441">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -778,14 +778,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="1464">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置重复计数与子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1474">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的重复装饰节点副本。</description>
 					<tags>
@@ -795,7 +795,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Runner" fullName="GFBehaviorTree.Runner" extends="RefCounted" line="1579">
+		<class name="Runner" fullName="GFBehaviorTree.Runner" extends="RefCounted">
 			<description>行为树的执行入口容器。</description>
 			<tags>
 				<tag name="api">public</tag>
@@ -806,7 +806,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="blackboard" line="1585">
+				<member kind="property" name="blackboard">
 					<signature>var blackboard: Dictionary = {}</signature>
 					<description>运行时共享黑板。</description>
 					<tags>
@@ -814,7 +814,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: 传给根节点 tick() 的共享 Dictionary；键和值由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="property" name="duplicates_runtime_tree" line="1590">
+				<member kind="property" name="duplicates_runtime_tree">
 					<signature>var duplicates_runtime_tree: bool = true</signature>
 					<description>是否在构造运行器时复制内置节点运行态，避免多个 Runner 共享同一棵树的进度。</description>
 					<tags>
@@ -823,7 +823,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="1605">
+				<member kind="method" name="tick">
 					<signature>func tick() -&gt; int:</signature>
 					<description>驱动行为树运行逻辑。
 通常在 GFSystem 的 tick 中被调用。</description>
@@ -832,21 +832,21 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="return">返回根节点 Status 枚举。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="1614">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置整棵行为树的运行状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="clear_debug_state" line="1622">
+				<member kind="method" name="clear_debug_state">
 					<signature>func clear_debug_state() -&gt; void:</signature>
 					<description>清空整棵行为树的调试状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="get_debug_snapshot" line="1634">
+				<member kind="method" name="get_debug_snapshot">
 					<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 					<description>获取运行器调试快照。</description>
 					<tags>
@@ -857,7 +857,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Selector" fullName="GFBehaviorTree.Selector" extends="BTNode" line="413">
+		<class name="Selector" fullName="GFBehaviorTree.Selector" extends="BTNode">
 			<description>选择节点 (OR 逻辑)。
 依次执行子节点，直到有一个子节点返回 SUCCESS 或 RUNNING，否则返回 FAILURE。</description>
 			<tags>
@@ -870,7 +870,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="431">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -880,14 +880,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="453">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置当前子节点索引与所有子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="466">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的选择节点副本。</description>
 					<tags>
@@ -897,7 +897,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="Sequence" fullName="GFBehaviorTree.Sequence" extends="BTNode" line="341">
+		<class name="Sequence" fullName="GFBehaviorTree.Sequence" extends="BTNode">
 			<description>顺序节点 (AND 逻辑)。
 依次执行子节点，只有全部成功才返回 SUCCESS。遇到 RUNNING 或 FAILURE 则中断并返回对应状态。</description>
 			<tags>
@@ -910,7 +910,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="359">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -920,14 +920,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="381">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置当前子节点索引与所有子节点状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="394">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的顺序节点副本。</description>
 					<tags>
@@ -937,7 +937,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="TimeLimit" fullName="GFBehaviorTree.TimeLimit" extends="Decorator" line="1292">
+		<class name="TimeLimit" fullName="GFBehaviorTree.TimeLimit" extends="Decorator">
 			<description>时间限制装饰节点。
 子节点 RUNNING 持续超过限制时返回 FAILURE 并重置子节点。</description>
 			<tags>
@@ -949,7 +949,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<enums />
 			<constants />
 			<properties>
-				<member kind="property" name="limit_seconds" line="1296">
+				<member kind="property" name="limit_seconds">
 					<signature>var limit_seconds: float = 1.0</signature>
 					<description>最大运行秒数。</description>
 					<tags>
@@ -958,7 +958,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</properties>
 			<methods>
-				<member kind="method" name="tick" line="1314">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -968,14 +968,14 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；可提供 time_msec: int，其余字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="reset" line="1333">
+				<member kind="method" name="reset">
 					<signature>func reset() -&gt; void:</signature>
 					<description>重置计时状态。</description>
 					<tags>
 						<tag name="api">public</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1343">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的时间限制装饰节点副本。</description>
 					<tags>
@@ -985,7 +985,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="UntilFail" fullName="GFBehaviorTree.UntilFail" extends="Decorator" line="1535">
+		<class name="UntilFail" fullName="GFBehaviorTree.UntilFail" extends="Decorator">
 			<description>直到失败装饰节点。
 子节点成功时继续返回 RUNNING，直到子节点失败。</description>
 			<tags>
@@ -998,7 +998,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="1550">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -1008,7 +1008,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1566">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的直到失败装饰节点副本。</description>
 					<tags>
@@ -1018,7 +1018,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 				</member>
 			</methods>
 		</class>
-		<class name="UntilSuccess" fullName="GFBehaviorTree.UntilSuccess" extends="Decorator" line="1489">
+		<class name="UntilSuccess" fullName="GFBehaviorTree.UntilSuccess" extends="Decorator">
 			<description>直到成功装饰节点。
 子节点失败时继续返回 RUNNING，直到子节点成功。</description>
 			<tags>
@@ -1031,7 +1031,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 			<constants />
 			<properties />
 			<methods>
-				<member kind="method" name="tick" line="1504">
+				<member kind="method" name="tick">
 					<signature>func tick(blackboard: Dictionary) -&gt; int:</signature>
 					<description>推进运行时逻辑。</description>
 					<tags>
@@ -1041,7 +1041,7 @@ Sequence、Selector、Parallel、Action、Condition 以及常用装饰节点。<
 						<tag name="schema">blackboard: Dictionary 形式黑板；字段由项目自定义。</tag>
 					</tags>
 				</member>
-				<member kind="method" name="duplicate_runtime" line="1520">
+				<member kind="method" name="duplicate_runtime">
 					<signature>func duplicate_runtime() -&gt; BTNode:</signature>
 					<description>创建可独立运行的直到成功装饰节点副本。</description>
 					<tags>

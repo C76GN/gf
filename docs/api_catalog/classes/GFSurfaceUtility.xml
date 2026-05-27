@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSurfaceUtility" path="addons/gf/standard/utilities/display/gf_surface_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSurfaceUtility" path="addons/gf/standard/utilities/display/gf_surface_utility.gd" module="standard" extends="GFUtility" classDigest="403cf442f9b56b469ab560889cb5ca4d5f580ceed62bb6bc887b124a73d4368d">
 	<description>GFSurfaceUtility: 3D 表面材质查询工具。
 根据碰撞命中的 face index 推导 MeshInstance3D surface，并返回基础材质、
 覆盖材质或最终 active material。框架只负责几何到材质的映射，不解释材质语义。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="CacheMode" line="20">
+		<member kind="enum" name="CacheMode">
 			<signature>enum CacheMode { ## 不读写缓存，每次查询都重新计算。 DISABLED, ## 只使用显式预热写入的缓存。 MANUAL, ## 查询时自动缓存，并按 auto_cache_size 控制容量。 AUTOMATIC, }</signature>
 			<description>Mesh surface face count 缓存策略。</description>
 			<tags>
@@ -19,7 +19,7 @@
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="DEFAULT_AUTO_CACHE_SIZE" line="35">
+		<member kind="const" name="DEFAULT_AUTO_CACHE_SIZE">
 			<signature>const DEFAULT_AUTO_CACHE_SIZE: int = 8</signature>
 			<description>自动缓存默认容量。</description>
 			<tags>
@@ -28,14 +28,14 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="cache_mode" line="43">
+		<member kind="property" name="cache_mode">
 			<signature>var cache_mode: CacheMode = CacheMode.AUTOMATIC</signature>
 			<description>当前缓存策略。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_cache_size" line="48">
+		<member kind="property" name="auto_cache_size">
 			<signature>var auto_cache_size: int = DEFAULT_AUTO_CACHE_SIZE</signature>
 			<description>自动缓存容量。小于 1 时会被归一化为 1。</description>
 			<tags>
@@ -44,14 +44,14 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="dispose" line="62">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放工具时清空 Mesh surface face count 缓存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_material" line="77">
+		<member kind="method" name="get_active_material">
 			<signature>func get_active_material(source: Object, face_index: int) -&gt; Material:</signature>
 			<description>获取命中表面最终渲染使用的材质。</description>
 			<tags>
@@ -61,7 +61,7 @@
 				<tag name="return">命中材质；无法解析时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_surface_override_material" line="94">
+		<member kind="method" name="get_surface_override_material">
 			<signature>func get_surface_override_material(source: Object, face_index: int) -&gt; Material:</signature>
 			<description>获取 MeshInstance3D surface override 材质。</description>
 			<tags>
@@ -71,7 +71,7 @@
 				<tag name="return">覆盖材质；未设置或无法解析时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_base_material" line="111">
+		<member kind="method" name="get_base_material">
 			<signature>func get_base_material(source: Object, face_index: int) -&gt; Material:</signature>
 			<description>获取 Mesh 资源自身的 surface 材质。</description>
 			<tags>
@@ -81,7 +81,7 @@
 				<tag name="return">基础材质；无法解析时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_surface_index" line="128">
+		<member kind="method" name="get_surface_index">
 			<signature>func get_surface_index(source: Object, face_index: int) -&gt; int:</signature>
 			<description>获取 face index 所属的 Mesh surface 索引。</description>
 			<tags>
@@ -91,14 +91,14 @@
 				<tag name="return">surface 索引；无法解析时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_cache" line="149">
+		<member kind="method" name="clear_cache">
 			<signature>func clear_cache() -&gt; void:</signature>
 			<description>清空 Mesh surface face count 缓存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cache_mesh_surface" line="161">
+		<member kind="method" name="cache_mesh_surface">
 			<signature>func cache_mesh_surface(source: Object) -&gt; bool:</signature>
 			<description>预热指定 Mesh 或 MeshInstance3D 的 surface face count 缓存。</description>
 			<tags>
@@ -107,7 +107,7 @@
 				<tag name="return">缓存成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="erase_cached_mesh" line="181">
+		<member kind="method" name="erase_cached_mesh">
 			<signature>func erase_cached_mesh(source: Object) -&gt; bool:</signature>
 			<description>移除指定 Mesh 或 MeshInstance3D 的 surface face count 缓存。</description>
 			<tags>
@@ -116,7 +116,7 @@
 				<tag name="return">移除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_auto_cache_size" line="198">
+		<member kind="method" name="set_auto_cache_size">
 			<signature>func set_auto_cache_size(size: int) -&gt; void:</signature>
 			<description>设置自动缓存容量。</description>
 			<tags>
@@ -124,7 +124,7 @@
 				<tag name="param">size: 自动缓存容量；小于 1 时按 1 处理。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="210">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

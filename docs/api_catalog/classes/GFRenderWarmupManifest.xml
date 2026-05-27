@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFRenderWarmupManifest" path="addons/gf/standard/utilities/display/gf_render_warmup_manifest.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFRenderWarmupManifest" path="addons/gf/standard/utilities/display/gf_render_warmup_manifest.gd" module="standard" extends="Resource" classDigest="4de46a4970aa5bd8f032996c0b2d0c8e9c49782dd8db222bb43974d3cf8f6afd">
 	<description>GFRenderWarmupManifest: 通用渲染预热清单。
 只描述需要提前触碰的渲染相关资源，不绑定具体关卡、材质命名或项目加载流程。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="manifest_id" line="19" decorators="@export">
+		<member kind="property" name="manifest_id" decorators="@export">
 			<signature>var manifest_id: StringName = &amp;""</signature>
 			<description>清单稳定标识，便于诊断和队列统计。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="entries" line="26" decorators="@export">
+		<member kind="property" name="entries" decorators="@export">
 			<signature>var entries: Array[Dictionary] = []</signature>
 			<description>预热条目列表。条目字段为 resource_path、resource、kind、type_hint、metadata。</description>
 			<tags>
@@ -26,7 +26,7 @@
 				<tag name="schema">entries: Array[Dictionary]，元素包含 resource_path: String、resource: Resource 或 null、kind: StringName、type_hint: String 和 metadata: Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="33" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -36,7 +36,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="add_resource_path" line="53">
+		<member kind="method" name="add_resource_path">
 			<signature>func add_resource_path( resource_path: String, kind: StringName = &amp;"", type_hint: String = "", entry_metadata: Dictionary = {} ) -&gt; int:</signature>
 			<description>添加资源路径条目。</description>
 			<tags>
@@ -49,7 +49,7 @@
 				<tag name="schema">entry_metadata: Dictionary[String, Variant]，会复制到 manifest 条目的 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_resource" line="85">
+		<member kind="method" name="add_resource">
 			<signature>func add_resource(resource: Resource, kind: StringName = &amp;"", entry_metadata: Dictionary = {}) -&gt; int:</signature>
 			<description>添加已持有的资源条目。</description>
 			<tags>
@@ -61,7 +61,7 @@
 				<tag name="schema">entry_metadata: Dictionary[String, Variant]，会复制到 manifest 条目的 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="append_manifest" line="106">
+		<member kind="method" name="append_manifest">
 			<signature>func append_manifest(manifest: GFRenderWarmupManifest) -&gt; int:</signature>
 			<description>合并另一个清单的条目。</description>
 			<tags>
@@ -70,14 +70,14 @@
 				<tag name="return">新增条目数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="120">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空清单条目。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entry_count" line="129">
+		<member kind="method" name="get_entry_count">
 			<signature>func get_entry_count() -&gt; int:</signature>
 			<description>获取条目数量。</description>
 			<tags>
@@ -85,7 +85,7 @@
 				<tag name="return">条目数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_empty" line="138">
+		<member kind="method" name="is_empty">
 			<signature>func is_empty() -&gt; bool:</signature>
 			<description>检查清单是否为空。</description>
 			<tags>
@@ -93,7 +93,7 @@
 				<tag name="return">为空返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="normalize_entry" line="153">
+		<member kind="method" name="normalize_entry">
 			<signature>static func normalize_entry(entry: Dictionary) -&gt; Dictionary:</signature>
 			<description>规范化预热条目字典。</description>
 			<tags>
@@ -104,7 +104,7 @@
 				<tag name="schema">return: Dictionary，规范化后的 manifest 条目，包含 resource_path、resource、kind、type_hint 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entries" line="171">
+		<member kind="method" name="get_entries">
 			<signature>func get_entries() -&gt; Array[Dictionary]:</signature>
 			<description>获取条目副本。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">return: Array[Dictionary]，规范化后的 manifest 条目列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe" line="185">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>描述清单。</description>
 			<tags>

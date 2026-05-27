@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTurnFlowSystem" path="addons/gf/extensions/turn_based/runtime/gf_turn_flow_system.gd" module="extensions/turn_based" extends="GFSystem" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTurnFlowSystem" path="addons/gf/extensions/turn_based/runtime/gf_turn_flow_system.gd" module="extensions/turn_based" extends="GFSystem" classDigest="386bce5db7dc33a1385b6e9a41bc2e97150639a7ce000806456efd0ceddd334f">
 	<description>GFTurnFlowSystem: 通用回合流程系统。
 提供阶段推进、行动排队和按优先级解析能力。
 它不关心战斗、卡牌、棋盘等具体业务，只调度抽象行动。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="flow_started" line="22">
+		<member kind="signal" name="flow_started">
 			<signature>signal flow_started(context: GFTurnContext)</signature>
 			<description>流程开始时发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">context: 当前回合上下文。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="flow_stopped" line="29">
+		<member kind="signal" name="flow_stopped">
 			<signature>signal flow_stopped(context: GFTurnContext)</signature>
 			<description>流程停止时发出。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="param">context: 当前回合上下文。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="phase_changed" line="38">
+		<member kind="signal" name="phase_changed">
 			<signature>signal phase_changed(phase: GFTurnPhase, index: int)</signature>
 			<description>阶段切换时发出。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="param">index: 当前阶段索引。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="action_enqueued" line="45">
+		<member kind="signal" name="action_enqueued">
 			<signature>signal action_enqueued(action: GFTurnAction)</signature>
 			<description>行动入队时发出。</description>
 			<tags>
@@ -42,7 +42,7 @@
 				<tag name="param">action: 入队行动。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="action_resolved" line="52">
+		<member kind="signal" name="action_resolved">
 			<signature>signal action_resolved(action: GFTurnAction)</signature>
 			<description>行动解析完成时发出。</description>
 			<tags>
@@ -54,49 +54,49 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="context" line="65">
+		<member kind="property" name="context">
 			<signature>var context: GFTurnContext = GFTurnContext.new()</signature>
 			<description>当前回合上下文。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="phases" line="70">
+		<member kind="property" name="phases">
 			<signature>var phases: Array[GFTurnPhase] = []</signature>
 			<description>阶段列表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="current_phase_index" line="75">
+		<member kind="property" name="current_phase_index">
 			<signature>var current_phase_index: int = -1</signature>
 			<description>当前阶段索引。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_running" line="80">
+		<member kind="property" name="is_running">
 			<signature>var is_running: bool = false</signature>
 			<description>当前是否正在运行。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="sort_actions_before_resolve" line="85">
+		<member kind="property" name="sort_actions_before_resolve">
 			<signature>var sort_actions_before_resolve: bool = true</signature>
 			<description>解析行动前是否按优先级排序。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="signal_timeout_seconds" line="90">
+		<member kind="property" name="signal_timeout_seconds">
 			<signature>var signal_timeout_seconds: float = 30.0</signature>
 			<description>Signal 等待超时时间。小于等于 0 表示不启用超时。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="signal_timeout_respects_time_scale" line="95">
+		<member kind="property" name="signal_timeout_respects_time_scale">
 			<signature>var signal_timeout_respects_time_scale: bool = true</signature>
 			<description>Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。</description>
 			<tags>
@@ -105,7 +105,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_context" line="111">
+		<member kind="method" name="set_context">
 			<signature>func set_context(p_context: GFTurnContext) -&gt; void:</signature>
 			<description>设置上下文。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="param">p_context: 新上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_phases" line="120">
+		<member kind="method" name="set_phases">
 			<signature>func set_phases(p_phases: Array[GFTurnPhase]) -&gt; void:</signature>
 			<description>设置阶段列表。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="param">p_phases: 新阶段列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start" line="129">
+		<member kind="method" name="start">
 			<signature>func start(reset_indices: bool = true) -&gt; void:</signature>
 			<description>开始流程。</description>
 			<tags>
@@ -129,7 +129,7 @@
 				<tag name="param">reset_indices: 是否重置阶段索引和轮次数据。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="stop" line="144">
+		<member kind="method" name="stop">
 			<signature>func stop(clear_actions: bool = true) -&gt; void:</signature>
 			<description>停止流程。</description>
 			<tags>
@@ -137,14 +137,14 @@
 				<tag name="param">clear_actions: 是否清空待处理行动。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="advance_phase" line="155">
+		<member kind="method" name="advance_phase">
 			<signature>func advance_phase() -&gt; void:</signature>
 			<description>推进到下一个阶段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enqueue_action" line="205">
+		<member kind="method" name="enqueue_action">
 			<signature>func enqueue_action(action: GFTurnAction) -&gt; void:</signature>
 			<description>加入一个行动。</description>
 			<tags>
@@ -152,7 +152,7 @@
 				<tag name="param">action: 行动实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve_actions" line="217">
+		<member kind="method" name="resolve_actions">
 			<signature>func resolve_actions(order_resolver: Callable = Callable()) -&gt; void:</signature>
 			<description>解析当前上下文中的所有行动。</description>
 			<tags>

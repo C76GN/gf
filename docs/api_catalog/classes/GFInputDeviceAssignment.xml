@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputDeviceAssignment" path="addons/gf/standard/input/runtime/gf_input_device_assignment.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputDeviceAssignment" path="addons/gf/standard/input/runtime/gf_input_device_assignment.gd" module="standard" extends="Resource" classDigest="c3b6d9085d321e3784112fab0c1183893c66f3d3f102716020713bdc209ab959">
 	<description>GFInputDeviceAssignment: 玩家与输入设备的通用映射。
 仅描述设备归属，不绑定任何具体输入动作。</description>
 	<tags>
@@ -9,7 +9,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="DeviceType" line="19">
+		<member kind="enum" name="DeviceType">
 			<signature>enum DeviceType { ## 键盘与鼠标作为一个本地输入设备。 KEYBOARD_MOUSE, ## Godot 手柄设备。 JOYPAD, ## 触控输入设备。 TOUCH, ## AI 或自动化输入来源。 AI, ## 项目自定义输入设备。 CUSTOM, }</signature>
 			<description>输入设备类型。</description>
 			<tags>
@@ -19,28 +19,28 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="player_index" line="38" decorators="@export">
+		<member kind="property" name="player_index" decorators="@export">
 			<signature>var player_index: int = 0</signature>
 			<description>玩家或本地席位索引。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="device_type" line="43" decorators="@export">
+		<member kind="property" name="device_type" decorators="@export">
 			<signature>var device_type: DeviceType = DeviceType.KEYBOARD_MOUSE</signature>
 			<description>设备类型。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="device_id" line="48" decorators="@export">
+		<member kind="property" name="device_id" decorators="@export">
 			<signature>var device_id: int = 0</signature>
 			<description>Godot 输入设备 ID。键鼠通常为 0，虚拟/AI 可使用 -1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="55" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>自定义元数据。</description>
 			<tags>
@@ -50,7 +50,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="duplicate_assignment" line="65">
+		<member kind="method" name="duplicate_assignment">
 			<signature>func duplicate_assignment() -&gt; GFInputDeviceAssignment:</signature>
 			<description>创建一个浅拷贝。</description>
 			<tags>

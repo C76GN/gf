@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInventoryOperationResult" path="addons/gf/extensions/domain/inventory/gf_inventory_operation_result.gd" module="extensions/domain" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInventoryOperationResult" path="addons/gf/extensions/domain/inventory/gf_inventory_operation_result.gd" module="extensions/domain" extends="RefCounted" classDigest="8db037f50c24e488ebdf8c489b8e54e3c41f5d8730bfa1b1ad72257b9b4cb18b">
 	<description>GFInventoryOperationResult: 通用库存操作结果。
 描述一次添加、移除、移动或合并操作的接受数量、剩余数量和失败原因。</description>
 	<tags>
@@ -11,63 +11,63 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="ok" line="19">
+		<member kind="property" name="ok">
 			<signature>var ok: bool = false</signature>
 			<description>操作是否完全成功。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="item_id" line="24">
+		<member kind="property" name="item_id">
 			<signature>var item_id: StringName = &amp;""</signature>
 			<description>物品标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="requested_amount" line="29">
+		<member kind="property" name="requested_amount">
 			<signature>var requested_amount: int = 0</signature>
 			<description>请求处理的数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="accepted_amount" line="34">
+		<member kind="property" name="accepted_amount">
 			<signature>var accepted_amount: int = 0</signature>
 			<description>实际处理的数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="remaining_amount" line="39">
+		<member kind="property" name="remaining_amount">
 			<signature>var remaining_amount: int = 0</signature>
 			<description>未处理的剩余数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="source_slot" line="44">
+		<member kind="property" name="source_slot">
 			<signature>var source_slot: int = -1</signature>
 			<description>源槽位。没有源槽位时为 -1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target_slot" line="49">
+		<member kind="property" name="target_slot">
 			<signature>var target_slot: int = -1</signature>
 			<description>目标槽位。没有目标槽位时为 -1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="reason" line="54">
+		<member kind="property" name="reason">
 			<signature>var reason: StringName = &amp;""</signature>
 			<description>操作结果原因。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="61">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。</description>
 			<tags>
@@ -77,7 +77,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="success" line="79">
+		<member kind="method" name="success">
 			<signature>static func success( result_item_id: StringName, amount: int, result_source_slot: int = -1, result_target_slot: int = -1 ) -&gt; GFInventoryOperationResult:</signature>
 			<description>创建成功结果。</description>
 			<tags>
@@ -89,7 +89,7 @@
 				<tag name="return">操作结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="partial" line="114">
+		<member kind="method" name="partial">
 			<signature>static func partial( result_item_id: StringName, requested: int, accepted: int, result_reason: StringName, result_source_slot: int = -1, result_target_slot: int = -1 ) -&gt; GFInventoryOperationResult:</signature>
 			<description>创建失败或部分成功结果。</description>
 			<tags>
@@ -103,7 +103,7 @@
 				<tag name="return">操作结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_partial_success" line="141">
+		<member kind="method" name="is_partial_success">
 			<signature>func is_partial_success() -&gt; bool:</signature>
 			<description>检查操作是否处理了部分数量。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="return">有部分处理返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="152">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转换为字典。</description>
 			<tags>

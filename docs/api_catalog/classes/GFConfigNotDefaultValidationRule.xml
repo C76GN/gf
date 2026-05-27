@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigNotDefaultValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_not_default_validation_rule.gd" module="standard" extends="GFConfigValidationRule" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigNotDefaultValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_not_default_validation_rule.gd" module="standard" extends="GFConfigValidationRule" classDigest="9490572eace9aeada7d8db6c77236fb4d6d5cf0bdd11ffcb1ad759f326f5ba98">
 	<description>GFConfigNotDefaultValidationRule: 非默认值校验规则。
 用于要求字段显式填写有效值。默认值可以按类型推导，也可以由项目指定。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="use_type_default" line="19" decorators="@export">
+		<member kind="property" name="use_type_default" decorators="@export">
 			<signature>var use_type_default: bool = true</signature>
 			<description>是否按输入值类型推导默认值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_value" line="26" decorators="@export">
+		<member kind="property" name="default_value" decorators="@export">
 			<signature>var default_value: Variant = null</signature>
 			<description>use_type_default 为 false 时使用的默认值。</description>
 			<tags>
@@ -28,7 +28,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="describe" line="44">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出规则摘要。</description>
 			<tags>

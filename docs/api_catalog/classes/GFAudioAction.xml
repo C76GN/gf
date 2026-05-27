@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioAction" path="addons/gf/extensions/action_queue/actions/gf_audio_action.gd" module="extensions/action_queue" extends="GFVisualAction" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioAction" path="addons/gf/extensions/action_queue/actions/gf_audio_action.gd" module="extensions/action_queue" extends="GFVisualAction" classDigest="86563396ae935a60b9a5bd8d6b3c9cbbde276eb279fc6513434585fe6de05a5d">
 	<description>GFAudioAction: 将一次 SFX 播放包装为视觉队列动作。
 音效通常不应该阻塞表现队列，因此默认使用 fire-and-forget 完成模式。</description>
 	<tags>
@@ -11,28 +11,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="path" line="19">
+		<member kind="property" name="path">
 			<signature>var path: String = ""</signature>
 			<description>要播放的音频资源路径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="clip" line="24">
+		<member kind="property" name="clip">
 			<signature>var clip: GFAudioClip = null</signature>
 			<description>要播放的音频片段配置。优先级高于 path。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="bank" line="29">
+		<member kind="property" name="bank">
 			<signature>var bank: GFAudioBank = null</signature>
 			<description>要播放的音频集合。与 clip_id 配合使用，优先级高于 clip。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="clip_id" line="34">
+		<member kind="property" name="clip_id">
 			<signature>var clip_id: StringName = &amp;""</signature>
 			<description>音频集合中的片段标识。</description>
 			<tags>
@@ -41,7 +41,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="execute" line="54">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行动作并通过 GFAudioUtility 播放一次 SFX。</description>
 			<tags>

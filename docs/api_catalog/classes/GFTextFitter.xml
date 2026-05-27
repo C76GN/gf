@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTextFitter" path="addons/gf/standard/utilities/ui/gf_text_fitter.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTextFitter" path="addons/gf/standard/utilities/ui/gf_text_fitter.gd" module="standard" extends="RefCounted" classDigest="babd5e5756f295a18b421b90466043115db5e8c090ee116748fb423ca75c8849">
 	<description>GFTextFitter: 文本尺寸适配器。
 为常见文本控件提供通用字体大小计算，不接管控件布局、主题或项目文本规则。</description>
 	<tags>
@@ -10,14 +10,14 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_MIN_FONT_SIZE" line="19">
+		<member kind="const" name="DEFAULT_MIN_FONT_SIZE">
 			<signature>const DEFAULT_MIN_FONT_SIZE: int = 8</signature>
 			<description>默认最小字体尺寸。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_FONT_SIZE" line="24">
+		<member kind="const" name="DEFAULT_MAX_FONT_SIZE">
 			<signature>const DEFAULT_MAX_FONT_SIZE: int = 64</signature>
 			<description>默认最大字体尺寸。</description>
 			<tags>
@@ -27,7 +27,7 @@
 	</constants>
 	<properties />
 	<methods>
-		<member kind="method" name="fit_control" line="40">
+		<member kind="method" name="fit_control">
 			<signature>static func fit_control(control: Control, options: Dictionary = {}) -&gt; int:</signature>
 			<description>计算并可选应用常见 Control 的合适字体尺寸。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="schema">options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、text、content_insets、use_placeholder。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="fit_label" line="79">
+		<member kind="method" name="fit_label">
 			<signature>static func fit_label(label: Label, options: Dictionary = {}) -&gt; int:</signature>
 			<description>计算并可选应用 Label 的合适字体尺寸。</description>
 			<tags>
@@ -49,7 +49,7 @@
 				<tag name="schema">options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="fit_rich_text_label" line="109">
+		<member kind="method" name="fit_rich_text_label">
 			<signature>static func fit_rich_text_label(label: RichTextLabel, options: Dictionary = {}) -&gt; int:</signature>
 			<description>计算并可选应用 RichTextLabel 的合适字体尺寸。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="schema">options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="measure_control_text" line="145">
+		<member kind="method" name="measure_control_text">
 			<signature>static func measure_control_text(control: Control, font_size: int, options: Dictionary = {}) -&gt; Vector2:</signature>
 			<description>测量常见 Control 在指定字体尺寸下的文本占用。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="schema">options: Dictionary，字段同 fit_control() 的 options。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="measure_text" line="173">
+		<member kind="method" name="measure_text">
 			<signature>static func measure_text(control: Control, text: String, font_size: int, options: Dictionary = {}) -&gt; Vector2:</signature>
 			<description>测量 Control 在指定字体尺寸下的文本占用。</description>
 			<tags>

@@ -999,6 +999,16 @@ var display_name: String = ""
 
 显示名称，供项目 UI 或编辑器工具使用。
 
+#### `description`
+
+- API: `public`
+
+```gdscript
+var description: String = ""
+```
+
+描述文本，供项目 UI 或编辑器工具使用。
+
 #### `icon`
 
 - API: `public`
@@ -1007,7 +1017,7 @@ var display_name: String = ""
 var icon: Texture2D = null
 ```
 
-描述文本，供项目 UI 或编辑器工具使用。 可选图标资源。
+可选图标资源。
 
 #### `max_stack_amount`
 
@@ -2353,6 +2363,16 @@ var pack_id: StringName = &""
 
 可选关卡包或章节 ID。
 
+#### `scene_path`
+
+- API: `public`
+
+```gdscript
+var scene_path: String = ""
+```
+
+可选关卡场景路径。
+
 #### `sort_order`
 
 - API: `public`
@@ -2361,7 +2381,7 @@ var pack_id: StringName = &""
 var sort_order: int = 0
 ```
 
-可选关卡场景路径。 目录排序值，数值越小越靠前。
+目录排序值，数值越小越靠前。
 
 #### `metadata`
 

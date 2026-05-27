@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSignalBridgeBinding" path="addons/gf/standard/utilities/signals/bridge/gf_signal_bridge_binding.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSignalBridgeBinding" path="addons/gf/standard/utilities/signals/bridge/gf_signal_bridge_binding.gd" module="standard" extends="RefCounted" classDigest="6cb18059b7fe2b27610f8f648a49f29ea38f9f86fb995d61d840bbc655127517">
 	<description>GFSignalBridgeBinding: 运行中的信号桥接连接。
 Binding 持有桥接资源、根节点和底层 GFSignalConnection，用于在运行时断开、
 检查状态，并把原生信号参数转交给桥接规则。</description>
@@ -12,14 +12,14 @@ Binding 持有桥接资源、根节点和底层 GFSignalConnection，用于在�
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="bridge" line="26">
+		<member kind="property" name="bridge">
 			<signature>var bridge: GFSignalBridge = null</signature>
 			<description>桥接资源。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="connection" line="31">
+		<member kind="property" name="connection">
 			<signature>var connection: GFSignalConnection = null</signature>
 			<description>底层信号连接。</description>
 			<tags>
@@ -28,7 +28,7 @@ Binding 持有桥接资源、根节点和底层 GFSignalConnection，用于在�
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="setup" line="50">
+		<member kind="method" name="setup">
 			<signature>func setup(new_bridge: GFSignalBridge, root: Node, new_connection: GFSignalConnection) -&gt; void:</signature>
 			<description>初始化绑定。</description>
 			<tags>
@@ -38,14 +38,14 @@ Binding 持有桥接资源、根节点和底层 GFSignalConnection，用于在�
 				<tag name="param">new_connection: 底层连接。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="disconnect_bridge" line="59">
+		<member kind="method" name="disconnect_bridge">
 			<signature>func disconnect_bridge() -&gt; void:</signature>
 			<description>断开桥接。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_active" line="70">
+		<member kind="method" name="is_active">
 			<signature>func is_active() -&gt; bool:</signature>
 			<description>当前绑定是否仍活跃。</description>
 			<tags>

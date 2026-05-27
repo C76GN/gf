@@ -386,6 +386,16 @@ Schemas:
 
 - `metadata`: 接收器自定义元数据 Dictionary；框架会复制到结果报告，但不解释其中键值。
 
+#### `receiver_path`
+
+- API: `public`
+
+```gdscript
+var receiver_path: NodePath = NodePath("")
+```
+
+可选业务接收节点路径；为空时由当前节点直接接收。
+
 #### `validation_callback`
 
 - API: `public`
@@ -576,6 +586,16 @@ var metadata: Dictionary = {}
 Schemas:
 
 - `metadata`: 发送器自定义元数据 Dictionary；框架会复制到结果报告，但不解释其中键值。
+
+#### `sender_path`
+
+- API: `public`
+
+```gdscript
+var sender_path: NodePath = NodePath("")
+```
+
+可选发送者路径；为空时使用当前节点。
 
 ### Methods
 
@@ -1038,6 +1058,36 @@ Schemas:
 
 - `metadata`: 指针交互自定义元数据 Dictionary；会写入 payload.pointer_metadata 并复制到结果报告。
 
+#### `collision_object_path`
+
+- API: `public`
+
+```gdscript
+var collision_object_path: NodePath = NodePath("")
+```
+
+可选 3D 碰撞对象路径；为空时优先使用父节点。
+
+#### `receiver_path`
+
+- API: `public`
+
+```gdscript
+var receiver_path: NodePath = NodePath("")
+```
+
+可选交互接收器路径；为空时从碰撞对象向父级解析 receive_interaction()。
+
+#### `sender_path`
+
+- API: `public`
+
+```gdscript
+var sender_path: NodePath = NodePath("")
+```
+
+可选发送者路径；为空时使用当前节点。
+
 #### `send_on_clicked`
 
 - API: `public`
@@ -1046,7 +1096,7 @@ Schemas:
 var send_on_clicked: bool = true
 ```
 
-可选 3D 碰撞对象路径；为空时优先使用父节点。 可选交互接收器路径；为空时从碰撞对象向父级解析 receive_interaction()。 可选发送者路径；为空时使用当前节点。 是否在点击完成时发送交互。
+是否在点击完成时发送交互。
 
 #### `send_on_pressed`
 

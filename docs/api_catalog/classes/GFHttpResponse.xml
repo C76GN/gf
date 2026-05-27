@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFHttpResponse" path="addons/gf/standard/utilities/io/gf_http_response.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFHttpResponse" path="addons/gf/standard/utilities/io/gf_http_response.gd" module="standard" extends="RefCounted" classDigest="b75d6d2e9812384dcd4a589aee1fc9395465610ecb2e11473b619693956d5f3d">
 	<description>GFHttpResponse: 通用 HTTP 请求结果。
 以对象形式表达 pending、completed、failed、cancelled 等状态，便于请求构建器、
 批处理器和项目侧工具统一观察异步结果。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="completed" line="22">
+		<member kind="signal" name="completed">
 			<signature>signal completed(response: GFHttpResponse)</signature>
 			<description>响应完成、失败或取消时发出。</description>
 			<tags>
@@ -19,7 +19,7 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="State" line="30">
+		<member kind="enum" name="State">
 			<signature>enum State { ## 请求仍在等待完成。 PENDING, ## 请求成功完成。 COMPLETED, ## 请求失败。 FAILED, ## 请求被取消。 CANCELLED, }</signature>
 			<description>HTTP 响应句柄状态。</description>
 			<tags>
@@ -29,56 +29,56 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="state" line="47">
+		<member kind="property" name="state">
 			<signature>var state: State = State.PENDING</signature>
 			<description>响应状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="url" line="52">
+		<member kind="property" name="url">
 			<signature>var url: String = ""</signature>
 			<description>原始 URL。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="status_code" line="57">
+		<member kind="property" name="status_code">
 			<signature>var status_code: int = 0</signature>
 			<description>HTTP 状态码。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="result_code" line="62">
+		<member kind="property" name="result_code">
 			<signature>var result_code: int = HTTPRequest.RESULT_SUCCESS</signature>
 			<description>Godot HTTPRequest 结果码。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="headers" line="67">
+		<member kind="property" name="headers">
 			<signature>var headers: PackedStringArray = PackedStringArray()</signature>
 			<description>响应头。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="text" line="72">
+		<member kind="property" name="text">
 			<signature>var text: String = ""</signature>
 			<description>响应文本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="body" line="77">
+		<member kind="property" name="body">
 			<signature>var body: PackedByteArray = PackedByteArray()</signature>
 			<description>响应原始 bytes。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="data" line="84">
+		<member kind="property" name="data">
 			<signature>var data: Variant = null</signature>
 			<description>解析后的数据，例如 JSON 结果。</description>
 			<tags>
@@ -86,14 +86,14 @@
 				<tag name="schema">data: Variant，解析后的响应载荷，例如 JSON 数据、文本数据或 null。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="error" line="89">
+		<member kind="property" name="error">
 			<signature>var error: String = ""</signature>
 			<description>错误说明。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="96">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>调用方附加元数据。</description>
 			<tags>
@@ -101,7 +101,7 @@
 				<tag name="schema">metadata: Dictionary，从请求构建器复制的调用方元数据。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="cancel_callback" line="101">
+		<member kind="property" name="cancel_callback">
 			<signature>var cancel_callback: Callable = Callable()</signature>
 			<description>取消请求时执行的底层取消回调。</description>
 			<tags>
@@ -110,7 +110,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_pending" line="111">
+		<member kind="method" name="is_pending">
 			<signature>func is_pending() -&gt; bool:</signature>
 			<description>请求是否仍在等待。</description>
 			<tags>
@@ -118,7 +118,7 @@
 				<tag name="return">仍在等待时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_successful" line="120">
+		<member kind="method" name="is_successful">
 			<signature>func is_successful() -&gt; bool:</signature>
 			<description>请求是否成功。</description>
 			<tags>
@@ -126,7 +126,7 @@
 				<tag name="return">请求以 2xx HTTP 状态码完成且没有错误时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_finished" line="129">
+		<member kind="method" name="is_finished">
 			<signature>func is_finished() -&gt; bool:</signature>
 			<description>请求是否已结束。</description>
 			<tags>
@@ -134,7 +134,7 @@
 				<tag name="return">请求完成、失败或取消时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="complete_success" line="140">
+		<member kind="method" name="complete_success">
 			<signature>func complete_success(fields: Dictionary = {}) -&gt; void:</signature>
 			<description>标记请求成功完成。</description>
 			<tags>
@@ -143,7 +143,7 @@
 				<tag name="schema">fields: Dictionary，可包含 url、status_code、result_code、headers、text、body、data 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="complete_failure" line="160">
+		<member kind="method" name="complete_failure">
 			<signature>func complete_failure(message: String, fields: Dictionary = {}) -&gt; void:</signature>
 			<description>标记请求失败。</description>
 			<tags>
@@ -153,7 +153,7 @@
 				<tag name="schema">fields: Dictionary，可包含 url、status_code、result_code、headers、text、body、data 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="176">
+		<member kind="method" name="cancel">
 			<signature>func cancel(reason: String = "cancelled") -&gt; void:</signature>
 			<description>取消请求。</description>
 			<tags>
@@ -161,7 +161,7 @@
 				<tag name="param">reason: 取消原因。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dictionary" line="197">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转为普通字典。</description>
 			<tags>

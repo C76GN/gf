@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFValidationIssue" path="addons/gf/standard/foundation/validation/gf_validation_issue.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFValidationIssue" path="addons/gf/standard/foundation/validation/gf_validation_issue.gd" module="standard" extends="RefCounted" classDigest="ad6baec4c2d28a96ee5695bb2aa377a16f2a60cb6041879035542067a7587037">
 	<description>GFValidationIssue: 通用校验问题条目。
 用于描述配置、资源、节点树、存档载荷或编辑器工具中的单个问题。它只记录
 严重级别、问题类别、定位信息和附加字段，不决定项目如何展示或修复问题。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Severity" line="20">
+		<member kind="enum" name="Severity">
 			<signature>enum Severity { ## 信息提示，不影响健康状态。 INFO, ## 警告，报告仍可继续使用，但不再视为完全健康。 WARNING, ## 错误，报告不应视为通过。 ERROR, }</signature>
 			<description>校验问题严重级别。</description>
 			<tags>
@@ -20,21 +20,21 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="severity" line="40">
+		<member kind="property" name="severity">
 			<signature>var severity: Severity = Severity.ERROR</signature>
 			<description>严重级别。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="kind" line="45">
+		<member kind="property" name="kind">
 			<signature>var kind: StringName = &amp;""</signature>
 			<description>通用问题类别。推荐使用稳定的 snake_case 标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="key" line="52">
+		<member kind="property" name="key">
 			<signature>var key: Variant = null</signature>
 			<description>可选定位键，例如行号、资源 key、节点 key 或调用方自定义标识。</description>
 			<tags>
@@ -42,77 +42,77 @@
 				<tag name="schema">key: Variant caller-defined location key.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="path" line="57">
+		<member kind="property" name="path">
 			<signature>var path: String = ""</signature>
 			<description>可选路径，例如资源路径、节点路径或数据路径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="source_path" line="62">
+		<member kind="property" name="source_path">
 			<signature>var source_path: String = ""</signature>
 			<description>可选源文件或资源路径。`source` 字典字段会作为兼容别名读取。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="line" line="67">
+		<member kind="property" name="line">
 			<signature>var line: int = 0</signature>
 			<description>可选源码起始行号，1-based；0 表示未知。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="column" line="72">
+		<member kind="property" name="column">
 			<signature>var column: int = 0</signature>
 			<description>可选源码起始列号，1-based；0 表示未知。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="length" line="77">
+		<member kind="property" name="length">
 			<signature>var length: int = 0</signature>
 			<description>可选源码范围长度；0 表示未知。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="end_line" line="82">
+		<member kind="property" name="end_line">
 			<signature>var end_line: int = 0</signature>
 			<description>可选源码结束行号，1-based；0 表示未知。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="end_column" line="87">
+		<member kind="property" name="end_column">
 			<signature>var end_column: int = 0</signature>
 			<description>可选源码结束列号，1-based；0 表示未知。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="preview" line="92">
+		<member kind="property" name="preview">
 			<signature>var preview: String = ""</signature>
 			<description>可选源码预览。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="subject" line="97">
+		<member kind="property" name="subject">
 			<signature>var subject: String = ""</signature>
 			<description>可选主题，用于标记问题所属对象或报告域。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="message" line="102">
+		<member kind="property" name="message">
 			<signature>var message: String = ""</signature>
 			<description>面向开发者或工具 UI 的简短说明。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="109">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据。框架不解释该字段。</description>
 			<tags>
@@ -120,7 +120,7 @@
 				<tag name="schema">metadata: Dictionary caller metadata.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="extra_fields" line="116">
+		<member kind="property" name="extra_fields">
 			<signature>var extra_fields: Dictionary = {}</signature>
 			<description>额外上下文字段。用于无损保留已有报告中的自定义字段。</description>
 			<tags>
@@ -130,7 +130,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="configure" line="188">
+		<member kind="method" name="configure">
 			<signature>func configure( p_severity: Variant, p_kind: StringName, p_message: String, p_key: Variant = null, p_path: String = "", p_metadata: Dictionary = {} ) -&gt; RefCounted:</signature>
 			<description>配置问题条目并返回自身，便于链式构造。</description>
 			<tags>
@@ -147,7 +147,7 @@
 				<tag name="schema">p_metadata: Dictionary caller metadata.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_dict" line="212">
+		<member kind="method" name="apply_dict">
 			<signature>func apply_dict(data: Dictionary) -&gt; void:</signature>
 			<description>从字典应用字段。</description>
 			<tags>
@@ -156,7 +156,7 @@
 				<tag name="schema">data: Dictionary validation issue fields.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="241">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict(include_empty_fields: bool = false) -&gt; Dictionary:</signature>
 			<description>转换为字典。</description>
 			<tags>
@@ -166,7 +166,7 @@
 				<tag name="schema">return: Dictionary validation issue fields.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_issue" line="272">
+		<member kind="method" name="duplicate_issue">
 			<signature>func duplicate_issue() -&gt; RefCounted:</signature>
 			<description>创建当前问题条目的深拷贝。</description>
 			<tags>
@@ -174,7 +174,7 @@
 				<tag name="return">新问题条目。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_source_span" line="287">
+		<member kind="method" name="set_source_span">
 			<signature>func set_source_span(source_span: Variant) -&gt; RefCounted:</signature>
 			<description>设置源码定位范围。</description>
 			<tags>
@@ -184,7 +184,7 @@
 				<tag name="schema">source_span: Variant GFSourceSpan-like object or Dictionary.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_source_span" line="300">
+		<member kind="method" name="get_source_span">
 			<signature>func get_source_span() -&gt; RefCounted:</signature>
 			<description>获取源码定位范围副本。</description>
 			<tags>
@@ -192,7 +192,7 @@
 				<tag name="return">GFSourceSpan。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_source_position" line="311">
+		<member kind="method" name="has_source_position">
 			<signature>func has_source_position() -&gt; bool:</signature>
 			<description>检查问题是否有源码行号。</description>
 			<tags>
@@ -200,7 +200,7 @@
 				<tag name="return">有行号时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_location_text" line="320">
+		<member kind="method" name="get_location_text">
 			<signature>func get_location_text() -&gt; String:</signature>
 			<description>获取人类可读定位文本。</description>
 			<tags>
@@ -208,7 +208,7 @@
 				<tag name="return">例如 `res://table.csv:4:2`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_kind_key" line="330">
+		<member kind="method" name="get_kind_key">
 			<signature>func get_kind_key() -&gt; String:</signature>
 			<description>获取统计用问题类别。</description>
 			<tags>
@@ -216,7 +216,7 @@
 				<tag name="return">优先返回 kind，最后返回 unknown。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_error" line="341">
+		<member kind="method" name="is_error">
 			<signature>func is_error() -&gt; bool:</signature>
 			<description>是否为错误。</description>
 			<tags>
@@ -224,7 +224,7 @@
 				<tag name="return">严重级别为 ERROR 时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_warning" line="350">
+		<member kind="method" name="is_warning">
 			<signature>func is_warning() -&gt; bool:</signature>
 			<description>是否为警告。</description>
 			<tags>
@@ -232,7 +232,7 @@
 				<tag name="return">严重级别为 WARNING 时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_info" line="359">
+		<member kind="method" name="is_info">
 			<signature>func is_info() -&gt; bool:</signature>
 			<description>是否为信息。</description>
 			<tags>
@@ -240,7 +240,7 @@
 				<tag name="return">严重级别为 INFO 时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="normalize_severity" line="372">
+		<member kind="method" name="normalize_severity">
 			<signature>static func normalize_severity(value: Variant) -&gt; Severity:</signature>
 			<description>将任意输入归一为 Severity。</description>
 			<tags>
@@ -250,7 +250,7 @@
 				<tag name="schema">value: Variant Severity, int, string, or null.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="severity_to_string" line="399">
+		<member kind="method" name="severity_to_string">
 			<signature>static func severity_to_string(value: Variant) -&gt; String:</signature>
 			<description>将严重级别转换为稳定字符串。</description>
 			<tags>
@@ -260,7 +260,7 @@
 				<tag name="schema">value: Variant Severity, int, string, or null.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="418">
+		<member kind="method" name="from_dict">
 			<signature>static func from_dict(data: Dictionary) -&gt; RefCounted:</signature>
 			<description>从字典创建问题条目。</description>
 			<tags>

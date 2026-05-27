@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFQuadTreeUtility" path="addons/gf/standard/utilities/spatial/gf_quad_tree_utility.gd" module="standard" extends="GFUtility" line="20" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFQuadTreeUtility" path="addons/gf/standard/utilities/spatial/gf_quad_tree_utility.gd" module="standard" extends="GFUtility" classDigest="814e96e8663d689b49ed428927929c14cfb10488be4bcae64b5b73137f73744e">
 	<description>GFQuadTreeUtility: 纯逻辑 2D 四叉树空间划分工具。
 继承自 GFUtility，提供不依赖引擎物理节点的 2D 空间划分和范围查询能力。
 适用于模拟经营、RTS 等需要对海量实体进行高效范围检索的场景。
@@ -18,14 +18,14 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_MAX_DEPTH" line="29">
+		<member kind="const" name="DEFAULT_MAX_DEPTH">
 			<signature>const DEFAULT_MAX_DEPTH: int = 8</signature>
 			<description>默认最大树深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_ENTITIES" line="34">
+		<member kind="const" name="DEFAULT_MAX_ENTITIES">
 			<signature>const DEFAULT_MAX_ENTITIES: int = 8</signature>
 			<description>默认每节点最大实体数（超过后分裂）。</description>
 			<tags>
@@ -34,21 +34,21 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="bounds" line="42">
+		<member kind="property" name="bounds">
 			<signature>var bounds: Rect2 = Rect2()</signature>
 			<description>四叉树覆盖的世界边界。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_depth" line="47">
+		<member kind="property" name="max_depth">
 			<signature>var max_depth: int = DEFAULT_MAX_DEPTH</signature>
 			<description>最大递归深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_entities_per_node" line="52">
+		<member kind="property" name="max_entities_per_node">
 			<signature>var max_entities_per_node: int = DEFAULT_MAX_ENTITIES</signature>
 			<description>每个节点在分裂前允许的最大实体数。</description>
 			<tags>
@@ -57,14 +57,14 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="72">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>第一阶段初始化：创建空根节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="setup" line="89">
+		<member kind="method" name="setup">
 			<signature>func setup(world_bounds: Rect2, depth: int = DEFAULT_MAX_DEPTH, entities_per_node: int = DEFAULT_MAX_ENTITIES) -&gt; void:</signature>
 			<description>配置四叉树参数并重建。应在 init() 之前或之后调用。</description>
 			<tags>
@@ -74,7 +74,7 @@
 				<tag name="param">entities_per_node: 每节点最大实体数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="insert" line="103">
+		<member kind="method" name="insert">
 			<signature>func insert(entity_id: int, rect: Rect2) -&gt; void:</signature>
 			<description>将实体插入四叉树。</description>
 			<tags>
@@ -83,7 +83,7 @@
 				<tag name="param">rect: 实体的轴对齐包围矩形。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="insert_with_hit_test" line="122">
+		<member kind="method" name="insert_with_hit_test">
 			<signature>func insert_with_hit_test(entity_id: int, rect: Rect2, hit_test: Callable) -&gt; void:</signature>
 			<description>将带精确点命中测试的实体插入四叉树。</description>
 			<tags>
@@ -93,7 +93,7 @@
 				<tag name="param">hit_test: 可选精确命中测试，签名为 `(entity_id, point, rect) -&gt; bool`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove" line="132">
+		<member kind="method" name="remove">
 			<signature>func remove(entity_id: int) -&gt; void:</signature>
 			<description>从四叉树中移除实体。</description>
 			<tags>
@@ -101,7 +101,7 @@
 				<tag name="param">entity_id: 要移除的实体标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="update" line="143">
+		<member kind="method" name="update">
 			<signature>func update(entity_id: int, new_rect: Rect2) -&gt; void:</signature>
 			<description>更新实体的位置（先移除再插入）。</description>
 			<tags>
@@ -110,7 +110,7 @@
 				<tag name="param">new_rect: 新的包围矩形。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_entity_hit_test" line="160">
+		<member kind="method" name="set_entity_hit_test">
 			<signature>func set_entity_hit_test(entity_id: int, hit_test: Callable) -&gt; bool:</signature>
 			<description>设置实体的精确点命中测试。</description>
 			<tags>
@@ -120,7 +120,7 @@
 				<tag name="return">设置成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_entity_hit_test" line="178">
+		<member kind="method" name="clear_entity_hit_test">
 			<signature>func clear_entity_hit_test(entity_id: int) -&gt; bool:</signature>
 			<description>清除实体的精确点命中测试。</description>
 			<tags>
@@ -129,7 +129,7 @@
 				<tag name="return">清除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entity_rect" line="191">
+		<member kind="method" name="get_entity_rect">
 			<signature>func get_entity_rect(entity_id: int) -&gt; Rect2:</signature>
 			<description>获取实体矩形。</description>
 			<tags>
@@ -138,7 +138,7 @@
 				<tag name="return">实体矩形；不存在时返回空 Rect2。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="query_rect" line="202">
+		<member kind="method" name="query_rect">
 			<signature>func query_rect(area: Rect2) -&gt; Array[int]:</signature>
 			<description>矩形范围查询：返回与查询区域有交集的所有实体 ID。</description>
 			<tags>
@@ -147,7 +147,7 @@
 				<tag name="return">匹配的实体 ID 数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="query_radius" line="219">
+		<member kind="method" name="query_radius">
 			<signature>func query_radius(center: Vector2, radius: float) -&gt; Array[int]:</signature>
 			<description>圆形范围查询：返回包围矩形与圆有交集的所有实体 ID。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="return">匹配的实体 ID 数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="query_point" line="250">
+		<member kind="method" name="query_point">
 			<signature>func query_point(point: Vector2, use_exact_hit_tests: bool = true) -&gt; Array[int]:</signature>
 			<description>点查询：返回包含该点的实体 ID，可选执行精确命中测试。</description>
 			<tags>
@@ -167,7 +167,7 @@
 				<tag name="return">匹配的实体 ID 数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="query_first_point" line="274">
+		<member kind="method" name="query_first_point">
 			<signature>func query_first_point(point: Vector2, use_exact_hit_tests: bool = true) -&gt; int:</signature>
 			<description>点查询：返回第一个包含该点的实体 ID，不存在时返回 -1。</description>
 			<tags>
@@ -177,21 +177,21 @@
 				<tag name="return">第一个实体 ID；不存在时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="compact" line="282">
+		<member kind="method" name="compact">
 			<signature>func compact() -&gt; void:</signature>
 			<description>重建四叉树节点结构，保留实体、矩形和命中测试。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="294">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空四叉树中的所有实体并重建根节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entity_count" line="305">
+		<member kind="method" name="get_entity_count">
 			<signature>func get_entity_count() -&gt; int:</signature>
 			<description>获取当前存储的实体总数。</description>
 			<tags>
@@ -199,7 +199,7 @@
 				<tag name="return">实体数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_entity" line="316">
+		<member kind="method" name="has_entity">
 			<signature>func has_entity(entity_id: int) -&gt; bool:</signature>
 			<description>检查实体是否存在于四叉树中。</description>
 			<tags>
@@ -208,7 +208,7 @@
 				<tag name="return">是否存在。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="327">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

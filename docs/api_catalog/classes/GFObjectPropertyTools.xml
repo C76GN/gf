@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFObjectPropertyTools" path="addons/gf/kernel/core/gf_object_property_tools.gd" module="kernel" extends="RefCounted" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFObjectPropertyTools" path="addons/gf/kernel/core/gf_object_property_tools.gd" module="kernel" extends="RefCounted" classDigest="80fee299e0da324c98e56ebdd6db627b32ecde37c59a09d88db2569cb6b1b552">
 	<description>GFObjectPropertyTools: Godot Object 属性访问辅助。
 集中处理属性列表查询、属性路径读写、可写性判断和基础类型校验。
 它不负责属性绑定、自动派发、表达式执行或业务字段解释。</description>
@@ -14,7 +14,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="get_property_infos" line="30">
+		<member kind="method" name="get_property_infos">
 			<signature>static func get_property_infos(object: Object, usage_filter: int = -1) -&gt; Array[Dictionary]:</signature>
 			<description>获取对象属性信息列表。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="schema">return: Array of Godot property info Dictionary values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_property_info_map" line="53">
+		<member kind="method" name="get_property_info_map">
 			<signature>static func get_property_info_map(object: Object, usage_filter: int = -1) -&gt; Dictionary:</signature>
 			<description>获取对象属性信息映射。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="schema">return: Dictionary[StringName, Dictionary]</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_property_names" line="71">
+		<member kind="method" name="get_property_names">
 			<signature>static func get_property_names(object: Object, usage_filter: int = -1) -&gt; PackedStringArray:</signature>
 			<description>获取对象属性名列表。</description>
 			<tags>
@@ -46,7 +46,7 @@
 				<tag name="return">属性名列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_property_info" line="91">
+		<member kind="method" name="get_property_info">
 			<signature>static func get_property_info(object: Object, property_name: StringName) -&gt; Dictionary:</signature>
 			<description>获取单个属性信息。</description>
 			<tags>
@@ -57,7 +57,7 @@
 				<tag name="schema">return: Godot property info dictionary.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_property" line="109">
+		<member kind="method" name="has_property">
 			<signature>static func has_property(object: Object, property_name: StringName) -&gt; bool:</signature>
 			<description>检查对象是否声明了指定属性。</description>
 			<tags>
@@ -67,7 +67,7 @@
 				<tag name="return">属性存在时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_property_path" line="122">
+		<member kind="method" name="has_property_path">
 			<signature>static func has_property_path(object: Object, property_path: NodePath) -&gt; bool:</signature>
 			<description>检查对象是否声明了属性路径的根属性。</description>
 			<tags>
@@ -77,7 +77,7 @@
 				<tag name="return">根属性存在时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_property_writable" line="135">
+		<member kind="method" name="is_property_writable">
 			<signature>static func is_property_writable(property_info: Dictionary) -&gt; bool:</signature>
 			<description>判断属性信息是否可写。</description>
 			<tags>
@@ -87,7 +87,7 @@
 				<tag name="schema">property_info: Godot property info dictionary.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_write_property" line="151">
+		<member kind="method" name="can_write_property">
 			<signature>static func can_write_property(object: Object, property_path: NodePath) -&gt; bool:</signature>
 			<description>检查对象属性路径是否可写。</description>
 			<tags>
@@ -97,7 +97,7 @@
 				<tag name="return">根属性存在且未标记为只读时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="read_property" line="170">
+		<member kind="method" name="read_property">
 			<signature>static func read_property( object: Object, property_path: NodePath, default_value: Variant = null ) -&gt; Variant:</signature>
 			<description>读取对象属性路径。</description>
 			<tags>
@@ -110,7 +110,7 @@
 				<tag name="schema">return: Variant property value or the supplied default value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="write_property" line="201">
+		<member kind="method" name="write_property">
 			<signature>static func write_property( object: Object, property_path: NodePath, value: Variant, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>写入对象属性路径。</description>
 			<tags>
@@ -125,7 +125,7 @@
 				<tag name="schema">return: Dictionary { ok: bool, error: String, property_name: StringName, old_value: Variant, new_value: Variant }.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="value_matches_property_type" line="242">
+		<member kind="method" name="value_matches_property_type">
 			<signature>static func value_matches_property_type(value: Variant, property_type: int) -&gt; bool:</signature>
 			<description>检查值是否可写入指定 Variant 类型。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="schema">value: Variant value to compare against the requested Variant.Type.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="coerce_property_value" line="331">
+		<member kind="method" name="coerce_property_value">
 			<signature>static func coerce_property_value(value: Variant, property_type: int) -&gt; Variant:</signature>
 			<description>将值转换为指定 Variant 类型的基础兼容形式。</description>
 			<tags>
@@ -148,7 +148,7 @@
 				<tag name="schema">return: Variant coerced value or original value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_root_property_name" line="354">
+		<member kind="method" name="get_root_property_name">
 			<signature>static func get_root_property_name(property_path: NodePath) -&gt; StringName:</signature>
 			<description>获取属性路径的根属性名。</description>
 			<tags>

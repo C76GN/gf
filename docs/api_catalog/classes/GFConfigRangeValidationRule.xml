@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigRangeValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_range_validation_rule.gd" module="standard" extends="GFConfigValidationRule" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigRangeValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_range_validation_rule.gd" module="standard" extends="GFConfigValidationRule" classDigest="91329e71f36a076073fb71204b7d23225da6768268c8bbd7b2d24b031481154c">
 	<description>GFConfigRangeValidationRule: 数值范围校验规则。
 用于声明字段数值上下限。上下限可以单独启用，比较方式可选择是否包含边界。</description>
 	<tags>
@@ -11,42 +11,42 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="has_minimum" line="19" decorators="@export">
+		<member kind="property" name="has_minimum" decorators="@export">
 			<signature>var has_minimum: bool = false</signature>
 			<description>是否检查最小值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="minimum" line="24" decorators="@export">
+		<member kind="property" name="minimum" decorators="@export">
 			<signature>var minimum: float = 0.0</signature>
 			<description>最小值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="inclusive_minimum" line="29" decorators="@export">
+		<member kind="property" name="inclusive_minimum" decorators="@export">
 			<signature>var inclusive_minimum: bool = true</signature>
 			<description>最小值是否包含边界。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="has_maximum" line="34" decorators="@export">
+		<member kind="property" name="has_maximum" decorators="@export">
 			<signature>var has_maximum: bool = false</signature>
 			<description>是否检查最大值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="maximum" line="39" decorators="@export">
+		<member kind="property" name="maximum" decorators="@export">
 			<signature>var maximum: float = 0.0</signature>
 			<description>最大值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="inclusive_maximum" line="44" decorators="@export">
+		<member kind="property" name="inclusive_maximum" decorators="@export">
 			<signature>var inclusive_maximum: bool = true</signature>
 			<description>最大值是否包含边界。</description>
 			<tags>
@@ -55,7 +55,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="describe" line="56">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出规则摘要。</description>
 			<tags>

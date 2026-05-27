@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFObjectPoolUtility" path="addons/gf/standard/utilities/nodes/gf_object_pool_utility.gd" module="standard" extends="GFUtility" line="19" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFObjectPoolUtility" path="addons/gf/standard/utilities/nodes/gf_object_pool_utility.gd" module="standard" extends="GFUtility" classDigest="570ce784e4a5dbf61614766c05e51b59594096bf56fb5234863208bebb25ab78">
 	<description>GFObjectPoolUtility: 节点对象池管理器。
 继承自 GFUtility，管理 Node 对象的实例化与回收，
 避免高频 instance/free 操作带来的内存碎片和性能抖动。
@@ -18,14 +18,14 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="HOOK_ON_RELEASE" line="43">
+		<member kind="const" name="HOOK_ON_RELEASE">
 			<signature>const HOOK_ON_RELEASE: StringName = &amp;"on_gf_pool_release"</signature>
 			<description>节点可选实现：归还对象池前调用，用于清理 Tween、临时信号、运行时状态等。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="HOOK_ON_ACQUIRE" line="48">
+		<member kind="const" name="HOOK_ON_ACQUIRE">
 			<signature>const HOOK_ON_ACQUIRE: StringName = &amp;"on_gf_pool_acquire"</signature>
 			<description>节点可选实现：从对象池取出并恢复激活后调用，用于重置本次使用状态。</description>
 			<tags>
@@ -34,21 +34,21 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="max_available_per_scene" line="64">
+		<member kind="property" name="max_available_per_scene">
 			<signature>var max_available_per_scene: int = 0</signature>
 			<description>每个 PackedScene 最多保留的可用节点数量。为 0 时不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="manage_descendant_active_state" line="69">
+		<member kind="property" name="manage_descendant_active_state">
 			<signature>var manage_descendant_active_state: bool = true</signature>
 			<description>是否递归管理子节点的 process_mode、visible 与 disabled 状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="prune_invalid_on_each_operation" line="74">
+		<member kind="property" name="prune_invalid_on_each_operation">
 			<signature>var prune_invalid_on_each_operation: bool = true</signature>
 			<description>是否在 acquire/release/count 等高频操作前立即清理失效节点。</description>
 			<tags>
@@ -57,21 +57,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="95">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>第一阶段初始化：清空内部池字典。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="108">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>销毁阶段：释放所有池中的节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="acquire" line="135">
+		<member kind="method" name="acquire">
 			<signature>func acquire(scene: PackedScene, parent: Node) -&gt; Node:</signature>
 			<description>从池中获取一个节点实例。若池为空则自动实例化并加入父节点。</description>
 			<tags>
@@ -81,7 +81,7 @@
 				<tag name="return">可直接使用的节点实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release" line="188">
+		<member kind="method" name="release">
 			<signature>func release(node: Node, scene: PackedScene) -&gt; void:</signature>
 			<description>将节点归还到对象池，隐藏它以待下次复用。</description>
 			<tags>
@@ -90,7 +90,7 @@
 				<tag name="param">scene: 该节点所属的 PackedScene 资源，用于匹配正确的池。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prewarm" line="235">
+		<member kind="method" name="prewarm">
 			<signature>func prewarm(scene: PackedScene, parent: Node, count: int) -&gt; void:</signature>
 			<description>预热对象池，预先实例化指定数量的节点以避免首次使用时的卡顿。</description>
 			<tags>
@@ -100,7 +100,7 @@
 				<tag name="param">count: 预热的数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prewarm_async" line="260">
+		<member kind="method" name="prewarm_async">
 			<signature>func prewarm_async(scene: PackedScene, parent: Node, count: int, batch_size: int = 32) -&gt; void:</signature>
 			<description>分批预热对象池，避免一次性实例化大量节点造成单帧卡顿。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="param">batch_size: 每帧最多实例化数量；小于等于 0 时退化为同步预热。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prewarm_async_budget" line="300">
+		<member kind="method" name="prewarm_async_budget">
 			<signature>func prewarm_async_budget( scene: PackedScene, parent: Node, count: int, msec_budget_per_frame: float = 8.0 ) -&gt; void:</signature>
 			<description>按单帧时间预算预热对象池，适合复杂度差异较大的 PackedScene。</description>
 			<tags>
@@ -122,7 +122,7 @@
 				<tag name="param">msec_budget_per_frame: 每帧实例化预算毫秒数；小于等于 0 时退化为同步预热。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_available_count" line="352">
+		<member kind="method" name="get_available_count">
 			<signature>func get_available_count(scene: PackedScene) -&gt; int:</signature>
 			<description>获取指定场景当前池中可用（未使用）的节点数量。</description>
 			<tags>
@@ -131,7 +131,7 @@
 				<tag name="return">池中可用节点数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_count" line="372">
+		<member kind="method" name="get_active_count">
 			<signature>func get_active_count(scene: PackedScene) -&gt; int:</signature>
 			<description>获取指定场景当前正在使用中的节点数量。</description>
 			<tags>
@@ -140,7 +140,7 @@
 				<tag name="return">当前激活节点数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_nodes" line="383">
+		<member kind="method" name="get_active_nodes">
 			<signature>func get_active_nodes(scene: PackedScene) -&gt; Array[Node]:</signature>
 			<description>获取指定场景当前正在使用中的节点列表。</description>
 			<tags>
@@ -149,14 +149,14 @@
 				<tag name="return">当前激活节点数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prune_invalid_nodes" line="399">
+		<member kind="method" name="prune_invalid_nodes">
 			<signature>func prune_invalid_nodes() -&gt; void:</signature>
 			<description>主动清理全部池中的失效节点引用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="411">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取对象池诊断快照。</description>
 			<tags>

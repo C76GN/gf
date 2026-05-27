@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVisualAction" path="addons/gf/extensions/action_queue/actions/gf_visual_action.gd" module="extensions/action_queue" extends="RefCounted" line="18" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFVisualAction" path="addons/gf/extensions/action_queue/actions/gf_visual_action.gd" module="extensions/action_queue" extends="RefCounted" classDigest="4a66b4ae1db77296349d514e6b1a0475a5d562e17d466ce36e3e49362ea3d119">
 	<description>GFVisualAction: 视觉表现动作的抽象基类。
 继承自 RefCounted，代表一个具体的、可 await 的表现动作单元，
 如移动动画、卡牌翻面、粒子爆炸等。
@@ -16,7 +16,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="CompletionMode" line="33">
+		<member kind="enum" name="CompletionMode">
 			<signature>enum CompletionMode { ## 自动模式：返回 Signal 时等待，否则视为立即完成。 AUTO, ## 显式等待：语义上声明本动作需要等待返回的 Signal。 WAIT_FOR_SIGNAL, ## 发出即走：即使 execute() 返回 Signal，队列也不会等待。 FIRE_AND_FORGET, }</signature>
 			<description>队列如何处理 execute() 的返回值。</description>
 			<tags>
@@ -26,21 +26,21 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="completion_mode" line="53">
+		<member kind="property" name="completion_mode">
 			<signature>var completion_mode: CompletionMode = CompletionMode.AUTO</signature>
 			<description>动作完成模式。默认自动等待 Signal，返回 null 则继续。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="signal_timeout_seconds" line="58">
+		<member kind="property" name="signal_timeout_seconds">
 			<signature>var signal_timeout_seconds: float = 30.0</signature>
 			<description>等待 Signal 的超时时间（秒）。小于等于 0 时表示不启用超时。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="signal_timeout_respects_time_scale" line="63">
+		<member kind="property" name="signal_timeout_respects_time_scale">
 			<signature>var signal_timeout_respects_time_scale: bool = true</signature>
 			<description>Signal 超时计时是否跟随 GFTimeUtility 的暂停与 time_scale。</description>
 			<tags>
@@ -49,7 +49,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="execute" line="81">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行此视觉动作。子类必须重写此方法。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="schema">return: Variant，瞬时动作返回 null；需要等待的动作返回 Signal。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_valid" line="91">
+		<member kind="method" name="is_valid">
 			<signature>func is_valid() -&gt; bool:</signature>
 			<description>判断动作在入队消费时是否仍然有效。
 子类可根据目标节点、战斗目标或运行时状态决定是否跳过。</description>
@@ -67,7 +67,7 @@
 				<tag name="return">有效返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_execute" line="100">
+		<member kind="method" name="can_execute">
 			<signature>func can_execute() -&gt; bool:</signature>
 			<description>判断动作是否可以执行。默认委托 is_valid()，便于子类覆盖更明确的语义。</description>
 			<tags>
@@ -75,7 +75,7 @@
 				<tag name="return">可以执行返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="as_fire_and_forget" line="118">
+		<member kind="method" name="as_fire_and_forget">
 			<signature>func as_fire_and_forget() -&gt; GFVisualAction:</signature>
 			<description>将动作标记为显式 fire-and-forget，并返回自身以便链式调用。</description>
 			<tags>
@@ -83,7 +83,7 @@
 				<tag name="return">当前动作实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="as_wait_for_signal" line="128">
+		<member kind="method" name="as_wait_for_signal">
 			<signature>func as_wait_for_signal() -&gt; GFVisualAction:</signature>
 			<description>将动作标记为显式等待 Signal，并返回自身以便链式调用。</description>
 			<tags>
@@ -91,35 +91,35 @@
 				<tag name="return">当前动作实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="136">
+		<member kind="method" name="cancel">
 			<signature>func cancel() -&gt; void:</signature>
 			<description>请求取消动作。基础实现不做处理；持有 Tween、Timer、信号连接或外部任务的自定义动作应重写。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pause" line="143">
+		<member kind="method" name="pause">
 			<signature>func pause() -&gt; void:</signature>
 			<description>请求暂停动作。基础实现不做处理；可暂停动作应重写。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resume" line="150">
+		<member kind="method" name="resume">
 			<signature>func resume() -&gt; void:</signature>
 			<description>请求恢复动作。基础实现不做处理；可暂停动作应重写。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="finish" line="157">
+		<member kind="method" name="finish">
 			<signature>func finish() -&gt; void:</signature>
 			<description>请求立即完成动作。基础实现委托 cancel()；需要区分取消和完成的动作应重写。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_wait_guard_node" line="167">
+		<member kind="method" name="get_wait_guard_node">
 			<signature>func get_wait_guard_node() -&gt; Node:</signature>
 			<description>返回用于保护 Signal 等待生命周期的节点。
 Tween 等非 Node 信号可通过该节点的 tree_exited 提前结束等待。</description>
@@ -128,7 +128,7 @@ Tween 等非 Node 信号可通过该节点的 tree_exited 提前结束等待。<
 				<tag name="return">等待保护节点；没有时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_signal_timeout" line="180">
+		<member kind="method" name="with_signal_timeout">
 			<signature>func with_signal_timeout(seconds: float, respect_time_scale: bool = true) -&gt; GFVisualAction:</signature>
 			<description>设置等待 Signal 的超时时间，并返回自身以便链式调用。</description>
 			<tags>
@@ -138,7 +138,7 @@ Tween 等非 Node 信号可通过该节点的 tree_exited 提前结束等待。<
 				<tag name="return">当前动作实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="should_wait_for_result" line="195">
+		<member kind="method" name="should_wait_for_result">
 			<signature>func should_wait_for_result(result: Variant) -&gt; bool:</signature>
 			<description>根据当前完成模式判断队列是否应该等待 execute() 的返回值。</description>
 			<tags>
@@ -148,7 +148,7 @@ Tween 等非 Node 信号可通过该节点的 tree_exited 提前结束等待。<
 				<tag name="schema">result: Variant，由 execute() 返回，通常为 Signal 或 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="await_result_safely" line="211">
+		<member kind="method" name="await_result_safely">
 			<signature>func await_result_safely(result: Variant, should_continue: Callable = Callable()) -&gt; void:</signature>
 			<description>安全等待 execute() 返回的 Signal。
 当发射源失效或 Node 提前退出树时，会自动结束等待，避免队列永久卡死。</description>

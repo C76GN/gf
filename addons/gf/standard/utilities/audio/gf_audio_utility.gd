@@ -49,6 +49,8 @@ const BGM_BUS_NAME: String = "BGM"
 const SFX_BUS_NAME: String = "SFX"
 
 const _FALLBACK_BUS_NAME: String = "Master"
+const _APPLY_SPATIAL_SETTINGS_2D_METHOD: StringName = &"apply_to_2d"
+const _APPLY_SPATIAL_SETTINGS_3D_METHOD: StringName = &"apply_to_3d"
 
 
 # --- 公共变量 ---
@@ -1468,9 +1470,10 @@ func _try_backend_play_spatial_sfx_clip(
 	var context := options.duplicate(true)
 	context["follow_source"] = follow_source
 	context["source"] = source
+	context["spatial_settings"] = _get_clip_spatial_settings(clip)
 	if not _audio_backend.can_handle_clip(clip, &"spatial_sfx", context):
 		return null
-	return _audio_backend.play_spatial_sfx_clip(clip, source, follow_source, options)
+	return _audio_backend.play_spatial_sfx_clip(clip, source, follow_source, context)
 
 
 func _post_bgm_event(event: GFAudioEvent, options: Dictionary) -> void:
@@ -1535,38 +1538,65 @@ func _play_spatial_sfx_clip(clip: GFAudioClip, source: Node, follow_source: bool
 	var player: Node = null
 	if source is Node3D:
 		player = AudioStreamPlayer3D.new()
-		if follow_source:
-			(player as AudioStreamPlayer3D).position = Vector3.ZERO
-		else:
-			(player as AudioStreamPlayer3D).global_position = (source as Node3D).global_position
 	elif source is Node2D:
 		player = AudioStreamPlayer2D.new()
-		if follow_source:
-			(player as AudioStreamPlayer2D).position = Vector2.ZERO
-		else:
-			(player as AudioStreamPlayer2D).global_position = (source as Node2D).global_position
 	else:
 		return null
 
 	player.name = "GFSpatialSFXPlayer"
 	parent.add_child(player)
+	if player is AudioStreamPlayer3D:
+		if follow_source:
+			(player as AudioStreamPlayer3D).position = Vector3.ZERO
+		else:
+			(player as AudioStreamPlayer3D).global_position = (source as Node3D).global_position
+	elif player is AudioStreamPlayer2D:
+		if follow_source:
+			(player as AudioStreamPlayer2D).position = Vector2.ZERO
+		else:
+			(player as AudioStreamPlayer2D).global_position = (source as Node2D).global_position
 	_track_spatial_sfx_player(player)
 
 	var request_serial := _sfx_lifecycle_serial
 	var bus_name := clip.resolve_bus(SFX_BUS_NAME)
 	var volume_db := clip.volume_db
 	var pitch_scale := clip.resolve_pitch(_audio_rng)
+	var spatial_settings := _get_clip_spatial_settings(clip)
 	if clip.stream != null:
-		_apply_spatial_sfx_request(request_serial, player, clip.stream, bus_name, volume_db, pitch_scale)
+		_apply_spatial_sfx_request(
+			request_serial,
+			player,
+			clip.stream,
+			bus_name,
+			volume_db,
+			pitch_scale,
+			spatial_settings
+		)
 		return player
 
 	var asset_util := _get_asset_util()
 	if asset_util == null:
 		var stream := load(clip.path) as AudioStream
-		_apply_spatial_sfx_request(request_serial, player, stream, bus_name, volume_db, pitch_scale)
+		_apply_spatial_sfx_request(
+			request_serial,
+			player,
+			stream,
+			bus_name,
+			volume_db,
+			pitch_scale,
+			spatial_settings
+		)
 	else:
 		var on_loaded := func(res: Resource) -> void:
-			_apply_spatial_sfx_request(request_serial, player, res as AudioStream, bus_name, volume_db, pitch_scale)
+			_apply_spatial_sfx_request(
+				request_serial,
+				player,
+				res as AudioStream,
+				bus_name,
+				volume_db,
+				pitch_scale,
+				spatial_settings
+			)
 		asset_util.load_async(clip.path, on_loaded)
 	return player
 
@@ -1577,7 +1607,8 @@ func _apply_spatial_sfx_request(
 	stream: AudioStream,
 	bus_name: String,
 	volume_db: float,
-	pitch_scale: float
+	pitch_scale: float,
+	spatial_settings: Resource = null
 ) -> void:
 	if request_serial != _sfx_lifecycle_serial:
 		_release_spatial_sfx_player(player, 0.0)
@@ -1592,6 +1623,7 @@ func _apply_spatial_sfx_request(
 		player_2d.volume_db = volume_db
 		player_2d.pitch_scale = pitch_scale
 		player_2d.stream = stream
+		_apply_spatial_settings_2d(player_2d, spatial_settings)
 		var finished_callback := _get_spatial_sfx_finished_callback(player_2d)
 		if not player_2d.finished.is_connected(finished_callback):
 			player_2d.finished.connect(finished_callback, CONNECT_ONE_SHOT)
@@ -1602,12 +1634,34 @@ func _apply_spatial_sfx_request(
 		player_3d.volume_db = volume_db
 		player_3d.pitch_scale = pitch_scale
 		player_3d.stream = stream
+		_apply_spatial_settings_3d(player_3d, spatial_settings)
 		var finished_callback := _get_spatial_sfx_finished_callback(player_3d)
 		if not player_3d.finished.is_connected(finished_callback):
 			player_3d.finished.connect(finished_callback, CONNECT_ONE_SHOT)
 		player_3d.play()
 	else:
 		_release_spatial_sfx_player(player, 0.0)
+
+
+func _get_clip_spatial_settings(clip: GFAudioClip) -> Resource:
+	if clip == null or clip.spatial_settings == null:
+		return null
+	if (
+		not clip.spatial_settings.has_method(_APPLY_SPATIAL_SETTINGS_2D_METHOD)
+		and not clip.spatial_settings.has_method(_APPLY_SPATIAL_SETTINGS_3D_METHOD)
+	):
+		return null
+	return clip.spatial_settings
+
+
+func _apply_spatial_settings_2d(player: AudioStreamPlayer2D, spatial_settings: Resource) -> void:
+	if spatial_settings != null and spatial_settings.has_method(_APPLY_SPATIAL_SETTINGS_2D_METHOD):
+		spatial_settings.call(_APPLY_SPATIAL_SETTINGS_2D_METHOD, player)
+
+
+func _apply_spatial_settings_3d(player: AudioStreamPlayer3D, spatial_settings: Resource) -> void:
+	if spatial_settings != null and spatial_settings.has_method(_APPLY_SPATIAL_SETTINGS_3D_METHOD):
+		spatial_settings.call(_APPLY_SPATIAL_SETTINGS_3D_METHOD, player)
 
 
 func _get_spatial_sfx_parent(source: Node) -> Node:

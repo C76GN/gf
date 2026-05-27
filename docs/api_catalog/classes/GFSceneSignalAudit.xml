@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSceneSignalAudit" path="addons/gf/kernel/editor/gf_scene_signal_audit.gd" module="kernel" extends="RefCounted" line="16" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSceneSignalAudit" path="addons/gf/kernel/editor/gf_scene_signal_audit.gd" module="kernel" extends="RefCounted" classDigest="88f8f7c47e3d7fb090d2f423d66527881e5dbb4b9725a0969d70b300f4d8d92c">
 	<description>GFSceneSignalAudit: 开发期场景信号连接审计工具。
 扫描 PackedScene 中由编辑器保存的信号连接，报告缺失节点、缺失信号、
 缺失方法和可选的参数数量不匹配。该工具只返回结构化报告，不修改场景，
@@ -12,7 +12,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="IssueType" line="25">
+		<member kind="enum" name="IssueType">
 			<signature>enum IssueType { ## 场景资源加载失败。 SCENE_LOAD_FAILED, ## 无法读取场景保存的连接状态。 SCENE_STATE_UNAVAILABLE, ## 场景实例化失败。 SCENE_INSTANTIATION_FAILED, ## 连接源节点缺失。 MISSING_SOURCE, ## 连接目标节点缺失。 MISSING_TARGET, ## 连接源信号缺失。 MISSING_SIGNAL, ## 连接目标方法缺失。 MISSING_METHOD, ## 信号参数数量与目标方法不匹配。 PARAMETER_COUNT_MISMATCH, }</signature>
 			<description>场景信号连接审计问题类型。</description>
 			<tags>
@@ -21,28 +21,28 @@
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH" line="50">
+		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH">
 			<signature>const DEFAULT_MAX_SCAN_DEPTH: int = 32</signature>
 			<description>默认最大目录扫描深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_SCENE_PATHS" line="55">
+		<member kind="const" name="DEFAULT_MAX_SCENE_PATHS">
 			<signature>const DEFAULT_MAX_SCENE_PATHS: int = 10000</signature>
 			<description>默认最大扫描场景路径数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_SIGNAL_GRAPH_DEPTH" line="60">
+		<member kind="const" name="DEFAULT_MAX_SIGNAL_GRAPH_DEPTH">
 			<signature>const DEFAULT_MAX_SIGNAL_GRAPH_DEPTH: int = 64</signature>
 			<description>默认最大运行时信号图节点深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_SIGNAL_GRAPH_NODES" line="65">
+		<member kind="const" name="DEFAULT_MAX_SIGNAL_GRAPH_NODES">
 			<signature>const DEFAULT_MAX_SIGNAL_GRAPH_NODES: int = 10000</signature>
 			<description>默认最大运行时信号图节点数量。</description>
 			<tags>
@@ -52,7 +52,7 @@
 	</constants>
 	<properties />
 	<methods>
-		<member kind="method" name="audit_directory" line="83">
+		<member kind="method" name="audit_directory">
 			<signature>static func audit_directory(root_path: String = "res://", options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>审计指定目录下的场景文件。</description>
 			<tags>
@@ -64,7 +64,7 @@
 				<tag name="schema">return: Dictionary containing ok, root_path, scene_count, issue_count, scanned_paths, and issues.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="audit_scene_paths" line="103">
+		<member kind="method" name="audit_scene_paths">
 			<signature>static func audit_scene_paths(scene_paths: PackedStringArray, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>审计一组场景路径并返回汇总报告。</description>
 			<tags>
@@ -76,7 +76,7 @@
 				<tag name="schema">return: Dictionary containing ok, scene_count, issue_count, scanned_paths, and issues.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="audit_scene" line="132">
+		<member kind="method" name="audit_scene">
 			<signature>static func audit_scene(scene_path: String, options: Dictionary = {}) -&gt; Array[Dictionary]:</signature>
 			<description>审计单个 PackedScene 的编辑器信号连接。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="schema">return: Array of Dictionary scene signal audit issues.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_scene_paths" line="248">
+		<member kind="method" name="collect_scene_paths">
 			<signature>static func collect_scene_paths(root_path: String = "res://", options: Dictionary = {}) -&gt; PackedStringArray:</signature>
 			<description>收集目录下可审计的 `.tscn` 场景路径。</description>
 			<tags>
@@ -99,7 +99,7 @@
 				<tag name="schema">options: Dictionary with include_hidden, respect_gdignore, max_scan_depth, and max_scene_paths.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_signal_graph" line="282">
+		<member kind="method" name="build_signal_graph">
 			<signature>static func build_signal_graph(root: Node, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>构建运行中节点树的信号连接图快照。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="schema">return: Dictionary containing ok, root_path, node_count, signal_count, connection_count, nodes, signals, connections, and truncated.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="index_signal_graph" line="361">
+		<member kind="method" name="index_signal_graph">
 			<signature>static func index_signal_graph(graph: Dictionary) -&gt; Dictionary:</signature>
 			<description>为信号图报告构建按节点分组的索引。</description>
 			<tags>

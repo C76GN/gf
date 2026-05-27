@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFEditorToolOptionSchema" path="addons/gf/kernel/editor/gf_editor_tool_option_schema.gd" module="kernel" extends="Resource" line="14" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFEditorToolOptionSchema" path="addons/gf/kernel/editor/gf_editor_tool_option_schema.gd" module="kernel" extends="Resource" classDigest="5d23001df4a49686e6211d68d7b6d4cc06729182efed6f35de8a2c22cead3ab0">
 	<description>GFEditorToolOptionSchema: 编辑器工具选项集合声明。
 为工具面板、持久化和调试快照提供稳定的选项描述与值规范化入口。</description>
 	<tags>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="options" line="23" decorators="@export">
+		<member kind="property" name="options" decorators="@export">
 			<signature>var options: Array[GFEditorToolOption] = []</signature>
 			<description>工具选项列表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="30" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据，供项目层扩展使用。</description>
 			<tags>
@@ -29,7 +29,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="add_option" line="42">
+		<member kind="method" name="add_option">
 			<signature>func add_option(option: GFEditorToolOption) -&gt; bool:</signature>
 			<description>添加或替换选项声明。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="return">添加成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_option" line="61">
+		<member kind="method" name="remove_option">
 			<signature>func remove_option(option_id: StringName) -&gt; bool:</signature>
 			<description>移除选项声明。</description>
 			<tags>
@@ -47,14 +47,14 @@
 				<tag name="return">移除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_options" line="73">
+		<member kind="method" name="clear_options">
 			<signature>func clear_options() -&gt; void:</signature>
 			<description>清空选项声明。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_option" line="84">
+		<member kind="method" name="get_option">
 			<signature>func get_option(option_id: StringName) -&gt; GFEditorToolOption:</signature>
 			<description>获取选项声明。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="return">找到时返回选项声明，否则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_option" line="98">
+		<member kind="method" name="has_option">
 			<signature>func has_option(option_id: StringName) -&gt; bool:</signature>
 			<description>检查选项声明是否存在。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_option_ids" line="107">
+		<member kind="method" name="get_option_ids">
 			<signature>func get_option_ids() -&gt; PackedStringArray:</signature>
 			<description>获取选项 ID 列表。</description>
 			<tags>
@@ -80,7 +80,7 @@
 				<tag name="return">排序后的选项 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_default_values" line="123">
+		<member kind="method" name="get_default_values">
 			<signature>func get_default_values() -&gt; Dictionary:</signature>
 			<description>获取默认值字典。</description>
 			<tags>
@@ -89,7 +89,7 @@
 				<tag name="schema">return: Dictionary keyed by option_id, storing normalized default values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="normalize_values" line="144">
+		<member kind="method" name="normalize_values">
 			<signature>func normalize_values(values: Dictionary, include_defaults: bool = true) -&gt; Dictionary:</signature>
 			<description>规范化一组选项值。</description>
 			<tags>
@@ -101,7 +101,7 @@
 				<tag name="schema">return: Dictionary keyed by option_id, storing normalized option values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_values" line="166">
+		<member kind="method" name="validate_values">
 			<signature>func validate_values(values: Dictionary) -&gt; Dictionary:</signature>
 			<description>校验一组选项值。</description>
 			<tags>
@@ -112,7 +112,7 @@
 				<tag name="schema">return: Dictionary containing ok, error_count, warning_count, and issues.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_schema" line="193">
+		<member kind="method" name="duplicate_schema">
 			<signature>func duplicate_schema() -&gt; GFEditorToolOptionSchema:</signature>
 			<description>创建同内容拷贝。</description>
 			<tags>
@@ -120,7 +120,7 @@
 				<tag name="return">新选项集合声明。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe" line="208">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出选项集合摘要。</description>
 			<tags>

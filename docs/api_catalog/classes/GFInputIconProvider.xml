@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputIconProvider" path="addons/gf/standard/input/formatting/gf_input_icon_provider.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputIconProvider" path="addons/gf/standard/input/formatting/gf_input_icon_provider.gd" module="standard" extends="Resource" classDigest="d0b6a1bb1018dc618a15c454672bf62f817224fa22f42d6509da351ac7f9dc9c">
 	<description>GFInputIconProvider: 输入图标格式化扩展点。
 项目可继承此资源，把输入事件映射为 Texture2D 或 RichTextLabel BBCode。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="priority" line="19" decorators="@export">
+		<member kind="property" name="priority" decorators="@export">
 			<signature>var priority: int = 0</signature>
 			<description>优先级。数值越大越先尝试。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="icon_size" line="24" decorators="@export">
+		<member kind="property" name="icon_size" decorators="@export">
 			<signature>var icon_size: int = 24</signature>
 			<description>BBCode 图标默认尺寸。小于等于 0 时不写尺寸。</description>
 			<tags>
@@ -27,7 +27,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_priority" line="34">
+		<member kind="method" name="get_priority">
 			<signature>func get_priority() -&gt; int:</signature>
 			<description>获取优先级。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="return">优先级。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="supports_event" line="49">
+		<member kind="method" name="supports_event">
 			<signature>func supports_event(_input_event: InputEvent, _options: Dictionary = {}) -&gt; bool:</signature>
 			<description>判断是否支持指定输入事件。</description>
 			<tags>
@@ -46,7 +46,7 @@
 				<tag name="schema">_options: Dictionary，由 GFInputFormatter 传入，包含 provider 特定图标字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_event_icon" line="64">
+		<member kind="method" name="get_event_icon">
 			<signature>func get_event_icon(_input_event: InputEvent, _options: Dictionary = {}) -&gt; Texture2D:</signature>
 			<description>获取输入事件图标。</description>
 			<tags>
@@ -57,7 +57,7 @@
 				<tag name="schema">_options: Dictionary，由 GFInputFormatter 传入，包含 provider 特定图标字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_event_rich_text" line="79">
+		<member kind="method" name="get_event_rich_text">
 			<signature>func get_event_rich_text(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
 			<description>获取输入事件 RichTextLabel BBCode。</description>
 			<tags>

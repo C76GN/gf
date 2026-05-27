@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFShakePreset" path="addons/gf/extensions/feedback/resources/gf_shake_preset.gd" module="extensions/feedback" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFShakePreset" path="addons/gf/extensions/feedback/resources/gf_shake_preset.gd" module="extensions/feedback" extends="Resource" classDigest="3c6858e59a68a2b9f0b9a27aa4a84d14399704885528cdb23bb25445a834b599">
 	<description>GFShakePreset: 通用反馈采样预设。
 描述一段可采样的位移、旋转和缩放偏移，不绑定相机、角色、UI 或业务事件。</description>
 	<tags>
@@ -9,7 +9,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Waveform" line="19">
+		<member kind="enum" name="Waveform">
 			<signature>enum Waveform { ## 正弦波，适合可预期的摆动。 SINE, ## 逐步随机值，适合冲击感。 RANDOM, ## 平滑随机值，适合持续扰动。 NOISE, ## 使用 wave_curve 采样，曲线值 0.5 表示零偏移。 CURVE, }</signature>
 			<description>反馈采样波形。</description>
 			<tags>
@@ -19,62 +19,77 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="waveform" line="51" decorators="@export_range(0.0, 60.0, 0.001, &quot;or_greater&quot;) var duration_seconds: float = 0.25 @export_range(0.0, 1000.0, 0.001, &quot;or_greater&quot;) var amplitude: float = 1.0 @export_range(0.0, 240.0, 0.001, &quot;or_greater&quot;) var frequency: float = 24.0 @export">
-			<signature>var waveform: Waveform = Waveform.NOISE</signature>
-			<description>持续时间，单位秒。
-采样振幅倍率。
-每秒采样频率。
-波形类型。</description>
+		<member kind="property" name="duration_seconds" decorators="@export_range(0.0, 60.0, 0.001, &quot;or_greater&quot;)">
+			<signature>var duration_seconds: float = 0.25</signature>
+			<description>持续时间，单位秒。</description>
 			<tags>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="position_axis" line="56" decorators="@export">
+		<member kind="property" name="amplitude" decorators="@export_range(0.0, 1000.0, 0.001, &quot;or_greater&quot;)">
+			<signature>var amplitude: float = 1.0</signature>
+			<description>采样振幅倍率。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="frequency" decorators="@export_range(0.0, 240.0, 0.001, &quot;or_greater&quot;)">
+			<signature>var frequency: float = 24.0</signature>
+			<description>每秒采样频率。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="waveform" decorators="@export">
+			<signature>var waveform: Waveform = Waveform.NOISE</signature>
+			<description>波形类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="position_axis" decorators="@export">
 			<signature>var position_axis: Vector3 = Vector3.ONE</signature>
 			<description>位移轴权重。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="rotation_axis_degrees" line="61" decorators="@export">
+		<member kind="property" name="rotation_axis_degrees" decorators="@export">
 			<signature>var rotation_axis_degrees: Vector3 = Vector3.ZERO</signature>
 			<description>旋转轴权重，单位度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scale_axis" line="66" decorators="@export">
+		<member kind="property" name="scale_axis" decorators="@export">
 			<signature>var scale_axis: Vector3 = Vector3.ZERO</signature>
 			<description>缩放偏移轴权重。返回值是叠加到基础 scale 上的偏移。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="decay_curve" line="71" decorators="@export">
+		<member kind="property" name="decay_curve" decorators="@export">
 			<signature>var decay_curve: Curve = null</signature>
 			<description>包络曲线。为空时使用线性衰减；曲线值越高，当前采样越强。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="wave_curve" line="76" decorators="@export">
+		<member kind="property" name="wave_curve" decorators="@export">
 			<signature>var wave_curve: Curve = null</signature>
 			<description>自定义波形曲线。仅在 waveform 为 CURVE 时使用，曲线值 0.5 表示零偏移。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="seed" line="81" decorators="@export">
+		<member kind="property" name="seed" decorators="@export">
 			<signature>var seed: int = 1</signature>
 			<description>确定性采样种子。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="tracks" line="88" decorators="@export">
+		<member kind="property" name="tracks" decorators="@export">
 			<signature>var tracks: Array[GFShakeTrack] = []</signature>
 			<description>可组合反馈轨道。为空时使用兼容的单波形字段。</description>
 			<tags>
@@ -84,7 +99,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_duration_seconds" line="98">
+		<member kind="method" name="get_duration_seconds">
 			<signature>func get_duration_seconds() -&gt; float:</signature>
 			<description>获取有效持续时间。</description>
 			<tags>
@@ -92,7 +107,7 @@
 				<tag name="return">持续时间，最小为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="sample" line="115">
+		<member kind="method" name="sample">
 			<signature>func sample(elapsed_seconds: float, strength: float = 1.0, phase_offset: float = 0.0) -&gt; Dictionary:</signature>
 			<description>按时间采样反馈偏移。</description>
 			<tags>
@@ -104,7 +119,7 @@
 				<tag name="schema">return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="sample_at_progress" line="136">
+		<member kind="method" name="sample_at_progress">
 			<signature>func sample_at_progress( progress: float, elapsed_seconds: float, strength: float = 1.0, phase_offset: float = 0.0 ) -&gt; Dictionary:</signature>
 			<description>按归一化进度采样反馈偏移。</description>
 			<tags>
@@ -117,7 +132,7 @@
 				<tag name="schema">return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float 与 progress: float。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_track" line="176">
+		<member kind="method" name="add_track">
 			<signature>func add_track(track: GFShakeTrack) -&gt; bool:</signature>
 			<description>添加反馈轨道。</description>
 			<tags>
@@ -126,14 +141,14 @@
 				<tag name="return">添加成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_tracks" line="186">
+		<member kind="method" name="clear_tracks">
 			<signature>func clear_tracks() -&gt; void:</signature>
 			<description>清空反馈轨道。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_tracks" line="195">
+		<member kind="method" name="has_tracks">
 			<signature>func has_tracks() -&gt; bool:</signature>
 			<description>检查是否存在有效轨道。</description>
 			<tags>
@@ -141,7 +156,7 @@
 				<tag name="return">存在有效轨道返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="zero_sample" line="209">
+		<member kind="method" name="zero_sample">
 			<signature>static func zero_sample() -&gt; Dictionary:</signature>
 			<description>创建空采样结果。</description>
 			<tags>
@@ -150,7 +165,7 @@
 				<tag name="schema">return: Dictionary，包含零值 position、rotation_degrees、scale、intensity 与 progress。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="combine_samples" line="230">
+		<member kind="method" name="combine_samples">
 			<signature>static func combine_samples(samples: Array[Dictionary]) -&gt; Dictionary:</signature>
 			<description>合并多个反馈采样。</description>
 			<tags>

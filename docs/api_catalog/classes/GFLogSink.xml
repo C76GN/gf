@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFLogSink" path="addons/gf/standard/utilities/logging/gf_log_sink.gd" module="standard" extends="RefCounted" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFLogSink" path="addons/gf/standard/utilities/logging/gf_log_sink.gd" module="standard" extends="RefCounted" classDigest="498c277ca4c2340df86193c1c2ed12bde3e65847bcfd75c07cdbc46a73ae0dea">
 	<description>GFLogSink: 日志输出 sink 基类。
 项目可以继承该类，把 GFLogUtility 的结构化日志条目写入 JSONL、
 远端采集、编辑器面板或其他自定义目标。Sink 不拥有日志工具生命周期，
@@ -14,7 +14,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="init" line="23">
+		<member kind="method" name="init">
 			<signature>func init(_owner: Object) -&gt; void:</signature>
 			<description>初始化 sink。</description>
 			<tags>
@@ -22,7 +22,7 @@
 				<tag name="param">_owner: 持有该 sink 的日志工具。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="write" line="34">
+		<member kind="method" name="write">
 			<signature>func write(_entry: Dictionary) -&gt; void:</signature>
 			<description>写入一条结构化日志。</description>
 			<tags>
@@ -31,14 +31,14 @@
 				<tag name="schema">_entry: Dictionary log entry produced by GFLogUtility.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="flush" line="41">
+		<member kind="method" name="flush">
 			<signature>func flush() -&gt; void:</signature>
 			<description>刷新尚未写出的缓冲。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="shutdown" line="48">
+		<member kind="method" name="shutdown">
 			<signature>func shutdown() -&gt; void:</signature>
 			<description>关闭 sink 并释放内部资源。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfiguredTweenAction" path="addons/gf/extensions/action_queue/actions/gf_configured_tween_action.gd" module="extensions/action_queue" extends="GFVisualAction" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfiguredTweenAction" path="addons/gf/extensions/action_queue/actions/gf_configured_tween_action.gd" module="extensions/action_queue" extends="GFVisualAction" classDigest="4ca74a5336196277da392ef33cfe33d7c5247991314fad8e1ccd944d92c202a4">
 	<description>GFConfiguredTweenAction: 由 GFTweenActionConfig 驱动的通用 Tween 动作。
 允许项目把表现动画拆成 Resource 配置，再交给 GFActionQueueSystem 编排。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="marker_reached" line="25">
+		<member kind="signal" name="marker_reached">
 			<signature>signal marker_reached(marker_id: StringName, step_index: int, target: Object)</signature>
 			<description>Tween 步骤标记到达后发出。</description>
 			<tags>
@@ -22,21 +22,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="target" line="33">
+		<member kind="property" name="target">
 			<signature>var target: Object</signature>
 			<description>被缓动的目标对象。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="config" line="38">
+		<member kind="property" name="config">
 			<signature>var config: GFTweenActionConfig</signature>
 			<description>Tween 配置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="host_node" line="43">
+		<member kind="property" name="host_node">
 			<signature>var host_node: Node</signature>
 			<description>可选 Tween 宿主节点。目标不是 Node 时必须提供。</description>
 			<tags>
@@ -45,7 +45,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="execute" line="73">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行配置化 Tween。</description>
 			<tags>
@@ -54,35 +54,35 @@
 				<tag name="schema">return: Variant，返回内部完成 Signal 或 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="116">
+		<member kind="method" name="cancel">
 			<signature>func cancel() -&gt; void:</signature>
 			<description>取消当前 Tween，并按配置恢复初始值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pause" line="125">
+		<member kind="method" name="pause">
 			<signature>func pause() -&gt; void:</signature>
 			<description>暂停当前 Tween。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resume" line="133">
+		<member kind="method" name="resume">
 			<signature>func resume() -&gt; void:</signature>
 			<description>恢复当前 Tween。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="finish" line="141">
+		<member kind="method" name="finish">
 			<signature>func finish() -&gt; void:</signature>
 			<description>立即完成当前 Tween，并按配置恢复初始值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_wait_guard_node" line="159">
+		<member kind="method" name="get_wait_guard_node">
 			<signature>func get_wait_guard_node() -&gt; Node:</signature>
 			<description>获取用于保护等待生命周期的 Tween 宿主节点。</description>
 			<tags>

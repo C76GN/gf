@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFRule" path="addons/gf/kernel/base/gf_rule.gd" module="kernel" extends="Resource" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFRule" path="addons/gf/kernel/base/gf_rule.gd" module="kernel" extends="Resource" classDigest="b7c2a261461d322401ceb36d7af639cf237eda520cfaece76d087194b6618373">
 	<description>GFRule: 数据驱动规则的抽象基类。
 继承自 Resource，可在编辑器中配置并序列化为 .tres 文件。
 GFSystem 作为规则的执行者，通过调用 execute() 驱动规则逻辑，
@@ -15,7 +15,7 @@ GFSystem 作为规则的执行者，通过调用 execute() 驱动规则逻辑，
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="execute" line="31">
+		<member kind="method" name="execute">
 			<signature>func execute(_context: Object = null) -&gt; Variant:</signature>
 			<description>执行规则逻辑。子类必须重写此方法。
 "type": "Variant",
@@ -28,7 +28,7 @@ GFSystem 作为规则的执行者，通过调用 execute() 驱动规则逻辑，
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate" line="41">
+		<member kind="method" name="validate">
 			<signature>func validate() -&gt; bool:</signature>
 			<description>校验规则的配置数据是否合法。
 子类可重写此方法以添加配置校验逻辑。</description>

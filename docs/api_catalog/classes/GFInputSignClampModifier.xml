@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputSignClampModifier" path="addons/gf/standard/input/modifiers/gf_input_sign_clamp_modifier.gd" module="standard" extends="GFInputModifier" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputSignClampModifier" path="addons/gf/standard/input/modifiers/gf_input_sign_clamp_modifier.gd" module="standard" extends="GFInputModifier" classDigest="212d8fbba5515076ea5d51daa0e185010532767255b9ea616c9cc1a8e432254a">
 	<description>GFInputSignClampModifier: 输入符号方向限制修饰器。
 用于只保留正向或负向输入分量，也可以把保留的负向分量重新映射为正值。</description>
 	<tags>
@@ -9,7 +9,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="AllowedSign" line="19">
+		<member kind="enum" name="AllowedSign">
 			<signature>enum AllowedSign { ## 只保留大于等于 0 的值。 POSITIVE, ## 只保留小于等于 0 的值。 NEGATIVE, }</signature>
 			<description>允许通过的符号方向。</description>
 			<tags>
@@ -19,35 +19,35 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="allowed_sign" line="32" decorators="@export">
+		<member kind="property" name="allowed_sign" decorators="@export">
 			<signature>var allowed_sign: AllowedSign = AllowedSign.POSITIVE</signature>
 			<description>允许通过的符号方向。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_x" line="37" decorators="@export">
+		<member kind="property" name="apply_x" decorators="@export">
 			<signature>var apply_x: bool = true</signature>
 			<description>是否处理 X 分量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_y" line="42" decorators="@export">
+		<member kind="property" name="apply_y" decorators="@export">
 			<signature>var apply_y: bool = true</signature>
 			<description>是否处理 Y 分量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_z" line="47" decorators="@export">
+		<member kind="property" name="apply_z" decorators="@export">
 			<signature>var apply_z: bool = true</signature>
 			<description>是否处理 Z 分量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="remap_to_positive" line="52" decorators="@export">
+		<member kind="property" name="remap_to_positive" decorators="@export">
 			<signature>var remap_to_positive: bool = false</signature>
 			<description>是否把保留的负向分量转为正值。</description>
 			<tags>
@@ -56,7 +56,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="modify" line="68">
+		<member kind="method" name="modify">
 			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
 			<description>修改二维输入值。</description>
 			<tags>
@@ -67,7 +67,7 @@
 				<tag name="return">符号过滤后的二维输入值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="modify_3d" line="86">
+		<member kind="method" name="modify_3d">
 			<signature>func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector3:</signature>
 			<description>修改三维输入值。</description>
 			<tags>

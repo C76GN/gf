@@ -305,6 +305,73 @@ static func has_error_issues(report: Dictionary, options: Dictionary = {}) -> bo
 	return false
 
 
+## 生成稳定的问题指纹，用于项目工具的忽略项、基线和 CI 差异比较。
+## [br]
+## @api public
+## [br]
+## @param issue: GFValidationIssue 或兼容问题字典。
+## [br]
+## @schema issue: Variant accepting GFValidationIssue or Dictionary issue payload.
+## [br]
+## @param fields: 参与指纹计算的字段；为空时使用 severity、kind、path、source_path、key 和 message。
+## [br]
+## @return 问题指纹；输入无效时返回空字符串。
+static func make_issue_fingerprint(issue: Variant, fields: PackedStringArray = PackedStringArray()) -> String:
+	var issue_data := issue_to_dict(issue)
+	if issue_data.is_empty():
+		return ""
+
+	var selected_fields := fields.duplicate()
+	if selected_fields.is_empty():
+		selected_fields = PackedStringArray(["severity", "kind", "path", "source_path", "key", "message"])
+
+	var parts := PackedStringArray()
+	for field_name: String in selected_fields:
+		parts.append("%s=%s" % [
+			field_name,
+			_fingerprint_value(issue_data.get(field_name, null)),
+		])
+	return "|".join(parts)
+
+
+## 返回应用忽略项和基线后的报告副本。
+## [br]
+## @api public
+## [br]
+## @param report: 输入报告字典，不会被修改。
+## [br]
+## @schema report: Dictionary report payload.
+## [br]
+## @param options: 可选过滤设置，支持 ignored_kinds、ignored_paths、ignored_path_patterns、ignored_keys、ignored_fingerprints、baseline_fingerprints、baseline_issues、fingerprint_fields、include_filter_summary。
+## [br]
+## @schema options: Dictionary issue filtering options.
+## [br]
+## @return 过滤并重新 finalize 的报告副本。
+## [br]
+## @schema return: Dictionary finalized report payload.
+static func filter_issues(report: Dictionary, options: Dictionary = {}) -> Dictionary:
+	var filtered_report := report.duplicate(true)
+	var source_issues := _get_issue_array(filtered_report)
+	var retained_issues: Array = []
+	var filtered_count := 0
+	for issue_variant: Variant in source_issues:
+		var issue := issue_to_dict(issue_variant)
+		if issue.is_empty():
+			continue
+		if _issue_matches_filter(issue, options):
+			filtered_count += 1
+			continue
+		retained_issues.append(issue)
+
+	filtered_report["issues"] = retained_issues
+	if bool(options.get("include_filter_summary", true)):
+		filtered_report["original_issue_count"] = source_issues.size()
+		filtered_report["filtered_issue_count"] = filtered_count
+
+	var subject := String(options.get("subject", String(filtered_report.get("subject", ""))))
+	return finalize_report(filtered_report, subject, options)
+
+
 ## 将报告中的警告提升为错误。
 ## [br]
 ## @api public
@@ -393,6 +460,117 @@ static func _get_first_issue_by_priority(report: Dictionary, options: Dictionary
 		if not issue.is_empty():
 			return issue
 	return {}
+
+
+static func _issue_matches_filter(issue: Dictionary, options: Dictionary) -> bool:
+	var kind := _get_issue_kind(issue)
+	if _lookup_has_value(_make_string_lookup(options.get("ignored_kinds", PackedStringArray())), kind):
+		return true
+	if _lookup_has_value(_make_string_lookup(options.get("ignored_keys", PackedStringArray())), String(issue.get("key", ""))):
+		return true
+
+	var path := String(issue.get("path", ""))
+	var source_path := String(issue.get("source_path", ""))
+	var ignored_paths := _make_string_lookup(options.get("ignored_paths", PackedStringArray()))
+	if _lookup_has_value(ignored_paths, path) or _lookup_has_value(ignored_paths, source_path):
+		return true
+	if _path_matches_patterns(path, options.get("ignored_path_patterns", PackedStringArray())):
+		return true
+	if _path_matches_patterns(source_path, options.get("ignored_path_patterns", PackedStringArray())):
+		return true
+
+	var fingerprint_fields := _to_packed_string_array(options.get("fingerprint_fields", PackedStringArray()))
+	var issue_fingerprint := make_issue_fingerprint(issue, fingerprint_fields)
+	if _lookup_has_value(_make_filter_fingerprint_lookup(options, fingerprint_fields), issue_fingerprint):
+		return true
+	return false
+
+
+static func _make_filter_fingerprint_lookup(options: Dictionary, fingerprint_fields: PackedStringArray) -> Dictionary:
+	var lookup := _make_string_lookup(options.get("ignored_fingerprints", PackedStringArray()))
+	for fingerprint: String in _to_packed_string_array(options.get("baseline_fingerprints", PackedStringArray())):
+		if not fingerprint.is_empty():
+			lookup[fingerprint] = true
+
+	var baseline_issues := options.get("baseline_issues", []) as Array
+	if baseline_issues != null:
+		for issue_variant: Variant in baseline_issues:
+			var fingerprint := make_issue_fingerprint(issue_variant, fingerprint_fields)
+			if not fingerprint.is_empty():
+				lookup[fingerprint] = true
+	return lookup
+
+
+static func _make_string_lookup(value: Variant) -> Dictionary:
+	var lookup: Dictionary = {}
+	for item: String in _to_packed_string_array(value):
+		if not item.is_empty():
+			lookup[item] = true
+	return lookup
+
+
+static func _lookup_has_value(lookup: Dictionary, value: String) -> bool:
+	return not value.is_empty() and lookup.has(value)
+
+
+static func _to_packed_string_array(value: Variant) -> PackedStringArray:
+	if value is PackedStringArray:
+		return (value as PackedStringArray).duplicate()
+	var result := PackedStringArray()
+	if value is Array:
+		for item: Variant in value as Array:
+			var text := String(item)
+			if not text.is_empty():
+				result.append(text)
+	elif value is String or value is StringName:
+		var text := String(value)
+		if not text.is_empty():
+			result.append(text)
+	return result
+
+
+static func _path_matches_patterns(path: String, patterns: Variant) -> bool:
+	if path.is_empty():
+		return false
+	for pattern: String in _to_packed_string_array(patterns):
+		if pattern.is_empty():
+			continue
+		var regex := RegEx.new()
+		if regex.compile("^%s$" % _glob_to_regex(pattern)) != OK:
+			continue
+		if regex.search(path) != null:
+			return true
+	return false
+
+
+static func _glob_to_regex(pattern: String) -> String:
+	var result := ""
+	var index := 0
+	while index < pattern.length():
+		var character := pattern.substr(index, 1)
+		if character == "*":
+			if index + 1 < pattern.length() and pattern.substr(index + 1, 1) == "*":
+				result += ".*"
+				index += 2
+			else:
+				result += "[^/]*"
+				index += 1
+			continue
+		if character == "?":
+			result += "."
+		elif "\\.+^$()[]{}|".contains(character):
+			result += "\\%s" % character
+		else:
+			result += character
+		index += 1
+	return result
+
+
+static func _fingerprint_value(value: Variant) -> String:
+	var compatible := GFVariantJsonCodec.variant_to_json_compatible(value, {
+		"unsupported": "string",
+	})
+	return JSON.stringify(compatible)
 
 
 static func _get_option_bool(options: Dictionary, field_name: String, default_value: bool) -> bool:

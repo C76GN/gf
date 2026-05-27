@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFProjectileEmitter2D" path="addons/gf/extensions/combat/projectiles/gf_projectile_emitter_2d.gd" module="extensions/combat" extends="Node2D" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFProjectileEmitter2D" path="addons/gf/extensions/combat/projectiles/gf_projectile_emitter_2d.gd" module="extensions/combat" extends="Node2D" classDigest="a4e77b71b3ecf6fabff6c78adfbcfeddcc8cada59b7eff00d3fb9307e6ce0d32">
 	<description>GFProjectileEmitter2D: 通用 2D 发射体生成节点。
 负责按场景目录和生成点模式实例化发射体，并把本次发射上下文交给
 发射体的 launch()。它不解释伤害、阵营、弹药、冷却或特效规则。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="projectile_emitted" line="26">
+		<member kind="signal" name="projectile_emitted">
 			<signature>signal projectile_emitted(projectile: Node, projectile_context: Dictionary)</signature>
 			<description>发射体已生成。</description>
 			<tags>
@@ -19,7 +19,7 @@
 				<tag name="schema">projectile_context: Dictionary，本次发射上下文副本，包含默认上下文、调用方上下文和 spawn 信息。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="projectile_emit_failed" line="37">
+		<member kind="signal" name="projectile_emit_failed">
 			<signature>signal projectile_emit_failed(reason: StringName, details: Dictionary)</signature>
 			<description>发射失败时发出。</description>
 			<tags>
@@ -33,35 +33,35 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="projectile_scene" line="50" decorators="@export">
+		<member kind="property" name="projectile_scene" decorators="@export">
 			<signature>var projectile_scene: PackedScene = null</signature>
 			<description>默认发射体场景。未使用目录或目录缺少 ID 时使用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="projectile_catalog" line="55" decorators="@export">
+		<member kind="property" name="projectile_catalog" decorators="@export">
 			<signature>var projectile_catalog: GFProjectileCatalog = null</signature>
 			<description>可选发射体目录。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_projectile_id" line="60" decorators="@export">
+		<member kind="property" name="default_projectile_id" decorators="@export">
 			<signature>var default_projectile_id: StringName = &amp;""</signature>
 			<description>默认目录 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="spawn_pattern" line="65" decorators="@export">
+		<member kind="property" name="spawn_pattern" decorators="@export">
 			<signature>var spawn_pattern: GFProjectileSpawnPattern2D = null</signature>
 			<description>2D 发射点模式。为空时使用发射器自身全局变换。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_context" line="72" decorators="@export">
+		<member kind="property" name="default_context" decorators="@export">
 			<signature>var default_context: Dictionary = {}</signature>
 			<description>默认上下文。每次发射会深拷贝后再合并调用方上下文。</description>
 			<tags>
@@ -69,37 +69,42 @@
 				<tag name="schema">default_context: Dictionary，默认发射上下文；每次发射会深拷贝后合并调用方上下文。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="launch_after_spawn" line="82" decorators="@export_node_path(&quot;Node&quot;) var spawn_parent_path: NodePath = NodePath(&quot;&quot;) @export">
-			<signature>var launch_after_spawn: bool = true</signature>
-			<description>可选生成父节点路径。为空时优先使用发射器父节点。
-是否在生成后调用发射体的 launch(context)。</description>
+		<member kind="property" name="spawn_parent_path" decorators="@export_node_path(&quot;Node&quot;)">
+			<signature>var spawn_parent_path: NodePath = NodePath("")</signature>
+			<description>可选生成父节点路径。为空时优先使用发射器父节点。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="disable_auto_launch_before_add" line="87" decorators="@export">
+		<member kind="property" name="launch_after_spawn" decorators="@export">
+			<signature>var launch_after_spawn: bool = true</signature>
+			<description>是否在生成后调用发射体的 launch(context)。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="disable_auto_launch_before_add" decorators="@export">
 			<signature>var disable_auto_launch_before_add: bool = true</signature>
 			<description>生成前是否关闭常见发射体的 auto_launch_on_ready，避免进入树时使用空上下文启动。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_object_pool" line="92" decorators="@export">
+		<member kind="property" name="use_object_pool" decorators="@export">
 			<signature>var use_object_pool: bool = false</signature>
 			<description>是否使用 GFObjectPoolUtility 获取节点。池化场景应把 projectile 的 auto_launch_on_ready 设为 false。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="release_pooled_projectile_on_finish" line="97" decorators="@export">
+		<member kind="property" name="release_pooled_projectile_on_finish" decorators="@export">
 			<signature>var release_pooled_projectile_on_finish: bool = true</signature>
 			<description>使用对象池时，是否在 projectile_finished 后自动归还节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="object_pool_utility" line="105">
+		<member kind="property" name="object_pool_utility">
 			<signature>var object_pool_utility: GFObjectPoolUtility = null</signature>
 			<description>可选对象池工具。为空时会从注入架构或最近的 GFNodeContext 查询。</description>
 			<tags>
@@ -108,7 +113,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="emit_projectile" line="136">
+		<member kind="method" name="emit_projectile">
 			<signature>func emit_projectile(projectile_context: Dictionary = {}, projectile_id: StringName = &amp;"") -&gt; Node:</signature>
 			<description>发射单个发射体。</description>
 			<tags>
@@ -119,7 +124,7 @@
 				<tag name="schema">projectile_context: Dictionary，本次发射上下文；会与 default_context 合并后传给发射体。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="emit_projectiles" line="156">
+		<member kind="method" name="emit_projectiles">
 			<signature>func emit_projectiles( projectile_context: Dictionary = {}, projectile_id: StringName = &amp;"", emit_count: int = -1 ) -&gt; Array[Node]:</signature>
 			<description>按当前模式发射一批发射体。</description>
 			<tags>
@@ -131,7 +136,7 @@
 				<tag name="schema">projectile_context: Dictionary，本次发射上下文；会与 default_context 合并后传给每个发射体。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve_projectile_scene" line="205">
+		<member kind="method" name="resolve_projectile_scene">
 			<signature>func resolve_projectile_scene(projectile_id: StringName = &amp;"") -&gt; PackedScene:</signature>
 			<description>解析当前要使用的发射体场景。</description>
 			<tags>
@@ -140,7 +145,7 @@
 				<tag name="return">找到时返回 PackedScene，否则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve_spawn_parent" line="218">
+		<member kind="method" name="resolve_spawn_parent">
 			<signature>func resolve_spawn_parent() -&gt; Node:</signature>
 			<description>解析发射体生成父节点。</description>
 			<tags>
@@ -148,7 +153,7 @@
 				<tag name="return">有效父节点；找不到时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prewarm_projectiles" line="238">
+		<member kind="method" name="prewarm_projectiles">
 			<signature>func prewarm_projectiles(count: int, projectile_id: StringName = &amp;"") -&gt; bool:</signature>
 			<description>预热对象池。</description>
 			<tags>

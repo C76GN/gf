@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFGridOccupancy" path="addons/gf/standard/foundation/math/gf_grid_occupancy.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFGridOccupancy" path="addons/gf/standard/foundation/math/gf_grid_occupancy.gd" module="standard" extends="RefCounted" classDigest="989dc293631fd52ff6b14efe6852346f410eece988c8b311abf473f907e1d98e">
 	<description>GFGridOccupancy: 网格占用与预约数据结构。
 适合格子移动、战棋、推箱子和解谜类玩法在 System 中跟踪运行时占用。
 它不负责路径查找、碰撞或胜负规则。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="cell_occupied" line="26">
+		<member kind="signal" name="cell_occupied">
 			<signature>signal cell_occupied(receiver: Variant, cell: Vector2i)</signature>
 			<description>接收者占用格子时发出。</description>
 			<tags>
@@ -19,7 +19,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="cell_released" line="37">
+		<member kind="signal" name="cell_released">
 			<signature>signal cell_released(receiver: Variant, cell: Vector2i)</signature>
 			<description>接收者释放格子时发出。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="cell_reserved" line="48">
+		<member kind="signal" name="cell_reserved">
 			<signature>signal cell_reserved(receiver: Variant, cell: Vector2i)</signature>
 			<description>接收者预约格子时发出。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="reservation_released" line="59">
+		<member kind="signal" name="reservation_released">
 			<signature>signal reservation_released(receiver: Variant, cell: Vector2i)</signature>
 			<description>接收者释放预约时发出。</description>
 			<tags>
@@ -53,14 +53,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="grid_size" line="67">
+		<member kind="property" name="grid_size">
 			<signature>var grid_size: Vector2i = Vector2i.ZERO</signature>
 			<description>网格尺寸。小于等于 0 的维度会让所有格子视为越界。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_occupants_per_cell" line="72">
+		<member kind="property" name="max_occupants_per_cell">
 			<signature>var max_occupants_per_cell: int = 1</signature>
 			<description>单格允许的最大占用数量。</description>
 			<tags>
@@ -69,7 +69,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="configure" line="100">
+		<member kind="method" name="configure">
 			<signature>func configure(p_grid_size: Vector2i, p_max_occupants_per_cell: int = 1) -&gt; void:</signature>
 			<description>设置网格参数并清空占用。</description>
 			<tags>
@@ -78,7 +78,7 @@
 				<tag name="param">p_max_occupants_per_cell: 单格最大占用数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_in_bounds" line="113">
+		<member kind="method" name="is_in_bounds">
 			<signature>func is_in_bounds(cell: Vector2i) -&gt; bool:</signature>
 			<description>检查格子是否在边界内。</description>
 			<tags>
@@ -87,7 +87,7 @@
 				<tag name="return">在边界内返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_occupy" line="128">
+		<member kind="method" name="can_occupy">
 			<signature>func can_occupy(receiver: Variant, cell: Vector2i) -&gt; bool:</signature>
 			<description>检查接收者是否可以占用格子。</description>
 			<tags>
@@ -98,7 +98,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="occupy" line="158">
+		<member kind="method" name="occupy">
 			<signature>func occupy(receiver: Variant, cell: Vector2i) -&gt; bool:</signature>
 			<description>占用格子。接收者若已占用其他格子，会先释放旧格子。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release" line="189">
+		<member kind="method" name="release">
 			<signature>func release(receiver: Variant) -&gt; void:</signature>
 			<description>释放接收者当前占用。</description>
 			<tags>
@@ -118,7 +118,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release_cell" line="211">
+		<member kind="method" name="release_cell">
 			<signature>func release_cell(cell: Vector2i) -&gt; void:</signature>
 			<description>释放指定格子的所有占用。</description>
 			<tags>
@@ -126,7 +126,7 @@
 				<tag name="param">cell: 格子坐标。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reserve_cell" line="230">
+		<member kind="method" name="reserve_cell">
 			<signature>func reserve_cell(receiver: Variant, cell: Vector2i) -&gt; bool:</signature>
 			<description>预约格子，防止其他接收者抢占。</description>
 			<tags>
@@ -137,7 +137,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="confirm_reservation" line="252">
+		<member kind="method" name="confirm_reservation">
 			<signature>func confirm_reservation(receiver: Variant) -&gt; bool:</signature>
 			<description>将接收者预约确认成占用。</description>
 			<tags>
@@ -147,7 +147,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release_reservation" line="269">
+		<member kind="method" name="release_reservation">
 			<signature>func release_reservation(receiver: Variant) -&gt; void:</signature>
 			<description>释放接收者预约。</description>
 			<tags>
@@ -156,7 +156,7 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_cell_occupied" line="288">
+		<member kind="method" name="is_cell_occupied">
 			<signature>func is_cell_occupied(cell: Vector2i) -&gt; bool:</signature>
 			<description>检查格子是否有占用。</description>
 			<tags>
@@ -165,7 +165,7 @@
 				<tag name="return">有占用时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_cell_reserved" line="299">
+		<member kind="method" name="is_cell_reserved">
 			<signature>func is_cell_reserved(cell: Vector2i) -&gt; bool:</signature>
 			<description>检查格子是否被预约。</description>
 			<tags>
@@ -174,7 +174,7 @@
 				<tag name="return">被预约时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_cell_occupants" line="312">
+		<member kind="method" name="get_cell_occupants">
 			<signature>func get_cell_occupants(cell: Vector2i) -&gt; Array[Variant]:</signature>
 			<description>获取格子中的所有接收者。</description>
 			<tags>
@@ -184,7 +184,7 @@
 				<tag name="schema">return: Array receiver values restored from occupancy records.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_cell_occupant" line="331">
+		<member kind="method" name="get_cell_occupant">
 			<signature>func get_cell_occupant(cell: Vector2i) -&gt; Variant:</signature>
 			<description>获取格子中的第一个接收者。</description>
 			<tags>
@@ -194,7 +194,7 @@
 				<tag name="schema">return: Variant receiver value restored from the occupancy record.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_receiver_cell" line="345">
+		<member kind="method" name="get_receiver_cell">
 			<signature>func get_receiver_cell(receiver: Variant) -&gt; Vector2i:</signature>
 			<description>获取接收者当前占用格。</description>
 			<tags>
@@ -204,14 +204,14 @@
 				<tag name="schema">receiver: Variant receiver identity stored by value or weak Object reference.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prune_invalid_receivers" line="359">
+		<member kind="method" name="prune_invalid_receivers">
 			<signature>func prune_invalid_receivers() -&gt; void:</signature>
 			<description>清理已释放 Object 接收者。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="382">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空占用和预约。</description>
 			<tags>

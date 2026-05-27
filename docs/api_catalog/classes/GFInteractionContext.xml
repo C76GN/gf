@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInteractionContext" path="addons/gf/extensions/interaction/runtime/gf_interaction_context.gd" module="extensions/interaction" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInteractionContext" path="addons/gf/extensions/interaction/runtime/gf_interaction_context.gd" module="extensions/interaction" extends="RefCounted" classDigest="102dd86279fe48f91486479ce648cba9074d1a6d143ac8ef4502715cd8b9534b">
 	<description>GFInteractionContext: 一次交互流程的轻量上下文。
 用于在 Command、事件或项目自定义方法之间传递 sender、target、payload 与可选分组信息。</description>
 	<tags>
@@ -11,21 +11,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="sender" line="19">
+		<member kind="property" name="sender">
 			<signature>var sender: Object = null</signature>
 			<description>交互发起者。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target" line="24">
+		<member kind="property" name="target">
 			<signature>var target: Object = null</signature>
 			<description>交互目标。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="31">
+		<member kind="property" name="payload">
 			<signature>var payload: Variant = null</signature>
 			<description>交互携带的数据。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">payload: 交互携带的任意项目载荷；框架只透传，不解释其中结构。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="group_name" line="36">
+		<member kind="property" name="group_name">
 			<signature>var group_name: StringName = &amp;""</signature>
 			<description>交互所属的可选分组。</description>
 			<tags>
@@ -42,7 +42,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="with_sender" line="62">
+		<member kind="method" name="with_sender">
 			<signature>func with_sender(value: Object) -&gt; GFInteractionContext:</signature>
 			<description>设置 sender 并返回自身，便于链式构造。</description>
 			<tags>
@@ -51,7 +51,7 @@
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_target" line="74">
+		<member kind="method" name="with_target">
 			<signature>func with_target(value: Object) -&gt; GFInteractionContext:</signature>
 			<description>设置 target 并返回自身，便于链式构造。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_payload" line="88">
+		<member kind="method" name="with_payload">
 			<signature>func with_payload(value: Variant) -&gt; GFInteractionContext:</signature>
 			<description>设置 payload 并返回自身，便于链式构造。</description>
 			<tags>
@@ -70,7 +70,7 @@
 				<tag name="schema">value: 要写入 payload 的任意项目载荷。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_group" line="100">
+		<member kind="method" name="with_group">
 			<signature>func with_group(value: StringName) -&gt; GFInteractionContext:</signature>
 			<description>设置 group_name 并返回自身，便于链式构造。</description>
 			<tags>

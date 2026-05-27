@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigLocalizationKeyValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_localization_key_validation_rule.gd" module="standard" extends="GFConfigValidationRule" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigLocalizationKeyValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_localization_key_validation_rule.gd" module="standard" extends="GFConfigValidationRule" classDigest="bc8c4b7caeeb0bf6a13d6df21724322c8d76b0fc5ccf1ddd23912b1fdc0cf433">
 	<description>GFConfigLocalizationKeyValidationRule: 文本 key 校验规则。
 用于检查配置字段中的本地化 key 是否存在于显式 key 列表、字典或 Godot 翻译表中。</description>
 	<tags>
@@ -11,21 +11,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="allow_empty" line="19" decorators="@export">
+		<member kind="property" name="allow_empty" decorators="@export">
 			<signature>var allow_empty: bool = true</signature>
 			<description>空字符串是否直接视为通过。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="known_keys" line="24" decorators="@export">
+		<member kind="property" name="known_keys" decorators="@export">
 			<signature>var known_keys: PackedStringArray = PackedStringArray()</signature>
 			<description>显式允许的文本 key。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="text_map" line="31" decorators="@export">
+		<member kind="property" name="text_map" decorators="@export">
 			<signature>var text_map: Dictionary = {}</signature>
 			<description>可选文本字典。只检查 key 是否存在，不解释 value。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">text_map: Dictionary，将本地化 key 映射到项目自有文本值。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_translation_server" line="36" decorators="@export">
+		<member kind="property" name="use_translation_server" decorators="@export">
 			<signature>var use_translation_server: bool = true</signature>
 			<description>是否尝试通过 TranslationServer 判断 key。</description>
 			<tags>
@@ -42,7 +42,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="describe" line="48">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出规则摘要。</description>
 			<tags>

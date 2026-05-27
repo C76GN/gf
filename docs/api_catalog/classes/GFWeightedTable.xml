@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFWeightedTable" path="addons/gf/standard/foundation/math/gf_weighted_table.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFWeightedTable" path="addons/gf/standard/foundation/math/gf_weighted_table.gd" module="standard" extends="Resource" classDigest="5a2c5983a4e1b7430c080e3274bedb8ad9d73adc97104d763d7446594687633e">
 	<description>GFWeightedTable: 通用权重选择表。
 适合需要“按权重从候选集合中选择值”的纯算法场景。
 该类只处理权重和随机源，不绑定掉落、奖励、AI 等业务语义。</description>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="entries" line="20" decorators="@export">
+		<member kind="property" name="entries" decorators="@export">
 			<signature>var entries: Array[GFWeightedEntry] = []</signature>
 			<description>候选条目列表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_value" line="27" decorators="@export">
+		<member kind="property" name="default_value" decorators="@export">
 			<signature>var default_value: Variant = null</signature>
 			<description>没有可选条目时返回的默认值。</description>
 			<tags>
@@ -27,7 +27,7 @@
 				<tag name="schema">default_value: Variant fallback value returned when no entry can be selected.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="deterministic_seed" line="32" decorators="@export">
+		<member kind="property" name="deterministic_seed" decorators="@export">
 			<signature>var deterministic_seed: int = 0</signature>
 			<description>可选确定性种子；为 0 时使用随机化种子。</description>
 			<tags>
@@ -36,7 +36,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="add_entry" line="52">
+		<member kind="method" name="add_entry">
 			<signature>func add_entry(value: Variant, weight: float = 1.0, metadata: Dictionary = {}) -&gt; GFWeightedEntry:</signature>
 			<description>追加一个候选条目。</description>
 			<tags>
@@ -49,7 +49,7 @@
 				<tag name="schema">metadata: Dictionary extension metadata for the new weighted entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_weighted_entry" line="65">
+		<member kind="method" name="add_weighted_entry">
 			<signature>func add_weighted_entry(entry: GFWeightedEntry) -&gt; bool:</signature>
 			<description>追加已有候选条目。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="return">添加成功时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_entry" line="80">
+		<member kind="method" name="remove_entry">
 			<signature>func remove_entry(entry: GFWeightedEntry) -&gt; bool:</signature>
 			<description>移除候选条目。</description>
 			<tags>
@@ -67,14 +67,14 @@
 				<tag name="return">找到并移除时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="92">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空候选条目。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_selectable_entries" line="101">
+		<member kind="method" name="get_selectable_entries">
 			<signature>func get_selectable_entries() -&gt; Array[GFWeightedEntry]:</signature>
 			<description>获取当前可被选择的条目。</description>
 			<tags>
@@ -82,7 +82,7 @@
 				<tag name="return">权重大于 0 的条目数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_total_weight" line="115">
+		<member kind="method" name="get_total_weight">
 			<signature>func get_total_weight() -&gt; float:</signature>
 			<description>计算当前总权重。</description>
 			<tags>
@@ -90,7 +90,7 @@
 				<tag name="return">所有可选条目的权重总和。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_empty" line="129">
+		<member kind="method" name="is_empty">
 			<signature>func is_empty() -&gt; bool:</signature>
 			<description>判断当前是否没有可选条目。</description>
 			<tags>
@@ -98,7 +98,7 @@
 				<tag name="return">没有可选条目时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pick_entry" line="140">
+		<member kind="method" name="pick_entry">
 			<signature>func pick_entry(rng: RandomNumberGenerator = null) -&gt; GFWeightedEntry:</signature>
 			<description>按权重选择一个条目。</description>
 			<tags>
@@ -107,7 +107,7 @@
 				<tag name="return">选中的条目；没有可选条目时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pick_value" line="153">
+		<member kind="method" name="pick_value">
 			<signature>func pick_value(rng: RandomNumberGenerator = null) -&gt; Variant:</signature>
 			<description>按权重选择一个值。</description>
 			<tags>
@@ -117,7 +117,7 @@
 				<tag name="schema">return: Variant selected value or default_value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pick_many" line="171">
+		<member kind="method" name="pick_many">
 			<signature>func pick_many( count: int, rng: RandomNumberGenerator = null, allow_repeats: bool = true ) -&gt; Array[Variant]:</signature>
 			<description>按权重选择多个值。</description>
 			<tags>
@@ -129,7 +129,7 @@
 				<tag name="schema">return: Array selected values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_table" line="209">
+		<member kind="method" name="duplicate_table">
 			<signature>func duplicate_table(deep: bool = true) -&gt; GFWeightedTable:</signature>
 			<description>复制当前权重表。</description>
 			<tags>
@@ -138,7 +138,7 @@
 				<tag name="return">新权重表实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="226">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>导出为通用字典。</description>
 			<tags>
@@ -147,7 +147,7 @@
 				<tag name="schema">return: Dictionary serialized weighted table.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_dict" line="246">
+		<member kind="method" name="apply_dict">
 			<signature>func apply_dict(data: Dictionary) -&gt; void:</signature>
 			<description>使用通用字典覆盖当前权重表。</description>
 			<tags>
@@ -156,7 +156,7 @@
 				<tag name="schema">data: Dictionary serialized weighted table.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="269">
+		<member kind="method" name="from_dict">
 			<signature>static func from_dict(data: Dictionary) -&gt; GFWeightedTable:</signature>
 			<description>从通用字典创建权重表。</description>
 			<tags>

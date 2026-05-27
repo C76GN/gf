@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFLinearProjectileMotion" path="addons/gf/extensions/combat/projectiles/gf_linear_projectile_motion.gd" module="extensions/combat" extends="GFProjectileMotion" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFLinearProjectileMotion" path="addons/gf/extensions/combat/projectiles/gf_linear_projectile_motion.gd" module="extensions/combat" extends="GFProjectileMotion" classDigest="7d91a0c8ea1ec90a6281b9c5aa0c0baa9e40322c122c19da37379d1350baa97f">
 	<description>GFLinearProjectileMotion: 2D/3D 通用直线发射体移动策略。
 该策略只处理线性位移，不处理碰撞、伤害、生命周期或目标选择。</description>
 	<tags>
@@ -11,35 +11,35 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="speed" line="19" decorators="@export">
+		<member kind="property" name="speed" decorators="@export">
 			<signature>var speed: float = 0.0</signature>
 			<description>每秒移动距离。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="direction_2d" line="24" decorators="@export">
+		<member kind="property" name="direction_2d" decorators="@export">
 			<signature>var direction_2d: Vector2 = Vector2.RIGHT</signature>
 			<description>2D 方向。use_local_direction 为 true 时按发射体当前变换转换。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="direction_3d" line="29" decorators="@export">
+		<member kind="property" name="direction_3d" decorators="@export">
 			<signature>var direction_3d: Vector3 = Vector3.FORWARD</signature>
 			<description>3D 方向。use_local_direction 为 true 时按发射体当前变换转换。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_local_direction" line="34" decorators="@export">
+		<member kind="property" name="use_local_direction" decorators="@export">
 			<signature>var use_local_direction: bool = true</signature>
 			<description>是否把方向视为发射体本地坐标。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="normalize_direction" line="39" decorators="@export">
+		<member kind="property" name="normalize_direction" decorators="@export">
 			<signature>var normalize_direction: bool = true</signature>
 			<description>是否归一化方向。</description>
 			<tags>

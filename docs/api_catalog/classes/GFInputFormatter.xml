@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputFormatter" path="addons/gf/standard/input/formatting/gf_input_formatter.gd" module="standard" extends="RefCounted" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputFormatter" path="addons/gf/standard/input/formatting/gf_input_formatter.gd" module="standard" extends="RefCounted" classDigest="b8136201a2cae4ef57c47c9cecf70123caff63d5fa54fbe9896760e9dd760a28">
 	<description>GFInputFormatter: 输入事件与绑定的轻量文本格式化工具。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -11,7 +11,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="input_event_as_text" line="31">
+		<member kind="method" name="input_event_as_text">
 			<signature>static func input_event_as_text(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
 			<description>将 Godot 输入事件格式化为通用文本。</description>
 			<tags>
@@ -22,7 +22,7 @@
 				<tag name="schema">options: Dictionary，可包含 unbound_text 和 provider 特定格式化字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="input_event_as_rich_text" line="74">
+		<member kind="method" name="input_event_as_rich_text">
 			<signature>static func input_event_as_rich_text(input_event: InputEvent, options: Dictionary = {}) -&gt; String:</signature>
 			<description>将 Godot 输入事件格式化为 RichTextLabel BBCode。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">options: Dictionary，可包含 unbound_text、icon_size 和 provider 特定富文本字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="input_event_icon" line="99">
+		<member kind="method" name="input_event_icon">
 			<signature>static func input_event_icon(input_event: InputEvent, options: Dictionary = {}) -&gt; Texture2D:</signature>
 			<description>获取输入事件图标。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="schema">options: Dictionary，透传给已注册的图标 provider。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="binding_as_text" line="123">
+		<member kind="method" name="binding_as_text">
 			<signature>static func binding_as_text(binding: GFInputBinding, options: Dictionary = {}) -&gt; String:</signature>
 			<description>将绑定格式化为通用文本。</description>
 			<tags>
@@ -55,7 +55,7 @@
 				<tag name="schema">options: Dictionary，可包含 unbound_text 和 provider 特定格式化字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="binding_as_rich_text" line="142">
+		<member kind="method" name="binding_as_rich_text">
 			<signature>static func binding_as_rich_text(binding: GFInputBinding, options: Dictionary = {}) -&gt; String:</signature>
 			<description>将绑定格式化为 RichTextLabel BBCode。</description>
 			<tags>
@@ -66,7 +66,7 @@
 				<tag name="schema">options: Dictionary，可包含 unbound_text、icon_size 和 provider 特定富文本字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mapping_as_text" line="165">
+		<member kind="method" name="mapping_as_text">
 			<signature>static func mapping_as_text( mapping: GFInputMapping, context_id: StringName = &amp;"", remap_config: GFInputRemapConfig = null, options: Dictionary = {} ) -&gt; String:</signature>
 			<description>将映射的当前有效绑定格式化为通用文本。</description>
 			<tags>
@@ -79,7 +79,7 @@
 				<tag name="schema">options: Dictionary，可包含 unbound_text 和 provider 特定格式化字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mapping_as_rich_text" line="204">
+		<member kind="method" name="mapping_as_rich_text">
 			<signature>static func mapping_as_rich_text( mapping: GFInputMapping, context_id: StringName = &amp;"", remap_config: GFInputRemapConfig = null, options: Dictionary = {} ) -&gt; String:</signature>
 			<description>将映射的当前有效绑定格式化为 RichTextLabel BBCode。</description>
 			<tags>
@@ -92,7 +92,7 @@
 				<tag name="schema">options: Dictionary，可包含 unbound_text、icon_size 和 provider 特定富文本字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_text_provider" line="233">
+		<member kind="method" name="add_text_provider">
 			<signature>static func add_text_provider(provider: GFInputTextProvider) -&gt; void:</signature>
 			<description>注册文本 provider。</description>
 			<tags>
@@ -100,7 +100,7 @@
 				<tag name="param">provider: 文本 provider。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_text_provider" line="245">
+		<member kind="method" name="remove_text_provider">
 			<signature>static func remove_text_provider(provider: GFInputTextProvider) -&gt; void:</signature>
 			<description>移除文本 provider。</description>
 			<tags>
@@ -108,14 +108,14 @@
 				<tag name="param">provider: 文本 provider。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_text_providers" line="252">
+		<member kind="method" name="clear_text_providers">
 			<signature>static func clear_text_providers() -&gt; void:</signature>
 			<description>清空文本 provider。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_text_providers" line="261">
+		<member kind="method" name="get_text_providers">
 			<signature>static func get_text_providers() -&gt; Array[GFInputTextProvider]:</signature>
 			<description>获取已注册文本 provider。</description>
 			<tags>
@@ -123,7 +123,7 @@
 				<tag name="return">provider 列表副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_icon_provider" line="270">
+		<member kind="method" name="add_icon_provider">
 			<signature>static func add_icon_provider(provider: GFInputIconProvider) -&gt; void:</signature>
 			<description>注册图标 provider。</description>
 			<tags>
@@ -131,7 +131,7 @@
 				<tag name="param">provider: 图标 provider。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_icon_provider" line="282">
+		<member kind="method" name="remove_icon_provider">
 			<signature>static func remove_icon_provider(provider: GFInputIconProvider) -&gt; void:</signature>
 			<description>移除图标 provider。</description>
 			<tags>
@@ -139,14 +139,14 @@
 				<tag name="param">provider: 图标 provider。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_icon_providers" line="289">
+		<member kind="method" name="clear_icon_providers">
 			<signature>static func clear_icon_providers() -&gt; void:</signature>
 			<description>清空图标 provider。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_icon_providers" line="298">
+		<member kind="method" name="get_icon_providers">
 			<signature>static func get_icon_providers() -&gt; Array[GFInputIconProvider]:</signature>
 			<description>获取已注册图标 provider。</description>
 			<tags>

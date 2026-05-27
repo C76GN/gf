@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigTableImporter" path="addons/gf/standard/utilities/config/gf_config_table_importer.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigTableImporter" path="addons/gf/standard/utilities/config/gf_config_table_importer.gd" module="standard" extends="RefCounted" classDigest="8433d0d8810a495bb3fc92b9bc619cb2a25f41cb3d1622bb792911d39c80b6d4">
 	<description>GFConfigTableImporter: 通用导表文本解析与 schema 校验入口。
 提供 JSON 与 CSV 的轻量解析，适合编辑器工具或 CI 在进入项目 Provider 前做结构检查。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="parse_json_table" line="34">
+		<member kind="method" name="parse_json_table">
 			<signature>static func parse_json_table(text: String, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>解析 JSON 表文本。</description>
 			<tags>
@@ -24,7 +24,7 @@
 				<tag name="schema">return: Dictionary，包含 success、data、error、error_line 和 source。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="parse_csv_table" line="68">
+		<member kind="method" name="parse_csv_table">
 			<signature>static func parse_csv_table(text: String, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>解析 CSV 表文本。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="schema">return: Dictionary，包含 success、data、row_locations、error、error_line、error_column 和 source。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_json_table" line="156">
+		<member kind="method" name="validate_json_table">
 			<signature>static func validate_json_table(text: String, schema: GFConfigTableSchema, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>解析并校验 JSON 表文本。</description>
 			<tags>
@@ -49,7 +49,7 @@
 				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_csv_table" line="184">
+		<member kind="method" name="validate_csv_table">
 			<signature>static func validate_csv_table(text: String, schema: GFConfigTableSchema, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>解析并校验 CSV 表文本。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="export_csv_table" line="215">
+		<member kind="method" name="export_csv_table">
 			<signature>static func export_csv_table( table_data: Variant, schema: GFConfigTableSchema = null, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>导出 CSV 表文本。</description>
 			<tags>

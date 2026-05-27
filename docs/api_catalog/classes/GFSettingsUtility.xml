@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSettingsUtility" path="addons/gf/standard/utilities/settings/gf_settings_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSettingsUtility" path="addons/gf/standard/utilities/settings/gf_settings_utility.gd" module="standard" extends="GFUtility" classDigest="95d5c4f7d4cafee8858ff65de5590c399cda3ad8b3aa0ca1df674f4d280ff7fa">
 	<description>GFSettingsUtility: 通用设置注册、读写与持久化工具。
 设置项以 StringName 键访问，可选使用 GFSettingDefinition 声明默认值和类型。
 该工具只管理抽象设置值，不直接绑定窗口、音频、输入或任何项目业务。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="setting_changed" line="30">
+		<member kind="signal" name="setting_changed">
 			<signature>signal setting_changed(key: StringName, old_value: Variant, new_value: Variant)</signature>
 			<description>设置值变化时发出。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="schema">new_value: Variant next setting value or null when the setting was removed.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="settings_loaded" line="39">
+		<member kind="signal" name="settings_loaded">
 			<signature>signal settings_loaded(data: Dictionary)</signature>
 			<description>设置加载完成时发出。</description>
 			<tags>
@@ -30,7 +30,7 @@
 				<tag name="schema">data: Dictionary[String, Variant] loaded persisted settings data.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="settings_saved" line="48">
+		<member kind="signal" name="settings_saved">
 			<signature>signal settings_saved(data: Dictionary)</signature>
 			<description>设置保存完成时发出。</description>
 			<tags>
@@ -43,28 +43,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="storage_file_name" line="62">
+		<member kind="property" name="storage_file_name">
 			<signature>var storage_file_name: String = "settings.sav"</signature>
 			<description>默认持久化文件名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_load_on_init" line="67">
+		<member kind="property" name="auto_load_on_init">
 			<signature>var auto_load_on_init: bool = true</signature>
 			<description>init() 时是否自动读取持久化设置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_save_on_change" line="72">
+		<member kind="property" name="auto_save_on_change">
 			<signature>var auto_save_on_change: bool = true</signature>
 			<description>set_value() 修改持久化设置时是否自动保存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="save_debounce_seconds" line="77">
+		<member kind="property" name="save_debounce_seconds">
 			<signature>var save_debounce_seconds: float = 0.25</signature>
 			<description>自动保存的防抖秒数；小于等于 0 时保持立即保存。</description>
 			<tags>
@@ -73,21 +73,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="96">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化设置工具，并按配置自动加载持久化设置或应用默认值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="106">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放设置工具，并清理已注册定义、当前值和等待中的自动保存状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_definition" line="126">
+		<member kind="method" name="register_definition">
 			<signature>func register_definition(definition: GFSettingDefinition, apply_default: bool = true) -&gt; void:</signature>
 			<description>注册一个设置定义。</description>
 			<tags>
@@ -96,7 +96,7 @@
 				<tag name="param">apply_default: 缺少当前值时是否写入默认值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_setting" line="162">
+		<member kind="method" name="register_setting">
 			<signature>func register_setting( key: StringName, default_value: Variant = null, value_type: GFSettingDefinition.ValueType = GFSettingDefinition.ValueType.ANY, persistent: bool = true, metadata: Dictionary = {} ) -&gt; GFSettingDefinition:</signature>
 			<description>使用参数快速注册一个设置定义。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="schema">metadata: Dictionary with optional UI grouping, ordering, label, and project-defined metadata.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_definitions" line="184">
+		<member kind="method" name="register_definitions">
 			<signature>func register_definitions(definitions: Array[GFSettingDefinition]) -&gt; void:</signature>
 			<description>批量注册设置定义。</description>
 			<tags>
@@ -119,7 +119,7 @@
 				<tag name="param">definitions: 设置定义数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_definition" line="196">
+		<member kind="method" name="get_definition">
 			<signature>func get_definition(key: StringName) -&gt; GFSettingDefinition:</signature>
 			<description>获取指定设置定义。</description>
 			<tags>
@@ -128,7 +128,7 @@
 				<tag name="return">设置定义；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_definitions" line="208">
+		<member kind="method" name="get_definitions">
 			<signature>func get_definitions() -&gt; Array[GFSettingDefinition]:</signature>
 			<description>获取所有设置定义。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="return">设置定义数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_value" line="226">
+		<member kind="method" name="set_value">
 			<signature>func set_value(key: StringName, value: Variant, save_after_change: bool = true) -&gt; void:</signature>
 			<description>设置一个值。</description>
 			<tags>
@@ -147,7 +147,7 @@
 				<tag name="schema">value: Variant setting value coerced by the registered definition when present.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_values" line="245">
+		<member kind="method" name="apply_values">
 			<signature>func apply_values(values: Dictionary, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>批量应用一组设置值，适合图形质量、辅助功能或输入方案等项目预设。</description>
 			<tags>
@@ -160,14 +160,14 @@
 				<tag name="schema">return: Dictionary with ok, healthy, applied_count, changed_count, reset_count, skipped_count, error_count, warning_count, issue_count, and issues: Array[Dictionary].</tag>
 			</tags>
 		</member>
-		<member kind="method" name="begin_batch" line="314">
+		<member kind="method" name="begin_batch">
 			<signature>func begin_batch() -&gt; void:</signature>
 			<description>开始一批设置修改。批处理中自动保存会延后到 end_batch()。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="end_batch" line="323">
+		<member kind="method" name="end_batch">
 			<signature>func end_batch(save_after_change: bool = true) -&gt; void:</signature>
 			<description>结束一批设置修改，并在需要时合并触发一次自动保存。</description>
 			<tags>
@@ -175,14 +175,14 @@
 				<tag name="param">save_after_change: 本批变化结束后是否允许保存。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="queue_save" line="341">
+		<member kind="method" name="queue_save">
 			<signature>func queue_save() -&gt; void:</signature>
 			<description>将当前设置标记为稍后保存，受 save_debounce_seconds 控制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="flush_pending_save" line="356">
+		<member kind="method" name="flush_pending_save">
 			<signature>func flush_pending_save() -&gt; Error:</signature>
 			<description>立即执行正在等待的自动保存。</description>
 			<tags>
@@ -190,7 +190,7 @@
 				<tag name="return">保存结果；没有待保存内容时返回 OK。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_value" line="380">
+		<member kind="method" name="get_value">
 			<signature>func get_value(key: StringName, fallback: Variant = null) -&gt; Variant:</signature>
 			<description>获取一个值。</description>
 			<tags>
@@ -202,7 +202,7 @@
 				<tag name="schema">return: Variant current setting value, coerced default, or fallback.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_setting" line="398">
+		<member kind="method" name="has_setting">
 			<signature>func has_setting(key: StringName) -&gt; bool:</signature>
 			<description>检查设置是否存在当前值或定义。</description>
 			<tags>
@@ -211,7 +211,7 @@
 				<tag name="return">存在时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset_value" line="409">
+		<member kind="method" name="reset_value">
 			<signature>func reset_value(key: StringName, save_after_change: bool = true) -&gt; void:</signature>
 			<description>重置单个设置到默认值。未定义设置会被移除。</description>
 			<tags>
@@ -220,7 +220,7 @@
 				<tag name="param">save_after_change: 若为持久化设置，变化后是否保存。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset_all" line="418">
+		<member kind="method" name="reset_all">
 			<signature>func reset_all(save_after_change: bool = true) -&gt; void:</signature>
 			<description>重置所有已定义设置到默认值，并移除未定义的临时设置。</description>
 			<tags>
@@ -228,7 +228,7 @@
 				<tag name="param">save_after_change: 是否保存。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="447">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict(persistent_only: bool = true) -&gt; Dictionary:</signature>
 			<description>转换为可持久化字典。</description>
 			<tags>
@@ -238,7 +238,7 @@
 				<tag name="schema">return: Dictionary[String, Variant] serialized setting values suitable for persistence.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="466">
+		<member kind="method" name="from_dict">
 			<signature>func from_dict(data: Dictionary, emit_changes: bool = true) -&gt; void:</signature>
 			<description>从字典恢复设置。</description>
 			<tags>
@@ -248,7 +248,7 @@
 				<tag name="schema">data: Dictionary[String, Variant] serialized setting values produced by to_dict().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_settings" line="482">
+		<member kind="method" name="load_settings">
 			<signature>func load_settings(file_name: String = "") -&gt; Dictionary:</signature>
 			<description>读取持久化设置。</description>
 			<tags>
@@ -258,7 +258,7 @@
 				<tag name="schema">return: Dictionary[String, Variant] loaded persisted settings data.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_settings" line="498">
+		<member kind="method" name="save_settings">
 			<signature>func save_settings(file_name: String = "") -&gt; Error:</signature>
 			<description>保存持久化设置。</description>
 			<tags>
@@ -267,7 +267,7 @@
 				<tag name="return">Godot 错误码。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="513">
+		<member kind="method" name="tick">
 			<signature>func tick(delta: float = 0.0) -&gt; void:</signature>
 			<description>驱动自动保存防抖。</description>
 			<tags>

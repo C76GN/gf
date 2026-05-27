@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputScaleModifier" path="addons/gf/standard/input/modifiers/gf_input_scale_modifier.gd" module="standard" extends="GFInputModifier" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputScaleModifier" path="addons/gf/standard/input/modifiers/gf_input_scale_modifier.gd" module="standard" extends="GFInputModifier" classDigest="1e3c56ab4657cb29c7e0c9cfb5accae3720a2538c64085db0007a0570eb03341">
 	<description>GFInputScaleModifier: 输入缩放修饰器。
 适合统一调节轴灵敏度、反转某个方向或压低虚拟摇杆输出。</description>
 	<tags>
@@ -11,21 +11,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="scale_x" line="19" decorators="@export">
+		<member kind="property" name="scale_x" decorators="@export">
 			<signature>var scale_x: float = 1.0</signature>
 			<description>X 分量缩放。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scale_y" line="24" decorators="@export">
+		<member kind="property" name="scale_y" decorators="@export">
 			<signature>var scale_y: float = 1.0</signature>
 			<description>Y 分量缩放。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scale_z" line="29" decorators="@export">
+		<member kind="property" name="scale_z" decorators="@export">
 			<signature>var scale_z: float = 1.0</signature>
 			<description>Z 分量缩放，仅用于三维轴动作。</description>
 			<tags>
@@ -34,7 +34,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="modify" line="45">
+		<member kind="method" name="modify">
 			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
 			<description>修改二维输入值。</description>
 			<tags>
@@ -45,7 +45,7 @@
 				<tag name="return">缩放后的二维输入值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="modify_3d" line="60">
+		<member kind="method" name="modify_3d">
 			<signature>func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector3:</signature>
 			<description>修改三维输入值。</description>
 			<tags>

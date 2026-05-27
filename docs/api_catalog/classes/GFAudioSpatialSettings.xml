@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFAudioSpatialSettings" path="addons/gf/standard/utilities/audio/gf_audio_spatial_settings.gd" module="standard" extends="Resource" classDigest="dfb4074070561f11231a30b3a339f68895256f74b2f9d62894f81de3bf35c703">
+	<description>GFAudioSpatialSettings: 空间音效播放器参数。
+只描述 Godot 2D/3D 空间播放器的通用衰减、距离、区域、复音和播放类型参数。
+该资源可挂到 `GFAudioClip.spatial_settings`，仅在空间 SFX 播放路径中应用。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.19.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="max_polyphony" decorators="@export_range(1, 128, 1, &quot;or_greater&quot;)">
+			<signature>var max_polyphony: int = 1</signature>
+			<description>最大同时复音数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="panning_strength" decorators="@export_range(0.0, 3.0, 0.01, &quot;or_greater&quot;)">
+			<signature>var panning_strength: float = 1.0</signature>
+			<description>声像强度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="playback_type" decorators="@export_enum(&quot;Default&quot;, &quot;Stream&quot;, &quot;Sample&quot;)">
+			<signature>var playback_type: int = 0</signature>
+			<description>播放类型。0 为 Default，1 为 Stream，2 为 Sample。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="area_mask_2d" decorators="@export_flags_2d_physics">
+			<signature>var area_mask_2d: int = 1</signature>
+			<description>2D 音频区域掩码。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_distance_2d" decorators="@export_range(1.0, 4096.0, 1.0, &quot;or_greater&quot;, &quot;exp&quot;, &quot;suffix:px&quot;)">
+			<signature>var max_distance_2d: float = 2000.0</signature>
+			<description>2D 最大传播距离，单位像素。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="attenuation_2d" decorators="@export_exp_easing(&quot;attenuation&quot;)">
+			<signature>var attenuation_2d: float = 1.0</signature>
+			<description>2D 衰减强度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="attenuation_model_3d" decorators="@export_enum(&quot;Inverse&quot;, &quot;Inverse Square&quot;, &quot;Logarithmic&quot;, &quot;Disabled&quot;)">
+			<signature>var attenuation_model_3d: int = 0</signature>
+			<description>3D 衰减模型。0 为 Inverse，1 为 Inverse Square，2 为 Logarithmic，3 为 Disabled。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="area_mask_3d" decorators="@export_flags_3d_physics">
+			<signature>var area_mask_3d: int = 1</signature>
+			<description>3D 音频区域掩码。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="unit_size_3d" decorators="@export_range(0.1, 100.0, 0.01, &quot;or_greater&quot;)">
+			<signature>var unit_size_3d: float = 10.0</signature>
+			<description>3D 单位尺寸。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_db_3d" decorators="@export_range(-24.0, 6.0, 0.1, &quot;suffix:dB&quot;)">
+			<signature>var max_db_3d: float = 3.0</signature>
+			<description>3D 最大增益，单位 dB。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_distance_3d" decorators="@export_range(0.0, 4096.0, 0.01, &quot;or_greater&quot;, &quot;suffix:m&quot;)">
+			<signature>var max_distance_3d: float = 0.0</signature>
+			<description>3D 最大传播距离，0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="emission_angle_enabled_3d" decorators="@export">
+			<signature>var emission_angle_enabled_3d: bool = false</signature>
+			<description>是否启用 3D 发射角过滤。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="emission_angle_degrees_3d" decorators="@export_range(0.1, 90.0, 0.1, &quot;degrees&quot;)">
+			<signature>var emission_angle_degrees_3d: float = 45.0</signature>
+			<description>3D 发射角角度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="emission_angle_filter_attenuation_db_3d" decorators="@export_range(-80.0, 0.0, 0.1, &quot;suffix:dB&quot;)">
+			<signature>var emission_angle_filter_attenuation_db_3d: float = -12.0</signature>
+			<description>3D 发射角外的衰减，单位 dB。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="attenuation_filter_cutoff_hz_3d" decorators="@export_range(1.0, 20500.0, 1.0, &quot;suffix:Hz&quot;)">
+			<signature>var attenuation_filter_cutoff_hz_3d: float = 5000.0</signature>
+			<description>3D 距离衰减滤波截止频率。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="attenuation_filter_db_3d" decorators="@export_range(-80.0, 0.0, 0.1, &quot;suffix:dB&quot;)">
+			<signature>var attenuation_filter_db_3d: float = -24.0</signature>
+			<description>3D 距离衰减滤波增益，单位 dB。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="doppler_tracking_3d" decorators="@export_enum(&quot;Disabled&quot;, &quot;Idle&quot;, &quot;Physics&quot;)">
+			<signature>var doppler_tracking_3d: int = 0</signature>
+			<description>3D 多普勒追踪模式。0 为 Disabled，1 为 Idle，2 为 Physics。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="apply_to_2d">
+			<signature>func apply_to_2d(player: AudioStreamPlayer2D) -&gt; bool:</signature>
+			<description>将设置应用到 2D 空间播放器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">player: 目标 2D 空间播放器。</tag>
+				<tag name="return">成功应用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_to_3d">
+			<signature>func apply_to_3d(player: AudioStreamPlayer3D) -&gt; bool:</signature>
+			<description>将设置应用到 3D 空间播放器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">player: 目标 3D 空间播放器。</tag>
+				<tag name="return">成功应用时返回 true。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

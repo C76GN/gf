@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFControlCapability" path="addons/gf/extensions/capability/nodes/gf_control_capability.gd" module="extensions/capability" extends="Control" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFControlCapability" path="addons/gf/extensions/capability/nodes/gf_control_capability.gd" module="extensions/capability" extends="Control" classDigest="f293f489c655cb376fc2a1319e4bc8735a74b33f4c12456bbdd4ab5daefed549">
 	<description>GFControlCapability: 可直接作为 UI Control 节点使用的能力组件基类。
 适合承载需要 Control 布局、输入或子节点引用的局部能力。</description>
 	<tags>
@@ -11,7 +11,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="required_capabilities" line="26" decorators="@export">
+		<member kind="property" name="required_capabilities" decorators="@export">
 			<signature>var required_capabilities: Array[Script] = []</signature>
 			<description>当前能力依赖的其他能力类型。运行时挂载前会先确保这些能力存在。</description>
 			<tags>
@@ -19,14 +19,14 @@
 				<tag name="schema">required_capabilities: 元素为 Script 的能力类型列表。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="receiver" line="34">
+		<member kind="property" name="receiver">
 			<signature>var receiver: Object = null</signature>
 			<description>当前能力所属对象。由 GFCapabilityUtility 挂载时写入。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="active" line="39">
+		<member kind="property" name="active">
 			<signature>var active: bool = true</signature>
 			<description>当前能力是否启用。请优先通过 GFCapabilityUtility.set_capability_active() 修改。</description>
 			<tags>
@@ -35,7 +35,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_required_capabilities" line="58">
+		<member kind="method" name="get_required_capabilities">
 			<signature>func get_required_capabilities() -&gt; Array[Script]:</signature>
 			<description>返回当前能力依赖的其他能力类型。
 默认返回 required_capabilities；只有运行时动态依赖才建议在子类中重写。
@@ -46,7 +46,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="schema">return: 元素为 Script 的能力类型列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_dependency_removal_policy" line="67">
+		<member kind="method" name="get_dependency_removal_policy">
 			<signature>func get_dependency_removal_policy() -&gt; int:</signature>
 			<description>返回移除当前能力时对自动补齐依赖能力的处理策略。</description>
 			<tags>
@@ -54,7 +54,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="return">DependencyRemovalPolicy 枚举值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="on_gf_capability_added" line="76">
+		<member kind="method" name="on_gf_capability_added">
 			<signature>func on_gf_capability_added(target: Object) -&gt; void:</signature>
 			<description>能力挂载到对象后调用。</description>
 			<tags>
@@ -62,7 +62,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="param">target: 当前能力所属对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="on_gf_capability_removed" line="85">
+		<member kind="method" name="on_gf_capability_removed">
 			<signature>func on_gf_capability_removed(_target: Object) -&gt; void:</signature>
 			<description>能力从对象移除前调用。</description>
 			<tags>
@@ -70,7 +70,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="param">_target: 当前能力所属对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="on_gf_capability_active_changed" line="96">
+		<member kind="method" name="on_gf_capability_active_changed">
 			<signature>func on_gf_capability_active_changed(_target: Object, _active: bool) -&gt; void:</signature>
 			<description>能力启停状态变化后调用。</description>
 			<tags>
@@ -79,7 +79,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="param">_active: 当前启停状态。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_model" line="107">
+		<member kind="method" name="get_model">
 			<signature>func get_model(model_type: Script) -&gt; Object:</signature>
 			<description>通过当前架构获取 Model。</description>
 			<tags>
@@ -88,7 +88,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="return">Model 实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_system" line="118">
+		<member kind="method" name="get_system">
 			<signature>func get_system(system_type: Script) -&gt; Object:</signature>
 			<description>通过当前架构获取 System。</description>
 			<tags>
@@ -97,7 +97,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="return">System 实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_utility" line="129">
+		<member kind="method" name="get_utility">
 			<signature>func get_utility(utility_type: Script) -&gt; Object:</signature>
 			<description>通过当前架构获取 Utility。</description>
 			<tags>
@@ -106,7 +106,7 @@ GFCapabilityUtility 会在挂载当前能力前先确保这些能力存在。</d
 				<tag name="return">Utility 实例；不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_capability" line="140">
+		<member kind="method" name="get_capability">
 			<signature>func get_capability(capability_type: Script) -&gt; Object:</signature>
 			<description>获取当前 receiver 上的其他能力。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFPropertyBagCapability" path="addons/gf/extensions/capability/core/gf_property_bag_capability.gd" module="extensions/capability" extends="GFCapability" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFPropertyBagCapability" path="addons/gf/extensions/capability/core/gf_property_bag_capability.gd" module="extensions/capability" extends="GFCapability" classDigest="5915fe29693ab9b0475b8c57ce18b453a84bdc7a2023e9fc45b8191bc7201604">
 	<description>GFPropertyBagCapability: 轻量动态属性扩展能力。
 适合为对象挂载少量运行时标签值、编辑器调试值或原型数据。
 长期核心状态仍应放入 GFModel 或配置资源。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="property_changed" line="30">
+		<member kind="signal" name="property_changed">
 			<signature>signal property_changed(key: StringName, old_value: Variant, new_value: Variant)</signature>
 			<description>当属性值发生变化时发出。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="schema">new_value: 属性表中的任意项目值。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="property_removed" line="41">
+		<member kind="signal" name="property_removed">
 			<signature>signal property_removed(key: StringName, old_value: Variant)</signature>
 			<description>当属性被移除时发出。</description>
 			<tags>
@@ -35,7 +35,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="values" line="51" decorators="@export">
+		<member kind="property" name="values" decorators="@export">
 			<signature>var values: Dictionary = {}</signature>
 			<description>当前属性表。</description>
 			<tags>
@@ -45,7 +45,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_property_value" line="65">
+		<member kind="method" name="set_property_value">
 			<signature>func set_property_value(key: StringName, value: Variant) -&gt; void:</signature>
 			<description>设置属性值。</description>
 			<tags>
@@ -55,7 +55,7 @@
 				<tag name="schema">value: 要写入属性表的任意项目值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_property_value" line="90">
+		<member kind="method" name="get_property_value">
 			<signature>func get_property_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
 			<description>获取属性值。</description>
 			<tags>
@@ -67,7 +67,7 @@
 				<tag name="schema">return: 属性表中的项目值，或传入的 default_value。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_property_value" line="101">
+		<member kind="method" name="has_property_value">
 			<signature>func has_property_value(key: StringName) -&gt; bool:</signature>
 			<description>检查属性是否存在。</description>
 			<tags>
@@ -76,7 +76,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_property_value" line="112">
+		<member kind="method" name="remove_property_value">
 			<signature>func remove_property_value(key: StringName) -&gt; bool:</signature>
 			<description>移除属性。</description>
 			<tags>
@@ -85,14 +85,14 @@
 				<tag name="return">移除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_properties" line="125">
+		<member kind="method" name="clear_properties">
 			<signature>func clear_properties() -&gt; void:</signature>
 			<description>清空全部属性。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_int" line="140">
+		<member kind="method" name="get_int">
 			<signature>func get_int(key: StringName, default_value: int = 0) -&gt; int:</signature>
 			<description>获取 int 属性。</description>
 			<tags>
@@ -102,7 +102,7 @@
 				<tag name="return">int 属性值或默认值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_float" line="156">
+		<member kind="method" name="get_float">
 			<signature>func get_float(key: StringName, default_value: float = 0.0) -&gt; float:</signature>
 			<description>获取 float 属性。</description>
 			<tags>
@@ -112,7 +112,7 @@
 				<tag name="return">float 属性值或默认值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_bool" line="172">
+		<member kind="method" name="get_bool">
 			<signature>func get_bool(key: StringName, default_value: bool = false) -&gt; bool:</signature>
 			<description>获取 bool 属性。</description>
 			<tags>
@@ -122,7 +122,7 @@
 				<tag name="return">bool 属性值或默认值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_string" line="188">
+		<member kind="method" name="get_string">
 			<signature>func get_string(key: StringName, default_value: String = "") -&gt; String:</signature>
 			<description>获取 String 属性。</description>
 			<tags>
@@ -132,7 +132,7 @@
 				<tag name="return">String 属性值或默认值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_vector2" line="204">
+		<member kind="method" name="get_vector2">
 			<signature>func get_vector2(key: StringName, default_value: Vector2 = Vector2.ZERO) -&gt; Vector2:</signature>
 			<description>获取 Vector2 属性。</description>
 			<tags>
@@ -142,7 +142,7 @@
 				<tag name="return">Vector2 属性值或默认值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_color" line="220">
+		<member kind="method" name="get_color">
 			<signature>func get_color(key: StringName, default_value: Color = Color.WHITE) -&gt; Color:</signature>
 			<description>获取 Color 属性。</description>
 			<tags>

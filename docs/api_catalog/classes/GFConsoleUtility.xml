@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConsoleUtility" path="addons/gf/standard/utilities/debug/gf_console_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConsoleUtility" path="addons/gf/standard/utilities/debug/gf_console_utility.gd" module="standard" extends="GFUtility" classDigest="5bac4775c84b1ef66de342c12f5de945a82c7da3a0e01d1f486a0a5de715b0fc">
 	<description>GFConsoleUtility: 运行时开发者控制台。
 提供命令注册、解析与执行能力，并在初始化时构建覆盖全屏的调试 GUI。
 默认通过快捷键呼出，同时会消费 `GFLogUtility` 的日志信号进行彩色输出。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="CommandTier" line="20">
+		<member kind="enum" name="CommandTier">
 			<signature>enum CommandTier { ## 只读观察类命令。 OBSERVE, ## 会改变运行时状态的控制类命令。 CONTROL, ## 删档、跳关、重连等高风险命令。 DANGER, }</signature>
 			<description>控制台命令风险等级。</description>
 			<tags>
@@ -19,7 +19,7 @@
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="DANGER_CONFIRMATION_ARGUMENT" line="35">
+		<member kind="const" name="DANGER_CONFIRMATION_ARGUMENT">
 			<signature>const DANGER_CONFIRMATION_ARGUMENT: String = "--confirm"</signature>
 			<description>DANGER 命令的确认参数。</description>
 			<tags>
@@ -28,77 +28,77 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="toggle_key" line="43">
+		<member kind="property" name="toggle_key">
 			<signature>var toggle_key: Key = KEY_F1</signature>
 			<description>呼出或隐藏控制台的快捷键；默认为 `KEY_F1`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_output_lines" line="48">
+		<member kind="property" name="max_output_lines">
 			<signature>var max_output_lines: int = 1000:</signature>
 			<description>控制台最多保留的输出行数，避免高频日志无限增长。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_history_size" line="57">
+		<member kind="property" name="max_history_size">
 			<signature>var max_history_size: int = 100:</signature>
 			<description>控制台最多保留的历史命令数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="background_alpha" line="66">
+		<member kind="property" name="background_alpha">
 			<signature>var background_alpha: float = 0.85:</signature>
 			<description>控制台背景透明度，范围 0 到 1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="windowed" line="75">
+		<member kind="property" name="windowed">
 			<signature>var windowed: bool = false:</signature>
 			<description>是否使用可拖拽、可缩放的窗口模式。默认 false 保持全屏覆盖。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="initial_window_size_ratio" line="84">
+		<member kind="property" name="initial_window_size_ratio">
 			<signature>var initial_window_size_ratio: Vector2 = Vector2(0.72, 0.55):</signature>
 			<description>窗口模式初始尺寸相对视口比例。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="minimum_window_size" line="96">
+		<member kind="property" name="minimum_window_size">
 			<signature>var minimum_window_size: Vector2 = Vector2(360.0, 220.0):</signature>
 			<description>窗口模式最小尺寸。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="keep_topmost" line="105">
+		<member kind="property" name="keep_topmost">
 			<signature>var keep_topmost: bool = true:</signature>
 			<description>是否把控制台放在较高 CanvasLayer 层级。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="debug_only" line="114">
+		<member kind="property" name="debug_only">
 			<signature>var debug_only: bool = true</signature>
 			<description>是否只在 debug 构建中创建控制台 GUI。发布构建需要显式关闭此项才会创建控制台。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_command_tier" line="119">
+		<member kind="property" name="max_command_tier">
 			<signature>var max_command_tier: CommandTier = CommandTier.CONTROL</signature>
 			<description>允许执行的最高命令风险等级。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="require_danger_confirmation" line="124">
+		<member kind="property" name="require_danger_confirmation">
 			<signature>var require_danger_confirmation: bool = true</signature>
 			<description>执行 DANGER 命令时是否要求传入 `--confirm` 参数。</description>
 			<tags>
@@ -107,28 +107,28 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="144">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化控制台命令表和运行时 GUI。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="ready" line="178">
+		<member kind="method" name="ready">
 			<signature>func ready() -&gt; void:</signature>
 			<description>连接日志工具信号。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="196">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放 GUI 并断开日志信号。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_command" line="226">
+		<member kind="method" name="register_command">
 			<signature>func register_command(cmd_name: String, callback: Callable, description: String, metadata: Dictionary = {}) -&gt; void:</signature>
 			<description>注册控制台命令。</description>
 			<tags>
@@ -140,7 +140,7 @@
 				<tag name="schema">metadata: Dictionary，支持 tier 等项目自定义命令元数据。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_command_definition" line="241">
+		<member kind="method" name="register_command_definition">
 			<signature>func register_command_definition(definition: GFConsoleCommandDefinition, callback: Callable) -&gt; void:</signature>
 			<description>注册资源化控制台命令。</description>
 			<tags>
@@ -149,7 +149,7 @@
 				<tag name="param">callback: 指令回调，签名为 `func(args: PackedStringArray) -&gt; void`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_command" line="257">
+		<member kind="method" name="unregister_command">
 			<signature>func unregister_command(cmd_name: String) -&gt; void:</signature>
 			<description>注销控制台命令。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="param">cmd_name: 指令名称。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_command" line="268">
+		<member kind="method" name="has_command">
 			<signature>func has_command(cmd_name: String) -&gt; bool:</signature>
 			<description>检查控制台命令是否已注册。</description>
 			<tags>
@@ -166,7 +166,7 @@
 				<tag name="return">已注册返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_command_names" line="277">
+		<member kind="method" name="get_command_names">
 			<signature>func get_command_names() -&gt; PackedStringArray:</signature>
 			<description>获取当前已注册命令名称。</description>
 			<tags>
@@ -174,7 +174,7 @@
 				<tag name="return">排序后的命令名称数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_command_catalog" line="292">
+		<member kind="method" name="get_command_catalog">
 			<signature>func get_command_catalog() -&gt; Dictionary:</signature>
 			<description>获取控制台命令目录。</description>
 			<tags>
@@ -183,7 +183,7 @@
 				<tag name="schema">return: Dictionary[String, Dictionary]，每个值包含 description、metadata 和 tier。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="suggest_commands" line="311">
+		<member kind="method" name="suggest_commands">
 			<signature>func suggest_commands(prefix: String) -&gt; PackedStringArray:</signature>
 			<description>根据前缀获取命令补全候选。</description>
 			<tags>
@@ -192,7 +192,7 @@
 				<tag name="return">排序后的候选命令名数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="suggest_similar_commands" line="330">
+		<member kind="method" name="suggest_similar_commands">
 			<signature>func suggest_similar_commands(cmd_name: String, limit: int = 3, threshold: float = 0.5) -&gt; PackedStringArray:</signature>
 			<description>根据字符串相似度获取可能的命令名，用于未知命令诊断。</description>
 			<tags>
@@ -203,7 +203,7 @@
 				<tag name="return">按相似度降序排列的候选命令名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="execute_command" line="357">
+		<member kind="method" name="execute_command">
 			<signature>func execute_command(raw_input: String) -&gt; bool:</signature>
 			<description>解析并执行一条原始输入。</description>
 			<tags>
@@ -212,7 +212,7 @@
 				<tag name="return">找到并成功执行命令时返回 `true`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="append_output_line" line="399">
+		<member kind="method" name="append_output_line">
 			<signature>func append_output_line(bbcode_line: String) -&gt; void:</signature>
 			<description>向控制台输出追加一行 BBCode 文本。</description>
 			<tags>
@@ -220,7 +220,7 @@
 				<tag name="param">bbcode_line: 要追加的一行 BBCode 文本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="append_output_lines" line="409">
+		<member kind="method" name="append_output_lines">
 			<signature>func append_output_lines(bbcode_lines: PackedStringArray) -&gt; void:</signature>
 			<description>向控制台输出追加多行 BBCode 文本。</description>
 			<tags>
@@ -228,21 +228,21 @@
 				<tag name="param">bbcode_lines: 要追加的 BBCode 文本行列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_output" line="417">
+		<member kind="method" name="clear_output">
 			<signature>func clear_output() -&gt; void:</signature>
 			<description>清空控制台输出。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="flush_output" line="425">
+		<member kind="method" name="flush_output">
 			<signature>func flush_output() -&gt; void:</signature>
 			<description>立即刷新待追加的控制台输出。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="437">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取控制台调试快照。</description>
 			<tags>

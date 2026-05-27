@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBlackboardSchema" path="addons/gf/standard/foundation/blackboard/gf_blackboard_schema.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFBlackboardSchema" path="addons/gf/standard/foundation/blackboard/gf_blackboard_schema.gd" module="standard" extends="Resource" classDigest="79bc601e1bb393ae4f65e644c9cb47cf7378243f1e5343e938574692bbd9df1f">
 	<description>GFBlackboardSchema: 通用黑板数据结构声明与校验器。
 用于为行为树、状态机、任务系统或项目自定义运行时字典提供可复用字段契约。</description>
 	<tags>
@@ -11,42 +11,42 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="schema_id" line="24" decorators="@export">
+		<member kind="property" name="schema_id" decorators="@export">
 			<signature>var schema_id: StringName = &amp;""</signature>
 			<description>Schema 标识。为空时可由调用方自行决定命名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="entries" line="29" decorators="@export">
+		<member kind="property" name="entries" decorators="@export">
 			<signature>var entries: Array[GFBlackboardEntry] = []</signature>
 			<description>字段声明列表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="allow_extra_keys" line="34" decorators="@export">
+		<member kind="property" name="allow_extra_keys" decorators="@export">
 			<signature>var allow_extra_keys: bool = true</signature>
 			<description>是否允许包含 schema 未声明的字段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="coerce_values" line="39" decorators="@export">
+		<member kind="property" name="coerce_values" decorators="@export">
 			<signature>var coerce_values: bool = false</signature>
 			<description>是否在校验前按字段声明尝试类型转换。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="fail_on_coerce_error" line="44" decorators="@export">
+		<member kind="property" name="fail_on_coerce_error" decorators="@export">
 			<signature>var fail_on_coerce_error: bool = true</signature>
 			<description>启用 coerce_values 时，转换失败是否作为校验错误。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="51" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据，供编辑器、调试器或项目工具使用。</description>
 			<tags>
@@ -56,7 +56,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_schema_key" line="61">
+		<member kind="method" name="get_schema_key">
 			<signature>func get_schema_key() -&gt; StringName:</signature>
 			<description>获取稳定 schema 键。</description>
 			<tags>
@@ -64,7 +64,7 @@
 				<tag name="return">Schema 标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entry" line="72">
+		<member kind="method" name="get_entry">
 			<signature>func get_entry(entry_key: StringName) -&gt; GFBlackboardEntry:</signature>
 			<description>获取字段声明。</description>
 			<tags>
@@ -73,7 +73,7 @@
 				<tag name="return">找到时返回字段声明，否则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_entry" line="86">
+		<member kind="method" name="has_entry">
 			<signature>func has_entry(entry_key: StringName) -&gt; bool:</signature>
 			<description>检查字段声明是否存在。</description>
 			<tags>
@@ -82,7 +82,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entry_keys" line="95">
+		<member kind="method" name="get_entry_keys">
 			<signature>func get_entry_keys() -&gt; PackedStringArray:</signature>
 			<description>获取当前 schema 的字段键列表。</description>
 			<tags>
@@ -90,7 +90,7 @@
 				<tag name="return">排序后的字段键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_defaults" line="113">
+		<member kind="method" name="build_defaults">
 			<signature>func build_defaults(include_optional: bool = true) -&gt; Dictionary:</signature>
 			<description>创建默认黑板数据。</description>
 			<tags>
@@ -100,7 +100,7 @@
 				<tag name="schema">return: Dictionary default blackboard values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_defaults" line="138">
+		<member kind="method" name="apply_defaults">
 			<signature>func apply_defaults(values: Dictionary, include_optional: bool = true, should_coerce: bool = true) -&gt; Dictionary:</signature>
 			<description>为输入数据补齐默认值。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">return: Dictionary normalized blackboard values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="coerce_dictionary" line="167">
+		<member kind="method" name="coerce_dictionary">
 			<signature>func coerce_dictionary(values: Dictionary, include_defaults: bool = true) -&gt; Dictionary:</signature>
 			<description>按字段声明转换黑板数据。</description>
 			<tags>
@@ -125,7 +125,7 @@
 				<tag name="schema">return: Dictionary coerced blackboard values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_values" line="187">
+		<member kind="method" name="validate_values">
 			<signature>func validate_values(values: Dictionary) -&gt; Dictionary:</signature>
 			<description>校验黑板数据。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="schema">return: Dictionary validation report.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_schema" line="231">
+		<member kind="method" name="duplicate_schema">
 			<signature>func duplicate_schema() -&gt; GFBlackboardSchema:</signature>
 			<description>创建同内容拷贝，避免运行时修改污染共享 Resource。</description>
 			<tags>
@@ -144,7 +144,7 @@
 				<tag name="return">新 schema。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe" line="250">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出 schema 摘要。</description>
 			<tags>

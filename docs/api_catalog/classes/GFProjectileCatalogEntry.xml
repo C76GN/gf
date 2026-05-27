@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFProjectileCatalogEntry" path="addons/gf/extensions/combat/projectiles/gf_projectile_catalog_entry.gd" module="extensions/combat" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFProjectileCatalogEntry" path="addons/gf/extensions/combat/projectiles/gf_projectile_catalog_entry.gd" module="extensions/combat" extends="Resource" classDigest="5360f1b5d3b5dfb6eacda1d33aa6e7568d51eb8b9e32129068e11a076a7bde0e">
 	<description>GFProjectileCatalogEntry: 发射体目录中的单个场景映射。
 只把稳定 ID 映射到 PackedScene，不解释该场景的玩法含义。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="projectile_id" line="19" decorators="@export">
+		<member kind="property" name="projectile_id" decorators="@export">
 			<signature>var projectile_id: StringName = &amp;""</signature>
 			<description>发射体 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scene" line="24" decorators="@export">
+		<member kind="property" name="scene" decorators="@export">
 			<signature>var scene: PackedScene = null</signature>
 			<description>发射体场景。</description>
 			<tags>
@@ -27,7 +27,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_valid_entry" line="34">
+		<member kind="method" name="is_valid_entry">
 			<signature>func is_valid_entry() -&gt; bool:</signature>
 			<description>检查条目是否可用于实例化。</description>
 			<tags>

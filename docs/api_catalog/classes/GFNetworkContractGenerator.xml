@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkContractGenerator" path="addons/gf/extensions/network/editor/gf_network_contract_generator.gd" module="extensions/network" extends="RefCounted" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNetworkContractGenerator" path="addons/gf/extensions/network/editor/gf_network_contract_generator.gd" module="extensions/network" extends="RefCounted" classDigest="918c9c7041b574bda7331e0d95b57a63d18c7a122c8e094aa2d482af07702dab">
 	<description>GFNetworkContractGenerator: 根据 GFNetworkContract 生成强类型消息辅助脚本。
 生成结果保持为 GDScript 轻量封装，围绕 GFNetworkMessage / GFNetworkUtility
 提供构造、发送、匹配和 payload 读取函数，不绑定任何具体业务协议。</description>
@@ -11,7 +11,7 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_OUTPUT_DIR" line="22">
+		<member kind="const" name="DEFAULT_OUTPUT_DIR">
 			<signature>const DEFAULT_OUTPUT_DIR: String = "res://gf/generated/network"</signature>
 			<description>默认生成脚本输出目录。</description>
 			<tags>
@@ -21,7 +21,7 @@
 	</constants>
 	<properties />
 	<methods>
-		<member kind="method" name="generate" line="44">
+		<member kind="method" name="generate">
 			<signature>func generate( contract: GFNetworkContract, output_path: String = "", overwrite_existing: bool = true, options: Dictionary = {} ) -&gt; Error:</signature>
 			<description>生成单个契约访问器脚本。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="schema">options: Dictionary，支持 class_name。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="generate_many" line="81">
+		<member kind="method" name="generate_many">
 			<signature>func generate_many( contract_paths: PackedStringArray, output_dir: String = DEFAULT_OUTPUT_DIR, overwrite_existing: bool = true, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>批量生成多个契约访问器脚本。</description>
 			<tags>
@@ -48,7 +48,7 @@
 				<tag name="schema">return: Dictionary，GFValidationReportDictionary 格式，包含 ok、generated_count、attempted_count、generated、issues、issue_count 和 next_actions。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_source" line="146">
+		<member kind="method" name="build_source">
 			<signature>func build_source(contract: GFNetworkContract, options: Dictionary = {}) -&gt; String:</signature>
 			<description>构建契约访问器源码。测试或项目工具可直接调用该方法。</description>
 			<tags>
@@ -59,7 +59,7 @@
 				<tag name="schema">options: Dictionary，支持 class_name。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_source" line="176">
+		<member kind="method" name="save_source">
 			<signature>func save_source(output_path: String, source: String, overwrite_existing: bool = true) -&gt; Error:</signature>
 			<description>保存生成源码到指定路径。</description>
 			<tags>

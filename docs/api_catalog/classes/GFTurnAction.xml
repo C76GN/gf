@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTurnAction" path="addons/gf/extensions/turn_based/runtime/gf_turn_action.gd" module="extensions/turn_based" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTurnAction" path="addons/gf/extensions/turn_based/runtime/gf_turn_action.gd" module="extensions/turn_based" extends="RefCounted" classDigest="a288ca5f527ab3e5cb473fa25a53ec5eb5518cfac34f3a11691000b0de00c4ab">
 	<description>GFTurnAction: 通用回合行动基类。
 行动只描述“谁执行、对谁执行、排序值与载荷”，具体效果由子类重写 `_resolve()`。</description>
 	<tags>
@@ -11,28 +11,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="action_id" line="19">
+		<member kind="property" name="action_id">
 			<signature>var action_id: StringName = &amp;""</signature>
 			<description>行动标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="actor" line="24">
+		<member kind="property" name="actor">
 			<signature>var actor: Object = null</signature>
 			<description>行动发起者。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="targets" line="29">
+		<member kind="property" name="targets">
 			<signature>var targets: Array[Object] = []</signature>
 			<description>行动目标列表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="36">
+		<member kind="property" name="payload">
 			<signature>var payload: Variant = null</signature>
 			<description>行动载荷，框架只存储并传递，不解释其结构。</description>
 			<tags>
@@ -40,21 +40,21 @@
 				<tag name="schema">payload: Variant payload consumed by project-specific action resolvers.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="priority" line="41">
+		<member kind="property" name="priority">
 			<signature>var priority: int = 0</signature>
 			<description>主排序优先级，值越大越先处理。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="sort_value" line="46">
+		<member kind="property" name="sort_value">
 			<signature>var sort_value: float = 0.0</signature>
 			<description>次排序值，值越大越先处理。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_cancelled" line="51">
+		<member kind="property" name="is_cancelled">
 			<signature>var is_cancelled: bool = false</signature>
 			<description>是否已取消。</description>
 			<tags>
@@ -63,7 +63,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="cancel" line="75">
+		<member kind="method" name="cancel">
 			<signature>func cancel() -&gt; void:</signature>
 			<description>取消行动。</description>
 			<tags>

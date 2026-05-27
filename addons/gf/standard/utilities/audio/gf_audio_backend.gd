@@ -313,7 +313,7 @@ func stop_all_sfx(_fade_seconds: float = 0.0) -> bool:
 ## [br]
 ## @param _options: 请求选项。
 ## [br]
-## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel、follow_source 和 metadata。
+## @schema _options: 请求选项 Dictionary；常见字段包含 volume_db、pitch_scale、owner、channel、follow_source、spatial_settings 和 metadata。
 ## [br]
 ## @return: 控制句柄；未处理返回 null。
 func play_spatial_sfx_clip(

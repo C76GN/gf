@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSavePipelineEvent" path="addons/gf/extensions/save/pipeline/gf_save_pipeline_event.gd" module="extensions/save" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSavePipelineEvent" path="addons/gf/extensions/save/pipeline/gf_save_pipeline_event.gd" module="extensions/save" extends="RefCounted" classDigest="d5678da51926c8a036a48024e9f404be926704f6100df06d9c7af417dd8841db">
 	<description>GFSavePipelineEvent: 存档图流程事件。
 用于描述 GFSaveGraphUtility 在采集/应用过程中的通用阶段、Scope、Source
 与诊断信息。事件本身不携带业务字段，项目层可通过 payload 扩展。</description>
@@ -12,49 +12,49 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="stage" line="20">
+		<member kind="property" name="stage">
 			<signature>var stage: StringName = &amp;""</signature>
 			<description>流程阶段标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="severity" line="25">
+		<member kind="property" name="severity">
 			<signature>var severity: StringName = &amp;"info"</signature>
 			<description>事件严重级别，建议使用 info/warning/error。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scope_key" line="30">
+		<member kind="property" name="scope_key">
 			<signature>var scope_key: StringName = &amp;""</signature>
 			<description>事件关联的作用域键。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="source_key" line="35">
+		<member kind="property" name="source_key">
 			<signature>var source_key: StringName = &amp;""</signature>
 			<description>事件关联的来源键。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="node_path" line="40">
+		<member kind="property" name="node_path">
 			<signature>var node_path: String = ""</signature>
 			<description>事件关联节点路径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="message" line="45">
+		<member kind="property" name="message">
 			<signature>var message: String = ""</signature>
 			<description>面向调试的短消息。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="52">
+		<member kind="property" name="payload">
 			<signature>var payload: Dictionary = {}</signature>
 			<description>附加通用载荷。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="schema">payload: Dictionary，项目或流程步骤附加的诊断字段。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="timestamp_msec" line="57">
+		<member kind="property" name="timestamp_msec">
 			<signature>var timestamp_msec: int = 0</signature>
 			<description>事件创建时间。</description>
 			<tags>
@@ -71,7 +71,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="configure" line="81">
+		<member kind="method" name="configure">
 			<signature>func configure( p_stage: StringName, scope: Object = null, source: Object = null, p_message: String = "", p_payload: Dictionary = {}, p_severity: StringName = &amp;"info" ) -&gt; GFSavePipelineEvent:</signature>
 			<description>配置事件内容并返回自身。</description>
 			<tags>
@@ -86,7 +86,7 @@
 				<tag name="schema">p_payload: Dictionary，项目或流程步骤附加的诊断字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="107">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转换为 Dictionary，便于日志、存档或测试断言。</description>
 			<tags>
@@ -95,7 +95,7 @@
 				<tag name="schema">return: Dictionary，包含 stage、severity、scope_key、source_key、node_path、message、payload 与 timestamp_msec。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="129">
+		<member kind="method" name="from_dict">
 			<signature>static func from_dict(data: Dictionary) -&gt; GFSavePipelineEvent:</signature>
 			<description>从 Dictionary 恢复事件。</description>
 			<tags>

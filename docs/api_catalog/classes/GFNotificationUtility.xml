@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNotificationUtility" path="addons/gf/standard/utilities/ui/gf_notification_utility.gd" module="standard" extends="GFUtility" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNotificationUtility" path="addons/gf/standard/utilities/ui/gf_notification_utility.gd" module="standard" extends="GFUtility" classDigest="e249ee531aa1383f61b511b1fce1867ced989920c7b604efdddeb8b793457eb2">
 	<description>GFNotificationUtility: 通用运行时通知队列。
 只管理通知数据、队列、去重和生命周期信号，不规定 Toast、HUD 或编辑器 UI 样式。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="notification_queued" line="23">
+		<member kind="signal" name="notification_queued">
 			<signature>signal notification_queued(notification: Dictionary)</signature>
 			<description>通知进入队列时发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="schema">notification: Dictionary，包含 id、key、dedupe_key、title、message、level、priority、sticky、duration_seconds、created_at_unix、actions 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="notification_started" line="32">
+		<member kind="signal" name="notification_started">
 			<signature>signal notification_started(notification: Dictionary)</signature>
 			<description>通知开始展示时发出。</description>
 			<tags>
@@ -26,7 +26,7 @@
 				<tag name="schema">notification: Dictionary，字段同 notification_queued 的 notification。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="notification_finished" line="43">
+		<member kind="signal" name="notification_finished">
 			<signature>signal notification_finished(notification: Dictionary, reason: String)</signature>
 			<description>通知结束时发出。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="schema">notification: Dictionary，字段同 notification_queued 的 notification。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="notification_action_invoked" line="54">
+		<member kind="signal" name="notification_action_invoked">
 			<signature>signal notification_action_invoked(notification: Dictionary, action_id: StringName)</signature>
 			<description>当前通知动作被触发时发出。</description>
 			<tags>
@@ -48,14 +48,14 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="Level" line="62">
+		<member kind="enum" name="Level">
 			<signature>enum Level { ## 普通信息。 INFO, ## 成功反馈。 SUCCESS, ## 警告信息。 WARNING, ## 错误信息。 ERROR, }</signature>
 			<description>通知等级。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="enum" name="Priority" line="76">
+		<member kind="enum" name="Priority">
 			<signature>enum Priority { ## 低优先级。 LOW, ## 默认优先级。 NORMAL, ## 高优先级。 HIGH, ## 最高优先级。 CRITICAL, }</signature>
 			<description>通知优先级。数值越大越靠前。</description>
 			<tags>
@@ -65,21 +65,21 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="default_duration_seconds" line="93">
+		<member kind="property" name="default_duration_seconds">
 			<signature>var default_duration_seconds: float = 3.0</signature>
 			<description>默认展示时长。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_queue_size" line="98">
+		<member kind="property" name="max_queue_size">
 			<signature>var max_queue_size: int = 32</signature>
 			<description>最大排队数量。设为 0 时只允许当前通知，不保留等待队列。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="suppress_duplicates" line="103">
+		<member kind="property" name="suppress_duplicates">
 			<signature>var suppress_duplicates: bool = true</signature>
 			<description>是否抑制重复入队。有显式 key 时按 key 去重，否则按消息文本去重。</description>
 			<tags>
@@ -88,7 +88,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="tick" line="122">
+		<member kind="method" name="tick">
 			<signature>func tick(delta: float) -&gt; void:</signature>
 			<description>推进运行时逻辑。</description>
 			<tags>
@@ -96,14 +96,14 @@
 				<tag name="param">delta: 本帧时间增量（秒）。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="136">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放通知队列状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_notification" line="157">
+		<member kind="method" name="push_notification">
 			<signature>func push_notification( message: String, title: String = "", level: Level = Level.INFO, options: Dictionary = {} ) -&gt; int:</signature>
 			<description>推入通知。</description>
 			<tags>
@@ -116,7 +116,7 @@
 				<tag name="schema">options: Dictionary，支持 duration_seconds、key、metadata、priority、sticky 和 actions。actions 为 Array[StringName|String|Dictionary]，Dictionary action 包含 id、label、dismiss 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dismiss_active" line="184">
+		<member kind="method" name="dismiss_active">
 			<signature>func dismiss_active(reason: String = "dismissed") -&gt; void:</signature>
 			<description>结束当前通知。</description>
 			<tags>
@@ -124,7 +124,7 @@
 				<tag name="param">reason: 结束原因。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_notifications" line="201">
+		<member kind="method" name="clear_notifications">
 			<signature>func clear_notifications(reason: String = "cleared") -&gt; void:</signature>
 			<description>清空当前通知和等待队列。</description>
 			<tags>
@@ -132,7 +132,7 @@
 				<tag name="param">reason: 结束原因。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_notification" line="218">
+		<member kind="method" name="get_active_notification">
 			<signature>func get_active_notification() -&gt; Dictionary:</signature>
 			<description>获取当前通知。</description>
 			<tags>
@@ -141,21 +141,21 @@
 				<tag name="schema">return: Dictionary，当前通知记录；无当前通知时为空。字段同 notification_queued 的 notification。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pause_active" line="225">
+		<member kind="method" name="pause_active">
 			<signature>func pause_active() -&gt; void:</signature>
 			<description>暂停当前通知倒计时。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resume_active" line="233">
+		<member kind="method" name="resume_active">
 			<signature>func resume_active() -&gt; void:</signature>
 			<description>恢复当前通知倒计时。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_active_paused" line="242">
+		<member kind="method" name="is_active_paused">
 			<signature>func is_active_paused() -&gt; bool:</signature>
 			<description>当前通知是否处于暂停状态。</description>
 			<tags>
@@ -163,7 +163,7 @@
 				<tag name="return">暂停时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="invoke_active_action" line="253">
+		<member kind="method" name="invoke_active_action">
 			<signature>func invoke_active_action(action_id: StringName) -&gt; bool:</signature>
 			<description>触发当前通知的一个动作。</description>
 			<tags>
@@ -172,7 +172,7 @@
 				<tag name="return">当前通知包含该动作时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_queue" line="276">
+		<member kind="method" name="get_queue">
 			<signature>func get_queue() -&gt; Array[Dictionary]:</signature>
 			<description>获取等待队列。</description>
 			<tags>
@@ -181,7 +181,7 @@
 				<tag name="schema">return: Array，元素为通知记录 Dictionary，字段同 notification_queued 的 notification。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="290">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSignalConnection" path="addons/gf/standard/utilities/signals/gf_signal_connection.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSignalConnection" path="addons/gf/standard/utilities/signals/gf_signal_connection.gd" module="standard" extends="RefCounted" classDigest="f234e071767a6e7f6f8445404343d81235062995b2c71aaa15fc1a87caa0fe93">
 	<description>GFSignalConnection: 可管理的 Godot Signal 链式连接。
 连接支持默认参数、过滤、映射、延迟、防抖、节流、次数限制、
 累积转换、一次性触发和 owner 归属清理。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="OperationType" line="20">
+		<member kind="enum" name="OperationType">
 			<signature>enum OperationType { ## 过滤信号参数。 FILTER, ## 映射信号参数。 MAP, ## 延迟处理。 DELAY, ## 防抖处理。 DEBOUNCE, ## 节流处理。 THROTTLE, ## 跳过前若干次触发。 SKIP, ## 只接收前若干次触发。 TAKE, ## 累积转换信号参数。 SCAN, }</signature>
 			<description>链式连接处理步骤类型。</description>
 			<tags>
@@ -21,7 +21,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="filter" line="86">
+		<member kind="method" name="filter">
 			<signature>func filter(predicate: Callable) -&gt; GFSignalConnection:</signature>
 			<description>增加过滤步骤。predicate 返回 false 时停止本次回调。</description>
 			<tags>
@@ -30,7 +30,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="map" line="102">
+		<member kind="method" name="map">
 			<signature>func map(mapper: Callable) -&gt; GFSignalConnection:</signature>
 			<description>增加映射步骤。mapper 的返回值会替换后续回调参数。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="delay" line="118">
+		<member kind="method" name="delay">
 			<signature>func delay(seconds: float) -&gt; GFSignalConnection:</signature>
 			<description>延迟指定秒数后再继续处理。</description>
 			<tags>
@@ -48,7 +48,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="debounce" line="133">
+		<member kind="method" name="debounce">
 			<signature>func debounce(seconds: float) -&gt; GFSignalConnection:</signature>
 			<description>防抖处理。连续触发时只保留静默期后的最后一次。</description>
 			<tags>
@@ -57,7 +57,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="throttle" line="148">
+		<member kind="method" name="throttle">
 			<signature>func throttle(seconds: float) -&gt; GFSignalConnection:</signature>
 			<description>节流处理。指定秒数内只允许首次触发继续传递。</description>
 			<tags>
@@ -66,7 +66,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="skip" line="164">
+		<member kind="method" name="skip">
 			<signature>func skip(count: int) -&gt; GFSignalConnection:</signature>
 			<description>跳过前 count 次成功进入该步骤的触发。</description>
 			<tags>
@@ -75,7 +75,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="take" line="179">
+		<member kind="method" name="take">
 			<signature>func take(count: int) -&gt; GFSignalConnection:</signature>
 			<description>只允许前 count 次成功进入该步骤的触发继续传递，耗尽后自动断开。</description>
 			<tags>
@@ -84,7 +84,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="first" line="192">
+		<member kind="method" name="first">
 			<signature>func first() -&gt; GFSignalConnection:</signature>
 			<description>只允许第一次成功进入该步骤的触发继续传递，之后自动断开。</description>
 			<tags>
@@ -92,7 +92,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="scan" line="207">
+		<member kind="method" name="scan">
 			<signature>func scan(accumulator: Variant, reducer: Callable) -&gt; GFSignalConnection:</signature>
 			<description>对信号参数执行累积转换。reducer 第一个参数为当前累积值，后续参数为当前信号参数。</description>
 			<tags>
@@ -103,7 +103,7 @@
 				<tag name="schema">accumulator: Variant，传给 reducer 的初始累加器。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start_with" line="226">
+		<member kind="method" name="start_with">
 			<signature>func start_with(value: Variant) -&gt; GFSignalConnection:</signature>
 			<description>立即用指定参数主动执行一次链式处理。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">value: Variant，起始值、参数 Array，或返回这两类形态的 Callable。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="once" line="237">
+		<member kind="method" name="once">
 			<signature>func once() -&gt; GFSignalConnection:</signature>
 			<description>设置为一次性连接，首次成功触发后自动断开。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="return">当前连接对象，便于继续链式配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start" line="247">
+		<member kind="method" name="start">
 			<signature>func start() -&gt; GFSignalConnection:</signature>
 			<description>启动连接。</description>
 			<tags>
@@ -129,14 +129,14 @@
 				<tag name="return">当前连接对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="disconnect_signal" line="265">
+		<member kind="method" name="disconnect_signal">
 			<signature>func disconnect_signal() -&gt; void:</signature>
 			<description>主动断开连接。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_active" line="280">
+		<member kind="method" name="is_active">
 			<signature>func is_active() -&gt; bool:</signature>
 			<description>当前连接是否仍有效。</description>
 			<tags>
@@ -144,7 +144,7 @@
 				<tag name="return">当前连接仍处于连接状态时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_owned_by" line="291">
+		<member kind="method" name="is_owned_by">
 			<signature>func is_owned_by(owner: Object) -&gt; bool:</signature>
 			<description>当前连接是否属于指定 owner。</description>
 			<tags>
@@ -153,7 +153,7 @@
 				<tag name="return">owner 匹配时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="matches" line="308">
+		<member kind="method" name="matches">
 			<signature>func matches(source_signal: Signal, callback: Callable, owner: Object = null) -&gt; bool:</signature>
 			<description>检查连接是否匹配指定 Signal、回调和可选 owner。</description>
 			<tags>
@@ -164,7 +164,7 @@
 				<tag name="return">Signal、回调和 owner 匹配时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prune_if_invalid" line="323">
+		<member kind="method" name="prune_if_invalid">
 			<signature>func prune_if_invalid() -&gt; bool:</signature>
 			<description>owner、signal 发射源或 callback 目标失效时清理连接。</description>
 			<tags>

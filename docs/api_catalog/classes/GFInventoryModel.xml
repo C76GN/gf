@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInventoryModel" path="addons/gf/extensions/domain/inventory/gf_inventory_model.gd" module="extensions/domain" extends="GFModel" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInventoryModel" path="addons/gf/extensions/domain/inventory/gf_inventory_model.gd" module="extensions/domain" extends="GFModel" classDigest="6c3731fe98bbd7e650126467d0746212b24c7b1d7fc853dfd97359c837a704fe">
 	<description>GFInventoryModel: 通用可序列化库存模型。
 只管理 item_id、数量和元数据，不假设道具类型、品质、装备等业务概念。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="add_item" line="32">
+		<member kind="method" name="add_item">
 			<signature>func add_item(item_id: StringName, amount: int = 1, metadata: Dictionary = {}) -&gt; void:</signature>
 			<description>添加物品数量。</description>
 			<tags>
@@ -23,7 +23,7 @@
 				<tag name="schema">metadata: Dictionary，首次加入物品时保存的项目自定义元数据。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_item" line="52">
+		<member kind="method" name="remove_item">
 			<signature>func remove_item(item_id: StringName, amount: int = 1) -&gt; bool:</signature>
 			<description>移除物品数量。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="return">成功移除完整数量时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_item_amount" line="77">
+		<member kind="method" name="set_item_amount">
 			<signature>func set_item_amount(item_id: StringName, amount: int) -&gt; void:</signature>
 			<description>设置物品数量。</description>
 			<tags>
@@ -42,7 +42,7 @@
 				<tag name="param">amount: 新数量；小于等于 0 时移除。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_item_amount" line="98">
+		<member kind="method" name="get_item_amount">
 			<signature>func get_item_amount(item_id: StringName) -&gt; int:</signature>
 			<description>获取物品数量。</description>
 			<tags>
@@ -51,7 +51,7 @@
 				<tag name="return">数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_item" line="113">
+		<member kind="method" name="has_item">
 			<signature>func has_item(item_id: StringName, amount: int = 1) -&gt; bool:</signature>
 			<description>检查是否拥有足够数量。</description>
 			<tags>
@@ -61,7 +61,7 @@
 				<tag name="return">足够时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_item_metadata" line="126">
+		<member kind="method" name="get_item_metadata">
 			<signature>func get_item_metadata(item_id: StringName) -&gt; Dictionary:</signature>
 			<description>获取物品元数据。</description>
 			<tags>
@@ -71,7 +71,7 @@
 				<tag name="schema">return: Dictionary，物品项目自定义元数据副本；不存在时为空字典。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_items" line="139">
+		<member kind="method" name="get_items">
 			<signature>func get_items() -&gt; Dictionary:</signature>
 			<description>获取库存快照。</description>
 			<tags>
@@ -80,14 +80,14 @@
 				<tag name="schema">return: Dictionary，键为 StringName 物品 ID，值为包含 amount 与 metadata 的堆叠记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="146">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空库存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="157">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>序列化库存状态。</description>
 			<tags>
@@ -96,7 +96,7 @@
 				<tag name="schema">return: Dictionary，包含 items 字典；items 键为 String 物品 ID，值为 amount 与 metadata 记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="171">
+		<member kind="method" name="from_dict">
 			<signature>func from_dict(data: Dictionary) -&gt; void:</signature>
 			<description>从字典恢复库存状态。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFEditorPickOperation" path="addons/gf/kernel/editor/gf_editor_pick_operation.gd" module="kernel" extends="RefCounted" line="14" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFEditorPickOperation" path="addons/gf/kernel/editor/gf_editor_pick_operation.gd" module="kernel" extends="RefCounted" classDigest="fa73a743d89e744b384044734a667207c0807772c40da7fdb647aa3041824e26">
 	<description>GFEditorPickOperation: 编辑器工具的分阶段拾取操作协议。
 用于描述 pick、preview、ready、apply 和 cancel 这类持续交互流程。</description>
 	<tags>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="State" line="23">
+		<member kind="enum" name="State">
 			<signature>enum State { ## 尚未开始。 IDLE, ## 正在拾取。 PICKING, ## 已准备好应用。 READY, ## 已应用。 APPLIED, ## 已取消。 CANCELLED, }</signature>
 			<description>拾取操作状态。</description>
 			<tags>
@@ -20,21 +20,21 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="operation_id" line="52">
+		<member kind="property" name="operation_id">
 			<signature>var operation_id: StringName = &amp;""</signature>
 			<description>操作稳定标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="label" line="57">
+		<member kind="property" name="label">
 			<signature>var label: String = ""</signature>
 			<description>操作显示名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="64">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>调用方附加元数据。</description>
 			<tags>
@@ -44,7 +44,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="begin" line="84">
+		<member kind="method" name="begin">
 			<signature>func begin(context: GFEditorToolContextBase) -&gt; bool:</signature>
 			<description>开始拾取操作。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="return">成功开始返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pick" line="104">
+		<member kind="method" name="pick">
 			<signature>func pick(input_data: Dictionary) -&gt; State:</signature>
 			<description>输入一次拾取数据。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="schema">input_data: Dictionary containing tool-specific pick input.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_apply" line="124">
+		<member kind="method" name="can_apply">
 			<signature>func can_apply() -&gt; bool:</signature>
 			<description>检查当前操作是否可应用。</description>
 			<tags>
@@ -71,7 +71,7 @@
 				<tag name="return">可应用返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply" line="135">
+		<member kind="method" name="apply">
 			<signature>func apply() -&gt; Dictionary:</signature>
 			<description>应用拾取结果。</description>
 			<tags>
@@ -80,14 +80,14 @@
 				<tag name="schema">return: Dictionary result produced by _on_apply().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="149">
+		<member kind="method" name="cancel">
 			<signature>func cancel() -&gt; void:</signature>
 			<description>取消拾取操作。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state" line="161">
+		<member kind="method" name="get_state">
 			<signature>func get_state() -&gt; State:</signature>
 			<description>获取当前状态。</description>
 			<tags>
@@ -95,7 +95,7 @@
 				<tag name="return">当前操作状态。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_preview" line="172">
+		<member kind="method" name="get_preview">
 			<signature>func get_preview() -&gt; Dictionary:</signature>
 			<description>获取预览数据副本。</description>
 			<tags>
@@ -104,7 +104,7 @@
 				<tag name="schema">return: Dictionary preview data produced by _on_pick().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_result" line="183">
+		<member kind="method" name="get_result">
 			<signature>func get_result() -&gt; Dictionary:</signature>
 			<description>获取拾取结果副本。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">return: Dictionary result data produced by _on_pick().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="194">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

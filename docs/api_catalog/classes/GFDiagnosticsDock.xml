@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDiagnosticsDock" path="addons/gf/standard/utilities/debug/editor/gf_diagnostics_dock.gd" module="standard" extends="Control" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDiagnosticsDock" path="addons/gf/standard/utilities/debug/editor/gf_diagnostics_dock.gd" module="standard" extends="Control" classDigest="1ad7aea73a7af336d7067b996a056b7e9650a7acaddc05a0bc805adf53c3668f">
 	<description>GFDiagnosticsDock: GF 诊断工作区页面。
 采集通用运行时、性能、监控和场景树诊断快照，供编辑器内只读查看。</description>
 	<tags>
@@ -12,14 +12,14 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="collect_snapshot" line="56">
+		<member kind="method" name="collect_snapshot">
 			<signature>func collect_snapshot() -&gt; void:</signature>
 			<description>采集诊断快照。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_last_snapshot" line="77">
+		<member kind="method" name="get_last_snapshot">
 			<signature>func get_last_snapshot() -&gt; Dictionary:</signature>
 			<description>获取最近一次诊断快照。</description>
 			<tags>
@@ -28,7 +28,7 @@
 				<tag name="schema">return: Dictionary，包含 GFDiagnosticsUtility.collect_snapshot() 返回的诊断分区。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="88">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取面板调试快照。</description>
 			<tags>

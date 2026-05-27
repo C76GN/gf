@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFGridPlaneMapper3D" path="addons/gf/standard/foundation/math/gf_grid_plane_mapper_3d.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFGridPlaneMapper3D" path="addons/gf/standard/foundation/math/gf_grid_plane_mapper_3d.gd" module="standard" extends="RefCounted" classDigest="e53110a65653a4a5dfd4365cf4a82544ccd1811db72328031f7e2a2d5912bc63">
 	<description>GFGridPlaneMapper3D: 3D 轴对齐平面与 2D 邻域坐标映射工具。
 将 axis-aligned 3D 表面上的格坐标映射为局部 2D 坐标，并可按 2D offset
 采样邻域值。它只处理坐标和回调取值，不绑定 TileSet、GridMap、碰撞或玩法语义。</description>
@@ -11,7 +11,7 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_CARDINAL_OFFSETS" line="20">
+		<member kind="const" name="DEFAULT_CARDINAL_OFFSETS">
 			<signature>const DEFAULT_CARDINAL_OFFSETS: Array[Vector2i] = [</signature>
 			<description>默认四邻域 offset 顺序：上、右、下、左。</description>
 			<tags>
@@ -21,7 +21,7 @@
 	</constants>
 	<properties />
 	<methods>
-		<member kind="method" name="is_axis_aligned_normal" line="37">
+		<member kind="method" name="is_axis_aligned_normal">
 			<signature>static func is_axis_aligned_normal(normal: Vector3i) -&gt; bool:</signature>
 			<description>判断 normal 是否能表示单轴方向。</description>
 			<tags>
@@ -30,7 +30,7 @@
 				<tag name="return">normal 只有一个非零轴时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="normalize_axis_normal" line="52">
+		<member kind="method" name="normalize_axis_normal">
 			<signature>static func normalize_axis_normal(normal: Vector3i) -&gt; Vector3i:</signature>
 			<description>将单轴 normal 归一化为 -1/1 法线。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="return">归一化法线；无效 normal 返回 Vector3i.ZERO。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_plane_basis" line="71">
+		<member kind="method" name="get_plane_basis">
 			<signature>static func get_plane_basis(normal: Vector3i) -&gt; Dictionary:</signature>
 			<description>获取轴对齐平面的局部基向量。</description>
 			<tags>
@@ -49,7 +49,7 @@
 				<tag name="schema">return: Dictionary with valid: bool, normal: Vector3i, u: Vector3i, and v: Vector3i.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="map_cell_to_plane" line="99">
+		<member kind="method" name="map_cell_to_plane">
 			<signature>static func map_cell_to_plane(cell: Vector3i, origin: Vector3i, normal: Vector3i) -&gt; Vector2i:</signature>
 			<description>将 3D 格坐标映射为平面局部 2D 坐标。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="return">局部 2D 坐标；normal 无效时返回 Vector2i.ZERO。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="map_plane_to_cell" line="124">
+		<member kind="method" name="map_plane_to_cell">
 			<signature>static func map_plane_to_cell( plane_cell: Vector2i, origin: Vector3i, normal: Vector3i, depth: int = 0 ) -&gt; Vector3i:</signature>
 			<description>将平面局部 2D 坐标映射为 3D 格坐标。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="return">3D 格坐标；normal 无效时返回 origin。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_cell_depth" line="153">
+		<member kind="method" name="get_cell_depth">
 			<signature>static func get_cell_depth(cell: Vector3i, origin: Vector3i, normal: Vector3i) -&gt; int:</signature>
 			<description>获取格坐标相对平面的深度。</description>
 			<tags>
@@ -83,7 +83,7 @@
 				<tag name="return">沿 normal 的偏移层数；normal 无效时返回 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_neighbor_cells" line="172">
+		<member kind="method" name="get_neighbor_cells">
 			<signature>static func get_neighbor_cells(center: Vector3i, normal: Vector3i, offsets: Array[Vector2i] = []) -&gt; Array[Vector3i]:</signature>
 			<description>按 2D offset 获取同一平面上的 3D 邻居格。</description>
 			<tags>
@@ -94,7 +94,7 @@
 				<tag name="return">3D 邻居格列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="sample_neighbor_values" line="206">
+		<member kind="method" name="sample_neighbor_values">
 			<signature>static func sample_neighbor_values( center: Vector3i, normal: Vector3i, value_getter: Callable, offsets: Array[Vector2i] = [], fallback_value: Variant = null ) -&gt; Array:</signature>
 			<description>按 2D offset 采样同一平面上的 3D 邻域值。</description>
 			<tags>

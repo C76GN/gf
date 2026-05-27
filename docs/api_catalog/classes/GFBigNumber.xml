@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBigNumber" path="addons/gf/standard/foundation/numeric/gf_big_number.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFBigNumber" path="addons/gf/standard/foundation/numeric/gf_big_number.gd" module="standard" extends="RefCounted" classDigest="40e7d8015cfeb9ae9009a547ff13840b0cbe6a1f49e18019081cf685059a13c8">
 	<description>GFBigNumber: 面向挂机/放置场景的近似大数值对象。
 使用科学计数法的尾数 + 指数表示任意量级的数值，
 适合做超出原生 int/float 直观显示范围后的比较、加减乘除与格式化输入。</description>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="mantissa" line="34">
+		<member kind="property" name="mantissa">
 			<signature>var mantissa: float = 0.0</signature>
 			<description>归一化后的尾数。非零时其绝对值始终落在 [1, 10) 区间内。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="exponent" line="39">
+		<member kind="property" name="exponent">
 			<signature>var exponent: int = 0</signature>
 			<description>以 10 为底的指数。</description>
 			<tags>
@@ -28,7 +28,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="zero" line="57">
+		<member kind="method" name="zero">
 			<signature>static func zero() -&gt; GFBigNumber:</signature>
 			<description>创建一个值为 0 的大数。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="return">零值实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="one" line="66">
+		<member kind="method" name="one">
 			<signature>static func one() -&gt; GFBigNumber:</signature>
 			<description>创建一个值为 1 的大数。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="return">一值实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_int" line="77">
+		<member kind="method" name="from_int">
 			<signature>static func from_int(value: int) -&gt; GFBigNumber:</signature>
 			<description>从 int 构建大数。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="return">归一化后的大数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_float" line="88">
+		<member kind="method" name="from_float">
 			<signature>static func from_float(value: float) -&gt; GFBigNumber:</signature>
 			<description>从 float 构建大数。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="return">归一化后的大数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_string" line="103">
+		<member kind="method" name="from_string">
 			<signature>static func from_string(value: String) -&gt; GFBigNumber:</signature>
 			<description>从字符串构建大数，支持普通写法与科学计数法。</description>
 			<tags>
@@ -71,7 +71,7 @@
 				<tag name="return">解析后的大数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_variant" line="167">
+		<member kind="method" name="from_variant">
 			<signature>static func from_variant(value: Variant) -&gt; GFBigNumber:</signature>
 			<description>从任意支持的 Variant 构建大数。</description>
 			<tags>
@@ -81,7 +81,7 @@
 				<tag name="schema">value: Variant numeric value accepted by GFBigNumber.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clone" line="191">
+		<member kind="method" name="clone">
 			<signature>func clone() -&gt; GFBigNumber:</signature>
 			<description>克隆当前大数。</description>
 			<tags>
@@ -89,7 +89,7 @@
 				<tag name="return">内容相同的新实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_zero" line="200">
+		<member kind="method" name="is_zero">
 			<signature>func is_zero() -&gt; bool:</signature>
 			<description>当前值是否为零。</description>
 			<tags>
@@ -97,7 +97,7 @@
 				<tag name="return">为零时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_negative" line="209">
+		<member kind="method" name="is_negative">
 			<signature>func is_negative() -&gt; bool:</signature>
 			<description>当前值是否为负数。</description>
 			<tags>
@@ -105,7 +105,7 @@
 				<tag name="return">为负时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="abs_value" line="218">
+		<member kind="method" name="abs_value">
 			<signature>func abs_value() -&gt; GFBigNumber:</signature>
 			<description>获取绝对值。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="return">新的大数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="negated" line="227">
+		<member kind="method" name="negated">
 			<signature>func negated() -&gt; GFBigNumber:</signature>
 			<description>获取相反数。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="return">新的大数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="compare_to" line="238">
+		<member kind="method" name="compare_to">
 			<signature>func compare_to(other: GFBigNumber) -&gt; int:</signature>
 			<description>比较当前值与另一个大数。</description>
 			<tags>
@@ -130,7 +130,7 @@
 				<tag name="return">当前值大于 other 返回 1，小于返回 -1，相等返回 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add" line="268">
+		<member kind="method" name="add">
 			<signature>func add(other: GFBigNumber) -&gt; GFBigNumber:</signature>
 			<description>与另一个大数相加。</description>
 			<tags>
@@ -139,7 +139,7 @@
 				<tag name="return">相加结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="subtract" line="301">
+		<member kind="method" name="subtract">
 			<signature>func subtract(other: GFBigNumber) -&gt; GFBigNumber:</signature>
 			<description>与另一个大数相减。</description>
 			<tags>
@@ -148,7 +148,7 @@
 				<tag name="return">相减结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="multiply" line="315">
+		<member kind="method" name="multiply">
 			<signature>func multiply(other: GFBigNumber) -&gt; GFBigNumber:</signature>
 			<description>与另一个大数相乘。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="return">相乘结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="divide" line="332">
+		<member kind="method" name="divide">
 			<signature>func divide(other: GFBigNumber) -&gt; GFBigNumber:</signature>
 			<description>与另一个大数相除。</description>
 			<tags>
@@ -166,7 +166,7 @@
 				<tag name="return">相除结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="powi" line="350">
+		<member kind="method" name="powi">
 			<signature>func powi(power: int) -&gt; GFBigNumber:</signature>
 			<description>将当前大数提升到整数次幂。</description>
 			<tags>
@@ -175,7 +175,7 @@
 				<tag name="return">幂运算结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="powf" line="361">
+		<member kind="method" name="powf">
 			<signature>func powf(power: float) -&gt; GFBigNumber:</signature>
 			<description>将当前大数提升到浮点次幂。</description>
 			<tags>
@@ -184,7 +184,7 @@
 				<tag name="return">幂运算结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_float" line="398">
+		<member kind="method" name="to_float">
 			<signature>func to_float() -&gt; float:</signature>
 			<description>将当前值转换为 float。</description>
 			<tags>
@@ -192,7 +192,7 @@
 				<tag name="return">可表达时返回浮点值，超出范围时返回 +/-INF。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_plain_string" line="414">
+		<member kind="method" name="to_plain_string">
 			<signature>func to_plain_string(decimal_places: int = _DEFAULT_PLAIN_DECIMALS, trim_zeroes: bool = true) -&gt; String:</signature>
 			<description>在量级适中时输出普通十进制字符串，过大时会回退到科学计数法。</description>
 			<tags>
@@ -202,7 +202,7 @@
 				<tag name="return">普通字符串表示。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_scientific_string" line="435">
+		<member kind="method" name="to_scientific_string">
 			<signature>func to_scientific_string( decimal_places: int = 2, trim_zeroes: bool = true, use_truncation: bool = false ) -&gt; String:</signature>
 			<description>输出科学计数法字符串。</description>
 			<tags>

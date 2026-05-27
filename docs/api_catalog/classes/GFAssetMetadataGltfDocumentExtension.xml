@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAssetMetadataGltfDocumentExtension" path="addons/gf/extensions/asset_metadata/editor/gf_asset_metadata_gltf_document_extension.gd" module="extensions/asset_metadata" extends="GLTFDocumentExtension" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAssetMetadataGltfDocumentExtension" path="addons/gf/extensions/asset_metadata/editor/gf_asset_metadata_gltf_document_extension.gd" module="extensions/asset_metadata" extends="GLTFDocumentExtension" classDigest="c7d6df3dc68e6f5b9c3e947494264e05745e5315e2847800d7e7144d2934ff80">
 	<description>GFAssetMetadataGltfDocumentExtension: 将 glTF extras 桥接为 GF 资产元数据。
 导入节点时只复制通用 extras 数据，不解释字段含义，也不创建业务对象。</description>
 	<tags>

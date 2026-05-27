@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputMappingUtility" path="addons/gf/standard/input/runtime/gf_input_mapping_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputMappingUtility" path="addons/gf/standard/input/runtime/gf_input_mapping_utility.gd" module="standard" extends="GFUtility" classDigest="e1fd7f2333497bcaa9abafda1c9ce46f229334afca7b116a7ce845ffd8f4c6c1">
 	<description>GFInputMappingUtility: 资源化输入上下文与动作映射运行时。
 负责把 Godot InputEvent 转换为项目定义的抽象动作状态，并支持上下文优先级、
 运行时重绑定、动作值查询和一次性触发消费。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="contexts_changed" line="24">
+		<member kind="signal" name="contexts_changed">
 			<signature>signal contexts_changed(contexts: Array[GFInputContext])</signature>
 			<description>启用上下文变化后发出。</description>
 			<tags>
@@ -18,14 +18,14 @@
 				<tag name="schema">contexts: Array[GFInputContext]，按有效优先级和激活时间戳排序。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="mappings_changed" line="29">
+		<member kind="signal" name="mappings_changed">
 			<signature>signal mappings_changed</signature>
 			<description>有效映射变化后发出。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="action_value_changed" line="40">
+		<member kind="signal" name="action_value_changed">
 			<signature>signal action_value_changed(action_id: StringName, value: Variant)</signature>
 			<description>动作值变化时发出。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="schema">value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="action_started" line="51">
+		<member kind="signal" name="action_started">
 			<signature>signal action_started(action_id: StringName, value: Variant)</signature>
 			<description>动作从非活跃变为活跃时发出。</description>
 			<tags>
@@ -45,7 +45,7 @@
 				<tag name="schema">value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="action_triggered" line="62">
+		<member kind="signal" name="action_triggered">
 			<signature>signal action_triggered(action_id: StringName, value: Variant)</signature>
 			<description>动作活跃且收到匹配输入事件时发出。</description>
 			<tags>
@@ -55,7 +55,7 @@
 				<tag name="schema">value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="action_completed" line="73">
+		<member kind="signal" name="action_completed">
 			<signature>signal action_completed(action_id: StringName, value: Variant)</signature>
 			<description>动作从活跃变为非活跃时发出。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="schema">value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="player_action_value_changed" line="86">
+		<member kind="signal" name="player_action_value_changed">
 			<signature>signal player_action_value_changed(player_index: int, action_id: StringName, value: Variant)</signature>
 			<description>玩家动作值变化时发出。</description>
 			<tags>
@@ -76,7 +76,7 @@
 				<tag name="schema">value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="player_action_started" line="99">
+		<member kind="signal" name="player_action_started">
 			<signature>signal player_action_started(player_index: int, action_id: StringName, value: Variant)</signature>
 			<description>玩家动作从非活跃变为活跃时发出。</description>
 			<tags>
@@ -87,7 +87,7 @@
 				<tag name="schema">value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="player_action_triggered" line="112">
+		<member kind="signal" name="player_action_triggered">
 			<signature>signal player_action_triggered(player_index: int, action_id: StringName, value: Variant)</signature>
 			<description>玩家动作活跃且收到匹配输入事件时发出。</description>
 			<tags>
@@ -98,7 +98,7 @@
 				<tag name="schema">value: Variant，根据动作值类型使用 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="player_action_completed" line="125">
+		<member kind="signal" name="player_action_completed">
 			<signature>signal player_action_completed(player_index: int, action_id: StringName, value: Variant)</signature>
 			<description>玩家动作从活跃变为非活跃时发出。</description>
 			<tags>
@@ -114,21 +114,21 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="init" line="168">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化输入映射运行时状态并挂载输入路由节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="178">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放输入路由节点并清理全部运行时状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="193">
+		<member kind="method" name="tick">
 			<signature>func tick(delta: float) -&gt; void:</signature>
 			<description>推进运行时逻辑。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="param">delta: 本帧时间增量（秒）。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_remap_config" line="206">
+		<member kind="method" name="set_remap_config">
 			<signature>func set_remap_config(config: GFInputRemapConfig) -&gt; void:</signature>
 			<description>设置重映射配置。</description>
 			<tags>
@@ -144,7 +144,7 @@
 				<tag name="param">config: 输入重映射配置；传 null 表示使用默认绑定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_remap_config" line="218">
+		<member kind="method" name="get_remap_config">
 			<signature>func get_remap_config(create_if_missing: bool = false) -&gt; GFInputRemapConfig:</signature>
 			<description>获取当前重映射配置。若不存在且 create_if_missing 为 true，会自动创建。</description>
 			<tags>
@@ -153,7 +153,7 @@
 				<tag name="return">重映射配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enable_context" line="231">
+		<member kind="method" name="enable_context">
 			<signature>func enable_context(context: GFInputContext, priority: int = 0) -&gt; void:</signature>
 			<description>启用输入上下文。</description>
 			<tags>
@@ -162,7 +162,7 @@
 				<tag name="param">priority: 优先级，数值越大越先处理。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="disable_context" line="249">
+		<member kind="method" name="disable_context">
 			<signature>func disable_context(context: GFInputContext) -&gt; void:</signature>
 			<description>禁用输入上下文。</description>
 			<tags>
@@ -170,7 +170,7 @@
 				<tag name="param">context: 输入上下文资源。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_enabled_contexts" line="265">
+		<member kind="method" name="set_enabled_contexts">
 			<signature>func set_enabled_contexts(contexts: Array[GFInputContext], priority: int = 0) -&gt; void:</signature>
 			<description>批量替换当前启用的上下文。</description>
 			<tags>
@@ -180,14 +180,14 @@
 				<tag name="schema">contexts: Array[GFInputContext]，作为新的活跃 context 集启用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_contexts" line="281">
+		<member kind="method" name="clear_contexts">
 			<signature>func clear_contexts() -&gt; void:</signature>
 			<description>清空所有启用上下文。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_context_enabled" line="293">
+		<member kind="method" name="is_context_enabled">
 			<signature>func is_context_enabled(context: GFInputContext) -&gt; bool:</signature>
 			<description>检查上下文是否启用。</description>
 			<tags>
@@ -196,7 +196,7 @@
 				<tag name="return">是否启用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_enabled_contexts" line="304">
+		<member kind="method" name="get_enabled_contexts">
 			<signature>func get_enabled_contexts() -&gt; Array[GFInputContext]:</signature>
 			<description>获取已启用上下文，按实际处理顺序返回。</description>
 			<tags>
@@ -205,7 +205,7 @@
 				<tag name="schema">return: Array[GFInputContext]，按有效优先级和激活时间戳排序。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="handle_input_event" line="313">
+		<member kind="method" name="handle_input_event">
 			<signature>func handle_input_event(event: InputEvent) -&gt; void:</signature>
 			<description>手动处理输入事件。通常由内部路由节点自动调用，也可用于测试或自定义输入桥接。</description>
 			<tags>
@@ -213,7 +213,7 @@
 				<tag name="param">event: Godot 输入事件。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="create_virtual_source" line="348">
+		<member kind="method" name="create_virtual_source">
 			<signature>func create_virtual_source( source_id: StringName = &amp;"virtual", player_index: int = -1 ) -&gt; GFVirtualInputSource:</signature>
 			<description>创建可编程虚拟输入源。</description>
 			<tags>
@@ -223,7 +223,7 @@
 				<tag name="return">虚拟输入源。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_virtual_action_value" line="370">
+		<member kind="method" name="set_virtual_action_value">
 			<signature>func set_virtual_action_value( action_id: StringName, value: Variant, source_id: StringName = &amp;"virtual", player_index: int = -1 ) -&gt; bool:</signature>
 			<description>写入虚拟动作值。</description>
 			<tags>
@@ -236,7 +236,7 @@
 				<tag name="schema">value: Variant，要转换为动作运行时向量贡献的 bool、float、Vector2 或 Vector3 值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_virtual_action" line="411">
+		<member kind="method" name="clear_virtual_action">
 			<signature>func clear_virtual_action( action_id: StringName, source_id: StringName = &amp;"virtual", player_index: int = -1 ) -&gt; bool:</signature>
 			<description>清除虚拟动作值。</description>
 			<tags>
@@ -247,7 +247,7 @@
 				<tag name="return">清除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_virtual_source" line="443">
+		<member kind="method" name="clear_virtual_source">
 			<signature>func clear_virtual_source(source_id: StringName = &amp;"virtual") -&gt; void:</signature>
 			<description>清除指定虚拟输入源的所有动作贡献。</description>
 			<tags>
@@ -255,7 +255,7 @@
 				<tag name="param">source_id: 虚拟输入源标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_virtual_source_snapshot" line="492">
+		<member kind="method" name="get_virtual_source_snapshot">
 			<signature>func get_virtual_source_snapshot(source_id: StringName = &amp;"virtual") -&gt; Dictionary:</signature>
 			<description>获取虚拟输入源状态快照。</description>
 			<tags>
@@ -265,7 +265,7 @@
 				<tag name="schema">return: Dictionary，包含 source_id 和 actions: Array[Dictionary]，action 条目包含 action_id 与 value。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_action_value" line="518">
+		<member kind="method" name="get_action_value">
 			<signature>func get_action_value(action_id: StringName) -&gt; Variant:</signature>
 			<description>获取动作当前值。</description>
 			<tags>
@@ -275,7 +275,7 @@
 				<tag name="schema">return: Variant，根据动作值类型返回 bool、float、Vector2、Vector3 或 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_action_vector" line="535">
+		<member kind="method" name="get_action_vector">
 			<signature>func get_action_vector(action_id: StringName) -&gt; Vector2:</signature>
 			<description>获取动作当前二维向量值。</description>
 			<tags>
@@ -284,7 +284,7 @@
 				<tag name="return">二维向量值；三维轴会返回 x/y 分量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_action_vector3" line="547">
+		<member kind="method" name="get_action_vector3">
 			<signature>func get_action_vector3(action_id: StringName) -&gt; Vector3:</signature>
 			<description>获取动作当前三维向量值。</description>
 			<tags>
@@ -293,7 +293,7 @@
 				<tag name="return">三维向量值；非三维动作的 z 分量为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_action_active" line="558">
+		<member kind="method" name="is_action_active">
 			<signature>func is_action_active(action_id: StringName) -&gt; bool:</signature>
 			<description>检查动作是否活跃。</description>
 			<tags>
@@ -302,7 +302,7 @@
 				<tag name="return">是否活跃。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="was_action_just_started" line="569">
+		<member kind="method" name="was_action_just_started">
 			<signature>func was_action_just_started(action_id: StringName) -&gt; bool:</signature>
 			<description>检查动作是否在当前帧刚刚开始。</description>
 			<tags>
@@ -311,7 +311,7 @@
 				<tag name="return">是否刚开始。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="was_action_just_completed" line="580">
+		<member kind="method" name="was_action_just_completed">
 			<signature>func was_action_just_completed(action_id: StringName) -&gt; bool:</signature>
 			<description>检查动作是否在当前帧刚刚结束。</description>
 			<tags>
@@ -320,7 +320,7 @@
 				<tag name="return">是否刚结束。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_last_completed_duration" line="591">
+		<member kind="method" name="get_last_completed_duration">
 			<signature>func get_last_completed_duration(action_id: StringName) -&gt; float:</signature>
 			<description>获取动作最近一次结束前的持续活跃时间。</description>
 			<tags>
@@ -329,7 +329,7 @@
 				<tag name="return">持续秒数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="consume_action" line="602">
+		<member kind="method" name="consume_action">
 			<signature>func consume_action(action_id: StringName) -&gt; bool:</signature>
 			<description>消费一次刚开始的动作。</description>
 			<tags>
@@ -338,7 +338,7 @@
 				<tag name="return">成功消费返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_action_value_for_player" line="620">
+		<member kind="method" name="get_action_value_for_player">
 			<signature>func get_action_value_for_player(player_index: int, action_id: StringName) -&gt; Variant:</signature>
 			<description>获取指定玩家动作当前值。</description>
 			<tags>
@@ -349,7 +349,7 @@
 				<tag name="schema">return: Variant，根据动作值类型返回 bool、float、Vector2、Vector3 或 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_action_vector_for_player" line="640">
+		<member kind="method" name="get_action_vector_for_player">
 			<signature>func get_action_vector_for_player(player_index: int, action_id: StringName) -&gt; Vector2:</signature>
 			<description>获取指定玩家动作当前二维向量值。</description>
 			<tags>
@@ -359,7 +359,7 @@
 				<tag name="return">二维向量值；三维轴会返回 x/y 分量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_action_vector3_for_player" line="654">
+		<member kind="method" name="get_action_vector3_for_player">
 			<signature>func get_action_vector3_for_player(player_index: int, action_id: StringName) -&gt; Vector3:</signature>
 			<description>获取指定玩家动作当前三维向量值。</description>
 			<tags>
@@ -369,7 +369,7 @@
 				<tag name="return">三维向量值；非三维动作的 z 分量为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_action_active_for_player" line="667">
+		<member kind="method" name="is_action_active_for_player">
 			<signature>func is_action_active_for_player(player_index: int, action_id: StringName) -&gt; bool:</signature>
 			<description>检查指定玩家动作是否活跃。</description>
 			<tags>
@@ -379,7 +379,7 @@
 				<tag name="return">是否活跃。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="was_action_just_started_for_player" line="680">
+		<member kind="method" name="was_action_just_started_for_player">
 			<signature>func was_action_just_started_for_player(player_index: int, action_id: StringName) -&gt; bool:</signature>
 			<description>检查指定玩家动作是否在当前帧刚刚开始。</description>
 			<tags>
@@ -389,7 +389,7 @@
 				<tag name="return">是否刚开始。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="was_action_just_completed_for_player" line="693">
+		<member kind="method" name="was_action_just_completed_for_player">
 			<signature>func was_action_just_completed_for_player(player_index: int, action_id: StringName) -&gt; bool:</signature>
 			<description>检查指定玩家动作是否在当前帧刚刚结束。</description>
 			<tags>
@@ -399,7 +399,7 @@
 				<tag name="return">是否刚结束。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_last_completed_duration_for_player" line="706">
+		<member kind="method" name="get_last_completed_duration_for_player">
 			<signature>func get_last_completed_duration_for_player(player_index: int, action_id: StringName) -&gt; float:</signature>
 			<description>获取指定玩家动作最近一次结束前的持续活跃时间。</description>
 			<tags>
@@ -409,7 +409,7 @@
 				<tag name="return">持续秒数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="consume_action_for_player" line="719">
+		<member kind="method" name="consume_action_for_player">
 			<signature>func consume_action_for_player(player_index: int, action_id: StringName) -&gt; bool:</signature>
 			<description>消费指定玩家的一次刚开始动作。</description>
 			<tags>
@@ -419,7 +419,7 @@
 				<tag name="return">成功消费返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_binding_override" line="738">
+		<member kind="method" name="set_binding_override">
 			<signature>func set_binding_override( context_id: StringName, action_id: StringName, binding_index: int, input_event: InputEvent ) -&gt; void:</signature>
 			<description>设置某个绑定的运行时覆盖。</description>
 			<tags>
@@ -430,7 +430,7 @@
 				<tag name="param">input_event: 新输入事件。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unbind" line="757">
+		<member kind="method" name="unbind">
 			<signature>func unbind(context_id: StringName, action_id: StringName, binding_index: int) -&gt; void:</signature>
 			<description>显式解绑某个绑定。</description>
 			<tags>
@@ -440,7 +440,7 @@
 				<tag name="param">binding_index: 绑定索引。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_binding_override" line="771">
+		<member kind="method" name="clear_binding_override">
 			<signature>func clear_binding_override(context_id: StringName, action_id: StringName, binding_index: int) -&gt; void:</signature>
 			<description>清除某个绑定覆盖。</description>
 			<tags>
@@ -450,7 +450,7 @@
 				<tag name="param">binding_index: 绑定索引。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_remappable_items" line="788">
+		<member kind="method" name="get_remappable_items">
 			<signature>func get_remappable_items( context_filter: StringName = &amp;"", display_category_filter: String = "" ) -&gt; Array[Dictionary]:</signature>
 			<description>获取可重绑条目。</description>
 			<tags>
@@ -461,14 +461,14 @@
 				<tag name="schema">return: Array[Dictionary]，包含 context、context_id、mapping、action、action_id、binding、binding_index、display_name、display_category 和 event 字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_input_state" line="826">
+		<member kind="method" name="clear_input_state">
 			<signature>func clear_input_state() -&gt; void:</signature>
 			<description>清空所有动作运行时状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_player_input_state" line="835">
+		<member kind="method" name="clear_player_input_state">
 			<signature>func clear_player_input_state(player_index: int) -&gt; void:</signature>
 			<description>清空指定玩家动作运行时状态。</description>
 			<tags>

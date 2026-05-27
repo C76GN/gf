@@ -310,6 +310,16 @@ var speaker_id: StringName = &""
 
 说话者 ID 或项目自定义主体键。
 
+#### `text`
+
+- API: `public`
+
+```gdscript
+var text: String = ""
+```
+
+文本或项目自定义文本键。
+
 #### `next_line_id`
 
 - API: `public`
@@ -318,7 +328,7 @@ var speaker_id: StringName = &""
 var next_line_id: StringName = &""
 ```
 
-文本或项目自定义文本键。 默认后继行 ID。
+默认后继行 ID。
 
 #### `jump_line_id`
 
@@ -708,6 +718,16 @@ var response_id: StringName = &""
 
 响应 ID。
 
+#### `text`
+
+- API: `public`
+
+```gdscript
+var text: String = ""
+```
+
+响应文本或项目自定义文本键。
+
 #### `next_line_id`
 
 - API: `public`
@@ -716,7 +736,7 @@ var response_id: StringName = &""
 var next_line_id: StringName = &""
 ```
 
-响应文本或项目自定义文本键。 选择后跳转到的行 ID。为空时使用当前行的默认后继。
+选择后跳转到的行 ID。为空时使用当前行的默认后继。
 
 #### `condition_id`
 

@@ -36,4 +36,16 @@ audio.play_sfx_clip_2d(clip, source_2d, true) # 需要跟随声源时启用 foll
 
 `play_sfx_clip_2d()` / `play_sfx_clip_3d()` 和对应 event 方法默认只在当前位置创建空间播放器；传入 `follow_source = true` 时，播放器会挂到声源节点下并随声源移动。
 
+需要调节距离衰减、区域掩码、复音、播放类型、3D 发射角、滤波或多普勒时，可在 `GFAudioClip.spatial_settings` 上挂 `GFAudioSpatialSettings`。该资源只在空间 SFX 播放路径应用，不改变普通 SFX、BGM 或环境音的行为。
+
+```gdscript
+var spatial := GFAudioSpatialSettings.new()
+spatial.max_distance_3d = 24.0
+spatial.unit_size_3d = 4.0
+spatial.doppler_tracking_3d = 2
+
+clip.spatial_settings = spatial
+audio.play_sfx_clip_3d(clip, $AudioAnchor3D)
+```
+
 复杂混音、音频快照、距离规则、碰撞触发和平台音频权限仍属于项目层。

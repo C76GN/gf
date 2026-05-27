@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTextAutoFit" path="addons/gf/standard/utilities/ui/gf_text_auto_fit.gd" module="standard" extends="Node" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTextAutoFit" path="addons/gf/standard/utilities/ui/gf_text_auto_fit.gd" module="standard" extends="Node" classDigest="c157689b60d3294f1c31cf142f3dc2b5ea6fff08c7cd50d211c1972c06a0fc04">
 	<description>GFTextAutoFit: 文本控件自动字体适配节点。
 挂在文本控件旁边或子节点中，在控件尺寸、场景就绪或语言变化时调用 GFTextFitter。
 它只负责字体尺寸计算和主题覆盖，不接管文本来源、布局策略或项目本地化规则。</description>
@@ -12,65 +12,70 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="min_font_size" line="27" decorators="@export_node_path(&quot;Control&quot;) var target_path: NodePath @export">
-			<signature>var min_font_size: int = GFTextFitter.DEFAULT_MIN_FONT_SIZE:</signature>
-			<description>目标 Control 路径。为空时使用父节点。
-最小字体尺寸。</description>
+		<member kind="property" name="target_path" decorators="@export_node_path(&quot;Control&quot;)">
+			<signature>var target_path: NodePath</signature>
+			<description>目标 Control 路径。为空时使用父节点。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_font_size" line="35" decorators="@export">
+		<member kind="property" name="min_font_size" decorators="@export">
+			<signature>var min_font_size: int = GFTextFitter.DEFAULT_MIN_FONT_SIZE:</signature>
+			<description>最小字体尺寸。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_font_size" decorators="@export">
 			<signature>var max_font_size: int = GFTextFitter.DEFAULT_MAX_FONT_SIZE:</signature>
 			<description>最大字体尺寸。小于等于 0 时使用控件当前主题字体尺寸。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="fit_width" line="43" decorators="@export">
+		<member kind="property" name="fit_width" decorators="@export">
 			<signature>var fit_width: bool = true:</signature>
 			<description>是否约束宽度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="fit_height" line="51" decorators="@export">
+		<member kind="property" name="fit_height" decorators="@export">
 			<signature>var fit_height: bool = true:</signature>
 			<description>是否约束高度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="fit_on_ready" line="59" decorators="@export">
+		<member kind="property" name="fit_on_ready" decorators="@export">
 			<signature>var fit_on_ready: bool = true</signature>
 			<description>是否在进入树并解析目标后立即适配。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="refresh_on_resize" line="64" decorators="@export">
+		<member kind="property" name="refresh_on_resize" decorators="@export">
 			<signature>var refresh_on_resize: bool = true</signature>
 			<description>是否监听目标控件 resized 信号。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="refresh_on_translation_changed" line="69" decorators="@export">
+		<member kind="property" name="refresh_on_translation_changed" decorators="@export">
 			<signature>var refresh_on_translation_changed: bool = true</signature>
 			<description>是否在收到翻译变更通知时刷新。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="deferred_refresh" line="74" decorators="@export">
+		<member kind="property" name="deferred_refresh" decorators="@export">
 			<signature>var deferred_refresh: bool = true</signature>
 			<description>是否把刷新合并到 deferred 调用，避免同帧多次尺寸变化造成重复计算。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="options" line="81" decorators="@export">
+		<member kind="property" name="options" decorators="@export">
 			<signature>var options: Dictionary = {}</signature>
 			<description>可选额外配置，会合并到 GFTextFitter.fit_control() 的 options。</description>
 			<tags>
@@ -80,21 +85,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="rebind_target" line="116">
+		<member kind="method" name="rebind_target">
 			<signature>func rebind_target() -&gt; void:</signature>
 			<description>重新解析并绑定目标控件。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="request_refresh" line="125">
+		<member kind="method" name="request_refresh">
 			<signature>func request_refresh() -&gt; void:</signature>
 			<description>请求刷新文本适配。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="refresh" line="143">
+		<member kind="method" name="refresh">
 			<signature>func refresh() -&gt; int:</signature>
 			<description>立即执行一次文本适配。</description>
 			<tags>
@@ -102,7 +107,7 @@
 				<tag name="return">计算出的字体尺寸；目标无效时返回 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_target" line="165">
+		<member kind="method" name="get_target">
 			<signature>func get_target() -&gt; Control:</signature>
 			<description>获取当前目标控件。</description>
 			<tags>

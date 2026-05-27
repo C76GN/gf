@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCapabilityContainer" path="addons/gf/extensions/capability/nodes/gf_capability_container.gd" module="extensions/capability" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCapabilityContainer" path="addons/gf/extensions/capability/nodes/gf_capability_container.gd" module="extensions/capability" extends="Node" classDigest="b76043e855b223a549b1757c63c8b80b6d4a0c5995d407bf043b62fae88d8a86">
 	<description>GFCapabilityContainer: 场景树中的能力组件容器。
 将该节点作为某个 Node 的子节点后，容器内带脚本的子节点会被注册为父节点的能力。
 需要在当前架构中注册 GFCapabilityUtility。</description>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="auto_register_children" line="27" decorators="@export">
+		<member kind="property" name="auto_register_children" decorators="@export">
 			<signature>var auto_register_children: bool = true</signature>
 			<description>是否在进入场景树后自动注册已有子节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="watch_child_changes" line="32" decorators="@export">
+		<member kind="property" name="watch_child_changes" decorators="@export">
 			<signature>var watch_child_changes: bool = true</signature>
 			<description>是否在子节点顺序变化时自动注册新增子节点。</description>
 			<tags>
@@ -28,7 +28,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_receiver" line="69">
+		<member kind="method" name="get_receiver">
 			<signature>func get_receiver() -&gt; Node:</signature>
 			<description>获取容器服务的能力接收者。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="return">容器的父节点；容器尚未挂载时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_children_now" line="76">
+		<member kind="method" name="register_children_now">
 			<signature>func register_children_now() -&gt; void:</signature>
 			<description>立即扫描并注册容器中的子节点能力。</description>
 			<tags>

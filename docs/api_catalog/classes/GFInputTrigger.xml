@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputTrigger" path="addons/gf/standard/input/triggers/gf_input_trigger.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputTrigger" path="addons/gf/standard/input/triggers/gf_input_trigger.gd" module="standard" extends="Resource" classDigest="038503b7d6ab9e4c477acd42bc4ad4e98d5cd8713beb87a85d8a759b4b535dcd">
 	<description>GFInputTrigger: 输入动作触发器基类。
 触发器只决定“原始输入活跃后何时视为动作活跃”，不修改输入值。运行时状态由
 GFInputMappingUtility 传入的 Dictionary 保存，因此同一资源可被多个上下文复用。</description>
@@ -10,7 +10,7 @@ GFInputMappingUtility 传入的 Dictionary 保存，因此同一资源可被多�
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="TriggerState" line="20">
+		<member kind="enum" name="TriggerState">
 			<signature>enum TriggerState { ## 输入未达到触发条件。 INACTIVE, ## 输入正在等待触发条件，例如长按计时中。 ONGOING, ## 输入已满足触发条件。 TRIGGERED, }</signature>
 			<description>触发器本次更新后的动作状态。</description>
 			<tags>
@@ -21,7 +21,7 @@ GFInputMappingUtility 传入的 Dictionary 保存，因此同一资源可被多�
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="reset_trigger_state" line="39">
+		<member kind="method" name="reset_trigger_state">
 			<signature>func reset_trigger_state(state: Dictionary) -&gt; void:</signature>
 			<description>重置运行时状态。</description>
 			<tags>
@@ -30,7 +30,7 @@ GFInputMappingUtility 传入的 Dictionary 保存，因此同一资源可被多�
 				<tag name="schema">state: Dictionary，由输入运行时为当前 trigger 实例持有。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prepare_runtime" line="56">
+		<member kind="method" name="prepare_runtime">
 			<signature>func prepare_runtime( _action_id: StringName, _input_runtime: Object, _player_index: int, _state: Dictionary ) -&gt; void:</signature>
 			<description>更新前注入运行时上下文。</description>
 			<tags>
@@ -42,7 +42,7 @@ GFInputMappingUtility 传入的 Dictionary 保存，因此同一资源可被多�
 				<tag name="schema">_state: Dictionary，由输入运行时为当前 trigger 实例持有。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="update" line="82">
+		<member kind="method" name="update">
 			<signature>func update(raw_active: bool, _value: Variant, _delta: float, _state: Dictionary) -&gt; TriggerState:</signature>
 			<description>更新触发器状态。</description>
 			<tags>
@@ -56,7 +56,7 @@ GFInputMappingUtility 传入的 Dictionary 保存，因此同一资源可被多�
 				<tag name="schema">_state: Dictionary，由输入运行时为当前 trigger 实例持有。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_trigger" line="91">
+		<member kind="method" name="duplicate_trigger">
 			<signature>func duplicate_trigger() -&gt; GFInputTrigger:</signature>
 			<description>创建运行时副本。</description>
 			<tags>

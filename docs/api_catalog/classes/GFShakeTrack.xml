@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFShakeTrack" path="addons/gf/extensions/feedback/resources/gf_shake_track.gd" module="extensions/feedback" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFShakeTrack" path="addons/gf/extensions/feedback/resources/gf_shake_track.gd" module="extensions/feedback" extends="Resource" classDigest="0803f9c9eaedbb7e11a07d7e70b7d1c6b35b3007e963abf68a8bf7dca76cb4d4">
 	<description>GFShakeTrack: 通用反馈采样轨道。
 描述一段可组合的反馈偏移轨道，供 GFShakePreset 混合采样。
 轨道只输出通用 position、rotation_degrees 和 scale 偏移，不绑定目标节点或业务事件。</description>
@@ -10,14 +10,14 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Waveform" line="20">
+		<member kind="enum" name="Waveform">
 			<signature>enum Waveform { ## 正弦波，适合可预期的摆动。 SINE, ## 逐步随机值，适合短促冲击。 RANDOM, ## 平滑随机值，适合持续扰动。 NOISE, ## 使用 wave_curve 采样，曲线值 0.5 表示零偏移。 CURVE, }</signature>
 			<description>反馈采样波形。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="enum" name="BlendMode" line="34">
+		<member kind="enum" name="BlendMode">
 			<signature>enum BlendMode { ## 叠加到已有采样上。 ADD, ## 覆盖已有采样。 OVERRIDE, ## 按分量相乘。 MULTIPLY, ## 从已有采样中减去当前轨道。 SUBTRACT, ## 与已有采样求平均。 AVERAGE, ## 逐分量取最大值。 MAX, ## 逐分量取最小值。 MIN, }</signature>
 			<description>轨道混合模式。</description>
 			<tags>
@@ -27,78 +27,98 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="enabled" line="57" decorators="@export">
+		<member kind="property" name="enabled" decorators="@export">
 			<signature>var enabled: bool = true</signature>
 			<description>是否启用该轨道。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="blend_mode" line="62" decorators="@export">
+		<member kind="property" name="blend_mode" decorators="@export">
 			<signature>var blend_mode: BlendMode = BlendMode.ADD</signature>
 			<description>轨道混合模式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="waveform" line="67" decorators="@export">
+		<member kind="property" name="waveform" decorators="@export">
 			<signature>var waveform: Waveform = Waveform.NOISE</signature>
 			<description>轨道采样波形。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="position_axis" line="92" decorators="@export_range(0.0, 1.0, 0.001) var start_progress: float = 0.0 @export_range(0.0, 1.0, 0.001) var end_progress: float = 1.0 @export_range(0.0, 1000.0, 0.001, &quot;or_greater&quot;) var amplitude: float = 1.0 @export_range(0.0, 240.0, 0.001, &quot;or_greater&quot;) var frequency: float = 24.0 @export">
-			<signature>var position_axis: Vector3 = Vector3.ONE</signature>
-			<description>轨道开始进度，范围 0 到 1。
-轨道结束进度，范围 0 到 1。
-轨道振幅倍率。
-每秒采样频率。
-位移轴权重。</description>
+		<member kind="property" name="start_progress" decorators="@export_range(0.0, 1.0, 0.001)">
+			<signature>var start_progress: float = 0.0</signature>
+			<description>轨道开始进度，范围 0 到 1。</description>
 			<tags>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="rotation_axis_degrees" line="97" decorators="@export">
+		<member kind="property" name="end_progress" decorators="@export_range(0.0, 1.0, 0.001)">
+			<signature>var end_progress: float = 1.0</signature>
+			<description>轨道结束进度，范围 0 到 1。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="amplitude" decorators="@export_range(0.0, 1000.0, 0.001, &quot;or_greater&quot;)">
+			<signature>var amplitude: float = 1.0</signature>
+			<description>轨道振幅倍率。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="frequency" decorators="@export_range(0.0, 240.0, 0.001, &quot;or_greater&quot;)">
+			<signature>var frequency: float = 24.0</signature>
+			<description>每秒采样频率。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="position_axis" decorators="@export">
+			<signature>var position_axis: Vector3 = Vector3.ONE</signature>
+			<description>位移轴权重。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rotation_axis_degrees" decorators="@export">
 			<signature>var rotation_axis_degrees: Vector3 = Vector3.ZERO</signature>
 			<description>旋转轴权重，单位度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scale_axis" line="102" decorators="@export">
+		<member kind="property" name="scale_axis" decorators="@export">
 			<signature>var scale_axis: Vector3 = Vector3.ZERO</signature>
 			<description>缩放偏移轴权重。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="envelope_curve" line="107" decorators="@export">
+		<member kind="property" name="envelope_curve" decorators="@export">
 			<signature>var envelope_curve: Curve = null</signature>
 			<description>轨道包络曲线。为空时使用线性衰减。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="wave_curve" line="112" decorators="@export">
+		<member kind="property" name="wave_curve" decorators="@export">
 			<signature>var wave_curve: Curve = null</signature>
 			<description>自定义波形曲线。仅在 waveform 为 CURVE 时使用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="seed" line="117" decorators="@export">
+		<member kind="property" name="seed" decorators="@export">
 			<signature>var seed: int = 1</signature>
 			<description>确定性采样种子。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="124" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -108,7 +128,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="sample" line="144">
+		<member kind="method" name="sample">
 			<signature>func sample( preset_progress: float, elapsed_seconds: float, strength: float = 1.0, phase_offset: float = 0.0 ) -&gt; Dictionary:</signature>
 			<description>按预设归一化进度采样轨道。</description>
 			<tags>
@@ -121,7 +141,7 @@
 				<tag name="schema">return: Dictionary，包含 position: Vector3、rotation_degrees: Vector3、scale: Vector3、intensity: float、progress: float、track_progress: float 与 metadata: Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="zero_sample" line="195">
+		<member kind="method" name="zero_sample">
 			<signature>static func zero_sample() -&gt; Dictionary:</signature>
 			<description>创建空采样结果。</description>
 			<tags>
@@ -130,7 +150,7 @@
 				<tag name="schema">return: Dictionary，包含零值 position、rotation_degrees、scale、intensity、progress、track_progress 与空 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="blend_sample" line="224">
+		<member kind="method" name="blend_sample">
 			<signature>static func blend_sample(base_sample: Dictionary, track_sample: Dictionary, mode: BlendMode) -&gt; Dictionary:</signature>
 			<description>将轨道采样混合到当前采样。</description>
 			<tags>

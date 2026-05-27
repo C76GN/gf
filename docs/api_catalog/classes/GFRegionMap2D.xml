@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFRegionMap2D" path="addons/gf/standard/foundation/math/gf_region_map_2d.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFRegionMap2D" path="addons/gf/standard/foundation/math/gf_region_map_2d.gd" module="standard" extends="RefCounted" classDigest="2da0ab4f57ac207464a8acd53a2b039d4d0bbe908abdf7ab800a1b07f5fe4803">
 	<description>GFRegionMap2D: 通用二维区域分块数据映射。
 按固定区域尺寸管理格子数据，并追踪发生变化的区域，适合大地图、编辑器批处理或局部保存。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="region_size" line="19">
+		<member kind="property" name="region_size">
 			<signature>var region_size: Vector2i = Vector2i(32, 32)</signature>
 			<description>每个区域包含的格子尺寸。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="duplicate_values" line="24">
+		<member kind="property" name="duplicate_values">
 			<signature>var duplicate_values: bool = true</signature>
 			<description>读写值时是否复制集合类型。</description>
 			<tags>
@@ -27,7 +27,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_region_key_for_cell" line="42">
+		<member kind="method" name="get_region_key_for_cell">
 			<signature>func get_region_key_for_cell(cell: Vector2i) -&gt; Vector2i:</signature>
 			<description>根据格坐标获取区域键。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="return">区域键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_cell" line="56">
+		<member kind="method" name="set_cell">
 			<signature>func set_cell(cell: Vector2i, value: Variant) -&gt; void:</signature>
 			<description>设置格子数据。</description>
 			<tags>
@@ -46,7 +46,7 @@
 				<tag name="schema">value: Variant cell value stored in the region map.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_cell" line="76">
+		<member kind="method" name="get_cell">
 			<signature>func get_cell(cell: Vector2i, default_value: Variant = null) -&gt; Variant:</signature>
 			<description>获取格子数据。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="schema">return: Variant cell value or default_value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="erase_cell" line="91">
+		<member kind="method" name="erase_cell">
 			<signature>func erase_cell(cell: Vector2i) -&gt; bool:</signature>
 			<description>移除格子数据。</description>
 			<tags>
@@ -67,7 +67,7 @@
 				<tag name="return">移除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_cell" line="110">
+		<member kind="method" name="has_cell">
 			<signature>func has_cell(cell: Vector2i) -&gt; bool:</signature>
 			<description>检查格子是否存在。</description>
 			<tags>
@@ -76,7 +76,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_region_cells" line="122">
+		<member kind="method" name="get_region_cells">
 			<signature>func get_region_cells(region_key: Vector2i) -&gt; Array[Vector2i]:</signature>
 			<description>获取区域内全部格子坐标。</description>
 			<tags>
@@ -85,7 +85,7 @@
 				<tag name="return">格坐标列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_region_snapshot" line="141">
+		<member kind="method" name="get_region_snapshot">
 			<signature>func get_region_snapshot(region_key: Vector2i) -&gt; Dictionary:</signature>
 			<description>获取区域数据快照。</description>
 			<tags>
@@ -95,7 +95,7 @@
 				<tag name="schema">return: Dictionary mapping Vector2i cells to stored cell values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_region_keys" line="151">
+		<member kind="method" name="get_region_keys">
 			<signature>func get_region_keys() -&gt; Array[Vector2i]:</signature>
 			<description>获取已存在的区域键。</description>
 			<tags>
@@ -103,7 +103,7 @@
 				<tag name="return">区域键列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_dirty_region_keys" line="163">
+		<member kind="method" name="get_dirty_region_keys">
 			<signature>func get_dirty_region_keys() -&gt; Array[Vector2i]:</signature>
 			<description>获取脏区域键。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="return">脏区域键列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_dirty" line="177">
+		<member kind="method" name="clear_dirty">
 			<signature>func clear_dirty(region_key: Variant = null) -&gt; void:</signature>
 			<description>清理脏区域标记。</description>
 			<tags>
@@ -120,14 +120,14 @@
 				<tag name="schema">region_key: Variant null or Vector2i region key.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="187">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空全部区域数据。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="199">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

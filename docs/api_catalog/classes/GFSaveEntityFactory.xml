@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSaveEntityFactory" path="addons/gf/extensions/save/core/gf_save_entity_factory.gd" module="extensions/save" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSaveEntityFactory" path="addons/gf/extensions/save/core/gf_save_entity_factory.gd" module="extensions/save" extends="Resource" classDigest="b3d7609f094d443fb19ace2cb470d77633b52230b8eca05983f4b59ae4fbaa2c">
 	<description>GFSaveEntityFactory: 存档恢复实体工厂基类。
 由 GFSaveGraphUtility 在缺失 Source 且 Scope 允许工厂恢复时调用。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="type_key" line="19" decorators="@export">
+		<member kind="property" name="type_key" decorators="@export">
 			<signature>var type_key: StringName = &amp;""</signature>
 			<description>工厂可创建的实体类型键。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="packed_scene" line="24" decorators="@export">
+		<member kind="property" name="packed_scene" decorators="@export">
 			<signature>var packed_scene: PackedScene</signature>
 			<description>可选场景模板。项目也可继承 _create_entity 实现自定义创建。</description>
 			<tags>
@@ -27,7 +27,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_type_key" line="34">
+		<member kind="method" name="get_type_key">
 			<signature>func get_type_key() -&gt; StringName:</signature>
 			<description>获取实体类型键。</description>
 			<tags>

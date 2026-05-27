@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFStorageSyncUtility" path="addons/gf/standard/utilities/storage/gf_storage_sync_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFStorageSyncUtility" path="addons/gf/standard/utilities/storage/gf_storage_sync_utility.gd" module="standard" extends="GFUtility" classDigest="13b0b808945d296c1de2e20218c582c516ee90b69b9d389b74bac2cf7d8c02f0">
 	<description>GFStorageSyncUtility: 通用存储后端同步协调器。
 该工具只协调两个 GFStorageBackend 的字典数据同步、冲突检测和写回策略。
 它不绑定本地/云/平台 SDK，也不替项目定义存档业务结构。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="sync_conflict_detected" line="22">
+		<member kind="signal" name="sync_conflict_detected">
 			<signature>signal sync_conflict_detected(report: GFStorageConflictReport)</signature>
 			<description>检测到存储冲突后发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">report: 冲突报告。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="sync_conflict_unresolved" line="33">
+		<member kind="signal" name="sync_conflict_unresolved">
 			<signature>signal sync_conflict_unresolved(file_name: String, result: Dictionary)</signature>
 			<description>单个逻辑文件存在未解决冲突时发出。</description>
 			<tags>
@@ -27,7 +27,7 @@
 				<tag name="schema">result: Dictionary，由 sync_data() 为未解决冲突返回。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="sync_completed" line="44">
+		<member kind="signal" name="sync_completed">
 			<signature>signal sync_completed(file_name: String, result: Dictionary)</signature>
 			<description>单个逻辑文件同步完成后发出。</description>
 			<tags>
@@ -37,7 +37,7 @@
 				<tag name="schema">result: Dictionary，由 sync_data() 为已完成同步返回。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="sync_failed" line="55">
+		<member kind="signal" name="sync_failed">
 			<signature>signal sync_failed(file_name: String, result: Dictionary)</signature>
 			<description>单个逻辑文件同步失败后发出。</description>
 			<tags>
@@ -49,14 +49,14 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="ConflictStrategy" line="63">
+		<member kind="enum" name="ConflictStrategy">
 			<signature>enum ConflictStrategy { ## 按后端元数据中的 revision/timestamp 选择更新的一侧；无法判断时保留冲突。 USE_NEWEST, ## 冲突时使用 local_backend 的数据。 USE_LOCAL, ## 冲突时使用 remote_backend 的数据。 USE_REMOTE, ## 只报告冲突，不自动写回。 MANUAL, ## 调用 options.resolver 或 options.resolution_callback 生成结果。 CUSTOM, }</signature>
 			<description>冲突解决策略。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="enum" name="SyncStatus" line="79">
+		<member kind="enum" name="SyncStatus">
 			<signature>enum SyncStatus { ## 两端数据已经一致。 UNCHANGED, ## 已把 local_backend 数据复制到 remote_backend。 COPIED_LOCAL_TO_REMOTE, ## 已把 remote_backend 数据复制到 local_backend。 COPIED_REMOTE_TO_LOCAL, ## 已用自定义合并结果写回两端。 MERGED, ## 存在未解决冲突。 CONFLICT, ## 同步失败。 FAILED, }</signature>
 			<description>同步结果状态。</description>
 			<tags>
@@ -66,14 +66,14 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="default_conflict_strategy" line="100">
+		<member kind="property" name="default_conflict_strategy">
 			<signature>var default_conflict_strategy: ConflictStrategy = ConflictStrategy.USE_NEWEST</signature>
 			<description>默认冲突策略。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="write_resolved_by_default" line="105">
+		<member kind="property" name="write_resolved_by_default">
 			<signature>var write_resolved_by_default: bool = true</signature>
 			<description>默认是否把解析出的结果写回后端。关闭后可用于 dry-run。</description>
 			<tags>
@@ -82,7 +82,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="sync_data" line="134">
+		<member kind="method" name="sync_data">
 			<signature>func sync_data( file_name: String, local_backend: GFStorageBackend, remote_backend: GFStorageBackend, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>同步一个逻辑文件。</description>
 			<tags>
@@ -96,7 +96,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、file_name、status、status_name、selected_source、written_backends、conflicts、errors、error、data、metadata、local 和 remote。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="sync_many" line="201">
+		<member kind="method" name="sync_many">
 			<signature>func sync_many( file_names: PackedStringArray, local_backend: GFStorageBackend, remote_backend: GFStorageBackend, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>批量同步多个逻辑文件。</description>
 			<tags>
@@ -110,7 +110,7 @@
 				<tag name="schema">return: Dictionary，包含 ok: bool、count: int、results: Array[Dictionary] 和 status_counts: Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="232">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取同步工具调试快照。</description>
 			<tags>

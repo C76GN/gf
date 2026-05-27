@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFLogUtility" path="addons/gf/standard/utilities/logging/gf_log_utility.gd" module="standard" extends="GFUtility" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFLogUtility" path="addons/gf/standard/utilities/logging/gf_log_utility.gd" module="standard" extends="GFUtility" classDigest="471c3a49a4c2dcb38f5079b8238e9e9471ec73da8921ca4c80b8b65d4f4b29a2">
 	<description>GFLogUtility: 集中式日志系统。
 取代原生 print / push_error，提供分级日志（DEBUG → FATAL），
 每条日志同时写入本地按日期命名的日志文件，进入内存环形缓存，
@@ -10,7 +10,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="log_emitted" line="27">
+		<member kind="signal" name="log_emitted">
 			<signature>signal log_emitted(level: int, tag: String, message: String)</signature>
 			<description>每次打印日志时发出，供 UI 控制台等消费者捕捉。</description>
 			<tags>
@@ -20,7 +20,7 @@
 				<tag name="param">message: 日志内容。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="log_entry_emitted" line="36">
+		<member kind="signal" name="log_entry_emitted">
 			<signature>signal log_entry_emitted(entry: Dictionary)</signature>
 			<description>每次打印日志时发出完整结构化条目。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="schema">entry: Dictionary log entry with timestamp, unix_time, ticks_msec, trace_id, level, level_name, tag, message, context, and text.</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="previous_crash_detected" line="45">
+		<member kind="signal" name="previous_crash_detected">
 			<signature>signal previous_crash_detected(marker: Dictionary)</signature>
 			<description>初始化时检测到上次运行未干净关闭后发出。</description>
 			<tags>
@@ -40,7 +40,7 @@
 		</member>
 	</signals>
 	<enums>
-		<member kind="enum" name="LogLevel" line="53">
+		<member kind="enum" name="LogLevel">
 			<signature>enum LogLevel { ## 调试信息 DEBUG, ## 一般信息 INFO, ## 警告 WARN, ## 错误 ERROR, ## 致命错误 FATAL, }</signature>
 			<description>日志等级，数值越大越严重。</description>
 			<tags>
@@ -50,49 +50,49 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="max_log_files" line="80">
+		<member kind="property" name="max_log_files">
 			<signature>var max_log_files: int:</signature>
 			<description>最多保留的日志文件数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="flush_interval_msec" line="89">
+		<member kind="property" name="flush_interval_msec">
 			<signature>var flush_interval_msec: int = 250</signature>
 			<description>日志文件自动 flush 间隔。设为 0 时每条日志都立即 flush。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="flush_immediately" line="94">
+		<member kind="property" name="flush_immediately">
 			<signature>var flush_immediately: bool = false</signature>
 			<description>是否强制每条日志立即 flush。高可靠日志可开启，默认关闭以减少高频 IO。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="min_level" line="99">
+		<member kind="property" name="min_level">
 			<signature>var min_level: int = LogLevel.DEBUG</signature>
 			<description>最小输出等级。低于该等级的日志不会打印、写文件或发信号。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_memory_entries" line="104">
+		<member kind="property" name="max_memory_entries">
 			<signature>var max_memory_entries: int:</signature>
 			<description>内存中最多保留的最近日志条数。设为 0 可关闭内存缓存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="crash_marker_enabled" line="114">
+		<member kind="property" name="crash_marker_enabled">
 			<signature>var crash_marker_enabled: bool = true</signature>
 			<description>是否写入运行中标记，用于下一次启动时判断上次是否未干净关闭。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="trace_id" line="119">
+		<member kind="property" name="trace_id">
 			<signature>var trace_id: String = ""</signature>
 			<description>当前日志 trace id。为空时 init() 会生成一个短 id。</description>
 			<tags>
@@ -101,21 +101,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="153">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>第一阶段初始化：创建日志目录、打开日志文件、清理旧文件。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="193">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>销毁时关闭文件句柄。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="debug" line="221">
+		<member kind="method" name="debug">
 			<signature>func debug(tag: String, msg: String, context: Dictionary = {}) -&gt; void:</signature>
 			<description>输出 DEBUG 级别日志。</description>
 			<tags>
@@ -126,7 +126,7 @@
 				<tag name="schema">context: Dictionary[String, Variant] structured context merged into the log entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="debug_lazy" line="234">
+		<member kind="method" name="debug_lazy">
 			<signature>func debug_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -&gt; void:</signature>
 			<description>延迟输出 DEBUG 级别日志。只有日志未被过滤时才调用 message_builder。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="param">context_builder: 延迟构造结构化上下文的回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="info" line="249">
+		<member kind="method" name="info">
 			<signature>func info(tag: String, msg: String, context: Dictionary = {}) -&gt; void:</signature>
 			<description>输出 INFO 级别日志。</description>
 			<tags>
@@ -147,7 +147,7 @@
 				<tag name="schema">context: Dictionary[String, Variant] structured context merged into the log entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="info_lazy" line="262">
+		<member kind="method" name="info_lazy">
 			<signature>func info_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -&gt; void:</signature>
 			<description>延迟输出 INFO 级别日志。只有日志未被过滤时才调用 message_builder。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="param">context_builder: 延迟构造结构化上下文的回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="warn" line="277">
+		<member kind="method" name="warn">
 			<signature>func warn(tag: String, msg: String, context: Dictionary = {}) -&gt; void:</signature>
 			<description>输出 WARN 级别日志。</description>
 			<tags>
@@ -168,7 +168,7 @@
 				<tag name="schema">context: Dictionary[String, Variant] structured context merged into the log entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="warn_lazy" line="290">
+		<member kind="method" name="warn_lazy">
 			<signature>func warn_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -&gt; void:</signature>
 			<description>延迟输出 WARN 级别日志。只有日志未被过滤时才调用 message_builder。</description>
 			<tags>
@@ -178,7 +178,7 @@
 				<tag name="param">context_builder: 延迟构造结构化上下文的回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="error" line="305">
+		<member kind="method" name="error">
 			<signature>func error(tag: String, msg: String, context: Dictionary = {}) -&gt; void:</signature>
 			<description>输出 ERROR 级别日志。</description>
 			<tags>
@@ -189,7 +189,7 @@
 				<tag name="schema">context: Dictionary[String, Variant] structured context merged into the log entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="error_lazy" line="318">
+		<member kind="method" name="error_lazy">
 			<signature>func error_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -&gt; void:</signature>
 			<description>延迟输出 ERROR 级别日志。只有日志未被过滤时才调用 message_builder。</description>
 			<tags>
@@ -199,7 +199,7 @@
 				<tag name="param">context_builder: 延迟构造结构化上下文的回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="fatal" line="333">
+		<member kind="method" name="fatal">
 			<signature>func fatal(tag: String, msg: String, context: Dictionary = {}) -&gt; void:</signature>
 			<description>输出 FATAL 级别日志。</description>
 			<tags>
@@ -210,7 +210,7 @@
 				<tag name="schema">context: Dictionary[String, Variant] structured context merged into the log entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="fatal_lazy" line="346">
+		<member kind="method" name="fatal_lazy">
 			<signature>func fatal_lazy(tag: String, message_builder: Callable, context_builder: Callable = Callable()) -&gt; void:</signature>
 			<description>延迟输出 FATAL 级别日志。只有日志未被过滤时才调用 message_builder。</description>
 			<tags>
@@ -220,7 +220,7 @@
 				<tag name="param">context_builder: 延迟构造结构化上下文的回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="log" line="363">
+		<member kind="method" name="log">
 			<signature>func log(level: int, tag: String, msg: String, context: Dictionary = {}) -&gt; void:</signature>
 			<description>输出指定等级日志。</description>
 			<tags>
@@ -232,7 +232,7 @@
 				<tag name="schema">context: Dictionary[String, Variant] structured context merged into the log entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_trace_id" line="372">
+		<member kind="method" name="set_trace_id">
 			<signature>func set_trace_id(value: String) -&gt; void:</signature>
 			<description>设置当前 trace id。</description>
 			<tags>
@@ -240,7 +240,7 @@
 				<tag name="param">value: 新 trace id；为空时会重新生成。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_trace_id" line="383">
+		<member kind="method" name="get_trace_id">
 			<signature>func get_trace_id() -&gt; String:</signature>
 			<description>获取当前 trace id。</description>
 			<tags>
@@ -248,7 +248,7 @@
 				<tag name="return">trace id 字符串。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_global_context" line="396">
+		<member kind="method" name="set_global_context">
 			<signature>func set_global_context(context: Dictionary) -&gt; void:</signature>
 			<description>设置全局日志上下文字典。每条日志都会合并该字典，单条日志上下文优先级更高。</description>
 			<tags>
@@ -257,7 +257,7 @@
 				<tag name="schema">context: Dictionary[String, Variant] sanitized global context merged into every log entry.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_global_context_provider" line="405">
+		<member kind="method" name="set_global_context_provider">
 			<signature>func set_global_context_provider(provider: Callable) -&gt; void:</signature>
 			<description>设置全局日志上下文提供者。每条日志输出时会调用一次，返回 Dictionary 时参与合并。</description>
 			<tags>
@@ -265,14 +265,14 @@
 				<tag name="param">provider: 上下文提供者，签名为 `func() -&gt; Dictionary`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_global_context" line="412">
+		<member kind="method" name="clear_global_context">
 			<signature>func clear_global_context() -&gt; void:</signature>
 			<description>清空全局日志上下文和上下文提供者。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_global_context" line="424">
+		<member kind="method" name="get_global_context">
 			<signature>func get_global_context() -&gt; Dictionary:</signature>
 			<description>获取全局日志上下文字典副本。</description>
 			<tags>
@@ -281,7 +281,7 @@
 				<tag name="schema">return: Dictionary[String, Variant] sanitized global context.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="was_previous_shutdown_clean" line="433">
+		<member kind="method" name="was_previous_shutdown_clean">
 			<signature>func was_previous_shutdown_clean() -&gt; bool:</signature>
 			<description>获取上次运行是否干净关闭。</description>
 			<tags>
@@ -289,7 +289,7 @@
 				<tag name="return">没有检测到运行中标记时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_previous_crash_marker" line="444">
+		<member kind="method" name="get_previous_crash_marker">
 			<signature>func get_previous_crash_marker() -&gt; Dictionary:</signature>
 			<description>获取上次未干净关闭时留下的标记数据。</description>
 			<tags>
@@ -298,7 +298,7 @@
 				<tag name="schema">return: Dictionary crash marker with trace_id, started_at, and ticks_msec when available.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_tag_muted" line="455">
+		<member kind="method" name="set_tag_muted">
 			<signature>func set_tag_muted(tag: String, muted: bool) -&gt; void:</signature>
 			<description>动态设置是否忽略特定标签的日志。</description>
 			<tags>
@@ -307,7 +307,7 @@
 				<tag name="param">muted: 是否静音。如果为 true，该 tag 的日志将不再打印及记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_tag_muted" line="466">
+		<member kind="method" name="is_tag_muted">
 			<signature>func is_tag_muted(tag: String) -&gt; bool:</signature>
 			<description>检查指定标签是否被静音。</description>
 			<tags>
@@ -316,7 +316,7 @@
 				<tag name="return">已静音时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_sink" line="475">
+		<member kind="method" name="add_sink">
 			<signature>func add_sink(sink: GFLogSink) -&gt; void:</signature>
 			<description>注册日志 sink。</description>
 			<tags>
@@ -324,7 +324,7 @@
 				<tag name="param">sink: 要注册的 sink 实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_sink" line="491">
+		<member kind="method" name="remove_sink">
 			<signature>func remove_sink(sink: GFLogSink, shutdown: bool = true) -&gt; void:</signature>
 			<description>注销日志 sink。</description>
 			<tags>
@@ -333,7 +333,7 @@
 				<tag name="param">shutdown: 是否调用 sink.shutdown()。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_sinks" line="506">
+		<member kind="method" name="clear_sinks">
 			<signature>func clear_sinks(shutdown: bool = true) -&gt; void:</signature>
 			<description>清空所有日志 sink。</description>
 			<tags>
@@ -341,7 +341,7 @@
 				<tag name="param">shutdown: 是否调用每个 sink 的 shutdown()。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_sinks" line="519">
+		<member kind="method" name="get_sinks">
 			<signature>func get_sinks() -&gt; Array[GFLogSink]:</signature>
 			<description>获取已注册日志 sink。</description>
 			<tags>
@@ -349,14 +349,14 @@
 				<tag name="return">sink 列表副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="flush_sinks" line="529">
+		<member kind="method" name="flush_sinks">
 			<signature>func flush_sinks() -&gt; void:</signature>
 			<description>刷新所有日志 sink。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_recent_entries" line="544">
+		<member kind="method" name="get_recent_entries">
 			<signature>func get_recent_entries(count: int = -1) -&gt; Array[Dictionary]:</signature>
 			<description>获取最近的内存日志条目。</description>
 			<tags>
@@ -366,7 +366,7 @@
 				<tag name="schema">return: Array[Dictionary] of log entries from oldest to newest.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_entries" line="562">
+		<member kind="method" name="get_entries">
 			<signature>func get_entries(offset: int = 0, count: int = -1) -&gt; Array[Dictionary]:</signature>
 			<description>按偏移读取内存日志条目。</description>
 			<tags>
@@ -377,7 +377,7 @@
 				<tag name="schema">return: Array[Dictionary] of log entries from oldest to newest.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_memory_entry_count" line="578">
+		<member kind="method" name="get_memory_entry_count">
 			<signature>func get_memory_entry_count() -&gt; int:</signature>
 			<description>获取当前内存日志条目数量。</description>
 			<tags>
@@ -385,7 +385,7 @@
 				<tag name="return">条目数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_dropped_memory_entry_count" line="587">
+		<member kind="method" name="get_dropped_memory_entry_count">
 			<signature>func get_dropped_memory_entry_count() -&gt; int:</signature>
 			<description>获取因内存上限被丢弃的日志条目数量。</description>
 			<tags>
@@ -393,7 +393,7 @@
 				<tag name="return">丢弃数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_log_file_path" line="596">
+		<member kind="method" name="get_log_file_path">
 			<signature>func get_log_file_path() -&gt; String:</signature>
 			<description>获取当前日志文件路径。</description>
 			<tags>
@@ -401,14 +401,14 @@
 				<tag name="return">日志文件路径。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_memory_entries" line="603">
+		<member kind="method" name="clear_memory_entries">
 			<signature>func clear_memory_entries() -&gt; void:</signature>
 			<description>清空内存日志缓存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="sanitize_log_value" line="620">
+		<member kind="method" name="sanitize_log_value">
 			<signature>static func sanitize_log_value(value: Variant) -&gt; Variant:</signature>
 			<description>清洗任意值，使它适合进入结构化日志和 JSON sink。</description>
 			<tags>

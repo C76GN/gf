@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkRateLimiter" path="addons/gf/extensions/network/session/gf_network_rate_limiter.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNetworkRateLimiter" path="addons/gf/extensions/network/session/gf_network_rate_limiter.gd" module="extensions/network" extends="RefCounted" classDigest="6633272cb74d819c74a54b0b7c7c650acc97fa9e56f40fd38504af645dc19638">
 	<description>GFNetworkRateLimiter: 通用令牌桶限流器。
 可用于限制消息发送频率，避免某类同步或 RPC 过量发送。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="capacity" line="19">
+		<member kind="property" name="capacity">
 			<signature>var capacity: float = 10.0:</signature>
 			<description>令牌桶容量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="refill_per_second" line="27">
+		<member kind="property" name="refill_per_second">
 			<signature>var refill_per_second: float = 10.0:</signature>
 			<description>每秒恢复令牌数。</description>
 			<tags>
@@ -27,7 +27,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="tick" line="52">
+		<member kind="method" name="tick">
 			<signature>func tick(delta: float) -&gt; void:</signature>
 			<description>推进限流器时间。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="param">delta: 秒数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="consume" line="63">
+		<member kind="method" name="consume">
 			<signature>func consume(amount: float = 1.0) -&gt; bool:</signature>
 			<description>尝试消费令牌。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="return">成功消费返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_tokens" line="76">
+		<member kind="method" name="get_tokens">
 			<signature>func get_tokens() -&gt; float:</signature>
 			<description>获取当前令牌数。</description>
 			<tags>
@@ -52,7 +52,7 @@
 				<tag name="return">令牌数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset" line="83">
+		<member kind="method" name="reset">
 			<signature>func reset() -&gt; void:</signature>
 			<description>重置令牌桶。</description>
 			<tags>

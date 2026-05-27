@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVirtualInputSource" path="addons/gf/standard/input/sources/gf_virtual_input_source.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFVirtualInputSource" path="addons/gf/standard/input/sources/gf_virtual_input_source.gd" module="standard" extends="RefCounted" classDigest="166a33c220b8085f42c1a2ae7a9cbfdd810294cce0fbc8173e1b9dd9af7d6cff">
 	<description>GFVirtualInputSource: 可编程虚拟输入源。
 用于测试、回放、AI 控制或项目自定义输入桥接，向 GFInputMappingUtility
 注入抽象动作值；它不读取 InputMap，也不规定具体设备或玩法语义。</description>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="source_id" line="20">
+		<member kind="property" name="source_id">
 			<signature>var source_id: StringName = &amp;"virtual"</signature>
 			<description>虚拟输入源标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="player_index" line="25">
+		<member kind="property" name="player_index">
 			<signature>var player_index: int = -1</signature>
 			<description>玩家索引；小于 0 时只写入全局动作状态。</description>
 			<tags>
@@ -28,7 +28,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="configure" line="56">
+		<member kind="method" name="configure">
 			<signature>func configure( input_mapping: GFInputMappingUtility, p_source_id: StringName = &amp;"virtual", p_player_index: int = -1 ) -&gt; GFVirtualInputSource:</signature>
 			<description>配置虚拟输入源。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="return">当前输入源。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_action_value" line="78">
+		<member kind="method" name="set_action_value">
 			<signature>func set_action_value(action_id: StringName, value: Variant) -&gt; bool:</signature>
 			<description>写入动作值。</description>
 			<tags>
@@ -50,7 +50,7 @@
 				<tag name="schema">value: Variant，GFInputMappingUtility 接受的动作值，通常为 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_action_value_for_player" line="98">
+		<member kind="method" name="set_action_value_for_player">
 			<signature>func set_action_value_for_player(action_id: StringName, value: Variant, next_player_index: int) -&gt; bool:</signature>
 			<description>为指定玩家写入动作值。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="schema">value: Variant，GFInputMappingUtility 接受的动作值，通常为 bool、float、Vector2 或 Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="press" line="114">
+		<member kind="method" name="press">
 			<signature>func press(action_id: StringName, strength: float = 1.0) -&gt; bool:</signature>
 			<description>按下布尔动作。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="return">写入成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release" line="125">
+		<member kind="method" name="release">
 			<signature>func release(action_id: StringName) -&gt; bool:</signature>
 			<description>释放动作。</description>
 			<tags>
@@ -81,7 +81,7 @@
 				<tag name="return">写入成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_axis_1d" line="138">
+		<member kind="method" name="set_axis_1d">
 			<signature>func set_axis_1d(action_id: StringName, value: float) -&gt; bool:</signature>
 			<description>写入一维轴动作。</description>
 			<tags>
@@ -91,7 +91,7 @@
 				<tag name="return">写入成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_axis_2d" line="151">
+		<member kind="method" name="set_axis_2d">
 			<signature>func set_axis_2d(action_id: StringName, value: Vector2) -&gt; bool:</signature>
 			<description>写入二维轴动作。</description>
 			<tags>
@@ -101,7 +101,7 @@
 				<tag name="return">写入成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_axis_3d" line="164">
+		<member kind="method" name="set_axis_3d">
 			<signature>func set_axis_3d(action_id: StringName, value: Vector3) -&gt; bool:</signature>
 			<description>写入三维轴动作。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="return">写入成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_action" line="175">
+		<member kind="method" name="clear_action">
 			<signature>func clear_action(action_id: StringName) -&gt; bool:</signature>
 			<description>清除指定动作贡献。</description>
 			<tags>
@@ -120,7 +120,7 @@
 				<tag name="return">清除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_action_for_player" line="191">
+		<member kind="method" name="clear_action_for_player">
 			<signature>func clear_action_for_player(action_id: StringName, next_player_index: int) -&gt; bool:</signature>
 			<description>清除指定玩家的动作贡献。</description>
 			<tags>
@@ -130,14 +130,14 @@
 				<tag name="return">清除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_all" line="201">
+		<member kind="method" name="clear_all">
 			<signature>func clear_all() -&gt; void:</signature>
 			<description>清除当前虚拟源的所有动作贡献。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_snapshot" line="214">
+		<member kind="method" name="get_snapshot">
 			<signature>func get_snapshot() -&gt; Dictionary:</signature>
 			<description>获取当前虚拟源快照。</description>
 			<tags>

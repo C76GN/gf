@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCallableTargetRef" path="addons/gf/standard/utilities/signals/bridge/gf_callable_target_ref.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCallableTargetRef" path="addons/gf/standard/utilities/signals/bridge/gf_callable_target_ref.gd" module="standard" extends="Resource" classDigest="b66b26bf4b4a3348ef189e6ff17133a026155d400746c950d42d4788dfd8b042">
 	<description>GFCallableTargetRef: 可资源化的 Callable 目标引用。
 该资源只描述相对于某个根节点的目标节点、方法名和默认参数。
 它不决定调用时机，也不解释方法的业务含义。</description>
@@ -12,21 +12,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="target_path" line="20" decorators="@export">
+		<member kind="property" name="target_path" decorators="@export">
 			<signature>var target_path: NodePath = NodePath("")</signature>
 			<description>目标节点路径。为空时使用传入的根节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="method_name" line="25" decorators="@export">
+		<member kind="property" name="method_name" decorators="@export">
 			<signature>var method_name: StringName = &amp;""</signature>
 			<description>要调用的方法名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_args" line="32" decorators="@export">
+		<member kind="property" name="default_args" decorators="@export">
 			<signature>var default_args: Array = []</signature>
 			<description>每次调用时追加到末尾的默认参数。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="schema">default_args: Array，追加在动态信号桥接参数后的额外参数。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="39" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -44,7 +44,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="resolve_target" line="51">
+		<member kind="method" name="resolve_target">
 			<signature>func resolve_target(root: Node) -&gt; Object:</signature>
 			<description>解析调用目标。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="return">目标对象；无法解析时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_callable" line="66">
+		<member kind="method" name="get_callable">
 			<signature>func get_callable(root: Node) -&gt; Callable:</signature>
 			<description>创建目标 Callable。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="return">有效 Callable；无法解析时返回空 Callable。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_valid_for" line="82">
+		<member kind="method" name="is_valid_for">
 			<signature>func is_valid_for(root: Node) -&gt; bool:</signature>
 			<description>检查调用目标是否有效。</description>
 			<tags>
@@ -71,7 +71,7 @@
 				<tag name="return">有效时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="call_with_args" line="99">
+		<member kind="method" name="call_with_args">
 			<signature>func call_with_args(root: Node, args: Array = []) -&gt; Dictionary:</signature>
 			<description>调用目标方法。</description>
 			<tags>
@@ -83,7 +83,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、reason 和 value。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dictionary" line="124">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为调试字典。</description>
 			<tags>

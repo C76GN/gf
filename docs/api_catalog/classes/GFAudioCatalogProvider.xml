@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioCatalogProvider" path="addons/gf/standard/utilities/audio/gf_audio_catalog_provider.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioCatalogProvider" path="addons/gf/standard/utilities/audio/gf_audio_catalog_provider.gd" module="standard" extends="RefCounted" classDigest="4a275a3068dbe7d5df3c9f480eba003fb147648a5a353244e2686bccfc8166a9">
 	<description>GFAudioCatalogProvider: 通用音频目录提供器。
 为编辑器选择器或构建工具提供事件、参数、状态和开关 ID 查询入口。</description>
 	<tags>
@@ -11,7 +11,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="events" line="21">
+		<member kind="property" name="events">
 			<signature>var events: Dictionary = {}</signature>
 			<description>事件目录。</description>
 			<tags>
@@ -19,7 +19,7 @@
 				<tag name="schema">events: 事件目录 Dictionary，键为事件 ID，值为条目元数据 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="parameters" line="28">
+		<member kind="property" name="parameters">
 			<signature>var parameters: Dictionary = {}</signature>
 			<description>参数目录。</description>
 			<tags>
@@ -27,7 +27,7 @@
 				<tag name="schema">parameters: 参数目录 Dictionary，键为参数 ID，值为条目元数据 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="states" line="35">
+		<member kind="property" name="states">
 			<signature>var states: Dictionary = {}</signature>
 			<description>状态目录。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="schema">states: 状态目录 Dictionary，键为状态 ID，值为条目元数据 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="switches" line="42">
+		<member kind="property" name="switches">
 			<signature>var switches: Dictionary = {}</signature>
 			<description>开关目录。</description>
 			<tags>
@@ -45,7 +45,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_entry" line="58">
+		<member kind="method" name="set_entry">
 			<signature>func set_entry(catalog_id: StringName, entry_id: StringName, metadata: Dictionary = {}) -&gt; void:</signature>
 			<description>设置目录条目。</description>
 			<tags>
@@ -56,7 +56,7 @@
 				<tag name="schema">metadata: 条目元数据 Dictionary；键和值由目录提供器或项目工具约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_entry" line="71">
+		<member kind="method" name="remove_entry">
 			<signature>func remove_entry(catalog_id: StringName, entry_id: StringName) -&gt; void:</signature>
 			<description>移除目录条目。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="param">entry_id: 条目标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_ids" line="82">
+		<member kind="method" name="get_ids">
 			<signature>func get_ids(catalog_id: StringName) -&gt; PackedStringArray:</signature>
 			<description>获取目录 ID 列表。</description>
 			<tags>
@@ -74,7 +74,7 @@
 				<tag name="return">排序后的条目 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe_entry" line="101">
+		<member kind="method" name="describe_entry">
 			<signature>func describe_entry(catalog_id: StringName, entry_id: StringName) -&gt; Dictionary:</signature>
 			<description>获取目录条目描述。</description>
 			<tags>
@@ -85,7 +85,7 @@
 				<tag name="schema">return: 条目元数据 Dictionary；键和值由目录提供器或项目工具约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe_catalog" line="113">
+		<member kind="method" name="describe_catalog">
 			<signature>func describe_catalog() -&gt; Dictionary:</signature>
 			<description>获取完整目录快照。</description>
 			<tags>

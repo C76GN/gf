@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTraitSet" path="addons/gf/extensions/domain/traits/gf_trait_set.gd" module="extensions/domain" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTraitSet" path="addons/gf/extensions/domain/traits/gf_trait_set.gd" module="extensions/domain" extends="Resource" classDigest="fea2c85aa0f932cdc44864e5399187fccd4576ae801ef0ef26574ab6a0c48e16">
 	<description>GFTraitSet: 通用特征集合。
 可从任意来源收集 `GFTrait`，再按目标键与分类计算最终数值。</description>
 	<tags>
@@ -11,7 +11,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="traits" line="21" decorators="@export">
+		<member kind="property" name="traits" decorators="@export">
 			<signature>var traits: Array[GFTrait] = []</signature>
 			<description>特征列表。</description>
 			<tags>
@@ -21,7 +21,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="add_trait" line="31">
+		<member kind="method" name="add_trait">
 			<signature>func add_trait(p_trait: GFTrait) -&gt; void:</signature>
 			<description>添加一个特征。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="param">p_trait: 特征资源。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_traits_by_id" line="43">
+		<member kind="method" name="remove_traits_by_id">
 			<signature>func remove_traits_by_id(trait_id: StringName) -&gt; void:</signature>
 			<description>按 ID 移除特征。</description>
 			<tags>
@@ -37,7 +37,7 @@
 				<tag name="param">trait_id: 特征 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_traits" line="61">
+		<member kind="method" name="get_traits">
 			<signature>func get_traits(target_id: StringName, category: StringName = &amp;"") -&gt; Array[GFTrait]:</signature>
 			<description>查询匹配的特征。</description>
 			<tags>
@@ -48,7 +48,7 @@
 				<tag name="schema">return: Array[GFTrait]，匹配目标键和分类过滤条件的特征资源。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="calculate_number" line="85">
+		<member kind="method" name="calculate_number">
 			<signature>func calculate_number(target_id: StringName, base_value: float, category: StringName = &amp;"") -&gt; float:</signature>
 			<description>计算目标键的最终数值。</description>
 			<tags>
@@ -59,7 +59,7 @@
 				<tag name="return">合并后的数值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="95">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空特征。</description>
 			<tags>

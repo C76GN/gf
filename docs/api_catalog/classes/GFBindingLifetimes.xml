@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBindingLifetimes" path="addons/gf/kernel/core/gf_binding_lifetimes.gd" module="kernel" extends="RefCounted" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFBindingLifetimes" path="addons/gf/kernel/core/gf_binding_lifetimes.gd" module="kernel" extends="RefCounted" classDigest="3cea201d8ff02b29ce47563ea4915a5e219c9324383661c35650cced7eebd24c">
 	<description>GFBindingLifetimes: 依赖绑定的生命周期枚举。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -8,7 +8,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Lifetime" line="17">
+		<member kind="enum" name="Lifetime">
 			<signature>enum Lifetime { ## 首次解析后缓存实例，后续解析复用。 SINGLETON, ## 每次解析都重新创建实例。 TRANSIENT, }</signature>
 			<description>绑定实例的生命周期。</description>
 			<tags>

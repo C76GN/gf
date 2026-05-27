@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFActionInterceptor" path="addons/gf/extensions/action_queue/core/gf_action_interceptor.gd" module="extensions/action_queue" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFActionInterceptor" path="addons/gf/extensions/action_queue/core/gf_action_interceptor.gd" module="extensions/action_queue" extends="RefCounted" classDigest="f6652fb95bcb7d1c464d3b52deb3bac7ff6138917136a1c2d305e3c8a7d1b3c1">
 	<description>GFActionInterceptor: 动作队列的通用拦截器基类。
 拦截器可在表现动作执行前后做横切处理，例如跳过、替换、停止后续队列、
 记录诊断或根据运行时状态调整表现，不绑定任何具体玩法规则。</description>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="priority" line="20">
+		<member kind="property" name="priority">
 			<signature>var priority: int = 0</signature>
 			<description>拦截器优先级，数值越大越早执行。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="enabled" line="25">
+		<member kind="property" name="enabled">
 			<signature>var enabled: bool = true</signature>
 			<description>是否启用当前拦截器。</description>
 			<tags>

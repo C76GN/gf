@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNumberFormatter" path="addons/gf/standard/foundation/formatting/gf_number_formatter.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNumberFormatter" path="addons/gf/standard/foundation/formatting/gf_number_formatter.gd" module="standard" extends="RefCounted" classDigest="624943771d2d27f44e692a62314502513c618f5754ceaaf5640e87586dbedb84">
 	<description>GFNumberFormatter: 统一的数字显示格式化工具。
 负责普通数字、定点小数与大数值对象在 UI 中的显示转换，
 提供完整显示、紧凑缩写、科学计数法、工程计数法与自动模式。</description>
@@ -10,14 +10,14 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Notation" line="20">
+		<member kind="enum" name="Notation">
 			<signature>enum Notation { ## 尽量输出普通十进制表示。 FULL, ## 输出紧凑缩写表示，如 12.3k。 COMPACT_SHORT, ## 输出科学计数法，如 1.23e8。 SCIENTIFIC, ## 输出工程计数法，如 123.4e6。 ENGINEERING, ## 自动选择更适合当前量级的表示方式。 AUTO, }</signature>
 			<description>格式化记法。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="enum" name="ScientificStyle" line="36">
+		<member kind="enum" name="ScientificStyle">
 			<signature>enum ScientificStyle { ## 使用小写 e。 E_LOWER, ## 使用大写 E。 E_UPPER, ## 使用 x 10^n 形式。 POWER_OF_TEN, }</signature>
 			<description>科学计数法输出风格。</description>
 			<tags>
@@ -28,7 +28,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="format_number" line="113">
+		<member kind="method" name="format_number">
 			<signature>static func format_number( value: Variant, notation: Notation = Notation.AUTO, decimal_places: int = 2, trim_zeroes: bool = true, use_truncation: bool = false, scientific_style: ScientificStyle = ScientificStyle.E_LOWER ) -&gt; String:</signature>
 			<description>统一入口：按指定记法格式化一个数字值。</description>
 			<tags>
@@ -43,7 +43,7 @@
 				<tag name="schema">value: Variant numeric value accepted by the formatter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="format_full" line="173">
+		<member kind="method" name="format_full">
 			<signature>static func format_full( value: Variant, decimal_places: int = 2, trim_zeroes: bool = true, use_grouping: bool = false, use_truncation: bool = false ) -&gt; String:</signature>
 			<description>输出普通十进制字符串。</description>
 			<tags>
@@ -57,7 +57,7 @@
 				<tag name="schema">value: Variant numeric value accepted by the formatter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="format_compact" line="224">
+		<member kind="method" name="format_compact">
 			<signature>static func format_compact( value: Variant, decimal_places: int = 2, trim_zeroes: bool = true, use_truncation: bool = false, suffixes: PackedStringArray = PackedStringArray() ) -&gt; String:</signature>
 			<description>输出紧凑缩写字符串，如 1.2k / 3.4M。</description>
 			<tags>
@@ -71,7 +71,7 @@
 				<tag name="schema">value: Variant numeric value accepted by the formatter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="format_scientific" line="284">
+		<member kind="method" name="format_scientific">
 			<signature>static func format_scientific( value: Variant, decimal_places: int = 2, trim_zeroes: bool = true, use_truncation: bool = false, style: ScientificStyle = ScientificStyle.E_LOWER, engineering: bool = false ) -&gt; String:</signature>
 			<description>输出科学计数法或工程计数法字符串。</description>
 			<tags>
@@ -86,7 +86,7 @@
 				<tag name="schema">value: Variant numeric value accepted by the formatter.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="format_auto" line="340">
+		<member kind="method" name="format_auto">
 			<signature>static func format_auto( value: Variant, decimal_places: int = 2, trim_zeroes: bool = true, use_truncation: bool = false, scientific_style: ScientificStyle = ScientificStyle.E_LOWER ) -&gt; String:</signature>
 			<description>自动选择最合适的数字记法。</description>
 			<tags>

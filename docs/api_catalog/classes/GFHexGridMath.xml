@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFHexGridMath" path="addons/gf/standard/foundation/math/gf_hex_grid_math.gd" module="standard" extends="RefCounted" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFHexGridMath" path="addons/gf/standard/foundation/math/gf_hex_grid_math.gd" module="standard" extends="RefCounted" classDigest="64545cd0db13196d555ef2b973e32ab7d8bd2ac6404f89816bf6a9b47ed01785">
 	<description>GFHexGridMath: 六边形网格的纯算法工具。
 提供 offset / cube 坐标转换、邻居枚举、距离、范围、环、直线、视线、
 A* 路径查找和 Flow Field 生成。它不依赖 GFArchitecture，可直接在
@@ -11,14 +11,14 @@ Model、System、Controller 或测试中静态调用。</description>
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="OffsetLayout" line="21">
+		<member kind="enum" name="OffsetLayout">
 			<signature>enum OffsetLayout { ## 奇数行右偏移，常用于 pointy-top 横向行布局。 ODD_R, ## 偶数行右偏移，常用于 pointy-top 横向行布局。 EVEN_R, ## 奇数列下偏移，常用于 flat-top 纵向列布局。 ODD_Q, ## 偶数列下偏移，常用于 flat-top 纵向列布局。 EVEN_Q, }</signature>
 			<description>Offset 坐标布局。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="enum" name="HexOrientation" line="35">
+		<member kind="enum" name="HexOrientation">
 			<signature>enum HexOrientation { ## 尖顶朝上。 POINTY_TOP, ## 平顶朝上。 FLAT_TOP, }</signature>
 			<description>像素坐标换算时使用的六边形朝向。</description>
 			<tags>
@@ -27,14 +27,14 @@ Model、System、Controller 或测试中静态调用。</description>
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="SQRT_3" line="48">
+		<member kind="const" name="SQRT_3">
 			<signature>const SQRT_3: float = 1.7320508075688772</signature>
 			<description>根号 3 的缓存值，用于六边形像素坐标换算。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_HEX_SIZE" line="53">
+		<member kind="const" name="DEFAULT_HEX_SIZE">
 			<signature>const DEFAULT_HEX_SIZE: float = 32.0</signature>
 			<description>默认六边形外接圆半径。</description>
 			<tags>
@@ -44,7 +44,7 @@ Model、System、Controller 或测试中静态调用。</description>
 	</constants>
 	<properties />
 	<methods>
-		<member kind="method" name="is_in_bounds" line="76">
+		<member kind="method" name="is_in_bounds">
 			<signature>static func is_in_bounds(cell: Vector2i, grid_size: Vector2i) -&gt; bool:</signature>
 			<description>判断 offset 坐标是否位于网格范围内。</description>
 			<tags>
@@ -54,7 +54,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">在范围内返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="offset_to_cube" line="99">
+		<member kind="method" name="offset_to_cube">
 			<signature>static func offset_to_cube(cell: Vector2i, layout: OffsetLayout = OffsetLayout.ODD_R) -&gt; Vector3i:</signature>
 			<description>将 offset 坐标转换为 cube 坐标。</description>
 			<tags>
@@ -64,7 +64,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">cube 坐标；满足 x + y + z == 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cube_to_offset" line="128">
+		<member kind="method" name="cube_to_offset">
 			<signature>static func cube_to_offset(cube: Vector3i, layout: OffsetLayout = OffsetLayout.ODD_R) -&gt; Vector2i:</signature>
 			<description>将 cube 坐标转换为 offset 坐标。</description>
 			<tags>
@@ -74,7 +74,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">offset 坐标。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cube_round" line="147">
+		<member kind="method" name="cube_round">
 			<signature>static func cube_round(cube: Vector3) -&gt; Vector3i:</signature>
 			<description>四舍五入浮点 cube 坐标。</description>
 			<tags>
@@ -83,7 +83,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">最近的整数 cube 坐标；满足 x + y + z == 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="offset_to_pixel" line="178">
+		<member kind="method" name="offset_to_pixel">
 			<signature>static func offset_to_pixel( cell: Vector2i, hex_size: float = DEFAULT_HEX_SIZE, layout: OffsetLayout = OffsetLayout.ODD_R, orientation: HexOrientation = HexOrientation.POINTY_TOP ) -&gt; Vector2:</signature>
 			<description>将 offset 坐标转换为像素中心点。</description>
 			<tags>
@@ -95,7 +95,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">像素中心点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pixel_to_offset" line="200">
+		<member kind="method" name="pixel_to_offset">
 			<signature>static func pixel_to_offset( pixel: Vector2, hex_size: float = DEFAULT_HEX_SIZE, layout: OffsetLayout = OffsetLayout.ODD_R, orientation: HexOrientation = HexOrientation.POINTY_TOP ) -&gt; Vector2i:</signature>
 			<description>将像素坐标转换为最近的 offset 坐标。</description>
 			<tags>
@@ -107,7 +107,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">最近的 offset 坐标。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cube_to_pixel" line="220">
+		<member kind="method" name="cube_to_pixel">
 			<signature>static func cube_to_pixel( cube: Vector3i, hex_size: float = DEFAULT_HEX_SIZE, orientation: HexOrientation = HexOrientation.POINTY_TOP ) -&gt; Vector2:</signature>
 			<description>将 cube 坐标转换为像素中心点。</description>
 			<tags>
@@ -118,7 +118,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">像素中心点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pixel_to_cube" line="246">
+		<member kind="method" name="pixel_to_cube">
 			<signature>static func pixel_to_cube( pixel: Vector2, hex_size: float = DEFAULT_HEX_SIZE, orientation: HexOrientation = HexOrientation.POINTY_TOP ) -&gt; Vector3i:</signature>
 			<description>将像素坐标转换为最近的 cube 坐标。</description>
 			<tags>
@@ -129,7 +129,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">最近的 cube 坐标。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_polygon_points" line="274">
+		<member kind="method" name="get_polygon_points">
 			<signature>static func get_polygon_points( hex_size: float = DEFAULT_HEX_SIZE, orientation: HexOrientation = HexOrientation.POINTY_TOP ) -&gt; PackedVector2Array:</signature>
 			<description>获取六边形顶点相对坐标。</description>
 			<tags>
@@ -139,7 +139,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">顶点数组，按顺时针排列。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_neighbors" line="297">
+		<member kind="method" name="get_neighbors">
 			<signature>static func get_neighbors( cell: Vector2i, grid_size: Vector2i = Vector2i(-1, -1), layout: OffsetLayout = OffsetLayout.ODD_R ) -&gt; Array[Vector2i]:</signature>
 			<description>获取指定 offset 坐标的邻居。</description>
 			<tags>
@@ -150,7 +150,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">位于网格范围内的邻居列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="distance" line="322">
+		<member kind="method" name="distance">
 			<signature>static func distance( from_cell: Vector2i, to_cell: Vector2i, layout: OffsetLayout = OffsetLayout.ODD_R ) -&gt; int:</signature>
 			<description>计算两个 offset 坐标之间的六边形距离。</description>
 			<tags>
@@ -161,7 +161,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">六边形步数距离。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cube_distance" line="339">
+		<member kind="method" name="cube_distance">
 			<signature>static func cube_distance(from_cube: Vector3i, to_cube: Vector3i) -&gt; int:</signature>
 			<description>计算两个 cube 坐标之间的六边形距离。</description>
 			<tags>
@@ -171,7 +171,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">六边形步数距离。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_range" line="360">
+		<member kind="method" name="get_range">
 			<signature>static func get_range( center: Vector2i, radius: int, grid_size: Vector2i = Vector2i(-1, -1), layout: OffsetLayout = OffsetLayout.ODD_R ) -&gt; Array[Vector2i]:</signature>
 			<description>获取指定半径内的所有 offset 坐标。</description>
 			<tags>
@@ -183,7 +183,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">半径内坐标列表，包含中心。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_ring" line="395">
+		<member kind="method" name="get_ring">
 			<signature>static func get_ring( center: Vector2i, radius: int, grid_size: Vector2i = Vector2i(-1, -1), layout: OffsetLayout = OffsetLayout.ODD_R ) -&gt; Array[Vector2i]:</signature>
 			<description>获取指定半径的外环坐标。</description>
 			<tags>
@@ -195,7 +195,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">外环坐标列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_line" line="428">
+		<member kind="method" name="get_line">
 			<signature>static func get_line( from_cell: Vector2i, to_cell: Vector2i, layout: OffsetLayout = OffsetLayout.ODD_R ) -&gt; Array[Vector2i]:</signature>
 			<description>获取连接两个 offset 坐标的六边形直线。</description>
 			<tags>
@@ -206,7 +206,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">坐标列表，包含起点与终点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_line_of_sight" line="461">
+		<member kind="method" name="has_line_of_sight">
 			<signature>static func has_line_of_sight( from_cell: Vector2i, to_cell: Vector2i, is_blocking: Callable, layout: OffsetLayout = OffsetLayout.ODD_R, include_endpoints: bool = false ) -&gt; bool:</signature>
 			<description>判断两点之间是否有视线。</description>
 			<tags>
@@ -219,7 +219,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">没有阻挡时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="find_path_a_star" line="497">
+		<member kind="method" name="find_path_a_star">
 			<signature>static func find_path_a_star( grid_size: Vector2i, start: Vector2i, goal: Vector2i, is_walkable: Callable, layout: OffsetLayout = OffsetLayout.ODD_R, step_cost: Callable = Callable() ) -&gt; Array[Vector2i]:</signature>
 			<description>使用 A* 查找一条六边形路径。</description>
 			<tags>
@@ -233,7 +233,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="return">包含起点与终点的路径；无法到达时返回空数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_flow_field" line="569">
+		<member kind="method" name="build_flow_field">
 			<signature>static func build_flow_field( grid_size: Vector2i, goals: Array[Vector2i], is_walkable: Callable, layout: OffsetLayout = OffsetLayout.ODD_R, step_cost: Callable = Callable() ) -&gt; Dictionary:</signature>
 			<description>从一个或多个目标格生成六边形 Flow Field。</description>
 			<tags>
@@ -247,7 +247,7 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="schema">return: Dictionary with `costs: Dictionary[Vector2i, float]`, `directions: Dictionary[Vector2i, Vector2i]`, and `goals: Array[Vector2i]`.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="find_reachable" line="641">
+		<member kind="method" name="find_reachable">
 			<signature>static func find_reachable( grid_size: Vector2i, start: Vector2i, max_cost: float, is_walkable: Callable, layout: OffsetLayout = OffsetLayout.ODD_R, step_cost: Callable = Callable() ) -&gt; Dictionary:</signature>
 			<description>查找移动代价限制内的可达坐标。</description>
 			<tags>

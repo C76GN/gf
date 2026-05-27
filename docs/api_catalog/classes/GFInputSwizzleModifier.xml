@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputSwizzleModifier" path="addons/gf/standard/input/modifiers/gf_input_swizzle_modifier.gd" module="standard" extends="GFInputModifier" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputSwizzleModifier" path="addons/gf/standard/input/modifiers/gf_input_swizzle_modifier.gd" module="standard" extends="GFInputModifier" classDigest="c1170a70dfdbe710e5a97852ba3fdf0de910d8dd7ebc94d3ab468a876b1093e9">
 	<description>GFInputSwizzleModifier: 输入分量重排修饰器。
 用于把二维或三维输入轴按通用顺序重排，适合在不改绑定资源的情况下
 调整轴方向约定。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="SwizzleOrder" line="20">
+		<member kind="enum" name="SwizzleOrder">
 			<signature>enum SwizzleOrder { ## 保持 X/Y/Z。 XYZ, ## 输出 X/Z/Y。 XZY, ## 输出 Y/X/Z。 YXZ, ## 输出 Y/Z/X。 YZX, ## 输出 Z/X/Y。 ZXY, ## 输出 Z/Y/X。 ZYX, }</signature>
 			<description>分量重排顺序。</description>
 			<tags>
@@ -20,7 +20,7 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="order" line="41" decorators="@export">
+		<member kind="property" name="order" decorators="@export">
 			<signature>var order: SwizzleOrder = SwizzleOrder.XYZ</signature>
 			<description>分量重排顺序。</description>
 			<tags>
@@ -29,7 +29,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="modify" line="57">
+		<member kind="method" name="modify">
 			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
 			<description>修改二维输入值。</description>
 			<tags>
@@ -40,7 +40,7 @@
 				<tag name="return">分量重排后的二维输入值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="modify_3d" line="73">
+		<member kind="method" name="modify_3d">
 			<signature>func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector3:</signature>
 			<description>修改三维输入值。</description>
 			<tags>

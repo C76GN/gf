@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDragSession" path="addons/gf/standard/input/drag_drop/gf_drag_session.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDragSession" path="addons/gf/standard/input/drag_drop/gf_drag_session.gd" module="standard" extends="RefCounted" classDigest="20f7454f236adce1535df0ad74a76b796f50a8541d5ab18fa7173032e0328222">
 	<description>GFDragSession: 通用拖拽会话数据。
 描述一次拖拽从开始到释放的稳定上下文，不绑定具体 UI、背包、棋盘、
 关卡编辑器或任何业务对象。项目可把任意 payload 放入会话，再由落点规则解释。</description>
@@ -12,21 +12,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="session_id" line="20">
+		<member kind="property" name="session_id">
 			<signature>var session_id: int = -1</signature>
 			<description>会话 ID，由 GFDragDropUtility 分配。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="drag_type" line="25">
+		<member kind="property" name="drag_type">
 			<signature>var drag_type: StringName = &amp;""</signature>
 			<description>拖拽类型。落点可用它做通用接收过滤。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="32">
+		<member kind="property" name="payload">
 			<signature>var payload: Variant = null</signature>
 			<description>项目自定义载荷。框架不解释该字段。</description>
 			<tags>
@@ -34,28 +34,28 @@
 				<tag name="schema">payload: Variant，透传给 drop zone 的项目侧拖拽载荷。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="start_position" line="37">
+		<member kind="property" name="start_position">
 			<signature>var start_position: Vector2 = Vector2.ZERO</signature>
 			<description>起始位置，通常是屏幕或画布坐标。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="current_position" line="42">
+		<member kind="property" name="current_position">
 			<signature>var current_position: Vector2 = Vector2.ZERO</signature>
 			<description>当前指针位置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="previous_position" line="47">
+		<member kind="property" name="previous_position">
 			<signature>var previous_position: Vector2 = Vector2.ZERO</signature>
 			<description>上一次位置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="54">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架只负责复制和透传。</description>
 			<tags>
@@ -65,7 +65,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="setup" line="83">
+		<member kind="method" name="setup">
 			<signature>func setup( new_session_id: int, new_drag_type: StringName, new_payload: Variant, position: Vector2, source: Object = null, new_metadata: Dictionary = {} ) -&gt; void:</signature>
 			<description>初始化会话。</description>
 			<tags>
@@ -80,7 +80,7 @@
 				<tag name="schema">new_metadata: Dictionary，复制到拖拽会话中的项目侧元数据。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="update_position" line="106">
+		<member kind="method" name="update_position">
 			<signature>func update_position(position: Vector2) -&gt; void:</signature>
 			<description>更新当前拖拽位置。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="param">position: 新位置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_delta" line="116">
+		<member kind="method" name="get_delta">
 			<signature>func get_delta() -&gt; Vector2:</signature>
 			<description>获取本次更新的位移。</description>
 			<tags>
@@ -96,7 +96,7 @@
 				<tag name="return">当前和上一次位置的差值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_source" line="125">
+		<member kind="method" name="get_source">
 			<signature>func get_source() -&gt; Object:</signature>
 			<description>获取来源对象。</description>
 			<tags>
@@ -104,7 +104,7 @@
 				<tag name="return">来源仍有效时返回对象，否则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dictionary" line="139">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为调试字典。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputReleasedTrigger" path="addons/gf/standard/input/triggers/gf_input_released_trigger.gd" module="standard" extends="GFInputTrigger" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputReleasedTrigger" path="addons/gf/standard/input/triggers/gf_input_released_trigger.gd" module="standard" extends="GFInputTrigger" classDigest="4399f52fef3d47d24b2d23f231136061a1cc1e41ae02666d771b868a4dd58230">
 	<description>GFInputReleasedTrigger: 释放瞬间触发器。
 输入从活跃变为非活跃时触发一次，适合蓄力释放、松手确认等通用交互。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="reset_trigger_state" line="23">
+		<member kind="method" name="reset_trigger_state">
 			<signature>func reset_trigger_state(state: Dictionary) -&gt; void:</signature>
 			<description>重置输入触发器运行时状态。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="schema">state: Dictionary，由输入运行时持有，包含 was_active: bool。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="update" line="45">
+		<member kind="method" name="update">
 			<signature>func update(raw_active: bool, _value: Variant, _delta: float, state: Dictionary) -&gt; TriggerState:</signature>
 			<description>更新运行时状态。</description>
 			<tags>

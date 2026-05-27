@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSteeringBehaviorResource" path="addons/gf/standard/foundation/math/gf_steering_behavior_resource.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSteeringBehaviorResource" path="addons/gf/standard/foundation/math/gf_steering_behavior_resource.gd" module="standard" extends="Resource" classDigest="118a070aaf747744d19232836479ddb818711b248c1901ccd22b90843b0e1bf5">
 	<description>GFSteeringBehaviorResource: 可资源化配置的 steering 行为。
 包装 GFSteeringMath 的纯算法，允许项目用 Resource 组合 seek、arrive、avoid 等
 通用行为。动态目标、邻居和路径通过 context 传入，避免把业务对象写死进资源。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="BehaviorType" line="20">
+		<member kind="enum" name="BehaviorType">
 			<signature>enum BehaviorType { ## 朝目标位置加速。 SEEK, ## 远离目标位置。 FLEE, ## 抵达目标位置并减速。 ARRIVE, ## 追逐目标代理。 PURSUE, ## 躲避目标代理。 EVADE, ## 面向目标位置。 FACE, ## 朝当前速度方向转向。 LOOK_WHERE_YOU_GO, ## 对齐指定朝向。 ALIGN, ## 与邻居保持距离。 SEPARATION, ## 朝邻居中心靠拢。 COHESION, ## 基于预测最近距离避让碰撞。 AVOID_COLLISIONS, ## 沿路径计算目标点并 seek。 PATH_FOLLOW_SEEK, }</signature>
 			<description>Steering 行为类型。</description>
 			<tags>
@@ -20,119 +20,119 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="behavior_type" line="53" decorators="@export">
+		<member kind="property" name="behavior_type" decorators="@export">
 			<signature>var behavior_type: BehaviorType = BehaviorType.SEEK</signature>
 			<description>行为类型。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="enabled" line="58" decorators="@export">
+		<member kind="property" name="enabled" decorators="@export">
 			<signature>var enabled: bool = true</signature>
 			<description>是否启用该行为。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="weight" line="63" decorators="@export">
+		<member kind="property" name="weight" decorators="@export">
 			<signature>var weight: float = 1.0</signature>
 			<description>组合时使用的权重。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target_position" line="68" decorators="@export">
+		<member kind="property" name="target_position" decorators="@export">
 			<signature>var target_position: Vector3 = Vector3.ZERO</signature>
 			<description>静态目标位置；context 中的 `target_position` 会覆盖该值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target_orientation" line="73" decorators="@export">
+		<member kind="property" name="target_orientation" decorators="@export">
 			<signature>var target_orientation: float = 0.0</signature>
 			<description>静态目标朝向；context 中的 `target_orientation` 会覆盖该值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="arrival_radius" line="78" decorators="@export">
+		<member kind="property" name="arrival_radius" decorators="@export">
 			<signature>var arrival_radius: float = 4.0</signature>
 			<description>抵达半径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="slow_radius" line="83" decorators="@export">
+		<member kind="property" name="slow_radius" decorators="@export">
 			<signature>var slow_radius: float = 64.0</signature>
 			<description>减速半径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="time_to_target" line="88" decorators="@export">
+		<member kind="property" name="time_to_target" decorators="@export">
 			<signature>var time_to_target: float = 0.1</signature>
 			<description>逼近期望时间。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="align_tolerance" line="93" decorators="@export">
+		<member kind="property" name="align_tolerance" decorators="@export">
 			<signature>var align_tolerance: float = 0.001</signature>
 			<description>角度对齐容差。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="slow_angle" line="98" decorators="@export">
+		<member kind="property" name="slow_angle" decorators="@export">
 			<signature>var slow_angle: float = 0.5</signature>
 			<description>开始角速度减速的角度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_z_axis" line="103" decorators="@export">
+		<member kind="property" name="use_z_axis" decorators="@export">
 			<signature>var use_z_axis: bool = false</signature>
 			<description>3D 转向是否使用 x/z 平面。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_prediction_seconds" line="108" decorators="@export">
+		<member kind="property" name="max_prediction_seconds" decorators="@export">
 			<signature>var max_prediction_seconds: float = 1.0</signature>
 			<description>目标预测最大秒数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="decay_coefficient" line="113" decorators="@export">
+		<member kind="property" name="decay_coefficient" decorators="@export">
 			<signature>var decay_coefficient: float = 1.0</signature>
 			<description>分离行为距离衰减系数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_distance" line="118" decorators="@export">
+		<member kind="property" name="max_distance" decorators="@export">
 			<signature>var max_distance: float = -1.0</signature>
 			<description>最大影响距离；小于 0 时由算法使用代理半径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="collision_radius" line="123" decorators="@export">
+		<member kind="property" name="collision_radius" decorators="@export">
 			<signature>var collision_radius: float = -1.0</signature>
 			<description>避让碰撞半径；小于 0 时由算法使用双方半径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="minimum_separation" line="128" decorators="@export">
+		<member kind="property" name="minimum_separation" decorators="@export">
 			<signature>var minimum_separation: float = -1.0</signature>
 			<description>避让最小分离距离；小于 0 时由算法使用碰撞半径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="path_offset" line="133" decorators="@export">
+		<member kind="property" name="path_offset" decorators="@export">
 			<signature>var path_offset: float = 0.0</signature>
 			<description>路径跟随前进偏移。</description>
 			<tags>
@@ -141,7 +141,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="calculate" line="149">
+		<member kind="method" name="calculate">
 			<signature>func calculate(agent: GFSteeringAgent, context: Dictionary = {}) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算 steering 加速度。</description>
 			<tags>
@@ -152,7 +152,7 @@
 				<tag name="schema">context: Dictionary steering behavior context with optional target_position, target_orientation, target_agent, neighbors, targets, and path.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_behavior" line="211">
+		<member kind="method" name="duplicate_behavior">
 			<signature>func duplicate_behavior() -&gt; Resource:</signature>
 			<description>创建配置副本。</description>
 			<tags>

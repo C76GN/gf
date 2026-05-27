@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFFixedDecimal" path="addons/gf/standard/foundation/numeric/gf_fixed_decimal.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFFixedDecimal" path="addons/gf/standard/foundation/numeric/gf_fixed_decimal.gd" module="standard" extends="RefCounted" classDigest="8bc068d17a0d877d6ee1135dbffd43bde7e7ae31a1e360b06ebb8a5d710a2dbb">
 	<description>GFFixedDecimal: 基于整数缩放的定点小数值对象。
 适合处理货币、税率、经营数值等对“累计误差”敏感、
 但又不需要无限精度十进制库的场景。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="RoundingMode" line="20">
+		<member kind="enum" name="RoundingMode">
 			<signature>enum RoundingMode { ## 四舍五入，0.5 始终朝绝对值更大的方向进位。 HALF_UP, ## 银行家舍入，0.5 时向最近的偶数靠拢。 HALF_EVEN, ## 向负无穷方向取整。 FLOOR, ## 向正无穷方向取整。 CEIL, ## 直接截断，朝 0 逼近。 TRUNCATE, }</signature>
 			<description>缩放或除法时使用的舍入策略。</description>
 			<tags>
@@ -19,7 +19,7 @@
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="MAX_DECIMAL_PLACES" line="39">
+		<member kind="const" name="MAX_DECIMAL_PLACES">
 			<signature>const MAX_DECIMAL_PLACES: int = 18</signature>
 			<description>定点数可保留的小数位上限，避免整数缩放时溢出。</description>
 			<tags>
@@ -28,14 +28,14 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="raw_value" line="52">
+		<member kind="property" name="raw_value">
 			<signature>var raw_value: int = 0</signature>
 			<description>实际保存的整数值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="decimal_places" line="57">
+		<member kind="property" name="decimal_places">
 			<signature>var decimal_places: int = 2</signature>
 			<description>小数位数。</description>
 			<tags>
@@ -44,7 +44,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="from_int" line="78">
+		<member kind="method" name="from_int">
 			<signature>static func from_int(value: int, p_decimal_places: int = 2) -&gt; GFFixedDecimal:</signature>
 			<description>从 int 构建定点数。</description>
 			<tags>
@@ -54,7 +54,7 @@
 				<tag name="return">定点数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_float" line="97">
+		<member kind="method" name="from_float">
 			<signature>static func from_float( value: float, p_decimal_places: int = 2, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
 			<description>从 float 构建定点数。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="return">定点数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_string" line="127">
+		<member kind="method" name="from_string">
 			<signature>static func from_string( value: String, p_decimal_places: int = 2, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
 			<description>从字符串构建定点数。</description>
 			<tags>
@@ -76,7 +76,7 @@
 				<tag name="return">定点数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clone" line="172">
+		<member kind="method" name="clone">
 			<signature>func clone() -&gt; GFFixedDecimal:</signature>
 			<description>克隆当前定点数。</description>
 			<tags>
@@ -84,7 +84,7 @@
 				<tag name="return">内容相同的新实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_zero" line="181">
+		<member kind="method" name="is_zero">
 			<signature>func is_zero() -&gt; bool:</signature>
 			<description>当前值是否为零。</description>
 			<tags>
@@ -92,7 +92,7 @@
 				<tag name="return">为零时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="abs_value" line="190">
+		<member kind="method" name="abs_value">
 			<signature>func abs_value() -&gt; GFFixedDecimal:</signature>
 			<description>获取绝对值。</description>
 			<tags>
@@ -100,7 +100,7 @@
 				<tag name="return">新的定点数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="negated" line="199">
+		<member kind="method" name="negated">
 			<signature>func negated() -&gt; GFFixedDecimal:</signature>
 			<description>获取相反数。</description>
 			<tags>
@@ -108,7 +108,7 @@
 				<tag name="return">新的定点数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="rescaled" line="212">
+		<member kind="method" name="rescaled">
 			<signature>func rescaled( target_decimal_places: int, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
 			<description>重设小数位数。</description>
 			<tags>
@@ -118,7 +118,7 @@
 				<tag name="return">重设后的定点数实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="compare_to" line="233">
+		<member kind="method" name="compare_to">
 			<signature>func compare_to(other: GFFixedDecimal) -&gt; int:</signature>
 			<description>与另一个定点数比较大小。</description>
 			<tags>
@@ -127,7 +127,7 @@
 				<tag name="return">大于返回 1，小于返回 -1，相等返回 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add" line="254">
+		<member kind="method" name="add">
 			<signature>func add(other: GFFixedDecimal) -&gt; GFFixedDecimal:</signature>
 			<description>与另一个定点数相加。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="return">相加结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="subtract" line="271">
+		<member kind="method" name="subtract">
 			<signature>func subtract(other: GFFixedDecimal) -&gt; GFFixedDecimal:</signature>
 			<description>与另一个定点数相减。</description>
 			<tags>
@@ -145,7 +145,7 @@
 				<tag name="return">相减结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="multiply" line="289">
+		<member kind="method" name="multiply">
 			<signature>func multiply( other: GFFixedDecimal, target_decimal_places: int = -1, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
 			<description>与另一个定点数相乘。</description>
 			<tags>
@@ -156,7 +156,7 @@
 				<tag name="return">相乘结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="divide" line="319">
+		<member kind="method" name="divide">
 			<signature>func divide( other: GFFixedDecimal, target_decimal_places: int = -1, rounding_mode: RoundingMode = RoundingMode.HALF_UP ) -&gt; GFFixedDecimal:</signature>
 			<description>与另一个定点数相除。</description>
 			<tags>
@@ -167,7 +167,7 @@
 				<tag name="return">相除结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_float" line="355">
+		<member kind="method" name="to_float">
 			<signature>func to_float() -&gt; float:</signature>
 			<description>转换为 float。</description>
 			<tags>
@@ -175,7 +175,7 @@
 				<tag name="return">浮点值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_big_number" line="364">
+		<member kind="method" name="to_big_number">
 			<signature>func to_big_number() -&gt; GFBigNumber:</signature>
 			<description>转换为 GFBigNumber。</description>
 			<tags>
@@ -183,7 +183,7 @@
 				<tag name="return">对应的大数值对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_decimal_string" line="375">
+		<member kind="method" name="to_decimal_string">
 			<signature>func to_decimal_string(trim_zeroes: bool = false) -&gt; String:</signature>
 			<description>转换为普通字符串。</description>
 			<tags>

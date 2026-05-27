@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSaveGraphUtility" path="addons/gf/extensions/save/graph/gf_save_graph_utility.gd" module="extensions/save" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSaveGraphUtility" path="addons/gf/extensions/save/graph/gf_save_graph_utility.gd" module="extensions/save" extends="GFUtility" classDigest="68c26794ff7636fbb2effaef797f7a16b4dfa3adba1c8fe5a02d7adfe07247ad">
 	<description>GFSaveGraphUtility: 通用节点存档图编排工具。
 负责遍历 GFSaveScope/GFSaveSource，采集、应用和落盘存档图。具体数据结构
 由 Source、Serializer 或项目继承类决定，Utility 本身不绑定业务字段。</description>
@@ -11,14 +11,14 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="FORMAT_ID" line="20">
+		<member kind="const" name="FORMAT_ID">
 			<signature>const FORMAT_ID: String = "gf_save_graph"</signature>
 			<description>存档图载荷格式标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="FORMAT_VERSION" line="25">
+		<member kind="const" name="FORMAT_VERSION">
 			<signature>const FORMAT_VERSION: int = 1</signature>
 			<description>当前存档图载荷格式版本。</description>
 			<tags>
@@ -27,14 +27,14 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="serializer_registry" line="36">
+		<member kind="property" name="serializer_registry">
 			<signature>var serializer_registry: GFNodeSerializerRegistry = GFNodeSerializerRegistry.new()</signature>
 			<description>节点序列化器注册表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="pipeline_steps" line="41">
+		<member kind="property" name="pipeline_steps">
 			<signature>var pipeline_steps: Array[GFSavePipelineStep] = []</signature>
 			<description>存档图流程步骤。按数组顺序执行，适合压缩前校验、调试标记、版本适配等通用处理。</description>
 			<tags>
@@ -43,7 +43,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="register_entity_factory" line="56">
+		<member kind="method" name="register_entity_factory">
 			<signature>func register_entity_factory(factory: GFSaveEntityFactory) -&gt; void:</signature>
 			<description>注册实体工厂。</description>
 			<tags>
@@ -51,7 +51,7 @@
 				<tag name="param">factory: 实体工厂。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_entity_factory" line="71">
+		<member kind="method" name="unregister_entity_factory">
 			<signature>func unregister_entity_factory(type_key: StringName) -&gt; void:</signature>
 			<description>注销实体工厂。</description>
 			<tags>
@@ -59,14 +59,14 @@
 				<tag name="param">type_key: 实体类型键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_entity_factories" line="78">
+		<member kind="method" name="clear_entity_factories">
 			<signature>func clear_entity_factories() -&gt; void:</signature>
 			<description>清空实体工厂。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_pipeline_step" line="87">
+		<member kind="method" name="add_pipeline_step">
 			<signature>func add_pipeline_step(step: GFSavePipelineStep) -&gt; void:</signature>
 			<description>添加存档流程步骤。</description>
 			<tags>
@@ -74,7 +74,7 @@
 				<tag name="param">step: 流程步骤。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_pipeline_step" line="98">
+		<member kind="method" name="remove_pipeline_step">
 			<signature>func remove_pipeline_step(step: GFSavePipelineStep) -&gt; void:</signature>
 			<description>移除存档流程步骤。</description>
 			<tags>
@@ -82,14 +82,14 @@
 				<tag name="param">step: 流程步骤。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_pipeline_steps" line="105">
+		<member kind="method" name="clear_pipeline_steps">
 			<signature>func clear_pipeline_steps() -&gt; void:</signature>
 			<description>清空存档流程步骤。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="create_pipeline_context" line="122">
+		<member kind="method" name="create_pipeline_context">
 			<signature>func create_pipeline_context( operation: StringName, scope: GFSaveScope = null, shared: Dictionary = {} ) -&gt; GFSavePipelineContext:</signature>
 			<description>创建存档流程上下文。</description>
 			<tags>
@@ -101,7 +101,7 @@
 				<tag name="schema">shared: Dictionary，流程共享数据，可由步骤写入调试标记、迁移状态或项目自定义键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="inspect_scope" line="144">
+		<member kind="method" name="inspect_scope">
 			<signature>func inspect_scope(scope: GFSaveScope, context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>检查 Scope 树的可保存结构。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、healthy、scope_key、计数字段、issue_counts_by_kind、summary、next_action、scopes、sources 与 issues。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_scope_health_report" line="185">
+		<member kind="method" name="build_scope_health_report">
 			<signature>func build_scope_health_report(scope: GFSaveScope, context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>构建 Scope 健康报告。</description>
 			<tags>
@@ -125,7 +125,7 @@
 				<tag name="schema">return: Dictionary，结构与 inspect_scope 的返回诊断报告一致。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_payload_for_scope" line="204">
+		<member kind="method" name="validate_payload_for_scope">
 			<signature>func validate_payload_for_scope(scope: GFSaveScope, payload: Dictionary, strict: bool = false) -&gt; Dictionary:</signature>
 			<description>校验载荷是否能匹配当前 Scope 树。</description>
 			<tags>
@@ -138,7 +138,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、healthy、scope_key、checked_source_count、checked_scope_count、missing、issues、summary 与 next_action。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_payload_health_report" line="253">
+		<member kind="method" name="build_payload_health_report">
 			<signature>func build_payload_health_report(scope: GFSaveScope, payload: Dictionary, strict: bool = false) -&gt; Dictionary:</signature>
 			<description>构建载荷匹配健康报告。</description>
 			<tags>
@@ -151,7 +151,7 @@
 				<tag name="schema">return: Dictionary，结构与 validate_payload_for_scope 的返回诊断报告一致。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="gather_scope" line="270">
+		<member kind="method" name="gather_scope">
 			<signature>func gather_scope(scope: GFSaveScope, context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集 Scope 存档图。</description>
 			<tags>
@@ -163,7 +163,7 @@
 				<tag name="schema">return: Dictionary，存档图载荷，包含 format、format_version、scope、sources、scopes，可选 metadata 与 pipeline_trace。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_scope" line="373">
+		<member kind="method" name="apply_scope">
 			<signature>func apply_scope( scope: GFSaveScope, payload: Dictionary, context: Dictionary = {}, strict: bool = false ) -&gt; Dictionary:</signature>
 			<description>应用 Scope 存档图。</description>
 			<tags>
@@ -178,7 +178,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、applied、errors、missing，可选 pipeline_trace。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_scope" line="540">
+		<member kind="method" name="save_scope">
 			<signature>func save_scope( file_name: String, scope: GFSaveScope, metadata: Dictionary = {}, context: Dictionary = {} ) -&gt; Error:</signature>
 			<description>采集并保存 Scope。</description>
 			<tags>
@@ -192,7 +192,7 @@
 				<tag name="schema">context: Dictionary，可包含 pipeline_context、pipeline_shared、include_pipeline_trace 及项目自定义键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_scope" line="575">
+		<member kind="method" name="load_scope">
 			<signature>func load_scope( file_name: String, scope: GFSaveScope, context: Dictionary = {}, strict: bool = false ) -&gt; Dictionary:</signature>
 			<description>从文件读取并应用 Scope。</description>
 			<tags>

@@ -739,6 +739,16 @@ var display_name: String = ""
 
 编辑器展示名称。
 
+#### `transfer_channel`
+
+- API: `public`
+
+```gdscript
+var transfer_channel: int = 0
+```
+
+后端传输通道编号。
+
 #### `reliable`
 
 - API: `public`
@@ -747,7 +757,7 @@ var display_name: String = ""
 var reliable: bool = true
 ```
 
-后端传输通道编号。 默认是否可靠传输。
+默认是否可靠传输。
 
 #### `max_packet_size`
 
@@ -1655,6 +1665,16 @@ var value_type: ValueType = ValueType.VARIANT
 
 字段值类型。
 
+#### `quantize_decimals`
+
+- API: `public`
+
+```gdscript
+var quantize_decimals: int = -1
+```
+
+浮点量化小数位；小于 0 表示不量化。
+
 #### `clamp_enabled`
 
 - API: `public`
@@ -1663,7 +1683,7 @@ var value_type: ValueType = ValueType.VARIANT
 var clamp_enabled: bool = false
 ```
 
-浮点量化小数位；小于 0 表示不量化。 是否夹取数值。
+是否夹取数值。
 
 #### `min_value`
 

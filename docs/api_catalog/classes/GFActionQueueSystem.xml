@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFActionQueueSystem" path="addons/gf/extensions/action_queue/core/gf_action_queue_system.gd" module="extensions/action_queue" extends="GFSystem" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFActionQueueSystem" path="addons/gf/extensions/action_queue/core/gf_action_queue_system.gd" module="extensions/action_queue" extends="GFSystem" classDigest="4a538f9428fa609a253b4dc25c6643b590582597128c5c214498dbd5f8f69588">
 	<description>GFActionQueueSystem: 逻辑与表现解耦的动作队列系统。
 负责串行或并行消费动作对象，并在等待 Signal 时对发射源失效做防死锁保护。
 动作可继承 `GFVisualAction`，也可直接实现 execute()/can_execute()/cancel() 等同名协议方法。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="queue_drained" line="19">
+		<member kind="signal" name="queue_drained">
 			<signature>signal queue_drained</signature>
 			<description>当队列从有内容变为全部执行完毕时发出。</description>
 			<tags>
@@ -20,7 +20,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="is_processing" line="32">
+		<member kind="property" name="is_processing">
 			<signature>var is_processing: bool = false</signature>
 			<description>是否正在处理队列。</description>
 			<tags>
@@ -29,28 +29,28 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="64">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化主队列、命名队列和拦截器状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="ready" line="78">
+		<member kind="method" name="ready">
 			<signature>func ready() -&gt; void:</signature>
 			<description>注册诊断工具快照。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="85">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放当前队列、命名队列和诊断注册。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enqueue" line="110">
+		<member kind="method" name="enqueue">
 			<signature>func enqueue(action: Object) -&gt; void:</signature>
 			<description>将一个动作加入顺序队列。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="param">action: 要处理的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enqueue_fire_and_forget" line="123">
+		<member kind="method" name="enqueue_fire_and_forget">
 			<signature>func enqueue_fire_and_forget(action: Object) -&gt; void:</signature>
 			<description>将一个动作以显式 fire-and-forget 模式加入队列。</description>
 			<tags>
@@ -66,7 +66,7 @@
 				<tag name="param">action: 要处理的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enqueue_parallel" line="138">
+		<member kind="method" name="enqueue_parallel">
 			<signature>func enqueue_parallel(actions: Array) -&gt; void:</signature>
 			<description>将一批动作加入队列并并行执行。</description>
 			<tags>
@@ -75,7 +75,7 @@
 				<tag name="schema">actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_front" line="152">
+		<member kind="method" name="push_front">
 			<signature>func push_front(action: Object) -&gt; void:</signature>
 			<description>将一个动作插入队列头部。</description>
 			<tags>
@@ -83,7 +83,7 @@
 				<tag name="param">action: 要处理的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_front_fire_and_forget" line="165">
+		<member kind="method" name="push_front_fire_and_forget">
 			<signature>func push_front_fire_and_forget(action: Object) -&gt; void:</signature>
 			<description>将一个动作以显式 fire-and-forget 模式插入队列头部。</description>
 			<tags>
@@ -91,7 +91,7 @@
 				<tag name="param">action: 要处理的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_front_parallel" line="180">
+		<member kind="method" name="push_front_parallel">
 			<signature>func push_front_parallel(actions: Array) -&gt; void:</signature>
 			<description>将一批并行动作插入队列头部。</description>
 			<tags>
@@ -100,7 +100,7 @@
 				<tag name="schema">actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_queue" line="194">
+		<member kind="method" name="clear_queue">
 			<signature>func clear_queue(stop_current: bool = false) -&gt; void:</signature>
 			<description>清空队列中尚未执行的动作。</description>
 			<tags>
@@ -108,7 +108,7 @@
 				<tag name="param">stop_current: 为 true 时同时取消当前正在等待 Signal 的动作队列消费。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_named_queue" line="213">
+		<member kind="method" name="get_named_queue">
 			<signature>func get_named_queue(queue_name: StringName) -&gt; GFActionQueueSystem:</signature>
 			<description>获取或创建一个命名动作队列。</description>
 			<tags>
@@ -117,7 +117,7 @@
 				<tag name="return">命名队列；queue_name 为空时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_linked_queue" line="238">
+		<member kind="method" name="get_linked_queue">
 			<signature>func get_linked_queue(queue_name: StringName, linked_node: Node) -&gt; GFActionQueueSystem:</signature>
 			<description>创建或获取一个绑定到节点生命周期的命名队列。</description>
 			<tags>
@@ -127,7 +127,7 @@
 				<tag name="return">绑定后的命名队列；queue_name 为空时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="bind_to_node" line="251">
+		<member kind="method" name="bind_to_node">
 			<signature>func bind_to_node(linked_node: Node) -&gt; void:</signature>
 			<description>将当前队列绑定到节点生命周期；节点失效后队列会停止并清空。</description>
 			<tags>
@@ -135,7 +135,7 @@
 				<tag name="param">linked_node: 与队列生命周期绑定的节点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_interceptor" line="262">
+		<member kind="method" name="add_interceptor">
 			<signature>func add_interceptor(interceptor: GFActionInterceptor) -&gt; bool:</signature>
 			<description>添加动作执行拦截器。</description>
 			<tags>
@@ -144,7 +144,7 @@
 				<tag name="return">添加成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_interceptor" line="281">
+		<member kind="method" name="remove_interceptor">
 			<signature>func remove_interceptor(interceptor: GFActionInterceptor) -&gt; bool:</signature>
 			<description>移除动作执行拦截器。</description>
 			<tags>
@@ -153,7 +153,7 @@
 				<tag name="return">移除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_interceptors" line="293">
+		<member kind="method" name="set_interceptors">
 			<signature>func set_interceptors(interceptors: Array[GFActionInterceptor]) -&gt; void:</signature>
 			<description>批量替换动作执行拦截器。</description>
 			<tags>
@@ -161,14 +161,14 @@
 				<tag name="param">interceptors: 新拦截器列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_interceptors" line="302">
+		<member kind="method" name="clear_interceptors">
 			<signature>func clear_interceptors() -&gt; void:</signature>
 			<description>清空动作执行拦截器。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_interceptors" line="311">
+		<member kind="method" name="get_interceptors">
 			<signature>func get_interceptors() -&gt; Array[GFActionInterceptor]:</signature>
 			<description>获取动作执行拦截器副本。</description>
 			<tags>
@@ -176,7 +176,7 @@
 				<tag name="return">拦截器列表副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enqueue_to" line="324">
+		<member kind="method" name="enqueue_to">
 			<signature>func enqueue_to(queue_name: StringName, action: Object) -&gt; void:</signature>
 			<description>将动作加入指定命名队列。</description>
 			<tags>
@@ -185,7 +185,7 @@
 				<tag name="param">action: 要处理的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enqueue_fire_and_forget_to" line="337">
+		<member kind="method" name="enqueue_fire_and_forget_to">
 			<signature>func enqueue_fire_and_forget_to(queue_name: StringName, action: Object) -&gt; void:</signature>
 			<description>将动作以 fire-and-forget 模式加入指定命名队列。</description>
 			<tags>
@@ -194,7 +194,7 @@
 				<tag name="param">action: 要处理的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="enqueue_parallel_to" line="352">
+		<member kind="method" name="enqueue_parallel_to">
 			<signature>func enqueue_parallel_to(queue_name: StringName, actions: Array) -&gt; void:</signature>
 			<description>将一批动作加入指定命名队列并行执行。</description>
 			<tags>
@@ -204,7 +204,7 @@
 				<tag name="schema">actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_front_to" line="365">
+		<member kind="method" name="push_front_to">
 			<signature>func push_front_to(queue_name: StringName, action: Object) -&gt; void:</signature>
 			<description>将动作插入指定命名队列头部。</description>
 			<tags>
@@ -213,7 +213,7 @@
 				<tag name="param">action: 要处理的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_named_queue" line="378">
+		<member kind="method" name="clear_named_queue">
 			<signature>func clear_named_queue(queue_name: StringName, stop_current: bool = false) -&gt; void:</signature>
 			<description>清理指定命名队列。</description>
 			<tags>
@@ -222,7 +222,7 @@
 				<tag name="param">stop_current: 是否停止当前正在执行的动作。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_all_named_queues" line="389">
+		<member kind="method" name="clear_all_named_queues">
 			<signature>func clear_all_named_queues(stop_current: bool = false) -&gt; void:</signature>
 			<description>清理所有命名队列。</description>
 			<tags>
@@ -230,14 +230,14 @@
 				<tag name="param">stop_current: 是否停止当前正在执行的动作。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="skip_current_action" line="399">
+		<member kind="method" name="skip_current_action">
 			<signature>func skip_current_action() -&gt; void:</signature>
 			<description>跳过当前动作并继续消费后续动作。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pause_current_action" line="411">
+		<member kind="method" name="pause_current_action">
 			<signature>func pause_current_action() -&gt; bool:</signature>
 			<description>暂停当前动作。</description>
 			<tags>
@@ -245,7 +245,7 @@
 				<tag name="return">存在当前动作时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resume_current_action" line="423">
+		<member kind="method" name="resume_current_action">
 			<signature>func resume_current_action() -&gt; bool:</signature>
 			<description>恢复当前动作。</description>
 			<tags>
@@ -253,14 +253,14 @@
 				<tag name="return">存在当前动作时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="finish_current_action" line="433">
+		<member kind="method" name="finish_current_action">
 			<signature>func finish_current_action() -&gt; void:</signature>
 			<description>将当前动作标记为立即完成并继续消费后续动作。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_action" line="447">
+		<member kind="method" name="get_current_action">
 			<signature>func get_current_action() -&gt; Object:</signature>
 			<description>获取当前正在执行或等待的动作。</description>
 			<tags>
@@ -268,7 +268,7 @@
 				<tag name="return">当前动作；没有动作时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="458">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取动作队列诊断快照。</description>
 			<tags>
@@ -277,7 +277,7 @@
 				<tag name="schema">return: Dictionary，包含 is_processing、queued_count、has_current_action、processing_serial、named_queue_count、named_queues、linked_node_alive 和 interceptor_count。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="482">
+		<member kind="method" name="tick">
 			<signature>func tick(_delta: float) -&gt; void:</signature>
 			<description>驱动命名队列的生命周期清理。</description>
 			<tags>

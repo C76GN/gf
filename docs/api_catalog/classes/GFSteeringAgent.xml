@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSteeringAgent" path="addons/gf/standard/foundation/math/gf_steering_agent.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSteeringAgent" path="addons/gf/standard/foundation/math/gf_steering_agent.gd" module="standard" extends="RefCounted" classDigest="1ba0fa9d5fbc01ef45701ed34836de345bd465953bff00da4baf6d526b5fa4df">
 	<description>GFSteeringAgent: steering 计算使用的通用代理状态。
 只描述位置、速度、朝向和运动上限，不持有 Node 或物理体。</description>
 	<tags>
@@ -11,63 +11,63 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="position" line="19">
+		<member kind="property" name="position">
 			<signature>var position: Vector3 = Vector3.ZERO</signature>
 			<description>当前世界位置。2D 项目可使用 x/y，z 保持 0。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="velocity" line="24">
+		<member kind="property" name="velocity">
 			<signature>var velocity: Vector3 = Vector3.ZERO</signature>
 			<description>当前线性速度。2D 项目可使用 x/y，z 保持 0。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="orientation" line="29">
+		<member kind="property" name="orientation">
 			<signature>var orientation: float = 0.0</signature>
 			<description>当前朝向角，单位为弧度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="angular_velocity" line="34">
+		<member kind="property" name="angular_velocity">
 			<signature>var angular_velocity: float = 0.0</signature>
 			<description>当前角速度，单位为弧度每秒。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="radius" line="39">
+		<member kind="property" name="radius">
 			<signature>var radius: float = 8.0</signature>
 			<description>代理半径，用于邻域或避让计算。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="linear_speed_max" line="44">
+		<member kind="property" name="linear_speed_max">
 			<signature>var linear_speed_max: float = 240.0</signature>
 			<description>最大线性速度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="linear_acceleration_max" line="49">
+		<member kind="property" name="linear_acceleration_max">
 			<signature>var linear_acceleration_max: float = 800.0</signature>
 			<description>最大线性加速度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="angular_speed_max" line="54">
+		<member kind="property" name="angular_speed_max">
 			<signature>var angular_speed_max: float = TAU</signature>
 			<description>最大角速度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="angular_acceleration_max" line="59">
+		<member kind="property" name="angular_acceleration_max">
 			<signature>var angular_acceleration_max: float = TAU * 4.0</signature>
 			<description>最大角加速度。</description>
 			<tags>
@@ -76,7 +76,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_from_node_2d" line="78">
+		<member kind="method" name="set_from_node_2d">
 			<signature>func set_from_node_2d(node: Node2D, linear_velocity: Vector2 = Vector2.ZERO) -&gt; void:</signature>
 			<description>从 Node2D 同步位置与朝向。</description>
 			<tags>
@@ -85,7 +85,7 @@
 				<tag name="param">linear_velocity: 可选线性速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_from_node_3d" line="93">
+		<member kind="method" name="set_from_node_3d">
 			<signature>func set_from_node_3d(node: Node3D, linear_velocity: Vector3 = Vector3.ZERO) -&gt; void:</signature>
 			<description>从 Node3D 同步位置与朝向。</description>
 			<tags>
@@ -94,7 +94,7 @@
 				<tag name="param">linear_velocity: 可选线性速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_agent" line="106">
+		<member kind="method" name="duplicate_agent">
 			<signature>func duplicate_agent() -&gt; GFSteeringAgent:</signature>
 			<description>创建深拷贝。</description>
 			<tags>

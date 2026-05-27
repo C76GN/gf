@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFProjectileLineSpawnPattern2D" path="addons/gf/extensions/combat/projectiles/gf_projectile_line_spawn_pattern_2d.gd" module="extensions/combat" extends="GFProjectileSpawnPattern2D" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFProjectileLineSpawnPattern2D" path="addons/gf/extensions/combat/projectiles/gf_projectile_line_spawn_pattern_2d.gd" module="extensions/combat" extends="GFProjectileSpawnPattern2D" classDigest="080e93191f969cdd26040f4d161adb44f88230c0fad4b68162838026b1623526">
 	<description>GFProjectileLineSpawnPattern2D: 沿 2D 局部线段生成发射点。
 只描述发射点分布，适合多炮口、线性随机点或沿武器边缘生成发射体。</description>
 	<tags>
@@ -11,23 +11,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="local_start" line="24" decorators="@export_range(1, 256, 1) var point_count: int = 1 @export">
-			<signature>var local_start: Vector2 = Vector2.ZERO</signature>
-			<description>默认发射数量。
-线段局部起点。</description>
+		<member kind="property" name="point_count" decorators="@export_range(1, 256, 1)">
+			<signature>var point_count: int = 1</signature>
+			<description>默认发射数量。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="local_end" line="29" decorators="@export">
+		<member kind="property" name="local_start" decorators="@export">
+			<signature>var local_start: Vector2 = Vector2.ZERO</signature>
+			<description>线段局部起点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="local_end" decorators="@export">
 			<signature>var local_end: Vector2 = Vector2.ZERO</signature>
 			<description>线段局部终点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="rotate_to_line" line="34" decorators="@export">
+		<member kind="property" name="rotate_to_line" decorators="@export">
 			<signature>var rotate_to_line: bool = false</signature>
 			<description>生成变换是否朝向线段方向。</description>
 			<tags>

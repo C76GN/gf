@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFHitBoxState2D" path="addons/gf/extensions/combat/hit_detection/gf_hit_box_state_2d.gd" module="extensions/combat" extends="Node2D" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFHitBoxState2D" path="addons/gf/extensions/combat/hit_detection/gf_hit_box_state_2d.gd" module="extensions/combat" extends="Node2D" classDigest="da4f5d01727b3e14cc1c2dc7414daa8c0ab19131a1e184a786e1c6e7c2b9c1a2">
 	<description>GFHitBoxState2D: 2D 命中区域状态组。
 统一启停子树内的 GFHitBox2D、GFHurtBox2D 与 Area2D，不处理伤害、阵营或技能规则。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="active_changed" line="21">
+		<member kind="signal" name="active_changed">
 			<signature>signal active_changed(active: bool)</signature>
 			<description>状态应用后发出。</description>
 			<tags>
@@ -20,42 +20,42 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="active" line="29" decorators="@export">
+		<member kind="property" name="active" decorators="@export">
 			<signature>var active: bool = true:</signature>
 			<description>当前状态是否激活。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_on_ready" line="41" decorators="@export">
+		<member kind="property" name="apply_on_ready" decorators="@export">
 			<signature>var apply_on_ready: bool = true</signature>
 			<description>是否在 _ready() 时应用当前状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="recursive" line="46" decorators="@export">
+		<member kind="property" name="recursive" decorators="@export">
 			<signature>var recursive: bool = true</signature>
 			<description>是否递归管理子节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="manage_enabled" line="51" decorators="@export">
+		<member kind="property" name="manage_enabled" decorators="@export">
 			<signature>var manage_enabled: bool = true</signature>
 			<description>是否同步 GFHitBox2D/GFHurtBox2D 的 enabled 字段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="manage_monitoring" line="56" decorators="@export">
+		<member kind="property" name="manage_monitoring" decorators="@export">
 			<signature>var manage_monitoring: bool = true</signature>
 			<description>是否同步 Area2D 的 monitoring 与 monitorable。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="manage_visibility" line="61" decorators="@export">
+		<member kind="property" name="manage_visibility" decorators="@export">
 			<signature>var manage_visibility: bool = false</signature>
 			<description>是否同步 CanvasItem.visible。</description>
 			<tags>
@@ -64,21 +64,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="activate" line="76">
+		<member kind="method" name="activate">
 			<signature>func activate() -&gt; void:</signature>
 			<description>激活状态组。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="deactivate" line="83">
+		<member kind="method" name="deactivate">
 			<signature>func deactivate() -&gt; void:</signature>
 			<description>关闭状态组。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_active_state" line="92">
+		<member kind="method" name="set_active_state">
 			<signature>func set_active_state(value: bool) -&gt; void:</signature>
 			<description>设置状态组激活状态。</description>
 			<tags>
@@ -86,14 +86,14 @@
 				<tag name="param">value: 是否激活。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_state" line="102">
+		<member kind="method" name="apply_state">
 			<signature>func apply_state() -&gt; void:</signature>
 			<description>应用当前状态到所有受管理节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_managed_nodes" line="112">
+		<member kind="method" name="get_managed_nodes">
 			<signature>func get_managed_nodes() -&gt; Array[Node]:</signature>
 			<description>获取受管理节点列表。</description>
 			<tags>

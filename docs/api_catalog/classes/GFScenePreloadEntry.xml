@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFScenePreloadEntry" path="addons/gf/standard/utilities/scene/gf_scene_preload_entry.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFScenePreloadEntry" path="addons/gf/standard/utilities/scene/gf_scene_preload_entry.gd" module="standard" extends="Resource" classDigest="ff0ee8ea3f9b6b2299c5ce89f785652b2b4bc07d7c027116f7ac35134a4c3809">
 	<description>GFScenePreloadEntry: 场景预加载图谱中的单个节点。
 描述一个场景与相邻场景的关系，以及该场景是否应进入固定缓存。
 它只表达资源关系，不假设关卡、地图、菜单或玩法语义。</description>
@@ -12,23 +12,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="adjacent_scene_paths" line="25" decorators="@export_file(&quot;*.tscn&quot;, &quot;*.scn&quot;) var scene_path: String = &quot;&quot; @export">
-			<signature>var adjacent_scene_paths: PackedStringArray = PackedStringArray()</signature>
-			<description>当前场景资源路径。
-与当前场景相邻、可能被提前预热的场景资源路径。</description>
+		<member kind="property" name="scene_path" decorators="@export_file(&quot;*.tscn&quot;, &quot;*.scn&quot;)">
+			<signature>var scene_path: String = ""</signature>
+			<description>当前场景资源路径。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="fixed" line="30" decorators="@export">
+		<member kind="property" name="adjacent_scene_paths" decorators="@export">
+			<signature>var adjacent_scene_paths: PackedStringArray = PackedStringArray()</signature>
+			<description>与当前场景相邻、可能被提前预热的场景资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="fixed" decorators="@export">
 			<signature>var fixed: bool = false</signature>
 			<description>是否建议将该场景放入固定缓存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="37" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -38,7 +43,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_scene_path" line="47">
+		<member kind="method" name="get_scene_path">
 			<signature>func get_scene_path() -&gt; String:</signature>
 			<description>获取规范化后的场景路径。</description>
 			<tags>
@@ -46,7 +51,7 @@
 				<tag name="return">去除首尾空白后的场景路径。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_adjacent_scene_paths" line="56">
+		<member kind="method" name="get_adjacent_scene_paths">
 			<signature>func get_adjacent_scene_paths() -&gt; PackedStringArray:</signature>
 			<description>获取去重后的相邻场景路径。</description>
 			<tags>
@@ -54,7 +59,7 @@
 				<tag name="return">相邻场景路径列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe_entry" line="74">
+		<member kind="method" name="describe_entry">
 			<signature>func describe_entry() -&gt; Dictionary:</signature>
 			<description>描述当前条目。</description>
 			<tags>

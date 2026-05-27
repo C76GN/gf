@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSaveIdentity" path="addons/gf/extensions/save/core/gf_save_identity.gd" module="extensions/save" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSaveIdentity" path="addons/gf/extensions/save/core/gf_save_identity.gd" module="extensions/save" extends="Node" classDigest="ba5af8575a08c04911a177d4d820b9e938988996af2422e532e8a18aee7cbfed">
 	<description>GFSaveIdentity: 场景节点的持久化身份描述。
 用于为可恢复实体提供稳定 id、类型键和额外描述信息。它只描述身份，
 不直接负责保存或实例化。</description>
@@ -12,21 +12,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="persistent_id" line="20" decorators="@export">
+		<member kind="property" name="persistent_id" decorators="@export">
 			<signature>var persistent_id: StringName = &amp;""</signature>
 			<description>稳定实体 id。留空时由调用方决定是否使用节点路径等回退方案。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="type_key" line="25" decorators="@export">
+		<member kind="property" name="type_key" decorators="@export">
 			<signature>var type_key: StringName = &amp;""</signature>
 			<description>可选实体类型键，通常用于恢复时选择工厂。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="descriptor_extra" line="32" decorators="@export">
+		<member kind="property" name="descriptor_extra" decorators="@export">
 			<signature>var descriptor_extra: Dictionary = {}</signature>
 			<description>可写入存档描述的扩展字段。</description>
 			<tags>
@@ -36,7 +36,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_persistent_id" line="42">
+		<member kind="method" name="get_persistent_id">
 			<signature>func get_persistent_id() -&gt; StringName:</signature>
 			<description>获取稳定实体 id。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="return">实体 id。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_type_key" line="51">
+		<member kind="method" name="get_type_key">
 			<signature>func get_type_key() -&gt; StringName:</signature>
 			<description>获取实体类型键。</description>
 			<tags>
@@ -52,7 +52,7 @@
 				<tag name="return">类型键。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe_identity" line="62">
+		<member kind="method" name="describe_identity">
 			<signature>func describe_identity() -&gt; Dictionary:</signature>
 			<description>构造身份描述。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkMessage" path="addons/gf/extensions/network/messages/gf_network_message.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNetworkMessage" path="addons/gf/extensions/network/messages/gf_network_message.gd" module="extensions/network" extends="RefCounted" classDigest="8850c97cf439480a0de2b21adf2bab14d74ca83cb584e87301399ea4820c0b13">
 	<description>GFNetworkMessage: 通用网络消息载体。
 只描述传输元信息和字典载荷，不绑定具体协议、后端或业务消息类型。</description>
 	<tags>
@@ -11,42 +11,42 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="message_type" line="19">
+		<member kind="property" name="message_type">
 			<signature>var message_type: StringName = &amp;""</signature>
 			<description>消息类型标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="sequence" line="24">
+		<member kind="property" name="sequence">
 			<signature>var sequence: int = 0</signature>
 			<description>发送端自增序号。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="tick" line="29">
+		<member kind="property" name="tick">
 			<signature>var tick: int = 0</signature>
 			<description>逻辑 tick 或帧号。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="sender_id" line="34">
+		<member kind="property" name="sender_id">
 			<signature>var sender_id: int = -1</signature>
 			<description>发送者标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="channel_id" line="39">
+		<member kind="property" name="channel_id">
 			<signature>var channel_id: StringName = &amp;""</signature>
 			<description>逻辑网络通道标识。为空时入站侧可按 message_type 匹配同名通道。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="46">
+		<member kind="property" name="payload">
 			<signature>var payload: Dictionary = {}</signature>
 			<description>消息载荷。</description>
 			<tags>
@@ -56,7 +56,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="to_dict" line="76">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转为可序列化字典。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="schema">return: Dictionary，包含 type、sequence、tick、sender_id、channel_id、payload。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="94">
+		<member kind="method" name="from_dict">
 			<signature>func from_dict(data: Dictionary) -&gt; void:</signature>
 			<description>从字典恢复。</description>
 			<tags>

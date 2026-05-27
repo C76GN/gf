@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFShakeReceiver3D" path="addons/gf/extensions/feedback/nodes/gf_shake_receiver_3d.gd" module="extensions/feedback" extends="Node" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFShakeReceiver3D" path="addons/gf/extensions/feedback/nodes/gf_shake_receiver_3d.gd" module="extensions/feedback" extends="Node" classDigest="7c6d624fdca9bcb2159cd751cb6b016f4e09756b556b70578dbc021b938c804f">
 	<description>GFShakeReceiver3D: 将反馈采样应用到 Node3D 的通用接收器。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -10,51 +10,56 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="channel" line="27" decorators="@export_node_path(&quot;Node3D&quot;) var target_path: NodePath = NodePath(&quot;&quot;) @export">
-			<signature>var channel: StringName = &amp;"default"</signature>
-			<description>目标 Node3D 路径；为空时优先使用自身，其次使用父节点。
-采样 channel。</description>
+		<member kind="property" name="target_path" decorators="@export_node_path(&quot;Node3D&quot;)">
+			<signature>var target_path: NodePath = NodePath("")</signature>
+			<description>目标 Node3D 路径；为空时优先使用自身，其次使用父节点。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_position" line="32" decorators="@export">
+		<member kind="property" name="channel" decorators="@export">
+			<signature>var channel: StringName = &amp;"default"</signature>
+			<description>采样 channel。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="apply_position" decorators="@export">
 			<signature>var apply_position: bool = true</signature>
 			<description>是否应用 position 偏移。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_rotation" line="37" decorators="@export">
+		<member kind="property" name="apply_rotation" decorators="@export">
 			<signature>var apply_rotation: bool = true</signature>
 			<description>是否应用 rotation_degrees 偏移。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_scale" line="42" decorators="@export">
+		<member kind="property" name="apply_scale" decorators="@export">
 			<signature>var apply_scale: bool = false</signature>
 			<description>是否应用 scale 偏移。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="capture_on_ready" line="47" decorators="@export">
+		<member kind="property" name="capture_on_ready" decorators="@export">
 			<signature>var capture_on_ready: bool = true</signature>
 			<description>ready 时是否记录基础变换。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="restore_on_exit" line="52" decorators="@export">
+		<member kind="property" name="restore_on_exit" decorators="@export">
 			<signature>var restore_on_exit: bool = true</signature>
 			<description>退出树时是否恢复基础变换。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="utility" line="60">
+		<member kind="property" name="utility">
 			<signature>var utility: GFShakeUtility = null</signature>
 			<description>可选反馈工具实例；为空时从全局架构查询。</description>
 			<tags>
@@ -63,7 +68,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_utility" line="98">
+		<member kind="method" name="set_utility">
 			<signature>func set_utility(shake_utility: GFShakeUtility) -&gt; void:</signature>
 			<description>设置反馈工具实例。</description>
 			<tags>
@@ -71,7 +76,7 @@
 				<tag name="param">shake_utility: 反馈工具实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_target" line="107">
+		<member kind="method" name="get_target">
 			<signature>func get_target() -&gt; Node3D:</signature>
 			<description>获取当前目标节点。</description>
 			<tags>
@@ -79,7 +84,7 @@
 				<tag name="return">目标 Node3D；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="capture_base_transform" line="119">
+		<member kind="method" name="capture_base_transform">
 			<signature>func capture_base_transform() -&gt; bool:</signature>
 			<description>记录当前目标基础变换。</description>
 			<tags>
@@ -87,7 +92,7 @@
 				<tag name="return">记录成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_current_sample" line="137">
+		<member kind="method" name="apply_current_sample">
 			<signature>func apply_current_sample() -&gt; bool:</signature>
 			<description>应用当前 channel 采样。</description>
 			<tags>
@@ -95,7 +100,7 @@
 				<tag name="return">应用成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset_to_base" line="173">
+		<member kind="method" name="reset_to_base">
 			<signature>func reset_to_base() -&gt; bool:</signature>
 			<description>恢复目标基础变换。</description>
 			<tags>

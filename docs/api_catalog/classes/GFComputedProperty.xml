@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFComputedProperty" path="addons/gf/kernel/core/gf_computed_property.gd" module="kernel" extends="GFBindableProperty" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFComputedProperty" path="addons/gf/kernel/core/gf_computed_property.gd" module="kernel" extends="GFBindableProperty" classDigest="2f65559da6a3ddc2e80cbd3f65807d062141dd8e8664dbe68265d61a4d8cbb26">
 	<description>GFComputedProperty: 由多个 GFBindableProperty 派生的只读响应式属性。
 通过 compute 回调计算自身值，并在任一来源属性变化时自动刷新。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="bind_sources" line="66">
+		<member kind="method" name="bind_sources">
 			<signature>func bind_sources( sources: Array[GFBindableProperty], compute: Callable, owner: Node = null, run_immediately: bool = true ) -&gt; void:</signature>
 			<description>绑定来源属性与计算回调。重复调用会替换旧绑定。</description>
 			<tags>
@@ -23,21 +23,21 @@
 				<tag name="param">run_immediately: 是否立即计算一次。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="stop" line="90">
+		<member kind="method" name="stop">
 			<signature>func stop() -&gt; void:</signature>
 			<description>停止自动刷新。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="99">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放派生属性持有的监听。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_value" line="113">
+		<member kind="method" name="set_value">
 			<signature>func set_value(_new_value: Variant) -&gt; void:</signature>
 			<description>只读派生属性不允许外部直接写入值。
 "type": "Variant",
@@ -49,7 +49,7 @@
 				<tag name="schema">_new_value {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mutate" line="124">
+		<member kind="method" name="mutate">
 			<signature>func mutate(_mutator: Callable) -&gt; bool:</signature>
 			<description>只读派生属性不允许外部原地修改值。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="return">始终返回 false。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="append_to_array" line="141">
+		<member kind="method" name="append_to_array">
 			<signature>func append_to_array(_item: Variant) -&gt; bool:</signature>
 			<description>只读派生属性不允许外部向数组追加元素。
 "type": "Variant",
@@ -71,7 +71,7 @@
 				<tag name="schema">_item {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="append_array" line="158">
+		<member kind="method" name="append_array">
 			<signature>func append_array(_items: Array) -&gt; bool:</signature>
 			<description>只读派生属性不允许外部向数组追加元素列表。
 "type": "Array",
@@ -84,7 +84,7 @@
 				<tag name="schema">_items {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="erase_from_array" line="175">
+		<member kind="method" name="erase_from_array">
 			<signature>func erase_from_array(_item: Variant) -&gt; bool:</signature>
 			<description>只读派生属性不允许外部从数组删除元素。
 "type": "Variant",
@@ -97,7 +97,7 @@
 				<tag name="schema">_item {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_dictionary_value" line="199">
+		<member kind="method" name="set_dictionary_value">
 			<signature>func set_dictionary_value(_key: Variant, _new_value: Variant) -&gt; bool:</signature>
 			<description>只读派生属性不允许外部设置字典键值。
 "type": "Variant",
@@ -115,7 +115,7 @@
 				<tag name="schema">_new_value {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="erase_dictionary_key" line="216">
+		<member kind="method" name="erase_dictionary_key">
 			<signature>func erase_dictionary_key(_key: Variant) -&gt; bool:</signature>
 			<description>只读派生属性不允许外部删除字典键。
 "type": "Variant",
@@ -128,7 +128,7 @@
 				<tag name="schema">_key {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_collection" line="226">
+		<member kind="method" name="clear_collection">
 			<signature>func clear_collection() -&gt; bool:</signature>
 			<description>只读派生属性不允许外部清空集合。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="return">始终返回 false。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_computing" line="236">
+		<member kind="method" name="is_computing">
 			<signature>func is_computing() -&gt; bool:</signature>
 			<description>获取内部 effect 是否激活。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputVirtualCursorModifier" path="addons/gf/standard/input/modifiers/gf_input_virtual_cursor_modifier.gd" module="standard" extends="GFInputModifier" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputVirtualCursorModifier" path="addons/gf/standard/input/modifiers/gf_input_virtual_cursor_modifier.gd" module="standard" extends="GFInputModifier" classDigest="1a9a7dcb150718e30061443bd45961bb260cc361ce72322ef4e235d47ff7dd8b">
 	<description>GFInputVirtualCursorModifier: 虚拟光标输入修饰器。
 将二维输入视为速度并积分为一个位置值。它只维护抽象坐标，不访问 Viewport、
 Control 或具体 UI 节点。</description>
@@ -12,51 +12,56 @@ Control 或具体 UI 节点。</description>
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="initial_position" line="20" decorators="@export">
+		<member kind="property" name="initial_position" decorators="@export">
 			<signature>var initial_position: Vector2 = Vector2(0.5, 0.5)</signature>
 			<description>初始位置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="speed" line="25" decorators="@export">
+		<member kind="property" name="speed" decorators="@export">
 			<signature>var speed: Vector2 = Vector2.ONE</signature>
 			<description>每秒移动速度倍率。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="apply_delta_time" line="30" decorators="@export">
+		<member kind="property" name="apply_delta_time" decorators="@export">
 			<signature>var apply_delta_time: bool = true</signature>
 			<description>是否按真实经过时间缩放输入。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="clamp_to_rect" line="35" decorators="@export">
+		<member kind="property" name="clamp_to_rect" decorators="@export">
 			<signature>var clamp_to_rect: bool = true</signature>
 			<description>是否将位置限制在 clamp_rect 内。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="clamp_rect" line="40" decorators="@export">
+		<member kind="property" name="clamp_rect" decorators="@export">
 			<signature>var clamp_rect: Rect2 = Rect2(Vector2.ZERO, Vector2.ONE)</signature>
 			<description>可用位置范围。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="reset_when_idle" line="50" decorators="@export_range(0.0, 1.0, 0.001) var idle_threshold: float = 0.0 @export">
-			<signature>var reset_when_idle: bool = false</signature>
-			<description>输入低于该长度时视为空闲。
-空闲时是否回到 initial_position。</description>
+		<member kind="property" name="idle_threshold" decorators="@export_range(0.0, 1.0, 0.001)">
+			<signature>var idle_threshold: float = 0.0</signature>
+			<description>输入低于该长度时视为空闲。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="position" line="58">
+		<member kind="property" name="reset_when_idle" decorators="@export">
+			<signature>var reset_when_idle: bool = false</signature>
+			<description>空闲时是否回到 initial_position。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="position">
 			<signature>var position: Vector2 = Vector2(0.5, 0.5)</signature>
 			<description>当前虚拟光标位置。</description>
 			<tags>
@@ -65,7 +70,7 @@ Control 或具体 UI 节点。</description>
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="modify" line="80">
+		<member kind="method" name="modify">
 			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
 			<description>修改二维输入值。</description>
 			<tags>
@@ -76,7 +81,7 @@ Control 或具体 UI 节点。</description>
 				<tag name="return">更新后的虚拟光标位置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="modify_3d" line="106">
+		<member kind="method" name="modify_3d">
 			<signature>func modify_3d(value: Vector3, event: InputEvent = null, action: GFInputAction = null) -&gt; Vector3:</signature>
 			<description>修改三维输入值。</description>
 			<tags>
@@ -87,7 +92,7 @@ Control 或具体 UI 节点。</description>
 				<tag name="return">包含虚拟光标 X/Y 和原 Z 分量的三维值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset_position" line="116">
+		<member kind="method" name="reset_position">
 			<signature>func reset_position() -&gt; GFInputVirtualCursorModifier:</signature>
 			<description>重置虚拟光标位置。</description>
 			<tags>
@@ -95,7 +100,7 @@ Control 或具体 UI 节点。</description>
 				<tag name="return">当前修饰器。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_modifier" line="128">
+		<member kind="method" name="duplicate_modifier">
 			<signature>func duplicate_modifier() -&gt; GFInputModifier:</signature>
 			<description>创建运行时副本。</description>
 			<tags>

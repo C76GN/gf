@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioClip" path="addons/gf/standard/utilities/audio/gf_audio_clip.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioClip" path="addons/gf/standard/utilities/audio/gf_audio_clip.gd" module="standard" extends="Resource" classDigest="27b7922bfe1a22bf39d5fc29d0e71516a3e58b9c143fa4eab9c85604bfed4299">
 	<description>GFAudioClip: 可资源化的音频播放配置。
 支持直接引用 `AudioStream`，也支持提供资源路径交给 `GFAudioUtility`
 按需加载。</description>
@@ -12,25 +12,73 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="stream" line="25" decorators="@export_file(&quot;*.wav&quot;, &quot;*.ogg&quot;, &quot;*.mp3&quot;, &quot;*.opus&quot;) var path: String = &quot;&quot; @export">
-			<signature>var stream: AudioStream</signature>
-			<description>音频资源路径。`stream` 为空时使用该路径加载。
-音频流资源。</description>
+		<member kind="property" name="path" decorators="@export_file(&quot;*.wav&quot;, &quot;*.ogg&quot;, &quot;*.mp3&quot;, &quot;*.opus&quot;)">
+			<signature>var path: String = ""</signature>
+			<description>音频资源路径。`stream` 为空时使用该路径加载。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="bus_name" line="30" decorators="@export">
+		<member kind="property" name="stream" decorators="@export">
+			<signature>var stream: AudioStream</signature>
+			<description>音频流资源。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="bus_name" decorators="@export">
 			<signature>var bus_name: String = ""</signature>
 			<description>音频总线。为空时由播放方法使用默认 BGM/SFX 总线。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
+		<member kind="property" name="volume_db" decorators="@export_range(-80.0, 24.0, 0.1)">
+			<signature>var volume_db: float = 0.0</signature>
+			<description>播放音量，单位 dB。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="pitch_scale" decorators="@export_range(0.01, 4.0, 0.01)">
+			<signature>var pitch_scale: float = 1.0</signature>
+			<description>播放音高。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="weight" decorators="@export_range(0.0, 1000.0, 0.01)">
+			<signature>var weight: float = 1.0</signature>
+			<description>在同一片段 ID 存在多个候选时的抽取权重；小于等于 0 表示不参与随机抽取。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="pitch_random_min" decorators="@export_range(0.01, 4.0, 0.01)">
+			<signature>var pitch_random_min: float = 1.0</signature>
+			<description>播放音高随机下限，会乘到 pitch_scale 上。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="pitch_random_max" decorators="@export_range(0.01, 4.0, 0.01)">
+			<signature>var pitch_random_max: float = 1.0</signature>
+			<description>播放音高随机上限，会乘到 pitch_scale 上。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="spatial_settings" decorators="@export">
+			<signature>var spatial_settings: Resource = null</signature>
+			<description>可选空间播放设置。为空时空间 SFX 使用 Godot 播放器默认空间参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">spatial_settings: GFAudioSpatialSettings or compatible Resource with apply_to_2d/apply_to_3d methods.</tag>
+			</tags>
+		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="has_source" line="65">
+		<member kind="method" name="has_source">
 			<signature>func has_source() -&gt; bool:</signature>
 			<description>检查该配置是否有可播放来源。</description>
 			<tags>
@@ -38,7 +86,7 @@
 				<tag name="return">有 stream 或 path 时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve_bus" line="76">
+		<member kind="method" name="resolve_bus">
 			<signature>func resolve_bus(default_bus: String) -&gt; String:</signature>
 			<description>解析实际总线名称。</description>
 			<tags>
@@ -47,7 +95,7 @@
 				<tag name="return">实际总线名称。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve_pitch" line="89">
+		<member kind="method" name="resolve_pitch">
 			<signature>func resolve_pitch(rng: RandomNumberGenerator = null) -&gt; float:</signature>
 			<description>解析本次播放使用的实际音高。</description>
 			<tags>

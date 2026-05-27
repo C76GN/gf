@@ -119,3 +119,80 @@ func test_dictionary_report_can_treat_warnings_as_errors() -> void:
 	assert_false(bool(report["ok"]), "启用 warnings_as_errors 后警告应使报告失败。")
 	assert_eq(int(report["error_count"]), 1, "提升后的警告应计入错误数量。")
 	assert_eq(int(report["warning_count"]), 0, "提升后的警告不应再计入警告数量。")
+
+
+func test_dictionary_report_filter_issues_uses_ignores_and_preserves_source() -> void:
+	var report := {
+		"subject": "Project scan",
+		"issues": [
+			{
+				"severity": "error",
+				"kind": "missing_script",
+				"message": "Script is missing.",
+				"path": "res://levels/broken.tscn",
+			},
+			{
+				"severity": "warning",
+				"kind": "large_texture",
+				"message": "Texture is large.",
+				"path": "res://textures/big.png",
+			},
+		],
+	}
+
+	var filtered: Dictionary = GF_VALIDATION_REPORT_DICTIONARY_BASE.filter_issues(report, {
+		"ignored_kinds": PackedStringArray(["missing_script"]),
+	})
+	var source_issues := report["issues"] as Array
+	var filtered_issues := filtered["issues"] as Array
+
+	assert_eq(source_issues.size(), 2, "过滤应返回副本，不应修改源报告。")
+	assert_eq(filtered_issues.size(), 1, "匹配忽略类别的问题应被移除。")
+	assert_eq(String((filtered_issues[0] as Dictionary)["kind"]), "large_texture", "未匹配的问题应保留。")
+	assert_true(bool(filtered["ok"]), "只剩警告时过滤后的报告应可通过。")
+	assert_eq(int(filtered["original_issue_count"]), 2, "过滤摘要应记录原始问题数。")
+	assert_eq(int(filtered["filtered_issue_count"]), 1, "过滤摘要应记录移除数量。")
+
+
+func test_dictionary_report_filter_issues_supports_baseline_fingerprints_and_globs() -> void:
+	var report := {
+		"issues": [
+			{
+				"severity": "error",
+				"kind": "broken_reference",
+				"message": "Missing resource.",
+				"path": "res://content/legacy_scene.tscn",
+				"key": "icon",
+			},
+			{
+				"severity": "warning",
+				"kind": "unused_file",
+				"message": "File appears unused.",
+				"path": "res://generated/cache/old.png",
+			},
+			{
+				"severity": "error",
+				"kind": "missing_export_preset",
+				"message": "No export preset.",
+				"path": "res://export_presets.cfg",
+			},
+		],
+	}
+	var baseline_issue := {
+		"severity": "error",
+		"kind": "broken_reference",
+		"message": "Missing resource.",
+		"path": "res://content/legacy_scene.tscn",
+		"key": "icon",
+	}
+	var fingerprint := GF_VALIDATION_REPORT_DICTIONARY_BASE.make_issue_fingerprint(baseline_issue)
+
+	var filtered: Dictionary = GF_VALIDATION_REPORT_DICTIONARY_BASE.filter_issues(report, {
+		"baseline_fingerprints": PackedStringArray([fingerprint]),
+		"ignored_path_patterns": PackedStringArray(["res://generated/**"]),
+	})
+	var issues := filtered["issues"] as Array
+
+	assert_eq(issues.size(), 1, "基线指纹和路径通配忽略应同时生效。")
+	assert_eq(String((issues[0] as Dictionary)["kind"]), "missing_export_preset", "未进入基线或忽略路径的问题应保留。")
+	assert_false(bool(filtered["ok"]), "剩余错误应继续让报告失败。")

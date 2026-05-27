@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBatchedLogSink" path="addons/gf/standard/utilities/logging/gf_batched_log_sink.gd" module="standard" extends="GFLogSink" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFBatchedLogSink" path="addons/gf/standard/utilities/logging/gf_batched_log_sink.gd" module="standard" extends="GFLogSink" classDigest="6bcc67216a081187917b6a40afcc15ead61d19426b9100b732c7a8749f32852d">
 	<description>GFBatchedLogSink: 结构化日志批量转发 sink。
 该 sink 只负责清洗、缓冲和分批，把实际传输交给 sender_callback 或 batch_ready 信号。
 它不绑定任何远端服务、HTTP 协议或业务字段。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="batch_ready" line="24">
+		<member kind="signal" name="batch_ready">
 			<signature>signal batch_ready(batch: Array[Dictionary])</signature>
 			<description>批次准备好时发出。</description>
 			<tags>
@@ -22,35 +22,35 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="batch_size" line="32" decorators="@export">
+		<member kind="property" name="batch_size" decorators="@export">
 			<signature>var batch_size: int = 20:</signature>
 			<description>每批最多包含的日志条数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_queue_size" line="39" decorators="@export">
+		<member kind="property" name="max_queue_size" decorators="@export">
 			<signature>var max_queue_size: int = 500:</signature>
 			<description>队列最多保留的日志条数，超出时丢弃最旧条目。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="flush_interval_msec" line="47" decorators="@export">
+		<member kind="property" name="flush_interval_msec" decorators="@export">
 			<signature>var flush_interval_msec: int = 1000:</signature>
 			<description>自动 flush 间隔。设为 0 时只按 batch_size 或显式 flush。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="omit_formatted_text" line="54" decorators="@export">
+		<member kind="property" name="omit_formatted_text" decorators="@export">
 			<signature>var omit_formatted_text: bool = false</signature>
 			<description>是否在转发前移除 text 字段，减少重复载荷。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="61" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>发送时附加到批次外层的元数据。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="schema">metadata: Dictionary[String, Variant] copied into each outgoing payload.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="sender_callback" line="69">
+		<member kind="property" name="sender_callback">
 			<signature>var sender_callback: Callable = Callable()</signature>
 			<description>项目提供的发送回调，签名建议为 func(payload: Dictionary) -&gt; Dictionary。</description>
 			<tags>
@@ -67,7 +67,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="86">
+		<member kind="method" name="init">
 			<signature>func init(_owner: Object) -&gt; void:</signature>
 			<description>初始化 sink。</description>
 			<tags>
@@ -75,7 +75,7 @@
 				<tag name="param">_owner: 持有该 sink 的日志工具。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="write" line="97">
+		<member kind="method" name="write">
 			<signature>func write(entry: Dictionary) -&gt; void:</signature>
 			<description>写入一条结构化日志。</description>
 			<tags>
@@ -84,21 +84,21 @@
 				<tag name="schema">entry: Dictionary log entry produced by GFLogUtility.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="flush" line="113">
+		<member kind="method" name="flush">
 			<signature>func flush() -&gt; void:</signature>
 			<description>发送当前队列中的一批日志。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="shutdown" line="137">
+		<member kind="method" name="shutdown">
 			<signature>func shutdown() -&gt; void:</signature>
 			<description>关闭 sink 并尽力 flush。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_pending_count" line="146">
+		<member kind="method" name="get_pending_count">
 			<signature>func get_pending_count() -&gt; int:</signature>
 			<description>获取队列中的日志数量。</description>
 			<tags>
@@ -106,7 +106,7 @@
 				<tag name="return">待发送日志数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_dropped_count" line="155">
+		<member kind="method" name="get_dropped_count">
 			<signature>func get_dropped_count() -&gt; int:</signature>
 			<description>获取因队列上限丢弃的日志数量。</description>
 			<tags>
@@ -114,7 +114,7 @@
 				<tag name="return">丢弃数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="166">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

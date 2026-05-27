@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioParameter" path="addons/gf/standard/utilities/audio/gf_audio_parameter.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioParameter" path="addons/gf/standard/utilities/audio/gf_audio_parameter.gd" module="standard" extends="Resource" classDigest="e64fd8e9cb5bd1446d92dd93e746922d34fc1971751bb42262a6780cb0544652">
 	<description>GFAudioParameter: 通用音频参数请求。
 表示可写入音频后端的全局或对象级数值参数。</description>
 	<tags>
@@ -11,28 +11,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="parameter_id" line="19" decorators="@export">
+		<member kind="property" name="parameter_id" decorators="@export">
 			<signature>var parameter_id: StringName = &amp;""</signature>
 			<description>参数稳定标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="value" line="24" decorators="@export">
+		<member kind="property" name="value" decorators="@export">
 			<signature>var value: float = 0.0</signature>
 			<description>参数值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scope_id" line="29" decorators="@export">
+		<member kind="property" name="scope_id" decorators="@export">
 			<signature>var scope_id: StringName = &amp;""</signature>
 			<description>可选作用域标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="36" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据。</description>
 			<tags>
@@ -42,7 +42,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="to_dictionary" line="48">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为请求字典。</description>
 			<tags>

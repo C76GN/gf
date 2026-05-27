@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFValidationJUnitExporter" path="addons/gf/standard/foundation/validation/gf_validation_junit_exporter.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFValidationJUnitExporter" path="addons/gf/standard/foundation/validation/gf_validation_junit_exporter.gd" module="standard" extends="RefCounted" classDigest="38241582c140c759a9a009880805e9ba7683857124e0690363c76089921b5b62">
 	<description>GFValidationJUnitExporter: 将 GFValidationReport 导出为 JUnit XML。
 该导出器只负责把通用校验报告转成 CI 友好的文本，不决定测试命名、
 构建失败策略或项目修复流程。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="export_report" line="28">
+		<member kind="method" name="export_report">
 			<signature>static func export_report(report: GFValidationReport, options: Dictionary = {}) -&gt; String:</signature>
 			<description>导出单个报告。</description>
 			<tags>
@@ -24,7 +24,7 @@
 				<tag name="schema">options: Dictionary JUnit export options.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="export_reports" line="45">
+		<member kind="method" name="export_reports">
 			<signature>static func export_reports(reports: Array, options: Dictionary = {}) -&gt; String:</signature>
 			<description>导出多个报告。</description>
 			<tags>

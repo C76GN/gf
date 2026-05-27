@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioBank" path="addons/gf/standard/utilities/audio/gf_audio_bank.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioBank" path="addons/gf/standard/utilities/audio/gf_audio_bank.gd" module="standard" extends="Resource" classDigest="e222b2ca1f4c54b85a3fab6862ffad8dc918453a449952a8aedb5d6b84a68fec">
 	<description>GFAudioBank: 音频片段配置集合。
 用 StringName 管理一组 `GFAudioClip`，便于 UI、表现动作或项目配置
 通过稳定 ID 播放音频。单个 ID 可保存一个片段或多个候选片段。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="LifecycleState" line="20">
+		<member kind="enum" name="LifecycleState">
 			<signature>enum LifecycleState { ## 尚未加载。 UNLOADED, ## 正在加载。 LOADING, ## 已加载。 LOADED, ## 加载失败。 FAILED, }</signature>
 			<description>音频集合加载状态。</description>
 			<tags>
@@ -20,7 +20,7 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="clips" line="39" decorators="@export">
+		<member kind="property" name="clips" decorators="@export">
 			<signature>var clips: Dictionary = {}</signature>
 			<description>音频片段表。</description>
 			<tags>
@@ -28,21 +28,21 @@
 				<tag name="schema">clips: Key 为 StringName 片段 ID，Value 为 GFAudioClip 或 GFAudioClip 数组。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="fallback_separator" line="44" decorators="@export">
+		<member kind="property" name="fallback_separator" decorators="@export">
 			<signature>var fallback_separator: String = "+"</signature>
 			<description>分层事件 ID 的回退分隔符。例如 `ui+confirm+primary` 可回退到 `ui+confirm` 再到 `ui`。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="lifecycle_state" line="49" decorators="@export">
+		<member kind="property" name="lifecycle_state" decorators="@export">
 			<signature>var lifecycle_state: LifecycleState = LifecycleState.UNLOADED</signature>
 			<description>加载状态。框架只记录状态，不假设具体加载后端。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="lifecycle_reason" line="54" decorators="@export">
+		<member kind="property" name="lifecycle_reason" decorators="@export">
 			<signature>var lifecycle_reason: StringName = &amp;""</signature>
 			<description>最近一次加载或卸载结果原因。</description>
 			<tags>
@@ -51,7 +51,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_clip" line="66">
+		<member kind="method" name="set_clip">
 			<signature>func set_clip(clip_id: StringName, clip: GFAudioClip) -&gt; void:</signature>
 			<description>设置一个音频片段。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="param">clip: 片段配置。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_clips" line="85">
+		<member kind="method" name="set_clips">
 			<signature>func set_clips(clip_id: StringName, clip_list: Array[GFAudioClip]) -&gt; void:</signature>
 			<description>设置一个音频片段候选列表。</description>
 			<tags>
@@ -70,7 +70,7 @@
 				<tag name="schema">clip_list: GFAudioClip 候选数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_clip" line="107">
+		<member kind="method" name="get_clip">
 			<signature>func get_clip(clip_id: StringName) -&gt; GFAudioClip:</signature>
 			<description>获取音频片段。</description>
 			<tags>
@@ -79,7 +79,7 @@
 				<tag name="return">片段配置；多个候选时返回第一个有效片段，不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_clips" line="123">
+		<member kind="method" name="get_clips">
 			<signature>func get_clips(clip_id: StringName) -&gt; Array[GFAudioClip]:</signature>
 			<description>获取音频片段候选列表。</description>
 			<tags>
@@ -89,7 +89,7 @@
 				<tag name="schema">return: GFAudioClip 候选数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_weighted_clip" line="144">
+		<member kind="method" name="get_weighted_clip">
 			<signature>func get_weighted_clip(clip_id: StringName, rng: RandomNumberGenerator = null) -&gt; GFAudioClip:</signature>
 			<description>按候选权重获取片段。</description>
 			<tags>
@@ -99,7 +99,7 @@
 				<tag name="return">片段配置；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_clip_with_fallback" line="174">
+		<member kind="method" name="get_clip_with_fallback">
 			<signature>func get_clip_with_fallback(clip_id: StringName, rng: RandomNumberGenerator = null) -&gt; GFAudioClip:</signature>
 			<description>按 ID 获取片段；找不到时按 fallback_separator 逐级回退。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="return">片段配置；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve_clip" line="190">
+		<member kind="method" name="resolve_clip">
 			<signature>func resolve_clip(clip_id: StringName, rng: RandomNumberGenerator = null) -&gt; Dictionary:</signature>
 			<description>解析片段并返回诊断报告。</description>
 			<tags>
@@ -120,7 +120,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、requested_id、resolved_id、fallback_used、attempted_ids 和 clip 字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_clip" line="222">
+		<member kind="method" name="has_clip">
 			<signature>func has_clip(clip_id: StringName) -&gt; bool:</signature>
 			<description>检查是否存在指定片段。</description>
 			<tags>
@@ -129,7 +129,7 @@
 				<tag name="return">存在时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_clip_ids" line="231">
+		<member kind="method" name="get_clip_ids">
 			<signature>func get_clip_ids() -&gt; PackedStringArray:</signature>
 			<description>获取全部片段 ID。</description>
 			<tags>
@@ -137,7 +137,7 @@
 				<tag name="return">按字典序排列的片段 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_lifecycle_state" line="246">
+		<member kind="method" name="set_lifecycle_state">
 			<signature>func set_lifecycle_state(state: LifecycleState, reason: StringName = &amp;"") -&gt; void:</signature>
 			<description>设置音频集合加载状态。</description>
 			<tags>
@@ -146,7 +146,7 @@
 				<tag name="param">reason: 可选原因。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_lifecycle_snapshot" line="258">
+		<member kind="method" name="get_lifecycle_snapshot">
 			<signature>func get_lifecycle_snapshot() -&gt; Dictionary:</signature>
 			<description>获取加载状态快照。</description>
 			<tags>
@@ -155,7 +155,7 @@
 				<tag name="schema">return: Dictionary，包含 state、reason 和 clip_count 字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_bank" line="273">
+		<member kind="method" name="validate_bank">
 			<signature>func validate_bank(check_resource_exists: bool = false) -&gt; GFValidationReport:</signature>
 			<description>校验音频集合。</description>
 			<tags>

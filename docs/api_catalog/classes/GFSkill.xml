@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSkill" path="addons/gf/extensions/combat/skills/gf_skill.gd" module="extensions/combat" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSkill" path="addons/gf/extensions/combat/skills/gf_skill.gd" module="extensions/combat" extends="RefCounted" classDigest="6ee531bfe5aaefbca736f76ba279fac2c9f5bee70f55e25eb5e6982b8f3b5886">
 	<description>GFSkill: 技能基类。
 负责冷却、施放校验与目标解析入口，
 具体技能逻辑通过子类重写 `_on_execute()` 实现。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="cooldown_started" line="22">
+		<member kind="signal" name="cooldown_started">
 			<signature>signal cooldown_started(skill: GFSkill)</signature>
 			<description>当技能开始进入冷却时发出。</description>
 			<tags>
@@ -21,49 +21,49 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="id" line="30">
+		<member kind="property" name="id">
 			<signature>var id: StringName = &amp;""</signature>
 			<description>技能 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="cooldown_max" line="35">
+		<member kind="property" name="cooldown_max">
 			<signature>var cooldown_max: float = 0.0</signature>
 			<description>最大冷却时间。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="cooldown_left" line="40">
+		<member kind="property" name="cooldown_left">
 			<signature>var cooldown_left: float = 0.0</signature>
 			<description>当前剩余冷却时间。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="require_tags" line="45">
+		<member kind="property" name="require_tags">
 			<signature>var require_tags: Array[StringName] = []</signature>
 			<description>释放技能所需标签。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="ignore_tags" line="50">
+		<member kind="property" name="ignore_tags">
 			<signature>var ignore_tags: Array[StringName] = []</signature>
 			<description>释放技能时禁止存在的标签。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="owner" line="55">
+		<member kind="property" name="owner">
 			<signature>var owner: Object = null</signature>
 			<description>技能拥有者。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="targeting_rule" line="60">
+		<member kind="property" name="targeting_rule">
 			<signature>var targeting_rule: GFSkillTargetingRule = null</signature>
 			<description>技能索敌规则。</description>
 			<tags>
@@ -72,7 +72,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="update" line="81">
+		<member kind="method" name="update">
 			<signature>func update(p_delta: float) -&gt; void:</signature>
 			<description>更新冷却时间。</description>
 			<tags>
@@ -80,7 +80,7 @@
 				<tag name="param">p_delta: 本次更新经过的时间。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_execute" line="100">
+		<member kind="method" name="can_execute">
 			<signature>func can_execute() -&gt; bool:</signature>
 			<description>检查技能当前是否允许施放。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="return">可施放时返回 `true`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="execute" line="137">
+		<member kind="method" name="execute">
 			<signature>func execute(manual_target: Object = null, cast_center: Variant = null) -&gt; bool:</signature>
 			<description>执行技能。</description>
 			<tags>

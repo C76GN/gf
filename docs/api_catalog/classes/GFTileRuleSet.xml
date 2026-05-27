@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTileRuleSet" path="addons/gf/standard/foundation/math/gf_tile_rule_set.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTileRuleSet" path="addons/gf/standard/foundation/math/gf_tile_rule_set.gd" module="standard" extends="Resource" classDigest="65ea12ebcec5fc829066ee86c7f6e4289d9ba56f6e8ef8e6d7ed431ed6e0cefe">
 	<description>GFTileRuleSet: 通用瓦片邻域规则表。
 使用邻域值序列匹配结果，可用于自动铺砖、地形变体、网格装饰或任意
 基于相邻格子状态的选择逻辑。规则只处理 Variant 值，不绑定 TileSet 语义。</description>
@@ -12,7 +12,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="fallback_neighbor_value" line="22" decorators="@export">
+		<member kind="property" name="fallback_neighbor_value" decorators="@export">
 			<signature>var fallback_neighbor_value: Variant = 0</signature>
 			<description>规则匹配失败时尝试使用的邻域回退值。</description>
 			<tags>
@@ -20,7 +20,7 @@
 				<tag name="schema">fallback_neighbor_value: Variant fallback neighbor value used while resolving rules.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_result" line="29" decorators="@export">
+		<member kind="property" name="default_result" decorators="@export">
 			<signature>var default_result: Variant = null</signature>
 			<description>没有匹配规则时返回的值。</description>
 			<tags>
@@ -28,7 +28,7 @@
 				<tag name="schema">default_result: Variant fallback result returned when no rule matches.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="deterministic_seed" line="34" decorators="@export">
+		<member kind="property" name="deterministic_seed" decorators="@export">
 			<signature>var deterministic_seed: int = 0</signature>
 			<description>参与确定性加权选择的默认种子。</description>
 			<tags>
@@ -37,7 +37,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="register_rule" line="61">
+		<member kind="method" name="register_rule">
 			<signature>func register_rule(neighbor_values: Array, result: Variant, weight: float = 1.0) -&gt; void:</signature>
 			<description>注册一条邻域规则。</description>
 			<tags>
@@ -49,14 +49,14 @@
 				<tag name="schema">result: Variant result returned when the rule matches.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="83">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空全部规则。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_rule_count" line="93">
+		<member kind="method" name="get_rule_count">
 			<signature>func get_rule_count() -&gt; int:</signature>
 			<description>获取已注册规则数量。</description>
 			<tags>
@@ -64,7 +64,7 @@
 				<tag name="return">规则数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve" line="112">
+		<member kind="method" name="resolve">
 			<signature>func resolve(neighbor_values: Array, cell: Vector2i = Vector2i.ZERO, seed: int = 0) -&gt; Variant:</signature>
 			<description>根据邻域值解析结果。</description>
 			<tags>
@@ -77,7 +77,7 @@
 				<tag name="schema">return: Variant matched result or default_result.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_rule" line="140">
+		<member kind="method" name="has_rule">
 			<signature>func has_rule(neighbor_values: Array) -&gt; bool:</signature>
 			<description>检查邻域值是否存在明确规则。</description>
 			<tags>

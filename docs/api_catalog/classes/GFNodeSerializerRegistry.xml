@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeSerializerRegistry" path="addons/gf/extensions/save/serializers/gf_node_serializer_registry.gd" module="extensions/save" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeSerializerRegistry" path="addons/gf/extensions/save/serializers/gf_node_serializer_registry.gd" module="extensions/save" extends="RefCounted" classDigest="f5c6b9f640e9f38e6978e83ef3de5417b488178c22f03fadd6c0acc420f4953b">
 	<description>GFNodeSerializerRegistry: 节点序列化器注册表。
 负责按 serializer_id 管理序列化器，并为节点执行一组可组合的采集和应用。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="register_serializer" line="40">
+		<member kind="method" name="register_serializer">
 			<signature>func register_serializer(serializer: GFNodeSerializer) -&gt; void:</signature>
 			<description>注册序列化器。相同 id 会被后注册的实例覆盖。</description>
 			<tags>
@@ -20,7 +20,7 @@
 				<tag name="param">serializer: 序列化器。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_serializer" line="55">
+		<member kind="method" name="unregister_serializer">
 			<signature>func unregister_serializer(serializer_id: StringName) -&gt; void:</signature>
 			<description>注销序列化器。</description>
 			<tags>
@@ -28,14 +28,14 @@
 				<tag name="param">serializer_id: 序列化器标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="62">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空注册表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_serializer" line="73">
+		<member kind="method" name="get_serializer">
 			<signature>func get_serializer(serializer_id: StringName) -&gt; GFNodeSerializer:</signature>
 			<description>获取指定序列化器。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="return">序列化器实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_serializers_for_node" line="84">
+		<member kind="method" name="get_serializers_for_node">
 			<signature>func get_serializers_for_node(node: Node) -&gt; Array[GFNodeSerializer]:</signature>
 			<description>获取所有支持指定节点的序列化器。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="return">序列化器数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="gather_node" line="106">
+		<member kind="method" name="gather_node">
 			<signature>func gather_node(node: Node, context: Dictionary = {}) -&gt; Array[Dictionary]:</signature>
 			<description>采集节点上所有支持的默认序列化器数据。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="schema">return: Array[Dictionary]，每项包含 id: StringName 与 data: Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_node" line="136">
+		<member kind="method" name="apply_node">
 			<signature>func apply_node(node: Node, serializer_payloads: Array, context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>应用节点序列化片段。</description>
 			<tags>

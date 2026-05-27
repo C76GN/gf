@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputDeadzoneModifier" path="addons/gf/standard/input/modifiers/gf_input_deadzone_modifier.gd" module="standard" extends="GFInputModifier" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputDeadzoneModifier" path="addons/gf/standard/input/modifiers/gf_input_deadzone_modifier.gd" module="standard" extends="GFInputModifier" classDigest="80e0041c9ae739de094de5ef91f55c8f08febd700f6990a6d5c868b600bad316">
 	<description>GFInputDeadzoneModifier: 输入死区修饰器。
 可对一维或二维轴值应用径向死区，并可选择把剩余范围重新映射到 0..1。</description>
 	<tags>
@@ -11,20 +11,30 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="rescale_after_deadzone" line="33" decorators="@export_range(0.0, 1.0, 0.01) var lower_threshold: float = 0.2: @export_range(0.0, 1.0, 0.01) var upper_threshold: float = 1.0: @export">
-			<signature>var rescale_after_deadzone: bool = true</signature>
-			<description>低于该阈值的输入会被视为 0。
-达到该阈值时视为满幅输入。
-是否把死区外的剩余范围重新映射到 0..1。</description>
+		<member kind="property" name="lower_threshold" decorators="@export_range(0.0, 1.0, 0.01)">
+			<signature>var lower_threshold: float = 0.2:</signature>
+			<description>低于该阈值的输入会被视为 0。</description>
 			<tags>
 				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="upper_threshold" decorators="@export_range(0.0, 1.0, 0.01)">
+			<signature>var upper_threshold: float = 1.0:</signature>
+			<description>达到该阈值时视为满幅输入。</description>
+			<tags>
 				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rescale_after_deadzone" decorators="@export">
+			<signature>var rescale_after_deadzone: bool = true</signature>
+			<description>是否把死区外的剩余范围重新映射到 0..1。</description>
+			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="modify" line="49">
+		<member kind="method" name="modify">
 			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
 			<description>修改二维输入值。</description>
 			<tags>
@@ -35,7 +45,7 @@
 				<tag name="return">应用死区后的二维输入值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="modify_3d" line="72">
+		<member kind="method" name="modify_3d">
 			<signature>func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector3:</signature>
 			<description>修改三维输入值。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFProjectileMotion" path="addons/gf/extensions/combat/projectiles/gf_projectile_motion.gd" module="extensions/combat" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFProjectileMotion" path="addons/gf/extensions/combat/projectiles/gf_projectile_motion.gd" module="extensions/combat" extends="Resource" classDigest="0d5e5f897c99b30aa2e56a99a951a11193ea7c6ac32dc8c267332cb3ca3b5ccc">
 	<description>GFProjectileMotion: 发射体移动策略基类。
 移动策略只负责根据 delta 推进节点位置。需要跨帧保存的数据应写入
 projectile_context，避免共享 Resource 在多个发射体之间串状态。</description>
@@ -13,7 +13,7 @@ projectile_context，避免共享 Resource 在多个发射体之间串状态。<
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="setup" line="26">
+		<member kind="method" name="setup">
 			<signature>func setup(projectile: Node, projectile_context: Dictionary = {}) -&gt; void:</signature>
 			<description>发射体启动时调用。</description>
 			<tags>
@@ -23,7 +23,7 @@ projectile_context，避免共享 Resource 在多个发射体之间串状态。<
 				<tag name="schema">projectile_context: Dictionary，本次发射上下文；移动策略可写入跨帧状态。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="step" line="41">
+		<member kind="method" name="step">
 			<signature>func step(projectile: Node, delta: float, projectile_context: Dictionary = {}) -&gt; void:</signature>
 			<description>推进一帧移动。</description>
 			<tags>

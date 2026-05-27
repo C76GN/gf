@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeAnimationPlayerSerializer" path="addons/gf/extensions/save/serializers/gf_node_animation_player_serializer.gd" module="extensions/save" extends="GFNodeSerializer" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeAnimationPlayerSerializer" path="addons/gf/extensions/save/serializers/gf_node_animation_player_serializer.gd" module="extensions/save" extends="GFNodeSerializer" classDigest="8da1287db1c8e729499993d829dc0a9a96b927a2c4a42e41ac8bf7725027c8a2">
 	<description>GFNodeAnimationPlayerSerializer: AnimationPlayer 通用播放状态序列化器。
 保存当前动画、播放位置与速度缩放等通用播放状态，不保存动画资源内容。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="supports_node" line="30">
+		<member kind="method" name="supports_node">
 			<signature>func supports_node(node: Node) -&gt; bool:</signature>
 			<description>判断序列化器是否支持指定节点。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="return">节点是否为 AnimationPlayer。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="gather" line="47">
+		<member kind="method" name="gather">
 			<signature>func gather(node: Node, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集节点的可保存状态。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">return: Dictionary，可包含 current_animation、assigned_animation、current_animation_position、speed_scale、playing 与 active。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply" line="79">
+		<member kind="method" name="apply">
 			<signature>func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>将序列化数据应用到节点。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigTableReference" path="addons/gf/standard/utilities/config/gf_config_table_reference.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigTableReference" path="addons/gf/standard/utilities/config/gf_config_table_reference.gd" module="standard" extends="Resource" classDigest="2069bb4858f092ebb47577669f010009658d2bc905bda7db949471588dc91ade">
 	<description>GFConfigTableReference: 导表跨表引用声明。
 描述当前记录的一组字段如何指向另一张表的一组字段。</description>
 	<tags>
@@ -11,49 +11,49 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="reference_id" line="19" decorators="@export">
+		<member kind="property" name="reference_id" decorators="@export">
 			<signature>var reference_id: StringName = &amp;""</signature>
 			<description>引用稳定标识。为空时会根据来源字段和目标表生成。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="source_fields" line="24" decorators="@export">
+		<member kind="property" name="source_fields" decorators="@export">
 			<signature>var source_fields: PackedStringArray = PackedStringArray()</signature>
 			<description>当前表中参与引用的字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target_table_name" line="29" decorators="@export">
+		<member kind="property" name="target_table_name" decorators="@export">
 			<signature>var target_table_name: StringName = &amp;""</signature>
 			<description>目标表名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target_fields" line="34" decorators="@export">
+		<member kind="property" name="target_fields" decorators="@export">
 			<signature>var target_fields: PackedStringArray = PackedStringArray()</signature>
 			<description>目标表中参与匹配的字段名。为空时由目标 schema 的 id_field 补齐。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="required" line="39" decorators="@export">
+		<member kind="property" name="required" decorators="@export">
 			<signature>var required: bool = true</signature>
 			<description>为 true 时，非空引用必须能在目标表中找到。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="allow_null_values" line="44" decorators="@export">
+		<member kind="property" name="allow_null_values" decorators="@export">
 			<signature>var allow_null_values: bool = true</signature>
 			<description>是否允许来源字段值为 null。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="51" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据，供导入器、编辑器或项目层扩展使用。</description>
 			<tags>
@@ -63,7 +63,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_reference_id" line="61">
+		<member kind="method" name="get_reference_id">
 			<signature>func get_reference_id() -&gt; StringName:</signature>
 			<description>获取稳定引用标识。</description>
 			<tags>
@@ -71,7 +71,7 @@
 				<tag name="return">引用标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_valid_definition" line="72">
+		<member kind="method" name="is_valid_definition">
 			<signature>func is_valid_definition() -&gt; bool:</signature>
 			<description>检查引用声明是否有效。</description>
 			<tags>
@@ -79,7 +79,7 @@
 				<tag name="return">有效返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_target_fields" line="83">
+		<member kind="method" name="get_target_fields">
 			<signature>func get_target_fields(target_schema: GFConfigTableSchema = null) -&gt; PackedStringArray:</signature>
 			<description>获取目标字段名。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="return">目标字段列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="make_source_key" line="101">
+		<member kind="method" name="make_source_key">
 			<signature>func make_source_key(record: Dictionary) -&gt; String:</signature>
 			<description>根据来源记录构建引用键。</description>
 			<tags>
@@ -98,7 +98,7 @@
 				<tag name="schema">record: Dictionary，用于构建引用键的来源配置记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="make_target_key" line="116">
+		<member kind="method" name="make_target_key">
 			<signature>func make_target_key(record: Dictionary, target_schema: GFConfigTableSchema = null) -&gt; String:</signature>
 			<description>根据目标记录构建引用键。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="schema">record: Dictionary，用于构建引用键的目标配置记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_reference" line="125">
+		<member kind="method" name="duplicate_reference">
 			<signature>func duplicate_reference() -&gt; GFConfigTableReference:</signature>
 			<description>创建同内容拷贝。</description>
 			<tags>
@@ -117,7 +117,7 @@
 				<tag name="return">新引用声明。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe" line="144">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出引用声明摘要。</description>
 			<tags>

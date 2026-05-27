@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSignalSourceRef" path="addons/gf/standard/utilities/signals/bridge/gf_signal_source_ref.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSignalSourceRef" path="addons/gf/standard/utilities/signals/bridge/gf_signal_source_ref.gd" module="standard" extends="Resource" classDigest="bf7880dc5d90cb68ea510373223794177e6e8232f84235a13cead3e800ed77c5">
 	<description>GFSignalSourceRef: 可资源化的信号来源引用。
 该资源只描述相对于某个根节点的信号来源节点和信号名，不连接信号、
 不解释信号含义，也不绑定任何业务流程。</description>
@@ -12,21 +12,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="source_path" line="20" decorators="@export">
+		<member kind="property" name="source_path" decorators="@export">
 			<signature>var source_path: NodePath = NodePath("")</signature>
 			<description>信号来源节点路径。为空时使用传入的根节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="signal_name" line="25" decorators="@export">
+		<member kind="property" name="signal_name" decorators="@export">
 			<signature>var signal_name: StringName = &amp;""</signature>
 			<description>要读取的信号名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="32" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -36,7 +36,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="resolve_source" line="44">
+		<member kind="method" name="resolve_source">
 			<signature>func resolve_source(root: Node) -&gt; Object:</signature>
 			<description>解析信号来源对象。</description>
 			<tags>
@@ -45,7 +45,7 @@
 				<tag name="return">来源对象；无法解析时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_signal" line="59">
+		<member kind="method" name="get_signal">
 			<signature>func get_signal(root: Node) -&gt; Signal:</signature>
 			<description>获取信号。</description>
 			<tags>
@@ -54,7 +54,7 @@
 				<tag name="return">有效信号；无法解析时返回空 Signal。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_valid_for" line="75">
+		<member kind="method" name="is_valid_for">
 			<signature>func is_valid_for(root: Node) -&gt; bool:</signature>
 			<description>检查信号来源是否有效。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="return">有效时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_signal_argument_count" line="86">
+		<member kind="method" name="get_signal_argument_count">
 			<signature>func get_signal_argument_count(root: Node) -&gt; int:</signature>
 			<description>获取信号参数数量。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="return">参数数量；无法确定时返回 -1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dictionary" line="107">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为调试字典。</description>
 			<tags>

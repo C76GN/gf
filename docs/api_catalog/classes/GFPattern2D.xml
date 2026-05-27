@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFPattern2D" path="addons/gf/standard/foundation/math/gf_pattern_2d.gd" module="standard" extends="Resource" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFPattern2D" path="addons/gf/standard/foundation/math/gf_pattern_2d.gd" module="standard" extends="Resource" classDigest="15b988c4f0976977f52cd704b4d7bb7c692a8490076b60fdcf26f8aaf8969c02">
 	<description>GFPattern2D: 可复用的二维格子模式资源。
 用 Array[Vector2i] 描述范围、形状、阵型或 tile pattern。它不规定格子语义，
 只负责尺寸、去重、边界过滤和常用查询。</description>
@@ -12,14 +12,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="pattern_dimensions" line="22" decorators="@export">
+		<member kind="property" name="pattern_dimensions" decorators="@export">
 			<signature>var pattern_dimensions: Vector2i = Vector2i(7, 7):</signature>
 			<description>模式编辑尺寸。小于 1 的分量会被钳制到 1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="cells" line="30" decorators="@export">
+		<member kind="property" name="cells" decorators="@export">
 			<signature>var cells: Array[Vector2i] = []:</signature>
 			<description>启用的格子坐标列表。</description>
 			<tags>
@@ -28,7 +28,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_in_bounds" line="45">
+		<member kind="method" name="is_in_bounds">
 			<signature>func is_in_bounds(cell: Vector2i) -&gt; bool:</signature>
 			<description>检查格子是否在 pattern 尺寸内。</description>
 			<tags>
@@ -37,7 +37,7 @@
 				<tag name="return">在范围内返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_cell" line="61">
+		<member kind="method" name="has_cell">
 			<signature>func has_cell(cell: Vector2i) -&gt; bool:</signature>
 			<description>检查格子是否启用。</description>
 			<tags>
@@ -46,7 +46,7 @@
 				<tag name="return">启用返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_cell" line="74">
+		<member kind="method" name="set_cell">
 			<signature>func set_cell(cell: Vector2i, enabled: bool) -&gt; bool:</signature>
 			<description>设置格子是否启用。</description>
 			<tags>
@@ -56,7 +56,7 @@
 				<tag name="return">实际发生变化返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_cell" line="89">
+		<member kind="method" name="add_cell">
 			<signature>func add_cell(cell: Vector2i) -&gt; bool:</signature>
 			<description>添加格子。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="return">实际添加返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_cell" line="105">
+		<member kind="method" name="remove_cell">
 			<signature>func remove_cell(cell: Vector2i) -&gt; bool:</signature>
 			<description>移除格子。</description>
 			<tags>
@@ -74,14 +74,14 @@
 				<tag name="return">实际移除返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_cells" line="116">
+		<member kind="method" name="clear_cells">
 			<signature>func clear_cells() -&gt; void:</signature>
 			<description>清空所有格子。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_cells" line="128">
+		<member kind="method" name="get_cells">
 			<signature>func get_cells() -&gt; Array[Vector2i]:</signature>
 			<description>获取格子列表副本。</description>
 			<tags>
@@ -89,14 +89,14 @@
 				<tag name="return">格子列表副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="normalize_cells" line="135">
+		<member kind="method" name="normalize_cells">
 			<signature>func normalize_cells() -&gt; void:</signature>
 			<description>归一化格子列表，去重、排序并移除越界格子。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_pattern" line="152">
+		<member kind="method" name="duplicate_pattern">
 			<signature>func duplicate_pattern() -&gt; GFPattern2D:</signature>
 			<description>创建深拷贝。</description>
 			<tags>

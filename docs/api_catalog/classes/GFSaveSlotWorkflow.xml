@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSaveSlotWorkflow" path="addons/gf/extensions/save/slots/gf_save_slot_workflow.gd" module="extensions/save" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSaveSlotWorkflow" path="addons/gf/extensions/save/slots/gf_save_slot_workflow.gd" module="extensions/save" extends="Resource" classDigest="0a0364c41ca426ad4716fb9ad94af9b6d850d4f0cbd018f6e672076838a70510">
 	<description>GFSaveSlotWorkflow: 通用存档槽工作流配置。
 负责把槽位索引、逻辑标识、元数据和 UI 卡片摘要串起来。
 不执行具体存取逻辑，也不写死任何游戏业务字段。</description>
@@ -12,42 +12,42 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="active_slot_index" line="26" decorators="@export">
+		<member kind="property" name="active_slot_index" decorators="@export">
 			<signature>var active_slot_index: int = 1</signature>
 			<description>当前选中槽位索引。默认从 1 开始，贴近常见存档 UI。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="slot_id_template" line="31" decorators="@export">
+		<member kind="property" name="slot_id_template" decorators="@export">
 			<signature>var slot_id_template: String = "slot_{index}"</signature>
 			<description>槽位标识模板，支持 {index} 占位符。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="empty_display_name_template" line="36" decorators="@export">
+		<member kind="property" name="empty_display_name_template" decorators="@export">
 			<signature>var empty_display_name_template: String = "Slot {index}"</signature>
 			<description>空槽位展示名模板，支持 {index} 占位符。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata_script" line="41" decorators="@export">
+		<member kind="property" name="metadata_script" decorators="@export">
 			<signature>var metadata_script: Script = _GF_SAVE_SLOT_METADATA_SCRIPT</signature>
 			<description>可替换的元数据资源脚本，项目层可继承 GFSaveSlotMetadata 扩展。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="card_script" line="46" decorators="@export">
+		<member kind="property" name="card_script" decorators="@export">
 			<signature>var card_script: Script = _GF_SAVE_SLOT_CARD_SCRIPT</signature>
 			<description>可替换的卡片资源脚本，项目层可继承 GFSaveSlotCard 扩展。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="slot_role" line="51" decorators="@export">
+		<member kind="property" name="slot_role" decorators="@export">
 			<signature>var slot_role: StringName = &amp;""</signature>
 			<description>槽位角色。用于区分 autosave/manual/cloud 等抽象类别。</description>
 			<tags>
@@ -56,7 +56,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="select_slot_index" line="68">
+		<member kind="method" name="select_slot_index">
 			<signature>func select_slot_index(index: int) -&gt; StringName:</signature>
 			<description>选择当前槽位。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="return">当前槽位逻辑标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_slot_id_override" line="80">
+		<member kind="method" name="set_slot_id_override">
 			<signature>func set_slot_id_override(index: int, slot_id: StringName) -&gt; void:</signature>
 			<description>设置指定索引的逻辑标识覆盖。</description>
 			<tags>
@@ -74,14 +74,14 @@
 				<tag name="param">slot_id: 逻辑标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_slot_id_overrides" line="90">
+		<member kind="method" name="clear_slot_id_overrides">
 			<signature>func clear_slot_id_overrides() -&gt; void:</signature>
 			<description>清空逻辑标识覆盖。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_slot_id" line="99">
+		<member kind="method" name="get_active_slot_id">
 			<signature>func get_active_slot_id() -&gt; StringName:</signature>
 			<description>获取当前槽位逻辑标识。</description>
 			<tags>
@@ -89,7 +89,7 @@
 				<tag name="return">槽位标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_active_storage_slot_id" line="108">
+		<member kind="method" name="get_active_storage_slot_id">
 			<signature>func get_active_storage_slot_id() -&gt; int:</signature>
 			<description>获取当前 GFStorageUtility 整数槽位。</description>
 			<tags>
@@ -97,7 +97,7 @@
 				<tag name="return">整数槽位。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_slot_id_for_index" line="119">
+		<member kind="method" name="get_slot_id_for_index">
 			<signature>func get_slot_id_for_index(index: int) -&gt; StringName:</signature>
 			<description>获取指定索引的逻辑标识。</description>
 			<tags>
@@ -106,7 +106,7 @@
 				<tag name="return">槽位标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_empty_display_name_for_index" line="132">
+		<member kind="method" name="get_empty_display_name_for_index">
 			<signature>func get_empty_display_name_for_index(index: int) -&gt; String:</signature>
 			<description>获取空槽位展示名。</description>
 			<tags>
@@ -115,7 +115,7 @@
 				<tag name="return">展示名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_active_metadata" line="147">
+		<member kind="method" name="build_active_metadata">
 			<signature>func build_active_metadata( display_name: String = "", custom_metadata: Dictionary = {} ) -&gt; GFSaveSlotMetadata:</signature>
 			<description>构建当前槽位元数据。</description>
 			<tags>
@@ -126,7 +126,7 @@
 				<tag name="schema">custom_metadata: Dictionary，会写入 GFSaveSlotMetadata.custom_metadata；slot_role 非空时会额外写入 slot_role。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_slot_metadata" line="167">
+		<member kind="method" name="build_slot_metadata">
 			<signature>func build_slot_metadata( index: int, display_name: String = "", custom_metadata: Dictionary = {} ) -&gt; GFSaveSlotMetadata:</signature>
 			<description>构建指定槽位元数据。</description>
 			<tags>
@@ -138,7 +138,7 @@
 				<tag name="schema">custom_metadata: Dictionary，会写入 GFSaveSlotMetadata.custom_metadata；slot_role 非空时会额外写入 slot_role。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_empty_card" line="191">
+		<member kind="method" name="build_empty_card">
 			<signature>func build_empty_card(index: int) -&gt; GFSaveSlotCard:</signature>
 			<description>构建空槽位卡片。</description>
 			<tags>
@@ -147,7 +147,7 @@
 				<tag name="return">卡片资源。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_card_for_index" line="214">
+		<member kind="method" name="build_card_for_index">
 			<signature>func build_card_for_index( index: int, summary: Dictionary = {}, p_active_slot_index: int = -1 ) -&gt; GFSaveSlotCard:</signature>
 			<description>根据摘要构建槽位卡片。摘要为空时返回空卡片。</description>
 			<tags>
@@ -159,7 +159,7 @@
 				<tag name="schema">summary: Dictionary，可包含 slot_index、slot_id、modified_time、is_compatible、compatibility_errors 与 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_cards_for_indices" line="247">
+		<member kind="method" name="build_cards_for_indices">
 			<signature>func build_cards_for_indices(indices: Array, summaries: Array = []) -&gt; Array[GFSaveSlotCard]:</signature>
 			<description>根据索引和摘要列表构建卡片列表。</description>
 			<tags>
@@ -171,7 +171,7 @@
 				<tag name="schema">summaries: Array，每项为 GFStorageUtility.list_slots() 风格的 Dictionary 摘要。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_cards_from_storage" line="268">
+		<member kind="method" name="build_cards_from_storage">
 			<signature>func build_cards_from_storage(storage: GFStorageUtility, indices: Array = []) -&gt; Array[GFSaveSlotCard]:</signature>
 			<description>从 GFStorageUtility 读取摘要并构建卡片。</description>
 			<tags>

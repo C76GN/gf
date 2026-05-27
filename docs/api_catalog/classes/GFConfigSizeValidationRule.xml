@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigSizeValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_size_validation_rule.gd" module="standard" extends="GFConfigValidationRule" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigSizeValidationRule" path="addons/gf/standard/utilities/config/validation/gf_config_size_validation_rule.gd" module="standard" extends="GFConfigValidationRule" classDigest="188bf1ac1122f2d2b11692d2d8b6c0f6276c3f78c76ed2d3e6341f0cd37b3f91">
 	<description>GFConfigSizeValidationRule: 长度或数量校验规则。
 用于校验 String、Array、Dictionary、PackedArray 字段，或整表记录数量。</description>
 	<tags>
@@ -11,28 +11,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="has_minimum_size" line="19" decorators="@export">
+		<member kind="property" name="has_minimum_size" decorators="@export">
 			<signature>var has_minimum_size: bool = false</signature>
 			<description>是否检查最小数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="minimum_size" line="24" decorators="@export">
+		<member kind="property" name="minimum_size" decorators="@export">
 			<signature>var minimum_size: int = 0</signature>
 			<description>最小数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="has_maximum_size" line="29" decorators="@export">
+		<member kind="property" name="has_maximum_size" decorators="@export">
 			<signature>var has_maximum_size: bool = false</signature>
 			<description>是否检查最大数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="maximum_size" line="34" decorators="@export">
+		<member kind="property" name="maximum_size" decorators="@export">
 			<signature>var maximum_size: int = 0</signature>
 			<description>最大数量。</description>
 			<tags>
@@ -41,7 +41,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="describe" line="46">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出规则摘要。</description>
 			<tags>

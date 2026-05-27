@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFBindBuilder" path="addons/gf/kernel/core/gf_bind_builder.gd" module="kernel" extends="RefCounted" line="8" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFBindBuilder" path="addons/gf/kernel/core/gf_bind_builder.gd" module="kernel" extends="RefCounted" classDigest="e7ebc32caed2aff74489da4d5123202bf4a1a500c3070f1f971c447efc7da8b3">
 	<description>GFBindBuilder: 声明式装配链，用于把脚本绑定为模块或短生命周期工厂。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -11,7 +11,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="from_factory" line="72">
+		<member kind="method" name="from_factory">
 			<signature>func from_factory(factory: Callable) -&gt; Variant:</signature>
 			<description>使用 Callable 作为绑定来源。
 "type": "Variant",
@@ -24,7 +24,7 @@
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_instance" line="90">
+		<member kind="method" name="from_instance">
 			<signature>func from_instance(instance: Object) -&gt; Variant:</signature>
 			<description>使用已有实例作为绑定来源。
 "type": "Variant",
@@ -37,7 +37,7 @@
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_alias" line="108">
+		<member kind="method" name="with_alias">
 			<signature>func with_alias(alias_cls: Script) -&gt; Variant:</signature>
 			<description>额外登记一个查询别名。仅对 Model/System/Utility 有效。
 "type": "Variant",
@@ -50,14 +50,14 @@
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="as_singleton" line="119">
+		<member kind="method" name="as_singleton">
 			<signature>func as_singleton() -&gt; void:</signature>
 			<description>以单例语义完成绑定。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="as_transient" line="139">
+		<member kind="method" name="as_transient">
 			<signature>func as_transient() -&gt; void:</signature>
 			<description>以瞬态语义完成绑定。仅短生命周期工厂支持 transient。</description>
 			<tags>

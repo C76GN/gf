@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSourceBuilder" path="addons/gf/kernel/editor/gf_source_builder.gd" module="kernel" extends="RefCounted" line="15" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSourceBuilder" path="addons/gf/kernel/editor/gf_source_builder.gd" module="kernel" extends="RefCounted" classDigest="3796b80df3de09ce99229f7a09fc375b756aea0aecf6e929cbf28779a325ee8b">
 	<description>GFSourceBuilder: 编辑器代码生成用的轻量源码构建器。
 用于集中处理生成脚本时的缩进、空行、section 与文档注释格式，
 避免各个 generator 直接拼接 `PackedStringArray` 时出现格式漂移。</description>
@@ -14,7 +14,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="line" line="34">
+		<member kind="method" name="line">
 			<signature>func line(text: String = "") -&gt; GFSourceBuilder:</signature>
 			<description>添加一行源码。</description>
 			<tags>
@@ -23,7 +23,7 @@
 				<tag name="return">当前构建器，便于链式调用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="doc" line="49">
+		<member kind="method" name="doc">
 			<signature>func doc(text: String = "") -&gt; GFSourceBuilder:</signature>
 			<description>添加文档注释行。</description>
 			<tags>
@@ -32,7 +32,7 @@
 				<tag name="return">当前构建器，便于链式调用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="section" line="62">
+		<member kind="method" name="section">
 			<signature>func section(title: String) -&gt; GFSourceBuilder:</signature>
 			<description>添加规范 section 标题，并在其后添加一个空行。</description>
 			<tags>
@@ -41,7 +41,7 @@
 				<tag name="return">当前构建器，便于链式调用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="blank" line="73">
+		<member kind="method" name="blank">
 			<signature>func blank(count: int = 1) -&gt; GFSourceBuilder:</signature>
 			<description>添加空行。</description>
 			<tags>
@@ -50,7 +50,7 @@
 				<tag name="return">当前构建器，便于链式调用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="indent" line="84">
+		<member kind="method" name="indent">
 			<signature>func indent() -&gt; GFSourceBuilder:</signature>
 			<description>增加后续行的缩进层级。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="return">当前构建器，便于链式调用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dedent" line="96">
+		<member kind="method" name="dedent">
 			<signature>func dedent(count: int = 1) -&gt; GFSourceBuilder:</signature>
 			<description>减少后续行的缩进层级。</description>
 			<tags>
@@ -67,7 +67,7 @@
 				<tag name="return">当前构建器，便于链式调用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="106">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; GFSourceBuilder:</signature>
 			<description>清空已构建内容并重置缩进。</description>
 			<tags>
@@ -75,7 +75,7 @@
 				<tag name="return">当前构建器，便于链式调用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build" line="117">
+		<member kind="method" name="build">
 			<signature>func build() -&gt; String:</signature>
 			<description>生成最终源码字符串；非空源码末尾会包含换行。</description>
 			<tags>

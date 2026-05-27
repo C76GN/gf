@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigTableMergeTools" path="addons/gf/standard/utilities/config/gf_config_table_merge_tools.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigTableMergeTools" path="addons/gf/standard/utilities/config/gf_config_table_merge_tools.gd" module="standard" extends="RefCounted" classDigest="831f7d62fa39e29965e0687c5a2da6d103f0141f3023dbc242454852daf555b1">
 	<description>GFConfigTableMergeTools: 配置表补丁合并工具。
 提供 Array[Dictionary] 与 Dictionary 表的通用补丁合并，适合导表后处理、
 编辑器工具或项目自己的配置包流程使用。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="merge_tables" line="39">
+		<member kind="method" name="merge_tables">
 			<signature>static func merge_tables( base_table: Variant, patch_table: Variant, policy: GFConfigTableMergePolicy = null ) -&gt; Dictionary:</signature>
 			<description>合并 base 表与 patch 表。</description>
 			<tags>

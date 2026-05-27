@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFUndoableCommand" path="addons/gf/standard/command/gf_undoable_command.gd" module="standard" extends="GFCommand" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFUndoableCommand" path="addons/gf/standard/command/gf_undoable_command.gd" module="standard" extends="GFCommand" classDigest="10c7dd34520cbb5a05e5b29e9d497f3a42751e9872abdc22e53bcb9c341b5646">
 	<description>GFUndoableCommand: 可撤销命令的抽象基类。
 继承自 GFCommand，在标准命令的基础上新增撤销能力。
 子类须在 execute() 执行前通过 set_snapshot() 保存当前状态快照，
@@ -14,7 +14,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="action_name" line="21">
+		<member kind="property" name="action_name">
 			<signature>var action_name: String = "未命名动作"</signature>
 			<description>在 UI 历史记录面板中显示当前命令的名称描述。</description>
 			<tags>
@@ -23,7 +23,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="execute" line="39">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行命令逻辑。子类必须重写此方法，并建议在此处先调用 set_snapshot()。</description>
 			<tags>
@@ -32,7 +32,7 @@
 				<tag name="schema">return: Variant, null or Signal.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="undo" line="50">
+		<member kind="method" name="undo">
 			<signature>func undo() -&gt; Variant:</signature>
 			<description>撤销命令。子类必须重写此方法，使用 get_snapshot() 还原状态。</description>
 			<tags>
@@ -41,7 +41,7 @@
 				<tag name="schema">return: Variant, null or Signal.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="should_record" line="63">
+		<member kind="method" name="should_record">
 			<signature>func should_record(_execute_result: Variant) -&gt; bool:</signature>
 			<description>判断 execute() 返回后是否应该写入命令历史。</description>
 			<tags>
@@ -51,7 +51,7 @@
 				<tag name="schema">_execute_result: Variant returned by execute().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_snapshot" line="74">
+		<member kind="method" name="set_snapshot">
 			<signature>func set_snapshot(data: Variant) -&gt; void:</signature>
 			<description>保存执行前的状态快照。应在 execute() 内部、修改数据之前调用。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="schema">data: Variant snapshot value; Array and Dictionary values are deep-copied.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_snapshot" line="88">
+		<member kind="method" name="get_snapshot">
 			<signature>func get_snapshot() -&gt; Variant:</signature>
 			<description>获取由 set_snapshot() 保存的状态快照。在 undo() 中调用以还原数据。</description>
 			<tags>

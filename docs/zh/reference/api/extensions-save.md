@@ -2282,6 +2282,16 @@ var display_name: String = ""
 
 展示名称。
 
+#### `description`
+
+- API: `public`
+
+```gdscript
+var description: String = ""
+```
+
+展示描述。
+
 #### `is_empty`
 
 - API: `public`
@@ -2290,7 +2300,7 @@ var display_name: String = ""
 var is_empty: bool = true
 ```
 
-展示描述。 是否为空槽位。
+是否为空槽位。
 
 #### `is_active`
 
@@ -2456,6 +2466,16 @@ var display_name: String = ""
 
 展示名称。
 
+#### `description`
+
+- API: `public`
+
+```gdscript
+var description: String = ""
+```
+
+展示描述。
+
 #### `schema_id`
 
 - API: `public`
@@ -2464,7 +2484,17 @@ var display_name: String = ""
 var schema_id: StringName = &""
 ```
 
-展示描述。 存档数据结构标识。
+存档数据结构标识。
+
+#### `schema_version`
+
+- API: `public`
+
+```gdscript
+var schema_version: int = 1
+```
+
+存档数据结构版本。
 
 #### `app_version`
 
@@ -2474,7 +2504,7 @@ var schema_id: StringName = &""
 var app_version: String = ""
 ```
 
-存档数据结构版本。 项目版本号。
+项目版本号。
 
 #### `created_at_unix`
 

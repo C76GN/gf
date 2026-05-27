@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputDirectionHistory" path="addons/gf/standard/input/history/gf_input_direction_history.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputDirectionHistory" path="addons/gf/standard/input/history/gf_input_direction_history.gd" module="standard" extends="RefCounted" classDigest="363e4797e3d36a855b5264fd90e45fd6d59cbfac7b1f7e1b0c525bd95ef04687">
 	<description>GFInputDirectionHistory: 最后按下方向优先的输入历史。
 维护动作 ID 到方向向量的按下顺序，适合网格移动、菜单导航或四方向角色控制。
 它不读取 InputMap，也不规定动作命名。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="press_action" line="30">
+		<member kind="method" name="press_action">
 			<signature>func press_action(action_id: StringName, direction: Vector2i) -&gt; void:</signature>
 			<description>标记一个方向动作被按下。</description>
 			<tags>
@@ -22,7 +22,7 @@
 				<tag name="param">direction: 方向。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release_action" line="43">
+		<member kind="method" name="release_action">
 			<signature>func release_action(action_id: StringName) -&gt; void:</signature>
 			<description>标记一个方向动作被释放。</description>
 			<tags>
@@ -30,7 +30,7 @@
 				<tag name="param">action_id: 动作标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="press_direction" line="53">
+		<member kind="method" name="press_direction">
 			<signature>func press_direction(direction: Vector2i) -&gt; void:</signature>
 			<description>按方向值生成内部动作标识并标记按下。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="param">direction: 方向。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release_direction" line="62">
+		<member kind="method" name="release_direction">
 			<signature>func release_direction(direction: Vector2i) -&gt; void:</signature>
 			<description>按方向值生成内部动作标识并标记释放。</description>
 			<tags>
@@ -46,7 +46,7 @@
 				<tag name="param">direction: 方向。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="update_action" line="75">
+		<member kind="method" name="update_action">
 			<signature>func update_action(action_id: StringName, direction: Vector2i, pressed: bool) -&gt; void:</signature>
 			<description>根据 pressed 状态更新动作。</description>
 			<tags>
@@ -56,7 +56,7 @@
 				<tag name="param">pressed: 是否按下。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_direction" line="87">
+		<member kind="method" name="get_current_direction">
 			<signature>func get_current_direction() -&gt; Vector2i:</signature>
 			<description>获取当前优先方向。</description>
 			<tags>
@@ -64,7 +64,7 @@
 				<tag name="return">最近按下且尚未释放的方向；没有时返回 Vector2i.ZERO。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_action" line="100">
+		<member kind="method" name="get_current_action">
 			<signature>func get_current_action() -&gt; StringName:</signature>
 			<description>获取当前优先动作。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="return">最近按下且尚未释放的动作；没有时返回空 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_history" line="111">
+		<member kind="method" name="get_history">
 			<signature>func get_history() -&gt; Array[StringName]:</signature>
 			<description>获取按下历史副本。</description>
 			<tags>
@@ -80,7 +80,7 @@
 				<tag name="return">动作 ID 列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="118">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空历史。</description>
 			<tags>

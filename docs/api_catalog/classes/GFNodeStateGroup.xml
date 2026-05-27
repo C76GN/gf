@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateGroup" path="addons/gf/standard/state_machine/node/gf_node_state_group.gd" module="standard" extends="Node" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeStateGroup" path="addons/gf/standard/state_machine/node/gf_node_state_group.gd" module="standard" extends="Node" classDigest="9c60c53de3d3fcebf9105bc38d55278656ba21e1a3c2acd81a1751879a638c2f">
 	<description>GFNodeStateGroup: 管理一组互斥激活的节点状态。
 一个状态组内同一时间只有一个 GFNodeState 处于启用状态。</description>
 	<tags>
@@ -8,7 +8,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="state_added" line="21">
+		<member kind="signal" name="state_added">
 			<signature>signal state_added(state: GFNodeState)</signature>
 			<description>状态加入组后发出。</description>
 			<tags>
@@ -16,7 +16,7 @@
 				<tag name="param">state: 新加入的状态节点。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="state_removed" line="28">
+		<member kind="signal" name="state_removed">
 			<signature>signal state_removed(state: GFNodeState)</signature>
 			<description>状态从组中移除后发出。</description>
 			<tags>
@@ -24,7 +24,7 @@
 				<tag name="param">state: 被移除的状态节点。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="current_state_changed" line="37">
+		<member kind="signal" name="current_state_changed">
 			<signature>signal current_state_changed(old_state: GFNodeState, new_state: GFNodeState)</signature>
 			<description>当前状态切换后发出。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="param">new_state: 切换后的状态；状态组停止时可为 null。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="transition_blocked" line="52">
+		<member kind="signal" name="transition_blocked">
 			<signature>signal transition_blocked(from_state: GFNodeState, to_state_name: StringName, args: Dictionary, reason: String)</signature>
 			<description>状态切换被守卫阻止后发出。</description>
 			<tags>
@@ -45,7 +45,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="requested_transition" line="65">
+		<member kind="signal" name="requested_transition">
 			<signature>signal requested_transition(group_name: StringName, state_name: StringName, args: Dictionary)</signature>
 			<description>子状态请求跨组切换时发出。</description>
 			<tags>
@@ -56,7 +56,7 @@
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="state_event_handled" line="78">
+		<member kind="signal" name="state_event_handled">
 			<signature>signal state_event_handled(event_id: StringName, handler_state: GFNodeState, payload: Variant)</signature>
 			<description>当前状态或暂停栈状态处理状态事件后发出。</description>
 			<tags>
@@ -71,21 +71,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="group_name" line="91" decorators="@export">
+		<member kind="property" name="group_name" decorators="@export">
 			<signature>var group_name: StringName = &amp;""</signature>
 			<description>状态组注册名。为空时使用节点名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="initial_state" line="96" decorators="@export">
+		<member kind="property" name="initial_state" decorators="@export">
 			<signature>var initial_state: StringName = &amp;""</signature>
 			<description>初始状态名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="initial_args" line="103" decorators="@export">
+		<member kind="property" name="initial_args" decorators="@export">
 			<signature>var initial_args: Dictionary = {}</signature>
 			<description>初始状态参数。</description>
 			<tags>
@@ -93,35 +93,45 @@
 				<tag name="schema">initial_args: 初始状态参数 Dictionary；键和值由初始状态的项目逻辑约定。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="reload_states_on_ready" line="108" decorators="@export">
+		<member kind="property" name="reload_states_on_ready" decorators="@export">
 			<signature>var reload_states_on_ready: bool = true</signature>
 			<description>ready 时是否自动从子节点加载状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_start" line="113" decorators="@export">
+		<member kind="property" name="auto_start" decorators="@export">
 			<signature>var auto_start: bool = true</signature>
 			<description>初始化后是否自动进入 initial_state。关闭后可通过 start() 手动启动。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="blackboard" line="130" decorators="@export_range(1, 256, 1) var history_max_size: int = 32 @export_range(1, 64, 1) var max_stack_depth: int = 8 @export">
-			<signature>var blackboard: Dictionary = {}</signature>
-			<description>每个状态组保留的历史状态名数量。
-push_state 可叠加的最大栈深度。
-状态组共享黑板。框架不解释其中字段。</description>
+		<member kind="property" name="history_max_size" decorators="@export_range(1, 256, 1)">
+			<signature>var history_max_size: int = 32</signature>
+			<description>每个状态组保留的历史状态名数量。</description>
 			<tags>
 				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_stack_depth" decorators="@export_range(1, 64, 1)">
+			<signature>var max_stack_depth: int = 8</signature>
+			<description>push_state 可叠加的最大栈深度。</description>
+			<tags>
 				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="blackboard" decorators="@export">
+			<signature>var blackboard: Dictionary = {}</signature>
+			<description>状态组共享黑板。框架不解释其中字段。</description>
+			<tags>
 				<tag name="api">public</tag>
 				<tag name="schema">blackboard: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定。</tag>
 			</tags>
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_group_name" line="176">
+		<member kind="method" name="get_group_name">
 			<signature>func get_group_name() -&gt; StringName:</signature>
 			<description>获取状态组注册名。</description>
 			<tags>
@@ -129,7 +139,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="return">非空 group_name，或节点名称转换出的 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="transition_to" line="191">
+		<member kind="method" name="transition_to">
 			<signature>func transition_to(next_state_name: StringName, args: Dictionary = {}) -&gt; void:</signature>
 			<description>切换到指定状态。</description>
 			<tags>
@@ -139,7 +149,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="push_state" line="269">
+		<member kind="method" name="push_state">
 			<signature>func push_state(next_state_name: StringName, args: Dictionary = {}) -&gt; void:</signature>
 			<description>暂停当前状态并叠加进入一个子状态。</description>
 			<tags>
@@ -149,7 +159,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pop_state" line="316">
+		<member kind="method" name="pop_state">
 			<signature>func pop_state(args: Dictionary = {}) -&gt; bool:</signature>
 			<description>退出当前子状态并恢复上一层状态。</description>
 			<tags>
@@ -159,7 +169,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_state" line="387">
+		<member kind="method" name="add_state">
 			<signature>func add_state(state: GFNodeState) -&gt; void:</signature>
 			<description>添加状态节点。</description>
 			<tags>
@@ -167,7 +177,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="param">state: 状态节点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_state" line="412">
+		<member kind="method" name="remove_state">
 			<signature>func remove_state(state: GFNodeState) -&gt; bool:</signature>
 			<description>移除状态节点。</description>
 			<tags>
@@ -176,7 +186,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="return">成功移除已注册状态时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state" line="440">
+		<member kind="method" name="get_state">
 			<signature>func get_state(query_state_name: StringName) -&gt; GFNodeState:</signature>
 			<description>获取状态。</description>
 			<tags>
@@ -185,7 +195,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="return">注册名对应的状态节点；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_state" line="449">
+		<member kind="method" name="get_current_state">
 			<signature>func get_current_state() -&gt; GFNodeState:</signature>
 			<description>获取当前状态。</description>
 			<tags>
@@ -193,7 +203,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="return">当前激活状态；未启动或已停止时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_current_state_name" line="458">
+		<member kind="method" name="get_current_state_name">
 			<signature>func get_current_state_name() -&gt; StringName:</signature>
 			<description>获取当前状态名。</description>
 			<tags>
@@ -201,7 +211,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="return">当前激活状态名；未启动或已停止时返回空 StringName。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state_history" line="471">
+		<member kind="method" name="get_state_history">
 			<signature>func get_state_history() -&gt; Array[StringName]:</signature>
 			<description>获取状态切换历史。</description>
 			<tags>
@@ -210,7 +220,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">return: 状态历史 Array[StringName]，按进入顺序排列。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_stack_depth" line="483">
+		<member kind="method" name="get_stack_depth">
 			<signature>func get_stack_depth() -&gt; int:</signature>
 			<description>获取当前暂停栈深度。</description>
 			<tags>
@@ -218,7 +228,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="return">当前暂停栈深度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_blackboard" line="494">
+		<member kind="method" name="get_blackboard">
 			<signature>func get_blackboard() -&gt; Dictionary:</signature>
 			<description>获取状态组共享黑板。</description>
 			<tags>
@@ -227,7 +237,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">return: 状态组共享黑板 Dictionary；键和值由项目状态逻辑约定，调用方可直接修改。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispatch_state_event" line="509">
+		<member kind="method" name="dispatch_state_event">
 			<signature>func dispatch_state_event(event_id: StringName, payload: Variant = null) -&gt; bool:</signature>
 			<description>从当前状态开始向暂停栈上抛状态事件。</description>
 			<tags>
@@ -238,7 +248,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">payload: 状态事件载荷；具体结构由 event_id 和项目逻辑约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_in_state" line="525">
+		<member kind="method" name="is_in_state">
 			<signature>func is_in_state(query_state_name: StringName) -&gt; bool:</signature>
 			<description>判断指定状态是否为当前状态或暂停栈中的状态。</description>
 			<tags>
@@ -247,7 +257,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="return">指定状态位于当前状态或暂停栈中时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="restart" line="543">
+		<member kind="method" name="restart">
 			<signature>func restart(args: Dictionary = {}) -&gt; void:</signature>
 			<description>重启当前状态；若当前没有状态，则尝试进入初始状态。</description>
 			<tags>
@@ -256,7 +266,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">args: 状态切换参数 Dictionary；键和值由调用方约定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="start" line="558">
+		<member kind="method" name="start">
 			<signature>func start(args: Dictionary = {}) -&gt; void:</signature>
 			<description>进入初始状态。若已有当前状态则保持不变。</description>
 			<tags>
@@ -265,14 +275,14 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">args: 启动参数 Dictionary；为空时使用 initial_args。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="stop" line="568">
+		<member kind="method" name="stop">
 			<signature>func stop() -&gt; void:</signature>
 			<description>停止当前激活状态，但保留已注册状态节点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_states" line="584">
+		<member kind="method" name="get_states">
 			<signature>func get_states() -&gt; Array[GFNodeState]:</signature>
 			<description>获取所有状态。</description>
 			<tags>
@@ -281,7 +291,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">return: 已注册 GFNodeState 节点数组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state_snapshot" line="598">
+		<member kind="method" name="get_state_snapshot">
 			<signature>func get_state_snapshot() -&gt; Dictionary:</signature>
 			<description>获取状态组调试快照。</description>
 			<tags>
@@ -290,7 +300,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="schema">return: 调试快照 Dictionary，包含 group_name、current_state、stack、history、states 和 blackboard 字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_states" line="614">
+		<member kind="method" name="clear_states">
 			<signature>func clear_states(free_states: bool = false) -&gt; void:</signature>
 			<description>清空状态。</description>
 			<tags>
@@ -298,7 +308,7 @@ push_state 可叠加的最大栈深度。
 				<tag name="param">free_states: 为 true 时同时释放已移除的状态节点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reload_states_from_children" line="632">
+		<member kind="method" name="reload_states_from_children">
 			<signature>func reload_states_from_children() -&gt; void:</signature>
 			<description>从子节点重新加载状态。</description>
 			<tags>

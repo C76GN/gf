@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfig" path="addons/gf/kernel/base/gf_config.gd" module="kernel" extends="Resource" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfig" path="addons/gf/kernel/base/gf_config.gd" module="kernel" extends="Resource" classDigest="301790fcb48fb12d3bb655c5ccfa8c1c021fdb5e1d6efc0448e186e99bd98493">
 	<description>GFConfig: 数据驱动配置的抽象基类。
 继承自 Resource，可在编辑器中配置并序列化为 .tres 文件。
 用于承载关卡配置、难度配置、游戏模式定义等只读数据，
@@ -15,7 +15,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="validate" line="25">
+		<member kind="method" name="validate">
 			<signature>func validate() -&gt; bool:</signature>
 			<description>校验此配置数据是否完整且合法。
 子类应重写此方法以添加必要的校验逻辑（如非空检查、范围检查）。</description>
@@ -24,7 +24,7 @@
 				<tag name="return">配置合法返回 true，否则返回 false。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="40">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>将配置数据序列化为字典，便于存档或网络传输。
 子类可重写此方法以控制序列化范围。

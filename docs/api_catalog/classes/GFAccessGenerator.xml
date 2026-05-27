@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAccessGenerator" path="addons/gf/kernel/editor/gf_access_generator.gd" module="kernel" extends="RefCounted" line="15" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAccessGenerator" path="addons/gf/kernel/editor/gf_access_generator.gd" module="kernel" extends="RefCounted" classDigest="895ed264a9aa09a517f0fe40f034184b3ec53f9537e9f2b99f541d414d20fe76">
 	<description>GFAccessGenerator: 生成强类型 GF 访问器脚本。
 生成结果用于减少 `Gf.get_model(Type) as Type` 这类重复样板，
 并为 Model / System / Utility / Command / Query 提供稳定的 IDE 补全入口。</description>
@@ -11,7 +11,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="TargetKind" line="24">
+		<member kind="enum" name="TargetKind">
 			<signature>enum TargetKind { ## Model 访问器目标。 MODEL, ## System 访问器目标。 SYSTEM, ## Utility 访问器目标。 UTILITY, ## Command 访问器目标。 COMMAND, ## Query 访问器目标。 QUERY, ## Capability 访问器目标。 CAPABILITY, }</signature>
 			<description>访问器目标类型。</description>
 			<tags>
@@ -20,14 +20,14 @@
 		</member>
 	</enums>
 	<constants>
-		<member kind="const" name="DEFAULT_OUTPUT_PATH" line="45">
+		<member kind="const" name="DEFAULT_OUTPUT_PATH">
 			<signature>const DEFAULT_OUTPUT_PATH: String = "res://gf/generated/gf_access.gd"</signature>
 			<description>默认强类型访问器输出路径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_PROJECT_OUTPUT_PATH" line="50">
+		<member kind="const" name="DEFAULT_PROJECT_OUTPUT_PATH">
 			<signature>const DEFAULT_PROJECT_OUTPUT_PATH: String = "res://gf/generated/gf_project_access.gd"</signature>
 			<description>默认项目常量访问器输出路径。</description>
 			<tags>
@@ -37,7 +37,7 @@
 	</constants>
 	<properties />
 	<methods>
-		<member kind="method" name="generate" line="95">
+		<member kind="method" name="generate">
 			<signature>func generate(output_path: String = DEFAULT_OUTPUT_PATH, overwrite_existing: bool = true) -&gt; Error:</signature>
 			<description>扫描项目 class_name 脚本并生成访问器。</description>
 			<tags>
@@ -47,7 +47,7 @@
 				<tag name="return">写入结果错误码。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="generate_project_access" line="110">
+		<member kind="method" name="generate_project_access">
 			<signature>func generate_project_access(output_path: String = DEFAULT_PROJECT_OUTPUT_PATH, overwrite_existing: bool = true) -&gt; Error:</signature>
 			<description>生成项目常量访问器。</description>
 			<tags>
@@ -57,7 +57,7 @@
 				<tag name="return">写入结果错误码。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_records" line="123">
+		<member kind="method" name="collect_records">
 			<signature>func collect_records() -&gt; Array[Dictionary]:</signature>
 			<description>收集当前项目中可生成访问器的 GF 类型记录。</description>
 			<tags>
@@ -66,7 +66,7 @@
 				<tag name="schema">return: Array of Dictionary type records with class_name, path, script, kind, and access metadata.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_project_records" line="157">
+		<member kind="method" name="collect_project_records">
 			<signature>func collect_project_records() -&gt; Dictionary:</signature>
 			<description>收集项目层常量记录，包括命名层、InputMap 动作和 GF ProjectSettings。</description>
 			<tags>
@@ -75,7 +75,7 @@
 				<tag name="schema">return: Dictionary with layers, input_actions, and settings arrays.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_source" line="174">
+		<member kind="method" name="build_source">
 			<signature>func build_source(records: Array) -&gt; String:</signature>
 			<description>根据记录生成访问器源码。测试可直接调用该方法验证输出。</description>
 			<tags>
@@ -85,7 +85,7 @@
 				<tag name="schema">records: Array of Dictionary type records containing class_name, path, and kind.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_project_source" line="280">
+		<member kind="method" name="build_project_source">
 			<signature>func build_project_source(records: Dictionary) -&gt; String:</signature>
 			<description>根据项目常量记录生成访问器源码。</description>
 			<tags>
@@ -95,7 +95,7 @@
 				<tag name="schema">records: Dictionary with layers, input_actions, and settings arrays.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_source" line="305">
+		<member kind="method" name="save_source">
 			<signature>func save_source(output_path: String, source: String, overwrite_existing: bool = true) -&gt; Error:</signature>
 			<description>保存生成源码到指定路径。</description>
 			<tags>

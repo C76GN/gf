@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioSwitch" path="addons/gf/standard/utilities/audio/gf_audio_switch.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioSwitch" path="addons/gf/standard/utilities/audio/gf_audio_switch.gd" module="standard" extends="Resource" classDigest="6bf0fb06b04adba3e294784bc4f8fe3b3ebba0daa491348a1fcc083b06d1b726">
 	<description>GFAudioSwitch: 通用音频开关请求。
 表示某个对象或作用域上的开关组和值。</description>
 	<tags>
@@ -11,28 +11,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="group_id" line="19" decorators="@export">
+		<member kind="property" name="group_id" decorators="@export">
 			<signature>var group_id: StringName = &amp;""</signature>
 			<description>开关组标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="switch_id" line="24" decorators="@export">
+		<member kind="property" name="switch_id" decorators="@export">
 			<signature>var switch_id: StringName = &amp;""</signature>
 			<description>开关值标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scope_id" line="29" decorators="@export">
+		<member kind="property" name="scope_id" decorators="@export">
 			<signature>var scope_id: StringName = &amp;""</signature>
 			<description>可选作用域标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="36" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据。</description>
 			<tags>
@@ -42,7 +42,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="to_dictionary" line="48">
+		<member kind="method" name="to_dictionary">
 			<signature>func to_dictionary() -&gt; Dictionary:</signature>
 			<description>转换为请求字典。</description>
 			<tags>

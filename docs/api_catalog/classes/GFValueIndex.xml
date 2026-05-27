@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFValueIndex" path="addons/gf/standard/foundation/collections/gf_value_index.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFValueIndex" path="addons/gf/standard/foundation/collections/gf_value_index.gd" module="standard" extends="RefCounted" classDigest="1643ab1229a830ce830c7b8a9a8d8df5902f77f6ff36e1c285d5f6de14f8aa11">
 	<description>GFValueIndex: 通用值索引。
 为任意 item_id 关联值和字段，并支持按字段快速查询。它只维护索引结构，
 不规定字段含义、业务规则或生命周期。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="item_indexed" line="22">
+		<member kind="signal" name="item_indexed">
 			<signature>signal item_indexed(item_id: StringName)</signature>
 			<description>条目写入索引后发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">item_id: 条目标识。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="item_removed" line="29">
+		<member kind="signal" name="item_removed">
 			<signature>signal item_removed(item_id: StringName)</signature>
 			<description>条目从索引移除后发出。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="param">item_id: 条目标识。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="cleared" line="34">
+		<member kind="signal" name="cleared">
 			<signature>signal cleared</signature>
 			<description>索引清空后发出。</description>
 			<tags>
@@ -36,7 +36,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="duplicate_values" line="42">
+		<member kind="property" name="duplicate_values">
 			<signature>var duplicate_values: bool = true</signature>
 			<description>读取或写入值时是否复制 Dictionary / Array。</description>
 			<tags>
@@ -45,7 +45,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_item" line="68">
+		<member kind="method" name="set_item">
 			<signature>func set_item(item_id: StringName, value: Variant, fields: Dictionary = {}) -&gt; bool:</signature>
 			<description>写入或替换一个条目。</description>
 			<tags>
@@ -58,7 +58,7 @@
 				<tag name="schema">fields: Dictionary from field id to scalar, Array, or PackedStringArray values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_item" line="90">
+		<member kind="method" name="remove_item">
 			<signature>func remove_item(item_id: StringName) -&gt; bool:</signature>
 			<description>移除条目。</description>
 			<tags>
@@ -67,7 +67,7 @@
 				<tag name="return">移除成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_item" line="110">
+		<member kind="method" name="has_item">
 			<signature>func has_item(item_id: StringName) -&gt; bool:</signature>
 			<description>检查条目是否存在。</description>
 			<tags>
@@ -76,7 +76,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_item" line="127">
+		<member kind="method" name="get_item">
 			<signature>func get_item(item_id: StringName, default_value: Variant = null) -&gt; Variant:</signature>
 			<description>获取条目值。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="schema">return: Variant item value or fallback value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_fields" line="143">
+		<member kind="method" name="get_fields">
 			<signature>func get_fields(item_id: StringName) -&gt; Dictionary:</signature>
 			<description>获取条目字段。</description>
 			<tags>
@@ -98,7 +98,7 @@
 				<tag name="schema">return: Dictionary indexed field values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="query" line="161">
+		<member kind="method" name="query">
 			<signature>func query(field_id: StringName, field_value: Variant) -&gt; PackedStringArray:</signature>
 			<description>按单个字段值查询条目标识。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="schema">field_value: Variant indexed field value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="query_many" line="189">
+		<member kind="method" name="query_many">
 			<signature>func query_many(criteria: Dictionary, match_all: bool = true) -&gt; PackedStringArray:</signature>
 			<description>按多个字段查询条目标识。</description>
 			<tags>
@@ -120,14 +120,14 @@
 				<tag name="schema">criteria: Dictionary from field id to query value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="212">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空索引。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_item_count" line="223">
+		<member kind="method" name="get_item_count">
 			<signature>func get_item_count() -&gt; int:</signature>
 			<description>获取条目数量。</description>
 			<tags>
@@ -135,7 +135,7 @@
 				<tag name="return">条目数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_index_count" line="232">
+		<member kind="method" name="get_index_count">
 			<signature>func get_index_count() -&gt; int:</signature>
 			<description>获取字段索引数量。</description>
 			<tags>
@@ -143,7 +143,7 @@
 				<tag name="return">字段索引数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="243">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

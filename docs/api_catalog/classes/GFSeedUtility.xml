@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSeedUtility" path="addons/gf/standard/utilities/random/gf_seed_utility.gd" module="standard" extends="GFUtility" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSeedUtility" path="addons/gf/standard/utilities/random/gf_seed_utility.gd" module="standard" extends="GFUtility" classDigest="99ec1c424f3ca127446d2e2613cdb2053778fd7010eec06bda7c048ff876c15b">
 	<description>GFSeedUtility: 全局随机数种子管理器。
 内部维护一个主 RandomNumberGenerator，并支持基于字符串标签派生
 出独立的子 RNG。子 RNG 的生成不推进主随机序列，可用于保证
@@ -14,14 +14,14 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="init" line="36">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>第一阶段初始化：创建主 RNG 实例。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_global_seed" line="49">
+		<member kind="method" name="set_global_seed">
 			<signature>func set_global_seed(seed_hash: int) -&gt; void:</signature>
 			<description>设置全局主种子，并同步应用到主 RNG。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="param">seed_hash: 用于驱动主随机数序列的整数种子。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_global_seed" line="61">
+		<member kind="method" name="get_global_seed">
 			<signature>func get_global_seed() -&gt; int:</signature>
 			<description>获取当前全局主种子。</description>
 			<tags>
@@ -37,7 +37,7 @@
 				<tag name="return">当前全局主种子。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_rng" line="73">
+		<member kind="method" name="get_rng">
 			<signature>func get_rng() -&gt; RandomNumberGenerator:</signature>
 			<description>获取主随机数生成器。
 调用方可以直接使用该实例生成随机数；生成行为会推进主 RNG 状态。</description>
@@ -46,7 +46,7 @@
 				<tag name="return">主随机数生成器实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_state" line="83">
+		<member kind="method" name="get_state">
 			<signature>func get_state() -&gt; int:</signature>
 			<description>获取当前主 RNG 的内部精确状态。</description>
 			<tags>
@@ -54,7 +54,7 @@
 				<tag name="return">当前的内部状态值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_state" line="93">
+		<member kind="method" name="set_state">
 			<signature>func set_state(state: int) -&gt; void:</signature>
 			<description>恢复主 RNG 的内部精确状态。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="param">state: 要恢复的内部状态值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_full_state" line="106">
+		<member kind="method" name="get_full_state">
 			<signature>func get_full_state() -&gt; Dictionary:</signature>
 			<description>获取包含主种子、主 RNG 状态与分支计数的完整随机状态。
 返回的 64 位整数状态会以十进制字符串保存，确保默认 JSON 存储可精确往返。</description>
@@ -72,7 +72,7 @@
 				<tag name="schema">return: Dictionary with `state_schema_version: int`, `global_seed: String`, `rng_state: String`, and `branch_counters: Dictionary[String, String]`.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_full_state" line="123">
+		<member kind="method" name="set_full_state">
 			<signature>func set_full_state(state: Dictionary) -&gt; void:</signature>
 			<description>恢复完整随机状态。</description>
 			<tags>
@@ -81,7 +81,7 @@
 				<tag name="schema">state: Dictionary produced by get_full_state().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_branched_rng" line="142">
+		<member kind="method" name="get_branched_rng">
 			<signature>func get_branched_rng(string_seed: String) -&gt; RandomNumberGenerator:</signature>
 			<description>基于主 RNG 当前状态与字符串标签，派生出一个独立的子 RNG。
 每次调用只推进当前标签的分支计数，不推进主 RNG 的随机序列。

@@ -1933,6 +1933,16 @@ var duration_scale: float = 1.0
 
 全局时长缩放。
 
+#### `loop_count`
+
+- API: `public`
+
+```gdscript
+var loop_count: int = 1
+```
+
+播放次数。1 表示播放一次，0 表示无限循环。
+
 #### `ignore_time_scale`
 
 - API: `public`
@@ -1941,7 +1951,7 @@ var duration_scale: float = 1.0
 var ignore_time_scale: bool = false
 ```
 
-播放次数。1 表示播放一次，0 表示无限循环。 是否忽略全局 time scale。
+是否忽略全局 time scale。
 
 #### `process_mode`
 

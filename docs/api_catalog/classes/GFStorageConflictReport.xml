@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFStorageConflictReport" path="addons/gf/standard/utilities/storage/gf_storage_conflict_report.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFStorageConflictReport" path="addons/gf/standard/utilities/storage/gf_storage_conflict_report.gd" module="standard" extends="Resource" classDigest="cd5d78dd3a44c541cf7c19ece454649619a3b1557bc4d1f8c847e2ea3d682539">
 	<description>GFStorageConflictReport: 存储同步冲突的通用报告数据。
 该资源只描述冲突，不决定如何解决冲突。项目可以把它用于云同步、
 多端合并、调试 UI 或自动化测试。</description>
@@ -10,7 +10,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Resolution" line="20">
+		<member kind="enum" name="Resolution">
 			<signature>enum Resolution { ## 尚未决定。 UNRESOLVED, ## 使用本地值。 USE_LOCAL, ## 使用远端值。 USE_REMOTE, ## 使用合并后的值。 MERGED, ## 跳过该冲突。 SKIPPED, }</signature>
 			<description>冲突解决策略。</description>
 			<tags>
@@ -20,21 +20,21 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="file_name" line="39" decorators="@export">
+		<member kind="property" name="file_name" decorators="@export">
 			<signature>var file_name: String = ""</signature>
 			<description>冲突所属逻辑文件名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="key" line="44" decorators="@export">
+		<member kind="property" name="key" decorators="@export">
 			<signature>var key: String = ""</signature>
 			<description>冲突字段或业务 key。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="local_value" line="51" decorators="@export">
+		<member kind="property" name="local_value" decorators="@export">
 			<signature>var local_value: Variant = null</signature>
 			<description>本地值。</description>
 			<tags>
@@ -42,7 +42,7 @@
 				<tag name="schema">local_value: Variant，从本地记录复制的冲突 key 或载荷值。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="remote_value" line="58" decorators="@export">
+		<member kind="property" name="remote_value" decorators="@export">
 			<signature>var remote_value: Variant = null</signature>
 			<description>远端值。</description>
 			<tags>
@@ -50,7 +50,7 @@
 				<tag name="schema">remote_value: Variant，从远端记录复制的冲突 key 或载荷值。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="resolved_value" line="65" decorators="@export">
+		<member kind="property" name="resolved_value" decorators="@export">
 			<signature>var resolved_value: Variant = null</signature>
 			<description>合并后的值。</description>
 			<tags>
@@ -58,14 +58,14 @@
 				<tag name="schema">resolved_value: Variant，由解析器选择或合并出的值。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="resolution" line="70" decorators="@export">
+		<member kind="property" name="resolution" decorators="@export">
 			<signature>var resolution: Resolution = Resolution.UNRESOLVED</signature>
 			<description>解决策略。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="77" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>扩展元数据。</description>
 			<tags>
@@ -75,7 +75,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="apply_dict" line="89">
+		<member kind="method" name="apply_dict">
 			<signature>func apply_dict(data: Dictionary) -&gt; void:</signature>
 			<description>从字典应用字段。</description>
 			<tags>
@@ -84,7 +84,7 @@
 				<tag name="schema">data: Dictionary，包含 file_name、key、local_value、remote_value、resolved_value、resolution 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="107">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转换为字典。</description>
 			<tags>
@@ -93,7 +93,7 @@
 				<tag name="schema">return: Dictionary，包含 file_name、key、local_value、remote_value、resolved_value、resolution 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_report" line="124">
+		<member kind="method" name="duplicate_report">
 			<signature>func duplicate_report() -&gt; GFStorageConflictReport:</signature>
 			<description>复制冲突报告。</description>
 			<tags>
@@ -101,7 +101,7 @@
 				<tag name="return">新报告实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_resolved" line="135">
+		<member kind="method" name="is_resolved">
 			<signature>func is_resolved() -&gt; bool:</signature>
 			<description>是否已经解决。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="return">resolution 不是 UNRESOLVED 时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="148">
+		<member kind="method" name="from_dict">
 			<signature>static func from_dict(data: Dictionary) -&gt; GFStorageConflictReport:</signature>
 			<description>从字典创建冲突报告。</description>
 			<tags>

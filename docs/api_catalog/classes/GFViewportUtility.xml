@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFViewportUtility" path="addons/gf/standard/utilities/display/gf_viewport_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFViewportUtility" path="addons/gf/standard/utilities/display/gf_viewport_utility.gd" module="standard" extends="GFUtility" classDigest="83d39d6b6dc9cba2cd348598e1bd47e7eba8908837559f15ba6e52b1f7146454">
 	<description>GFViewportUtility: 通用 SubViewport 布局管理工具。
 用于本地多人、调试监视器、小地图或多视角预览等场景。它只管理 Viewport
 容器、相机挂载和后处理材质，不接管玩家、场景切换或输入规则。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="split_screen_configured" line="24">
+		<member kind="signal" name="split_screen_configured">
 			<signature>signal split_screen_configured(viewports: Array)</signature>
 			<description>分屏布局创建完成后发出。</description>
 			<tags>
@@ -18,7 +18,7 @@
 				<tag name="schema">viewports: Array，由分屏布局创建的 SubViewport 实例。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="split_screen_cleared" line="29">
+		<member kind="signal" name="split_screen_cleared">
 			<signature>signal split_screen_cleared</signature>
 			<description>分屏布局被清理后发出。</description>
 			<tags>
@@ -29,21 +29,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="viewport_resolution_scale" line="37">
+		<member kind="property" name="viewport_resolution_scale">
 			<signature>var viewport_resolution_scale: float = 1.0:</signature>
 			<description>子 viewport 渲染尺寸缩放。1 表示使用配置尺寸。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_disable_3d" line="44">
+		<member kind="property" name="default_disable_3d">
 			<signature>var default_disable_3d: bool = false</signature>
 			<description>新建 SubViewport 是否禁用 3D。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_transparent_bg" line="49">
+		<member kind="property" name="default_transparent_bg">
 			<signature>var default_transparent_bg: bool = false</signature>
 			<description>新建 SubViewport 是否启用透明背景。</description>
 			<tags>
@@ -52,7 +52,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="setup_split_screen" line="76">
+		<member kind="method" name="setup_split_screen">
 			<signature>func setup_split_screen(root: Control, viewport_count: int, options: Dictionary = {}) -&gt; Array[SubViewport]:</signature>
 			<description>创建 1 到 4 个 SubViewport 的分屏布局。</description>
 			<tags>
@@ -64,7 +64,7 @@
 				<tag name="schema">options: Dictionary，包含 viewport_size: Vector2i 或 Vector2、columns: int、disable_3d: bool、transparent_bg: bool 和 stretch: bool。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_split_screen" line="103">
+		<member kind="method" name="clear_split_screen">
 			<signature>func clear_split_screen(free_cameras: bool = false) -&gt; void:</signature>
 			<description>清理当前分屏布局。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="param">free_cameras: 是否连同已挂载相机一起释放。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_viewport_count" line="132">
+		<member kind="method" name="get_viewport_count">
 			<signature>func get_viewport_count() -&gt; int:</signature>
 			<description>获取当前 SubViewport 数量。</description>
 			<tags>
@@ -80,7 +80,7 @@
 				<tag name="return">viewport 数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_viewports" line="141">
+		<member kind="method" name="get_viewports">
 			<signature>func get_viewports() -&gt; Array[SubViewport]:</signature>
 			<description>获取当前 SubViewport 列表副本。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="return">viewport 列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_viewport" line="152">
+		<member kind="method" name="get_viewport">
 			<signature>func get_viewport(index: int) -&gt; SubViewport:</signature>
 			<description>获取指定索引的 SubViewport。</description>
 			<tags>
@@ -97,7 +97,7 @@
 				<tag name="return">SubViewport；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_container" line="165">
+		<member kind="method" name="get_container">
 			<signature>func get_container(index: int) -&gt; SubViewportContainer:</signature>
 			<description>获取指定索引的 SubViewportContainer。</description>
 			<tags>
@@ -106,7 +106,7 @@
 				<tag name="return">SubViewportContainer；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_viewport_camera" line="180">
+		<member kind="method" name="set_viewport_camera">
 			<signature>func set_viewport_camera(index: int, camera: Node) -&gt; bool:</signature>
 			<description>将相机挂载到指定 SubViewport。</description>
 			<tags>
@@ -116,7 +116,7 @@
 				<tag name="return">挂载成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_postprocess_material" line="208">
+		<member kind="method" name="set_postprocess_material">
 			<signature>func set_postprocess_material(index: int, material: Material) -&gt; bool:</signature>
 			<description>设置指定 SubViewportContainer 的后处理材质。</description>
 			<tags>
@@ -126,7 +126,7 @@
 				<tag name="return">设置成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="screen_to_world_ray_3d" line="229">
+		<member kind="method" name="screen_to_world_ray_3d">
 			<signature>func screen_to_world_ray_3d( camera: Camera3D, screen_position: Vector2, length: float = 1000.0 ) -&gt; Dictionary:</signature>
 			<description>从屏幕/Viewport 坐标构建 3D 射线。</description>
 			<tags>
@@ -138,7 +138,7 @@
 				<tag name="schema">return: Dictionary，包含 ok: bool、origin: Vector3、direction: Vector3 和 end: Vector3。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="raycast_from_screen_3d" line="269">
+		<member kind="method" name="raycast_from_screen_3d">
 			<signature>func raycast_from_screen_3d( camera: Camera3D, screen_position: Vector2, collision_mask: int = 0xffffffff, length: float = 1000.0, exclude: Array[RID] = [] ) -&gt; Dictionary:</signature>
 			<description>从屏幕/Viewport 坐标执行 3D 射线检测。</description>
 			<tags>
@@ -152,7 +152,7 @@
 				<tag name="schema">return: Dictionary，包含物理射线检测得到的 ok、origin、direction、end、hit 和 result。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="world_to_screen_3d" line="307">
+		<member kind="method" name="world_to_screen_3d">
 			<signature>func world_to_screen_3d(camera: Camera3D, world_position: Vector3) -&gt; Vector2:</signature>
 			<description>将 3D 世界坐标转换为屏幕/Viewport 坐标。</description>
 			<tags>
@@ -162,7 +162,7 @@
 				<tag name="return">屏幕坐标；camera 无效时返回 INF 坐标。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="world_to_screen_2d" line="322">
+		<member kind="method" name="world_to_screen_2d">
 			<signature>func world_to_screen_2d(canvas_item: CanvasItem, world_position: Vector2) -&gt; Vector2:</signature>
 			<description>将 CanvasItem 所在世界坐标转换为屏幕/Viewport 坐标。</description>
 			<tags>
@@ -172,7 +172,7 @@
 				<tag name="return">屏幕坐标。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="screen_to_world_2d" line="337">
+		<member kind="method" name="screen_to_world_2d">
 			<signature>func screen_to_world_2d(canvas_item: CanvasItem, screen_position: Vector2) -&gt; Vector2:</signature>
 			<description>将屏幕/Viewport 坐标转换为 CanvasItem 所在世界坐标。</description>
 			<tags>
@@ -182,7 +182,7 @@
 				<tag name="return">2D 世界坐标。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="350">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>
@@ -191,7 +191,7 @@
 				<tag name="schema">return: Dictionary，包含 viewport_count、container_count、has_root、has_grid 和 resolution_scale。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="365">
+		<member kind="method" name="tick">
 			<signature>func tick(_delta: float) -&gt; void:</signature>
 			<description>驱动布局生命周期清理。</description>
 			<tags>

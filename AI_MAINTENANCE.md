@@ -195,7 +195,9 @@ python tools\generate_api_reference.py --check
 python tools\check_docs_quality.py --strict
 ```
 
-生成链路固定为 `addons/gf/**/*.gd` 中的 API 注释 -> `docs/api_catalog/index.xml` 与 `docs/api_catalog/classes/*.xml` -> `docs/zh/reference/api/*.md`。`docs/api_catalog` 是结构化中间层，可用于 schema 校验、翻译和多格式输出；不做反向写回源码，不允许手写 Markdown Reference，也不允许从 Catalog 覆盖源码签名或业务代码。
+生成链路固定为 `addons/gf/**/*.gd` 中的 API 注释 -> `docs/api_catalog/index.xml` 与 `docs/api_catalog/classes/*.xml` -> `docs/zh/reference/api/*.md`。`docs/api_catalog` 是结构化中间层，可用于 schema 校验、翻译和多格式输出；不做反向写回源码，不允许手写 Markdown Reference，也不允许从 Catalog 覆盖源码签名或业务代码。Catalog 索引保存全局 `sourceDigest`，单个 class XML 保存自身 `classDigest`，且不记录源码行号，避免单类 API 变化或纯位置变化引发无关 class XML 变更。
+
+`tools/generate_api_reference.py` 与 `tools/generate_ai_api.py` 必须复用 `tools/gdscript_api_parser.py` 的 GDScript 声明扫描和 API 注释解析规则；不要在生成器里新增第二套 `class_name`、内部类、装饰导出变量或文档标签解析逻辑。GUT 中的 API Surface Contract 仍保留为独立的 Godot 运行时校验，因为它验证的是公开契约规则，不是生成器输出格式。
 
 旧 GitHub Wiki 维护约定：
 
@@ -235,7 +237,7 @@ python tools\generate_ai_api.py --source addons\gf --output ai_analysis\generate
 使用规则：
 
 - 生成结果默认放在 `ai_analysis/generated_api/`，该目录被 Git 忽略，不提交。
-- 生成脚本 `tools/generate_ai_api.py` 是维护工具，可以提交。
+- 生成脚本 `tools/generate_ai_api.py` 与共享解析器 `tools/gdscript_api_parser.py` 是维护工具，可以提交。
 - 如果 `--check` 失败，先重新生成，再继续文档维护。
 - `--check-wiki-coverage` 会递归扫描 `docs/zh/**/*.md` 并排除 `changelog.md`，要求每个公开 `class_name` 至少在正式功能页中出现一次；它只证明有入口，不证明描述已经足够准确。正式 API Reference 的类和成员覆盖以 `tools/generate_api_reference.py --check` 为准。
 - 先读 `ai_analysis/generated_api/index.md`，确认模块分组和类路径。

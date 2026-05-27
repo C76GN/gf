@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFReadOnlyBindableProperty" path="addons/gf/kernel/core/gf_read_only_bindable_property.gd" module="kernel" extends="GFBindableProperty" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFReadOnlyBindableProperty" path="addons/gf/kernel/core/gf_read_only_bindable_property.gd" module="kernel" extends="GFBindableProperty" classDigest="85096013a3caec0a7dad0eea463eaef28d3e379907b595c73801dcb30050254a">
 	<description>GFReadOnlyBindableProperty: 只读响应式属性视图。
 复用 `GFBindableProperty` 的读取、信号和生命周期绑定能力，
 但阻止外部直接调用 `set_value()` 修改底层值。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="set_value" line="48">
+		<member kind="method" name="set_value">
 			<signature>func set_value(_new_value: Variant) -&gt; void:</signature>
 			<description>只读视图不允许外部直接写入值。
 "type": "Variant",
@@ -25,7 +25,7 @@
 				<tag name="schema">_new_value {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mutate" line="59">
+		<member kind="method" name="mutate">
 			<signature>func mutate(_mutator: Callable) -&gt; bool:</signature>
 			<description>只读视图不允许外部原地修改值。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="return">始终返回 false。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="append_to_array" line="76">
+		<member kind="method" name="append_to_array">
 			<signature>func append_to_array(_item: Variant) -&gt; bool:</signature>
 			<description>只读视图不允许外部向数组追加元素。
 "type": "Variant",
@@ -47,7 +47,7 @@
 				<tag name="schema">_item {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="append_array" line="93">
+		<member kind="method" name="append_array">
 			<signature>func append_array(_items: Array) -&gt; bool:</signature>
 			<description>只读视图不允许外部向数组追加元素列表。
 "type": "Array",
@@ -60,7 +60,7 @@
 				<tag name="schema">_items {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="erase_from_array" line="110">
+		<member kind="method" name="erase_from_array">
 			<signature>func erase_from_array(_item: Variant) -&gt; bool:</signature>
 			<description>只读视图不允许外部从数组删除元素。
 "type": "Variant",
@@ -73,7 +73,7 @@
 				<tag name="schema">_item {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_dictionary_value" line="134">
+		<member kind="method" name="set_dictionary_value">
 			<signature>func set_dictionary_value(_key: Variant, _new_value: Variant) -&gt; bool:</signature>
 			<description>只读视图不允许外部设置字典键值。
 "type": "Variant",
@@ -91,7 +91,7 @@
 				<tag name="schema">_new_value {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="erase_dictionary_key" line="151">
+		<member kind="method" name="erase_dictionary_key">
 			<signature>func erase_dictionary_key(_key: Variant) -&gt; bool:</signature>
 			<description>只读视图不允许外部删除字典键。
 "type": "Variant",
@@ -104,7 +104,7 @@
 				<tag name="schema">_key {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_collection" line="161">
+		<member kind="method" name="clear_collection">
 			<signature>func clear_collection() -&gt; bool:</signature>
 			<description>只读视图不允许外部清空集合。</description>
 			<tags>

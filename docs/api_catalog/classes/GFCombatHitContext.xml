@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCombatHitContext" path="addons/gf/extensions/combat/hit_detection/gf_combat_hit_context.gd" module="extensions/combat" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCombatHitContext" path="addons/gf/extensions/combat/hit_detection/gf_combat_hit_context.gd" module="extensions/combat" extends="RefCounted" classDigest="bad6f1cf5dcb61386f69987bc61174cc4bddc3eb85589a8a570ef7619b319db0">
 	<description>GFCombatHitContext: 一次通用命中交互的上下文。
 只保存 source、target、hit_id、payload、位置和元数据。
 它不解释伤害、阵营、生命值、命中结果或任何业务语义。</description>
@@ -12,28 +12,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="source" line="20">
+		<member kind="property" name="source">
 			<signature>var source: Object = null</signature>
 			<description>命中发起者。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target" line="25">
+		<member kind="property" name="target">
 			<signature>var target: Object = null</signature>
 			<description>命中目标。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="hit_id" line="30">
+		<member kind="property" name="hit_id">
 			<signature>var hit_id: StringName = &amp;""</signature>
 			<description>命中 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="37">
+		<member kind="property" name="payload">
 			<signature>var payload: Variant = null</signature>
 			<description>命中携带的数据。框架不解释该字段。</description>
 			<tags>
@@ -41,49 +41,49 @@
 				<tag name="schema">payload: Variant，项目自定义命中载荷；框架只复制并透传。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="magnitude" line="42">
+		<member kind="property" name="magnitude">
 			<signature>var magnitude: float = 0.0</signature>
 			<description>通用强度值。框架不解释该字段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="tags" line="47">
+		<member kind="property" name="tags">
 			<signature>var tags: Array[StringName] = []</signature>
 			<description>命中标签。框架不解释该字段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="position_2d" line="52">
+		<member kind="property" name="position_2d">
 			<signature>var position_2d: Vector2 = Vector2.ZERO</signature>
 			<description>2D 命中位置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="normal_2d" line="57">
+		<member kind="property" name="normal_2d">
 			<signature>var normal_2d: Vector2 = Vector2.ZERO</signature>
 			<description>2D 命中法线。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="position_3d" line="62">
+		<member kind="property" name="position_3d">
 			<signature>var position_3d: Vector3 = Vector3.ZERO</signature>
 			<description>3D 命中位置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="normal_3d" line="67">
+		<member kind="property" name="normal_3d">
 			<signature>var normal_3d: Vector3 = Vector3.ZERO</signature>
 			<description>3D 命中法线。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="74">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -93,7 +93,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="with_source" line="100">
+		<member kind="method" name="with_source">
 			<signature>func with_source(value: Object) -&gt; GFCombatHitContext:</signature>
 			<description>设置 source 并返回自身。</description>
 			<tags>
@@ -102,7 +102,7 @@
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_target" line="112">
+		<member kind="method" name="with_target">
 			<signature>func with_target(value: Object) -&gt; GFCombatHitContext:</signature>
 			<description>设置 target 并返回自身。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_hit_id" line="124">
+		<member kind="method" name="with_hit_id">
 			<signature>func with_hit_id(value: StringName) -&gt; GFCombatHitContext:</signature>
 			<description>设置 hit_id 并返回自身。</description>
 			<tags>
@@ -120,7 +120,7 @@
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_payload" line="138">
+		<member kind="method" name="with_payload">
 			<signature>func with_payload(value: Variant) -&gt; GFCombatHitContext:</signature>
 			<description>设置 payload 并返回自身。</description>
 			<tags>
@@ -130,7 +130,7 @@
 				<tag name="schema">value: Variant，项目自定义命中载荷；框架只复制并透传。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_magnitude" line="150">
+		<member kind="method" name="with_magnitude">
 			<signature>func with_magnitude(value: float) -&gt; GFCombatHitContext:</signature>
 			<description>设置通用强度值并返回自身。</description>
 			<tags>
@@ -139,7 +139,7 @@
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_tags" line="162">
+		<member kind="method" name="with_tags">
 			<signature>func with_tags(value: Array[StringName]) -&gt; GFCombatHitContext:</signature>
 			<description>设置标签并返回自身。</description>
 			<tags>
@@ -148,7 +148,7 @@
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="with_metadata" line="176">
+		<member kind="method" name="with_metadata">
 			<signature>func with_metadata(value: Dictionary) -&gt; GFCombatHitContext:</signature>
 			<description>设置元数据并返回自身。</description>
 			<tags>
@@ -158,7 +158,7 @@
 				<tag name="schema">value: Dictionary，项目自定义命中元数据；框架只复制并透传。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="188">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>转换为字典快照。</description>
 			<tags>

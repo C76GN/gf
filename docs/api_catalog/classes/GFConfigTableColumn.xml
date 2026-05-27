@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigTableColumn" path="addons/gf/standard/utilities/config/gf_config_table_column.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigTableColumn" path="addons/gf/standard/utilities/config/gf_config_table_column.gd" module="standard" extends="Resource" classDigest="692125771ae207685706ed5c56314dbd4c25358685bc32a0a42c3991d44ae291">
 	<description>GFConfigTableColumn: 导表字段声明。
 只描述字段名、值类型、必填性、空值策略和默认值，不绑定任何具体业务表。</description>
 	<tags>
@@ -9,7 +9,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="ValueType" line="19">
+		<member kind="enum" name="ValueType">
 			<signature>enum ValueType { ## 不做类型约束。 ANY, ## 布尔值。 BOOL, ## 整数。 INT, ## 浮点数。 FLOAT, ## 字符串。 STRING, ## StringName。 STRING_NAME, ## Vector2。 VECTOR2, ## Vector2i。 VECTOR2I, ## Color。 COLOR, ## Dictionary。 DICTIONARY, ## Array。 ARRAY, }</signature>
 			<description>导表字段值类型，用于导入与运行时校验。</description>
 			<tags>
@@ -19,35 +19,35 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="field_name" line="50" decorators="@export">
+		<member kind="property" name="field_name" decorators="@export">
 			<signature>var field_name: StringName = &amp;""</signature>
 			<description>字段名。建议和导表列名保持一致。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="value_type" line="55" decorators="@export">
+		<member kind="property" name="value_type" decorators="@export">
 			<signature>var value_type: ValueType = ValueType.ANY</signature>
 			<description>字段值类型。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="required" line="60" decorators="@export">
+		<member kind="property" name="required" decorators="@export">
 			<signature>var required: bool = false</signature>
 			<description>是否必须出现在记录中。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="allow_null" line="65" decorators="@export">
+		<member kind="property" name="allow_null" decorators="@export">
 			<signature>var allow_null: bool = true</signature>
 			<description>是否允许 null 值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_value" line="72" decorators="@export">
+		<member kind="property" name="default_value" decorators="@export">
 			<signature>var default_value: Variant = null</signature>
 			<description>字段缺省值。`GFConfigTableSchema.coerce_record()` 会在缺字段时使用。</description>
 			<tags>
@@ -55,7 +55,7 @@
 				<tag name="schema">default_value: Variant，字段缺失时复制到记录中的默认值。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="validation_rules" line="79" decorators="@export">
+		<member kind="property" name="validation_rules" decorators="@export">
 			<signature>var validation_rules: Array[GFConfigValidationRule] = []</signature>
 			<description>字段级校验规则。只作用于当前字段值，不绑定具体业务枚举。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="schema">validation_rules: Array，包含作用于当前字段的 GFConfigValidationRule 资源。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="86" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>可选元数据，供编辑器、导入器或项目层扩展使用。</description>
 			<tags>
@@ -73,7 +73,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_field_key" line="96">
+		<member kind="method" name="get_field_key">
 			<signature>func get_field_key() -&gt; StringName:</signature>
 			<description>获取稳定字段键。</description>
 			<tags>
@@ -81,7 +81,7 @@
 				<tag name="return">字段名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="coerce_value" line="111">
+		<member kind="method" name="coerce_value">
 			<signature>func coerce_value(value: Variant) -&gt; Variant:</signature>
 			<description>将输入值转换为当前列要求的类型。</description>
 			<tags>
@@ -92,7 +92,7 @@
 				<tag name="schema">return: Variant，按当前 value_type 转换后的值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="try_coerce_value" line="126">
+		<member kind="method" name="try_coerce_value">
 			<signature>func try_coerce_value(value: Variant) -&gt; Dictionary:</signature>
 			<description>尝试将输入值转换为当前列要求的类型，并返回转换报告。</description>
 			<tags>
@@ -103,7 +103,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、value 和 message 字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_value_valid" line="168">
+		<member kind="method" name="is_value_valid">
 			<signature>func is_value_valid(value: Variant) -&gt; bool:</signature>
 			<description>检查输入值是否符合当前列声明。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="schema">value: Variant，按 value_type 与 allow_null 检查的字段值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_column" line="204">
+		<member kind="method" name="duplicate_column">
 			<signature>func duplicate_column() -&gt; GFConfigTableColumn:</signature>
 			<description>创建同内容拷贝，避免运行时修改污染共享 Resource。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="return">新字段声明。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe" line="224">
+		<member kind="method" name="describe">
 			<signature>func describe() -&gt; Dictionary:</signature>
 			<description>导出字段声明摘要。</description>
 			<tags>

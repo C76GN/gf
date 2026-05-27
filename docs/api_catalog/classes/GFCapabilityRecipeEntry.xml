@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCapabilityRecipeEntry" path="addons/gf/extensions/capability/recipes/gf_capability_recipe_entry.gd" module="extensions/capability" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCapabilityRecipeEntry" path="addons/gf/extensions/capability/recipes/gf_capability_recipe_entry.gd" module="extensions/capability" extends="Resource" classDigest="2ce65e1d9cb50f109d1b01a732c07e55bbbd6a1cbbeda7248e3be1056d66fdd0">
 	<description>GFCapabilityRecipeEntry: 能力组合资源中的单个能力条目。
 条目只描述能力提供方式、注册类型和默认启停状态，不解释项目业务含义。</description>
 	<tags>
@@ -11,28 +11,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="capability_type" line="19" decorators="@export">
+		<member kind="property" name="capability_type" decorators="@export">
 			<signature>var capability_type: Script = null</signature>
 			<description>能力注册类型。为空且 scene 不为空时，会使用实例脚本类型。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scene" line="24" decorators="@export">
+		<member kind="property" name="scene" decorators="@export">
 			<signature>var scene: PackedScene = null</signature>
 			<description>可选场景能力。为空时通过 capability_type.new() 创建纯对象能力。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="active" line="29" decorators="@export">
+		<member kind="property" name="active" decorators="@export">
 			<signature>var active: bool = true</signature>
 			<description>应用 Recipe 后是否启用该能力。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="36" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -42,7 +42,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_valid_entry" line="46">
+		<member kind="method" name="is_valid_entry">
 			<signature>func is_valid_entry() -&gt; bool:</signature>
 			<description>检查条目是否至少提供了一种能力创建方式。</description>
 			<tags>
@@ -50,7 +50,7 @@
 				<tag name="return">有效返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="describe_entry" line="57">
+		<member kind="method" name="describe_entry">
 			<signature>func describe_entry() -&gt; Dictionary:</signature>
 			<description>描述条目。</description>
 			<tags>

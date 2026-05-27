@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVisualActionGroup" path="addons/gf/extensions/action_queue/actions/gf_visual_action_group.gd" module="extensions/action_queue" extends="GFVisualAction" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFVisualActionGroup" path="addons/gf/extensions/action_queue/actions/gf_visual_action_group.gd" module="extensions/action_queue" extends="GFVisualAction" classDigest="57d585e2081763773ec92768cf844652aba73534137c6f20ae2100771920ec31">
 	<description>GFVisualActionGroup: 动作组复合节点 (Composite Pattern)
 继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并等待全部完成）
 或顺序（逐个执行并等待各自完成）两种模式执行。
@@ -13,7 +13,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="actions" line="37">
+		<member kind="property" name="actions">
 			<signature>var actions: Array[Object] = []</signature>
 			<description>包含的子动作列表。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="schema">actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_parallel" line="43">
+		<member kind="property" name="is_parallel">
 			<signature>var is_parallel: bool = true</signature>
 			<description>是否并行执行。为 true 时，并行触发所有子动作并等待全部完成；
 为 false 时，按数组顺序依次执行并等待各自完成。</description>
@@ -31,7 +31,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="add" line="71">
+		<member kind="method" name="add">
 			<signature>func add(action: Object) -&gt; void:</signature>
 			<description>添加一个子动作。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="param">action: 动作对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="execute" line="83">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行动作组逻辑。根据 is_parallel 决定并发还是串行。</description>
 			<tags>
@@ -48,28 +48,28 @@
 				<tag name="schema">return: Variant，动作组为空时返回 null；否则返回内部完成 Signal。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="100">
+		<member kind="method" name="cancel">
 			<signature>func cancel() -&gt; void:</signature>
 			<description>请求取消当前动作组执行。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pause" line="111">
+		<member kind="method" name="pause">
 			<signature>func pause() -&gt; void:</signature>
 			<description>暂停所有有效子动作。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resume" line="120">
+		<member kind="method" name="resume">
 			<signature>func resume() -&gt; void:</signature>
 			<description>恢复所有有效子动作。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="finish" line="129">
+		<member kind="method" name="finish">
 			<signature>func finish() -&gt; void:</signature>
 			<description>立即完成所有有效子动作并释放等待者。</description>
 			<tags>

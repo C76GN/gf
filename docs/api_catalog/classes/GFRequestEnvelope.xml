@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFRequestEnvelope" path="addons/gf/standard/utilities/io/gf_request_envelope.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFRequestEnvelope" path="addons/gf/standard/utilities/io/gf_request_envelope.gd" module="standard" extends="RefCounted" classDigest="29dd552af7efd55209f2a7f1f68342662946f4396ca39ea014d8751b1eedf1eb">
 	<description>GFRequestEnvelope: 通用可重放请求描述。
 只保存请求方法、地址、载荷、Header、重试与元数据，不绑定具体服务端、
 账号、鉴权或业务协议。</description>
@@ -12,28 +12,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="request_id" line="20">
+		<member kind="property" name="request_id">
 			<signature>var request_id: StringName = &amp;""</signature>
 			<description>请求稳定标识；为空时由 Outbox 入队时生成。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="method" line="25">
+		<member kind="property" name="method">
 			<signature>var method: int = HTTPClient.METHOD_GET</signature>
 			<description>HTTPClient.Method 数值。即使传输层不是 HTTP，也可把它当作通用动作类型使用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="url" line="30">
+		<member kind="property" name="url">
 			<signature>var url: String = ""</signature>
 			<description>请求目标地址或项目自定义端点。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="body" line="37">
+		<member kind="property" name="body">
 			<signature>var body: Dictionary = {}</signature>
 			<description>请求载荷。框架不解释字段含义。</description>
 			<tags>
@@ -41,56 +41,56 @@
 				<tag name="schema">body: Dictionary，项目传输层持有的请求载荷。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="headers" line="42">
+		<member kind="property" name="headers">
 			<signature>var headers: PackedStringArray = PackedStringArray()</signature>
 			<description>请求 Header，使用 Godot HTTPRequest 兼容的 `Name: Value` 字符串格式。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="idempotency_key" line="47">
+		<member kind="property" name="idempotency_key">
 			<signature>var idempotency_key: String = ""</signature>
 			<description>幂等键；为空时不参与任何框架逻辑。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="created_at_unix" line="52">
+		<member kind="property" name="created_at_unix">
 			<signature>var created_at_unix: int = 0</signature>
 			<description>创建时间，Unix 秒。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="attempt_count" line="57">
+		<member kind="property" name="attempt_count">
 			<signature>var attempt_count: int = 0</signature>
 			<description>已尝试次数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_attempts" line="62">
+		<member kind="property" name="max_attempts">
 			<signature>var max_attempts: int = 3</signature>
 			<description>最大尝试次数；小于等于 0 表示不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="retry_after_msec" line="67">
+		<member kind="property" name="retry_after_msec">
 			<signature>var retry_after_msec: int = 0</signature>
 			<description>下一次允许重试的毫秒时间戳，基于 Time.get_ticks_msec()。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="last_error" line="72">
+		<member kind="property" name="last_error">
 			<signature>var last_error: String = ""</signature>
 			<description>最近一次失败原因。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="79">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -100,7 +100,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="configure" line="115">
+		<member kind="method" name="configure">
 			<signature>func configure( p_method: int, p_url: String, p_body: Dictionary = {}, p_headers: PackedStringArray = PackedStringArray(), p_metadata: Dictionary = {} ) -&gt; GFRequestEnvelope:</signature>
 			<description>配置请求并返回自身。</description>
 			<tags>
@@ -115,7 +115,7 @@
 				<tag name="schema">p_metadata: Dictionary，随请求持久化的项目侧元数据。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_valid" line="137">
+		<member kind="method" name="is_valid">
 			<signature>func is_valid() -&gt; bool:</signature>
 			<description>检查请求是否具备最小有效信息。</description>
 			<tags>
@@ -123,7 +123,7 @@
 				<tag name="return">有效时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="can_attempt" line="148">
+		<member kind="method" name="can_attempt">
 			<signature>func can_attempt(now_msec: int = -1) -&gt; bool:</signature>
 			<description>检查当前时刻是否允许再次尝试。</description>
 			<tags>
@@ -132,7 +132,7 @@
 				<tag name="return">可尝试时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_exhausted" line="160">
+		<member kind="method" name="is_exhausted">
 			<signature>func is_exhausted() -&gt; bool:</signature>
 			<description>检查是否已耗尽尝试次数。</description>
 			<tags>
@@ -140,14 +140,14 @@
 				<tag name="return">已耗尽时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mark_attempt" line="167">
+		<member kind="method" name="mark_attempt">
 			<signature>func mark_attempt() -&gt; void:</signature>
 			<description>记录一次发送尝试。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mark_failure" line="178">
+		<member kind="method" name="mark_failure">
 			<signature>func mark_failure(error: String, retry_delay_msec: int = 0) -&gt; void:</signature>
 			<description>记录失败并安排下一次重试。</description>
 			<tags>
@@ -156,14 +156,14 @@
 				<tag name="param">retry_delay_msec: 从现在起等待多少毫秒后可重试。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mark_success" line="189">
+		<member kind="method" name="mark_success">
 			<signature>func mark_success() -&gt; void:</signature>
 			<description>记录成功状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_request" line="199">
+		<member kind="method" name="duplicate_request">
 			<signature>func duplicate_request() -&gt; GFRequestEnvelope:</signature>
 			<description>复制请求描述。</description>
 			<tags>
@@ -171,7 +171,7 @@
 				<tag name="return">新请求描述。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="214">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict(json_compatible: bool = false) -&gt; Dictionary:</signature>
 			<description>转为字典。</description>
 			<tags>
@@ -181,7 +181,7 @@
 				<tag name="schema">return: Dictionary，包含 request_id、method、method_name、url、body、headers、idempotency_key、重试字段、last_error 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_dict" line="241">
+		<member kind="method" name="apply_dict">
 			<signature>func apply_dict(data: Dictionary, json_compatible: bool = false) -&gt; void:</signature>
 			<description>从字典恢复。</description>
 			<tags>
@@ -191,7 +191,7 @@
 				<tag name="schema">data: Dictionary，包含 request_id、method、url、body、headers、idempotency_key、重试字段、last_error 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_method_name" line="271">
+		<member kind="method" name="get_method_name">
 			<signature>func get_method_name() -&gt; String:</signature>
 			<description>获取方法名称。</description>
 			<tags>
@@ -199,7 +199,7 @@
 				<tag name="return">方法名称。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="305">
+		<member kind="method" name="from_dict">
 			<signature>static func from_dict(data: Dictionary, json_compatible: bool = false) -&gt; GFRequestEnvelope:</signature>
 			<description>从字典创建请求描述。</description>
 			<tags>

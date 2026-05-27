@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioEmitterHandle" path="addons/gf/standard/utilities/audio/gf_audio_emitter_handle.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAudioEmitterHandle" path="addons/gf/standard/utilities/audio/gf_audio_emitter_handle.gd" module="standard" extends="RefCounted" classDigest="7e7cdc7d0f7c881219780d599f268323247faebbcfe55efbb9cd6ff7b8ad5ce0">
 	<description>GFAudioEmitterHandle: 一次音频播放的轻量控制句柄。
 句柄只包装底层 AudioStreamPlayer 节点的通用生命周期和播放属性，
 不规定音频事件、混音策略或业务含义。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="player_attached" line="24">
+		<member kind="signal" name="player_attached">
 			<signature>signal player_attached(handle: GFAudioEmitterHandle, player: Node)</signature>
 			<description>句柄绑定到底层播放器时发出。</description>
 			<tags>
@@ -18,7 +18,7 @@
 				<tag name="param">player: 绑定的播放器节点。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="stopped" line="31">
+		<member kind="signal" name="stopped">
 			<signature>signal stopped(handle: GFAudioEmitterHandle)</signature>
 			<description>句柄主动停止并释放绑定时发出。</description>
 			<tags>
@@ -30,14 +30,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="channel" line="44">
+		<member kind="property" name="channel">
 			<signature>var channel: StringName = &amp;""</signature>
 			<description>可选通道标识。框架不解释该字段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="51">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -47,7 +47,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_player" line="88">
+		<member kind="method" name="set_player">
 			<signature>func set_player(player: Node) -&gt; void:</signature>
 			<description>绑定底层播放器。</description>
 			<tags>
@@ -55,7 +55,7 @@
 				<tag name="param">player: 要绑定的播放器节点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_release_callback" line="101">
+		<member kind="method" name="set_release_callback">
 			<signature>func set_release_callback(release_callback: Callable) -&gt; void:</signature>
 			<description>设置释放回调。</description>
 			<tags>
@@ -63,7 +63,7 @@
 				<tag name="param">release_callback: 停止完成时调用的释放回调。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="bind_to_owner" line="112">
+		<member kind="method" name="bind_to_owner">
 			<signature>func bind_to_owner(owner: Node, fade_seconds: float = 0.0) -&gt; void:</signature>
 			<description>绑定一个拥有者节点，节点退出树时自动停止当前播放。</description>
 			<tags>
@@ -72,14 +72,14 @@
 				<tag name="param">fade_seconds: 自动停止时使用的淡出秒数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unbind_owner" line="127">
+		<member kind="method" name="unbind_owner">
 			<signature>func unbind_owner() -&gt; void:</signature>
 			<description>取消拥有者生命周期绑定。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_player" line="136">
+		<member kind="method" name="get_player">
 			<signature>func get_player() -&gt; Node:</signature>
 			<description>获取底层播放器。</description>
 			<tags>
@@ -87,7 +87,7 @@
 				<tag name="return">播放器节点；不存在或已释放时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_valid" line="147">
+		<member kind="method" name="is_valid">
 			<signature>func is_valid() -&gt; bool:</signature>
 			<description>检查句柄是否仍绑定有效播放器。</description>
 			<tags>
@@ -95,7 +95,7 @@
 				<tag name="return">有效时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_stop_requested" line="156">
+		<member kind="method" name="is_stop_requested">
 			<signature>func is_stop_requested() -&gt; bool:</signature>
 			<description>检查该句柄是否已经收到停止请求。</description>
 			<tags>
@@ -103,7 +103,7 @@
 				<tag name="return">已请求停止时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_playing" line="165">
+		<member kind="method" name="is_playing">
 			<signature>func is_playing() -&gt; bool:</signature>
 			<description>检查播放器是否正在播放。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="return">正在播放时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="stop" line="175">
+		<member kind="method" name="stop">
 			<signature>func stop(fade_seconds: float = 0.0) -&gt; void:</signature>
 			<description>停止播放；传入淡出秒数时先淡出再释放。</description>
 			<tags>
@@ -119,7 +119,7 @@
 				<tag name="param">fade_seconds: 淡出秒数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="fade_to" line="199">
+		<member kind="method" name="fade_to">
 			<signature>func fade_to(volume_db: float, fade_seconds: float) -&gt; void:</signature>
 			<description>淡入淡出到指定音量。</description>
 			<tags>
@@ -128,7 +128,7 @@
 				<tag name="param">fade_seconds: 淡入淡出秒数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_volume_db" line="217">
+		<member kind="method" name="set_volume_db">
 			<signature>func set_volume_db(volume_db: float) -&gt; void:</signature>
 			<description>设置当前音量。</description>
 			<tags>
@@ -136,7 +136,7 @@
 				<tag name="param">volume_db: 音量，单位 dB。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_volume_db" line="228">
+		<member kind="method" name="get_volume_db">
 			<signature>func get_volume_db() -&gt; float:</signature>
 			<description>获取当前音量。</description>
 			<tags>
@@ -144,7 +144,7 @@
 				<tag name="return">音量，单位 dB；无播放器时返回 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_pitch_scale" line="238">
+		<member kind="method" name="set_pitch_scale">
 			<signature>func set_pitch_scale(pitch_scale: float) -&gt; void:</signature>
 			<description>设置当前音高。</description>
 			<tags>
@@ -152,7 +152,7 @@
 				<tag name="param">pitch_scale: 音高缩放。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_pitch_scale" line="249">
+		<member kind="method" name="get_pitch_scale">
 			<signature>func get_pitch_scale() -&gt; float:</signature>
 			<description>获取当前音高。</description>
 			<tags>
@@ -160,7 +160,7 @@
 				<tag name="return">音高缩放；无播放器时返回 1。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="261">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

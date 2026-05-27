@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFProjectileSpawnPattern2D" path="addons/gf/extensions/combat/projectiles/gf_projectile_spawn_pattern_2d.gd" module="extensions/combat" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFProjectileSpawnPattern2D" path="addons/gf/extensions/combat/projectiles/gf_projectile_spawn_pattern_2d.gd" module="extensions/combat" extends="Resource" classDigest="ab8e92562a0eaa9212787a77db477f8a6acc00b2b7bd6a665ede64b8ae15136b">
 	<description>GFProjectileSpawnPattern2D: 2D 发射体生成点模式基类。
 模式只返回全局 Transform2D 列表，不实例化节点，也不解释伤害、弹药或阵营。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="get_spawn_transforms" line="29">
+		<member kind="method" name="get_spawn_transforms">
 			<signature>func get_spawn_transforms( emitter: Node2D, projectile_context: Dictionary = {}, emit_count: int = -1 ) -&gt; Array[Transform2D]:</signature>
 			<description>计算本次发射的全局生成变换。</description>
 			<tags>

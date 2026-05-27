@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVariantData" path="addons/gf/standard/foundation/variant/gf_variant_data.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFVariantData" path="addons/gf/standard/foundation/variant/gf_variant_data.gd" module="standard" extends="RefCounted" classDigest="90d1fcf0b5c76b508c16aa66f6eee4d4dd1a890aa84e3f47cad7cdeaec97a4d6">
 	<description>GFVariantData: 通用 Variant 数据复制与默认值合并。
 提供不依赖 GFArchitecture 的集合复制、Resource 可选复制和默认值递归补齐。
 JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
@@ -13,7 +13,7 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="duplicate_variant" line="32">
+		<member kind="method" name="duplicate_variant">
 			<signature>static func duplicate_variant(value: Variant, deep: bool = true, duplicate_resources: bool = false) -&gt; Variant:</signature>
 			<description>深拷贝 Dictionary 或 Array；其他 Variant 原样返回。</description>
 			<tags>
@@ -26,7 +26,7 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="schema">return: Variant duplicated value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_collection" line="55">
+		<member kind="method" name="duplicate_collection">
 			<signature>static func duplicate_collection(value: Variant, deep: bool = true) -&gt; Variant:</signature>
 			<description>深拷贝集合值；语义同 duplicate_variant()，便于集合字段调用处表达意图。</description>
 			<tags>
@@ -38,7 +38,7 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="schema">return: Variant duplicated collection value.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="deep_merge_defaults" line="74">
+		<member kind="method" name="deep_merge_defaults">
 			<signature>static func deep_merge_defaults(base: Dictionary, defaults: Dictionary) -&gt; Dictionary:</signature>
 			<description>将 defaults 中缺失的字段递归合并到 base。</description>
 			<tags>

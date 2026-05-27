@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTurnPhase" path="addons/gf/extensions/turn_based/resources/gf_turn_phase.gd" module="extensions/turn_based" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFTurnPhase" path="addons/gf/extensions/turn_based/resources/gf_turn_phase.gd" module="extensions/turn_based" extends="Resource" classDigest="2cefe4405927e75a31fe61c9856e3eb241d8dac6399ab2f1a639a1e63459a235">
 	<description>GFTurnPhase: 通用回合阶段基类。
 阶段只提供 _enter/_execute/_exit 生命周期和完成信号，
 不绑定任何具体游戏流程。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="finished" line="20">
+		<member kind="signal" name="finished">
 			<signature>signal finished</signature>
 			<description>阶段完成时发出。</description>
 			<tags>
@@ -20,21 +20,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="phase_id" line="28" decorators="@export">
+		<member kind="property" name="phase_id" decorators="@export">
 			<signature>var phase_id: StringName = &amp;""</signature>
 			<description>阶段标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="auto_finish" line="33" decorators="@export">
+		<member kind="property" name="auto_finish" decorators="@export">
 			<signature>var auto_finish: bool = true</signature>
 			<description>`_execute()` 返回后是否自动完成阶段。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="is_finished" line="41">
+		<member kind="property" name="is_finished">
 			<signature>var is_finished: bool = false</signature>
 			<description>当前阶段是否已经完成。</description>
 			<tags>
@@ -43,14 +43,14 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="finish" line="49">
+		<member kind="method" name="finish">
 			<signature>func finish() -&gt; void:</signature>
 			<description>标记阶段完成。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="reset" line="59">
+		<member kind="method" name="reset">
 			<signature>func reset() -&gt; void:</signature>
 			<description>重置阶段运行状态。</description>
 			<tags>

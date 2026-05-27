@@ -163,6 +163,8 @@ python tools\generate_api_reference.py --check
 
 `--check` 会同时校验三件事：XML Catalog 与源码一致、Markdown Reference 与生成器一致、Catalog 中的公开类和成员都能在对应 Reference 页面找到。
 
+`tools/generate_api_reference.py` 与 `tools/generate_ai_api.py` 共用 `tools/gdscript_api_parser.py` 的 GDScript 声明扫描和 API 注释解析规则。维护生成器时应优先扩展共享解析器，避免正式 Reference 和 AI 摘要对 `class_name`、内部类、装饰导出变量或文档标签产生不同理解。
+
 手写文档页面还应通过质量检查，避免页面重新变成长文堆积、缺少 H1 或代码块没有语言标注：
 
 ```powershell
@@ -210,7 +212,8 @@ GF 文档使用 MkDocs 构建，并由 Read the Docs 托管。源码结构如下
 - `.readthedocs.yaml` 维护 Read the Docs 构建环境。
 - `docs/requirements.txt` 锁定文档构建依赖。
 - `docs/wiki/` 只保留 GitHub Wiki 的 Home、Sidebar 和 Footer 入口，不再作为正式正文来源。
-- `docs/api_catalog/` 是正式 API Reference 的 XML 中间层，由 `tools/generate_api_reference.py` 生成。
+- `docs/api_catalog/` 是正式 API Reference 的 XML 中间层，由 `tools/generate_api_reference.py` 生成；索引使用全局 `sourceDigest`，单类 XML 使用自身 `classDigest` 且不记录源码行号，避免单类 API 变化或纯位置变化造成无关 class XML 噪声。
+- `tools/gdscript_api_parser.py` 是正式 API Reference 和 AI API 摘要的共享 GDScript 解析入口；除非检查目标必须运行在 Godot 内，否则不要在其他 Python 生成器里复制声明解析逻辑。
 
 调整阅读顺序、增加页面或重命名页面时，应同步检查 `mkdocs.yml`、`docs/zh/index.md`、`README.md` 和站内交叉链接。除非确实改变页面职责，不应为了局部措辞优化重命名文件；文档 URL 会跟随 slug 变化，反复重命名会影响外部链接和翻译配对。
 

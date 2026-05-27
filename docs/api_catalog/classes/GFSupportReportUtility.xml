@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSupportReportUtility" path="addons/gf/standard/utilities/debug/gf_support_report_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSupportReportUtility" path="addons/gf/standard/utilities/debug/gf_support_report_utility.gd" module="standard" extends="GFUtility" classDigest="b40d0a0d31b04fb7c6645ebd0c158adf218ed01ad36342a0574c6df8d2ed5906">
 	<description>GFSupportReportUtility: 通用支持报告构建工具。
 聚合用户描述、项目元数据、诊断快照、日志和可扩展分区，并提供 JSON / Markdown 导出与回调提交入口。
 它不绑定任何工单系统、上传服务或反馈 UI。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="report_built" line="24">
+		<member kind="signal" name="report_built">
 			<signature>signal report_built(report: Dictionary)</signature>
 			<description>报告构建完成后发出。</description>
 			<tags>
@@ -18,7 +18,7 @@
 				<tag name="schema">report: Dictionary，build_report() 返回结构。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="report_saved" line="33">
+		<member kind="signal" name="report_saved">
 			<signature>signal report_saved(path: String, error: Error)</signature>
 			<description>报告写入文件后发出。</description>
 			<tags>
@@ -27,7 +27,7 @@
 				<tag name="param">error: 写入结果错误码。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="report_submitted" line="42">
+		<member kind="signal" name="report_submitted">
 			<signature>signal report_submitted(result: Dictionary)</signature>
 			<description>报告通过外部回调提交后发出。</description>
 			<tags>
@@ -39,14 +39,14 @@
 	</signals>
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_SCENE_COUNT_MAX_DEPTH" line="50">
+		<member kind="const" name="DEFAULT_SCENE_COUNT_MAX_DEPTH">
 			<signature>const DEFAULT_SCENE_COUNT_MAX_DEPTH: int = 64</signature>
 			<description>场景节点统计默认最大深度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_SCENE_COUNT_MAX_NODES" line="55">
+		<member kind="const" name="DEFAULT_SCENE_COUNT_MAX_NODES">
 			<signature>const DEFAULT_SCENE_COUNT_MAX_NODES: int = 10000</signature>
 			<description>场景节点统计默认最大节点数。</description>
 			<tags>
@@ -55,49 +55,49 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="include_diagnostics_by_default" line="63">
+		<member kind="property" name="include_diagnostics_by_default">
 			<signature>var include_diagnostics_by_default: bool = true</signature>
 			<description>默认是否包含 GFDiagnosticsUtility 快照。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="include_scene_by_default" line="68">
+		<member kind="property" name="include_scene_by_default">
 			<signature>var include_scene_by_default: bool = true</signature>
 			<description>默认是否包含场景快照。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_scene_count_max_depth" line="73">
+		<member kind="property" name="default_scene_count_max_depth">
 			<signature>var default_scene_count_max_depth: int = DEFAULT_SCENE_COUNT_MAX_DEPTH</signature>
 			<description>场景节点数量统计默认最大深度。0 表示不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_scene_count_max_nodes" line="78">
+		<member kind="property" name="default_scene_count_max_nodes">
 			<signature>var default_scene_count_max_nodes: int = DEFAULT_SCENE_COUNT_MAX_NODES</signature>
 			<description>场景节点数量统计默认最大节点数。0 表示不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_recent_log_count" line="83">
+		<member kind="property" name="default_recent_log_count">
 			<signature>var default_recent_log_count: int = 50</signature>
 			<description>默认最近日志数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_max_attachment_bytes" line="88">
+		<member kind="property" name="default_max_attachment_bytes">
 			<signature>var default_max_attachment_bytes: int = 2 * 1024 * 1024</signature>
 			<description>默认单个附件最大字节数。小于等于 0 表示不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="include_screenshot_by_default" line="93">
+		<member kind="property" name="include_screenshot_by_default">
 			<signature>var include_screenshot_by_default: bool = false</signature>
 			<description>默认是否包含当前 Viewport 截图。</description>
 			<tags>
@@ -106,14 +106,14 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="dispose" line="109">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放支持报告工具的运行时状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_section" line="131">
+		<member kind="method" name="register_section">
 			<signature>func register_section(section_id: StringName, provider: Callable, options: Dictionary = {}) -&gt; bool:</signature>
 			<description>注册自定义报告分区。</description>
 			<tags>
@@ -125,7 +125,7 @@
 				<tag name="schema">options: Dictionary，支持 label、metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_section" line="148">
+		<member kind="method" name="unregister_section">
 			<signature>func unregister_section(section_id: StringName) -&gt; void:</signature>
 			<description>注销自定义报告分区。</description>
 			<tags>
@@ -133,7 +133,7 @@
 				<tag name="param">section_id: 分区标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_section" line="159">
+		<member kind="method" name="has_section">
 			<signature>func has_section(section_id: StringName) -&gt; bool:</signature>
 			<description>检查自定义分区是否存在。</description>
 			<tags>
@@ -142,7 +142,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_section_catalog" line="170">
+		<member kind="method" name="get_section_catalog">
 			<signature>func get_section_catalog() -&gt; Dictionary:</signature>
 			<description>获取自定义分区目录。</description>
 			<tags>
@@ -151,7 +151,7 @@
 				<tag name="schema">return: Dictionary[StringName, Dictionary]，每个值包含 label 和 metadata。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_report" line="194">
+		<member kind="method" name="build_report">
 			<signature>func build_report(description: String = "", options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>构建支持报告。</description>
 			<tags>
@@ -163,7 +163,7 @@
 				<tag name="schema">return: Dictionary，包含 report_id、timestamp_unix、description、metadata、tags、build、runtime、scene、diagnostics、sections、attachments。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_sections" line="244">
+		<member kind="method" name="collect_sections">
 			<signature>func collect_sections(options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集所有自定义分区。</description>
 			<tags>
@@ -174,7 +174,7 @@
 				<tag name="schema">return: Dictionary[StringName, Dictionary]，每个值包含 label、metadata、value、ok、error。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="collect_attachments" line="280">
+		<member kind="method" name="collect_attachments">
 			<signature>func collect_attachments(attachments: Variant, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集并规范化报告附件。</description>
 			<tags>
@@ -187,7 +187,7 @@
 				<tag name="schema">return: Dictionary[StringName, Dictionary]，每个值为规范化附件条目。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_attachment_to_report" line="318">
+		<member kind="method" name="add_attachment_to_report">
 			<signature>func add_attachment_to_report( report: Dictionary, attachment_id: StringName, content: Variant, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>向已有报告追加附件。</description>
 			<tags>
@@ -203,7 +203,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、filename、mime_type、size_bytes、encoding、data、metadata，失败时包含 reason。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="export_report_json" line="341">
+		<member kind="method" name="export_report_json">
 			<signature>func export_report_json(report: Dictionary, indent: String = "\t") -&gt; String:</signature>
 			<description>将报告导出为 JSON 文本。</description>
 			<tags>
@@ -214,7 +214,7 @@
 				<tag name="schema">report: Dictionary，build_report() 返回结构。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="export_report_markdown" line="358">
+		<member kind="method" name="export_report_markdown">
 			<signature>func export_report_markdown(report: Dictionary, options: Dictionary = {}) -&gt; String:</signature>
 			<description>将报告导出为 Markdown 文本。</description>
 			<tags>
@@ -226,7 +226,7 @@
 				<tag name="schema">options: Dictionary，支持 title、include_metadata、include_diagnostics_summary、include_sections、include_attachments。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="save_report" line="410">
+		<member kind="method" name="save_report">
 			<signature>func save_report(report: Dictionary, path: String) -&gt; Error:</signature>
 			<description>保存报告到文件。</description>
 			<tags>
@@ -237,7 +237,7 @@
 				<tag name="schema">report: Dictionary，build_report() 返回结构。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_and_save_report" line="450">
+		<member kind="method" name="build_and_save_report">
 			<signature>func build_and_save_report(path: String, description: String = "", options: Dictionary = {}) -&gt; Error:</signature>
 			<description>构建并保存支持报告。</description>
 			<tags>
@@ -249,7 +249,7 @@
 				<tag name="schema">options: Dictionary，build_report() 支持的构建选项。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="submit_report" line="471">
+		<member kind="method" name="submit_report">
 			<signature>func submit_report(report: Dictionary, transport: Callable, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>通过外部回调提交报告。</description>
 			<tags>
@@ -263,7 +263,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、value、error、metadata，可选 submitted_at_unix。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="499">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

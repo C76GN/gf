@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateMachineValidator" path="addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd" module="standard" extends="RefCounted" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeStateMachineValidator" path="addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd" module="standard" extends="RefCounted" classDigest="50865b13108502e483acd9e64f6696d3c9810a542e8cd701b9ed40df35f41ad7">
 	<description>GFNodeStateMachineValidator: 节点状态机结构校验工具。
 只检查状态机、状态组和状态资源挂接是否自洽，不执行状态切换，
 也不推断项目业务中的转移规则。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="validate_machine" line="40">
+		<member kind="method" name="validate_machine">
 			<signature>static func validate_machine(machine: GFNodeStateMachine, options: Dictionary = {}) -&gt; GFValidationReport:</signature>
 			<description>校验一个节点状态机的直接子状态和显式状态组。</description>
 			<tags>
@@ -24,7 +24,7 @@
 				<tag name="schema">options: 校验选项 Dictionary；支持 check_state_resources: bool 和 require_initial_state: bool。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_group" line="108">
+		<member kind="method" name="validate_group">
 			<signature>static func validate_group(group: GFNodeStateGroup, options: Dictionary = {}) -&gt; GFValidationReport:</signature>
 			<description>校验一个节点状态组的直接子状态。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="schema">options: 校验选项 Dictionary；支持 check_state_resources: bool 和 require_initial_state: bool。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_state_list" line="144">
+		<member kind="method" name="validate_state_list">
 			<signature>static func validate_state_list( states: Array[GFNodeState], initial_state: StringName = &amp;"", subject: String = "GFNodeStateList", options: Dictionary = {} ) -&gt; GFValidationReport:</signature>
 			<description>校验一组状态名、初始状态和状态资源挂接。</description>
 			<tags>

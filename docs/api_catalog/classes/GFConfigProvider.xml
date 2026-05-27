@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFConfigProvider" path="addons/gf/standard/utilities/config/gf_config_provider.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFConfigProvider" path="addons/gf/standard/utilities/config/gf_config_provider.gd" module="standard" extends="GFUtility" classDigest="ecf139e88374bb6506e872582b35ee6445f682e54cfecf1f80bd574192e14810">
 	<description>GFConfigProvider: 通用的静态导表数据适配器基类。
 为了让框架无缝衔接不同项目的导表工具（JSON、CSV 或自定义流水线），提供统一的读取接口。
 具体项目应该继承此基类，并实现其数据加载和查询逻辑。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="get_record" line="40">
+		<member kind="method" name="get_record">
 			<signature>func get_record(_table_name: StringName, _id: Variant) -&gt; Variant:</signature>
 			<description>根据表名和 ID 获取单条记录。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="schema">return: Variant，子类通常返回记录 Dictionary 或项目自定义记录对象；未命中时可返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_table" line="54">
+		<member kind="method" name="get_table">
 			<signature>func get_table(_table_name: StringName) -&gt; Variant:</signature>
 			<description>根据表名获取整张表的数据。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="schema">return: Variant，子类通常返回 Array[Dictionary]、Dictionary 或项目自定义表容器；未命中时可返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_schema" line="66">
+		<member kind="method" name="register_schema">
 			<signature>func register_schema(schema: GFConfigTableSchema) -&gt; bool:</signature>
 			<description>注册导表结构声明。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="return">注册成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_schema" line="80">
+		<member kind="method" name="unregister_schema">
 			<signature>func unregister_schema(table_name: StringName) -&gt; void:</signature>
 			<description>注销导表结构声明。</description>
 			<tags>
@@ -52,7 +52,7 @@
 				<tag name="param">table_name: 表名。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_schema" line="91">
+		<member kind="method" name="has_schema">
 			<signature>func has_schema(table_name: StringName) -&gt; bool:</signature>
 			<description>检查是否注册了导表结构声明。</description>
 			<tags>
@@ -61,7 +61,7 @@
 				<tag name="return">已注册返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_schema" line="102">
+		<member kind="method" name="get_schema">
 			<signature>func get_schema(table_name: StringName) -&gt; GFConfigTableSchema:</signature>
 			<description>获取导表结构声明。</description>
 			<tags>
@@ -70,7 +70,7 @@
 				<tag name="return">已注册时返回 schema 拷贝，否则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_schema_ids" line="112">
+		<member kind="method" name="get_schema_ids">
 			<signature>func get_schema_ids() -&gt; PackedStringArray:</signature>
 			<description>获取已注册的导表结构标识。</description>
 			<tags>
@@ -78,7 +78,7 @@
 				<tag name="return">表名列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_record" line="141">
+		<member kind="method" name="validate_record">
 			<signature>func validate_record( table_name: StringName, record: Dictionary, row_key: Variant = null, options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>使用已注册 schema 校验单条记录。</description>
 			<tags>
@@ -94,7 +94,7 @@
 				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_table" line="170">
+		<member kind="method" name="validate_table">
 			<signature>func validate_table(table_name: StringName, table_data: Variant = null, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>使用已注册 schema 校验整张表。</description>
 			<tags>
@@ -108,7 +108,7 @@
 				<tag name="schema">return: GFConfigValidationReport 兼容 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="coerce_record" line="194">
+		<member kind="method" name="coerce_record">
 			<signature>func coerce_record(table_name: StringName, record: Dictionary) -&gt; Dictionary:</signature>
 			<description>使用已注册 schema 转换单条记录。</description>
 			<tags>

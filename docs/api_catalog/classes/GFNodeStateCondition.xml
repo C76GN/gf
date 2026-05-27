@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateCondition" path="addons/gf/standard/state_machine/node/gf_node_state_condition.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeStateCondition" path="addons/gf/standard/state_machine/node/gf_node_state_condition.gd" module="standard" extends="Resource" classDigest="a6da49931e94b6b4b7b3b40663dd8d0f006354f875800778ab0891968c357fc0">
 	<description>GFNodeStateCondition: 节点状态的可复用进入/退出条件资源。
 条件只负责判断状态切换是否允许，不直接执行切换或修改状态机结构。</description>
 	<tags>
@@ -11,21 +11,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="condition_id" line="19" decorators="@export">
+		<member kind="property" name="condition_id" decorators="@export">
 			<signature>var condition_id: StringName = &amp;""</signature>
 			<description>条件标识，便于调试或项目工具识别。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="invert" line="24" decorators="@export">
+		<member kind="property" name="invert" decorators="@export">
 			<signature>var invert: bool = false</signature>
 			<description>是否反转 evaluate() 的结果。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="31" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。</description>
 			<tags>
@@ -35,7 +35,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="evaluate" line="51">
+		<member kind="method" name="evaluate">
 			<signature>func evaluate( state: GFNodeState, phase: StringName, peer_state: StringName = &amp;"", args: Dictionary = {} ) -&gt; bool:</signature>
 			<description>评估条件。</description>
 			<tags>

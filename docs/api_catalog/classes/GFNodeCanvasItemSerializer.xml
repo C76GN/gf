@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeCanvasItemSerializer" path="addons/gf/extensions/save/serializers/gf_node_canvas_item_serializer.gd" module="extensions/save" extends="GFNodeSerializer" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeCanvasItemSerializer" path="addons/gf/extensions/save/serializers/gf_node_canvas_item_serializer.gd" module="extensions/save" extends="GFNodeSerializer" classDigest="6ed110d2153f371d57bb15d25d584246b5db3369db933ddbbf25fc112ca48cec">
 	<description>GFNodeCanvasItemSerializer: CanvasItem 通用显示状态序列化器。
 保存可见性与颜色调制等通用表现状态，不保存具体业务字段。</description>
 	<tags>
@@ -12,7 +12,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="supports_node" line="43">
+		<member kind="method" name="supports_node">
 			<signature>func supports_node(node: Node) -&gt; bool:</signature>
 			<description>判断序列化器是否支持指定节点。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="return">节点是否为 CanvasItem。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="gather" line="60">
+		<member kind="method" name="gather">
 			<signature>func gather(node: Node, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集节点的可保存状态。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">return: Dictionary，可包含 visible、modulate、self_modulate、show_behind_parent、top_level、z_as_relative 与 z_index。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply" line="85">
+		<member kind="method" name="apply">
 			<signature>func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>将序列化数据应用到节点。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDownloadTask" path="addons/gf/standard/utilities/io/gf_download_task.gd" module="standard" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDownloadTask" path="addons/gf/standard/utilities/io/gf_download_task.gd" module="standard" extends="RefCounted" classDigest="5e3e7fd5aa13e040da4125432ceb7011449828dd2f05c49c002092ed1c2f8233">
 	<description>GFDownloadTask: 通用下载任务描述。
 只记录下载 URL、目标路径、校验信息和运行状态，不假设下载内容的业务语义。</description>
 	<tags>
@@ -9,7 +9,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="Status" line="19">
+		<member kind="enum" name="Status">
 			<signature>enum Status { ## 已加入队列。 QUEUED, ## 正在下载。 RUNNING, ## 已暂停，等待恢复。 PAUSED, ## 已完成。 COMPLETED, ## 已失败。 FAILED, ## 已取消。 CANCELLED, }</signature>
 			<description>下载任务状态。</description>
 			<tags>
@@ -19,98 +19,98 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="task_id" line="40">
+		<member kind="property" name="task_id">
 			<signature>var task_id: int = 0</signature>
 			<description>任务句柄。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="url" line="45">
+		<member kind="property" name="url">
 			<signature>var url: String = ""</signature>
 			<description>下载 URL。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="target_path" line="50">
+		<member kind="property" name="target_path">
 			<signature>var target_path: String = ""</signature>
 			<description>最终写入路径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="temp_path" line="55">
+		<member kind="property" name="temp_path">
 			<signature>var temp_path: String = ""</signature>
 			<description>临时文件路径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="segment_path" line="60">
+		<member kind="property" name="segment_path">
 			<signature>var segment_path: String = ""</signature>
 			<description>分段续传文件路径。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="headers" line="65">
+		<member kind="property" name="headers">
 			<signature>var headers: PackedStringArray = PackedStringArray()</signature>
 			<description>HTTP 请求头。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="expected_sha256" line="70">
+		<member kind="property" name="expected_sha256">
 			<signature>var expected_sha256: String = ""</signature>
 			<description>期望 SHA-256 校验值。为空时不校验。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="resume" line="75">
+		<member kind="property" name="resume">
 			<signature>var resume: bool = true</signature>
 			<description>是否允许从临时文件续传。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="overwrite" line="80">
+		<member kind="property" name="overwrite">
 			<signature>var overwrite: bool = true</signature>
 			<description>目标文件已存在时是否覆盖。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_retries" line="85">
+		<member kind="property" name="max_retries">
 			<signature>var max_retries: int = 0</signature>
 			<description>最大重试次数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="retry_count" line="90">
+		<member kind="property" name="retry_count">
 			<signature>var retry_count: int = 0</signature>
 			<description>已执行重试次数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="retry_delay_seconds" line="95">
+		<member kind="property" name="retry_delay_seconds">
 			<signature>var retry_delay_seconds: float = 0.0</signature>
 			<description>每次重试前等待的秒数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="retry_not_before_msec" line="100">
+		<member kind="property" name="retry_not_before_msec">
 			<signature>var retry_not_before_msec: int = 0</signature>
 			<description>下次可重试的时间戳，单位毫秒。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="107">
+		<member kind="property" name="metadata">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目层可附加的任务元数据。</description>
 			<tags>
@@ -118,35 +118,35 @@
 				<tag name="schema">metadata: Dictionary，复制到下载任务中的项目侧元数据。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="status" line="112">
+		<member kind="property" name="status">
 			<signature>var status: Status = Status.QUEUED</signature>
 			<description>当前任务状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="received_bytes" line="117">
+		<member kind="property" name="received_bytes">
 			<signature>var received_bytes: int = 0</signature>
 			<description>已接收字节数。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="total_bytes" line="122">
+		<member kind="property" name="total_bytes">
 			<signature>var total_bytes: int = -1</signature>
 			<description>总字节数；未知时为 -1。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="response_code" line="127">
+		<member kind="property" name="response_code">
 			<signature>var response_code: int = 0</signature>
 			<description>最近一次 HTTP 响应码。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="error" line="132">
+		<member kind="property" name="error">
 			<signature>var error: String = ""</signature>
 			<description>失败或取消原因。</description>
 			<tags>
@@ -155,7 +155,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="duplicate_task" line="142">
+		<member kind="method" name="duplicate_task">
 			<signature>func duplicate_task() -&gt; GFDownloadTask:</signature>
 			<description>创建同内容拷贝。</description>
 			<tags>
@@ -163,7 +163,7 @@
 				<tag name="return">新任务。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="173">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>导出任务状态字典。</description>
 			<tags>
@@ -172,7 +172,7 @@
 				<tag name="schema">return: Dictionary，包含任务标识、路径、请求头、重试设置、metadata、状态、字节计数、响应码和错误信息。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_status_name" line="205">
+		<member kind="method" name="get_status_name">
 			<signature>static func get_status_name(value: Status) -&gt; String:</signature>
 			<description>获取任务状态名称。</description>
 			<tags>

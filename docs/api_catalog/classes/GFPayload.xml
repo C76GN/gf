@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFPayload" path="addons/gf/kernel/base/gf_payload.gd" module="kernel" extends="RefCounted" line="19" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFPayload" path="addons/gf/kernel/base/gf_payload.gd" module="kernel" extends="RefCounted" classDigest="1fc49c8d5a87354c9e30a13fe6f8b32c648d2a4c7e755631ab602bf6ecf0fe94">
 	<description>GFPayload: 强类型数据载体的抽象基类。
 继承自 RefCounted，用作事件传递、命令参数、系统间查询返回值的
 标准化强类型数据包，替代容易在大型项目中引发类型错误和 null 访问的裸 Dictionary。
@@ -18,7 +18,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="is_consumed" line="30">
+		<member kind="property" name="is_consumed">
 			<signature>var is_consumed: bool = false</signature>
 			<description>事件消费标记。高优先级回调可将此标记设为 true，
 阻止后续低优先级回调继续接收该事件。
@@ -29,7 +29,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="to_dict" line="46">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>将此载体序列化为字典，便于存档、网络传输或日志记录。
 子类应重写此方法以包含所有相关字段。
@@ -42,7 +42,7 @@
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="61">
+		<member kind="method" name="from_dict">
 			<signature>func from_dict(_data: Dictionary) -&gt; void:</signature>
 			<description>从字典反序列化并填充此载体的字段。
 子类应重写此方法以恢复所有相关字段。
@@ -55,7 +55,7 @@
 				<tag name="schema">_data {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate" line="71">
+		<member kind="method" name="validate">
 			<signature>func validate() -&gt; bool:</signature>
 			<description>校验载体中的数据是否满足业务约束。
 子类可重写此方法以添加非空、范围等校验逻辑。</description>

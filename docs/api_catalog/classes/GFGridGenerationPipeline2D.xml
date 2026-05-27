@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFGridGenerationPipeline2D" path="addons/gf/standard/foundation/math/gf_grid_generation_pipeline_2d.gd" module="standard" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFGridGenerationPipeline2D" path="addons/gf/standard/foundation/math/gf_grid_generation_pipeline_2d.gd" module="standard" extends="Resource" classDigest="b900a49f57a2168d6d711b9cb84ab0e9fe07beb4cc1f6b751abdd121b4590365">
 	<description>GFGridGenerationPipeline2D: 通用 2D 网格生成管线。
 以候选格子为输入，按步骤输出 `Dictionary[Vector2i, Variant]`。
 适合程序化生成的中间数据层，不绑定任何具体节点、资源或玩法类型。</description>
@@ -12,21 +12,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="steps" line="20" decorators="@export">
+		<member kind="property" name="steps" decorators="@export">
 			<signature>var steps: Array[GFGridGenerationStep2D] = []</signature>
 			<description>生成步骤。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="fill_default_value" line="25" decorators="@export">
+		<member kind="property" name="fill_default_value" decorators="@export">
 			<signature>var fill_default_value: bool = false</signature>
 			<description>是否在执行步骤前为全部候选格子写入默认值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="default_value" line="32" decorators="@export">
+		<member kind="property" name="default_value" decorators="@export">
 			<signature>var default_value: Variant = null</signature>
 			<description>默认值。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="schema">default_value: Variant value written before steps when fill_default_value is enabled.</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="39" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>管线元数据。</description>
 			<tags>
@@ -44,7 +44,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="make_rect_candidates" line="53">
+		<member kind="method" name="make_rect_candidates">
 			<signature>static func make_rect_candidates(position: Vector2i, size: Vector2i) -&gt; Array[Vector2i]:</signature>
 			<description>从矩形范围生成候选格子。</description>
 			<tags>
@@ -54,7 +54,7 @@
 				<tag name="return">候选格子。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="generate" line="76">
+		<member kind="method" name="generate">
 			<signature>func generate(candidates: Array[Vector2i], context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>执行生成管线。</description>
 			<tags>
@@ -66,7 +66,7 @@
 				<tag name="schema">return: Dictionary mapping Vector2i cells to generated values.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_to_grid" line="106">
+		<member kind="method" name="apply_to_grid">
 			<signature>func apply_to_grid( grid: Dictionary, candidates: Array[Vector2i], context: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>在已有网格上执行生成管线。</description>
 			<tags>
@@ -80,7 +80,7 @@
 				<tag name="schema">return: Dictionary same grid instance passed to the method.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_step" line="128">
+		<member kind="method" name="add_step">
 			<signature>func add_step(step: GFGridGenerationStep2D) -&gt; void:</signature>
 			<description>添加生成步骤。</description>
 			<tags>
@@ -88,14 +88,14 @@
 				<tag name="param">step: 生成步骤。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_steps" line="137">
+		<member kind="method" name="clear_steps">
 			<signature>func clear_steps() -&gt; void:</signature>
 			<description>清空生成步骤。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="148">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取诊断快照。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkMessageValidator" path="addons/gf/extensions/network/messages/gf_network_message_validator.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNetworkMessageValidator" path="addons/gf/extensions/network/messages/gf_network_message_validator.gd" module="extensions/network" extends="RefCounted" classDigest="7b934d7e5376f5ef0c02c1f46fc2342e03c65448f5996c7faffe0c59b0d5a3f3">
 	<description>GFNetworkMessageValidator: 通用网络消息校验器。
 校验消息类型、包体大小和可选必需载荷字段，避免后端收到明显无效数据。</description>
 	<tags>
@@ -10,7 +10,7 @@
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_MAX_PACKET_SIZE" line="19">
+		<member kind="const" name="DEFAULT_MAX_PACKET_SIZE">
 			<signature>const DEFAULT_MAX_PACKET_SIZE: int = 64 * 1024</signature>
 			<description>默认全局最大包体大小，单位 bytes。</description>
 			<tags>
@@ -19,28 +19,28 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="allow_empty_message_type" line="27">
+		<member kind="property" name="allow_empty_message_type">
 			<signature>var allow_empty_message_type: bool = false</signature>
 			<description>是否允许空 message_type。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="min_packet_size" line="32">
+		<member kind="property" name="min_packet_size">
 			<signature>var min_packet_size: int = 1</signature>
 			<description>最小包体大小。小于等于 0 表示不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_packet_size" line="37">
+		<member kind="property" name="max_packet_size">
 			<signature>var max_packet_size: int = DEFAULT_MAX_PACKET_SIZE</signature>
 			<description>最大包体大小。小于等于 0 表示不限制。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="required_payload_keys" line="42">
+		<member kind="property" name="required_payload_keys">
 			<signature>var required_payload_keys: PackedStringArray = PackedStringArray()</signature>
 			<description>所有消息都必须包含的 payload key。</description>
 			<tags>
@@ -49,7 +49,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="validate_message" line="56">
+		<member kind="method" name="validate_message">
 			<signature>func validate_message(message: GFNetworkMessage) -&gt; Dictionary:</signature>
 			<description>校验消息对象。</description>
 			<tags>
@@ -59,7 +59,7 @@
 				<tag name="schema">return: Dictionary，包含 ok 和 errors。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="validate_bytes" line="81">
+		<member kind="method" name="validate_bytes">
 			<signature>func validate_bytes(bytes: PackedByteArray, channel: GFNetworkChannel = null) -&gt; Dictionary:</signature>
 			<description>校验原始包体。</description>
 			<tags>
@@ -70,7 +70,7 @@
 				<tag name="schema">return: Dictionary，包含 ok 和 errors。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="102">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

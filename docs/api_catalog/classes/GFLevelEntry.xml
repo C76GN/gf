@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFLevelEntry" path="addons/gf/extensions/domain/level/gf_level_entry.gd" module="extensions/domain" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFLevelEntry" path="addons/gf/extensions/domain/level/gf_level_entry.gd" module="extensions/domain" extends="Resource" classDigest="773afc7db3034b95c55614bf9b943e1c96133beba0f24630f6ddb0b29f6ae4a0">
 	<description>GFLevelEntry: 通用关卡目录条目。
 只描述关卡 ID、所属分组、可选场景路径和元数据，不规定关卡玩法规则。</description>
 	<tags>
@@ -11,30 +11,35 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="level_id" line="19" decorators="@export">
+		<member kind="property" name="level_id" decorators="@export">
 			<signature>var level_id: StringName = &amp;""</signature>
 			<description>关卡稳定 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="pack_id" line="24" decorators="@export">
+		<member kind="property" name="pack_id" decorators="@export">
 			<signature>var pack_id: StringName = &amp;""</signature>
 			<description>可选关卡包或章节 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="sort_order" line="34" decorators="@export_file(&quot;*.tscn&quot;) var scene_path: String = &quot;&quot; @export">
-			<signature>var sort_order: int = 0</signature>
-			<description>可选关卡场景路径。
-目录排序值，数值越小越靠前。</description>
+		<member kind="property" name="scene_path" decorators="@export_file(&quot;*.tscn&quot;)">
+			<signature>var scene_path: String = ""</signature>
+			<description>可选关卡场景路径。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="41" decorators="@export">
+		<member kind="property" name="sort_order" decorators="@export">
+			<signature>var sort_order: int = 0</signature>
+			<description>目录排序值，数值越小越靠前。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>关卡通用元数据。</description>
 			<tags>
@@ -42,7 +47,7 @@
 				<tag name="schema">metadata: Dictionary，项目自定义关卡元数据；GF 会在构建关卡数据时复制透传。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="unlocks_on_complete" line="48" decorators="@export">
+		<member kind="property" name="unlocks_on_complete" decorators="@export">
 			<signature>var unlocks_on_complete: Array[StringName] = []</signature>
 			<description>当前关卡完成后建议解锁的后续关卡 ID。</description>
 			<tags>
@@ -52,7 +57,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_level_id" line="58">
+		<member kind="method" name="get_level_id">
 			<signature>func get_level_id() -&gt; StringName:</signature>
 			<description>获取稳定关卡 ID。</description>
 			<tags>
@@ -60,7 +65,7 @@
 				<tag name="return">关卡 ID。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_entry" line="71">
+		<member kind="method" name="duplicate_entry">
 			<signature>func duplicate_entry() -&gt; GFLevelEntry:</signature>
 			<description>创建条目拷贝。</description>
 			<tags>

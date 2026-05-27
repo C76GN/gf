@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCallableAction" path="addons/gf/extensions/action_queue/actions/gf_callable_action.gd" module="extensions/action_queue" extends="GFVisualAction" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCallableAction" path="addons/gf/extensions/action_queue/actions/gf_callable_action.gd" module="extensions/action_queue" extends="GFVisualAction" classDigest="f56f79f45c82f95fde02054ddabb124e35a0bdc3585b6a2e7a8b822e80d08b87">
 	<description>GFCallableAction: 将 Callable 包装为队列动作。
 适合把轻量表现指令、日志、回调或项目自定义命令插入 GFActionQueueSystem。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="callback" line="19">
+		<member kind="property" name="callback">
 			<signature>var callback: Callable</signature>
 			<description>要执行的回调。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="args" line="26">
+		<member kind="property" name="args">
 			<signature>var args: Array = []</signature>
 			<description>传给回调的参数。</description>
 			<tags>
@@ -28,7 +28,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="execute" line="45">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行回调并返回回调结果。</description>
 			<tags>

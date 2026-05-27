@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputTextProvider" path="addons/gf/standard/input/formatting/gf_input_text_provider.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputTextProvider" path="addons/gf/standard/input/formatting/gf_input_text_provider.gd" module="standard" extends="Resource" classDigest="94150e6dd3deb51c8c89a9d410f09fa38a807b2ff375928c2bd873ad324259c8">
 	<description>GFInputTextProvider: 输入文本格式化扩展点。
 项目可继承此资源，为特定设备、平台、本地化或图标字体提供自定义文本。</description>
 	<tags>
@@ -11,7 +11,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="priority" line="19" decorators="@export">
+		<member kind="property" name="priority" decorators="@export">
 			<signature>var priority: int = 0</signature>
 			<description>优先级。数值越大越先尝试。</description>
 			<tags>
@@ -20,7 +20,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_priority" line="29">
+		<member kind="method" name="get_priority">
 			<signature>func get_priority() -&gt; int:</signature>
 			<description>获取优先级。</description>
 			<tags>
@@ -28,7 +28,7 @@
 				<tag name="return">优先级。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="supports_event" line="44">
+		<member kind="method" name="supports_event">
 			<signature>func supports_event(_input_event: InputEvent, _options: Dictionary = {}) -&gt; bool:</signature>
 			<description>判断是否支持指定输入事件。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="schema">_options: Dictionary，由 GFInputFormatter 传入，包含 provider 特定格式化字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_event_text" line="59">
+		<member kind="method" name="get_event_text">
 			<signature>func get_event_text(_input_event: InputEvent, _options: Dictionary = {}) -&gt; String:</signature>
 			<description>获取输入事件文本。</description>
 			<tags>

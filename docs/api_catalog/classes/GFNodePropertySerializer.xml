@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodePropertySerializer" path="addons/gf/extensions/save/serializers/gf_node_property_serializer.gd" module="extensions/save" extends="GFNodeSerializer" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodePropertySerializer" path="addons/gf/extensions/save/serializers/gf_node_property_serializer.gd" module="extensions/save" extends="GFNodeSerializer" classDigest="6bfff7fe6c0371ef14346dda738988ef1dc867bed8dd67a0968d3d7f87c4a789">
 	<description>GFNodePropertySerializer: 通用节点属性序列化器。
 通过显式属性白名单保存和恢复节点属性，适合项目层快速接入简单状态。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="properties" line="33" decorators="@export">
+		<member kind="property" name="properties" decorators="@export">
 			<signature>var properties: PackedStringArray = PackedStringArray()</signature>
 			<description>需要保存的属性名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="skip_missing_properties" line="38" decorators="@export">
+		<member kind="property" name="skip_missing_properties" decorators="@export">
 			<signature>var skip_missing_properties: bool = true</signature>
 			<description>应用数据时遇到缺失属性是否跳过。</description>
 			<tags>
@@ -27,7 +27,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="gather" line="62">
+		<member kind="method" name="gather">
 			<signature>func gather(node: Node, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>采集节点的可保存状态。</description>
 			<tags>
@@ -39,7 +39,7 @@
 				<tag name="schema">return: Dictionary，键为 properties 中声明的属性名，值为 JSON 兼容值；Resource 引用使用 __gf_save_property__ 标记。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply" line="97">
+		<member kind="method" name="apply">
 			<signature>func apply(node: Node, payload: Dictionary, _context: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>将序列化数据应用到节点。</description>
 			<tags>

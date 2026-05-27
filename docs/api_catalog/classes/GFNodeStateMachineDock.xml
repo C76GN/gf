@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateMachineDock" path="addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd" module="standard" extends="Control" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNodeStateMachineDock" path="addons/gf/standard/state_machine/node/editor/gf_node_state_machine_dock.gd" module="standard" extends="Control" classDigest="34d75dc303885747f80c933dc2460c051a4d82544f8d640b6399ac63d38bfc33">
 	<description>GFNodeStateMachineDock: 节点状态机结构检查工作区页面。
 面向编辑器展示当前场景中的 GFNodeStateMachine，复用标准校验器输出结构问题，
 不推断项目自己的状态转移、输入或动画语义。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="set_state_machine_source" line="55">
+		<member kind="method" name="set_state_machine_source">
 			<signature>func set_state_machine_source(root: Node) -&gt; void:</signature>
 			<description>设置要扫描的场景根节点。</description>
 			<tags>
@@ -21,7 +21,7 @@
 				<tag name="param">root: 场景根节点；为空时刷新会尝试使用当前编辑场景或运行时场景。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="refresh" line="65">
+		<member kind="method" name="refresh">
 			<signature>func refresh(root: Node = null) -&gt; void:</signature>
 			<description>刷新状态机列表与当前校验报告。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="param">root: 可选场景根节点；为空时使用 set_state_machine_source() 或当前场景。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_last_report" line="83">
+		<member kind="method" name="get_last_report">
 			<signature>func get_last_report() -&gt; Dictionary:</signature>
 			<description>获取最近一次校验报告字典。</description>
 			<tags>
@@ -38,7 +38,7 @@
 				<tag name="schema">return: 校验报告 Dictionary，包含 ok、summary、next_action、issues、error_count、warning_count 等字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_machine_count" line="92">
+		<member kind="method" name="get_machine_count">
 			<signature>func get_machine_count() -&gt; int:</signature>
 			<description>获取最近一次扫描到的状态机数量。</description>
 			<tags>

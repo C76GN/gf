@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAssetUtility" path="addons/gf/standard/utilities/assets/gf_asset_utility.gd" module="standard" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAssetUtility" path="addons/gf/standard/utilities/assets/gf_asset_utility.gd" module="standard" extends="GFUtility" classDigest="fced5430a2638f1039bdc766053603583fa04bf003b0b2e05e79f735caaf9846">
 	<description>GFAssetUtility: 异步资源加载管理器，带 LRU 缓存。
 封装 Godot 的 threaded `ResourceLoader` 请求，
 用于避免大资源同步加载阻塞主线程，并在完成后统一分发回调与维护缓存。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="asset_handle_acquired" line="22">
+		<member kind="signal" name="asset_handle_acquired">
 			<signature>signal asset_handle_acquired(handle: GFAssetHandle)</signature>
 			<description>创建资源句柄时发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">handle: 新创建的资源句柄。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="asset_handle_released" line="31">
+		<member kind="signal" name="asset_handle_released">
 			<signature>signal asset_handle_released(path: String, reference_count: int)</signature>
 			<description>资源句柄释放时发出。</description>
 			<tags>
@@ -26,7 +26,7 @@
 				<tag name="param">reference_count: 剩余引用数量。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="asset_group_preloaded" line="42">
+		<member kind="signal" name="asset_group_preloaded">
 			<signature>signal asset_group_preloaded(group_id: StringName, report: Dictionary)</signature>
 			<description>资源分组预加载完成时发出。</description>
 			<tags>
@@ -40,7 +40,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="max_cache_size" line="55">
+		<member kind="property" name="max_cache_size">
 			<signature>var max_cache_size: int:</signature>
 			<description>LRU 缓存最大容量；设为 `0` 时表示禁用缓存。</description>
 			<tags>
@@ -49,21 +49,21 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="init" line="95">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化资源加载工具的运行时状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="114">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放资源加载工具持有的运行时状态。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_async" line="140">
+		<member kind="method" name="load_async">
 			<signature>func load_async(path: String, on_loaded: Callable, type_hint: String = "") -&gt; void:</signature>
 			<description>发起异步资源加载。</description>
 			<tags>
@@ -73,7 +73,7 @@
 				<tag name="param">type_hint: 可选资源类型提示。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="load_handle_async" line="197">
+		<member kind="method" name="load_handle_async">
 			<signature>func load_handle_async( path: String, on_loaded: Callable, type_hint: String = "", owner: Object = null, group_id: StringName = &amp;"" ) -&gt; void:</signature>
 			<description>异步加载资源并在成功后返回所有权句柄。</description>
 			<tags>
@@ -85,7 +85,7 @@
 				<tag name="param">group_id: 可选资源分组。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="acquire_handle" line="238">
+		<member kind="method" name="acquire_handle">
 			<signature>func acquire_handle( path: String, owner: Object = null, group_id: StringName = &amp;"", type_hint: String = "", resource_override: Resource = null ) -&gt; GFAssetHandle:</signature>
 			<description>为已缓存或指定资源创建所有权句柄。</description>
 			<tags>
@@ -98,7 +98,7 @@
 				<tag name="return">成功时返回句柄；资源不可用时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release_handle" line="276">
+		<member kind="method" name="release_handle">
 			<signature>func release_handle(handle: GFAssetHandle) -&gt; bool:</signature>
 			<description>释放资源句柄。</description>
 			<tags>
@@ -107,7 +107,7 @@
 				<tag name="return">释放成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="release_owner" line="295">
+		<member kind="method" name="release_owner">
 			<signature>func release_owner(owner: Object) -&gt; int:</signature>
 			<description>释放指定 owner 持有的所有资源引用。</description>
 			<tags>
@@ -116,7 +116,7 @@
 				<tag name="return">释放的引用数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_asset_reference_count" line="308">
+		<member kind="method" name="get_asset_reference_count">
 			<signature>func get_asset_reference_count(path: String) -&gt; int:</signature>
 			<description>获取指定资源路径当前句柄引用数量。</description>
 			<tags>
@@ -125,7 +125,7 @@
 				<tag name="return">引用数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_group_path" line="321">
+		<member kind="method" name="register_group_path">
 			<signature>func register_group_path(group_id: StringName, path: String, pin: bool = false) -&gt; void:</signature>
 			<description>注册资源路径到分组。</description>
 			<tags>
@@ -135,7 +135,7 @@
 				<tag name="param">pin: 是否以分组名义锁定缓存，避免 LRU 淘汰。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_group_paths" line="342">
+		<member kind="method" name="get_group_paths">
 			<signature>func get_group_paths(group_id: StringName) -&gt; PackedStringArray:</signature>
 			<description>获取分组中的资源路径。</description>
 			<tags>
@@ -144,7 +144,7 @@
 				<tag name="return">路径列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="preload_group_async" line="366">
+		<member kind="method" name="preload_group_async">
 			<signature>func preload_group_async( group_id: StringName, entries: Array, on_completed: Callable = Callable(), options: Dictionary = {} ) -&gt; void:</signature>
 			<description>异步预加载资源分组。</description>
 			<tags>
@@ -157,7 +157,7 @@
 				<tag name="schema">options: Dictionary with optional `pin_cache: bool`.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unload_group" line="428">
+		<member kind="method" name="unload_group">
 			<signature>func unload_group(group_id: StringName, remove_unreferenced_cache: bool = false) -&gt; void:</signature>
 			<description>卸载资源分组。</description>
 			<tags>
@@ -166,7 +166,7 @@
 				<tag name="param">remove_unreferenced_cache: 是否移除没有句柄引用的缓存项。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="447">
+		<member kind="method" name="tick">
 			<signature>func tick(_delta: float = 0.0) -&gt; void:</signature>
 			<description>驱动异步加载轮询。</description>
 			<tags>
@@ -174,7 +174,7 @@
 				<tag name="param">_delta: 为兼容统一 tick 签名而保留的参数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_cached" line="458">
+		<member kind="method" name="get_cached">
 			<signature>func get_cached(path: String) -&gt; Resource:</signature>
 			<description>获取缓存中的资源。</description>
 			<tags>
@@ -183,7 +183,7 @@
 				<tag name="return">命中缓存时返回资源，否则返回 `null`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_loading" line="475">
+		<member kind="method" name="is_loading">
 			<signature>func is_loading(path: String, type_hint: String = "") -&gt; bool:</signature>
 			<description>检查指定路径是否正在加载中。</description>
 			<tags>
@@ -193,7 +193,7 @@
 				<tag name="return">正在加载时返回 `true`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_cached" line="494">
+		<member kind="method" name="is_cached">
 			<signature>func is_cached(path: String) -&gt; bool:</signature>
 			<description>检查指定路径是否已缓存。</description>
 			<tags>
@@ -202,7 +202,7 @@
 				<tag name="return">已缓存时返回 `true`。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cancel" line="505">
+		<member kind="method" name="cancel">
 			<signature>func cancel(path: String, type_hint: String = "") -&gt; void:</signature>
 			<description>取消指定路径的异步加载请求。</description>
 			<tags>
@@ -211,7 +211,7 @@
 				<tag name="param">type_hint: 可选资源类型提示；为空时取消该路径的当前请求。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="put_cache" line="526">
+		<member kind="method" name="put_cache">
 			<signature>func put_cache(path: String, resource: Resource) -&gt; void:</signature>
 			<description>手动写入缓存。</description>
 			<tags>
@@ -220,7 +220,7 @@
 				<tag name="param">resource: 要缓存的资源实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_cache" line="540">
+		<member kind="method" name="remove_cache">
 			<signature>func remove_cache(path: String) -&gt; void:</signature>
 			<description>手动移除缓存项。</description>
 			<tags>
@@ -228,14 +228,14 @@
 				<tag name="param">path: 资源路径。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_cache" line="551">
+		<member kind="method" name="clear_cache">
 			<signature>func clear_cache() -&gt; void:</signature>
 			<description>清空全部缓存。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_cache_count" line="569">
+		<member kind="method" name="get_cache_count">
 			<signature>func get_cache_count() -&gt; int:</signature>
 			<description>获取当前缓存数量。</description>
 			<tags>
@@ -243,7 +243,7 @@
 				<tag name="return">当前缓存中的资源数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pin_cache" line="578">
+		<member kind="method" name="pin_cache">
 			<signature>func pin_cache(path: String) -&gt; void:</signature>
 			<description>锁定指定缓存路径，使其不参与 LRU 淘汰。</description>
 			<tags>
@@ -251,7 +251,7 @@
 				<tag name="param">path: 资源路径。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unpin_cache" line="589">
+		<member kind="method" name="unpin_cache">
 			<signature>func unpin_cache(path: String) -&gt; void:</signature>
 			<description>解除指定缓存路径的 LRU 锁定。</description>
 			<tags>
@@ -259,7 +259,7 @@
 				<tag name="param">path: 资源路径。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_cache_pinned" line="608">
+		<member kind="method" name="is_cache_pinned">
 			<signature>func is_cache_pinned(path: String) -&gt; bool:</signature>
 			<description>检查指定缓存路径是否已被锁定。</description>
 			<tags>
@@ -268,7 +268,7 @@
 				<tag name="return">已锁定返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="619">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取资源加载工具诊断快照。</description>
 			<tags>

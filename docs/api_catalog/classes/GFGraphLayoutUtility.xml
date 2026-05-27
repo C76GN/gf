@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFGraphLayoutUtility" path="addons/gf/standard/foundation/math/gf_graph_layout_utility.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFGraphLayoutUtility" path="addons/gf/standard/foundation/math/gf_graph_layout_utility.gd" module="standard" extends="RefCounted" classDigest="1a1a0f72c2913ab189dba435e7a95953680badb9b5ddf188447c5ccf9d716609">
 	<description>GFGraphLayoutUtility: 通用图布局辅助。
 根据节点标识和连接关系生成编辑器坐标。它只产出布局建议，
 不依赖 GraphEdit、Resource 或具体业务图类型。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="make_layered_layout" line="34">
+		<member kind="method" name="make_layered_layout">
 			<signature>static func make_layered_layout( node_ids: PackedStringArray, connections: Array[Dictionary], options: Dictionary = {} ) -&gt; Dictionary:</signature>
 			<description>生成分层布局。</description>
 			<tags>
@@ -27,7 +27,7 @@
 				<tag name="schema">return: Dictionary mapping node id strings to Vector2 positions.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="make_grid_layout" line="63">
+		<member kind="method" name="make_grid_layout">
 			<signature>static func make_grid_layout(node_ids: PackedStringArray, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>生成简单网格布局。</description>
 			<tags>

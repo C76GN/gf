@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCombatSystem" path="addons/gf/extensions/combat/core/gf_combat_system.gd" module="extensions/combat" extends="GFSystem" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCombatSystem" path="addons/gf/extensions/combat/core/gf_combat_system.gd" module="extensions/combat" extends="GFSystem" classDigest="4e599e7e9bd8208e88d69470847133ccb5b4ea39c9ba9e9b470b4c5ce06c4e19">
 	<description>GFCombatSystem: 战斗核心系统。
 负责驱动所有注册实体的 Buff 计时、周期触发以及技能 CD 更新。
 继承自 GFSystem，可通过架构的 tick 自动运行。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="tick" line="32">
+		<member kind="method" name="tick">
 			<signature>func tick(p_delta: float) -&gt; void:</signature>
 			<description>推进运行时逻辑。</description>
 			<tags>
@@ -21,14 +21,14 @@
 				<tag name="param">p_delta: 本帧时间增量（秒）。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="50">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>释放系统持有的实体、Buff 与技能连接。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_entity" line="65">
+		<member kind="method" name="register_entity">
 			<signature>func register_entity(p_entity: Object) -&gt; void:</signature>
 			<description>注册战斗实体。</description>
 			<tags>
@@ -36,7 +36,7 @@
 				<tag name="param">p_entity: 实体对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_entity" line="81">
+		<member kind="method" name="unregister_entity">
 			<signature>func unregister_entity(p_entity: Object) -&gt; void:</signature>
 			<description>注销战斗实体。</description>
 			<tags>
@@ -44,7 +44,7 @@
 				<tag name="param">p_entity: 实体对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_buff" line="92">
+		<member kind="method" name="add_buff">
 			<signature>func add_buff(p_entity: Object, p_buff: GFBuff) -&gt; void:</signature>
 			<description>给实体添加一个 Buff。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="param">p_buff: Buff 实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_skill" line="123">
+		<member kind="method" name="add_skill">
 			<signature>func add_skill(p_entity: Object, p_skill: GFSkill) -&gt; void:</signature>
 			<description>为实体添加技能。</description>
 			<tags>
@@ -62,7 +62,7 @@
 				<tag name="param">p_skill: 技能实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_buff" line="152">
+		<member kind="method" name="get_buff">
 			<signature>func get_buff(p_entity: Object, p_buff_id: StringName) -&gt; GFBuff:</signature>
 			<description>获取实体上的指定 Buff。</description>
 			<tags>
@@ -72,7 +72,7 @@
 				<tag name="return">找到时返回正在系统中生效的 Buff 实例，否则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_buff" line="173">
+		<member kind="method" name="has_buff">
 			<signature>func has_buff(p_entity: Object, p_buff_id: StringName) -&gt; bool:</signature>
 			<description>检查实体上是否存在指定 Buff。</description>
 			<tags>
@@ -82,7 +82,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_buffs" line="184">
+		<member kind="method" name="get_buffs">
 			<signature>func get_buffs(p_entity: Object) -&gt; Array[GFBuff]:</signature>
 			<description>获取实体当前持有的 Buff 列表副本。</description>
 			<tags>
@@ -91,7 +91,7 @@
 				<tag name="return">Buff 实例数组副本；数组本身可安全修改，但元素仍是运行中的 Buff 引用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="refresh_buff_modifiers" line="206">
+		<member kind="method" name="refresh_buff_modifiers">
 			<signature>func refresh_buff_modifiers(p_entity: Object, p_buff_id: StringName) -&gt; bool:</signature>
 			<description>强制刷新指定 Buff 已挂载修饰器影响到的属性。</description>
 			<tags>
@@ -101,7 +101,7 @@
 				<tag name="return">至少刷新了一个属性时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_buff" line="222">
+		<member kind="method" name="remove_buff">
 			<signature>func remove_buff(p_entity: Object, p_buff_id: StringName) -&gt; bool:</signature>
 			<description>移除实体上的指定 Buff。</description>
 			<tags>
@@ -111,7 +111,7 @@
 				<tag name="return">找到并移除 Buff 时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_buffs" line="246">
+		<member kind="method" name="clear_buffs">
 			<signature>func clear_buffs(p_entity: Object, predicate: Callable = Callable()) -&gt; int:</signature>
 			<description>清理实体上的 Buff。predicate 为空时清理全部；否则仅清理返回 true 的 Buff。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="return">被清理的 Buff 数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_skill" line="277">
+		<member kind="method" name="remove_skill">
 			<signature>func remove_skill(p_entity: Object, p_skill: GFSkill) -&gt; bool:</signature>
 			<description>移除实体上的指定技能。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFENetNetworkBackend" path="addons/gf/extensions/network/backends/gf_enet_network_backend.gd" module="extensions/network" extends="GFNetworkBackend" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFENetNetworkBackend" path="addons/gf/extensions/network/backends/gf_enet_network_backend.gd" module="extensions/network" extends="GFNetworkBackend" classDigest="d4f4bbb1fcea125a97159cb3beb75a4761ff9eabe17cc5dfcea4edb1893cb84c">
 	<description>GFENetNetworkBackend: 基于 Godot ENetMultiplayerPeer 的网络后端。
 该后端只实现 GFNetworkBackend 的 bytes 传输边界，不定义房间、同步、
 RPC 或任何项目消息语义。需要更复杂协议时可以继续继承 GFNetworkBackend。</description>
@@ -11,7 +11,7 @@ RPC 或任何项目消息语义。需要更复杂协议时可以继续继承 GFN
 	<signals />
 	<enums />
 	<constants>
-		<member kind="const" name="BROADCAST_PEER_ID" line="20">
+		<member kind="const" name="BROADCAST_PEER_ID">
 			<signature>const BROADCAST_PEER_ID: int = -1</signature>
 			<description>广播 peer 标识。</description>
 			<tags>
@@ -20,7 +20,7 @@ RPC 或任何项目消息语义。需要更复杂协议时可以继续继承 GFN
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="max_packets_per_poll" line="28">
+		<member kind="property" name="max_packets_per_poll">
 			<signature>var max_packets_per_poll: int = 64</signature>
 			<description>每次 poll 最多派发的入站包数量。小于等于 0 表示不限制。</description>
 			<tags>
@@ -29,7 +29,7 @@ RPC 或任何项目消息语义。需要更复杂协议时可以继续继承 GFN
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="host" line="51">
+		<member kind="method" name="host">
 			<signature>func host(options: Dictionary = {}) -&gt; Error:</signature>
 			<description>启动 ENet 主机。
 支持 options: port, max_clients, max_channels, in_bandwidth, out_bandwidth。</description>
@@ -40,7 +40,7 @@ RPC 或任何项目消息语义。需要更复杂协议时可以继续继承 GFN
 				<tag name="schema">options: Dictionary，支持 port、max_clients、max_channels、in_bandwidth、out_bandwidth。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="connect_to_endpoint" line="90">
+		<member kind="method" name="connect_to_endpoint">
 			<signature>func connect_to_endpoint(endpoint: String, options: Dictionary = {}) -&gt; Error:</signature>
 			<description>连接 ENet 远端。
 endpoint 可传 "host:port"，或通过 options.port 传端口。</description>
@@ -52,14 +52,14 @@ endpoint 可传 "host:port"，或通过 options.port 传端口。</description>
 				<tag name="schema">options: Dictionary，支持 port、max_channels、in_bandwidth、out_bandwidth。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="disconnect_backend" line="120">
+		<member kind="method" name="disconnect_backend">
 			<signature>func disconnect_backend() -&gt; void:</signature>
 			<description>断开 ENet 连接。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_bytes" line="138">
+		<member kind="method" name="send_bytes">
 			<signature>func send_bytes(peer_id: int, bytes: PackedByteArray, options: Dictionary = {}) -&gt; Error:</signature>
 			<description>发送 bytes。
 options 支持 reliable, transfer_mode, channel。</description>
@@ -72,7 +72,7 @@ options 支持 reliable, transfer_mode, channel。</description>
 				<tag name="schema">options: Dictionary，支持 reliable、transfer_mode、channel。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="poll" line="157">
+		<member kind="method" name="poll">
 			<signature>func poll(_delta: float) -&gt; void:</signature>
 			<description>轮询 ENet 事件和收包。</description>
 			<tags>
@@ -80,7 +80,7 @@ options 支持 reliable, transfer_mode, channel。</description>
 				<tag name="param">_delta: 本帧时间增量（秒），默认实现不直接使用。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="182">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取后端调试快照。</description>
 			<tags>

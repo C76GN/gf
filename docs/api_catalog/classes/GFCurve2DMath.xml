@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCurve2DMath" path="addons/gf/standard/foundation/math/gf_curve_2d_math.gd" module="standard" extends="RefCounted" classDigest="9e64802ae9b647d19a7c0f30b213b3f82fa36f10e4d70bb49d715f7ad0515892">
+	<description>GFCurve2DMath: Curve2D 与折线的纯算法辅助。
+提供路径长度、归一化采样、点距简化和基础闭合形状生成，不持有节点状态，
+也不解释碰撞、渲染或编辑器交互语义。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.19.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="CIRCLE_BEZIER_KAPPA">
+			<signature>const CIRCLE_BEZIER_KAPPA: float = 0.5522847498307936</signature>
+			<description>圆弧贝塞尔控制点近似系数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="get_polyline_length">
+			<signature>static func get_polyline_length(points: PackedVector2Array) -&gt; float:</signature>
+			<description>计算折线总长度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">points: 折线点序列。</tag>
+				<tag name="return">折线长度；少于两个点时返回 0。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sample_polyline">
+			<signature>static func sample_polyline( points: PackedVector2Array, ratio: float, total_length: float = -1.0 ) -&gt; Vector2:</signature>
+			<description>按 0 到 1 的比例采样折线。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">points: 折线点序列。</tag>
+				<tag name="param">ratio: 归一化采样位置；会被限制在 0 到 1。</tag>
+				<tag name="param">total_length: 可选预计算长度；小于 0 时内部计算。</tag>
+				<tag name="return">采样点；空折线返回 Vector2.ZERO。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sample_curve">
+			<signature>static func sample_curve(curve: Curve2D, ratio: float, cubic: bool = false) -&gt; Vector2:</signature>
+			<description>按 0 到 1 的比例采样 Curve2D 的 baked 路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">curve: 目标曲线。</tag>
+				<tag name="param">ratio: 归一化采样位置；会被限制在 0 到 1。</tag>
+				<tag name="param">cubic: 是否使用 Curve2D.sample_baked() 的三次插值。</tag>
+				<tag name="return">采样点；曲线为空或无点时返回 Vector2.ZERO。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="simplify_polyline_by_distance">
+			<signature>static func simplify_polyline_by_distance( points: PackedVector2Array, min_distance: float, keep_last: bool = true ) -&gt; PackedVector2Array:</signature>
+			<description>按最小点距简化折线，适合压缩手绘、采样或导入得到的密集点。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">points: 原始折线点序列。</tag>
+				<tag name="param">min_distance: 相邻保留点的最小距离；小于等于 0 时返回原始副本。</tag>
+				<tag name="param">keep_last: 是否始终保留末点。</tag>
+				<tag name="return">简化后的折线点序列。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="create_rect_curve">
+			<signature>static func create_rect_curve( size: Vector2, radius: Vector2 = Vector2.ZERO, offset: Vector2 = Vector2.ZERO, rotation: float = 0.0 ) -&gt; Curve2D:</signature>
+			<description>创建闭合矩形 Curve2D。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">size: 矩形尺寸。</tag>
+				<tag name="param">radius: 圆角半径；会限制到尺寸的一半。</tag>
+				<tag name="param">offset: 曲线中心偏移。</tag>
+				<tag name="param">rotation: 曲线旋转弧度。</tag>
+				<tag name="return">新建的 Curve2D。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_rect_curve">
+			<signature>static func set_rect_curve( curve: Curve2D, size: Vector2, radius: Vector2 = Vector2.ZERO, offset: Vector2 = Vector2.ZERO, rotation: float = 0.0 ) -&gt; Curve2D:</signature>
+			<description>将已有 Curve2D 改写为闭合矩形。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">curve: 要写入的曲线；为空时会创建新曲线。</tag>
+				<tag name="param">size: 矩形尺寸。</tag>
+				<tag name="param">radius: 圆角半径；会限制到尺寸的一半。</tag>
+				<tag name="param">offset: 曲线中心偏移。</tag>
+				<tag name="param">rotation: 曲线旋转弧度。</tag>
+				<tag name="return">写入后的 Curve2D。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="create_ellipse_curve">
+			<signature>static func create_ellipse_curve( size: Vector2, offset: Vector2 = Vector2.ZERO, rotation: float = 0.0 ) -&gt; Curve2D:</signature>
+			<description>创建闭合椭圆 Curve2D。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">size: 椭圆外接框尺寸。</tag>
+				<tag name="param">offset: 曲线中心偏移。</tag>
+				<tag name="param">rotation: 曲线旋转弧度。</tag>
+				<tag name="return">新建的 Curve2D。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_ellipse_curve">
+			<signature>static func set_ellipse_curve( curve: Curve2D, size: Vector2, offset: Vector2 = Vector2.ZERO, rotation: float = 0.0 ) -&gt; Curve2D:</signature>
+			<description>将已有 Curve2D 改写为闭合椭圆。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">curve: 要写入的曲线；为空时会创建新曲线。</tag>
+				<tag name="param">size: 椭圆外接框尺寸。</tag>
+				<tag name="param">offset: 曲线中心偏移。</tag>
+				<tag name="param">rotation: 曲线旋转弧度。</tag>
+				<tag name="return">写入后的 Curve2D。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

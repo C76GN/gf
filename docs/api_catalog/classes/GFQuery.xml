@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFQuery" path="addons/gf/kernel/base/gf_query.gd" module="kernel" extends="Object" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFQuery" path="addons/gf/kernel/base/gf_query.gd" module="kernel" extends="Object" classDigest="ffacb8cc3543c4079a81dbdea5d190dc10906d9d609deb2b1ad52825f92d470e">
 	<description>GFQuery: 查询抽象基类。
 用于从架构中查询数据。子类必须返回结果。
 子类必须实现 'execute' 方法来定义查询逻辑。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="execute" line="45">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行查询并返回结果。子类必须重写此方法。
 "type": "Variant",
@@ -25,7 +25,7 @@
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_lifecycle_active" line="54">
+		<member kind="method" name="is_lifecycle_active">
 			<signature>func is_lifecycle_active() -&gt; bool:</signature>
 			<description>检查查询所属架构生命周期是否仍可安全继续异步写回。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="return">所属架构仍处于活动生命周期时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_model" line="68">
+		<member kind="method" name="get_model">
 			<signature>func get_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过类型获取 Model 实例。</description>
 			<tags>
@@ -43,7 +43,7 @@
 				<tag name="return">模型实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_system" line="84">
+		<member kind="method" name="get_system">
 			<signature>func get_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过类型获取 System 实例。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="return">系统实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_utility" line="100">
+		<member kind="method" name="get_utility">
 			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过类型获取 Utility 实例。</description>
 			<tags>

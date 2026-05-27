@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCameraRig3D" path="addons/gf/extensions/camera/nodes/gf_camera_rig_3d.gd" module="extensions/camera" extends="Node3D" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCameraRig3D" path="addons/gf/extensions/camera/nodes/gf_camera_rig_3d.gd" module="extensions/camera" extends="Node3D" classDigest="f28aa4c0789d42dda9c69f613ccbf789c29dd94e385a51e727bbd449ac418f21">
 	<description>GFCameraRig3D: 通用 3D 相机姿态提供节点。
 Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 项目可用多个 Rig 表达不同视角，再交给 GFCameraDirector3D 按优先级选择。</description>
@@ -9,7 +9,7 @@ Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="active_changed" line="22">
+		<member kind="signal" name="active_changed">
 			<signature>signal active_changed(active: bool)</signature>
 			<description>Rig 激活状态变化后发出。</description>
 			<tags>
@@ -17,7 +17,7 @@ Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 				<tag name="param">active: 当前是否激活。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="priority_changed" line="29">
+		<member kind="signal" name="priority_changed">
 			<signature>signal priority_changed(priority: int)</signature>
 			<description>Rig 优先级变化后发出。</description>
 			<tags>
@@ -29,81 +29,91 @@ Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="active" line="37" decorators="@export">
+		<member kind="property" name="active" decorators="@export">
 			<signature>var active: bool = true:</signature>
 			<description>是否参与 Director 选择。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="priority" line="47" decorators="@export">
+		<member kind="property" name="priority" decorators="@export">
 			<signature>var priority: int = 0:</signature>
 			<description>选择优先级。数值越大越优先。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="offset" line="67" decorators="@export_node_path(&quot;Node3D&quot;) var target_path: NodePath = NodePath(&quot;&quot;) @export_node_path(&quot;Node3D&quot;) var look_at_target_path: NodePath = NodePath(&quot;&quot;) @export">
-			<signature>var offset: Vector3 = Vector3.ZERO</signature>
-			<description>可选跟随目标。为空时使用 Rig 自身的全局姿态。
-可选朝向目标。look_at_enabled 为 true 时生效。
-位置偏移。</description>
+		<member kind="property" name="target_path" decorators="@export_node_path(&quot;Node3D&quot;)">
+			<signature>var target_path: NodePath = NodePath("")</signature>
+			<description>可选跟随目标。为空时使用 Rig 自身的全局姿态。</description>
 			<tags>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="offset_follows_rotation" line="72" decorators="@export">
+		<member kind="property" name="look_at_target_path" decorators="@export_node_path(&quot;Node3D&quot;)">
+			<signature>var look_at_target_path: NodePath = NodePath("")</signature>
+			<description>可选朝向目标。look_at_enabled 为 true 时生效。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="offset" decorators="@export">
+			<signature>var offset: Vector3 = Vector3.ZERO</signature>
+			<description>位置偏移。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="offset_follows_rotation" decorators="@export">
 			<signature>var offset_follows_rotation: bool = false</signature>
 			<description>偏移是否跟随目标旋转。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="use_target_rotation" line="77" decorators="@export">
+		<member kind="property" name="use_target_rotation" decorators="@export">
 			<signature>var use_target_rotation: bool = true</signature>
 			<description>是否读取目标旋转。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="look_at_enabled" line="82" decorators="@export">
+		<member kind="property" name="look_at_enabled" decorators="@export">
 			<signature>var look_at_enabled: bool = false</signature>
 			<description>是否朝向 look_at_target_path。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="up_axis" line="87" decorators="@export">
+		<member kind="property" name="up_axis" decorators="@export">
 			<signature>var up_axis: Vector3 = Vector3.UP</signature>
 			<description>look_at 使用的上方向。为零向量时会回退到 Vector3.UP。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="rotation_degrees_offset" line="92" decorators="@export">
+		<member kind="property" name="rotation_degrees_offset" decorators="@export">
 			<signature>var rotation_degrees_offset: Vector3 = Vector3.ZERO</signature>
 			<description>额外旋转偏移，单位度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="blend" line="97" decorators="@export">
+		<member kind="property" name="blend" decorators="@export">
 			<signature>var blend: GFCameraBlend = null</signature>
 			<description>进入该 Rig 时使用的过渡。为空时使用 Director 默认过渡。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="group_name" line="102" decorators="@export">
+		<member kind="property" name="group_name" decorators="@export">
 			<signature>var group_name: StringName = &amp;"gf_camera_rig_3d"</signature>
 			<description>自动加入的分组名。Director 可按该分组收集候选。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="109" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>项目自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -113,7 +123,7 @@ Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_target_node" line="131">
+		<member kind="method" name="get_target_node">
 			<signature>func get_target_node() -&gt; Node3D:</signature>
 			<description>获取跟随目标。</description>
 			<tags>
@@ -121,7 +131,7 @@ Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 				<tag name="return">目标 Node3D；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_look_at_target_node" line="142">
+		<member kind="method" name="get_look_at_target_node">
 			<signature>func get_look_at_target_node() -&gt; Node3D:</signature>
 			<description>获取朝向目标。</description>
 			<tags>
@@ -129,7 +139,7 @@ Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 				<tag name="return">目标 Node3D；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_camera_transform" line="153">
+		<member kind="method" name="get_camera_transform">
 			<signature>func get_camera_transform() -&gt; Transform3D:</signature>
 			<description>获取当前期望相机 Transform。</description>
 			<tags>
@@ -137,7 +147,7 @@ Rig 只计算期望 Camera3D Transform，不直接控制 Camera3D。
 				<tag name="return">期望全局 Transform。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_available" line="179">
+		<member kind="method" name="is_available">
 			<signature>func is_available() -&gt; bool:</signature>
 			<description>检查 Rig 是否可被选择。</description>
 			<tags>

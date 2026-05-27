@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAttributeSet" path="addons/gf/extensions/domain/attributes/gf_attribute_set.gd" module="extensions/domain" extends="Resource" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFAttributeSet" path="addons/gf/extensions/domain/attributes/gf_attribute_set.gd" module="extensions/domain" extends="Resource" classDigest="95c8c96bac71c5ae3644ca9f9bf67e2e561d33a19062b107479dd53942c5b942">
 	<description>GFAttributeSet: 通用数值属性集合。
 用 StringName 管理一组可保存、可恢复、可限制范围的数值属性。它不规定
 属性含义，生命值、耐久、温度、声望或任意项目数值都由项目层命名和解释。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="attribute_defined" line="22">
+		<member kind="signal" name="attribute_defined">
 			<signature>signal attribute_defined(attribute_id: StringName)</signature>
 			<description>属性被定义时发出。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">attribute_id: 被定义或替换的属性 ID。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="attribute_changed" line="33">
+		<member kind="signal" name="attribute_changed">
 			<signature>signal attribute_changed(attribute_id: StringName, current_value: float, previous_value: float)</signature>
 			<description>当前值变化时发出。</description>
 			<tags>
@@ -30,14 +30,14 @@
 	</signals>
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_MIN_VALUE" line="41">
+		<member kind="const" name="DEFAULT_MIN_VALUE">
 			<signature>const DEFAULT_MIN_VALUE: float = -1.0e20</signature>
 			<description>默认属性最小值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_VALUE" line="46">
+		<member kind="const" name="DEFAULT_MAX_VALUE">
 			<signature>const DEFAULT_MAX_VALUE: float = 1.0e20</signature>
 			<description>默认属性最大值。</description>
 			<tags>
@@ -46,7 +46,7 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="attributes" line="56" decorators="@export">
+		<member kind="property" name="attributes" decorators="@export">
 			<signature>var attributes: Dictionary = {}</signature>
 			<description>属性记录。结构为 attribute_id -&gt; { base, current, min, max, metadata }。</description>
 			<tags>
@@ -54,7 +54,7 @@
 				<tag name="schema">attributes: Dictionary，键为 StringName 属性 ID，值为包含 base: float、current: float、min: float、max: float、metadata: Dictionary 的记录。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="derived_rules" line="63" decorators="@export">
+		<member kind="property" name="derived_rules" decorators="@export">
 			<signature>var derived_rules: Array[GFDerivedAttributeRule] = []</signature>
 			<description>派生属性规则列表。规则只计算属性值，不改变属性命名含义。</description>
 			<tags>
@@ -64,7 +64,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="define_attribute" line="92">
+		<member kind="method" name="define_attribute">
 			<signature>func define_attribute( attribute_id: StringName, base_value: float = 0.0, current_value: Variant = null, min_value: float = DEFAULT_MIN_VALUE, max_value: float = DEFAULT_MAX_VALUE, metadata: Dictionary = {} ) -&gt; void:</signature>
 			<description>定义或替换属性。</description>
 			<tags>
@@ -79,7 +79,7 @@
 				<tag name="schema">metadata: Dictionary，项目自定义属性元数据；GF 会深拷贝保存。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_attribute" line="127">
+		<member kind="method" name="has_attribute">
 			<signature>func has_attribute(attribute_id: StringName) -&gt; bool:</signature>
 			<description>检查属性是否存在。</description>
 			<tags>
@@ -88,7 +88,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_attribute" line="136">
+		<member kind="method" name="remove_attribute">
 			<signature>func remove_attribute(attribute_id: StringName) -&gt; void:</signature>
 			<description>移除属性。</description>
 			<tags>
@@ -96,14 +96,14 @@
 				<tag name="param">attribute_id: 属性标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="144">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空所有属性。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_value" line="157">
+		<member kind="method" name="set_value">
 			<signature>func set_value(attribute_id: StringName, value: float) -&gt; bool:</signature>
 			<description>设置当前值。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="return">成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="adjust_value" line="180">
+		<member kind="method" name="adjust_value">
 			<signature>func adjust_value(attribute_id: StringName, delta: float) -&gt; bool:</signature>
 			<description>增减当前值。</description>
 			<tags>
@@ -123,7 +123,7 @@
 				<tag name="return">成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_base_value" line="195">
+		<member kind="method" name="set_base_value">
 			<signature>func set_base_value(attribute_id: StringName, value: float, sync_current: bool = false) -&gt; bool:</signature>
 			<description>设置基础值。</description>
 			<tags>
@@ -134,7 +134,7 @@
 				<tag name="return">成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_limits" line="224">
+		<member kind="method" name="set_limits">
 			<signature>func set_limits(attribute_id: StringName, min_value: float, max_value: float) -&gt; bool:</signature>
 			<description>设置属性范围。</description>
 			<tags>
@@ -145,7 +145,7 @@
 				<tag name="return">成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_value" line="262">
+		<member kind="method" name="get_value">
 			<signature>func get_value(attribute_id: StringName, default_value: float = 0.0) -&gt; float:</signature>
 			<description>获取当前值。</description>
 			<tags>
@@ -155,7 +155,7 @@
 				<tag name="return">当前值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_base_value" line="278">
+		<member kind="method" name="get_base_value">
 			<signature>func get_base_value(attribute_id: StringName, default_value: float = 0.0) -&gt; float:</signature>
 			<description>获取基础值。</description>
 			<tags>
@@ -165,7 +165,7 @@
 				<tag name="return">基础值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_value_with_traits" line="294">
+		<member kind="method" name="get_value_with_traits">
 			<signature>func get_value_with_traits(attribute_id: StringName, trait_set: GFTraitSet) -&gt; float:</signature>
 			<description>通过 TraitSet 计算属性值。</description>
 			<tags>
@@ -175,7 +175,7 @@
 				<tag name="return">Trait 修饰后的值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_metadata" line="310">
+		<member kind="method" name="get_metadata">
 			<signature>func get_metadata(attribute_id: StringName) -&gt; Dictionary:</signature>
 			<description>获取属性元数据。</description>
 			<tags>
@@ -185,7 +185,7 @@
 				<tag name="schema">return: Dictionary，属性的项目自定义 metadata 副本；属性不存在时为空字典。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_metadata" line="331">
+		<member kind="method" name="set_metadata">
 			<signature>func set_metadata(attribute_id: StringName, metadata: Dictionary) -&gt; bool:</signature>
 			<description>设置属性元数据。</description>
 			<tags>
@@ -196,7 +196,7 @@
 				<tag name="schema">metadata: Dictionary，项目自定义属性元数据；GF 会深拷贝保存。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_derived_rule" line="346">
+		<member kind="method" name="add_derived_rule">
 			<signature>func add_derived_rule(rule: GFDerivedAttributeRule) -&gt; bool:</signature>
 			<description>添加或替换派生属性规则。</description>
 			<tags>
@@ -205,7 +205,7 @@
 				<tag name="return">成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="remove_derived_rule" line="363">
+		<member kind="method" name="remove_derived_rule">
 			<signature>func remove_derived_rule(attribute_id: StringName) -&gt; bool:</signature>
 			<description>移除指定目标属性的派生规则。</description>
 			<tags>
@@ -214,7 +214,7 @@
 				<tag name="return">至少移除一个规则时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_derived_rule" line="380">
+		<member kind="method" name="get_derived_rule">
 			<signature>func get_derived_rule(attribute_id: StringName) -&gt; GFDerivedAttributeRule:</signature>
 			<description>获取指定目标属性的派生规则。</description>
 			<tags>
@@ -223,7 +223,7 @@
 				<tag name="return">派生规则；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="recalculate_derived" line="392">
+		<member kind="method" name="recalculate_derived">
 			<signature>func recalculate_derived(attribute_id: StringName = &amp;"") -&gt; void:</signature>
 			<description>重新计算派生属性。</description>
 			<tags>
@@ -231,7 +231,7 @@
 				<tag name="param">attribute_id: 目标属性 ID；为空时重算全部规则。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_snapshot" line="413">
+		<member kind="method" name="get_snapshot">
 			<signature>func get_snapshot() -&gt; Dictionary:</signature>
 			<description>导出快照。</description>
 			<tags>
@@ -240,7 +240,7 @@
 				<tag name="schema">return: Dictionary，键为 String 属性 ID，值为包含 base、current、min、max 与 metadata 的属性记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="restore_snapshot" line="430">
+		<member kind="method" name="restore_snapshot">
 			<signature>func restore_snapshot(snapshot: Dictionary) -&gt; void:</signature>
 			<description>从快照恢复。</description>
 			<tags>
@@ -249,7 +249,7 @@
 				<tag name="schema">snapshot: Dictionary，键为 String 或 StringName 属性 ID，值为包含 base、current、min、max 与 metadata 的属性记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="to_dict" line="457">
+		<member kind="method" name="to_dict">
 			<signature>func to_dict() -&gt; Dictionary:</signature>
 			<description>序列化为字典。</description>
 			<tags>
@@ -258,7 +258,7 @@
 				<tag name="schema">return: Dictionary，键为 String 属性 ID，值为包含 base、current、min、max 与 metadata 的属性记录。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_dict" line="468">
+		<member kind="method" name="from_dict">
 			<signature>func from_dict(data: Dictionary) -&gt; void:</signature>
 			<description>从字典恢复。</description>
 			<tags>

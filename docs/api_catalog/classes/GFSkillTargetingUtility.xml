@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSkillTargetingUtility" path="addons/gf/extensions/combat/skills/gf_skill_targeting_utility.gd" module="extensions/combat" extends="GFUtility" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSkillTargetingUtility" path="addons/gf/extensions/combat/skills/gf_skill_targeting_utility.gd" module="extensions/combat" extends="GFUtility" classDigest="6084d0c28bdd5b9e70e035b6f9897de50faa7324964f8358c50eba8984278c72">
 	<description>GFSkillTargetingUtility: 技能索敌处理工具。
 提供统一的目标筛选流程：先做空间过滤，
 再执行标签过滤、排序与数量截断。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="find_targets" line="30">
+		<member kind="method" name="find_targets">
 			<signature>func find_targets(p_center: Vector2, p_rule: GFSkillTargetingRule, p_available_entities: Array) -&gt; Array[Object]:</signature>
 			<description>执行索敌 pipeline。</description>
 			<tags>

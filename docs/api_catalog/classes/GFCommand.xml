@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFCommand" path="addons/gf/kernel/base/gf_command.gd" module="kernel" extends="Object" line="13" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFCommand" path="addons/gf/kernel/base/gf_command.gd" module="kernel" extends="Object" classDigest="f59b4e97284b688f4b343cbf53781319deda387aba3cc36211afe21f5c8d7f45">
 	<description>GFCommand: 命令抽象基类。
 子类必须实现 'execute' 方法来定义命令逻辑。
 'execute' 可返回 null（同步命令）或一个 Signal（异步命令）。
@@ -15,7 +15,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="execute" line="47">
+		<member kind="method" name="execute">
 			<signature>func execute() -&gt; Variant:</signature>
 			<description>执行命令逻辑。子类必须重写此方法。
 "type": "Variant",
@@ -27,7 +27,7 @@
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_lifecycle_active" line="56">
+		<member kind="method" name="is_lifecycle_active">
 			<signature>func is_lifecycle_active() -&gt; bool:</signature>
 			<description>检查命令所属架构生命周期是否仍可安全继续异步写回。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="return">所属架构仍处于活动生命周期时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_model" line="70">
+		<member kind="method" name="get_model">
 			<signature>func get_model(model_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过类型获取 Model 实例。</description>
 			<tags>
@@ -45,7 +45,7 @@
 				<tag name="return">模型实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_system" line="86">
+		<member kind="method" name="get_system">
 			<signature>func get_system(system_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过类型获取 System 实例。</description>
 			<tags>
@@ -55,7 +55,7 @@
 				<tag name="return">系统实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_utility" line="102">
+		<member kind="method" name="get_utility">
 			<signature>func get_utility(utility_type: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过类型获取 Utility 实例。</description>
 			<tags>
@@ -65,7 +65,7 @@
 				<tag name="return">工具实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_command" line="121">
+		<member kind="method" name="send_command">
 			<signature>func send_command(command: Object) -&gt; Variant:</signature>
 			<description>向架构发送命令。支持 await：'await send_command(MyCommand.new())'。
 "type": "Variant",
@@ -78,7 +78,7 @@
 				<tag name="schema">return {</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_event" line="133">
+		<member kind="method" name="send_event">
 			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
 			<description>向架构发送类型事件。</description>
 			<tags>
@@ -86,7 +86,7 @@
 				<tag name="param">event_instance: 要分发的事件实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_simple_event" line="151">
+		<member kind="method" name="send_simple_event">
 			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
 			<description>发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。
 "type": "Variant",

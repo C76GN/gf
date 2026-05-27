@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFPointerInteraction3D" path="addons/gf/extensions/interaction/nodes/gf_pointer_interaction_3d.gd" module="extensions/interaction" extends="Node" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFPointerInteraction3D" path="addons/gf/extensions/interaction/nodes/gf_pointer_interaction_3d.gd" module="extensions/interaction" extends="Node" classDigest="a9f1ebb0613fd487b8798ebef916ff031888dee0e51178b06256e50c1e1f40ba">
 	<description>GFPointerInteraction3D: 将 3D 指针事件桥接为 GFInteractionContext。
 监听 CollisionObject3D 的 hover、鼠标按钮与滚轮事件，构建通用交互上下文。
 节点只传递位置、法线、按钮、标签和元数据，不解释点击对象的业务含义。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="pointer_entered" line="22">
+		<member kind="signal" name="pointer_entered">
 			<signature>signal pointer_entered(context: GFInteractionContext)</signature>
 			<description>指针进入绑定的 3D 碰撞对象。</description>
 			<tags>
@@ -17,7 +17,7 @@
 				<tag name="param">context: 交互上下文。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="pointer_exited" line="29">
+		<member kind="signal" name="pointer_exited">
 			<signature>signal pointer_exited(context: GFInteractionContext)</signature>
 			<description>指针离开绑定的 3D 碰撞对象。</description>
 			<tags>
@@ -25,7 +25,7 @@
 				<tag name="param">context: 交互上下文。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="pointer_pressed" line="38">
+		<member kind="signal" name="pointer_pressed">
 			<signature>signal pointer_pressed(context: GFInteractionContext, event: InputEventMouseButton)</signature>
 			<description>指针按钮按下。</description>
 			<tags>
@@ -34,7 +34,7 @@
 				<tag name="param">event: 原始输入事件。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="pointer_released" line="47">
+		<member kind="signal" name="pointer_released">
 			<signature>signal pointer_released(context: GFInteractionContext, event: InputEventMouseButton)</signature>
 			<description>指针按钮释放。</description>
 			<tags>
@@ -43,7 +43,7 @@
 				<tag name="param">event: 原始输入事件。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="pointer_clicked" line="56">
+		<member kind="signal" name="pointer_clicked">
 			<signature>signal pointer_clicked(context: GFInteractionContext, event: InputEventMouseButton)</signature>
 			<description>指针完成一次点击。</description>
 			<tags>
@@ -52,7 +52,7 @@
 				<tag name="param">event: 原始输入事件。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="pointer_wheel" line="65">
+		<member kind="signal" name="pointer_wheel">
 			<signature>signal pointer_wheel(context: GFInteractionContext, event: InputEventMouseButton)</signature>
 			<description>指针滚轮事件。</description>
 			<tags>
@@ -61,7 +61,7 @@
 				<tag name="param">event: 原始输入事件。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="pointer_interaction_sent" line="78">
+		<member kind="signal" name="pointer_interaction_sent">
 			<signature>signal pointer_interaction_sent(context: GFInteractionContext, receiver: Object, report: Dictionary)</signature>
 			<description>已向接收器发送交互。</description>
 			<tags>
@@ -76,28 +76,28 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="enabled" line="91" decorators="@export">
+		<member kind="property" name="enabled" decorators="@export">
 			<signature>var enabled: bool = true</signature>
 			<description>是否启用指针桥接。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="interaction_id" line="96" decorators="@export">
+		<member kind="property" name="interaction_id" decorators="@export">
 			<signature>var interaction_id: StringName = &amp;""</signature>
 			<description>默认交互 ID。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="group_name" line="101" decorators="@export">
+		<member kind="property" name="group_name" decorators="@export">
 			<signature>var group_name: StringName = &amp;""</signature>
 			<description>默认交互分组。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="payload" line="108" decorators="@export">
+		<member kind="property" name="payload" decorators="@export">
 			<signature>var payload: Dictionary = {}</signature>
 			<description>默认 payload；发送时会深拷贝并附加 pointer_* 字段。</description>
 			<tags>
@@ -105,14 +105,14 @@
 				<tag name="schema">payload: 默认交互载荷 Dictionary；发送时会复制并附加 pointer_event、pointer_tags、pointer_metadata 等 pointer_* 字段。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="tags" line="113" decorators="@export">
+		<member kind="property" name="tags" decorators="@export">
 			<signature>var tags: PackedStringArray = PackedStringArray()</signature>
 			<description>指针标签。框架不解释标签含义。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="metadata" line="120" decorators="@export">
+		<member kind="property" name="metadata" decorators="@export">
 			<signature>var metadata: Dictionary = {}</signature>
 			<description>自定义元数据。框架不解释该字段。</description>
 			<tags>
@@ -120,62 +120,77 @@
 				<tag name="schema">metadata: 指针交互自定义元数据 Dictionary；会写入 payload.pointer_metadata 并复制到结果报告。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="send_on_clicked" line="140" decorators="@export_node_path(&quot;CollisionObject3D&quot;) var collision_object_path: NodePath = NodePath(&quot;&quot;) @export_node_path(&quot;Node&quot;) var receiver_path: NodePath = NodePath(&quot;&quot;) @export_node_path(&quot;Node&quot;) var sender_path: NodePath = NodePath(&quot;&quot;) @export">
-			<signature>var send_on_clicked: bool = true</signature>
-			<description>可选 3D 碰撞对象路径；为空时优先使用父节点。
-可选交互接收器路径；为空时从碰撞对象向父级解析 receive_interaction()。
-可选发送者路径；为空时使用当前节点。
-是否在点击完成时发送交互。</description>
+		<member kind="property" name="collision_object_path" decorators="@export_node_path(&quot;CollisionObject3D&quot;)">
+			<signature>var collision_object_path: NodePath = NodePath("")</signature>
+			<description>可选 3D 碰撞对象路径；为空时优先使用父节点。</description>
 			<tags>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="send_on_pressed" line="145" decorators="@export">
+		<member kind="property" name="receiver_path" decorators="@export_node_path(&quot;Node&quot;)">
+			<signature>var receiver_path: NodePath = NodePath("")</signature>
+			<description>可选交互接收器路径；为空时从碰撞对象向父级解析 receive_interaction()。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="sender_path" decorators="@export_node_path(&quot;Node&quot;)">
+			<signature>var sender_path: NodePath = NodePath("")</signature>
+			<description>可选发送者路径；为空时使用当前节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="send_on_clicked" decorators="@export">
+			<signature>var send_on_clicked: bool = true</signature>
+			<description>是否在点击完成时发送交互。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="send_on_pressed" decorators="@export">
 			<signature>var send_on_pressed: bool = false</signature>
 			<description>是否在按钮按下时发送交互。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="send_on_released" line="150" decorators="@export">
+		<member kind="property" name="send_on_released" decorators="@export">
 			<signature>var send_on_released: bool = false</signature>
 			<description>是否在按钮释放时发送交互。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="send_on_wheel" line="155" decorators="@export">
+		<member kind="property" name="send_on_wheel" decorators="@export">
 			<signature>var send_on_wheel: bool = false</signature>
 			<description>是否在滚轮事件时发送交互。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="send_on_hover" line="160" decorators="@export">
+		<member kind="property" name="send_on_hover" decorators="@export">
 			<signature>var send_on_hover: bool = false</signature>
 			<description>是否在 hover 进入和离开时发送交互。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="ensure_input_ray_pickable" line="165" decorators="@export">
+		<member kind="property" name="ensure_input_ray_pickable" decorators="@export">
 			<signature>var ensure_input_ray_pickable: bool = true</signature>
 			<description>绑定碰撞对象时是否确保 input_ray_pickable 为 true。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="change_cursor_on_hover" line="170" decorators="@export">
+		<member kind="property" name="change_cursor_on_hover" decorators="@export">
 			<signature>var change_cursor_on_hover: bool = false</signature>
 			<description>hover 时是否临时切换鼠标光标。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="cursor_shape" line="175" decorators="@export">
+		<member kind="property" name="cursor_shape" decorators="@export">
 			<signature>var cursor_shape: Input.CursorShape = Input.CURSOR_ARROW</signature>
 			<description>hover 时使用的鼠标光标。</description>
 			<tags>
@@ -184,7 +199,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="bind_collision_object" line="203">
+		<member kind="method" name="bind_collision_object">
 			<signature>func bind_collision_object(collision_object: CollisionObject3D) -&gt; void:</signature>
 			<description>绑定 3D 碰撞对象。</description>
 			<tags>
@@ -192,7 +207,7 @@
 				<tag name="param">collision_object: 要监听的碰撞对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_collision_object" line="224">
+		<member kind="method" name="get_collision_object">
 			<signature>func get_collision_object() -&gt; CollisionObject3D:</signature>
 			<description>获取当前绑定的 3D 碰撞对象。</description>
 			<tags>
@@ -200,7 +215,7 @@
 				<tag name="return">碰撞对象；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="build_context" line="243">
+		<member kind="method" name="build_context">
 			<signature>func build_context( pointer_event: StringName, pointer_data: Dictionary = {}, receiver: Object = null ) -&gt; GFInteractionContext:</signature>
 			<description>构建指针交互上下文。</description>
 			<tags>
@@ -212,7 +227,7 @@
 				<tag name="schema">pointer_data: 指针事件数据 Dictionary；常见字段包括 pointer_position、pointer_normal、pointer_shape_idx、pointer_camera 和 pointer_input_event。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_pointer_interaction" line="274">
+		<member kind="method" name="send_pointer_interaction">
 			<signature>func send_pointer_interaction( pointer_event: StringName, pointer_data: Dictionary = {}, interaction_id_override: StringName = &amp;"" ) -&gt; Dictionary:</signature>
 			<description>发送一次指针交互。</description>
 			<tags>

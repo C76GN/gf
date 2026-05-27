@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFFormula" path="addons/gf/standard/foundation/formula/gf_formula.gd" module="standard" extends="Resource" line="12" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFFormula" path="addons/gf/standard/foundation/formula/gf_formula.gd" module="standard" extends="Resource" classDigest="9687844e489c5a064dc17975a9aa356bda53ea7975c2c1433dcb190fa07675d0">
 	<description>GFFormula: 资源化公式基类。
 公式是纯计算策略，不持有运行时生命周期。
 项目可继承并重写 `calculate()`，也可通过 `calculate_float()`、
@@ -13,7 +13,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="fallback_value" line="23" decorators="@export">
+		<member kind="property" name="fallback_value" decorators="@export">
 			<signature>var fallback_value: Variant = 0.0</signature>
 			<description>当子类没有返回有效数值时使用的兜底结果。</description>
 			<tags>
@@ -23,7 +23,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="calculate" line="37">
+		<member kind="method" name="calculate">
 			<signature>func calculate(_parameter: GFFormulaParameter = null) -&gt; Variant:</signature>
 			<description>执行公式计算。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="schema">return: Variant formula result.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="calculate_float" line="50">
+		<member kind="method" name="calculate_float">
 			<signature>func calculate_float(parameter: GFFormulaParameter = null, fallback: float = 0.0) -&gt; float:</signature>
 			<description>以 float 形式执行公式。</description>
 			<tags>
@@ -43,7 +43,7 @@
 				<tag name="return">float 结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="calculate_int" line="73">
+		<member kind="method" name="calculate_int">
 			<signature>func calculate_int(parameter: GFFormulaParameter = null, fallback: int = 0) -&gt; int:</signature>
 			<description>以 int 形式执行公式。</description>
 			<tags>
@@ -53,7 +53,7 @@
 				<tag name="return">int 结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="calculate_bool" line="86">
+		<member kind="method" name="calculate_bool">
 			<signature>func calculate_bool(parameter: GFFormulaParameter = null, fallback: bool = false) -&gt; bool:</signature>
 			<description>以 bool 形式执行公式。</description>
 			<tags>

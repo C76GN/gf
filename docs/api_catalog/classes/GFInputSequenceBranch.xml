@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputSequenceBranch" path="addons/gf/standard/input/sequences/gf_input_sequence_branch.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputSequenceBranch" path="addons/gf/standard/input/sequences/gf_input_sequence_branch.gd" module="standard" extends="Resource" classDigest="cb9d47b19a0f39fcfea0343ff6154744451be9432980268b9f0ffc257b1cd050">
 	<description>GFInputSequenceBranch: 输入序列触发器的一条可选分支。
 多分支允许同一动作由不同抽象动作序列触发，适合格斗、快捷指令或可替代输入路径。</description>
 	<tags>
@@ -11,14 +11,14 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="steps" line="19" decorators="@export">
+		<member kind="property" name="steps" decorators="@export">
 			<signature>var steps: Array[GFInputSequenceStep] = []</signature>
 			<description>本分支的步骤列表。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_gap_seconds" line="24" decorators="@export">
+		<member kind="property" name="max_gap_seconds" decorators="@export">
 			<signature>var max_gap_seconds: float = -1.0:</signature>
 			<description>本分支默认最大步骤间隔。小于 0 表示使用触发器默认值，0 表示不限制。</description>
 			<tags>
@@ -27,7 +27,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_valid_branch" line="36">
+		<member kind="method" name="is_valid_branch">
 			<signature>func is_valid_branch() -&gt; bool:</signature>
 			<description>检查分支是否至少包含一个有效动作步骤。</description>
 			<tags>
@@ -35,7 +35,7 @@
 				<tag name="return">有效返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="duplicate_branch" line="48">
+		<member kind="method" name="duplicate_branch">
 			<signature>func duplicate_branch() -&gt; GFInputSequenceBranch:</signature>
 			<description>创建当前分支的深拷贝。</description>
 			<tags>
@@ -43,7 +43,7 @@
 				<tag name="return">分支副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="from_action_ids" line="63">
+		<member kind="method" name="from_action_ids">
 			<signature>static func from_action_ids( action_ids: Array[StringName], p_max_gap_seconds: float = -1.0 ) -&gt; GFInputSequenceBranch:</signature>
 			<description>从动作 ID 数组创建分支。</description>
 			<tags>

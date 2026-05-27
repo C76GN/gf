@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSteeringMath" path="addons/gf/standard/foundation/math/gf_steering_math.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSteeringMath" path="addons/gf/standard/foundation/math/gf_steering_math.gd" module="standard" extends="RefCounted" classDigest="27cffb9dfb8fc3a89b5cee89944cc75c25e5843e5e8962a7dab6bb0684eb3c34">
 	<description>GFSteeringMath: 通用 steering 行为的纯算法集合。
 提供 seek、flee、arrive、pursue、separation、cohesion、blend、priority 等
 可组合计算，不负责把结果应用到具体 Node、物理体或业务状态。</description>
@@ -13,7 +13,7 @@
 	<constants />
 	<properties />
 	<methods>
-		<member kind="method" name="acceleration" line="31">
+		<member kind="method" name="acceleration">
 			<signature>static func acceleration(linear: Vector3 = Vector3.ZERO, angular: float = 0.0) -&gt; GFSteeringAcceleration:</signature>
 			<description>创建加速度结果。</description>
 			<tags>
@@ -23,7 +23,7 @@
 				<tag name="return">新加速度结果。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="seek" line="44">
+		<member kind="method" name="seek">
 			<signature>static func seek(agent: GFSteeringAgent, target_position: Vector3) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算朝目标点加速的 seek 行为。</description>
 			<tags>
@@ -33,7 +33,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="flee" line="63">
+		<member kind="method" name="flee">
 			<signature>static func flee(agent: GFSteeringAgent, target_position: Vector3) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算远离目标点的 flee 行为。</description>
 			<tags>
@@ -43,7 +43,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="arrive" line="88">
+		<member kind="method" name="arrive">
 			<signature>static func arrive( agent: GFSteeringAgent, target_position: Vector3, arrival_radius: float = 4.0, slow_radius: float = 64.0, time_to_target: float = 0.1 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算抵达目标点并在近处减速的 arrive 行为。</description>
 			<tags>
@@ -56,7 +56,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="pursue" line="123">
+		<member kind="method" name="pursue">
 			<signature>static func pursue( agent: GFSteeringAgent, target_agent: GFSteeringAgent, max_prediction_seconds: float = 1.0 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算追逐移动目标的 pursue 行为。</description>
 			<tags>
@@ -67,7 +67,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="evade" line="146">
+		<member kind="method" name="evade">
 			<signature>static func evade( agent: GFSteeringAgent, target_agent: GFSteeringAgent, max_prediction_seconds: float = 1.0 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算逃离移动目标的 evade 行为。</description>
 			<tags>
@@ -78,7 +78,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="face" line="175">
+		<member kind="method" name="face">
 			<signature>static func face( agent: GFSteeringAgent, target_position: Vector3, use_z_axis: bool = false, align_tolerance: float = 0.001, slow_angle: float = 0.5, time_to_target: float = 0.1 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算面向目标点的角加速度。</description>
 			<tags>
@@ -92,7 +92,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="look_where_you_go" line="214">
+		<member kind="method" name="look_where_you_go">
 			<signature>static func look_where_you_go( agent: GFSteeringAgent, use_z_axis: bool = false, align_tolerance: float = 0.001, slow_angle: float = 0.5, time_to_target: float = 0.1 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算朝当前速度方向转向的角加速度。</description>
 			<tags>
@@ -105,7 +105,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="align" line="247">
+		<member kind="method" name="align">
 			<signature>static func align( agent: GFSteeringAgent, target_orientation: float, align_tolerance: float = 0.001, slow_angle: float = 0.5, time_to_target: float = 0.1 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算对齐指定朝向的角加速度。</description>
 			<tags>
@@ -118,7 +118,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="separation" line="287">
+		<member kind="method" name="separation">
 			<signature>static func separation( agent: GFSteeringAgent, neighbors: Array[GFSteeringAgent], decay_coefficient: float = 1.0, max_distance: float = -1.0 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算邻居分离行为。</description>
 			<tags>
@@ -130,7 +130,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="cohesion" line="324">
+		<member kind="method" name="cohesion">
 			<signature>static func cohesion(agent: GFSteeringAgent, neighbors: Array[GFSteeringAgent]) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算朝邻居中心靠拢的 cohesion 行为。</description>
 			<tags>
@@ -140,7 +140,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="blend" line="354">
+		<member kind="method" name="blend">
 			<signature>static func blend( accelerations: Array[GFSteeringAcceleration], weights: Array[float] = [], max_linear: float = -1.0, max_angular: float = -1.0 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>混合多个 steering 加速度。</description>
 			<tags>
@@ -152,7 +152,7 @@
 				<tag name="return">混合后的加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="priority" line="377">
+		<member kind="method" name="priority">
 			<signature>static func priority( accelerations: Array[GFSteeringAcceleration], threshold: float = 0.001 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>从多个 steering 加速度中选择第一个超过阈值的结果。</description>
 			<tags>
@@ -162,7 +162,7 @@
 				<tag name="return">第一个有效加速度；没有时返回零加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="radius_neighbors" line="398">
+		<member kind="method" name="radius_neighbors">
 			<signature>static func radius_neighbors( agent: GFSteeringAgent, candidates: Array[GFSteeringAgent], radius: float = -1.0 ) -&gt; Array[GFSteeringAgent]:</signature>
 			<description>获取半径内的邻居代理。</description>
 			<tags>
@@ -173,7 +173,7 @@
 				<tag name="return">半径内邻居列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="avoid_collisions" line="432">
+		<member kind="method" name="avoid_collisions">
 			<signature>static func avoid_collisions( agent: GFSteeringAgent, targets: Array[GFSteeringAgent], max_prediction_seconds: float = 1.0, collision_radius: float = -1.0, minimum_separation: float = -1.0 ) -&gt; GFSteeringAcceleration:</signature>
 			<description>计算基于未来最近距离的动态碰撞避让行为。</description>
 			<tags>
@@ -186,7 +186,7 @@
 				<tag name="return">steering 加速度。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="path_follow_target" line="519">
+		<member kind="method" name="path_follow_target">
 			<signature>static func path_follow_target( agent: GFSteeringAgent, path: Array[Vector3], path_offset: float = 0.0 ) -&gt; Vector3:</signature>
 			<description>计算路径跟随的下一个目标点。</description>
 			<tags>

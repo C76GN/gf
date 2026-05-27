@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFArchitecture" path="addons/gf/kernel/core/gf_architecture.gd" module="kernel" extends="Object" line="15" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFArchitecture" path="addons/gf/kernel/core/gf_architecture.gd" module="kernel" extends="Object" classDigest="7d6ccae2591636f09cac4ad767a21d966ab0cdba7cdd062a0f9bddeca0394d93">
 	<description>GFArchitecture: 管理 Model、System 和 Utility 的注册与生命周期的容器。
 生命周期遵循三阶段初始化协议：
 阶段一 (init)       ：所有模块执行自身内部变量初始化。
@@ -12,14 +12,14 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="initialization_finished" line="23">
+		<member kind="signal" name="initialization_finished">
 			<signature>signal initialization_finished</signature>
 			<description>当一次初始化流程完成或被 dispose() 中断后发出。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="initialization_failed" line="30">
+		<member kind="signal" name="initialization_failed">
 			<signature>signal initialization_failed(reason: String)</signature>
 			<description>当一次初始化流程因为框架级保护失败后发出。</description>
 			<tags>
@@ -27,7 +27,7 @@
 				<tag name="param">reason: 初始化失败原因。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="project_installers_finished" line="35">
+		<member kind="signal" name="project_installers_finished">
 			<signature>signal project_installers_finished</signature>
 			<description>当项目级 Installer 应用完成或被 dispose() 中断后发出。</description>
 			<tags>
@@ -37,35 +37,35 @@
 	</signals>
 	<enums />
 	<constants>
-		<member kind="const" name="HOOK_GET_REQUIRED_DEPENDENCIES" line="71">
+		<member kind="const" name="HOOK_GET_REQUIRED_DEPENDENCIES">
 			<signature>const HOOK_GET_REQUIRED_DEPENDENCIES: StringName = &amp;"get_required_dependencies"</signature>
 			<description>声明式依赖聚合 Hook 名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="HOOK_GET_REQUIRED_MODELS" line="76">
+		<member kind="const" name="HOOK_GET_REQUIRED_MODELS">
 			<signature>const HOOK_GET_REQUIRED_MODELS: StringName = &amp;"get_required_models"</signature>
 			<description>声明式 Model 依赖 Hook 名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="HOOK_GET_REQUIRED_SYSTEMS" line="81">
+		<member kind="const" name="HOOK_GET_REQUIRED_SYSTEMS">
 			<signature>const HOOK_GET_REQUIRED_SYSTEMS: StringName = &amp;"get_required_systems"</signature>
 			<description>声明式 System 依赖 Hook 名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="HOOK_GET_REQUIRED_UTILITIES" line="86">
+		<member kind="const" name="HOOK_GET_REQUIRED_UTILITIES">
 			<signature>const HOOK_GET_REQUIRED_UTILITIES: StringName = &amp;"get_required_utilities"</signature>
 			<description>声明式 Utility 依赖 Hook 名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="HOOK_GET_REQUIRED_FACTORIES" line="91">
+		<member kind="const" name="HOOK_GET_REQUIRED_FACTORIES">
 			<signature>const HOOK_GET_REQUIRED_FACTORIES: StringName = &amp;"get_required_factories"</signature>
 			<description>声明式工厂依赖 Hook 名称。</description>
 			<tags>
@@ -74,7 +74,7 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="module_async_init_timeout_seconds" line="101">
+		<member kind="property" name="module_async_init_timeout_seconds">
 			<signature>var module_async_init_timeout_seconds: float = 0.0:</signature>
 			<description>单个模块 async_init() 的最长等待时间。小于等于 0 时不启用超时。
 默认关闭；项目可按自身加载预算显式启用。</description>
@@ -82,21 +82,21 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="module_lifecycle_max_stage_passes" line="108">
+		<member kind="property" name="module_lifecycle_max_stage_passes">
 			<signature>var module_lifecycle_max_stage_passes: int = 256:</signature>
 			<description>单个生命周期阶段最多扫描模块注册表的次数，避免模块在生命周期中无限注册新模块。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="strict_dependency_lookup" line="115">
+		<member kind="property" name="strict_dependency_lookup">
 			<signature>var strict_dependency_lookup: bool = false</signature>
 			<description>严格依赖查询模式。开启后本架构查询不到本地模块时不会回退父级架构。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="last_initialization_error" line="120">
+		<member kind="property" name="last_initialization_error">
 			<signature>var last_initialization_error: String = ""</signature>
 			<description>最近一次初始化失败原因；没有失败时为空字符串。</description>
 			<tags>
@@ -105,7 +105,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="is_inited" line="169">
+		<member kind="method" name="is_inited">
 			<signature>func is_inited() -&gt; bool:</signature>
 			<description>检查架构是否已初始化。</description>
 			<tags>
@@ -113,7 +113,7 @@
 				<tag name="return">已初始化返回 true，否则返回 false。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_initialization_failed" line="178">
+		<member kind="method" name="has_initialization_failed">
 			<signature>func has_initialization_failed() -&gt; bool:</signature>
 			<description>检查最近一次初始化是否因为框架级保护失败。</description>
 			<tags>
@@ -121,7 +121,7 @@
 				<tag name="return">最近一次初始化失败返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_lifecycle_active" line="187">
+		<member kind="method" name="is_lifecycle_active">
 			<signature>func is_lifecycle_active() -&gt; bool:</signature>
 			<description>检查当前架构生命周期是否仍处于可安全继续异步写回的活动状态。</description>
 			<tags>
@@ -129,7 +129,7 @@
 				<tag name="return">正在初始化或已完成初始化，且未被 dispose() 或失败保护中断时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_module_ready" line="198">
+		<member kind="method" name="is_module_ready">
 			<signature>func is_module_ready(instance: Object) -&gt; bool:</signature>
 			<description>检查指定模块实例是否已经完成 ready 阶段。</description>
 			<tags>
@@ -138,7 +138,7 @@
 				<tag name="return">模块完成 ready 阶段时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="fail_initialization" line="207">
+		<member kind="method" name="fail_initialization">
 			<signature>func fail_initialization(reason: String) -&gt; void:</signature>
 			<description>将当前架构标记为初始化失败，并唤醒等待初始化或 Installer 的调用方。</description>
 			<tags>
@@ -146,7 +146,7 @@
 				<tag name="param">reason: 初始化失败原因。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_parent_architecture" line="219">
+		<member kind="method" name="get_parent_architecture">
 			<signature>func get_parent_architecture() -&gt; GFArchitecture:</signature>
 			<description>获取父级架构。Scoped 架构会在本地未找到依赖时回退到父级架构查询。</description>
 			<tags>
@@ -154,7 +154,7 @@
 				<tag name="return">父级架构实例；未设置时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_parent_architecture" line="228">
+		<member kind="method" name="set_parent_architecture">
 			<signature>func set_parent_architecture(parent_architecture: GFArchitecture) -&gt; void:</signature>
 			<description>设置父级架构。不会接管父级生命周期。</description>
 			<tags>
@@ -162,7 +162,7 @@
 				<tag name="param">parent_architecture: 要作为依赖回退来源的父级架构。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_project_installers_applied" line="237">
+		<member kind="method" name="has_project_installers_applied">
 			<signature>func has_project_installers_applied() -&gt; bool:</signature>
 			<description>检查项目级 Installer 是否已经应用到当前架构。</description>
 			<tags>
@@ -170,7 +170,7 @@
 				<tag name="return">已应用返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="is_project_installers_running" line="246">
+		<member kind="method" name="is_project_installers_running">
 			<signature>func is_project_installers_running() -&gt; bool:</signature>
 			<description>检查项目级 Installer 是否正在应用。</description>
 			<tags>
@@ -178,7 +178,7 @@
 				<tag name="return">正在应用返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="begin_project_installers" line="255">
+		<member kind="method" name="begin_project_installers">
 			<signature>func begin_project_installers() -&gt; bool:</signature>
 			<description>标记项目级 Installer 已开始应用。</description>
 			<tags>
@@ -186,21 +186,21 @@
 				<tag name="return">成功开始返回 true；已经完成或正在运行时返回 false。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="mark_project_installers_applied" line="270">
+		<member kind="method" name="mark_project_installers_applied">
 			<signature>func mark_project_installers_applied() -&gt; void:</signature>
 			<description>标记项目级 Installer 已应用。由 Gf 启动入口调用。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="finish_project_installers" line="281">
+		<member kind="method" name="finish_project_installers">
 			<signature>func finish_project_installers() -&gt; void:</signature>
 			<description>标记项目级 Installer 应用完成并唤醒等待方。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="create_binder" line="292">
+		<member kind="method" name="create_binder">
 			<signature>func create_binder() -&gt; Variant:</signature>
 			<description>创建一个声明式装配器，便于 Installer 使用 fluent API 注册模块与工厂。</description>
 			<tags>
@@ -209,7 +209,7 @@
 				<tag name="schema">return: GFBindBuilder-compatible binder owned by this architecture.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="init" line="302">
+		<member kind="method" name="init">
 			<signature>func init() -&gt; void:</signature>
 			<description>初始化架构及所有注册的组件（三阶段）。
 阶段一：调用所有模块的 init()，用于初始化自身内部变量。
@@ -219,14 +219,14 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="dispose" line="337">
+		<member kind="method" name="dispose">
 			<signature>func dispose() -&gt; void:</signature>
 			<description>销毁架构及所有注册的组件。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="tick" line="375">
+		<member kind="method" name="tick">
 			<signature>func tick(delta: float) -&gt; void:</signature>
 			<description>驱动所有参与 tick 的 System 与 Utility 的每帧更新。
 在架构初始化完成后方可生效。
@@ -238,7 +238,7 @@
 				<tag name="param">delta: 距上一帧的时间（秒）。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="physics_tick" line="400">
+		<member kind="method" name="physics_tick">
 			<signature>func physics_tick(delta: float) -&gt; void:</signature>
 			<description>驱动所有参与 physics_tick 的 System 与 Utility 的每物理帧更新。
 在架构初始化完成后方可生效。
@@ -250,7 +250,7 @@
 				<tag name="param">delta: 距上一物理帧的时间（秒）。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_command" line="427">
+		<member kind="method" name="send_command">
 			<signature>func send_command(command: Object) -&gt; Variant:</signature>
 			<description>执行命令实例。支持 await：'await send_command(MyCommand.new())'。
 command 缺少 execute() 方法时会输出 warning 并返回 null。</description>
@@ -261,7 +261,7 @@ command 缺少 execute() 方法时会输出 warning 并返回 null。</descripti
 				<tag name="schema">return: Variant command result returned by command.execute().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_query" line="449">
+		<member kind="method" name="send_query">
 			<signature>func send_query(query: Object) -&gt; Variant:</signature>
 			<description>执行查询实例并返回结果。
 query 缺少 execute() 方法时会输出 warning 并返回 null。</description>
@@ -272,7 +272,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">return: Variant query result returned by query.execute().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_event" line="466">
+		<member kind="method" name="send_event">
 			<signature>func send_event(event_instance: Object) -&gt; void:</signature>
 			<description>通过事件系统发送类型事件实例。</description>
 			<tags>
@@ -280,7 +280,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">event_instance: 要分发的事件实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_event" line="483">
+		<member kind="method" name="register_event">
 			<signature>func register_event(event_type: Script, on_event: Callable, priority: int = 0) -&gt; void:</signature>
 			<description>为脚本类型注册事件监听器。</description>
 			<tags>
@@ -290,7 +290,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_event_owned" line="499">
+		<member kind="method" name="register_event_owned">
 			<signature>func register_event_owned(owner: Object, event_type: Script, on_event: Callable, priority: int = 0) -&gt; void:</signature>
 			<description>为脚本类型注册带拥有者的事件监听器。
 拥有者注销或释放后，可通过 unregister_owner_events() 一次性清理相关监听。</description>
@@ -302,7 +302,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_assignable_event" line="513">
+		<member kind="method" name="register_assignable_event">
 			<signature>func register_assignable_event(base_event_type: Script, on_event: Callable, priority: int = 0) -&gt; void:</signature>
 			<description>为脚本类型注册可赋值事件监听器。
 监听基类事件时，也会收到继承自该脚本类型的事件实例。</description>
@@ -313,7 +313,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_assignable_event_owned" line="528">
+		<member kind="method" name="register_assignable_event_owned">
 			<signature>func register_assignable_event_owned( owner: Object, base_event_type: Script, on_event: Callable, priority: int = 0 ) -&gt; void:</signature>
 			<description>为脚本类型注册带拥有者的可赋值事件监听器。</description>
 			<tags>
@@ -324,7 +324,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">priority: 回调优先级，数值越大越先执行，默认为 0。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_event" line="544">
+		<member kind="method" name="unregister_event">
 			<signature>func unregister_event(event_type: Script, on_event: Callable) -&gt; void:</signature>
 			<description>为脚本类型注销事件监听器。</description>
 			<tags>
@@ -333,7 +333,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">on_event: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_assignable_event" line="555">
+		<member kind="method" name="unregister_assignable_event">
 			<signature>func unregister_assignable_event(base_event_type: Script, on_event: Callable) -&gt; void:</signature>
 			<description>注销可赋值类型事件监听器。</description>
 			<tags>
@@ -342,7 +342,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">on_event: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_simple_event" line="566">
+		<member kind="method" name="register_simple_event">
 			<signature>func register_simple_event(event_id: StringName, on_event: Callable) -&gt; void:</signature>
 			<description>注册轻量级 StringName 事件监听器。</description>
 			<tags>
@@ -351,7 +351,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">on_event: 回调函数，签名为 func(payload: Variant)。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_simple_event_owned" line="579">
+		<member kind="method" name="register_simple_event_owned">
 			<signature>func register_simple_event_owned(owner: Object, event_id: StringName, on_event: Callable) -&gt; void:</signature>
 			<description>注册带拥有者的轻量级 StringName 事件监听器。</description>
 			<tags>
@@ -361,7 +361,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">on_event: 回调函数，签名为 func(payload: Variant)。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_simple_event" line="590">
+		<member kind="method" name="unregister_simple_event">
 			<signature>func unregister_simple_event(event_id: StringName, on_event: Callable) -&gt; void:</signature>
 			<description>注销轻量级 StringName 事件监听器。</description>
 			<tags>
@@ -370,7 +370,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">on_event: 要移除的回调函数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_owner_events" line="599">
+		<member kind="method" name="unregister_owner_events">
 			<signature>func unregister_owner_events(owner: Object) -&gt; void:</signature>
 			<description>注销某个拥有者注册过的所有事件监听器。</description>
 			<tags>
@@ -378,7 +378,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">owner: 要清理监听器的拥有者。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="send_simple_event" line="612">
+		<member kind="method" name="send_simple_event">
 			<signature>func send_simple_event(event_id: StringName, payload: Variant = null) -&gt; void:</signature>
 			<description>发送轻量级 StringName 事件，避免高频 new() 带来的 GC 压力。</description>
 			<tags>
@@ -388,7 +388,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">payload: Variant payload passed unchanged to simple event listeners.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_event_debug_stats" line="623">
+		<member kind="method" name="get_event_debug_stats">
 			<signature>func get_event_debug_stats() -&gt; Dictionary:</signature>
 			<description>获取事件系统诊断统计。</description>
 			<tags>
@@ -397,7 +397,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">return: Dictionary produced by GFTypeEventSystem.get_debug_stats().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="configure_event_debugging" line="636">
+		<member kind="method" name="configure_event_debugging">
 			<signature>func configure_event_debugging( max_dispatch_depth: int = GFTypeEventSystem.DEFAULT_MAX_DISPATCH_DEPTH, trace_enabled: bool = false, max_trace_entries: int = 64 ) -&gt; void:</signature>
 			<description>配置事件系统调试与保护选项。</description>
 			<tags>
@@ -407,7 +407,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">max_trace_entries: 最多保留的追踪条目数。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_event_dispatch_trace" line="653">
+		<member kind="method" name="get_event_dispatch_trace">
 			<signature>func get_event_dispatch_trace() -&gt; Array[Dictionary]:</signature>
 			<description>获取最近事件派发追踪条目。</description>
 			<tags>
@@ -416,14 +416,14 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">return: Array of Dictionary trace entries with event, listener, owner, and dispatch metadata.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_event_dispatch_trace" line="660">
+		<member kind="method" name="clear_event_dispatch_trace">
 			<signature>func clear_event_dispatch_trace() -&gt; void:</signature>
 			<description>清空事件派发追踪。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_system" line="673">
+		<member kind="method" name="register_system">
 			<signature>func register_system(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>注册 System 实例。</description>
 			<tags>
@@ -432,7 +432,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 系统实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_model" line="689">
+		<member kind="method" name="register_model">
 			<signature>func register_model(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>注册 Model 实例。</description>
 			<tags>
@@ -441,7 +441,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 模型实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_utility" line="704">
+		<member kind="method" name="register_utility">
 			<signature>func register_utility(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>注册 Utility 实例。</description>
 			<tags>
@@ -450,7 +450,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 工具实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_system" line="722">
+		<member kind="method" name="replace_system">
 			<signature>func replace_system(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>替换 System 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。</description>
 			<tags>
@@ -459,7 +459,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 新系统实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_model" line="737">
+		<member kind="method" name="replace_model">
 			<signature>func replace_model(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>替换 Model 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。</description>
 			<tags>
@@ -468,7 +468,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 新模型实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_utility" line="752">
+		<member kind="method" name="replace_utility">
 			<signature>func replace_utility(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>替换 Utility 实例。若旧实例存在，会先调用 dispose() 并移除相关别名。</description>
 			<tags>
@@ -477,7 +477,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 新工具实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_factory" line="769">
+		<member kind="method" name="register_factory">
 			<signature>func register_factory( script_cls: Script, factory: Callable, lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT ) -&gt; void:</signature>
 			<description>注册短生命周期对象工厂。</description>
 			<tags>
@@ -487,7 +487,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">lifetime: 工厂生命周期，默认每次 create_instance() 都创建新对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_factory_instance" line="797">
+		<member kind="method" name="register_factory_instance">
 			<signature>func register_factory_instance(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>注册已有实例作为短生命周期工厂入口。该实例以单例方式返回。</description>
 			<tags>
@@ -496,7 +496,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 要暴露的实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_factory" line="821">
+		<member kind="method" name="replace_factory">
 			<signature>func replace_factory( script_cls: Script, factory: Callable, lifetime: int = GFBindingLifetimesBase.Lifetime.TRANSIENT ) -&gt; void:</signature>
 			<description>替换短生命周期对象工厂。</description>
 			<tags>
@@ -506,7 +506,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">lifetime: 工厂生命周期。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="replace_factory_instance" line="847">
+		<member kind="method" name="replace_factory_instance">
 			<signature>func replace_factory_instance(script_cls: Script, instance: Object) -&gt; void:</signature>
 			<description>替换已有实例工厂入口。</description>
 			<tags>
@@ -515,7 +515,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 要暴露的实例。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_factory" line="865">
+		<member kind="method" name="unregister_factory">
 			<signature>func unregister_factory(script_cls: Script) -&gt; void:</signature>
 			<description>注销短生命周期对象工厂。</description>
 			<tags>
@@ -523,7 +523,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">script_cls: 要移除的脚本类型。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_factory" line="877">
+		<member kind="method" name="has_factory">
 			<signature>func has_factory(script_cls: Script) -&gt; bool:</signature>
 			<description>检查当前架构或父级架构是否注册了指定工厂。</description>
 			<tags>
@@ -532,7 +532,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">工厂存在时返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_system_alias" line="895">
+		<member kind="method" name="register_system_alias">
 			<signature>func register_system_alias(alias_cls: Script, target_cls: Script) -&gt; void:</signature>
 			<description>为已注册 System 增加一个额外查询别名。
 适合把具体实现以抽象基类或接口式脚本暴露给调用方。</description>
@@ -542,7 +542,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">target_cls: 已注册 System 的实际脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_model_alias" line="906">
+		<member kind="method" name="register_model_alias">
 			<signature>func register_model_alias(alias_cls: Script, target_cls: Script) -&gt; void:</signature>
 			<description>为已注册 Model 增加一个额外查询别名。</description>
 			<tags>
@@ -551,7 +551,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">target_cls: 已注册 Model 的实际脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_utility_alias" line="917">
+		<member kind="method" name="register_utility_alias">
 			<signature>func register_utility_alias(alias_cls: Script, target_cls: Script) -&gt; void:</signature>
 			<description>为已注册 Utility 增加一个额外查询别名。</description>
 			<tags>
@@ -560,7 +560,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">target_cls: 已注册 Utility 的实际脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_system_instance" line="926">
+		<member kind="method" name="register_system_instance">
 			<signature>func register_system_instance(instance: Object) -&gt; void:</signature>
 			<description>便捷注册 System 实例，自动从实例获取脚本类作为注册键。</description>
 			<tags>
@@ -568,7 +568,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 系统实例，必须附加有 GDScript 脚本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_model_instance" line="942">
+		<member kind="method" name="register_model_instance">
 			<signature>func register_model_instance(instance: Object) -&gt; void:</signature>
 			<description>便捷注册 Model 实例，自动从实例获取脚本类作为注册键。</description>
 			<tags>
@@ -576,7 +576,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 模型实例，必须附加有 GDScript 脚本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_utility_instance" line="958">
+		<member kind="method" name="register_utility_instance">
 			<signature>func register_utility_instance(instance: Object) -&gt; void:</signature>
 			<description>便捷注册 Utility 实例，自动从实例获取脚本类作为注册键。</description>
 			<tags>
@@ -584,7 +584,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 工具实例，必须附加有 GDScript 脚本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_system_instance_as" line="976">
+		<member kind="method" name="register_system_instance_as">
 			<signature>func register_system_instance_as(instance: Object, alias_cls: Script) -&gt; void:</signature>
 			<description>便捷注册 System，并同时以 alias_cls 作为额外查询键。</description>
 			<tags>
@@ -593,7 +593,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">alias_cls: 额外查询脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_model_instance_as" line="993">
+		<member kind="method" name="register_model_instance_as">
 			<signature>func register_model_instance_as(instance: Object, alias_cls: Script) -&gt; void:</signature>
 			<description>便捷注册 Model，并同时以 alias_cls 作为额外查询键。</description>
 			<tags>
@@ -602,7 +602,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">alias_cls: 额外查询脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="register_utility_instance_as" line="1010">
+		<member kind="method" name="register_utility_instance_as">
 			<signature>func register_utility_instance_as(instance: Object, alias_cls: Script) -&gt; void:</signature>
 			<description>便捷注册 Utility，并同时以 alias_cls 作为额外查询键。</description>
 			<tags>
@@ -611,7 +611,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">alias_cls: 额外查询脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_system" line="1025">
+		<member kind="method" name="unregister_system">
 			<signature>func unregister_system(script_cls: Script) -&gt; void:</signature>
 			<description>注销 System 实例。</description>
 			<tags>
@@ -619,7 +619,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">script_cls: 系统的脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_model" line="1035">
+		<member kind="method" name="unregister_model">
 			<signature>func unregister_model(script_cls: Script) -&gt; void:</signature>
 			<description>注销 Model 实例。</description>
 			<tags>
@@ -627,7 +627,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">script_cls: 模型的脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unregister_utility" line="1044">
+		<member kind="method" name="unregister_utility">
 			<signature>func unregister_utility(script_cls: Script) -&gt; void:</signature>
 			<description>注销 Utility 实例。</description>
 			<tags>
@@ -635,7 +635,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">script_cls: 工具的脚本类。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_system" line="1061">
+		<member kind="method" name="get_system">
 			<signature>func get_system(script_cls: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过脚本类获取 System 实例。</description>
 			<tags>
@@ -645,7 +645,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">系统实例，如果未找到则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_model" line="1081">
+		<member kind="method" name="get_model">
 			<signature>func get_model(script_cls: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过脚本类获取 Model 实例。</description>
 			<tags>
@@ -655,7 +655,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">模型实例，如果未找到则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_utility" line="1101">
+		<member kind="method" name="get_utility">
 			<signature>func get_utility(script_cls: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>通过脚本类获取 Utility 实例。</description>
 			<tags>
@@ -665,7 +665,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">工具实例，如果未找到则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_local_system" line="1121">
+		<member kind="method" name="get_local_system">
 			<signature>func get_local_system(script_cls: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>仅从当前架构获取 System，不回退父级架构。</description>
 			<tags>
@@ -675,7 +675,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">当前架构中的系统实例，如果未找到则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_local_model" line="1135">
+		<member kind="method" name="get_local_model">
 			<signature>func get_local_model(script_cls: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>仅从当前架构获取 Model，不回退父级架构。</description>
 			<tags>
@@ -685,7 +685,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">当前架构中的模型实例，如果未找到则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_local_utility" line="1149">
+		<member kind="method" name="get_local_utility">
 			<signature>func get_local_utility(script_cls: Script, require_ready: bool = false) -&gt; Object:</signature>
 			<description>仅从当前架构获取 Utility，不回退父级架构。</description>
 			<tags>
@@ -695,7 +695,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">当前架构中的工具实例，如果未找到则返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="create_instance" line="1161">
+		<member kind="method" name="create_instance">
 			<signature>func create_instance(script_cls: Script) -&gt; Object:</signature>
 			<description>通过已注册工厂创建短生命周期对象。</description>
 			<tags>
@@ -704,7 +704,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="return">新对象实例；没有工厂或工厂返回非对象时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="inject_object" line="1174">
+		<member kind="method" name="inject_object">
 			<signature>func inject_object(instance: Object) -&gt; void:</signature>
 			<description>向任意对象注入当前架构依赖。</description>
 			<tags>
@@ -712,7 +712,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">instance: 需要注入的对象。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="inject_node_tree" line="1183">
+		<member kind="method" name="inject_node_tree">
 			<signature>func inject_node_tree(node: Node) -&gt; void:</signature>
 			<description>递归向节点树中实现注入 Hook 的节点注入当前架构。</description>
 			<tags>
@@ -720,7 +720,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="param">node: 节点树根节点。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_all_models_state" line="1200">
+		<member kind="method" name="get_all_models_state">
 			<signature>func get_all_models_state() -&gt; Dictionary:</signature>
 			<description>收集所有已注册 Model 的状态快照。
 遍历所有 Model，调用其 to_dict() 方法，以脚本类的全局类名为键汇聚成一个字典。</description>
@@ -730,7 +730,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">return: Dictionary keyed by stable model save key, storing each Model.to_dict() result.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="restore_all_models_state" line="1219">
+		<member kind="method" name="restore_all_models_state">
 			<signature>func restore_all_models_state(data: Dictionary) -&gt; void:</signature>
 			<description>从状态字典恢复所有已注册 Model 的数据。</description>
 			<tags>
@@ -739,7 +739,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">data: Dictionary keyed by stable model save key, storing serialized model data.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_global_snapshot" line="1237">
+		<member kind="method" name="get_global_snapshot">
 			<signature>func get_global_snapshot() -&gt; Dictionary:</signature>
 			<description>获取整个框架的全局快照，包含所有 Model 状态以及可选命令历史记录。</description>
 			<tags>
@@ -748,7 +748,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">return: Dictionary with models and optional command_history fields.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="restore_global_snapshot" line="1261">
+		<member kind="method" name="restore_global_snapshot">
 			<signature>func restore_global_snapshot(data: Dictionary, command_builder: Callable = Callable()) -&gt; void:</signature>
 			<description>从全局快照中恢复整个框架的状态，包含 Model 状态以及可选命令历史记录。
 注意：恢复命令历史需要外部传入 CommandBuilder 进行控制反转，因为它涉及到具体的业务命令类实例化。</description>
@@ -759,7 +759,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">data: Dictionary produced by get_global_snapshot().</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_lifecycle_state" line="1289">
+		<member kind="method" name="get_debug_lifecycle_state">
 			<signature>func get_debug_lifecycle_state() -&gt; Dictionary:</signature>
 			<description>获取架构模块生命周期诊断快照。</description>
 			<tags>
@@ -768,7 +768,7 @@ query 缺少 execute() 方法时会输出 warning 并返回 null。</description
 				<tag name="schema">return: Dictionary containing lifecycle flags, registered module summaries, factory summaries, alias counts, and tick cache counts.</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_dependency_diagnostics" line="1323">
+		<member kind="method" name="get_dependency_diagnostics">
 			<signature>func get_dependency_diagnostics(options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>获取架构中已注册模块的声明式依赖诊断报告。
 模块可选择实现 get_required_dependencies() 或 get_required_models/systems/utilities/factories()。</description>

@@ -4109,6 +4109,16 @@ var label: String = ""
 
 选项显示名称。
 
+#### `tooltip`
+
+- API: `public`
+
+```gdscript
+var tooltip: String = ""
+```
+
+选项提示文本。
+
 #### `value_type`
 
 - API: `public`
@@ -4117,7 +4127,7 @@ var label: String = ""
 var value_type: ValueType = ValueType.ANY
 ```
 
-选项提示文本。 选项值类型。
+选项值类型。
 
 #### `default_value`
 

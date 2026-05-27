@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputBinding" path="addons/gf/standard/input/mapping/gf_input_binding.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputBinding" path="addons/gf/standard/input/mapping/gf_input_binding.gd" module="standard" extends="Resource" classDigest="0d33b8e1230f77b8382cd3c0dc1248150f2382840cb37700b4eef3a86fcd8855">
 	<description>GFInputBinding: 把一个 Godot 输入事件映射到动作值贡献。
 该资源只描述输入来源和数值方向，实际动作归属由 GFInputMapping 决定。</description>
 	<tags>
@@ -9,7 +9,7 @@
 	</tags>
 	<signals />
 	<enums>
-		<member kind="enum" name="ValueTarget" line="19">
+		<member kind="enum" name="ValueTarget">
 			<signature>enum ValueTarget { ## 根据动作值类型自动映射；二维/三维轴默认写入 X 分量，需要其他分量时使用显式 AXIS_* 目标。 AUTO, ## 只作为开关输入。 BOOL, ## 一维轴正向。 AXIS_1D_POSITIVE, ## 一维轴负向。 AXIS_1D_NEGATIVE, ## 二维轴 X 正向。 AXIS_2D_X_POSITIVE, ## 二维轴 X 负向。 AXIS_2D_X_NEGATIVE, ## 二维轴 Y 正向。 AXIS_2D_Y_POSITIVE, ## 二维轴 Y 负向。 AXIS_2D_Y_NEGATIVE, ## 三维轴 X 正向。 AXIS_3D_X_POSITIVE, ## 三维轴 X 负向。 AXIS_3D_X_NEGATIVE, ## 三维轴 Y 正向。 AXIS_3D_Y_POSITIVE, ## 三维轴 Y 负向。 AXIS_3D_Y_NEGATIVE, ## 三维轴 Z 正向。 AXIS_3D_Z_POSITIVE, ## 三维轴 Z 负向。 AXIS_3D_Z_NEGATIVE, }</signature>
 			<description>输入值贡献目标。</description>
 			<tags>
@@ -19,44 +19,49 @@
 	</enums>
 	<constants />
 	<properties>
-		<member kind="property" name="input_event" line="56" decorators="@export">
+		<member kind="property" name="input_event" decorators="@export">
 			<signature>var input_event: InputEvent</signature>
 			<description>Godot 原生输入事件模板。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="value_target" line="61" decorators="@export">
+		<member kind="property" name="value_target" decorators="@export">
 			<signature>var value_target: ValueTarget = ValueTarget.AUTO</signature>
 			<description>当前绑定贡献到动作值的方向。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="scale" line="71" decorators="@export_range(0.0, 1.0, 0.01) var deadzone: float = 0.2 @export">
-			<signature>var scale: float = 1.0</signature>
-			<description>轴输入死区。对按键和按钮输入无影响。
-输入贡献缩放。</description>
+		<member kind="property" name="deadzone" decorators="@export_range(0.0, 1.0, 0.01)">
+			<signature>var deadzone: float = 0.2</signature>
+			<description>轴输入死区。对按键和按钮输入无影响。</description>
 			<tags>
-				<tag name="api">public</tag>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="modifiers" line="76" decorators="@export">
+		<member kind="property" name="scale" decorators="@export">
+			<signature>var scale: float = 1.0</signature>
+			<description>输入贡献缩放。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="modifiers" decorators="@export">
 			<signature>var modifiers: Array[GFInputModifier] = []</signature>
 			<description>绑定级输入修饰器，按顺序作用于该绑定产生的贡献值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="match_device" line="81" decorators="@export">
+		<member kind="property" name="match_device" decorators="@export">
 			<signature>var match_device: bool = false</signature>
 			<description>是否按设备 ID 精确匹配。关闭时同类按键、鼠标按钮或手柄按钮可跨设备匹配。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="match_touch_index" line="87" decorators="@export">
+		<member kind="property" name="match_touch_index" decorators="@export">
 			<signature>var match_touch_index: bool = false</signature>
 			<description>是否按触点 index 精确匹配 InputEventScreenTouch。
 默认关闭，表示任意触点都可匹配该绑定。</description>
@@ -64,14 +69,14 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="display_name" line="92" decorators="@export">
+		<member kind="property" name="display_name" decorators="@export">
 			<signature>var display_name: String = ""</signature>
 			<description>覆盖显示名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="remappable" line="97" decorators="@export">
+		<member kind="property" name="remappable" decorators="@export">
 			<signature>var remappable: bool = true</signature>
 			<description>该绑定是否可被玩家重绑。</description>
 			<tags>
@@ -80,7 +85,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="duplicate_binding" line="107">
+		<member kind="method" name="duplicate_binding">
 			<signature>func duplicate_binding() -&gt; GFInputBinding:</signature>
 			<description>创建深拷贝，避免运行时重映射污染原始资源。</description>
 			<tags>
@@ -88,7 +93,7 @@
 				<tag name="return">新绑定。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="matches_event" line="128">
+		<member kind="method" name="matches_event">
 			<signature>func matches_event(event: InputEvent) -&gt; bool:</signature>
 			<description>判断当前绑定是否匹配输入事件。</description>
 			<tags>
@@ -97,7 +102,7 @@
 				<tag name="return">是否匹配。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_contribution" line="169">
+		<member kind="method" name="get_contribution">
 			<signature>func get_contribution( event: InputEvent, action_value_type: GFInputAction.ValueType, deadzone_override: float = -1.0 ) -&gt; Vector3:</signature>
 			<description>计算该输入事件对动作值的贡献。</description>
 			<tags>
@@ -108,7 +113,7 @@
 				<tag name="return">三维向量贡献；布尔与一维轴使用 x 分量，二维轴使用 x/y 分量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_display_name" line="219">
+		<member kind="method" name="get_display_name">
 			<signature>func get_display_name() -&gt; String:</signature>
 			<description>获取显示名称。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkHistoryBuffer" path="addons/gf/extensions/network/snapshot/gf_network_history_buffer.gd" module="extensions/network" extends="RefCounted" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFNetworkHistoryBuffer" path="addons/gf/extensions/network/snapshot/gf_network_history_buffer.gd" module="extensions/network" extends="RefCounted" classDigest="87873e17ea62e6a08fb143a2c027b8c31aaf11bd7a8f367f0ae5aaa45c0def06">
 	<description>GFNetworkHistoryBuffer: 按 tick 保存网络快照的环形历史。
 用于插值、重放、状态对账或项目自定义同步流程；不会自动执行预测、回滚或冲突解决。</description>
 	<tags>
@@ -11,7 +11,7 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="capacity" line="19">
+		<member kind="property" name="capacity">
 			<signature>var capacity: int = 120</signature>
 			<description>最大保存快照数量。小于等于 0 表示不限制。</description>
 			<tags>
@@ -20,7 +20,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="add_snapshot" line="43">
+		<member kind="method" name="add_snapshot">
 			<signature>func add_snapshot(snapshot: GFNetworkSnapshot) -&gt; bool:</signature>
 			<description>添加快照。</description>
 			<tags>
@@ -29,7 +29,7 @@
 				<tag name="return">添加成功返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="add_state" line="72">
+		<member kind="method" name="add_state">
 			<signature>func add_state( tick: int, state: Dictionary, peer_id: int = -1, metadata: Dictionary = {} ) -&gt; GFNetworkSnapshot:</signature>
 			<description>添加状态字典并返回生成的快照。</description>
 			<tags>
@@ -43,7 +43,7 @@
 				<tag name="schema">metadata: Dictionary，保存项目自定义快照元数据。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="has_snapshot" line="90">
+		<member kind="method" name="has_snapshot">
 			<signature>func has_snapshot(tick: int) -&gt; bool:</signature>
 			<description>检查指定 tick 是否存在快照。</description>
 			<tags>
@@ -52,7 +52,7 @@
 				<tag name="return">存在返回 true。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_snapshot" line="101">
+		<member kind="method" name="get_snapshot">
 			<signature>func get_snapshot(tick: int) -&gt; GFNetworkSnapshot:</signature>
 			<description>获取指定 tick 的快照副本。</description>
 			<tags>
@@ -61,7 +61,7 @@
 				<tag name="return">快照副本；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_latest_snapshot" line="111">
+		<member kind="method" name="get_latest_snapshot">
 			<signature>func get_latest_snapshot() -&gt; GFNetworkSnapshot:</signature>
 			<description>获取最新快照副本。</description>
 			<tags>
@@ -69,7 +69,7 @@
 				<tag name="return">最新快照；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_earliest_snapshot" line="122">
+		<member kind="method" name="get_earliest_snapshot">
 			<signature>func get_earliest_snapshot() -&gt; GFNetworkSnapshot:</signature>
 			<description>获取最早快照副本。</description>
 			<tags>
@@ -77,7 +77,7 @@
 				<tag name="return">最早快照；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_closest_snapshot" line="137">
+		<member kind="method" name="get_closest_snapshot">
 			<signature>func get_closest_snapshot(tick: int, prefer_older: bool = true) -&gt; GFNetworkSnapshot:</signature>
 			<description>获取最接近指定 tick 的快照副本。</description>
 			<tags>
@@ -87,7 +87,7 @@
 				<tag name="return">快照副本；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_snapshots_between" line="169">
+		<member kind="method" name="get_snapshots_between">
 			<signature>func get_snapshots_between( from_tick: int, to_tick: int, include_bounds: bool = true ) -&gt; Array[GFNetworkSnapshot]:</signature>
 			<description>获取指定 tick 范围内的快照副本。</description>
 			<tags>
@@ -99,7 +99,7 @@
 				<tag name="schema">return: Array[GFNetworkSnapshot]，按 tick 升序排列的快照副本。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_surrounding_snapshots" line="203">
+		<member kind="method" name="get_surrounding_snapshots">
 			<signature>func get_surrounding_snapshots(tick: int) -&gt; Dictionary:</signature>
 			<description>获取包围指定 tick 的快照副本。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="schema">return: Dictionary，包含 exact、previous、next，值为 GFNetworkSnapshot 或 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_ticks" line="227">
+		<member kind="method" name="get_ticks">
 			<signature>func get_ticks() -&gt; PackedInt64Array:</signature>
 			<description>获取已保存 tick 列表。</description>
 			<tags>
@@ -117,7 +117,7 @@
 				<tag name="return">tick 列表。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="prune_before" line="241">
+		<member kind="method" name="prune_before">
 			<signature>func prune_before(tick: int) -&gt; int:</signature>
 			<description>删除指定 tick 之前的快照。</description>
 			<tags>
@@ -126,14 +126,14 @@
 				<tag name="return">删除数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear" line="256">
+		<member kind="method" name="clear">
 			<signature>func clear() -&gt; void:</signature>
 			<description>清空历史。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="size" line="266">
+		<member kind="method" name="size">
 			<signature>func size() -&gt; int:</signature>
 			<description>获取快照数量。</description>
 			<tags>
@@ -141,7 +141,7 @@
 				<tag name="return">快照数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="277">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSignalRuntimeProbe" path="addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd" module="standard" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFSignalRuntimeProbe" path="addons/gf/standard/utilities/debug/gf_signal_runtime_probe.gd" module="standard" extends="RefCounted" classDigest="f9a088dbda21cf0737053edf223389492b2f626c450ba703d67c0231cce4ab12">
 	<description>GFSignalRuntimeProbe: 运行时信号发射追踪器。
 以显式 watch 的方式连接节点信号，并把实际发射记录为只读事件快照。
 它不修改被观察节点，不解释业务语义，也不应默认用于生产环境全局采样。</description>
@@ -9,7 +9,7 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals>
-		<member kind="signal" name="signal_emitted" line="24">
+		<member kind="signal" name="signal_emitted">
 			<signature>signal signal_emitted(event: Dictionary)</signature>
 			<description>记录到信号发射事件后发出。</description>
 			<tags>
@@ -18,7 +18,7 @@
 				<tag name="schema">event: Dictionary，包含 timestamp_msec、process_frame、physics_frame、source_instance_id、source_node_path、signal_name、argument_count、arguments 和 connections。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="signal_watch_started" line="33">
+		<member kind="signal" name="signal_watch_started">
 			<signature>signal signal_watch_started(source_path: String, signal_name: StringName)</signature>
 			<description>开始监听一个节点信号后发出。</description>
 			<tags>
@@ -27,7 +27,7 @@
 				<tag name="param">signal_name: 信号名称。</tag>
 			</tags>
 		</member>
-		<member kind="signal" name="signal_watch_stopped" line="42">
+		<member kind="signal" name="signal_watch_stopped">
 			<signature>signal signal_watch_stopped(source_path: String, signal_name: StringName)</signature>
 			<description>停止监听一个节点信号后发出。</description>
 			<tags>
@@ -39,28 +39,28 @@
 	</signals>
 	<enums />
 	<constants>
-		<member kind="const" name="DEFAULT_MAX_EVENTS" line="50">
+		<member kind="const" name="DEFAULT_MAX_EVENTS">
 			<signature>const DEFAULT_MAX_EVENTS: int = 256</signature>
 			<description>默认保留的最近信号发射事件数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_ARGUMENT_COUNT" line="57">
+		<member kind="const" name="DEFAULT_MAX_ARGUMENT_COUNT">
 			<signature>const DEFAULT_MAX_ARGUMENT_COUNT: int = _MAX_SUPPORTED_ARGUMENT_COUNT</signature>
 			<description>默认单个信号最多追踪的参数数量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_WATCH_TREE_DEPTH" line="62">
+		<member kind="const" name="DEFAULT_MAX_WATCH_TREE_DEPTH">
 			<signature>const DEFAULT_MAX_WATCH_TREE_DEPTH: int = 64</signature>
 			<description>默认递归监听节点树深度上限。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="const" name="DEFAULT_MAX_WATCH_TREE_NODES" line="67">
+		<member kind="const" name="DEFAULT_MAX_WATCH_TREE_NODES">
 			<signature>const DEFAULT_MAX_WATCH_TREE_NODES: int = 4096</signature>
 			<description>默认递归监听节点树数量上限。</description>
 			<tags>
@@ -69,14 +69,14 @@
 		</member>
 	</constants>
 	<properties>
-		<member kind="property" name="max_events" line="77">
+		<member kind="property" name="max_events">
 			<signature>var max_events: int = DEFAULT_MAX_EVENTS</signature>
 			<description>最多保留的最近事件数量。小于等于 0 表示不保留历史，只发出 signal_emitted。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="max_argument_count" line="82">
+		<member kind="property" name="max_argument_count">
 			<signature>var max_argument_count: int = DEFAULT_MAX_ARGUMENT_COUNT</signature>
 			<description>单个信号最多支持追踪的参数数量。</description>
 			<tags>
@@ -85,7 +85,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="watch_node" line="106">
+		<member kind="method" name="watch_node">
 			<signature>func watch_node(source: Node, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>监听单个节点的信号。</description>
 			<tags>
@@ -97,7 +97,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、watched_count、skipped_count 和 errors。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="watch_tree" line="165">
+		<member kind="method" name="watch_tree">
 			<signature>func watch_tree(root: Node, options: Dictionary = {}) -&gt; Dictionary:</signature>
 			<description>递归监听节点树。</description>
 			<tags>
@@ -109,7 +109,7 @@
 				<tag name="schema">return: Dictionary，包含 ok、watched_count、skipped_count 和 errors。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unwatch_node" line="197">
+		<member kind="method" name="unwatch_node">
 			<signature>func unwatch_node(source: Node) -&gt; int:</signature>
 			<description>停止监听某个节点。</description>
 			<tags>
@@ -118,7 +118,7 @@
 				<tag name="return">断开的信号数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="unwatch_all" line="218">
+		<member kind="method" name="unwatch_all">
 			<signature>func unwatch_all() -&gt; int:</signature>
 			<description>停止所有监听。</description>
 			<tags>
@@ -126,14 +126,14 @@
 				<tag name="return">断开的信号数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="clear_events" line="231">
+		<member kind="method" name="clear_events">
 			<signature>func clear_events() -&gt; void:</signature>
 			<description>清空最近事件。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_events" line="242">
+		<member kind="method" name="get_events">
 			<signature>func get_events() -&gt; Array[Dictionary]:</signature>
 			<description>获取最近事件副本。</description>
 			<tags>
@@ -142,7 +142,7 @@
 				<tag name="schema">return: Array[Dictionary]，每个元素包含 timestamp_msec、process_frame、physics_frame、source_instance_id、source_node_path、signal_name、argument_count、arguments 和 connections。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_watch_count" line="254">
+		<member kind="method" name="get_watch_count">
 			<signature>func get_watch_count() -&gt; int:</signature>
 			<description>获取被监听的信号数量。</description>
 			<tags>
@@ -150,7 +150,7 @@
 				<tag name="return">当前有效监听数量。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_debug_snapshot" line="266">
+		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取调试快照。</description>
 			<tags>

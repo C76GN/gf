@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputContext" path="addons/gf/standard/input/mapping/gf_input_context.gd" module="standard" extends="Resource" line="10" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputContext" path="addons/gf/standard/input/mapping/gf_input_context.gd" module="standard" extends="Resource" classDigest="addbbfcfed81c24471121a6935a73aa5d63a1f643dba6a0b2a0ef8006bfad0c5">
 	<description>GFInputContext: 资源化输入上下文。
 上下文用于表示一组可启停的输入映射，例如 gameplay、menu、dialogue。</description>
 	<tags>
@@ -11,21 +11,21 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="context_id" line="19" decorators="@export">
+		<member kind="property" name="context_id" decorators="@export">
 			<signature>var context_id: StringName = &amp;""</signature>
 			<description>上下文稳定标识。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="display_name" line="24" decorators="@export">
+		<member kind="property" name="display_name" decorators="@export">
 			<signature>var display_name: String = ""</signature>
 			<description>显示名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="mappings" line="29" decorators="@export">
+		<member kind="property" name="mappings" decorators="@export">
 			<signature>var mappings: Array[GFInputMapping] = []</signature>
 			<description>该上下文中的动作映射。</description>
 			<tags>
@@ -34,7 +34,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_context_id" line="39">
+		<member kind="method" name="get_context_id">
 			<signature>func get_context_id() -&gt; StringName:</signature>
 			<description>获取稳定上下文标识。</description>
 			<tags>
@@ -42,7 +42,7 @@
 				<tag name="return">上下文标识。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_display_name" line="52">
+		<member kind="method" name="get_display_name">
 			<signature>func get_display_name() -&gt; String:</signature>
 			<description>获取显示名称。</description>
 			<tags>

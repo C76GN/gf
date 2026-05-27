@@ -53,6 +53,11 @@ signal flush_completed(result: Dictionary)
 signal flush_failed(result: Dictionary)
 
 
+# --- 常量 ---
+
+const _GF_UUID := preload("res://addons/gf/standard/foundation/identity/gf_uuid.gd")
+
+
 # --- 公共变量 ---
 
 ## 当前配置。
@@ -421,22 +426,7 @@ func _trim_queue_to_max_size() -> void:
 
 
 func _generate_id() -> String:
-	var rng := RandomNumberGenerator.new()
-	rng.randomize()
-	var bytes := PackedByteArray()
-	bytes.resize(16)
-	for index: int in range(bytes.size()):
-		bytes[index] = rng.randi_range(0, 255)
-	bytes[6] = (bytes[6] & 0x0f) | 0x40
-	bytes[8] = (bytes[8] & 0x3f) | 0x80
-	var hex := bytes.hex_encode()
-	return "%s-%s-%s-%s-%s" % [
-		hex.substr(0, 8),
-		hex.substr(8, 4),
-		hex.substr(12, 4),
-		hex.substr(16, 4),
-		hex.substr(20, 12),
-	]
+	return _GF_UUID.generate_v4()
 
 
 func _build_payload(batch: Array) -> Dictionary:

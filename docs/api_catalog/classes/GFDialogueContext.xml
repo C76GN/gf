@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDialogueContext" path="addons/gf/extensions/dialogue/runtime/gf_dialogue_context.gd" module="extensions/dialogue" extends="RefCounted" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFDialogueContext" path="addons/gf/extensions/dialogue/runtime/gf_dialogue_context.gd" module="extensions/dialogue" extends="RefCounted" classDigest="78d5343cfb95dd3b35e574ea93dc287e7da12160f1ce610c933b532a22c0ee12">
 	<description>GFDialogueContext: 通用对话运行上下文。
 上下文保存运行时值，并把条件判断、mutation 和文本解析委托给项目提供的
 Callable。框架只负责规范调用与结果包装。</description>
@@ -12,7 +12,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="values" line="22">
+		<member kind="property" name="values">
 			<signature>var values: Dictionary = {}</signature>
 			<description>运行时值表。字段含义由项目决定。</description>
 			<tags>
@@ -20,21 +20,21 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="schema">values: 项目自定义运行时值 Dictionary；键通常为 StringName，值由项目决定。</tag>
 			</tags>
 		</member>
-		<member kind="property" name="condition_handler" line="27">
+		<member kind="property" name="condition_handler">
 			<signature>var condition_handler: Callable = Callable()</signature>
 			<description>条件处理器，建议签名为 func(condition_id, payload, subject, context) -&gt; Variant。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="mutation_handler" line="32">
+		<member kind="property" name="mutation_handler">
 			<signature>var mutation_handler: Callable = Callable()</signature>
 			<description>mutation 处理器，建议签名为 func(mutation_id, payload, subject, context) -&gt; Variant。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="text_resolver" line="37">
+		<member kind="property" name="text_resolver">
 			<signature>var text_resolver: Callable = Callable()</signature>
 			<description>文本解析器，建议签名为 func(text, subject, context) -&gt; String。</description>
 			<tags>
@@ -43,7 +43,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="set_architecture" line="61">
+		<member kind="method" name="set_architecture">
 			<signature>func set_architecture(architecture: GFArchitecture) -&gt; GFDialogueContext:</signature>
 			<description>设置架构引用。</description>
 			<tags>
@@ -52,7 +52,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="return">当前上下文。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_architecture" line="71">
+		<member kind="method" name="get_architecture">
 			<signature>func get_architecture() -&gt; GFArchitecture:</signature>
 			<description>获取架构引用。</description>
 			<tags>
@@ -60,7 +60,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="return">架构实例；不存在时返回 null。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="set_value" line="88">
+		<member kind="method" name="set_value">
 			<signature>func set_value(key: StringName, value: Variant) -&gt; GFDialogueContext:</signature>
 			<description>写入上下文值。</description>
 			<tags>
@@ -71,7 +71,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="schema">value: 要写入 values 的任意项目值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_value" line="106">
+		<member kind="method" name="get_value">
 			<signature>func get_value(key: StringName, default_value: Variant = null) -&gt; Variant:</signature>
 			<description>读取上下文值。</description>
 			<tags>
@@ -83,7 +83,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="schema">return: values 中的项目值，或传入的 default_value。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="check_condition" line="127">
+		<member kind="method" name="check_condition">
 			<signature>func check_condition(condition_id: StringName, payload: Variant = null, subject: Variant = null) -&gt; Dictionary:</signature>
 			<description>检查条件。</description>
 			<tags>
@@ -97,7 +97,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="schema">return: 包含 ok、reason 和 value 等字段的 Dictionary；当处理器返回 Dictionary 时会保留调用方字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="apply_mutation" line="152">
+		<member kind="method" name="apply_mutation">
 			<signature>func apply_mutation(mutation_id: StringName, payload: Variant = null, subject: Variant = null) -&gt; Dictionary:</signature>
 			<description>请求执行 mutation。</description>
 			<tags>
@@ -111,7 +111,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="schema">return: 包含 ok、reason 和 value 等字段的 Dictionary；当处理器返回 Dictionary 时会保留调用方字段。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="resolve_text" line="171">
+		<member kind="method" name="resolve_text">
 			<signature>func resolve_text(text: String, subject: Variant = null) -&gt; String:</signature>
 			<description>解析文本。</description>
 			<tags>
@@ -122,7 +122,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="schema">subject: GFDialogueLine、GFDialogueResponse 或项目传入的任意文本主体。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="serialize_values" line="184">
+		<member kind="method" name="serialize_values">
 			<signature>func serialize_values() -&gt; Dictionary:</signature>
 			<description>序列化运行值。</description>
 			<tags>
@@ -131,7 +131,7 @@ Callable。框架只负责规范调用与结果包装。</description>
 				<tag name="schema">return: values 的深拷贝 Dictionary。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="deserialize_values" line="195">
+		<member kind="method" name="deserialize_values">
 			<signature>func deserialize_values(data: Dictionary) -&gt; void:</signature>
 			<description>恢复运行值。</description>
 			<tags>

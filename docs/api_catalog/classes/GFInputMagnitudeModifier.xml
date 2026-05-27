@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFInputMagnitudeModifier" path="addons/gf/standard/input/modifiers/gf_input_magnitude_modifier.gd" module="standard" extends="GFInputModifier" line="11" sourceDigest="639e6a779a4ee79fedc816ff61ae1b911ecb5e4275b3a597e0671c9017d3a98c">
+<class name="GFInputMagnitudeModifier" path="addons/gf/standard/input/modifiers/gf_input_magnitude_modifier.gd" module="standard" extends="GFInputModifier" classDigest="2e42d658fed88c3e13f4e1be8cc0389b676ecf83f3c4c20920457f2022d841a2">
 	<description>GFInputMagnitudeModifier: 输入幅值投影修饰器。
 将多轴输入转换为长度值，并按配置写回到指定分量。它只处理向量数值，
 不解释这个幅值代表移动、视角、压力或其他业务含义。</description>
@@ -12,35 +12,35 @@
 	<enums />
 	<constants />
 	<properties>
-		<member kind="property" name="output_x" line="20" decorators="@export">
+		<member kind="property" name="output_x" decorators="@export">
 			<signature>var output_x: bool = true</signature>
 			<description>输出幅值到 X 分量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="output_y" line="25" decorators="@export">
+		<member kind="property" name="output_y" decorators="@export">
 			<signature>var output_y: bool = false</signature>
 			<description>输出幅值到 Y 分量。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="output_z" line="30" decorators="@export">
+		<member kind="property" name="output_z" decorators="@export">
 			<signature>var output_z: bool = false</signature>
 			<description>输出幅值到 Z 分量，仅用于三维输入。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="absolute_value" line="35" decorators="@export">
+		<member kind="property" name="absolute_value" decorators="@export">
 			<signature>var absolute_value: bool = true</signature>
 			<description>是否使用绝对值幅值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
-		<member kind="property" name="preserve_unselected_components" line="40" decorators="@export">
+		<member kind="property" name="preserve_unselected_components" decorators="@export">
 			<signature>var preserve_unselected_components: bool = false</signature>
 			<description>非输出分量是否保留原值。</description>
 			<tags>
@@ -49,7 +49,7 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="modify" line="56">
+		<member kind="method" name="modify">
 			<signature>func modify(value: Vector2, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector2:</signature>
 			<description>修改二维输入值。</description>
 			<tags>
@@ -60,7 +60,7 @@
 				<tag name="return">幅值投影后的二维输入值。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="modify_3d" line="75">
+		<member kind="method" name="modify_3d">
 			<signature>func modify_3d(value: Vector3, _event: InputEvent = null, _action: GFInputAction = null) -&gt; Vector3:</signature>
 			<description>修改三维输入值。</description>
 			<tags>
