@@ -39,6 +39,26 @@ func _try_execute(p_targets: Array[Object]) -> bool:
 	return true
 ```
 
+需要项目自定义成本、状态或上下文检查时，不必把规则写进 `GFSkill` 子类深处，可以把纯检查和提交拆到激活管线：
+
+```gdscript
+var skill := FireBallSkill.new(caster)
+skill.activation_checks.append(func(context: GFSkillActivationContext) -> Dictionary:
+	return {
+		"ok": mana >= 10,
+		"reason": &"not_enough_resource",
+	}
+)
+skill.activation_commit_callbacks.append(func(context: GFSkillActivationContext) -> Dictionary:
+	mana -= 10
+	return { "ok": true }
+)
+
+skill.execute(enemy, null, { "input_id": &"primary" })
+```
+
+检查回调应尽量保持无副作用；真正消耗或预留资源放到提交回调中。上下文的 `metadata` 只作为项目诊断和串联数据，框架不解释其中字段。
+
 ## 属性修饰器
 
 ```gdscript

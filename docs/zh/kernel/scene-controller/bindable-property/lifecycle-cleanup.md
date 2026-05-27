@@ -17,4 +17,6 @@ func _ready() -> void:
 
 同一个 callable 绑定到多个节点时，只要仍有一个节点绑定存活，框架创建的 `value_changed` 连接就会保留。最后一个绑定离开后才自动断开。
 
+`subscribe(callback, emit_current)` 适合无 Node 生命周期的对象。它直接连接 `value_changed` 并返回一个取消订阅函数；持有方应保存这个 Callable，并在释放、重建或测试结束时调用它。`emit_current` 为 `true` 时会立即用当前值调用回调，避免单独写一次初始刷新逻辑。
+
 确实要清空 `value_changed` 上所有订阅者时，使用语义更明确的 `disconnect_all_subscribers()`。

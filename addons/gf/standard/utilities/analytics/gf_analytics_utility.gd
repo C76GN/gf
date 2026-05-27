@@ -336,12 +336,22 @@ func _send_batch(batch: Array) -> void:
 		return
 
 	var payload := _build_payload(batch)
-	var error := request.request(
-		config.endpoint_url,
-		config.build_headers(),
-		HTTPClient.METHOD_POST,
-		JSON.stringify(payload)
-	)
+	var payload_text := JSON.stringify(payload)
+	var error := OK
+	if config.compress_payload:
+		error = request.request_raw(
+			config.endpoint_url,
+			config.build_headers(),
+			HTTPClient.METHOD_POST,
+			_compress_payload_text(payload_text)
+		)
+	else:
+		error = request.request(
+			config.endpoint_url,
+			config.build_headers(),
+			HTTPClient.METHOD_POST,
+			payload_text
+		)
 	if error != OK:
 		_finish_flush({
 			"success": false,
@@ -435,6 +445,10 @@ func _build_payload(batch: Array) -> Dictionary:
 		if payload is Dictionary:
 			return payload as Dictionary
 	return { "events": batch }
+
+
+func _compress_payload_text(payload_text: String) -> PackedByteArray:
+	return payload_text.to_utf8_buffer().compress(FileAccess.COMPRESSION_GZIP)
 
 
 func _load_or_create_client_id() -> String:

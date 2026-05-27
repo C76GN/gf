@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFSkillActivationContext" path="addons/gf/extensions/combat/skills/gf_skill_activation_context.gd" module="extensions/combat" extends="RefCounted" classDigest="e819833706a66f3906380876bd7a734185b27111db3b4e010cb8185645d54855">
+	<description>GFSkillActivationContext: 技能激活上下文。
+保存一次技能激活过程中的 owner、目标、位置、失败原因和项目元数据。
+它只承载通用上下文，不解释成本、阵营、属性或具体玩法规则。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.20.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="skill">
+			<signature>var skill: GFSkill = null</signature>
+			<description>技能实例。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="owner">
+			<signature>var owner: Object = null</signature>
+			<description>技能拥有者。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="manual_target">
+			<signature>var manual_target: Object = null</signature>
+			<description>手动传入的目标。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="cast_center">
+			<signature>var cast_center: Variant = null</signature>
+			<description>原始施放中心。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">cast_center: Variant，可为 null 或 Vector2。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="resolved_center">
+			<signature>var resolved_center: Vector2 = Vector2.ZERO</signature>
+			<description>解析后的施放中心。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="targets">
+			<signature>var targets: Array[Object] = []</signature>
+			<description>最终目标列表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">targets: Array[Object]，经过项目目标规则过滤后的目标。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="failure_reason">
+			<signature>var failure_reason: StringName = &amp;""</signature>
+			<description>激活报告中的失败原因。空值表示尚未失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，项目持有的成本、日志、调试或表现数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure">
+			<signature>func configure( p_skill: GFSkill, p_owner: Object, p_manual_target: Object = null, p_cast_center: Variant = null, p_resolved_center: Vector2 = Vector2.ZERO, p_metadata: Dictionary = {} ) -&gt; RefCounted:</signature>
+			<description>配置上下文并返回自身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_skill: 技能实例。</tag>
+				<tag name="param">p_owner: 技能拥有者。</tag>
+				<tag name="param">p_manual_target: 手动传入目标。</tag>
+				<tag name="param">p_cast_center: 原始施放中心。</tag>
+				<tag name="param">p_resolved_center: 解析后的施放中心。</tag>
+				<tag name="param">p_metadata: 项目自定义元数据。</tag>
+				<tag name="return">当前上下文。</tag>
+				<tag name="schema">p_cast_center: Variant，可为 null 或 Vector2。</tag>
+				<tag name="schema">p_metadata: Dictionary，复制到上下文中供项目检查、提交或诊断使用。</tag>
+				<tag name="schema">return: GFSkillActivationContext 当前上下文。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="fail">
+			<signature>func fail(reason: StringName, extra_metadata: Dictionary = {}) -&gt; void:</signature>
+			<description>标记激活失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">reason: 失败原因。</tag>
+				<tag name="param">extra_metadata: 追加到上下文的元数据。</tag>
+				<tag name="schema">extra_metadata: Dictionary，复制到 metadata 中供项目诊断或串联使用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_ok">
+			<signature>func is_ok() -&gt; bool:</signature>
+			<description>检查上下文当前是否未失败。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">未失败时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_report">
+			<signature>func to_report() -&gt; Dictionary:</signature>
+			<description>创建报告字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">报告字典。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、reason、skill_id、target_count 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

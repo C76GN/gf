@@ -25,8 +25,10 @@
 能力：
 
 - 冷却管理：内置冷却计时逻辑。
-- 条件检查：支持 `require_tags` 和 `ignore_tags`。
+- 条件检查：支持 `require_tags` / `ignore_tags`、可选 `activation_query` 和项目自定义 `activation_checks`。
+- 激活上下文：`build_activation_context()` 会生成 `GFSkillActivationContext`，保存 owner、手动目标、解析位置、最终目标和项目元数据。
+- 提交流程：`activation_commit_callbacks` 在检查和目标解析通过后、执行技能逻辑前调用，适合项目提交抽象成本、预留资源或写入诊断数据。
 - 自动化索敌：可集成 `GFSkillTargetingRule` 实现管线化自动索敌。
 - 执行结果：`execute()` 返回是否真正施放成功。
 
-需要在子类中拒绝施放或等待项目校验时，重写 `_try_execute(targets) -> bool`。只有返回 `true`，技能才会进入冷却。
+需要在子类中拒绝施放或等待项目校验时，可继续重写 `_try_execute(targets) -> bool`，也可重写 `_try_activate(context) -> bool` 读取完整上下文。只有最终返回 `true`，技能才会发出 `activation_committed` 并进入冷却；检查、提交或执行失败会发出 `activation_failed`。

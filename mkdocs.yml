@@ -192,6 +192,7 @@ nav:
                   - 预算账本: standard/foundation/data-validation/budget-collections-timeline/budget-ledger.md
                   - 值索引与变更批次: standard/foundation/data-validation/budget-collections-timeline/value-index-mutation-batch.md
                   - 时间段文本轨道: standard/foundation/data-validation/budget-collections-timeline/timed-text.md
+                  - 回放时间线: standard/foundation/data-validation/budget-collections-timeline/replay-timeline.md
               - 公式与 Variant 数据:
                   - 总览: standard/foundation/data-validation/formula-variant/index.md
                   - 资源化公式: standard/foundation/data-validation/formula-variant/formulas.md

@@ -688,6 +688,57 @@ func test_network_snapshot_delta_preserves_variant_erase_keys() -> void:
 	assert_false(applied.state.has(7), "Variant 删除键应按原类型删除。")
 
 
+func test_network_snapshot_patch_round_trips_nested_state() -> void:
+	var start := GFNetworkSnapshotBase.new(10, {
+		"entity": {
+			"hp": 10,
+			"mana": 3,
+			"status": {
+				"burning": true,
+			},
+		},
+		"stale": 1,
+	}, 2)
+	var target := GFNetworkSnapshotBase.new(12, {
+		"entity": {
+			"hp": 8,
+			"status": {
+				"frozen": true,
+			},
+		},
+		"position": Vector2(1.0, 2.0),
+	}, 2, { "source": "server" })
+
+	var patch := start.make_patch_to(target)
+	var applied := start.apply_patch(patch)
+	var entity := applied.state["entity"] as Dictionary
+	var status := entity["status"] as Dictionary
+
+	assert_true(bool(patch["ok"]), "有效目标快照应生成 patch。")
+	assert_gt((patch["set"] as Array).size(), 0, "嵌套变更应产生 set 操作。")
+	assert_gt((patch["erase"] as Array).size(), 0, "嵌套删除应产生 erase 操作。")
+	assert_eq(applied.tick, 12, "应用 patch 后 tick 应更新。")
+	assert_eq(entity["hp"], 8, "嵌套字段应被更新。")
+	assert_false(entity.has("mana"), "目标中不存在的嵌套字段应被删除。")
+	assert_true(bool(status["frozen"]), "新增嵌套字段应被写入。")
+	assert_false(status.has("burning"), "嵌套状态中不存在的字段应被删除。")
+	assert_false(applied.state.has("stale"), "顶层删除仍应生效。")
+	assert_eq(applied.state["position"], Vector2(1.0, 2.0), "新增顶层字段应被写入。")
+	assert_eq(applied.metadata["source"], "server", "目标元数据应随 patch 更新。")
+
+
+func test_network_snapshot_patch_preserves_empty_dictionary_set() -> void:
+	var start := GFNetworkSnapshotBase.new(1, {}, 2)
+	var target := GFNetworkSnapshotBase.new(2, { "entity": {} }, 2)
+
+	var patch := start.make_patch_to(target)
+	var applied := start.apply_patch(patch)
+
+	assert_eq((patch["set"] as Array).size(), 1, "新增空字典字段应作为整体 set。")
+	assert_true(applied.state.has("entity"), "应用 patch 后应保留空字典字段。")
+	assert_true((applied.state["entity"] as Dictionary).is_empty(), "空字典字段不应丢失。")
+
+
 ## 验证网络历史缓冲按容量保留最新快照并可查询最近 tick。
 func test_network_history_buffer_prunes_by_capacity() -> void:
 	var history := GFNetworkHistoryBufferBase.new(2)
@@ -738,3 +789,31 @@ func test_network_snapshot_schema_encodes_and_decodes_fields() -> void:
 	assert_eq(decoded.peer_id, 4, "Schema 解码应保留 peer。")
 	assert_eq(decoded.state[&"position"], Vector2(1.2, 2.3), "Schema 应恢复字段类型。")
 	assert_eq(decoded.state["name"], "unit", "未注册字段应按配置原样保留。")
+
+
+func test_network_snapshot_schema_encodes_and_decodes_patch_values() -> void:
+	var serializer := GFNetworkFieldSerializerBase.new()
+	serializer.value_type = GFNetworkFieldSerializerBase.ValueType.VECTOR2
+	serializer.quantize_decimals = 1
+	var schema := GFNetworkSnapshotSchemaBase.new()
+	schema.set_field_serializer(&"position", serializer)
+	var start := GFNetworkSnapshotBase.new(1, { "position": Vector2.ZERO }, 2)
+	var target := GFNetworkSnapshotBase.new(2, {
+		"position": Vector2(1.24, 2.26),
+		"name": "unit",
+	}, 2)
+
+	var patch := start.make_patch_to(target)
+	var encoded := schema.encode_patch(patch)
+	var decoded := schema.decode_patch(encoded)
+	var applied := start.apply_patch(decoded)
+	var encoded_position: Variant = null
+	var set_ops := encoded["set"] as Array
+	for op: Dictionary in set_ops:
+		var path := op["path"] as Array
+		if not path.is_empty() and String(path[0]) == "position":
+			encoded_position = op["value"]
+
+	assert_eq(encoded_position, [1.2, 2.3], "Schema 应按字段编码 patch set 值。")
+	assert_eq(applied.state["position"], Vector2(1.2, 2.3), "Schema 应恢复 patch set 字段类型。")
+	assert_eq(applied.state["name"], "unit", "未注册 patch 字段应按配置原样保留。")

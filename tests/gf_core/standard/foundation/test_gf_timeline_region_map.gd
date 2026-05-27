@@ -5,6 +5,7 @@ extends GutTest
 # --- 常量 ---
 
 const GFRegionMap2DBase = preload("res://addons/gf/standard/foundation/math/gf_region_map_2d.gd")
+const GFReplayTimelineBase = preload("res://addons/gf/standard/foundation/timeline/gf_replay_timeline.gd")
 const GFTimedTextEntryBase = preload("res://addons/gf/standard/foundation/timeline/gf_timed_text_entry.gd")
 const GFTimedTextTrackBase = preload("res://addons/gf/standard/foundation/timeline/gf_timed_text_track.gd")
 const GFTimedTextImporterBase = preload("res://addons/gf/standard/foundation/timeline/gf_timed_text_importer.gd")
@@ -34,6 +35,39 @@ func test_timed_text_importer_parses_srt_and_lrc() -> void:
 	assert_eq(srt_track.call("get_text_at_time", 1.25), "Hello", "SRT 时间段应可查询。")
 	assert_eq(lrc_track.call("get_text_at_time", 1.5), "One", "LRC 行应转换为时间段。")
 	assert_eq(lrc_track.call("get_total_duration"), 4.0, "LRC 最后一行应使用默认时长。")
+
+
+func test_replay_timeline_records_queries_and_serializes_events() -> void:
+	var timeline := GFReplayTimelineBase.new()
+	timeline.timeline_id = &"session"
+	timeline.add_input(0.1, { "action_id": &"jump", "value": true })
+	timeline.add_command(0.2, { "command_id": &"open" })
+	timeline.add_snapshot(0.3, { "tick": 3, "state": { "hp": 10 } })
+
+	var input_events := timeline.get_events_by_kind(GFReplayTimelineBase.EVENT_INPUT)
+	var range_events := timeline.get_events_in_range(0.0, 0.25)
+	var restored := GFReplayTimelineBase.from_dictionary(timeline.to_dictionary())
+
+	assert_eq(timeline.get_event_count(), 3, "时间线应记录多种事件。")
+	assert_eq(input_events.size(), 1, "应能按事件类型查询。")
+	assert_eq(range_events.size(), 2, "应能按时间范围查询。")
+	assert_eq(restored.timeline_id, &"session", "序列化应保留时间线 ID。")
+	assert_eq(restored.get_event_count(), 3, "序列化应保留事件数量。")
+
+
+func test_replay_timeline_appends_filtered_timeline_with_offset() -> void:
+	var source := GFReplayTimelineBase.new()
+	source.add_input(0.1, { "action_id": &"dash" })
+	source.add_snapshot(0.2, { "tick": 2 })
+	var target := GFReplayTimelineBase.new()
+
+	var appended := target.append_timeline(source, 1.0, PackedStringArray(["snapshot"]))
+	var events := target.get_events()
+
+	assert_eq(appended, 1, "过滤合并时应只追加匹配类型事件。")
+	assert_eq(events.size(), 1, "目标时间线应只包含追加事件。")
+	assert_eq(events[0]["event_kind"], GFReplayTimelineBase.EVENT_SNAPSHOT, "追加事件类型应保留。")
+	assert_almost_eq(float(events[0]["time_seconds"]), 1.2, 0.001, "追加事件应应用时间偏移。")
 
 
 func test_region_map_tracks_dirty_regions() -> void:

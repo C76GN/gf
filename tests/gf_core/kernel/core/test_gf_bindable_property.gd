@@ -66,6 +66,39 @@ func test_signal_parameters_are_correct() -> void:
 	assert_eq(params[1], 99, "new_value 应为变化后的值 99。")
 
 
+func test_subscribe_returns_unsubscribe_callable() -> void:
+	var state := { "count": 0 }
+	var unsubscribe := _prop.subscribe(func(_old_value: Variant, _new_value: Variant) -> void:
+		state.count += 1
+	)
+
+	_prop.value = 1
+	unsubscribe.call()
+	_prop.value = 2
+
+	assert_true(unsubscribe.is_valid(), "subscribe 应返回可调用的取消订阅函数。")
+	assert_eq(state.count, 1, "取消订阅后回调不应继续触发。")
+
+
+func test_subscribe_can_emit_current_value_immediately() -> void:
+	var values: Array[int] = []
+
+	var unsubscribe := _prop.subscribe(func(_old_value: Variant, new_value: Variant) -> void:
+		values.append(int(new_value))
+	, true)
+	_prop.value = 4
+	unsubscribe.call()
+
+	assert_eq(values, [0, 4], "emit_current 为 true 时应先推送当前值，再响应后续变化。")
+
+
+func test_subscribe_rejects_invalid_callback() -> void:
+	var unsubscribe := _prop.subscribe(Callable())
+
+	assert_false(unsubscribe.is_valid(), "无效 callback 不应返回有效取消函数。")
+	assert_push_error("[GFBindableProperty] subscribe 失败：callback 无效。")
+
+
 ## 验证 force_emit 可在引用类型原地变更后主动广播。
 func test_force_emit_broadcasts_current_value() -> void:
 	var prop := GFBindableProperty.new({ "hp": 10 })

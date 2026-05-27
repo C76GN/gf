@@ -113,6 +113,28 @@ func set_value(new_value: Variant) -> void:
 	value_changed.emit(old_value, new_value)
 
 
+## 订阅属性变化，并返回取消订阅函数。
+## [br]
+## @api public
+## [br]
+## @since 3.20.0
+## [br]
+## @param callback: 变化回调，签名应为 func(old_value: Variant, new_value: Variant)。
+## [br]
+## @param emit_current: 是否立即以当前值调用一次回调；为 true 时 old_value 和 new_value 都是当前值。
+## [br]
+## @return 可调用的取消订阅函数；callback 无效时返回空 Callable。
+func subscribe(callback: Callable, emit_current: bool = false) -> Callable:
+	if not callback.is_valid():
+		push_error("[GFBindableProperty] subscribe 失败：callback 无效。")
+		return Callable()
+	if not value_changed.is_connected(callback):
+		value_changed.connect(callback)
+	if emit_current:
+		callback.call(_value, _value)
+	return _make_unsubscribe_callable(callback)
+
+
 ## 强制发出 value_changed 信号。
 ## 适合在 Array、Dictionary 或 Object 发生原地变更后，由业务层显式通知监听者。
 ## [br]
@@ -381,6 +403,16 @@ func bind_to(node: Node, callable: Callable) -> void:
 func _on_node_exited(node: Node, callable: Callable) -> void:
 	_disconnect_node_binding(node, callable)
 	_release_value_connection_if_unbound(callable)
+
+
+func _make_unsubscribe_callable(callback: Callable) -> Callable:
+	var property_ref := weakref(self)
+	return func() -> void:
+		var property := property_ref.get_ref() as GFBindableProperty
+		if property == null or not callback.is_valid():
+			return
+		if property.value_changed.is_connected(callback):
+			property.value_changed.disconnect(callback)
 
 
 func _find_node_binding_index(node: Node, callable: Callable) -> int:

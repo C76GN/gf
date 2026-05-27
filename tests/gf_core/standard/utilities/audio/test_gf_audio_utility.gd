@@ -192,15 +192,6 @@ func after_each() -> void:
 	await get_tree().process_frame
 
 
-func _make_sampleable_stream() -> AudioStreamWAV:
-	var stream := AudioStreamWAV.new()
-	stream.format = AudioStreamWAV.FORMAT_16_BITS
-	stream.mix_rate = 44100
-	stream.stereo = false
-	stream.data = PackedByteArray([0, 0, 0, 0])
-	return stream
-
-
 func test_play_bgm() -> void:
 	var stream := AudioStreamGenerator.new()
 	_audio._play_bgm_stream(stream)
@@ -635,11 +626,11 @@ func test_play_sfx_clip_2d_applies_spatial_settings() -> void:
 	settings.max_polyphony = 3
 	settings.panning_strength = 0.5
 	settings.area_mask_2d = 5
-	settings.playback_type = 2
+	settings.playback_type = 1
 	settings.max_distance_2d = 512.0
 	settings.attenuation_2d = 2.0
 	var clip := GFAudioClip.new()
-	clip.stream = _make_sampleable_stream()
+	clip.stream = AudioStreamGenerator.new()
 	clip.spatial_settings = settings
 
 	var player := _audio.play_sfx_clip_2d(clip, source)
@@ -648,7 +639,7 @@ func test_play_sfx_clip_2d_applies_spatial_settings() -> void:
 	assert_eq(player.max_polyphony, 3, "2D 空间设置应应用 max_polyphony。")
 	assert_almost_eq(player.panning_strength, 0.5, 0.001, "2D 空间设置应应用 panning_strength。")
 	assert_eq(player.area_mask, 5, "2D 空间设置应应用 area_mask。")
-	assert_eq(player.playback_type, 2, "2D 空间设置应应用 playback_type。")
+	assert_eq(player.playback_type, 1, "2D 空间设置应应用 playback_type。")
 	assert_almost_eq(player.max_distance, 512.0, 0.001, "2D 空间设置应应用 max_distance。")
 	assert_almost_eq(player.attenuation, 2.0, 0.001, "2D 空间设置应应用 attenuation。")
 	if is_instance_valid(player):

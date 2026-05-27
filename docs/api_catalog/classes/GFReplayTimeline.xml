@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFReplayTimeline" path="addons/gf/standard/foundation/timeline/gf_replay_timeline.gd" module="standard" extends="RefCounted" classDigest="d7163aaf00fc6bb30b2bb9eed01c066b92e55ef12c5122cc1970b0f73b4c75de">
+	<description>GFReplayTimeline: 通用回放时间线。
+按时间保存命令、输入、快照或项目自定义事件的纯数据记录，便于测试、
+诊断、重放和工具链串联。它只负责排序、查询、合并和序列化，不执行事件。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">domain_model</tag>
+		<tag name="since">3.20.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="EVENT_COMMAND">
+			<signature>const EVENT_COMMAND: StringName = &amp;"command"</signature>
+			<description>通用命令事件类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="EVENT_INPUT">
+			<signature>const EVENT_INPUT: StringName = &amp;"input"</signature>
+			<description>通用输入事件类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="EVENT_SNAPSHOT">
+			<signature>const EVENT_SNAPSHOT: StringName = &amp;"snapshot"</signature>
+			<description>通用状态快照事件类型。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="timeline_id">
+			<signature>var timeline_id: StringName = &amp;""</signature>
+			<description>时间线标识。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="duration_seconds">
+			<signature>var duration_seconds: float = 0.0</signature>
+			<description>时间线总时长，单位秒。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="events">
+			<signature>var events: Array[Dictionary] = []</signature>
+			<description>事件列表。每项包含 time_seconds、event_kind、payload 和 metadata。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">events: Array[Dictionary]，包含 time_seconds: float、event_kind: StringName、payload: Variant 和 metadata: Dictionary。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，项目持有的录制、诊断或工具数据。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="add_event">
+			<signature>func add_event( time_seconds: float, event_kind: StringName, payload: Variant = null, event_metadata: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>添加通用事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">time_seconds: 事件时间，单位秒。</tag>
+				<tag name="param">event_kind: 事件类型。</tag>
+				<tag name="param">payload: 事件载荷。</tag>
+				<tag name="param">event_metadata: 事件元数据。</tag>
+				<tag name="return">新增事件字典。</tag>
+				<tag name="schema">payload: Variant，命令、输入、快照或项目自定义纯数据。</tag>
+				<tag name="schema">event_metadata: Dictionary，复制到当前事件中供项目诊断或工具使用。</tag>
+				<tag name="schema">return: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_command">
+			<signature>func add_command( time_seconds: float, command_payload: Variant, event_metadata: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>添加通用命令事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">time_seconds: 事件时间，单位秒。</tag>
+				<tag name="param">command_payload: 命令载荷。</tag>
+				<tag name="param">event_metadata: 事件元数据。</tag>
+				<tag name="return">新增事件字典。</tag>
+				<tag name="schema">command_payload: Variant，通常为命令快照或命令 ID 与参数字典。</tag>
+				<tag name="schema">event_metadata: Dictionary，复制到当前事件中供项目诊断或工具使用。</tag>
+				<tag name="schema">return: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_input">
+			<signature>func add_input( time_seconds: float, input_payload: Variant, event_metadata: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>添加通用输入事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">time_seconds: 事件时间，单位秒。</tag>
+				<tag name="param">input_payload: 输入载荷。</tag>
+				<tag name="param">event_metadata: 事件元数据。</tag>
+				<tag name="return">新增事件字典。</tag>
+				<tag name="schema">input_payload: Variant，通常为抽象动作输入事件字典。</tag>
+				<tag name="schema">event_metadata: Dictionary，复制到当前事件中供项目诊断或工具使用。</tag>
+				<tag name="schema">return: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_snapshot">
+			<signature>func add_snapshot( time_seconds: float, snapshot_payload: Variant, event_metadata: Dictionary = {} ) -&gt; Dictionary:</signature>
+			<description>添加通用快照事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">time_seconds: 事件时间，单位秒。</tag>
+				<tag name="param">snapshot_payload: 快照载荷。</tag>
+				<tag name="param">event_metadata: 事件元数据。</tag>
+				<tag name="return">新增事件字典。</tag>
+				<tag name="schema">snapshot_payload: Variant，通常为状态快照字典。</tag>
+				<tag name="schema">event_metadata: Dictionary，复制到当前事件中供项目诊断或工具使用。</tag>
+				<tag name="schema">return: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="append_timeline">
+			<signature>func append_timeline( timeline: RefCounted, time_offset: float = 0.0, kind_filter: PackedStringArray = PackedStringArray() ) -&gt; int:</signature>
+			<description>合并另一条时间线。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">timeline: 要合并的时间线。</tag>
+				<tag name="param">time_offset: 合并时追加的时间偏移。</tag>
+				<tag name="param">kind_filter: 可选事件类型过滤；为空时合并全部事件。</tag>
+				<tag name="return">合并的事件数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear">
+			<signature>func clear() -&gt; void:</signature>
+			<description>清空时间线。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_empty">
+			<signature>func is_empty() -&gt; bool:</signature>
+			<description>检查时间线是否为空。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">为空时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_event_count">
+			<signature>func get_event_count() -&gt; int:</signature>
+			<description>获取事件数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">事件数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sort_events">
+			<signature>func sort_events() -&gt; void:</signature>
+			<description>按事件时间排序。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_events">
+			<signature>func get_events() -&gt; Array[Dictionary]:</signature>
+			<description>获取事件副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">事件副本数组。</tag>
+				<tag name="schema">return: Array[Dictionary]，包含 time_seconds、event_kind、payload 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_events_by_kind">
+			<signature>func get_events_by_kind(event_kind: StringName) -&gt; Array[Dictionary]:</signature>
+			<description>获取指定类型事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">event_kind: 事件类型。</tag>
+				<tag name="return">事件副本数组。</tag>
+				<tag name="schema">return: Array[Dictionary]，包含 time_seconds、event_kind、payload 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_events_in_range">
+			<signature>func get_events_in_range( range_start: float, range_end: float, inclusive_end: bool = false ) -&gt; Array[Dictionary]:</signature>
+			<description>获取与时间范围相交的事件。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">range_start: 范围开始时间。</tag>
+				<tag name="param">range_end: 范围结束时间。</tag>
+				<tag name="param">inclusive_end: 为 true 时包含结束时间边界。</tag>
+				<tag name="return">事件副本数组。</tag>
+				<tag name="schema">return: Array[Dictionary]，包含 time_seconds、event_kind、payload 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_timeline">
+			<signature>func duplicate_timeline() -&gt; RefCounted:</signature>
+			<description>复制时间线。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新时间线。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dictionary">
+			<signature>func to_dictionary(json_compatible: bool = false) -&gt; Dictionary:</signature>
+			<description>转换为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">json_compatible: 为 true 时会把 payload 与 metadata 转换为 JSON 兼容值。</tag>
+				<tag name="return">时间线字典。</tag>
+				<tag name="schema">return: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_dictionary">
+			<signature>func apply_dictionary(data: Dictionary, json_compatible: bool = false) -&gt; void:</signature>
+			<description>应用字典数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 时间线字典。</tag>
+				<tag name="param">json_compatible: 为 true 时会先恢复类型化 JSON 值。</tag>
+				<tag name="schema">data: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dictionary">
+			<signature>static func from_dictionary(data: Dictionary, json_compatible: bool = false) -&gt; RefCounted:</signature>
+			<description>从字典创建时间线。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 时间线字典。</tag>
+				<tag name="param">json_compatible: 为 true 时会先恢复类型化 JSON 值。</tag>
+				<tag name="return">时间线。</tag>
+				<tag name="schema">data: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

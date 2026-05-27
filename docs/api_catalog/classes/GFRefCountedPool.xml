@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFRefCountedPool" path="addons/gf/standard/utilities/pooling/gf_ref_counted_pool.gd" module="standard" extends="RefCounted" classDigest="8a251c472388a49e9515af32b0defbf032fec32fbd827c6eebe7e0f6509f6030">
+	<description>GFRefCountedPool: 通用 RefCounted 对象池。
+用工厂 Callable 创建短生命周期 RefCounted 对象，并在归还时通过 hook 或
+reset_callback 显式清理状态。它不管理 Node、场景树、资源加载或业务生命周期。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.20.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants>
+		<member kind="const" name="HOOK_ON_ACQUIRE">
+			<signature>const HOOK_ON_ACQUIRE: StringName = &amp;"on_gf_pool_acquire"</signature>
+			<description>对象可选实现：从池中取出后调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="HOOK_ON_RELEASE">
+			<signature>const HOOK_ON_RELEASE: StringName = &amp;"on_gf_pool_release"</signature>
+			<description>对象可选实现：归还池时调用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="HOOK_RESET">
+			<signature>const HOOK_RESET: StringName = &amp;"reset_for_pool"</signature>
+			<description>对象可选实现：归还池时用于清理可复用状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="factory">
+			<signature>var factory: Callable = Callable()</signature>
+			<description>对象工厂。必须返回 RefCounted。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="reset_callback">
+			<signature>var reset_callback: Callable = Callable()</signature>
+			<description>归还对象时执行的可选重置回调。回调收到被归还的对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_available">
+			<signature>var max_available: int:</signature>
+			<description>最多保留的可用对象数量。为 0 时不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="created_count">
+			<signature>var created_count: int:</signature>
+			<description>池累计创建对象数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="available_count">
+			<signature>var available_count: int:</signature>
+			<description>当前可用对象数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="active_count">
+			<signature>var active_count: int:</signature>
+			<description>当前借出对象数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure">
+			<signature>func configure( p_factory: Callable, p_reset_callback: Callable = Callable(), p_max_available: int = 0 ) -&gt; GFRefCountedPool:</signature>
+			<description>配置对象池并返回自身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_factory: 对象工厂，必须返回 RefCounted。</tag>
+				<tag name="param">p_reset_callback: 归还对象时执行的可选重置回调。</tag>
+				<tag name="param">p_max_available: 最多保留的可用对象数量；0 表示不限制。</tag>
+				<tag name="return">当前对象池。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="acquire">
+			<signature>func acquire() -&gt; RefCounted:</signature>
+			<description>从池中借出对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">借出的 RefCounted；工厂无效或返回非 RefCounted 时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="release">
+			<signature>func release(item: RefCounted) -&gt; bool:</signature>
+			<description>归还对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item: 通过当前对象池借出的 RefCounted。</tag>
+				<tag name="return">成功归还或因容量上限丢弃时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="prewarm">
+			<signature>func prewarm(count: int) -&gt; int:</signature>
+			<description>预热对象池。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">count: 要创建并保留的可用对象数量。</tag>
+				<tag name="return">实际新增到可用池的数量。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_available">
+			<signature>func clear_available() -&gt; void:</signature>
+			<description>清空当前可用对象，不影响已经借出的对象。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="reset_pool">
+			<signature>func reset_pool() -&gt; void:</signature>
+			<description>忘记借出记录并清空可用池。
+这不会强制回收外部仍持有的 RefCounted，只让当前池停止追踪它们。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_active">
+			<signature>func is_active(item: RefCounted) -&gt; bool:</signature>
+			<description>检查对象是否由当前池借出且尚未归还。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item: 要检查的对象。</tag>
+				<tag name="return">对象处于借出状态时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取对象池调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 created_count、available_count、active_count 与 max_available。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

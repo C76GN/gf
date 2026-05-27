@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSlotInventoryModel" path="addons/gf/extensions/domain/inventory/gf_slot_inventory_model.gd" module="extensions/domain" extends="GFModel" classDigest="bb691ce5de958e614fa3e1cae2efb478d1699920948e47d07860f1687ab4127a">
+<class name="GFSlotInventoryModel" path="addons/gf/extensions/domain/inventory/gf_slot_inventory_model.gd" module="extensions/domain" extends="GFModel" classDigest="e938699616e545bd7e6cc0faf37a9e1f645f8c9ad6ccab913c3c2fe1d526a424">
 	<description>GFSlotInventoryModel: 通用可序列化槽位库存模型。
-管理固定或可增长槽位中的 `GFInventoryStack`，支持堆叠容量、
-最大堆叠数量、实例数据兼容性、移动、交换和序列化。</description>
+管理固定或可增长槽位中的 `GFInventoryStack`，支持槽位接收规则、
+堆叠容量、最大堆叠数量、实例数据兼容性、移动、交换和序列化。</description>
 	<tags>
 		<tag name="api">public</tag>
 		<tag name="category">domain_model</tag>
@@ -87,6 +87,14 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
+		<member kind="property" name="slot_definitions">
+			<signature>var slot_definitions: Array[GFInventorySlotDefinition] = []</signature>
+			<description>可选槽位定义。索引与库存槽位一致；空项表示该槽位不添加额外接收限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">slot_definitions: Array[GFInventorySlotDefinition]，按槽位索引存放的接收规则；空项表示不限制。</tag>
+			</tags>
+		</member>
 		<member kind="property" name="allow_growth">
 			<signature>var allow_growth: bool = false</signature>
 			<description>是否允许库存在创建新堆叠时自动增长。
@@ -137,6 +145,39 @@
 				<tag name="api">public</tag>
 				<tag name="param">slot_index: 槽位索引。</tag>
 				<tag name="return">有效返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_slot_definition">
+			<signature>func set_slot_definition(slot_index: int, definition: GFInventorySlotDefinition) -&gt; bool:</signature>
+			<description>设置槽位定义。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">slot_index: 槽位索引。</tag>
+				<tag name="param">definition: 槽位定义；传 null 表示清除该槽位额外规则。</tag>
+				<tag name="return">成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_slot_definition">
+			<signature>func get_slot_definition(slot_index: int) -&gt; GFInventorySlotDefinition:</signature>
+			<description>获取槽位定义。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">slot_index: 槽位索引。</tag>
+				<tag name="return">槽位定义；无额外规则或无效槽位返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="can_accept_item_at_slot">
+			<signature>func can_accept_item_at_slot( slot_index: int, item_id: StringName, instance_data: Dictionary = {} ) -&gt; bool:</signature>
+			<description>检查指定物品是否可被槽位接收。
+该方法只检查全局注册表与槽位定义，不判断当前槽位是否为空、
+是否可与已有堆叠合并或是否有剩余容量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">slot_index: 槽位索引。</tag>
+				<tag name="param">item_id: 物品标识。</tag>
+				<tag name="param">instance_data: 实例数据。</tag>
+				<tag name="return">槽位可接收该物品时返回 true。</tag>
+				<tag name="schema">instance_data: Dictionary，项目自定义物品实例数据；会先经注册表规范化。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_stack">

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<apiCatalog schemaVersion="2" name="GF Framework" sourceRoot="addons/gf" sourceDigest="eca17fda374ff2a3cf8525c2fd1aedb9182f6dfd15b55e9775e491deba12d498" classCount="461" methodCount="3520">
-	<module id="kernel" label="Kernel" classCount="41" methodCount="417">
+<apiCatalog schemaVersion="2" name="GF Framework" sourceRoot="addons/gf" sourceDigest="65d63a8c7a2f20a41a2fccc09a665780fc56474cf121fb177d7159b195b333d8" classCount="465" methodCount="3570">
+	<module id="kernel" label="Kernel" classCount="41" methodCount="418">
 		<class name="GFAccessGenerator" path="classes/GFAccessGenerator.xml" sourcePath="addons/gf/kernel/editor/gf_access_generator.gd" extends="RefCounted" />
 		<class name="GFArchitecture" path="classes/GFArchitecture.xml" sourcePath="addons/gf/kernel/core/gf_architecture.gd" extends="Object" />
 		<class name="GFBindBuilder" path="classes/GFBindBuilder.xml" sourcePath="addons/gf/kernel/core/gf_bind_builder.gd" extends="RefCounted" />
@@ -43,7 +43,7 @@
 		<class name="GFTypeEventSystem" path="classes/GFTypeEventSystem.xml" sourcePath="addons/gf/kernel/core/gf_type_event_system.gd" extends="Object" />
 		<class name="GFUtility" path="classes/GFUtility.xml" sourcePath="addons/gf/kernel/base/gf_utility.gd" extends="Object" />
 	</module>
-	<module id="standard" label="Standard" classCount="232" methodCount="2000">
+	<module id="standard" label="Standard" classCount="234" methodCount="2032">
 		<class name="GFAnalyticsConfig" path="classes/GFAnalyticsConfig.xml" sourcePath="addons/gf/standard/utilities/analytics/gf_analytics_config.gd" extends="Resource" />
 		<class name="GFAnalyticsUtility" path="classes/GFAnalyticsUtility.xml" sourcePath="addons/gf/standard/utilities/analytics/gf_analytics_utility.gd" extends="GFUtility" />
 		<class name="GFAssetHandle" path="classes/GFAssetHandle.xml" sourcePath="addons/gf/standard/utilities/assets/gf_asset_handle.gd" extends="RefCounted" />
@@ -194,11 +194,13 @@
 		<class name="GFPointerActivityUtility" path="classes/GFPointerActivityUtility.xml" sourcePath="addons/gf/standard/input/runtime/gf_pointer_activity_utility.gd" extends="GFUtility" />
 		<class name="GFProgressionMath" path="classes/GFProgressionMath.xml" sourcePath="addons/gf/standard/foundation/math/gf_progression_math.gd" extends="RefCounted" />
 		<class name="GFQuadTreeUtility" path="classes/GFQuadTreeUtility.xml" sourcePath="addons/gf/standard/utilities/spatial/gf_quad_tree_utility.gd" extends="GFUtility" />
+		<class name="GFRefCountedPool" path="classes/GFRefCountedPool.xml" sourcePath="addons/gf/standard/utilities/pooling/gf_ref_counted_pool.gd" extends="RefCounted" />
 		<class name="GFRegionMap2D" path="classes/GFRegionMap2D.xml" sourcePath="addons/gf/standard/foundation/math/gf_region_map_2d.gd" extends="RefCounted" />
 		<class name="GFRegionMap3D" path="classes/GFRegionMap3D.xml" sourcePath="addons/gf/standard/foundation/math/gf_region_map_3d.gd" extends="RefCounted" />
 		<class name="GFRemoteCacheUtility" path="classes/GFRemoteCacheUtility.xml" sourcePath="addons/gf/standard/utilities/io/gf_remote_cache_utility.gd" extends="GFUtility" />
 		<class name="GFRenderWarmupManifest" path="classes/GFRenderWarmupManifest.xml" sourcePath="addons/gf/standard/utilities/display/gf_render_warmup_manifest.gd" extends="Resource" />
 		<class name="GFRenderWarmupUtility" path="classes/GFRenderWarmupUtility.xml" sourcePath="addons/gf/standard/utilities/display/gf_render_warmup_utility.gd" extends="GFUtility" />
+		<class name="GFReplayTimeline" path="classes/GFReplayTimeline.xml" sourcePath="addons/gf/standard/foundation/timeline/gf_replay_timeline.gd" extends="RefCounted" />
 		<class name="GFRequestEnvelope" path="classes/GFRequestEnvelope.xml" sourcePath="addons/gf/standard/utilities/io/gf_request_envelope.gd" extends="RefCounted" />
 		<class name="GFRequestOutboxUtility" path="classes/GFRequestOutboxUtility.xml" sourcePath="addons/gf/standard/utilities/io/gf_request_outbox_utility.gd" extends="GFUtility" />
 		<class name="GFResultDictionary" path="classes/GFResultDictionary.xml" sourcePath="addons/gf/standard/foundation/validation/gf_result_dictionary.gd" extends="RefCounted" />
@@ -342,7 +344,7 @@
 		<class name="GFNodeCapability" path="classes/GFNodeCapability.xml" sourcePath="addons/gf/extensions/capability/nodes/gf_node_capability.gd" extends="Node" />
 		<class name="GFPropertyBagCapability" path="classes/GFPropertyBagCapability.xml" sourcePath="addons/gf/extensions/capability/core/gf_property_bag_capability.gd" extends="GFCapability" />
 	</module>
-	<module id="extensions/combat" label="Combat" classCount="44" methodCount="180">
+	<module id="extensions/combat" label="Combat" classCount="45" methodCount="186">
 		<class name="GFBuff" path="classes/GFBuff.xml" sourcePath="addons/gf/extensions/combat/attributes/gf_buff.gd" extends="RefCounted" />
 		<class name="GFCombatAction" path="classes/GFCombatAction.xml" sourcePath="addons/gf/extensions/combat/actions/gf_combat_action.gd" extends="Resource" />
 		<class name="GFCombatActionModifier" path="classes/GFCombatActionModifier.xml" sourcePath="addons/gf/extensions/combat/actions/gf_combat_action_modifier.gd" extends="Resource" />
@@ -384,6 +386,7 @@
 		<class name="GFProjectileSpawnPattern2D" path="classes/GFProjectileSpawnPattern2D.xml" sourcePath="addons/gf/extensions/combat/projectiles/gf_projectile_spawn_pattern_2d.gd" extends="Resource" />
 		<class name="GFProjectileSpawnPattern3D" path="classes/GFProjectileSpawnPattern3D.xml" sourcePath="addons/gf/extensions/combat/projectiles/gf_projectile_spawn_pattern_3d.gd" extends="Resource" />
 		<class name="GFSkill" path="classes/GFSkill.xml" sourcePath="addons/gf/extensions/combat/skills/gf_skill.gd" extends="RefCounted" />
+		<class name="GFSkillActivationContext" path="classes/GFSkillActivationContext.xml" sourcePath="addons/gf/extensions/combat/skills/gf_skill_activation_context.gd" extends="RefCounted" />
 		<class name="GFSkillTargetingRule" path="classes/GFSkillTargetingRule.xml" sourcePath="addons/gf/extensions/combat/skills/gf_skill_targeting_rule.gd" extends="Resource" />
 		<class name="GFSkillTargetingUtility" path="classes/GFSkillTargetingUtility.xml" sourcePath="addons/gf/extensions/combat/skills/gf_skill_targeting_utility.gd" extends="GFUtility" />
 		<class name="GFTagComponent" path="classes/GFTagComponent.xml" sourcePath="addons/gf/extensions/combat/tags/gf_tag_component.gd" extends="RefCounted" />
@@ -395,7 +398,7 @@
 		<class name="GFDialogueResponse" path="classes/GFDialogueResponse.xml" sourcePath="addons/gf/extensions/dialogue/resources/gf_dialogue_response.gd" extends="Resource" />
 		<class name="GFDialogueRunner" path="classes/GFDialogueRunner.xml" sourcePath="addons/gf/extensions/dialogue/runtime/gf_dialogue_runner.gd" extends="RefCounted" />
 	</module>
-	<module id="extensions/domain" label="Domain" classCount="17" methodCount="177">
+	<module id="extensions/domain" label="Domain" classCount="18" methodCount="184">
 		<class name="GFAttributeSet" path="classes/GFAttributeSet.xml" sourcePath="addons/gf/extensions/domain/attributes/gf_attribute_set.gd" extends="Resource" />
 		<class name="GFDerivedAttributeRule" path="classes/GFDerivedAttributeRule.xml" sourcePath="addons/gf/extensions/domain/attributes/gf_derived_attribute_rule.gd" extends="Resource" />
 		<class name="GFEquipmentSet" path="classes/GFEquipmentSet.xml" sourcePath="addons/gf/extensions/domain/equipment/gf_equipment_set.gd" extends="Resource" />
@@ -404,6 +407,7 @@
 		<class name="GFInventoryItemRegistry" path="classes/GFInventoryItemRegistry.xml" sourcePath="addons/gf/extensions/domain/inventory/gf_inventory_item_registry.gd" extends="Resource" />
 		<class name="GFInventoryModel" path="classes/GFInventoryModel.xml" sourcePath="addons/gf/extensions/domain/inventory/gf_inventory_model.gd" extends="GFModel" />
 		<class name="GFInventoryOperationResult" path="classes/GFInventoryOperationResult.xml" sourcePath="addons/gf/extensions/domain/inventory/gf_inventory_operation_result.gd" extends="RefCounted" />
+		<class name="GFInventorySlotDefinition" path="classes/GFInventorySlotDefinition.xml" sourcePath="addons/gf/extensions/domain/inventory/gf_inventory_slot_definition.gd" extends="Resource" />
 		<class name="GFInventoryStack" path="classes/GFInventoryStack.xml" sourcePath="addons/gf/extensions/domain/inventory/gf_inventory_stack.gd" extends="Resource" />
 		<class name="GFLevelCatalog" path="classes/GFLevelCatalog.xml" sourcePath="addons/gf/extensions/domain/level/gf_level_catalog.gd" extends="Resource" />
 		<class name="GFLevelEntry" path="classes/GFLevelEntry.xml" sourcePath="addons/gf/extensions/domain/level/gf_level_entry.gd" extends="Resource" />
@@ -438,7 +442,7 @@
 		<class name="GFInteractions" path="classes/GFInteractions.xml" sourcePath="addons/gf/extensions/interaction/runtime/gf_interactions.gd" extends="RefCounted" />
 		<class name="GFPointerInteraction3D" path="classes/GFPointerInteraction3D.xml" sourcePath="addons/gf/extensions/interaction/nodes/gf_pointer_interaction_3d.gd" extends="Node" />
 	</module>
-	<module id="extensions/network" label="Network" classCount="20" methodCount="136">
+	<module id="extensions/network" label="Network" classCount="20" methodCount="140">
 		<class name="GFENetNetworkBackend" path="classes/GFENetNetworkBackend.xml" sourcePath="addons/gf/extensions/network/backends/gf_enet_network_backend.gd" extends="GFNetworkBackend" />
 		<class name="GFFixedTickClock" path="classes/GFFixedTickClock.xml" sourcePath="addons/gf/extensions/network/simulation/gf_fixed_tick_clock.gd" extends="RefCounted" />
 		<class name="GFNetworkBackend" path="classes/GFNetworkBackend.xml" sourcePath="addons/gf/extensions/network/backends/gf_network_backend.gd" extends="RefCounted" />

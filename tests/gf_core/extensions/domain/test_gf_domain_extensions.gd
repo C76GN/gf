@@ -171,6 +171,107 @@ func test_slot_inventory_split_respects_stack_count_limit() -> void:
 	assert_true(inventory.is_slot_empty(1), "失败后目标槽位应保持为空。")
 
 
+func test_inventory_slot_definition_accepts_ids_categories_and_callback() -> void:
+	var weapon := GFInventoryItemDefinition.new()
+	weapon.item_id = &"bow"
+	weapon.categories = [&"weapon", &"ranged"]
+	var potion := GFInventoryItemDefinition.new()
+	potion.item_id = &"potion"
+	potion.categories = [&"consumable"]
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(weapon)
+	registry.set_definition(potion)
+
+	var slot_definition := GFInventorySlotDefinition.new()
+	slot_definition.accepted_categories = [&"weapon"]
+	slot_definition.acceptance_checker = func(_item_id: StringName, _definition: GFInventoryItemDefinition, instance_data: Dictionary, _slot_index: int, _inventory: Object) -> bool:
+		return not bool(instance_data.get("broken", false))
+
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.set_slot_count(1)
+	inventory.set_slot_definition(0, slot_definition)
+
+	assert_false(inventory.can_accept_item_at_slot(0, &"potion"), "缺少必需分类的物品不应被槽位接收。")
+	assert_true(inventory.can_accept_item_at_slot(0, &"bow"), "满足分类规则的物品应被槽位接收。")
+	assert_false(inventory.can_accept_item_at_slot(0, &"bow", { "broken": true }), "自定义回调可拒绝指定实例。")
+
+
+func test_slot_inventory_add_item_skips_restricted_empty_slots() -> void:
+	var weapon := GFInventoryItemDefinition.new()
+	weapon.item_id = &"bow"
+	weapon.categories = [&"weapon"]
+	var potion := GFInventoryItemDefinition.new()
+	potion.item_id = &"potion"
+	potion.categories = [&"consumable"]
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(weapon)
+	registry.set_definition(potion)
+
+	var weapon_slot := GFInventorySlotDefinition.new()
+	weapon_slot.accepted_categories = [&"weapon"]
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.set_slot_count(2)
+	inventory.set_slot_definition(0, weapon_slot)
+
+	var result := inventory.add_item(&"potion", 1)
+
+	assert_true(result.ok, "存在可接受空槽时应能加入物品。")
+	assert_true(inventory.is_slot_empty(0), "不接受该物品的空槽应被跳过。")
+	assert_eq(String(inventory.get_stack_data(1).get("item_id", "")), "potion", "物品应落到可接收的槽位。")
+
+
+func test_slot_inventory_rejects_move_to_disallowed_slot_and_reports_validation() -> void:
+	var weapon := GFInventoryItemDefinition.new()
+	weapon.item_id = &"bow"
+	weapon.categories = [&"weapon"]
+	var potion := GFInventoryItemDefinition.new()
+	potion.item_id = &"potion"
+	potion.categories = [&"consumable"]
+	var registry := GFInventoryItemRegistry.new()
+	registry.set_definition(weapon)
+	registry.set_definition(potion)
+
+	var weapon_slot := GFInventorySlotDefinition.new()
+	weapon_slot.accepted_categories = [&"weapon"]
+	var inventory := GFSlotInventoryModel.new()
+	inventory.registry = registry
+	inventory.set_slot_count(2)
+	inventory.set_slot_definition(1, weapon_slot)
+	inventory.add_item_to_slot(0, &"potion", 1)
+
+	var move_result := inventory.move_between_slots(0, 1)
+	inventory.set_stack(1, GFInventoryStack.new(&"potion", 1))
+	var report := inventory.validate_inventory()
+	var repair_report := inventory.apply_registry_constraints(true)
+
+	assert_false(move_result.ok, "移动到不接受该物品的槽位应失败。")
+	assert_eq(move_result.reason, &"slot_rejects_item", "失败原因应说明槽位规则拒绝物品。")
+	assert_true(_has_domain_issue_kind(report["issues"] as Array, "slot_rejects_item"), "校验报告应识别被槽位规则拒绝的堆叠。")
+	assert_false(bool(repair_report["ok"]), "修复前报告仍应反映原始非法状态。")
+	assert_true(inventory.is_slot_empty(1), "启用 repair 时应清除违反槽位规则的堆叠。")
+
+
+func test_inventory_slot_definition_dictionary_roundtrip() -> void:
+	var definition := GFInventorySlotDefinition.new()
+	definition.display_name = "Weapon Slot"
+	definition.accepted_item_ids = [&"bow"]
+	definition.rejected_item_ids = [&"broken_bow"]
+	definition.accepted_categories = [&"weapon", &"ranged"]
+	definition.require_all_categories = true
+	definition.metadata = { "ui": "hotbar" }
+
+	var restored := GFInventorySlotDefinition.from_dict(definition.to_dict())
+
+	assert_eq(restored.display_name, "Weapon Slot", "槽位定义应恢复显示名称。")
+	assert_eq(restored.accepted_item_ids, [&"bow"], "槽位定义应恢复允许物品 ID。")
+	assert_eq(restored.rejected_item_ids, [&"broken_bow"], "槽位定义应恢复拒绝物品 ID。")
+	assert_eq(restored.accepted_categories, [&"weapon", &"ranged"], "槽位定义应恢复分类规则。")
+	assert_true(restored.require_all_categories, "槽位定义应恢复分类匹配模式。")
+	assert_eq(restored.metadata.get("ui"), "hotbar", "槽位定义应恢复元数据。")
+
+
 ## 验证槽位库存索引与约束报告。
 func test_slot_inventory_index_and_constraint_report() -> void:
 	var definition := GFInventoryItemDefinition.new()

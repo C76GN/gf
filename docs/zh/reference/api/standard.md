@@ -154,11 +154,13 @@ Module: `standard`
 - [`GFPointerActivityUtility`](#gfpointeractivityutility)
 - [`GFProgressionMath`](#gfprogressionmath)
 - [`GFQuadTreeUtility`](#gfquadtreeutility)
+- [`GFRefCountedPool`](#gfrefcountedpool)
 - [`GFRegionMap2D`](#gfregionmap2d)
 - [`GFRegionMap3D`](#gfregionmap3d)
 - [`GFRemoteCacheUtility`](#gfremotecacheutility)
 - [`GFRenderWarmupManifest`](#gfrenderwarmupmanifest)
 - [`GFRenderWarmupUtility`](#gfrenderwarmuputility)
+- [`GFReplayTimeline`](#gfreplaytimeline)
 - [`GFRequestEnvelope`](#gfrequestenvelope)
 - [`GFRequestOutboxUtility`](#gfrequestoutboxutility)
 - [`GFResultDictionary`](#gfresultdictionary)
@@ -348,6 +350,17 @@ var flush_on_shutdown: bool = true
 ```
 
 应用关闭通知到来时是否尝试 flush 剩余事件。
+
+#### `compress_payload`
+
+- API: `public`
+- Since: `3.20.0`
+
+```gdscript
+var compress_payload: bool = false
+```
+
+是否使用 gzip 压缩 HTTP 上报请求体。
 
 #### `headers`
 
@@ -17546,7 +17559,7 @@ Returns: 打包后的 key；量化坐标或方向编号超出范围时返回 INV
 - Category: `runtime_service`
 - Since: `3.17.0`
 
-GFGridMath: 网格类小游戏的纯算法工具。 提供一维索引与二维格坐标转换、邻居枚举、泛洪搜索、BFS / A* 路径查找、 Flow Field 生成以及连连看类“两折连线”判断。它不依赖 GFArchitecture，可直接在 Model、System、Controller 或测试中静态调用。
+GFGridMath: 网格类小游戏的纯算法工具。 提供一维索引与二维格坐标转换、邻居枚举、范围、外环、直线、视线、 泛洪搜索、BFS / A* 路径查找、Flow Field 生成以及连连看类“两折连线”判断。 它不依赖 GFArchitecture，可直接在 Model、System、Controller 或测试中静态调用。
 
 ### Methods
 
@@ -17626,6 +17639,113 @@ Parameters:
 | `include_diagonal` | 是否包含四个斜向邻居。 |
 
 Returns: 位于网格范围内的邻居列表。
+
+#### `get_rectangle_cells`
+
+- API: `public`
+- Since: `3.20.0`
+
+```gdscript
+static func get_rectangle_cells( from_cell: Vector2i, to_cell: Vector2i, grid_size: Vector2i = Vector2i(-1, -1) ) -> Array[Vector2i]:
+```
+
+获取两个端点之间的矩形格子。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `from_cell` | 第一个端点。 |
+| `to_cell` | 第二个端点。 |
+| `grid_size` | 可选网格尺寸；任一轴小于 0 时不按边界过滤。 |
+
+Returns: 矩形内坐标列表，包含两个端点，按 y/x 稳定顺序返回。
+
+#### `get_range`
+
+- API: `public`
+- Since: `3.20.0`
+
+```gdscript
+static func get_range( center: Vector2i, radius: int, grid_size: Vector2i = Vector2i(-1, -1), include_diagonal: bool = false ) -> Array[Vector2i]:
+```
+
+获取指定半径内的所有格子。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `center` | 中心格子。 |
+| `radius` | 半径。 |
+| `grid_size` | 可选网格尺寸；任一轴小于 0 时不按边界过滤。 |
+| `include_diagonal` | 为 false 时使用曼哈顿范围；为 true 时使用切比雪夫范围。 |
+
+Returns: 半径内坐标列表，包含中心，按 y/x 稳定顺序返回。
+
+#### `get_ring`
+
+- API: `public`
+- Since: `3.20.0`
+
+```gdscript
+static func get_ring( center: Vector2i, radius: int, grid_size: Vector2i = Vector2i(-1, -1), include_diagonal: bool = false ) -> Array[Vector2i]:
+```
+
+获取指定半径的外环格子。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `center` | 中心格子。 |
+| `radius` | 半径；0 时返回中心。 |
+| `grid_size` | 可选网格尺寸；任一轴小于 0 时不按边界过滤。 |
+| `include_diagonal` | 为 false 时使用曼哈顿外环；为 true 时使用切比雪夫外环。 |
+
+Returns: 外环坐标列表，按 y/x 稳定顺序返回。
+
+#### `get_line`
+
+- API: `public`
+- Since: `3.20.0`
+
+```gdscript
+static func get_line(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
+```
+
+获取连接两个格子的 Bresenham 直线。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `from_cell` | 起点格子。 |
+| `to_cell` | 终点格子。 |
+
+Returns: 坐标列表，包含起点与终点。
+
+#### `has_line_of_sight`
+
+- API: `public`
+- Since: `3.20.0`
+
+```gdscript
+static func has_line_of_sight( from_cell: Vector2i, to_cell: Vector2i, is_blocking: Callable, include_endpoints: bool = false ) -> bool:
+```
+
+判断两格之间是否有视线。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `from_cell` | 起点格子。 |
+| `to_cell` | 终点格子。 |
+| `is_blocking` | 阻挡回调，签名为 `func(cell: Vector2i) -> bool`。 |
+| `include_endpoints` | 是否检查起点与终点是否阻挡。 |
+
+Returns: 没有阻挡时返回 true；阻挡回调无效时也返回 true。
 
 #### `flood_fill`
 
@@ -33194,6 +33314,234 @@ Schemas:
 
 - `return`: Dictionary with `bounds: Rect2`, `entity_count: int`, `hit_test_count: int`, `max_depth: int`, `max_entities_per_node: int`, and `node_count: int`.
 
+## GFRefCountedPool
+
+- Path: `addons/gf/standard/utilities/pooling/gf_ref_counted_pool.gd`
+- Extends: `RefCounted`
+- API: `public`
+- Category: `runtime_service`
+- Since: `3.20.0`
+
+GFRefCountedPool: 通用 RefCounted 对象池。 用工厂 Callable 创建短生命周期 RefCounted 对象，并在归还时通过 hook 或 reset_callback 显式清理状态。它不管理 Node、场景树、资源加载或业务生命周期。
+
+### Constants
+
+#### `HOOK_ON_ACQUIRE`
+
+- API: `public`
+
+```gdscript
+const HOOK_ON_ACQUIRE: StringName = &"on_gf_pool_acquire"
+```
+
+对象可选实现：从池中取出后调用。
+
+#### `HOOK_ON_RELEASE`
+
+- API: `public`
+
+```gdscript
+const HOOK_ON_RELEASE: StringName = &"on_gf_pool_release"
+```
+
+对象可选实现：归还池时调用。
+
+#### `HOOK_RESET`
+
+- API: `public`
+
+```gdscript
+const HOOK_RESET: StringName = &"reset_for_pool"
+```
+
+对象可选实现：归还池时用于清理可复用状态。
+
+### Properties
+
+#### `factory`
+
+- API: `public`
+
+```gdscript
+var factory: Callable = Callable()
+```
+
+对象工厂。必须返回 RefCounted。
+
+#### `reset_callback`
+
+- API: `public`
+
+```gdscript
+var reset_callback: Callable = Callable()
+```
+
+归还对象时执行的可选重置回调。回调收到被归还的对象。
+
+#### `max_available`
+
+- API: `public`
+
+```gdscript
+var max_available: int:
+```
+
+最多保留的可用对象数量。为 0 时不限制。
+
+#### `created_count`
+
+- API: `public`
+
+```gdscript
+var created_count: int:
+```
+
+池累计创建对象数量。
+
+#### `available_count`
+
+- API: `public`
+
+```gdscript
+var available_count: int:
+```
+
+当前可用对象数量。
+
+#### `active_count`
+
+- API: `public`
+
+```gdscript
+var active_count: int:
+```
+
+当前借出对象数量。
+
+### Methods
+
+#### `configure`
+
+- API: `public`
+
+```gdscript
+func configure( p_factory: Callable, p_reset_callback: Callable = Callable(), p_max_available: int = 0 ) -> GFRefCountedPool:
+```
+
+配置对象池并返回自身。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `p_factory` | 对象工厂，必须返回 RefCounted。 |
+| `p_reset_callback` | 归还对象时执行的可选重置回调。 |
+| `p_max_available` | 最多保留的可用对象数量；0 表示不限制。 |
+
+Returns: 当前对象池。
+
+#### `acquire`
+
+- API: `public`
+
+```gdscript
+func acquire() -> RefCounted:
+```
+
+从池中借出对象。
+
+Returns: 借出的 RefCounted；工厂无效或返回非 RefCounted 时返回 null。
+
+#### `release`
+
+- API: `public`
+
+```gdscript
+func release(item: RefCounted) -> bool:
+```
+
+归还对象。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `item` | 通过当前对象池借出的 RefCounted。 |
+
+Returns: 成功归还或因容量上限丢弃时返回 true。
+
+#### `prewarm`
+
+- API: `public`
+
+```gdscript
+func prewarm(count: int) -> int:
+```
+
+预热对象池。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `count` | 要创建并保留的可用对象数量。 |
+
+Returns: 实际新增到可用池的数量。
+
+#### `clear_available`
+
+- API: `public`
+
+```gdscript
+func clear_available() -> void:
+```
+
+清空当前可用对象，不影响已经借出的对象。
+
+#### `reset_pool`
+
+- API: `public`
+
+```gdscript
+func reset_pool() -> void:
+```
+
+忘记借出记录并清空可用池。 这不会强制回收外部仍持有的 RefCounted，只让当前池停止追踪它们。
+
+#### `is_active`
+
+- API: `public`
+
+```gdscript
+func is_active(item: RefCounted) -> bool:
+```
+
+检查对象是否由当前池借出且尚未归还。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `item` | 要检查的对象。 |
+
+Returns: 对象处于借出状态时返回 true。
+
+#### `get_debug_snapshot`
+
+- API: `public`
+
+```gdscript
+func get_debug_snapshot() -> Dictionary:
+```
+
+获取对象池调试快照。
+
+Returns: 调试快照。
+
+Schemas:
+
+- `return`: Dictionary，包含 created_count、available_count、active_count 与 max_available。
+
 ## GFRegionMap2D
 
 - Path: `addons/gf/standard/foundation/math/gf_region_map_2d.gd`
@@ -34572,6 +34920,409 @@ Returns: 调试信息字典。
 Schemas:
 
 - `return`: Dictionary，包含 queue_size、cached_resource_count、processed_entry_count、failed_entry_count、default_entries_per_tick、default_max_seconds、default_touch_mode、keep_resources_cached、instantiate_packed_scenes 和 temporary_render_node_count。
+
+## GFReplayTimeline
+
+- Path: `addons/gf/standard/foundation/timeline/gf_replay_timeline.gd`
+- Extends: `RefCounted`
+- API: `public`
+- Category: `domain_model`
+- Since: `3.20.0`
+
+GFReplayTimeline: 通用回放时间线。 按时间保存命令、输入、快照或项目自定义事件的纯数据记录，便于测试、 诊断、重放和工具链串联。它只负责排序、查询、合并和序列化，不执行事件。
+
+### Constants
+
+#### `EVENT_COMMAND`
+
+- API: `public`
+
+```gdscript
+const EVENT_COMMAND: StringName = &"command"
+```
+
+通用命令事件类型。
+
+#### `EVENT_INPUT`
+
+- API: `public`
+
+```gdscript
+const EVENT_INPUT: StringName = &"input"
+```
+
+通用输入事件类型。
+
+#### `EVENT_SNAPSHOT`
+
+- API: `public`
+
+```gdscript
+const EVENT_SNAPSHOT: StringName = &"snapshot"
+```
+
+通用状态快照事件类型。
+
+### Properties
+
+#### `timeline_id`
+
+- API: `public`
+
+```gdscript
+var timeline_id: StringName = &""
+```
+
+时间线标识。
+
+#### `duration_seconds`
+
+- API: `public`
+
+```gdscript
+var duration_seconds: float = 0.0
+```
+
+时间线总时长，单位秒。
+
+#### `events`
+
+- API: `public`
+
+```gdscript
+var events: Array[Dictionary] = []
+```
+
+事件列表。每项包含 time_seconds、event_kind、payload 和 metadata。
+
+Schemas:
+
+- `events`: Array[Dictionary]，包含 time_seconds: float、event_kind: StringName、payload: Variant 和 metadata: Dictionary。
+
+#### `metadata`
+
+- API: `public`
+
+```gdscript
+var metadata: Dictionary = {}
+```
+
+项目自定义元数据。框架不解释该字段。
+
+Schemas:
+
+- `metadata`: Dictionary，项目持有的录制、诊断或工具数据。
+
+### Methods
+
+#### `add_event`
+
+- API: `public`
+
+```gdscript
+func add_event( time_seconds: float, event_kind: StringName, payload: Variant = null, event_metadata: Dictionary = {} ) -> Dictionary:
+```
+
+添加通用事件。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `time_seconds` | 事件时间，单位秒。 |
+| `event_kind` | 事件类型。 |
+| `payload` | 事件载荷。 |
+| `event_metadata` | 事件元数据。 |
+
+Returns: 新增事件字典。
+
+Schemas:
+
+- `payload`: Variant，命令、输入、快照或项目自定义纯数据。
+- `event_metadata`: Dictionary，复制到当前事件中供项目诊断或工具使用。
+- `return`: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。
+
+#### `add_command`
+
+- API: `public`
+
+```gdscript
+func add_command( time_seconds: float, command_payload: Variant, event_metadata: Dictionary = {} ) -> Dictionary:
+```
+
+添加通用命令事件。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `time_seconds` | 事件时间，单位秒。 |
+| `command_payload` | 命令载荷。 |
+| `event_metadata` | 事件元数据。 |
+
+Returns: 新增事件字典。
+
+Schemas:
+
+- `command_payload`: Variant，通常为命令快照或命令 ID 与参数字典。
+- `event_metadata`: Dictionary，复制到当前事件中供项目诊断或工具使用。
+- `return`: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。
+
+#### `add_input`
+
+- API: `public`
+
+```gdscript
+func add_input( time_seconds: float, input_payload: Variant, event_metadata: Dictionary = {} ) -> Dictionary:
+```
+
+添加通用输入事件。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `time_seconds` | 事件时间，单位秒。 |
+| `input_payload` | 输入载荷。 |
+| `event_metadata` | 事件元数据。 |
+
+Returns: 新增事件字典。
+
+Schemas:
+
+- `input_payload`: Variant，通常为抽象动作输入事件字典。
+- `event_metadata`: Dictionary，复制到当前事件中供项目诊断或工具使用。
+- `return`: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。
+
+#### `add_snapshot`
+
+- API: `public`
+
+```gdscript
+func add_snapshot( time_seconds: float, snapshot_payload: Variant, event_metadata: Dictionary = {} ) -> Dictionary:
+```
+
+添加通用快照事件。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `time_seconds` | 事件时间，单位秒。 |
+| `snapshot_payload` | 快照载荷。 |
+| `event_metadata` | 事件元数据。 |
+
+Returns: 新增事件字典。
+
+Schemas:
+
+- `snapshot_payload`: Variant，通常为状态快照字典。
+- `event_metadata`: Dictionary，复制到当前事件中供项目诊断或工具使用。
+- `return`: Dictionary，包含 time_seconds、event_kind、payload 和 metadata。
+
+#### `append_timeline`
+
+- API: `public`
+
+```gdscript
+func append_timeline( timeline: RefCounted, time_offset: float = 0.0, kind_filter: PackedStringArray = PackedStringArray() ) -> int:
+```
+
+合并另一条时间线。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `timeline` | 要合并的时间线。 |
+| `time_offset` | 合并时追加的时间偏移。 |
+| `kind_filter` | 可选事件类型过滤；为空时合并全部事件。 |
+
+Returns: 合并的事件数量。
+
+#### `clear`
+
+- API: `public`
+
+```gdscript
+func clear() -> void:
+```
+
+清空时间线。
+
+#### `is_empty`
+
+- API: `public`
+
+```gdscript
+func is_empty() -> bool:
+```
+
+检查时间线是否为空。
+
+Returns: 为空时返回 true。
+
+#### `get_event_count`
+
+- API: `public`
+
+```gdscript
+func get_event_count() -> int:
+```
+
+获取事件数量。
+
+Returns: 事件数量。
+
+#### `sort_events`
+
+- API: `public`
+
+```gdscript
+func sort_events() -> void:
+```
+
+按事件时间排序。
+
+#### `get_events`
+
+- API: `public`
+
+```gdscript
+func get_events() -> Array[Dictionary]:
+```
+
+获取事件副本。
+
+Returns: 事件副本数组。
+
+Schemas:
+
+- `return`: Array[Dictionary]，包含 time_seconds、event_kind、payload 和 metadata。
+
+#### `get_events_by_kind`
+
+- API: `public`
+
+```gdscript
+func get_events_by_kind(event_kind: StringName) -> Array[Dictionary]:
+```
+
+获取指定类型事件。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `event_kind` | 事件类型。 |
+
+Returns: 事件副本数组。
+
+Schemas:
+
+- `return`: Array[Dictionary]，包含 time_seconds、event_kind、payload 和 metadata。
+
+#### `get_events_in_range`
+
+- API: `public`
+
+```gdscript
+func get_events_in_range( range_start: float, range_end: float, inclusive_end: bool = false ) -> Array[Dictionary]:
+```
+
+获取与时间范围相交的事件。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `range_start` | 范围开始时间。 |
+| `range_end` | 范围结束时间。 |
+| `inclusive_end` | 为 true 时包含结束时间边界。 |
+
+Returns: 事件副本数组。
+
+Schemas:
+
+- `return`: Array[Dictionary]，包含 time_seconds、event_kind、payload 和 metadata。
+
+#### `duplicate_timeline`
+
+- API: `public`
+
+```gdscript
+func duplicate_timeline() -> RefCounted:
+```
+
+复制时间线。
+
+Returns: 新时间线。
+
+#### `to_dictionary`
+
+- API: `public`
+
+```gdscript
+func to_dictionary(json_compatible: bool = false) -> Dictionary:
+```
+
+转换为字典。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `json_compatible` | 为 true 时会把 payload 与 metadata 转换为 JSON 兼容值。 |
+
+Returns: 时间线字典。
+
+Schemas:
+
+- `return`: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。
+
+#### `apply_dictionary`
+
+- API: `public`
+
+```gdscript
+func apply_dictionary(data: Dictionary, json_compatible: bool = false) -> void:
+```
+
+应用字典数据。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `data` | 时间线字典。 |
+| `json_compatible` | 为 true 时会先恢复类型化 JSON 值。 |
+
+Schemas:
+
+- `data`: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。
+
+#### `from_dictionary`
+
+- API: `public`
+
+```gdscript
+static func from_dictionary(data: Dictionary, json_compatible: bool = false) -> RefCounted:
+```
+
+从字典创建时间线。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `data` | 时间线字典。 |
+| `json_compatible` | 为 true 时会先恢复类型化 JSON 值。 |
+
+Returns: 时间线。
+
+Schemas:
+
+- `data`: Dictionary，包含 timeline_id、duration_seconds、events 和 metadata。
 
 ## GFRequestEnvelope
 
@@ -46357,6 +47108,73 @@ Returns: 排序后的标签名。
 Schemas:
 
 - `source`: Variant tag source accepted by the adapter.
+
+#### `get_tag_counts`
+
+- API: `public`
+
+```gdscript
+static func get_tag_counts(source: Variant) -> Dictionary:
+```
+
+获取标签源中的标签层数字典。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `source` | 标签源。 |
+
+Returns: 标签名到层数的字典。
+
+Schemas:
+
+- `source`: Variant tag source accepted by the adapter.
+- `return`: Dictionary[StringName, int]，只包含层数大于 0 的标签。
+
+#### `to_tag_set`
+
+- API: `public`
+
+```gdscript
+static func to_tag_set(source: Variant) -> GFTagSet:
+```
+
+将任意标签源规范化为 GFTagSet。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `source` | 标签源。 |
+
+Returns: 新的标签集合。
+
+Schemas:
+
+- `source`: Variant tag source accepted by the adapter.
+
+#### `merge_sources`
+
+- API: `public`
+
+```gdscript
+static func merge_sources(sources: Array) -> GFTagSet:
+```
+
+合并多个标签源并返回新的 GFTagSet。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `sources` | 标签源数组。 |
+
+Returns: 合并后的标签集合。
+
+Schemas:
+
+- `sources`: Array[Variant]，每个元素都可被 GFTagSourceAdapter 读取。
 
 #### `matches_all`
 

@@ -1775,6 +1775,26 @@ Schemas:
 
 - `new_value {`: 
 
+#### `subscribe`
+
+- API: `public`
+- Since: `3.20.0`
+
+```gdscript
+func subscribe(callback: Callable, emit_current: bool = false) -> Callable:
+```
+
+订阅属性变化，并返回取消订阅函数。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `callback` | 变化回调，签名应为 func(old_value: Variant, new_value: Variant)。 |
+| `emit_current` | 是否立即以当前值调用一次回调；为 true 时 old_value 和 new_value 都是当前值。 |
+
+Returns: 可调用的取消订阅函数；callback 无效时返回空 Callable。
+
 #### `force_emit`
 
 - API: `public`

@@ -34,6 +34,20 @@ print(result.accepted_amount, result.remaining_amount)
 
 `GFSlotInventoryModel` 手动 `new()` 后默认是 0 槽位且 `allow_growth = false`，因此不会在 `add_item()` 时隐式新增槽位。固定容量背包应先调用 `set_slot_count(count)`；如果模型由 GF 生命周期管理，也可以设置 `default_slot_count` 让 `init()` 自动应用初始槽位。需要无固定格子上限、但仍受物品 `max_stack_amount` / `max_stack_count` 约束的容器时，再显式启用 `allow_growth = true`。
 
+需要“某些格子只能放某类物品”时，可给槽位配置 `GFInventorySlotDefinition`。槽位定义支持允许/拒绝物品 ID、按 `GFInventoryItemDefinition.categories` 匹配分类，以及项目层回调：
+
+```gdscript
+var weapon_slot := GFInventorySlotDefinition.new()
+weapon_slot.accepted_categories = [&"weapon"]
+
+slots.set_slot_definition(0, weapon_slot)
+
+if slots.can_accept_item_at_slot(0, &"sword"):
+	slots.add_item_to_slot(0, &"sword")
+```
+
+`add_item()` 会跳过不接收当前物品的空槽，`add_item_to_slot()` 和 `move_between_slots()` 会用 `slot_rejects_item` 拒绝非法目标槽。`validate_inventory()` 会报告 `slot_rejects_item`，`apply_registry_constraints(true)` 会清理违反槽位定义的堆叠。槽位定义只表达接收规则；快捷键、拖拽、装备效果、消耗行为和 UI 表现仍属于项目层。
+
 `GFSlotInventoryModel.get_slots_for_item()` 会维护物品到槽位的惰性索引，适合 UI 局部刷新或规则查询；`get_remaining_capacity_for_item()` 会同时考虑已有兼容堆叠、空槽位、`allow_growth` 和注册表中的堆叠数量上限，适合在非部分加入前做容量预判。
 
 `validate_inventory()` 和 `apply_registry_constraints()` 可检查或修复注册表约束，例如未注册物品、单堆叠超量或堆叠数量超限。`GFInventoryOperationResult.partial()` 会把“未完全接受”的结果规范为 `ok = false`，并在调用方误传 `reason = &"ok"` 时改为 `&"partial"` 或 `&"failed"`，避免 UI 和日志遇到“失败但原因是 ok”的冲突状态。

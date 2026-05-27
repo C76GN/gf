@@ -198,6 +198,36 @@ func decode_snapshot(data: Dictionary) -> GFNetworkSnapshot:
 	return snapshot
 
 
+## 编码快照 patch。
+## [br]
+## @api public
+## [br]
+## @param patch: GFNetworkSnapshot.make_patch_to() 生成的 patch 字典。
+## [br]
+## @return 编码后的 patch。
+## [br]
+## @schema patch: Dictionary，路径级 patch 结构。
+## [br]
+## @schema return: Dictionary，set 值已按已注册的顶层字段编码。
+func encode_patch(patch: Dictionary) -> Dictionary:
+	return _transform_patch(patch, true)
+
+
+## 解码快照 patch。
+## [br]
+## @api public
+## [br]
+## @param encoded_patch: encode_patch() 生成的 patch 字典。
+## [br]
+## @return 解码后的 patch。
+## [br]
+## @schema encoded_patch: Dictionary，编码后的路径级 patch 结构。
+## [br]
+## @schema return: Dictionary，set 值已按已注册的顶层字段解码。
+func decode_patch(encoded_patch: Dictionary) -> Dictionary:
+	return _transform_patch(encoded_patch, false)
+
+
 ## 复制 Schema 配置。
 ## [br]
 ## @api public
@@ -223,3 +253,91 @@ func _state_get_field(state: Dictionary, field_name: StringName) -> Variant:
 	if state.has(field_name):
 		return state[field_name]
 	return state.get(String(field_name))
+
+
+func _transform_patch(patch: Dictionary, encode: bool) -> Dictionary:
+	var result := patch.duplicate(true)
+	result["set"] = _transform_patch_set_ops(patch.get("set", []), encode)
+	result["erase"] = _filter_patch_erase_ops(patch.get("erase", []))
+	return result
+
+
+func _transform_patch_set_ops(set_value: Variant, encode: bool) -> Variant:
+	if set_value is Dictionary:
+		return _transform_patch_set_dictionary(set_value as Dictionary, encode)
+	if not (set_value is Array):
+		return set_value
+
+	var result: Array[Dictionary] = []
+	var set_array := set_value as Array
+	for op_value: Variant in set_array:
+		if not (op_value is Dictionary):
+			continue
+		var op := (op_value as Dictionary).duplicate(true)
+		var path := _patch_path_from_value(op.get("path", []))
+		if not _should_include_patch_path(path):
+			continue
+		op["path"] = path
+		op["value"] = _transform_patch_value_for_path(path, op.get("value"), encode)
+		result.append(op)
+	return result
+
+
+func _transform_patch_set_dictionary(set_values: Dictionary, encode: bool) -> Dictionary:
+	var result: Dictionary = {}
+	for key: Variant in set_values.keys():
+		var path := [key]
+		if not _should_include_patch_path(path):
+			continue
+		result[key] = _transform_patch_value_for_path(path, set_values[key], encode)
+	return result
+
+
+func _filter_patch_erase_ops(erase_value: Variant) -> Variant:
+	if erase_value is PackedStringArray:
+		var result := PackedStringArray()
+		for key: String in erase_value:
+			if _should_include_patch_path([key]):
+				result.append(key)
+		return result
+	if not (erase_value is Array):
+		return erase_value
+
+	var result: Array = []
+	var erase_array := erase_value as Array
+	for op_value: Variant in erase_array:
+		var path := _patch_path_from_value(op_value)
+		if _should_include_patch_path(path):
+			result.append(path)
+	return result
+
+
+func _transform_patch_value_for_path(path: Array, value: Variant, encode: bool) -> Variant:
+	if path.size() != 1:
+		return GFVariantData.duplicate_variant(value)
+
+	var serializer := get_field_serializer(StringName(str(path[0])))
+	if serializer == null:
+		return GFVariantData.duplicate_variant(value)
+	if encode:
+		return serializer.serialize_value(value)
+	return serializer.deserialize_value(value)
+
+
+func _should_include_patch_path(path: Array) -> bool:
+	if path.is_empty() or include_unregistered_fields:
+		return true
+	return has_field_serializer(StringName(str(path[0])))
+
+
+func _patch_path_from_value(path_value: Variant) -> Array:
+	var result: Array = []
+	if path_value is PackedStringArray:
+		for key: String in path_value:
+			result.append(key)
+	elif path_value is Array:
+		for key: Variant in path_value:
+			result.append(GFVariantData.duplicate_variant(key))
+	elif path_value is String or path_value is StringName:
+		result.append(path_value)
+	return result

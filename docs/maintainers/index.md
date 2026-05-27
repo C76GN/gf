@@ -173,6 +173,39 @@ python tools\check_docs_quality.py --strict
 
 AI 维护任务需要快速索引源码时，仍可使用 `tools/generate_ai_api.py` 生成 `ai_analysis/generated_api`。该目录只服务 AI 阅读，不作为正式文档中间源。
 
+## AI MCP 维护入口
+
+GF 提供一个可选的本地 MCP server，作为 AI 维护工具入口。它只读取仓库状态、公开 API 索引和维护文档，并可按白名单运行既有检查命令；它不是 GF 运行时功能，也不进入 `addons/gf`。
+
+```powershell
+python tools\gf_mcp_server.py
+```
+
+常用的非 MCP CLI 入口：
+
+```powershell
+python tools\gf_maintenance.py summary
+python tools\gf_maintenance.py workspace-status
+python tools\gf_maintenance.py api-search GFAudioClip
+python tools\gf_maintenance.py api-class GFValidationReportDictionary
+python tools\gf_maintenance.py api-module extensions/domain
+python tools\gf_maintenance.py check --suite quick
+python tools\gf_maintenance.py check --suite full
+python tools\gf_maintenance.py release-status --version 3.19.0
+```
+
+MCP 暴露的主要工具：
+
+- `gf_project_summary`：返回 Git 状态、版本元数据、API Catalog 统计和维护入口。
+- `gf_workspace_status`：返回按运行时代码、测试、手写文档、生成文档和维护工具分类的变更快照，并给出推荐检查命令。
+- `gf_api_search`：按类名、成员名、路径或注释搜索 GF API，避免一次性读取大量源码。
+- `gf_api_class`：返回单个 `class_name` 的路径、摘要、Reference 页面和公开成员。
+- `gf_api_module`：返回单个模块的类清单、路径和成员计数，适合先理解模块边界再打开具体源码。
+- `gf_run_checks`：运行 `api`、`docs`、`quick`、`full` 或 `release` 检查套件。
+- `gf_release_status`：校验 `plugin.cfg`、扩展 manifest、`ASSET_LIBRARY.md`、changelog 和本地 tag 状态。
+
+接入 MCP 客户端时，将 server 命令指向仓库根目录下的 `python tools/gf_mcp_server.py` 即可。不要把个人客户端配置、会话记录或 MCP 运行日志提交到仓库；需要新增维护能力时，优先扩展 `tools/gf_maintenance.py`，再让 MCP server 调用同一套函数。
+
 ## 发布流程
 
 GF 正式版本 tag 统一使用不带 `v` 的 SemVer 格式，例如 `3.5.0`。不要使用 `v3.5.0`，避免编辑器版本检测、发布自动化和 Asset Library 元数据出现两套版本名。

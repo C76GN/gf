@@ -1,8 +1,8 @@
 ## GFGridMath: 网格类小游戏的纯算法工具。
 ##
-## 提供一维索引与二维格坐标转换、邻居枚举、泛洪搜索、BFS / A* 路径查找、
-## Flow Field 生成以及连连看类“两折连线”判断。它不依赖 GFArchitecture，可直接在
-## Model、System、Controller 或测试中静态调用。
+## 提供一维索引与二维格坐标转换、邻居枚举、范围、外环、直线、视线、
+## 泛洪搜索、BFS / A* 路径查找、Flow Field 生成以及连连看类“两折连线”判断。
+## 它不依赖 GFArchitecture，可直接在 Model、System、Controller 或测试中静态调用。
 ## [br]
 ## @api public
 ## [br]
@@ -112,6 +112,179 @@ static func get_neighbors(
 			result.append(next_cell)
 
 	return result
+
+
+## 获取两个端点之间的矩形格子。
+## [br]
+## @api public
+## [br]
+## @since 3.20.0
+## [br]
+## @param from_cell: 第一个端点。
+## [br]
+## @param to_cell: 第二个端点。
+## [br]
+## @param grid_size: 可选网格尺寸；任一轴小于 0 时不按边界过滤。
+## [br]
+## @return 矩形内坐标列表，包含两个端点，按 y/x 稳定顺序返回。
+static func get_rectangle_cells(
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	grid_size: Vector2i = Vector2i(-1, -1)
+) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var min_x := mini(from_cell.x, to_cell.x)
+	var max_x := maxi(from_cell.x, to_cell.x)
+	var min_y := mini(from_cell.y, to_cell.y)
+	var max_y := maxi(from_cell.y, to_cell.y)
+
+	for y: int in range(min_y, max_y + 1):
+		for x: int in range(min_x, max_x + 1):
+			var cell := Vector2i(x, y)
+			if _is_in_optional_bounds(cell, grid_size):
+				result.append(cell)
+	return result
+
+
+## 获取指定半径内的所有格子。
+## [br]
+## @api public
+## [br]
+## @since 3.20.0
+## [br]
+## @param center: 中心格子。
+## [br]
+## @param radius: 半径。
+## [br]
+## @param grid_size: 可选网格尺寸；任一轴小于 0 时不按边界过滤。
+## [br]
+## @param include_diagonal: 为 false 时使用曼哈顿范围；为 true 时使用切比雪夫范围。
+## [br]
+## @return 半径内坐标列表，包含中心，按 y/x 稳定顺序返回。
+static func get_range(
+	center: Vector2i,
+	radius: int,
+	grid_size: Vector2i = Vector2i(-1, -1),
+	include_diagonal: bool = false
+) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if radius < 0:
+		return result
+
+	for y: int in range(center.y - radius, center.y + radius + 1):
+		for x: int in range(center.x - radius, center.x + radius + 1):
+			var cell := Vector2i(x, y)
+			if not _is_in_optional_bounds(cell, grid_size):
+				continue
+			if _get_grid_distance(center, cell, include_diagonal) <= radius:
+				result.append(cell)
+	return result
+
+
+## 获取指定半径的外环格子。
+## [br]
+## @api public
+## [br]
+## @since 3.20.0
+## [br]
+## @param center: 中心格子。
+## [br]
+## @param radius: 半径；0 时返回中心。
+## [br]
+## @param grid_size: 可选网格尺寸；任一轴小于 0 时不按边界过滤。
+## [br]
+## @param include_diagonal: 为 false 时使用曼哈顿外环；为 true 时使用切比雪夫外环。
+## [br]
+## @return 外环坐标列表，按 y/x 稳定顺序返回。
+static func get_ring(
+	center: Vector2i,
+	radius: int,
+	grid_size: Vector2i = Vector2i(-1, -1),
+	include_diagonal: bool = false
+) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	if radius < 0:
+		return result
+
+	for y: int in range(center.y - radius, center.y + radius + 1):
+		for x: int in range(center.x - radius, center.x + radius + 1):
+			var cell := Vector2i(x, y)
+			if not _is_in_optional_bounds(cell, grid_size):
+				continue
+			if _get_grid_distance(center, cell, include_diagonal) == radius:
+				result.append(cell)
+	return result
+
+
+## 获取连接两个格子的 Bresenham 直线。
+## [br]
+## @api public
+## [br]
+## @since 3.20.0
+## [br]
+## @param from_cell: 起点格子。
+## [br]
+## @param to_cell: 终点格子。
+## [br]
+## @return 坐标列表，包含起点与终点。
+static func get_line(from_cell: Vector2i, to_cell: Vector2i) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var x0 := from_cell.x
+	var y0 := from_cell.y
+	var x1 := to_cell.x
+	var y1 := to_cell.y
+	var dx := absi(x1 - x0)
+	var sx := 1 if x0 < x1 else -1
+	var dy := -absi(y1 - y0)
+	var sy := 1 if y0 < y1 else -1
+	var error := dx + dy
+
+	while true:
+		result.append(Vector2i(x0, y0))
+		if x0 == x1 and y0 == y1:
+			break
+
+		var doubled_error := error * 2
+		if doubled_error >= dy:
+			error += dy
+			x0 += sx
+		if doubled_error <= dx:
+			error += dx
+			y0 += sy
+	return result
+
+
+## 判断两格之间是否有视线。
+## [br]
+## @api public
+## [br]
+## @since 3.20.0
+## [br]
+## @param from_cell: 起点格子。
+## [br]
+## @param to_cell: 终点格子。
+## [br]
+## @param is_blocking: 阻挡回调，签名为 `func(cell: Vector2i) -> bool`。
+## [br]
+## @param include_endpoints: 是否检查起点与终点是否阻挡。
+## [br]
+## @return 没有阻挡时返回 true；阻挡回调无效时也返回 true。
+static func has_line_of_sight(
+	from_cell: Vector2i,
+	to_cell: Vector2i,
+	is_blocking: Callable,
+	include_endpoints: bool = false
+) -> bool:
+	if not is_blocking.is_valid():
+		return true
+
+	var line := get_line(from_cell, to_cell)
+	for index: int in range(line.size()):
+		if not include_endpoints and (index == 0 or index == line.size() - 1):
+			continue
+		if bool(is_blocking.call(line[index])):
+			return false
+	return true
 
 
 ## 从起点执行泛洪搜索，返回所有满足匹配条件且连通的格子。
@@ -464,6 +637,18 @@ static func _reconstruct_path(start: Vector2i, goal: Vector2i, came_from: Dictio
 		path.push_front(current)
 
 	return path
+
+
+static func _is_in_optional_bounds(cell: Vector2i, grid_size: Vector2i) -> bool:
+	if grid_size.x < 0 or grid_size.y < 0:
+		return true
+	return is_in_bounds(cell, grid_size)
+
+
+static func _get_grid_distance(from_cell: Vector2i, to_cell: Vector2i, include_diagonal: bool) -> int:
+	var dx := absi(to_cell.x - from_cell.x)
+	var dy := absi(to_cell.y - from_cell.y)
+	return maxi(dx, dy) if include_diagonal else dx + dy
 
 
 static func _take_lowest_score_cell(cells: Array[Vector2i], scores: Dictionary) -> Vector2i:

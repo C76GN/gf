@@ -1,4 +1,4 @@
-## 测试 GFGridMath 的索引转换、邻居、泛洪、BFS 与两折连线判断。
+## 测试 GFGridMath 的索引转换、邻居、范围/直线、泛洪、BFS 与两折连线判断。
 extends GutTest
 
 
@@ -27,6 +27,98 @@ func test_get_neighbors_filters_bounds() -> void:
 	assert_eq(neighbors.size(), 2, "左上角正交邻居应只有 2 个。")
 	assert_true(neighbors.has(Vector2i.RIGHT), "左上角应包含右侧邻居。")
 	assert_true(neighbors.has(Vector2i.DOWN), "左上角应包含下方邻居。")
+
+
+func test_rectangle_cells_are_endpoint_inclusive_and_row_major() -> void:
+	var cells: Array[Vector2i] = GF_GRID_MATH.get_rectangle_cells(Vector2i(2, 1), Vector2i(0, 2))
+	var bounded: Array[Vector2i] = GF_GRID_MATH.get_rectangle_cells(
+		Vector2i(-1, -1),
+		Vector2i(1, 1),
+		Vector2i(2, 2)
+	)
+
+	assert_eq(
+		cells,
+		[
+			Vector2i(0, 1),
+			Vector2i(1, 1),
+			Vector2i(2, 1),
+			Vector2i(0, 2),
+			Vector2i(1, 2),
+			Vector2i(2, 2),
+		],
+		"矩形格子应包含两个端点并按稳定顺序返回。"
+	)
+	assert_eq(
+		bounded,
+		[
+			Vector2i(0, 0),
+			Vector2i(1, 0),
+			Vector2i(0, 1),
+			Vector2i(1, 1),
+		],
+		"矩形生成应按可选网格尺寸过滤越界格子。"
+	)
+
+
+func test_range_and_ring_follow_movement_topology() -> void:
+	var orthogonal_range: Array[Vector2i] = GF_GRID_MATH.get_range(Vector2i(2, 2), 1)
+	var diagonal_range: Array[Vector2i] = GF_GRID_MATH.get_range(
+		Vector2i(2, 2),
+		1,
+		Vector2i(-1, -1),
+		true
+	)
+	var orthogonal_ring: Array[Vector2i] = GF_GRID_MATH.get_ring(Vector2i(2, 2), 2)
+	var bounded_ring: Array[Vector2i] = GF_GRID_MATH.get_ring(Vector2i.ZERO, 1, Vector2i(2, 2), true)
+
+	assert_eq(orthogonal_range.size(), 5, "曼哈顿半径 1 应包含中心和四向邻居。")
+	assert_false(orthogonal_range.has(Vector2i(1, 1)), "曼哈顿范围不应包含对角格。")
+	assert_eq(diagonal_range.size(), 9, "切比雪夫半径 1 应包含 3x3 方块。")
+	assert_eq(orthogonal_ring.size(), 8, "曼哈顿半径 2 外环应包含 8 个格子。")
+	assert_true(orthogonal_ring.has(Vector2i(4, 2)), "曼哈顿外环应包含半径边界格。")
+	assert_false(orthogonal_ring.has(Vector2i(3, 2)), "曼哈顿外环不应包含半径内部格。")
+	assert_eq(bounded_ring.size(), 3, "切比雪夫外环应能按边界过滤左上角越界格。")
+
+
+func test_line_and_line_of_sight_use_bresenham_cells() -> void:
+	var line: Array[Vector2i] = GF_GRID_MATH.get_line(Vector2i.ZERO, Vector2i(3, 2))
+	var blocked := {
+		Vector2i(1, 1): true,
+	}
+	var blocked_los: bool = GF_GRID_MATH.has_line_of_sight(
+		Vector2i.ZERO,
+		Vector2i(3, 2),
+		func(cell: Vector2i) -> bool:
+			return blocked.has(cell)
+	)
+	var endpoint_ignored_los: bool = GF_GRID_MATH.has_line_of_sight(
+		Vector2i.ZERO,
+		Vector2i.ZERO,
+		func(cell: Vector2i) -> bool:
+			return cell == Vector2i.ZERO
+	)
+	var endpoint_checked_los: bool = GF_GRID_MATH.has_line_of_sight(
+		Vector2i.ZERO,
+		Vector2i.ZERO,
+		func(cell: Vector2i) -> bool:
+			return cell == Vector2i.ZERO,
+		true
+	)
+
+	assert_eq(
+		line,
+		[
+			Vector2i(0, 0),
+			Vector2i(1, 1),
+			Vector2i(2, 1),
+			Vector2i(3, 2),
+		],
+		"直线应按 Bresenham 生成包含起终点的格子。"
+	)
+	assert_false(blocked_los, "中间格阻挡时视线应失败。")
+	assert_true(endpoint_ignored_los, "默认不检查端点时，起终点阻挡不应影响视线。")
+	assert_false(endpoint_checked_los, "显式检查端点时，端点阻挡应让视线失败。")
 
 
 func test_flood_fill_returns_connected_matching_cells() -> void:

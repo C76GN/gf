@@ -4,10 +4,28 @@
 
 ## 核心能力
 
+- 范围、外环、矩形和直线格子：适合 AOE、候选选区、格子画刷和视线检测。
 - BFS 路径查找：适合无权重网格。
 - A* 路径查找：适合带通行代价的网格。
 - Flow Field：适合大量单位朝一个或多个目标移动。
 - 最大转弯连接：适合连连看、管线连接和棋盘路径判定。
+
+## 范围与形状
+
+```gdscript
+var move_area := GFGridMath.get_range(unit_cell, 2, board_size)
+var diagonal_area := GFGridMath.get_range(unit_cell, 2, board_size, true)
+var footprint := GFGridMath.get_rectangle_cells(Vector2i(2, 2), Vector2i(4, 3), board_size)
+
+var visible := GFGridMath.has_line_of_sight(
+	unit_cell,
+	target_cell,
+	func(cell: Vector2i) -> bool:
+		return wall_cells.has(cell)
+)
+```
+
+`get_range()` 和 `get_ring()` 默认使用四方向移动对应的曼哈顿距离；`include_diagonal` 为 `true` 时改用八方向移动对应的切比雪夫距离。`get_line()` 使用 Bresenham 格子直线，适合离散网格上的普通射线、指示线和简单视线判断。
 
 ## 路径与连接
 
@@ -55,4 +73,4 @@ var direction := (field["directions"] as Dictionary).get(unit_cell, Vector2i.ZER
 
 ## 使用边界
 
-`GFGridMath` 只接收通行、代价和候选回调，不规定障碍、阵营、地形、棋子语义、移动动画或胜负规则。项目层负责把自己的地图数据转换成回调，并解释返回的路径、方向或连接结果。
+`GFGridMath` 只接收通行、代价、阻挡和候选回调，不规定障碍、阵营、地形、棋子语义、移动动画或胜负规则。项目层负责把自己的地图数据转换成回调，并解释返回的范围、直线、路径、方向或连接结果。

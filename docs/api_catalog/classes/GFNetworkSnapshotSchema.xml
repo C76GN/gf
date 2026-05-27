@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNetworkSnapshotSchema" path="addons/gf/extensions/network/snapshot/gf_network_snapshot_schema.gd" module="extensions/network" extends="Resource" classDigest="1b0217a04ab2f6a99688c98cedf12b9240e496c160cf6c25cf10e794012ac9fe">
+<class name="GFNetworkSnapshotSchema" path="addons/gf/extensions/network/snapshot/gf_network_snapshot_schema.gd" module="extensions/network" extends="Resource" classDigest="0fc101b80f896d9e6de88d656db120977d74c30771451dfaac8df74fa9bc1d80">
 	<description>GFNetworkSnapshotSchema: 网络快照字段编码表。
 用字段级编码器转换快照 state，适合项目在自己的同步、回放或存储流程中
 统一压缩、量化和恢复状态字段。</description>
@@ -112,6 +112,28 @@
 				<tag name="param">data: encode_snapshot() 或 GFNetworkSnapshot.to_dict() 形式的字典。</tag>
 				<tag name="return">解码后的快照。</tag>
 				<tag name="schema">data: Dictionary，encode_snapshot() 或 GFNetworkSnapshot.to_dict() 结构。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="encode_patch">
+			<signature>func encode_patch(patch: Dictionary) -&gt; Dictionary:</signature>
+			<description>编码快照 patch。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">patch: GFNetworkSnapshot.make_patch_to() 生成的 patch 字典。</tag>
+				<tag name="return">编码后的 patch。</tag>
+				<tag name="schema">patch: Dictionary，路径级 patch 结构。</tag>
+				<tag name="schema">return: Dictionary，set 值已按已注册的顶层字段编码。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="decode_patch">
+			<signature>func decode_patch(encoded_patch: Dictionary) -&gt; Dictionary:</signature>
+			<description>解码快照 patch。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">encoded_patch: encode_patch() 生成的 patch 字典。</tag>
+				<tag name="return">解码后的 patch。</tag>
+				<tag name="schema">encoded_patch: Dictionary，编码后的路径级 patch 结构。</tag>
+				<tag name="schema">return: Dictionary，set 值已按已注册的顶层字段解码。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="duplicate_schema">

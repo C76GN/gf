@@ -107,6 +107,60 @@ static func get_tags(source: Variant) -> PackedStringArray:
 	return result
 
 
+## 获取标签源中的标签层数字典。
+## [br]
+## @api public
+## [br]
+## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
+## @return 标签名到层数的字典。
+## [br]
+## @schema return: Dictionary[StringName, int]，只包含层数大于 0 的标签。
+static func get_tag_counts(source: Variant) -> Dictionary:
+	var result: Dictionary = {}
+	for tag_text: String in get_tags(source):
+		var tag := StringName(tag_text)
+		var count := get_tag_count(source, tag)
+		if count > 0:
+			result[tag] = count
+	return result
+
+
+## 将任意标签源规范化为 GFTagSet。
+## [br]
+## @api public
+## [br]
+## @param source: 标签源。
+## [br]
+## @schema source: Variant tag source accepted by the adapter.
+## [br]
+## @return 新的标签集合。
+static func to_tag_set(source: Variant) -> GFTagSet:
+	var tag_set := GFTagSet.new()
+	tag_set.set_tags(get_tag_counts(source))
+	return tag_set
+
+
+## 合并多个标签源并返回新的 GFTagSet。
+## [br]
+## @api public
+## [br]
+## @param sources: 标签源数组。
+## [br]
+## @schema sources: Array[Variant]，每个元素都可被 GFTagSourceAdapter 读取。
+## [br]
+## @return 合并后的标签集合。
+static func merge_sources(sources: Array) -> GFTagSet:
+	var tag_set := GFTagSet.new()
+	for source: Variant in sources:
+		var counts := get_tag_counts(source)
+		for tag_variant: Variant in counts.keys():
+			tag_set.add_tag(StringName(tag_variant), int(counts[tag_variant]))
+	return tag_set
+
+
 ## 检查标签源是否包含所有标签。
 ## [br]
 ## @api public

@@ -31,6 +31,16 @@ class FailingExecuteSkill extends GFSkill:
 		return false
 
 
+class ContextRecordingSkill extends GFSkill:
+	var activation_context: RefCounted = null
+	var execute_count: int = 0
+
+	func _try_activate(context: RefCounted) -> bool:
+		activation_context = context
+		execute_count += 1
+		return true
+
+
 class UnregisterOtherBuff extends GFBuff:
 	var system: GFCombatSystem = null
 	var target: Object = null
@@ -292,6 +302,84 @@ func test_skill_custom_can_execute_runs_without_tag_component() -> void:
 	skill.owner = plain_owner
 
 	assert_false(skill.can_execute(), "owner 无标签组件且无必需标签时，仍应执行自定义施放检查。")
+
+
+func test_skill_activation_report_uses_tag_query_and_callbacks() -> void:
+	var entity := MockEntity.new()
+	entity.tag_component.add_tag(&"state.ready")
+	var skill := GFSkill.new(entity)
+	var query := GFTagQuery.new()
+	query.all_tags = [&"state.ready"]
+	skill.activation_query = query
+	skill.activation_checks.append(func(context: RefCounted) -> Dictionary:
+		assert_same(context.get("owner"), entity, "激活检查应收到上下文 owner。")
+		return {
+			"ok": true,
+			"metadata": {
+				"checked": true,
+			},
+		}
+	)
+
+	var report := skill.get_activation_report()
+
+	assert_true(bool(report["ok"]), "满足标签查询和检查回调时应允许激活。")
+	assert_true(bool((report["metadata"] as Dictionary)["checked"]), "检查回调 metadata 应写入报告。")
+
+
+func test_skill_activation_check_failure_blocks_execute() -> void:
+	var entity := MockEntity.new()
+	var skill := ContextRecordingSkill.new(entity)
+	skill.activation_checks.append(func(_context: RefCounted) -> Dictionary:
+		return {
+			"ok": false,
+			"reason": &"no_budget",
+			"metadata": {
+				"cost": 3,
+			},
+		}
+	)
+	watch_signals(skill)
+
+	var executed := skill.execute()
+
+	assert_false(executed, "激活检查失败时 execute 应返回 false。")
+	assert_eq(skill.execute_count, 0, "激活检查失败不应进入执行钩子。")
+	assert_eq(skill.cooldown_left, 0.0, "激活检查失败不应进入冷却。")
+	assert_signal_emitted(skill, "activation_failed", "激活失败应发出信号。")
+
+
+func test_skill_activation_context_commit_and_cooldown_flow() -> void:
+	var entity := MockEntity.new()
+	var target := MockEntity.new()
+	var skill := ContextRecordingSkill.new(entity)
+	skill.cooldown_max = 2.0
+	var committed_targets: Array[Object] = []
+	skill.activation_commit_callbacks.append(func(context: RefCounted) -> Dictionary:
+		committed_targets.append(context.get("manual_target") as Object)
+		return {
+			"ok": true,
+			"metadata": {
+				"committed": true,
+			},
+		}
+	)
+	watch_signals(skill)
+
+	var executed := skill.execute(target, Vector2(4.0, 5.0), { "request": "primary" })
+	var context := skill.activation_context
+	var context_metadata := context.get("metadata") as Dictionary
+	var context_targets := context.get("targets") as Array
+
+	assert_true(executed, "激活提交和执行成功时 execute 应返回 true。")
+	assert_eq(committed_targets, [target], "提交回调应在执行前收到激活上下文。")
+	assert_eq(skill.cooldown_left, 2.0, "执行成功后应进入冷却。")
+	assert_same(context.get("manual_target"), target, "上下文应保留手动目标。")
+	assert_eq(context.get("resolved_center"), Vector2(4.0, 5.0), "上下文应保留解析后的施放中心。")
+	assert_eq(context_targets, [target], "上下文应保留最终目标。")
+	assert_true(bool(context_metadata["committed"]), "提交回调 metadata 应合并到上下文。")
+	assert_eq(context_metadata["request"], "primary", "调用方 metadata 应保留。")
+	assert_signal_emitted(skill, "activation_committed", "执行成功应发出提交信号。")
 
 
 func test_skill_rejects_freed_owner() -> void:

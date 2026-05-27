@@ -101,6 +101,23 @@ func test_analytics_headers_reject_invalid_entries() -> void:
 	assert_push_warning("[GFAnalyticsConfig] 忽略非法 HTTP Header：")
 
 
+## 验证启用压缩时会固定 Content-Encoding，避免自定义 Header 和请求体不一致。
+func test_analytics_headers_add_gzip_when_payload_compression_enabled() -> void:
+	var config := GFAnalyticsConfig.new()
+	config.compress_payload = true
+	config.headers = {
+		"Content-Encoding": "identity",
+		"X-Trace": "abc",
+	}
+
+	var headers := config.build_headers()
+
+	assert_true(headers.has("Content-Encoding: gzip"), "启用压缩后应声明 gzip 请求体。")
+	assert_false(headers.has("Content-Encoding: identity"), "自定义 Content-Encoding 不应覆盖压缩配置。")
+	assert_true(headers.has("X-Trace: abc"), "其他合法自定义 Header 应保留。")
+	assert_push_warning("[GFAnalyticsConfig] compress_payload 已启用，忽略自定义 Content-Encoding。")
+
+
 ## 验证运行时代码写入非法批量配置时会被钳制，不会破坏队列。
 func test_runtime_config_values_are_clamped() -> void:
 	_analytics.config.max_queue_size = 0

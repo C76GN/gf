@@ -45,6 +45,7 @@ Module: `extensions/combat`
 - [`GFProjectileSpawnPattern2D`](#gfprojectilespawnpattern2d)
 - [`GFProjectileSpawnPattern3D`](#gfprojectilespawnpattern3d)
 - [`GFSkill`](#gfskill)
+- [`GFSkillActivationContext`](#gfskillactivationcontext)
 - [`GFSkillTargetingRule`](#gfskilltargetingrule)
 - [`GFSkillTargetingUtility`](#gfskilltargetingutility)
 - [`GFTagComponent`](#gftagcomponent)
@@ -6593,6 +6594,40 @@ Parameters:
 |---|---|
 | `skill` | 进入冷却的技能实例。 |
 
+#### `activation_failed`
+
+- API: `public`
+
+```gdscript
+signal activation_failed(skill: GFSkill, context)
+```
+
+当技能激活失败时发出。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `skill` | 激活失败的技能实例。 |
+| `context` | 技能激活上下文。 |
+
+#### `activation_committed`
+
+- API: `public`
+
+```gdscript
+signal activation_committed(skill: GFSkill, context)
+```
+
+当技能完成激活提交并进入冷却时发出。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `skill` | 已提交的技能实例。 |
+| `context` | 技能激活上下文。 |
+
 ### Properties
 
 #### `id`
@@ -6665,6 +6700,44 @@ var targeting_rule: GFSkillTargetingRule = null
 
 技能索敌规则。
 
+#### `activation_query`
+
+- API: `public`
+
+```gdscript
+var activation_query: GFTagQuery = null
+```
+
+可选标签查询。为空时使用 require_tags / ignore_tags。
+
+#### `activation_checks`
+
+- API: `public`
+
+```gdscript
+var activation_checks: Array[Callable] = []
+```
+
+激活检查回调。每个回调接收 GFSkillActivationContext，可返回 bool 或 { ok, reason, metadata }。
+
+Schemas:
+
+- `activation_checks`: Array[Callable]，用于项目自定义成本、状态或上下文检查。
+
+#### `activation_commit_callbacks`
+
+- API: `public`
+
+```gdscript
+var activation_commit_callbacks: Array[Callable] = []
+```
+
+激活提交回调。检查和目标解析通过后、执行技能逻辑前调用。
+
+Schemas:
+
+- `activation_commit_callbacks`: Array[Callable]，用于项目自定义成本提交、资源预留或日志写入。
+
 ### Methods
 
 #### `update`
@@ -6695,12 +6768,59 @@ func can_execute() -> bool:
 
 Returns: 可施放时返回 `true`。
 
+#### `build_activation_context`
+
+- API: `public`
+
+```gdscript
+func build_activation_context( manual_target: Object = null, cast_center: Variant = null, activation_metadata: Dictionary = {} ) -> RefCounted:
+```
+
+创建技能激活上下文。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `manual_target` | 可选的手动目标。 |
+| `cast_center` | 可选施法中心；传入 `null` 时回退到施法者位置。 |
+| `activation_metadata` | 项目自定义激活元数据。 |
+
+Returns: 技能激活上下文。
+
+Schemas:
+
+- `cast_center`: Variant，可为 null 或 Vector2；为 null 时从 owner.global_position 推导。
+- `activation_metadata`: Dictionary，复制到上下文中供项目检查、提交或诊断使用。
+
+#### `get_activation_report`
+
+- API: `public`
+
+```gdscript
+func get_activation_report(context: RefCounted = null) -> Dictionary:
+```
+
+获取技能激活报告。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `context` | 可选激活上下文；为空时创建默认上下文。 |
+
+Returns: 激活报告。
+
+Schemas:
+
+- `return`: Dictionary，包含 ok、reason、skill_id、target_count 和 metadata。
+
 #### `execute`
 
 - API: `public`
 
 ```gdscript
-func execute(manual_target: Object = null, cast_center: Variant = null) -> bool:
+func execute( manual_target: Object = null, cast_center: Variant = null, activation_metadata: Dictionary = {} ) -> bool:
 ```
 
 执行技能。
@@ -6711,12 +6831,198 @@ Parameters:
 |---|---|
 | `manual_target` | 可选的手动目标。 |
 | `cast_center` | 可选施法中心；传入 `null` 时回退到施法者位置。 |
+| `activation_metadata` | 项目自定义激活元数据。 |
 
 Returns: 技能实际执行并进入冷却时返回 `true`。
 
 Schemas:
 
 - `cast_center`: Variant，可为 null 或 Vector2；为 null 时从 owner.global_position 推导。
+- `activation_metadata`: Dictionary，复制到上下文中供项目检查、提交或诊断使用。
+
+## GFSkillActivationContext
+
+- Path: `addons/gf/extensions/combat/skills/gf_skill_activation_context.gd`
+- Extends: `RefCounted`
+- API: `public`
+- Category: `value_object`
+- Since: `3.20.0`
+
+GFSkillActivationContext: 技能激活上下文。 保存一次技能激活过程中的 owner、目标、位置、失败原因和项目元数据。 它只承载通用上下文，不解释成本、阵营、属性或具体玩法规则。
+
+### Properties
+
+#### `skill`
+
+- API: `public`
+
+```gdscript
+var skill: GFSkill = null
+```
+
+技能实例。
+
+#### `owner`
+
+- API: `public`
+
+```gdscript
+var owner: Object = null
+```
+
+技能拥有者。
+
+#### `manual_target`
+
+- API: `public`
+
+```gdscript
+var manual_target: Object = null
+```
+
+手动传入的目标。
+
+#### `cast_center`
+
+- API: `public`
+
+```gdscript
+var cast_center: Variant = null
+```
+
+原始施放中心。
+
+Schemas:
+
+- `cast_center`: Variant，可为 null 或 Vector2。
+
+#### `resolved_center`
+
+- API: `public`
+
+```gdscript
+var resolved_center: Vector2 = Vector2.ZERO
+```
+
+解析后的施放中心。
+
+#### `targets`
+
+- API: `public`
+
+```gdscript
+var targets: Array[Object] = []
+```
+
+最终目标列表。
+
+Schemas:
+
+- `targets`: Array[Object]，经过项目目标规则过滤后的目标。
+
+#### `failure_reason`
+
+- API: `public`
+
+```gdscript
+var failure_reason: StringName = &""
+```
+
+激活报告中的失败原因。空值表示尚未失败。
+
+#### `metadata`
+
+- API: `public`
+
+```gdscript
+var metadata: Dictionary = {}
+```
+
+项目自定义元数据。框架不解释该字段。
+
+Schemas:
+
+- `metadata`: Dictionary，项目持有的成本、日志、调试或表现数据。
+
+### Methods
+
+#### `configure`
+
+- API: `public`
+
+```gdscript
+func configure( p_skill: GFSkill, p_owner: Object, p_manual_target: Object = null, p_cast_center: Variant = null, p_resolved_center: Vector2 = Vector2.ZERO, p_metadata: Dictionary = {} ) -> RefCounted:
+```
+
+配置上下文并返回自身。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `p_skill` | 技能实例。 |
+| `p_owner` | 技能拥有者。 |
+| `p_manual_target` | 手动传入目标。 |
+| `p_cast_center` | 原始施放中心。 |
+| `p_resolved_center` | 解析后的施放中心。 |
+| `p_metadata` | 项目自定义元数据。 |
+
+Returns: 当前上下文。
+
+Schemas:
+
+- `p_cast_center`: Variant，可为 null 或 Vector2。
+- `p_metadata`: Dictionary，复制到上下文中供项目检查、提交或诊断使用。
+- `return`: GFSkillActivationContext 当前上下文。
+
+#### `fail`
+
+- API: `public`
+
+```gdscript
+func fail(reason: StringName, extra_metadata: Dictionary = {}) -> void:
+```
+
+标记激活失败。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `reason` | 失败原因。 |
+| `extra_metadata` | 追加到上下文的元数据。 |
+
+Schemas:
+
+- `extra_metadata`: Dictionary，复制到 metadata 中供项目诊断或串联使用。
+
+#### `is_ok`
+
+- API: `public`
+
+```gdscript
+func is_ok() -> bool:
+```
+
+检查上下文当前是否未失败。
+
+Returns: 未失败时返回 true。
+
+#### `to_report`
+
+- API: `public`
+
+```gdscript
+func to_report() -> Dictionary:
+```
+
+创建报告字典。
+
+Returns: 报告字典。
+
+Schemas:
+
+- `return`: Dictionary，包含 ok、reason、skill_id、target_count 和 metadata。
 
 ## GFSkillTargetingRule
 

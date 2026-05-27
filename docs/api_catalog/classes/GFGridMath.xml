@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFGridMath" path="addons/gf/standard/foundation/math/gf_grid_math.gd" module="standard" extends="RefCounted" classDigest="9f676c2f186a7369a0b10392da44c3038f08ec0b834a6db8c5ea2d528c5842b0">
+<class name="GFGridMath" path="addons/gf/standard/foundation/math/gf_grid_math.gd" module="standard" extends="RefCounted" classDigest="680d8ead6998696c0c6381eecab4c3afec5a17ffbc89d95692c4698e163e8725">
 	<description>GFGridMath: 网格类小游戏的纯算法工具。
-提供一维索引与二维格坐标转换、邻居枚举、泛洪搜索、BFS / A* 路径查找、
-Flow Field 生成以及连连看类“两折连线”判断。它不依赖 GFArchitecture，可直接在
-Model、System、Controller 或测试中静态调用。</description>
+提供一维索引与二维格坐标转换、邻居枚举、范围、外环、直线、视线、
+泛洪搜索、BFS / A* 路径查找、Flow Field 生成以及连连看类“两折连线”判断。
+它不依赖 GFArchitecture，可直接在 Model、System、Controller 或测试中静态调用。</description>
 	<tags>
 		<tag name="api">public</tag>
 		<tag name="category">runtime_service</tag>
@@ -53,6 +53,68 @@ Model、System、Controller 或测试中静态调用。</description>
 				<tag name="param">grid_size: 网格尺寸。</tag>
 				<tag name="param">include_diagonal: 是否包含四个斜向邻居。</tag>
 				<tag name="return">位于网格范围内的邻居列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_rectangle_cells">
+			<signature>static func get_rectangle_cells( from_cell: Vector2i, to_cell: Vector2i, grid_size: Vector2i = Vector2i(-1, -1) ) -&gt; Array[Vector2i]:</signature>
+			<description>获取两个端点之间的矩形格子。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">from_cell: 第一个端点。</tag>
+				<tag name="param">to_cell: 第二个端点。</tag>
+				<tag name="param">grid_size: 可选网格尺寸；任一轴小于 0 时不按边界过滤。</tag>
+				<tag name="return">矩形内坐标列表，包含两个端点，按 y/x 稳定顺序返回。</tag>
+				<tag name="since">3.20.0</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_range">
+			<signature>static func get_range( center: Vector2i, radius: int, grid_size: Vector2i = Vector2i(-1, -1), include_diagonal: bool = false ) -&gt; Array[Vector2i]:</signature>
+			<description>获取指定半径内的所有格子。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">center: 中心格子。</tag>
+				<tag name="param">radius: 半径。</tag>
+				<tag name="param">grid_size: 可选网格尺寸；任一轴小于 0 时不按边界过滤。</tag>
+				<tag name="param">include_diagonal: 为 false 时使用曼哈顿范围；为 true 时使用切比雪夫范围。</tag>
+				<tag name="return">半径内坐标列表，包含中心，按 y/x 稳定顺序返回。</tag>
+				<tag name="since">3.20.0</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_ring">
+			<signature>static func get_ring( center: Vector2i, radius: int, grid_size: Vector2i = Vector2i(-1, -1), include_diagonal: bool = false ) -&gt; Array[Vector2i]:</signature>
+			<description>获取指定半径的外环格子。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">center: 中心格子。</tag>
+				<tag name="param">radius: 半径；0 时返回中心。</tag>
+				<tag name="param">grid_size: 可选网格尺寸；任一轴小于 0 时不按边界过滤。</tag>
+				<tag name="param">include_diagonal: 为 false 时使用曼哈顿外环；为 true 时使用切比雪夫外环。</tag>
+				<tag name="return">外环坐标列表，按 y/x 稳定顺序返回。</tag>
+				<tag name="since">3.20.0</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_line">
+			<signature>static func get_line(from_cell: Vector2i, to_cell: Vector2i) -&gt; Array[Vector2i]:</signature>
+			<description>获取连接两个格子的 Bresenham 直线。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">from_cell: 起点格子。</tag>
+				<tag name="param">to_cell: 终点格子。</tag>
+				<tag name="return">坐标列表，包含起点与终点。</tag>
+				<tag name="since">3.20.0</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_line_of_sight">
+			<signature>static func has_line_of_sight( from_cell: Vector2i, to_cell: Vector2i, is_blocking: Callable, include_endpoints: bool = false ) -&gt; bool:</signature>
+			<description>判断两格之间是否有视线。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">from_cell: 起点格子。</tag>
+				<tag name="param">to_cell: 终点格子。</tag>
+				<tag name="param">is_blocking: 阻挡回调，签名为 `func(cell: Vector2i) -&gt; bool`。</tag>
+				<tag name="param">include_endpoints: 是否检查起点与终点是否阻挡。</tag>
+				<tag name="return">没有阻挡时返回 true；阻挡回调无效时也返回 true。</tag>
+				<tag name="since">3.20.0</tag>
 			</tags>
 		</member>
 		<member kind="method" name="flood_fill">

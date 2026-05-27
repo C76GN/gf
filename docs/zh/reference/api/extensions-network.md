@@ -3106,6 +3106,52 @@ Schemas:
 
 - `delta`: Dictionary，make_delta_to() 返回的差量结构。
 
+#### `make_patch_to`
+
+- API: `public`
+
+```gdscript
+func make_patch_to(target: GFNetworkSnapshot, options: Dictionary = {}) -> Dictionary:
+```
+
+生成当前快照到目标快照的路径级 patch。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `target` | 目标快照。 |
+| `options` | 生成选项。 |
+
+Returns: patch 字典。
+
+Schemas:
+
+- `options`: Dictionary，可选 recursive: bool = true，max_depth: int = 8。
+- `return`: Dictionary，成功时包含 ok、format、version、from_tick、to_tick、peer_id、set、erase、metadata；失败时包含 ok、error。
+
+#### `apply_patch`
+
+- API: `public`
+
+```gdscript
+func apply_patch(patch: Dictionary) -> GFNetworkSnapshot:
+```
+
+应用路径级 patch 并返回新快照。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `patch` | make_patch_to() 生成的 patch 字典。 |
+
+Returns: 新快照。
+
+Schemas:
+
+- `patch`: Dictionary，make_patch_to() 返回的 patch 结构。
+
 #### `make_message`
 
 - API: `public`
@@ -3333,6 +3379,52 @@ Returns: 解码后的快照。
 Schemas:
 
 - `data`: Dictionary，encode_snapshot() 或 GFNetworkSnapshot.to_dict() 结构。
+
+#### `encode_patch`
+
+- API: `public`
+
+```gdscript
+func encode_patch(patch: Dictionary) -> Dictionary:
+```
+
+编码快照 patch。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `patch` | GFNetworkSnapshot.make_patch_to() 生成的 patch 字典。 |
+
+Returns: 编码后的 patch。
+
+Schemas:
+
+- `patch`: Dictionary，路径级 patch 结构。
+- `return`: Dictionary，set 值已按已注册的顶层字段编码。
+
+#### `decode_patch`
+
+- API: `public`
+
+```gdscript
+func decode_patch(encoded_patch: Dictionary) -> Dictionary:
+```
+
+解码快照 patch。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `encoded_patch` | encode_patch() 生成的 patch 字典。 |
+
+Returns: 解码后的 patch。
+
+Schemas:
+
+- `encoded_patch`: Dictionary，编码后的路径级 patch 结构。
+- `return`: Dictionary，set 值已按已注册的顶层字段解码。
 
 #### `duplicate_schema`
 

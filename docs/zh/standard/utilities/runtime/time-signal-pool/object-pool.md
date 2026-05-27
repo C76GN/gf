@@ -1,8 +1,8 @@
-# 节点对象池
+# 对象池
 
 子弹、伤害飘字、特效等短生命周期节点需要反复创建和回收时，可以使用 `GFObjectPoolUtility` 降低实例化和释放成本。
 
-## 借出与归还
+## 节点池
 
 ```gdscript
 var pool := Gf.get_utility(GFObjectPoolUtility) as GFObjectPoolUtility
@@ -51,3 +51,32 @@ func on_gf_pool_acquire() -> void:
 默认 `prune_invalid_on_each_operation = true` 会在高频接口前清理已释放节点引用，换取更稳的计数；极端热路径可在项目层确认生命周期后关闭，并在低频点主动调用 `prune_invalid_nodes()`。
 
 `get_available_count()`、`get_active_count()`、`get_debug_snapshot()` 可用于调试池容量。
+
+## RefCounted 池
+
+纯数据临时对象不需要进入场景树时，使用 `GFRefCountedPool`。它只要求提供一个返回 `RefCounted` 的工厂，并在归还时调用对象 hook 或 `reset_callback` 清理状态。
+
+```gdscript
+var pool := GFRefCountedPool.new(func():
+	return MyReusableContext.new()
+)
+
+var context := pool.acquire() as MyReusableContext
+# 写入本次使用状态
+pool.release(context)
+```
+
+可复用对象可以实现这些可选方法：
+
+```gdscript
+func on_gf_pool_acquire() -> void:
+	pass
+
+func on_gf_pool_release() -> void:
+	pass
+
+func reset_for_pool() -> void:
+	pass
+```
+
+`GFRefCountedPool` 适合短生命周期、可明确重置的上下文、报告、查询结果或临时列表包装；不适合长期所有权复杂、带外部信号连接且无法可靠清理的对象。`max_available` 可限制保留数量，超过容量的归还对象会从池中丢弃，让普通引用计数回收接管。

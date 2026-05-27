@@ -50,3 +50,34 @@ func test_tag_utility_reads_tag_component_and_dictionary_sources() -> void:
 	assert_true(GFTagSourceAdapterBase.source_has_tag(component, &"state", 2, true), "工具应读取对象标签组件并支持层级层数。")
 	assert_true(GFTagSourceAdapterBase.source_has_tag(dictionary_source, &"state", 1, true), "工具应读取字典标签源。")
 	assert_eq(component.get_tags(), PackedStringArray(["state.burning"]), "标签组件应提供可枚举快照。")
+
+
+func test_tag_source_adapter_normalizes_sources_to_counts_and_sets() -> void:
+	var dictionary_source := {
+		"tag_counts": {
+			&"state.burning": 2,
+			"team.enemy": 1,
+		},
+	}
+	var array_source := PackedStringArray(["state.burning", "state.burning", "rank.elite"])
+
+	var counts := GFTagSourceAdapterBase.get_tag_counts(dictionary_source)
+	var tag_set := GFTagSourceAdapterBase.to_tag_set(array_source)
+
+	assert_eq(int(counts.get(&"state.burning", 0)), 2, "字典来源应规范化为标签层数字典。")
+	assert_eq(int(counts.get(&"team.enemy", 0)), 1, "String key 应规范化为 StringName。")
+	assert_eq(tag_set.get_tag_count(&"state.burning"), 2, "数组来源应规范化为 GFTagSet。")
+	assert_eq(tag_set.get_tag_count(&"rank.elite"), 1, "数组来源应保留普通标签。")
+
+
+func test_tag_source_adapter_merges_multiple_sources() -> void:
+	var component := GFTagComponent.new()
+	component.add_tag(&"state.burning", 2)
+	var merged := GFTagSourceAdapterBase.merge_sources([
+		component,
+		[&"state.burning", &"team.enemy"],
+		{ "tag_counts": { &"team.enemy": 2 } },
+	])
+
+	assert_eq(merged.get_tag_count(&"state.burning"), 3, "合并时应累加不同来源的标签层数。")
+	assert_eq(merged.get_tag_count(&"team.enemy"), 3, "合并时应累加字典和数组来源。")

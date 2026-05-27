@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFInventorySlotDefinition" path="addons/gf/extensions/domain/inventory/gf_inventory_slot_definition.gd" module="extensions/domain" extends="Resource" classDigest="edf74676f716d4c0eeabf91f72080ecea2f65d8681900f37838d616d8236ce8d">
+	<description>GFInventorySlotDefinition: 通用库存槽位接收规则。
+只描述一个槽位允许接收哪些物品或分类，不保存槽位内容，也不绑定 UI、
+拖拽、装备类型或具体项目玩法。项目可把它挂到 `GFSlotInventoryModel.slot_definitions`
+上，为背包、快捷栏或容器槽位提供轻量约束。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.20.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="display_name" decorators="@export">
+			<signature>var display_name: String = ""</signature>
+			<description>显示名称，供项目 UI 或编辑器工具使用。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="accepted_item_ids" decorators="@export">
+			<signature>var accepted_item_ids: Array[StringName] = []</signature>
+			<description>允许的物品 ID。为空表示不按物品 ID 限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">accepted_item_ids: Array[StringName]，槽位允许接收的物品 ID；为空时不限制。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="rejected_item_ids" decorators="@export">
+			<signature>var rejected_item_ids: Array[StringName] = []</signature>
+			<description>禁止的物品 ID。优先级高于 accepted_item_ids。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">rejected_item_ids: Array[StringName]，槽位拒绝接收的物品 ID。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="accepted_categories" decorators="@export">
+			<signature>var accepted_categories: Array[StringName] = []</signature>
+			<description>允许的物品分类。为空表示不按分类限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">accepted_categories: Array[StringName]，槽位允许接收的物品分类；为空时不限制。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="require_all_categories" decorators="@export">
+			<signature>var require_all_categories: bool = false</signature>
+			<description>是否要求物品同时拥有全部 accepted_categories。false 表示拥有任一分类即可。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary，项目自定义槽位元数据；GF 不读取或改写其中字段。</tag>
+			</tags>
+		</member>
+		<member kind="property" name="acceptance_checker">
+			<signature>var acceptance_checker: Callable = Callable()</signature>
+			<description>可选接收检查回调。签名为 Callable(item_id, definition, instance_data, slot_index, inventory) -&gt; bool。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="can_accept">
+			<signature>func can_accept( item_id: StringName, definition: GFInventoryItemDefinition = null, instance_data: Dictionary = {}, slot_index: int = -1, inventory: Object = null ) -&gt; bool:</signature>
+			<description>判断槽位是否接受指定物品。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">item_id: 物品标识。</tag>
+				<tag name="param">definition: 可选物品定义；分类规则需要该定义。</tag>
+				<tag name="param">instance_data: 物品实例数据。</tag>
+				<tag name="param">slot_index: 槽位索引。</tag>
+				<tag name="param">inventory: 调用方库存模型。</tag>
+				<tag name="return">接受时返回 true。</tag>
+				<tag name="schema">instance_data: Dictionary，项目自定义物品实例数据。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转换为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">可序列化字典。</tag>
+				<tag name="schema">return: Dictionary，包含 display_name、accepted_item_ids、rejected_item_ids、accepted_categories、require_all_categories 与 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_dict">
+			<signature>func apply_dict(data: Dictionary) -&gt; void:</signature>
+			<description>应用字典数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 字典数据。</tag>
+				<tag name="schema">data: Dictionary，可包含 display_name、accepted_item_ids、rejected_item_ids、accepted_categories、require_all_categories 与 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict">
+			<signature>static func from_dict(data: Dictionary) -&gt; GFInventorySlotDefinition:</signature>
+			<description>从字典创建槽位定义。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 字典数据。</tag>
+				<tag name="return">槽位定义。</tag>
+				<tag name="schema">data: Dictionary，可包含 display_name、accepted_item_ids、rejected_item_ids、accepted_categories、require_all_categories 与 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

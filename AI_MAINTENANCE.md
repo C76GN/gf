@@ -255,6 +255,36 @@ python tools\generate_ai_api.py --source addons\gf --output ai_analysis\generate
 
 每次公开 API 变化后，都要重新运行生成命令，并用 `--check` 确认当前 AI API 摘要准确。
 
+## AI MCP 维护入口
+
+GF 的 MCP 接入只作为本地维护基础设施，不属于 `addons/gf` 运行时能力。普通用户安装 GF 时不需要 MCP，也不应让框架代码依赖 MCP 或任何 AI 插件。
+
+可选本地 server：
+
+```powershell
+python tools\gf_mcp_server.py
+```
+
+无 MCP 客户端时使用同一套 CLI：
+
+```powershell
+python tools\gf_maintenance.py summary
+python tools\gf_maintenance.py workspace-status
+python tools\gf_maintenance.py api-search GFUuid
+python tools\gf_maintenance.py api-class GFAudioClip
+python tools\gf_maintenance.py api-module extensions/domain
+python tools\gf_maintenance.py check --suite quick
+python tools\gf_maintenance.py check --suite full
+python tools\gf_maintenance.py release-status --version 3.19.0
+```
+
+维护规则：
+
+- MCP server 只暴露白名单工具：项目摘要、工作区变更快照、API 搜索、单类或单模块 API、预设检查套件和版本一致性检查。
+- 需要新增 AI 维护能力时，优先扩展 `tools/gf_maintenance.py` 的普通 CLI，再由 `tools/gf_mcp_server.py` 复用，避免 MCP 协议层和维护逻辑分叉。
+- 不提交个人 MCP 客户端配置、会话记录或运行日志。
+- 不把 MCP 当作正式文档或 API Reference 的事实来源；涉及行为细节仍需打开源码、测试和正式文档核对。
+
 ## AI 临时工作区
 
 `ai_analysis/` 是 AI 临时工作区，已在 `.gitignore` 中忽略。

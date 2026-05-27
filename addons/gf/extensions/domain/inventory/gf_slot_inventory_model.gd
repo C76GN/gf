@@ -1,7 +1,7 @@
 ## GFSlotInventoryModel: 通用可序列化槽位库存模型。
 ##
-## 管理固定或可增长槽位中的 `GFInventoryStack`，支持堆叠容量、
-## 最大堆叠数量、实例数据兼容性、移动、交换和序列化。
+## 管理固定或可增长槽位中的 `GFInventoryStack`，支持槽位接收规则、
+## 堆叠容量、最大堆叠数量、实例数据兼容性、移动、交换和序列化。
 ## [br]
 ## @api public
 ## [br]
@@ -93,6 +93,13 @@ signal inventory_changed
 ## @api public
 var registry: GFInventoryItemRegistry = null
 
+## 可选槽位定义。索引与库存槽位一致；空项表示该槽位不添加额外接收限制。
+## [br]
+## @api public
+## [br]
+## @schema slot_definitions: Array[GFInventorySlotDefinition]，按槽位索引存放的接收规则；空项表示不限制。
+var slot_definitions: Array[GFInventorySlotDefinition] = []
+
 ## 是否允许库存在创建新堆叠时自动增长。
 ## 为 false 时，0 槽位库存不会接收 `add_item()` 的新堆叠。
 ## [br]
@@ -163,6 +170,7 @@ func set_slot_count(count: int, preserve_existing: bool = true) -> void:
 		else:
 			next_slots.append(null)
 	_slots = next_slots
+	_resize_slot_definitions(next_count)
 	for index: int in range(before_slots.size()):
 		_record_slot_change(index, before_slots[index], _snapshot_slot_data(index))
 	_mark_inventory_changed()
@@ -187,6 +195,64 @@ func get_slot_count() -> int:
 ## @return: 有效返回 true。
 func is_valid_slot(slot_index: int) -> bool:
 	return slot_index >= 0 and slot_index < _slots.size()
+
+
+## 设置槽位定义。
+## [br]
+## @api public
+## [br]
+## @param slot_index: 槽位索引。
+## [br]
+## @param definition: 槽位定义；传 null 表示清除该槽位额外规则。
+## [br]
+## @return: 成功返回 true。
+func set_slot_definition(slot_index: int, definition: GFInventorySlotDefinition) -> bool:
+	if not is_valid_slot(slot_index):
+		return false
+	_resize_slot_definitions(_slots.size())
+	slot_definitions[slot_index] = definition
+	return true
+
+
+## 获取槽位定义。
+## [br]
+## @api public
+## [br]
+## @param slot_index: 槽位索引。
+## [br]
+## @return: 槽位定义；无额外规则或无效槽位返回 null。
+func get_slot_definition(slot_index: int) -> GFInventorySlotDefinition:
+	if not is_valid_slot(slot_index) or slot_index >= slot_definitions.size():
+		return null
+	return slot_definitions[slot_index]
+
+
+## 检查指定物品是否可被槽位接收。
+##
+## 该方法只检查全局注册表与槽位定义，不判断当前槽位是否为空、
+## 是否可与已有堆叠合并或是否有剩余容量。
+## [br]
+## @api public
+## [br]
+## @param slot_index: 槽位索引。
+## [br]
+## @param item_id: 物品标识。
+## [br]
+## @param instance_data: 实例数据。
+## [br]
+## @return: 槽位可接收该物品时返回 true。
+## [br]
+## @schema instance_data: Dictionary，项目自定义物品实例数据；会先经注册表规范化。
+func can_accept_item_at_slot(
+	slot_index: int,
+	item_id: StringName,
+	instance_data: Dictionary = {}
+) -> bool:
+	if not is_valid_slot(slot_index) or item_id == &"" or not _accepts_item(item_id):
+		return false
+
+	var normalized_data := _normalize_instance_data(item_id, instance_data)
+	return _slot_accepts_item(slot_index, item_id, normalized_data)
 
 
 ## 获取槽位堆叠副本。
@@ -324,12 +390,13 @@ func add_item(
 			_end_inventory_mutation()
 			return GFInventoryOperationResult.success(item_id, amount)
 
-	while remaining > 0 and (_has_empty_slot() or allow_growth):
+	while remaining > 0 and (_has_empty_slot_for_item(item_id, normalized_data) or allow_growth):
 		if not _can_create_new_stack(item_id):
 			break
-		var empty_slot := _find_empty_slot()
+		var empty_slot := _find_empty_slot_for_item(item_id, normalized_data)
 		if empty_slot == -1 and allow_growth:
 			_slots.append(null)
+			slot_definitions.append(null)
 			empty_slot = _slots.size() - 1
 		if empty_slot == -1:
 			break
@@ -370,6 +437,10 @@ func add_item_to_slot(
 		return GFInventoryOperationResult.partial(item_id, amount, 0, &"reentrant_mutation", -1, slot_index)
 
 	var normalized_data := _normalize_instance_data(item_id, instance_data)
+	if not _slot_accepts_item(slot_index, item_id, normalized_data):
+		_end_inventory_mutation()
+		return GFInventoryOperationResult.partial(item_id, amount, 0, &"slot_rejects_item", -1, slot_index)
+
 	var stack := _get_stack_ref(slot_index)
 	var remaining := amount
 	if stack == null:
@@ -559,6 +630,10 @@ func move_between_slots(source_slot: int, target_slot: int, amount: int = 0) -> 
 	var target_before := _snapshot_slot_data(target_slot)
 	var move_amount := source_stack.amount if amount <= 0 else mini(amount, source_stack.amount)
 	var target_stack := _get_stack_ref(target_slot)
+	if not _slot_accepts_item(target_slot, source_stack.item_id, source_stack.instance_data):
+		_end_inventory_mutation()
+		return GFInventoryOperationResult.partial(source_stack.item_id, move_amount, 0, &"slot_rejects_item", source_slot, target_slot)
+
 	if target_stack == null:
 		if source_stack.amount > move_amount and not _can_create_new_stack(source_stack.item_id):
 			_end_inventory_mutation()
@@ -650,16 +725,16 @@ func get_remaining_capacity_for_item(item_id: StringName, instance_data: Diction
 		return 0
 	var normalized_data := _normalize_instance_data(item_id, instance_data)
 	var capacity := 0
-	for stack_variant: Variant in _slots:
-		var stack := stack_variant as GFInventoryStack
+	for index: int in range(_slots.size()):
+		var stack := _slots[index] as GFInventoryStack
 		if stack == null:
 			continue
-		if stack.can_merge(item_id, normalized_data, registry):
+		if stack.can_merge(item_id, normalized_data, registry) and _slot_accepts_item(index, item_id, normalized_data):
 			capacity += stack.get_available_space(registry)
 
 	var max_stack_count := _get_max_stack_count(item_id)
 	var current_stack_count := _get_stack_count_for_item(item_id)
-	var free_stack_slots := _get_empty_slot_count()
+	var free_stack_slots := _get_empty_slot_count_for_item(item_id, normalized_data)
 	if allow_growth and max_stack_count <= 0:
 		return capacity + 2147483647
 	if max_stack_count > 0:
@@ -787,6 +862,8 @@ func validate_inventory() -> Dictionary:
 			continue
 		if not _accepts_item(stack.item_id):
 			_add_validation_issue(report, "error", "unregistered_item", index, stack.item_id, "物品未被注册表接受。")
+		if not _slot_accepts_item(index, stack.item_id, stack.instance_data):
+			_add_validation_issue(report, "error", "slot_rejects_item", index, stack.item_id, "槽位规则拒绝该物品。")
 		var stack_limit := _get_max_stack_amount(stack.item_id)
 		if stack.amount > stack_limit:
 			_add_validation_issue(report, "error", "stack_amount_exceeds_limit", index, stack.item_id, "堆叠数量超过单堆叠上限。")
@@ -822,7 +899,7 @@ func apply_registry_constraints(repair: bool = false) -> Dictionary:
 		if stack == null:
 			continue
 		var before_stack_data := _snapshot_slot_data(index)
-		if stack.is_empty() or not _accepts_item(stack.item_id):
+		if stack.is_empty() or not _accepts_item(stack.item_id) or not _slot_accepts_item(index, stack.item_id, stack.instance_data):
 			_slots[index] = null
 			_record_slot_after_change(index, before_stack_data)
 			continue
@@ -904,6 +981,7 @@ func from_dict(data: Dictionary) -> void:
 		else:
 			var stack := GFInventoryStack.from_dict(stack_data)
 			_slots.append(stack if not stack.is_empty() else null)
+	_resize_slot_definitions(count)
 	for index: int in range(mini(before_slots.size(), _slots.size())):
 		_record_slot_change(index, before_slots[index], _snapshot_slot_data(index))
 	_mark_inventory_changed()
@@ -1019,6 +1097,27 @@ func _can_create_new_stack(item_id: StringName) -> bool:
 	return max_stack_count <= 0 or _get_stack_count_for_item(item_id) < max_stack_count
 
 
+func _resize_slot_definitions(count: int) -> void:
+	while slot_definitions.size() < count:
+		slot_definitions.append(null)
+	while slot_definitions.size() > count:
+		slot_definitions.remove_at(slot_definitions.size() - 1)
+
+
+func _slot_accepts_item(slot_index: int, item_id: StringName, instance_data: Dictionary) -> bool:
+	if not is_valid_slot(slot_index):
+		return false
+
+	var slot_definition := get_slot_definition(slot_index)
+	if slot_definition == null:
+		return true
+
+	var item_definition: GFInventoryItemDefinition = null
+	if registry != null:
+		item_definition = registry.get_definition(item_id)
+	return slot_definition.can_accept(item_id, item_definition, instance_data, slot_index, self)
+
+
 func _ordered_slot_indices(start_slot: int) -> PackedInt32Array:
 	var result := PackedInt32Array()
 	if _slots.is_empty():
@@ -1036,7 +1135,11 @@ func _try_add_to_existing_stack(
 	instance_data: Dictionary
 ) -> int:
 	var stack := _get_stack_ref(slot_index)
-	if stack == null or not stack.can_merge(item_id, instance_data, registry):
+	if (
+		stack == null
+		or not stack.can_merge(item_id, instance_data, registry)
+		or not _slot_accepts_item(slot_index, item_id, instance_data)
+	):
 		return remaining
 	var before_stack_data := _snapshot_slot_data(slot_index)
 	var before := stack.amount
@@ -1054,6 +1157,8 @@ func _try_add_to_empty_slot(
 	remaining: int,
 	instance_data: Dictionary
 ) -> int:
+	if not _slot_accepts_item(slot_index, item_id, instance_data):
+		return remaining
 	var accepted := mini(remaining, _get_max_stack_amount(item_id))
 	if accepted <= 0:
 		return remaining
@@ -1064,21 +1169,21 @@ func _try_add_to_empty_slot(
 	return remaining - accepted
 
 
-func _has_empty_slot() -> bool:
-	return _find_empty_slot() != -1
+func _has_empty_slot_for_item(item_id: StringName, instance_data: Dictionary) -> bool:
+	return _find_empty_slot_for_item(item_id, instance_data) != -1
 
 
-func _find_empty_slot() -> int:
+func _find_empty_slot_for_item(item_id: StringName, instance_data: Dictionary) -> int:
 	for index: int in range(_slots.size()):
-		if is_slot_empty(index):
+		if is_slot_empty(index) and _slot_accepts_item(index, item_id, instance_data):
 			return index
 	return -1
 
 
-func _get_empty_slot_count() -> int:
+func _get_empty_slot_count_for_item(item_id: StringName, instance_data: Dictionary) -> int:
 	var count := 0
 	for index: int in range(_slots.size()):
-		if is_slot_empty(index):
+		if is_slot_empty(index) and _slot_accepts_item(index, item_id, instance_data):
 			count += 1
 	return count
 

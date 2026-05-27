@@ -22,63 +22,84 @@
 
 ---
 
-## [3.19.0] - 2026-05-27
+## [3.20.0] - 2026-05-27
 
-**版本概述**：新增无状态 UUID、2D 曲线折线辅助和可选空间音效设置资源，用于统一框架内通用字符串标识、几何路径处理与空间 SFX 播放参数。
+**版本概述**：新增通用对象池、回放时间线、网络快照路径级 patch、统一标签来源和技能激活上下文，并补充数据绑定、分析压缩、网格算法、背包槽位规则与本地 AI 维护入口。
 
 ### 🚀 新增特性 (Added)
 
-- 新增 `GFUuid`，提供 UUID v4、UUID v7 生成和 canonical UUID 校验。
-- 新增 `GFCurve2DMath`，提供折线长度、归一化采样、点距简化，以及闭合矩形和椭圆 `Curve2D` 生成/复用写入。
-- 新增 `GFAudioSpatialSettings`，可挂到 `GFAudioClip.spatial_settings`，为 2D/3D 空间 SFX 配置距离衰减、区域、复音、播放类型、3D 发射角、滤波和多普勒参数。
-- `GFValidationReportDictionary` 新增通用问题指纹与报告过滤能力，方便项目工具、导入器和 CI 复用同一份报告格式实现忽略项与基线。
+- `GFBindableProperty` 新增 `subscribe(callback, emit_current)`，可在无 Node 生命周期绑定时获取取消订阅函数，并可选择立即推送当前值。
+- `GFAnalyticsConfig` 新增 `compress_payload`，内置 HTTP 分析上报可选择使用 gzip 压缩 JSON 请求体，并自动维护一致的 `Content-Encoding: gzip` Header。
+- `GFGridMath` 新增矩形、范围、外环、Bresenham 直线和视线检测入口，便于网格选区、AOE、画刷候选和离散射线复用同一套纯算法原语。
+- 新增 `GFInventorySlotDefinition`，`GFSlotInventoryModel` 可按槽位配置允许/拒绝物品 ID、物品分类和项目自定义接收回调。
+- `GFTagSourceAdapter` 新增 `get_tag_counts()`、`to_tag_set()` 与 `merge_sources()`，便于跨模块统一规范化标签来源。
+- `GFNetworkSnapshot` 新增路径级 patch 生成与应用能力，`GFNetworkSnapshotSchema` 可复用字段编码器编码和解码 patch set 值。
+- 新增 `GFRefCountedPool`，为短生命周期纯数据对象提供显式 reset 协议和容量可控的复用池。
+- 新增 `GFReplayTimeline`，用于把命令、输入、状态快照或项目自定义事件串成可查询、可合并、可序列化的纯数据时间线。
+- 新增 `GFSkillActivationContext`，`GFSkill` 可通过激活上下文、标签查询、检查回调和提交回调组织通用施放流程。
 
 ### 🔄 机制更改 (Changed)
 
-- `tools/generate_api_reference.py` 生成的 class XML 改用单类 `classDigest`，全局 `sourceDigest` 仅保留在 Catalog 索引中，且正式 Catalog 不再记录源码行号，减少后续单类 API 变更或纯位置变化造成的生成文件噪声。
-- `tools/generate_api_reference.py` 与 `tools/generate_ai_api.py` 现在能正确解析 `@export_range(...) var`、`@export_file(...) var`、`@export_node_path(...) var` 等 Godot 装饰导出变量，避免 API Reference 漏掉公开属性。
-- `tools/generate_api_reference.py` 与 `tools/generate_ai_api.py` 改为复用 `tools/gdscript_api_parser.py`，让正式 API Reference 和 AI API 摘要保持同一套 GDScript 声明与 API 注释解析规则。
-- `GFAnalyticsUtility` 内部生成 client/session id 时改用 `GFUuid.generate_v4()`，收敛重复私有实现。
-- `GFAudioUtility` 播放空间 SFX 时会读取 `GFAudioClip.spatial_settings`，为空时保持 Godot 播放器默认空间参数。
-
-### 🐛 Bug 修复 (Fixed)
-
-- 修复 3D 空间 SFX 播放器在进入场景树前写入 `global_position` 时触发 Godot `!is_inside_tree()` 错误的问题。
+- 新增可选本地维护入口 `tools/gf_maintenance.py` 与 `tools/gf_mcp_server.py`，为 AI 维护流程提供项目摘要、工作区变更快照、API 查询、单模块 API 摘要、预设检查套件和版本一致性检查；该能力仅属于仓库维护基础设施，不进入 `addons/gf` 运行时。
 
 ### 🔌 API 变动说明 (API Changes)
 
-- 新增公开类 `GFUuid`。
-- 新增公开类 `GFCurve2DMath`。
-- 新增公开类 `GFAudioSpatialSettings`。
-- `GFAudioClip` 新增公开字段 `spatial_settings`。
-- `GFValidationReportDictionary` 新增 `make_issue_fingerprint()` 与 `filter_issues()`。
-- 所有 GF 内置扩展仅同步 `version` 到 `3.19.0`；`extension_version` 不变。
+- `GFBindableProperty` 新增公开方法 `subscribe(callback, emit_current := false) -> Callable`。
+- `GFAnalyticsConfig` 新增公开导出属性 `compress_payload`。
+- `GFGridMath` 新增公开方法 `get_rectangle_cells()`、`get_range()`、`get_ring()`、`get_line()` 与 `has_line_of_sight()`。
+- 新增公开类 `GFInventorySlotDefinition`。
+- `GFSlotInventoryModel` 新增公开字段 `slot_definitions`，以及公开方法 `set_slot_definition()`、`get_slot_definition()` 和 `can_accept_item_at_slot()`。
+- `GFTagSourceAdapter` 新增公开方法 `get_tag_counts()`、`to_tag_set()` 与 `merge_sources()`。
+- `GFNetworkSnapshot` 新增公开方法 `make_patch_to()` 与 `apply_patch()`。
+- `GFNetworkSnapshotSchema` 新增公开方法 `encode_patch()` 与 `decode_patch()`。
+- 新增公开类 `GFRefCountedPool`。
+- 新增公开类 `GFReplayTimeline`。
+- 新增公开类 `GFSkillActivationContext`。
+- `GFSkill` 新增公开信号 `activation_failed` 与 `activation_committed`，新增公开字段 `activation_query`、`activation_checks` 与 `activation_commit_callbacks`，并新增公开方法 `build_activation_context()` 与 `get_activation_report()`。
+- 所有 GF 内置扩展 `version` 同步到 `3.20.0`；`gf.combat` 的 `extension_version` 升至 `1.8.0`，`gf.domain` 与 `gf.network` 的 `extension_version` 升至 `2.1.0`。
 
 ### 📘 升级指南 (Migration Guide)
 
-- 现有项目无需修改；需要生成通用字符串标识时可直接使用 `GFUuid`，需要处理通用 2D 折线或基础闭合曲线时可使用 `GFCurve2DMath`。
-- 现有音频片段默认行为不变；只有显式设置 `GFAudioClip.spatial_settings` 的空间 SFX 会应用新参数。
+- 现有项目无需立即修改；新增能力均为可选入口。
+- 继续使用 `GFSkill._try_execute(targets)` 的旧技能仍可工作；需要成本检查、资源提交或更完整上下文时，可逐步迁移到 `activation_checks`、`activation_commit_callbacks` 或 `_try_activate(context)`。
+- 简单网络状态仍可继续使用 `make_delta_to()` / `apply_delta()`；嵌套字典状态可改用 `make_patch_to()` / `apply_patch()`。
 
 ### 📁 核心受影响文件 (Affected Files)
 
-- `addons/gf/standard/foundation/identity/gf_uuid.gd`
-- `addons/gf/standard/foundation/math/gf_curve_2d_math.gd`
+- `addons/gf/kernel/core/gf_bindable_property.gd`
+- `addons/gf/standard/utilities/analytics/gf_analytics_config.gd`
 - `addons/gf/standard/utilities/analytics/gf_analytics_utility.gd`
-- `addons/gf/standard/utilities/audio/gf_audio_clip.gd`
-- `addons/gf/standard/utilities/audio/gf_audio_spatial_settings.gd`
-- `addons/gf/standard/utilities/audio/gf_audio_utility.gd`
-- `addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd`
-- `tools/generate_api_reference.py`
-- `tools/generate_ai_api.py`
-- `tools/gdscript_api_parser.py`
-- `tests/gf_core/standard/foundation/identity/test_gf_uuid.gd`
-- `tests/gf_core/standard/foundation/math/test_gf_curve_2d_math.gd`
-- `tests/gf_core/standard/foundation/validation/test_gf_validation_report_dictionary.gd`
-- `tests/gf_core/standard/utilities/audio/test_gf_audio_utility.gd`
-- `docs/zh/standard/foundation/data-validation/identity/index.md`
-- `docs/zh/standard/foundation/grid-spatial/curve-2d.md`
-- `docs/zh/standard/foundation/data-validation/validation-reporting/reports-diagnostics/dictionary-reports.md`
-- `docs/zh/standard/utilities/runtime/audio/**`
+- `addons/gf/standard/foundation/math/gf_grid_math.gd`
+- `addons/gf/extensions/domain/inventory/gf_inventory_slot_definition.gd`
+- `addons/gf/extensions/domain/inventory/gf_slot_inventory_model.gd`
+- `addons/gf/standard/foundation/tags/gf_tag_source_adapter.gd`
+- `addons/gf/standard/utilities/pooling/gf_ref_counted_pool.gd`
+- `addons/gf/standard/foundation/timeline/gf_replay_timeline.gd`
+- `addons/gf/extensions/network/snapshot/gf_network_snapshot.gd`
+- `addons/gf/extensions/network/snapshot/gf_network_snapshot_schema.gd`
+- `addons/gf/extensions/combat/skills/gf_skill.gd`
+- `addons/gf/extensions/combat/skills/gf_skill_activation_context.gd`
+- `tests/gf_core/kernel/core/test_gf_bindable_property.gd`
+- `tests/gf_core/standard/utilities/analytics/test_gf_analytics_utility.gd`
+- `tests/gf_core/standard/foundation/math/test_gf_grid_math.gd`
+- `tests/gf_core/extensions/domain/test_gf_domain_extensions.gd`
+- `tests/gf_core/standard/foundation/tags/test_gf_tag_query.gd`
+- `tests/gf_core/standard/utilities/pooling/test_gf_ref_counted_pool.gd`
+- `tests/gf_core/standard/foundation/test_gf_timeline_region_map.gd`
+- `tests/gf_core/extensions/network/test_gf_network_extension.gd`
+- `tests/gf_core/extensions/combat/test_gf_combat_extension.gd`
+- `docs/zh/kernel/scene-controller/bindable-property/**`
+- `docs/zh/extensions/domain/inventory.md`
+- `docs/zh/extensions/network-turnbased/network-snapshots.md`
+- `docs/zh/extensions/combat/core-model/buffs-skills.md`
+- `docs/zh/extensions/combat/runtime-usage/buff-skill-examples.md`
+- `docs/zh/standard/foundation/data-validation/tags-blackboard/tag-expression-source.md`
+- `docs/zh/standard/foundation/data-validation/budget-collections-timeline/replay-timeline.md`
+- `docs/zh/standard/utilities/runtime/time-signal-pool/object-pool.md`
+- `docs/zh/standard/utilities/io/config-remote-outbox/analytics-events.md`
+- `docs/zh/standard/foundation/grid-spatial/grid-2d-hex/grid-math.md`
 - `addons/gf/plugin.cfg`
 - `addons/gf/extensions/*/gf_extension.json`
 - `ASSET_LIBRARY.md`
+- `tools/gf_maintenance.py`
+- `tools/gf_mcp_server.py`

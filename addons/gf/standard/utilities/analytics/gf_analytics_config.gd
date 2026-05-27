@@ -70,6 +70,13 @@ extends Resource
 ## @api public
 @export var flush_on_shutdown: bool = true
 
+## 是否使用 gzip 压缩 HTTP 上报请求体。
+## [br]
+## @api public
+## [br]
+## @since 3.20.0
+@export var compress_payload: bool = false
+
 ## 自定义 HTTP Header。
 ## [br]
 ## @api public
@@ -93,7 +100,12 @@ func build_headers() -> PackedStringArray:
 		if not _is_valid_header(header_name, header_value):
 			push_warning("[GFAnalyticsConfig] 忽略非法 HTTP Header：%s" % _escape_header_for_log(header_name))
 			continue
+		if compress_payload and _is_same_header_name(header_name, "Content-Encoding"):
+			push_warning("[GFAnalyticsConfig] compress_payload 已启用，忽略自定义 Content-Encoding。")
+			continue
 		result.append("%s: %s" % [header_name, header_value])
+	if compress_payload:
+		result.append("Content-Encoding: gzip")
 	return result
 
 
@@ -108,6 +120,10 @@ func _is_valid_header(header_name: String, header_value: String) -> bool:
 		and not header_value.contains("\r")
 		and not header_value.contains("\n")
 	)
+
+
+func _is_same_header_name(header_name: String, expected_name: String) -> bool:
+	return header_name.to_lower() == expected_name.to_lower()
 
 
 func _escape_header_for_log(header_name: String) -> String:
