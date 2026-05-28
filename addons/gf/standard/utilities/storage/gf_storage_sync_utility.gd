@@ -148,8 +148,8 @@ func sync_data(
 	result["local"] = _summarize_record(local_record)
 	result["remote"] = _summarize_record(remote_record)
 
-	var local_ok := bool(local_record.get("ok", false))
-	var remote_ok := bool(remote_record.get("ok", false))
+	var local_ok := GFResultDictionary.is_ok(local_record)
+	var remote_ok := GFResultDictionary.is_ok(remote_record)
 	if not local_ok and not remote_ok:
 		return _finish_failed(result, "No readable data in either backend.")
 	if local_ok and not remote_ok:
@@ -174,8 +174,8 @@ func sync_data(
 		result["ok"] = true
 		result["status"] = SyncStatus.UNCHANGED
 		result["status_name"] = _get_status_name(SyncStatus.UNCHANGED)
-		result["data"] = (local_record.get("data", {}) as Dictionary).duplicate(true)
-		result["metadata"] = (local_record.get("metadata", {}) as Dictionary).duplicate(true)
+		result["data"] = GFVariantData.to_dictionary(local_record.get("data", {}))
+		result["metadata"] = GFVariantData.to_dictionary(local_record.get("metadata", {}))
 		return _finish_completed(result)
 
 	return _resolve_and_write_conflict(result, local_record, remote_record, local_backend, remote_backend, options)
@@ -245,28 +245,29 @@ func _load_record(source: StringName, backend: GFStorageBackend, file_name: Stri
 	var load_result := backend.load_data(file_name)
 	var data_value: Variant = load_result.get("data", {})
 	var metadata_value: Variant = load_result.get("metadata", {})
-	var ok := bool(load_result.get("ok", false))
-	var error := String(load_result.get("error", ""))
+	var ok := GFResultDictionary.is_ok(load_result)
+	var error := GFVariantData.get_option_string(load_result, GFResultDictionary.KEY_ERROR, "")
 	if ok and not (data_value is Dictionary):
 		ok = false
 		error = "Backend returned non-Dictionary data."
 
-	return {
+	var record := {
 		"source": source,
-		"ok": ok,
-		"data": (data_value as Dictionary).duplicate(true) if data_value is Dictionary else {},
-		"metadata": (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {},
-		"error": error,
 	}
+	record[GFResultDictionary.KEY_DATA] = GFVariantData.to_dictionary(data_value)
+	record[GFResultDictionary.KEY_METADATA] = GFVariantData.to_dictionary(metadata_value)
+	record[GFResultDictionary.KEY_ERROR] = error
+	return GFResultDictionary.make(ok, record)
 
 
 func _summarize_record(record: Dictionary) -> Dictionary:
-	return {
+	var summary := {
 		"source": record.get("source", &""),
-		"ok": bool(record.get("ok", false)),
-		"metadata": (record.get("metadata", {}) as Dictionary).duplicate(true),
-		"error": String(record.get("error", "")),
 	}
+	summary[GFResultDictionary.KEY_OK] = GFResultDictionary.is_ok(record)
+	summary[GFResultDictionary.KEY_METADATA] = GFVariantData.to_dictionary(record.get("metadata", {}))
+	summary[GFResultDictionary.KEY_ERROR] = GFVariantData.get_option_string(record, GFResultDictionary.KEY_ERROR, "")
+	return summary
 
 
 func _records_have_same_data(local_record: Dictionary, remote_record: Dictionary) -> bool:
@@ -290,15 +291,15 @@ func _resolve_and_write_conflict(
 	if resolved_report != null:
 		(result["conflicts"] as Array).append(resolved_report.to_dict())
 
-	if not bool(resolution.get("ok", false)):
+	if not GFResultDictionary.is_ok(resolution):
 		result["status"] = SyncStatus.CONFLICT
 		result["status_name"] = _get_status_name(SyncStatus.CONFLICT)
 		result["error"] = String(resolution.get("error", "Storage conflict is unresolved."))
 		return _finish_conflict(result)
 
 	var selected_source := StringName(resolution.get("source", &"custom"))
-	var data := (resolution.get("data", {}) as Dictionary).duplicate(true)
-	var metadata := (resolution.get("metadata", {}) as Dictionary).duplicate(true)
+	var data := GFVariantData.to_dictionary(resolution.get("data", {}))
+	var metadata := GFVariantData.to_dictionary(resolution.get("metadata", {}))
 	result["selected_source"] = selected_source
 	result["data"] = data
 	result["metadata"] = metadata
@@ -361,17 +362,17 @@ func _make_record_resolution(
 	record: Dictionary,
 	resolution: GFStorageConflictReport.Resolution
 ) -> Dictionary:
-	var data := (record.get("data", {}) as Dictionary).duplicate(true)
-	var metadata := (record.get("metadata", {}) as Dictionary).duplicate(true)
+	var data := GFVariantData.to_dictionary(record.get("data", {}))
+	var metadata := GFVariantData.to_dictionary(record.get("metadata", {}))
 	report.resolution = resolution
 	report.resolved_value = data.duplicate(true)
-	return {
-		"ok": true,
+	var result := {
 		"source": record.get("source", &""),
-		"data": data,
-		"metadata": metadata,
 		"report": report,
 	}
+	result[GFResultDictionary.KEY_DATA] = data
+	result[GFResultDictionary.KEY_METADATA] = metadata
+	return GFResultDictionary.make_success(result)
 
 
 func _resolve_with_callback(
@@ -380,7 +381,12 @@ func _resolve_with_callback(
 	remote_record: Dictionary,
 	options: Dictionary
 ) -> Dictionary:
-	var resolver := options.get("resolver", options.get("resolution_callback", Callable())) as Callable
+	var resolver_value: Variant = GFVariantData.get_option_value(
+		options,
+		"resolver",
+		GFVariantData.get_option_value(options, "resolution_callback", Callable())
+	)
+	var resolver := resolver_value as Callable
 	if resolver == null or not resolver.is_valid():
 		return _make_unresolved_resolution(report, "Custom resolver is invalid.")
 
@@ -388,57 +394,60 @@ func _resolve_with_callback(
 		report.duplicate_report(),
 		_make_callback_record(local_record),
 		_make_callback_record(remote_record),
-		options.duplicate(true)
+		GFVariantData.to_dictionary(options)
 	)
 	if not (value is Dictionary):
 		return _make_unresolved_resolution(report, "Custom resolver must return a Dictionary.")
 
-	var dictionary := value as Dictionary
-	var data_value: Variant = dictionary.get("data", {})
+	var dictionary := GFVariantData.to_dictionary(value)
+	var data_value: Variant = GFVariantData.get_option_value(dictionary, GFResultDictionary.KEY_DATA, {})
 	if not (data_value is Dictionary):
 		return _make_unresolved_resolution(report, "Custom resolver returned non-Dictionary data.")
 
-	var metadata_value: Variant = dictionary.get("metadata", {})
-	var data := (data_value as Dictionary).duplicate(true)
-	var metadata := (metadata_value as Dictionary).duplicate(true) if metadata_value is Dictionary else {}
-	report.resolution = int(dictionary.get("resolution", GFStorageConflictReport.Resolution.MERGED)) as GFStorageConflictReport.Resolution
+	var metadata_value: Variant = GFVariantData.get_option_value(dictionary, GFResultDictionary.KEY_METADATA, {})
+	var data := GFVariantData.to_dictionary(data_value)
+	var metadata := GFVariantData.to_dictionary(metadata_value)
+	report.resolution = GFVariantData.get_option_int(
+		dictionary,
+		"resolution",
+		GFStorageConflictReport.Resolution.MERGED
+	) as GFStorageConflictReport.Resolution
 	report.resolved_value = data.duplicate(true)
 	report.metadata = metadata.duplicate(true)
-	return {
-		"ok": true,
+	var result := {
 		"source": &"custom",
-		"data": data,
-		"metadata": metadata,
 		"report": report,
 	}
+	result[GFResultDictionary.KEY_DATA] = data
+	result[GFResultDictionary.KEY_METADATA] = metadata
+	return GFResultDictionary.make_success(result)
 
 
 func _make_unresolved_resolution(report: GFStorageConflictReport, error: String) -> Dictionary:
 	report.resolution = GFStorageConflictReport.Resolution.UNRESOLVED
-	return {
-		"ok": false,
-		"error": error,
+	return GFResultDictionary.make_failure(error, {
 		"report": report,
-	}
+	})
 
 
 func _make_callback_record(record: Dictionary) -> Dictionary:
-	return {
+	var callback_record := {
 		"source": record.get("source", &""),
-		"data": (record.get("data", {}) as Dictionary).duplicate(true),
-		"metadata": (record.get("metadata", {}) as Dictionary).duplicate(true),
 	}
+	callback_record[GFResultDictionary.KEY_DATA] = GFVariantData.to_dictionary(record.get("data", {}))
+	callback_record[GFResultDictionary.KEY_METADATA] = GFVariantData.to_dictionary(record.get("metadata", {}))
+	return callback_record
 
 
 func _make_conflict_report(file_name: String, local_record: Dictionary, remote_record: Dictionary) -> GFStorageConflictReport:
 	var report := GFStorageConflictReport.new()
 	report.file_name = file_name
 	report.key = ""
-	report.local_value = (local_record.get("data", {}) as Dictionary).duplicate(true)
-	report.remote_value = (remote_record.get("data", {}) as Dictionary).duplicate(true)
+	report.local_value = GFVariantData.to_dictionary(local_record.get("data", {}))
+	report.remote_value = GFVariantData.to_dictionary(remote_record.get("data", {}))
 	report.metadata = {
-		"local_metadata": (local_record.get("metadata", {}) as Dictionary).duplicate(true),
-		"remote_metadata": (remote_record.get("metadata", {}) as Dictionary).duplicate(true),
+		"local_metadata": GFVariantData.to_dictionary(local_record.get("metadata", {})),
+		"remote_metadata": GFVariantData.to_dictionary(remote_record.get("metadata", {})),
 	}
 	return report
 
@@ -451,8 +460,8 @@ func _copy_record_to_backend(
 	status: SyncStatus,
 	options: Dictionary
 ) -> Dictionary:
-	var data := (source_record.get("data", {}) as Dictionary).duplicate(true)
-	var metadata := (source_record.get("metadata", {}) as Dictionary).duplicate(true)
+	var data := GFVariantData.to_dictionary(source_record.get("data", {}))
+	var metadata := GFVariantData.to_dictionary(source_record.get("metadata", {}))
 	result["selected_source"] = source_record.get("source", &"")
 	result["data"] = data
 	result["metadata"] = metadata
@@ -543,47 +552,44 @@ func _to_float_value(value: Variant) -> float:
 
 
 func _get_strategy(options: Dictionary) -> ConflictStrategy:
-	return int(options.get("strategy", default_conflict_strategy)) as ConflictStrategy
+	return GFVariantData.get_option_int(options, "strategy", default_conflict_strategy) as ConflictStrategy
 
 
 func _write_resolved_enabled(options: Dictionary) -> bool:
-	return bool(options.get("write_resolved", write_resolved_by_default))
+	return GFVariantData.get_option_bool(options, "write_resolved", write_resolved_by_default)
 
 
 func _should_write_to_backend(options: Dictionary, key: String, fallback: bool) -> bool:
-	return bool(options.get(key, fallback))
+	return GFVariantData.get_option_bool(options, key, fallback)
 
 
 func _get_string_array_option(options: Dictionary, key: String, fallback: Array[String]) -> Array[String]:
-	var value: Variant = options.get(key, fallback)
+	var fallback_values := PackedStringArray()
+	for item: String in fallback:
+		fallback_values.append(item)
+	var value := GFVariantData.get_option_packed_string_array(options, key, fallback_values)
 	var result: Array[String] = []
-	if value is PackedStringArray:
-		for item: String in value:
-			result.append(item)
-		return result
-	if value is Array:
-		for item: Variant in value:
-			result.append(str(item))
-		return result
-	return fallback.duplicate()
+	for item: String in value:
+		result.append(item)
+	return result
 
 
 func _make_base_result(file_name: String) -> Dictionary:
-	return {
-		"ok": false,
+	var result := {
 		"file_name": file_name,
 		"status": SyncStatus.FAILED,
 		"status_name": _get_status_name(SyncStatus.FAILED),
 		"selected_source": &"",
 		"written_backends": [],
 		"conflicts": [],
-		"errors": {},
-		"error": "",
-		"data": {},
-		"metadata": {},
 		"local": {},
 		"remote": {},
 	}
+	result[GFResultDictionary.KEY_ERRORS] = {}
+	result[GFResultDictionary.KEY_ERROR] = ""
+	result[GFResultDictionary.KEY_DATA] = {}
+	result[GFResultDictionary.KEY_METADATA] = {}
+	return GFResultDictionary.make(false, result)
 
 
 func _finish_completed(result: Dictionary) -> Dictionary:

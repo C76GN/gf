@@ -163,7 +163,7 @@ static func append_source_issue(
 ## [br]
 ## @param subject: 摘要主题；为空时使用 report.subject 或 Validation report。
 ## [br]
-## @param options: 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、include_issue_count、warnings_as_errors、promote_warning_kinds。
+## @param options: 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、warnings_as_errors、promote_warning_kinds。
 ## [br]
 ## @schema options: Dictionary controlling report finalization.
 ## [br]
@@ -201,23 +201,22 @@ static func finalize_report(
 	report["warning_count"] = warning_count
 	if _get_option_bool(options, "include_info_count", report.has("info_count")):
 		report["info_count"] = info_count
-	if _get_option_bool(options, "include_issue_count", report.has("issue_count")):
-		report["issue_count"] = issues.size()
+	report[GFResultDictionary.KEY_ISSUE_COUNT] = issues.size()
 	report["issue_counts_by_kind"] = issue_counts_by_kind
-	report["ok"] = error_count == 0
-	report["healthy"] = error_count == 0 and warning_count == 0
+	report[GFResultDictionary.KEY_OK] = error_count == 0
+	report[GFResultDictionary.KEY_HEALTHY] = error_count == 0 and warning_count == 0
 
 	var summary_subject := subject
 	if summary_subject.is_empty():
 		summary_subject = String(report.get("subject", ""))
-	report["summary"] = make_summary(summary_subject, error_count, warning_count)
+	report[GFResultDictionary.KEY_SUMMARY] = make_summary(summary_subject, error_count, warning_count)
 
 	var next_actions: Dictionary = options.get("next_actions", {}) as Dictionary
 	if next_actions == null:
 		next_actions = {}
 	var fallback_action := String(options.get("fallback_action", "Review the first reported issue."))
 	var no_action := String(options.get("no_action", "No action required."))
-	report["next_action"] = get_next_action(report, next_actions, fallback_action, no_action, options)
+	report[GFResultDictionary.KEY_NEXT_ACTION] = get_next_action(report, next_actions, fallback_action, no_action, options)
 	return report
 
 
@@ -574,6 +573,4 @@ static func _fingerprint_value(value: Variant) -> String:
 
 
 static func _get_option_bool(options: Dictionary, field_name: String, default_value: bool) -> bool:
-	if not options.has(field_name):
-		return default_value
-	return bool(options[field_name])
+	return GFVariantData.get_option_bool(options, field_name, default_value)

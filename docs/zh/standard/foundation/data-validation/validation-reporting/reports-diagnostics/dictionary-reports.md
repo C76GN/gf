@@ -21,7 +21,7 @@ GFValidationReportDictionary.append_source_issue(
 GFValidationReportDictionary.finalize_report(legacy_report, "Config table")
 ```
 
-`finalize_report()` 会把 `issues` 中的字典问题归一化为标准问题字典，并回写 `severity`、`kind`、`message`、定位字段和附加字段。旧的 `code` / `type` 不再作为问题类别别名读取，也不会继续透出；需要稳定问题标识时请显式写入 `kind`。
+`finalize_report()` 会把 `issues` 中的字典问题归一化为标准问题字典，并稳定回写 `ok`、`healthy`、`issue_count`、`error_count`、`warning_count`、`summary` 和 `next_action`。旧的 `code` / `type` 不再作为问题类别别名读取，也不会继续透出；需要稳定问题标识时请显式写入 `kind`。
 
 ## 过滤与基线
 

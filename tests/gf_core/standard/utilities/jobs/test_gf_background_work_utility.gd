@@ -25,6 +25,12 @@ class PureWorker:
 			"error": "worker_failed",
 		}
 
+	func fail_work_with_message(_data: Variant) -> Dictionary:
+		return {
+			"ok": false,
+			"message": "message_failed",
+		}
+
 
 # --- 私有变量 ---
 
@@ -78,6 +84,20 @@ func test_failed_worker_marks_task_failed() -> void:
 	utility.dispose()
 
 
+func test_failed_worker_uses_standard_result_message_fallback() -> void:
+	var utility: Variant = GFBackgroundWorkUtilityScript.new()
+	utility.init()
+	var worker := PureWorker.new()
+
+	var task: Variant = utility.submit_io_work(Callable(worker, "fail_work_with_message"))
+
+	await _pump_until_finished(utility, task)
+
+	assert_eq(task.status, GFBackgroundWorkTaskScript.Status.FAILED, "ok=false 的后台结果应转为 failed。")
+	assert_eq(task.error_message, "message_failed", "缺少 error 时应读取标准 message。")
+	utility.dispose()
+
+
 func test_object_payload_is_rejected_by_default() -> void:
 	var utility: Variant = GFBackgroundWorkUtilityScript.new()
 	utility.init()
@@ -102,19 +122,19 @@ func test_pause_and_cancel_waiting_thread_task() -> void:
 		Callable(worker, "double_value"),
 		{"value": 1},
 		Callable(),
-		{"id": "first"}
+		{&"id": "first"}
 	)
 	var high_priority: Variant = utility.submit_cpu_work(
 		Callable(worker, "double_value"),
 		{"value": 2},
 		Callable(),
-		{"id": "high", "priority": 10}
+		{&"id": "high", &"priority": 10}
 	)
 	var front: Variant = utility.submit_cpu_work(
 		Callable(worker, "double_value"),
 		{"value": 3},
 		Callable(),
-		{"id": "front", "front": true}
+		{&"id": "front", &"front": "on"}
 	)
 	var queued_ids := utility.get_debug_snapshot()["queued_ids"] as PackedStringArray
 

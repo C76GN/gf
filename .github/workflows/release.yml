@@ -32,6 +32,11 @@ jobs:
           --tag "${GITHUB_REF_NAME}"
           --output release-notes.md
 
+      - name: Validate release metadata
+        run: >
+          python tools/gf_maintenance.py release-status
+          --version "${GITHUB_REF_NAME}"
+
       - name: Build documentation
         run: |
           python -m pip install --upgrade pip
@@ -40,11 +45,18 @@ jobs:
           python tools/check_docs_quality.py --strict
           python -m mkdocs build --strict
 
+      - name: Build Asset Store package
+        run: >
+          python tools/build_asset_store_package.py
+          --version "${GITHUB_REF_NAME}"
+          --output "build/gf-framework-${GITHUB_REF_NAME}.zip"
+
       - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: >
           gh release create "${GITHUB_REF_NAME}"
+          "build/gf-framework-${GITHUB_REF_NAME}.zip"
           --verify-tag
           --title "${GITHUB_REF_NAME}"
           --notes-file release-notes.md

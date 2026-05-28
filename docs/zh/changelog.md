@@ -22,52 +22,66 @@
 
 ---
 
-## [3.21.0] - 2026-05-28
+## [3.22.0] - 2026-05-28
 
-**版本概述**：新增网格变换、层名 bitmask、资源注册表、音频混音控制、调试向量绘制和 Asset Store 发布元数据审计，继续扩展 GF 标准层的通用基础能力。
+**版本概述**：统一基础层结果、报告、metadata 和 options 字典语义，降低后续模块手写字段与复制规则漂移。
 
 ### 🚀 新增特性 (Added)
 
-- 新增 `GFGridTransform2D`，提供 2D 矩形局部空间的旋转、镜像和对角翻转纯坐标映射。
-- 新增 `GFLayerMaskUtility`，提供层名数组、零基层索引和 32 位 bitmask 的互转，并可读取 Godot 2D / 3D 物理层名称。
-- 新增 `GFResourceRegistryEntry` 与 `GFResourceRegistry`，用稳定 ID 管理资源路径、类型提示和通用字段索引，并可显式衔接 `GFAssetUtility` 进行异步加载或分组预热。
-- `GFAudioUtility` 新增通用混音控制入口，支持 dB 总线音量、平滑过渡、总线静音、效果属性写入、混音快照和临时 duck / restore。
-- `GFDebugDrawUtility` 新增 2D/3D 向量绘制便捷入口，复用现有 line 命令缓冲表达主向量、轴向分量和 2D 箭头。
+- `GFResultDictionary` 新增 `reason`、`message`、`issues`、`issue_count`、`healthy`、`summary` 与 `next_action` 等通用字段常量，并新增 `make_rejected()`、`make_with_issues()`、`normalize()`、`is_ok()` 和 `merge_metadata()`。
+- `GFVariantData` 新增字典归一化、metadata 复制 / 合并和 options 类型读取入口。
 
 ### 🔄 机制更改 (Changed)
 
-- `tools/gf_maintenance.py release-status` 新增 Asset Store 元数据、插件入口脚本、插件目录必备文件和发布包归档规则审计，发布工作流同步校验 `ASSET_STORE.md`。
+- `GFResultDictionary.make()` 现在会深拷贝调用方字段，避免结果字典与外部集合共享可变状态。
+- `GFValidationReportDictionary.finalize_report()` 现在始终输出 `issue_count`，让字典式报告字段与对象式报告保持一致。
+- UI 面板策略、UI 路由、通知、后台任务和下载任务的 options / metadata 读取改为复用 `GFVariantData`，减少高频 Utility 中的手写字典解析。
+- 音频 Bank 扫描 / 导入工具的 options 读取改为复用 `GFVariantData`，并统一规范化扩展名、StringName 键和字符串数字选项。
+- 存储同步工具的结果状态、后端记录、resolver metadata 和写回选项改为复用 `GFResultDictionary` / `GFVariantData`，减少同步结果字典的字段漂移。
+- 后台任务的线程结果改为复用 `GFResultDictionary` 归一化失败信息，支持 `error`、`message` 与 `reason` 兜底。
+- 发布流程新增 Asset Store 专用 ZIP 打包步骤，生成的下载包以 `addons/` 为根目录，并由 release metadata 检查验证包结构。
+- API Surface Contract 增加公开 `options: Dictionary` 参数必须提供 `@schema options` 的显式回归用例。
+
+### 🐛 Bug 修复 (Fixed)
+
+- 修复 3 个测试脚本中的 GDScript 局部变量遮蔽 / 易混淆声明警告。
 
 ### 🔌 API 变动说明 (API Changes)
 
-- 新增公开类 `GFGridTransform2D`。
-- 新增公开类 `GFLayerMaskUtility`。
-- 新增公开类 `GFResourceRegistryEntry`。
-- 新增公开类 `GFResourceRegistry`。
-- `GFAudioUtility` 新增公开常量 `SILENCE_VOLUME_DB`，以及 `set_bus_volume_db()`、`get_bus_volume_db()`、`set_bus_mute()`、`set_bus_effect_property()`、`capture_mix_snapshot()`、`apply_mix_snapshot()`、`duck_bus()` 与 `restore_ducked_bus()`。
-- `GFAudioBackend` 新增可选覆写入口 `set_bus_volume_db()`、`set_bus_mute()`、`set_bus_effect_property()` 与 `apply_mix_snapshot()`。
-- `GFDebugDrawUtility` 新增公开方法 `draw_vector_2d()` 与 `draw_vector_3d()`。
+- `GFResultDictionary.make_failure()` 会补齐 `reason` 与 `message` 字段；旧的 `error` 字段仍保留为通用错误文本。
+- `GFVariantData.deep_merge_defaults()` 复用新的字典合并语义，行为仍为只补缺失字段。
 
 ### 📁 核心受影响文件 (Affected Files)
 
-- `addons/gf/standard/foundation/math/gf_grid_transform_2d.gd`
-- `addons/gf/standard/foundation/math/gf_layer_mask_utility.gd`
-- `addons/gf/standard/utilities/assets/gf_resource_registry_entry.gd`
-- `addons/gf/standard/utilities/assets/gf_resource_registry.gd`
-- `addons/gf/standard/utilities/audio/gf_audio_utility.gd`
-- `addons/gf/standard/utilities/audio/gf_audio_backend.gd`
-- `addons/gf/standard/utilities/debug/gf_debug_draw_utility.gd`
-- `tests/gf_core/standard/foundation/math/test_gf_grid_transform_2d.gd`
-- `tests/gf_core/standard/foundation/math/test_gf_layer_mask_utility.gd`
-- `tests/gf_core/standard/utilities/assets/test_gf_resource_registry.gd`
-- `tests/gf_core/standard/utilities/audio/test_gf_audio_utility.gd`
-- `tests/gf_core/standard/utilities/debug/test_gf_debug_draw_utility.gd`
-- `docs/zh/standard/foundation/grid-spatial/grid-2d-hex/grid-transform.md`
-- `docs/zh/standard/foundation/scalars/layer-mask.md`
-- `docs/zh/standard/utilities/io/assets-jobs-warmup/asset-utility/resource-registry.md`
-- `docs/zh/standard/utilities/runtime/audio/playback/ambient-bus-concurrency.md`
-- `docs/zh/standard/utilities/runtime/debug-observability/debug-visual-inspection/debug-draw.md`
-- `ASSET_STORE.md`
+- `addons/gf/standard/foundation/validation/gf_result_dictionary.gd`
+- `addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd`
+- `addons/gf/standard/foundation/variant/gf_variant_data.gd`
+- `addons/gf/standard/utilities/ui/gf_ui_utility.gd`
+- `addons/gf/standard/utilities/ui/gf_ui_route.gd`
+- `addons/gf/standard/utilities/ui/gf_notification_utility.gd`
+- `addons/gf/standard/utilities/jobs/gf_background_work_utility.gd`
+- `addons/gf/standard/utilities/io/gf_download_utility.gd`
+- `addons/gf/standard/utilities/audio/gf_audio_bank_tools.gd`
+- `addons/gf/standard/utilities/storage/gf_storage_sync_utility.gd`
+- `.github/workflows/release.yml`
+- `tools/build_asset_store_package.py`
 - `tools/gf_maintenance.py`
-- `tools/gf_mcp_server.py`
-- `tools/extract_release_notes.py`
+- `ASSET_LIBRARY.md`
+- `ASSET_STORE.md`
+- `tests/gf_core/standard/foundation/validation/test_gf_result_dictionary.gd`
+- `tests/gf_core/standard/foundation/validation/test_gf_validation_report_dictionary.gd`
+- `tests/gf_core/standard/foundation/variant/test_gf_variant_data_and_json_codec.gd`
+- `tests/gf_core/standard/utilities/ui/test_gf_ui_utility.gd`
+- `tests/gf_core/standard/utilities/ui/test_gf_ui_router_utility.gd`
+- `tests/gf_core/standard/utilities/ui/test_gf_notification_utility.gd`
+- `tests/gf_core/standard/utilities/jobs/test_gf_background_work_utility.gd`
+- `tests/gf_core/standard/utilities/io/test_gf_download_utility.gd`
+- `tests/gf_core/standard/utilities/audio/test_gf_audio_bank_tools.gd`
+- `tests/gf_core/standard/utilities/storage/test_gf_storage_sync_utility.gd`
+- `tests/gf_core/maintenance/test_api_surface_contract_validation.gd`
+- `tests/gf_core/standard/utilities/pooling/test_gf_ref_counted_pool.gd`
+- `tests/gf_core/standard/utilities/assets/test_gf_resource_registry.gd`
+- `tests/gf_core/extensions/combat/test_gf_combat_extension.gd`
+- `docs/zh/standard/foundation/data-validation/validation-reporting/result-dictionary.md`
+- `docs/zh/standard/foundation/data-validation/validation-reporting/reports-diagnostics/dictionary-reports.md`
+- `docs/zh/standard/foundation/data-validation/formula-variant/variant-data-json.md`

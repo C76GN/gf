@@ -33,7 +33,7 @@ extends Resource
 ## [br]
 ## @api public
 ## [br]
-## @schema default_options: Dictionary，字段同 GFUIUtility 打开面板 options，例如 metadata、config_callback、modal、allow_cancel_dismiss。
+## @schema default_options: Dictionary，字段同 GFUIUtility 打开面板 options，例如 metadata、config_callback、modal、dismiss_on_cancel。
 @export var default_options: Dictionary = {}
 
 ## 路由元数据。框架只透传，不解释字段含义。
@@ -85,21 +85,12 @@ func is_valid_route() -> bool:
 ## @schema return: Dictionary，合并后的面板打开 options，至少包含 metadata.route_id，可能包含 metadata.route_params。
 func build_options(params: Dictionary = {}, option_overrides: Dictionary = {}) -> Dictionary:
 	var options := default_options.duplicate(true)
-	_merge_dictionary(options, option_overrides)
+	GFVariantData.merge_dictionary(options, option_overrides)
 
-	var merged_metadata := metadata.duplicate(true)
-	var option_metadata := options.get("metadata", {}) as Dictionary
-	if option_metadata != null:
-		_merge_dictionary(merged_metadata, option_metadata)
+	var merged_metadata := GFVariantData.duplicate_metadata(metadata)
+	GFVariantData.merge_metadata(merged_metadata, GFVariantData.get_option_dictionary(options, "metadata"))
 	merged_metadata["route_id"] = get_route_id()
 	if not params.is_empty():
 		merged_metadata["route_params"] = params.duplicate(true)
 	options["metadata"] = merged_metadata
 	return options
-
-
-# --- 私有/辅助方法 ---
-
-func _merge_dictionary(target: Dictionary, source: Dictionary) -> void:
-	for key: Variant in source.keys():
-		target[key] = GFVariantData.duplicate_variant(source[key])

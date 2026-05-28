@@ -402,7 +402,7 @@ func _submit_threaded_work(
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：worker 无效。")
 		return task as GFBackgroundWorkTask
 
-	var allow_payload_objects := allow_object_payloads or bool(options.get("allow_object_payloads", false))
+	var allow_payload_objects := allow_object_payloads or GFVariantData.get_option_bool(options, "allow_object_payloads", false)
 	if not allow_payload_objects and not _is_thread_payload_safe(input_data):
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：payload 只能包含纯 Variant 数据。")
 		return task as GFBackgroundWorkTask
@@ -412,7 +412,7 @@ func _submit_threaded_work(
 		_fail_task(task, "[GFBackgroundWorkUtility] 提交后台工作失败：工作 ID 已存在。")
 		return task as GFBackgroundWorkTask
 
-	_insert_queued_thread_task(task, bool(options.get("front", false)))
+	_insert_queued_thread_task(task, GFVariantData.get_option_bool(options, "front", false))
 	work_queued.emit(task)
 	_start_queued_thread_tasks()
 	return task as GFBackgroundWorkTask
@@ -427,12 +427,11 @@ func _create_task(
 	_work_serial += 1
 	var task: Variant = GFBackgroundWorkTask.new()
 	task.kind = kind
-	task.work_id = StringName(str(options.get("id", "")))
+	task.work_id = GFVariantData.get_option_string_name(options, "id")
 	if task.work_id == &"":
 		task.work_id = StringName("%s:%d" % [GFBackgroundWorkTask.kind_name(kind), _work_serial])
-	task.priority = int(options.get("priority", 0))
-	var metadata := options.get("metadata", {}) as Dictionary
-	task.metadata = metadata.duplicate(true) if metadata != null else {}
+	task.priority = GFVariantData.get_option_int(options, "priority", 0)
+	task.metadata = GFVariantData.get_option_dictionary(options, "metadata")
 	task.created_msec = Time.get_ticks_msec()
 	task._worker_callback = worker
 	task._apply_callback = apply_callback
@@ -519,32 +518,29 @@ func _finish_thread_task(task: Variant, result_variant: Variant) -> void:
 	if result == null:
 		_fail_task(task, "[GFBackgroundWorkUtility] 后台工作返回了无效结果。", result_variant)
 		return
-	if not bool(result.get("ok", false)):
-		_fail_task(task, str(result.get("error", "background work failed")), result.get("result", result))
+	var normalized_result := GFResultDictionary.normalize(result, false)
+	if not GFResultDictionary.is_ok(normalized_result):
+		_fail_task(task, _get_result_error_text(normalized_result, "background work failed"), normalized_result.get("result", normalized_result))
 		return
 
-	task.result = result.get("result")
+	task.result = normalized_result.get("result")
 	_queue_apply_or_complete(task)
 
 
 func _run_threaded_task(worker: Callable, input_data: Variant) -> Dictionary:
 	var value: Variant = worker.call(input_data)
 	if value is Dictionary and not bool((value as Dictionary).get("ok", true)):
-		return {
-			"ok": false,
-			"error": str((value as Dictionary).get("error", "")),
+		var result := GFResultDictionary.normalize(value as Dictionary, false)
+		return GFResultDictionary.make_failure(_get_result_error_text(result), {
 			"result": value,
-		}
+		})
 	if value is bool and not bool(value):
-		return {
-			"ok": false,
-			"error": "",
+		return GFResultDictionary.make_failure("", {
 			"result": value,
-		}
-	return {
-		"ok": true,
+		})
+	return GFResultDictionary.make_success({
 		"result": value,
-	}
+	})
 
 
 func _start_resource_task(task: Variant) -> void:
@@ -659,7 +655,8 @@ func _process_apply_queue() -> void:
 		applied_count += 1
 		task.apply_result = value
 		if value is Dictionary and not bool((value as Dictionary).get("ok", true)):
-			_fail_task(task, str((value as Dictionary).get("error", "")), value)
+			var normalized_result := GFResultDictionary.normalize(value as Dictionary, false)
+			_fail_task(task, _get_result_error_text(normalized_result), normalized_result)
 			continue
 		if value is bool and not bool(value):
 			_fail_task(task, "", value)
@@ -692,6 +689,19 @@ func _fail_task(task: Variant, error_message: String = "", result: Variant = nul
 	_finished_tasks.append(task)
 	_trim_finished_tasks()
 	work_failed.emit(task)
+
+
+func _get_result_error_text(result: Dictionary, fallback: String = "") -> String:
+	var error_text := String(result.get(GFResultDictionary.KEY_ERROR, ""))
+	if not error_text.is_empty():
+		return error_text
+	error_text = String(result.get(GFResultDictionary.KEY_MESSAGE, ""))
+	if not error_text.is_empty():
+		return error_text
+	error_text = String(result.get(GFResultDictionary.KEY_REASON, ""))
+	if not error_text.is_empty():
+		return error_text
+	return fallback
 
 
 func _cancel_task(task: Variant) -> void:

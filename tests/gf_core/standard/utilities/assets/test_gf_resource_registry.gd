@@ -148,7 +148,7 @@ func test_request_entry_handle_async_delegates_group_and_owner() -> void:
 	var registry: Variant = GFResourceRegistryBase.new()
 	registry.set_entry(_make_entry(&"item", "res://item.tres", {}, "Resource"))
 	var utility := ManualAssetUtility.new()
-	var owner := Node.new()
+	var request_owner := Node.new()
 	var loaded_handles: Array[GFAssetHandle] = []
 
 	registry.request_entry_handle_async(
@@ -156,7 +156,7 @@ func test_request_entry_handle_async_delegates_group_and_owner() -> void:
 		&"item",
 		func(handle: GFAssetHandle) -> void:
 			loaded_handles.append(handle),
-		owner,
+		request_owner,
 		&"items"
 	)
 
@@ -165,9 +165,9 @@ func test_request_entry_handle_async_delegates_group_and_owner() -> void:
 	assert_eq(utility.requested_group_id, &"items")
 	assert_eq(loaded_handles.size(), 1)
 	assert_eq(loaded_handles[0].path, "res://item.tres")
-	assert_eq(loaded_handles[0].get_owner_id(), owner.get_instance_id())
+	assert_eq(loaded_handles[0].get_owner_id(), request_owner.get_instance_id())
 
-	owner.free()
+	request_owner.free()
 
 
 func test_to_dict_and_from_dict_preserve_entries() -> void:

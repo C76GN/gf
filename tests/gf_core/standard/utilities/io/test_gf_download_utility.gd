@@ -105,6 +105,32 @@ func test_resume_download_appends_segment_when_server_returns_partial_content() 
 	assert_eq(_read_text(target), "oldnew", "206 响应应把分段文件追加到临时文件后再提交。")
 
 
+func test_enqueue_download_accepts_string_name_options_and_copies_metadata() -> void:
+	var target := _track_path("user://gf_download_options_%d.txt" % Time.get_ticks_usec())
+	var source_metadata := {
+		"nested": {
+			"value": 1,
+		},
+	}
+	var results: Array[Dictionary] = []
+	_utility.responses.append({ "success": true, "response_code": 200, "content": "ok" })
+
+	var handle := _utility.enqueue_download("https://example.test/file", target, func(result: Dictionary) -> void:
+		results.append(result)
+	, {
+		&"overwrite": "on",
+		&"max_retries": "1",
+		&"metadata": source_metadata,
+	})
+	await get_tree().process_frame
+	((results[0]["metadata"] as Dictionary)["nested"] as Dictionary)["value"] = 2
+
+	assert_gt(handle, 0, "有效下载应返回任务句柄。")
+	assert_true(bool(results[0]["success"]), "下载应成功。")
+	assert_eq(int(results[0]["max_retries"]), 1, "StringName 选项键和值应被归一读取。")
+	assert_eq((source_metadata["nested"] as Dictionary)["value"], 1, "下载任务 metadata 应复制保存。")
+
+
 func test_checksum_failure_reports_failed_without_target_commit() -> void:
 	var target := _track_path("user://gf_download_checksum_%d.txt" % Time.get_ticks_usec())
 	var results: Array[Dictionary] = []

@@ -87,10 +87,10 @@ static func scan_audio_paths(root_path: String = "res://", options: Dictionary =
 	var result := PackedStringArray()
 	var normalized_root := _normalize_dir_path(root_path)
 	var extensions := _get_extensions(options)
-	var recursive := bool(options.get("recursive", true))
+	var recursive := GFVariantData.get_option_bool(options, "recursive", true)
 	var excluded_paths := _get_excluded_paths(options)
-	var max_scan_depth := maxi(int(options.get("max_scan_depth", DEFAULT_MAX_SCAN_DEPTH)), 0)
-	var max_audio_paths := maxi(int(options.get("max_audio_paths", DEFAULT_MAX_AUDIO_PATHS)), 0)
+	var max_scan_depth := maxi(GFVariantData.get_option_int(options, "max_scan_depth", DEFAULT_MAX_SCAN_DEPTH), 0)
+	var max_audio_paths := maxi(GFVariantData.get_option_int(options, "max_audio_paths", DEFAULT_MAX_AUDIO_PATHS), 0)
 	var scan_state := _make_scan_state()
 	_scan_audio_paths_recursive(
 		normalized_root,
@@ -120,7 +120,9 @@ static func scan_audio_paths(root_path: String = "res://", options: Dictionary =
 ## @schema options: Dictionary，可包含 id_mode、base_path、path_separator、strip_extension、bus_name、volume_db、pitch_scale 和 overwrite 字段。
 static func create_bank_from_paths(paths: PackedStringArray, options: Dictionary = {}) -> GFAudioBank:
 	var bank := _GF_AUDIO_BANK_BASE.new() as GFAudioBank
-	add_paths_to_bank(bank, paths, options.merged({ "overwrite": true }))
+	var import_options := GFVariantData.to_dictionary(options)
+	import_options["overwrite"] = true
+	add_paths_to_bank(bank, paths, import_options)
 	return bank
 
 
@@ -163,11 +165,12 @@ static func add_paths_to_bank(
 		report.add_error(&"missing_audio_bank", "Audio bank is null.")
 		return report
 
-	var overwrite := bool(options.get("overwrite", false))
+	var overwrite := GFVariantData.get_option_bool(options, "overwrite", false)
+	var extensions := _get_extensions(options)
 	var added_count := 0
 	var skipped_count := 0
 	for path: String in paths:
-		if not is_audio_path(path, _get_extensions(options)):
+		if not is_audio_path(path, extensions):
 			report.add_warning(&"invalid_audio_path", "Path is not a supported audio file.", path, path)
 			skipped_count += 1
 			continue
@@ -239,8 +242,9 @@ static func validate_bank_playback(bank: GFAudioBank, options: Dictionary = {}) 
 		report.add_error(&"missing_audio_bank", "Audio bank is null.")
 		return report
 
-	report.merge(bank.validate_bank(bool(options.get("check_resource_exists", false))), true)
-	var check_bus_exists := bool(options.get("check_bus_exists", true))
+	var check_resource_exists := GFVariantData.get_option_bool(options, "check_resource_exists", false)
+	report.merge(bank.validate_bank(check_resource_exists), true)
+	var check_bus_exists := GFVariantData.get_option_bool(options, "check_bus_exists", true)
 	var extensions := _get_extensions(options)
 	var clip_count := 0
 	for clip_id_text: String in bank.get_clip_ids():
@@ -266,19 +270,19 @@ static func validate_bank_playback(bank: GFAudioBank, options: Dictionary = {}) 
 ## [br]
 ## @schema options: Dictionary，可包含 id_mode、base_path、path_separator 和 strip_extension 字段。
 static func make_clip_id(path: String, options: Dictionary = {}) -> StringName:
-	var mode := _resolve_id_mode(options.get("id_mode", ClipIdMode.BASENAME))
+	var mode := _resolve_id_mode(GFVariantData.get_option_value(options, "id_mode", ClipIdMode.BASENAME))
 	var id_text := path.replace("\\", "/")
 	match mode:
 		ClipIdMode.BASENAME:
 			id_text = id_text.get_file()
 		ClipIdMode.RELATIVE_PATH:
-			id_text = _make_relative_path(id_text, String(options.get("base_path", "res://")))
+			id_text = _make_relative_path(id_text, GFVariantData.get_option_string(options, "base_path", "res://"))
 		ClipIdMode.FULL_PATH:
 			pass
 
-	if bool(options.get("strip_extension", true)):
+	if GFVariantData.get_option_bool(options, "strip_extension", true):
 		id_text = id_text.get_basename()
-	id_text = id_text.replace("/", String(options.get("path_separator", "/"))).strip_edges()
+	id_text = id_text.replace("/", GFVariantData.get_option_string(options, "path_separator", "/")).strip_edges()
 	return StringName(id_text)
 
 
@@ -287,9 +291,9 @@ static func make_clip_id(path: String, options: Dictionary = {}) -> StringName:
 static func _make_clip(path: String, options: Dictionary) -> GFAudioClip:
 	var clip := _GF_AUDIO_CLIP_BASE.new() as GFAudioClip
 	clip.path = path
-	clip.bus_name = String(options.get("bus_name", ""))
-	clip.volume_db = float(options.get("volume_db", 0.0))
-	clip.pitch_scale = float(options.get("pitch_scale", 1.0))
+	clip.bus_name = GFVariantData.get_option_string(options, "bus_name", "")
+	clip.volume_db = GFVariantData.get_option_float(options, "volume_db", 0.0)
+	clip.pitch_scale = GFVariantData.get_option_float(options, "pitch_scale", 1.0)
 	return clip
 
 
@@ -317,12 +321,14 @@ static func _validate_clip_playback(
 			metadata
 		)
 	if check_bus_exists and not clip.bus_name.is_empty() and AudioServer.get_bus_index(clip.bus_name) < 0:
+		var bus_metadata := GFVariantData.duplicate_metadata(metadata)
+		bus_metadata["bus_name"] = clip.bus_name
 		report.add_warning(
 			&"missing_audio_bus",
 			"Audio clip references an audio bus that does not exist.",
 			clip_id,
 			clip.path,
-			metadata.merged({ "bus_name": clip.bus_name })
+			bus_metadata
 		)
 
 
@@ -412,32 +418,30 @@ static func _warn_scan_depth_limit(path: String, max_scan_depth: int, scan_state
 
 
 static func _get_extensions(options: Dictionary) -> PackedStringArray:
-	var value: Variant = options.get("extensions", AUDIO_EXTENSIONS)
-	if value is PackedStringArray:
-		return value
-	if value is Array:
-		var result := PackedStringArray()
-		for item: Variant in value:
-			var text := String(item)
-			if text.begins_with("."):
-				text = text.substr(1)
-			result.append(text.to_lower())
-		return result
-	return AUDIO_EXTENSIONS
+	return _normalize_extensions(
+		GFVariantData.get_option_packed_string_array(options, "extensions", AUDIO_EXTENSIONS)
+	)
 
 
 static func _get_excluded_paths(options: Dictionary) -> PackedStringArray:
-	if bool(options.get("include_addons", false)):
+	if GFVariantData.get_option_bool(options, "include_addons", false):
 		return PackedStringArray()
-	var value: Variant = options.get("excluded_paths", DEFAULT_EXCLUDED_PATHS)
-	if value is PackedStringArray:
-		return value
-	if value is Array:
-		var result := PackedStringArray()
-		for item: Variant in value:
-			result.append(_normalize_dir_path(String(item)))
-		return result
-	return DEFAULT_EXCLUDED_PATHS
+	var paths := GFVariantData.get_option_packed_string_array(options, "excluded_paths", DEFAULT_EXCLUDED_PATHS)
+	var result := PackedStringArray()
+	for path: String in paths:
+		result.append(_normalize_dir_path(path))
+	return result
+
+
+static func _normalize_extensions(extensions: PackedStringArray) -> PackedStringArray:
+	var result := PackedStringArray()
+	for extension: String in extensions:
+		var normalized := extension.strip_edges().to_lower()
+		if normalized.begins_with("."):
+			normalized = normalized.substr(1)
+		if not normalized.is_empty():
+			result.append(normalized)
+	return result
 
 
 static func _resolve_id_mode(value: Variant) -> ClipIdMode:

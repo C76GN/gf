@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFValidationReportDictionary" path="addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd" module="standard" extends="RefCounted" classDigest="4df622320fc238d27ce0b7cd604074d94018d0a6794854a68b4be22d595b4f9b">
+<class name="GFValidationReportDictionary" path="addons/gf/standard/foundation/validation/gf_validation_report_dictionary.gd" module="standard" extends="RefCounted" classDigest="07e90216ee65be9bc9b688a7e746515420ed43e8861c89f775c837c1026de78b">
 	<description>GFValidationReportDictionary: 通用校验报告字典辅助。
 提供字典报告的追加、归一化、统计和严重级别提升工具，便于字典式报告
 接入 `GFValidationIssue` / `GFValidationReport` 使用的标准字段。</description>
@@ -78,7 +78,7 @@
 				<tag name="api">public</tag>
 				<tag name="param">report: 目标报告字典。</tag>
 				<tag name="param">subject: 摘要主题；为空时使用 report.subject 或 Validation report。</tag>
-				<tag name="param">options: 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、include_issue_count、warnings_as_errors、promote_warning_kinds。</tag>
+				<tag name="param">options: 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、warnings_as_errors、promote_warning_kinds。</tag>
 				<tag name="return">同一个报告字典。</tag>
 				<tag name="schema">report: Dictionary report payload mutated in place.</tag>
 				<tag name="schema">options: Dictionary controlling report finalization.</tag>

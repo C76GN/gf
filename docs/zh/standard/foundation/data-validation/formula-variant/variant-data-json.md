@@ -1,6 +1,6 @@
 # Variant 深拷贝与 JSON 转换
 
-通用 Variant 基础件分为两个明确职责：`GFVariantData` 负责深拷贝、默认值合并和 Resource 可选复制；`GFVariantJsonCodec` 负责 JSON 友好的 Godot 类型转换。
+通用 Variant 基础件分为两个明确职责：`GFVariantData` 负责深拷贝、字典 / metadata 合并、options 读取、默认值合并和 Resource 可选复制；`GFVariantJsonCodec` 负责 JSON 友好的 Godot 类型转换。
 
 它们都不依赖 `GFArchitecture`，适合存档、配置、校验报告、网络消息、命中上下文等需要复制集合但保留标量语义，或把 Godot 值转成纯数据的地方。
 
@@ -28,6 +28,20 @@ GFVariantData.deep_merge_defaults(settings, {
 ```
 
 `GFVariantData.duplicate_variant()` 默认只深拷贝 `Dictionary` 和 `Array`，其他值保持原样返回；如果值中包含 `Object` 或 `Resource`，仍是引用语义。需要复制资源值时，可显式传入 `duplicate_variant(value, true, true)`。
+
+## Metadata 与 Options
+
+项目自定义 `metadata` 应保持普通 `Dictionary`，框架只复制、合并和透传，不解释业务键。需要合并时优先使用 `merge_metadata()`，避免不同模块手写深拷贝和嵌套合并规则：
+
+```gdscript
+var metadata := GFVariantData.duplicate_metadata(base_metadata)
+GFVariantData.merge_metadata(metadata, {
+	"source": "importer",
+	"tags": ["preview"],
+})
+```
+
+公共 API 的 `options` 字典应使用稳定字段名，并通过 `get_option_bool()`、`get_option_int()`、`get_option_float()`、`get_option_dictionary()` 等读取。读取器支持 `String` 与 `StringName` 键互查，集合返回副本，避免调用方和框架共享内部状态。
 
 ## JSON 兼容转换
 

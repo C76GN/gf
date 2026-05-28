@@ -37397,7 +37397,7 @@ Schemas:
 - Category: `value_object`
 - Since: `3.17.0`
 
-GFResultDictionary: 通用结果字典常量与轻量工厂。 用于统一 `ok`、`data`、`metadata`、`error` 等常见结果字典字段， 便于运行时服务和底层模块逐步收敛返回结构，同时保持字典兼容。
+GFResultDictionary: 通用结果字典常量、归一化与轻量工厂。 用于统一 `ok`、`reason`、`message`、`data`、`metadata`、`issues` 等常见结果字段。 普通操作结果应使用该结构；需要严重级别、统计和下一步建议时再使用校验报告。
 
 ### Constants
 
@@ -37431,6 +37431,26 @@ const KEY_METADATA: String = "metadata"
 
 元数据字段名。
 
+#### `KEY_REASON`
+
+- API: `public`
+
+```gdscript
+const KEY_REASON: String = "reason"
+```
+
+机器可读原因字段名。
+
+#### `KEY_MESSAGE`
+
+- API: `public`
+
+```gdscript
+const KEY_MESSAGE: String = "message"
+```
+
+人类可读说明字段名。
+
 #### `KEY_ERROR`
 
 - API: `public`
@@ -37450,6 +37470,56 @@ const KEY_ERRORS: String = "errors"
 ```
 
 多个错误字段名。
+
+#### `KEY_ISSUES`
+
+- API: `public`
+
+```gdscript
+const KEY_ISSUES: String = "issues"
+```
+
+问题列表字段名。
+
+#### `KEY_ISSUE_COUNT`
+
+- API: `public`
+
+```gdscript
+const KEY_ISSUE_COUNT: String = "issue_count"
+```
+
+问题总数字段名。
+
+#### `KEY_HEALTHY`
+
+- API: `public`
+
+```gdscript
+const KEY_HEALTHY: String = "healthy"
+```
+
+健康状态字段名。
+
+#### `KEY_SUMMARY`
+
+- API: `public`
+
+```gdscript
+const KEY_SUMMARY: String = "summary"
+```
+
+摘要字段名。
+
+#### `KEY_NEXT_ACTION`
+
+- API: `public`
+
+```gdscript
+const KEY_NEXT_ACTION: String = "next_action"
+```
+
+下一步建议字段名。
 
 #### `KEY_INTEGRITY_VALID`
 
@@ -37518,13 +37588,13 @@ Schemas:
 static func make_failure(error: String = "", fields: Dictionary = {}) -> Dictionary:
 ```
 
-创建失败结果字典，并写入 error 字段。
+创建失败结果字典，并写入 reason、message 和 error 字段。
 
 Parameters:
 
 | Name | Description |
 |---|---|
-| `error` | 错误说明。 |
+| `error` | 错误说明。该值会同时作为默认 reason 与 message，便于结果结构稳定读取。 |
 | `fields` | 需要合并到结果中的附加字段。 |
 
 Returns: 新结果字典。
@@ -37532,7 +37602,133 @@ Returns: 新结果字典。
 Schemas:
 
 - `fields`: Dictionary fields copied into the result.
-- `return`: Dictionary with ok set to false, error, and caller-provided fields.
+- `return`: Dictionary with ok set to false, reason, message, error, and caller-provided fields.
+
+#### `make_rejected`
+
+- API: `public`
+
+```gdscript
+static func make_rejected(reason: StringName, message: String = "", fields: Dictionary = {}) -> Dictionary:
+```
+
+创建带机器可读原因和人类可读说明的失败结果。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `reason` | 稳定失败原因，推荐使用 snake_case。 |
+| `message` | 面向开发者或工具 UI 的说明；为空时使用 reason。 |
+| `fields` | 需要合并到结果中的附加字段。 |
+
+Returns: 新结果字典。
+
+Schemas:
+
+- `fields`: Dictionary fields copied into the result.
+- `return`: Dictionary with ok set to false, reason, message, and caller-provided fields.
+
+#### `make_with_issues`
+
+- API: `public`
+
+```gdscript
+static func make_with_issues(ok: bool, issues: Array = [], fields: Dictionary = {}) -> Dictionary:
+```
+
+创建带 issues 的结果字典。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `ok` | 操作是否成功。 |
+| `issues` | 问题数组。 |
+| `fields` | 需要合并到结果中的附加字段。 |
+
+Returns: 新结果字典。
+
+Schemas:
+
+- `issues`: Array of caller-defined issue dictionaries or values.
+- `fields`: Dictionary fields copied into the result.
+- `return`: Dictionary with ok, issues, issue_count, healthy, and caller-provided fields.
+
+#### `normalize`
+
+- API: `public`
+
+```gdscript
+static func normalize(result: Dictionary, default_ok: bool = false, options: Dictionary = {}) -> Dictionary:
+```
+
+归一化已有结果字典，补齐标准字段并返回副本。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `result` | 输入结果字典。 |
+| `default_ok` | 缺少 ok 字段时使用的默认值。 |
+| `options` | 可选控制，支持 include_issue_count、include_healthy、default_reason、default_message。 |
+
+Returns: 归一化后的结果副本。
+
+Schemas:
+
+- `result`: Dictionary result payload.
+- `options`: Dictionary controlling normalization.
+- `return`: Dictionary normalized result payload.
+
+#### `is_ok`
+
+- API: `public`
+
+```gdscript
+static func is_ok(result: Dictionary, default_value: bool = false) -> bool:
+```
+
+检查结果字典是否成功。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `result` | 输入结果字典。 |
+| `default_value` | 缺少 ok 字段时的默认值。 |
+
+Returns: 成功时返回 true。
+
+Schemas:
+
+- `result`: Dictionary result payload.
+
+#### `merge_metadata`
+
+- API: `public`
+
+```gdscript
+static func merge_metadata(result: Dictionary, metadata: Dictionary, overwrite: bool = true) -> Dictionary:
+```
+
+合并元数据到结果字典并返回同一个字典。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `result` | 目标结果字典。 |
+| `metadata` | 要合并的元数据。 |
+| `overwrite` | 为 true 时覆盖已有键。 |
+
+Returns: 传入的 result。
+
+Schemas:
+
+- `result`: Dictionary result payload mutated in place.
+- `metadata`: Dictionary metadata payload.
+- `return`: Dictionary result payload mutated in place.
 
 ## GFRichTextFormatter
 
@@ -50785,7 +50981,7 @@ var default_options: Dictionary = {}
 
 Schemas:
 
-- `default_options`: Dictionary，字段同 GFUIUtility 打开面板 options，例如 metadata、config_callback、modal、allow_cancel_dismiss。
+- `default_options`: Dictionary，字段同 GFUIUtility 打开面板 options，例如 metadata、config_callback、modal、dismiss_on_cancel。
 
 #### `metadata`
 
@@ -53633,7 +53829,7 @@ Parameters:
 |---|---|
 | `report` | 目标报告字典。 |
 | `subject` | 摘要主题；为空时使用 report.subject 或 Validation report。 |
-| `options` | 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、include_issue_count、warnings_as_errors、promote_warning_kinds。 |
+| `options` | 可选控制，支持 next_actions、fallback_action、no_action、include_info_count、warnings_as_errors、promote_warning_kinds。 |
 
 Returns: 同一个报告字典。
 
@@ -54762,6 +54958,109 @@ Schemas:
 - `value`: Variant collection value to duplicate.
 - `return`: Variant duplicated collection value.
 
+#### `to_dictionary`
+
+- API: `public`
+
+```gdscript
+static func to_dictionary(value: Variant, default_value: Dictionary = {}, deep: bool = true) -> Dictionary:
+```
+
+将 Variant 归一为 Dictionary 副本。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `value` | 待读取的值。 |
+| `default_value` | value 不是 Dictionary 时使用的默认值。 |
+| `deep` | 是否深拷贝集合。 |
+
+Returns: Dictionary 副本。
+
+Schemas:
+
+- `value`: Variant value expected to be a Dictionary.
+- `default_value`: Dictionary default copied when value is not a Dictionary.
+- `return`: Dictionary copied result.
+
+#### `duplicate_metadata`
+
+- API: `public`
+
+```gdscript
+static func duplicate_metadata(metadata: Dictionary) -> Dictionary:
+```
+
+复制元数据字典。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `metadata` | 待复制的元数据。 |
+
+Returns: 元数据副本。
+
+Schemas:
+
+- `metadata`: Dictionary caller metadata.
+- `return`: Dictionary duplicated metadata.
+
+#### `merge_dictionary`
+
+- API: `public`
+
+```gdscript
+static func merge_dictionary( target: Dictionary, source: Dictionary, overwrite: bool = true, recursive: bool = true ) -> Dictionary:
+```
+
+将 source 合并到 target。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `target` | 会被原地修改的目标字典。 |
+| `source` | 来源字典。 |
+| `overwrite` | 为 true 时覆盖已有字段。 |
+| `recursive` | 为 true 时递归合并嵌套 Dictionary。 |
+
+Returns: 已合并的 target 字典。
+
+Schemas:
+
+- `target`: Dictionary target mutated in place.
+- `source`: Dictionary source values copied into target.
+- `return`: Dictionary merged target.
+
+#### `merge_metadata`
+
+- API: `public`
+
+```gdscript
+static func merge_metadata( target: Dictionary, source: Dictionary, overwrite: bool = true, recursive: bool = true ) -> Dictionary:
+```
+
+将 source 元数据合并到 target 元数据。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `target` | 会被原地修改的目标元数据。 |
+| `source` | 来源元数据。 |
+| `overwrite` | 为 true 时覆盖已有字段。 |
+| `recursive` | 为 true 时递归合并嵌套 Dictionary。 |
+
+Returns: 已合并的 target 元数据。
+
+Schemas:
+
+- `target`: Dictionary metadata mutated in place.
+- `source`: Dictionary metadata copied into target.
+- `return`: Dictionary merged metadata.
+
 #### `deep_merge_defaults`
 
 - API: `public`
@@ -54786,6 +55085,237 @@ Schemas:
 - `base`: Dictionary target mutated in place.
 - `defaults`: Dictionary default values merged into base.
 - `return`: Dictionary merged base dictionary.
+
+#### `get_option_value`
+
+- API: `public`
+
+```gdscript
+static func get_option_value(options: Dictionary, key: Variant, default_value: Variant = null) -> Variant:
+```
+
+读取 options 字典中的原始值，支持 String 与 StringName 键互查。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: 读取到的值或默认值。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+- `default_value`: Variant default value.
+- `return`: Variant option value or default.
+
+#### `get_option_bool`
+
+- API: `public`
+
+```gdscript
+static func get_option_bool(options: Dictionary, key: Variant, default_value: bool = false) -> bool:
+```
+
+读取 bool 选项。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: bool 值。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+
+#### `get_option_int`
+
+- API: `public`
+
+```gdscript
+static func get_option_int(options: Dictionary, key: Variant, default_value: int = 0) -> int:
+```
+
+读取 int 选项。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: int 值。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+
+#### `get_option_float`
+
+- API: `public`
+
+```gdscript
+static func get_option_float(options: Dictionary, key: Variant, default_value: float = 0.0) -> float:
+```
+
+读取 float 选项。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: float 值。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+
+#### `get_option_string`
+
+- API: `public`
+
+```gdscript
+static func get_option_string(options: Dictionary, key: Variant, default_value: String = "") -> String:
+```
+
+读取 String 选项。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: String 值。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+
+#### `get_option_string_name`
+
+- API: `public`
+
+```gdscript
+static func get_option_string_name(options: Dictionary, key: Variant, default_value: StringName = &"") -> StringName:
+```
+
+读取 StringName 选项。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: StringName 值。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+
+#### `get_option_dictionary`
+
+- API: `public`
+
+```gdscript
+static func get_option_dictionary(options: Dictionary, key: Variant, default_value: Dictionary = {}) -> Dictionary:
+```
+
+读取 Dictionary 选项副本。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: Dictionary 副本。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+- `default_value`: Dictionary default copied when option is not a Dictionary.
+- `return`: Dictionary option value.
+
+#### `get_option_array`
+
+- API: `public`
+
+```gdscript
+static func get_option_array(options: Dictionary, key: Variant, default_value: Array = []) -> Array:
+```
+
+读取 Array 选项副本。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: Array 副本。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
+- `default_value`: Array default copied when option is not an Array.
+- `return`: Array option value.
+
+#### `get_option_packed_string_array`
+
+- API: `public`
+
+```gdscript
+static func get_option_packed_string_array( options: Dictionary, key: Variant, default_value: PackedStringArray = PackedStringArray() ) -> PackedStringArray:
+```
+
+读取 PackedStringArray 选项。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `options` | 可选项字典。 |
+| `key` | 字段名，可传 String 或 StringName。 |
+| `default_value` | 缺少字段时返回的默认值。 |
+
+Returns: PackedStringArray 值。
+
+Schemas:
+
+- `options`: Dictionary options payload.
+- `key`: Variant option key.
 
 ## GFVariantJsonCodec
 

@@ -306,21 +306,19 @@ func _make_notification(
 	level: Level,
 	options: Dictionary
 ) -> Dictionary:
-	var metadata_variant: Variant = options.get("metadata", {})
-	var metadata := (metadata_variant as Dictionary).duplicate(true) if metadata_variant is Dictionary else {}
 	var notification := {
 		"id": _next_notification_id,
-		"key": String(options.get("key", message)),
-		"dedupe_key": String(options.get("key", "")),
+		"key": GFVariantData.get_option_string(options, "key", message),
+		"dedupe_key": GFVariantData.get_option_string(options, "key"),
 		"title": title,
 		"message": message,
 		"level": level,
-		"priority": clampi(int(options.get("priority", Priority.NORMAL)), Priority.LOW, Priority.CRITICAL),
-		"sticky": bool(options.get("sticky", false)),
-		"duration_seconds": maxf(float(options.get("duration_seconds", default_duration_seconds)), 0.0),
+		"priority": clampi(GFVariantData.get_option_int(options, "priority", Priority.NORMAL), Priority.LOW, Priority.CRITICAL),
+		"sticky": GFVariantData.get_option_bool(options, "sticky", false),
+		"duration_seconds": maxf(GFVariantData.get_option_float(options, "duration_seconds", default_duration_seconds), 0.0),
 		"created_at_unix": Time.get_unix_time_from_system(),
-		"actions": _normalize_actions(options.get("actions", [])),
-		"metadata": metadata,
+		"actions": _normalize_actions(GFVariantData.get_option_value(options, "actions", [])),
+		"metadata": GFVariantData.get_option_dictionary(options, "metadata"),
 	}
 	_next_notification_id += 1
 	return notification
@@ -347,7 +345,7 @@ func _trim_queue() -> void:
 
 
 func _find_duplicate_notification_id(message: String, options: Dictionary) -> int:
-	var key := String(options.get("key", ""))
+	var key := GFVariantData.get_option_string(options, "key")
 	if _matches_notification(_active_notification, key, message):
 		return int(_active_notification.get("id", 0))
 
@@ -402,11 +400,10 @@ func _normalize_actions(actions_variant: Variant) -> Array[Dictionary]:
 		var action_id := StringName(source.get("id", &""))
 		if action_id == &"":
 			continue
-		var metadata_variant: Variant = source.get("metadata", {})
 		result.append({
 			"id": action_id,
 			"label": String(source.get("label", action_id)),
 			"dismiss": bool(source.get("dismiss", false)),
-			"metadata": (metadata_variant as Dictionary).duplicate(true) if metadata_variant is Dictionary else {},
+			"metadata": GFVariantData.get_option_dictionary(source, "metadata"),
 		})
 	return result

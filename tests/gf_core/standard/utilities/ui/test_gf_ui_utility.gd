@@ -205,6 +205,27 @@ func test_modal_panel_options_and_cancel_dismiss() -> void:
 	assert_null(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), "取消关闭后栈顶应为空。")
 
 
+func test_panel_options_accept_string_name_keys_and_copy_metadata() -> void:
+	var panel := Control.new()
+	var source_metadata := {
+		"nested": {
+			"value": 1,
+		},
+	}
+
+	_ui_utility.push_panel_instance_with_options(panel, GFUIUtility.Layer.POPUP, {
+		&"modal": "on",
+		&"dismiss_on_cancel": "off",
+		&"metadata": source_metadata,
+	})
+	var options := _ui_utility.get_panel_options(panel)
+	((options["metadata"] as Dictionary)["nested"] as Dictionary)["value"] = 2
+
+	assert_true(_ui_utility.is_panel_modal(panel), "StringName 选项键应被识别。")
+	assert_false(bool(options["dismiss_on_cancel"]), "字符串 off 应按 false 读取。")
+	assert_eq((source_metadata["nested"] as Dictionary)["value"], 1, "面板选项 metadata 应复制保存。")
+
+
 func test_modal_can_refuse_cancel_dismiss() -> void:
 	var panel := Control.new()
 

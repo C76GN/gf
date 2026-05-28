@@ -203,15 +203,15 @@ func enqueue_download(
 	_next_task_id += 1
 	task.url = url
 	task.target_path = target_path
-	task.temp_path = str(options.get("temp_path", target_path + default_temp_suffix))
-	task.segment_path = str(options.get("segment_path", task.temp_path + default_segment_suffix))
-	task.headers = _normalize_headers(options.get("headers", PackedStringArray()))
-	task.expected_sha256 = str(options.get("expected_sha256", "")).to_lower()
-	task.resume = bool(options.get("resume", true))
-	task.overwrite = bool(options.get("overwrite", overwrite_existing))
-	task.max_retries = maxi(0, int(options.get("max_retries", default_max_retries)))
-	task.retry_delay_seconds = maxf(0.0, float(options.get("retry_delay_seconds", default_retry_delay_seconds)))
-	task.metadata = (options.get("metadata", {}) as Dictionary).duplicate(true) if options.get("metadata", {}) is Dictionary else {}
+	task.temp_path = GFVariantData.get_option_string(options, "temp_path", target_path + default_temp_suffix)
+	task.segment_path = GFVariantData.get_option_string(options, "segment_path", task.temp_path + default_segment_suffix)
+	task.headers = _normalize_headers(GFVariantData.get_option_value(options, "headers", PackedStringArray()))
+	task.expected_sha256 = GFVariantData.get_option_string(options, "expected_sha256").to_lower()
+	task.resume = GFVariantData.get_option_bool(options, "resume", true)
+	task.overwrite = GFVariantData.get_option_bool(options, "overwrite", overwrite_existing)
+	task.max_retries = maxi(0, GFVariantData.get_option_int(options, "max_retries", default_max_retries))
+	task.retry_delay_seconds = maxf(0.0, GFVariantData.get_option_float(options, "retry_delay_seconds", default_retry_delay_seconds))
+	task.metadata = GFVariantData.get_option_dictionary(options, "metadata")
 	if callback.is_valid():
 		_callbacks[task.task_id] = callback
 

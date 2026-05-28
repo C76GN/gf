@@ -722,7 +722,7 @@ func set_panel_options(panel: Node, options: Dictionary) -> void:
 func get_panel_options(panel: Node) -> Dictionary:
 	if not is_instance_valid(panel):
 		return {}
-	return (_panel_options.get(panel.get_instance_id(), {}) as Dictionary).duplicate(true)
+	return GFVariantData.to_dictionary(_panel_options.get(panel.get_instance_id(), {}))
 
 
 ## 判断面板是否按 modal 策略管理。
@@ -738,7 +738,7 @@ func is_panel_modal(panel: Node) -> bool:
 	var options := _panel_options.get(panel.get_instance_id(), {}) as Dictionary
 	if options == null:
 		return false
-	return int(options.get("mode", PanelMode.NORMAL)) == PanelMode.MODAL
+	return GFVariantData.get_option_int(options, "mode", PanelMode.NORMAL) == PanelMode.MODAL
 
 
 ## 检查是否存在打开的 modal 面板。
@@ -1079,7 +1079,7 @@ func _request_dismiss_layer(layer: Layer, reason: String) -> bool:
 
 	panel_dismiss_requested.emit(top_panel, layer, reason)
 	var options := get_panel_options(top_panel)
-	if not bool(options.get("dismiss_on_cancel", false)):
+	if not GFVariantData.get_option_bool(options, "dismiss_on_cancel", false):
 		return false
 
 	if top_panel.has_method("resolve_cancel"):
@@ -1101,21 +1101,20 @@ func _count_modals_in_layer(layer: Layer) -> int:
 
 
 func _normalize_panel_options(options: Dictionary) -> Dictionary:
-	var metadata_variant: Variant = options.get("metadata", {})
-	var is_modal := bool(options.get("modal", false))
-	var mode := int(options.get("mode", PanelMode.MODAL if is_modal else PanelMode.NORMAL))
+	var is_modal := GFVariantData.get_option_bool(options, "modal", false)
+	var mode := GFVariantData.get_option_int(options, "mode", PanelMode.MODAL if is_modal else PanelMode.NORMAL)
 	mode = clampi(mode, PanelMode.NORMAL, PanelMode.MODAL)
 	return {
 		"mode": mode,
-		"dismiss_on_cancel": bool(options.get("dismiss_on_cancel", mode == PanelMode.MODAL)),
-		"focus_on_open": bool(options.get("focus_on_open", mode == PanelMode.MODAL)),
-		"restore_focus_on_close": bool(options.get("restore_focus_on_close", mode == PanelMode.MODAL)),
-		"metadata": (metadata_variant as Dictionary).duplicate(true) if metadata_variant is Dictionary else {},
+		"dismiss_on_cancel": GFVariantData.get_option_bool(options, "dismiss_on_cancel", mode == PanelMode.MODAL),
+		"focus_on_open": GFVariantData.get_option_bool(options, "focus_on_open", mode == PanelMode.MODAL),
+		"restore_focus_on_close": GFVariantData.get_option_bool(options, "restore_focus_on_close", mode == PanelMode.MODAL),
+		"metadata": GFVariantData.get_option_dictionary(options, "metadata"),
 	}
 
 
 func _capture_previous_focus(panel: Node, options: Dictionary) -> void:
-	if not bool(options.get("restore_focus_on_close", false)):
+	if not GFVariantData.get_option_bool(options, "restore_focus_on_close", false):
 		return
 	var viewport := panel.get_viewport()
 	if viewport == null:
@@ -1126,14 +1125,14 @@ func _capture_previous_focus(panel: Node, options: Dictionary) -> void:
 
 
 func _apply_open_focus_policy(panel: Node, options: Dictionary) -> void:
-	if bool(options.get("focus_on_open", false)):
+	if GFVariantData.get_option_bool(options, "focus_on_open", false):
 		_focus_first_control(panel)
 
 
 func _handle_panel_closed(panel: Node) -> void:
 	var panel_id := panel.get_instance_id()
 	var options := _panel_options.get(panel_id, {}) as Dictionary
-	if options != null and bool(options.get("restore_focus_on_close", false)):
+	if options != null and GFVariantData.get_option_bool(options, "restore_focus_on_close", false):
 		_restore_previous_focus(panel_id)
 	_panel_options.erase(panel_id)
 	_previous_focus_by_panel_id.erase(panel_id)

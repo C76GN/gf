@@ -355,8 +355,8 @@ func test_skill_activation_context_commit_and_cooldown_flow() -> void:
 	var skill := ContextRecordingSkill.new(entity)
 	skill.cooldown_max = 2.0
 	var committed_targets: Array[Object] = []
-	skill.activation_commit_callbacks.append(func(context: RefCounted) -> Dictionary:
-		committed_targets.append(context.get("manual_target") as Object)
+	skill.activation_commit_callbacks.append(func(commit_context: RefCounted) -> Dictionary:
+		committed_targets.append(commit_context.get("manual_target") as Object)
 		return {
 			"ok": true,
 			"metadata": {
@@ -367,15 +367,15 @@ func test_skill_activation_context_commit_and_cooldown_flow() -> void:
 	watch_signals(skill)
 
 	var executed := skill.execute(target, Vector2(4.0, 5.0), { "request": "primary" })
-	var context := skill.activation_context
-	var context_metadata := context.get("metadata") as Dictionary
-	var context_targets := context.get("targets") as Array
+	var activation_context := skill.activation_context
+	var context_metadata := activation_context.get("metadata") as Dictionary
+	var context_targets := activation_context.get("targets") as Array
 
 	assert_true(executed, "激活提交和执行成功时 execute 应返回 true。")
 	assert_eq(committed_targets, [target], "提交回调应在执行前收到激活上下文。")
 	assert_eq(skill.cooldown_left, 2.0, "执行成功后应进入冷却。")
-	assert_same(context.get("manual_target"), target, "上下文应保留手动目标。")
-	assert_eq(context.get("resolved_center"), Vector2(4.0, 5.0), "上下文应保留解析后的施放中心。")
+	assert_same(activation_context.get("manual_target"), target, "上下文应保留手动目标。")
+	assert_eq(activation_context.get("resolved_center"), Vector2(4.0, 5.0), "上下文应保留解析后的施放中心。")
 	assert_eq(context_targets, [target], "上下文应保留最终目标。")
 	assert_true(bool(context_metadata["committed"]), "提交回调 metadata 应合并到上下文。")
 	assert_eq(context_metadata["request"], "primary", "调用方 metadata 应保留。")

@@ -75,6 +75,7 @@ func test_dictionary_report_finalize_preserves_existing_fields() -> void:
 	assert_false(bool(report["healthy"]), "包含警告时报告不应视为完全健康。")
 	assert_eq(int(report["row_count"]), 2, "调用方已有统计字段应保留。")
 	assert_eq(int(report["warning_count"]), 1, "字典报告应计算警告数量。")
+	assert_eq(int(report["issue_count"]), 1, "字典报告应始终输出问题总数。")
 	assert_eq(((report["issues"] as Array)[0] as Dictionary)["row_key"], 1, "问题附加字段应保留。")
 
 

@@ -54,16 +54,16 @@ func test_ref_counted_pool_uses_reset_callback() -> void:
 	var pool := GFRefCountedPoolBase.new(
 		func() -> RefCounted:
 			return CallbackResetItem.new(),
-		func(item: RefCounted) -> void:
-			(item as CallbackResetItem).value = -1
+		func(pooled_item: RefCounted) -> void:
+			(pooled_item as CallbackResetItem).value = -1
 	)
 
-	var item := pool.acquire() as CallbackResetItem
-	item.value = 5
-	pool.release(item)
+	var acquired_item := pool.acquire() as CallbackResetItem
+	acquired_item.value = 5
+	pool.release(acquired_item)
 	var reused := pool.acquire() as CallbackResetItem
 
-	assert_same(reused, item, "对象应被复用。")
+	assert_same(reused, acquired_item, "对象应被复用。")
 	assert_eq(reused.value, -1, "reset_callback 应能清理不实现 hook 的对象。")
 
 
@@ -100,7 +100,7 @@ func test_ref_counted_pool_prewarms_and_reports_snapshot() -> void:
 func test_ref_counted_pool_rejects_invalid_factory() -> void:
 	var pool := GFRefCountedPoolBase.new()
 
-	var item := pool.acquire()
+	var acquired_item := pool.acquire()
 
-	assert_null(item, "无效 factory 不应创建对象。")
+	assert_null(acquired_item, "无效 factory 不应创建对象。")
 	assert_push_error("[GFRefCountedPool] factory 无效，无法创建对象。")

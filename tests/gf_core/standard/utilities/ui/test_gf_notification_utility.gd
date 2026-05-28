@@ -56,6 +56,38 @@ func test_notification_different_keys_allow_same_message() -> void:
 	assert_eq(notifications.get_queue().size(), 1, "第二条通知应进入等待队列。")
 
 
+func test_notification_options_accept_string_name_keys_and_copy_metadata() -> void:
+	var notifications := GFNotificationUtilityBase.new()
+	var source_metadata := {
+		"nested": {
+			"value": 1,
+		},
+	}
+
+	notifications.push_notification("Saved", "", GFNotificationUtilityBase.Level.INFO, {
+		&"key": &"save",
+		&"priority": "3",
+		&"sticky": "on",
+		&"metadata": source_metadata,
+		&"actions": [
+			{
+				"id": &"open",
+				"metadata": {
+					"screen": "save",
+				},
+			},
+		],
+	})
+	var active := notifications.get_active_notification()
+	((active["metadata"] as Dictionary)["nested"] as Dictionary)["value"] = 2
+
+	assert_eq(active["key"], "save", "StringName key 选项应被识别。")
+	assert_eq(int(active["priority"]), GFNotificationUtilityBase.Priority.CRITICAL, "字符串数字 priority 应按 int 读取并限制范围。")
+	assert_true(bool(active["sticky"]), "字符串 on 应按 true 读取。")
+	assert_eq((source_metadata["nested"] as Dictionary)["value"], 1, "通知 metadata 应复制保存。")
+	assert_eq((((active["actions"] as Array)[0] as Dictionary)["metadata"] as Dictionary)["screen"], "save", "动作 metadata 应复制保存。")
+
+
 ## 验证 0 队列容量只保留当前通知。
 func test_notification_zero_queue_size_drops_waiting_notifications() -> void:
 	var notifications := GFNotificationUtilityBase.new()

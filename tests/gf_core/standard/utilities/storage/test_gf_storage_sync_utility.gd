@@ -91,6 +91,21 @@ func test_newer_remote_metadata_wins_default_strategy() -> void:
 	assert_eq(int((local_result.get("data") as Dictionary).get("coins")), 20, "本地应被更新为远端数据。")
 
 
+func test_custom_revision_keys_accept_string_name_options() -> void:
+	var sync := GFStorageSyncUtilityBase.new()
+	var local := MemoryStorageBackend.new()
+	var remote := MemoryStorageBackend.new()
+	local.set_record("profile.json", { "coins": 10 }, { "build": 1 })
+	remote.set_record("profile.json", { "coins": 20 }, { "build": 2 })
+	var options := {}
+	options[&"revision_keys"] = PackedStringArray(["build"])
+
+	var result := sync.sync_data("profile.json", local, remote, options)
+
+	assert_true(bool(result.get("ok")), "自定义 revision_keys 使用 StringName 键时仍应参与新旧判断。")
+	assert_eq(result.get("selected_source"), &"remote", "自定义 revision key 更新的一侧应成为来源。")
+
+
 func test_non_numeric_metadata_comparison_uses_safe_text_conversion() -> void:
 	var sync := GFStorageSyncUtilityBase.new()
 	var local := MemoryStorageBackend.new()
@@ -168,6 +183,54 @@ func test_custom_resolver_can_merge_and_write_both_sides() -> void:
 	assert_eq(result.get("status"), GFStorageSyncUtilityBase.SyncStatus.MERGED, "自定义结果应报告 merged。")
 	assert_eq(int((local.load_data("profile.json").get("data") as Dictionary).get("coins")), 30, "本地应写入合并结果。")
 	assert_eq(int((remote.load_data("profile.json").get("data") as Dictionary).get("coins")), 30, "远端应写入合并结果。")
+
+
+func test_custom_resolver_options_accept_string_name_keys_and_copy_metadata() -> void:
+	var sync := GFStorageSyncUtilityBase.new()
+	var local := MemoryStorageBackend.new()
+	var remote := MemoryStorageBackend.new()
+	var resolver_metadata := {
+		"nested": {
+			"revision": 3,
+		},
+	}
+	local.set_record("profile.json", { "coins": 10 })
+	remote.set_record("profile.json", { "coins": 20 })
+	var options := {}
+	options[&"strategy"] = GFStorageSyncUtilityBase.ConflictStrategy.CUSTOM
+	options[&"write_to_local"] = "off"
+	options[&"write_to_remote"] = "on"
+	options[&"resolver"] = func(
+		_report: GFStorageConflictReport,
+		_local_record: Dictionary,
+		_remote_record: Dictionary,
+		_options: Dictionary
+	) -> Dictionary:
+		return {
+			"data": {
+				"coins": 99,
+			},
+			"metadata": resolver_metadata,
+			"resolution": GFStorageConflictReport.Resolution.MERGED,
+		}
+
+	var result := sync.sync_data("profile.json", local, remote, options)
+	var result_metadata := result.get("metadata") as Dictionary
+	(result_metadata.get("nested") as Dictionary)["revision"] = 100
+
+	assert_true(bool(result.get("ok")), "自定义 resolver 应接受 StringName 选项键。")
+	assert_eq(result.get("status"), GFStorageSyncUtilityBase.SyncStatus.MERGED, "自定义结果应报告 merged。")
+	assert_eq(
+		int((local.load_data("profile.json").get("data") as Dictionary).get("coins")),
+		10,
+		"write_to_local=off 时不应写回本地。"
+	)
+	assert_eq(
+		int((remote.load_data("profile.json").get("data") as Dictionary).get("coins")),
+		99,
+		"write_to_remote=on 时应写回远端。"
+	)
+	assert_eq(int((resolver_metadata.get("nested") as Dictionary).get("revision")), 3, "resolver 元数据应被深拷贝。")
 
 
 func test_backend_write_failure_is_reported() -> void:

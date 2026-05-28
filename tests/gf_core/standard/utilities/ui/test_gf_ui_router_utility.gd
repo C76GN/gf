@@ -78,6 +78,39 @@ func test_push_route_records_history_and_options_metadata() -> void:
 	assert_eq(metadata["section"], "options", "路由元数据应被透传。")
 
 
+func test_route_build_options_deep_merges_metadata_and_copies_params() -> void:
+	var route := _make_route(&"profile", GFUIUtility.Layer.POPUP)
+	route.default_options = {
+		"metadata": {
+			"defaults": {
+				"tab": "overview",
+			},
+		},
+	}
+	route.metadata = {
+		"section": "profile",
+	}
+	var params := {
+		"user_id": 42,
+	}
+
+	var options := route.build_options(params, {
+		"metadata": {
+			"defaults": {
+				"mode": "compact",
+			},
+		},
+	})
+	var options_metadata := options["metadata"] as Dictionary
+	((options_metadata["route_params"] as Dictionary))["user_id"] = 100
+
+	assert_eq(options_metadata["route_id"], &"profile", "路由选项应写入 route_id。")
+	assert_eq(options_metadata["section"], "profile", "路由自身 metadata 应保留。")
+	assert_eq((options_metadata["defaults"] as Dictionary)["tab"], "overview", "默认 metadata 嵌套字段应保留。")
+	assert_eq((options_metadata["defaults"] as Dictionary)["mode"], "compact", "覆盖 metadata 嵌套字段应合并。")
+	assert_eq(params["user_id"], 42, "路由参数应复制保存。")
+
+
 func test_back_pops_current_route() -> void:
 	_router.register_route(_make_route(&"inventory", GFUIUtility.Layer.POPUP))
 	_router.push_route(&"inventory")

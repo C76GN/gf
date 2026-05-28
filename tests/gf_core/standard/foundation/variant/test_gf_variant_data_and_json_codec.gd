@@ -43,6 +43,109 @@ func test_deep_merge_defaults_keeps_existing_values() -> void:
 	assert_eq(base["language"], "zh", "顶层缺失字段应被补齐。")
 
 
+func test_to_dictionary_and_duplicate_metadata_return_copies() -> void:
+	var source := {
+		"nested": {
+			"value": 1,
+		},
+	}
+
+	var dictionary := GFVariantData.to_dictionary(source)
+	var metadata := GFVariantData.duplicate_metadata(source)
+	(dictionary["nested"] as Dictionary)["value"] = 2
+	(metadata["nested"] as Dictionary)["value"] = 3
+
+	assert_eq((source["nested"] as Dictionary)["value"], 1, "归一化字典和元数据复制不应共享源集合。")
+	assert_eq(GFVariantData.to_dictionary("bad", { "fallback": true })["fallback"], true, "非 Dictionary 输入应返回默认字典副本。")
+
+
+func test_merge_dictionary_supports_recursive_overwrite_and_defaults() -> void:
+	var base := {
+		"audio": {
+			"volume": 0.5,
+			"mute": false,
+		},
+	}
+
+	GFVariantData.merge_dictionary(base, {
+		"audio": {
+			"volume": 0.75,
+			"bus": "Music",
+		},
+	})
+
+	assert_eq((base["audio"] as Dictionary)["volume"], 0.75, "默认合并应覆盖已有字段。")
+	assert_eq((base["audio"] as Dictionary)["bus"], "Music", "递归合并应补入嵌套字段。")
+	assert_false(bool((base["audio"] as Dictionary)["mute"]), "未被覆盖的嵌套字段应保留。")
+
+	GFVariantData.merge_dictionary(base, {
+		"audio": {
+			"volume": 1.0,
+		},
+		"language": "zh",
+	}, false)
+
+	assert_eq((base["audio"] as Dictionary)["volume"], 0.75, "overwrite=false 时已有字段不应被覆盖。")
+	assert_eq(base["language"], "zh", "overwrite=false 仍应补齐缺失字段。")
+
+
+func test_merge_metadata_is_recursive_and_copies_values() -> void:
+	var base := {
+		"tags": ["base"],
+		"nested": {
+			"a": 1,
+		},
+	}
+	var source := {
+		"tags": ["source"],
+		"nested": {
+			"b": 2,
+		},
+	}
+
+	GFVariantData.merge_metadata(base, source)
+	(base["tags"] as Array).append("mutated")
+
+	assert_eq((base["nested"] as Dictionary)["a"], 1, "元数据合并应保留已有嵌套字段。")
+	assert_eq((base["nested"] as Dictionary)["b"], 2, "元数据合并应写入新嵌套字段。")
+	assert_eq((source["tags"] as Array).size(), 1, "元数据合并应复制来源集合。")
+
+
+func test_option_readers_support_string_and_string_name_keys() -> void:
+	var options := {
+		&"enabled": "off",
+		"count": "3",
+		&"ratio": "0.5",
+		"name": &"player",
+		&"metadata": {
+			"nested": {
+				"value": 1,
+			},
+		},
+		"empty": null,
+		"items": [
+			{ "id": 1 },
+		],
+		&"tags": ["a", &"b"],
+	}
+
+	var metadata := GFVariantData.get_option_dictionary(options, "metadata")
+	var items := GFVariantData.get_option_array(options, &"items")
+	(metadata["nested"] as Dictionary)["value"] = 2
+	((items[0] as Dictionary))["id"] = 9
+
+	assert_false(GFVariantData.get_option_bool(options, "enabled", true), "bool 读取应支持字符串 false/off。")
+	assert_eq(GFVariantData.get_option_int(options, &"count"), 3, "int 读取应支持 String 键和 StringName 查询。")
+	assert_almost_eq(GFVariantData.get_option_float(options, "ratio"), 0.5, 0.0001, "float 读取应支持 StringName 键和 String 查询。")
+	assert_eq(GFVariantData.get_option_string(options, &"name"), "player", "String 读取应归一文本。")
+	assert_eq(GFVariantData.get_option_string_name(options, "name"), &"player", "StringName 读取应归一名称。")
+	assert_eq(GFVariantData.get_option_string(options, "empty", "fallback"), "fallback", "显式 null 应使用默认字符串。")
+	assert_eq(((options[&"metadata"] as Dictionary)["nested"] as Dictionary)["value"], 1, "Dictionary 选项应返回副本。")
+	assert_eq(((options["items"] as Array)[0] as Dictionary)["id"], 1, "Array 选项应返回副本。")
+	assert_eq(GFVariantData.get_option_packed_string_array(options, "tags"), PackedStringArray(["a", "b"]), "PackedStringArray 读取应接受普通数组。")
+	assert_eq(GFVariantData.get_option_value(options, &"missing", "fallback"), "fallback", "缺失选项应返回默认值。")
+
+
 func test_vector_and_color_array_roundtrip() -> void:
 	assert_eq(GFVariantJsonCodec.array_to_vector2(GFVariantJsonCodec.vector2_to_array(Vector2(1.0, 2.0))), Vector2(1.0, 2.0))
 	assert_eq(GFVariantJsonCodec.array_to_vector3(GFVariantJsonCodec.vector3_to_array(Vector3(1.0, 2.0, 3.0))), Vector3(1.0, 2.0, 3.0))

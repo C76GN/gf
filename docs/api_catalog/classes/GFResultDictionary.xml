@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFResultDictionary" path="addons/gf/standard/foundation/validation/gf_result_dictionary.gd" module="standard" extends="RefCounted" classDigest="ffe18caa09b5be186556fa449a469a1f12476d4b9a23f958245dc52dba751d77">
-	<description>GFResultDictionary: 通用结果字典常量与轻量工厂。
-用于统一 `ok`、`data`、`metadata`、`error` 等常见结果字典字段，
-便于运行时服务和底层模块逐步收敛返回结构，同时保持字典兼容。</description>
+<class name="GFResultDictionary" path="addons/gf/standard/foundation/validation/gf_result_dictionary.gd" module="standard" extends="RefCounted" classDigest="4f2f4d4f1d3cc3fd3ecabd00784954a38ffbe4369ccbac108f544ab8b42d7989">
+	<description>GFResultDictionary: 通用结果字典常量、归一化与轻量工厂。
+用于统一 `ok`、`reason`、`message`、`data`、`metadata`、`issues` 等常见结果字段。
+普通操作结果应使用该结构；需要严重级别、统计和下一步建议时再使用校验报告。</description>
 	<tags>
 		<tag name="api">public</tag>
 		<tag name="category">value_object</tag>
@@ -32,6 +32,20 @@
 				<tag name="api">public</tag>
 			</tags>
 		</member>
+		<member kind="const" name="KEY_REASON">
+			<signature>const KEY_REASON: String = "reason"</signature>
+			<description>机器可读原因字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_MESSAGE">
+			<signature>const KEY_MESSAGE: String = "message"</signature>
+			<description>人类可读说明字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
 		<member kind="const" name="KEY_ERROR">
 			<signature>const KEY_ERROR: String = "error"</signature>
 			<description>单个错误字段名。</description>
@@ -42,6 +56,41 @@
 		<member kind="const" name="KEY_ERRORS">
 			<signature>const KEY_ERRORS: String = "errors"</signature>
 			<description>多个错误字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_ISSUES">
+			<signature>const KEY_ISSUES: String = "issues"</signature>
+			<description>问题列表字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_ISSUE_COUNT">
+			<signature>const KEY_ISSUE_COUNT: String = "issue_count"</signature>
+			<description>问题总数字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_HEALTHY">
+			<signature>const KEY_HEALTHY: String = "healthy"</signature>
+			<description>健康状态字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_SUMMARY">
+			<signature>const KEY_SUMMARY: String = "summary"</signature>
+			<description>摘要字段名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="KEY_NEXT_ACTION">
+			<signature>const KEY_NEXT_ACTION: String = "next_action"</signature>
+			<description>下一步建议字段名。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
@@ -81,14 +130,80 @@
 		</member>
 		<member kind="method" name="make_failure">
 			<signature>static func make_failure(error: String = "", fields: Dictionary = {}) -&gt; Dictionary:</signature>
-			<description>创建失败结果字典，并写入 error 字段。</description>
+			<description>创建失败结果字典，并写入 reason、message 和 error 字段。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="param">error: 错误说明。</tag>
+				<tag name="param">error: 错误说明。该值会同时作为默认 reason 与 message，便于结果结构稳定读取。</tag>
 				<tag name="param">fields: 需要合并到结果中的附加字段。</tag>
 				<tag name="return">新结果字典。</tag>
 				<tag name="schema">fields: Dictionary fields copied into the result.</tag>
-				<tag name="schema">return: Dictionary with ok set to false, error, and caller-provided fields.</tag>
+				<tag name="schema">return: Dictionary with ok set to false, reason, message, error, and caller-provided fields.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_rejected">
+			<signature>static func make_rejected(reason: StringName, message: String = "", fields: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>创建带机器可读原因和人类可读说明的失败结果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">reason: 稳定失败原因，推荐使用 snake_case。</tag>
+				<tag name="param">message: 面向开发者或工具 UI 的说明；为空时使用 reason。</tag>
+				<tag name="param">fields: 需要合并到结果中的附加字段。</tag>
+				<tag name="return">新结果字典。</tag>
+				<tag name="schema">fields: Dictionary fields copied into the result.</tag>
+				<tag name="schema">return: Dictionary with ok set to false, reason, message, and caller-provided fields.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_with_issues">
+			<signature>static func make_with_issues(ok: bool, issues: Array = [], fields: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>创建带 issues 的结果字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">ok: 操作是否成功。</tag>
+				<tag name="param">issues: 问题数组。</tag>
+				<tag name="param">fields: 需要合并到结果中的附加字段。</tag>
+				<tag name="return">新结果字典。</tag>
+				<tag name="schema">issues: Array of caller-defined issue dictionaries or values.</tag>
+				<tag name="schema">fields: Dictionary fields copied into the result.</tag>
+				<tag name="schema">return: Dictionary with ok, issues, issue_count, healthy, and caller-provided fields.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="normalize">
+			<signature>static func normalize(result: Dictionary, default_ok: bool = false, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>归一化已有结果字典，补齐标准字段并返回副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: 输入结果字典。</tag>
+				<tag name="param">default_ok: 缺少 ok 字段时使用的默认值。</tag>
+				<tag name="param">options: 可选控制，支持 include_issue_count、include_healthy、default_reason、default_message。</tag>
+				<tag name="return">归一化后的结果副本。</tag>
+				<tag name="schema">result: Dictionary result payload.</tag>
+				<tag name="schema">options: Dictionary controlling normalization.</tag>
+				<tag name="schema">return: Dictionary normalized result payload.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_ok">
+			<signature>static func is_ok(result: Dictionary, default_value: bool = false) -&gt; bool:</signature>
+			<description>检查结果字典是否成功。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: 输入结果字典。</tag>
+				<tag name="param">default_value: 缺少 ok 字段时的默认值。</tag>
+				<tag name="return">成功时返回 true。</tag>
+				<tag name="schema">result: Dictionary result payload.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="merge_metadata">
+			<signature>static func merge_metadata(result: Dictionary, metadata: Dictionary, overwrite: bool = true) -&gt; Dictionary:</signature>
+			<description>合并元数据到结果字典并返回同一个字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">result: 目标结果字典。</tag>
+				<tag name="param">metadata: 要合并的元数据。</tag>
+				<tag name="param">overwrite: 为 true 时覆盖已有键。</tag>
+				<tag name="return">传入的 result。</tag>
+				<tag name="schema">result: Dictionary result payload mutated in place.</tag>
+				<tag name="schema">metadata: Dictionary metadata payload.</tag>
+				<tag name="schema">return: Dictionary result payload mutated in place.</tag>
 			</tags>
 		</member>
 	</methods>

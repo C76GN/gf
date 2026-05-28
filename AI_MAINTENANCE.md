@@ -111,6 +111,9 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 - GF 内置扩展 manifest 的 `version` 表示 GF 发行版本，发布时所有 `addons/gf/extensions/*/gf_extension.json` 必须同步为当前 GF 版本。内置扩展 manifest 的 `extension_version` 表示单个扩展自身版本，只有该扩展的公开 API、配置、行为或兼容性契约发生变化时才按 SemVer 递增；本轮未改变的内置扩展只同步 `version`，不递增 `extension_version`。
 - 正式 `docs/zh/changelog.md` 只保留当前最新发布版本。发布新版本时必须删除上一个正式版本条目，旧版本历史以 Git 历史和 GitHub Releases 为准，不要让旧日志长期堆积在正式文档中。
 - GF 版本 tag 统一使用不带 `v` 的 SemVer 格式，例如 `3.5.0`。推送这类 tag 后，`.github/workflows/release.yml` 会校验 `plugin.cfg`、内置扩展 manifest、`ASSET_LIBRARY.md`、`ASSET_STORE.md` 与 changelog 版本一致，构建文档，并用对应 changelog 段落创建 GitHub Release。
+- Godot Asset Store 下载包必须使用 `tools/build_asset_store_package.py` 生成的专用 ZIP，不使用 GitHub 自动生成的 `Source code (zip)`。专用 ZIP 的根目录必须直接是 `addons/`，插件内容位于 `addons/gf/**`，不能多包一层仓库名或版本目录。
+- Asset Store 专用 ZIP 默认输出到被 Git 忽略的 `build/gf-framework-<version>.zip`。打包脚本只写入可安装插件载荷，排除 `.import`、`.godot`、`.import/`、临时日志和本地缓存文件；Godot 会在用户项目中从源资源重新生成导入缓存。
+- 发布前运行 `python tools\build_asset_store_package.py --version <version>` 并确认输出中 `top=['addons']`；再运行 `python tools\gf_maintenance.py release-status --version <version>`，该检查会临时生成并校验 Asset Store ZIP 结构。
 - 除非用户明确要求 AI 直接提交，否则只准备 commit message 和待提交文件清单，让用户手动提交。若用户明确要求 AI 提交，提交前必须再次运行相关测试和文档/API 校验。
 - 提交后不要自动创建 Git tag；只有用户明确要求打 tag 时，才创建对应版本 tag。
 
@@ -276,12 +279,13 @@ python tools\gf_maintenance.py api-class GFAudioClip
 python tools\gf_maintenance.py api-module extensions/domain
 python tools\gf_maintenance.py check --suite quick
 python tools\gf_maintenance.py check --suite full
+python tools\build_asset_store_package.py --version 3.19.0
 python tools\gf_maintenance.py release-status --version 3.19.0
 ```
 
 维护规则：
 
-- MCP server 只暴露白名单工具：项目摘要、工作区变更快照、API 搜索、单类或单模块 API、预设检查套件、版本一致性检查和发布包元数据审计。
+- MCP server 只暴露白名单工具：项目摘要、工作区变更快照、API 搜索、单类或单模块 API、预设检查套件、版本一致性检查、Asset Store 专用包结构检查和发布包元数据审计。
 - 需要新增 AI 维护能力时，优先扩展 `tools/gf_maintenance.py` 的普通 CLI，再由 `tools/gf_mcp_server.py` 复用，避免 MCP 协议层和维护逻辑分叉。
 - 不提交个人 MCP 客户端配置、会话记录或运行日志。
 - 不把 MCP 当作正式文档或 API Reference 的事实来源；涉及行为细节仍需打开源码、测试和正式文档核对。

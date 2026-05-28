@@ -10,6 +10,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
@@ -714,7 +715,7 @@ def release_status(expected_version: str = "") -> dict[str, Any]:
 	if version not in changelog_versions:
 		issues.append(f"docs/zh/changelog.md does not contain section [{version}].")
 
-	package_archive = audit_package_archive()
+	package_archive = audit_package_archive(version)
 	if package_archive["missing_export_ignore_rules"]:
 		issues.append(
 			".gitattributes is missing GF release archive export-ignore rule(s): "
@@ -724,6 +725,11 @@ def release_status(expected_version: str = "") -> dict[str, Any]:
 		issues.append(
 			"addons/gf release payload contains blocked package dir(s): "
 			+ ", ".join(package_archive["blocked_package_dirs"])
+		)
+	if not package_archive["asset_store_package"].get("ok", False):
+		issues.extend(
+			"Asset Store package layout is invalid: " + issue
+			for issue in package_archive["asset_store_package"].get("issues", [])
 		)
 
 	tag_exists = git_exit_code(["rev-parse", "-q", "--verify", f"refs/tags/{version}"]) == 0
@@ -848,7 +854,7 @@ def read_fenced_field(path: Path, field_name: str) -> str:
 	return ""
 
 
-def audit_package_archive() -> dict[str, Any]:
+def audit_package_archive(version: str) -> dict[str, Any]:
 	gitattributes_path = ROOT / ".gitattributes"
 	gitattributes_lines = []
 	if gitattributes_path.exists():
@@ -865,7 +871,52 @@ def audit_package_archive() -> dict[str, Any]:
 			if rule not in gitattributes_lines
 		],
 		"blocked_package_dirs": find_blocked_package_dirs(ROOT / "addons/gf"),
+		"asset_store_package": audit_asset_store_package(version),
 	}
+
+
+def audit_asset_store_package(version: str) -> dict[str, Any]:
+	script_path = ROOT / "tools/build_asset_store_package.py"
+	if not script_path.is_file():
+		return {
+			"ok": False,
+			"issues": ["tools/build_asset_store_package.py is missing."],
+		}
+
+	with tempfile.TemporaryDirectory(prefix="gf-package-") as temp_dir:
+		output_path = Path(temp_dir) / f"gf-framework-{version}.zip"
+		completed = subprocess.run(
+			[
+				sys.executable,
+				"tools/build_asset_store_package.py",
+				"--version",
+				version,
+				"--output",
+				str(output_path),
+				"--json",
+			],
+			cwd=ROOT,
+			capture_output=True,
+			text=True,
+			encoding="utf-8",
+			errors="replace",
+			timeout=60,
+		)
+		if completed.returncode != 0:
+			return {
+				"ok": False,
+				"issues": [
+					"tools/build_asset_store_package.py failed.",
+					trim_text(completed.stdout.strip() or completed.stderr.strip(), 1000),
+				],
+			}
+		try:
+			return json.loads(completed.stdout)
+		except json.JSONDecodeError as exc:
+			return {
+				"ok": False,
+				"issues": [f"tools/build_asset_store_package.py returned invalid JSON: {exc}"],
+			}
 
 
 def find_blocked_package_dirs(root: Path) -> list[str]:
@@ -1096,7 +1147,8 @@ def render_release_status_text(data: dict[str, Any]) -> str:
 	lines.append(
 		"archive: "
 		f"missing_rules={len(package_archive.get('missing_export_ignore_rules', []))} "
-		f"blocked_dirs={len(package_archive.get('blocked_package_dirs', []))}"
+		f"blocked_dirs={len(package_archive.get('blocked_package_dirs', []))} "
+		f"asset_store_package_issues={len(package_archive.get('asset_store_package', {}).get('issues', []))}"
 	)
 	lines.append(f"tag: exists={data['tag_exists']} points_at_head={data['tag_points_at_head']}")
 	if data["issues"]:

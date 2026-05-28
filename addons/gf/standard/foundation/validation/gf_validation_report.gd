@@ -657,9 +657,7 @@ func _get_first_issue_by_priority() -> RefCounted:
 
 
 static func _get_option_bool(options: Dictionary, field_name: String, default_value: bool) -> bool:
-	if not options.has(field_name):
-		return default_value
-	return bool(options[field_name])
+	return GFVariantData.get_option_bool(options, field_name, default_value)
 
 
 static func _is_reserved_report_field(field_name: String) -> bool:

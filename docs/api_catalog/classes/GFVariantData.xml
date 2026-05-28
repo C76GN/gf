@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVariantData" path="addons/gf/standard/foundation/variant/gf_variant_data.gd" module="standard" extends="RefCounted" classDigest="90d1fcf0b5c76b508c16aa66f6eee4d4dd1a890aa84e3f47cad7cdeaec97a4d6">
+<class name="GFVariantData" path="addons/gf/standard/foundation/variant/gf_variant_data.gd" module="standard" extends="RefCounted" classDigest="9f4547b1e50b65b15bded1d74e0983610e3e33dc560e8b0aa40885f11442c6a0">
 	<description>GFVariantData: 通用 Variant 数据复制与默认值合并。
 提供不依赖 GFArchitecture 的集合复制、Resource 可选复制和默认值递归补齐。
 JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
@@ -38,6 +38,61 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="schema">return: Variant duplicated collection value.</tag>
 			</tags>
 		</member>
+		<member kind="method" name="to_dictionary">
+			<signature>static func to_dictionary(value: Variant, default_value: Dictionary = {}, deep: bool = true) -&gt; Dictionary:</signature>
+			<description>将 Variant 归一为 Dictionary 副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 待读取的值。</tag>
+				<tag name="param">default_value: value 不是 Dictionary 时使用的默认值。</tag>
+				<tag name="param">deep: 是否深拷贝集合。</tag>
+				<tag name="return">Dictionary 副本。</tag>
+				<tag name="schema">value: Variant value expected to be a Dictionary.</tag>
+				<tag name="schema">default_value: Dictionary default copied when value is not a Dictionary.</tag>
+				<tag name="schema">return: Dictionary copied result.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_metadata">
+			<signature>static func duplicate_metadata(metadata: Dictionary) -&gt; Dictionary:</signature>
+			<description>复制元数据字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">metadata: 待复制的元数据。</tag>
+				<tag name="return">元数据副本。</tag>
+				<tag name="schema">metadata: Dictionary caller metadata.</tag>
+				<tag name="schema">return: Dictionary duplicated metadata.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="merge_dictionary">
+			<signature>static func merge_dictionary( target: Dictionary, source: Dictionary, overwrite: bool = true, recursive: bool = true ) -&gt; Dictionary:</signature>
+			<description>将 source 合并到 target。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 会被原地修改的目标字典。</tag>
+				<tag name="param">source: 来源字典。</tag>
+				<tag name="param">overwrite: 为 true 时覆盖已有字段。</tag>
+				<tag name="param">recursive: 为 true 时递归合并嵌套 Dictionary。</tag>
+				<tag name="return">已合并的 target 字典。</tag>
+				<tag name="schema">target: Dictionary target mutated in place.</tag>
+				<tag name="schema">source: Dictionary source values copied into target.</tag>
+				<tag name="schema">return: Dictionary merged target.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="merge_metadata">
+			<signature>static func merge_metadata( target: Dictionary, source: Dictionary, overwrite: bool = true, recursive: bool = true ) -&gt; Dictionary:</signature>
+			<description>将 source 元数据合并到 target 元数据。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">target: 会被原地修改的目标元数据。</tag>
+				<tag name="param">source: 来源元数据。</tag>
+				<tag name="param">overwrite: 为 true 时覆盖已有字段。</tag>
+				<tag name="param">recursive: 为 true 时递归合并嵌套 Dictionary。</tag>
+				<tag name="return">已合并的 target 元数据。</tag>
+				<tag name="schema">target: Dictionary metadata mutated in place.</tag>
+				<tag name="schema">source: Dictionary metadata copied into target.</tag>
+				<tag name="schema">return: Dictionary merged metadata.</tag>
+			</tags>
+		</member>
 		<member kind="method" name="deep_merge_defaults">
 			<signature>static func deep_merge_defaults(base: Dictionary, defaults: Dictionary) -&gt; Dictionary:</signature>
 			<description>将 defaults 中缺失的字段递归合并到 base。</description>
@@ -49,6 +104,129 @@ JSON 兼容编码由 GFVariantJsonCodec 负责。</description>
 				<tag name="schema">base: Dictionary target mutated in place.</tag>
 				<tag name="schema">defaults: Dictionary default values merged into base.</tag>
 				<tag name="schema">return: Dictionary merged base dictionary.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_value">
+			<signature>static func get_option_value(options: Dictionary, key: Variant, default_value: Variant = null) -&gt; Variant:</signature>
+			<description>读取 options 字典中的原始值，支持 String 与 StringName 键互查。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">读取到的值或默认值。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">default_value: Variant default value.</tag>
+				<tag name="schema">return: Variant option value or default.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_bool">
+			<signature>static func get_option_bool(options: Dictionary, key: Variant, default_value: bool = false) -&gt; bool:</signature>
+			<description>读取 bool 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">bool 值。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_int">
+			<signature>static func get_option_int(options: Dictionary, key: Variant, default_value: int = 0) -&gt; int:</signature>
+			<description>读取 int 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">int 值。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_float">
+			<signature>static func get_option_float(options: Dictionary, key: Variant, default_value: float = 0.0) -&gt; float:</signature>
+			<description>读取 float 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">float 值。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_string">
+			<signature>static func get_option_string(options: Dictionary, key: Variant, default_value: String = "") -&gt; String:</signature>
+			<description>读取 String 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">String 值。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_string_name">
+			<signature>static func get_option_string_name(options: Dictionary, key: Variant, default_value: StringName = &amp;"") -&gt; StringName:</signature>
+			<description>读取 StringName 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">StringName 值。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_dictionary">
+			<signature>static func get_option_dictionary(options: Dictionary, key: Variant, default_value: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>读取 Dictionary 选项副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">Dictionary 副本。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">default_value: Dictionary default copied when option is not a Dictionary.</tag>
+				<tag name="schema">return: Dictionary option value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_array">
+			<signature>static func get_option_array(options: Dictionary, key: Variant, default_value: Array = []) -&gt; Array:</signature>
+			<description>读取 Array 选项副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">Array 副本。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
+				<tag name="schema">default_value: Array default copied when option is not an Array.</tag>
+				<tag name="schema">return: Array option value.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_option_packed_string_array">
+			<signature>static func get_option_packed_string_array( options: Dictionary, key: Variant, default_value: PackedStringArray = PackedStringArray() ) -&gt; PackedStringArray:</signature>
+			<description>读取 PackedStringArray 选项。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项字典。</tag>
+				<tag name="param">key: 字段名，可传 String 或 StringName。</tag>
+				<tag name="param">default_value: 缺少字段时返回的默认值。</tag>
+				<tag name="return">PackedStringArray 值。</tag>
+				<tag name="schema">options: Dictionary options payload.</tag>
+				<tag name="schema">key: Variant option key.</tag>
 			</tags>
 		</member>
 	</methods>

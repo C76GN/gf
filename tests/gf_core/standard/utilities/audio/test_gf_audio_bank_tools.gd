@@ -47,6 +47,32 @@ func test_create_bank_from_paths_uses_relative_clip_ids() -> void:
 	assert_eq(bank.get_clip(&"ui+click").bus_name, "SFX", "导入时应写入默认 bus。")
 
 
+func test_create_bank_from_paths_accepts_string_name_options_and_normalizes_extensions() -> void:
+	var options := {}
+	options[&"id_mode"] = "relative_path"
+	options[&"base_path"] = "res://audio"
+	options[&"path_separator"] = "+"
+	options[&"extensions"] = PackedStringArray([".ogg"])
+	options[&"bus_name"] = &"SFX"
+	options[&"volume_db"] = "-3.5"
+	options[&"pitch_scale"] = "1.25"
+
+	var bank := GFAudioBankToolsBase.create_bank_from_paths(PackedStringArray([
+		"res://audio/ui/click.OGG",
+		"res://audio/ui/skip.wav",
+	]), options)
+	var clip := bank.get_clip(&"ui+click")
+
+	assert_true(bank.has_clip(&"ui+click"), "导入选项应接受 StringName 键并规范化扩展名。")
+	assert_false(bank.has_clip(&"ui+skip"), "自定义扩展名白名单应过滤未包含的音频路径。")
+	assert_not_null(clip, "导入后的片段应可读取。")
+	if clip == null:
+		return
+	assert_eq(clip.bus_name, "SFX", "StringName bus_name 应按字符串写入片段。")
+	assert_almost_eq(clip.volume_db, -3.5, 0.001, "字符串音量选项应稳定转换为 float。")
+	assert_almost_eq(clip.pitch_scale, 1.25, 0.001, "字符串 pitch 选项应稳定转换为 float。")
+
+
 func test_add_paths_to_bank_skips_existing_ids_without_overwrite() -> void:
 	var bank := GFAudioBankBase.new()
 	var existing_clip := GFAudioClipBase.new()

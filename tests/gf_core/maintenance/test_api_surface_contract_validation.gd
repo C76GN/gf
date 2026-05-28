@@ -300,6 +300,29 @@ func build(payload: Dictionary) -> Dictionary:
 	_assert_invalid(source, "missing @schema for return")
 
 
+func test_options_dictionary_parameter_requires_schema() -> void:
+	var source := """
+## 示例类型。
+##
+## @api public
+## @category protocol
+## @since 1.0.0
+class_name GFInvalidOptionsSchema
+extends RefCounted
+
+# --- 公共方法 ---
+
+## 执行操作。
+##
+## @api public
+## @param options: 可选参数。
+func run(options: Dictionary = {}) -> void:
+	pass
+"""
+
+	_assert_invalid(source, "missing @schema for 'options'")
+
+
 func test_public_signature_cannot_expose_internal_types() -> void:
 	var source := """
 ## 内部令牌。
