@@ -54,10 +54,10 @@ signal button_released
 		queue_redraw()
 
 @export_group("Input")
-## 是否允许鼠标左键模拟触屏。
+## 是否允许鼠标左键模拟触屏。默认关闭，避免触屏控件在桌面端隐式接管鼠标输入。
 ## [br]
 ## @api public
-@export var accept_mouse_input: bool = true
+@export var accept_mouse_input: bool = false
 
 ## 映射到 Godot InputMap 的动作名。为空则不映射。
 ## [br]

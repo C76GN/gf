@@ -7,6 +7,8 @@ Module: `extensions/camera`
 - [`GFCameraBlend`](#gfcamerablend)
 - [`GFCameraDirector2D`](#gfcameradirector2d)
 - [`GFCameraDirector3D`](#gfcameradirector3d)
+- [`GFCameraOrbitInput3D`](#gfcameraorbitinput3d)
+- [`GFCameraOrbitRig3D`](#gfcameraorbitrig3d)
 - [`GFCameraRig2D`](#gfcamerarig2d)
 - [`GFCameraRig3D`](#gfcamerarig3d)
 
@@ -555,6 +557,538 @@ Parameters:
 | `delta` | 秒。 |
 
 Returns: 成功应用时返回 true。
+
+## GFCameraOrbitInput3D
+
+- Path: `addons/gf/extensions/camera/nodes/gf_camera_orbit_input_3d.gd`
+- Extends: `Node`
+- API: `public`
+- Category: `runtime_service`
+- Since: `3.23.0`
+
+GFCameraOrbitInput3D: 通用 3D 环绕相机输入桥接节点。 将 GFInputMappingUtility 的可配置动作值或鼠标拖拽转换为 GFCameraOrbitRig3D 的角度和距离增量。 它不创建输入上下文，也不定义项目动作绑定。
+
+### Enums
+
+#### `UpdateMode`
+
+- API: `public`
+
+```gdscript
+enum UpdateMode { ## 在 _process 中读取输入。 IDLE, ## 在 _physics_process 中读取输入。 PHYSICS, ## 只在 process_input() 被显式调用时读取输入。 MANUAL, }
+```
+
+输入自动处理模式。
+
+### Properties
+
+#### `enabled`
+
+- API: `public`
+
+```gdscript
+var enabled: bool = true
+```
+
+是否启用输入桥接。
+
+#### `orbit_rig_path`
+
+- API: `public`
+
+```gdscript
+var orbit_rig_path: NodePath = NodePath("")
+```
+
+要控制的环绕 Rig。为空时使用父节点中的 GFCameraOrbitRig3D。
+
+#### `update_mode`
+
+- API: `public`
+
+```gdscript
+var update_mode: UpdateMode = UpdateMode.IDLE
+```
+
+自动处理模式。
+
+#### `use_input_mapping`
+
+- API: `public`
+
+```gdscript
+var use_input_mapping: bool = false
+```
+
+是否从 GFInputMappingUtility 读取动作值。默认关闭，项目应显式启用并配置动作 ID。
+
+#### `node_context_path`
+
+- API: `public`
+
+```gdscript
+var node_context_path: NodePath = NodePath("")
+```
+
+可选 GFNodeContext 路径。设置后会从该上下文获取 GFInputMappingUtility。
+
+#### `orbit_action_id`
+
+- API: `public`
+
+```gdscript
+var orbit_action_id: StringName = &"camera_orbit"
+```
+
+环绕输入动作 ID。动作值应为 Vector2。
+
+#### `zoom_action_id`
+
+- API: `public`
+
+```gdscript
+var zoom_action_id: StringName = &"camera_zoom"
+```
+
+缩放输入动作 ID。动作值应为 float 或 bool。
+
+#### `orbit_degrees_per_second`
+
+- API: `public`
+
+```gdscript
+var orbit_degrees_per_second: float = 120.0
+```
+
+每秒环绕角速度，单位度。
+
+#### `zoom_units_per_second`
+
+- API: `public`
+
+```gdscript
+var zoom_units_per_second: float = 8.0
+```
+
+每秒缩放速度，单位距离。
+
+#### `invert_y`
+
+- API: `public`
+
+```gdscript
+var invert_y: bool = false
+```
+
+是否反转垂直环绕输入。
+
+#### `mouse_orbit_enabled`
+
+- API: `public`
+
+```gdscript
+var mouse_orbit_enabled: bool = false
+```
+
+是否启用鼠标拖拽环绕。默认关闭，避免框架节点隐式接管项目输入。
+
+#### `mouse_button`
+
+- API: `public`
+
+```gdscript
+var mouse_button: MouseButton = MOUSE_BUTTON_RIGHT
+```
+
+鼠标拖拽环绕使用的按键。
+
+#### `mouse_degrees_per_pixel`
+
+- API: `public`
+
+```gdscript
+var mouse_degrees_per_pixel: float = 0.15
+```
+
+鼠标每像素对应的角度。
+
+#### `mouse_zoom_enabled`
+
+- API: `public`
+
+```gdscript
+var mouse_zoom_enabled: bool = false
+```
+
+是否启用鼠标滚轮缩放。默认关闭，避免框架节点隐式接管项目输入。
+
+#### `mouse_wheel_step`
+
+- API: `public`
+
+```gdscript
+var mouse_wheel_step: float = 1.0
+```
+
+鼠标滚轮每格缩放距离。
+
+#### `consume_mouse_input`
+
+- API: `public`
+
+```gdscript
+var consume_mouse_input: bool = true
+```
+
+鼠标输入被应用后是否标记为已处理。
+
+#### `input_mapping_utility`
+
+- API: `public`
+
+```gdscript
+var input_mapping_utility: GFInputMappingUtility = null
+```
+
+显式注入的输入映射工具。为空时尝试从 node_context_path 或父级 GFNodeContext 获取。
+
+### Methods
+
+#### `get_orbit_rig`
+
+- API: `public`
+
+```gdscript
+func get_orbit_rig() -> GFCameraOrbitRig3D:
+```
+
+获取当前控制的环绕 Rig。
+
+Returns: 环绕 Rig；不存在时返回 null。
+
+#### `set_input_mapping_utility`
+
+- API: `public`
+
+```gdscript
+func set_input_mapping_utility(utility: GFInputMappingUtility) -> void:
+```
+
+显式设置输入映射工具。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `utility` | 输入映射工具；传 null 表示回退到上下文查找。 |
+
+#### `process_input`
+
+- API: `public`
+
+```gdscript
+func process_input(delta: float) -> bool:
+```
+
+读取输入映射并推进环绕 Rig。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `delta` | 本帧时间增量（秒）。 |
+
+Returns: 应用了任意输入时返回 true。
+
+#### `apply_orbit_vector`
+
+- API: `public`
+
+```gdscript
+func apply_orbit_vector(value: Vector2, scale: float = 1.0) -> bool:
+```
+
+应用二维环绕输入。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `value` | x 为 yaw 输入，y 为 pitch 输入。 |
+| `scale` | 输入缩放量，通常是每秒速度乘以 delta。 |
+
+Returns: 成功应用时返回 true。
+
+#### `apply_zoom_value`
+
+- API: `public`
+
+```gdscript
+func apply_zoom_value(value: float, scale: float = 1.0) -> bool:
+```
+
+应用一维缩放输入。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `value` | 缩放输入；正数拉远，负数拉近。 |
+| `scale` | 输入缩放量，通常是每秒速度乘以 delta。 |
+
+Returns: 成功应用时返回 true。
+
+#### `get_debug_snapshot`
+
+- API: `public`
+
+```gdscript
+func get_debug_snapshot() -> Dictionary:
+```
+
+获取输入桥接调试快照。
+
+Returns: 调试快照。
+
+Schemas:
+
+- `return`: Dictionary，包含 enabled、update_mode、use_input_mapping、orbit_action_id、zoom_action_id、has_rig 和 has_input_mapping。
+
+## GFCameraOrbitRig3D
+
+- Path: `addons/gf/extensions/camera/nodes/gf_camera_orbit_rig_3d.gd`
+- Extends: `GFCameraRig3D`
+- API: `public`
+- Category: `runtime_handle`
+- Since: `3.23.0`
+
+GFCameraOrbitRig3D: 通用 3D 环绕相机 Rig。 基于目标焦点、yaw / pitch 和距离计算期望 Camera3D Transform。 它只描述相机姿态，不处理碰撞、锁定目标、遮挡或具体玩法输入。
+
+### Signals
+
+#### `orbit_changed`
+
+- API: `public`
+
+```gdscript
+signal orbit_changed(yaw_degrees_value: float, pitch_degrees_value: float, distance_value: float)
+```
+
+环绕参数变化后发出。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `yaw_degrees_value` | 当前水平角度。 |
+| `pitch_degrees_value` | 当前俯仰角度。 |
+| `distance_value` | 当前距离。 |
+
+### Properties
+
+#### `yaw_degrees`
+
+- API: `public`
+
+```gdscript
+var yaw_degrees: float = 0.0:
+```
+
+水平角度，单位度。
+
+#### `pitch_degrees`
+
+- API: `public`
+
+```gdscript
+var pitch_degrees: float = -20.0:
+```
+
+俯仰角度，单位度。
+
+#### `distance`
+
+- API: `public`
+
+```gdscript
+var distance: float = 8.0:
+```
+
+与焦点的距离。
+
+#### `min_distance`
+
+- API: `public`
+
+```gdscript
+var min_distance: float = 1.0:
+```
+
+最小距离。
+
+#### `max_distance`
+
+- API: `public`
+
+```gdscript
+var max_distance: float = 50.0:
+```
+
+最大距离。
+
+#### `min_pitch_degrees`
+
+- API: `public`
+
+```gdscript
+var min_pitch_degrees: float = -80.0:
+```
+
+最小俯仰角度。
+
+#### `max_pitch_degrees`
+
+- API: `public`
+
+```gdscript
+var max_pitch_degrees: float = 80.0:
+```
+
+最大俯仰角度。
+
+#### `look_at_focus`
+
+- API: `public`
+
+```gdscript
+var look_at_focus: bool = true
+```
+
+是否让相机始终朝向焦点。
+
+#### `orbit_up_axis`
+
+- API: `public`
+
+```gdscript
+var orbit_up_axis: Vector3 = Vector3.UP
+```
+
+环绕相机的上方向。为零向量时回退到 Vector3.UP。
+
+### Methods
+
+#### `get_focus_position`
+
+- API: `public`
+
+```gdscript
+func get_focus_position() -> Vector3:
+```
+
+获取环绕焦点位置。
+
+Returns: 当前焦点的全局位置。
+
+#### `get_orbit_direction`
+
+- API: `public`
+
+```gdscript
+func get_orbit_direction() -> Vector3:
+```
+
+获取从焦点指向相机的单位方向。
+
+Returns: 环绕方向。
+
+#### `get_camera_transform`
+
+- API: `public`
+
+```gdscript
+func get_camera_transform() -> Transform3D:
+```
+
+获取当前期望相机 Transform。
+
+Returns: 期望全局 Transform。
+
+#### `set_orbit`
+
+- API: `public`
+
+```gdscript
+func set_orbit(new_yaw_degrees: float, new_pitch_degrees: float, new_distance: float) -> void:
+```
+
+设置环绕参数。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `new_yaw_degrees` | 水平角度，单位度。 |
+| `new_pitch_degrees` | 俯仰角度，单位度。 |
+| `new_distance` | 与焦点的距离。 |
+
+#### `apply_orbit_delta`
+
+- API: `public`
+
+```gdscript
+func apply_orbit_delta(delta_degrees: Vector2) -> void:
+```
+
+应用环绕角度增量。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `delta_degrees` | x 为 yaw 增量，y 为 pitch 增量，单位度。 |
+
+#### `apply_zoom_delta`
+
+- API: `public`
+
+```gdscript
+func apply_zoom_delta(delta_distance: float) -> void:
+```
+
+应用距离增量。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `delta_distance` | 距离增量；正数拉远，负数拉近。 |
+
+#### `clamp_orbit`
+
+- API: `public`
+
+```gdscript
+func clamp_orbit() -> void:
+```
+
+按当前上下限夹紧环绕参数。
+
+#### `get_debug_snapshot`
+
+- API: `public`
+
+```gdscript
+func get_debug_snapshot() -> Dictionary:
+```
+
+获取环绕 Rig 调试快照。
+
+Returns: 调试快照。
+
+Schemas:
+
+- `return`: Dictionary，包含 yaw_degrees、pitch_degrees、distance、focus_position 和 direction。
 
 ## GFCameraRig2D
 

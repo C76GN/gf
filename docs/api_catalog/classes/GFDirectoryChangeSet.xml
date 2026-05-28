@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDirectoryChangeSet" path="addons/gf/standard/utilities/io/gf_directory_change_set.gd" module="standard" extends="RefCounted" classDigest="33efa38ed0e11923d1dcb77454aaf6cb9b06a8d1f54010e60025116974b9e8ef">
+	<description>GFDirectoryChangeSet: 目录扫描差异结果。
+描述一次目录轮询发现的新增、修改和删除路径。它只表达文件系统变化，
+不绑定导入、热更新或业务资源刷新策略。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">value_object</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="root_paths">
+			<signature>var root_paths: PackedStringArray = PackedStringArray()</signature>
+			<description>本次扫描覆盖的根目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="created">
+			<signature>var created: PackedStringArray = PackedStringArray()</signature>
+			<description>新增文件路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="modified">
+			<signature>var modified: PackedStringArray = PackedStringArray()</signature>
+			<description>修改文件路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="deleted">
+			<signature>var deleted: PackedStringArray = PackedStringArray()</signature>
+			<description>删除文件路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="scanned_count">
+			<signature>var scanned_count: int = 0</signature>
+			<description>本次扫描访问的文件数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="snapshot_size">
+			<signature>var snapshot_size: int = 0</signature>
+			<description>当前快照中的文件数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="truncated">
+			<signature>var truncated: bool = false</signature>
+			<description>扫描是否因深度或数量限制被截断。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="timestamp_msec">
+			<signature>var timestamp_msec: int = 0</signature>
+			<description>生成时间，单位为毫秒。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure">
+			<signature>func configure( p_root_paths: PackedStringArray, p_created: PackedStringArray, p_modified: PackedStringArray, p_deleted: PackedStringArray, p_scanned_count: int, p_snapshot_size: int, p_truncated: bool ) -&gt; GFDirectoryChangeSet:</signature>
+			<description>配置变化集并返回自身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">p_root_paths: 扫描根目录。</tag>
+				<tag name="param">p_created: 新增路径。</tag>
+				<tag name="param">p_modified: 修改路径。</tag>
+				<tag name="param">p_deleted: 删除路径。</tag>
+				<tag name="param">p_scanned_count: 扫描文件数量。</tag>
+				<tag name="param">p_snapshot_size: 当前快照文件数量。</tag>
+				<tag name="param">p_truncated: 是否被截断。</tag>
+				<tag name="return">当前变化集。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_empty">
+			<signature>func is_empty() -&gt; bool:</signature>
+			<description>判断本次扫描是否没有任何文件变化。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">没有新增、修改和删除路径时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_all_changed_paths">
+			<signature>func get_all_changed_paths() -&gt; PackedStringArray:</signature>
+			<description>获取全部变化路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">去重并排序后的变化路径。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转换为字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">变化集字典。</tag>
+				<tag name="schema">return: Dictionary with root_paths, created, modified, deleted, counts, truncated, and timestamp_msec.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_change_set">
+			<signature>func duplicate_change_set() -&gt; GFDirectoryChangeSet:</signature>
+			<description>创建变化集副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">新变化集。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

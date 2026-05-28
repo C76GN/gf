@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFScreenTransitionEffect" path="addons/gf/standard/utilities/scene/gf_screen_transition_effect.gd" module="standard" extends="Resource" classDigest="78716f9cc0516caeba9385cdecab8338e8017b0f9afa5c9321ca858b958763b7">
+	<description>GFScreenTransitionEffect: 屏幕覆盖式转场效果配置。
+只描述通用覆盖层颜色、透明度、时长、缓动和可选 ShaderMaterial 进度参数，
+不绑定具体场景切换流程或项目视觉资源。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="EasingMode">
+			<signature>enum EasingMode { ## 线性采样。 LINEAR, ## smoothstep 采样。 SMOOTH_STEP, ## 二次缓入。 EASE_IN, ## 二次缓出。 EASE_OUT, ## 二次缓入缓出。 EASE_IN_OUT, }</signature>
+			<description>转场权重采样的缓动模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="duration_seconds" decorators="@export_range(0.0, 30.0, 0.01, &quot;or_greater&quot;)">
+			<signature>var duration_seconds: float = 0.25</signature>
+			<description>转场时长，单位秒。小于等于 0 时会在下一次推进时立即完成。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="from_alpha" decorators="@export_range(0.0, 1.0, 0.001)">
+			<signature>var from_alpha: float = 0.0</signature>
+			<description>起始透明度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="to_alpha" decorators="@export_range(0.0, 1.0, 0.001)">
+			<signature>var to_alpha: float = 1.0</signature>
+			<description>结束透明度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="color" decorators="@export">
+			<signature>var color: Color = Color.BLACK</signature>
+			<description>覆盖层颜色。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="layer" decorators="@export">
+			<signature>var layer: int = 120</signature>
+			<description>CanvasLayer 层级。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="block_input" decorators="@export">
+			<signature>var block_input: bool = true</signature>
+			<description>是否让覆盖层拦截鼠标和触摸输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="easing_mode" decorators="@export">
+			<signature>var easing_mode: EasingMode = EasingMode.SMOOTH_STEP</signature>
+			<description>权重采样缓动模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="shader_material" decorators="@export">
+			<signature>var shader_material: ShaderMaterial = null</signature>
+			<description>可选 ShaderMaterial。Utility 会复制该材质并写入 progress_parameter。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="progress_parameter" decorators="@export">
+			<signature>var progress_parameter: StringName = &amp;"progress"</signature>
+			<description>shader_material 中表示进度的参数名。为空时不写入 shader 参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metadata" decorators="@export">
+			<signature>var metadata: Dictionary = {}</signature>
+			<description>项目自定义元数据。框架不解释该字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">metadata: Dictionary[String, Variant]，项目自定义元数据；框架不会读取或改写其中字段。</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure">
+			<signature>func configure( new_duration_seconds: float, new_from_alpha: float, new_to_alpha: float, new_color: Color = Color.BLACK ) -&gt; GFScreenTransitionEffect:</signature>
+			<description>批量配置转场效果。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">new_duration_seconds: 转场时长，单位秒。</tag>
+				<tag name="param">new_from_alpha: 起始透明度。</tag>
+				<tag name="param">new_to_alpha: 结束透明度。</tag>
+				<tag name="param">new_color: 覆盖层颜色。</tag>
+				<tag name="return">当前资源，便于链式配置。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sample_weight">
+			<signature>func sample_weight(elapsed_seconds: float) -&gt; float:</signature>
+			<description>根据已流逝时间采样 0 到 1 的转场权重。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">elapsed_seconds: 已流逝秒数。</tag>
+				<tag name="return">缓动后的权重。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sample_alpha">
+			<signature>func sample_alpha(weight: float) -&gt; float:</signature>
+			<description>根据转场权重采样覆盖层透明度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">weight: 0 到 1 的转场权重。</tag>
+				<tag name="return">插值后的透明度。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_effect">
+			<signature>func duplicate_effect() -&gt; GFScreenTransitionEffect:</signature>
+			<description>复制转场效果配置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">深拷贝后的转场效果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转换为 Dictionary。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">配置字典。</tag>
+				<tag name="schema">return: Dictionary，包含 duration_seconds、from_alpha、to_alpha、color、layer、block_input、easing_mode、progress_parameter、has_shader_material 和 metadata。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

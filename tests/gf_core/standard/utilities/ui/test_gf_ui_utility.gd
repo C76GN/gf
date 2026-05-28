@@ -239,6 +239,20 @@ func test_modal_can_refuse_cancel_dismiss() -> void:
 	assert_eq(_ui_utility.get_top_panel(GFUIUtility.Layer.POPUP), panel, "拒绝取消后面板应仍在栈顶。")
 
 
+func test_modal_config_has_no_implicit_default_action() -> void:
+	var config := GFModalConfig.new()
+	var action := GFModalAction.new()
+
+	assert_eq(config.get_actions().size(), 0, "空配置不应隐式生成 OK 动作。")
+	assert_null(config.get_action(&"ok"), "未声明的动作不应可解析。")
+	assert_eq(action.action_id, &"", "动作 ID 默认应为空。")
+	assert_eq(action.label, "", "动作显示文本默认应为空。")
+	assert_eq(action.result_status, GFModalResult.STATUS_DISMISSED, "动作默认结果应为 dismissed。")
+
+	config.actions = [action]
+	assert_eq(config.get_actions().size(), 0, "未显式设置 action_id 的动作不应被面板渲染。")
+
+
 func test_custom_modal_protocol_returns_result_and_project_closes_panel() -> void:
 	var confirm := GFModalAction.new()
 	confirm.action_id = &"confirm"

@@ -24,7 +24,7 @@ extends Resource
 ## @api public
 @export_multiline var message: String = ""
 
-## 动作列表。为空时默认生成一个确认动作。
+## 动作列表。为空时不生成默认动作；项目应显式声明可渲染动作。
 ## [br]
 ## @api public
 ## [br]
@@ -61,21 +61,16 @@ extends Resource
 
 # --- 公共方法 ---
 
-## 获取可用动作列表；配置为空时返回默认确认动作。
+## 获取可用动作列表。
 ## [br]
 ## @api public
 ## [br]
 ## @return 动作列表副本。
-func get_actions_or_default() -> Array[GFModalAction]:
-	if actions.is_empty():
-		return [_make_default_action()]
-
+func get_actions() -> Array[GFModalAction]:
 	var result: Array[GFModalAction] = []
 	for action: GFModalAction in actions:
-		if action != null:
+		if action != null and action.action_id != &"":
 			result.append(action.duplicate_action())
-	if result.is_empty():
-		result.append(_make_default_action())
 	return result
 
 
@@ -87,7 +82,7 @@ func get_actions_or_default() -> Array[GFModalAction]:
 ## [br]
 ## @return 找到时返回动作副本，否则返回 null。
 func get_action(action_id: StringName) -> GFModalAction:
-	for action: GFModalAction in get_actions_or_default():
+	for action: GFModalAction in get_actions():
 		if action != null and action.action_id == action_id:
 			return action
 	return null
@@ -110,14 +105,3 @@ func duplicate_config() -> GFModalConfig:
 	for action: GFModalAction in actions:
 		config.actions.append(action.duplicate_action() if action != null else null)
 	return config
-
-
-# --- 私有/辅助方法 ---
-
-func _make_default_action() -> GFModalAction:
-	var action := GFModalAction.new()
-	action.action_id = &"ok"
-	action.label = "OK"
-	action.result_status = GFModalResult.STATUS_CONFIRMED
-	action.grab_focus = true
-	return action

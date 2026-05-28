@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSaveSlotCard" path="addons/gf/extensions/save/slots/gf_save_slot_card.gd" module="extensions/save" extends="Resource" classDigest="d75975029bbb175c780644ca4a9a42c815ab6ca101fe08501ea5d536de833efd">
-	<description>GFSaveSlotCard: 通用存档槽展示卡片数据。
-作为 UI 和存档系统之间的轻量 DTO，不规定具体界面布局或业务字段。</description>
+<class name="GFSaveSlotCard" path="addons/gf/extensions/save/slots/gf_save_slot_card.gd" module="extensions/save" extends="Resource" classDigest="d5bf93b4404e19dee882474f69bc5333e6d4bd8c651296778c7890eaaf299c02">
+	<description>GFSaveSlotCard: 通用存档槽摘要数据。
+作为项目 UI 和存档系统之间的轻量 DTO，不规定具体界面布局、文案或业务字段。</description>
 	<tags>
 		<tag name="api">public</tag>
 		<tag name="category">value_object</tag>
@@ -27,14 +27,14 @@
 		</member>
 		<member kind="property" name="display_name" decorators="@export">
 			<signature>var display_name: String = ""</signature>
-			<description>展示名称。</description>
+			<description>项目可选展示名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
 		<member kind="property" name="description" decorators="@export_multiline">
 			<signature>var description: String = ""</signature>
-			<description>展示描述。</description>
+			<description>项目可选展示描述。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
@@ -102,15 +102,16 @@
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="return">卡片字典。</tag>
-				<tag name="schema">return: Dictionary，包含 slot_index、slot_id、display_name、description、is_empty、is_active、is_compatible、modified_time、metadata 与 compatibility_errors。</tag>
+				<tag name="schema">return: Dictionary，包含 slot_index、slot_id、display_name、description、is_empty、is_active、is_compatible、status_id、modified_time、metadata 与 compatibility_errors。</tag>
 			</tags>
 		</member>
-		<member kind="method" name="get_status_text">
-			<signature>func get_status_text() -&gt; String:</signature>
-			<description>获取通用状态文本。</description>
+		<member kind="method" name="get_status_id">
+			<signature>func get_status_id() -&gt; StringName:</signature>
+			<description>获取非本地化状态标识。
+项目 UI 可基于该标识映射自己的文案、样式或图标。</description>
 			<tags>
 				<tag name="api">public</tag>
-				<tag name="return">状态文本。</tag>
+				<tag name="return">状态标识：empty、incompatible、active 或 ready。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="from_slot_summary">

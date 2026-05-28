@@ -36,11 +36,11 @@ debug.watch_value(&"scene_path", scene_path_provider, {
 })
 ```
 
-`watch_value()` 适合廉价、无副作用的当前状态读取；`push_watch_value()` 适合由项目循环或回调主动更新的值。
+`watch_value()` 适合廉价、无副作用的当前状态读取；`push_watch_value()` 适合由项目循环或回调主动更新的当前值。
 
 注册了 `GFDiagnosticsUtility` 时，Overlay 默认也会显示 `overlay` 诊断监控预设，可用 `set_diagnostics_monitor_preset()` 切换预设，或把 `include_diagnostics_monitors` 设为 `false` 只显示手动 watch。
 
-Watch 只是一层调试显示通道，不保存历史、不做采样统计，也不规定业务字段；需要长期记录请接入 `GFLogUtility` / `GFDiagnosticsUtility` 或项目自己的分析系统。
+Watch 只是一层当前值显示通道，不保存历史，也不规定业务字段。需要开发期短期趋势时可使用 `record_metric_sample()` 或直接注册 `GFMetricSeries`；需要长期记录请接入 `GFLogUtility` / `GFDiagnosticsUtility` 或项目自己的分析系统。
 
 Overlay 所属 GUI 在 `dispose()` 时会立即从场景树移除，避免调试层在架构销毁同一帧继续残留。
 
@@ -49,3 +49,17 @@ Overlay 所属 GUI 在 `dispose()` 时会立即从场景树移除，避免调试
 需要显示多行结构化内容时，可以用 `register_panel()` 或 `push_panel_text()` 注册 Overlay 面板。面板 provider 可以返回字符串、数组或字典，Overlay 会把它们格式化为只读文本；`include_recent_logs` 开启时还会附加最近日志面板。
 
 面板同样不做脱敏，适合开发期聚合 `GFDiagnosticsUtility` 快照、项目局部状态或自定义工具输出。
+
+## 短期指标趋势
+
+`GFMetricSeries` 是 Overlay 的轻量短期采样容器，用于观察 FPS、帧耗时、对象数量、队列长度等开发期趋势。它只保留固定数量的数值采样，并提供最新值、最小值、最大值、平均值和 ASCII sparkline；它不是日志系统，也不会替项目上报遥测。
+
+```gdscript
+debug.record_metric_sample(&"fps", Engine.get_frames_per_second(), {
+	"label": "FPS",
+	"group": "Runtime",
+	"max_samples": 120,
+})
+```
+
+`include_metric_series_panel` 默认开启，会把已注册的可见指标序列附加到 Overlay 面板区。项目也可以创建并维护自己的 `GFMetricSeries`，再通过 `register_metric_series()` 交给 Overlay 展示。

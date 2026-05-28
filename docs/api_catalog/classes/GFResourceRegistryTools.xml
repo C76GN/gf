@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFResourceRegistryTools" path="addons/gf/standard/utilities/assets/gf_resource_registry_tools.gd" module="standard" extends="RefCounted" classDigest="a6892834b2adb0ae2bd60cb5aebafaff0c47d1df57ad31b653e6fe3b37161f13">
+	<description>GFResourceRegistryTools: 通用资源注册表扫描和生成工具。
+面向编辑器工具、构建脚本和项目安装器复用；它只从路径生成
+`GFResourceRegistry` / `GFResourceRegistryEntry`，不解释业务字段。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="EntryIdMode">
+			<signature>enum EntryIdMode { ## 使用文件名，不包含扩展名。 BASENAME, ## 使用相对 base_path 的路径，不包含扩展名。 RELATIVE_PATH, ## 使用完整资源路径，不包含扩展名。 FULL_PATH, }</signature>
+			<description>从资源路径生成条目 ID 的方式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants>
+		<member kind="const" name="RESOURCE_EXTENSIONS">
+			<signature>const RESOURCE_EXTENSIONS: PackedStringArray = [</signature>
+			<description>默认资源扩展名白名单，不包含点号。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_EXCLUDED_PATHS">
+			<signature>const DEFAULT_EXCLUDED_PATHS: PackedStringArray = ["res://addons"]</signature>
+			<description>默认排除的扫描路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH">
+			<signature>const DEFAULT_MAX_SCAN_DEPTH: int = 32</signature>
+			<description>默认递归扫描深度上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_RESOURCE_PATHS">
+			<signature>const DEFAULT_MAX_RESOURCE_PATHS: int = 10000</signature>
+			<description>默认单次扫描收集的资源路径数量上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="FIELD_EXTENSION">
+			<signature>const FIELD_EXTENSION: StringName = &amp;"extension"</signature>
+			<description>默认路径字段：资源扩展名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="FIELD_DIRECTORY">
+			<signature>const FIELD_DIRECTORY: StringName = &amp;"directory"</signature>
+			<description>默认路径字段：相对目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="FIELD_BASENAME">
+			<signature>const FIELD_BASENAME: StringName = &amp;"basename"</signature>
+			<description>默认路径字段：文件基础名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="FIELD_RELATIVE_PATH">
+			<signature>const FIELD_RELATIVE_PATH: StringName = &amp;"relative_path"</signature>
+			<description>默认路径字段：相对路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="FIELD_TAGS">
+			<signature>const FIELD_TAGS: StringName = &amp;"tags"</signature>
+			<description>默认路径字段：由相对目录段推导的标签集合。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="FIELD_CATEGORY">
+			<signature>const FIELD_CATEGORY: StringName = &amp;"category"</signature>
+			<description>默认路径字段：相对目录的第一段。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties />
+	<methods>
+		<member kind="method" name="is_resource_path">
+			<signature>static func is_resource_path(path: String, extensions: PackedStringArray = RESOURCE_EXTENSIONS) -&gt; bool:</signature>
+			<description>判断路径是否指向受支持的资源扩展名。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源路径或文件名。</tag>
+				<tag name="param">extensions: 可选扩展名白名单，不包含点号。</tag>
+				<tag name="return">是受支持资源路径时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="scan_resource_paths">
+			<signature>static func scan_resource_paths(root_path: String = "res://", options: Dictionary = {}) -&gt; PackedStringArray:</signature>
+			<description>递归扫描资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root_path: 扫描起点，通常是 res:// 下的目录。</tag>
+				<tag name="param">options: 可选项，支持 recursive、include_addons、excluded_paths、extensions、include_hidden、include_import_sidecars、max_scan_depth 与 max_resource_paths。</tag>
+				<tag name="return">按字典序排序的资源路径。</tag>
+				<tag name="schema">options: Dictionary，可包含 recursive、include_addons、excluded_paths、extensions、include_hidden、include_import_sidecars、max_scan_depth 和 max_resource_paths 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="create_registry_from_paths">
+			<signature>static func create_registry_from_paths(paths: PackedStringArray, options: Dictionary = {}) -&gt; GFResourceRegistry:</signature>
+			<description>从路径列表创建新的资源注册表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">paths: 资源路径列表。</tag>
+				<tag name="param">options: 可选项，支持 id_mode、base_path、path_separator、strip_extension、type_hint、default_type_hint、type_hints_by_extension、extra_fields、fields_by_path、fields_by_id、include_path_fields、include_tags、include_category、tag_field 和 category_field。</tag>
+				<tag name="return">新建的资源注册表。</tag>
+				<tag name="schema">options: Dictionary，可包含路径导入、ID 生成、类型提示和字段生成选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="create_registry_from_scan">
+			<signature>static func create_registry_from_scan(root_path: String = "res://", options: Dictionary = {}) -&gt; GFResourceRegistry:</signature>
+			<description>扫描目录并创建新的资源注册表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">root_path: 扫描起点，通常是 res://assets。</tag>
+				<tag name="param">options: 可选项，同时传给 scan_resource_paths() 与 create_registry_from_paths()。</tag>
+				<tag name="return">新建的资源注册表。</tag>
+				<tag name="schema">options: Dictionary，可同时包含扫描选项和条目导入选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="add_paths_to_registry">
+			<signature>static func add_paths_to_registry( registry: GFResourceRegistry, paths: PackedStringArray, options: Dictionary = {} ) -&gt; GFValidationReport:</signature>
+			<description>将路径列表加入资源注册表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">registry: 要写入的资源注册表。</tag>
+				<tag name="param">paths: 资源路径列表。</tag>
+				<tag name="param">options: 可选项，支持 id_mode、base_path、path_separator、strip_extension、overwrite、type_hint、default_type_hint、type_hints_by_extension、extra_fields、fields_by_path、fields_by_id、include_path_fields、include_tags、include_category、tag_field 和 category_field。</tag>
+				<tag name="return">导入报告。</tag>
+				<tag name="schema">options: Dictionary，可包含路径导入、ID 生成、类型提示和字段生成选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="sync_registry_from_scan">
+			<signature>static func sync_registry_from_scan( registry: GFResourceRegistry, root_path: String = "res://", options: Dictionary = {} ) -&gt; GFValidationReport:</signature>
+			<description>扫描目录并同步到已有资源注册表。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">registry: 要写入的资源注册表。</tag>
+				<tag name="param">root_path: 扫描起点，通常是 res://assets。</tag>
+				<tag name="param">options: 可选项，同时传给 scan_resource_paths() 与 add_paths_to_registry()。</tag>
+				<tag name="return">导入报告。</tag>
+				<tag name="schema">options: Dictionary，可同时包含扫描选项和条目导入选项。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_entry_id">
+			<signature>static func make_entry_id(path: String, options: Dictionary = {}) -&gt; StringName:</signature>
+			<description>按选项从路径生成稳定条目 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源路径。</tag>
+				<tag name="param">options: 可选项，支持 id_mode、base_path、path_separator、strip_extension。</tag>
+				<tag name="return">条目 ID。</tag>
+				<tag name="schema">options: Dictionary，可包含 id_mode、base_path、path_separator 和 strip_extension 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_type_hint">
+			<signature>static func make_type_hint(path: String, options: Dictionary = {}) -&gt; String:</signature>
+			<description>按选项从路径推导资源类型提示。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源路径。</tag>
+				<tag name="param">options: 可选项，支持 type_hint、default_type_hint 与 type_hints_by_extension。</tag>
+				<tag name="return">ResourceLoader 类型提示。</tag>
+				<tag name="schema">options: Dictionary，可包含 type_hint、default_type_hint 和 type_hints_by_extension 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="make_entry_fields">
+			<signature>static func make_entry_fields(path: String, options: Dictionary = {}) -&gt; Dictionary:</signature>
+			<description>按选项从路径生成可索引字段。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 资源路径。</tag>
+				<tag name="param">options: 可选项，支持 base_path、extra_fields、fields_by_path、fields_by_id、include_path_fields、include_tags、include_category、tag_field 和 category_field。</tag>
+				<tag name="return">字段字典。</tag>
+				<tag name="schema">options: Dictionary，可包含路径字段、目录标签和调用方附加字段选项。</tag>
+				<tag name="schema">return: Dictionary keyed by field id with scalar, Array, or PackedStringArray values.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

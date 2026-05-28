@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNotificationUtility" path="addons/gf/standard/utilities/ui/gf_notification_utility.gd" module="standard" extends="GFUtility" classDigest="e249ee531aa1383f61b511b1fce1867ced989920c7b604efdddeb8b793457eb2">
+<class name="GFNotificationUtility" path="addons/gf/standard/utilities/ui/gf_notification_utility.gd" module="standard" extends="GFUtility" classDigest="772fb6fef281e8c0154db0d75a734da00d65e0f6c99fedffa0e6b8eab493f56b">
 	<description>GFNotificationUtility: 通用运行时通知队列。
 只管理通知数据、队列、去重和生命周期信号，不规定 Toast、HUD 或编辑器 UI 样式。</description>
 	<tags>
@@ -113,7 +113,7 @@
 				<tag name="param">level: 通知等级。</tag>
 				<tag name="param">options: 可选参数，支持 duration_seconds、key、metadata、priority、sticky、actions。</tag>
 				<tag name="return">通知 id；被去重抑制时返回已有通知 id。</tag>
-				<tag name="schema">options: Dictionary，支持 duration_seconds、key、metadata、priority、sticky 和 actions。actions 为 Array[StringName|String|Dictionary]，Dictionary action 包含 id、label、dismiss 和 metadata。</tag>
+				<tag name="schema">options: Dictionary，支持 duration_seconds、key、metadata、priority、sticky 和 actions。actions 为 Array[StringName|String|Dictionary]，Dictionary action 包含 id、可选 label、dismiss 和 metadata；label 为空时由项目 UI 决定展示文案。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="dismiss_active">

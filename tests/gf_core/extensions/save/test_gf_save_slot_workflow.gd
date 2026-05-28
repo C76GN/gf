@@ -20,6 +20,7 @@ func after_each() -> void:
 
 func test_get_slot_id_for_index_replaces_template() -> void:
 	var wf := GFSaveSlotWorkflow.new()
+	assert_eq(wf.active_slot_index, 0)
 	wf.slot_id_template = "save_{index}_data"
 	assert_eq(wf.get_slot_id_for_index(3), &"save_3_data")
 
@@ -58,6 +59,20 @@ func test_build_empty_card_marks_active_slot() -> void:
 	assert_true(card.is_empty)
 	assert_true(card.is_active)
 	assert_eq(card.slot_index, 2)
+
+
+func test_empty_display_name_template_is_opt_in() -> void:
+	var wf := GFSaveSlotWorkflow.new()
+	var default_card := wf.build_empty_card(2)
+	var default_metadata := wf.build_slot_metadata(2)
+
+	assert_eq(wf.get_empty_display_name_for_index(2), "")
+	assert_eq(default_card.display_name, "")
+	assert_eq(default_metadata.display_name, "")
+
+	wf.empty_display_name_template = "Slot {index}"
+	assert_eq(wf.get_empty_display_name_for_index(2), "Slot 2")
+	assert_eq(wf.build_empty_card(2).display_name, "Slot 2")
 
 
 func test_build_card_for_index_empty_summary_returns_empty_card() -> void:

@@ -3,7 +3,7 @@
 ## 继承自 GFCommand，在标准命令的基础上新增撤销能力。
 ## 子类须在 execute() 执行前通过 set_snapshot() 保存当前状态快照，
 ## 并在 undo() 中借助 get_snapshot() 取回快照以还原数据，
-## 从而支持解谜、战棋等游戏的回放与悔步功能。
+## 从而支持编辑器操作、运行时流程回放和项目自定义撤销功能。
 ## [br]
 ## @api public
 ## [br]
@@ -15,10 +15,10 @@ extends GFCommand
 
 # --- 公共变量 ---
 
-## 在 UI 历史记录面板中显示当前命令的名称描述。
+## 可选命令标签，供项目历史面板、日志或调试工具显示。默认为空，框架不生成用户可见文案。
 ## [br]
 ## @api public
-var action_name: String = "未命名动作"
+var action_name: String = ""
 
 
 # --- 私有变量 ---

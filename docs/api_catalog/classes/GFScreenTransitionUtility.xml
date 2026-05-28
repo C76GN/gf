@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFScreenTransitionUtility" path="addons/gf/standard/utilities/scene/gf_screen_transition_utility.gd" module="standard" extends="GFUtility" classDigest="6493ccb4a4738d28de6b17bfe3aa651cea7acc0fe2029628aee083ac9f3249db">
+	<description>GFScreenTransitionUtility: 通用屏幕覆盖式转场工具。
+管理一个轻量 CanvasLayer + ColorRect 覆盖层，按 GFScreenTransitionEffect 推进颜色、
+透明度和可选 shader progress。它不直接切换场景，项目可把它组合到任意流程中。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="transition_started">
+			<signature>signal transition_started(effect: GFScreenTransitionEffect)</signature>
+			<description>转场开始后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">effect: 本次转场使用的效果配置副本。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="transition_progressed">
+			<signature>signal transition_progressed(progress: float, alpha: float)</signature>
+			<description>转场推进时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">progress: 0 到 1 的转场权重。</tag>
+				<tag name="param">alpha: 当前覆盖层透明度。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="transition_finished">
+			<signature>signal transition_finished(effect: GFScreenTransitionEffect)</signature>
+			<description>转场正常完成后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">effect: 完成的效果配置副本。</tag>
+			</tags>
+		</member>
+		<member kind="signal" name="transition_cancelled">
+			<signature>signal transition_cancelled(effect: GFScreenTransitionEffect)</signature>
+			<description>转场被取消后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">effect: 被取消的效果配置副本。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties />
+	<methods>
+		<member kind="method" name="init">
+			<signature>func init() -&gt; void:</signature>
+			<description>初始化覆盖层节点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="dispose">
+			<signature>func dispose() -&gt; void:</signature>
+			<description>释放覆盖层节点并取消当前转场。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="tick">
+			<signature>func tick(delta: float) -&gt; void:</signature>
+			<description>推进当前转场。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 本帧时间增量（秒）。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="play">
+			<signature>func play(effect: GFScreenTransitionEffect, on_finished: Callable = Callable()) -&gt; Error:</signature>
+			<description>播放一个转场效果。若已有转场正在播放，会先取消旧转场。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">effect: 转场效果配置；Utility 会复制后使用。</tag>
+				<tag name="param">on_finished: 可选完成回调。</tag>
+				<tag name="return">启动结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="fade_out">
+			<signature>func fade_out( duration_seconds: float = 0.25, color: Color = Color.BLACK, on_finished: Callable = Callable() ) -&gt; Error:</signature>
+			<description>播放淡出到不透明覆盖层的转场。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">duration_seconds: 转场时长，单位秒。</tag>
+				<tag name="param">color: 覆盖层颜色。</tag>
+				<tag name="param">on_finished: 可选完成回调。</tag>
+				<tag name="return">启动结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="fade_in">
+			<signature>func fade_in( duration_seconds: float = 0.25, color: Color = Color.BLACK, on_finished: Callable = Callable() ) -&gt; Error:</signature>
+			<description>播放从不透明覆盖层淡入画面的转场。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">duration_seconds: 转场时长，单位秒。</tag>
+				<tag name="param">color: 覆盖层颜色。</tag>
+				<tag name="param">on_finished: 可选完成回调。</tag>
+				<tag name="return">启动结果。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_overlay_alpha">
+			<signature>func set_overlay_alpha(alpha: float, color: Color = Color.BLACK) -&gt; void:</signature>
+			<description>手动设置覆盖层透明度，不会启动转场。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">alpha: 覆盖层透明度。</tag>
+				<tag name="param">color: 覆盖层颜色。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="hide_overlay">
+			<signature>func hide_overlay() -&gt; void:</signature>
+			<description>隐藏覆盖层并清空临时材质。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_transition_active">
+			<signature>func is_transition_active() -&gt; bool:</signature>
+			<description>检查是否有转场正在播放。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">正在播放时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_overlay_alpha">
+			<signature>func get_overlay_alpha() -&gt; float:</signature>
+			<description>获取当前覆盖层透明度。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前透明度。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="complete_transition">
+			<signature>func complete_transition() -&gt; bool:</signature>
+			<description>立即完成当前转场。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">有活动转场并完成时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="cancel_transition">
+			<signature>func cancel_transition() -&gt; bool:</signature>
+			<description>取消当前转场，不调用完成回调。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">有活动转场并取消时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取转场工具运行时快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 overlay_created、overlay_visible、transition_active、elapsed_seconds、overlay_alpha 和 active_effect。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

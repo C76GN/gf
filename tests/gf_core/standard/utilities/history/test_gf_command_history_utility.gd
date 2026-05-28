@@ -119,6 +119,12 @@ func after_each() -> void:
 
 # --- 测试：record ---
 
+func test_undoable_command_default_action_name_is_empty() -> void:
+	var cmd := GFUndoableCommand.new()
+
+	assert_eq(cmd.action_name, "", "可撤销命令默认不应生成历史面板展示文案。")
+
+
 ## 验证 record 后 undo_count 自增。
 func test_record_increases_undo_count() -> void:
 	var counter := {"value": 0}

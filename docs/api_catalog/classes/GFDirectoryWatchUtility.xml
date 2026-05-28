@@ -1,0 +1,168 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFDirectoryWatchUtility" path="addons/gf/standard/utilities/io/gf_directory_watch_utility.gd" module="standard" extends="RefCounted" classDigest="8d6103c5e476879a194805d1a23e6579d3ec48b3b1d4ed5aeb6dc8a41c601235">
+	<description>GFDirectoryWatchUtility: 调用方驱动的目录变化检测工具。
+通过显式 poll() 对目录快照做差异比较，适合编辑器工具、资产索引器、
+构建脚本或项目安装器按自己的节奏刷新资源。它不创建 Autoload，
+也不在后台自行扫描。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="changed">
+			<signature>signal changed(change_set: GFDirectoryChangeSet)</signature>
+			<description>poll() 发现文件变化时发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">change_set: 本次变化集。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants>
+		<member kind="const" name="DEFAULT_MAX_SCAN_DEPTH">
+			<signature>const DEFAULT_MAX_SCAN_DEPTH: int = 32</signature>
+			<description>默认递归扫描深度上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="DEFAULT_MAX_FILE_COUNT">
+			<signature>const DEFAULT_MAX_FILE_COUNT: int = 10000</signature>
+			<description>默认单次扫描文件数量上限。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</constants>
+	<properties>
+		<member kind="property" name="recursive">
+			<signature>var recursive: bool = true</signature>
+			<description>是否递归扫描子目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_hidden">
+			<signature>var include_hidden: bool = false</signature>
+			<description>是否包含隐藏文件和隐藏目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="extensions">
+			<signature>var extensions: PackedStringArray = PackedStringArray()</signature>
+			<description>可选扩展名白名单。不包含点号；为空表示包含全部文件。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="excluded_paths">
+			<signature>var excluded_paths: PackedStringArray = PackedStringArray()</signature>
+			<description>排除路径。命中目录或其子路径会被跳过。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_scan_depth">
+			<signature>var max_scan_depth: int = DEFAULT_MAX_SCAN_DEPTH</signature>
+			<description>递归扫描深度上限。0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_file_count">
+			<signature>var max_file_count: int = DEFAULT_MAX_FILE_COUNT</signature>
+			<description>单次扫描文件数量上限。0 表示不限制。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="report_existing_on_first_scan">
+			<signature>var report_existing_on_first_scan: bool = false</signature>
+			<description>首次 poll() 是否把已存在文件报告为 created。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure">
+			<signature>func configure(options: Dictionary = {}) -&gt; GFDirectoryWatchUtility:</signature>
+			<description>按字典选项配置检测器。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">options: 可选项，支持 recursive、include_hidden、extensions、excluded_paths、max_scan_depth、max_file_count 和 report_existing_on_first_scan。</tag>
+				<tag name="return">当前检测器。</tag>
+				<tag name="schema">options: Dictionary controlling scan behavior.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="watch_path">
+			<signature>func watch_path(path: String) -&gt; void:</signature>
+			<description>添加监听目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 要监听的目录路径。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="unwatch_path">
+			<signature>func unwatch_path(path: String) -&gt; bool:</signature>
+			<description>移除监听目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">path: 要移除的目录路径。</tag>
+				<tag name="return">成功移除时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_watch_paths">
+			<signature>func clear_watch_paths() -&gt; void:</signature>
+			<description>清空监听目录。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_watch_paths">
+			<signature>func get_watch_paths() -&gt; PackedStringArray:</signature>
+			<description>获取监听目录副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">监听目录列表。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="reset_snapshot">
+			<signature>func reset_snapshot() -&gt; void:</signature>
+			<description>清空已有快照。下一次 poll() 会重新建立基线。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="poll">
+			<signature>func poll() -&gt; GFDirectoryChangeSet:</signature>
+			<description>扫描当前监听目录并返回变化集。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">本次变化集。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_snapshot">
+			<signature>func get_snapshot() -&gt; Dictionary:</signature>
+			<description>获取当前快照副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前快照字典。</tag>
+				<tag name="schema">return: Dictionary keyed by file path with modified_time values.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">检测器状态字典。</tag>
+				<tag name="schema">return: Dictionary with watch_paths, snapshot_size, has_snapshot, and scan options.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,0 +1,200 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCameraOrbitInput3D" path="addons/gf/extensions/camera/nodes/gf_camera_orbit_input_3d.gd" module="extensions/camera" extends="Node" classDigest="c0b1d827eb9229ae8ba2a10f48e26b1c4ce9504892550d1e9f79851286b2887c">
+	<description>GFCameraOrbitInput3D: 通用 3D 环绕相机输入桥接节点。
+将 GFInputMappingUtility 的可配置动作值或鼠标拖拽转换为 GFCameraOrbitRig3D 的角度和距离增量。
+它不创建输入上下文，也不定义项目动作绑定。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_service</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals />
+	<enums>
+		<member kind="enum" name="UpdateMode">
+			<signature>enum UpdateMode { ## 在 _process 中读取输入。 IDLE, ## 在 _physics_process 中读取输入。 PHYSICS, ## 只在 process_input() 被显式调用时读取输入。 MANUAL, }</signature>
+			<description>输入自动处理模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</enums>
+	<constants />
+	<properties>
+		<member kind="property" name="enabled" decorators="@export">
+			<signature>var enabled: bool = true</signature>
+			<description>是否启用输入桥接。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="orbit_rig_path" decorators="@export_node_path(&quot;GFCameraOrbitRig3D&quot;)">
+			<signature>var orbit_rig_path: NodePath = NodePath("")</signature>
+			<description>要控制的环绕 Rig。为空时使用父节点中的 GFCameraOrbitRig3D。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="update_mode" decorators="@export">
+			<signature>var update_mode: UpdateMode = UpdateMode.IDLE</signature>
+			<description>自动处理模式。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="use_input_mapping" decorators="@export">
+			<signature>var use_input_mapping: bool = false</signature>
+			<description>是否从 GFInputMappingUtility 读取动作值。默认关闭，项目应显式启用并配置动作 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="node_context_path" decorators="@export_node_path(&quot;GFNodeContext&quot;)">
+			<signature>var node_context_path: NodePath = NodePath("")</signature>
+			<description>可选 GFNodeContext 路径。设置后会从该上下文获取 GFInputMappingUtility。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="orbit_action_id" decorators="@export">
+			<signature>var orbit_action_id: StringName = &amp;"camera_orbit"</signature>
+			<description>环绕输入动作 ID。动作值应为 Vector2。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="zoom_action_id" decorators="@export">
+			<signature>var zoom_action_id: StringName = &amp;"camera_zoom"</signature>
+			<description>缩放输入动作 ID。动作值应为 float 或 bool。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="orbit_degrees_per_second" decorators="@export">
+			<signature>var orbit_degrees_per_second: float = 120.0</signature>
+			<description>每秒环绕角速度，单位度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="zoom_units_per_second" decorators="@export">
+			<signature>var zoom_units_per_second: float = 8.0</signature>
+			<description>每秒缩放速度，单位距离。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="invert_y" decorators="@export">
+			<signature>var invert_y: bool = false</signature>
+			<description>是否反转垂直环绕输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="mouse_orbit_enabled" decorators="@export">
+			<signature>var mouse_orbit_enabled: bool = false</signature>
+			<description>是否启用鼠标拖拽环绕。默认关闭，避免框架节点隐式接管项目输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="mouse_button" decorators="@export">
+			<signature>var mouse_button: MouseButton = MOUSE_BUTTON_RIGHT</signature>
+			<description>鼠标拖拽环绕使用的按键。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="mouse_degrees_per_pixel" decorators="@export">
+			<signature>var mouse_degrees_per_pixel: float = 0.15</signature>
+			<description>鼠标每像素对应的角度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="mouse_zoom_enabled" decorators="@export">
+			<signature>var mouse_zoom_enabled: bool = false</signature>
+			<description>是否启用鼠标滚轮缩放。默认关闭，避免框架节点隐式接管项目输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="mouse_wheel_step" decorators="@export">
+			<signature>var mouse_wheel_step: float = 1.0</signature>
+			<description>鼠标滚轮每格缩放距离。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="consume_mouse_input" decorators="@export">
+			<signature>var consume_mouse_input: bool = true</signature>
+			<description>鼠标输入被应用后是否标记为已处理。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="input_mapping_utility">
+			<signature>var input_mapping_utility: GFInputMappingUtility = null</signature>
+			<description>显式注入的输入映射工具。为空时尝试从 node_context_path 或父级 GFNodeContext 获取。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_orbit_rig">
+			<signature>func get_orbit_rig() -&gt; GFCameraOrbitRig3D:</signature>
+			<description>获取当前控制的环绕 Rig。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">环绕 Rig；不存在时返回 null。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_input_mapping_utility">
+			<signature>func set_input_mapping_utility(utility: GFInputMappingUtility) -&gt; void:</signature>
+			<description>显式设置输入映射工具。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">utility: 输入映射工具；传 null 表示回退到上下文查找。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="process_input">
+			<signature>func process_input(delta: float) -&gt; bool:</signature>
+			<description>读取输入映射并推进环绕 Rig。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta: 本帧时间增量（秒）。</tag>
+				<tag name="return">应用了任意输入时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_orbit_vector">
+			<signature>func apply_orbit_vector(value: Vector2, scale: float = 1.0) -&gt; bool:</signature>
+			<description>应用二维环绕输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: x 为 yaw 输入，y 为 pitch 输入。</tag>
+				<tag name="param">scale: 输入缩放量，通常是每秒速度乘以 delta。</tag>
+				<tag name="return">成功应用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_zoom_value">
+			<signature>func apply_zoom_value(value: float, scale: float = 1.0) -&gt; bool:</signature>
+			<description>应用一维缩放输入。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">value: 缩放输入；正数拉远，负数拉近。</tag>
+				<tag name="param">scale: 输入缩放量，通常是每秒速度乘以 delta。</tag>
+				<tag name="return">成功应用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取输入桥接调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 enabled、update_mode、use_input_mapping、orbit_action_id、zoom_action_id、has_rig 和 has_input_mapping。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFModalAction" path="addons/gf/standard/utilities/ui/gf_modal_action.gd" module="standard" extends="Resource" classDigest="955f494731acc6b0c1163e32682efb6a1629a4b0a041fdc8121110248a305659">
+<class name="GFModalAction" path="addons/gf/standard/utilities/ui/gf_modal_action.gd" module="standard" extends="Resource" classDigest="7de17a17785f4505b86899e7dcf0a23b7d4c38d1352a2a1f4af78d26c210d91f">
 	<description>GFModalAction: 通用 modal 动作声明。
 描述一个可由 UI 渲染的操作，不绑定具体按钮样式、业务命令或页面类型。</description>
 	<tags>
@@ -12,21 +12,21 @@
 	<constants />
 	<properties>
 		<member kind="property" name="action_id" decorators="@export">
-			<signature>var action_id: StringName = &amp;"ok"</signature>
-			<description>动作 ID。</description>
+			<signature>var action_id: StringName = &amp;""</signature>
+			<description>动作 ID。为空表示项目尚未声明具体动作。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
 		<member kind="property" name="label" decorators="@export">
-			<signature>var label: String = "OK"</signature>
-			<description>显示文本。</description>
+			<signature>var label: String = ""</signature>
+			<description>项目可选显示文本。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
 		<member kind="property" name="result_status" decorators="@export">
-			<signature>var result_status: StringName = GFModalResult.STATUS_CONFIRMED</signature>
+			<signature>var result_status: StringName = GFModalResult.STATUS_DISMISSED</signature>
 			<description>触发动作后产生的结果状态。</description>
 			<tags>
 				<tag name="api">public</tag>

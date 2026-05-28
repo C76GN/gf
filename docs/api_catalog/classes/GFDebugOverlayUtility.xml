@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDebugOverlayUtility" path="addons/gf/standard/utilities/debug/gf_debug_overlay_utility.gd" module="standard" extends="GFUtility" classDigest="b6fbe7074d0252dc0c496e3e20be2ef6e9cbfbd40e9e32ec3ccb2375deaeed7f">
+<class name="GFDebugOverlayUtility" path="addons/gf/standard/utilities/debug/gf_debug_overlay_utility.gd" module="standard" extends="GFUtility" classDigest="acc64314489d8fe74b382f55068abbc193c85f21635f930f045089de5159a0e6">
 	<description>GFDebugOverlayUtility: 开发期运行时观察覆盖层。
 提供 watch / panel 注册、轻量运行时快照和可选调试 GUI。默认只在 debug 构建中创建 GUI。
 发布构建如确实需要显示，必须显式关闭 debug_only 并自行确认可见性与数据脱敏策略。</description>
@@ -50,6 +50,20 @@
 		<member kind="property" name="recent_log_count">
 			<signature>var recent_log_count: int = 12</signature>
 			<description>最近日志面板读取的日志数量。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="include_metric_series_panel">
+			<signature>var include_metric_series_panel: bool = true</signature>
+			<description>是否在 Overlay 中附加短期指标趋势面板。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="metric_series_width">
+			<signature>var metric_series_width: int = 32</signature>
+			<description>指标趋势 sparkline 输出宽度。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
@@ -241,13 +255,79 @@
 				<tag name="schema">return: Array[Dictionary]，每个元素包含 id、label、group、content 和 valid。</tag>
 			</tags>
 		</member>
+		<member kind="method" name="record_metric_sample">
+			<signature>func record_metric_sample(metric_id: StringName, value: float, options: Dictionary = {}) -&gt; bool:</signature>
+			<description>追加一个短期指标采样。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">metric_id: 指标唯一标识。</tag>
+				<tag name="param">value: 采样值。</tag>
+				<tag name="param">options: 可选配置，支持 label、group、visible、max_samples、timestamp_seconds、metadata 和 sample_metadata。</tag>
+				<tag name="return">采样成功返回 true。</tag>
+				<tag name="schema">options: Dictionary，支持 label、group、visible、max_samples、timestamp_seconds、metadata 和 sample_metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_or_create_metric_series">
+			<signature>func get_or_create_metric_series(metric_id: StringName, options: Dictionary = {}) -&gt; GFMetricSeries:</signature>
+			<description>获取或创建短期指标序列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">metric_id: 指标唯一标识。</tag>
+				<tag name="param">options: 可选配置，支持 label、group、visible、max_samples 和 metadata。</tag>
+				<tag name="return">指标序列；metric_id 为空时返回 null。</tag>
+				<tag name="schema">options: Dictionary，支持 label、group、visible、max_samples 和 metadata。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="register_metric_series">
+			<signature>func register_metric_series(series: GFMetricSeries) -&gt; bool:</signature>
+			<description>注册一个外部维护的指标序列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">series: 指标序列。</tag>
+				<tag name="return">注册成功返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="remove_metric_series">
+			<signature>func remove_metric_series(metric_id: StringName) -&gt; void:</signature>
+			<description>移除一个指标序列。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">metric_id: 指标唯一标识。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clear_metric_series">
+			<signature>func clear_metric_series() -&gt; void:</signature>
+			<description>清空全部指标序列。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="has_metric_series">
+			<signature>func has_metric_series(metric_id: StringName) -&gt; bool:</signature>
+			<description>检查指标序列是否已注册。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">metric_id: 指标唯一标识。</tag>
+				<tag name="return">已注册时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_metric_series_snapshot">
+			<signature>func get_metric_series_snapshot(include_hidden: bool = false) -&gt; Array[Dictionary]:</signature>
+			<description>读取当前指标序列快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">include_hidden: 为 true 时同时返回 visible=false 的指标序列。</tag>
+				<tag name="return">指标序列快照数组。</tag>
+				<tag name="schema">return: Array[Dictionary]，每个元素包含 id、label、group、visible、sample_count、latest_value、min_value、max_value、average_value、sparkline 和 metadata。</tag>
+			</tags>
+		</member>
 		<member kind="method" name="get_debug_snapshot">
 			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
 			<description>获取 Overlay 运行时调试快照。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="return">调试快照。</tag>
-				<tag name="schema">return: Dictionary，包含 debug_only、watch_count、panel_count、include_diagnostics_monitors、include_recent_logs、recent_log_count、diagnostics_monitor_preset 和 gui 分区。</tag>
+				<tag name="schema">return: Dictionary，包含 debug_only、watch_count、panel_count、metric_series_count、include_diagnostics_monitors、include_recent_logs、include_metric_series_panel、recent_log_count、metric_series_width、diagnostics_monitor_preset 和 gui 分区。</tag>
 			</tags>
 		</member>
 	</methods>

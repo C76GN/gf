@@ -1,0 +1,305 @@
+## GFCameraOrbitInput3D: 通用 3D 环绕相机输入桥接节点。
+##
+## 将 GFInputMappingUtility 的可配置动作值或鼠标拖拽转换为 GFCameraOrbitRig3D 的角度和距离增量。
+## 它不创建输入上下文，也不定义项目动作绑定。
+## [br]
+## @api public
+## [br]
+## @category runtime_service
+## [br]
+## @since 3.23.0
+class_name GFCameraOrbitInput3D
+extends Node
+
+
+# --- 枚举 ---
+
+## 输入自动处理模式。
+## [br]
+## @api public
+enum UpdateMode {
+	## 在 _process 中读取输入。
+	IDLE,
+	## 在 _physics_process 中读取输入。
+	PHYSICS,
+	## 只在 process_input() 被显式调用时读取输入。
+	MANUAL,
+}
+
+
+# --- 导出变量 ---
+
+## 是否启用输入桥接。
+## [br]
+## @api public
+@export var enabled: bool = true
+
+## 要控制的环绕 Rig。为空时使用父节点中的 GFCameraOrbitRig3D。
+## [br]
+## @api public
+@export_node_path("GFCameraOrbitRig3D") var orbit_rig_path: NodePath = NodePath("")
+
+## 自动处理模式。
+## [br]
+## @api public
+@export var update_mode: UpdateMode = UpdateMode.IDLE
+
+## 是否从 GFInputMappingUtility 读取动作值。默认关闭，项目应显式启用并配置动作 ID。
+## [br]
+## @api public
+@export var use_input_mapping: bool = false
+
+## 可选 GFNodeContext 路径。设置后会从该上下文获取 GFInputMappingUtility。
+## [br]
+## @api public
+@export_node_path("GFNodeContext") var node_context_path: NodePath = NodePath("")
+
+## 环绕输入动作 ID。动作值应为 Vector2。
+## [br]
+## @api public
+@export var orbit_action_id: StringName = &"camera_orbit"
+
+## 缩放输入动作 ID。动作值应为 float 或 bool。
+## [br]
+## @api public
+@export var zoom_action_id: StringName = &"camera_zoom"
+
+## 每秒环绕角速度，单位度。
+## [br]
+## @api public
+@export var orbit_degrees_per_second: float = 120.0
+
+## 每秒缩放速度，单位距离。
+## [br]
+## @api public
+@export var zoom_units_per_second: float = 8.0
+
+## 是否反转垂直环绕输入。
+## [br]
+## @api public
+@export var invert_y: bool = false
+
+## 是否启用鼠标拖拽环绕。默认关闭，避免框架节点隐式接管项目输入。
+## [br]
+## @api public
+@export var mouse_orbit_enabled: bool = false
+
+## 鼠标拖拽环绕使用的按键。
+## [br]
+## @api public
+@export var mouse_button: MouseButton = MOUSE_BUTTON_RIGHT
+
+## 鼠标每像素对应的角度。
+## [br]
+## @api public
+@export var mouse_degrees_per_pixel: float = 0.15
+
+## 是否启用鼠标滚轮缩放。默认关闭，避免框架节点隐式接管项目输入。
+## [br]
+## @api public
+@export var mouse_zoom_enabled: bool = false
+
+## 鼠标滚轮每格缩放距离。
+## [br]
+## @api public
+@export var mouse_wheel_step: float = 1.0
+
+## 鼠标输入被应用后是否标记为已处理。
+## [br]
+## @api public
+@export var consume_mouse_input: bool = true
+
+
+# --- 公共变量 ---
+
+## 显式注入的输入映射工具。为空时尝试从 node_context_path 或父级 GFNodeContext 获取。
+## [br]
+## @api public
+var input_mapping_utility: GFInputMappingUtility = null
+
+
+# --- Godot 生命周期方法 ---
+
+func _unhandled_input(event: InputEvent) -> void:
+	if not enabled:
+		return
+
+	var applied := false
+	if mouse_orbit_enabled and event is InputEventMouseMotion and Input.is_mouse_button_pressed(mouse_button):
+		var motion := event as InputEventMouseMotion
+		applied = _apply_mouse_orbit(motion.relative)
+	elif mouse_zoom_enabled and event is InputEventMouseButton:
+		var button_event := event as InputEventMouseButton
+		applied = _apply_mouse_wheel(button_event)
+
+	if applied and consume_mouse_input:
+		get_viewport().set_input_as_handled()
+
+
+func _process(delta: float) -> void:
+	if update_mode == UpdateMode.IDLE:
+		process_input(delta)
+
+
+func _physics_process(delta: float) -> void:
+	if update_mode == UpdateMode.PHYSICS:
+		process_input(delta)
+
+
+# --- 公共方法 ---
+
+## 获取当前控制的环绕 Rig。
+## [br]
+## @api public
+## [br]
+## @return 环绕 Rig；不存在时返回 null。
+func get_orbit_rig() -> GFCameraOrbitRig3D:
+	if not orbit_rig_path.is_empty():
+		return get_node_or_null(orbit_rig_path) as GFCameraOrbitRig3D
+	return get_parent() as GFCameraOrbitRig3D
+
+
+## 显式设置输入映射工具。
+## [br]
+## @api public
+## [br]
+## @param utility: 输入映射工具；传 null 表示回退到上下文查找。
+func set_input_mapping_utility(utility: GFInputMappingUtility) -> void:
+	input_mapping_utility = utility
+
+
+## 读取输入映射并推进环绕 Rig。
+## [br]
+## @api public
+## [br]
+## @param delta: 本帧时间增量（秒）。
+## [br]
+## @return 应用了任意输入时返回 true。
+func process_input(delta: float) -> bool:
+	if not enabled or not use_input_mapping:
+		return false
+
+	var input_mapping := _get_input_mapping_utility()
+	if input_mapping == null:
+		return false
+
+	var applied := false
+	var orbit_value := input_mapping.get_action_vector(orbit_action_id)
+	if orbit_value != Vector2.ZERO:
+		applied = apply_orbit_vector(orbit_value, orbit_degrees_per_second * maxf(delta, 0.0)) or applied
+
+	var zoom_value := _coerce_zoom_value(input_mapping.get_action_value(zoom_action_id))
+	if not is_zero_approx(zoom_value):
+		applied = apply_zoom_value(zoom_value, zoom_units_per_second * maxf(delta, 0.0)) or applied
+	return applied
+
+
+## 应用二维环绕输入。
+## [br]
+## @api public
+## [br]
+## @param value: x 为 yaw 输入，y 为 pitch 输入。
+## [br]
+## @param scale: 输入缩放量，通常是每秒速度乘以 delta。
+## [br]
+## @return 成功应用时返回 true。
+func apply_orbit_vector(value: Vector2, scale: float = 1.0) -> bool:
+	var rig := get_orbit_rig()
+	if rig == null or value == Vector2.ZERO or is_zero_approx(scale):
+		return false
+
+	var pitch_value := value.y
+	if invert_y:
+		pitch_value = -pitch_value
+	rig.apply_orbit_delta(Vector2(value.x, pitch_value) * scale)
+	return true
+
+
+## 应用一维缩放输入。
+## [br]
+## @api public
+## [br]
+## @param value: 缩放输入；正数拉远，负数拉近。
+## [br]
+## @param scale: 输入缩放量，通常是每秒速度乘以 delta。
+## [br]
+## @return 成功应用时返回 true。
+func apply_zoom_value(value: float, scale: float = 1.0) -> bool:
+	var rig := get_orbit_rig()
+	if rig == null or is_zero_approx(value) or is_zero_approx(scale):
+		return false
+
+	rig.apply_zoom_delta(value * scale)
+	return true
+
+
+## 获取输入桥接调试快照。
+## [br]
+## @api public
+## [br]
+## @return 调试快照。
+## [br]
+## @schema return: Dictionary，包含 enabled、update_mode、use_input_mapping、orbit_action_id、zoom_action_id、has_rig 和 has_input_mapping。
+func get_debug_snapshot() -> Dictionary:
+	return {
+		"enabled": enabled,
+		"update_mode": update_mode,
+		"use_input_mapping": use_input_mapping,
+		"orbit_action_id": orbit_action_id,
+		"zoom_action_id": zoom_action_id,
+		"has_rig": get_orbit_rig() != null,
+		"has_input_mapping": _get_input_mapping_utility() != null,
+	}
+
+
+# --- 私有/辅助方法 ---
+
+func _apply_mouse_orbit(relative_pixels: Vector2) -> bool:
+	var pitch_pixels := -relative_pixels.y
+	if invert_y:
+		pitch_pixels = -pitch_pixels
+	return apply_orbit_vector(Vector2(relative_pixels.x, pitch_pixels), mouse_degrees_per_pixel)
+
+
+func _apply_mouse_wheel(event: InputEventMouseButton) -> bool:
+	if not event.pressed:
+		return false
+	if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		return apply_zoom_value(-mouse_wheel_step, 1.0)
+	if event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		return apply_zoom_value(mouse_wheel_step, 1.0)
+	return false
+
+
+func _coerce_zoom_value(value: Variant) -> float:
+	if value == null:
+		return 0.0
+	if value is bool:
+		return 1.0 if bool(value) else 0.0
+	if value is Vector2:
+		return (value as Vector2).x
+	if value is Vector3:
+		return (value as Vector3).x
+	return float(value)
+
+
+func _get_input_mapping_utility() -> GFInputMappingUtility:
+	if input_mapping_utility != null:
+		return input_mapping_utility
+
+	var context := _get_node_context()
+	if context == null:
+		return null
+	return context.get_utility(GFInputMappingUtility) as GFInputMappingUtility
+
+
+func _get_node_context() -> GFNodeContext:
+	if not node_context_path.is_empty():
+		return get_node_or_null(node_context_path) as GFNodeContext
+
+	var current := get_parent()
+	while current != null:
+		if current is GFNodeContext:
+			return current as GFNodeContext
+		current = current.get_parent()
+	return null

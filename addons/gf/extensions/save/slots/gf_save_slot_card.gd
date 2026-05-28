@@ -1,6 +1,6 @@
-## GFSaveSlotCard: 通用存档槽展示卡片数据。
+## GFSaveSlotCard: 通用存档槽摘要数据。
 ##
-## 作为 UI 和存档系统之间的轻量 DTO，不规定具体界面布局或业务字段。
+## 作为项目 UI 和存档系统之间的轻量 DTO，不规定具体界面布局、文案或业务字段。
 ## [br]
 ## @api public
 ## [br]
@@ -23,12 +23,12 @@ extends Resource
 ## @api public
 @export var slot_id: StringName = &""
 
-## 展示名称。
+## 项目可选展示名称。
 ## [br]
 ## @api public
 @export var display_name: String = ""
 
-## 展示描述。
+## 项目可选展示描述。
 ## [br]
 ## @api public
 @export_multiline var description: String = ""
@@ -106,7 +106,7 @@ func configure_from_slot_summary(
 ## [br]
 ## @return 卡片字典。
 ## [br]
-## @schema return: Dictionary，包含 slot_index、slot_id、display_name、description、is_empty、is_active、is_compatible、modified_time、metadata 与 compatibility_errors。
+## @schema return: Dictionary，包含 slot_index、slot_id、display_name、description、is_empty、is_active、is_compatible、status_id、modified_time、metadata 与 compatibility_errors。
 func to_dict() -> Dictionary:
 	return {
 		"slot_index": slot_index,
@@ -116,25 +116,28 @@ func to_dict() -> Dictionary:
 		"is_empty": is_empty,
 		"is_active": is_active,
 		"is_compatible": is_compatible,
+		"status_id": get_status_id(),
 		"modified_time": modified_time,
 		"metadata": metadata.duplicate(true),
 		"compatibility_errors": compatibility_errors,
 	}
 
 
-## 获取通用状态文本。
+## 获取非本地化状态标识。
+##
+## 项目 UI 可基于该标识映射自己的文案、样式或图标。
 ## [br]
 ## @api public
 ## [br]
-## @return 状态文本。
-func get_status_text() -> String:
+## @return 状态标识：empty、incompatible、active 或 ready。
+func get_status_id() -> StringName:
 	if is_empty:
-		return "Empty"
+		return &"empty"
 	if not is_compatible:
-		return "Incompatible"
+		return &"incompatible"
 	if is_active:
-		return "Active"
-	return "Ready"
+		return &"active"
+	return &"ready"
 
 
 ## 从摘要创建卡片。

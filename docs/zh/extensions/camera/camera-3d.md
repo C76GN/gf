@@ -13,3 +13,25 @@ rig.look_at_target_path = rig.get_path_to(subject)
 ```
 
 3D Rig 只计算期望 Camera Transform。碰撞避让、遮挡处理、锁定目标、镜头摇臂或关卡脚本仍由项目层组合。
+
+## 环绕 Rig
+
+需要常见第三人称或检查物体视角时，可以使用 `GFCameraOrbitRig3D`。它继承 `GFCameraRig3D`，把 `target_path` 作为焦点来源，把 `offset` 作为焦点偏移，然后用 `yaw_degrees`、`pitch_degrees` 和 `distance` 计算相机姿态。
+
+```gdscript
+var rig := GFCameraOrbitRig3D.new()
+rig.target_path = rig.get_path_to(player)
+rig.offset = Vector3(0.0, 1.5, 0.0)
+rig.set_orbit(30.0, -20.0, 8.0)
+```
+
+`GFCameraOrbitInput3D` 是可选输入桥接节点。它可以读取显式注入的 `GFInputMappingUtility`，或从 `node_context_path` / 父级 `GFNodeContext` 获取输入映射，再按项目配置的 `orbit_action_id` 与 `zoom_action_id` 推进 Rig；它也可以处理鼠标右键拖拽和滚轮缩放。它不会创建输入上下文或硬编码动作绑定，项目仍然负责决定按键、手柄轴、触摸手势和相机碰撞策略。
+
+```gdscript
+var input := GFCameraOrbitInput3D.new()
+input.set_input_mapping_utility(Gf.get_utility(GFInputMappingUtility))
+input.use_input_mapping = true
+input.orbit_action_id = &"camera_orbit"
+input.zoom_action_id = &"camera_zoom"
+rig.add_child(input)
+```

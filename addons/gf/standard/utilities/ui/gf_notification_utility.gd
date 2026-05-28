@@ -153,7 +153,7 @@ func dispose() -> void:
 ## [br]
 ## @return 通知 id；被去重抑制时返回已有通知 id。
 ## [br]
-## @schema options: Dictionary，支持 duration_seconds、key、metadata、priority、sticky 和 actions。actions 为 Array[StringName|String|Dictionary]，Dictionary action 包含 id、label、dismiss 和 metadata。
+## @schema options: Dictionary，支持 duration_seconds、key、metadata、priority、sticky 和 actions。actions 为 Array[StringName|String|Dictionary]，Dictionary action 包含 id、可选 label、dismiss 和 metadata；label 为空时由项目 UI 决定展示文案。
 func push_notification(
 	message: String,
 	title: String = "",
@@ -388,7 +388,7 @@ func _normalize_actions(actions_variant: Variant) -> Array[Dictionary]:
 			if action_id != &"":
 				result.append({
 					"id": action_id,
-					"label": String(action_id),
+					"label": "",
 					"dismiss": false,
 					"metadata": {},
 				})
@@ -402,7 +402,7 @@ func _normalize_actions(actions_variant: Variant) -> Array[Dictionary]:
 			continue
 		result.append({
 			"id": action_id,
-			"label": String(source.get("label", action_id)),
+			"label": String(source.get("label", "")),
 			"dismiss": bool(source.get("dismiss", false)),
 			"metadata": GFVariantData.get_option_dictionary(source, "metadata"),
 		})

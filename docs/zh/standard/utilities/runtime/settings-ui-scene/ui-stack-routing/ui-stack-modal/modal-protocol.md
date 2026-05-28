@@ -4,7 +4,7 @@
 
 ## 结果协议
 
-需要通用确认或选择流程时，使用 `GFModalConfig`、`GFModalAction` 和 `GFModalResult` 描述动作与返回值。框架不提供默认弹窗视觉实现；项目应使用自己的 `.tscn` 面板渲染标题、正文、按钮、动画、音效、主题和输入规则。
+需要通用确认或选择流程时，使用 `GFModalConfig`、`GFModalAction` 和 `GFModalResult` 描述动作与返回值。框架不提供默认弹窗视觉实现，也不会隐式生成 OK 按钮或默认确认动作；项目应使用自己的 `.tscn` 面板渲染标题、正文、按钮、动画、音效、主题和输入规则，并显式声明可用动作。
 
 ```gdscript
 var action := GFModalAction.new()

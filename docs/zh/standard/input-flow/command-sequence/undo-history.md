@@ -1,6 +1,6 @@
 # 可撤销命令历史
 
-`GFUndoableCommand` 在命令基础语义上增加 `set_snapshot()`、`get_snapshot()` 和 `undo()`，适合关卡编辑器、棋盘移动、编辑器预览和其他需要按步骤撤销的流程。`GFCommandHistoryUtility` 负责执行命令、自动压栈、撤销和重做。
+`GFUndoableCommand` 在命令基础语义上增加 `set_snapshot()`、`get_snapshot()` 和 `undo()`，适合编辑器操作、运行时流程回放、预览工具和其他需要按步骤撤销的流程。`GFCommandHistoryUtility` 负责执行命令、自动压栈、撤销和重做。
 
 ## 快照语义
 
@@ -40,6 +40,8 @@ stack.execute_command(MoveTileUndoableCommand.new(Vector2(5, 6)))
 
 stack.undo_last()
 ```
+
+`GFUndoableCommand.action_name` 是可选标签，默认保持为空。需要在历史面板、日志或调试工具里显示命令名称时，项目命令应显式设置自己的本地化文案或稳定 ID。
 
 ## 使用边界
 

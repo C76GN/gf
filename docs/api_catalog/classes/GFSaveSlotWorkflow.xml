@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFSaveSlotWorkflow" path="addons/gf/extensions/save/slots/gf_save_slot_workflow.gd" module="extensions/save" extends="Resource" classDigest="0a0364c41ca426ad4716fb9ad94af9b6d850d4f0cbd018f6e672076838a70510">
+<class name="GFSaveSlotWorkflow" path="addons/gf/extensions/save/slots/gf_save_slot_workflow.gd" module="extensions/save" extends="Resource" classDigest="fb9ede960898515e098d7d134c216b08c02b6b0dccbff0255e7663e58da09ad8">
 	<description>GFSaveSlotWorkflow: 通用存档槽工作流配置。
-负责把槽位索引、逻辑标识、元数据和 UI 卡片摘要串起来。
+负责把槽位索引、逻辑标识、元数据和槽位摘要 DTO 串起来。
 不执行具体存取逻辑，也不写死任何游戏业务字段。</description>
 	<tags>
 		<tag name="api">public</tag>
@@ -13,8 +13,8 @@
 	<constants />
 	<properties>
 		<member kind="property" name="active_slot_index" decorators="@export">
-			<signature>var active_slot_index: int = 1</signature>
-			<description>当前选中槽位索引。默认从 1 开始，贴近常见存档 UI。</description>
+			<signature>var active_slot_index: int = 0</signature>
+			<description>当前选中槽位索引。仅用于构建摘要时标记 active。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
@@ -27,8 +27,8 @@
 			</tags>
 		</member>
 		<member kind="property" name="empty_display_name_template" decorators="@export">
-			<signature>var empty_display_name_template: String = "Slot {index}"</signature>
-			<description>空槽位展示名模板，支持 {index} 占位符。</description>
+			<signature>var empty_display_name_template: String = ""</signature>
+			<description>空槽位展示名模板，支持 {index} 占位符。默认为空，由项目按 UI 与本地化需要显式设置。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFModalConfig" path="addons/gf/standard/utilities/ui/gf_modal_config.gd" module="standard" extends="Resource" classDigest="34547b6e9625bc9e468c2cfb0b91a79b386c54f09bb36462754701e9f99e0b88">
+<class name="GFModalConfig" path="addons/gf/standard/utilities/ui/gf_modal_config.gd" module="standard" extends="Resource" classDigest="b43fc60dc3b9fc17d7932a92b9f78810ad86752e4d56d9bb7b4cd39b2c5b6b18">
 	<description>GFModalConfig: 通用 modal 配置。
 用 Resource 描述标题、正文、动作和交互策略，使项目自定义 modal 面板
 可以共享同一套打开与结果协议。</description>
@@ -28,7 +28,7 @@
 		</member>
 		<member kind="property" name="actions" decorators="@export">
 			<signature>var actions: Array[GFModalAction] = []</signature>
-			<description>动作列表。为空时默认生成一个确认动作。</description>
+			<description>动作列表。为空时不生成默认动作；项目应显式声明可渲染动作。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="schema">actions: Array[GFModalAction]，modal 可渲染的动作声明列表。</tag>
@@ -72,9 +72,9 @@
 		</member>
 	</properties>
 	<methods>
-		<member kind="method" name="get_actions_or_default">
-			<signature>func get_actions_or_default() -&gt; Array[GFModalAction]:</signature>
-			<description>获取可用动作列表；配置为空时返回默认确认动作。</description>
+		<member kind="method" name="get_actions">
+			<signature>func get_actions() -&gt; Array[GFModalAction]:</signature>
+			<description>获取可用动作列表。</description>
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="return">动作列表副本。</tag>

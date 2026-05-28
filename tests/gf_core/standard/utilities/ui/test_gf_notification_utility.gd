@@ -76,16 +76,21 @@ func test_notification_options_accept_string_name_keys_and_copy_metadata() -> vo
 					"screen": "save",
 				},
 			},
+			&"retry",
 		],
 	})
 	var active := notifications.get_active_notification()
+	var actions := active["actions"] as Array
 	((active["metadata"] as Dictionary)["nested"] as Dictionary)["value"] = 2
 
 	assert_eq(active["key"], "save", "StringName key 选项应被识别。")
 	assert_eq(int(active["priority"]), GFNotificationUtilityBase.Priority.CRITICAL, "字符串数字 priority 应按 int 读取并限制范围。")
 	assert_true(bool(active["sticky"]), "字符串 on 应按 true 读取。")
 	assert_eq((source_metadata["nested"] as Dictionary)["value"], 1, "通知 metadata 应复制保存。")
-	assert_eq((((active["actions"] as Array)[0] as Dictionary)["metadata"] as Dictionary)["screen"], "save", "动作 metadata 应复制保存。")
+	assert_eq(((actions[0] as Dictionary)["metadata"] as Dictionary)["screen"], "save", "动作 metadata 应复制保存。")
+	assert_eq((actions[0] as Dictionary)["label"], "", "未显式设置的动作 label 应保持为空。")
+	assert_eq((actions[1] as Dictionary)["id"], &"retry", "StringName 动作应保留动作 ID。")
+	assert_eq((actions[1] as Dictionary)["label"], "", "StringName 动作不应派生展示文案。")
 
 
 ## 验证 0 队列容量只保留当前通知。

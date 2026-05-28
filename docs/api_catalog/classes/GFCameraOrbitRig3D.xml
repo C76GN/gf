@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFCameraOrbitRig3D" path="addons/gf/extensions/camera/nodes/gf_camera_orbit_rig_3d.gd" module="extensions/camera" extends="GFCameraRig3D" classDigest="aa113b80100d089dbb46be58757d873878c64d15763aad690ac3f5bfd7cf09b2">
+	<description>GFCameraOrbitRig3D: 通用 3D 环绕相机 Rig。
+基于目标焦点、yaw / pitch 和距离计算期望 Camera3D Transform。
+它只描述相机姿态，不处理碰撞、锁定目标、遮挡或具体玩法输入。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">runtime_handle</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals>
+		<member kind="signal" name="orbit_changed">
+			<signature>signal orbit_changed(yaw_degrees_value: float, pitch_degrees_value: float, distance_value: float)</signature>
+			<description>环绕参数变化后发出。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">yaw_degrees_value: 当前水平角度。</tag>
+				<tag name="param">pitch_degrees_value: 当前俯仰角度。</tag>
+				<tag name="param">distance_value: 当前距离。</tag>
+			</tags>
+		</member>
+	</signals>
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="yaw_degrees" decorators="@export">
+			<signature>var yaw_degrees: float = 0.0:</signature>
+			<description>水平角度，单位度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="pitch_degrees" decorators="@export">
+			<signature>var pitch_degrees: float = -20.0:</signature>
+			<description>俯仰角度，单位度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="distance" decorators="@export_range(0.0, 10000.0, 0.01, &quot;or_greater&quot;)">
+			<signature>var distance: float = 8.0:</signature>
+			<description>与焦点的距离。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="min_distance" decorators="@export_range(0.0, 10000.0, 0.01, &quot;or_greater&quot;)">
+			<signature>var min_distance: float = 1.0:</signature>
+			<description>最小距离。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_distance" decorators="@export_range(0.0, 10000.0, 0.01, &quot;or_greater&quot;)">
+			<signature>var max_distance: float = 50.0:</signature>
+			<description>最大距离。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="min_pitch_degrees" decorators="@export_range(-89.0, 89.0, 0.1)">
+			<signature>var min_pitch_degrees: float = -80.0:</signature>
+			<description>最小俯仰角度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="max_pitch_degrees" decorators="@export_range(-89.0, 89.0, 0.1)">
+			<signature>var max_pitch_degrees: float = 80.0:</signature>
+			<description>最大俯仰角度。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="look_at_focus" decorators="@export">
+			<signature>var look_at_focus: bool = true</signature>
+			<description>是否让相机始终朝向焦点。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="orbit_up_axis" decorators="@export">
+			<signature>var orbit_up_axis: Vector3 = Vector3.UP</signature>
+			<description>环绕相机的上方向。为零向量时回退到 Vector3.UP。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="get_focus_position">
+			<signature>func get_focus_position() -&gt; Vector3:</signature>
+			<description>获取环绕焦点位置。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">当前焦点的全局位置。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_orbit_direction">
+			<signature>func get_orbit_direction() -&gt; Vector3:</signature>
+			<description>获取从焦点指向相机的单位方向。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">环绕方向。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_camera_transform">
+			<signature>func get_camera_transform() -&gt; Transform3D:</signature>
+			<description>获取当前期望相机 Transform。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">期望全局 Transform。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_orbit">
+			<signature>func set_orbit(new_yaw_degrees: float, new_pitch_degrees: float, new_distance: float) -&gt; void:</signature>
+			<description>设置环绕参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">new_yaw_degrees: 水平角度，单位度。</tag>
+				<tag name="param">new_pitch_degrees: 俯仰角度，单位度。</tag>
+				<tag name="param">new_distance: 与焦点的距离。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_orbit_delta">
+			<signature>func apply_orbit_delta(delta_degrees: Vector2) -&gt; void:</signature>
+			<description>应用环绕角度增量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta_degrees: x 为 yaw 增量，y 为 pitch 增量，单位度。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_zoom_delta">
+			<signature>func apply_zoom_delta(delta_distance: float) -&gt; void:</signature>
+			<description>应用距离增量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">delta_distance: 距离增量；正数拉远，负数拉近。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="clamp_orbit">
+			<signature>func clamp_orbit() -&gt; void:</signature>
+			<description>按当前上下限夹紧环绕参数。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_debug_snapshot">
+			<signature>func get_debug_snapshot() -&gt; Dictionary:</signature>
+			<description>获取环绕 Rig 调试快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">调试快照。</tag>
+				<tag name="schema">return: Dictionary，包含 yaw_degrees、pitch_degrees、distance、focus_position 和 direction。</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

@@ -11,7 +11,7 @@ notifications.notification_started.connect(func(notification: Dictionary) -> voi
 notifications.push_notification("配置已保存", "设置", GFNotificationUtility.Level.SUCCESS)
 ```
 
-`push_notification()` 可通过 `options` 设置 `duration_seconds`、去重 `key`、项目自定义 `metadata`、`priority`、`sticky` 和 `actions`；返回值是通知 ID，被重复抑制时会返回已有通知 ID。
+`push_notification()` 可通过 `options` 设置 `duration_seconds`、去重 `key`、项目自定义 `metadata`、`priority`、`sticky` 和 `actions`；返回值是通知 ID，被重复抑制时会返回已有通知 ID。通知 action 只要求稳定 `id`，`label` 不会由框架自动生成，项目 UI 可按本地化、图标或上下文自行映射。
 
 显式传入 `key` 时只按 key 去重；没有 key 时才按消息文本去重，因此不同业务上下文可以显示相同正文。`max_queue_size = 0` 表示只保留当前通知，不保留等待队列；等待队列会按优先级排序，容量不足时优先丢弃低优先级通知。`sticky = true` 的通知不会因时长自动结束，适合需要玩家确认或等待外部事件的提示。
 

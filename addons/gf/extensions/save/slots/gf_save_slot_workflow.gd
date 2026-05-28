@@ -1,6 +1,6 @@
 ## GFSaveSlotWorkflow: 通用存档槽工作流配置。
 ##
-## 负责把槽位索引、逻辑标识、元数据和 UI 卡片摘要串起来。
+## 负责把槽位索引、逻辑标识、元数据和槽位摘要 DTO 串起来。
 ## 不执行具体存取逻辑，也不写死任何游戏业务字段。
 ## [br]
 ## @api public
@@ -20,20 +20,20 @@ const _GF_SAVE_SLOT_METADATA_SCRIPT: Script = preload("res://addons/gf/extension
 
 # --- 导出变量 ---
 
-## 当前选中槽位索引。默认从 1 开始，贴近常见存档 UI。
+## 当前选中槽位索引。仅用于构建摘要时标记 active。
 ## [br]
 ## @api public
-@export var active_slot_index: int = 1
+@export var active_slot_index: int = 0
 
 ## 槽位标识模板，支持 {index} 占位符。
 ## [br]
 ## @api public
 @export var slot_id_template: String = "slot_{index}"
 
-## 空槽位展示名模板，支持 {index} 占位符。
+## 空槽位展示名模板，支持 {index} 占位符。默认为空，由项目按 UI 与本地化需要显式设置。
 ## [br]
 ## @api public
-@export var empty_display_name_template: String = "Slot {index}"
+@export var empty_display_name_template: String = ""
 
 ## 可替换的元数据资源脚本，项目层可继承 GFSaveSlotMetadata 扩展。
 ## [br]
@@ -171,7 +171,10 @@ func build_slot_metadata(
 ) -> GFSaveSlotMetadata:
 	var metadata := _new_metadata()
 	metadata.slot_id = get_slot_id_for_index(index)
-	metadata.display_name = display_name if not display_name.is_empty() else get_empty_display_name_for_index(index)
+	var resolved_display_name := display_name
+	if resolved_display_name.is_empty():
+		resolved_display_name = get_empty_display_name_for_index(index)
+	metadata.display_name = resolved_display_name
 	metadata.custom_metadata = custom_metadata.duplicate(true)
 	if slot_role != &"":
 		metadata.custom_metadata["slot_role"] = slot_role

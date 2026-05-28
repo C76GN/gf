@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFTouchButton" path="addons/gf/standard/input/touch/gf_touch_button.gd" module="standard" extends="Node2D" classDigest="6dd46aa339047b2e868a7a19f9ae0b828aebf13ef9467231937070dc14a22365">
+<class name="GFTouchButton" path="addons/gf/standard/input/touch/gf_touch_button.gd" module="standard" extends="Node2D" classDigest="245b65770050eec011699a1ced93000a6d8f0030335d59136e0543269c1b9859">
 	<description>GFTouchButton: 通用触屏虚拟按钮节点。
 可直接发送按下/释放信号，也可映射到 Godot InputMap 动作或虚拟手柄按钮事件。</description>
 	<tags>
@@ -48,8 +48,8 @@
 			</tags>
 		</member>
 		<member kind="property" name="accept_mouse_input" decorators="@export_group(&quot;Input&quot;) @export">
-			<signature>var accept_mouse_input: bool = true</signature>
-			<description>是否允许鼠标左键模拟触屏。</description>
+			<signature>var accept_mouse_input: bool = false</signature>
+			<description>是否允许鼠标左键模拟触屏。默认关闭，避免触屏控件在桌面端隐式接管鼠标输入。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>

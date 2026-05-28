@@ -12,4 +12,6 @@
 
 ## 使用边界
 
+`GFDirectoryWatchUtility` 与 `GFDirectoryChangeSet` 提供调用方驱动的目录快照差异检测，可用于编辑器工具或资产索引器判断何时刷新生成物。它只报告 created / modified / deleted 路径，不负责导入资源、保存注册表或调度后台任务。
+
 资源实例化、加载界面、导入规则、线程任务内容、业务对象创建和预热时机由项目层决定。需要场景切换时使用 `GFSceneUtility`；需要轻量远程文本或 JSON TTL 缓存时使用 `GFRemoteCacheUtility`；需要离线请求重放时使用 `GFRequestOutboxUtility`。

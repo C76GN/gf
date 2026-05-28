@@ -13,20 +13,20 @@ extends Resource
 
 # --- 导出变量 ---
 
-## 动作 ID。
+## 动作 ID。为空表示项目尚未声明具体动作。
 ## [br]
 ## @api public
-@export var action_id: StringName = &"ok"
+@export var action_id: StringName = &""
 
-## 显示文本。
+## 项目可选显示文本。
 ## [br]
 ## @api public
-@export var label: String = "OK"
+@export var label: String = ""
 
 ## 触发动作后产生的结果状态。
 ## [br]
 ## @api public
-@export var result_status: StringName = GFModalResult.STATUS_CONFIRMED
+@export var result_status: StringName = GFModalResult.STATUS_DISMISSED
 
 ## 动作携带的通用载荷。
 ## [br]

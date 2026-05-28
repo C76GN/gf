@@ -44,6 +44,16 @@ var include_recent_logs: bool = true
 ## @api public
 var recent_log_count: int = 12
 
+## 是否在 Overlay 中附加短期指标趋势面板。
+## [br]
+## @api public
+var include_metric_series_panel: bool = true
+
+## 指标趋势 sparkline 输出宽度。
+## [br]
+## @api public
+var metric_series_width: int = 32
+
 ## 是否只在 debug 构建中创建 Overlay GUI。发布构建需要显式关闭此项才会创建 GUI。
 ## [br]
 ## @api public
@@ -57,6 +67,7 @@ var _watches: Dictionary = {}
 var _watch_order_counter: int = 0
 var _panels: Dictionary = {}
 var _panel_order_counter: int = 0
+var _metric_series: Dictionary = {}
 
 
 # --- GF 生命周期方法 ---
@@ -99,6 +110,7 @@ func dispose() -> void:
 	_overlay_gui = null
 	clear_watches()
 	clear_panels()
+	clear_metric_series()
 
 
 # --- 公共方法 ---
@@ -371,8 +383,132 @@ func get_panel_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 	for entry: Dictionary in entries:
 		snapshot.append(_evaluate_panel_entry(entry))
 
+	if include_metric_series_panel:
+		_append_metric_series_panel(snapshot, include_hidden)
 	if include_recent_logs:
 		_append_recent_log_panel(snapshot, include_hidden)
+	return snapshot
+
+
+## 追加一个短期指标采样。
+## [br]
+## @api public
+## [br]
+## @param metric_id: 指标唯一标识。
+## [br]
+## @param value: 采样值。
+## [br]
+## @param options: 可选配置，支持 label、group、visible、max_samples、timestamp_seconds、metadata 和 sample_metadata。
+## [br]
+## @return 采样成功返回 true。
+## [br]
+## @schema options: Dictionary，支持 label、group、visible、max_samples、timestamp_seconds、metadata 和 sample_metadata。
+func record_metric_sample(metric_id: StringName, value: float, options: Dictionary = {}) -> bool:
+	var series := get_or_create_metric_series(metric_id, options)
+	if series == null:
+		return false
+
+	var sample_metadata: Dictionary = {}
+	var sample_metadata_value: Variant = options.get("sample_metadata", {})
+	if sample_metadata_value is Dictionary:
+		sample_metadata = (sample_metadata_value as Dictionary).duplicate(true)
+	series.add_sample(
+		value,
+		float(options.get("timestamp_seconds", -1.0)),
+		sample_metadata
+	)
+	return true
+
+
+## 获取或创建短期指标序列。
+## [br]
+## @api public
+## [br]
+## @param metric_id: 指标唯一标识。
+## [br]
+## @param options: 可选配置，支持 label、group、visible、max_samples 和 metadata。
+## [br]
+## @return 指标序列；metric_id 为空时返回 null。
+## [br]
+## @schema options: Dictionary，支持 label、group、visible、max_samples 和 metadata。
+func get_or_create_metric_series(metric_id: StringName, options: Dictionary = {}) -> GFMetricSeries:
+	if metric_id == &"":
+		return null
+
+	var series := _metric_series.get(metric_id) as GFMetricSeries
+	if series == null:
+		series = GFMetricSeries.new()
+		_metric_series[metric_id] = series
+	series.configure(metric_id, options)
+	return series
+
+
+## 注册一个外部维护的指标序列。
+## [br]
+## @api public
+## [br]
+## @param series: 指标序列。
+## [br]
+## @return 注册成功返回 true。
+func register_metric_series(series: GFMetricSeries) -> bool:
+	if series == null or series.id == &"":
+		return false
+	if series.label.is_empty():
+		series.label = String(series.id)
+	_metric_series[series.id] = series
+	return true
+
+
+## 移除一个指标序列。
+## [br]
+## @api public
+## [br]
+## @param metric_id: 指标唯一标识。
+func remove_metric_series(metric_id: StringName) -> void:
+	_metric_series.erase(metric_id)
+
+
+## 清空全部指标序列。
+## [br]
+## @api public
+func clear_metric_series() -> void:
+	_metric_series.clear()
+
+
+## 检查指标序列是否已注册。
+## [br]
+## @api public
+## [br]
+## @param metric_id: 指标唯一标识。
+## [br]
+## @return 已注册时返回 true。
+func has_metric_series(metric_id: StringName) -> bool:
+	return _metric_series.has(metric_id)
+
+
+## 读取当前指标序列快照。
+## [br]
+## @api public
+## [br]
+## @param include_hidden: 为 true 时同时返回 visible=false 的指标序列。
+## [br]
+## @return 指标序列快照数组。
+## [br]
+## @schema return: Array[Dictionary]，每个元素包含 id、label、group、visible、sample_count、latest_value、min_value、max_value、average_value、sparkline 和 metadata。
+func get_metric_series_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
+	var snapshot: Array[Dictionary] = []
+	for metric_id: StringName in _metric_series:
+		var series := _metric_series[metric_id] as GFMetricSeries
+		if series == null:
+			continue
+		if not include_hidden and not series.visible:
+			continue
+
+		var entry := series.to_dict(false)
+		entry["sparkline"] = series.make_sparkline(metric_series_width)
+		snapshot.append(entry)
+
+	snapshot.sort_custom(_sort_metric_series_entries)
 	return snapshot
 
 
@@ -382,16 +518,19 @@ func get_panel_snapshot(include_hidden: bool = false) -> Array[Dictionary]:
 ## [br]
 ## @return 调试快照。
 ## [br]
-## @schema return: Dictionary，包含 debug_only、watch_count、panel_count、include_diagnostics_monitors、include_recent_logs、recent_log_count、diagnostics_monitor_preset 和 gui 分区。
+## @schema return: Dictionary，包含 debug_only、watch_count、panel_count、metric_series_count、include_diagnostics_monitors、include_recent_logs、include_metric_series_panel、recent_log_count、metric_series_width、diagnostics_monitor_preset 和 gui 分区。
 func get_debug_snapshot() -> Dictionary:
 	var gui_created := is_instance_valid(_overlay_gui)
 	return {
 		"debug_only": debug_only,
 		"watch_count": _watches.size(),
 		"panel_count": _panels.size(),
+		"metric_series_count": _metric_series.size(),
 		"include_diagnostics_monitors": include_diagnostics_monitors,
 		"include_recent_logs": include_recent_logs,
+		"include_metric_series_panel": include_metric_series_panel,
 		"recent_log_count": recent_log_count,
+		"metric_series_width": metric_series_width,
 		"diagnostics_monitor_preset": diagnostics_monitor_preset,
 		"gui": {
 			"created": gui_created,
@@ -555,10 +694,51 @@ func _sort_panel_entries(left: Dictionary, right: Dictionary) -> bool:
 	return String(left.get("id", &"")) < String(right.get("id", &""))
 
 
+func _sort_metric_series_entries(left: Dictionary, right: Dictionary) -> bool:
+	var left_group := String(left.get("group", "Runtime"))
+	var right_group := String(right.get("group", "Runtime"))
+	if left_group != right_group:
+		return left_group < right_group
+	var left_label := String(left.get("label", String(left.get("id", &""))))
+	var right_label := String(right.get("label", String(right.get("id", &""))))
+	if left_label != right_label:
+		return left_label < right_label
+	return String(left.get("id", &"")) < String(right.get("id", &""))
+
+
 func _format_panel_content(value: Variant) -> String:
 	if value is Dictionary or value is Array:
 		return JSON.stringify(value, "\t")
 	return str(value)
+
+
+func _append_metric_series_panel(snapshot: Array[Dictionary], include_hidden: bool) -> void:
+	var metrics := get_metric_series_snapshot(include_hidden)
+	if metrics.is_empty():
+		return
+
+	var lines := PackedStringArray()
+	for metric: Dictionary in metrics:
+		lines.append("%s: latest=%s avg=%s min=%s max=%s %s" % [
+			String(metric.get("label", String(metric.get("id", "")))),
+			_format_metric_number(float(metric.get("latest_value", 0.0))),
+			_format_metric_number(float(metric.get("average_value", 0.0))),
+			_format_metric_number(float(metric.get("min_value", 0.0))),
+			_format_metric_number(float(metric.get("max_value", 0.0))),
+			String(metric.get("sparkline", "")),
+		])
+
+	snapshot.append({
+		"id": &"gf.metrics",
+		"label": "Metric Series",
+		"group": "Diagnostics",
+		"content": "\n".join(lines),
+		"valid": true,
+	})
+
+
+func _format_metric_number(value: float) -> String:
+	return "%.3f" % value
 
 
 func _append_recent_log_panel(snapshot: Array[Dictionary], include_hidden: bool) -> void:

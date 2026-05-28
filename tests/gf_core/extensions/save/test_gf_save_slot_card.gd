@@ -1,11 +1,11 @@
-## 测试 GFSaveSlotCard 从槽位摘要配置、状态文字与字典序列化。
+## 测试 GFSaveSlotCard 从槽位摘要配置、状态标识与字典序列化。
 extends GutTest
 
 
 func test_default_card_reports_empty_status() -> void:
 	var card := GFSaveSlotCard.new()
 	assert_true(card.is_empty, "新卡片预设为空槽。")
-	assert_eq(card.get_status_text(), "Empty", "空槽状态文字应为 Empty。")
+	assert_eq(card.get_status_id(), &"empty", "空槽状态标识应为 empty。")
 
 
 func test_configure_from_summary_sets_index_display_and_active() -> void:
@@ -21,7 +21,7 @@ func test_configure_from_summary_sets_index_display_and_active() -> void:
 	assert_false(card.is_empty, "已配置摘要后不应为空槽。")
 	assert_eq(card.display_name, "Save 2", "应从 metadata 读取显示名称。")
 	assert_eq(card.description, "Line1", "应从 metadata 读取描述。")
-	assert_eq(card.get_status_text(), "Active", "当前选中槽位状态应为 Active。")
+	assert_eq(card.get_status_id(), &"active", "当前选中槽位状态标识应为 active。")
 
 
 func test_parse_trailing_digits_from_slot_id_string() -> void:
@@ -33,20 +33,20 @@ func test_parse_trailing_digits_from_slot_id_string() -> void:
 	assert_eq(card.slot_index, 7, "slot_id 字符串末尾连续数字应解析为槽位索引。")
 
 
-func test_incompatible_card_status_text() -> void:
+func test_incompatible_card_status_id() -> void:
 	var summary := {
 		"slot_index": 0,
 		"is_compatible": false,
 		"metadata": {},
 	}
 	var card := GFSaveSlotCard.new().configure_from_slot_summary(summary)
-	assert_eq(card.get_status_text(), "Incompatible", "不兼容槽位应报告 Incompatible。")
+	assert_eq(card.get_status_id(), &"incompatible", "不兼容槽位应报告 incompatible。")
 
 
 func test_ready_status_when_not_active() -> void:
 	var summary := { "slot_index": 1, "is_compatible": true, "metadata": {} }
 	var card := GFSaveSlotCard.new().configure_from_slot_summary(summary, &"", 0)
-	assert_eq(card.get_status_text(), "Ready", "非当前选中且兼容时应为 Ready。")
+	assert_eq(card.get_status_id(), &"ready", "非当前选中且兼容时应为 ready。")
 
 
 func test_from_slot_summary_static_factory() -> void:
@@ -72,6 +72,7 @@ func test_to_dict_contains_core_fields() -> void:
 	assert_eq(d["is_empty"], false)
 	assert_eq(d["is_compatible"], true)
 	assert_eq(d["is_active"], false)
+	assert_eq(d["status_id"], &"ready")
 	assert_eq(d["modified_time"], 99)
 	assert_eq((d["metadata"] as Dictionary).get("k"), 1)
 	assert_eq((d["compatibility_errors"] as PackedStringArray).size(), 1)

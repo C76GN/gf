@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFPersistPropertiesSource" path="addons/gf/extensions/save/core/gf_persist_properties_source.gd" module="extensions/save" extends="GFSaveSource" classDigest="e242630d041b0b8692471c3787b94b3226fd06478e76d00775d59dff99fcf4d9">
+	<description>GFPersistPropertiesSource: 属性白名单存档 Source。
+以节点形式包装 `GFNodePropertySerializer`，让项目可以直接在场景树中声明
+需要保存的目标属性。它仍然使用 SaveGraph 的 Source/Serializer 协议，
+不引入独立存储格式。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">protocol</tag>
+		<tag name="since">3.23.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="properties" decorators="@export">
+			<signature>var properties: PackedStringArray = PackedStringArray()</signature>
+			<description>需要保存的目标节点属性名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="skip_missing_properties" decorators="@export">
+			<signature>var skip_missing_properties: bool = true</signature>
+			<description>应用数据时遇到缺失属性是否跳过。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods />
+	<innerClasses />
+</class>

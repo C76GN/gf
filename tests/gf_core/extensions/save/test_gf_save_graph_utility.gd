@@ -319,7 +319,7 @@ func test_save_slot_workflow_builds_metadata_and_card() -> void:
 	var card := workflow.build_card_for_index(2, summary)
 
 	assert_eq(metadata.slot_id, &"slot_2", "槽位元数据应按模板生成逻辑标识。")
-	assert_eq(metadata.display_name, "Slot 2", "槽位元数据应有通用兜底展示名。")
+	assert_eq(metadata.display_name, "", "槽位元数据默认不应生成 UI 展示名。")
 	assert_eq(metadata.custom_metadata.get("score"), 10, "槽位元数据应保留项目自定义字段。")
 	assert_eq(metadata.custom_metadata.get("slot_role"), &"manual", "槽位角色应写入自定义元数据。")
 	assert_false(card.is_empty, "已有摘要应生成非空卡片。")

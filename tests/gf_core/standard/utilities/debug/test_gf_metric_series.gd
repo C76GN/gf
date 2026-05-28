@@ -1,0 +1,60 @@
+extends GutTest
+
+
+func test_metric_series_keeps_bounded_samples_and_stats() -> void:
+	var series := GFMetricSeries.new()
+	series.configure(&"frame_time", {
+		"label": "Frame Time",
+		"group": "Runtime",
+		"max_samples": 3,
+	})
+
+	series.add_sample(10.0, 1.0)
+	series.add_sample(20.0, 2.0)
+	series.add_sample(30.0, 3.0)
+	series.add_sample(40.0, 4.0)
+
+	assert_eq(series.get_sample_count(), 3, "序列应只保留 max_samples 条采样。")
+	assert_almost_eq(series.get_min_value(), 20.0, 0.001, "最小值应来自保留采样。")
+	assert_almost_eq(series.get_max_value(), 40.0, 0.001, "最大值应来自保留采样。")
+	assert_almost_eq(series.get_average_value(), 30.0, 0.001, "平均值应来自保留采样。")
+	assert_eq(series.make_sparkline(3).length(), 3, "sparkline 应按宽度输出。")
+
+
+func test_debug_overlay_records_metric_series_panel() -> void:
+	var overlay := GFDebugOverlayUtility.new()
+	overlay.include_diagnostics_monitors = false
+	overlay.include_recent_logs = false
+	overlay.metric_series_width = 4
+
+	assert_true(overlay.record_metric_sample(&"fps", 58.0, {
+		"label": "FPS",
+		"group": "Runtime",
+		"timestamp_seconds": 1.0,
+	}), "有效指标采样应能注册。")
+	assert_true(overlay.record_metric_sample(&"fps", 60.0, {
+		"timestamp_seconds": 2.0,
+	}), "同一指标应追加采样。")
+
+	var metrics := overlay.get_metric_series_snapshot()
+	assert_eq(metrics.size(), 1, "应返回一个指标序列快照。")
+	assert_eq(metrics[0]["label"], "FPS", "快照应保留指标标签。")
+	assert_eq(int(metrics[0]["sample_count"]), 2, "快照应包含采样数量。")
+
+	var panels := overlay.get_panel_snapshot()
+	assert_eq(panels.size(), 1, "Overlay 应生成指标面板。")
+	assert_true(String(panels[0]["content"]).contains("FPS"), "指标面板应包含指标标签。")
+	assert_true(String(panels[0]["content"]).contains("latest=60.000"), "指标面板应包含最新值。")
+
+
+func test_hidden_metric_series_is_filtered_by_default() -> void:
+	var overlay := GFDebugOverlayUtility.new()
+	overlay.include_diagnostics_monitors = false
+	overlay.include_recent_logs = false
+
+	assert_true(overlay.record_metric_sample(&"hidden", 1.0, {
+		"visible": false,
+	}), "隐藏指标仍应能采样。")
+
+	assert_eq(overlay.get_metric_series_snapshot().size(), 0, "默认快照不应包含隐藏指标。")
+	assert_eq(overlay.get_metric_series_snapshot(true).size(), 1, "include_hidden 时应包含隐藏指标。")
