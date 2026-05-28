@@ -1,6 +1,8 @@
 # Godot Asset Library Submission Notes
 
-This file is maintainer-facing metadata for Godot Asset Library submissions. Godot does not read this file at runtime; keep it updated so future version bumps and release work can update the submission form consistently.
+This file is maintainer-facing metadata for legacy Godot Asset Library submissions. Godot does not read this file at runtime; keep it updated so future version bumps and release work can update the submission form consistently.
+
+For the new Godot Asset Store website, use `ASSET_STORE.md`.
 
 This repository is prepared for Godot Asset Library submission with a focused installable payload:
 
@@ -25,9 +27,9 @@ Enable the plugin to register the Gf AutoLoad and use the editor tools for exten
 - Repository URL: `https://github.com/C76GN/gf-framework`
 - Issues URL: `https://github.com/C76GN/gf-framework/issues`
 - Minimum Godot Version: `4.6`
-- Asset Version: `3.20.0`
-- Download Commit/URL: `3.20.0`
-- Icon URL: `https://raw.githubusercontent.com/C76GN/gf-framework/3.20.0/addons/gf/icon.png`
+- Asset Version: `3.21.0`
+- Download Commit/URL: `3.21.0`
+- Icon URL: `https://raw.githubusercontent.com/C76GN/gf-framework/3.21.0/addons/gf/icon.png`
 
 ## Short Description
 
@@ -54,7 +56,8 @@ No preview images are currently pinned. If previews are added, store their sourc
 3. Use the icon raw URL with that same commit hash.
 4. Verify the generated archive only contains the installable plugin payload.
 5. Run the GUT test suite on the target minimum Godot version.
-6. Create the GitHub Release from a no-prefix SemVer tag such as `3.20.0`.
+6. Run `python tools\gf_maintenance.py release-status --version 3.21.0`.
+7. Create the GitHub Release from a no-prefix SemVer tag such as `3.21.0`.
 
 ## Version Bump Checklist
 
@@ -62,6 +65,7 @@ When the asset version changes, update these locations together:
 
 1. `addons/gf/plugin.cfg`
 2. `ASSET_LIBRARY.md`
-3. `docs/zh/changelog.md`
-4. The Godot Asset Library `Download Commit/URL` after the release tag is pushed.
-5. The Godot Asset Library `Icon URL` so it uses the same release tag.
+3. `ASSET_STORE.md`
+4. `docs/zh/changelog.md`
+5. The Godot Asset Library `Download Commit/URL` after the release tag is pushed.
+6. The Godot Asset Library `Icon URL` so it uses the same release tag.

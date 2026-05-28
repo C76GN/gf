@@ -84,6 +84,7 @@ Module: `standard`
 - [`GFGridOccupancy`](#gfgridoccupancy)
 - [`GFGridPlaneMapper3D`](#gfgridplanemapper3d)
 - [`GFGridSelection2D`](#gfgridselection2d)
+- [`GFGridTransform2D`](#gfgridtransform2d)
 - [`GFHexGridMath`](#gfhexgridmath)
 - [`GFHttpRequestBuilder`](#gfhttprequestbuilder)
 - [`GFHttpResponse`](#gfhttpresponse)
@@ -132,6 +133,7 @@ Module: `standard`
 - [`GFJobQueueUtility`](#gfjobqueueutility)
 - [`GFJobWorker`](#gfjobworker)
 - [`GFJsonLineLogSink`](#gfjsonlinelogsink)
+- [`GFLayerMaskUtility`](#gflayermaskutility)
 - [`GFLogSink`](#gflogsink)
 - [`GFLogUtility`](#gflogutility)
 - [`GFModalAction`](#gfmodalaction)
@@ -163,6 +165,8 @@ Module: `standard`
 - [`GFReplayTimeline`](#gfreplaytimeline)
 - [`GFRequestEnvelope`](#gfrequestenvelope)
 - [`GFRequestOutboxUtility`](#gfrequestoutboxutility)
+- [`GFResourceRegistry`](#gfresourceregistry)
+- [`GFResourceRegistryEntry`](#gfresourceregistryentry)
 - [`GFResultDictionary`](#gfresultdictionary)
 - [`GFRichTextFormatter`](#gfrichtextformatter)
 - [`GFRuntimeInspectorUtility`](#gfruntimeinspectorutility)
@@ -2100,6 +2104,95 @@ Parameters:
 | `_volume_linear` | 线性音量。 |
 
 Returns: 已处理返回 true。
+
+#### `set_bus_volume_db`
+
+- API: `public`
+
+```gdscript
+func set_bus_volume_db(_bus_name: String, _volume_db: float, _transition_seconds: float = 0.0) -> bool:
+```
+
+设置总线 dB 音量。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `_bus_name` | 总线名或后端通道名。 |
+| `_volume_db` | dB 音量。 |
+| `_transition_seconds` | 平滑过渡秒数。 |
+
+Returns: 已处理返回 true。
+
+#### `set_bus_mute`
+
+- API: `public`
+
+```gdscript
+func set_bus_mute(_bus_name: String, _muted: bool) -> bool:
+```
+
+设置总线静音状态。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `_bus_name` | 总线名或后端通道名。 |
+| `_muted` | 是否静音。 |
+
+Returns: 已处理返回 true。
+
+#### `set_bus_effect_property`
+
+- API: `public`
+
+```gdscript
+func set_bus_effect_property( _bus_name: String, _effect_ref: Variant, _property_name: StringName, _value: Variant, _transition_seconds: float = 0.0 ) -> bool:
+```
+
+设置总线效果属性。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `_bus_name` | 总线名或后端通道名。 |
+| `_effect_ref` | 效果索引、名称或后端自定义效果引用。 |
+| `_property_name` | 效果属性名。 |
+| `_value` | 属性值。 |
+| `_transition_seconds` | 平滑过渡秒数。 |
+
+Returns: 已处理返回 true。
+
+Schemas:
+
+- `_effect_ref`: int/String/StringName 或后端自定义引用。
+- `_value`: 属性值 Variant；键和值由后端或 GFAudioUtility 约定。
+
+#### `apply_mix_snapshot`
+
+- API: `public`
+
+```gdscript
+func apply_mix_snapshot(_snapshot: Dictionary, _transition_seconds: float = 0.0) -> bool:
+```
+
+应用混音快照。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `_snapshot` | 混音快照。 |
+| `_transition_seconds` | 默认平滑过渡秒数。 |
+
+Returns: 已处理返回 true。
+
+Schemas:
+
+- `_snapshot`: Dictionary，可包含 buses 和 effects 字段，或后端自定义字段。
 
 #### `get_bus_volume`
 
@@ -4231,6 +4324,16 @@ const SFX_BUS_NAME: String = "SFX"
 
 默认 SFX 音频总线名。
 
+#### `SILENCE_VOLUME_DB`
+
+- API: `public`
+
+```gdscript
+const SILENCE_VOLUME_DB: float = -80.0
+```
+
+GF 默认视为静音下限的 dB 值。
+
 ### Properties
 
 #### `max_sfx_players`
@@ -5199,6 +5302,177 @@ Parameters:
 
 Returns: 控制句柄；通道不存在时返回 null。
 
+#### `set_bus_volume_db`
+
+- API: `public`
+
+```gdscript
+func set_bus_volume_db(bus_name: String, volume_db: float, transition_seconds: float = 0.0) -> bool:
+```
+
+设置音频总线 dB 音量。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `bus_name` | 总线名称，如 "Master", "BGM", "SFX"。 |
+| `volume_db` | 目标 dB 音量；小于等于 SILENCE_VOLUME_DB 时会静音该总线。 |
+| `transition_seconds` | 平滑过渡秒数；小于等于 0 时立即应用。 |
+
+Returns: 成功应用或已交给后端处理时返回 true。
+
+#### `get_bus_volume_db`
+
+- API: `public`
+
+```gdscript
+func get_bus_volume_db(bus_name: String) -> float:
+```
+
+获取音频总线 dB 音量。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `bus_name` | 总线名称。 |
+
+Returns: dB 音量；总线不存在时返回 SILENCE_VOLUME_DB。
+
+#### `set_bus_mute`
+
+- API: `public`
+
+```gdscript
+func set_bus_mute(bus_name: String, muted: bool) -> bool:
+```
+
+设置音频总线静音状态。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `bus_name` | 总线名称。 |
+| `muted` | 是否静音。 |
+
+Returns: 成功应用或已交给后端处理时返回 true。
+
+#### `set_bus_effect_property`
+
+- API: `public`
+
+```gdscript
+func set_bus_effect_property( bus_name: String, effect_ref: Variant, property_name: StringName, value: Variant, transition_seconds: float = 0.0 ) -> bool:
+```
+
+设置音频总线效果属性。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `bus_name` | 总线名称。 |
+| `effect_ref` | 效果索引、resource_name、类名或类名片段。 |
+| `property_name` | 要写入的效果属性名。 |
+| `value` | 目标属性值。 |
+| `transition_seconds` | 平滑过渡秒数；小于等于 0 时立即应用。 |
+
+Returns: 成功应用或已交给后端处理时返回 true。
+
+Schemas:
+
+- `effect_ref`: int 表示效果索引；String/StringName 会匹配效果 resource_name、get_class() 或类名片段。
+- `value`: 目标属性值；数值属性可按 transition_seconds 平滑过渡，其他类型会立即应用。
+
+#### `capture_mix_snapshot`
+
+- API: `public`
+
+```gdscript
+func capture_mix_snapshot(bus_names: PackedStringArray = PackedStringArray()) -> Dictionary:
+```
+
+捕获当前总线混音快照。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `bus_names` | 要捕获的总线名；为空时捕获全部 Godot 总线。 |
+
+Returns: 混音快照。
+
+Schemas:
+
+- `return`: Dictionary，包含 buses 字典；每个总线条目包含 volume_db、volume_linear 和 muted。
+
+#### `apply_mix_snapshot`
+
+- API: `public`
+
+```gdscript
+func apply_mix_snapshot(snapshot: Dictionary, transition_seconds: float = 0.0) -> Dictionary:
+```
+
+应用混音快照。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `snapshot` | 混音快照。 |
+| `transition_seconds` | 默认平滑过渡秒数；单个效果条目可覆盖。 |
+
+Returns: 应用报告。
+
+Schemas:
+
+- `snapshot`: Dictionary，可包含 buses 字典和 effects 数组；buses 条目支持 volume_db、volume_linear、muted，effects 条目支持 bus、effect、property、value、transition_seconds。
+- `return`: Dictionary，包含 ok、applied、failed 和 warnings 字段。
+
+#### `duck_bus`
+
+- API: `public`
+
+```gdscript
+func duck_bus( bus_name: String = BGM_BUS_NAME, amount: float = 0.5, transition_seconds: float = 0.25, duck_id: StringName = &"default" ) -> bool:
+```
+
+按比例压低总线音量，并记住恢复基准。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `bus_name` | 总线名称。 |
+| `amount` | 压低强度，0.0 不变化，1.0 最多压低 18 dB。 |
+| `transition_seconds` | 平滑过渡秒数。 |
+| `duck_id` | 同一总线上的压低作用域标识。 |
+
+Returns: 成功应用时返回 true。
+
+#### `restore_ducked_bus`
+
+- API: `public`
+
+```gdscript
+func restore_ducked_bus( bus_name: String = BGM_BUS_NAME, transition_seconds: float = 0.25, duck_id: StringName = &"default" ) -> bool:
+```
+
+恢复被 duck_bus() 压低的总线。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `bus_name` | 总线名称。 |
+| `transition_seconds` | 平滑过渡秒数。 |
+| `duck_id` | 同一总线上的压低作用域标识。 |
+
+Returns: 找到恢复基准并开始恢复时返回 true。
+
 #### `set_bus_volume`
 
 - API: `public`
@@ -5248,7 +5522,7 @@ Returns: 调试快照。
 
 Schemas:
 
-- `return`: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels 和 audio_bank_count 字段。
+- `return`: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels、audio_bank_count、ducked_bus_count 和 active_mix_tween_count 字段。
 
 ## GFBackgroundWorkTask
 
@@ -12219,6 +12493,35 @@ Parameters:
 
 Returns: 绘制命令 id。
 
+#### `draw_vector_2d`
+
+- API: `public`
+
+```gdscript
+func draw_vector_2d( origin: Vector2, vector: Vector2, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &"default", width: float = 1.0, options: Dictionary = {} ) -> Array[int]:
+```
+
+绘制 2D 向量。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `origin` | 向量起点，centered 选项启用时表示中心点。 |
+| `vector` | 要绘制的向量。 |
+| `color` | 主向量颜色。 |
+| `lifetime_seconds` | 调试绘制命令保留时间（秒）。 |
+| `channel` | 调试绘制频道。 |
+| `width` | 绘制线宽。 |
+| `options` | 绘制选项。 |
+
+Returns: 绘制命令 id 列表。
+
+Schemas:
+
+- `options`: Dictionary，支持 scale、length_mode、max_length、centered、draw_components、arrowhead、arrowhead_size、x_color、y_color。
+- `return`: Array[int]，包含主线、可选分量线和可选箭头线的命令 id。
+
 #### `draw_rect_2d`
 
 - API: `public`
@@ -12311,6 +12614,35 @@ Parameters:
 | `width` | 绘制线宽。 |
 
 Returns: 绘制命令 id。
+
+#### `draw_vector_3d`
+
+- API: `public`
+
+```gdscript
+func draw_vector_3d( origin: Vector3, vector: Vector3, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &"default", width: float = 1.0, options: Dictionary = {} ) -> Array[int]:
+```
+
+绘制 3D 向量。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `origin` | 向量起点，centered 选项启用时表示中心点。 |
+| `vector` | 要绘制的向量。 |
+| `color` | 主向量颜色。 |
+| `lifetime_seconds` | 调试绘制命令保留时间（秒）。 |
+| `channel` | 调试绘制频道。 |
+| `width` | 绘制线宽。 |
+| `options` | 绘制选项。 |
+
+Returns: 绘制命令 id 列表。
+
+Schemas:
+
+- `options`: Dictionary，支持 scale、length_mode、max_length、centered、draw_components、x_color、y_color、z_color。
+- `return`: Array[int]，包含主线和可选分量线的命令 id。
 
 #### `draw_box_3d`
 
@@ -18606,6 +18938,218 @@ Returns: 会被选择时返回 true。
 Schemas:
 
 - `context`: Dictionary project-defined selection context.
+
+## GFGridTransform2D
+
+- Path: `addons/gf/standard/foundation/math/gf_grid_transform_2d.gd`
+- Extends: `RefCounted`
+- API: `public`
+- Category: `runtime_service`
+- Since: `3.21.0`
+
+GFGridTransform2D: 2D 矩形网格坐标变换工具。 提供旋转、镜像和对角翻转的纯坐标映射，可用于格子模板、画刷、 房间蓝图、棋盘片段或编辑器工具。它只处理 Vector2i / Vector2 坐标， 不绑定 TileMapLayer、TileSet、渲染、碰撞或项目业务语义。
+
+### Enums
+
+#### `Transform`
+
+- API: `public`
+
+```gdscript
+enum Transform { ## 不变换。 IDENTITY, ## 顺时针旋转 90 度。 ROTATE_90, ## 旋转 180 度。 ROTATE_180, ## 顺时针旋转 270 度。 ROTATE_270, ## 沿 X 轴方向镜像，即左右翻转。 MIRROR_X, ## 沿 Y 轴方向镜像，即上下翻转。 MIRROR_Y, ## 沿左上到右下对角线翻转。 DIAGONAL_MAIN, ## 沿右上到左下对角线翻转。 DIAGONAL_ANTI, }
+```
+
+2D 矩形局部空间中的离散变换。
+
+### Constants
+
+#### `INVALID_TRANSFORM`
+
+- API: `public`
+
+```gdscript
+const INVALID_TRANSFORM: int = -1
+```
+
+无效变换哨兵值。
+
+### Methods
+
+#### `is_transform_valid`
+
+- API: `public`
+
+```gdscript
+static func is_transform_valid(transform: int) -> bool:
+```
+
+判断变换编号是否有效。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `transform` | Transform 枚举值。 |
+
+Returns: 有效时返回 true。
+
+#### `is_axis_swapped`
+
+- API: `public`
+
+```gdscript
+static func is_axis_swapped(transform: int) -> bool:
+```
+
+判断变换后宽高轴是否互换。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `transform` | Transform 枚举值。 |
+
+Returns: 旋转 90/270 或对角翻转时返回 true。
+
+#### `get_transformed_size`
+
+- API: `public`
+
+```gdscript
+static func get_transformed_size(size: Vector2i, transform: int) -> Vector2i:
+```
+
+获取变换后的矩形尺寸。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `size` | 原始矩形尺寸。 |
+| `transform` | Transform 枚举值。 |
+
+Returns: 变换后的尺寸；无效尺寸时返回 Vector2i.ZERO。
+
+#### `get_inverse_transform`
+
+- API: `public`
+
+```gdscript
+static func get_inverse_transform(transform: int) -> int:
+```
+
+获取逆变换。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `transform` | Transform 枚举值。 |
+
+Returns: 对应逆变换；无效输入返回 INVALID_TRANSFORM。
+
+#### `transform_local_cell`
+
+- API: `public`
+
+```gdscript
+static func transform_local_cell(cell: Vector2i, source_size: Vector2i, transform: int) -> Vector2i:
+```
+
+变换局部格坐标。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `cell` | 原始局部格坐标，通常位于 `[0, size)`。 |
+| `source_size` | 原始矩形尺寸。 |
+| `transform` | Transform 枚举值。 |
+
+Returns: 变换后的局部格坐标。
+
+#### `transform_cell`
+
+- API: `public`
+
+```gdscript
+static func transform_cell( cell: Vector2i, source_rect: Rect2i, transform: int, target_origin: Vector2i = Vector2i.ZERO ) -> Vector2i:
+```
+
+变换矩形内的全局格坐标。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `cell` | 原始格坐标。 |
+| `source_rect` | 原始矩形范围。 |
+| `transform` | Transform 枚举值。 |
+| `target_origin` | 变换后矩形的目标起点。 |
+
+Returns: 变换后的格坐标。
+
+#### `transform_cells`
+
+- API: `public`
+
+```gdscript
+static func transform_cells( cells: Array[Vector2i], source_rect: Rect2i, transform: int, target_origin: Vector2i = Vector2i.ZERO ) -> Array[Vector2i]:
+```
+
+批量变换矩形内的全局格坐标。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `cells` | 原始格坐标列表。 |
+| `source_rect` | 原始矩形范围。 |
+| `transform` | Transform 枚举值。 |
+| `target_origin` | 变换后矩形的目标起点。 |
+
+Returns: 变换后的格坐标列表，顺序与输入一致。
+
+#### `transform_local_point`
+
+- API: `public`
+
+```gdscript
+static func transform_local_point(point: Vector2, source_size: Vector2, transform: int) -> Vector2:
+```
+
+变换局部连续坐标。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `point` | 原始局部坐标，通常位于 `[0, size]`。 |
+| `source_size` | 原始矩形尺寸。 |
+| `transform` | Transform 枚举值。 |
+
+Returns: 变换后的局部坐标。
+
+#### `transform_point`
+
+- API: `public`
+
+```gdscript
+static func transform_point( point: Vector2, source_rect: Rect2, transform: int, target_origin: Vector2 = Vector2.ZERO ) -> Vector2:
+```
+
+变换矩形内的全局连续坐标。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `point` | 原始坐标。 |
+| `source_rect` | 原始矩形范围。 |
+| `transform` | Transform 枚举值。 |
+| `target_origin` | 变换后矩形的目标起点。 |
+
+Returns: 变换后的坐标。
 
 ## GFHexGridMath
 
@@ -27304,6 +27848,194 @@ func get_file_path() -> String:
 获取当前实际输出路径。
 
 Returns: JSONL 文件路径。
+
+## GFLayerMaskUtility
+
+- Path: `addons/gf/standard/foundation/math/gf_layer_mask_utility.gd`
+- Extends: `RefCounted`
+- API: `public`
+- Category: `runtime_service`
+- Since: `3.21.0`
+
+GFLayerMaskUtility: 层名与 bitmask 互转工具。 提供通用层名数组到整数 bitmask 的稳定转换，也可读取 Godot 项目的 2D / 3D Physics Layer Names。它只处理名称、索引和整数掩码， 不写入节点属性，也不绑定具体碰撞、射线、阵营或玩法语义。
+
+### Constants
+
+#### `DEFAULT_LAYER_COUNT`
+
+- API: `public`
+
+```gdscript
+const DEFAULT_LAYER_COUNT: int = 32
+```
+
+Godot 物理层 bitmask 的默认层数量。
+
+#### `INVALID_LAYER_INDEX`
+
+- API: `public`
+
+```gdscript
+const INVALID_LAYER_INDEX: int = -1
+```
+
+无效层索引哨兵值。
+
+### Methods
+
+#### `names_to_mask`
+
+- API: `public`
+
+```gdscript
+static func names_to_mask(names: Array, layer_names: Array, case_sensitive: bool = true) -> int:
+```
+
+将层名列表转换为 bitmask。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `names` | 要启用的层名列表。 |
+| `layer_names` | 按层索引排列的层名表；索引 0 对应第 1 层。 |
+| `case_sensitive` | 是否区分大小写。 |
+
+Returns: 对应 bitmask；未知名称会被忽略。
+
+Schemas:
+
+- `names`: Array of String or StringName layer names.
+- `layer_names`: Array of String or StringName layer names ordered by layer index.
+
+#### `mask_to_names`
+
+- API: `public`
+
+```gdscript
+static func mask_to_names(mask: int, layer_names: Array, include_unnamed: bool = false) -> PackedStringArray:
+```
+
+将 bitmask 转换为层名列表。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `mask` | 要解析的 bitmask。 |
+| `layer_names` | 按层索引排列的层名表；索引 0 对应第 1 层。 |
+| `include_unnamed` | 是否为未命名但启用的层返回默认名称。 |
+
+Returns: 按层索引排序的层名列表。
+
+Schemas:
+
+- `layer_names`: Array of String or StringName layer names ordered by layer index.
+
+#### `find_layer_index`
+
+- API: `public`
+
+```gdscript
+static func find_layer_index(layer_name: String, layer_names: Array, case_sensitive: bool = true) -> int:
+```
+
+查找层名对应的零基索引。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `layer_name` | 要查找的层名。 |
+| `layer_names` | 按层索引排列的层名表；索引 0 对应第 1 层。 |
+| `case_sensitive` | 是否区分大小写。 |
+
+Returns: 找到时返回零基索引；否则返回 INVALID_LAYER_INDEX。
+
+Schemas:
+
+- `layer_names`: Array of String or StringName layer names ordered by layer index.
+
+#### `layer_index_to_mask`
+
+- API: `public`
+
+```gdscript
+static func layer_index_to_mask(layer_index: int) -> int:
+```
+
+将零基层索引转换为单层 bitmask。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `layer_index` | 零基层索引。 |
+
+Returns: 对应单层 bitmask；无效索引返回 0。
+
+#### `is_layer_index_valid`
+
+- API: `public`
+
+```gdscript
+static func is_layer_index_valid(layer_index: int, layer_count: int = DEFAULT_LAYER_COUNT) -> bool:
+```
+
+判断零基层索引是否在有效范围内。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `layer_index` | 零基层索引。 |
+| `layer_count` | 可用层数量，上限为 DEFAULT_LAYER_COUNT。 |
+
+Returns: 有效时返回 true。
+
+#### `get_missing_names`
+
+- API: `public`
+
+```gdscript
+static func get_missing_names(names: Array, layer_names: Array, case_sensitive: bool = true) -> PackedStringArray:
+```
+
+获取输入层名中无法解析的名称。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `names` | 要检查的层名列表。 |
+| `layer_names` | 按层索引排列的层名表；索引 0 对应第 1 层。 |
+| `case_sensitive` | 是否区分大小写。 |
+
+Returns: 未找到的层名列表，按首次出现顺序去重。
+
+Schemas:
+
+- `names`: Array of String or StringName layer names.
+- `layer_names`: Array of String or StringName layer names ordered by layer index.
+
+#### `get_project_physics_layer_names`
+
+- API: `public`
+
+```gdscript
+static func get_project_physics_layer_names( dimension: int = 2, fallback_to_default_names: bool = false ) -> PackedStringArray:
+```
+
+读取项目的 2D 或 3D 物理层名称。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `dimension` | 物理维度，只支持 2 或 3。 |
+| `fallback_to_default_names` | 未命名层是否返回 `Layer N`。 |
+
+Returns: 长度为 DEFAULT_LAYER_COUNT 的层名列表；维度无效时返回空列表。
 
 ## GFLogSink
 
@@ -36096,6 +36828,566 @@ Returns: 调试快照。
 Schemas:
 
 - `return`: Dictionary，包含存储设置、队列计数、传输可用性和请求 ID 列表。
+
+## GFResourceRegistry
+
+- Path: `addons/gf/standard/utilities/assets/gf_resource_registry.gd`
+- Extends: `Resource`
+- API: `public`
+- Category: `resource_definition`
+- Since: `3.21.0`
+
+GFResourceRegistry: 通用资源注册表。 通过稳定 ID 管理资源路径、类型提示和字段索引，便于项目用统一方式查询、 预加载或加载资源定义。注册表只描述资源位置和通用字段，不规定物品、技能、 关卡、UI 或其他业务规则。
+
+### Properties
+
+#### `entries`
+
+- API: `public`
+
+```gdscript
+var entries: Array[Resource] = []
+```
+
+注册表条目列表。重复 ID 会以后出现的有效条目为准。
+
+Schemas:
+
+- `entries`: Array[GFResourceRegistryEntry] resource registry entries.
+
+### Methods
+
+#### `set_entry`
+
+- API: `public`
+
+```gdscript
+func set_entry(entry: Resource) -> bool:
+```
+
+添加或替换条目。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry` | 要写入的注册表条目。 |
+
+Returns: 写入成功返回 true。
+
+#### `remove_entry`
+
+- API: `public`
+
+```gdscript
+func remove_entry(entry_id: StringName) -> bool:
+```
+
+移除条目。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+
+Returns: 移除成功返回 true。
+
+#### `clear`
+
+- API: `public`
+
+```gdscript
+func clear() -> void:
+```
+
+清空注册表。
+
+#### `mark_index_dirty`
+
+- API: `public`
+
+```gdscript
+func mark_index_dirty() -> void:
+```
+
+标记运行时索引需要重建。 直接修改 entries 数组或条目字段后，应调用本方法。
+
+#### `rebuild_index`
+
+- API: `public`
+
+```gdscript
+func rebuild_index() -> void:
+```
+
+立即重建运行时索引。
+
+#### `has_entry`
+
+- API: `public`
+
+```gdscript
+func has_entry(entry_id: StringName) -> bool:
+```
+
+检查条目是否存在。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+
+Returns: 条目存在时返回 true。
+
+#### `get_entry`
+
+- API: `public`
+
+```gdscript
+func get_entry(entry_id: StringName) -> Resource:
+```
+
+获取条目副本。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+
+Returns: 条目副本；不存在时返回 null。
+
+#### `get_entry_path`
+
+- API: `public`
+
+```gdscript
+func get_entry_path(entry_id: StringName) -> String:
+```
+
+获取条目资源路径。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+
+Returns: 资源路径；不存在时返回空字符串。
+
+#### `get_entry_type_hint`
+
+- API: `public`
+
+```gdscript
+func get_entry_type_hint(entry_id: StringName) -> String:
+```
+
+获取条目类型提示。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+
+Returns: 类型提示；不存在时返回空字符串。
+
+#### `get_entry_fields`
+
+- API: `public`
+
+```gdscript
+func get_entry_fields(entry_id: StringName) -> Dictionary:
+```
+
+获取条目字段副本。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+
+Returns: 字段字典副本。
+
+Schemas:
+
+- `return`: Dictionary indexed field values.
+
+#### `get_all_ids`
+
+- API: `public`
+
+```gdscript
+func get_all_ids() -> PackedStringArray:
+```
+
+获取全部有效条目 ID。
+
+Returns: 排序后的条目 ID 列表。
+
+#### `get_all_paths`
+
+- API: `public`
+
+```gdscript
+func get_all_paths() -> PackedStringArray:
+```
+
+获取全部有效资源路径。
+
+Returns: 排序后的资源路径列表。
+
+#### `query`
+
+- API: `public`
+
+```gdscript
+func query(field_id: StringName, field_value: Variant) -> PackedStringArray:
+```
+
+按单个字段值查询条目 ID。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `field_id` | 字段标识。 |
+| `field_value` | 字段值。 |
+
+Returns: 匹配的条目 ID。
+
+Schemas:
+
+- `field_value`: Variant indexed field value.
+
+#### `query_many`
+
+- API: `public`
+
+```gdscript
+func query_many(criteria: Dictionary, match_all: bool = true) -> PackedStringArray:
+```
+
+按多个字段查询条目 ID。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `criteria` | 字段到值的查询条件。 |
+| `match_all` | true 表示交集查询，false 表示并集查询。 |
+
+Returns: 匹配的条目 ID。
+
+Schemas:
+
+- `criteria`: Dictionary from field id to query value.
+
+#### `load_entry`
+
+- API: `public`
+
+```gdscript
+func load_entry( entry_id: StringName, type_hint_override: String = "", cache_mode: int = ResourceLoader.CACHE_MODE_REUSE ) -> Resource:
+```
+
+同步加载条目资源。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+| `type_hint_override` | 可选类型提示覆盖；为空时使用条目自己的 type_hint。 |
+| `cache_mode` | ResourceLoader 缓存模式。 |
+
+Returns: 加载到的资源；不存在或加载失败时返回 null。
+
+#### `request_entry_async`
+
+- API: `public`
+
+```gdscript
+func request_entry_async( asset_utility: GFAssetUtility, entry_id: StringName, on_loaded: Callable, type_hint_override: String = "" ) -> void:
+```
+
+通过 GFAssetUtility 异步加载条目资源。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `asset_utility` | 资源加载工具。 |
+| `entry_id` | 条目稳定 ID。 |
+| `on_loaded` | 加载完成回调，签名为 func(resource: Resource)。 |
+| `type_hint_override` | 可选类型提示覆盖；为空时使用条目自己的 type_hint。 |
+
+#### `request_entry_handle_async`
+
+- API: `public`
+
+```gdscript
+func request_entry_handle_async( asset_utility: GFAssetUtility, entry_id: StringName, on_loaded: Callable, owner: Object = null, group_id: StringName = &"", type_hint_override: String = "" ) -> void:
+```
+
+通过 GFAssetUtility 异步加载条目资源并返回所有权句柄。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `asset_utility` | 资源加载工具。 |
+| `entry_id` | 条目稳定 ID。 |
+| `on_loaded` | 加载完成回调，签名为 func(handle: GFAssetHandle)。 |
+| `owner` | 可选拥有者。 |
+| `group_id` | 可选资源分组。 |
+| `type_hint_override` | 可选类型提示覆盖；为空时使用条目自己的 type_hint。 |
+
+#### `make_asset_group_entries`
+
+- API: `public`
+
+```gdscript
+func make_asset_group_entries(entry_ids: PackedStringArray = PackedStringArray()) -> Array:
+```
+
+构建可传给 GFAssetUtility.preload_group_async() 的资源请求列表。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_ids` | 要导出的条目 ID；为空时导出全部有效条目。 |
+
+Returns: 资源请求列表。
+
+Schemas:
+
+- `entry_ids`: PackedStringArray selected entry ids.
+- `return`: Array[Dictionary] where each item contains path and type_hint.
+
+#### `get_debug_snapshot`
+
+- API: `public`
+
+```gdscript
+func get_debug_snapshot() -> Dictionary:
+```
+
+获取调试快照。
+
+Returns: 注册表诊断信息。
+
+Schemas:
+
+- `return`: Dictionary with entry_count, indexed_field_count, and ids.
+
+#### `to_dict`
+
+- API: `public`
+
+```gdscript
+func to_dict() -> Dictionary:
+```
+
+转换为可序列化字典。
+
+Returns: 注册表字典。
+
+Schemas:
+
+- `return`: Dictionary with entries array.
+
+#### `apply_dict`
+
+- API: `public`
+
+```gdscript
+func apply_dict(data: Dictionary) -> void:
+```
+
+应用字典数据。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `data` | 注册表字典。 |
+
+Schemas:
+
+- `data`: Dictionary with entries array.
+
+#### `from_dict`
+
+- API: `public`
+
+```gdscript
+static func from_dict(data: Dictionary) -> Resource:
+```
+
+从字典创建注册表。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `data` | 注册表字典。 |
+
+Returns: 新注册表。
+
+Schemas:
+
+- `data`: Dictionary with entries array.
+
+## GFResourceRegistryEntry
+
+- Path: `addons/gf/standard/utilities/assets/gf_resource_registry_entry.gd`
+- Extends: `Resource`
+- API: `public`
+- Category: `resource_definition`
+- Since: `3.21.0`
+
+GFResourceRegistryEntry: 通用资源注册表条目。 用稳定 ID 描述一个可通过 ResourceLoader 读取的资源路径、可选类型提示和可索引字段。 条目不解释字段业务含义，只为 GFResourceRegistry 提供数据。
+
+### Properties
+
+#### `id`
+
+- API: `public`
+
+```gdscript
+var id: StringName = &""
+```
+
+条目稳定 ID。推荐使用 StringName，不应把资源路径当作项目逻辑 ID。
+
+#### `path`
+
+- API: `public`
+
+```gdscript
+var path: String = ""
+```
+
+资源路径。支持普通 `res://` 路径，也支持 Godot 的 `uid://` 路径。
+
+#### `type_hint`
+
+- API: `public`
+
+```gdscript
+var type_hint: String = ""
+```
+
+可选资源类型提示，会传给 ResourceLoader 或 GFAssetUtility。
+
+#### `fields`
+
+- API: `public`
+
+```gdscript
+var fields: Dictionary = {}
+```
+
+可索引字段。字段值可为单值、Array 或 PackedStringArray。
+
+Schemas:
+
+- `fields`: Dictionary from field id to scalar, Array, or PackedStringArray values.
+
+### Methods
+
+#### `configure`
+
+- API: `public`
+
+```gdscript
+func configure( entry_id: StringName, path: String, hint: String = "", indexed_fields: Dictionary = {} ) -> Resource:
+```
+
+配置条目并返回自身。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `entry_id` | 条目稳定 ID。 |
+| `path` | 资源路径，支持 `res://` 或 `uid://`。 |
+| `hint` | 可选资源类型提示。 |
+| `indexed_fields` | 可索引字段。 |
+
+Returns: 当前条目。
+
+Schemas:
+
+- `indexed_fields`: Dictionary from field id to scalar, Array, or PackedStringArray values.
+
+#### `is_valid_entry`
+
+- API: `public`
+
+```gdscript
+func is_valid_entry() -> bool:
+```
+
+检查条目是否包含可用 ID 和资源路径。
+
+Returns: 条目可被注册表使用时返回 true。
+
+#### `duplicate_entry`
+
+- API: `public`
+
+```gdscript
+func duplicate_entry() -> Resource:
+```
+
+创建条目副本。
+
+Returns: 条目副本。
+
+#### `to_dict`
+
+- API: `public`
+
+```gdscript
+func to_dict() -> Dictionary:
+```
+
+转换为可序列化字典。
+
+Returns: 条目字典。
+
+Schemas:
+
+- `return`: Dictionary with id, resource_path, type_hint, and fields.
+
+#### `from_dict`
+
+- API: `public`
+
+```gdscript
+static func from_dict(data: Dictionary) -> Resource:
+```
+
+从字典创建条目。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `data` | 条目字典。 |
+
+Returns: 新条目。
+
+Schemas:
+
+- `data`: Dictionary with optional id, resource_path, type_hint, and fields.
 
 ## GFResultDictionary
 

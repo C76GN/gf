@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<class name="GFResourceRegistryEntry" path="addons/gf/standard/utilities/assets/gf_resource_registry_entry.gd" module="standard" extends="Resource" classDigest="f787dd1d53304f2c251b2bc0f41e1c02108054113876c5df5ed0829e28fe3679">
+	<description>GFResourceRegistryEntry: 通用资源注册表条目。
+用稳定 ID 描述一个可通过 ResourceLoader 读取的资源路径、可选类型提示和可索引字段。
+条目不解释字段业务含义，只为 GFResourceRegistry 提供数据。</description>
+	<tags>
+		<tag name="api">public</tag>
+		<tag name="category">resource_definition</tag>
+		<tag name="since">3.21.0</tag>
+	</tags>
+	<signals />
+	<enums />
+	<constants />
+	<properties>
+		<member kind="property" name="id" decorators="@export">
+			<signature>var id: StringName = &amp;""</signature>
+			<description>条目稳定 ID。推荐使用 StringName，不应把资源路径当作项目逻辑 ID。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="path" decorators="@export">
+			<signature>var path: String = ""</signature>
+			<description>资源路径。支持普通 `res://` 路径，也支持 Godot 的 `uid://` 路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="type_hint" decorators="@export">
+			<signature>var type_hint: String = ""</signature>
+			<description>可选资源类型提示，会传给 ResourceLoader 或 GFAssetUtility。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="fields" decorators="@export">
+			<signature>var fields: Dictionary = {}</signature>
+			<description>可索引字段。字段值可为单值、Array 或 PackedStringArray。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="schema">fields: Dictionary from field id to scalar, Array, or PackedStringArray values.</tag>
+			</tags>
+		</member>
+	</properties>
+	<methods>
+		<member kind="method" name="configure">
+			<signature>func configure( entry_id: StringName, path: String, hint: String = "", indexed_fields: Dictionary = {} ) -&gt; Resource:</signature>
+			<description>配置条目并返回自身。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">entry_id: 条目稳定 ID。</tag>
+				<tag name="param">path: 资源路径，支持 `res://` 或 `uid://`。</tag>
+				<tag name="param">hint: 可选资源类型提示。</tag>
+				<tag name="param">indexed_fields: 可索引字段。</tag>
+				<tag name="return">当前条目。</tag>
+				<tag name="schema">indexed_fields: Dictionary from field id to scalar, Array, or PackedStringArray values.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="is_valid_entry">
+			<signature>func is_valid_entry() -&gt; bool:</signature>
+			<description>检查条目是否包含可用 ID 和资源路径。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">条目可被注册表使用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duplicate_entry">
+			<signature>func duplicate_entry() -&gt; Resource:</signature>
+			<description>创建条目副本。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">条目副本。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="to_dict">
+			<signature>func to_dict() -&gt; Dictionary:</signature>
+			<description>转换为可序列化字典。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="return">条目字典。</tag>
+				<tag name="schema">return: Dictionary with id, resource_path, type_hint, and fields.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="from_dict">
+			<signature>static func from_dict(data: Dictionary) -&gt; Resource:</signature>
+			<description>从字典创建条目。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">data: 条目字典。</tag>
+				<tag name="return">新条目。</tag>
+				<tag name="schema">data: Dictionary with optional id, resource_path, type_hint, and fields.</tag>
+			</tags>
+		</member>
+	</methods>
+	<innerClasses />
+</class>

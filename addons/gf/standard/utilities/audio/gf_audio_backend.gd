@@ -401,6 +401,78 @@ func set_bus_volume(_bus_name: String, _volume_linear: float) -> bool:
 	return false
 
 
+## 设置总线 dB 音量。
+## [br]
+## @api public
+## [br]
+## @param _bus_name: 总线名或后端通道名。
+## [br]
+## @param _volume_db: dB 音量。
+## [br]
+## @param _transition_seconds: 平滑过渡秒数。
+## [br]
+## @return: 已处理返回 true。
+func set_bus_volume_db(_bus_name: String, _volume_db: float, _transition_seconds: float = 0.0) -> bool:
+	return false
+
+
+## 设置总线静音状态。
+## [br]
+## @api public
+## [br]
+## @param _bus_name: 总线名或后端通道名。
+## [br]
+## @param _muted: 是否静音。
+## [br]
+## @return: 已处理返回 true。
+func set_bus_mute(_bus_name: String, _muted: bool) -> bool:
+	return false
+
+
+## 设置总线效果属性。
+## [br]
+## @api public
+## [br]
+## @param _bus_name: 总线名或后端通道名。
+## [br]
+## @param _effect_ref: 效果索引、名称或后端自定义效果引用。
+## [br]
+## @schema _effect_ref: int/String/StringName 或后端自定义引用。
+## [br]
+## @param _property_name: 效果属性名。
+## [br]
+## @param _value: 属性值。
+## [br]
+## @schema _value: 属性值 Variant；键和值由后端或 GFAudioUtility 约定。
+## [br]
+## @param _transition_seconds: 平滑过渡秒数。
+## [br]
+## @return: 已处理返回 true。
+func set_bus_effect_property(
+	_bus_name: String,
+	_effect_ref: Variant,
+	_property_name: StringName,
+	_value: Variant,
+	_transition_seconds: float = 0.0
+) -> bool:
+	return false
+
+
+## 应用混音快照。
+## [br]
+## @api public
+## [br]
+## @param _snapshot: 混音快照。
+## [br]
+## @schema _snapshot: Dictionary，可包含 buses 和 effects 字段，或后端自定义字段。
+## [br]
+## @param _transition_seconds: 默认平滑过渡秒数。
+## [br]
+## @return: 已处理返回 true。
+func apply_mix_snapshot(_snapshot: Dictionary, _transition_seconds: float = 0.0) -> bool:
+	return false
+
+
 ## 获取总线音量。返回负数表示未处理。
 ## [br]
 ## @api public

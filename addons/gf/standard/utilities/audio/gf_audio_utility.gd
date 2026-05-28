@@ -48,9 +48,16 @@ const BGM_BUS_NAME: String = "BGM"
 ## @api public
 const SFX_BUS_NAME: String = "SFX"
 
+## GF 默认视为静音下限的 dB 值。
+## [br]
+## @api public
+const SILENCE_VOLUME_DB: float = -80.0
+
 const _FALLBACK_BUS_NAME: String = "Master"
 const _APPLY_SPATIAL_SETTINGS_2D_METHOD: StringName = &"apply_to_2d"
 const _APPLY_SPATIAL_SETTINGS_3D_METHOD: StringName = &"apply_to_3d"
+const _MIX_SNAPSHOT_BUSES_KEY: String = "buses"
+const _MIX_SNAPSHOT_EFFECTS_KEY: String = "effects"
 
 
 # --- 公共变量 ---
@@ -104,6 +111,9 @@ var _audio_bank_base_values: Dictionary = {}
 var _audio_bank_mount_stacks: Dictionary = {}
 var _audio_bank_mount_token: int = 0
 var _audio_backend: GFAudioBackend = null
+var _bus_volume_tween_refs: Dictionary = {}
+var _bus_effect_tween_refs: Dictionary = {}
+var _duck_base_bus_volumes_db: Dictionary = {}
 
 
 # --- GF 生命周期方法 ---
@@ -133,6 +143,8 @@ func init() -> void:
 	_audio_bank_base_values.clear()
 	_audio_bank_mount_stacks.clear()
 	_audio_bank_mount_token = 0
+	_clear_mix_control_tweens()
+	_duck_base_bus_volumes_db.clear()
 	# 动态创建用于可选池化的 SFX 播放器模版
 	var player_template := AudioStreamPlayer.new()
 	_sfx_scene = PackedScene.new()
@@ -171,6 +183,7 @@ func dispose() -> void:
 	_release_all_sfx_players(0.0)
 	_release_all_spatial_sfx_players(0.0)
 	_free_all_ambient_players()
+	_clear_mix_control_tweens()
 	if is_instance_valid(_bgm_player):
 		_bgm_player.queue_free()
 	if is_instance_valid(_bgm_fade_player):
@@ -179,6 +192,7 @@ func dispose() -> void:
 	_audio_banks.clear()
 	_audio_bank_base_values.clear()
 	_audio_bank_mount_stacks.clear()
+	_duck_base_bus_volumes_db.clear()
 	
 	# SFX 节点已由 _release_all_sfx_players() 统一释放。
 
@@ -1287,6 +1301,291 @@ func get_ambient_handle(channel: StringName = &"default") -> GFAudioEmitterHandl
 	return GFAudioEmitterHandle.new(player, Callable(self, "_stop_audio_player"), channel)
 
 
+## 设置音频总线 dB 音量。
+## [br]
+## @api public
+## [br]
+## @param bus_name: 总线名称，如 "Master", "BGM", "SFX"。
+## [br]
+## @param volume_db: 目标 dB 音量；小于等于 SILENCE_VOLUME_DB 时会静音该总线。
+## [br]
+## @param transition_seconds: 平滑过渡秒数；小于等于 0 时立即应用。
+## [br]
+## @return: 成功应用或已交给后端处理时返回 true。
+func set_bus_volume_db(bus_name: String, volume_db: float, transition_seconds: float = 0.0) -> bool:
+	if _audio_backend != null and _audio_backend.set_bus_volume_db(bus_name, volume_db, transition_seconds):
+		return true
+
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index < 0:
+		push_warning("[GFAudioUtility] 无法找到音轨总线: " + bus_name)
+		return false
+
+	var target_db := maxf(volume_db, SILENCE_VOLUME_DB)
+	_kill_bus_volume_tween(bus_name)
+	if transition_seconds <= 0.0:
+		_apply_bus_volume_db(bus_index, target_db)
+		return true
+
+	if target_db > SILENCE_VOLUME_DB:
+		AudioServer.set_bus_mute(bus_index, false)
+
+	var start_db := SILENCE_VOLUME_DB if AudioServer.is_bus_mute(bus_index) else AudioServer.get_bus_volume_db(bus_index)
+	var tween := _create_tween_or_null()
+	if tween == null:
+		_apply_bus_volume_db(bus_index, target_db)
+		return true
+
+	_bus_volume_tween_refs[bus_name] = weakref(tween)
+	tween.tween_method(
+		Callable(self, "_apply_bus_volume_tween_value").bind(bus_name),
+		start_db,
+		target_db,
+		maxf(transition_seconds, 0.0)
+	)
+	tween.finished.connect(Callable(self, "_finish_bus_volume_tween").bind(bus_name, target_db), CONNECT_ONE_SHOT)
+	return true
+
+
+## 获取音频总线 dB 音量。
+## [br]
+## @api public
+## [br]
+## @param bus_name: 总线名称。
+## [br]
+## @return: dB 音量；总线不存在时返回 SILENCE_VOLUME_DB。
+func get_bus_volume_db(bus_name: String) -> float:
+	if _audio_backend != null:
+		var backend_volume := _audio_backend.get_bus_volume(bus_name)
+		if backend_volume >= 0.0:
+			return linear_to_db(maxf(backend_volume, 0.000001))
+
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index < 0 or AudioServer.is_bus_mute(bus_index):
+		return SILENCE_VOLUME_DB
+	return AudioServer.get_bus_volume_db(bus_index)
+
+
+## 设置音频总线静音状态。
+## [br]
+## @api public
+## [br]
+## @param bus_name: 总线名称。
+## [br]
+## @param muted: 是否静音。
+## [br]
+## @return: 成功应用或已交给后端处理时返回 true。
+func set_bus_mute(bus_name: String, muted: bool) -> bool:
+	if _audio_backend != null and _audio_backend.set_bus_mute(bus_name, muted):
+		return true
+
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index < 0:
+		push_warning("[GFAudioUtility] 无法找到音轨总线: " + bus_name)
+		return false
+	AudioServer.set_bus_mute(bus_index, muted)
+	return true
+
+
+## 设置音频总线效果属性。
+## [br]
+## @api public
+## [br]
+## @param bus_name: 总线名称。
+## [br]
+## @param effect_ref: 效果索引、resource_name、类名或类名片段。
+## [br]
+## @schema effect_ref: int 表示效果索引；String/StringName 会匹配效果 resource_name、get_class() 或类名片段。
+## [br]
+## @param property_name: 要写入的效果属性名。
+## [br]
+## @param value: 目标属性值。
+## [br]
+## @schema value: 目标属性值；数值属性可按 transition_seconds 平滑过渡，其他类型会立即应用。
+## [br]
+## @param transition_seconds: 平滑过渡秒数；小于等于 0 时立即应用。
+## [br]
+## @return: 成功应用或已交给后端处理时返回 true。
+func set_bus_effect_property(
+	bus_name: String,
+	effect_ref: Variant,
+	property_name: StringName,
+	value: Variant,
+	transition_seconds: float = 0.0
+) -> bool:
+	if (
+		_audio_backend != null
+		and _audio_backend.set_bus_effect_property(bus_name, effect_ref, property_name, value, transition_seconds)
+	):
+		return true
+
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index < 0:
+		push_warning("[GFAudioUtility] 无法找到音轨总线: " + bus_name)
+		return false
+	var effect_index := _resolve_bus_effect_index(bus_index, effect_ref)
+	if effect_index < 0:
+		push_warning("[GFAudioUtility] 无法在总线 %s 找到音频效果: %s" % [bus_name, str(effect_ref)])
+		return false
+	var effect := AudioServer.get_bus_effect(bus_index, effect_index)
+	if effect == null or not _object_has_property(effect, property_name):
+		push_warning("[GFAudioUtility] 音频效果缺少属性: %s.%s" % [str(effect_ref), String(property_name)])
+		return false
+
+	var tween_key := "%s:%d:%s" % [bus_name, effect_index, String(property_name)]
+	_kill_bus_effect_tween(tween_key)
+	if transition_seconds <= 0.0 or not _is_numeric_variant(value):
+		effect.set(String(property_name), value)
+		return true
+
+	var start_value: Variant = effect.get(String(property_name))
+	if not _is_numeric_variant(start_value):
+		effect.set(String(property_name), value)
+		return true
+
+	var tween := _create_tween_or_null()
+	if tween == null:
+		effect.set(String(property_name), value)
+		return true
+
+	_bus_effect_tween_refs[tween_key] = weakref(tween)
+	tween.tween_method(
+		Callable(self, "_apply_bus_effect_tween_value").bind(effect, property_name),
+		float(start_value),
+		float(value),
+		maxf(transition_seconds, 0.0)
+	)
+	tween.finished.connect(
+		Callable(self, "_finish_bus_effect_tween").bind(tween_key, effect, property_name, value),
+		CONNECT_ONE_SHOT
+	)
+	return true
+
+
+## 捕获当前总线混音快照。
+## [br]
+## @api public
+## [br]
+## @param bus_names: 要捕获的总线名；为空时捕获全部 Godot 总线。
+## [br]
+## @return: 混音快照。
+## [br]
+## @schema return: Dictionary，包含 buses 字典；每个总线条目包含 volume_db、volume_linear 和 muted。
+func capture_mix_snapshot(bus_names: PackedStringArray = PackedStringArray()) -> Dictionary:
+	var names := bus_names
+	if names.is_empty():
+		names = PackedStringArray()
+		for bus_index: int in range(AudioServer.get_bus_count()):
+			names.append(AudioServer.get_bus_name(bus_index))
+
+	var buses := {}
+	for bus_name: String in names:
+		var bus_index := AudioServer.get_bus_index(bus_name)
+		if bus_index < 0:
+			continue
+		var muted := AudioServer.is_bus_mute(bus_index)
+		var volume_db := SILENCE_VOLUME_DB if muted else AudioServer.get_bus_volume_db(bus_index)
+		buses[bus_name] = {
+			"volume_db": volume_db,
+			"volume_linear": 0.0 if muted else db_to_linear(volume_db),
+			"muted": muted,
+		}
+	return {
+		_MIX_SNAPSHOT_BUSES_KEY: buses,
+	}
+
+
+## 应用混音快照。
+## [br]
+## @api public
+## [br]
+## @param snapshot: 混音快照。
+## [br]
+## @schema snapshot: Dictionary，可包含 buses 字典和 effects 数组；buses 条目支持 volume_db、volume_linear、muted，effects 条目支持 bus、effect、property、value、transition_seconds。
+## [br]
+## @param transition_seconds: 默认平滑过渡秒数；单个效果条目可覆盖。
+## [br]
+## @return: 应用报告。
+## [br]
+## @schema return: Dictionary，包含 ok、applied、failed 和 warnings 字段。
+func apply_mix_snapshot(snapshot: Dictionary, transition_seconds: float = 0.0) -> Dictionary:
+	if _audio_backend != null and _audio_backend.apply_mix_snapshot(snapshot, transition_seconds):
+		return {
+			"ok": true,
+			"applied": PackedStringArray(["backend"]),
+			"failed": [],
+			"warnings": [],
+		}
+
+	var report := {
+		"ok": true,
+		"applied": PackedStringArray(),
+		"failed": [],
+		"warnings": [],
+	}
+	_apply_mix_snapshot_buses(snapshot.get(_MIX_SNAPSHOT_BUSES_KEY, {}), transition_seconds, report)
+	_apply_mix_snapshot_effects(snapshot.get(_MIX_SNAPSHOT_EFFECTS_KEY, []), transition_seconds, report)
+	report["ok"] = (report["failed"] as Array).is_empty()
+	return report
+
+
+## 按比例压低总线音量，并记住恢复基准。
+## [br]
+## @api public
+## [br]
+## @param bus_name: 总线名称。
+## [br]
+## @param amount: 压低强度，0.0 不变化，1.0 最多压低 18 dB。
+## [br]
+## @param transition_seconds: 平滑过渡秒数。
+## [br]
+## @param duck_id: 同一总线上的压低作用域标识。
+## [br]
+## @return: 成功应用时返回 true。
+func duck_bus(
+	bus_name: String = BGM_BUS_NAME,
+	amount: float = 0.5,
+	transition_seconds: float = 0.25,
+	duck_id: StringName = &"default"
+) -> bool:
+	var duck_key := _make_duck_key(bus_name, duck_id)
+	var recorded_base := false
+	if not _duck_base_bus_volumes_db.has(duck_key):
+		_duck_base_bus_volumes_db[duck_key] = get_bus_volume_db(bus_name)
+		recorded_base = true
+	var base_db := float(_duck_base_bus_volumes_db[duck_key])
+	var target_db := base_db - clampf(amount, 0.0, 1.0) * 18.0
+	if set_bus_volume_db(bus_name, target_db, transition_seconds):
+		return true
+	if recorded_base:
+		_duck_base_bus_volumes_db.erase(duck_key)
+	return false
+
+
+## 恢复被 duck_bus() 压低的总线。
+## [br]
+## @api public
+## [br]
+## @param bus_name: 总线名称。
+## [br]
+## @param transition_seconds: 平滑过渡秒数。
+## [br]
+## @param duck_id: 同一总线上的压低作用域标识。
+## [br]
+## @return: 找到恢复基准并开始恢复时返回 true。
+func restore_ducked_bus(
+	bus_name: String = BGM_BUS_NAME,
+	transition_seconds: float = 0.25,
+	duck_id: StringName = &"default"
+) -> bool:
+	var duck_key := _make_duck_key(bus_name, duck_id)
+	if not _duck_base_bus_volumes_db.has(duck_key):
+		return false
+	var base_db := float(_duck_base_bus_volumes_db[duck_key])
+	_duck_base_bus_volumes_db.erase(duck_key)
+	return set_bus_volume_db(bus_name, base_db, transition_seconds)
+
+
 ## 设置音频总线音量
 ## [br]
 ## @api public
@@ -1300,13 +1599,12 @@ func set_bus_volume(bus_name: String, volume_linear: float) -> void:
 
 	var bus_idx := AudioServer.get_bus_index(bus_name)
 	if bus_idx >= 0:
+		_kill_bus_volume_tween(bus_name)
 		if volume_linear <= 0.0:
-			AudioServer.set_bus_volume_db(bus_idx, -80.0)
-			AudioServer.set_bus_mute(bus_idx, true)
+			_apply_bus_volume_db(bus_idx, SILENCE_VOLUME_DB)
 			return
-		AudioServer.set_bus_mute(bus_idx, false)
 		var db := linear_to_db(minf(volume_linear, 1.0))
-		AudioServer.set_bus_volume_db(bus_idx, db)
+		_apply_bus_volume_db(bus_idx, db)
 	else:
 		push_warning("[GFAudioUtility] 无法找到音轨总线: " + bus_name)
 
@@ -1338,7 +1636,7 @@ func get_bus_volume(bus_name: String) -> float:
 ## [br]
 ## @return: 调试快照。
 ## [br]
-## @schema return: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels 和 audio_bank_count 字段。
+## @schema return: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels、audio_bank_count、ducked_bus_count 和 active_mix_tween_count 字段。
 func get_debug_snapshot() -> Dictionary:
 	_prune_inactive_sfx_players()
 	_prune_inactive_spatial_sfx_players()
@@ -1372,10 +1670,238 @@ func get_debug_snapshot() -> Dictionary:
 		"max_sfx_players": max_sfx_players,
 		"ambient_channels": ambient_channels,
 		"audio_bank_count": _audio_banks.size(),
+		"ducked_bus_count": _duck_base_bus_volumes_db.size(),
+		"active_mix_tween_count": _bus_volume_tween_refs.size() + _bus_effect_tween_refs.size(),
 	}
 
 
 # --- 私有/辅助方法 ---
+
+func _apply_bus_volume_db(bus_index: int, volume_db: float) -> void:
+	if bus_index < 0:
+		return
+	var target_db := maxf(volume_db, SILENCE_VOLUME_DB)
+	AudioServer.set_bus_volume_db(bus_index, target_db)
+	AudioServer.set_bus_mute(bus_index, target_db <= SILENCE_VOLUME_DB)
+
+
+func _apply_bus_volume_tween_value(value: float, bus_name: String) -> void:
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index >= 0:
+		AudioServer.set_bus_volume_db(bus_index, value)
+
+
+func _finish_bus_volume_tween(bus_name: String, target_db: float) -> void:
+	var bus_index := AudioServer.get_bus_index(bus_name)
+	if bus_index >= 0:
+		_apply_bus_volume_db(bus_index, target_db)
+	_bus_volume_tween_refs.erase(bus_name)
+
+
+func _apply_bus_effect_tween_value(value: float, effect: Object, property_name: StringName) -> void:
+	if effect != null:
+		effect.set(String(property_name), value)
+
+
+func _finish_bus_effect_tween(
+	tween_key: String,
+	effect: Object,
+	property_name: StringName,
+	value: Variant
+) -> void:
+	if effect != null:
+		effect.set(String(property_name), value)
+	_bus_effect_tween_refs.erase(tween_key)
+
+
+func _clear_mix_control_tweens() -> void:
+	for tween_ref: WeakRef in _bus_volume_tween_refs.values():
+		_kill_tween_ref(tween_ref)
+	for tween_ref: WeakRef in _bus_effect_tween_refs.values():
+		_kill_tween_ref(tween_ref)
+	_bus_volume_tween_refs.clear()
+	_bus_effect_tween_refs.clear()
+
+
+func _kill_bus_volume_tween(bus_name: String) -> void:
+	if not _bus_volume_tween_refs.has(bus_name):
+		return
+	_kill_tween_ref(_bus_volume_tween_refs[bus_name] as WeakRef)
+	_bus_volume_tween_refs.erase(bus_name)
+
+
+func _kill_bus_effect_tween(tween_key: String) -> void:
+	if not _bus_effect_tween_refs.has(tween_key):
+		return
+	_kill_tween_ref(_bus_effect_tween_refs[tween_key] as WeakRef)
+	_bus_effect_tween_refs.erase(tween_key)
+
+
+func _resolve_bus_effect_index(bus_index: int, effect_ref: Variant) -> int:
+	if typeof(effect_ref) == TYPE_INT:
+		var index := int(effect_ref)
+		return index if index >= 0 and index < AudioServer.get_bus_effect_count(bus_index) else -1
+
+	var expected := _normalize_effect_match_text(str(effect_ref))
+	if expected.is_empty():
+		return -1
+	for index: int in range(AudioServer.get_bus_effect_count(bus_index)):
+		var effect := AudioServer.get_bus_effect(bus_index, index)
+		if _effect_matches_ref(effect, expected):
+			return index
+	return -1
+
+
+func _effect_matches_ref(effect: Object, expected: String) -> bool:
+	if effect == null:
+		return false
+	var names := PackedStringArray()
+	names.append(_normalize_effect_match_text(effect.get_class()))
+	if effect is Resource:
+		names.append(_normalize_effect_match_text((effect as Resource).resource_name))
+	for effect_name: String in names:
+		if effect_name == expected or (not expected.is_empty() and effect_name.find(expected) >= 0):
+			return true
+	return false
+
+
+func _normalize_effect_match_text(value: String) -> String:
+	return value.to_lower().replace("audioeffect", "").replace("filter", "").replace("_", "").replace(" ", "")
+
+
+func _object_has_property(object: Object, property_name: StringName) -> bool:
+	if object == null:
+		return false
+	for property: Dictionary in object.get_property_list():
+		if StringName(str(property.get("name", ""))) == property_name:
+			return true
+	return false
+
+
+func _is_numeric_variant(value: Variant) -> bool:
+	var value_type := typeof(value)
+	return value_type == TYPE_INT or value_type == TYPE_FLOAT
+
+
+func _apply_mix_snapshot_buses(bus_payload: Variant, transition_seconds: float, report: Dictionary) -> void:
+	if not (bus_payload is Dictionary):
+		if bus_payload != null:
+			_append_mix_warning(report, "buses 字段必须是 Dictionary。")
+		return
+
+	var buses := bus_payload as Dictionary
+	for bus_key: Variant in buses.keys():
+		var bus_name := str(bus_key)
+		var bus_entry: Variant = buses[bus_key]
+		if bus_entry is Dictionary:
+			_apply_mix_snapshot_bus_entry(bus_name, bus_entry as Dictionary, transition_seconds, report)
+		elif _is_numeric_variant(bus_entry):
+			_apply_mix_snapshot_bus_volume_db(bus_name, float(bus_entry), transition_seconds, report)
+		else:
+			_append_mix_failure(report, bus_name, "invalid_bus_entry", "总线快照条目必须是 Dictionary 或数值。")
+
+
+func _apply_mix_snapshot_bus_entry(
+	bus_name: String,
+	entry: Dictionary,
+	transition_seconds: float,
+	report: Dictionary
+) -> void:
+	var entry_transition := float(entry.get("transition_seconds", transition_seconds))
+	var applied_any := false
+	if entry.has("volume_db"):
+		applied_any = _apply_mix_snapshot_bus_volume_db(bus_name, float(entry["volume_db"]), entry_transition, report) or applied_any
+	elif entry.has("volume_linear"):
+		var linear_volume := maxf(float(entry["volume_linear"]), 0.0)
+		var db := SILENCE_VOLUME_DB if linear_volume <= 0.0 else linear_to_db(linear_volume)
+		applied_any = _apply_mix_snapshot_bus_volume_db(bus_name, db, entry_transition, report) or applied_any
+
+	if entry.has("muted"):
+		if set_bus_mute(bus_name, bool(entry["muted"])):
+			_append_mix_applied(report, "bus:%s:muted" % bus_name)
+			applied_any = true
+		else:
+			_append_mix_failure(report, bus_name, "missing_bus", "无法设置总线静音状态。")
+
+	if not applied_any:
+		_append_mix_warning(report, "总线 %s 的快照条目没有可应用字段。" % bus_name)
+
+
+func _apply_mix_snapshot_bus_volume_db(
+	bus_name: String,
+	volume_db: float,
+	transition_seconds: float,
+	report: Dictionary
+) -> bool:
+	if set_bus_volume_db(bus_name, volume_db, transition_seconds):
+		_append_mix_applied(report, "bus:%s:volume_db" % bus_name)
+		return true
+	_append_mix_failure(report, bus_name, "missing_bus", "无法设置总线音量。")
+	return false
+
+
+func _apply_mix_snapshot_effects(effect_payload: Variant, transition_seconds: float, report: Dictionary) -> void:
+	if effect_payload == null:
+		return
+	if effect_payload is Array:
+		for entry: Variant in effect_payload:
+			if entry is Dictionary:
+				_apply_mix_snapshot_effect_entry(entry as Dictionary, transition_seconds, report)
+			else:
+				_append_mix_failure(report, "", "invalid_effect_entry", "effects 数组元素必须是 Dictionary。")
+		return
+	if effect_payload is Dictionary:
+		for bus_key: Variant in (effect_payload as Dictionary).keys():
+			var bus_effects: Variant = (effect_payload as Dictionary)[bus_key]
+			if bus_effects is Array:
+				for entry: Variant in bus_effects:
+					if entry is Dictionary:
+						var effect_entry := (entry as Dictionary).duplicate(true)
+						effect_entry["bus"] = str(bus_key)
+						_apply_mix_snapshot_effect_entry(effect_entry, transition_seconds, report)
+			elif bus_effects is Dictionary:
+				var single_entry := (bus_effects as Dictionary).duplicate(true)
+				single_entry["bus"] = str(bus_key)
+				_apply_mix_snapshot_effect_entry(single_entry, transition_seconds, report)
+		return
+	_append_mix_warning(report, "effects 字段必须是 Array 或 Dictionary。")
+
+
+func _apply_mix_snapshot_effect_entry(entry: Dictionary, transition_seconds: float, report: Dictionary) -> void:
+	var bus_name := str(entry.get("bus", ""))
+	var property_name := StringName(str(entry.get("property", "")))
+	if bus_name.is_empty() or property_name == &"" or not entry.has("value"):
+		_append_mix_failure(report, bus_name, "invalid_effect_entry", "效果条目必须包含 bus、property 和 value。")
+		return
+	var effect_ref: Variant = entry.get("effect", 0)
+	var entry_transition := float(entry.get("transition_seconds", transition_seconds))
+	if set_bus_effect_property(bus_name, effect_ref, property_name, entry["value"], entry_transition):
+		_append_mix_applied(report, "effect:%s:%s:%s" % [bus_name, str(effect_ref), String(property_name)])
+	else:
+		_append_mix_failure(report, bus_name, "effect_failed", "无法设置效果属性。")
+
+
+func _append_mix_applied(report: Dictionary, value: String) -> void:
+	var applied := report["applied"] as PackedStringArray
+	applied.append(value)
+	report["applied"] = applied
+
+
+func _append_mix_warning(report: Dictionary, message: String) -> void:
+	(report["warnings"] as Array).append(message)
+
+
+func _append_mix_failure(report: Dictionary, bus_name: String, reason: String, message: String) -> void:
+	(report["failed"] as Array).append({
+		"bus": bus_name,
+		"reason": reason,
+		"message": message,
+	})
+
+
+func _make_duck_key(bus_name: String, duck_id: StringName) -> String:
+	return "%s:%s" % [bus_name, String(duck_id)]
+
 
 func _clear_audio_backend(dispose_backend: bool) -> void:
 	if _audio_backend == null:

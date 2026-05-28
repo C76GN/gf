@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioUtility" path="addons/gf/standard/utilities/audio/gf_audio_utility.gd" module="standard" extends="GFUtility" classDigest="fdfaef3a7758ad65c6c03b6f08fb1363c30cb3bfcc668bae021ee91a2e35aabf">
+<class name="GFAudioUtility" path="addons/gf/standard/utilities/audio/gf_audio_utility.gd" module="standard" extends="GFUtility" classDigest="77e0fb9df1431dd4105f459f2980a45e73ec0c4b121952fcbbe66fe7ff525289">
 	<description>GFAudioUtility: 全局音频管理器。
 管理 BGM 和 SFX 的播放与音量。
 注册 GFObjectPoolUtility 时会复用 AudioStreamPlayer，未注册时使用普通播放器。
@@ -39,6 +39,13 @@
 		<member kind="const" name="SFX_BUS_NAME">
 			<signature>const SFX_BUS_NAME: String = "SFX"</signature>
 			<description>默认 SFX 音频总线名。</description>
+			<tags>
+				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="const" name="SILENCE_VOLUME_DB">
+			<signature>const SILENCE_VOLUME_DB: float = -80.0</signature>
+			<description>GF 默认视为静音下限的 dB 值。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
@@ -577,6 +584,96 @@
 				<tag name="return">控制句柄；通道不存在时返回 null。</tag>
 			</tags>
 		</member>
+		<member kind="method" name="set_bus_volume_db">
+			<signature>func set_bus_volume_db(bus_name: String, volume_db: float, transition_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>设置音频总线 dB 音量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称，如 "Master", "BGM", "SFX"。</tag>
+				<tag name="param">volume_db: 目标 dB 音量；小于等于 SILENCE_VOLUME_DB 时会静音该总线。</tag>
+				<tag name="param">transition_seconds: 平滑过渡秒数；小于等于 0 时立即应用。</tag>
+				<tag name="return">成功应用或已交给后端处理时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="get_bus_volume_db">
+			<signature>func get_bus_volume_db(bus_name: String) -&gt; float:</signature>
+			<description>获取音频总线 dB 音量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称。</tag>
+				<tag name="return">dB 音量；总线不存在时返回 SILENCE_VOLUME_DB。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bus_mute">
+			<signature>func set_bus_mute(bus_name: String, muted: bool) -&gt; bool:</signature>
+			<description>设置音频总线静音状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称。</tag>
+				<tag name="param">muted: 是否静音。</tag>
+				<tag name="return">成功应用或已交给后端处理时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bus_effect_property">
+			<signature>func set_bus_effect_property( bus_name: String, effect_ref: Variant, property_name: StringName, value: Variant, transition_seconds: float = 0.0 ) -&gt; bool:</signature>
+			<description>设置音频总线效果属性。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称。</tag>
+				<tag name="param">effect_ref: 效果索引、resource_name、类名或类名片段。</tag>
+				<tag name="param">property_name: 要写入的效果属性名。</tag>
+				<tag name="param">value: 目标属性值。</tag>
+				<tag name="param">transition_seconds: 平滑过渡秒数；小于等于 0 时立即应用。</tag>
+				<tag name="return">成功应用或已交给后端处理时返回 true。</tag>
+				<tag name="schema">effect_ref: int 表示效果索引；String/StringName 会匹配效果 resource_name、get_class() 或类名片段。</tag>
+				<tag name="schema">value: 目标属性值；数值属性可按 transition_seconds 平滑过渡，其他类型会立即应用。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="capture_mix_snapshot">
+			<signature>func capture_mix_snapshot(bus_names: PackedStringArray = PackedStringArray()) -&gt; Dictionary:</signature>
+			<description>捕获当前总线混音快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_names: 要捕获的总线名；为空时捕获全部 Godot 总线。</tag>
+				<tag name="return">混音快照。</tag>
+				<tag name="schema">return: Dictionary，包含 buses 字典；每个总线条目包含 volume_db、volume_linear 和 muted。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_mix_snapshot">
+			<signature>func apply_mix_snapshot(snapshot: Dictionary, transition_seconds: float = 0.0) -&gt; Dictionary:</signature>
+			<description>应用混音快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">snapshot: 混音快照。</tag>
+				<tag name="param">transition_seconds: 默认平滑过渡秒数；单个效果条目可覆盖。</tag>
+				<tag name="return">应用报告。</tag>
+				<tag name="schema">snapshot: Dictionary，可包含 buses 字典和 effects 数组；buses 条目支持 volume_db、volume_linear、muted，effects 条目支持 bus、effect、property、value、transition_seconds。</tag>
+				<tag name="schema">return: Dictionary，包含 ok、applied、failed 和 warnings 字段。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="duck_bus">
+			<signature>func duck_bus( bus_name: String = BGM_BUS_NAME, amount: float = 0.5, transition_seconds: float = 0.25, duck_id: StringName = &amp;"default" ) -&gt; bool:</signature>
+			<description>按比例压低总线音量，并记住恢复基准。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称。</tag>
+				<tag name="param">amount: 压低强度，0.0 不变化，1.0 最多压低 18 dB。</tag>
+				<tag name="param">transition_seconds: 平滑过渡秒数。</tag>
+				<tag name="param">duck_id: 同一总线上的压低作用域标识。</tag>
+				<tag name="return">成功应用时返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="restore_ducked_bus">
+			<signature>func restore_ducked_bus( bus_name: String = BGM_BUS_NAME, transition_seconds: float = 0.25, duck_id: StringName = &amp;"default" ) -&gt; bool:</signature>
+			<description>恢复被 duck_bus() 压低的总线。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">bus_name: 总线名称。</tag>
+				<tag name="param">transition_seconds: 平滑过渡秒数。</tag>
+				<tag name="param">duck_id: 同一总线上的压低作用域标识。</tag>
+				<tag name="return">找到恢复基准并开始恢复时返回 true。</tag>
+			</tags>
+		</member>
 		<member kind="method" name="set_bus_volume">
 			<signature>func set_bus_volume(bus_name: String, volume_linear: float) -&gt; void:</signature>
 			<description>设置音频总线音量</description>
@@ -601,7 +698,7 @@
 			<tags>
 				<tag name="api">public</tag>
 				<tag name="return">调试快照。</tag>
-				<tag name="schema">return: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels 和 audio_bank_count 字段。</tag>
+				<tag name="schema">return: Dictionary，包含 backend、backend_snapshot、backend_capabilities、current_bgm_key、current_bgm_loop、bgm_paused、bgm_position、bgm_history、active_sfx_count、active_spatial_sfx_count、max_sfx_players、ambient_channels、audio_bank_count、ducked_bus_count 和 active_mix_tween_count 字段。</tag>
 			</tags>
 		</member>
 	</methods>

@@ -7,6 +7,7 @@
 - [异步加载与 LRU 缓存](async-cache.md)：按需加载资源、缓存命中、并发请求合并、`type_hint` 和 LRU 上限。
 - [取消与诊断](cancel-diagnostics.md)：取消语义、迟到结果处理和 `get_debug_snapshot()`。
 - [资源句柄与分组预热](handles-groups.md)：`GFAssetHandle`、owner 释放、缓存 pin 和资源分组预加载。
+- [通用资源注册表](resource-registry.md)：`GFResourceRegistry`、稳定资源 ID、字段索引、同步加载和与 `GFAssetUtility` 的显式衔接。
 
 ## 使用边界
 

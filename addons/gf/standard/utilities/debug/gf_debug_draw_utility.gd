@@ -135,6 +135,57 @@ func draw_line_2d(
 	})
 
 
+## 绘制 2D 向量。
+## [br]
+## @api public
+## [br]
+## @param origin: 向量起点，centered 选项启用时表示中心点。
+## [br]
+## @param vector: 要绘制的向量。
+## [br]
+## @param color: 主向量颜色。
+## [br]
+## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
+## @param channel: 调试绘制频道。
+## [br]
+## @param width: 绘制线宽。
+## [br]
+## @param options: 绘制选项。
+## [br]
+## @schema options: Dictionary，支持 scale、length_mode、max_length、centered、draw_components、arrowhead、arrowhead_size、x_color、y_color。
+## [br]
+## @return 绘制命令 id 列表。
+## [br]
+## @schema return: Array[int]，包含主线、可选分量线和可选箭头线的命令 id。
+func draw_vector_2d(
+	origin: Vector2,
+	vector: Vector2,
+	color: Color = Color.WHITE,
+	lifetime_seconds: float = -1.0,
+	channel: StringName = &"default",
+	width: float = 1.0,
+	options: Dictionary = {}
+) -> Array[int]:
+	var resolved_vector := _resolve_debug_vector_2d(vector, options)
+	var half_vector := resolved_vector * 0.5
+	var begin := origin - half_vector if bool(options.get("centered", false)) else origin
+	var end := origin + half_vector if bool(options.get("centered", false)) else origin + resolved_vector
+	var result: Array[int] = []
+	result.append(draw_line_2d(begin, end, color, lifetime_seconds, channel, width))
+
+	if bool(options.get("draw_components", false)):
+		var corner := begin + Vector2(resolved_vector.x, 0.0)
+		var x_color := _get_debug_color_option(options, "x_color", Color.RED)
+		var y_color := _get_debug_color_option(options, "y_color", Color.GREEN)
+		result.append(draw_line_2d(begin, corner, x_color, lifetime_seconds, channel, width))
+		result.append(draw_line_2d(corner, end, y_color, lifetime_seconds, channel, width))
+
+	if bool(options.get("arrowhead", false)):
+		_append_vector_arrowhead_2d(result, begin, end, color, lifetime_seconds, channel, width, options)
+	return result
+
+
 ## 绘制 2D 矩形。
 ## [br]
 ## @api public
@@ -281,6 +332,57 @@ func draw_line_3d(
 		"width": maxf(width, 0.0),
 		"lifetime_seconds": lifetime_seconds,
 	})
+
+
+## 绘制 3D 向量。
+## [br]
+## @api public
+## [br]
+## @param origin: 向量起点，centered 选项启用时表示中心点。
+## [br]
+## @param vector: 要绘制的向量。
+## [br]
+## @param color: 主向量颜色。
+## [br]
+## @param lifetime_seconds: 调试绘制命令保留时间（秒）。
+## [br]
+## @param channel: 调试绘制频道。
+## [br]
+## @param width: 绘制线宽。
+## [br]
+## @param options: 绘制选项。
+## [br]
+## @schema options: Dictionary，支持 scale、length_mode、max_length、centered、draw_components、x_color、y_color、z_color。
+## [br]
+## @return 绘制命令 id 列表。
+## [br]
+## @schema return: Array[int]，包含主线和可选分量线的命令 id。
+func draw_vector_3d(
+	origin: Vector3,
+	vector: Vector3,
+	color: Color = Color.WHITE,
+	lifetime_seconds: float = -1.0,
+	channel: StringName = &"default",
+	width: float = 1.0,
+	options: Dictionary = {}
+) -> Array[int]:
+	var resolved_vector := _resolve_debug_vector_3d(vector, options)
+	var half_vector := resolved_vector * 0.5
+	var begin := origin - half_vector if bool(options.get("centered", false)) else origin
+	var end := origin + half_vector if bool(options.get("centered", false)) else origin + resolved_vector
+	var result: Array[int] = []
+	result.append(draw_line_3d(begin, end, color, lifetime_seconds, channel, width))
+
+	if bool(options.get("draw_components", false)):
+		var x_end := begin + Vector3(resolved_vector.x, 0.0, 0.0)
+		var y_end := x_end + Vector3(0.0, resolved_vector.y, 0.0)
+		var x_color := _get_debug_color_option(options, "x_color", Color.RED)
+		var y_color := _get_debug_color_option(options, "y_color", Color.GREEN)
+		var z_color := _get_debug_color_option(options, "z_color", Color.BLUE)
+		result.append(draw_line_3d(begin, x_end, x_color, lifetime_seconds, channel, width))
+		result.append(draw_line_3d(x_end, y_end, y_color, lifetime_seconds, channel, width))
+		result.append(draw_line_3d(y_end, end, z_color, lifetime_seconds, channel, width))
+	return result
 
 
 ## 绘制 3D AABB。
@@ -486,6 +588,66 @@ func get_debug_snapshot() -> Dictionary:
 
 
 # --- 私有/辅助方法 ---
+
+func _resolve_debug_vector_2d(vector: Vector2, options: Dictionary) -> Vector2:
+	var scaled := vector * float(options.get("scale", 1.0))
+	return _apply_debug_vector_length_mode_2d(scaled, options)
+
+
+func _resolve_debug_vector_3d(vector: Vector3, options: Dictionary) -> Vector3:
+	var scaled := vector * float(options.get("scale", 1.0))
+	return _apply_debug_vector_length_mode_3d(scaled, options)
+
+
+func _apply_debug_vector_length_mode_2d(vector: Vector2, options: Dictionary) -> Vector2:
+	var length_mode := str(options.get("length_mode", "normal")).to_lower()
+	var max_length := float(options.get("max_length", 0.0))
+	match length_mode:
+		"clamp":
+			return vector.limit_length(max_length) if max_length > 0.0 else vector
+		"normalize":
+			return vector.normalized() * max_length if max_length > 0.0 and not vector.is_zero_approx() else Vector2.ZERO
+		_:
+			return vector
+
+
+func _apply_debug_vector_length_mode_3d(vector: Vector3, options: Dictionary) -> Vector3:
+	var length_mode := str(options.get("length_mode", "normal")).to_lower()
+	var max_length := float(options.get("max_length", 0.0))
+	match length_mode:
+		"clamp":
+			return vector.limit_length(max_length) if max_length > 0.0 else vector
+		"normalize":
+			return vector.normalized() * max_length if max_length > 0.0 and not vector.is_zero_approx() else Vector3.ZERO
+		_:
+			return vector
+
+
+func _append_vector_arrowhead_2d(
+	result: Array[int],
+	begin: Vector2,
+	end: Vector2,
+	color: Color,
+	lifetime_seconds: float,
+	channel: StringName,
+	width: float,
+	options: Dictionary
+) -> void:
+	var direction := end - begin
+	if direction.is_zero_approx():
+		return
+	var size := maxf(float(options.get("arrowhead_size", width * 4.0)), 0.0)
+	if size <= 0.0:
+		return
+	var normal := direction.normalized()
+	result.append(draw_line_2d(end, end - normal.rotated(PI / 6.0) * size, color, lifetime_seconds, channel, width))
+	result.append(draw_line_2d(end, end - normal.rotated(-PI / 6.0) * size, color, lifetime_seconds, channel, width))
+
+
+func _get_debug_color_option(options: Dictionary, key: String, fallback: Color) -> Color:
+	var value: Variant = options.get(key, fallback)
+	return value if value is Color else fallback
+
 
 func _resolve_lifetime(lifetime_seconds: float) -> float:
 	if lifetime_seconds < 0.0:

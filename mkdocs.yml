@@ -145,12 +145,14 @@ nav:
                   - 曲线示例: standard/foundation/scalars/progression-math/curve-example.md
                   - 离线收益: standard/foundation/scalars/progression-math/offline-progress.md
               - 权重表: standard/foundation/scalars/weighted-table.md
+              - 层名与 Bitmask: standard/foundation/scalars/layer-mask.md
           - 网格、路径与空间索引:
               - 总览: standard/foundation/grid-spatial/index.md
               - 2D 曲线与折线: standard/foundation/grid-spatial/curve-2d.md
               - 2D 网格、生成管线与 Hex 网格:
                   - 总览: standard/foundation/grid-spatial/grid-2d-hex/index.md
                   - 规则 2D 网格: standard/foundation/grid-spatial/grid-2d-hex/grid-math.md
+                  - 2D 网格变换: standard/foundation/grid-spatial/grid-2d-hex/grid-transform.md
                   - 2D 网格生成管线: standard/foundation/grid-spatial/grid-2d-hex/generation-pipeline.md
                   - Hex 网格:
                       - 总览: standard/foundation/grid-spatial/grid-2d-hex/hex-grid/index.md
@@ -218,6 +220,7 @@ nav:
                       - 异步加载与 LRU 缓存: standard/utilities/io/assets-jobs-warmup/asset-utility/async-cache.md
                       - 取消与诊断: standard/utilities/io/assets-jobs-warmup/asset-utility/cancel-diagnostics.md
                       - 资源句柄与分组预热: standard/utilities/io/assets-jobs-warmup/asset-utility/handles-groups.md
+                      - 通用资源注册表: standard/utilities/io/assets-jobs-warmup/asset-utility/resource-registry.md
                   - 通用文件下载队列: standard/utilities/io/assets-jobs-warmup/download-utility.md
                   - 通用任务队列: standard/utilities/io/assets-jobs-warmup/job-queue.md
                   - 后台工作协调器: standard/utilities/io/assets-jobs-warmup/background-work.md

@@ -74,6 +74,11 @@ class MockAudioBackend:
 	var bgm_paused: bool = false
 	var stop_all_sfx_fade: float = -1.0
 	var external_volume: float = -1.0
+	var external_volume_db: float = 0.0
+	var external_muted: bool = false
+	var handled_mix_snapshot: Dictionary = {}
+	var handled_mix_transition: float = -1.0
+	var effect_property_requests: Array[Dictionary] = []
 
 	func _init() -> void:
 		capabilities.supports_sfx = true
@@ -158,6 +163,43 @@ class MockAudioBackend:
 		if bus_name != "External":
 			return false
 		external_volume = volume_linear
+		return true
+
+	func set_bus_volume_db(bus_name: String, volume_db: float, _transition_seconds: float = 0.0) -> bool:
+		if bus_name != "External":
+			return false
+		external_volume_db = volume_db
+		external_volume = db_to_linear(volume_db)
+		return true
+
+	func set_bus_mute(bus_name: String, muted: bool) -> bool:
+		if bus_name != "External":
+			return false
+		external_muted = muted
+		return true
+
+	func set_bus_effect_property(
+		bus_name: String,
+		effect_ref: Variant,
+		property_name: StringName,
+		value: Variant,
+		transition_seconds: float = 0.0
+	) -> bool:
+		if bus_name != "External":
+			return false
+		effect_property_requests.append({
+			"effect_ref": effect_ref,
+			"property_name": property_name,
+			"value": value,
+			"transition_seconds": transition_seconds,
+		})
+		return true
+
+	func apply_mix_snapshot(snapshot: Dictionary, transition_seconds: float = 0.0) -> bool:
+		if not bool(snapshot.get("backend_only", false)):
+			return false
+		handled_mix_snapshot = snapshot.duplicate(true)
+		handled_mix_transition = transition_seconds
 		return true
 
 	func get_bus_volume(bus_name: String) -> float:
@@ -851,6 +893,79 @@ func test_sfx_capacity_can_stop_oldest_request() -> void:
 
 	assert_eq(_audio._active_sfx_players.size(), 1, "替换策略也应遵守 SFX 数量上限。")
 	assert_eq(_audio._active_sfx_players[0].stream, second_stream, "替换策略应让新的 SFX 接管播放器。")
+
+
+func test_bus_volume_db_snapshot_and_duck_restore() -> void:
+	var bus_idx := AudioServer.get_bus_index("Master")
+	var original_db := AudioServer.get_bus_volume_db(bus_idx)
+	var original_muted := AudioServer.is_bus_mute(bus_idx)
+
+	assert_true(_audio.set_bus_volume_db("Master", -6.0), "应能直接设置总线 dB 音量。")
+	assert_almost_eq(_audio.get_bus_volume_db("Master"), -6.0, 0.001, "dB 音量读取应返回当前值。")
+	assert_false(AudioServer.is_bus_mute(bus_idx), "设置可听音量时应解除静音。")
+
+	var snapshot := _audio.capture_mix_snapshot(PackedStringArray(["Master"]))
+	var buses := snapshot["buses"] as Dictionary
+	var master := buses["Master"] as Dictionary
+	assert_almost_eq(float(master["volume_db"]), -6.0, 0.001, "快照应记录总线 dB 音量。")
+
+	assert_true(_audio.duck_bus("Master", 0.5, 0.0, &"dialogue"), "duck_bus 应按比例压低总线。")
+	assert_almost_eq(_audio.get_bus_volume_db("Master"), -15.0, 0.001, "0.5 duck 默认应压低 9 dB。")
+	assert_true(_audio.restore_ducked_bus("Master", 0.0, &"dialogue"), "restore_ducked_bus 应恢复记录的基准。")
+	assert_almost_eq(_audio.get_bus_volume_db("Master"), -6.0, 0.001, "恢复后应回到 duck 前音量。")
+
+	var report := _audio.apply_mix_snapshot({
+		"buses": {
+			"Master": {
+				"volume_db": original_db,
+				"muted": original_muted,
+			},
+		},
+	})
+	assert_true(bool(report["ok"]), "应用总线快照应返回成功报告。")
+	assert_almost_eq(AudioServer.get_bus_volume_db(bus_idx), original_db, 0.001, "快照应恢复原始 dB。")
+	assert_eq(AudioServer.is_bus_mute(bus_idx), original_muted, "快照应恢复原始静音状态。")
+
+
+func test_mix_snapshot_can_apply_bus_effect_property() -> void:
+	var bus_idx := AudioServer.get_bus_index("Master")
+	var effect_count_before := AudioServer.get_bus_effect_count(bus_idx)
+	var effect := AudioEffectLowPassFilter.new()
+	effect.resource_name = "GFTestLowPass"
+	AudioServer.add_bus_effect(bus_idx, effect)
+
+	var report := _audio.apply_mix_snapshot({
+		"effects": [
+			{
+				"bus": "Master",
+				"effect": "lowpass",
+				"property": "cutoff_hz",
+				"value": 1200.0,
+			},
+		],
+	})
+
+	assert_true(bool(report["ok"]), "效果快照应用成功时报告应为 ok。")
+	assert_almost_eq(effect.cutoff_hz, 1200.0, 0.001, "效果属性应被写入。")
+
+	while AudioServer.get_bus_effect_count(bus_idx) > effect_count_before:
+		AudioServer.remove_bus_effect(bus_idx, AudioServer.get_bus_effect_count(bus_idx) - 1)
+
+
+func test_audio_backend_can_handle_mix_controls() -> void:
+	var backend := MockAudioBackend.new()
+	_audio.set_audio_backend(backend)
+
+	assert_true(_audio.set_bus_volume_db("External", -3.0), "后端可接管 dB 总线音量。")
+	assert_true(_audio.set_bus_mute("External", true), "后端可接管总线静音。")
+	assert_true(_audio.set_bus_effect_property("External", "lowpass", &"cutoff_hz", 900.0, 0.2), "后端可接管效果属性。")
+	var report := _audio.apply_mix_snapshot({ "backend_only": true }, 0.3)
+
+	assert_true(bool(report["ok"]), "后端处理混音快照时应返回成功报告。")
+	assert_almost_eq(backend.external_volume_db, -3.0, 0.001, "dB 音量应传给后端。")
+	assert_true(backend.external_muted, "静音状态应传给后端。")
+	assert_eq(backend.effect_property_requests.size(), 1, "效果属性请求应传给后端。")
+	assert_almost_eq(backend.handled_mix_transition, 0.3, 0.001, "快照过渡时间应传给后端。")
 
 
 func test_bus_volume() -> void:

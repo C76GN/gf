@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFDebugDrawUtility" path="addons/gf/standard/utilities/debug/gf_debug_draw_utility.gd" module="standard" extends="GFUtility" classDigest="edda0c8079c6e3c8aaab5fe693005670ae364176821cd8fad0633ff605acd3bc">
+<class name="GFDebugDrawUtility" path="addons/gf/standard/utilities/debug/gf_debug_draw_utility.gd" module="standard" extends="GFUtility" classDigest="c0313d819f3e113867ff48f7a164461fafd8cab84df77b23084d4d36133ce2a9">
 	<description>GFDebugDrawUtility: 通用调试绘制命令缓冲。
 收集 2D/3D 线段、矩形、圆、文本等即时调试绘制命令。
 Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overlay/Viewport 适配。</description>
@@ -87,6 +87,23 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="return">绘制命令 id。</tag>
 			</tags>
 		</member>
+		<member kind="method" name="draw_vector_2d">
+			<signature>func draw_vector_2d( origin: Vector2, vector: Vector2, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", width: float = 1.0, options: Dictionary = {} ) -&gt; Array[int]:</signature>
+			<description>绘制 2D 向量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">origin: 向量起点，centered 选项启用时表示中心点。</tag>
+				<tag name="param">vector: 要绘制的向量。</tag>
+				<tag name="param">color: 主向量颜色。</tag>
+				<tag name="param">lifetime_seconds: 调试绘制命令保留时间（秒）。</tag>
+				<tag name="param">channel: 调试绘制频道。</tag>
+				<tag name="param">width: 绘制线宽。</tag>
+				<tag name="param">options: 绘制选项。</tag>
+				<tag name="return">绘制命令 id 列表。</tag>
+				<tag name="schema">options: Dictionary，支持 scale、length_mode、max_length、centered、draw_components、arrowhead、arrowhead_size、x_color、y_color。</tag>
+				<tag name="schema">return: Array[int]，包含主线、可选分量线和可选箭头线的命令 id。</tag>
+			</tags>
+		</member>
 		<member kind="method" name="draw_rect_2d">
 			<signature>func draw_rect_2d( rect: Rect2, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", filled: bool = false, width: float = 1.0 ) -&gt; int:</signature>
 			<description>绘制 2D 矩形。</description>
@@ -142,6 +159,23 @@ Utility 只维护抽象命令和生命周期，具体渲染可由项目层 Overl
 				<tag name="param">channel: 调试绘制频道。</tag>
 				<tag name="param">width: 绘制线宽。</tag>
 				<tag name="return">绘制命令 id。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="draw_vector_3d">
+			<signature>func draw_vector_3d( origin: Vector3, vector: Vector3, color: Color = Color.WHITE, lifetime_seconds: float = -1.0, channel: StringName = &amp;"default", width: float = 1.0, options: Dictionary = {} ) -&gt; Array[int]:</signature>
+			<description>绘制 3D 向量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">origin: 向量起点，centered 选项启用时表示中心点。</tag>
+				<tag name="param">vector: 要绘制的向量。</tag>
+				<tag name="param">color: 主向量颜色。</tag>
+				<tag name="param">lifetime_seconds: 调试绘制命令保留时间（秒）。</tag>
+				<tag name="param">channel: 调试绘制频道。</tag>
+				<tag name="param">width: 绘制线宽。</tag>
+				<tag name="param">options: 绘制选项。</tag>
+				<tag name="return">绘制命令 id 列表。</tag>
+				<tag name="schema">options: Dictionary，支持 scale、length_mode、max_length、centered、draw_components、x_color、y_color、z_color。</tag>
+				<tag name="schema">return: Array[int]，包含主线和可选分量线的命令 id。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="draw_box_3d">

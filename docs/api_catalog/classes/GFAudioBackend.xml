@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAudioBackend" path="addons/gf/standard/utilities/audio/gf_audio_backend.gd" module="standard" extends="RefCounted" classDigest="dfe1d93d850354b7563b3fda668149ee1c9bdf8310c53d9f14cde7d504b50320">
+<class name="GFAudioBackend" path="addons/gf/standard/utilities/audio/gf_audio_backend.gd" module="standard" extends="RefCounted" classDigest="17defe6e772161d702c63efc6055f90138379459d93cdfbad0478b51e3df81bf">
 	<description>GFAudioBackend: GFAudioUtility 的可插拔音频后端协议。
 默认实现不处理任何请求。项目或扩展可继承它，把部分音频事件转交给
 外部中间件、平台接口或自定义混音系统；未声明可处理的请求会回退到 Godot 默认播放器。</description>
@@ -305,6 +305,53 @@
 				<tag name="param">_bus_name: 总线名或后端通道名。</tag>
 				<tag name="param">_volume_linear: 线性音量。</tag>
 				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bus_volume_db">
+			<signature>func set_bus_volume_db(_bus_name: String, _volume_db: float, _transition_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>设置总线 dB 音量。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_bus_name: 总线名或后端通道名。</tag>
+				<tag name="param">_volume_db: dB 音量。</tag>
+				<tag name="param">_transition_seconds: 平滑过渡秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bus_mute">
+			<signature>func set_bus_mute(_bus_name: String, _muted: bool) -&gt; bool:</signature>
+			<description>设置总线静音状态。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_bus_name: 总线名或后端通道名。</tag>
+				<tag name="param">_muted: 是否静音。</tag>
+				<tag name="return">已处理返回 true。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="set_bus_effect_property">
+			<signature>func set_bus_effect_property( _bus_name: String, _effect_ref: Variant, _property_name: StringName, _value: Variant, _transition_seconds: float = 0.0 ) -&gt; bool:</signature>
+			<description>设置总线效果属性。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_bus_name: 总线名或后端通道名。</tag>
+				<tag name="param">_effect_ref: 效果索引、名称或后端自定义效果引用。</tag>
+				<tag name="param">_property_name: 效果属性名。</tag>
+				<tag name="param">_value: 属性值。</tag>
+				<tag name="param">_transition_seconds: 平滑过渡秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">_effect_ref: int/String/StringName 或后端自定义引用。</tag>
+				<tag name="schema">_value: 属性值 Variant；键和值由后端或 GFAudioUtility 约定。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="apply_mix_snapshot">
+			<signature>func apply_mix_snapshot(_snapshot: Dictionary, _transition_seconds: float = 0.0) -&gt; bool:</signature>
+			<description>应用混音快照。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">_snapshot: 混音快照。</tag>
+				<tag name="param">_transition_seconds: 默认平滑过渡秒数。</tag>
+				<tag name="return">已处理返回 true。</tag>
+				<tag name="schema">_snapshot: Dictionary，可包含 buses 和 effects 字段，或后端自定义字段。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="get_bus_volume">

@@ -1,0 +1,108 @@
+# Godot Asset Store Submission Notes
+
+This file is maintainer-facing copy for the new Godot Asset Store website. Keep `ASSET_LIBRARY.md` for the legacy Godot Asset Library submission form.
+
+## Overview
+
+- Asset Name: `GF Framework`
+- Asset Summary:
+
+```text
+Lightweight Godot 4 architecture framework for lifecycle management, events, data binding, editor tooling, utilities, pure algorithm helpers, and optional gameplay extensions.
+```
+
+- Detailed Description:
+
+```markdown
+# GF Framework
+
+GF Framework is a lightweight architecture framework for Godot 4. It helps larger projects keep gameplay code organized without taking over Godot's scene tree.
+
+It separates:
+
+- data and state in `GFModel`
+- gameplay rules in `GFSystem`
+- scene, UI, input, and presentation bridges in `GFController`
+- lifecycle-managed runtime services in `GFUtility`
+- pure algorithms and data helpers in `standard/foundation`
+- optional atomic gameplay extensions in `addons/gf/extensions`
+
+## Highlights
+
+- Managed lifecycle through the `Gf` AutoLoad and project installers.
+- Events, commands, queries, typed accessors, bindable properties, and lifecycle-safe module lookup.
+- Editor workspace for extension management, script templates, diagnostics, export filtering, and project tooling.
+- Standard utilities for storage, settings, audio, input, assets, diagnostics, UI routing, time, logging, and runtime inspection.
+- Foundation helpers for graphs, grids, pathfinding, hex grids, layer masks, tags, validation reports, formulas, timelines, variant data, and formatting.
+- Optional extensions for capabilities, action queues, save graphs, flow graphs, network snapshots, turn flow, interaction, feedback, camera, dialogue, combat, domain models, and physics helpers.
+- GUT-tested maintenance suite and generated API reference.
+
+## Boundaries
+
+GF does not define your gameplay rules. It does not replace Godot physics, rendering, animation, UI design, or scene composition. Use it when you want stable architecture seams and reusable tools while keeping project-specific decisions in your own code.
+
+## Install
+
+Copy `addons/gf` into your Godot project, enable `GF Framework` in `Project > Project Settings > Plugins`, then call `await Gf.init()` from your boot scene or use a project installer.
+
+Documentation: https://gf-framework.readthedocs.io/
+Source: https://github.com/C76GN/gf-framework
+License: Apache-2.0
+```
+
+- Tags:
+
+```text
+State Machine, Editor, Architecture, Save System, Framework
+```
+
+- Type: `Addon (tools, assets, etc...)`
+- License: `Apache 2.0`
+- Source code URL: `https://github.com/C76GN/gf-framework`
+- Self disclose AI usage: `Enabled`
+- AI disclose reason:
+
+```text
+AI assisted with documentation and code review. All changes are maintainer-reviewed and tested.
+```
+
+## Settings
+
+The new Asset Store settings tab may change while the site is in beta. Prefer conservative values:
+
+- Visibility: public when the release tag is ready.
+- Support / contact URL: `https://github.com/C76GN/gf-framework/issues`
+- Documentation URL: `https://gf-framework.readthedocs.io/`
+- Minimum Godot version: `4.6`
+
+## Media
+
+- Icon: `addons/gf/icon.png`
+- Preview images: not pinned yet.
+
+Before adding screenshots, prefer images that show actual GF editor tooling or documentation/API surface rather than decorative marketing graphics.
+
+## Versions
+
+- Current release version: `3.21.0`
+- Release tag: `3.21.0`
+- Minimum Godot version: `4.6`
+- Source archive should come from the clean release tag, not an uncommitted workspace.
+- Release metadata check: `python tools\gf_maintenance.py release-status --version 3.21.0`
+- Changelog source: `docs/zh/changelog.md`
+
+## Pricing
+
+- Pricing: `Free`
+
+GF Framework is open source under Apache-2.0.
+
+## Version Bump Checklist
+
+When the asset version changes, update these locations together:
+
+1. `addons/gf/plugin.cfg`
+2. `ASSET_LIBRARY.md`
+3. `ASSET_STORE.md`
+4. `docs/zh/changelog.md`
+5. The Godot Asset Store version entry after the release tag is pushed.

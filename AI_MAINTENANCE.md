@@ -43,7 +43,7 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 - `docs/zh/**`：更新负责解释该模块或概念的文档页面。
 - `docs/zh/changelog.md`：记录新增、修复、行为变化、API 变化和迁移说明。
 - `README.md` 与 `addons/gf/README.md`：仅当功能列表、快速开始、安装说明或项目定位发生变化时更新。
-- `ASSET_LIBRARY.md`：仅当 Asset Library 描述、版本、最低 Godot 版本或发布元数据变化时更新。
+- `ASSET_LIBRARY.md` / `ASSET_STORE.md`：仅当 Asset Library、Asset Store 描述、版本、最低 Godot 版本或发布元数据变化时更新。
 - `addons/gf/plugin.cfg`：仅在明确进行版本号升级时更新。
 
 修改任何 `.gd` 文件后，额外执行以下布局检查：
@@ -98,18 +98,19 @@ addons/gf/kernel <- addons/gf/standard <- addons/gf/extensions
 
 - `addons/gf/plugin.cfg`
 - `ASSET_LIBRARY.md`
+- `ASSET_STORE.md`
 - `docs/zh/changelog.md`
 - `README.md` 与 `addons/gf/README.md`，如果公开概览发生变化
 
 版本与提交流程：
 
 - 功能开发、修复或文档补充过程中，如果需要记录发布说明，先写入 `docs/zh/changelog.md` 的 `[未发布]` 小节；如果没有 `[未发布]` 小节，就在最新正式版本上方创建。
-- 在用户确认本轮修改没有问题之前，不要把 `[未发布]` 改成具体版本号，也不要更新 `addons/gf/plugin.cfg` 或 `ASSET_LIBRARY.md` 的版本号。
+- 在用户确认本轮修改没有问题之前，不要把 `[未发布]` 改成具体版本号，也不要更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md` 或 `ASSET_STORE.md` 的版本号。
 - 用户确认进入发布或提交阶段后，根据实际变更确定 SemVer 版本号：兼容 bug 修复或小型加固用 patch；向后兼容的新公开 API、设置或功能通常用 minor；破坏兼容只允许在用户明确批准后按 major 处理。
-- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md`、所有 GF 内置扩展 `gf_extension.json` 的 `version` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
+- 确定版本后，把 `[未发布]` 改为具体版本条目，同步更新 `addons/gf/plugin.cfg`、`ASSET_LIBRARY.md`、`ASSET_STORE.md`、所有 GF 内置扩展 `gf_extension.json` 的 `version` 和必要的发布说明；保留未来新工作的 `[未发布]` 创建时机由下一轮维护决定。
 - GF 内置扩展 manifest 的 `version` 表示 GF 发行版本，发布时所有 `addons/gf/extensions/*/gf_extension.json` 必须同步为当前 GF 版本。内置扩展 manifest 的 `extension_version` 表示单个扩展自身版本，只有该扩展的公开 API、配置、行为或兼容性契约发生变化时才按 SemVer 递增；本轮未改变的内置扩展只同步 `version`，不递增 `extension_version`。
 - 正式 `docs/zh/changelog.md` 只保留当前最新发布版本。发布新版本时必须删除上一个正式版本条目，旧版本历史以 Git 历史和 GitHub Releases 为准，不要让旧日志长期堆积在正式文档中。
-- GF 版本 tag 统一使用不带 `v` 的 SemVer 格式，例如 `3.5.0`。推送这类 tag 后，`.github/workflows/release.yml` 会校验 `plugin.cfg`、内置扩展 manifest、`ASSET_LIBRARY.md` 与 changelog 版本一致，构建文档，并用对应 changelog 段落创建 GitHub Release。
+- GF 版本 tag 统一使用不带 `v` 的 SemVer 格式，例如 `3.5.0`。推送这类 tag 后，`.github/workflows/release.yml` 会校验 `plugin.cfg`、内置扩展 manifest、`ASSET_LIBRARY.md`、`ASSET_STORE.md` 与 changelog 版本一致，构建文档，并用对应 changelog 段落创建 GitHub Release。
 - 除非用户明确要求 AI 直接提交，否则只准备 commit message 和待提交文件清单，让用户手动提交。若用户明确要求 AI 提交，提交前必须再次运行相关测试和文档/API 校验。
 - 提交后不要自动创建 Git tag；只有用户明确要求打 tag 时，才创建对应版本 tag。
 
@@ -280,7 +281,7 @@ python tools\gf_maintenance.py release-status --version 3.19.0
 
 维护规则：
 
-- MCP server 只暴露白名单工具：项目摘要、工作区变更快照、API 搜索、单类或单模块 API、预设检查套件和版本一致性检查。
+- MCP server 只暴露白名单工具：项目摘要、工作区变更快照、API 搜索、单类或单模块 API、预设检查套件、版本一致性检查和发布包元数据审计。
 - 需要新增 AI 维护能力时，优先扩展 `tools/gf_maintenance.py` 的普通 CLI，再由 `tools/gf_mcp_server.py` 复用，避免 MCP 协议层和维护逻辑分叉。
 - 不提交个人 MCP 客户端配置、会话记录或运行日志。
 - 不把 MCP 当作正式文档或 API Reference 的事实来源；涉及行为细节仍需打开源码、测试和正式文档核对。

@@ -162,7 +162,7 @@ def list_tools() -> list[dict[str, Any]]:
 		},
 		{
 			"name": "gf_release_status",
-			"description": "Validate plugin.cfg, extension manifests, ASSET_LIBRARY.md, changelog, and local tag state for a GF version.",
+			"description": "Validate plugin.cfg, extension manifests, Asset Library/Asset Store metadata, changelog, package archive rules, and local tag state for a GF version.",
 			"inputSchema": {
 				"type": "object",
 				"properties": {

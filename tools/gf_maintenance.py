@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import configparser
 import json
+import os
 import re
 import subprocess
 import sys
@@ -23,7 +24,15 @@ from gdscript_api_parser import collect_api_scripts
 ROOT = Path(__file__).resolve().parents[1]
 SEMVER_RE = re.compile(r"^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$")
 CHANGELOG_VERSION_RE = re.compile(r"^##\s+\[(?P<version>[^\]]+)\]")
-ASSET_FIELD_RE = re.compile(r"^-\s+(?P<name>Asset Version|Download Commit/URL):\s+`(?P<value>[^`]+)`\s*$")
+MARKDOWN_FIELD_RE = re.compile(r"^-\s+(?P<name>[^:]+):\s+`(?P<value>[^`]+)`\s*$")
+PLUGIN_REQUIRED_FIELDS = ("name", "description", "author", "version", "script")
+ARCHIVE_EXPORT_IGNORE_RULES = (
+	"/** export-ignore",
+	"/addons !export-ignore",
+	"/addons/gf !export-ignore",
+	"/addons/gf/** !export-ignore",
+)
+BLOCKED_PACKAGE_DIR_NAMES = (".git", ".godot", ".import", ".vs", "node_modules")
 
 CHECK_DEFINITIONS: dict[str, list[str]] = {
 	"gut": [
@@ -449,7 +458,11 @@ def classify_status_path(path: str) -> str:
 		return "manual_docs"
 	if normalized.startswith("tools/") or normalized in {"AI_MAINTENANCE.md", "CODING_STYLE.md", "API_SURFACE.md"}:
 		return "maintenance_tools"
-	if normalized == "ASSET_LIBRARY.md" or normalized == "addons/gf/plugin.cfg" or normalized.endswith("/gf_extension.json"):
+	if (
+		normalized in {"ASSET_LIBRARY.md", "ASSET_STORE.md", ".gitattributes"}
+		or normalized == "addons/gf/plugin.cfg"
+		or normalized.endswith("/gf_extension.json")
+	):
 		return "release_metadata"
 	if normalized.startswith("addons/gf/"):
 		return "runtime_source"
@@ -638,19 +651,56 @@ def gut_report_all_tests_passed(stdout: str) -> bool:
 
 
 def release_status(expected_version: str = "") -> dict[str, Any]:
-	plugin_version = read_plugin_version()
+	plugin_audit = audit_plugin_cfg()
+	plugin_version = plugin_audit["version"]
 	version = expected_version.strip() or plugin_version
 	issues: list[str] = []
 	if SEMVER_RE.match(version) is None:
 		issues.append(f"Expected version {version!r} is not SemVer MAJOR.MINOR.PATCH.")
 	if plugin_version != version:
 		issues.append(f"addons/gf/plugin.cfg version is {plugin_version!r}, expected {version!r}.")
+	for field_name in plugin_audit["missing_required_fields"]:
+		issues.append(f"addons/gf/plugin.cfg is missing required [plugin] field {field_name!r}.")
+	if not plugin_audit["script_inside_addon"]:
+		issues.append("addons/gf/plugin.cfg script must resolve inside addons/gf.")
+	elif not plugin_audit["script_exists"]:
+		issues.append(f"addons/gf/plugin.cfg script was not found: {plugin_audit['script_path']}.")
+	else:
+		if not plugin_audit["script_has_tool"]:
+			issues.append(f"{plugin_audit['script_path']} is missing @tool.")
+		if not plugin_audit["script_extends_editor_plugin"]:
+			issues.append(f"{plugin_audit['script_path']} must extend EditorPlugin.")
+	for file_name, exists in plugin_audit["required_files"].items():
+		if not exists:
+			issues.append(f"addons/gf package is missing {file_name}.")
 
 	asset_fields = read_asset_library_fields()
 	for field_name in ("Asset Version", "Download Commit/URL"):
 		value = asset_fields.get(field_name, "")
 		if value != version:
 			issues.append(f"ASSET_LIBRARY.md {field_name} is {value!r}, expected {version!r}.")
+	icon_url = asset_fields.get("Icon URL", "")
+	if icon_url and version not in icon_url:
+		issues.append(f"ASSET_LIBRARY.md Icon URL does not reference release {version}.")
+
+	asset_store = read_asset_store_metadata()
+	for field_name in ("Current release version", "Release tag"):
+		value = asset_store["fields"].get(field_name, "")
+		if value != version:
+			issues.append(f"ASSET_STORE.md {field_name} is {value!r}, expected {version!r}.")
+	asset_library_minimum_godot = asset_fields.get("Minimum Godot Version", "")
+	asset_store_minimum_godot = asset_store["fields"].get("Minimum Godot version", "")
+	if asset_library_minimum_godot and asset_store_minimum_godot and asset_store_minimum_godot != asset_library_minimum_godot:
+		issues.append(
+			"ASSET_STORE.md Minimum Godot version is "
+			f"{asset_store_minimum_godot!r}, expected ASSET_LIBRARY.md Minimum Godot Version {asset_library_minimum_godot!r}."
+		)
+	if not asset_store["tags"] or len(asset_store["tags"]) > 5:
+		issues.append("ASSET_STORE.md Tags must contain 1 to 5 tags.")
+	if asset_store["fields"].get("Self disclose AI usage", "").lower() == "enabled" and not asset_store["ai_disclose_reason"]:
+		issues.append("ASSET_STORE.md AI disclose reason is empty while AI usage disclosure is enabled.")
+	if asset_store["fields"].get("Source code URL", "") != "https://github.com/C76GN/gf-framework":
+		issues.append("ASSET_STORE.md Source code URL must point to the GF Framework repository.")
 
 	extension_versions = read_extension_versions()
 	extension_mismatches = [
@@ -664,6 +714,18 @@ def release_status(expected_version: str = "") -> dict[str, Any]:
 	if version not in changelog_versions:
 		issues.append(f"docs/zh/changelog.md does not contain section [{version}].")
 
+	package_archive = audit_package_archive()
+	if package_archive["missing_export_ignore_rules"]:
+		issues.append(
+			".gitattributes is missing GF release archive export-ignore rule(s): "
+			+ ", ".join(package_archive["missing_export_ignore_rules"])
+		)
+	if package_archive["blocked_package_dirs"]:
+		issues.append(
+			"addons/gf release payload contains blocked package dir(s): "
+			+ ", ".join(package_archive["blocked_package_dirs"])
+		)
+
 	tag_exists = git_exit_code(["rev-parse", "-q", "--verify", f"refs/tags/{version}"]) == 0
 	tag_points_at_head = version in git_lines(["tag", "--points-at", "HEAD"])
 	return {
@@ -671,32 +733,162 @@ def release_status(expected_version: str = "") -> dict[str, Any]:
 		"version": version,
 		"issues": issues,
 		"plugin_version": plugin_version,
+		"plugin": plugin_audit,
 		"asset_library": asset_fields,
+		"asset_store": asset_store,
 		"extension_count": len(extension_versions),
 		"extension_mismatches": extension_mismatches,
 		"changelog_versions": changelog_versions[:5],
+		"package_archive": package_archive,
 		"tag_exists": tag_exists,
 		"tag_points_at_head": tag_points_at_head,
 	}
 
 
 def read_plugin_version() -> str:
+	return read_plugin_fields().get("version", "")
+
+
+def read_plugin_fields() -> dict[str, str]:
 	path = ROOT / "addons/gf/plugin.cfg"
 	config = configparser.ConfigParser()
 	config.read(path, encoding="utf-8")
-	return strip_quotes(config.get("plugin", "version", fallback="").strip())
+	if not config.has_section("plugin"):
+		return {}
+	return {
+		name: strip_quotes(config.get("plugin", name, fallback="").strip())
+		for name in config.options("plugin")
+	}
+
+
+def audit_plugin_cfg() -> dict[str, Any]:
+	addon_root = ROOT / "addons/gf"
+	fields = read_plugin_fields()
+	script_value = fields.get("script", "")
+	script_path = addon_root / script_value if script_value else addon_root
+	script_inside_addon = path_is_inside(script_path, addon_root)
+	script_exists = script_inside_addon and script_path.is_file()
+	script_text = script_path.read_text(encoding="utf-8") if script_exists else ""
+	required_files = {
+		"README.md": (addon_root / "README.md").is_file(),
+		"LICENSE.md": (addon_root / "LICENSE.md").is_file(),
+		"icon.png": (addon_root / "icon.png").is_file(),
+	}
+	return {
+		"fields": fields,
+		"version": fields.get("version", ""),
+		"missing_required_fields": [
+			field_name for field_name in PLUGIN_REQUIRED_FIELDS
+			if not fields.get(field_name, "")
+		],
+		"script_path": script_path.relative_to(ROOT).as_posix() if script_inside_addon else script_value,
+		"script_inside_addon": script_inside_addon,
+		"script_exists": script_exists,
+		"script_has_tool": "@tool" in script_text,
+		"script_extends_editor_plugin": re.search(r"^\s*extends\s+EditorPlugin\b", script_text, re.MULTILINE) is not None,
+		"required_files": required_files,
+	}
 
 
 def read_asset_library_fields() -> dict[str, str]:
 	path = ROOT / "ASSET_LIBRARY.md"
+	return read_markdown_fields(path)
+
+
+def read_asset_store_metadata() -> dict[str, Any]:
+	path = ROOT / "ASSET_STORE.md"
+	return {
+		"exists": path.exists(),
+		"fields": read_markdown_fields(path),
+		"tags": read_comma_separated_fenced_field(path, "Tags"),
+		"ai_disclose_reason": read_fenced_field(path, "AI disclose reason").strip(),
+	}
+
+
+def read_markdown_fields(path: Path) -> dict[str, str]:
 	fields: dict[str, str] = {}
 	if not path.exists():
 		return fields
 	for line in path.read_text(encoding="utf-8").splitlines():
-		match = ASSET_FIELD_RE.match(line)
+		match = MARKDOWN_FIELD_RE.match(line)
 		if match:
 			fields[match.group("name")] = match.group("value").strip()
 	return fields
+
+
+def read_comma_separated_fenced_field(path: Path, field_name: str) -> list[str]:
+	text = read_fenced_field(path, field_name)
+	values: list[str] = []
+	for item in re.split(r"[,\n]", text):
+		value = item.strip()
+		if value:
+			values.append(value)
+	return values
+
+
+def read_fenced_field(path: Path, field_name: str) -> str:
+	if not path.exists():
+		return ""
+	lines = path.read_text(encoding="utf-8").splitlines()
+	marker = f"- {field_name}:"
+	for index, line in enumerate(lines):
+		if line.strip() != marker:
+			continue
+		fence_start = -1
+		for candidate_index in range(index + 1, len(lines)):
+			if lines[candidate_index].strip().startswith("```"):
+				fence_start = candidate_index
+				break
+		if fence_start < 0:
+			return ""
+		for candidate_index in range(fence_start + 1, len(lines)):
+			if lines[candidate_index].strip().startswith("```"):
+				return "\n".join(lines[fence_start + 1:candidate_index]).strip()
+		return ""
+	return ""
+
+
+def audit_package_archive() -> dict[str, Any]:
+	gitattributes_path = ROOT / ".gitattributes"
+	gitattributes_lines = []
+	if gitattributes_path.exists():
+		gitattributes_lines = [
+			line.strip()
+			for line in gitattributes_path.read_text(encoding="utf-8").splitlines()
+			if line.strip() and not line.strip().startswith("#")
+		]
+	return {
+		"gitattributes_exists": gitattributes_path.exists(),
+		"required_export_ignore_rules": list(ARCHIVE_EXPORT_IGNORE_RULES),
+		"missing_export_ignore_rules": [
+			rule for rule in ARCHIVE_EXPORT_IGNORE_RULES
+			if rule not in gitattributes_lines
+		],
+		"blocked_package_dirs": find_blocked_package_dirs(ROOT / "addons/gf"),
+	}
+
+
+def find_blocked_package_dirs(root: Path) -> list[str]:
+	if not root.exists():
+		return []
+	blocked_names = set(BLOCKED_PACKAGE_DIR_NAMES)
+	result: list[str] = []
+	for current_root, dir_names, _file_names in os.walk(root):
+		for dir_name in list(dir_names):
+			if dir_name not in blocked_names:
+				continue
+			path = Path(current_root) / dir_name
+			result.append(path.relative_to(ROOT).as_posix())
+			dir_names.remove(dir_name)
+	return sorted(result)
+
+
+def path_is_inside(path: Path, root: Path) -> bool:
+	try:
+		path.resolve().relative_to(root.resolve())
+		return True
+	except ValueError:
+		return False
 
 
 def read_extension_versions() -> list[dict[str, str]]:
@@ -885,7 +1077,27 @@ def render_checks_text(data: dict[str, Any]) -> str:
 def render_release_status_text(data: dict[str, Any]) -> str:
 	lines = [f"version: {data['version']} ok={data['ok']}"]
 	lines.append(f"plugin: {data['plugin_version']}")
+	asset_library = data.get("asset_library", {})
+	lines.append(
+		"asset_library: "
+		f"version={asset_library.get('Asset Version', '')} "
+		f"download={asset_library.get('Download Commit/URL', '')}"
+	)
+	asset_store = data.get("asset_store", {})
+	asset_store_fields = asset_store.get("fields", {})
+	lines.append(
+		"asset_store: "
+		f"version={asset_store_fields.get('Current release version', '')} "
+		f"tag={asset_store_fields.get('Release tag', '')} "
+		f"tags={len(asset_store.get('tags', []))}"
+	)
 	lines.append(f"extensions: {data['extension_count']} mismatches={len(data['extension_mismatches'])}")
+	package_archive = data.get("package_archive", {})
+	lines.append(
+		"archive: "
+		f"missing_rules={len(package_archive.get('missing_export_ignore_rules', []))} "
+		f"blocked_dirs={len(package_archive.get('blocked_package_dirs', []))}"
+	)
 	lines.append(f"tag: exists={data['tag_exists']} points_at_head={data['tag_points_at_head']}")
 	if data["issues"]:
 		lines.append("issues:")

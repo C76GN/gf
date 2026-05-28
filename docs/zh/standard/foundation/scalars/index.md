@@ -8,7 +8,8 @@
 - [数字格式化](number-formatting.md)：`GFNumberFormatter` 与 `GFDecimalStringFormatter`。
 - [成长曲线](progression-math/index.md)：`GFProgressionMath` 的价格曲线、收益曲线和离线收益。
 - [权重表](weighted-table.md)：`GFWeightedEntry` / `GFWeightedTable` 的候选值、权重和随机选择。
+- [层名与 Bitmask](layer-mask.md)：`GFLayerMaskUtility` 的层名、索引和整数掩码互转。
 
 ## 使用边界
 
-这些类型只处理通用数值、文本格式和纯算法。货币精度策略、排行榜判定、资源流转、掉落配置、业务校验和本地化单位仍由项目层决定。
+这些类型只处理通用数值、文本格式和纯算法。货币精度策略、排行榜判定、资源流转、掉落配置、业务校验、碰撞层语义和本地化单位仍由项目层决定。

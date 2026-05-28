@@ -202,7 +202,7 @@ MCP 暴露的主要工具：
 - `gf_api_class`：返回单个 `class_name` 的路径、摘要、Reference 页面和公开成员。
 - `gf_api_module`：返回单个模块的类清单、路径和成员计数，适合先理解模块边界再打开具体源码。
 - `gf_run_checks`：运行 `api`、`docs`、`quick`、`full` 或 `release` 检查套件。
-- `gf_release_status`：校验 `plugin.cfg`、扩展 manifest、`ASSET_LIBRARY.md`、changelog 和本地 tag 状态。
+- `gf_release_status`：校验 `plugin.cfg`、扩展 manifest、`ASSET_LIBRARY.md`、`ASSET_STORE.md`、changelog、发布包归档规则和本地 tag 状态。
 
 接入 MCP 客户端时，将 server 命令指向仓库根目录下的 `python tools/gf_mcp_server.py` 即可。不要把个人客户端配置、会话记录或 MCP 运行日志提交到仓库；需要新增维护能力时，优先扩展 `tools/gf_maintenance.py`，再让 MCP server 调用同一套函数。
 
@@ -214,10 +214,11 @@ GF 正式版本 tag 统一使用不带 `v` 的 SemVer 格式，例如 `3.5.0`。
 
 - `addons/gf/plugin.cfg` 的 `version`。
 - `ASSET_LIBRARY.md` 的 `Asset Version` 与 `Download Commit/URL`。
+- `ASSET_STORE.md` 的 `Current release version` 与 `Release tag`。
 - 所有 `addons/gf/extensions/*/gf_extension.json` 的 `version`。
 - `docs/zh/changelog.md` 中对应 `## [x.y.z] - YYYY-MM-DD` 段落。
 
-推送 `x.y.z` tag 后，GitHub Actions 的 `Release` 工作流会从该 tag 对应源码中提取 changelog 版本段，校验上述版本号一致，构建文档，并创建 GitHub Release。Release 的源码 zip/tar.gz 由 GitHub 自动提供；GF 当前不额外上传插件包，除非后续发布策略明确需要独立附件。
+推送 `x.y.z` tag 后，GitHub Actions 的 `Release` 工作流会从该 tag 对应源码中提取 changelog 版本段，校验上述版本号一致，并检查 Asset Store 标签与 AI 披露字段，构建文档，然后创建 GitHub Release。Release 的源码 zip/tar.gz 由 GitHub 自动提供；GF 当前不额外上传插件包，除非后续发布策略明确需要独立附件。
 
 ## 文档维护
 

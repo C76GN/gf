@@ -21,7 +21,7 @@ audio.set_audio_backend(ProjectAudioBackend.new())
 audio.play_sfx("event://ui/confirm")
 ```
 
-`GFAudioBackend` 是协议层，不内置任何第三方 SDK、事件命名或业务混音快照。后端可选择只处理部分 BGM、BGM transport、SFX、stop-all SFX、环境音、空间音效或总线音量，其余请求保持默认行为。
+`GFAudioBackend` 是协议层，不内置任何第三方 SDK、事件命名或业务状态。后端可选择只处理部分 BGM、BGM transport、SFX、stop-all SFX、环境音、空间音效、总线音量、总线静音、总线效果属性或混音快照，其余请求保持默认行为。
 
 `GFAudioUtility.get_debug_snapshot()` 会把后端的 `get_debug_snapshot()` 放进 `backend_snapshot`，并提供 `bgm_paused`、`bgm_position`、`current_bgm_loop`、`active_sfx_count` 和 `active_spatial_sfx_count` 等字段，便于诊断面板统一展示。
 

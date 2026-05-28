@@ -5,7 +5,7 @@
 ## 阅读入口
 
 - [2D 曲线与折线](curve-2d.md)：`GFCurve2DMath` 的折线长度、采样、简化和基础闭合形状生成。
-- [2D 网格、生成管线与 Hex 网格](grid-2d-hex/index.md)：`GFGridMath`、`GFGridSelection2D`、`GFGridGenerationStep2D`、`GFGridGenerationPipeline2D` 与 `GFHexGridMath`。
+- [2D 网格、生成管线与 Hex 网格](grid-2d-hex/index.md)：`GFGridMath`、`GFGridTransform2D`、`GFGridSelection2D`、`GFGridGenerationStep2D`、`GFGridGenerationPipeline2D` 与 `GFHexGridMath`。
 - [图搜索、布局与 3D 网格](graph-layout-3d/index.md)：`GFGraphMath`、`GFGraphLayoutUtility`、`GFGrid3DMath`、`GFGridKey3D` 与 `GFGridPlaneMapper3D`。
 - [Pattern2D 与 Steering](patterns-steering/index.md)：`GFPattern2D`、`GFSteeringAgent`、`GFSteeringMath` 和资源化 steering 组合。
 - [占用、TileMap 缓存、规则表与空间哈希](occupancy-tile-spatial/index.md)：`GFGridOccupancy`、`GFTileMapCache`、`GFTileRuleSet` 与 `GFSpatialHash3D`。
