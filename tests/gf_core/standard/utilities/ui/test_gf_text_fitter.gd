@@ -46,6 +46,47 @@ func test_fit_label_shrinks_to_available_width() -> void:
 	assert_lte(measured_size.x, 90.0, "计算后的文本宽度应落在可用范围内。")
 
 
+## 验证 Label 测量会遵循控件自身换行规则。
+func test_measure_control_text_uses_label_autowrap() -> void:
+	var label := Label.new()
+	label.text = "Alpha Beta Gamma Delta"
+	label.size = Vector2(72.0, 160.0)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child_autofree(label)
+
+	var wrapped_size: Vector2 = GFTextFitterBase.measure_control_text(label, 20, {
+		"available_size": Vector2(72.0, 160.0),
+	})
+	var single_line_size: Vector2 = GFTextFitterBase.measure_text(label, label.text, 20, {
+		"available_size": Vector2(72.0, 160.0),
+		"fit_width": false,
+		"autowrap_mode": TextServer.AUTOWRAP_OFF,
+	})
+
+	assert_gt(wrapped_size.y, single_line_size.y, "开启自动换行时测量高度应反映多行文本。")
+	assert_lt(wrapped_size.x, single_line_size.x, "开启自动换行时测量宽度应小于单行文本。")
+
+
+## 验证 Label 适配会按换行后的高度寻找字号。
+func test_fit_label_uses_label_autowrap_for_height() -> void:
+	var label := Label.new()
+	label.text = "Alpha Beta Gamma Delta"
+	label.size = Vector2(72.0, 120.0)
+	label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child_autofree(label)
+
+	var font_size: int = GFTextFitterBase.fit_label(label, {
+		"min_font_size": 8,
+		"max_font_size": 32,
+		"available_size": Vector2(72.0, 120.0),
+	})
+	var measured_size: Vector2 = GFTextFitterBase.measure_control_text(label, font_size, {
+		"available_size": Vector2(72.0, 120.0),
+	})
+
+	assert_lte(measured_size.y, 120.0, "适配后的换行文本高度不应超过可用区域。")
+
+
 ## 验证 RichTextLabel 可忽略 BBCode 标记进行尺寸适配。
 func test_fit_rich_text_label_uses_plain_text_measurement() -> void:
 	var label := RichTextLabel.new()

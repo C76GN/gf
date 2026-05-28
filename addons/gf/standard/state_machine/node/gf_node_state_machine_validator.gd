@@ -160,7 +160,63 @@ static func validate_state_list(
 	return report
 
 
+# --- 层内方法 ---
+
+## 将状态机校验报告转换为 Godot Inspector 配置警告文本。
+## [br]
+## @api layer_internal
+## [br]
+## @layer standard/state_machine/node
+## [br]
+## @param report: 状态机校验报告。
+## [br]
+## @return Inspector 可显示的配置警告列表。
+static func make_configuration_warnings(report: GFValidationReport) -> PackedStringArray:
+	var result := PackedStringArray()
+	if report == null:
+		return result
+
+	for issue: RefCounted in report.issues:
+		if issue == null:
+			continue
+		result.append(_format_configuration_warning_issue(issue))
+	return result
+
+
 # --- 私有/辅助方法 ---
+
+static func _format_configuration_warning_issue(issue: RefCounted) -> String:
+	var severity := "Error"
+	if bool(issue.call("is_warning")):
+		severity = "Warning"
+	elif bool(issue.call("is_info")):
+		severity = "Info"
+
+	var kind := String(issue.call("get_kind_key"))
+	var message := String(issue.get("message")).strip_edges()
+	var location := _get_issue_location_text(issue)
+	if message.is_empty():
+		message = "No message."
+	if kind.is_empty():
+		return "%s: %s%s" % [severity, message, location]
+	return "%s [%s]: %s%s" % [severity, kind, message, location]
+
+
+static func _get_issue_location_text(issue: RefCounted) -> String:
+	var parts := PackedStringArray()
+	var path := String(issue.get("path")).strip_edges()
+	if not path.is_empty():
+		parts.append(path)
+
+	var key: Variant = issue.get("key")
+	if key != null:
+		var key_text := String(key).strip_edges()
+		if not key_text.is_empty():
+			parts.append(key_text)
+
+	if parts.is_empty():
+		return ""
+	return " (%s)" % " / ".join(parts)
 
 static func _validate_group_shape(
 	report: GFValidationReport,

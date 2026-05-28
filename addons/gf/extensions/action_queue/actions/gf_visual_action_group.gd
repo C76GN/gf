@@ -1,6 +1,6 @@
 ## GFVisualActionGroup: 动作组复合节点 (Composite Pattern)
 ## 
-## 继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并等待全部完成）
+## 继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并按策略等待）
 ## 或顺序（逐个执行并等待各自完成）两种模式执行。
 ## 子动作可以继承 GFVisualAction，也可以直接实现动作协议方法。
 ## [br]
@@ -22,6 +22,21 @@ signal _parallel_completed
 signal _sequence_completed
 
 
+# --- 枚举 ---
+
+## 并行动作组何时视为完成。
+## [br]
+## @api public
+## [br]
+## @since 3.24.0
+enum ParallelCompletionPolicy {
+	## 等待所有需要等待的子动作完成。
+	WAIT_FOR_ALL,
+	## 任一子动作完成后就结束动作组。
+	FIRST_COMPLETED,
+}
+
+
 # --- 常量 ---
 
 const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queue/core/gf_action_protocol.gd")
@@ -36,11 +51,25 @@ const _ACTION_PROTOCOL: Script = preload("res://addons/gf/extensions/action_queu
 ## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 var actions: Array[Object] = []
 
-## 是否并行执行。为 true 时，并行触发所有子动作并等待全部完成；
+## 是否并行执行。为 true 时，并行触发所有子动作并按 parallel_completion_policy 完成；
 ## 为 false 时，按数组顺序依次执行并等待各自完成。
 ## [br]
 ## @api public
 var is_parallel: bool = true
+
+## 并行动作组完成策略。
+## [br]
+## @api public
+## [br]
+## @since 3.24.0
+var parallel_completion_policy: ParallelCompletionPolicy = ParallelCompletionPolicy.WAIT_FOR_ALL
+
+## FIRST_COMPLETED 完成策略触发后，是否取消仍在等待的子动作。
+## [br]
+## @api public
+## [br]
+## @since 3.24.0
+var cancel_remaining_on_first_completed: bool = true
 
 
 # --- 私有变量 ---
@@ -48,17 +77,24 @@ var is_parallel: bool = true
 var _execution_serial: int = 0
 var _is_executing: bool = false
 var _active_is_parallel: bool = true
+var _active_parallel_completion_policy: ParallelCompletionPolicy = ParallelCompletionPolicy.WAIT_FOR_ALL
+var _active_cancel_remaining_on_first_completed: bool = true
 
 
 # --- Godot 生命周期方法 ---
 
-func _init(actions_list: Array = [], parallel: bool = true) -> void:
+func _init(
+	actions_list: Array = [],
+	parallel: bool = true,
+	completion_policy: ParallelCompletionPolicy = ParallelCompletionPolicy.WAIT_FOR_ALL
+) -> void:
 	actions.clear()
 	for action: Variant in actions_list:
 		var action_object := action as Object
 		if action_object != null:
 			actions.append(action_object)
 	is_parallel = parallel
+	parallel_completion_policy = completion_policy
 
 
 # --- 公共方法 ---
@@ -88,6 +124,8 @@ func execute() -> Variant:
 	var current_serial: int = _execution_serial
 	_is_executing = true
 	_active_is_parallel = is_parallel
+	_active_parallel_completion_policy = parallel_completion_policy
+	_active_cancel_remaining_on_first_completed = cancel_remaining_on_first_completed
 
 	if is_parallel:
 		return _run_parallel(current_serial)
@@ -152,8 +190,10 @@ func _do_parallel_async(current_serial: int) -> void:
 
 	var pending_state := {
 		"count": 0,
+		"completed_count": 0,
 		"launching": true,
 		"emitted": false,
+		"actions": [],
 	}
 	for action: Object in actions:
 		if not _ACTION_PROTOCOL.is_action_valid(action):
@@ -166,7 +206,11 @@ func _do_parallel_async(current_serial: int) -> void:
 		var result: Variant = _ACTION_PROTOCOL.execute(action)
 		if _ACTION_PROTOCOL.should_wait_for_result(action, result):
 			pending_state["count"] = int(pending_state["count"]) + 1
+			var pending_actions := pending_state["actions"] as Array
+			pending_actions.append(action)
 			_wait_parallel_action(action, result, pending_state, current_serial)
+		elif _active_parallel_completion_policy == ParallelCompletionPolicy.FIRST_COMPLETED:
+			pending_state["completed_count"] = int(pending_state["completed_count"]) + 1
 
 	pending_state["launching"] = false
 	_try_emit_parallel_completed(pending_state, current_serial)
@@ -210,6 +254,7 @@ func _wait_parallel_action(
 		return
 	if not is_instance_valid(action):
 		pending_state["count"] = int(pending_state["count"]) - 1
+		pending_state["completed_count"] = int(pending_state["completed_count"]) + 1
 		_try_emit_parallel_completed(pending_state, current_serial)
 		return
 
@@ -224,26 +269,55 @@ func _wait_parallel_action(
 		return
 
 	pending_state["count"] = int(pending_state["count"]) - 1
-	_try_emit_parallel_completed(pending_state, current_serial)
+	pending_state["completed_count"] = int(pending_state["completed_count"]) + 1
+	_try_emit_parallel_completed(pending_state, current_serial, action)
 
 
 func _inject_action_dependencies(action: Object) -> void:
 	_ACTION_PROTOCOL.inject_dependencies(action, _get_architecture_or_null())
 
 
-func _try_emit_parallel_completed(pending_state: Dictionary, current_serial: int) -> void:
+func _try_emit_parallel_completed(
+	pending_state: Dictionary,
+	current_serial: int,
+	completed_action: Object = null
+) -> void:
 	if current_serial != _execution_serial:
 		return
 	if bool(pending_state.get("launching", false)):
 		return
 	if bool(pending_state.get("emitted", false)):
 		return
-	if int(pending_state.get("count", 0)) > 0:
-		return
+
+	if _active_parallel_completion_policy == ParallelCompletionPolicy.WAIT_FOR_ALL:
+		if int(pending_state.get("count", 0)) > 0:
+			return
+	else:
+		var completed_count := int(pending_state.get("completed_count", 0))
+		var pending_count := int(pending_state.get("count", 0))
+		if completed_count <= 0 and pending_count > 0:
+			return
 
 	pending_state["emitted"] = true
+	if _active_parallel_completion_policy == ParallelCompletionPolicy.FIRST_COMPLETED:
+		_execution_serial += 1
+		if _active_cancel_remaining_on_first_completed:
+			_cancel_pending_parallel_actions(pending_state, completed_action)
 	_is_executing = false
 	_parallel_completed.emit()
+
+
+func _cancel_pending_parallel_actions(pending_state: Dictionary, completed_action: Object = null) -> void:
+	var pending_actions := pending_state.get("actions", []) as Array
+	if pending_actions == null:
+		return
+
+	for action_variant: Variant in pending_actions:
+		var action := action_variant as Object
+		if action == null or action == completed_action:
+			continue
+		if is_instance_valid(action):
+			_ACTION_PROTOCOL.cancel(action)
 
 
 func _is_execution_serial_current(serial: int) -> bool:

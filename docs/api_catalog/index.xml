@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<apiCatalog schemaVersion="2" name="GF Framework" sourceRoot="addons/gf" sourceDigest="224a521c784aa98c0fce4d0094c4cb9c894600d5648f987b6a1e80a258ddfeef" classCount="478" methodCount="3720">
+<apiCatalog schemaVersion="2" name="GF Framework" sourceRoot="addons/gf" sourceDigest="443f459ed351439b1cbf1e46578a9c5cb8ed559016449a332c24aaf03ea119ab" classCount="478" methodCount="3724">
 	<module id="kernel" label="Kernel" classCount="41" methodCount="418">
 		<class name="GFAccessGenerator" path="classes/GFAccessGenerator.xml" sourcePath="addons/gf/kernel/editor/gf_access_generator.gd" extends="RefCounted" />
 		<class name="GFArchitecture" path="classes/GFArchitecture.xml" sourcePath="addons/gf/kernel/core/gf_architecture.gd" extends="Object" />
@@ -43,7 +43,7 @@
 		<class name="GFTypeEventSystem" path="classes/GFTypeEventSystem.xml" sourcePath="addons/gf/kernel/core/gf_type_event_system.gd" extends="Object" />
 		<class name="GFUtility" path="classes/GFUtility.xml" sourcePath="addons/gf/kernel/base/gf_utility.gd" extends="Object" />
 	</module>
-	<module id="standard" label="Standard" classCount="244" methodCount="2168">
+	<module id="standard" label="Standard" classCount="244" methodCount="2171">
 		<class name="GFAnalyticsConfig" path="classes/GFAnalyticsConfig.xml" sourcePath="addons/gf/standard/utilities/analytics/gf_analytics_config.gd" extends="Resource" />
 		<class name="GFAnalyticsUtility" path="classes/GFAnalyticsUtility.xml" sourcePath="addons/gf/standard/utilities/analytics/gf_analytics_utility.gd" extends="GFUtility" />
 		<class name="GFAssetHandle" path="classes/GFAssetHandle.xml" sourcePath="addons/gf/standard/utilities/assets/gf_asset_handle.gd" extends="RefCounted" />
@@ -289,7 +289,7 @@
 		<class name="GFWeightedEntry" path="classes/GFWeightedEntry.xml" sourcePath="addons/gf/standard/foundation/math/gf_weighted_entry.gd" extends="Resource" />
 		<class name="GFWeightedTable" path="classes/GFWeightedTable.xml" sourcePath="addons/gf/standard/foundation/math/gf_weighted_table.gd" extends="Resource" />
 	</module>
-	<module id="extensions/action_queue" label="Action Queue" classCount="15" methodCount="120">
+	<module id="extensions/action_queue" label="Action Queue" classCount="15" methodCount="121">
 		<class name="GFAction" path="classes/GFAction.xml" sourcePath="addons/gf/extensions/action_queue/core/gf_action.gd" extends="RefCounted" />
 		<class name="GFActionInterceptionResult" path="classes/GFActionInterceptionResult.xml" sourcePath="addons/gf/extensions/action_queue/core/gf_action_interception_result.gd" extends="RefCounted" />
 		<class name="GFActionInterceptor" path="classes/GFActionInterceptor.xml" sourcePath="addons/gf/extensions/action_queue/core/gf_action_interceptor.gd" extends="RefCounted" />

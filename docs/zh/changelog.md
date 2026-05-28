@@ -22,92 +22,54 @@
 
 ---
 
-## [3.23.0] - 2026-05-28
+## [3.24.0] - 2026-05-29
 
-**版本概述**：增强资源索引、目录变化检测、SaveGraph 属性持久化、屏幕转场、调试趋势和 3D 环绕相机入口，并收紧若干默认行为，确保框架只提供通用协议与能力，不替项目决定 UI 文案、按钮动作或输入策略。
+**版本概述**：强化节点状态机编辑器结构反馈，为 ActionQueue 并行动作组增加可配置完成策略，并增强文本适配与 JSON 文本工具，保持框架只定义通用等待、排版测量和数据转换边界，不写入项目业务流程。
 
 ### 🚀 新增特性 (Added)
 
-- 新增 `GFResourceRegistryTools`，支持扫描目录、生成 `GFResourceRegistry`、推导资源 ID、路径字段、目录标签和常见 `ResourceLoader` 类型提示。
-- 新增 `GFDirectoryWatchUtility` 与 `GFDirectoryChangeSet`，提供调用方驱动的目录快照差异检测，用于编辑器工具、资产索引器和构建脚本。
-- 新增 `GFPersistPropertiesSource`，作为 `GFSaveSource` 的属性白名单薄封装，内部复用 `GFNodePropertySerializer` 并保持 SaveGraph 载荷格式。
-- 新增 `GFScreenTransitionUtility` 与 `GFScreenTransitionEffect`，提供通用屏幕覆盖式淡入淡出和可选 shader progress，不侵入具体场景切换流程。
-- 新增 `GFMetricSeries`，并让 `GFDebugOverlayUtility` 可显示短期指标趋势面板。
-- 新增 `GFCameraOrbitRig3D` 与 `GFCameraOrbitInput3D`，提供通用 3D 环绕相机姿态和可配置输入桥接。
+- `GFNodeStateMachine` 与 `GFNodeStateGroup` 在 Inspector 配置警告中直接展示结构校验问题，复用 `GFNodeStateMachineValidator` 的报告。
+- `GFVisualActionGroup` 新增 `ParallelCompletionPolicy`，支持默认等待全部子动作或任一子动作完成即结束。
+- `GFAction.race(actions, cancel_remaining)` 新增首个子动作完成即结束的并行动作组工厂。
+- `GFVariantJsonCodec` 新增 `parse_json_text()`、`format_json_text()` 和 `compact_json_text()`，为 JSON 文本解析、格式化和压缩提供统一入口。
 
 ### 🔄 机制更改 (Changed)
 
-- `GFSaveSlotWorkflow` 不再为空槽自动生成 `Slot {index}` 展示名；`empty_display_name_template` 默认为空，项目可按 UI 与本地化需要显式配置。
-- `GFSaveSlotWorkflow.active_slot_index` 默认值改为 0，避免框架默认采用读档 UI 常见的一基槽位习惯。
-- `GFSaveSlotCard` 改为暴露非本地化 `status_id`，项目 UI 负责映射状态文案、样式和图标。
-- `GFTouchButton.accept_mouse_input` 默认关闭，避免触屏控件在桌面端隐式接管鼠标左键。
-- `GFModalConfig` 不再隐式生成 OK 动作；`GFModalAction` 默认保持空动作，项目必须显式声明可渲染动作。
-- `GFNotificationUtility` 不再为通知 action 自动派生 `label`，项目 UI 负责动作展示文案。
-- `GFUndoableCommand.action_name` 默认改为空字符串，项目历史面板或调试工具需要文案时显式设置。
-
-### ⚠️ 废弃与移除 (Deprecated/Removed)
-
-- 移除 `GFSaveSlotCard.get_status_text()`。
-- 移除 `GFModalConfig.get_actions_or_default()`。
+- 节点状态机和状态组脚本改为编辑器安全的 `@tool`，编辑器模式只刷新配置警告，不创建运行时内部状态组，也不启动状态。
+- 并行动作组在 `FIRST_COMPLETED` 策略下默认取消仍在等待的子动作；调用方可关闭该取消策略。
+- `GFTextFitter` 测量 `Label`、`RichTextLabel`、`Button`、`LineEdit` 和 `TextEdit` 时会读取控件的对齐、换行、文本方向和 justification 配置，使自动字号更接近 Godot 实际排版。
 
 ### 🔌 API 变动说明 (API Changes)
 
-- 新增 `GFSaveSlotCard.get_status_id()`，返回 `empty`、`incompatible`、`active` 或 `ready`。
-- 新增 `GFModalConfig.get_actions()`，只返回已显式设置 `action_id` 的动作副本。
-- `GFSaveSlotWorkflow.empty_display_name_template` 默认值由 `"Slot {index}"` 改为 `""`。
-- `GFSaveSlotWorkflow.active_slot_index` 默认值由 `1` 改为 `0`。
-- `GFTouchButton.accept_mouse_input` 默认值由 `true` 改为 `false`。
-- `GFModalAction.action_id` 默认值由 `ok` 改为 empty，`label` 默认值由 `OK` 改为空字符串，`result_status` 默认值由 `confirmed` 改为 `dismissed`。
-- `GFNotificationUtility` 的 action 归一化不再把 `label` 缺省为 `id`。
-- `GFUndoableCommand.action_name` 默认值由 `"未命名动作"` 改为 `""`。
+- 新增 `GFVisualActionGroup.ParallelCompletionPolicy`：`WAIT_FOR_ALL` 与 `FIRST_COMPLETED`。
+- 新增 `GFVisualActionGroup.parallel_completion_policy`。
+- 新增 `GFVisualActionGroup.cancel_remaining_on_first_completed`。
+- 新增 `GFAction.race(actions, cancel_remaining = true)`。
+- 新增 `GFVariantJsonCodec.parse_json_text(text, fallback = null)`。
+- 新增 `GFVariantJsonCodec.format_json_text(text, indent = "\t", sort_keys = false, fallback = "")`。
+- 新增 `GFVariantJsonCodec.compact_json_text(text, sort_keys = false, fallback = "")`。
 
 ### 📘 升级指南 (Migration Guide)
 
-- 需要存档槽位占位名的项目，显式设置 `GFSaveSlotWorkflow.empty_display_name_template`，或在 UI 层按 `slot_index` 自行生成本地化文案。
-- 依赖默认当前槽位为 1 的项目，显式设置 `GFSaveSlotWorkflow.active_slot_index = 1`。
-- 需要状态文字的读档 UI，改用 `GFSaveSlotCard.get_status_id()` 或 `to_dict()["status_id"]` 映射项目自己的文本。
-- 需要桌面鼠标模拟触屏按钮的项目，显式开启 `GFTouchButton.accept_mouse_input`。
-- 需要 modal 确认按钮的项目，显式创建 `GFModalAction` 并加入 `GFModalConfig.actions`。
-- 需要通知按钮或撤销历史显示文案的项目，显式设置通知 action 的 `label` 或命令的 `action_name`。
+- 现有 `GFAction.parallel()` 与 `enqueue_parallel()` 默认仍等待所有子动作完成；只需要等待最先完成分支时，改用 `GFAction.race()` 或设置并行动作组的 `parallel_completion_policy`。
+- 依赖 `GFTextFitter` 旧版逐字符估算换行的项目，应改用控件自身 `autowrap_mode` / `text_direction` 配置或在 options 中显式传入 `line_break_flags`；新行为以 Godot 文本测量结果为准。
 
 ### 📁 核心受影响文件 (Affected Files)
 
-- `addons/gf/standard/utilities/assets/gf_resource_registry_tools.gd`
-- `addons/gf/standard/utilities/io/gf_directory_watch_utility.gd`
-- `addons/gf/standard/utilities/io/gf_directory_change_set.gd`
-- `addons/gf/standard/utilities/scene/gf_screen_transition_utility.gd`
-- `addons/gf/standard/utilities/scene/gf_screen_transition_effect.gd`
-- `addons/gf/standard/utilities/debug/gf_debug_overlay_utility.gd`
-- `addons/gf/standard/utilities/debug/gf_metric_series.gd`
-- `addons/gf/standard/input/touch/gf_touch_button.gd`
-- `addons/gf/standard/command/gf_undoable_command.gd`
-- `addons/gf/standard/utilities/ui/gf_notification_utility.gd`
-- `addons/gf/standard/utilities/ui/gf_modal_action.gd`
-- `addons/gf/standard/utilities/ui/gf_modal_config.gd`
-- `addons/gf/extensions/save/core/gf_persist_properties_source.gd`
-- `addons/gf/extensions/save/slots/gf_save_slot_card.gd`
-- `addons/gf/extensions/save/slots/gf_save_slot_workflow.gd`
-- `addons/gf/extensions/camera/nodes/gf_camera_orbit_rig_3d.gd`
-- `addons/gf/extensions/camera/nodes/gf_camera_orbit_input_3d.gd`
-- `tests/gf_core/standard/utilities/assets/test_gf_resource_registry_tools.gd`
-- `tests/gf_core/standard/utilities/io/test_gf_directory_watch_utility.gd`
-- `tests/gf_core/standard/utilities/scene/test_gf_screen_transition_utility.gd`
-- `tests/gf_core/standard/utilities/debug/test_gf_metric_series.gd`
-- `tests/gf_core/standard/input/touch/test_gf_touch_controls.gd`
-- `tests/gf_core/standard/utilities/ui/test_gf_ui_utility.gd`
-- `tests/gf_core/standard/utilities/ui/test_gf_notification_utility.gd`
-- `tests/gf_core/standard/utilities/history/test_gf_command_history_utility.gd`
-- `tests/gf_core/extensions/save/test_gf_persist_properties_source.gd`
-- `tests/gf_core/extensions/save/test_gf_save_slot_card.gd`
-- `tests/gf_core/extensions/save/test_gf_save_slot_workflow.gd`
-- `tests/gf_core/extensions/camera/test_gf_camera_orbit_3d.gd`
-- `docs/zh/standard/utilities/io/assets-jobs-warmup/asset-utility/resource-registry.md`
-- `docs/zh/standard/utilities/io/assets-jobs-warmup/index.md`
-- `docs/zh/standard/utilities/runtime/settings-ui-scene/scene-flow/switching-transition.md`
-- `docs/zh/standard/utilities/runtime/settings-ui-scene/ui-stack-routing/ui-stack-modal/modal-protocol.md`
-- `docs/zh/standard/utilities/runtime/debug-observability/debug-visual-inspection/debug-overlay.md`
-- `docs/zh/standard/utilities/runtime/debug-observability/support-notifications/notifications.md`
-- `docs/zh/standard/input-flow/command-sequence/undo-history.md`
-- `docs/zh/standard/input-flow/input-assist/input-devices-touch/index.md`
-- `docs/zh/extensions/save-graph/serializers-slots.md`
-- `docs/zh/extensions/camera/camera-3d.md`
+- `addons/gf/standard/state_machine/node/gf_node_state_machine.gd`
+- `addons/gf/standard/state_machine/node/gf_node_state_group.gd`
+- `addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd`
+- `addons/gf/extensions/action_queue/actions/gf_visual_action_group.gd`
+- `addons/gf/extensions/action_queue/core/gf_action.gd`
+- `addons/gf/standard/utilities/ui/gf_text_fitter.gd`
+- `addons/gf/standard/foundation/variant/gf_variant_json_codec.gd`
+- `tests/gf_core/standard/state_machine/node/test_gf_node_state_machine_validator.gd`
+- `tests/gf_core/extensions/action_queue/test_gf_visual_actions.gd`
+- `tests/gf_core/standard/utilities/ui/test_gf_text_fitter.gd`
+- `tests/gf_core/standard/foundation/variant/test_gf_variant_data_and_json_codec.gd`
+- `tests/gf_core/maintenance/test_gdscript_layout_validation.gd`
+- `docs/zh/standard/input-flow/state-machines/node-state-hooks-validation/editor-validation.md`
+- `docs/zh/extensions/action-queue/visual-actions/groups-parallel.md`
+- `docs/zh/extensions/action-queue/interceptors-actions/action-factory.md`
+- `docs/zh/standard/utilities/runtime/settings-ui-scene/ui-stack-routing/viewport-text-node-tools/text-richtext.md`
+- `docs/zh/standard/foundation/data-validation/formula-variant/variant-data-json.md`

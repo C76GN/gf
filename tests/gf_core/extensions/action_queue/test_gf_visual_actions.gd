@@ -29,6 +29,25 @@ class TestAudioUtility:
 		played_clip_ids.append(clip_id)
 
 
+class ManualSignalAction:
+	extends GFVisualAction
+
+	signal completed
+
+	var executed: bool = false
+	var cancelled: bool = false
+
+	func execute() -> Variant:
+		executed = true
+		return completed
+
+	func cancel() -> void:
+		cancelled = true
+
+	func complete() -> void:
+		completed.emit()
+
+
 func after_each() -> void:
 	if Gf.has_architecture():
 		var arch: GFArchitecture = Gf.get_architecture()
@@ -259,6 +278,13 @@ func test_gf_action_factories_create_common_actions() -> void:
 	var group := GFAction.sequence([call_action] as Array[GFVisualAction])
 	assert_false(group.is_parallel, "sequence 工厂应创建顺序动作组。")
 	assert_true(GFAction.parallel([call_action] as Array[GFVisualAction]).is_parallel, "parallel 工厂应创建并行动作组。")
+	var race_group := GFAction.race([call_action] as Array[GFVisualAction], false)
+	assert_eq(
+		race_group.parallel_completion_policy,
+		GFVisualActionGroup.ParallelCompletionPolicy.FIRST_COMPLETED,
+		"race 工厂应创建任一子动作完成即结束的并行动作组。"
+	)
+	assert_false(race_group.cancel_remaining_on_first_completed, "race 工厂应透传剩余动作取消策略。")
 
 
 func test_gf_action_remove_node_queues_target_for_free() -> void:
@@ -336,6 +362,68 @@ func test_action_group_cancel_releases_parallel_waiters() -> void:
 	await get_tree().process_frame
 
 	assert_true(completed.value, "取消并行动作组时等待者应被释放。")
+
+
+func test_parallel_action_group_waits_for_all_children_by_default() -> void:
+	var first := ManualSignalAction.new()
+	var second := ManualSignalAction.new()
+	var group: GFVisualAction = GFAction.parallel([first, second])
+	var result: Variant = group.execute()
+	var completed := { "value": false }
+	var wait_for_group := func() -> void:
+		await group.await_result_safely(result)
+		completed.value = true
+
+	wait_for_group.call()
+	await get_tree().process_frame
+	first.complete()
+	await get_tree().process_frame
+
+	assert_false(completed.value, "默认并行动作组应等待全部子动作。")
+
+	second.complete()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "全部子动作完成后，并行动作组才应释放等待者。")
+
+
+func test_action_race_completes_on_first_child_and_cancels_remaining() -> void:
+	var slow := ManualSignalAction.new()
+	var fast := ManualSignalAction.new()
+	var group: GFVisualAction = GFAction.race([slow, fast])
+	var result: Variant = group.execute()
+	var completed := { "value": false }
+	var wait_for_group := func() -> void:
+		await group.await_result_safely(result)
+		completed.value = true
+
+	wait_for_group.call()
+	await get_tree().process_frame
+	fast.complete()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "race 动作组应在首个子动作完成后释放等待者。")
+	assert_true(slow.cancelled, "默认 race 应取消仍在等待的子动作。")
+	assert_false(fast.cancelled, "已完成的子动作不应被重复取消。")
+
+
+func test_action_race_can_keep_remaining_children_running() -> void:
+	var slow := ManualSignalAction.new()
+	var fast := ManualSignalAction.new()
+	var group: GFVisualAction = GFAction.race([slow, fast], false)
+	var result: Variant = group.execute()
+	var completed := { "value": false }
+	var wait_for_group := func() -> void:
+		await group.await_result_safely(result)
+		completed.value = true
+
+	wait_for_group.call()
+	await get_tree().process_frame
+	fast.complete()
+	await get_tree().process_frame
+
+	assert_true(completed.value, "race 动作组应仍在首个子动作完成后结束。")
+	assert_false(slow.cancelled, "关闭取消策略时，race 不应替调用方取消剩余动作。")
 
 
 func test_repeat_action_creates_fresh_action_each_iteration() -> void:

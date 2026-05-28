@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVisualActionGroup" path="addons/gf/extensions/action_queue/actions/gf_visual_action_group.gd" module="extensions/action_queue" extends="GFVisualAction" classDigest="57d585e2081763773ec92768cf844652aba73534137c6f20ae2100771920ec31">
+<class name="GFVisualActionGroup" path="addons/gf/extensions/action_queue/actions/gf_visual_action_group.gd" module="extensions/action_queue" extends="GFVisualAction" classDigest="a1d54943c6500eb4c8b0b4cbb3394000eb34c876238f6c1f76fff1ec449d0dcb">
 	<description>GFVisualActionGroup: 动作组复合节点 (Composite Pattern)
-继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并等待全部完成）
+继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并按策略等待）
 或顺序（逐个执行并等待各自完成）两种模式执行。
 子动作可以继承 GFVisualAction，也可以直接实现动作协议方法。</description>
 	<tags>
@@ -10,7 +10,16 @@
 		<tag name="since">3.17.0</tag>
 	</tags>
 	<signals />
-	<enums />
+	<enums>
+		<member kind="enum" name="ParallelCompletionPolicy">
+			<signature>enum ParallelCompletionPolicy { ## 等待所有需要等待的子动作完成。 WAIT_FOR_ALL, ## 任一子动作完成后就结束动作组。 FIRST_COMPLETED, }</signature>
+			<description>并行动作组何时视为完成。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="since">3.24.0</tag>
+			</tags>
+		</member>
+	</enums>
 	<constants />
 	<properties>
 		<member kind="property" name="actions">
@@ -23,10 +32,26 @@
 		</member>
 		<member kind="property" name="is_parallel">
 			<signature>var is_parallel: bool = true</signature>
-			<description>是否并行执行。为 true 时，并行触发所有子动作并等待全部完成；
+			<description>是否并行执行。为 true 时，并行触发所有子动作并按 parallel_completion_policy 完成；
 为 false 时，按数组顺序依次执行并等待各自完成。</description>
 			<tags>
 				<tag name="api">public</tag>
+			</tags>
+		</member>
+		<member kind="property" name="parallel_completion_policy">
+			<signature>var parallel_completion_policy: ParallelCompletionPolicy = ParallelCompletionPolicy.WAIT_FOR_ALL</signature>
+			<description>并行动作组完成策略。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="since">3.24.0</tag>
+			</tags>
+		</member>
+		<member kind="property" name="cancel_remaining_on_first_completed">
+			<signature>var cancel_remaining_on_first_completed: bool = true</signature>
+			<description>FIRST_COMPLETED 完成策略触发后，是否取消仍在等待的子动作。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="since">3.24.0</tag>
 			</tags>
 		</member>
 	</properties>

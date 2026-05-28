@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateMachine" path="addons/gf/standard/state_machine/node/gf_node_state_machine.gd" module="standard" extends="Node" classDigest="79d4a520814649449e7ff3eba065ed9b2c8311a4a9448fe211b19cf7d4e1be4d">
+<class name="GFNodeStateMachine" path="addons/gf/standard/state_machine/node/gf_node_state_machine.gd" module="standard" extends="Node" classDigest="698290bb481fba228795d18d10ff2dce06956a8a1d441e33d2dfc40629e224c1">
 	<description>GFNodeStateMachine: 基于场景树的多状态组状态机。
 支持直接子 GFNodeState 组成内部状态组，也支持多个 GFNodeStateGroup 并行工作。</description>
 	<tags>
@@ -67,14 +67,14 @@
 	</constants>
 	<properties>
 		<member kind="property" name="config" decorators="@export">
-			<signature>var config: GFNodeStateMachineConfig = null</signature>
+			<signature>var config: GFNodeStateMachineConfig = null:</signature>
 			<description>可选状态机配置资源。为空时继续使用本节点上的兼容导出项。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
 		<member kind="property" name="initial_state" decorators="@export">
-			<signature>var initial_state: StringName = &amp;""</signature>
+			<signature>var initial_state: StringName = &amp;"":</signature>
 			<description>内部状态组初始状态名。</description>
 			<tags>
 				<tag name="api">public</tag>
@@ -96,7 +96,7 @@
 			</tags>
 		</member>
 		<member kind="property" name="start_mode" decorators="@export">
-			<signature>var start_mode: StartMode = StartMode.AFTER_HOST_READY</signature>
+			<signature>var start_mode: StartMode = StartMode.AFTER_HOST_READY:</signature>
 			<description>初始状态启动模式。</description>
 			<tags>
 				<tag name="api">public</tag>

@@ -153,6 +153,29 @@ func test_vector_and_color_array_roundtrip() -> void:
 	assert_eq(GFVariantJsonCodec.array_to_vector2(["bad"], Vector2.ONE), Vector2.ONE, "非法数组应返回 fallback。")
 
 
+func test_json_text_helpers_parse_format_and_compact() -> void:
+	var source := "{ \"b\": 2, \"a\": [true, \" spaced value \"] }"
+
+	var parsed := GFVariantJsonCodec.parse_json_text(source) as Dictionary
+	var formatted := GFVariantJsonCodec.format_json_text(source, "  ", true)
+	var compact := GFVariantJsonCodec.compact_json_text(formatted)
+
+	assert_eq(int(parsed["b"]), 2, "JSON 文本解析应返回 Godot JSON 数据。")
+	assert_true(formatted.contains("\n"), "格式化 JSON 应包含换行。")
+	assert_lt(formatted.find("\"a\""), formatted.find("\"b\""), "启用 sort_keys 时应稳定排序字典键。")
+	assert_false(compact.contains("\n"), "压缩 JSON 不应保留换行。")
+	assert_true(compact.contains("\" spaced value \""), "压缩 JSON 不应修改字符串内空白。")
+	assert_eq(JSON.parse_string(compact), JSON.parse_string(source), "格式化和压缩不应改变 JSON 语义。")
+
+
+func test_json_text_helpers_return_fallback_on_parse_error() -> void:
+	var fallback_data := { "safe": true }
+
+	assert_eq(GFVariantJsonCodec.parse_json_text("{", fallback_data), fallback_data, "解析失败应返回调用方 fallback。")
+	assert_eq(GFVariantJsonCodec.format_json_text("{", "\t", false, "invalid"), "invalid", "格式化失败应返回 fallback 文本。")
+	assert_eq(GFVariantJsonCodec.compact_json_text("{", false, "invalid"), "invalid", "压缩失败应返回 fallback 文本。")
+
+
 func test_json_compatible_codec_round_trips_godot_value_types() -> void:
 	var source := {
 		"position": Vector3(1.0, 2.0, 3.0),

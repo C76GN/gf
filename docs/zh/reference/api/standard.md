@@ -31432,7 +31432,7 @@ Schemas:
 - API: `public`
 
 ```gdscript
-var group_name: StringName = &""
+var group_name: StringName = &"":
 ```
 
 状态组注册名。为空时使用节点名称。
@@ -31442,7 +31442,7 @@ var group_name: StringName = &""
 - API: `public`
 
 ```gdscript
-var initial_state: StringName = &""
+var initial_state: StringName = &"":
 ```
 
 初始状态名。
@@ -31476,7 +31476,7 @@ ready 时是否自动从子节点加载状态。
 - API: `public`
 
 ```gdscript
-var auto_start: bool = true
+var auto_start: bool = true:
 ```
 
 初始化后是否自动进入 initial_state。关闭后可通过 start() 手动启动。
@@ -31978,7 +31978,7 @@ const INTERNAL_GROUP_NAME: StringName = &"_internal"
 - API: `public`
 
 ```gdscript
-var config: GFNodeStateMachineConfig = null
+var config: GFNodeStateMachineConfig = null:
 ```
 
 可选状态机配置资源。为空时继续使用本节点上的兼容导出项。
@@ -31988,7 +31988,7 @@ var config: GFNodeStateMachineConfig = null
 - API: `public`
 
 ```gdscript
-var initial_state: StringName = &""
+var initial_state: StringName = &"":
 ```
 
 内部状态组初始状态名。
@@ -32022,7 +32022,7 @@ ready 时是否自动从子节点加载状态与状态组。
 - API: `public`
 
 ```gdscript
-var start_mode: StartMode = StartMode.AFTER_HOST_READY
+var start_mode: StartMode = StartMode.AFTER_HOST_READY:
 ```
 
 初始状态启动模式。
@@ -50633,13 +50633,13 @@ Parameters:
 | Name | Description |
 |---|---|
 | `control` | 目标文本控件，支持 Label、RichTextLabel、Button、LineEdit 与 TextEdit，也可通过 options.text 适配自定义控件。 |
-| `options` | 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、text、content_insets、use_placeholder。 |
+| `options` | 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、text、content_insets、use_placeholder、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。 |
 
 Returns: 计算出的字体尺寸；目标无效或无法读取文本时返回 0。
 
 Schemas:
 
-- `options`: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、text、content_insets、use_placeholder。
+- `options`: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、text、content_insets、use_placeholder、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 
 #### `fit_label`
 
@@ -50656,13 +50656,13 @@ Parameters:
 | Name | Description |
 |---|---|
 | `label` | 目标 Label。 |
-| `options` | 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name。 |
+| `options` | 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。 |
 
 Returns: 计算出的字体尺寸；目标无效时返回 0。
 
 Schemas:
 
-- `options`: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。
+- `options`: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 
 #### `fit_rich_text_label`
 
@@ -50679,13 +50679,13 @@ Parameters:
 | Name | Description |
 |---|---|
 | `label` | 目标 RichTextLabel。 |
-| `options` | 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name。 |
+| `options` | 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。 |
 
 Returns: 计算出的字体尺寸；目标无效时返回 0。
 
 Schemas:
 
-- `options`: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。
+- `options`: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 
 #### `measure_control_text`
 
@@ -50734,7 +50734,7 @@ Returns: 文本尺寸；字体缺失时返回 Vector2.ZERO。
 
 Schemas:
 
-- `options`: Dictionary，支持 available_size、fit_width、font_name 和 font。
+- `options`: Dictionary，支持 available_size、fit_width、font_name、font、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 
 ## GFTileMapCache
 
@@ -57064,6 +57064,71 @@ Schemas:
 - `value`: Variant parsed from JSON-compatible data.
 - `options`: Dictionary with decode_typed_markers and key decoding options.
 - `return`: Variant restored from JSON-compatible data.
+
+#### `parse_json_text`
+
+- API: `public`
+
+```gdscript
+static func parse_json_text(text: String, fallback: Variant = null) -> Variant:
+```
+
+解析 JSON 文本，失败时返回 fallback。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `text` | JSON 文本。 |
+| `fallback` | 解析失败时返回的值。 |
+
+Returns: 解析后的 JSON 值，或 fallback。
+
+Schemas:
+
+- `fallback`: Variant returned unchanged when JSON parsing fails.
+- `return`: Variant parsed by Godot JSON, or fallback on parse error.
+
+#### `format_json_text`
+
+- API: `public`
+
+```gdscript
+static func format_json_text( text: String, indent: String = "\t", sort_keys: bool = false, fallback: String = "" ) -> String:
+```
+
+格式化 JSON 文本，失败时返回 fallback。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `text` | JSON 文本。 |
+| `indent` | 缩进字符串；默认使用 Tab。 |
+| `sort_keys` | 是否按键名排序 Dictionary。 |
+| `fallback` | 解析失败时返回的文本。 |
+
+Returns: 格式化后的 JSON 文本，或 fallback。
+
+#### `compact_json_text`
+
+- API: `public`
+
+```gdscript
+static func compact_json_text(text: String, sort_keys: bool = false, fallback: String = "") -> String:
+```
+
+压缩 JSON 文本，失败时返回 fallback。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `text` | JSON 文本。 |
+| `sort_keys` | 是否按键名排序 Dictionary。 |
+| `fallback` | 解析失败时返回的文本。 |
+
+Returns: 去除非必要空白后的 JSON 文本，或 fallback。
 
 #### `vector2_to_array`
 

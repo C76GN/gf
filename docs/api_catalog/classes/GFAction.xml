@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFAction" path="addons/gf/extensions/action_queue/core/gf_action.gd" module="extensions/action_queue" extends="RefCounted" classDigest="216cec78fb22837f485aa2a6080c67a54445514eabf449ab61ee0adfc471b6fd">
+<class name="GFAction" path="addons/gf/extensions/action_queue/core/gf_action.gd" module="extensions/action_queue" extends="RefCounted" classDigest="85284589057aa93e82c03b1574d455fee6f0b99dd6b1b76ca2552599eb45aacc">
 	<description>GFAction: 动作队列常用工厂。
 提供轻量、静态的动作创建入口，让项目用更少样板组合 ActionQueue。
 它只创建通用动作，不隐含任何项目业务流程。</description>
@@ -31,6 +31,18 @@
 				<tag name="param">actions: 子动作列表。</tag>
 				<tag name="return">并行动作组。</tag>
 				<tag name="schema">actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="race">
+			<signature>static func race(actions: Array, cancel_remaining: bool = true) -&gt; GFVisualActionGroup:</signature>
+			<description>创建任一子动作完成即结束的并行动作组。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">actions: 子动作列表。</tag>
+				<tag name="param">cancel_remaining: 完成后是否取消仍在等待的子动作。</tag>
+				<tag name="return">并行动作组。</tag>
+				<tag name="schema">actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。</tag>
+				<tag name="since">3.24.0</tag>
 			</tags>
 		</member>
 		<member kind="method" name="wait">

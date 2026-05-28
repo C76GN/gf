@@ -77,6 +77,28 @@ func test_state_machine_inspector_tooltip_formats_validation_issue_objects() -> 
 	machine.free()
 
 
+func test_state_machine_configuration_warnings_reuse_validator_report() -> void:
+	var machine := GFNodeStateMachineBase.new()
+
+	var warnings := machine._get_configuration_warnings()
+
+	assert_eq(warnings.size(), 1, "空状态机应生成 Inspector 配置警告。")
+	assert_true(warnings[0].contains("empty_state_machine"), "配置警告应保留校验问题类别。")
+
+	machine.free()
+
+
+func test_state_group_configuration_warnings_reuse_validator_report() -> void:
+	var group := GFNodeStateGroupBase.new()
+
+	var warnings := group._get_configuration_warnings()
+
+	assert_eq(warnings.size(), 1, "空状态组应生成 Inspector 配置警告。")
+	assert_true(warnings[0].contains("empty_state_group"), "配置警告应保留校验问题类别。")
+
+	group.free()
+
+
 func test_manual_machine_can_validate_without_initial_state() -> void:
 	var machine := GFNodeStateMachineBase.new()
 	machine.start_mode = GFNodeStateMachineBase.StartMode.MANUAL

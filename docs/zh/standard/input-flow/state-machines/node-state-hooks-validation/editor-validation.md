@@ -8,6 +8,8 @@
 
 Inspector 也提供结构验证入口，底层使用 `GFNodeStateMachineValidator` 返回 `GFValidationReport`。它会检查空状态机、重复状态组、同组重复状态名、缺失或无效初始状态，以及 `enter_conditions`、`exit_conditions`、`behaviors` 中空槽位或缺少约定方法的资源。
 
+`GFNodeStateMachine` 与 `GFNodeStateGroup` 会在编辑器 Inspector 的配置警告中复用同一份校验结果。添加或移除直接子状态、状态组，或修改初始状态等关键属性后，编辑器会刷新警告；这些提示只读取结构和导出属性，不会在编辑器中创建运行时内部状态组，也不会启动状态。
+
 编辑器校验只读取 `state_name`、`group_name`、`initial_state` 和资源数组这类导出属性，不调用项目状态脚本的 `get_state_name()` 或状态组脚本的 `get_group_name()`；运行时动态覆盖这些方法仍只影响运行时行为。
 
 GF 工作区中的 `GFNodeStateMachineDock` 会扫描当前场景里的状态机，集中展示校验摘要和问题列表，适合在大型场景中快速切换检查对象。

@@ -1,3 +1,5 @@
+@tool
+
 ## GFNodeStateMachine: 基于场景树的多状态组状态机。
 ##
 ## 支持直接子 GFNodeState 组成内部状态组，也支持多个 GFNodeStateGroup 并行工作。
@@ -85,6 +87,7 @@ const _GF_AUTOLOAD_BASE = preload("res://addons/gf/kernel/core/gf_autoload.gd")
 const _GF_NODE_CONTEXT_BASE = preload("res://addons/gf/kernel/core/gf_node_context.gd")
 const _GF_NODE_STATE_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state.gd")
 const _GF_NODE_STATE_GROUP_BASE = preload("res://addons/gf/standard/state_machine/node/gf_node_state_group.gd")
+const _GF_NODE_STATE_MACHINE_VALIDATOR_PATH: String = "res://addons/gf/standard/state_machine/node/gf_node_state_machine_validator.gd"
 
 
 # --- 导出变量 ---
@@ -92,12 +95,18 @@ const _GF_NODE_STATE_GROUP_BASE = preload("res://addons/gf/standard/state_machin
 ## 可选状态机配置资源。为空时继续使用本节点上的兼容导出项。
 ## [br]
 ## @api public
-@export var config: GFNodeStateMachineConfig = null
+@export var config: GFNodeStateMachineConfig = null:
+	set(value):
+		config = value
+		_queue_configuration_warning_update()
 
 ## 内部状态组初始状态名。
 ## [br]
 ## @api public
-@export var initial_state: StringName = &""
+@export var initial_state: StringName = &"":
+	set(value):
+		initial_state = value
+		_queue_configuration_warning_update()
 
 ## 内部状态组初始状态参数。
 ## [br]
@@ -114,7 +123,10 @@ const _GF_NODE_STATE_GROUP_BASE = preload("res://addons/gf/standard/state_machin
 ## 初始状态启动模式。
 ## [br]
 ## @api public
-@export var start_mode: StartMode = StartMode.AFTER_HOST_READY
+@export var start_mode: StartMode = StartMode.AFTER_HOST_READY:
+	set(value):
+		start_mode = value
+		_queue_configuration_warning_update()
 
 ## 运行时重新从子节点加载时，是否尽量恢复各状态组的当前状态。
 ## [br]
@@ -142,9 +154,16 @@ func _enter_tree() -> void:
 	_lifecycle_serial += 1
 	if not child_entered_tree.is_connected(_on_child_entered_tree):
 		child_entered_tree.connect(_on_child_entered_tree)
+	if not child_exiting_tree.is_connected(_on_child_exiting_tree):
+		child_exiting_tree.connect(_on_child_exiting_tree)
+	_queue_configuration_warning_update()
 
 
 func _ready() -> void:
+	if Engine.is_editor_hint():
+		_queue_configuration_warning_update()
+		return
+
 	_is_ready = true
 	if reload_on_ready:
 		reload_from_children()
@@ -158,7 +177,23 @@ func _exit_tree() -> void:
 	_reload_queued = false
 	if child_entered_tree.is_connected(_on_child_entered_tree):
 		child_entered_tree.disconnect(_on_child_entered_tree)
+	if child_exiting_tree.is_connected(_on_child_exiting_tree):
+		child_exiting_tree.disconnect(_on_child_exiting_tree)
+	if Engine.is_editor_hint():
+		return
 	clear_state_groups()
+
+
+# --- Godot 回调方法 ---
+
+func _get_configuration_warnings() -> PackedStringArray:
+	var validator: Variant = load(_GF_NODE_STATE_MACHINE_VALIDATOR_PATH)
+	if validator == null:
+		return PackedStringArray()
+
+	var report := validator.validate_machine(self) as GFValidationReport
+	var warnings: PackedStringArray = validator.make_configuration_warnings(report)
+	return warnings
 
 
 # --- 公共方法 ---
@@ -789,6 +824,10 @@ func unregister_owner_events(owner: Object) -> void:
 ## [br]
 ## @api public
 func reload_from_children() -> void:
+	if Engine.is_editor_hint():
+		_queue_configuration_warning_update()
+		return
+
 	var should_preserve_state := preserve_current_state_on_reload and not _groups.is_empty()
 	var state_snapshot := _capture_state_snapshot() if should_preserve_state else {}
 	_preserve_reload_state_active = should_preserve_state
@@ -1055,13 +1094,37 @@ func _get_effective_max_stack_depth() -> int:
 	return 8
 
 
+func _queue_configuration_warning_update() -> void:
+	if not Engine.is_editor_hint():
+		return
+	call_deferred("update_configuration_warnings")
+
+
 func _reload_from_children_deferred() -> void:
 	_reload_queued = false
+	if Engine.is_editor_hint():
+		_queue_configuration_warning_update()
+		return
 	if _is_ready and reload_on_ready:
 		reload_from_children()
 
 
 func _on_child_entered_tree(child: Node) -> void:
+	if Engine.is_editor_hint():
+		if _should_reload_for_child(child):
+			_queue_configuration_warning_update()
+		return
+
+	if _should_reload_for_child(child):
+		_queue_reload_from_children()
+
+
+func _on_child_exiting_tree(child: Node) -> void:
+	if Engine.is_editor_hint():
+		if _should_reload_for_child(child):
+			_queue_configuration_warning_update()
+		return
+
 	if _should_reload_for_child(child):
 		_queue_reload_from_children()
 

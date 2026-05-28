@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFVariantJsonCodec" path="addons/gf/standard/foundation/variant/gf_variant_json_codec.gd" module="standard" extends="RefCounted" classDigest="76d79604feb6826f66140991c9ebe5896a1bd35c256959c4fd976cb7e3b3d653">
+<class name="GFVariantJsonCodec" path="addons/gf/standard/foundation/variant/gf_variant_json_codec.gd" module="standard" extends="RefCounted" classDigest="e572ae7d09069afc2a48ddd2199006f120aa0851e5772c3c887e71cf3d0520a7">
 	<description>GFVariantJsonCodec: Godot Variant 的 JSON 兼容编码器。
 负责在 JSON.stringify() 可编码的数据和常见 Godot Variant 类型之间往返转换。
 该类不负责集合复制或默认值合并；这类数据操作由 GFVariantData 提供。</description>
@@ -37,6 +37,41 @@
 				<tag name="schema">value: Variant parsed from JSON-compatible data.</tag>
 				<tag name="schema">options: Dictionary with decode_typed_markers and key decoding options.</tag>
 				<tag name="schema">return: Variant restored from JSON-compatible data.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="parse_json_text">
+			<signature>static func parse_json_text(text: String, fallback: Variant = null) -&gt; Variant:</signature>
+			<description>解析 JSON 文本，失败时返回 fallback。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">text: JSON 文本。</tag>
+				<tag name="param">fallback: 解析失败时返回的值。</tag>
+				<tag name="return">解析后的 JSON 值，或 fallback。</tag>
+				<tag name="schema">fallback: Variant returned unchanged when JSON parsing fails.</tag>
+				<tag name="schema">return: Variant parsed by Godot JSON, or fallback on parse error.</tag>
+			</tags>
+		</member>
+		<member kind="method" name="format_json_text">
+			<signature>static func format_json_text( text: String, indent: String = "\t", sort_keys: bool = false, fallback: String = "" ) -&gt; String:</signature>
+			<description>格式化 JSON 文本，失败时返回 fallback。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">text: JSON 文本。</tag>
+				<tag name="param">indent: 缩进字符串；默认使用 Tab。</tag>
+				<tag name="param">sort_keys: 是否按键名排序 Dictionary。</tag>
+				<tag name="param">fallback: 解析失败时返回的文本。</tag>
+				<tag name="return">格式化后的 JSON 文本，或 fallback。</tag>
+			</tags>
+		</member>
+		<member kind="method" name="compact_json_text">
+			<signature>static func compact_json_text(text: String, sort_keys: bool = false, fallback: String = "") -&gt; String:</signature>
+			<description>压缩 JSON 文本，失败时返回 fallback。</description>
+			<tags>
+				<tag name="api">public</tag>
+				<tag name="param">text: JSON 文本。</tag>
+				<tag name="param">sort_keys: 是否按键名排序 Dictionary。</tag>
+				<tag name="param">fallback: 解析失败时返回的文本。</tag>
+				<tag name="return">去除非必要空白后的 JSON 文本，或 fallback。</tag>
 			</tags>
 		</member>
 		<member kind="method" name="vector2_to_array">

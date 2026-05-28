@@ -21,6 +21,8 @@ GFTextFitter.fit_control(%ApplyButton, {
 
 `fit_control()` 会按常见 Godot 控件推导文本、主题字体名和内容边距，支持 `Button`、`LineEdit`、`TextEdit`、`Label` 和 `RichTextLabel`；无法识别的自定义控件可以通过 `options.text`、`font_name`、`font_size_name` 和 `content_insets` 显式提供信息。
 
+`Label`、`RichTextLabel`、`Button`、`LineEdit` 和 `TextEdit` 的测量会尽量读取控件自身的 `horizontal_alignment` / `alignment`、`autowrap_mode`、`justification_flags` 和 `text_direction`，让自动字号与 Godot 实际文本排版保持一致。自定义控件也可以在 options 中显式传入 `horizontal_alignment`、`autowrap_mode`、`line_break_flags`、`justification_flags` 或 `text_direction`。
+
 需要随控件 resize 或语言变化自动刷新时，把 `GFTextAutoFit` 挂到目标控件下，或用 `target_path` 指向目标 Control。`GFTextFitter` / `GFTextAutoFit` 只处理通用文本尺寸适配；换行策略、截断、省略号、本地化长词拆分和具体 UI 视觉仍应由项目自己的控件或主题决定。
 
 ## 富文本格式化

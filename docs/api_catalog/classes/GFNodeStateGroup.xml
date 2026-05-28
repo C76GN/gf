@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<class name="GFNodeStateGroup" path="addons/gf/standard/state_machine/node/gf_node_state_group.gd" module="standard" extends="Node" classDigest="9c60c53de3d3fcebf9105bc38d55278656ba21e1a3c2acd81a1751879a638c2f">
+<class name="GFNodeStateGroup" path="addons/gf/standard/state_machine/node/gf_node_state_group.gd" module="standard" extends="Node" classDigest="975556da4219f035a741584b4b9c64c43636f79f2ec771847bdcb9e8ffde8822">
 	<description>GFNodeStateGroup: 管理一组互斥激活的节点状态。
 一个状态组内同一时间只有一个 GFNodeState 处于启用状态。</description>
 	<tags>
@@ -72,14 +72,14 @@
 	<constants />
 	<properties>
 		<member kind="property" name="group_name" decorators="@export">
-			<signature>var group_name: StringName = &amp;""</signature>
+			<signature>var group_name: StringName = &amp;"":</signature>
 			<description>状态组注册名。为空时使用节点名称。</description>
 			<tags>
 				<tag name="api">public</tag>
 			</tags>
 		</member>
 		<member kind="property" name="initial_state" decorators="@export">
-			<signature>var initial_state: StringName = &amp;""</signature>
+			<signature>var initial_state: StringName = &amp;"":</signature>
 			<description>初始状态名。</description>
 			<tags>
 				<tag name="api">public</tag>
@@ -101,7 +101,7 @@
 			</tags>
 		</member>
 		<member kind="property" name="auto_start" decorators="@export">
-			<signature>var auto_start: bool = true</signature>
+			<signature>var auto_start: bool = true:</signature>
 			<description>初始化后是否自动进入 initial_state。关闭后可通过 start() 手动启动。</description>
 			<tags>
 				<tag name="api">public</tag>

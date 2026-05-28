@@ -52,6 +52,7 @@ const GODOT_CALLBACK_NAMES: Dictionary = {
 	"_export_file": true,
 	"_exit_tree": true,
 	"_get": true,
+	"_get_configuration_warnings": true,
 	"_get_name": true,
 	"_get_property_list": true,
 	"_gui_input": true,

@@ -76,6 +76,30 @@ Schemas:
 
 - `actions`: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
 
+#### `race`
+
+- API: `public`
+- Since: `3.24.0`
+
+```gdscript
+static func race(actions: Array, cancel_remaining: bool = true) -> GFVisualActionGroup:
+```
+
+创建任一子动作完成即结束的并行动作组。
+
+Parameters:
+
+| Name | Description |
+|---|---|
+| `actions` | 子动作列表。 |
+| `cancel_remaining` | 完成后是否取消仍在等待的子动作。 |
+
+Returns: 并行动作组。
+
+Schemas:
+
+- `actions`: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
+
 #### `wait`
 
 - API: `public`
@@ -2611,7 +2635,20 @@ Schemas:
 - Category: `runtime_handle`
 - Since: `3.17.0`
 
-GFVisualActionGroup: 动作组复合节点 (Composite Pattern) 继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并等待全部完成） 或顺序（逐个执行并等待各自完成）两种模式执行。 子动作可以继承 GFVisualAction，也可以直接实现动作协议方法。
+GFVisualActionGroup: 动作组复合节点 (Composite Pattern) 继承自 GFVisualAction。允许将一组子动作打包，按并行（全部一起发出并按策略等待） 或顺序（逐个执行并等待各自完成）两种模式执行。 子动作可以继承 GFVisualAction，也可以直接实现动作协议方法。
+
+### Enums
+
+#### `ParallelCompletionPolicy`
+
+- API: `public`
+- Since: `3.24.0`
+
+```gdscript
+enum ParallelCompletionPolicy { ## 等待所有需要等待的子动作完成。 WAIT_FOR_ALL, ## 任一子动作完成后就结束动作组。 FIRST_COMPLETED, }
+```
+
+并行动作组何时视为完成。
 
 ### Properties
 
@@ -2637,7 +2674,29 @@ Schemas:
 var is_parallel: bool = true
 ```
 
-是否并行执行。为 true 时，并行触发所有子动作并等待全部完成； 为 false 时，按数组顺序依次执行并等待各自完成。
+是否并行执行。为 true 时，并行触发所有子动作并按 parallel_completion_policy 完成； 为 false 时，按数组顺序依次执行并等待各自完成。
+
+#### `parallel_completion_policy`
+
+- API: `public`
+- Since: `3.24.0`
+
+```gdscript
+var parallel_completion_policy: ParallelCompletionPolicy = ParallelCompletionPolicy.WAIT_FOR_ALL
+```
+
+并行动作组完成策略。
+
+#### `cancel_remaining_on_first_completed`
+
+- API: `public`
+- Since: `3.24.0`
+
+```gdscript
+var cancel_remaining_on_first_completed: bool = true
+```
+
+FIRST_COMPLETED 完成策略触发后，是否取消仍在等待的子动作。
 
 ### Methods
 

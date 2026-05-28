@@ -32,11 +32,11 @@ const DEFAULT_MAX_FONT_SIZE: int = 64
 ## [br]
 ## @param control: 目标文本控件，支持 Label、RichTextLabel、Button、LineEdit 与 TextEdit，也可通过 options.text 适配自定义控件。
 ## [br]
-## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、text、content_insets、use_placeholder。
+## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、text、content_insets、use_placeholder、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 ## [br]
 ## @return 计算出的字体尺寸；目标无效或无法读取文本时返回 0。
 ## [br]
-## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、text、content_insets、use_placeholder。
+## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、text、content_insets、use_placeholder、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 static func fit_control(control: Control, options: Dictionary = {}) -> int:
 	if control == null:
 		return 0
@@ -71,21 +71,22 @@ static func fit_control(control: Control, options: Dictionary = {}) -> int:
 ## [br]
 ## @param label: 目标 Label。
 ## [br]
-## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name。
+## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 ## [br]
 ## @return 计算出的字体尺寸；目标无效时返回 0。
 ## [br]
-## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。
+## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 static func fit_label(label: Label, options: Dictionary = {}) -> int:
 	if label == null:
 		return 0
 
 	var resolved_options := _resolve_options(
 		label,
-		options,
+		_merge_control_text_options(options, _get_label_text_info(label)),
 		&"font",
 		&"font_size"
 	)
+	resolved_options["available_size"] = _resolve_content_available_size(label, resolved_options)
 	var font_size := _find_largest_fitting_font_size(label, label.text, resolved_options)
 	if bool(resolved_options.get("apply", true)):
 		label.add_theme_font_size_override(
@@ -101,21 +102,22 @@ static func fit_label(label: Label, options: Dictionary = {}) -> int:
 ## [br]
 ## @param label: 目标 RichTextLabel。
 ## [br]
-## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name。
+## @param options: 可选设置，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 ## [br]
 ## @return 计算出的字体尺寸；目标无效时返回 0。
 ## [br]
-## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font。
+## @schema options: Dictionary，支持 min_font_size、max_font_size、available_size、fit_width、fit_height、apply、font_name、font_size_name、font、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 static func fit_rich_text_label(label: RichTextLabel, options: Dictionary = {}) -> int:
 	if label == null:
 		return 0
 
 	var resolved_options := _resolve_options(
 		label,
-		options,
+		_merge_control_text_options(options, _get_rich_text_label_text_info(label)),
 		&"normal_font",
 		&"normal_font_size"
 	)
+	resolved_options["available_size"] = _resolve_content_available_size(label, resolved_options)
 	var text := label.text
 	if label.bbcode_enabled:
 		text = _strip_bbcode(text)
@@ -169,7 +171,7 @@ static func measure_control_text(control: Control, font_size: int, options: Dict
 ## [br]
 ## @return 文本尺寸；字体缺失时返回 Vector2.ZERO。
 ## [br]
-## @schema options: Dictionary，支持 available_size、fit_width、font_name 和 font。
+## @schema options: Dictionary，支持 available_size、fit_width、font_name、font、horizontal_alignment、autowrap_mode、line_break_flags、justification_flags、text_direction。
 static func measure_text(control: Control, text: String, font_size: int, options: Dictionary = {}) -> Vector2:
 	if control == null:
 		return Vector2.ZERO
@@ -184,6 +186,8 @@ static func measure_text(control: Control, text: String, font_size: int, options
 	var available_size := _resolve_available_size(control, options)
 	var fit_width := bool(options.get("fit_width", true))
 	var wrap_width := available_size.x if fit_width and available_size.x > 0.0 else -1.0
+	if _uses_multiline_text_measurement(options):
+		return _measure_multiline_text(font, text, font_size, wrap_width, options)
 	return _measure_lines(font, text, font_size, wrap_width)
 
 
@@ -221,6 +225,16 @@ static func _merge_control_text_options(options: Dictionary, text_info: Dictiona
 		merged["font_size_name"] = text_info.get("font_size_name", &"font_size")
 	if not merged.has("content_insets"):
 		merged["content_insets"] = text_info.get("content_insets", Vector4.ZERO)
+	for key: String in [
+		"horizontal_alignment",
+		"line_break_flags",
+		"autowrap_mode",
+		"justification_flags",
+		"text_direction",
+		"orientation",
+	]:
+		if not merged.has(key) and text_info.has(key):
+			merged[key] = text_info[key]
 	return merged
 
 
@@ -232,16 +246,26 @@ static func _get_control_text_info(control: Control, options: Dictionary) -> Dic
 			"font_size_name": StringName(options.get("font_size_name", &"font_size")),
 			"content_insets": options.get("content_insets", Vector4.ZERO),
 		}
+	if control is RichTextLabel:
+		return _get_rich_text_label_text_info(control as RichTextLabel)
+	if control is Label:
+		return _get_label_text_info(control as Label)
 	if control is Button:
 		return _get_button_text_info(control as Button)
 	if control is LineEdit:
 		return _get_line_edit_text_info(control as LineEdit, options)
 	if control is TextEdit:
+		var text_edit := control as TextEdit
+		var line_break_flags := TextServer.BREAK_MANDATORY
+		if int(text_edit.wrap_mode) != 0:
+			line_break_flags = _autowrap_mode_to_line_break_flags(text_edit.autowrap_mode)
 		return {
-			"text": (control as TextEdit).text,
+			"text": text_edit.text,
 			"font_name": &"font",
 			"font_size_name": &"font_size",
 			"content_insets": _get_stylebox_insets(control, &"normal"),
+			"line_break_flags": line_break_flags,
+			"text_direction": text_edit.text_direction,
 		}
 	return {}
 
@@ -257,6 +281,9 @@ static func _get_button_text_info(button: Button) -> Dictionary:
 		"font_name": &"font",
 		"font_size_name": &"font_size",
 		"content_insets": insets,
+		"horizontal_alignment": button.alignment,
+		"line_break_flags": _autowrap_mode_to_line_break_flags(button.autowrap_mode, button.autowrap_trim_flags),
+		"text_direction": button.text_direction,
 	}
 
 
@@ -269,6 +296,38 @@ static func _get_line_edit_text_info(line_edit: LineEdit, options: Dictionary) -
 		"font_name": &"font",
 		"font_size_name": &"font_size",
 		"content_insets": _get_stylebox_insets(line_edit, &"normal"),
+		"horizontal_alignment": line_edit.alignment,
+		"line_break_flags": TextServer.BREAK_MANDATORY,
+		"text_direction": line_edit.text_direction,
+	}
+
+
+static func _get_label_text_info(label: Label) -> Dictionary:
+	return {
+		"text": label.text,
+		"font_name": &"font",
+		"font_size_name": &"font_size",
+		"content_insets": Vector4.ZERO,
+		"horizontal_alignment": label.horizontal_alignment,
+		"line_break_flags": _autowrap_mode_to_line_break_flags(label.autowrap_mode, label.autowrap_trim_flags),
+		"justification_flags": label.justification_flags,
+		"text_direction": label.text_direction,
+	}
+
+
+static func _get_rich_text_label_text_info(label: RichTextLabel) -> Dictionary:
+	var text := label.text
+	if label.bbcode_enabled:
+		text = _strip_bbcode(text)
+	return {
+		"text": text,
+		"font_name": &"normal_font",
+		"font_size_name": &"normal_font_size",
+		"content_insets": Vector4.ZERO,
+		"horizontal_alignment": label.horizontal_alignment,
+		"line_break_flags": _autowrap_mode_to_line_break_flags(label.autowrap_mode, label.autowrap_trim_flags),
+		"justification_flags": label.justification_flags,
+		"text_direction": label.text_direction,
 	}
 
 
@@ -350,6 +409,67 @@ static func _get_stylebox_insets(control: Control, stylebox_name: StringName) ->
 		stylebox.get_margin(SIDE_RIGHT),
 		stylebox.get_margin(SIDE_BOTTOM)
 	)
+
+
+static func _uses_multiline_text_measurement(options: Dictionary) -> bool:
+	if bool(options.get("use_multiline_measurement", false)):
+		return true
+	for key: String in [
+		"horizontal_alignment",
+		"line_break_flags",
+		"autowrap_mode",
+		"justification_flags",
+		"text_direction",
+		"orientation",
+	]:
+		if options.has(key):
+			return true
+	return false
+
+
+static func _measure_multiline_text(
+	font: Font,
+	text: String,
+	font_size: int,
+	wrap_width: float,
+	options: Dictionary
+) -> Vector2:
+	var alignment := int(options.get("horizontal_alignment", HORIZONTAL_ALIGNMENT_LEFT))
+	var line_break_flags := int(options.get("line_break_flags", TextServer.BREAK_MANDATORY))
+	if options.has("autowrap_mode") and not options.has("line_break_flags"):
+		line_break_flags = _autowrap_mode_to_line_break_flags(int(options.get("autowrap_mode", TextServer.AUTOWRAP_OFF)))
+	var justification_flags := int(options.get(
+		"justification_flags",
+		TextServer.JUSTIFICATION_KASHIDA | TextServer.JUSTIFICATION_WORD_BOUND
+	))
+	var text_direction := int(options.get("text_direction", TextServer.DIRECTION_AUTO))
+	var orientation := int(options.get("orientation", TextServer.ORIENTATION_HORIZONTAL))
+	var size := font.get_multiline_string_size(
+		text,
+		alignment,
+		wrap_width,
+		font_size,
+		-1,
+		line_break_flags,
+		justification_flags,
+		text_direction,
+		orientation
+	)
+	if text.is_empty():
+		size.y = maxf(size.y, float(font_size))
+	return size
+
+
+static func _autowrap_mode_to_line_break_flags(autowrap_mode: int, trim_flags: int = 0) -> int:
+	var flags := int(TextServer.BREAK_MANDATORY) | trim_flags
+	match autowrap_mode:
+		TextServer.AUTOWRAP_ARBITRARY:
+			flags |= TextServer.BREAK_GRAPHEME_BOUND
+		TextServer.AUTOWRAP_WORD:
+			flags |= TextServer.BREAK_WORD_BOUND
+		TextServer.AUTOWRAP_WORD_SMART:
+			flags |= TextServer.BREAK_WORD_BOUND | TextServer.BREAK_ADAPTIVE
+	return flags
 
 
 static func _measure_lines(font: Font, text: String, font_size: int, wrap_width: float) -> Vector2:

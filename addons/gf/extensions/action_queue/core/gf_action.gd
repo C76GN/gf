@@ -40,6 +40,29 @@ static func parallel(actions: Array) -> GFVisualActionGroup:
 	return GFVisualActionGroup.new(actions, true)
 
 
+## 创建任一子动作完成即结束的并行动作组。
+## [br]
+## @api public
+## [br]
+## @since 3.24.0
+## [br]
+## @param actions: 子动作列表。
+## [br]
+## @param cancel_remaining: 完成后是否取消仍在等待的子动作。
+## [br]
+## @return 并行动作组。
+## [br]
+## @schema actions: Array，元素为 GFVisualAction 或实现 execute() 协议的动作对象。
+static func race(actions: Array, cancel_remaining: bool = true) -> GFVisualActionGroup:
+	var group := GFVisualActionGroup.new(
+		actions,
+		true,
+		GFVisualActionGroup.ParallelCompletionPolicy.FIRST_COMPLETED
+	)
+	group.cancel_remaining_on_first_completed = cancel_remaining
+	return group
+
+
 ## 创建等待动作。
 ## [br]
 ## @api public

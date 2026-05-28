@@ -2,6 +2,8 @@
 
 框架内置了几个常用动作，避免每个项目重复写样板类。
 
+## 常用动作
+
 ```gdscript
 q_sys.enqueue(GFMoveTweenAction.new(card_node, Vector2(400, 300), 0.25))
 q_sys.enqueue(GFFlashAction.new(card_node, Color.WHITE, 0.12))
@@ -13,6 +15,8 @@ q_sys.enqueue(GFAudioAction.new("res://audio/sfx/hit.wav"))
 需要更短的组合写法时，可以使用 `GFAction` 静态工厂创建常见动作。
 
 它只负责生成 `GFVisualAction`，不隐含任何业务流程。
+
+## 组合工厂
 
 ```gdscript
 q_sys.enqueue(GFAction.sequence([
@@ -27,6 +31,10 @@ q_sys.enqueue(GFAction.sequence([
 ]))
 ```
 
+`GFAction.parallel()` 会等待所有需要等待的子动作。只需要等待最先完成分支时，可以使用 `GFAction.race(actions, cancel_remaining)`；`cancel_remaining` 默认为 `true`，用于在动作组完成后取消仍在等待的子动作。
+
 `GFAction` 也提供 `tween_by()`、`move_by()`、`scale_to()`、`scale_by()`、`rotate_to()`、`rotate_by()`、`fade_by()`、`colorize()`、`set_property()`、`show()`、`hide()` 和 `remove_node()` 等便捷工厂。
+
+## 使用边界
 
 这些工厂仅将常见属性写入、Tween 或节点释放转换为 `GFVisualAction`；调度方式、业务对象含义和流程语义仍由调用方决定。

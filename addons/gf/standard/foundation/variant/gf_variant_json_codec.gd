@@ -106,6 +106,72 @@ static func json_compatible_to_variant(value: Variant, options: Dictionary = {})
 	return value
 
 
+## 解析 JSON 文本，失败时返回 fallback。
+## [br]
+## @api public
+## [br]
+## @param text: JSON 文本。
+## [br]
+## @param fallback: 解析失败时返回的值。
+## [br]
+## @return 解析后的 JSON 值，或 fallback。
+## [br]
+## @schema fallback: Variant returned unchanged when JSON parsing fails.
+## [br]
+## @schema return: Variant parsed by Godot JSON, or fallback on parse error.
+static func parse_json_text(text: String, fallback: Variant = null) -> Variant:
+	var json := JSON.new()
+	var error := json.parse(text)
+	if error != OK:
+		return fallback
+	return json.data
+
+
+## 格式化 JSON 文本，失败时返回 fallback。
+## [br]
+## @api public
+## [br]
+## @param text: JSON 文本。
+## [br]
+## @param indent: 缩进字符串；默认使用 Tab。
+## [br]
+## @param sort_keys: 是否按键名排序 Dictionary。
+## [br]
+## @param fallback: 解析失败时返回的文本。
+## [br]
+## @return 格式化后的 JSON 文本，或 fallback。
+static func format_json_text(
+	text: String,
+	indent: String = "\t",
+	sort_keys: bool = false,
+	fallback: String = ""
+) -> String:
+	var json := JSON.new()
+	var error := json.parse(text)
+	if error != OK:
+		return fallback
+	return JSON.stringify(json.data, indent, sort_keys)
+
+
+## 压缩 JSON 文本，失败时返回 fallback。
+## [br]
+## @api public
+## [br]
+## @param text: JSON 文本。
+## [br]
+## @param sort_keys: 是否按键名排序 Dictionary。
+## [br]
+## @param fallback: 解析失败时返回的文本。
+## [br]
+## @return 去除非必要空白后的 JSON 文本，或 fallback。
+static func compact_json_text(text: String, sort_keys: bool = false, fallback: String = "") -> String:
+	var json := JSON.new()
+	var error := json.parse(text)
+	if error != OK:
+		return fallback
+	return JSON.stringify(json.data, "", sort_keys)
+
+
 ## 将 Vector2 转成 JSON 友好的数组。
 ## [br]
 ## @api public
